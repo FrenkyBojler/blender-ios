@@ -1053,6 +1053,78 @@ ccl_device
   return offset;
 }
 
+ccl_device_inline void svm_alloc_closure_volume(ccl_private ShaderData *sd,
+                                                ccl_private float *stack,
+                                                Spectrum weight,
+                                                const uint type,
+                                                const uint param1_offset,
+                                                const uint param_extra)
+{
+  switch (type) {
+    case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
+      ccl_private HenyeyGreensteinVolume *volume = (ccl_private HenyeyGreensteinVolume *)
+          bsdf_alloc(sd, sizeof(HenyeyGreensteinVolume), weight);
+      if (volume) {
+        volume->g = stack_valid(param1_offset) ? stack_load_float(stack, param1_offset) :
+                                                 __uint_as_float(param_extra);
+        sd->flag |= volume_henyey_greenstein_setup(volume);
+      }
+    } break;
+    case CLOSURE_VOLUME_FOURNIER_FORAND_ID: {
+      ccl_private FournierForandVolume *volume = (ccl_private FournierForandVolume *)bsdf_alloc(
+          sd, sizeof(FournierForandVolume), weight);
+      if (volume) {
+        const float IOR = stack_load_float(stack, param1_offset);
+        const float B = stack_load_float(stack, param_extra);
+        sd->flag |= volume_fournier_forand_setup(volume, B, IOR);
+      }
+    } break;
+    case CLOSURE_VOLUME_RAYLEIGH_ID: {
+      ccl_private RayleighVolume *volume = (ccl_private RayleighVolume *)bsdf_alloc(
+          sd, sizeof(RayleighVolume), weight);
+      if (volume) {
+        sd->flag |= volume_rayleigh_setup(volume);
+      }
+      break;
+    }
+    case CLOSURE_VOLUME_DRAINE_ID: {
+      ccl_private DraineVolume *volume = (ccl_private DraineVolume *)bsdf_alloc(
+          sd, sizeof(DraineVolume), weight);
+      if (volume) {
+        volume->g = stack_load_float(stack, param1_offset);
+        volume->alpha = stack_load_float(stack, param_extra);
+        sd->flag |= volume_draine_setup(volume);
+      }
+    } break;
+    case CLOSURE_VOLUME_MIE_ID: {
+      const float d = stack_valid(param1_offset) ? stack_load_float(stack, param1_offset) :
+                                                   __uint_as_float(param_extra);
+      float g_HG;
+      float g_D;
+      float alpha;
+      float mixture;
+      phase_mie_fitted_parameters(d, &g_HG, &g_D, &alpha, &mixture);
+      ccl_private HenyeyGreensteinVolume *hg = (ccl_private HenyeyGreensteinVolume *)bsdf_alloc(
+          sd, sizeof(HenyeyGreensteinVolume), weight * (1.0f - mixture));
+      if (hg) {
+        hg->g = g_HG;
+        sd->flag |= volume_henyey_greenstein_setup(hg);
+      }
+      ccl_private DraineVolume *draine = (ccl_private DraineVolume *)bsdf_alloc(
+          sd, sizeof(DraineVolume), weight * mixture);
+      if (draine) {
+        draine->g = g_D;
+        draine->alpha = alpha;
+        sd->flag |= volume_draine_setup(draine);
+      }
+    } break;
+    default: {
+      kernel_assert(0);
+      break;
+    }
+  }
+}
+
 template<ShaderType shader_type>
 ccl_device_noinline void svm_node_closure_volume(KernelGlobals kg,
                                                  ccl_private ShaderData *sd,
@@ -1093,69 +1165,7 @@ ccl_device_noinline void svm_node_closure_volume(KernelGlobals kg,
 
   /* Add closure for volume scattering. */
   if (CLOSURE_IS_VOLUME_SCATTER(type)) {
-    switch (type) {
-      case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
-        ccl_private HenyeyGreensteinVolume *volume = (ccl_private HenyeyGreensteinVolume *)
-            bsdf_alloc(sd, sizeof(HenyeyGreensteinVolume), weight);
-        if (volume) {
-          volume->g = stack_valid(param1_offset) ? stack_load_float(stack, param1_offset) :
-                                                   __uint_as_float(node.w);
-          sd->flag |= volume_henyey_greenstein_setup(volume);
-        }
-      } break;
-      case CLOSURE_VOLUME_FOURNIER_FORAND_ID: {
-        ccl_private FournierForandVolume *volume = (ccl_private FournierForandVolume *)bsdf_alloc(
-            sd, sizeof(FournierForandVolume), weight);
-        if (volume) {
-          const float IOR = stack_load_float(stack, param1_offset);
-          const float B = stack_load_float(stack, node.w);
-          sd->flag |= volume_fournier_forand_setup(volume, B, IOR);
-        }
-      } break;
-      case CLOSURE_VOLUME_RAYLEIGH_ID: {
-        ccl_private RayleighVolume *volume = (ccl_private RayleighVolume *)bsdf_alloc(
-            sd, sizeof(RayleighVolume), weight);
-        if (volume) {
-          sd->flag |= volume_rayleigh_setup(volume);
-        }
-        break;
-      }
-      case CLOSURE_VOLUME_DRAINE_ID: {
-        ccl_private DraineVolume *volume = (ccl_private DraineVolume *)bsdf_alloc(
-            sd, sizeof(DraineVolume), weight);
-        if (volume) {
-          volume->g = stack_load_float(stack, param1_offset);
-          volume->alpha = stack_load_float(stack, node.w);
-          sd->flag |= volume_draine_setup(volume);
-        }
-      } break;
-      case CLOSURE_VOLUME_MIE_ID: {
-        const float d = stack_valid(param1_offset) ? stack_load_float(stack, param1_offset) :
-                                                     __uint_as_float(node.w);
-        float g_HG;
-        float g_D;
-        float alpha;
-        float mixture;
-        phase_mie_fitted_parameters(d, &g_HG, &g_D, &alpha, &mixture);
-        ccl_private HenyeyGreensteinVolume *hg = (ccl_private HenyeyGreensteinVolume *)bsdf_alloc(
-            sd, sizeof(HenyeyGreensteinVolume), weight * (1.0f - mixture));
-        if (hg) {
-          hg->g = g_HG;
-          sd->flag |= volume_henyey_greenstein_setup(hg);
-        }
-        ccl_private DraineVolume *draine = (ccl_private DraineVolume *)bsdf_alloc(
-            sd, sizeof(DraineVolume), weight * mixture);
-        if (draine) {
-          draine->g = g_D;
-          draine->alpha = alpha;
-          sd->flag |= volume_draine_setup(draine);
-        }
-      } break;
-      default: {
-        kernel_assert(0);
-        break;
-      }
-    }
+    svm_alloc_closure_volume(sd, stack, weight, type, param1_offset, node.w);
   }
 
   /* Sum total extinction weight. */
@@ -1176,7 +1186,6 @@ ccl_device_noinline void svm_node_coeffs_volume(KernelGlobals kg,
   if (shader_type != SHADER_TYPE_VOLUME) {
     return;
   }
-  static int aa = 0;
 
   uint type;
   uint empty_offset;
@@ -1197,69 +1206,7 @@ ccl_device_noinline void svm_node_coeffs_volume(KernelGlobals kg,
 
   /* Add closure for volume scattering. */
   if (!is_zero(weight) && CLOSURE_IS_VOLUME_SCATTER(type)) {
-    switch (type) {
-      case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
-        ccl_private HenyeyGreensteinVolume *volume = (ccl_private HenyeyGreensteinVolume *)
-            bsdf_alloc(sd, sizeof(HenyeyGreensteinVolume), weight);
-        if (volume) {
-          volume->g = stack_valid(param1_offset) ? stack_load_float(stack, param1_offset) :
-                                                   __uint_as_float(node.z);
-          sd->flag |= volume_henyey_greenstein_setup(volume);
-        }
-      } break;
-      case CLOSURE_VOLUME_FOURNIER_FORAND_ID: {
-        ccl_private FournierForandVolume *volume = (ccl_private FournierForandVolume *)bsdf_alloc(
-            sd, sizeof(FournierForandVolume), weight);
-        if (volume) {
-          const float IOR = stack_load_float(stack, param1_offset);
-          const float B = stack_load_float(stack, node.z);
-          sd->flag |= volume_fournier_forand_setup(volume, B, IOR);
-        }
-      } break;
-      case CLOSURE_VOLUME_RAYLEIGH_ID: {
-        ccl_private RayleighVolume *volume = (ccl_private RayleighVolume *)bsdf_alloc(
-            sd, sizeof(RayleighVolume), weight);
-        if (volume) {
-          sd->flag |= volume_rayleigh_setup(volume);
-        }
-        break;
-      }
-      case CLOSURE_VOLUME_DRAINE_ID: {
-        ccl_private DraineVolume *volume = (ccl_private DraineVolume *)bsdf_alloc(
-            sd, sizeof(DraineVolume), weight);
-        if (volume) {
-          volume->g = stack_load_float(stack, param1_offset);
-          volume->alpha = stack_load_float(stack, node.z);
-          sd->flag |= volume_draine_setup(volume);
-        }
-      } break;
-      case CLOSURE_VOLUME_MIE_ID: {
-        const float d = stack_valid(param1_offset) ? stack_load_float(stack, param1_offset) :
-                                                     __uint_as_float(node.z);
-        float g_HG;
-        float g_D;
-        float alpha;
-        float mixture;
-        phase_mie_fitted_parameters(d, &g_HG, &g_D, &alpha, &mixture);
-        ccl_private HenyeyGreensteinVolume *hg = (ccl_private HenyeyGreensteinVolume *)bsdf_alloc(
-            sd, sizeof(HenyeyGreensteinVolume), weight * (1.0f - mixture));
-        if (hg) {
-          hg->g = g_HG;
-          sd->flag |= volume_henyey_greenstein_setup(hg);
-        }
-        ccl_private DraineVolume *draine = (ccl_private DraineVolume *)bsdf_alloc(
-            sd, sizeof(DraineVolume), weight * mixture);
-        if (draine) {
-          draine->g = g_D;
-          draine->alpha = alpha;
-          sd->flag |= volume_draine_setup(draine);
-        }
-      } break;
-      default: {
-        kernel_assert(0);
-        break;
-      }
-    }
+    svm_alloc_closure_volume(sd, stack, weight, type, param1_offset, node.z);
   }
   uint absorption_coeffs_offset;
   uint emission_coeffs_offset;

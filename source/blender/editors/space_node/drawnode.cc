@@ -449,11 +449,6 @@ static void node_shader_buts_scatter(uiLayout *layout, bContext * /*C*/, Pointer
   uiItemR(layout, ptr, "phase", DEFAULT_FLAGS, "", ICON_NONE);
 }
 
-static void node_shader_buts_coeffs(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "phase", DEFAULT_FLAGS, "", ICON_NONE);
-}
-
 /* only once called */
 static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
 {
@@ -511,10 +506,8 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
       ntype->draw_buttons = node_buts_output_shader;
       break;
     case SH_NODE_VOLUME_SCATTER:
-      ntype->draw_buttons = node_shader_buts_scatter;
-      break;
     case SH_NODE_VOLUME_COEFFS:
-      ntype->draw_buttons = node_shader_buts_coeffs;
+      ntype->draw_buttons = node_shader_buts_scatter;
       break;
   }
 }
@@ -1893,7 +1886,7 @@ static void nodesocket_cache_flush()
         batch,
         "parameters",
         4,
-        reinterpret_cast<const float(*)[4]>(g_batch_nodesocket().params.data()));
+        reinterpret_cast<const float (*)[4]>(g_batch_nodesocket().params.data()));
     GPU_batch_draw(batch);
   }
   else {
@@ -1902,7 +1895,7 @@ static void nodesocket_cache_flush()
         batch,
         "parameters",
         MAX_SOCKET_PARAMETERS * MAX_SOCKET_INSTANCE,
-        reinterpret_cast<const float(*)[4]>(g_batch_nodesocket().params.data()));
+        reinterpret_cast<const float (*)[4]>(g_batch_nodesocket().params.data()));
     GPU_batch_draw_instance_range(batch, 0, g_batch_nodesocket().params.size());
   }
   g_batch_nodesocket().params.clear();
@@ -1938,7 +1931,7 @@ static void draw_node_socket_batch(const NodeSocketShaderParameters &socket_para
     gpu::Batch *batch = nodesocket_batch_init();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_NODE_SOCKET);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_SOCKET_PARAMETERS, (const float(*)[4])(&socket_params));
+        batch, "parameters", MAX_SOCKET_PARAMETERS, (const float (*)[4])(&socket_params));
     GPU_batch_draw(batch);
   }
 }
