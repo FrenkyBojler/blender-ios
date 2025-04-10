@@ -2251,6 +2251,10 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+struct CollectionSearchData {
+  Collection *collection;
+  wmOperatorType *ot;
+};
 struct MoveToCollectionData {
   MoveToCollectionData *next, *prev;
   int index;
@@ -2258,7 +2262,169 @@ struct MoveToCollectionData {
   ListBase submenus;
   PointerRNA ptr;
   wmOperatorType *ot;
+  CollectionSearchData *search_data;
 };
+
+static void collection_search_update_recursive(Collection *collection,
+                                               const char *str,
+                                               uiSearchItems *items)
+{
+  /* Check if current collection matches search string */
+  if (BLI_strcasestr(collection->id.name + 2, str)) {
+    if (!UI_search_item_add(items,
+                            collection->id.name + 2,
+                            collection,
+                            UI_icon_color_from_collection(collection),
+                            0,
+                            0))
+    {
+      return;
+    }
+  }
+
+  /* Recursively search through child collections */
+  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
+    collection_search_update_recursive(child->collection, str, items);
+  }
+}
+
+static void collection_search_update_fn(const bContext * /*C*/,
+                                        void *data,
+                                        const char *str,
+                                        uiSearchItems *items,
+                                        const bool /*is_first*/)
+{
+  CollectionSearchData *search_data = (CollectionSearchData *)data;
+  if (!search_data || !search_data->collection) {
+    return;
+  }
+
+  /* Start recursive search from the master collection */
+  collection_search_update_recursive(search_data->collection, str, items);
+}
+
+static bool find_collection_index_recursive(Collection *parent, Collection *target, int *r_index)
+{
+  if (parent == target) {
+    *r_index = 0;
+    return true;
+  }
+
+  int index = 1;
+  LISTBASE_FOREACH (CollectionChild *, child, &parent->children) {
+    if (child->collection == target) {
+      *r_index = index;
+      return true;
+    }
+    int sub_index;
+    if (find_collection_index_recursive(child->collection, target, &sub_index)) {
+      *r_index = index + sub_index;
+      return true;
+    }
+    index++;
+  }
+
+  return false;
+}
+
+static int collection_search_exec(bContext *C, void *element, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Collection *collection = (Collection *)element;
+  const bool is_link = STREQ(op->idname, "OBJECT_OT_link_to_collection");
+
+  if (collection == nullptr) {
+    BKE_report(op->reports, RPT_ERROR, "Unexpected error, collection not found");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!ID_IS_EDITABLE(collection) || ID_IS_OVERRIDE_LIBRARY(collection)) {
+    BKE_report(
+        op->reports, RPT_ERROR, "Cannot add objects to a library override or linked collection");
+    return OPERATOR_CANCELLED;
+  }
+
+  ListBase objects = selected_objects_get(C);
+
+  Object *single_object = BLI_listbase_is_single(&objects) ?
+                              static_cast<Object *>(((LinkData *)objects.first)->data) :
+                              nullptr;
+
+  if ((single_object != nullptr) && is_link &&
+      BKE_collection_has_object(collection, single_object))
+  {
+    BKE_reportf(op->reports,
+                RPT_ERROR,
+                "%s already in %s",
+                single_object->id.name + 2,
+                BKE_collection_ui_name_get(collection));
+    BLI_freelistN(&objects);
+    return OPERATOR_CANCELLED;
+  }
+
+  LISTBASE_FOREACH (LinkData *, link, &objects) {
+    Object *ob = static_cast<Object *>(link->data);
+
+    if (!is_link) {
+      BKE_collection_object_move(bmain, scene, collection, nullptr, ob);
+    }
+    else {
+      BKE_collection_object_add(bmain, collection, ob);
+    }
+  }
+  BLI_freelistN(&objects);
+
+  if (is_link) {
+    if (single_object != nullptr) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s linked to %s",
+                  single_object->id.name + 2,
+                  BKE_collection_ui_name_get(collection));
+    }
+    else {
+      BKE_reportf(
+          op->reports, RPT_INFO, "Objects linked to %s", BKE_collection_ui_name_get(collection));
+    }
+  }
+  else {
+    if (single_object != nullptr) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s moved to %s",
+                  single_object->id.name + 2,
+                  BKE_collection_ui_name_get(collection));
+    }
+    else {
+      BKE_reportf(
+          op->reports, RPT_INFO, "Objects moved to %s", BKE_collection_ui_name_get(collection));
+    }
+  }
+
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+static void collection_search_exec_fn(bContext *C, void * /*arg1*/, void *element)
+{
+  if (!element) {
+    return;
+  }
+
+  Collection *collection = (Collection *)element;
+  wmOperator *op = WM_operator_last_redo(C);
+  if (!op) {
+    return;
+  }
+  collection_search_exec(C, collection, op);
+}
 
 static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData *menu)
 {
@@ -2282,6 +2448,11 @@ static void move_to_collection_menus_free_recursive(MoveToCollectionData *menu)
     MEM_delete(submenu);
   }
   BLI_listbase_clear(&menu->submenus);
+
+  if (menu->search_data) {
+    MEM_delete(menu->search_data);
+    menu->search_data = nullptr;
+  }
 }
 
 static void move_to_collection_menus_free(MoveToCollectionData **menu)
@@ -2394,10 +2565,13 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
   if (master_collection_menu == nullptr) {
     master_collection_menu = MEM_new<MoveToCollectionData>(
         "MoveToCollectionData menu - expected eventual memleak");
+    master_collection_menu->search_data = MEM_new<CollectionSearchData>("CollectionSearchData");
   }
 
   master_collection_menu->collection = master_collection;
   master_collection_menu->ot = op->type;
+  master_collection_menu->search_data->collection = master_collection;
+  master_collection_menu->search_data->ot = op->type;
   move_to_collection_menus_create(op, master_collection_menu);
 
   uiPopupMenu *pup;
@@ -2408,9 +2582,38 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
   pup = UI_popup_menu_begin(C, title, ICON_NONE);
   layout = UI_popup_menu_layout(pup);
 
+  uiLayout *search_layout = uiLayoutColumn(layout, false);
+
+  /* Add search box */
+  static char search[MAX_NAME] = "";
+  uiBlock *search_block = uiLayoutGetBlock(search_layout);
+  const float menu_width = UI_UNIT_X * 10;
+  uiBut *search_button = uiDefSearchBut(search_block,
+                                        search,
+                                        0,
+                                        ICON_VIEWZOOM,
+                                        sizeof(search),
+                                        0,
+                                        0,
+                                        menu_width,
+                                        UI_UNIT_Y,
+                                        IFACE_("Search Collections"));
+
+  UI_but_func_search_set(search_button,
+                         nullptr,
+                         collection_search_update_fn,
+                         master_collection_menu->search_data,
+                         false,
+                         nullptr,
+                         collection_search_exec_fn,
+                         nullptr);
+
+  UI_but_flag_enable(search_button, UI_BUT_ACTIVATE_ON_INIT);
+  uiLayoutSplit(layout, 0.5f, false);
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
   move_to_collection_menu_create(C, layout, master_collection_menu);
+  search[0] = '\0';
 
   UI_popup_menu_end(C, pup);
 
