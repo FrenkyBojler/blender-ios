@@ -1348,10 +1348,10 @@ int parse_driver_build_version(const sycl::device &device)
   }
 
   if (driver_build_version == 0) {
-    VLOG_WARNING << "Unable to parse unknown Intel GPU driver version \"" << driver_version
-                 << "\" does not match xx.xx.xxxxx (Linux), x.x.xxxx (L0),"
-                 << " xx.xx.xxx.xxxx (Windows) for device \""
-                 << device.get_info<sycl::info::device::name>() << "\"." << std::endl;
+    VLOG_INFO << "Unable to parse unknown Intel GPU driver version. \"" << driver_version
+              << "\" does not match xx.xx.xxxxx (Linux), x.x.xxxx (L0),"
+              << " xx.xx.xxx.xxxx (Windows) for device \""
+              << device.get_info<sycl::info::device::name>() << "\"." << std::endl;
   }
 
   return driver_build_version;
@@ -1431,10 +1431,10 @@ std::vector<sycl::device> available_sycl_devices()
             if (driver_build_version < lowest_supported_driver_version) {
               filter_out = true;
 
-              VLOG_WARNING << "Driver version for device \""
-                           << device.get_info<sycl::info::device::name>()
-                           << "\" is too old. Expected \"" << lowest_supported_driver_version
-                           << "\" or newer, but got \"" << driver_build_version << "\".";
+              VLOG_INFO << "Driver version for device \""
+                        << device.get_info<sycl::info::device::name>()
+                        << "\" is too old. Expected \"" << lowest_supported_driver_version
+                        << "\" or newer, but got \"" << driver_build_version << "\".";
             }
           }
         }
