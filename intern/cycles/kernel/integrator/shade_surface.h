@@ -836,7 +836,11 @@ ccl_device_forceinline void integrator_shade_surface(KernelGlobals kg,
                                                      ccl_global float *ccl_restrict render_buffer)
 {
   const int continue_path_label = integrate_surface<node_feature_mask>(kg, state, render_buffer);
-  if (continue_path_label == LABEL_NONE) {
+
+  const uint32_t bounce = INTEGRATOR_STATE(state, path, bounce) + 1;
+  INTEGRATOR_STATE_WRITE(state, path, bounce) = bounce;
+
+  if (continue_path_label == LABEL_NONE || bounce >= kernel_data.integrator.max_bounce) {
     integrator_path_terminate(kg, state, current_kernel);
     return;
   }

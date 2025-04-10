@@ -230,6 +230,14 @@ ccl_device void integrator_shade_dedicated_light(KernelGlobals kg,
 #ifdef __SHADOW_LINKING__
   shadow_linking_shade(kg, state, render_buffer);
 
+  const uint32_t transparent_bounce = INTEGRATOR_STATE(state, path, transparent_bounce) + 1;
+  INTEGRATOR_STATE_WRITE(state, path, transparent_bounce) = transparent_bounce;
+
+  if (transparent_bounce >= kernel_data.integrator.transparent_max_bounce) {
+    integrator_path_terminate(kg, state, DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT);
+    return;
+  }
+
   /* Restore self-intersection check primitives in the main state before returning to the
    * intersect_closest() state. */
   shadow_linking_restore_last_primitives(state);

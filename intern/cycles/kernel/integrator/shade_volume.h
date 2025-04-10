@@ -1067,6 +1067,7 @@ ccl_device VolumeIntegrateEvent volume_integrate(KernelGlobals kg,
             safe_divide_color(result.indirect_throughput, initial_throughput));
         guiding_record_volume_transmission(kg, state, transmittance_weight);
         guiding_record_volume_segment(kg, state, direct_P, sd.wi);
+        INTEGRATOR_STATE_WRITE(state, path, bounce) = INTEGRATOR_STATE(state, path, bounce) + 1;
         guiding_generated_new_segment = true;
         unlit_throughput = result.indirect_throughput / continuation_probability;
         rand_phase_guiding = path_state_rng_1D(kg, &rng_state, PRNG_VOLUME_PHASE_GUIDING_DISTANCE);
@@ -1131,7 +1132,13 @@ ccl_device VolumeIntegrateEvent volume_integrate(KernelGlobals kg,
 #  if defined(__PATH_GUIDING__)
 #    if PATH_GUIDING_LEVEL >= 1
     if (!guiding_generated_new_segment) {
-      guiding_record_volume_segment(kg, state, sd.P, sd.wi);
+      /* This could be the second segment write for this function, so we need to first make sure we
+       * have space */
+      const uint32_t bounce = INTEGRATOR_STATE(state, path, bounce) + 1;
+      INTEGRATOR_STATE_WRITE(state, path, bounce) = bounce;
+      if (bounce <= kernel_data.integrator.max_bounce) {
+        guiding_record_volume_segment(kg, state, sd.P, sd.wi);
+      }
     }
 #    endif
 #    if PATH_GUIDING_LEVEL >= 4
@@ -1182,7 +1189,10 @@ ccl_device void integrator_shade_volume(KernelGlobals kg,
   }
 
   const VolumeIntegrateEvent event = volume_integrate(kg, state, &ray, render_buffer);
-  if (event == VOLUME_PATH_MISSED) {
+
+  if (event == VOLUME_PATH_MISSED ||
+      INTEGRATOR_STATE(state, path, bounce) >= kernel_data.integrator.max_bounce)
+  {
     /* End path. */
     integrator_path_terminate(kg, state, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME);
     return;
