@@ -1118,8 +1118,12 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       const Segment &current_segment = all_segments[current_i];
       processed_segments[current_i] = true;
 
+      if (result.segments.size() == 0) {
+        result.segments.append(current_segment);
+        result.segment_reversed.append(last_reversed);
+      }
       /* Check if the last segment can be joined with this one. */
-      if (!check_and_join_segments(result.segments.last(), current_segment)) {
+      else if (!check_and_join_segments(result.segments.last(), current_segment)) {
         result.segments.append(current_segment);
         result.segment_reversed.append(last_reversed);
       }
@@ -1143,7 +1147,9 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
         PolygonClosed = true;
 
         /* Check if the last segment can be joined to the first one. */
-        if (result.segment_offsets.last() != result.segments.index_range().last()) {
+        if ((!result.segments.index_range().is_empty()) &&
+            result.segment_offsets.last() != result.segments.index_range().last())
+        {
           if (check_and_join_segments(result.segments[result.segment_offsets.last()],
                                       result.segments.last()))
           {
