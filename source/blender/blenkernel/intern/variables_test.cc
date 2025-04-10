@@ -8,35 +8,35 @@
 
 namespace blender::bke::tests {
 
-static void debug_print_error(const VariableParseError &error)
-{
-  const char *type;
-  switch (error.type) {
-    case VariableParseErrorType::UNESCAPED_CURLY_BRACE:
-      type = "UNESCAPED_CURLY_BRACE";
-      break;
-    case VariableParseErrorType::VARIABLE_SYNTAX:
-      type = "VARIABLE_SYNTAX";
-      break;
-    case VariableParseErrorType::FORMAT_SPECIFIER:
-      type = "FORMAT_SPECIFIER";
-      break;
-    case VariableParseErrorType::UNKNOWN_VARIABLE:
-      type = "UNKNOWN_VARIABLE";
-      break;
-  }
-  printf("(%s, (%ld, %ld))", type, error.byte_range.start(), error.byte_range.size());
-}
+// static void debug_print_error(const VariableParseError &error)
+// {
+//   const char *type;
+//   switch (error.type) {
+//     case VariableParseErrorType::UNESCAPED_CURLY_BRACE:
+//       type = "UNESCAPED_CURLY_BRACE";
+//       break;
+//     case VariableParseErrorType::VARIABLE_SYNTAX:
+//       type = "VARIABLE_SYNTAX";
+//       break;
+//     case VariableParseErrorType::FORMAT_SPECIFIER:
+//       type = "FORMAT_SPECIFIER";
+//       break;
+//     case VariableParseErrorType::UNKNOWN_VARIABLE:
+//       type = "UNKNOWN_VARIABLE";
+//       break;
+//   }
+//   printf("(%s, (%ld, %ld))", type, error.byte_range.start(), error.byte_range.size());
+// }
 
-static void debug_print_errors(Span<VariableParseError> errors)
-{
-  printf("[");
-  for (const VariableParseError &error : errors) {
-    debug_print_error(error);
-    printf(", ");
-  }
-  printf("]\n");
-}
+// static void debug_print_errors(Span<VariableParseError> errors)
+// {
+//   printf("[");
+//   for (const VariableParseError &error : errors) {
+//     debug_print_error(error);
+//     printf(", ");
+//   }
+//   printf("]\n");
+// }
 
 TEST(blender_variables, VariableMap)
 {
