@@ -419,19 +419,11 @@ static FormatSpecifier parse_path_variable_format(blender::StringRef format_spec
  *
  * \param from_char The char index to start from.
  *
- * \param path_allocation_size The total amount of valid memory that `path`
- * points to, in bytes. This is just used as a fail-safe in case path isn't
- * properly null-terminated, to prevent reading off the end of valid memory.
- *
  * \return The parsed token information, or nullopt if no token is found in
  * `path`.
  */
-static std::optional<Token> next_token(char *path,
-                                       const int from_char,
-                                       const int path_allocation_size)
+static std::optional<Token> next_token(blender::StringRef path, const int from_char)
 {
-  BLI_assert(from_char <= strlen(path));
-
   Token token;
 
   /* We use the magic number -1 here to indicate that a component hasn't been
@@ -441,11 +433,9 @@ static std::optional<Token> next_token(char *path,
   int format_specifier_split = -1; /* ":" */
   int end = -1;                    /* "}" */
 
-  for (int byte_index = from_char; byte_index < path_allocation_size && path[byte_index] != '\0';
-       byte_index++)
-  {
+  for (int byte_index = from_char; byte_index < path.size(); byte_index++) {
     /* Check for escaped "{". */
-    if (start == -1 && (byte_index + 1) < path_allocation_size && path[byte_index] == '{' &&
+    if (start == -1 && (byte_index + 1) < path.size() && path[byte_index] == '{' &&
         path[byte_index + 1] == '{')
     {
       Token token;
@@ -459,7 +449,7 @@ static std::optional<Token> next_token(char *path,
      * Note that we only do this check when not already inside a variable, since
      * it could be a valid closing "}" followed by additional escaped closing
      * braces. */
-    if (start == -1 && (byte_index + 1) < path_allocation_size && path[byte_index] == '}' &&
+    if (start == -1 && (byte_index + 1) < path.size() && path[byte_index] == '}' &&
         path[byte_index + 1] == '}')
     {
       token.type = TokenType::RIGHT_CURLY_BRACE;
@@ -519,7 +509,7 @@ static std::optional<Token> next_token(char *path,
   /* Unclosed variable reference. Syntax error. */
   if (end == -1) {
     token.type = TokenType::VARIABLE_SYNTAX_ERROR;
-    token.byte_range = blender::IndexRange::from_begin_end(start, strlen(path));
+    token.byte_range = blender::IndexRange::from_begin_end(start, path.size());
     return token;
   }
 
@@ -527,14 +517,13 @@ static std::optional<Token> next_token(char *path,
   token.byte_range = blender::IndexRange::from_begin_end(start, end);
   if (format_specifier_split == -1) {
     /* No format specifier. */
-    token.variable_name = blender::StringRef(path + start + 1, path + end - 1);
+    token.variable_name = path.substr(start + 1, (end - 1) - (start + 1));
   }
   else {
     /* Found format specifier. */
-    token.variable_name = blender::StringRef(path + start + 1, path + format_specifier_split);
+    token.variable_name = path.substr(start + 1, format_specifier_split - (start + 1));
     token.format = parse_path_variable_format(
-        blender::StringRef(path + format_specifier_split + 1, path + end - 1));
-
+        path.substr(format_specifier_split + 1, (end - 1) - (format_specifier_split + 1)));
     if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
       token.type = TokenType::VARIABLE_SYNTAX_ERROR;
       return token;
@@ -544,12 +533,14 @@ static std::optional<Token> next_token(char *path,
   return token;
 }
 
-blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
-                                                             const VariableMap &variables)
+/* Parse the given path and return a list of tokens found, in the same order as
+ * they appear in the path. */
+static blender::Vector<Token> parse_path(blender::StringRef path)
 {
   blender::Vector<Token> tokens;
-  for (int bytes_read = 0; bytes_read < FILE_MAX && path[bytes_read] != '\0';) {
-    const std::optional<Token> token = next_token(path, bytes_read, FILE_MAX);
+
+  for (int bytes_read = 0; bytes_read < path.size();) {
+    const std::optional<Token> token = next_token(path, bytes_read);
 
     if (!token.has_value()) {
       break;
@@ -558,6 +549,56 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
     bytes_read = token->byte_range.one_after_last();
     tokens.append(*token);
   }
+
+  return tokens;
+}
+
+/* If the token represents a syntax error, returns that error. Otherwise returns nullopt. */
+static std::optional<VariableParseError> token_to_syntax_error(const Token &token)
+{
+  switch (token.type) {
+    case TokenType::VARIABLE_SYNTAX_ERROR: {
+      if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
+        return {{VariableParseErrorType::FORMAT_SPECIFIER, token.byte_range}};
+      }
+      else {
+        return {{VariableParseErrorType::VARIABLE_SYNTAX, token.byte_range}};
+      }
+    }
+
+    case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {
+      return {{VariableParseErrorType::UNESCAPED_CURLY_BRACE, token.byte_range}};
+    }
+
+    /* Non-errors. */
+    case TokenType::LEFT_CURLY_BRACE:
+    case TokenType::RIGHT_CURLY_BRACE:
+    case TokenType::VARIABLE:
+      return std::nullopt;
+  }
+
+  BLI_assert_msg(false, "Unhandled token type.");
+  return std::nullopt;
+}
+
+blender::Vector<VariableParseError> BKE_validate_variable_syntax(const char path[FILE_MAX])
+{
+  const blender::Vector<Token> tokens = parse_path(path);
+
+  blender::Vector<VariableParseError> errors;
+  for (const Token &token : tokens) {
+    if (std::optional<VariableParseError> error = token_to_syntax_error(token)) {
+      errors.append(*error);
+    }
+  }
+
+  return errors;
+}
+
+blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
+                                                             const VariableMap &variables)
+{
+  const blender::Vector<Token> tokens = parse_path(path);
 
   if (tokens.is_empty()) {
     /* No tokens found, so nothing to do. */
@@ -580,22 +621,20 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
    * string. */
   int length_diff = 0;
 
-  for (Token token : tokens) {
+  for (const Token &token : tokens) {
+    /* Syntax errors. */
+    if (std::optional<VariableParseError> error = token_to_syntax_error(token)) {
+      errors.append(*error);
+      continue;
+    }
+
     char replacement_string[FORMAT_BUFFER_SIZE];
 
     switch (token.type) {
-      /* Syntax errors. */
-      case TokenType::VARIABLE_SYNTAX_ERROR: {
-        if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
-          errors.append({VariableParseErrorType::FORMAT_SPECIFIER, token.byte_range});
-        }
-        else {
-          errors.append({VariableParseErrorType::VARIABLE_SYNTAX, token.byte_range});
-        }
-        continue;
-      }
+      /* Syntax errors should have been handled above. */
+      case TokenType::VARIABLE_SYNTAX_ERROR:
       case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {
-        errors.append({VariableParseErrorType::UNESCAPED_CURLY_BRACE, token.byte_range});
+        BLI_assert_msg(false, "Unhandled syntax error.");
         continue;
       }
 

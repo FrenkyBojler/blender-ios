@@ -160,6 +160,19 @@ struct VariableParseError {
 bool operator==(const VariableParseError &left, const VariableParseError &right);
 
 /**
+ * Validate the variable syntax in the given path.
+ *
+ * This does *not* validate whether the variables referenced in the given path
+ * exist or not, nor whether the formatting specification in a variable
+ * reference is appropriate for its type. This only validates what can be
+ * validated without knowing anything about the variables themselves.
+ *
+ * \return An empty vector on success (valid), or a vector of the parse errors
+ * (invalid).
+ */
+blender::Vector<VariableParseError> BKE_validate_variable_syntax(char path[FILE_MAX]);
+
+/**
  * Perform variable substitution on the given path.
  *
  * This mutates the path in-place. The path must be a null-terminated string
