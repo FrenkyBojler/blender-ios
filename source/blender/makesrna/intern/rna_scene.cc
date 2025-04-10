@@ -194,11 +194,11 @@ static const EnumPropertyItem snap_uv_element_items[] = {
 };
 
 const EnumPropertyItem rna_enum_snap_playhead_element_items[] = {
-    {SCE_SNAP_TO_FRAME, "FRAME", 0, "Frame", "Snap to frame increments"},
-    {SCE_SNAP_TO_SECOND, "SECOND", 0, "Second", "Snap to second increments"},
-    {SCE_SNAP_TO_MARKERS, "MARKER", 0, "Nearest Marker", "Snap to markers"},
-    {SCE_SNAP_TO_KEYS, "KEY", 0, "Keyframe", "Snap to keyframes"},
-    {SCE_SNAP_TO_STRIPS, "Strip", 0, "Strip", "Snap to Strips"},
+    {SCE_SNAP_TO_FRAME, "FRAME", 0, "Frames", "Snap to frame increments"},
+    {SCE_SNAP_TO_SECOND, "SECOND", 0, "Seconds", "Snap to second increments"},
+    {SCE_SNAP_TO_MARKERS, "MARKER", 0, "Markers", "Snap to markers"},
+    {SCE_SNAP_TO_KEYS, "KEY", 0, "Keyframes", "Snap to keyframes"},
+    {SCE_SNAP_TO_STRIPS, "Strip", 0, "Strips", "Snap to Strips"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
