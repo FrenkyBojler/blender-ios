@@ -4408,7 +4408,7 @@ static void node_interface_single_value_to_structure_type(bNodeTreeInterfaceItem
 {
   if (item.item_type == eNodeTreeInterfaceItemType::NODE_INTERFACE_SOCKET) {
     auto &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-    if (socket.flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY) {
+    if (socket.flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY) {
       socket.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE;
     }
     else {

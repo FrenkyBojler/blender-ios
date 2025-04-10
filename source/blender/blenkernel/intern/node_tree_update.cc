@@ -946,41 +946,59 @@ class NodeTreeMainUpdater {
   void update_socket_shapes(bNodeTree &ntree)
   {
     ntree.ensure_topology_cache();
-    const nodes::StructureTypeInterface &interface = *ntree.runtime->structure_type_interface;
-    const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
-    for (bNode *node : ntree.all_nodes()) {
-      if (node->is_undefined()) {
-        continue;
-      }
-      if (node->is_group_input()) {
-        const Span<bNodeSocket *> sockets = node->output_sockets();
-        for (const int i : interface.inputs.index_range()) {
-          sockets[i]->display_shape = get_output_socket_shape(
-              *sockets[i]->runtime->declaration,
-              field_states[sockets[i]->index_in_tree()],
-              interface.inputs[i]);
+    if (U.experimental.use_socket_structure_type) {
+      const nodes::StructureTypeInterface &interface = *ntree.runtime->structure_type_interface;
+      const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
+      for (bNode *node : ntree.all_nodes()) {
+        if (node->is_undefined()) {
+          continue;
         }
-        continue;
-      }
-      if (node->is_group_output()) {
-        const Span<bNodeSocket *> sockets = node->input_sockets();
-        for (const int i : interface.outputs.index_range()) {
-          sockets[i]->display_shape = get_output_socket_shape(
-              *sockets[i]->runtime->declaration,
-              field_states[sockets[i]->index_in_tree()],
-              interface.outputs[i].type);
+        if (node->is_group_input()) {
+          const Span<bNodeSocket *> sockets = node->output_sockets();
+          for (const int i : interface.inputs.index_range()) {
+            sockets[i]->display_shape = get_output_socket_shape(
+                *sockets[i]->runtime->declaration,
+                field_states[sockets[i]->index_in_tree()],
+                interface.inputs[i]);
+          }
+          continue;
         }
-        continue;
+        if (node->is_group_output()) {
+          const Span<bNodeSocket *> sockets = node->input_sockets();
+          for (const int i : interface.outputs.index_range()) {
+            sockets[i]->display_shape = get_output_socket_shape(
+                *sockets[i]->runtime->declaration,
+                field_states[sockets[i]->index_in_tree()],
+                interface.outputs[i].type);
+          }
+          continue;
+        }
+        for (bNodeSocket *socket : node->input_sockets()) {
+          socket->display_shape = get_input_socket_shape(
+              *socket->runtime->declaration, socket->runtime->declaration->structure_type);
+        }
+        for (bNodeSocket *socket : node->output_sockets()) {
+          socket->display_shape = get_output_socket_shape(
+              *socket->runtime->declaration,
+              field_states[socket->index_in_tree()],
+              socket->runtime->declaration->structure_type);
+        }
       }
-      for (bNodeSocket *socket : node->input_sockets()) {
-        socket->display_shape = get_input_socket_shape(
-            *socket->runtime->declaration, socket->runtime->declaration->structure_type);
-      }
-      for (bNodeSocket *socket : node->output_sockets()) {
-        socket->display_shape = get_output_socket_shape(
-            *socket->runtime->declaration,
-            field_states[socket->index_in_tree()],
-            socket->runtime->declaration->structure_type);
+    }
+    else {
+      const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
+      for (bNodeSocket *socket : ntree.all_sockets()) {
+        switch (field_states[socket->index_in_tree()]) {
+          case bke::FieldSocketState::RequiresSingle:
+            socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+            break;
+          case bke::FieldSocketState::CanBeField:
+            socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND_DOT;
+            break;
+          case bke::FieldSocketState::IsField:
+            socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND;
+            break;
+        }
       }
     }
   }

@@ -426,6 +426,18 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_socket_type_itemf(
       ntree->typeinfo, rna_NodeTreeInterfaceSocket_socket_type_poll, r_free);
 }
 
+/**
+ * Also control the structure type when setting the "Is Single" status. To be removed when the
+ * structure type feature is moved out of experimental.
+ */
+static void rna_NodeTreeInterfaceSocket_force_non_field_set(PointerRNA *ptr, const bool value)
+{
+  bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  SET_FLAG_FROM_TEST(socket->flag, value, NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY);
+  socket->structure_type = value ? NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE :
+                                   NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+}
+
 static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_structure_type_itemf(
     bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
 {
@@ -1095,6 +1107,14 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Hide in Modifier",
                            "Don't show the input value in the geometry nodes modifier interface");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  prop = RNA_def_property(srna, "force_non_field", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_NodeTreeInterfaceSocket_force_non_field_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Single Value", "Only allow single value inputs rather than fields");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "is_inspect_output", PROP_BOOLEAN, PROP_NONE);
