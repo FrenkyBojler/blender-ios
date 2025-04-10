@@ -25,14 +25,9 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_vert)
 bool test_occlusion()
 {
   vec3 ndc = (gl_Position.xyz / gl_Position.w) * 0.5 + 0.5;
-  ivec2 coord = ivec2(ndc.xy * textureSize(depthTex, 0).xy);
-  bool occluded = true;
-  for (int x = -1; x <= 1; x += 2) {
-    for (int y = -1; y <= 1; y += 2) {
-      occluded = occluded && (ndc.z > texelFetch(depthTex, coord + ivec2(x, y), 0).r);
-    }
-  }
-  return occluded;
+  const ivec2 offsets[4] = int2_array(ivec2(-1, -1), ivec2(-1, 1), ivec2(1, -1), ivec2(1, 1));
+  vec4 depths = textureGatherOffsets(depthTex, ndc.xy, offsets, 0);
+  return !any(lessThanEqual(vec4(ndc.z), depths));
 }
 
 vec3 non_linear_blend_color(vec3 col1, vec3 col2, float fac)
