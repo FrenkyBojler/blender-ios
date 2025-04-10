@@ -30,6 +30,7 @@ class Attribute {
     void *value;
     ImplicitSharingPtr<> sharing_info;
   };
+  using DataVariant = std::variant<ArrayData, SingleData>;
   friend AttributeStorage;
 
  private:
@@ -42,7 +43,7 @@ class Attribute {
   AttrType type_;
   AttrStorageType storage_type_;
 
-  std::variant<ArrayData, SingleData> data_;
+  DataVariant data_;
 
  public:
   /** Unique name across all domains. */
@@ -64,12 +65,12 @@ class Attribute {
    * Low level access to the data stored for the attribute. The variant's type will correspond to
    * the storage type.
    */
-  const std::variant<ArrayData, SingleData> &data() const;
+  const DataVariant &data() const;
   /**
    * The same as #data(), but if the attribute data is shared initially, it will be unshared and
    * made mutable.
    */
-  std::variant<ArrayData, SingleData> &data_for_write();
+  DataVariant &data_for_write();
 };
 
 class AttributeStorageRuntime {
@@ -140,7 +141,7 @@ inline AttrType Attribute::data_type() const
   return type_;
 }
 
-inline const std::variant<Attribute::ArrayData, Attribute::SingleData> &Attribute::data() const
+inline const Attribute::DataVariant &Attribute::data() const
 {
   return data_;
 }

@@ -70,7 +70,7 @@ static ImplicitSharingInfo *create_sharing_info_for_array(void *data,
   return MEM_new<ArrayDataImplicitSharing>(__func__, data, size, type);
 }
 
-std::variant<Attribute::ArrayData, Attribute::SingleData> &Attribute::data_for_write()
+Attribute::DataVariant &Attribute::data_for_write()
 {
   if (auto *data = std::get_if<Attribute::ArrayData>(&data_)) {
     if (data->sharing_info->is_mutable()) {
