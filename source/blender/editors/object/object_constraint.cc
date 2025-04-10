@@ -713,7 +713,7 @@ static void edit_constraint_properties(wmOperatorType *ot)
 {
   PropertyRNA *prop;
   prop = RNA_def_string(
-      ot->srna, "constraint", nullptr, MAX_NAME, "Constraint", "Name of the constraint to edit");
+      ot->srna, "constraint", nullptr, 0, "Constraint", "Name of the constraint to edit");
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_enum(
       ot->srna, "owner", constraint_owner_items, 0, "Owner", "The owner of this constraint");
@@ -792,12 +792,12 @@ static bool edit_constraint_invoke_properties(bContext *C,
 
 static bConstraint *edit_constraint_property_get(bContext *C, wmOperator *op, Object *ob, int type)
 {
-  char constraint_name[MAX_NAME];
   int owner = RNA_enum_get(op->ptr, "owner");
   bConstraint *con;
   ListBase *list = nullptr;
 
-  RNA_string_get(op->ptr, "constraint", constraint_name);
+  char *constraint_name = RNA_string_get_alloc(op->ptr, "constraint", nullptr, 0, nullptr);
+  BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(constraint_name); })
 
   if (owner == EDIT_CONSTRAINT_OWNER_BONE) {
     list = pose_constraint_list(C);
