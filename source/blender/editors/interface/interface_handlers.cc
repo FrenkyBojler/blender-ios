@@ -699,7 +699,7 @@ static bool ui_but_dragedit_update_mval(uiHandleButtonData *data, int mx)
     }
 #ifdef USE_DRAG_MULTINUM
     /* We are over threshold but still in draglock. If we have dragged vertically
-     * more than horizontally then continue to wait for multi-drag intialization. */
+     * more than horizontally then continue to wait for multi-drag initialization. */
     if (ELEM(data->multi_data.init,
              uiHandleButtonMulti::INIT_UNSET,
              uiHandleButtonMulti::INIT_SETUP) &&
