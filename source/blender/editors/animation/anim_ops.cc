@@ -36,6 +36,7 @@
 #include "WM_types.hh"
 
 #include "ED_anim_api.hh"
+#include "ED_keyframes_keylist.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_time_scrub_ui.hh"
@@ -55,6 +56,28 @@
 /* -------------------------------------------------------------------- */
 /** \name Frame Change Operator
  * \{ */
+
+/* Persistent data to re-use during frame change modal operations. */
+struct ChangeFrameData {
+  /* Used for keyframe snapping. Is populated when needed. */
+  AnimKeylist *keylist;
+};
+
+static ChangeFrameData *allocate_change_frame_data()
+{
+  ChangeFrameData *op_data = MEM_callocN<ChangeFrameData>("change frame data");
+  op_data->keylist = nullptr;
+  return op_data;
+}
+
+static void free_change_frame_data(ChangeFrameData *op_data)
+{
+  if (op_data->keylist) {
+    ED_keylist_free(op_data->keylist);
+  }
+
+  MEM_freeN(op_data);
+}
 
 /* Check if the operator can be run from the current context */
 static bool change_frame_poll(bContext *C)
@@ -224,16 +247,21 @@ static void change_frame_seq_preview_end(SpaceSeq *sseq)
   }
 }
 
-static bool use_sequencer_snapping(bContext *C)
+static bool use_snapping(bContext *C)
 {
-  if (!CTX_wm_space_seq(C)) {
-    return false;
+  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(C);
+
+  if (area->spacetype == SPACE_GRAPH) {
+    SpaceGraph *graph_editor = static_cast<SpaceGraph *>(area->spacedata.first);
+    /* Snapping is disabled for driver mode. Need to evaluate if it makes sense there and what form
+     * it should take. */
+    if (graph_editor->mode == SIPO_MODE_DRIVERS) {
+      return false;
+    }
   }
 
-  Scene *scene = CTX_data_scene(C);
-  short snap_flag = blender::seq::tool_settings_snap_flag_get(scene);
-  return (scene->toolsettings->snap_flag_seq & SCE_SNAP) &&
-         (snap_flag & SEQ_SNAP_CURRENT_FRAME_TO_STRIPS);
+  return scene->toolsettings->snap_flag_playhead & SCE_SNAP;
 }
 
 static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *event)
@@ -262,6 +290,8 @@ static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *ev
 static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
+  ChangeFrameData *op_data = allocate_change_frame_data();
+  op->customdata = op_data;
 
   /* This check is done in case scrubbing and strip tweaking in the sequencer are bound to the same
    * event (e.g. RCS keymap where both are activated on left mouse press). Tweaking should take
@@ -276,7 +306,7 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
    */
   RNA_float_set(op->ptr, "frame", frame_from_event(C, event));
 
-  if (use_sequencer_snapping(C)) {
+  if (use_snapping(C)) {
     RNA_boolean_set(op->ptr, "snap", true);
   }
 
@@ -356,7 +386,7 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     case EVT_LEFTCTRLKEY:
     case EVT_RIGHTCTRLKEY:
       /* Use Ctrl key to invert snapping in sequencer. */
-      if (use_sequencer_snapping(C)) {
+      if (use_snapping(C)) {
         if (event->val == KM_RELEASE) {
           RNA_boolean_set(op->ptr, "snap", true);
         }
@@ -381,6 +411,10 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
   if (ret != OPERATOR_RUNNING_MODAL) {
     bScreen *screen = CTX_wm_screen(C);
     screen->scrubbing = false;
+
+    ChangeFrameData *op_data = static_cast<ChangeFrameData *>(op->customdata);
+    free_change_frame_data(op_data);
+    op->customdata = nullptr;
 
     if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
       SpaceSeq *sseq = CTX_wm_space_seq(C);

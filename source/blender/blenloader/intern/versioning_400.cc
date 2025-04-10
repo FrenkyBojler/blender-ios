@@ -2183,6 +2183,14 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     });
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 21)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->toolsettings->snap_playhead_mode |= SCE_SNAP_TO_STRIPS | SCE_SNAP_TO_KEYS;
+      scene->toolsettings->snap_step_frames = 2;
+      scene->toolsettings->snap_step_seconds = 1;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
