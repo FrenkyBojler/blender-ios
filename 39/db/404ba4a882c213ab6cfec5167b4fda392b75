@@ -1,0 +1,1 @@
+Referenced by issue #134101, It's possible to save with an empty file name, in which case it will replace the directory
