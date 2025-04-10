@@ -51,6 +51,7 @@ typedef struct bConstraint {
 
   /** Constraint name, MAX_NAME. */
   char name_legacy[64];
+  char *name_ptr;
 
   /** Amount of influence exerted by constraint (0.0-1.0). */
   float enforce;
