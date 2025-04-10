@@ -504,7 +504,7 @@ void BLI_uniquename_ptr(const ListBase *list,
                         void *vlink,
                         const char *defname,
                         const char delim,
-                        const int name_ptr_pffset) ATTR_NONNULL(1, 3)
+                        const int name_ptr_pffset)
 {
   if (!vlink) {
     return;

@@ -1600,7 +1600,7 @@ static void rna_Object_constraints_remove(Object *object,
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Constraint '%s' not found in object '%s'",
-                con->name_legacy,
+                con->name_ptr,
                 object->id.name + 2);
     return;
   }
@@ -1668,6 +1668,7 @@ bool rna_Object_constraints_override_apply(Main *bmain,
   /* Remember that insertion operations are defined and stored in correct order, which means that
    * even if we insert several items in a row, we always insert first one, then second one, etc.
    * So we should always find 'anchor' constraint in both _src *and* _dst. */
+  // TODO
   const size_t name_offset = offsetof(bConstraint, name_legacy);
   bConstraint *con_anchor = static_cast<bConstraint *>(
       BLI_listbase_string_or_index_find(&ob_dst->constraints,

@@ -41,7 +41,7 @@ void print(std::ostream &stream, const ID *id)
 
 void print(std::ostream &stream, const bConstraint *constraint)
 {
-  stream << std::setw(kPrintTypeWidth) << ("Constraint") << constraint->name_legacy << "\n";
+  stream << std::setw(kPrintTypeWidth) << ("Constraint") << constraint->name_ptr << "\n";
 }
 
 void print(std::ostream &stream, const ModifierData *modifier_data)

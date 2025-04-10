@@ -745,7 +745,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
 
   if (ptr.data) {
     con = static_cast<bConstraint *>(ptr.data);
-    RNA_string_set(op->ptr, "constraint", con->name_legacy);
+    RNA_string_set(op->ptr, "constraint", con->name_ptr);
 
     list = constraint_list_from_constraint(ob, con, nullptr);
 
@@ -766,7 +766,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
     if (!(panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr))) {
       if (RNA_struct_is_a(panel_ptr->type, &RNA_Constraint)) {
         con = static_cast<bConstraint *>(panel_ptr->data);
-        RNA_string_set(op->ptr, "constraint", con->name_legacy);
+        RNA_string_set(op->ptr, "constraint", con->name_ptr);
         list = constraint_list_from_constraint(ob, con, nullptr);
         RNA_enum_set(op->ptr,
                      "owner",
@@ -812,7 +812,7 @@ static bConstraint *edit_constraint_property_get(bContext *C, wmOperator *op, Ob
   con = BKE_constraints_find_name(list, constraint_name);
 #if 0
   if (G.debug & G_DEBUG) {
-    printf("constraint found = %p, %s\n", (void *)con, (con) ? con->name_legacy : "<Not found>");
+    printf("constraint found = %p, %s\n", (void *)con, (con) ? con->name_ptr : "<Not found>");
   }
 #endif
 
@@ -1473,8 +1473,7 @@ static wmOperatorStatus constraint_delete_exec(bContext *C, wmOperator *op)
   ListBase *lb = constraint_list_from_constraint(ob, con, nullptr);
 
   /* Store name temporarily for report. */
-  char name[MAX_NAME];
-  STRNCPY(name, con->name_legacy);
+  const std::string name = con->name_ptr;
 
   /* free the constraint */
   if (BKE_constraint_remove_ex(lb, ob, con)) {
@@ -1488,7 +1487,7 @@ static wmOperatorStatus constraint_delete_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
 
     if (RNA_boolean_get(op->ptr, "report")) {
-      BKE_reportf(op->reports, RPT_INFO, "Removed constraint: %s", name);
+      BKE_reportf(op->reports, RPT_INFO, "Removed constraint: %s", name.c_str());
     }
 
     return OPERATOR_FINISHED;
@@ -1546,8 +1545,7 @@ static wmOperatorStatus constraint_apply_exec(bContext *C, wmOperator *op)
   ListBase *constraints = constraint_list_from_constraint(ob, con, &pchan);
 
   /* Store name temporarily for report. */
-  char name[MAX_NAME];
-  STRNCPY(name, con->name_legacy);
+  const std::string name = con->name_ptr;
   const bool is_first_constraint = con != constraints->first;
 
   /* Copy the constraint. */
@@ -1589,7 +1587,7 @@ static wmOperatorStatus constraint_apply_exec(bContext *C, wmOperator *op)
     else {
       /* Only add this report if the operator didn't cause another one. The purpose here is
        * to alert that something happened, and the previous report will do that anyway. */
-      BKE_reportf(op->reports, RPT_INFO, "Applied constraint: %s", name);
+      BKE_reportf(op->reports, RPT_INFO, "Applied constraint: %s", name.c_str());
     }
   }
 
@@ -1643,8 +1641,7 @@ static wmOperatorStatus constraint_copy_exec(bContext *C, wmOperator *op)
   ListBase *constraints = constraint_list_from_constraint(ob, con, &pchan);
 
   /* Store name temporarily for report. */
-  char name[MAX_NAME];
-  STRNCPY(name, con->name_legacy);
+  const std::string name = con->name_ptr;
 
   /* Copy the constraint. */
   bConstraint *copy_con;
@@ -1675,7 +1672,7 @@ static wmOperatorStatus constraint_copy_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_ADDED, ob);
 
   if (RNA_boolean_get(op->ptr, "report")) {
-    BKE_reportf(op->reports, RPT_INFO, "Copied constraint: %s", name);
+    BKE_reportf(op->reports, RPT_INFO, "Copied constraint: %s", name.c_str());
   }
 
   return OPERATOR_FINISHED;

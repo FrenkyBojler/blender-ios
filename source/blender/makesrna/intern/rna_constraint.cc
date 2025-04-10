@@ -416,13 +416,14 @@ static void rna_ConstraintTargetBone_target_set(PointerRNA *ptr,
 static void rna_Constraint_name_set(PointerRNA *ptr, const char *value)
 {
   bConstraint *con = static_cast<bConstraint *>(ptr->data);
-  char oldname[sizeof(con->name_legacy)];
 
   /* make a copy of the old name first */
-  STRNCPY(oldname, con->name_legacy);
+  const std::string oldname = con->name_ptr;
 
   /* copy the new name into the name slot */
-  STRNCPY_UTF8(con->name_legacy, value);
+  MEM_SAFE_FREE(con->name_ptr);
+  // TODO: Check if value can be null.
+  con->name_ptr = BLI_strdup(value);
 
   /* make sure name is unique */
   if (ptr->owner_id) {
@@ -436,7 +437,7 @@ static void rna_Constraint_name_set(PointerRNA *ptr, const char *value)
   }
 
   /* fix all the animation data which may link to this */
-  BKE_animdata_fix_paths_rename_all(nullptr, "constraints", oldname, con->name_legacy);
+  BKE_animdata_fix_paths_rename_all(nullptr, "constraints", oldname.c_str(), con->name_ptr);
 }
 
 static std::optional<std::string> rna_Constraint_do_compute_path(Object *ob, bConstraint *con)
@@ -447,20 +448,18 @@ static std::optional<std::string> rna_Constraint_do_compute_path(Object *ob, bCo
   if (lb == nullptr) {
     printf("%s: internal error, constraint '%s' not found in object '%s'\n",
            __func__,
-           con->name_legacy,
+           con->name_ptr,
            ob->id.name);
   }
 
+  blender::StackString<> name_esc_const = BLI_str_escape(con->name_ptr);
   if (pchan) {
     char name_esc_pchan[sizeof(pchan->name) * 2];
-    char name_esc_const[sizeof(con->name_legacy) * 2];
     BLI_str_escape(name_esc_pchan, pchan->name, sizeof(name_esc_pchan));
-    BLI_str_escape(name_esc_const, con->name_legacy, sizeof(name_esc_const));
-    return fmt::format("pose.bones[\"{}\"].constraints[\"{}\"]", name_esc_pchan, name_esc_const);
+    return fmt::format(
+        "pose.bones[\"{}\"].constraints[\"{}\"]", name_esc_pchan, name_esc_const.c_str());
   }
-  char name_esc_const[sizeof(con->name_legacy) * 2];
-  BLI_str_escape(name_esc_const, con->name_legacy, sizeof(name_esc_const));
-  return fmt::format("constraints[\"{}\"]", name_esc_const);
+  return fmt::format("constraints[\"{}\"]", name_esc_const.c_str());
 }
 
 static std::optional<std::string> rna_Constraint_path(const PointerRNA *ptr)
@@ -503,7 +502,7 @@ static std::optional<std::string> rna_ConstraintTarget_path(const PointerRNA *pt
   }
   printf("%s: internal error, constraint '%s' of object '%s' does not contain the target\n",
          __func__,
-         con->name_legacy,
+         con->name_ptr,
          ob->id.name);
 
   return std::nullopt;
@@ -732,7 +731,7 @@ static void rna_ActionConstraint_action_set(PointerRNA *ptr, PointerRNA value, R
                 RPT_ERROR,
                 "Could not assign action %s to Action Constraint %s",
                 action->id.name + 2,
-                con->name_legacy);
+                con->name_ptr);
     return;
   }
 
@@ -3680,7 +3679,8 @@ void RNA_def_constraint(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_CONSTRAINT);
 
   /* strings */
-  prop = RNA_def_property(srna, "name_legacy", PROP_STRING, PROP_NONE);
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "name_ptr");
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Constraint_name_set");
   RNA_def_property_ui_text(prop, "Name", "Constraint name");
   RNA_def_struct_name_property(srna, prop);

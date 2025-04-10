@@ -370,9 +370,9 @@ size_t BLI_str_escape(char *__restrict dst, const char *__restrict src, const si
 blender::StackString<> BLI_str_escape(blender::StringRefNull str)
 {
   blender::StackString<> result;
-  const size_t max_result_size = str.size() * 2 + 1;
+  const int64_t max_result_size = str.size() * 2 + 1;
   char *result_str = result.ensure_size(max_result_size);
-  BLI_str_escape(result_str, str.c_str(), max_result_size);
+  BLI_str_escape(result_str, str.c_str(), size_t(max_result_size));
   return result;
 }
 

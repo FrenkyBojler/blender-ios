@@ -208,7 +208,7 @@ static void constraint_reorder(bContext *C, Panel *panel, int new_index)
   PointerRNA props_ptr;
   wmOperatorType *ot = WM_operatortype_find("CONSTRAINT_OT_move_to_index", false);
   WM_operator_properties_create_ptr(&props_ptr, ot);
-  RNA_string_set(&props_ptr, "constraint", con->name_legacy);
+  RNA_string_set(&props_ptr, "constraint", con->name_ptr);
   RNA_int_set(&props_ptr, "index", new_index);
   /* Set owner to #EDIT_CONSTRAINT_OWNER_OBJECT or #EDIT_CONSTRAINT_OWNER_BONE. */
   RNA_enum_set(&props_ptr, "owner", constraint_from_bone ? 1 : 0);
