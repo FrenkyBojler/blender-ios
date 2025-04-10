@@ -44,9 +44,7 @@ static const ufbx_skin_deformer *get_skin_from_mesh(const ufbx_mesh *mesh)
   return nullptr;
 }
 
-static void import_vertex_positions(const ufbx_mesh *fmesh,
-                                    const ufbx_skin_deformer *skin,
-                                    Mesh *mesh)
+static void import_vertex_positions(const ufbx_mesh *fmesh, Mesh *mesh)
 {
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
 #if 0  // @TODO: "bake" skinned meshes
@@ -91,7 +89,6 @@ static void import_faces(const ufbx_mesh *fmesh, Mesh *mesh)
 }
 
 static void import_face_material_indices(const ufbx_mesh *fmesh,
-                                         Mesh *mesh,
                                          bke::MutableAttributeAccessor &attributes)
 {
   if (fmesh->face_material.count == fmesh->num_faces) {
@@ -105,7 +102,6 @@ static void import_face_material_indices(const ufbx_mesh *fmesh,
 }
 
 static void import_face_smoothing(const ufbx_mesh *fmesh,
-                                  Mesh *mesh,
                                   bke::MutableAttributeAccessor &attributes)
 {
   if (fmesh->face_smoothing.count > 0 && fmesh->face_smoothing.count == fmesh->num_faces) {
@@ -187,7 +183,6 @@ static void import_edges(const ufbx_mesh *fmesh,
 }
 
 static void import_uvs(const ufbx_mesh *fmesh,
-                       Mesh *mesh,
                        bke::MutableAttributeAccessor &attributes,
                        AttributeOwner attr_owner)
 {
@@ -361,12 +356,12 @@ void import_meshes(Main &bmain,
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
     AttributeOwner attr_owner = AttributeOwner::from_id(&mesh->id);
 
-    import_vertex_positions(fmesh, skin, mesh);
+    import_vertex_positions(fmesh, mesh);
     import_faces(fmesh, mesh);
-    import_face_material_indices(fmesh, mesh, attributes);
-    import_face_smoothing(fmesh, mesh, attributes);
+    import_face_material_indices(fmesh, attributes);
+    import_face_smoothing(fmesh, attributes);
     import_edges(fmesh, mesh, attributes);
-    import_uvs(fmesh, mesh, attributes, attr_owner);
+    import_uvs(fmesh, attributes, attr_owner);
     if (params.vertex_colors != eFBXVertexColorMode::None) {
       import_colors(fmesh, mesh, attributes, attr_owner, params.vertex_colors);
     }
