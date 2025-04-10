@@ -148,6 +148,12 @@ void PathTraceWorkCPU::render_samples_full_pipeline(ThreadKernelGlobalsCPU *kern
       }
     }
 
+#ifdef WITH_PATH_GUIDING
+    if (kernel_globals->opgl_path_segment_storage) {
+      assert(kernel_globals->opgl_path_segment_storage->GetNumSegments() == 0);
+    }
+#endif
+
     kernels_.integrator_megakernel(kernel_globals, state, render_buffer);
 
 #ifdef WITH_PATH_GUIDING
