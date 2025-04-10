@@ -370,14 +370,14 @@ void AttributeStorage::blend_write_prepare(BlendWriter &writer,
                                            AttributeStorage::BlendWriteData &write_data)
 {
   const Span<std::unique_ptr<Attribute>> attributes = this->runtime->attributes;
-  write_data.attibutes.reinitialize(attributes.size());
+  write_data.attributes.reinitialize(attributes.size());
 
   write_data.arrays.reinitialize(attributes.size());
   write_data.singles.reinitialize(attributes.size());
 
   for (const int i : attributes.index_range()) {
     Attribute &attr = *attributes[i];
-    AttributeDNA &dna_attr = write_data.attibutes[i];
+    AttributeDNA &dna_attr = write_data.attributes[i];
     dna_attr.name = attr.name().c_str();
 
     dna_attr.domain = int8_t(attr.domain_);
@@ -396,7 +396,7 @@ void AttributeStorage::blend_write_prepare(BlendWriter &writer,
     }
   }
 
-  this->dna_attributes = write_data.attibutes.data();
+  this->dna_attributes = write_data.attributes.data();
   this->dna_attributes_num = attributes.size();
 }
 
@@ -404,8 +404,8 @@ void AttributeStorage::blend_write(BlendWriter &writer,
                                    const AttributeStorage::BlendWriteData &write_data)
 {
   BLO_write_struct_array(
-      &writer, AttributeDNA, write_data.attibutes.size(), write_data.attibutes.data());
-  for (const AttributeDNA &attr : write_data.attibutes) {
+      &writer, AttributeDNA, write_data.attributes.size(), write_data.attributes.data());
+  for (const AttributeDNA &attr : write_data.attributes) {
     BLO_write_string(&writer, attr.name);
     switch (AttrStorageType(attr.storage_type)) {
       case AttrStorageType::Single:

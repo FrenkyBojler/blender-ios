@@ -110,7 +110,7 @@ class AttributeStorage : public ::AttributeStorage {
 
   void blend_read(BlendDataReader &reader);
   struct BlendWriteData {
-    Array<AttributeDNA, 16> attibutes;
+    Array<AttributeDNA, 16> attributes;
     Array<AttributeArrayDNA, 16> arrays;
     Array<AttributeSingleDNA, 16> singles;
   };
