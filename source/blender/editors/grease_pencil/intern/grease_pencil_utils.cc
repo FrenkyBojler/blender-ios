@@ -692,8 +692,10 @@ Vector<MutableDrawingInfo> retrieve_editable_drawings_with_falloff(const Scene &
   const bool use_multi_frame_falloff = use_multi_frame_editing &&
                                        (toolsettings->gp_sculpt.flag &
                                         GP_SCULPT_SETT_FLAG_FRAME_FALLOFF) != 0;
+  CurveMapping *multiframe_falloff = nullptr;
   if (use_multi_frame_falloff) {
     BKE_curvemapping_init(toolsettings->gp_sculpt.cur_falloff);
+    multiframe_falloff = toolsettings->gp_sculpt.cur_falloff;
   }
 
   Vector<MutableDrawingInfo> editable_drawings;
@@ -714,7 +716,7 @@ Vector<MutableDrawingInfo> retrieve_editable_drawings_with_falloff(const Scene &
                                                           active_frame,
                                                           frame_bounds->min,
                                                           frame_bounds->max,
-                                                          toolsettings->gp_sculpt.cur_falloff) :
+                                                          multiframe_falloff) :
                                   1.0f;
         editable_drawings.append({*drawing, layer_i, frame_number, falloff});
       }
@@ -735,8 +737,10 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
   const bool use_multi_frame_falloff = use_multi_frame_editing &&
                                        (toolsettings->gp_sculpt.flag &
                                         GP_SCULPT_SETT_FLAG_FRAME_FALLOFF) != 0;
+  CurveMapping *multiframe_falloff = nullptr;
   if (use_multi_frame_falloff) {
     BKE_curvemapping_init(toolsettings->gp_sculpt.cur_falloff);
+    multiframe_falloff = toolsettings->gp_sculpt.cur_falloff;
   }
 
   /* Get a set of unique frame numbers with editable drawings on them. */
@@ -775,13 +779,12 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
         if (!frame.is_selected() || drawing == nullptr || added_drawings.contains(drawing)) {
           continue;
         }
-        const float falloff = frame_bounds ?
-                                  get_multi_frame_falloff(frame_number,
-                                                          active_frame,
-                                                          frame_bounds->min,
-                                                          frame_bounds->max,
-                                                          toolsettings->gp_sculpt.cur_falloff) :
-                                  1.0f;
+        const float falloff = frame_bounds ? get_multi_frame_falloff(frame_number,
+                                                                     active_frame,
+                                                                     frame_bounds->min,
+                                                                     frame_bounds->max,
+                                                                     multiframe_falloff) :
+                                             1.0f;
         const int frame_group = selected_frames.index_of(frame_number);
         drawings_grouped_per_frame[frame_group].append({*drawing, layer_i, frame_number, falloff});
         added_drawings.add_new(drawing);
@@ -791,13 +794,12 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
     /* Add drawing at current frame. */
     Drawing *current_drawing = grease_pencil.get_drawing_at(layer, current_frame);
     if (current_drawing != nullptr && !added_drawings.contains(current_drawing)) {
-      const float falloff = frame_bounds ?
-                                get_multi_frame_falloff(current_frame,
-                                                        active_frame,
-                                                        frame_bounds->min,
-                                                        frame_bounds->max,
-                                                        toolsettings->gp_sculpt.cur_falloff) :
-                                1.0f;
+      const float falloff = frame_bounds ? get_multi_frame_falloff(current_frame,
+                                                                   active_frame,
+                                                                   frame_bounds->min,
+                                                                   frame_bounds->max,
+                                                                   multiframe_falloff) :
+                                           1.0f;
       const int frame_group = selected_frames.index_of(current_frame);
       drawings_grouped_per_frame[frame_group].append(
           {*current_drawing, layer_i, current_frame, falloff});
