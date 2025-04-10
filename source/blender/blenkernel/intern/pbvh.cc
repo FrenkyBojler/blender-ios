@@ -826,11 +826,11 @@ static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
-        return mesh_eval->runtime->vert_normals_cache;
+        return mesh_eval->runtime->vert_normals_true_cache;
       }
     }
     if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
-      return mesh_eval->runtime->vert_normals_cache;
+      return mesh_eval->runtime->vert_normals_true_cache;
     }
   }
 
@@ -839,7 +839,7 @@ static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &
     return ss.vert_normals_deform;
   }
 
-  return mesh_orig.runtime->vert_normals_cache;
+  return mesh_orig.runtime->vert_normals_true_cache;
 }
 static SharedCache<Vector<float3>> &vert_normals_cache_eval_for_write(Object &object_orig,
                                                                       Object &object_eval)
@@ -857,11 +857,11 @@ static const SharedCache<Vector<float3>> &face_normals_cache_eval(const Object &
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
-        return mesh_eval->runtime->face_normals_cache;
+        return mesh_eval->runtime->face_normals_true_cache;
       }
     }
     if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
-      return mesh_eval->runtime->face_normals_cache;
+      return mesh_eval->runtime->face_normals_true_cache;
     }
   }
 
@@ -870,7 +870,7 @@ static const SharedCache<Vector<float3>> &face_normals_cache_eval(const Object &
     return ss.face_normals_deform;
   }
 
-  return mesh_orig.runtime->face_normals_cache;
+  return mesh_orig.runtime->face_normals_true_cache;
 }
 static SharedCache<Vector<float3>> &face_normals_cache_eval_for_write(Object &object_orig,
                                                                       Object &object_eval)
@@ -2409,7 +2409,7 @@ Span<float3> vert_positions_eval(const Depsgraph &depsgraph, const Object &objec
 Span<float3> vert_positions_eval_from_eval(const Object &object_eval)
 {
   BLI_assert(!DEG_is_original_object(&object_eval));
-  const Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
+  const Object &object_orig = *DEG_get_original_object(&object_eval);
   return vert_positions_eval(object_orig, object_eval);
 }
 
@@ -2421,22 +2421,21 @@ MutableSpan<float3> vert_positions_eval_for_write(const Depsgraph &depsgraph, Ob
 
 Span<float3> vert_normals_eval(const Depsgraph &depsgraph, const Object &object_orig)
 {
-  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph,
-                                                        &const_cast<Object &>(object_orig));
+  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> vert_normals_eval_from_eval(const Object &object_eval)
 {
   BLI_assert(!DEG_is_original_object(&object_eval));
-  Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
+  const Object &object_orig = *DEG_get_original_object(&object_eval);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> face_normals_eval_from_eval(const Object &object_eval)
 {
   BLI_assert(!DEG_is_original_object(&object_eval));
-  Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
+  const Object &object_orig = *DEG_get_original_object(&object_eval);
   return face_normals_cache_eval(object_orig, object_eval).data();
 }
 
