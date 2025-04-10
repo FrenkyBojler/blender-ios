@@ -430,7 +430,7 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 
   if (!errors.is_empty()) {
     std::unique_lock lock(oglrender->reports_mutex);
-    BKE_path_application_errors_to_report(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+    BKE_report_path_variable_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
     ok = false;
   }
   else {
@@ -1061,7 +1061,7 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
         nullptr);
 
     if (!errors.is_empty()) {
-      BKE_path_application_errors_to_report(&reports, RPT_ERROR, scene->r.pic, errors);
+      BKE_report_path_variable_errors(&reports, RPT_ERROR, scene->r.pic, errors);
       ok = false;
     }
     else {
@@ -1162,7 +1162,7 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
 
     if (!errors.is_empty()) {
       std::unique_lock lock(oglrender->reports_mutex);
-      BKE_path_application_errors_to_report(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+      BKE_report_path_variable_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
       ok = false;
     }
     else if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {

@@ -704,10 +704,10 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
   return errors;
 }
 
-void BKE_path_application_errors_to_report(ReportList *reports,
-                                           const eReportType report_type,
-                                           const char path[FILE_MAX],
-                                           blender::Span<VariableParseError> errors)
+void BKE_report_path_variable_errors(ReportList *reports,
+                                     const eReportType report_type,
+                                     const char path[FILE_MAX],
+                                     blender::Span<VariableParseError> errors)
 {
   BLI_assert(reports);
   BLI_assert(!errors.is_empty());

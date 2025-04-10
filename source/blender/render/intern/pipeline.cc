@@ -2111,7 +2111,7 @@ void RE_RenderFrame(Render *re,
           do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
         }
         else if (re->reports) {
-          BKE_path_application_errors_to_report(re->reports, RPT_ERROR, rd.pic, errors);
+          BKE_report_path_variable_errors(re->reports, RPT_ERROR, rd.pic, errors);
         }
       }
     }
@@ -2338,7 +2338,7 @@ static bool do_write_image_or_movie(
             true,
             nullptr);
         if (!errors.is_empty()) {
-          BKE_path_application_errors_to_report(re->reports, RPT_ERROR, scene->r.pic, errors);
+          BKE_report_path_variable_errors(re->reports, RPT_ERROR, scene->r.pic, errors);
           ok = false;
         }
       }
@@ -2544,7 +2544,7 @@ void RE_RenderAnim(Render *re,
         /* The filepath cannot be parsed, so we can't save the renders anywhere.
          * So we just cancel. */
         if (!errors.is_empty() && re->reports) {
-          BKE_path_application_errors_to_report(re->reports, RPT_ERROR, rd.pic, errors);
+          BKE_report_path_variable_errors(re->reports, RPT_ERROR, rd.pic, errors);
           /* We have to set the `is_break` flag here so that final cleanup code
            * recognizes that the render as failed. */
           G.is_break = true;

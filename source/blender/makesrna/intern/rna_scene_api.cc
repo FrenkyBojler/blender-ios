@@ -132,7 +132,7 @@ static void rna_SceneRender_get_frame_path(RenderData *rd,
         suffix);
 
     if (!errors.is_empty() && reports) {
-      BKE_path_application_errors_to_report(reports, RPT_ERROR, rd->pic, errors);
+      BKE_report_path_variable_errors(reports, RPT_ERROR, rd->pic, errors);
     }
   }
 }

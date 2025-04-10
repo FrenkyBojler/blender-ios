@@ -167,8 +167,7 @@ bool operator==(const VariableParseError &left, const VariableParseError &right)
  * reference is appropriate for its type. This only validates what can be
  * validated without knowing anything about the variables themselves.
  *
- * \return An empty vector on success (valid), or a vector of the parse errors
- * (invalid).
+ * \return An empty vector if valid, or a vector of the parse errors if invalid.
  */
 blender::Vector<VariableParseError> BKE_validate_variable_syntax(char path[FILE_MAX]);
 
@@ -212,9 +211,9 @@ blender::Vector<VariableParseError> BKE_validate_variable_syntax(char path[FILE_
 blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
                                                              const VariableMap &variables);
 
-void BKE_path_application_errors_to_report(ReportList *reports,
-                                           eReportType report_type,
-                                           const char path[FILE_MAX],
-                                           blender::Span<VariableParseError> errors);
+void BKE_report_path_variable_errors(ReportList *reports,
+                                     eReportType report_type,
+                                     const char path[FILE_MAX],
+                                     blender::Span<VariableParseError> errors);
 
 /** \} */
