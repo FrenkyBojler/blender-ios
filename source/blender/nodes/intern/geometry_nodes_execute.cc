@@ -25,6 +25,8 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 
+#include "DNA_node_tree_interface_types.h"
+
 #include "FN_lazy_function_execute.hh"
 
 #include "UI_resources.hh"
@@ -42,9 +44,11 @@ bool socket_type_has_attribute_toggle(const eNodeSocketDatatype type)
 bool input_has_attribute_toggle(const bNodeTree &node_tree, const int socket_index)
 {
   node_tree.ensure_interface_cache();
-  const bke::bNodeSocketType *typeinfo =
-      node_tree.interface_inputs()[socket_index]->socket_typeinfo();
-  if (ELEM(typeinfo->type, SOCK_MENU)) {
+  const bNodeTreeInterfaceSocket &socket = *node_tree.interface_inputs()[socket_index];
+  if (ELEM(socket.socket_typeinfo()->type, SOCK_MENU)) {
+    return false;
+  }
+  if (is_layer_selection_field(socket)) {
     return false;
   }
 

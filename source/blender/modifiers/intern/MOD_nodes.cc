@@ -2231,7 +2231,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
   uiBut *but = uiDefIconTextButR(block,
                                  UI_BTYPE_SEARCH_MENU,
                                  0,
-                                 ICON_NONE,
+                                 ICON_OUTLINER_DATA_GP_LAYER,
                                  "",
                                  0,
                                  0,
@@ -2243,6 +2243,8 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                  0.0f,
                                  0.0f,
                                  StringRef(socket.description));
+  UI_but_placeholder_set(but, "Layer");
+  uiItemL(layout, "", ICON_BLANK1);
 
   const Object *object = ed::object::context_object(&ctx.C);
   BLI_assert(object != nullptr);

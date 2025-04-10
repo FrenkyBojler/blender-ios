@@ -66,9 +66,7 @@ void grease_pencil_layer_search_add_items(const StringRef str,
 
   const Vector<const std::string *> filtered_names = search.query(string);
   for (const std::string *name : filtered_names) {
-    if (!UI_search_item_add(
-            seach_items, *name, (void *)name, ICON_OUTLINER_DATA_GP_LAYER, UI_BUT_HAS_SEP_CHAR, 0))
-    {
+    if (!UI_search_item_add(seach_items, *name, (void *)name, ICON_NONE, UI_BUT_HAS_SEP_CHAR, 0)) {
       break;
     }
   }
