@@ -15,7 +15,7 @@
 #include "BLI_utildefines.h"
 
 #ifdef __cplusplus
-#  include "BLI_stack_string.hh"
+#  include <string>
 #endif
 
 /* Buffer size of maximum `uint64` plus commas and terminator. */
@@ -236,7 +236,7 @@ size_t BLI_str_escape(char *__restrict dst, const char *__restrict src, size_t d
     ATTR_NONNULL(1, 2);
 
 #ifdef __cplusplus
-blender::StackString<> BLI_str_escape(blender::StringRefNull str);
+std::string BLI_str_escape(const char *str);
 #endif
 
 /**

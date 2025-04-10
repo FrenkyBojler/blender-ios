@@ -1153,7 +1153,7 @@ static char *get_rna_access(ID *id,
     /* Constraint in Pose-Channel */
     char actname_esc[sizeof(bActionChannel::name) * 2];
     BLI_str_escape(actname_esc, actname, sizeof(actname_esc));
-    blender::StackString<> constname_esc = BLI_str_escape(constname);
+    const std::string constname_esc = BLI_str_escape(constname);
     SNPRINTF(buf, "pose.bones[\"%s\"].constraints[\"%s\"]", actname_esc, constname_esc.c_str());
   }
   else if (actname && actname[0]) {

@@ -367,12 +367,16 @@ size_t BLI_str_escape(char *__restrict dst, const char *__restrict src, const si
   return len;
 }
 
-blender::StackString<> BLI_str_escape(blender::StringRefNull str)
+std::string BLI_str_escape(const char *str)
 {
-  blender::StackString<> result;
-  const int64_t max_result_size = str.size() * 2 + 1;
-  char *result_str = result.ensure_size(max_result_size);
-  BLI_str_escape(result_str, str.c_str(), size_t(max_result_size));
+  if (!str) {
+    return {};
+  }
+  const size_t max_result_size = strlen(str) * 2 + 1;
+  std::string result;
+  result.resize(max_result_size);
+  const size_t result_size = BLI_str_escape(result.data(), str, max_result_size);
+  result.resize(result_size);
   return result;
 }
 

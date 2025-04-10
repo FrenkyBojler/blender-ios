@@ -451,7 +451,7 @@ static std::optional<std::string> rna_Constraint_do_compute_path(Object *ob, bCo
            ob->id.name);
   }
 
-  blender::StackString<> name_esc_const = BLI_str_escape(con->name_ptr);
+  const std::string name_esc_const = BLI_str_escape(con->name_ptr);
   if (pchan) {
     char name_esc_pchan[sizeof(pchan->name) * 2];
     BLI_str_escape(name_esc_pchan, pchan->name, sizeof(name_esc_pchan));
