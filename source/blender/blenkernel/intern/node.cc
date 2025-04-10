@@ -674,14 +674,16 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     return;
   }
 
+#define WRITE_INPUT_TO_PROPERTY(TYPE, IDENTIFIER, PROPERTY) \
+  { \
+    const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, IDENTIFIER); \
+    storage->PROPERTY = input->default_value_typed<bNodeSocketValue##TYPE>()->value; \
+  }
+
   for (bNode *node : node_tree.all_nodes()) {
-    /* The Rotate Star 45 option was converted into an input. */
     if (node->type_legacy == CMP_NODE_GLARE) {
-      bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Diagonal Star");
       NodeGlare *storage = static_cast<NodeGlare *>(node->storage);
-      if (storage && input) {
-        storage->star_45 = input->default_value_typed<bNodeSocketValueBoolean>()->value;
-      }
+      WRITE_INPUT_TO_PROPERTY(Float, "Diagonal Star", star_45)
     }
   }
 }
