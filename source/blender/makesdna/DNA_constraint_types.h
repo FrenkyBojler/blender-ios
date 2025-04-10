@@ -49,8 +49,13 @@ typedef struct bConstraint {
   /** Subtarget for Custom Space of owner - pchan or vgroup name, MAX_ID_NAME-2. */
   char space_subtarget[64];
 
-  /** Constraint name, MAX_NAME. */
+  /** Legacy constraint name, only exists for forward-compatibility. */
   char name_legacy[64];
+  /**
+   * Actual constraint name. The name is generally not allowed to be empty. However, if in doubt,
+   * better write code so that it can still handle the case when it's empty or null (it may be
+   * temporarily sometimes).
+   */
   char *name_ptr;
 
   /** Amount of influence exerted by constraint (0.0-1.0). */

@@ -174,7 +174,7 @@ void SceneExporter::writeNode(Object *ob)
       if (BLI_listbase_is_empty(&ob->constraints) == false) {
         bConstraint *con = (bConstraint *)ob->constraints.first;
         while (con) {
-          std::string con_name(encode_xml(con->name_ptr));
+          std::string con_name(encode_xml(blender::StringRef(con->name_ptr)));
           std::string con_tag = con_name + "_constraint";
           printf("%s\n", con_name.c_str());
           printf("%s\n\n", con_tag.c_str());

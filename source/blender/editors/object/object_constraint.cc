@@ -1473,7 +1473,7 @@ static wmOperatorStatus constraint_delete_exec(bContext *C, wmOperator *op)
   ListBase *lb = constraint_list_from_constraint(ob, con, nullptr);
 
   /* Store name temporarily for report. */
-  const std::string name = con->name_ptr;
+  const std::string name = StringRef(con->name_ptr);
 
   /* free the constraint */
   if (BKE_constraint_remove_ex(lb, ob, con)) {
@@ -1545,7 +1545,7 @@ static wmOperatorStatus constraint_apply_exec(bContext *C, wmOperator *op)
   ListBase *constraints = constraint_list_from_constraint(ob, con, &pchan);
 
   /* Store name temporarily for report. */
-  const std::string name = con->name_ptr;
+  const std::string name = StringRef(con->name_ptr);
   const bool is_first_constraint = con != constraints->first;
 
   /* Copy the constraint. */
@@ -1641,7 +1641,7 @@ static wmOperatorStatus constraint_copy_exec(bContext *C, wmOperator *op)
   ListBase *constraints = constraint_list_from_constraint(ob, con, &pchan);
 
   /* Store name temporarily for report. */
-  const std::string name = con->name_ptr;
+  const std::string name = StringRef(con->name_ptr);
 
   /* Copy the constraint. */
   bConstraint *copy_con;

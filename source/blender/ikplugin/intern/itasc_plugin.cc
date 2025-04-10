@@ -1455,10 +1455,10 @@ static IK_Scene *convert_tree(
       iktarget->owner = ob;
       iktarget->targetName = pchan->bone->name;
       iktarget->targetName += ":T:";
-      iktarget->targetName += target->con->name_ptr;
+      iktarget->targetName += blender::StringRef(target->con->name_ptr);
       iktarget->constraintName = pchan->bone->name;
       iktarget->constraintName += ":C:";
-      iktarget->constraintName += target->con->name_ptr;
+      iktarget->constraintName += blender::StringRef(target->con->name_ptr);
       numtarget++;
       if (condata->poletar) {
         /* this constraint has a polar target */

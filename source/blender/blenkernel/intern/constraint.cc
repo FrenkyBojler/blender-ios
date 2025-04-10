@@ -6272,7 +6272,9 @@ static bConstraint *constraint_find_original(Object *ob,
     bConstraint *orig_con = static_cast<bConstraint *>(BLI_findlink(orig_constraints, index));
 
     /* Verify it has correct type and name. */
-    if (orig_con && orig_con->type == con->type && STREQ(orig_con->name_ptr, con->name_ptr)) {
+    if (orig_con && orig_con->type == con->type &&
+        blender::StringRef(orig_con->name_ptr) == con->name_ptr)
+    {
       if (r_orig_ob != nullptr) {
         *r_orig_ob = orig_ob;
       }

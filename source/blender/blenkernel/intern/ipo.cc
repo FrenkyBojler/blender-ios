@@ -1175,9 +1175,8 @@ static char *get_rna_access(ID *id,
   }
   else if (constname && constname[0]) {
     /* Constraint in Object */
-    char constname_esc[sizeof(bConstraint::name_legacy) * 2];
-    BLI_str_escape(constname_esc, constname, sizeof(constname_esc));
-    SNPRINTF(buf, "constraints[\"%s\"]", constname_esc);
+    const std::string constname_esc = BLI_str_escape(constname);
+    SNPRINTF(buf, "constraints[\"%s\"]", constname_esc.c_str());
   }
   else if (strip) {
     /* Strip names in Scene */
