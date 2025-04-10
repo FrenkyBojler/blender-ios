@@ -449,6 +449,11 @@ static void node_shader_buts_scatter(uiLayout *layout, bContext * /*C*/, Pointer
   uiItemR(layout, ptr, "phase", DEFAULT_FLAGS, "", ICON_NONE);
 }
 
+static void node_shader_buts_coeffs(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "phase", DEFAULT_FLAGS, "", ICON_NONE);
+}
+
 /* only once called */
 static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
 {
@@ -507,6 +512,9 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case SH_NODE_VOLUME_SCATTER:
       ntype->draw_buttons = node_shader_buts_scatter;
+      break;
+    case SH_NODE_VOLUME_COEFFS:
+      ntype->draw_buttons = node_shader_buts_coeffs;
       break;
   }
 }
