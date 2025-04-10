@@ -33,6 +33,7 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
@@ -54,6 +55,7 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_action.hh"
@@ -6734,18 +6736,28 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 18)) {
-    /* Version render output paths (both primary on scene as well as those in
-     * the File Output compositor node) to escape curely braces. */
-    {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        escape_curly_braces(scene->r.pic, FILE_MAX);
-        if (scene->nodetree) {
-          escape_curly_braces_in_compositor_file_output_nodes(*scene->nodetree);
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type_legacy == CMP_NODE_CORNERPIN) {
+            node->custom1 = CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC;
+          }
         }
       }
+    }
+    FOREACH_NODETREE_END;
+  }
 
-      LISTBASE_FOREACH (bNodeTree *, nodetree, &bmain->nodetrees) {
-        escape_curly_braces_in_compositor_file_output_nodes(*nodetree);
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 19)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_PROPERTIES) {
+            SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
+            /* Translates to 0xFFFFFFFF, so other tabs can be added without versioning. */
+            sbuts->visible_tabs = uint(-1);
+          }
+        }
       }
     }
   }
@@ -6759,12 +6771,35 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     rename_mesh_uv_seam_attribute(*mesh);
   }
 
-  /* TODO: define version bump. */
-  {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
+    /* Older files uses non-UTF8 aware string copy, ensure names are valid UTF8.
+     * The slot names are not unique so no further changes are needed. */
+    LISTBASE_FOREACH (Image *, image, &bmain->images) {
+      LISTBASE_FOREACH (RenderSlot *, slot, &image->renderslots) {
+        if (slot->name[0]) {
+          BLI_str_utf8_invalid_strip(slot->name, sizeof(slot->name));
+        }
+      }
+    }
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->r.ppm_factor == 0.0f && scene->r.ppm_base == 0.0f) {
-        scene->r.ppm_factor = 72.0f;
-        scene->r.ppm_base = 0.0254f;
+      scene->r.ppm_factor = 72.0f;
+      scene->r.ppm_base = 0.0254f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 21)) {
+    /* Version render output paths (both primary on scene as well as those in
+     * the File Output compositor node) to escape curely braces. */
+    {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        escape_curly_braces(scene->r.pic, FILE_MAX);
+        if (scene->nodetree) {
+          escape_curly_braces_in_compositor_file_output_nodes(*scene->nodetree);
+        }
+      }
+
+      LISTBASE_FOREACH (bNodeTree *, nodetree, &bmain->nodetrees) {
+        escape_curly_braces_in_compositor_file_output_nodes(*nodetree);
       }
     }
   }
