@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "BLI_implicit_sharing.h"
 
 #ifdef __cplusplus
-
-#  include <cstdint>
 
 namespace blender::bke {
 class AttributeStorage;
