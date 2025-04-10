@@ -1386,7 +1386,7 @@ static void std_node_socket_draw(
           node_geometry_add_attribute_search_button(*C, *node, *ptr, *row);
         }
       }
-      if (socket_needs_layer_search(*node, *sock)) {
+      else if (socket_needs_layer_search(*node, *sock)) {
         if (text.is_empty()) {
           node_geometry_add_layer_search_button(*C, *node, *ptr, *layout, label);
         }
