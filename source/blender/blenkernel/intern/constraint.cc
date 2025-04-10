@@ -16,6 +16,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_kdopbvh.hh"
@@ -6598,10 +6600,19 @@ static void make_legacy_names_unique(ListBase *values)
   if (!found_duplicate_legacy_name) {
     return;
   }
-  // TODO: Use better unique name generation.
-  int i = 0;
+  const int count = BLI_listbase_count(values);
+  const int num_digits = log2_floor(count);
+  /* Add 2 because of the separator dot and null terminator. */
+  const int suffix_len_with_null = num_digits + 2;
+  int i = 1;
   LISTBASE_FOREACH (T *, value, values) {
-    STRNCPY_UTF8(value->*LegacyName, std::to_string(i++).c_str());
+    if (strlen(value->*LegacyName) > S - suffix_len_with_null) {
+      size_t trimmed_old_len;
+      BLI_strnlen_utf8_ex(value->*LegacyName, S - suffix_len_with_null, &trimmed_old_len);
+      const std::string suffix = fmt::format(".{:0{}}", i, num_digits);
+      BLI_strncpy(value->*LegacyName + trimmed_old_len, suffix.c_str(), suffix_len_with_null);
+    }
+    i++;
   }
 }
 
