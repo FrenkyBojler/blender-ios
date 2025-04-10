@@ -1145,11 +1145,10 @@ static void screenshot_preview_exit(bContext *C, wmOperator *op)
 
 static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOperatorData *data)
 {
-  /* Only set the rna values if the chosen rect is large enough. This allows to just click to
-   * confirm an existing rect. */
-  int2 size = data->p2 - data->p1;
   RNA_boolean_set(op->ptr, "force_square", data->force_square);
-  if (std::abs(size.x) > 4 && std::abs(size.y) > 4) {
+  /* Only set the rna values mouse move threshold has been crossed. This allows to just click to
+   * confirm an existing rect by using the existing RNA values. */
+  if (data->crossed_threshold) {
     RNA_int_set_array(op->ptr, "p1", data->p1);
     RNA_int_set_array(op->ptr, "p2", data->p2);
   }
