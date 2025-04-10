@@ -36,9 +36,12 @@ struct AttributeSingleDNA {
 /** DNA data for bke::Attribute. */
 struct AttributeDNA {
   const char *name;
-  int16_t data_type;   /* bke::AttrType. */
-  int8_t domain;       /* bke::AttrDomain. */
-  int8_t storage_type; /* bke::AttrStorageType */
+  /* bke::AttrType. */
+  int16_t data_type;
+  /* bke::AttrDomain. */
+  int8_t domain;
+  /* bke::AttrStorageType */
+  int8_t storage_type;
   char _pad[4];
 
   /** Type depends on storage type. */
