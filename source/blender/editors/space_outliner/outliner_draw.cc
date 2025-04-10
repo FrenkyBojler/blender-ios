@@ -3727,10 +3727,9 @@ static void outliner_draw_highlights(uint pos,
                                      int start_x,
                                      int *io_start_y)
 {
-  const bool is_searching = (ED_outliner_support_searching(space_outliner) &&
-                             (SEARCHING_OUTLINER(space_outliner) ||
-                              (space_outliner->outlinevis == SO_DATA_API &&
-                               space_outliner->search_string[0] != 0)));
+  const bool is_searching = (SEARCHING_OUTLINER(space_outliner) ||
+                             (space_outliner->outlinevis == SO_DATA_API &&
+                              space_outliner->search_string[0] != 0));
 
   tree_iterator::all_open(*space_outliner, [&](const TreeElement *te) {
     const TreeStoreElem *tselem = TREESTORE(te);
