@@ -5709,8 +5709,8 @@ void BKE_constraint_free_data_ex(bConstraint *con, bool do_id_user)
 
     /* free constraint data now */
     MEM_freeN(con->data);
-    MEM_SAFE_FREE(con->name_ptr);
   }
+  MEM_SAFE_FREE(con->name_ptr);
 }
 
 void BKE_constraint_free_data(bConstraint *con)

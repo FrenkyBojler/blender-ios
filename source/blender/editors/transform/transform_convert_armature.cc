@@ -1624,6 +1624,7 @@ static void pose_grab_with_ik_clear(Main *bmain, Object *ob)
 
           BLI_remlink(&pchan->constraints, con);
           MEM_freeN(con->data);
+          MEM_SAFE_FREE(con->name_ptr);
           MEM_freeN(con);
           continue;
         }
