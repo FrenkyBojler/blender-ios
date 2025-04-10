@@ -1801,10 +1801,10 @@ static void version_liboverride_rnacollections_insertion_object_constraints(
       continue;
     }
     bConstraint *constraint_anchor = static_cast<bConstraint *>(
-        BLI_listbase_string_ptr_or_index_find(constraints,
-                                              opop->subitem_local_name,
-                                              offsetof(bConstraint, name_ptr),
-                                              opop->subitem_local_index));
+        BLI_listbase_string_or_index_find(constraints,
+                                          opop->subitem_local_name,
+                                          offsetof(bConstraint, name),
+                                          opop->subitem_local_index));
     bConstraint *constraint_src = constraint_anchor != nullptr ?
                                       constraint_anchor->next :
                                       static_cast<bConstraint *>(constraints->first);
@@ -1817,7 +1817,7 @@ static void version_liboverride_rnacollections_insertion_object_constraints(
     }
 
     opop->subitem_reference_name = opop->subitem_local_name;
-    opop->subitem_local_name = BLI_strdup(constraint_src->name_ptr);
+    opop->subitem_local_name = BLI_strdup(constraint_src->name);
     opop->subitem_reference_index = opop->subitem_local_index;
     opop->subitem_local_index++;
   }
