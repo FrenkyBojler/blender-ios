@@ -30,13 +30,13 @@ class SmoothOperation : public GreasePencilStrokeOperationCommon {
  private:
   bool temp_smooth_;
 
-  /* Used when temporarily switch to smooth brush, save the previous active brush. */
+  /* Used when temporarily switching to smooth brush, save the previous active brush. */
   Brush *saved_active_brush_;
   char saved_mask_brush_tool_;
-  int saved_smooth_size_; /* smooth tool copies the size of the current tool */
+  int saved_smooth_size_; /* Smooth tool copies the size of the current tool. */
 
-  void toggle_temp_on(const bContext &C);
-  void toggle_temp_off(const bContext &C);
+  void toggle_smooth_brush_on(const bContext &C);
+  void toggle_smooth_brush_off(const bContext &C);
 
  public:
   using GreasePencilStrokeOperationCommon::GreasePencilStrokeOperationCommon;
@@ -51,16 +51,16 @@ class SmoothOperation : public GreasePencilStrokeOperationCommon {
   void on_stroke_done(const bContext &C) override;
 };
 
-void SmoothOperation::toggle_temp_on(const bContext &C)
+void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Main *bmain = CTX_data_main(&C);
   Scene *scene = CTX_data_scene(&C);
-  Brush *cur_brush = BKE_paint_brush(paint);
+  Brush *current_brush = BKE_paint_brush(paint);
 
-  if (cur_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    saved_mask_brush_tool_ = cur_brush->mask_tool;
-    cur_brush->mask_tool = BRUSH_MASK_SMOOTH;
+  if (current_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+    saved_mask_brush_tool_ = current_brush->mask_tool;
+    current_brush->mask_tool = BRUSH_MASK_SMOOTH;
     return;
   }
 
@@ -71,15 +71,15 @@ void SmoothOperation::toggle_temp_on(const bContext &C)
 
   init_brush(*smooth_brush);
 
-  saved_active_brush_ = cur_brush;
+  saved_active_brush_ = current_brush;
   saved_smooth_size_ = BKE_brush_size_get(scene, smooth_brush);
 
-  const int cur_brush_size = BKE_brush_size_get(scene, cur_brush);
-  BKE_brush_size_set(scene, smooth_brush, cur_brush_size);
+  const int current_brush_size = BKE_brush_size_get(scene, current_brush);
+  BKE_brush_size_set(scene, smooth_brush, current_brush_size);
   BKE_curvemapping_init(smooth_brush->curve);
 }
 
-void SmoothOperation::toggle_temp_off(const bContext &C)
+void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush &brush = *BKE_paint_brush(paint);
