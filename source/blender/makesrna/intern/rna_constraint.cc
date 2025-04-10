@@ -418,12 +418,11 @@ static void rna_Constraint_name_set(PointerRNA *ptr, const char *value)
   bConstraint *con = static_cast<bConstraint *>(ptr->data);
 
   /* make a copy of the old name first */
-  const std::string oldname = con->name_ptr;
+  const std::string oldname = blender::StringRef(con->name_ptr);
 
   /* copy the new name into the name slot */
   MEM_SAFE_FREE(con->name_ptr);
-  // TODO: Check if value can be null.
-  con->name_ptr = BLI_strdup(value);
+  con->name_ptr = BLI_strdup_null(value);
 
   /* make sure name is unique */
   if (ptr->owner_id) {

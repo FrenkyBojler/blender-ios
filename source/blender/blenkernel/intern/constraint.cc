@@ -6580,8 +6580,39 @@ void BKE_constraints_solve(Depsgraph *depsgraph,
   }
 }
 
+template<typename T, size_t S, char (T::*LegacyName)[S], char *T::*NamePtr>
+static void make_legacy_names_unique(ListBase *values)
+{
+  /* Optimistically copy current names to legacy names. This is good enough in the majority of
+   * cases. If there are duplicates, those will be resolved below. */
+  blender::Set<blender::StringRef> truncated_names;
+  bool found_duplicate_legacy_name = false;
+  LISTBASE_FOREACH (T *, value, values) {
+    STRNCPY_UTF8(value->*LegacyName, value->*NamePtr);
+    const int64_t num_truncated_bytes = int64_t(strlen(value->*LegacyName));
+    const blender::StringRef truncated_name{value->*NamePtr, num_truncated_bytes};
+    if (!truncated_names.add(truncated_name)) {
+      found_duplicate_legacy_name = true;
+    }
+  }
+  if (!found_duplicate_legacy_name) {
+    return;
+  }
+  // TODO: Use better unique name generation.
+  int i = 0;
+  LISTBASE_FOREACH (T *, value, values) {
+    STRNCPY_UTF8(value->*LegacyName, std::to_string(i++).c_str());
+  }
+}
+
 void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
 {
+  if (!BLO_write_is_undo(writer)) {
+    make_legacy_names_unique<bConstraint,
+                             sizeof(bConstraint::name_legacy),
+                             &bConstraint::name_legacy,
+                             &bConstraint::name_ptr>(conlist);
+  }
   LISTBASE_FOREACH (bConstraint *, con, conlist) {
     const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
     BLO_write_string(writer, con->name_ptr);
@@ -6626,11 +6657,6 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
           break;
         }
       }
-    }
-
-    if (!BLO_write_is_undo(writer)) {
-      // TODO: ensure unique legacy names
-      STRNCPY_UTF8(con->name_legacy, con->name_ptr);
     }
 
     /* Write the constraint */
