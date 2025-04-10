@@ -2716,12 +2716,21 @@ static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator *op)
   vgroup_assign_verts(ob, scene, ts->vgroup_weight);
 
   if (ts->auto_normalize) {
-    int subset_count, vgroup_tot;
-    const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
+    int r_defgroup_tot = BKE_object_defgroup_count(ob);
+    bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
+    const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
+
+    // Only auto-normalize if the active group is bone-deforming
+    if (defgroup_validmap[def_nr] == true) {
+      int subset_count, vgroup_tot;
+      const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
         ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
-    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, true, op->reports);
-    MEM_SAFE_FREE(vgroup_validmap);
+      vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, true, op->reports);
+      MEM_SAFE_FREE(vgroup_validmap);
+    }
+
+    MEM_SAFE_FREE(defgroup_validmap);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -2823,12 +2832,21 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
 
   ToolSettings *ts = CTX_data_tool_settings(C);
   if (ts->auto_normalize) {
-    int subset_count, vgroup_tot;
-    const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
-        ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
+    int r_defgroup_tot = BKE_object_defgroup_count(ob);
+    bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
+    const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
 
-    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, false, op->reports);
-    MEM_SAFE_FREE(vgroup_validmap);
+    // Only auto-normalize if the active group is bone-deforming
+    if (defgroup_validmap[def_nr] == true) {
+      int subset_count, vgroup_tot;
+      const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
+          ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
+
+      vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, false, op->reports);
+      MEM_SAFE_FREE(vgroup_validmap);
+    }
+
+    MEM_SAFE_FREE(defgroup_validmap);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
