@@ -11,6 +11,7 @@
 #include "intern/depsgraph.hh" /* own include */
 
 #include <cstring>
+#include <type_traits>
 
 #include "BLI_utildefines.h"
 
@@ -189,12 +190,12 @@ Relation *Depsgraph::add_new_relation(Node *from, Node *to, const char *descript
   }
 #endif
 
-  /* Create new relation, and add it to the graph. */
-  destruct_ptr<Relation> rel_ptr = this->build_allocator.construct<Relation>(
-      from, to, description);
-  rel = rel_ptr.get();
+  /* Create new relation, and add it to the graph. The type must be trivially destructable for
+   * `.release()` to be okay. */
+  static_assert(std::is_trivially_destructible_v<Relation>);
+  rel = this->build_allocator.construct<Relation>(from, to, description).release();
   from->outlinks.append(rel);
-  from->inlinks.append(std::move(rel_ptr));
+  from->inlinks.append(rel);
   rel->flag |= flags;
   return rel;
 }

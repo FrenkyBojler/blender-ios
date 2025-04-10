@@ -36,9 +36,8 @@ struct Relation {
   Relation(Node *from, Node *to, const char *description) : from(from), to(to), name(description)
   {
   }
-  ~Relation() {}
 
-  void unlink_and_destruct();
+  void unlink();
 
   /* the nodes in the relationship (since this is shared between the nodes) */
   Node *from; /* A */

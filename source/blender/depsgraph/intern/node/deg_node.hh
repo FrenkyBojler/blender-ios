@@ -16,7 +16,6 @@
 
 #include "DEG_depsgraph_build.hh"
 
-#include "BLI_memory_utils.hh"
 #include "BLI_vector.hh"
 
 struct ID;
@@ -172,15 +171,17 @@ struct Node {
     /* Time spent on this node during current graph evaluation. */
     double current_time;
   };
-  /* NOTE: Relations are the reason why all depsgraph nodes are descended from this type (apart
+  /* Relationships between nodes
+   * The reason why all depsgraph nodes are descended from this type (apart
    * from basic serialization benefits - from the typeinfo) is that we can
    * have relationships between these nodes. */
+  using Relations = Vector<Relation *>;
 
-  std::string name;                       /* Identifier - mainly for debugging purposes. */
-  NodeType type;                          /* Structural type of node. */
-  Vector<destruct_ptr<Relation>> inlinks; /* Nodes which this one depends on. */
-  Vector<Relation *> outlinks;            /* Nodes which depend on this one. */
-  Stats stats;                            /* Evaluation statistics. */
+  std::string name;   /* Identifier - mainly for debugging purposes. */
+  NodeType type;      /* Structural type of node. */
+  Relations inlinks;  /* Nodes which this one depends on. */
+  Relations outlinks; /* Nodes which depend on this one. */
+  Stats stats;        /* Evaluation statistics. */
 
   /* Generic tags for traversal algorithms and such.
    *
