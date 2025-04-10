@@ -1319,6 +1319,7 @@ static bool screenshot_preview_poll(bContext *C)
 
   ID *id = id_from_selected_asset(C);
   if (!id) {
+    CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;
   }
 
