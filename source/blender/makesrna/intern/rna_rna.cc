@@ -194,7 +194,7 @@ const EnumPropertyItem rna_enum_property_flag_items[] = {
      "Update on every keystroke in textedit 'mode'",
      PROP_TEXTEDIT_UPDATE_DESCR},
     {PROP_PATH_OUTPUT, "OUTPUT_PATH", 0, "Output Path", PROP_PATH_OUTPUT_DESCR},
-    {PROP_PATH_BLEND_RELATIVE,
+    {PROP_PATH_SUPPORTS_BLEND_RELATIVE,
      "RELATIVE_PATH",
      0,
      "Relative Path Support",
@@ -798,7 +798,7 @@ static bool rna_Property_is_path_output_flag_get(PointerRNA *ptr)
 static bool rna_Property_is_path_blend_relative_supported_flag_get(PointerRNA *ptr)
 {
   PropertyRNA *prop = (PropertyRNA *)ptr->data;
-  return (prop->flag & PROP_PATH_BLEND_RELATIVE) != 0;
+  return (prop->flag & PROP_PATH_SUPPORTS_BLEND_RELATIVE) != 0;
 }
 
 static int rna_Property_tags_get(PointerRNA *ptr)
@@ -3306,7 +3306,8 @@ static void rna_def_property(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "is_path_blend_relative_supported", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_funcs(prop, "rna_Property_is_path_blend_relative_supported_flag_get", nullptr);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_Property_is_path_blend_relative_supported_flag_get", nullptr);
   RNA_def_property_ui_text(
       prop,
       "Path Relative",

@@ -1033,7 +1033,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     if (rnaprop) {
       PropertySubType subtype = RNA_property_subtype(rnaprop);
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
-        if ((RNA_property_flag(rnaprop) & PROP_PATH_BLEND_RELATIVE) == 0) {
+        if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
           if (BLI_path_is_rel(but->drawstr.c_str())) {
             UI_tooltip_text_field_add(*data,
                                       "Warning: the blend-file relative path prefix \"//\" "

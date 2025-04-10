@@ -1773,7 +1773,7 @@ static int pyrna_py_to_prop(
             return -1;
           }
 
-          if ((flag & PROP_PATH_BLEND_RELATIVE) == 0) {
+          if ((flag & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
             if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
               if (BLI_path_is_rel(param)) {
                 char warning_buf[256];

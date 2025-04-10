@@ -413,7 +413,7 @@ enum PropertyFlag {
    * Path supports relative prefix: `//`,
    * paths which don't support the relative suffix show a warning if the suffix is used.
    */
-  PROP_PATH_BLEND_RELATIVE = (1 << 15),
+  PROP_PATH_SUPPORTS_BLEND_RELATIVE = (1 << 15),
 
   /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
   PROP_SKIP_PRESET = (1 << 11),
