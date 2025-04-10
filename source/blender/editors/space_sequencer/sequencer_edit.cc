@@ -548,17 +548,19 @@ static void slip_update_header(const Scene *scene,
   if (hasNumInput(&data->num_input)) {
     char num_str[NUM_STR_REP_LEN];
     outputNumInput(&data->num_input, num_str, scene->unit);
-    SNPRINTF(msg, IFACE_("Slip Offset: %s Frames"), num_str);
+    SNPRINTF(msg, IFACE_("Slip Offset: Frames: %s"), num_str);
   }
   else {
     int frame_offset = std::trunc(offset);
     if (data->show_subframe) {
       float subframe_offset_sec = (offset - std::trunc(offset)) / FPS;
-      SNPRINTF(
-          msg, IFACE_("Slip Offset: Frames: %d Seconds: %.3f"), frame_offset, subframe_offset_sec);
+      SNPRINTF(msg,
+               IFACE_("Slip Offset: Frames: %d Sound Offset: %.3f"),
+               frame_offset,
+               subframe_offset_sec);
     }
     else {
-      SNPRINTF(msg, IFACE_("Slip Offset: %d Frames"), frame_offset);
+      SNPRINTF(msg, IFACE_("Slip Offset: Frames: %d"), frame_offset);
     }
   }
 
