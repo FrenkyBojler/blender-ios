@@ -974,10 +974,10 @@ static bool has_external_files(Main *bmain, ReportList *reports)
 
 struct ScreenshotOperatorData {
   void *draw_handle;
-  blender::int2 drag_start, drag_end, last_cursor;
+  int2 drag_start, drag_end, last_cursor;
   /* Screenshot points may not be set immediately to allow for clicking to create a screenshot with
    * the previous size. */
-  blender::int2 p1, p2;
+  int2 p1, p2;
 
   bool dragging;
   /* Dragged far enough to create the screenshot are instead of registering as a click. */
@@ -988,23 +988,24 @@ struct ScreenshotOperatorData {
 };
 
 /* Sort points so p1 is lower left, and p2 is top right. */
-static inline void sort_points(blender::int2 &p1, blender::int2 &p2)
+static inline void sort_points(int2 &p1, int2 &p2)
 {
   if (p1.x > p2.x) {
-    const int swap = p1.x;
-    p1.x = p2.x;
-    p2.x = swap;
+    std::swap(p1.x, p2.x);
   }
   if (p1.y > p2.y) {
-    const int swap = p1.y;
-    p1.y = p2.y;
-    p2.y = swap;
+    std::swap(p1.y, p2.y);
   }
 }
 
-static inline void square_points(blender::int2 &p1, blender::int2 &p2)
+static inline void square_points(int2 &p1, int2 &p2)
 {
-  blender::int2 delta = p2 - p1;
+  int2 delta = p2 - p1;
+  if (delta.x == 0 || delta.y == 0) {
+    /* Avoids divide by 0 issues. */
+    p2.x = p1.x;
+    p2.y = p1.y;
+  }
   if (std::abs(delta.x) < std::abs(delta.y)) {
     delta.x = (delta.x / std::abs(delta.x)) * std::abs(delta.y);
   }
@@ -1017,7 +1018,7 @@ static inline void square_points(blender::int2 &p1, blender::int2 &p2)
 
 static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 {
-  blender::int2 p1, p2;
+  int2 p1, p2;
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
 
@@ -1103,8 +1104,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 {
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(operator_data);
-  blender::int2 p1 = data->p1;
-  blender::int2 p2 = data->p2;
+  int2 p1 = data->p1;
+  int2 p2 = data->p2;
   if (data->force_square) {
     square_points(p1, p2);
   }
@@ -1115,7 +1116,7 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
       float(p1.x - 1), float(p2.x + 1), float(p1.y - 1), float(p2.y + 1)};
 
   /* Drawing a semi-transparent mask to highlight the area that will be captured. */
-  blender::float4 mask_color = {1, 1, 1, 0.25};
+  float4 mask_color = {1, 1, 1, 0.25};
   const rctf mask_rect_bottom = {0, float(window->sizex), 0, screenshot_rect.ymin};
   UI_draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
   const rctf mask_rect_top = {0, float(window->sizex), screenshot_rect.ymax, float(window->sizey)};
@@ -1127,7 +1128,7 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
       screenshot_rect.xmax, float(window->sizex), screenshot_rect.ymin, screenshot_rect.ymax};
   UI_draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
 
-  blender::float4 color;
+  float4 color;
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, color);
   UI_draw_roundbox_aa(&screenshot_rect, false, 0, color);
 }
@@ -1146,7 +1147,7 @@ static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOpe
 {
   /* Only set the rna values if the chosen rect is large enough. This allows to just click to
    * confirm an existing rect. */
-  blender::int2 size = data->p2 - data->p1;
+  int2 size = data->p2 - data->p1;
   RNA_boolean_set(op->ptr, "force_square", data->force_square);
   if (std::abs(size.x) > 4 && std::abs(size.y) > 4) {
     RNA_int_set_array(op->ptr, "p1", data->p1);
@@ -1160,7 +1161,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
 
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
 
-  blender::int2 screen_space_cursor = {
+  const int2 screen_space_cursor = {
       event->mval[0] + region->winrct.xmin,
       event->mval[1] + region->winrct.ymin,
   };
@@ -1233,7 +1234,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
 
     case MOUSEMOVE: {
       if (!data->crossed_threshold) {
-        blender::int2 delta = data->drag_end - data->drag_start;
+        int2 delta = data->drag_end - data->drag_start;
         if (std::abs(delta.x) > 4 && std::abs(delta.y) > 4) {
           data->crossed_threshold = true;
           data->p1 = data->drag_start;
@@ -1241,7 +1242,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
       }
 
       if (data->shift_area) {
-        blender::int2 delta = screen_space_cursor - data->last_cursor;
+        int2 delta = screen_space_cursor - data->last_cursor;
         data->p1 += delta;
         data->p2 += delta;
       }
