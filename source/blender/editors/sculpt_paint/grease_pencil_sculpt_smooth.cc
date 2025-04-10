@@ -102,7 +102,7 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
 void SmoothOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
   if (temp_smooth_) {
-    toggle_temp_on(C);
+    toggle_smooth_brush_on(C);
     this->start_mouse_position = start_sample.mouse_position;
     this->prev_mouse_position = start_sample.mouse_position;
   }
@@ -216,7 +216,7 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
 void SmoothOperation::on_stroke_done(const bContext &C)
 {
   if (temp_smooth_) {
-    toggle_temp_off(C);
+    toggle_smooth_brush_off(C);
   }
 }
 
