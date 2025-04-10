@@ -237,6 +237,8 @@ void Depsgraph::clear_all_nodes()
   clear_id_nodes();
   delete time_source;
   time_source = nullptr;
+  std::destroy_at(&this->build_allocator);
+  new (&this->build_allocator) LinearAllocator<>();
 }
 
 ID *Depsgraph::get_cow_id(const ID *id_orig) const
