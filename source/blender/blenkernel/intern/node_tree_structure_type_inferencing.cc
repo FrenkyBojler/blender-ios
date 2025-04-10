@@ -346,7 +346,7 @@ static StructureType left_to_right_merge(const StructureType a, const StructureT
   if ((a == StructureType::Dynamic && b == StructureType::Single) ||
       (a == StructureType::Single && b == StructureType::Dynamic))
   {
-    return StructureType::Single;
+    return StructureType::Dynamic;
   }
   if ((a == StructureType::Dynamic && b == StructureType::Field) ||
       (a == StructureType::Field && b == StructureType::Dynamic))
