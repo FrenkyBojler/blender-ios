@@ -6730,13 +6730,23 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 21)) {
+    auto update_constraint = [](bConstraint &constraint) {
+      if (constraint.name_ptr) {
+        /* Make versioning idempotent. */
+        return;
+      }
+      constraint.name_ptr = BLI_strdup(constraint.name_legacy);
+    };
     LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      LISTBASE_FOREACH (bConstraint *, con, &object->constraints) {
-        if (con->name_ptr) {
-          /* Make versioning idempotent. */
-          continue;
+      LISTBASE_FOREACH (bConstraint *, constraint, &object->constraints) {
+        update_constraint(*constraint);
+      }
+      if (object->pose) {
+        LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
+          LISTBASE_FOREACH (bConstraint *, constraint, &pchan->constraints) {
+            update_constraint(*constraint);
+          }
         }
-        con->name_ptr = BLI_strdup(con->name_legacy);
       }
     }
   }

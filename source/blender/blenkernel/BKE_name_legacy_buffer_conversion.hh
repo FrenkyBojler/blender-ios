@@ -24,10 +24,8 @@ inline void update_legacy_name_buffers(ListBase *values)
   blender::Set<blender::StringRef> truncated_names;
   bool found_duplicate_legacy_name = false;
   LISTBASE_FOREACH (T *, value, values) {
-    STRNCPY_UTF8(value->*LegacyName, value->*NamePtr);
-    const int64_t num_truncated_bytes = int64_t(strlen(value->*LegacyName));
-    const blender::StringRef truncated_name{value->*NamePtr, num_truncated_bytes};
-    if (!truncated_names.add(truncated_name)) {
+    STRNCPY_UTF8(value->*LegacyName, value->*NamePtr ? value->*NamePtr : "");
+    if (!truncated_names.add(value->*LegacyName)) {
       found_duplicate_legacy_name = true;
     }
   }
