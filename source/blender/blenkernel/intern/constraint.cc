@@ -25,6 +25,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
@@ -5705,6 +5706,7 @@ void BKE_constraint_free_data_ex(bConstraint *con, bool do_id_user)
 
     /* free constraint data now */
     MEM_freeN(con->data);
+    MEM_SAFE_FREE(con->name_ptr);
   }
 }
 
@@ -6068,6 +6070,7 @@ static void constraint_copy_data_ex(bConstraint *dst,
 
   /* make a new copy of the constraint's data */
   dst->data = MEM_dupallocN(dst->data);
+  dst->name_ptr = BLI_strdup_null(src->name_ptr);
 
   /* only do specific constraints if required */
   if (cti) {
@@ -6581,6 +6584,7 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
 {
   LISTBASE_FOREACH (bConstraint *, con, conlist) {
     const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+    BLO_write_string(writer, con->name_ptr);
 
     /* Write the specific data */
     if (cti && con->data) {
@@ -6624,6 +6628,11 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
       }
     }
 
+    if (!BLO_write_is_undo(writer)) {
+      // TODO: ensure unique legacy names
+      STRNCPY_UTF8(con->name_legacy, con->name_ptr);
+    }
+
     /* Write the constraint */
     BLO_write_struct(writer, bConstraint, con);
   }
@@ -6634,6 +6643,7 @@ void BKE_constraint_blend_read_data(BlendDataReader *reader, ID *id_owner, ListB
   BLO_read_struct_list(reader, bConstraint, lb);
   LISTBASE_FOREACH (bConstraint *, con, lb) {
     const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+    BLO_read_string(reader, &con->name_ptr);
     if (cti) {
       con->data = BLO_read_struct_by_name_array(reader, cti->struct_name, 1, con->data);
     }

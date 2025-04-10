@@ -765,6 +765,35 @@ void *BLI_listbase_string_or_index_find(const ListBase *listbase,
   return link_at_index;
 }
 
+void *BLI_listbase_string_ptr_or_index_find(const ListBase *listbase,
+                                            const char *string,
+                                            size_t string_ptr_offset,
+                                            int index)
+{
+  Link *link = nullptr;
+  Link *link_at_index = nullptr;
+
+  int index_iter;
+  for (link = static_cast<Link *>(listbase->first), index_iter = 0; link;
+       link = link->next, index_iter++)
+  {
+    if (string != nullptr && string[0] != '\0') {
+      const char *string_iter = *reinterpret_cast<const char **>(
+          POINTER_OFFSET(link, string_ptr_offset));
+      if (!string_iter && string[0] == '\0') {
+        return link;
+      }
+      if (STREQ(string, string_iter)) {
+        return link;
+      }
+    }
+    if (index_iter == index) {
+      link_at_index = link;
+    }
+  }
+  return link_at_index;
+}
+
 int BLI_findstringindex(const ListBase *listbase, const char *id, const int offset)
 {
   Link *link = nullptr;

@@ -91,6 +91,10 @@ void *BLI_listbase_string_or_index_find(const ListBase *listbase,
                                         const char *string,
                                         size_t string_offset,
                                         int index) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+void *BLI_listbase_string_ptr_or_index_find(const ListBase *listbase,
+                                            const char *string,
+                                            size_t string_ptr_offset,
+                                            int index) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 
 /* Find backwards. */
 

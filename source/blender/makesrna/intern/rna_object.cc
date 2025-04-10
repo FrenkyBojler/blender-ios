@@ -1668,17 +1668,16 @@ bool rna_Object_constraints_override_apply(Main *bmain,
   /* Remember that insertion operations are defined and stored in correct order, which means that
    * even if we insert several items in a row, we always insert first one, then second one, etc.
    * So we should always find 'anchor' constraint in both _src *and* _dst. */
-  // TODO
-  const size_t name_offset = offsetof(bConstraint, name_legacy);
+  const size_t name_ptr_offset = offsetof(bConstraint, name_ptr);
   bConstraint *con_anchor = static_cast<bConstraint *>(
-      BLI_listbase_string_or_index_find(&ob_dst->constraints,
-                                        opop->subitem_reference_name,
-                                        name_offset,
-                                        opop->subitem_reference_index));
+      BLI_listbase_string_ptr_or_index_find(&ob_dst->constraints,
+                                            opop->subitem_reference_name,
+                                            name_ptr_offset,
+                                            opop->subitem_reference_index));
   /* If `con_anchor` is nullptr, `con_src` will be inserted in first position. */
 
-  bConstraint *con_src = static_cast<bConstraint *>(BLI_listbase_string_or_index_find(
-      &ob_src->constraints, opop->subitem_local_name, name_offset, opop->subitem_local_index));
+  bConstraint *con_src = static_cast<bConstraint *>(BLI_listbase_string_ptr_or_index_find(
+      &ob_src->constraints, opop->subitem_local_name, name_ptr_offset, opop->subitem_local_index));
 
   if (con_src == nullptr) {
     BLI_assert(con_src != nullptr);
