@@ -463,6 +463,7 @@ typedef struct GreasePencil {
    */
   CustomData layers_data;
 
+  /** Layer domain attributes. Currently unused at runtime. */
   struct AttributeStorage attribute_storage;
 
   /**

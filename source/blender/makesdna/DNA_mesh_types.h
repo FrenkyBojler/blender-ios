@@ -90,6 +90,7 @@ typedef struct Mesh {
    */
   int *face_offset_indices;
 
+  /** Vertex, edge, face, and corner generic attributes. Currently unused at runtime. */
   struct AttributeStorage attribute_storage;
 
   CustomData vert_data;

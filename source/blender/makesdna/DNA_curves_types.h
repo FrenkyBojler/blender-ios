@@ -117,7 +117,7 @@ typedef struct CurvesGeometry {
    */
   int *curve_offsets;
 
-  /** Curve and point domain attributes. */
+  /** Curve and point domain attributes. Currently unused at runtime. */
   struct AttributeStorage attribute_storage;
 
   /**
