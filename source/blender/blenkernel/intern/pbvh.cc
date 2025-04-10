@@ -277,9 +277,11 @@ Tree Tree::from_mesh(const Mesh &mesh)
     build_nodes_recursive_mesh(
         material_index, leaf_limit, 0, -1, bounds, face_centers, 0, pbvh.prim_indices_, nodes);
   }
+
   build_mesh_leaf_nodes(mesh.verts_num, faces, corner_verts, nodes);
 
   pbvh.tag_positions_changed(nodes.index_range());
+
   pbvh.update_bounds_mesh(vert_positions);
   store_bounds_orig(pbvh);
 
