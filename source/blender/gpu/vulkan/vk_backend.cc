@@ -434,7 +434,6 @@ void VKBackend::platform_exit()
   }
 }
 
-void VKBackend::init_resources() {}
 void VKBackend::delete_resources() {}
 
 void VKBackend::samplers_update()

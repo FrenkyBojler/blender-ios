@@ -10,5 +10,4 @@
 
 /* gpu_backend.cc */
 
-void gpu_backend_init_resources();
 void gpu_backend_delete_resources();

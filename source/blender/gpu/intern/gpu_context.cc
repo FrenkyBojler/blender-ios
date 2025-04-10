@@ -428,32 +428,26 @@ static void gpu_backend_create()
   switch (g_backend_type) {
 #ifdef WITH_OPENGL_BACKEND
     case GPU_BACKEND_OPENGL:
-      g_backend = MEM_new<GLBackend>(__func__);
+      g_backend = new GLBackend;
       break;
 #endif
 #ifdef WITH_VULKAN_BACKEND
     case GPU_BACKEND_VULKAN:
-      g_backend = MEM_new<VKBackend>(__func__);
+      g_backend = new VKBackend;
       break;
 #endif
 #ifdef WITH_METAL_BACKEND
     case GPU_BACKEND_METAL:
-      g_backend = MEM_new<MTLBackend>(__func__);
+      g_backend = new MTLBackend;
       break;
 #endif
     case GPU_BACKEND_NONE:
-      g_backend = MEM_new<DummyBackend>(__func__);
+      g_backend = new DummyBackend;
       break;
     default:
       BLI_assert(0);
       break;
   }
-}
-
-void gpu_backend_init_resources()
-{
-  BLI_assert(g_backend);
-  g_backend->init_resources();
 }
 
 void gpu_backend_delete_resources()
@@ -465,7 +459,7 @@ void gpu_backend_delete_resources()
 void gpu_backend_discard()
 {
   /* TODO: assert no resource left. */
-  MEM_delete(g_backend);
+  delete g_backend;
   g_backend = nullptr;
 }
 

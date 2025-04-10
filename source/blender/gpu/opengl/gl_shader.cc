@@ -1738,6 +1738,8 @@ bool GLShaderCompiler::worker_is_lost(GLCompilerWorker *&worker)
 
 BatchHandle GLShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
 {
+  BLI_assert(GPU_use_parallel_compilation());
+
   std::scoped_lock lock(mutex_);
   BatchHandle handle = next_batch_handle++;
   batches.add(handle, {});
@@ -1844,7 +1846,7 @@ Vector<Shader *> GLShaderCompiler::batch_finalize(BatchHandle &handle)
 SpecializationBatchHandle GLShaderCompiler::precompile_specializations(
     Span<ShaderSpecialization> specializations)
 {
-  // BLI_assert(GPU_use_parallel_compilation());
+  BLI_assert(GPU_use_parallel_compilation());
 
   std::scoped_lock lock(mutex_);
 

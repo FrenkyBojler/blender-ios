@@ -8,17 +8,15 @@
 
 #pragma once
 
-#include "BLI_map.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
-#include "GHOST_C-api.h"
 
 #include "GPU_shader.hh"
-#include "GPU_worker.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_interface.hh"
 
-#include <deque>
+#include "BLI_map.hh"
+
 #include <string>
 
 namespace blender::gpu {
@@ -199,19 +197,13 @@ class ShaderCompilerGeneric : public ShaderCompiler {
   struct Batch {
     Vector<Shader *> shaders;
     Vector<const shader::ShaderCreateInfo *> infos;
-    std::atomic_bool is_ready = false;
+    bool is_ready = false;
   };
-  BatchHandle next_batch_handle_ = 1;
-  Map<BatchHandle, std::unique_ptr<Batch>> batches_;
+  BatchHandle next_batch_handle = 1;
+  Map<BatchHandle, Batch> batches;
   std::mutex mutex_;
 
-  std::deque<Batch *> compilation_queue_;
-  std::unique_ptr<GPUWorker> compilation_thread_;
-
-  void run_thread();
-
  public:
-  ShaderCompilerGeneric();
   ~ShaderCompilerGeneric() override;
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;

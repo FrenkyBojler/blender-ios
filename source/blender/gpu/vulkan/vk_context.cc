@@ -32,6 +32,8 @@ VKContext::VKContext(void *ghost_window, void *ghost_context)
   back_left = new VKFrameBuffer("back_left");
   front_left = new VKFrameBuffer("front_left");
   active_fb = back_left;
+
+  compiler = &VKBackend::get().shader_compiler;
 }
 
 VKContext::~VKContext()
@@ -46,6 +48,7 @@ VKContext::~VKContext()
   VKBackend::get().device.context_unregister(*this);
 
   imm = nullptr;
+  compiler = nullptr;
 }
 
 void VKContext::sync_backbuffer(bool cycle_resource_pool)
@@ -175,11 +178,6 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
 }
 
 void VKContext::finish() {}
-
-ShaderCompiler *VKContext::get_compiler()
-{
-  return &VKBackend::get().shader_compiler;
-}
 
 void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 {

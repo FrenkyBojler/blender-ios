@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "GPU_capabilities.hh"
 #include "gpu_backend.hh"
 
 #include "BLI_vector.hh"
@@ -40,8 +39,7 @@ class GLBackend : public GPUBackend {
   renderdoc::api::Renderdoc renderdoc_;
 #endif
 
-  ShaderCompiler *compiler_;
-  std::once_flag compiler_once_flag;
+  GLShaderCompiler compiler_;
 
  public:
   GLBackend()
@@ -57,21 +55,10 @@ class GLBackend : public GPUBackend {
     GLBackend::platform_exit();
   }
 
-  void init_resources() override
-  {
-    if (GPU_use_parallel_compilation()) {
-      compiler_ = new GLShaderCompiler();
-    }
-    else {
-      compiler_ = new ShaderCompilerGeneric();
-    }
-  };
-
   void delete_resources() override
   {
     /* Delete any resources with context active. */
     GLTexture::samplers_free();
-    delete compiler_;
   }
 
   static GLBackend *get()
@@ -79,9 +66,9 @@ class GLBackend : public GPUBackend {
     return static_cast<GLBackend *>(GPUBackend::get());
   }
 
-  ShaderCompiler *get_compiler()
+  GLShaderCompiler *get_compiler()
   {
-    return compiler_;
+    return &compiler_;
   }
 
   void samplers_update() override
