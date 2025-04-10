@@ -107,7 +107,7 @@ static Vector<const std::string *> get_layer_names_from_context(const bContext &
       continue;
     }
     if (const GeometryInfoLog *geo_log = dynamic_cast<const GeometryInfoLog *>(value_log)) {
-      if (const std::optional<GeometryInfoLog::GreasePencilInfo> grease_pencil_info =
+      if (const std::optional<GeometryInfoLog::GreasePencilInfo> &grease_pencil_info =
               geo_log->grease_pencil_info)
       {
         for (const std::string &name : grease_pencil_info->layer_names) {

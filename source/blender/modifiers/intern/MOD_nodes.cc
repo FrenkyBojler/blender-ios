@@ -2174,7 +2174,7 @@ static void layer_name_search_update_fn(
       continue;
     }
     if (const auto *geo_log = dynamic_cast<const geo_log::GeometryInfoLog *>(value_log)) {
-      if (const std::optional<geo_log::GeometryInfoLog::GreasePencilInfo> grease_pencil_info =
+      if (const std::optional<geo_log::GeometryInfoLog::GreasePencilInfo> &grease_pencil_info =
               geo_log->grease_pencil_info)
       {
         for (const std::string &name : grease_pencil_info->layer_names) {
