@@ -17,11 +17,6 @@
 #include "GPU_shader.hh"  /* for GPUShaderCreateInfo */
 #include "GPU_texture.hh" /* for GPUSamplerState */
 
-// TODO: Move to a GPU_pass.hh
-void GPU_pass_cache_init();
-void GPU_pass_cache_update();
-void GPU_pass_cache_free();
-
 struct GHash;
 struct GPUMaterial;
 struct GPUNodeLink;
@@ -270,7 +265,6 @@ struct GPUUniformAttrList {
 const GPUUniformAttrList *GPU_material_uniform_attributes(const GPUMaterial *material);
 
 /* Functions to create GPU Materials nodes. */
-// TODO: Move somewhere else.
 
 struct GPUNodeStack {
   eGPUType type;

@@ -10,37 +10,90 @@
 
 #pragma once
 
+#include "BLI_hash_mm2a.hh"
+#include "BLI_listbase.h"
+#include "BLI_vector.hh"
+
 #include "GPU_material.hh"
-#include "GPU_shader.hh"
+#include "gpu_node_graph.hh"
+#include "gpu_shader_create_info.hh"
 
-struct GPUNodeGraph;
+#include <sstream>
+#include <string>
 
-struct GPUPass;
+namespace blender::gpu::shader {
 
-/* Pass */
+struct GPUCodegenCreateInfo : ShaderCreateInfo {
+  struct NameBuffer {
+    using NameEntry = std::array<char, 32>;
 
-enum eGPUPassStatus {
-  GPU_PASS_FAILED = 0,
-  GPU_PASS_QUEUED,
-  GPU_PASS_SUCCESS,
+    /** Duplicate attribute names to avoid reference the GPUNodeGraph directly. */
+    char attr_names[16][GPU_MAX_SAFE_ATTR_NAME + 1];
+    char var_names[16][8];
+    Vector<std::unique_ptr<NameEntry>, 16> sampler_names;
+
+    /* Returns the appended name memory location */
+    const char *append_sampler_name(const char name[32]);
+  };
+
+  /** Optional generated interface. */
+  StageInterfaceInfo *interface_generated = nullptr;
+  /** Optional name buffer containing names referenced by StringRefNull. */
+  NameBuffer name_buffer;
+
+  GPUCodegenCreateInfo(const char *name) : ShaderCreateInfo(name){};
+  ~GPUCodegenCreateInfo()
+  {
+    MEM_delete(interface_generated);
+  }
 };
 
-GPUPass *GPU_generate_pass(GPUMaterial *material,
-                           GPUNodeGraph *graph,
-                           eGPUMaterialEngine engine,
-                           bool deferred_compilation,
-                           GPUCodegenCallbackFn finalize_source_cb,
-                           void *thunk,
-                           bool optimize_graph);
+class GPUCodegen {
+ public:
+  GPUMaterial &mat;
+  GPUNodeGraph &graph;
+  GPUCodegenOutput output = {};
+  GPUCodegenCreateInfo *create_info = nullptr;
 
-eGPUPassStatus GPU_pass_status(GPUPass *pass);
-bool GPU_pass_should_optimize(GPUPass *pass);
-GPUShader *GPU_pass_shader_get(GPUPass *pass);
-void GPU_pass_acquire(GPUPass *pass);
-void GPU_pass_release(GPUPass *pass);
+ private:
+  uint32_t hash_ = 0;
+  BLI_HashMurmur2A hm2a_;
+  ListBase ubo_inputs_ = {nullptr, nullptr};
+  GPUInput *cryptomatte_input_ = nullptr;
 
-uint64_t GPU_pass_global_compilation_count();
-uint64_t GPU_pass_compilation_timestamp(GPUPass *pass);
+  /** Cache parameters for complexity heuristic. */
+  uint nodes_total_ = 0;
+  uint textures_total_ = 0;
+  uint uniforms_total_ = 0;
 
-void gpu_codegen_init();
-void gpu_codegen_exit();
+ public:
+  GPUCodegen(GPUMaterial *mat_, GPUNodeGraph *graph_);
+  ~GPUCodegen();
+
+  void generate_graphs();
+  void generate_cryptomatte();
+  void generate_uniform_buffer();
+  void generate_attribs();
+  void generate_resources();
+  void generate_library();
+
+  uint32_t hash_get() const
+  {
+    return hash_;
+  }
+
+  /* Heuristic determined during pass codegen for whether a
+   * more optimal variant of this material should be compiled. */
+  bool should_optimize_heuristic() const;
+
+ private:
+  void set_unique_ids();
+
+  void node_serialize(std::stringstream &eval_ss, const GPUNode *node);
+  std::string graph_serialize(eGPUNodeTag tree_tag,
+                              GPUNodeLink *output_link,
+                              const char *output_default = nullptr);
+  std::string graph_serialize(eGPUNodeTag tree_tag);
+};
+
+}  // namespace blender::gpu::shader

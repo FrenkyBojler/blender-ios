@@ -29,13 +29,13 @@
 #include "NOD_shader.h"
 
 #include "GPU_material.hh"
+#include "GPU_pass.hh"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
 
 #include "DRW_engine.hh"
 
-#include "gpu_codegen.hh"
 #include "gpu_node_graph.hh"
 
 #include "atomic_ops.h"
