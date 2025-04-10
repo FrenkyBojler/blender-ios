@@ -2659,7 +2659,7 @@ static void calc_brush_local_mat(const float rotation,
   invert_m4_m4(local_mat, tmat);
 }
 
-float3 tilt_apply_to_normal(const Object& object,
+float3 tilt_apply_to_normal(const Object &object,
                             const float4x4 &view_inverse,
                             const float3 &normal,
                             const float2 &tilt,
@@ -2677,8 +2677,7 @@ float3 tilt_apply_to_normal(const Object& object,
   const float3 normal_tilt_xy = math::rotate_direction_around_axis(
       normal_tilt_y, view_inverse.y_axis(), tilt.x * rot_max);
 
-  return math::normalize(
-      math::transform_direction(object.world_to_object(), normal_tilt_xy));
+  return math::normalize(math::transform_direction(object.world_to_object(), normal_tilt_xy));
 }
 
 float3 tilt_apply_to_normal(const float3 &normal,

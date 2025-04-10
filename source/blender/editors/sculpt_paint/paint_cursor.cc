@@ -1679,14 +1679,19 @@ static void paint_cursor_drawing_setup_cursor_space(const PaintCursorContext &pc
 
   float3 normal;
   if (ELEM(pcontext.brush->sculpt_brush_type,
-              SCULPT_BRUSH_TYPE_DRAW,
-              SCULPT_BRUSH_TYPE_DRAW_SHARP,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
-              SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_CLAY_STRIPS)) {
-    normal = tilt_apply_to_normal(*pcontext.vc.obact, float4x4(pcontext.vc.rv3d->viewinv), pcontext.normal, pcontext.tilt, pcontext.brush->tilt_strength_factor);
+           SCULPT_BRUSH_TYPE_DRAW,
+           SCULPT_BRUSH_TYPE_DRAW_SHARP,
+           SCULPT_BRUSH_TYPE_FLATTEN,
+           SCULPT_BRUSH_TYPE_FILL,
+           SCULPT_BRUSH_TYPE_SCRAPE,
+           SCULPT_BRUSH_TYPE_PLANE,
+           SCULPT_BRUSH_TYPE_CLAY_STRIPS))
+  {
+    normal = tilt_apply_to_normal(*pcontext.vc.obact,
+                                  float4x4(pcontext.vc.rv3d->viewinv),
+                                  pcontext.normal,
+                                  pcontext.tilt,
+                                  pcontext.brush->tilt_strength_factor);
   }
   else {
     normal = pcontext.normal;
