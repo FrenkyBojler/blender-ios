@@ -131,6 +131,8 @@ class VKThreadData : public NonCopyable, NonMovable {
     else {
       resource_pool_index = (resource_pool_index + 1) % resource_pools_count;
     }
+
+    resource_pools[resource_pool_index].reset();
   }
 };
 
