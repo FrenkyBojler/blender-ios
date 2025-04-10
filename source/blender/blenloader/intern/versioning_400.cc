@@ -6729,6 +6729,18 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 21)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      LISTBASE_FOREACH (bConstraint *, con, &object->constraints) {
+        if (con->name_ptr) {
+          /* Make versioning idempotent. */
+          continue;
+        }
+        con->name_ptr = BLI_strdup(con->name_legacy);
+      }
+    }
+  }
+
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */
