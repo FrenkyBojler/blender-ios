@@ -534,6 +534,40 @@ void BLI_uniquename(const ListBase *list,
                     name_maxncpy);
 }
 
+void BLI_uniquename_ptr(const ListBase *list,
+                        void *vlink,
+                        const char *defname,
+                        const char delim,
+                        const int name_ptr_pffset) ATTR_NONNULL(1, 3)
+{
+  if (!vlink) {
+    return;
+  }
+  const char **stored_name = reinterpret_cast<const char **>(
+      POINTER_OFFSET(vlink, name_ptr_pffset));
+  const blender::StringRef initial_name = *stored_name ? *stored_name : defname;
+  const std::string new_name = BLI_uniquename_cb(
+      [&](const blender::StringRef name) {
+        LISTBASE_FOREACH (Link *, link, list) {
+          if (link != vlink) {
+            const char *link_name = *reinterpret_cast<const char **>(
+                POINTER_OFFSET(link, name_ptr_pffset));
+            if (name == link_name) {
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      delim,
+      initial_name);
+  if (*stored_name == new_name) {
+    return;
+  }
+  MEM_SAFE_FREE(*stored_name);
+  *stored_name = BLI_strdup(new_name.c_str());
+}
+
 size_t BLI_string_len_array(const char *strings[], uint strings_num)
 {
   size_t total_len = 0;

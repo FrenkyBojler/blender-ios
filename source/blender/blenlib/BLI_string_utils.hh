@@ -189,6 +189,17 @@ void BLI_uniquename(const struct ListBase *list,
                     int name_offset,
                     size_t name_maxncpy) ATTR_NONNULL(1, 3);
 
+/**
+ * Same as above, but assumes that the name is stored as `char *` instead of `char[x]`.
+ * This function may replace the existing string with a new allocation. In this case, the old
+ * string is freed.
+ */
+void BLI_uniquename_ptr(const ListBase *list,
+                        void *vlink,
+                        const char *defname,
+                        char delim,
+                        int name_ptr_pffset) ATTR_NONNULL(1, 3);
+
 /* Expand array functions. */
 
 size_t BLI_string_len_array(const char *strings[], uint strings_num) ATTR_WARN_UNUSED_RESULT
