@@ -47,6 +47,7 @@
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
+#include "BKE_variables.hh"
 #include "BKE_vfont.hh"
 
 #include "BIF_glutil.hh"
@@ -1024,6 +1025,30 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                                                      id->lib->filepath;
         UI_tooltip_text_field_add(
             *data, fmt::format("{}: {}", title, path), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+      }
+    }
+  }
+
+  /* Warn if there are errors parsing variable syntax in paths that support it. */
+  if (ELEM(but->type, UI_BTYPE_TEXT)) {
+    if (rnaprop) {
+      PropertySubType subtype = RNA_property_subtype(rnaprop);
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
+        if ((RNA_property_flag(rnaprop) & PROP_SUPPORTS_VARIABLES) != 0) {
+          const blender::StringRef path = but->drawstr;
+          const blender::Vector<VariableParseError> errors = BKE_validate_variable_syntax(path);
+
+          if (!errors.is_empty()) {
+            std::string error_message;
+            error_message.append("Syntax error(s):");
+            for (const VariableParseError &error : errors) {
+              error_message.append("\n  - ");
+              error_message.append(BKE_variable_error_to_string(error, path));
+            }
+            UI_tooltip_text_field_add(
+                *data, error_message, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_ALERT);
+          }
+        }
       }
     }
   }

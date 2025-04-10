@@ -211,9 +211,11 @@ blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::String
 blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
                                                              const VariableMap &variables);
 
+std::string BKE_variable_error_to_string(const VariableParseError &error, blender::StringRef path);
+
 void BKE_report_path_variable_errors(ReportList *reports,
                                      eReportType report_type,
-                                     const char path[FILE_MAX],
+                                     blender::StringRef path,
                                      blender::Span<VariableParseError> errors);
 
 /** \} */
