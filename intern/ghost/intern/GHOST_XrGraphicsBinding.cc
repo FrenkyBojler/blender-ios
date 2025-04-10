@@ -337,7 +337,7 @@ class GHOST_XrGraphicsBindingD3D : public GHOST_IXrGraphicsBinding {
   {
     m_ghost_d3d_ctx = GHOST_SystemWin32::createOffscreenContextD3D();
   }
-  ~GHOST_XrGraphicsBindingD3D()
+  virtual ~GHOST_XrGraphicsBindingD3D()
   {
     if (m_ghost_d3d_ctx) {
       GHOST_SystemWin32::disposeContextD3D(m_ghost_d3d_ctx);
