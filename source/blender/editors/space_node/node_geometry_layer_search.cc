@@ -140,7 +140,7 @@ static void layer_search_exec_fn(bContext *C, void *data_v, void *item_v)
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
   }
-  std::string *item = (std::string *)item_v;
+  std::string *item = static_cast<std::string *>(item_v);
   if (item == nullptr) {
     return;
   }

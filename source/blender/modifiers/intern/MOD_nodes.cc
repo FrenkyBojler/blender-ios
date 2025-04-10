@@ -1901,6 +1901,15 @@ struct AttributeSearchData {
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<AttributeSearchData>, "");
 
+struct DrawGroupInputsContext {
+  const bContext &C;
+  NodesModifierData &nmd;
+  nodes::PropertiesVectorSet properties;
+  PointerRNA *md_ptr;
+  PointerRNA *bmain_ptr;
+  Array<bool> input_usages;
+};
+
 static NodesModifierData *get_modifier_data(Main &bmain,
                                             const wmWindowManager &wm,
                                             const AttributeSearchData &data)
@@ -2009,15 +2018,6 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 
   ED_undo_push(C, "Assign Attribute Name");
 }
-
-struct DrawGroupInputsContext {
-  const bContext &C;
-  NodesModifierData &nmd;
-  nodes::PropertiesVectorSet properties;
-  PointerRNA *md_ptr;
-  PointerRNA *bmain_ptr;
-  Array<bool> input_usages;
-};
 
 static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                         uiLayout *layout,
@@ -2139,6 +2139,134 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
   RNA_string_set(&props, "input_name", socket.identifier);
 }
 
+static void layer_name_search_update_fn(
+    const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
+{
+  AttributeSearchData &data = *static_cast<AttributeSearchData *>(arg);
+  const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
+  if (nmd == nullptr) {
+    return;
+  }
+  if (nmd->node_group == nullptr) {
+    return;
+  }
+  geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
+  if (tree_log == nullptr) {
+    return;
+  }
+  tree_log->ensure_layer_names();
+  nmd->node_group->ensure_topology_cache();
+
+  Vector<const bNodeSocket *> sockets_to_check;
+  for (const bNode *node : nmd->node_group->group_input_nodes()) {
+    for (const bNodeSocket *socket : node->output_sockets()) {
+      if (socket->type == SOCK_GEOMETRY) {
+        sockets_to_check.append(socket);
+      }
+    }
+  }
+
+  Set<StringRef> names;
+  Vector<const std::string *> layer_names;
+  for (const bNodeSocket *socket : sockets_to_check) {
+    const geo_log::ValueLog *value_log = tree_log->find_socket_value_log(*socket);
+    if (value_log == nullptr) {
+      continue;
+    }
+    if (const auto *geo_log = dynamic_cast<const geo_log::GeometryInfoLog *>(value_log)) {
+      if (const std::optional<geo_log::GeometryInfoLog::GreasePencilInfo> grease_pencil_info =
+              geo_log->grease_pencil_info)
+      {
+        for (const std::string &name : grease_pencil_info->layer_names) {
+          if (names.add(name)) {
+            layer_names.append(&name);
+          }
+        }
+      }
+    }
+  }
+  ui::grease_pencil_layer_search_add_items(str, layer_names.as_span(), items, is_first);
+}
+
+static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
+{
+  AttributeSearchData &data = *static_cast<AttributeSearchData *>(data_v);
+  std::string *item = static_cast<std::string *>(item_v);
+  if (item == nullptr) {
+    return;
+  }
+  const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
+  if (nmd == nullptr) {
+    return;
+  }
+
+  IDProperty &name_property = *IDP_GetPropertyFromGroup(nmd->settings.properties,
+                                                        data.socket_identifier);
+  IDP_AssignString(&name_property, item->c_str());
+
+  ED_undo_push(C, "Assign Layer Name");
+}
+
+static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
+                                         uiLayout *layout,
+                                         const StringRefNull socket_id_esc,
+                                         const bNodeTreeInterfaceSocket &socket)
+{
+  const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
+  if (!ctx.nmd.runtime->eval_log) {
+    uiItemR(layout, ctx.md_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
+    return;
+  }
+
+  uiLayoutSetPropDecorate(layout, false);
+
+  uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
+  uiLayout *name_row = uiLayoutRow(split, false);
+  uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
+
+  uiItemL(name_row, socket.name ? IFACE_(socket.name) : "", ICON_NONE);
+  uiLayout *prop_row = uiLayoutRow(split, true);
+
+  uiBlock *block = uiLayoutGetBlock(prop_row);
+  uiBut *but = uiDefIconTextButR(block,
+                                 UI_BTYPE_SEARCH_MENU,
+                                 0,
+                                 ICON_NONE,
+                                 "",
+                                 0,
+                                 0,
+                                 10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
+                                 UI_UNIT_Y,
+                                 ctx.md_ptr,
+                                 rna_path,
+                                 0,
+                                 0.0f,
+                                 0.0f,
+                                 StringRef(socket.description));
+
+  const Object *object = ed::object::context_object(&ctx.C);
+  BLI_assert(object != nullptr);
+  if (object == nullptr) {
+    return;
+  }
+
+  AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
+  data->object_session_uid = object->id.session_uid;
+  STRNCPY(data->modifier_name, ctx.nmd.modifier.name);
+  STRNCPY(data->socket_identifier, socket.identifier);
+
+  UI_but_func_search_set_results_are_suggestions(but, true);
+  UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  UI_but_func_search_set(but,
+                         nullptr,
+                         layer_name_search_update_fn,
+                         static_cast<void *>(data),
+                         true,
+                         nullptr,
+                         layer_name_search_exec_fn,
+                         nullptr);
+}
+
 /* Drawing the properties manually with #uiItemR instead of #uiDefAutoButsRNA allows using
  * the node socket identifier for the property names, since they are unique, but also having
  * the correct label displayed in the UI. */
@@ -2207,7 +2335,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     case SOCK_BOOLEAN: {
       if (is_layer_selection_field(socket)) {
-        uiItemR(row, ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+        add_layer_name_search_button(ctx, row, socket_id_esc, socket);
         break;
       }
       ATTR_FALLTHROUGH;
