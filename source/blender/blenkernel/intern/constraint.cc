@@ -6601,7 +6601,7 @@ static void make_legacy_names_unique(ListBase *values)
     return;
   }
   const int count = BLI_listbase_count(values);
-  const int num_digits = log2_floor(count);
+  const int num_digits = std::to_string(count + 1).size();
   /* Add 2 because of the separator dot and null terminator. */
   const int suffix_len_with_null = num_digits + 2;
   int i = 1;
