@@ -1304,38 +1304,93 @@ SolverResult solve_global_system(GlobalSolverSystem &&system,
 /** \name Residuals
  * \{ */
 
-template<int num_components, typename ValueT>
-static void compute_residuals_t(const ConstraintEvalParams &params,
-                                const ConstraintTypeInfo &constraint_info,
-                                bke::MutableAttributeAccessor &attributes,
-                                StringRef attribute_id,
-                                const IndexMask &constraints_mask,
-                                const VariableIndexArrays &index_arrays)
+template<int num_components, typename ValueT, typename PosGradT, typename RotGradT>
+static void compute_residuals_n(const ConstraintEvalParams &params,
+                                const ConstraintVariables &variables,
+                                ConstraintEvalData &data,
+                                const StringRef residual_attribute_id)
 {
+  if (!data.geometry || !data.geometry->has_pointcloud()) {
+    return;
+  }
+  const int num_constraints = data.constraints.size();
+  const IndexMask constraint_mask = data.constraints;
+
+  int num_components_rt, num_position_vars, num_rotation_vars;
+  bool use_active_mask;
+  data.type->get_size(num_components_rt, num_position_vars, num_rotation_vars, use_active_mask);
+  BLI_assert(num_components_rt == num_components);
+  BLI_assert(num_position_vars <= 4);
+  BLI_assert(num_rotation_vars <= 4);
+
+  Array<ValueT> alphas(num_constraints);
+  Array<ValueT> betas(num_constraints);
+
+  /* XXX gradients are unused here, but we use the same elements callback for simplicity.
+   * Eventually a fields-based implementation should be able to skip evaluation without the need
+   * for a separate constraint function. */
+  Array<PosGradT> position_gradients[4];
+  for (const int i : IndexRange(num_position_vars)) {
+    position_gradients[i].reinitialize(num_constraints);
+  }
+  Array<RotGradT> rotation_gradients[4];
+  for (const int i : IndexRange(num_rotation_vars)) {
+    rotation_gradients[i].reinitialize(num_constraints);
+  }
+  Array<bool> active_mask;
+  if (use_active_mask) {
+    active_mask.reinitialize(num_constraints);
+  }
+  GMutableSpan position_gradient_spans[4] = {position_gradients[0].as_mutable_span(),
+                                             position_gradients[1].as_mutable_span(),
+                                             position_gradients[2].as_mutable_span(),
+                                             position_gradients[3].as_mutable_span()};
+  GMutableSpan rotation_gradient_spans[4] = {rotation_gradients[0].as_mutable_span(),
+                                             rotation_gradients[1].as_mutable_span(),
+                                             rotation_gradients[2].as_mutable_span(),
+                                             rotation_gradients[3].as_mutable_span()};
+
+  GeometryComponent &component = data.geometry->get_component_for_write<PointCloudComponent>();
+  MutableAttributeAccessor attributes = *component.attributes_for_write();
+
+  SpanAttributeWriter<ValueT> residual_writer =
+      attributes.lookup_or_add_for_write_only_span<ValueT>(residual_attribute_id,
+                                                           AttrDomain::Point);
+
+  data.type->linear_solve_elements(params,
+                                   variables,
+                                   attributes,
+                                   constraint_mask,
+                                   alphas.as_mutable_span(),
+                                   betas.as_mutable_span(),
+                                   residual_writer.span,
+                                   position_gradient_spans,
+                                   rotation_gradient_spans,
+                                   active_mask);
+
+  residual_writer.finish();
 }
 
 static void compute_residuals_n(const ConstraintEvalParams &params,
-                                const ConstraintTypeInfo &constraint_info,
-                                bke::MutableAttributeAccessor &attributes,
-                                StringRef attribute_id,
-                                const IndexMask &constraints_mask,
-                                const VariableIndexArrays &index_arrays,
+                                const ConstraintVariables &variables,
+                                ConstraintEvalData &data,
+                                const StringRef residual_attribute_id,
                                 const int num_components)
 {
   /* XXX Matrix types float2x3, float3x3, float2x4, float 3x4 have no registered CPPType, so a
    * larger type is used for output arrays. */
   switch (num_components) {
     case 1:
-      compute_residuals_t<1, float>(
-          params, constraint_info, attributes, attribute_id, constraints_mask, index_arrays);
+      compute_residuals_n<1, float, float3, float4>(
+          params, variables, data, residual_attribute_id);
       break;
     case 2:
-      compute_residuals_t<2, float2>(
-          params, constraint_info, attributes, attribute_id, constraints_mask, index_arrays);
+      compute_residuals_n<2, float2, float4x4, float4x4>(
+          params, variables, data, residual_attribute_id);
       break;
     case 3:
-      compute_residuals_t<3, float3>(
-          params, constraint_info, attributes, attribute_id, constraints_mask, index_arrays);
+      compute_residuals_n<3, float3, float4x4, float4x4>(
+          params, variables, data, residual_attribute_id);
       break;
     default:
       BLI_assert_unreachable();
@@ -1343,13 +1398,23 @@ static void compute_residuals_n(const ConstraintEvalParams &params,
   }
 }
 
-void compute_residuals(const ConstraintEvalParams &eval_params,
-                       const ConstraintTypeInfo &constraint_info,
-                       bke::MutableAttributeAccessor &attributes,
-                       StringRef attribute_id,
-                       const IndexMask &constraints_mask,
-                       const VariableIndexArrays &index_arrays)
+void compute_residuals(const ConstraintEvalParams &params,
+                       const ConstraintVariables &variables,
+                       MutableSpan<ConstraintEvalData> constraint_data,
+                       const StringRef residual_attribute_id)
 {
+  for (const int constraint_i : constraint_data.index_range()) {
+    ConstraintEvalData &data = constraint_data[constraint_i];
+    if (!data.type->get_size || !data.type->linear_solve_elements) {
+      continue;
+    }
+
+    int num_components, num_position_vars, num_rotation_vars;
+    bool use_active_mask;
+    data.type->get_size(num_components, num_position_vars, num_rotation_vars, use_active_mask);
+
+    compute_residuals_n(params, variables, data, residual_attribute_id, num_components);
+  }
 }
 
 /** \} */

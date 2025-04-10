@@ -585,6 +585,7 @@ class NODE_MT_category_simulation(Menu):
         layout = self.layout
         node_add_menu.add_simulation_zone(layout, label="Simulation")
         node_add_menu.add_node_type(layout, "GeometryNodeSolveConstraints")
+        node_add_menu.add_node_type(layout, "GeometryNodeConstraintResiduals")
         layout.menu("NODE_MT_geometry_node_constraint")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 

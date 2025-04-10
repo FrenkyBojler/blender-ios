@@ -143,12 +143,10 @@ void add_jacobi_velocity_deltas(const ConstraintEvalParams &eval_params,
  * \{ */
 
 /** Compute constraint residuals separately, mostly for measuring quality. */
-void compute_residuals(const ConstraintEvalParams &eval_params,
-                       const ConstraintTypeInfo &constraint_info,
-                       bke::MutableAttributeAccessor &attributes,
-                       StringRef attribute_id,
-                       const IndexMask &constraints_mask,
-                       const VariableIndexArrays &index_arrays);
+void compute_residuals(const ConstraintEvalParams &params,
+                       const ConstraintVariables &variables,
+                       MutableSpan<ConstraintEvalData> constraint_data,
+                       const StringRef residual_attribute_id);
 
 /** \} */
 
