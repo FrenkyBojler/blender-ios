@@ -294,7 +294,8 @@ static void add_image_texture(Main *bmain,
                               const ufbx_material &fmat,
                               const ufbx_texture *ftex,
                               const char *socket_name,
-                              float node_locy)
+                              float node_locy,
+                              Set<StringRefNull> &done_bsdf_inputs)
 {
   Image *image = load_texture_image(bmain, file_dir, *ftex);
   BLI_assert(image != nullptr);
@@ -334,6 +335,7 @@ static void add_image_texture(Main *bmain,
     link_sockets(ntree, mapping, "Vector", image_node, "Vector");
   }
 
+  done_bsdf_inputs.add(socket_name);
   if (STREQ(socket_name, "Normal")) {
     bNode *normal_node = add_node(ntree, SH_NODE_NORMAL_MAP, node_locx_normalmap, node_locy);
     link_sockets(ntree, image_node, "Color", normal_node, "Color");
@@ -349,7 +351,7 @@ static void add_image_texture(Main *bmain,
   else {
     link_sockets(ntree, image_node, "Color", bsdf, socket_name);
 
-    if (STREQ(socket_name, "Base Color")) {
+    if (STREQ(socket_name, "Base Color") && !done_bsdf_inputs.contains("Alpha")) {
       /* Link base color alpha (if we have one) to output alpha. */
       void *lock;
       ImBuf *ibuf = BKE_image_acquire_ibuf(image, nullptr, &lock);
@@ -358,6 +360,7 @@ static void add_image_texture(Main *bmain,
 
       if (has_alpha) {
         link_sockets(ntree, image_node, "Alpha", bsdf, "Alpha");
+        done_bsdf_inputs.add("Alpha");
       }
     }
   }
@@ -370,10 +373,14 @@ static void add_image_textures(Main *bmain,
                                const ufbx_material &fmat)
 {
   float node_locy = node_locy_top;
+  Set<StringRefNull> done_bsdf_inputs;
 
   /* We primarily use images from "PBR" FBX mapping. */
   for (const FbxPbrTextureToSocket &entry : fbx_pbr_to_socket) {
     BLI_assert(entry.socket != nullptr);
+    if (done_bsdf_inputs.contains(entry.socket)) {
+      continue; /* Already connected. */
+    }
 
     const ufbx_texture *ftex = fmat.pbr.maps[entry.slot].texture;
     if (ftex == nullptr || !fmat.pbr.maps[entry.slot].texture_enabled) {
@@ -381,7 +388,8 @@ static void add_image_textures(Main *bmain,
       continue;
     }
 
-    add_image_texture(bmain, file_dir, ntree, bsdf, fmat, ftex, entry.socket, node_locy);
+    add_image_texture(
+        bmain, file_dir, ntree, bsdf, fmat, ftex, entry.socket, node_locy, done_bsdf_inputs);
     node_locy -= node_locy_step;
   }
 
@@ -389,6 +397,9 @@ static void add_image_textures(Main *bmain,
    * mostly to match behavior of python importer. */
   for (const FbxStdTextureToSocket &entry : fbx_std_to_socket) {
     BLI_assert(entry.socket != nullptr);
+    if (done_bsdf_inputs.contains(entry.socket)) {
+      continue; /* Already connected. */
+    }
 
     const ufbx_texture *ftex = fmat.fbx.maps[entry.slot].texture;
     if (ftex == nullptr || !fmat.fbx.maps[entry.slot].texture_enabled) {
@@ -396,7 +407,8 @@ static void add_image_textures(Main *bmain,
       continue;
     }
 
-    add_image_texture(bmain, file_dir, ntree, bsdf, fmat, ftex, entry.socket, node_locy);
+    add_image_texture(
+        bmain, file_dir, ntree, bsdf, fmat, ftex, entry.socket, node_locy, done_bsdf_inputs);
     node_locy -= node_locy_step;
   }
 }
