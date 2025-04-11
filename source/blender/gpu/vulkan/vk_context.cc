@@ -55,10 +55,9 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
     GHOST_GetVulkanSwapChainFormat((GHOST_WindowHandle)ghost_window_, &swap_chain_data);
     VKThreadData &thread_data = thread_data_.value().get();
     if (cycle_resource_pool) {
-      thread_data.resource_pool_get().reset();
-
       thread_data.resource_pool_next();
       VKResourcePool &resource_pool = thread_data.resource_pool_get();
+      resource_pool.reset();
       imm = &resource_pool.immediate;
     }
 
