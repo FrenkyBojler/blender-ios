@@ -3383,7 +3383,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
       BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
-      do_clay_strips_brush(depsgraph, sd, ob, node_mask, *node_mask_result.plane_normal, *node_mask_result.plane_center);
+      do_clay_strips_brush(depsgraph,
+                           sd,
+                           ob,
+                           node_mask,
+                           *node_mask_result.plane_normal,
+                           *node_mask_result.plane_center);
       break;
     case SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE:
       do_multiplane_scrape_brush(depsgraph, sd, ob, node_mask);

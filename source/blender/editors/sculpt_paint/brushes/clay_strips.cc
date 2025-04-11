@@ -260,8 +260,8 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
                           const Sculpt &sd,
                           Object &object,
                           const IndexMask &node_mask,
-                          const float3& plane_normal,
-                          const float3& plane_center)
+                          const float3 &plane_normal,
+                          const float3 &plane_center)
 {
   SculptSession &ss = *object.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -379,7 +379,8 @@ NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
   float3 plane_normal = sculpt_plane_normal;
   /* Ignore brush settings and recalculate the area normal. */
   if (brush.sculpt_plane != SCULPT_DISP_DIR_AREA || (brush.flag & BRUSH_ORIGINAL_NORMAL)) {
-    plane_normal = calc_area_normal(depsgraph, brush, object, initial_node_mask).value_or(float3(0));
+    plane_normal =
+        calc_area_normal(depsgraph, brush, object, initial_node_mask).value_or(float3(0));
   }
 
   plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
@@ -395,6 +396,6 @@ NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
 
   return {plane_mask, plane_center, plane_normal};
 }
-}
+}  // namespace brushes::clay_strips
 
 }  // namespace blender::ed::sculpt_paint
