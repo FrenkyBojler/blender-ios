@@ -77,7 +77,7 @@ class Node : NonCopyable {
     TopologyUpdated = 1 << 17,
   };
 
-  /* Index of the parent node. A value of -1 indicates that the node has no parent. */
+  /* Index of the parent node. A value of -1 indicates that the node is the root node. */
   int parent_ = -1;
 
   /** Axis aligned min and max of all vertex positions in the node. */

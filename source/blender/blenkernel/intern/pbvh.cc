@@ -1114,9 +1114,7 @@ void Tree::flush_bounds_to_parents()
         nodes_to_update.reserve(node_mask.size());
 
         node_mask.foreach_index([&](int i) {
-          std::optional<int> parent = nodes[i].parent();
-
-          if (parent) {
+          if (std::optional<int> parent = nodes[i].parent()) {
             nodes_to_update.add(*parent);
           }
         });
