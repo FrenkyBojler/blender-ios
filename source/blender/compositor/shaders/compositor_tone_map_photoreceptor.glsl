@@ -4,7 +4,7 @@
 
 /* Tone mapping based on equation (1) and the trilinear interpolation between equations (6) and (7)
  * from Reinhard, Erik, and Kate Devlin. "Dynamic range reduction inspired by photoreceptor
- * physiology." IEEE transactions on visualization and computer graphics 11.1f (2005): 13-24. */
+ * physiology." IEEE transactions on visualization and computer graphics 11.1 (2005): 13-24. */
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_vector_lib.glsl"

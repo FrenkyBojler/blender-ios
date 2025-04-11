@@ -27,7 +27,7 @@ void main()
    * symmetric, the same weight is used for the negative half and we add both of their
    * contributions. */
   for (int i = 1; i <= radius; i++) {
-    /* Add 0.5f to evaluate at the center of the pixels. */
+    /* Add 0.5 to evaluate at the center of the pixels. */
     float weight = texture(weights_tx, vec2((float(i) + 0.5f) / float(radius + 1), 0.0f)).x;
     accumulated_color += texture_load(input_tx, texel + ivec2(i, 0)) * weight;
     accumulated_color += texture_load(input_tx, texel + ivec2(-i, 0)) * weight;

@@ -6,7 +6,7 @@
  * (8) of the paper:
  *
  *   Potmesil, Michael, and Indranil Chakravarty. "A lens and aperture camera model for synthetic
- *   image generation." ACM SIGGRAPH Computer Graphics 15.3f (1981): 297-305. */
+ *   image generation." ACM SIGGRAPH Computer Graphics 15.3 (1981): 297-305. */
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
 

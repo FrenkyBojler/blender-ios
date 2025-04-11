@@ -36,21 +36,21 @@ void main()
   float dydy = encoded_structure_tensor.w;
 
   /* Compute the first and second eigenvalues of the structure tensor using the equations in
-   * section "3.1f Orientation and Anisotropy Estimation" of the paper. */
+   * section "3.1 Orientation and Anisotropy Estimation" of the paper. */
   float eigenvalue_first_term = (dxdx + dydy) / 2.0f;
   float eigenvalue_square_root_term = sqrt(square(dxdx - dydy) + 4.0f * square(dxdy)) / 2.0f;
   float first_eigenvalue = eigenvalue_first_term + eigenvalue_square_root_term;
   float second_eigenvalue = eigenvalue_first_term - eigenvalue_square_root_term;
 
   /* Compute the normalized eigenvector of the structure tensor oriented in direction of the
-   * minimum rate of change using the equations in section "3.1f Orientation and Anisotropy
+   * minimum rate of change using the equations in section "3.1 Orientation and Anisotropy
    * Estimation" of the paper. */
   vec2 eigenvector = vec2(first_eigenvalue - dxdx, -dxdy);
   float eigenvector_length = length(eigenvector);
   vec2 unit_eigenvector = eigenvector_length != 0.0f ? eigenvector / eigenvector_length :
                                                        vec2(1.0f);
 
-  /* Compute the amount of anisotropy using equations in section "3.1f Orientation and Anisotropy
+  /* Compute the amount of anisotropy using equations in section "3.1 Orientation and Anisotropy
    * Estimation" of the paper. The anisotropy ranges from 0 to 1, where 0 corresponds to isotropic
    * and 1 corresponds to entirely anisotropic regions. */
   float eigenvalue_sum = first_eigenvalue + second_eigenvalue;
@@ -71,7 +71,7 @@ void main()
    * and more circular for low anisotropy, controlled using the eccentricity factor. Since the
    * anisotropy is in the [0, 1] range, the width factor tends to 1 as the eccentricity tends to
    * infinity and tends to infinity when the eccentricity tends to zero. This is based on the
-   * equations in section "3.2f. Anisotropic Kuwahara Filtering" of the paper. */
+   * equations in section "3.2. Anisotropic Kuwahara Filtering" of the paper. */
   float ellipse_width_factor = (eccentricity + anisotropy) / eccentricity;
   float ellipse_width = ellipse_width_factor * radius;
   float ellipse_height = radius / ellipse_width_factor;
@@ -242,7 +242,7 @@ void main()
 
     float standard_deviation = dot(sqrt(color_variance.rgb), vec3(1.0f));
 
-    /* Compute the sector weight based on the weight function introduced in section "3.3f.1
+    /* Compute the sector weight based on the weight function introduced in section "3.3.1
      * Single-scale Filtering" of the multi-scale paper. Use a threshold of 0.02f to avoid zero
      * division and avoid artifacts in homogeneous regions as demonstrated in the paper. */
     float weight = 1.0f / pow(max(0.02f, standard_deviation), sharpness);
