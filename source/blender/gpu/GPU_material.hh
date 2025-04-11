@@ -116,7 +116,6 @@ GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
                                          GPUCodegenCallbackFn generate_code_function_cb,
                                          void *thunk);
 
-void GPU_material_compile(GPUMaterial *mat);
 void GPU_material_free_single(GPUMaterial *material);
 void GPU_material_free(ListBase *gpumaterial);
 
