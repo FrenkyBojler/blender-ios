@@ -408,7 +408,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
     bNodeSocket *out_socket = blender::bke::node_find_enabled_input_socket(*output_node,
                                                                            route_name);
 
-//    BKE_ntree_update_main_tree(G.pr_main, nested_nt, &params);
+    //    BKE_ntree_update_main_tree(G.pr_main, nested_nt, &params);
     bke::node_add_link(
         *nested_nt, *nested_node_iter, *nested_socket_iter, *output_node, *out_socket);
     BKE_ntree_update_after_single_tree_change(*G.pr_main, *nested_nt);
@@ -419,7 +419,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
 
     /* Update the sockets of the node because we added a new interface. */
     BKE_ntree_update_tag_node_property(path_prev->nodetree, nested_node_iter);
-//    BKE_ntree_update_main_tree(G.pr_main, path_prev->nodetree, &params);
+    //    BKE_ntree_update_main_tree(G.pr_main, path_prev->nodetree, &params);
     BKE_ntree_update_after_single_tree_change(*G.pr_main, *path_prev->nodetree);
 
     /* Now use the newly created socket of the node-group as previewing socket of the node-group
@@ -428,7 +428,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
                                                                        route_name);
   }
 
-//  BKE_ntree_update_main_tree(G.pr_main, treepath.first()->nodetree, &params);
+  //  BKE_ntree_update_main_tree(G.pr_main, treepath.first()->nodetree, &params);
   bke::node_add_link(*treepath.first()->nodetree,
                      *nested_node_iter,
                      *nested_socket_iter,
@@ -461,7 +461,6 @@ static void connect_node_to_surface_output(const Span<bNodeTreePath *> treepath,
     bke::node_remove_link(main_nt, *out_surface_socket->link);
   }
 
-  
   connect_nested_node_to_node(treepath,
                               *node_preview,
                               *socket_preview,
@@ -578,13 +577,13 @@ static void rendered_viewlayer_update(void *pvl_data, const ViewLayer *vl)
   if (STREQ(vl->name, "View Layer")) {
     for (NodeSocketPair nodesocket_iter : job_data->AOV_nodes) {
       std::pair<ImBuf *, DirtyState> &cache = job_data->tree_previews->previews_map.lookup(
-                                                                                           nodesocket_iter.first->identifier);
+          nodesocket_iter.first->identifier);
       cache.second = nodesocket_iter.first->runtime->dirtystate;
     }
     return;
   }
   bNode *single_node_rendered = nullptr;
-  LISTBASE_FOREACH(bNode *, node, &job_data->treepath_copy.last()->nodetree->nodes) {
+  LISTBASE_FOREACH (bNode *, node, &job_data->treepath_copy.last()->nodetree->nodes) {
     if (STREQ(node->name, vl->name)) {
       single_node_rendered = node;
     }
@@ -621,9 +620,11 @@ static void all_nodes_preview_update(void *npv, RenderResult *rr, rcti * /*rect*
   if (job_data->rendering_AOVs) {
     for (NodeSocketPair nodesocket_iter : job_data->AOV_nodes) {
       ImBuf *&image_cached = job_data->tree_previews->previews_map
-                                 .lookup_or_add(nodesocket_iter.first->identifier, {nullptr, DirtyState()})
+                                 .lookup_or_add(nodesocket_iter.first->identifier,
+                                                {nullptr, DirtyState()})
                                  .first;
-      ImBuf *image_latest = get_image_from_viewlayer_and_pass(*rr, nullptr, nodesocket_iter.first->name);
+      ImBuf *image_latest = get_image_from_viewlayer_and_pass(
+          *rr, nullptr, nodesocket_iter.first->name);
       if (image_latest == nullptr) {
         continue;
       }
@@ -718,7 +719,7 @@ static DirtyState get_treepath_dirty_state(const ListBase *treepath)
   {
     treepath_dirty_state.merge(path_iter->nodetree->runtime->whole_tree_dirtystate);
     bNode *group_node = nullptr;
-    LISTBASE_FOREACH(bNode *, node, &path_iter->prev->nodetree->nodes) {
+    LISTBASE_FOREACH (bNode *, node, &path_iter->prev->nodetree->nodes) {
       if (STREQ(node->name, path_iter->node_name)) {
         group_node = node;
       }
