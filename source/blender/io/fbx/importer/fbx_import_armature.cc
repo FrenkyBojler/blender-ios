@@ -206,8 +206,8 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
     if (dist_sq_rest < connect_dist_sq) {
       /* Bones seem connected in rest pose, now check their current transforms. */
       ufbx_vec3 self_head_cur_u = node->node_to_world.cols[3];
-      ufbx_vec3 par_tail_cur_u = ufbx_transform_position(&node->parent->node_to_world,
-                                                         {0, parent_bone_size, 0});
+      ufbx_vec3 par_tail = {0, parent_bone_size, 0};
+      ufbx_vec3 par_tail_cur_u = ufbx_transform_position(&node->parent->node_to_world, par_tail);
       float3 self_head_cur(self_head_cur_u.x, self_head_cur_u.y, self_head_cur_u.z);
       float3 par_tail_cur(par_tail_cur_u.x, par_tail_cur_u.y, par_tail_cur_u.z);
       float dist_sq_cur = math::distance_squared(self_head_cur, par_tail_cur);
