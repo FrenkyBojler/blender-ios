@@ -316,12 +316,12 @@ void BKE_editmesh_loop_tangent_calc(BMEditMesh *em,
   if (act_uv_index >= 0) {
     int tan_index = CustomData_get_named_layer_index(
         loopdata_out, CD_TANGENT, bm->ldata.layers[act_uv_index].name);
-        /* Editmode BMesh (Loop)CustomData is not guaranteed to actually contain the 'active' tangent layer, since editmode
-         * doesn't need it.
-         */
-        if (tan_index >=0) {
-            CustomData_set_layer_active_index(loopdata_out, CD_TANGENT, tan_index);
-        }
+    /* Editmode BMesh (Loop)CustomData is not guaranteed to actually contain the 'active' tangent
+     * layer, since editmode doesn't need it.
+     */
+    if (tan_index >= 0) {
+      CustomData_set_layer_active_index(loopdata_out, CD_TANGENT, tan_index);
+    }
   } /* else tangent has been built from orco */
 
   /* Update render layer index */
