@@ -1166,9 +1166,8 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
                arm->act_bone ? arm->act_bone->name : "-nil-");
       }
 
-      /* If active-only, just deselect unrelated bones. */
+      /* If active-only, don't touch unrelated bones. */
       if (active_only && !ELEM(arm->act_bone, pchan->bone, pchan_mirror->bone)) {
-        set_bone_selection_flags(pchan, eBone_Flag(0));
         continue;
       }
 
