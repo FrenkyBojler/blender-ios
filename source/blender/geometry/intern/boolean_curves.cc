@@ -1259,11 +1259,11 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
         BooleanResult result;
         result.segment_offsets.append(0);
 
-        shapes[subj_shape_id].foreach_index([&](const int curve_i) {
+        shapes[subj_shape_id].foreach_index([&](const int curve_i, const int pos_i) {
           result.segments.append(
               Segment::from_curve(curve_i, points_by_curve[curve_i], is_cyclic[curve_i]));
           result.cyclic.append(is_cyclic[curve_i]);
-          result.segment_offsets.append(1);
+          result.segment_offsets.append(pos_i + 1);
           result.segment_reversed.append(false);
         });
 
