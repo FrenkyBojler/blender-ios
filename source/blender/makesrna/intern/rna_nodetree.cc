@@ -3803,7 +3803,8 @@ static T rna_node_property_to_input_getter(PointerRNA *ptr)
     return RNA_float_get(&input_rna_pointer, "default_value");
   }
   else {
-    static_assert(0);
+    BLI_assert_unreachable();
+    return T(0);
   }
 }
 
@@ -3824,7 +3825,7 @@ static void rna_node_property_to_input_setter(PointerRNA *ptr, const T value)
     RNA_float_set(&input_rna_pointer, "default_value", value);
   }
   else {
-    static_assert(0);
+    BLI_assert_unreachable();
   }
 }
 
