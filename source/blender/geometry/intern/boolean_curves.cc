@@ -1238,6 +1238,9 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                      const VArray<bool> &is_fill,
                                      const VArray<bool> &is_cyclic)
 {
+  /* TODO. */
+  BLI_assert(bool(shape_ids));
+
   IndexMaskMemory memory;
   VectorSet<int> shape_indexing;
   const Vector<IndexMask> shapes = IndexMask::from_group_ids(shape_ids, memory, shape_indexing);
