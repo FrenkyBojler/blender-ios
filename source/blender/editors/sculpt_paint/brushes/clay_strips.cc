@@ -212,6 +212,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   MutableSpan<float> z_positions = tls.z_positions;
 
   calc_local_positions(positions, mat, xy_positions, z_positions);
+  apply_z_axis_factors(brush, z_positions, factors);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
@@ -261,6 +262,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   MutableSpan<float> z_positions = tls.z_positions;
 
   calc_local_positions(positions, mat, xy_positions, z_positions);
+  apply_z_axis_factors(brush, z_positions, factors);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
@@ -324,7 +326,10 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(area_normal, ss.cache->grab_delta_symm);
   mat.y_axis() = math::cross(area_normal, float3(mat[0]));
+
+  /* Clay Strips influences the vertices below the plane. */
   mat.z_axis() = area_normal * (flip ? 1.0f : -1.0f);
+
   mat.location() = area_position;
   mat = math::normalize(mat);
 
