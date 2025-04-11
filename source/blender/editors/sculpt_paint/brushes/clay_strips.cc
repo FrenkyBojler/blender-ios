@@ -267,6 +267,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const bool flip = (ss.cache->bstrength < 0.0f);
+
   /* Note: This return has to happen *after* the call to calc_brush_plane for now, as
    * the method is not idempotent and sets variables inside the stroke cache. */
   if (math::is_zero(ss.cache->grab_delta_symm)) {
@@ -353,7 +354,7 @@ NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
   const SculptSession &ss = *object.sculpt;
 
   const bool flip = (ss.cache->bstrength < 0.0f);
-  const float offset = SCULPT_brush_plane_offset_get(sd, ss);
+  const float offset = brush_plane_offset_get(brush, ss);
   const float displace = ss.cache->radius * (0.18f + offset) * (flip ? -1.0f : 1.0f);
 
   /* With a square influence area, this brush needs slightly more than the radius.
