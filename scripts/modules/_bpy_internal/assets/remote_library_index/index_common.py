@@ -7,9 +7,6 @@
 Basically this is shared code between the index generator and index downloader.
 """
 
-import urllib.parse
-from pathlib import Path
-
 API_VERSION = 1
 """The API version supported and produced by this version of Blender."""
 
