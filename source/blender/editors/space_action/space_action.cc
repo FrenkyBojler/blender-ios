@@ -185,7 +185,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
   short marker_flag = 0;
 
-  int min_height = saction->flag & SACTION_SHOW_MARKERS ? UI_MARKERS_MINY : UI_ANIM_MINY;
+  const int min_height = saction->flag & SACTION_SHOW_MARKERS ? UI_MARKERS_MINY : UI_ANIM_MINY;
 
   /* scrollers */
   if (region->winy >= UI_ANIM_MINY) {

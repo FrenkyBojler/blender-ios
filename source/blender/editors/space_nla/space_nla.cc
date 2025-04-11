@@ -247,7 +247,7 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   bAnimContext ac;
   View2D *v2d = &region->v2d;
 
-  int min_height = snla->flag & SNLA_SHOW_MARKERS ? UI_MARKERS_MINY : UI_ANIM_MINY;
+  const int min_height = snla->flag & SNLA_SHOW_MARKERS ? UI_MARKERS_MINY : UI_ANIM_MINY;
 
   /* clear and setup matrix */
   UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
