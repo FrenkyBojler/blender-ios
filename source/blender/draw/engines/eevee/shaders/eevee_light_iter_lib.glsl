@@ -32,7 +32,7 @@ int culling_z_to_zbin(float scale, float bias, float z)
  * - GL_KHR_shader_subgroup_ballot
  * - GL_KHR_shader_subgroup_arithmetic
  * or
- * - Vulkan 1.1
+ * - Vulkan 1.1f
  */
 #ifdef GPU_METAL
 #  define subgroupMin(a) simd_min(a)
