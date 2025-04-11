@@ -27,7 +27,7 @@ void main()
     transformed_coordinates -= origin;
     transformed_coordinates /= current_scale;
     transformed_coordinates -= current_translation;
-    transformed_coordinates *= mat2(current_cos, current_sin, -current_sin, current_cos);
+    transformed_coordinates *= float2x2(current_cos, current_sin, -current_sin, current_cos);
     transformed_coordinates += origin;
 
     accumulated_color += texture(input_tx, transformed_coordinates / input_size);

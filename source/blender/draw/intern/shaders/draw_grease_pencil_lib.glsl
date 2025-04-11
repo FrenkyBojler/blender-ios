@@ -286,8 +286,9 @@ float4 gpencil_vertex(float4 viewport_size,
       float rot_cos = abs(uv_rot);
       /* TODO(@fclem): Optimize these 2 matrix multiply into one by only having one rotation angle
        * and using a cosine approximation. */
-      x_axis = mat2(rot_cos, -rot_sin, rot_sin, rot_cos) * x_axis;
-      x_axis = mat2(alignment_rot.x, -alignment_rot.y, alignment_rot.y, alignment_rot.x) * x_axis;
+      x_axis = float2x2(rot_cos, -rot_sin, rot_sin, rot_cos) * x_axis;
+      x_axis = float2x2(alignment_rot.x, -alignment_rot.y, alignment_rot.y, alignment_rot.x) *
+               x_axis;
       /* Rotate 90 degrees counter-clockwise. */
       float2 y_axis = float2(-x_axis.y, x_axis.x);
 

@@ -57,7 +57,7 @@ void main()
   float4x4 inst_obmat = data_buf[gl_InstanceID].object_to_world;
   float4x4 input_mat = inst_obmat;
 
-  /* Extract data packed inside the unused mat4 members. */
+  /* Extract data packed inside the unused float4x4 members. */
   float4 inst_data = float4(input_mat[0][3], input_mat[1][3], input_mat[2][3], input_mat[3][3]);
   float4 color = data_buf[gl_InstanceID].color_;
   float inst_color_data = color.a;
@@ -147,11 +147,11 @@ void main()
   }
   /* Empties */
   else if ((vclass & VCLASS_EMPTY_SCALED) != 0) {
-    /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a mat4 mul) */
+    /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a float4x4 mul) */
     vpos *= empty_scale;
   }
   else if ((vclass & VCLASS_EMPTY_SIZE) != 0) {
-    /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a mat4 mul) */
+    /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a float4x4 mul) */
     vpos *= empty_size;
   }
   else if ((vclass & VCLASS_EMPTY_AXES) != 0) {

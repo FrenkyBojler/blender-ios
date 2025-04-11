@@ -85,10 +85,10 @@ void main()
   /* Compute an inverse transformation matrix that represents an ellipse of the given width and
    * height and makes and an angle with the x axis of the given cosine and sine. This is an inverse
    * matrix, so it transforms the ellipse into a disk of unit radius. */
-  mat2 inverse_ellipse_matrix = mat2(cosine / ellipse_width,
-                                     -sine / ellipse_height,
-                                     sine / ellipse_width,
-                                     cosine / ellipse_height);
+  float2x2 inverse_ellipse_matrix = float2x2(cosine / ellipse_width,
+                                             -sine / ellipse_height,
+                                             sine / ellipse_width,
+                                             cosine / ellipse_height);
 
   /* Compute the bounding box of a zero centered ellipse whose major axis is aligned with the
    * eigenvector and has the given width and height. This is based on the equations described in:

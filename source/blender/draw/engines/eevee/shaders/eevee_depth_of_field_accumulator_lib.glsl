@@ -480,7 +480,7 @@ void dof_gather_accumulator(sampler2D color_tx,
     int sample_pair_count = gather_ring_density * ring;
 
     float step_rot = M_PI / float(sample_pair_count);
-    mat2 step_rot_mat = from_rotation(Angle(step_rot));
+    float2x2 step_rot_mat = from_rotation(Angle(step_rot));
 
     float angle_offset = noise.y * step_rot;
     float2 offset = float2(cos(angle_offset), sin(angle_offset));

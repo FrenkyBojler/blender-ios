@@ -11,7 +11,7 @@ void main()
   float2 uv = float2(texel) / float2(domain_size - int2(1));
   uv -= location;
   uv.y *= float(domain_size.y) / float(domain_size.x);
-  uv = mat2(cos_angle, -sin_angle, sin_angle, cos_angle) * uv;
+  uv = float2x2(cos_angle, -sin_angle, sin_angle, cos_angle) * uv;
   bool is_inside = all(lessThan(abs(uv), size));
 
   float base_mask_value = texture_load(base_mask_tx, texel).x;

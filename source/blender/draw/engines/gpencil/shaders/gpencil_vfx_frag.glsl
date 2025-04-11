@@ -115,7 +115,7 @@ void main()
     float theta = percent * percent * swirlAngle;
     float s = sin(theta);
     float c = cos(theta);
-    mat2 rot = mat2(float2(c, -s), float2(s, c));
+    float2x2 rot = float2x2(float2(c, -s), float2(s, c));
     uv = (rot * pix_coord + swirlCenter) / tex_size;
   }
 

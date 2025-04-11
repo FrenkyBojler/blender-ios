@@ -38,7 +38,7 @@ void main()
   stipple_coord = stipple_start = screen_position(gl_Position);
 
 #ifdef OBJECT_WIRE
-  /* Extract data packed inside the unused mat4 members. */
+  /* Extract data packed inside the unused float4x4 members. */
   finalColor = float4(
       drw_modelmat()[0][3], drw_modelmat()[1][3], drw_modelmat()[2][3], drw_modelmat()[3][3]);
 #else
