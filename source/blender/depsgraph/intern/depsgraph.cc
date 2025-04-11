@@ -195,7 +195,7 @@ Relation *Depsgraph::add_new_relation(Node *from, Node *to, const char *descript
   static_assert(std::is_trivially_destructible_v<Relation>);
   rel = this->build_allocator.construct<Relation>(from, to, description).release();
   from->outlinks.append(rel);
-  from->inlinks.append(rel);
+  to->inlinks.append(rel);
   rel->flag |= flags;
   return rel;
 }
