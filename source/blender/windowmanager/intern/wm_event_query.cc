@@ -414,9 +414,7 @@ int WM_event_drag_threshold(const wmEvent *event)
         /* Return without multiplying by resolution scale. */
         return drag_threshold;
       }
-      else {
-        drag_threshold = U.drag_threshold_tablet;
-      }
+      drag_threshold = U.drag_threshold_tablet;
     }
     else {
       drag_threshold = U.drag_threshold_mouse;
