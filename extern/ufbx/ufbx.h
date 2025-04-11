@@ -267,7 +267,7 @@ struct ufbx_converter { };
 // `ufbx_source_version` contains the version of the corresponding source file.
 // HINT: The version can be compared numerically to the result of `ufbx_pack_version()`,
 // for example `#if UFBX_VERSION >= ufbx_pack_version(0, 12, 0)`.
-#define UFBX_HEADER_VERSION ufbx_pack_version(0, 18, 0)
+#define UFBX_HEADER_VERSION ufbx_pack_version(0, 18, 1)
 #define UFBX_VERSION UFBX_HEADER_VERSION
 
 // -- Basic types
@@ -4837,7 +4837,7 @@ typedef struct ufbx_load_opts {
 	bool use_root_transform;
 	ufbx_transform root_transform;
 
-	// Animation keyframe clamp threhsold, only applies to specific interpolation modes.
+	// Animation keyframe clamp threshold, only applies to specific interpolation modes.
 	double key_clamp_threshold;
 
 	// Specify how to handle Unicode errors in strings.
