@@ -1294,7 +1294,7 @@ TEST(boolean_curves, Non_Intersecting)
   const Array<bool> is_cyclic = {true, true, true, true};
   const Array<int> shape_ids = {0, 1, 2, 3};
   const IndexRange shapes_mask = IndexRange::from_begin_end(0, 4);
-  const IndexRange clipping_shapes = IndexRange::from_begin_end(3, 4);
+  IndexRange clipping_shapes = IndexRange::from_begin_end(3, 4);
 
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, shape_ids, is_cyclic, is_fill);
@@ -1315,20 +1315,23 @@ TEST(boolean_curves, Non_Intersecting)
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
   {
+    clipping_shapes = IndexRange::from_begin_end(1, 4);
+
     op_params.boolean_mode = Operation::Union;
     const bke::CurvesGeometry dst_curves = curve_boolean(
         op_params, src_curves, shapes_mask, clipping_shapes);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {{{0, 0}, {0, 2}, {2, 2}, {2, 0}},
-    //                                                {{0, 3}, {0, 5}, {2, 5}, {2, 3}},
-    //                                                {{3, 3}, {3, 5}, {5, 5}, {5, 3}},
-    //                                                {{3, 0}, {3, 2}, {5, 2}, {5, 0}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {{{0, 0}, {0, 2}, {2, 2}, {2, 0}},
+                                                   {{0, 3}, {0, 5}, {2, 5}, {2, 3}},
+                                                   {{3, 3}, {3, 5}, {5, 5}, {5, 3}},
+                                                   {{3, 0}, {3, 2}, {5, 2}, {5, 0}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
   }
   {
+    clipping_shapes = IndexRange::from_begin_end(3, 4);
+
     op_params.boolean_mode = Operation::Difference;
     const bke::CurvesGeometry dst_curves = curve_boolean(
         op_params, src_curves, shapes_mask, clipping_shapes);
