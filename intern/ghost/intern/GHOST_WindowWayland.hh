@@ -55,7 +55,7 @@
  * \note Keep this define as it can be useful to disable threading when troubleshooting
  * issues with events.
  */
-#define USE_EVENT_BACKGROUND_THREAD
+//#define USE_EVENT_BACKGROUND_THREAD
 
 class GHOST_SystemWayland;
 

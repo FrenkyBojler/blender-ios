@@ -1029,7 +1029,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #  endif
 #  ifdef WITH_GHOST_WAYLAND
     case GHOST_kVulkanPlatformWayland:
-      use_window_surface = (m_wayland_display != nullptr) && (m_wayland_surface != nullptr);
+      use_window_surface = (m_wayland_display != nullptr) && (m_wayland_surface != nullptr) &&
+                           (m_wayland_window_info != nullptr);
       break;
 #  endif
     case GHOST_kVulkanPlatformHeadless:
