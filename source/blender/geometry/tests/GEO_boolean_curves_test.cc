@@ -295,11 +295,8 @@ void draw_results(const std::string &label,
 
   IndexMaskMemory memory;
   VectorSet<int> src_shape_indexing;
-  VectorSet<int> dst_shape_indexing;
   const Vector<IndexMask> src_shapes = IndexMask::from_group_ids(
       src_shape_ids, memory, src_shape_indexing);
-  const Vector<IndexMask> dst_shapes = IndexMask::from_group_ids(
-      dst_shape_ids, memory, dst_shape_indexing);
   const IndexMask subject_shapes = clipping_shapes.complement(src_shapes.index_range(), memory);
 
   BLI_assert(src_points.is_span());
@@ -326,15 +323,22 @@ void draw_results(const std::string &label,
                src_cyclic,
                op_params.clipping_rule,
                mapping);
-  SVG_add_path(f,
-               type + "-C",
-               dst_points,
-               dst_shapes,
-               dst_shapes.index_range(),
-               dst_points_by_curve,
-               dst_cyclic,
-               op_params.output_rule,
-               mapping);
+
+  if (dst_curves.curves_num() != 0) {
+    VectorSet<int> dst_shape_indexing;
+    const Vector<IndexMask> dst_shapes = IndexMask::from_group_ids(
+        dst_shape_ids, memory, dst_shape_indexing);
+
+    SVG_add_path(f,
+                 type + "-C",
+                 dst_points,
+                 dst_shapes,
+                 dst_shapes.index_range(),
+                 dst_points_by_curve,
+                 dst_cyclic,
+                 op_params.output_rule,
+                 mapping);
+  }
 
   f << "</svg>\n";
   f << "<h2>" << label << "</h2>\n";
@@ -1254,6 +1258,87 @@ TEST(boolean_curves, Shape_Mask)
 
     const Array<Vector<float2>> expected_points = {{{0, 5}, {0, 9}, {4, 9}, {4, 5}},
                                                    {{5, 0}, {5, 3}, {9, 3}, {9, 0}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
+  }
+
+  draw_divider_end();
+}
+
+TEST(boolean_curves, Non_Intersecting)
+{
+  draw_divider_start("Non Intersecting");
+
+  const Array<float2> points = {{0, 0},
+                                {0, 2},
+                                {2, 2},
+                                {2, 0},
+
+                                {0, 3},
+                                {0, 5},
+                                {2, 5},
+                                {2, 3},
+
+                                {3, 3},
+                                {3, 5},
+                                {5, 5},
+                                {5, 3},
+
+                                {3, 0},
+                                {3, 2},
+                                {5, 2},
+                                {5, 0}};
+  const Array<int> points_by_curve = {0, 4, 8, 12, 16};
+  const Array<bool> is_fill = {true, true, true, true};
+  const Array<bool> is_cyclic = {true, true, true, true};
+  const Array<int> shape_ids = {0, 1, 2, 3};
+  const IndexRange shapes_mask = IndexRange::from_begin_end(0, 4);
+  IndexRange clipping_shapes = IndexRange::from_begin_end(3, 4);
+
+  const bke::CurvesGeometry src_curves = create_test_curves(
+      points_by_curve, points, shape_ids, is_cyclic, is_fill);
+
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
+  {
+    op_params.boolean_mode = Operation::Intersect;
+    const bke::CurvesGeometry dst_curves = curve_boolean(
+        op_params, src_curves, shapes_mask, clipping_shapes);
+
+    const Array<Vector<float2>> expected_points = {};
+    expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
+  }
+  {
+    clipping_shapes = IndexRange::from_begin_end(1, 4);
+
+    op_params.boolean_mode = Operation::Union;
+    const bke::CurvesGeometry dst_curves = curve_boolean(
+        op_params, src_curves, shapes_mask, clipping_shapes);
+
+    const Array<Vector<float2>> expected_points = {{{0, 0}, {0, 2}, {2, 2}, {2, 0}},
+                                                   {{0, 3}, {0, 5}, {2, 5}, {2, 3}},
+                                                   {{3, 3}, {3, 5}, {5, 5}, {5, 3}},
+                                                   {{3, 0}, {3, 2}, {5, 2}, {5, 0}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
+  }
+  {
+    clipping_shapes = IndexRange::from_begin_end(3, 4);
+
+    op_params.boolean_mode = Operation::Difference;
+    const bke::CurvesGeometry dst_curves = curve_boolean(
+        op_params, src_curves, shapes_mask, clipping_shapes);
+
+    const Array<Vector<float2>> expected_points = {{{0, 0}, {0, 2}, {2, 2}, {2, 0}},
+                                                   {{0, 3}, {0, 5}, {2, 5}, {2, 3}},
+                                                   {{3, 3}, {3, 5}, {5, 5}, {5, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes, op_params);
