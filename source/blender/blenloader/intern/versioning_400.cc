@@ -1819,7 +1819,7 @@ static void do_version_bokeh_image_node_options_to_inputs(bNodeTree *node_tree, 
 
   if (!blender::bke::node_find_socket(*node, SOCK_IN, "Roundness")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Roughness", "Roughness");
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Roundness", "Roundness");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->rounding;
   }
 
