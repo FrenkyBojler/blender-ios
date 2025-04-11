@@ -1160,10 +1160,6 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
 
       if (pchan->bone == arm->act_bone) {
         pchan_mirror_act = pchan_mirror;
-        printf("found pchan_mirror_act = %p %s (act bone = %s)\n",
-               pchan_mirror,
-               pchan_mirror ? pchan_mirror->bone->name : "-nil-",
-               arm->act_bone ? arm->act_bone->name : "-nil-");
       }
 
       /* If active-only, don't touch unrelated bones. */
@@ -1176,7 +1172,6 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
     }
 
     if (pchan_mirror_act) {
-      printf("setting arm->act_bone = %s\n", pchan_mirror_act->bone->name);
       arm->act_bone = pchan_mirror_act->bone;
 
       /* In weight-paint we select the associated vertex group too. */
@@ -1184,9 +1179,6 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
         blender::ed::object::vgroup_select_by_name(ob_active, pchan_mirror_act->name);
         DEG_id_tag_update(&ob_active->id, ID_RECALC_GEOMETRY);
       }
-    }
-    else {
-      printf("pchan_mirror_act is nil\n");
     }
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
