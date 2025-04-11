@@ -798,8 +798,8 @@ static bool brush_type_needs_original(const char sculpt_brush_type)
 
 static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush)
 {
-  return SCULPT_BRUSH_TYPE_HAS_TOPOLOGY_RAKE(brush.sculpt_brush_type) &&
-         (brush.topology_rake_factor > 0.0f) && (ss.bm != nullptr);
+  return bke::brush::supports_topology_rake(brush) && (brush.topology_rake_factor > 0.0f) &&
+         (ss.bm != nullptr);
 }
 
 /**
@@ -809,8 +809,7 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, 
 {
   using namespace blender::ed::sculpt_paint;
   const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
-  return ((SCULPT_BRUSH_TYPE_HAS_NORMAL_WEIGHT(brush.sculpt_brush_type) &&
-           (ss.cache->normal_weight > 0.0f)) ||
+  return ((bke::brush::supports_normal_weight(brush) && (ss.cache->normal_weight > 0.0f)) ||
           auto_mask::needs_normal(ss, sd, &brush) ||
           ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_BLOB,
@@ -830,7 +829,7 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, 
 
 static bool brush_needs_rake_rotation(const Brush &brush)
 {
-  return SCULPT_BRUSH_TYPE_HAS_RAKE(brush.sculpt_brush_type) && (brush.rake_factor != 0.0f);
+  return bke::brush::supports_rake_factor(brush) && (brush.rake_factor != 0.0f);
 }
 
 /** \} */
@@ -4042,7 +4041,7 @@ static void sculpt_update_cache_invariants(
   cache->normal_weight = brush->normal_weight;
 
   /* Interpret invert as following normal, for grab brushes. */
-  if (SCULPT_BRUSH_TYPE_HAS_NORMAL_WEIGHT(brush->sculpt_brush_type)) {
+  if (bke::brush::supports_normal_weight(*brush)) {
     if (cache->invert) {
       cache->invert = false;
       cache->normal_weight = (cache->normal_weight == 0.0f);
@@ -4085,8 +4084,7 @@ static void sculpt_update_cache_invariants(
   mul_m3_v3(mat, viewDir);
   normalize_v3_v3(cache->view_normal, viewDir);
 
-  cache->supports_gravity = brush_type_supports_gravity(brush->sculpt_brush_type) &&
-                            (sd.gravity_factor > 0.0f);
+  cache->supports_gravity = bke::brush::supports_gravity(*brush) && sd.gravity_factor > 0.0f;
   /* Get gravity vector in world space. */
   if (cache->supports_gravity) {
     if (sd.gravity_object) {
@@ -4117,7 +4115,7 @@ static void sculpt_update_cache_invariants(
     cache->accum = false;
   }
 
-  if (SCULPT_BRUSH_TYPE_HAS_ACCUMULATE(brush->sculpt_brush_type)) {
+  if (bke::brush::supports_accumulate(*brush)) {
     if (!(brush->flag & BRUSH_ACCUMULATE)) {
       cache->accum = false;
       if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_SHARP) {
@@ -5844,7 +5842,7 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
       "Override Location",
       "Override the given `location` array by recalculating object space positions from the "
       "provided `mouse_event` positions");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   RNA_def_boolean(ot->srna,
                   "ignore_background_click",
