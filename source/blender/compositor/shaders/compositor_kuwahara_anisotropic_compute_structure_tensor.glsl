@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* Computes the structure tensor of the image using a Dirac delta window function as described in
- * section "3.2 Local Structure Estimation" of the paper:
+ * section "3.2f Local Structure Estimation" of the paper:
  *
  *   Kyprianidis, Jan Eric. "Image and video abstraction by multi-scale anisotropic Kuwahara
  *   filtering." 2011.
@@ -17,10 +17,10 @@ void main()
 {
   ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
 
-  /* The weight kernels of the filter optimized for rotational symmetry described in section "3.2.1
-   * Gradient Calculation". */
-  const float corner_weight = 0.182;
-  const float center_weight = 1.0 - 2.0 * corner_weight;
+  /* The weight kernels of the filter optimized for rotational symmetry described in section
+   * "3.2f.1 Gradient Calculation". */
+  const float corner_weight = 0.182f;
+  const float center_weight = 1.0f - 2.0f * corner_weight;
 
   vec3 x_partial_derivative = texture_load(input_tx, texel + ivec2(-1, 1)).rgb * -corner_weight +
                               texture_load(input_tx, texel + ivec2(-1, 0)).rgb * -center_weight +

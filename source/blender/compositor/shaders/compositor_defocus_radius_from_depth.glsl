@@ -6,7 +6,7 @@
  * (8) of the paper:
  *
  *   Potmesil, Michael, and Indranil Chakravarty. "A lens and aperture camera model for synthetic
- *   image generation." ACM SIGGRAPH Computer Graphics 15.3 (1981): 297-305. */
+ *   image generation." ACM SIGGRAPH Computer Graphics 15.3f (1981): 297-305. */
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
@@ -25,7 +25,7 @@ void main()
                        (focal_length / (f_stop * distance_to_image_of_object)));
 
   /* The diameter is in meters, so multiply by the pixels per meter. */
-  float radius = (diameter / 2.0) * pixels_per_meter;
+  float radius = (diameter / 2.0f) * pixels_per_meter;
 
   imageStore(radius_img, texel, vec4(min(max_radius, radius)));
 }

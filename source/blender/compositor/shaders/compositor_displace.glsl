@@ -14,9 +14,9 @@ void main()
   ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
   ivec2 input_size = texture_size(input_tx);
 
-  /* Add 0.5 to evaluate the input sampler at the center of the pixel and divide by the image size
+  /* Add 0.5f to evaluate the input sampler at the center of the pixel and divide by the image size
    * to get the coordinates into the sampler's expected [0, 1] range. */
-  vec2 coordinates = (vec2(texel) + vec2(0.5)) / vec2(input_size);
+  vec2 coordinates = (vec2(texel) + vec2(0.5f)) / vec2(input_size);
 
   /* Note that the input displacement is in pixel space, so divide by the input size to transform
    * it into the normalized sampler space. */
