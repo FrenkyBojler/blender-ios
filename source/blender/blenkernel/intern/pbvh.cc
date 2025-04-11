@@ -1644,11 +1644,10 @@ void raycast(Tree &pbvh,
   search_callback_occluded(
       pbvh, [&](Node &node) { return ray_aabb_intersect(node, rcd); }, hit_fn);
 }
-
-bool ray_update_depth_and_hit_count(const float depth_test,
-                                    float *r_depth,
-                                    float *r_back_depth,
-                                    bool *r_back_hit)
+static bool ray_update_depth_and_hit_count(const float depth_test,
+                                           float *r_depth,
+                                           float *r_back_depth,
+                                           bool *r_back_hit)
 {
   /* If this is the first hit, we need to handle it. */
   if (abs(*r_depth - *r_back_depth) < FLT_EPSILON) {
@@ -1675,22 +1674,24 @@ bool ray_update_depth_and_hit_count(const float depth_test,
 
   return false;
 }
+
 bool ray_face_intersection_quad(const float3 &ray_start,
                                 const IsectRayPrecalc *isect_precalc,
                                 const float3 &t0,
                                 const float3 &t1,
                                 const float3 &t2,
                                 const float3 &t3,
-                                float *depth,
-                                float *back_depth,
-                                bool *back_hit)
+                                float *depth)
 {
   float depth_test;
 
-  if ((isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr)) ||
-      (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t2, t3, &depth_test, nullptr)))
+  if ((isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr) &&
+       (depth_test < *depth)) ||
+      (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t2, t3, &depth_test, nullptr) &&
+       (depth_test < *depth)))
   {
-    return ray_update_depth_and_hit_count(depth_test, depth, back_depth, back_hit);
+    *depth = depth_test;
+    return true;
   }
 
   return false;
@@ -1701,18 +1702,18 @@ bool ray_face_intersection_tri(const float3 &ray_start,
                                const float3 &t0,
                                const float3 &t1,
                                const float3 &t2,
-                               float *depth,
-                               float *back_depth,
-                               bool *back_hit)
+                               float *depth)
 {
   float depth_test;
-  if (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr)) {
-    return ray_update_depth_and_hit_count(depth_test, depth, back_depth, back_hit);
+  if (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr) &&
+      (depth_test < *depth))
+  {
+    *depth = depth_test;
+    return true;
   }
 
   return false;
 }
-
 /* Take advantage of the fact we know this won't be an intersection.
  * Just handle ray-tri edges. */
 static float dist_squared_ray_to_tri_v3_fast(const float3 &ray_origin,
@@ -1952,8 +1953,6 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                         const float3 &ray_normal,
                         const IsectRayPrecalc *isect_precalc,
                         float *depth,
-                        float *back_depth,
-                        bool *back_hit,
                         SubdivCCGCoord &r_active_vertex,
                         int &r_active_grid_index,
                         float3 &r_face_normal)
@@ -1981,15 +1980,8 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                grid_positions[CCG_grid_xy_to_index(grid_size, x + 1, y)],
                grid_positions[CCG_grid_xy_to_index(grid_size, x, y)]}};
 
-          if (ray_face_intersection_quad(ray_start,
-                                         isect_precalc,
-                                         co[0],
-                                         co[1],
-                                         co[2],
-                                         co[3],
-                                         depth,
-                                         back_depth,
-                                         back_hit))
+          if (ray_face_intersection_quad(
+                  ray_start, isect_precalc, co[0], co[1], co[2], co[3], depth, nullptr, nullptr))
           {
             continue;
           }
@@ -2024,15 +2016,8 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                                                 grid_positions[(y + 1) * grid_size + x + 1],
                                                 grid_positions[y * grid_size + x + 1],
                                                 grid_positions[y * grid_size + x]};
-          if (ray_face_intersection_quad(ray_start,
-                                         isect_precalc,
-                                         co[0],
-                                         co[1],
-                                         co[2],
-                                         co[3],
-                                         depth,
-                                         back_depth,
-                                         back_hit))
+          if (ray_face_intersection_quad(
+                  ray_start, isect_precalc, co[0], co[1], co[2], co[3], depth, nullptr, nullptr))
           {
             hit = true;
             calc_grids_intersect_data(ray_start,

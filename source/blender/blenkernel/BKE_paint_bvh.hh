@@ -364,8 +364,6 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                         const float3 &ray_normal,
                         const IsectRayPrecalc *isect_precalc,
                         float *depth,
-                        float *back_depth,
-                        bool *back_hit,
                         SubdivCCGCoord &r_active_vertex,
                         int &r_active_grid_index,
                         float3 &r_face_normal);
