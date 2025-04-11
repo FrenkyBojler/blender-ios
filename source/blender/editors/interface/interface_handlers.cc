@@ -684,7 +684,7 @@ static void ui_mouse_scale_warp(uiHandleButtonData *data,
  * \{ */
 
 #ifdef USE_DRAG_MULTINUM
-static bool ui_multibut_drag_wait(uiHandleButtonMulti multi_data)
+static bool ui_multibut_drag_wait(const uiHandleButtonMulti &multi_data)
 {
   const bool initializing = ELEM(
       multi_data.init, uiHandleButtonMulti::INIT_UNSET, uiHandleButtonMulti::INIT_SETUP);
