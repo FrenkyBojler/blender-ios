@@ -8,7 +8,7 @@ void main()
    * input. */
   ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
 
-  /* Add 0.5f to evaluate the sampler at the center of the pixel and divide by the image size to
+  /* Add 0.5 to evaluate the sampler at the center of the pixel and divide by the image size to
    * get the coordinates into the sampler's expected [0, 1] range. */
   vec2 coordinates = (vec2(texel) + vec2(0.5f)) / vec2(imageSize(output_img));
 

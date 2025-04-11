@@ -145,7 +145,7 @@ void main()
 
   /* The integration above performed weighted accumulation, and thus the color needs to be divided
    * by the sum of the weights. Assuming no jitter, the weights are generated as an arithmetic
-   * progression starting from (0.5 / n) to ((n - 0.5f) / n) for n terms. The sum of an arithmetic
+   * progression starting from (0.5 / n) to ((n - 0.5) / n) for n terms. The sum of an arithmetic
    * progression can be computed as (n * (start + end) / 2), which when subsisting the start and
    * end reduces to (n / 2). So the color should be multiplied by 2 / n. The jitter sequence
    * approximately sums to the same value because it is a uniform random value whose mean value is

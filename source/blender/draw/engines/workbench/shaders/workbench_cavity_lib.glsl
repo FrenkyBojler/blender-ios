@@ -50,7 +50,7 @@ void cavity_compute(vec2 screenco,
   float homcoord = drw_view().winmat[2][3] * position.z + drw_view().winmat[3][3];
   offset.x = drw_view().winmat[0][0] * world_data.cavity_distance / homcoord;
   offset.y = drw_view().winmat[1][1] * world_data.cavity_distance / homcoord;
-  /* convert from -1.0...1.0f range to 0.0f..1.0f for easy use with texture coordinates */
+  /* convert from -1...1 range to 0..1 for easy use with texture coordinates */
   offset *= 0.5f;
 
   /* NOTE: Putting noise usage here to put some ALU after texture fetch. */

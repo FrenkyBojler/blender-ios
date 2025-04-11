@@ -182,7 +182,7 @@ void main()
   gather_blur(uv, center_motion.zw, center_depth, max_motion.zw, rand, true, accum);
 
 #if 1 /* Own addition. Not present in reference implementation. */
-  /* Avoid division by 0.0f. */
+  /* Avoid division by 0.0. */
   float w = 1.0f / (50.0f * float(samples_count) * 4.0f);
   accum.bg += center_color * w;
   accum.weight.x += w;

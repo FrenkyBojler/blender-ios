@@ -1105,7 +1105,7 @@ float SMAASearchXLeft(SMAATexture2D(edgesTex),
 {
   /**
    * @PSEUDO_GATHER4
-   * This texcoord has been offset by (-0.25, -0.125f) in the vertex shader to
+   * This texcoord has been offset by (-0.25, -0.125) in the vertex shader to
    * sample between edge, thus fetching four edges in a row.
    * Sampling with different offsets in each direction allows to disambiguate
    * which edges are active from the four fetched ones.

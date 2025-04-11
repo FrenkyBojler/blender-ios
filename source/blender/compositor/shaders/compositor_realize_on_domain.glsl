@@ -9,7 +9,7 @@ void main()
 {
   ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
 
-  /* Add 0.5f to evaluate the input sampler at the center of the pixel. */
+  /* Add 0.5 to evaluate the input sampler at the center of the pixel. */
   vec2 coordinates = vec2(texel) + vec2(0.5f);
 
   /* Transform the input image by transforming the domain coordinates with the inverse of input

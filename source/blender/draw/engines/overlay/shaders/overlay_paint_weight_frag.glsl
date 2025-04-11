@@ -57,7 +57,7 @@ vec4 contour_grid(float weight, float weight_gradient)
   float grid100 = contours(weight, 100.0f, 3.5f, 0.35f, weight_gradient) * 0.6f;
   float grid1000 = contours(weight, 1000.0f, 2.5f, 0.4f, weight_gradient) * 0.25f;
 
-  /* White lines for 0.1 and 0.01f, and black for 0.001f */
+  /* White lines for 0.1 and 0.01, and black for 0.001. */
   vec4 grid = vec4(1.0f) * max(grid10, grid100);
 
   grid.a = max(grid.a, grid1000);

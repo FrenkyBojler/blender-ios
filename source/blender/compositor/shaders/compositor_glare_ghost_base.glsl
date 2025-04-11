@@ -22,7 +22,7 @@ void main()
   float small_ghost_scale = 2.13f;
   float big_ghost_scale = -0.97f;
 
-  /* Scale the coordinates for the small and big ghosts, pre subtract 0.5 and post add 0.5f to use
+  /* Scale the coordinates for the small and big ghosts, pre subtract 0.5 and post add 0.5 to use
    * 0.5 as the origin of the scaling. Notice that the big ghost is flipped due to the negative
    * scale. */
   vec2 small_ghost_coordinates = (coordinates - 0.5f) * small_ghost_scale + 0.5f;

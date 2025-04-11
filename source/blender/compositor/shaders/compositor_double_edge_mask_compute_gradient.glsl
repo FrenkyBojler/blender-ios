@@ -24,14 +24,14 @@ void main()
 {
   ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
 
-  /* Pixels inside the inner mask are always 1.0f. */
+  /* Pixels inside the inner mask are always 1.0. */
   float inner_mask = texture_load(inner_mask_tx, texel).x;
   if (inner_mask != 0.0f) {
     imageStore(output_img, texel, vec4(1.0f));
     return;
   }
 
-  /* Pixels outside the outer mask are always 0.0f. */
+  /* Pixels outside the outer mask are always 0.0. */
   float outer_mask = texture_load(outer_mask_tx, texel).x;
   if (outer_mask == 0.0f) {
     imageStore(output_img, texel, vec4(0.0f));

@@ -369,8 +369,8 @@ void film_combined_neighbor_boundbox(ivec2 texel, out vec4 min_c, out vec4 max_c
   mu1 *= (1.0f / 5.0f);
   mu2 *= (1.0f / 5.0f);
 
-  /* Extent scaling. Range [0.75..1.25f].
-   * Balance between more flickering (0.75) or more ghosting (1.25f). */
+  /* Extent scaling. Range [0.75..1.25].
+   * Balance between more flickering (0.75) or more ghosting (1.25). */
   const float gamma = 1.25f;
   /* Standard deviation. */
   vec4 sigma = sqrt(abs(mu2 - square(mu1)));

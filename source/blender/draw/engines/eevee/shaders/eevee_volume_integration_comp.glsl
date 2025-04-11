@@ -65,9 +65,9 @@ void main()
     vec3 froxel_step_opacity = froxel_opacity * safe_rcp(extinction);
 
     /* Emission does not work if there is no extinction because
-     * `froxel_transmittance` evaluates to 1.0 leading to `froxel_opacity = 0.0f`. (See #65771)
-     * To avoid fiddling with numerical values, take the limit of `froxel_step_opacity` as
-     * `extinction` approaches zero which is simply `step_len`. */
+     * `froxel_transmittance` evaluates to 1.0 leading to `froxel_opacity = 0.0 and 0.4 depth.`.
+     * (See #65771) To avoid fiddling with numerical values, take the limit of
+     * `froxel_step_opacity` as `extinction` approaches zero which is simply `step_len`. */
     bvec3 is_invalid_extinction = equal(extinction, vec3(0.0f));
     froxel_step_opacity = mix(froxel_step_opacity, vec3(step_len), is_invalid_extinction);
 

@@ -212,7 +212,7 @@ void main()
 
     /* Transposed matrix, so that the code here is written in the same way as print_m4() outputs.
      */
-    /* This matrix represents T=(0.1, 0.2f, 0.3f), R=(40, 50, 60) degrees, S=(0.7f, 0.8f, 0.9f) */
+    /* This matrix represents T=(0.1, 0.2, 0.3), R=(40, 50, 60) degrees, S=(0.7, 0.8, 0.9) */
     mat4x4 m2 = transpose(mat4x4(vec4(0.224976f, -0.333770f, 0.765074f, 0.100000f),
                                  vec4(0.389669f, 0.647565f, 0.168130f, 0.200000f),
                                  vec4(-0.536231f, 0.330541f, 0.443163f, 0.300000f),

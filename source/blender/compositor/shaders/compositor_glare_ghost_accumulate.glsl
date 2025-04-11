@@ -20,7 +20,7 @@ void main()
     float scale = scales[i];
     vec4 color_modulator = color_modulators[i];
 
-    /* Scale the coordinates for the ghost, pre subtract 0.5 and post add 0.5f to use 0.5f as the
+    /* Scale the coordinates for the ghost, pre subtract 0.5 and post add 0.5 to use 0.5 as the
      * origin of the scaling. */
     vec2 scaled_coordinates = (coordinates - 0.5f) * scale + 0.5f;
 

@@ -63,7 +63,7 @@ void main()
 
 #if defined(SIMPLE_AVERAGE)
   /* The original weights equation mentioned in slide 153 is:
-   *   0.5 + 0.125f + 0.125f + 0.125f + 0.125f = 1
+   *   0.5 + 0.125 + 0.125 + 0.125 + 0.125 = 1
    * The 0.5 corresponds to the center group of pixels and the 0.125f corresponds to the other
    * groups of pixels. The center is sampled 4 times, the far non corner pixels are sampled 2
    * times, the near corner pixels are sampled only once; but their weight is quadruple the weights
@@ -95,7 +95,7 @@ void main()
       left_far, center, lower_far, lower_left_far);
 
   /* The original weights equation mentioned in slide 153 is:
-   *   0.5 + 0.125f + 0.125f + 0.125f + 0.125f = 1
+   *   0.5 + 0.125 + 0.125 + 0.125 + 0.125 = 1
    * Multiply both sides by 8 and you get:
    *   4 + 1 + 1 + 1 + 1 = 8
    * So the weights are as used in the following code section. */
