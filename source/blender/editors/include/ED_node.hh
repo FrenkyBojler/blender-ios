@@ -81,7 +81,6 @@ struct ObjectAndModifier {
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode);
 /**
  * Used to get the compute context for the (nested) node group that is currently edited.
- * Returns true on success.
  */
 [[nodiscard]] std::optional<const ComputeContext *> compute_context_for_tree_path(
     const SpaceNode &snode,
