@@ -130,23 +130,11 @@ static void calc_brush_xy_distances(const Brush &brush,
   }
 }
 
-static void calc_translations(const float3 &plane_normal,
-                              const float radius,
-                              const float strength,
-                              const Span<float> factors,
-                              const MutableSpan<float3> r_translations)
-{
-  const float3 &offset = plane_normal * radius * strength;
-  translations_from_offset_and_factors(offset, factors, r_translations);
-}
-
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
                        const float4x4 &mat,
-                       const float3 &plane_normal,
-                       const float strength,
-                       const bool flip,
+                       const float3 &offset,
                        const Span<float3> vert_normals,
                        const MeshAttributeData &attribute_data,
                        const bke::pbvh::MeshNode &node,
@@ -188,11 +176,10 @@ static void calc_faces(const Depsgraph &depsgraph,
   calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
 
   tls.translations.resize(verts.size());
-  const MutableSpan<float3> translations = tls.translations;
-  calc_translations(plane_normal, cache.radius, strength, factors, translations);
+  translations_from_offset_and_factors(offset, factors, tls.translations);
 
-  clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
-  position_data.deform(translations, verts);
+  clip_and_lock_translations(sd, ss, position_data.eval, verts, tls.translations);
+  position_data.deform(tls.translations, verts);
 }
 
 static void calc_grids(const Depsgraph &depsgraph,
@@ -201,8 +188,6 @@ static void calc_grids(const Depsgraph &depsgraph,
                        const Brush &brush,
                        const float4x4 &mat,
                        const float3 &plane_normal,
-                       const float strength,
-                       const bool flip,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
@@ -259,8 +244,6 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        const Brush &brush,
                        const float4x4 &mat,
                        const float3 &plane_normal,
-                       const float strength,
-                       const bool flip,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
@@ -329,8 +312,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   const bool flip = (ss.cache->bstrength < 0.0f);
   const float radius = flip ? -ss.cache->radius : ss.cache->radius;
-  const float offset = SCULPT_brush_plane_offset_get(sd, ss);
-  const float displace = radius * (0.18f + offset);
+  const float displace = radius * (0.18f + SCULPT_brush_plane_offset_get(sd, ss));
 
   float3 area_position;
   float3 sculpt_plane_normal;
@@ -344,7 +326,6 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
 
   area_normal = tilt_apply_to_normal(area_normal, *ss.cache, brush.tilt_strength_factor);
   area_position += area_normal * ss.cache->scale * displace;
-  area_normal *= (flip ? 1.0f : -1.0f);
 
   /* Note: This return has to happen *after* the call to calc_brush_plane for now, as
    * the method is not idempotent and sets variables inside the stroke cache. */
@@ -355,7 +336,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(area_normal, ss.cache->grab_delta_symm);
   mat.y_axis() = math::cross(area_normal, float3(mat[0]));
-  mat.z_axis() = area_normal;
+  mat.z_axis() = area_normal * (flip ? 1.0f : -1.0f);
   mat.location() = area_position;
   mat = math::normalize(mat);
 
@@ -365,9 +346,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
   tmat.y_axis() *= brush.tip_scale_x;
   mat = math::invert(tmat);
 
-  area_normal *= (flip ? -1.0f : 1.0f);
-
-  const float strength = std::abs(ss.cache->bstrength);
+  const float3 offset = area_normal * ss.cache->bstrength * ss.cache->radius;
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
@@ -383,9 +362,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
                    sd,
                    brush,
                    mat,
-                   area_normal,
-                   strength,
-                   flip,
+                   offset,
                    vert_normals,
                    attribute_data,
                    nodes[i],
@@ -402,7 +379,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_grids(depsgraph, sd, object, brush, mat, area_normal, strength, flip, nodes[i], tls);
+        calc_grids(depsgraph, sd, object, brush, mat, offset, nodes[i], tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -411,7 +388,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_bmesh(depsgraph, sd, object, brush, mat, area_normal, strength, flip, nodes[i], tls);
+        calc_bmesh(depsgraph, sd, object, brush, mat, offset, nodes[i], tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;
