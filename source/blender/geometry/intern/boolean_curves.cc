@@ -1272,6 +1272,10 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
     });
   }
 
+  if (results_all.segments.is_empty()) {
+    return results_all;
+  }
+
   results_all.point_offsets.resize(results_all.segment_offsets.size());
   calculate_offsets_from_segments(results_all.segments,
                                   OffsetIndices<int>(results_all.segment_offsets),
