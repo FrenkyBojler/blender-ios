@@ -9,6 +9,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <type_traits>
 
 #include "BLI_linear_allocator.hh"
 #include "BLI_math_rotation.h"
@@ -3785,29 +3786,49 @@ static void rna_NodeGlare_color_modulation_set(PointerRNA *ptr, const float valu
   RNA_float_set(&input_rna_pointer, "default_value", blender::math::clamp(value, 0.0f, 1.0f));
 }
 
-#  define RNA_NODE_PROPERTY_TO_INPUT_GETTER_SETTER(TYPE, RNA_TYPE_PREFIX, NAME, IDENTIFIER) \
-    static TYPE NAME##_get(PointerRNA *ptr) \
-    { \
-      bNode *node = static_cast<bNode *>(ptr->data); \
-      bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, IDENTIFIER); \
-      PointerRNA input_rna_pointer = RNA_pointer_create_discrete( \
-          ptr->owner_id, &RNA_NodeSocket, input); \
-      return RNA_TYPE_PREFIX##_get(&input_rna_pointer, "default_value"); \
-    } \
-\
-    static void NAME##_set(PointerRNA *ptr, const TYPE value) \
-    { \
-      bNode *node = static_cast<bNode *>(ptr->data); \
-      bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, IDENTIFIER); \
-      PointerRNA input_rna_pointer = RNA_pointer_create_discrete( \
-          ptr->owner_id, &RNA_NodeSocket, input); \
-      RNA_TYPE_PREFIX##_set(&input_rna_pointer, "default_value", value); \
-    }
+template<typename T, const char *identifier>
+static T rna_node_property_to_input_getter(PointerRNA *ptr)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+  PointerRNA input_rna_pointer = RNA_pointer_create_discrete(
+      ptr->owner_id, &RNA_NodeSocket, input);
+  if constexpr (std::is_same_v<T, bool>) {
+    return RNA_boolean_get(&input_rna_pointer, "default_value");
+  }
+  else if constexpr (std::is_same_v<T, int>) {
+    return RNA_int_get(&input_rna_pointer, "default_value");
+  }
+  else if constexpr (std::is_same_v<T, float>) {
+    return RNA_float_get(&input_rna_pointer, "default_value");
+  }
+  else {
+    static_assert(0);
+  }
+}
 
-RNA_NODE_PROPERTY_TO_INPUT_GETTER_SETTER(bool,
-                                         RNA_boolean,
-                                         rna_NodeGlare_rotate_45,
-                                         "Diagonal Star")
+template<typename T, const char *identifier>
+static void rna_node_property_to_input_setter(PointerRNA *ptr, const T value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+  PointerRNA input_rna_pointer = RNA_pointer_create_discrete(
+      ptr->owner_id, &RNA_NodeSocket, input);
+  if constexpr (std::is_same_v<T, bool>) {
+    RNA_boolean_set(&input_rna_pointer, "default_value", value);
+  }
+  else if constexpr (std::is_same_v<T, int>) {
+    RNA_int_set(&input_rna_pointer, "default_value", value);
+  }
+  else if constexpr (std::is_same_v<T, float>) {
+    RNA_float_set(&input_rna_pointer, "default_value", value);
+  }
+  else {
+    static_assert(0);
+  }
+}
+
+static const char node_input_diagonal_star[] = "Diagonal Star";
 
 /* --------------------------------------------------------------------
  * White Balance Node.
@@ -8351,7 +8372,9 @@ static void def_cmp_glare(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "use_rotate_45", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(
-      prop, "rna_NodeGlare_rotate_45_get", "rna_NodeGlare_rotate_45_set");
+      prop,
+      "rna_node_property_to_input_getter<bool, node_input_diagonal_star>",
+      "rna_node_property_to_input_setter<bool, node_input_diagonal_star>");
   RNA_def_property_ui_text(prop,
                            "Rotate 45°",
                            "Simple star filter: add 45 degree rotation offset. (Deprecated: Use "

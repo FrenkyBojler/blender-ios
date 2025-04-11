@@ -677,13 +677,13 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
 #define WRITE_INPUT_TO_PROPERTY(TYPE, IDENTIFIER, PROPERTY) \
   { \
     const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, IDENTIFIER); \
-    storage->PROPERTY = input->default_value_typed<bNodeSocketValue##TYPE>()->value; \
+    PROPERTY = input->default_value_typed<bNodeSocketValue##TYPE>()->value; \
   }
 
   for (bNode *node : node_tree.all_nodes()) {
     if (node->type_legacy == CMP_NODE_GLARE) {
       NodeGlare *storage = static_cast<NodeGlare *>(node->storage);
-      WRITE_INPUT_TO_PROPERTY(Float, "Diagonal Star", star_45)
+      WRITE_INPUT_TO_PROPERTY(Boolean, "Diagonal Star", storage->star_45)
     }
   }
 }

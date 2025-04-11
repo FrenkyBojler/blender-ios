@@ -1756,17 +1756,27 @@ static void do_version_new_glare_suppress_input(bNodeTree *node_tree)
 }
 
 /* The Rotate Star 45 option was converted into a Diagonal Star input. */
-static void do_version_glare_node_star_45_option_to_inputs(bNodeTree *node_tree, bNode *node)
+static void do_version_glare_node_star_45_option_to_input(bNodeTree *node_tree, bNode *node)
 {
   NodeGlare *storage = static_cast<NodeGlare *>(node->storage);
   if (!storage) {
     return;
   }
 
-  bNodeSocket *diagonal_star_input = blender::bke::node_find_socket(
-      *node, SOCK_IN, "Diagonal Star");
-  diagonal_star_input->default_value_typed<bNodeSocketValueBoolean>()->value = storage->star_45;
+  /* Input already exists, was already versioned. */
+  if (blender::bke::node_find_socket(*node, SOCK_IN, "Diagonal Star")) {
+    return;
+  }
 
+  bNodeSocket *diagonal_star_input = blender::bke::node_add_static_socket(
+      *node_tree, *node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Diagonal Star", "Diagonal");
+  diagonal_star_input->default_value_typed<bNodeSocketValueBoolean>()->value = storage->star_45;
+}
+
+/* The Rotate Star 45 option was converted into a Diagonal Star input. */
+static void do_version_glare_node_star_45_option_to_input_animation(bNodeTree *node_tree,
+                                                                    bNode *node)
+{
   /* Compute the RNA path of the node. */
   char escaped_node_name[sizeof(node->name) * 2 + 1];
   BLI_str_escape(escaped_node_name, node->name, sizeof(escaped_node_name));
@@ -2217,16 +2227,12 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type != NTREE_COMPOSIT) {
-        continue;
-      }
-
-      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-        if (node->type_legacy != CMP_NODE_GLARE) {
-          continue;
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_GLARE) {
+            do_version_glare_node_star_45_option_to_input_animation(node_tree, node);
+          }
         }
-
-        do_version_glare_node_star_45_option_to_inputs(node_tree, node);
       }
     }
     FOREACH_NODETREE_END;
@@ -6760,6 +6766,19 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_GLARE) {
+            do_version_glare_node_star_45_option_to_input(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
