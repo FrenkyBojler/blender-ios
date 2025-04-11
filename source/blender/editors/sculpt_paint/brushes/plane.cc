@@ -18,8 +18,7 @@
  *  - Swap Height and Depth: Exchanges the roles of Height and Depth.
  */
 
-#include "editors/sculpt_paint/brushes/components.hh"
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"

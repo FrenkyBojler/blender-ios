@@ -164,8 +164,7 @@ set(SRC
   brushes/thumb.cc
   brushes/topology_slide.cc
 
-  brushes/components.hh
-  brushes/types.hh
+  brushes/brushes.hh
 )
 
 set(LIB
