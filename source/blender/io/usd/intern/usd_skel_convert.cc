@@ -150,9 +150,10 @@ void import_skeleton_curves(Main *bmain,
   const pxr::VtTokenArray joint_order = skel_query.GetJointOrder();
 
   /* Create the curves. */
+  constexpr int curves_per_joint = 10; /* 3 loc, 4 rot, 3 scale */
   blender::LinearAllocator path_alloc;
   blender::Vector<blender::animrig::FCurveDescriptor> curve_desc;
-  curve_desc.reserve(joint_order.size() * 10);
+  curve_desc.reserve(joint_order.size() * curves_per_joint);
 
   /* Iterate over the joints and create the corresponding curves for the bones. */
   for (const pxr::TfToken &joint : joint_order) {
@@ -160,7 +161,7 @@ void import_skeleton_curves(Main *bmain,
     if (name == nullptr) {
       /* This joint doesn't correspond to any bone we created.
        * Add null placeholders for the channel curves. */
-      curve_desc.append_n_times({}, 10);
+      curve_desc.append_n_times({}, curves_per_joint);
       continue;
     }
 
@@ -279,7 +280,7 @@ void import_skeleton_curves(Main *bmain,
       const pxr::GfVec3f &im = qrot.GetImaginary();
 
       for (int j = 0; j < 3; ++j) {
-        const int k = 10 * i + j;
+        const int k = curves_per_joint * i + j;
         if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds translation curve index %d", k);
           break;
@@ -290,7 +291,7 @@ void import_skeleton_curves(Main *bmain,
       }
 
       for (int j = 0; j < 4; ++j) {
-        const int k = 10 * i + j + 3;
+        const int k = curves_per_joint * i + j + 3;
         if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds rotation curve index %d", k);
           break;
@@ -306,7 +307,7 @@ void import_skeleton_curves(Main *bmain,
       }
 
       for (int j = 0; j < 3; ++j) {
-        const int k = 10 * i + j + 7;
+        const int k = curves_per_joint * i + j + 7;
         if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds scale curve index %d", k);
           break;

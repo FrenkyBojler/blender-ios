@@ -1925,10 +1925,10 @@ Vector<FCurve *> Channelbag::fcurve_create_many(Main *bmain,
   };
   Set<CurvePathIndex> unique_curves;
   unique_curves.reserve(prev_fcurve_num);
-  for (FCurve *fcu : this->fcurves()) {
+  for (FCurve *fcurve : this->fcurves()) {
     CurvePathIndex path_index;
-    path_index.rna_path = StringRefNull(fcu->rna_path ? fcu->rna_path : "");
-    path_index.array_index = fcu->array_index;
+    path_index.rna_path = StringRefNull(fcurve->rna_path ? fcurve->rna_path : "");
+    path_index.array_index = fcurve->array_index;
     unique_curves.add(path_index);
   }
 
@@ -1936,8 +1936,8 @@ Vector<FCurve *> Channelbag::fcurve_create_many(Main *bmain,
   grow_array(&this->fcurve_array, &this->fcurve_array_num, add_fcurve_num);
 
   /* Add the new curves. */
-  Vector<FCurve *> res;
-  res.resize(add_fcurve_num);
+  Vector<FCurve *> new_fcurves;
+  new_fcurves.resize(add_fcurve_num);
   int curve_index = prev_fcurve_num;
   for (int i = 0; i < add_fcurve_num; i++) {
     const FCurveDescriptor &desc = fcurve_descriptors[i];
@@ -1946,36 +1946,51 @@ Vector<FCurve *> Channelbag::fcurve_create_many(Main *bmain,
     path_index.rna_path = desc.rna_path;
     path_index.array_index = desc.array_index;
     if (desc.rna_path.is_empty() || !unique_curves.add(path_index)) {
-      /* Such curve already exists. */
-      res[i] = nullptr;
+      /* Empty input path, or such curve already exists. */
+      new_fcurves[i] = nullptr;
       continue;
     }
 
-    FCurve *fcu = create_fcurve_for_channel(desc);
-    res[i] = fcu;
+    FCurve *fcurve = create_fcurve_for_channel(desc);
+    new_fcurves[i] = fcurve;
 
-    this->fcurve_array[curve_index] = fcu;
+    this->fcurve_array[curve_index] = fcurve;
     if (desc.channel_group.has_value()) {
       bActionGroup *group = &this->channel_group_ensure(*desc.channel_group);
       const int insert_index = group->fcurve_range_start + group->fcurve_range_length;
       BLI_assert(insert_index <= this->fcurve_array_num);
+      /* Insert curve into proper array place at the end of the group. Note: this can
+       * still lead to quadratic complexity, in practice was not found to be an issue yet. */
       array_shift_range(
           this->fcurve_array, this->fcurve_array_num, curve_index, curve_index + 1, insert_index);
-      group->fcurve_range_length += 1;
+      group->fcurve_range_length++;
+
+      /* Update curve start ranges of the following groups. */
+      int index = this->channel_group_find_index(group);
+      BLI_assert(index >= 0 && index < this->group_array_num);
+      for (index = index + 1; index < this->group_array_num; index++) {
+        this->group_array[index]->fcurve_range_start++;
+      }
     }
     curve_index++;
   }
   this->fcurve_array_num = curve_index;
 
-  if (make_first_active && !res.is_empty() && res[0] != nullptr) {
-    res[0]->flag |= FCURVE_ACTIVE; /* First curve is added active. */
+  if (make_first_active) {
+    /* Set first created curve as active. */
+    for (FCurve *fcurve : new_fcurves) {
+      if (fcurve != nullptr) {
+        fcurve->flag |= FCURVE_ACTIVE;
+        break;
+      }
+    }
   }
 
   this->restore_channel_group_invariants();
   if (bmain) {
     DEG_relations_tag_update(bmain);
   }
-  return res;
+  return new_fcurves;
 }
 
 void Channelbag::fcurve_append(FCurve &fcurve)
@@ -2298,6 +2313,16 @@ const bActionGroup *Channelbag::channel_group_find(const StringRef name) const
   }
 
   return nullptr;
+}
+
+int Channelbag::channel_group_find_index(const bActionGroup *group) const
+{
+  for (int i = 0; i < this->group_array_num; i++) {
+    if (this->group_array[i] == group) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 bActionGroup *Channelbag::channel_group_find(const StringRef name)
