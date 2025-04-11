@@ -213,7 +213,7 @@ static bool operator_markers_region_active(bContext *C)
 
   /* Minimum vertical size to select markers, while still scrubbing frames. */
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
-  if (region && region->winy < MARKERS_MINY) {
+  if (region && region->winy < UI_MARKERS_MINY) {
     return false;
   }
 

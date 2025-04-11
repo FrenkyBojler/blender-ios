@@ -60,8 +60,6 @@ class Action;
 class Slot;
 }  // namespace blender::animrig
 
-#define ANIM_MINY (HEADERY * UI_SCALE_FAC * 1.1f)
-
 /* ************************************************ */
 /* ANIMATION CHANNEL FILTERING */
 /* `anim_filter.cc` */

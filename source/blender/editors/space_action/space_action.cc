@@ -185,10 +185,10 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
   short marker_flag = 0;
 
-  int min_height = saction->flag & SACTION_SHOW_MARKERS ? MARKERS_MINY : ANIM_MINY;
+  int min_height = saction->flag & SACTION_SHOW_MARKERS ? UI_MARKERS_MINY : UI_ANIM_MINY;
 
   /* scrollers */
-  if (region->winy >= ANIM_MINY) {
+  if (region->winy >= UI_ANIM_MINY) {
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
   }
   else {
@@ -241,7 +241,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* markers */
-  if (region->winy >= MARKERS_MINY) {
+  if (region->winy >= UI_MARKERS_MINY) {
     UI_view2d_view_orthoSpecial(region, v2d, true);
 
     marker_flag = ((ac.markers && (ac.markers != &ac.scene->markers)) ? DRAW_MARKERS_LOCAL : 0) |
@@ -288,7 +288,7 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
 
   /* scrubbing region */
   ED_time_scrub_draw_current_frame(
-      region, scene, saction->flag & SACTION_DRAWTIME, region->winy >= ANIM_MINY);
+      region, scene, saction->flag & SACTION_DRAWTIME, region->winy >= UI_ANIM_MINY);
 
   /* scrollers */
   const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
