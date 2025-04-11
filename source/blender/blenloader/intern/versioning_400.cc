@@ -1839,11 +1839,6 @@ static void do_version_bokeh_image_node_options_to_inputs(bNodeTree *node_tree, 
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Color Shift", "Color Shift");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->lensshift;
   }
-
-  /* The node no longer have storage. */
-  MEM_freeN(node->storage);
-  node->storage = nullptr;
-  node->flag &= ~NODE_INIT;
 }
 
 /* The options were converted into inputs. */
