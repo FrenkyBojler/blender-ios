@@ -105,7 +105,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode, brush_type: BrushType):
 
     if mode == SculptMode.MULTIRES:
         bpy.ops.object.subdivision_set(level=3)
-    if mode == SculptMode.DYNTOPO:
+    elif mode == SculptMode.DYNTOPO:
         bpy.ops.sculpt.dynamic_topology_toggle()
 
 
