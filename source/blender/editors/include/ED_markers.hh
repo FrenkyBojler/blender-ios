@@ -27,6 +27,8 @@ enum {
   DRAW_MARKERS_MARGIN = (1 << 2),
 };
 
+#define MARKERS_MINY (HEADERY * UI_SCALE_FAC * 2.4f)
+
 /** Draw Scene-Markers in time window. */
 void ED_markers_draw(const bContext *C, int flag);
 
