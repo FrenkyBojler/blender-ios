@@ -14,9 +14,9 @@ void main()
    * of the weights are 1. The total sum of weights is 4 plus quadruple the corner weight. */
   float corner_weight = 1.0f / sqrt(2.0f);
   float sum_of_weights = 4.0f + corner_weight * 4.0f;
-  mat3 weights = mat3(vec3(corner_weight, 1.0f, corner_weight),
-                      vec3(1.0f, 0.0f, 1.0f),
-                      vec3(corner_weight, 1.0f, corner_weight));
+  float3x3 weights = float3x3(vec3(corner_weight, 1.0f, corner_weight),
+                              vec3(1.0f, 0.0f, 1.0f),
+                              vec3(corner_weight, 1.0f, corner_weight));
 
   vec4 center_color = texture_load(input_tx, texel);
 

@@ -21,11 +21,11 @@ void main()
 {
   select_id_set(in_select_buf[gl_InstanceID]);
   vec4 bone_color, state_color;
-  mat4 inst_obmat = data_buf[gl_InstanceID];
-  mat4 model_mat = extract_matrix_packed_data(inst_obmat, state_color, bone_color);
+  float4x4 inst_obmat = data_buf[gl_InstanceID];
+  float4x4 model_mat = extract_matrix_packed_data(inst_obmat, state_color, bone_color);
 
-  mat4 model_view_matrix = drw_view().viewmat * model_mat;
-  mat4 sphereMatrix = inverse(model_view_matrix);
+  float4x4 model_view_matrix = drw_view().viewmat * model_mat;
+  float4x4 sphereMatrix = inverse(model_view_matrix);
 
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
 

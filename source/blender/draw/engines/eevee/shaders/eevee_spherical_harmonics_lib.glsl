@@ -316,18 +316,20 @@ vec3 spherical_harmonics_evaluate(vec3 direction, SphericalHarmonicL2 sh)
 /** \name Rotation
  * \{ */
 
-SphericalHarmonicBandL0 spherical_harmonics_L0_rotate(mat3x3 rotation, SphericalHarmonicBandL0 L0)
+SphericalHarmonicBandL0 spherical_harmonics_L0_rotate(float3x3 rotation,
+                                                      SphericalHarmonicBandL0 L0)
 {
   /* L0 band being a constant function (i.e: there is no directionality) there is nothing to
    * rotate. This is a no-op. */
   return L0;
 }
 
-SphericalHarmonicBandL1 spherical_harmonics_L1_rotate(mat3x3 rotation, SphericalHarmonicBandL1 L1)
+SphericalHarmonicBandL1 spherical_harmonics_L1_rotate(float3x3 rotation,
+                                                      SphericalHarmonicBandL1 L1)
 {
   /* Convert L1 coefficients to per channel column.
    * Note the component shuffle to match blender coordinate system. */
-  mat4x3 per_channel = transpose(mat3x4(L1.Mp1, L1.Mn1, -L1.M0));
+  float4x3 per_channel = transpose(float3x4(L1.Mp1, L1.Mn1, -L1.M0));
   /* Rotate each channel. */
   per_channel[0] = rotation * per_channel[0];
   per_channel[1] = rotation * per_channel[1];
@@ -335,14 +337,14 @@ SphericalHarmonicBandL1 spherical_harmonics_L1_rotate(mat3x3 rotation, Spherical
   per_channel[3] = rotation * per_channel[3];
   /* Convert back from L1 coefficients to per channel column.
    * Note the component shuffle to match blender coordinate system. */
-  mat3x4 per_coef = transpose(per_channel);
+  float3x4 per_coef = transpose(per_channel);
   L1.Mn1 = per_coef[1];
   L1.M0 = -per_coef[2];
   L1.Mp1 = per_coef[0];
   return L1;
 }
 
-SphericalHarmonicL1 spherical_harmonics_rotate(mat3x3 rotation, SphericalHarmonicL1 sh)
+SphericalHarmonicL1 spherical_harmonics_rotate(float3x3 rotation, SphericalHarmonicL1 sh)
 {
   sh.L0 = spherical_harmonics_L0_rotate(rotation, sh.L0);
   sh.L1 = spherical_harmonics_L1_rotate(rotation, sh.L1);
@@ -668,8 +670,8 @@ SphericalHarmonicL2 spherical_harmonics_add(SphericalHarmonicL2 a, SphericalHarm
 vec4 spherical_harmonics_dot(SphericalHarmonicL1 a, SphericalHarmonicL1 b)
 {
   /* Convert coefficients to per channel column. */
-  mat4x4 a_mat = transpose(mat4x4(a.L0.M0, a.L1.Mn1, a.L1.M0, a.L1.Mp1));
-  mat4x4 b_mat = transpose(mat4x4(b.L0.M0, b.L1.Mn1, b.L1.M0, b.L1.Mp1));
+  float4x4 a_mat = transpose(float4x4(a.L0.M0, a.L1.Mn1, a.L1.M0, a.L1.Mp1));
+  float4x4 b_mat = transpose(float4x4(b.L0.M0, b.L1.Mn1, b.L1.M0, b.L1.Mp1));
   vec4 result;
   result[0] = dot(a_mat[0], b_mat[0]);
   result[1] = dot(a_mat[1], b_mat[1]);
@@ -719,7 +721,7 @@ SphericalHarmonicL1 spherical_harmonics_decompress(SphericalHarmonicL1 sh)
 SphericalHarmonicL1 spherical_harmonics_dering(SphericalHarmonicL1 sh)
 {
   /* Convert coefficients to per channel column. */
-  mat4x4 m = transpose(mat4x4(sh.L0.M0, sh.L1.Mn1, sh.L1.M0, sh.L1.Mp1));
+  float4x4 m = transpose(float4x4(sh.L0.M0, sh.L1.Mn1, sh.L1.M0, sh.L1.Mp1));
   /* Find maximum value the L1 band can contain that doesn't exhibit ringing artifacts. */
   float fac_r = abs(m[0].x) / max(1e-8f, reduce_max(abs(m[0].yzw)));
   float fac_g = abs(m[1].x) / max(1e-8f, reduce_max(abs(m[1].yzw)));
@@ -749,7 +751,7 @@ SphericalHarmonicL1 spherical_harmonics_dering(SphericalHarmonicL1 sh)
 SphericalHarmonicL1 spherical_harmonics_clamp(SphericalHarmonicL1 sh, float clamp_value)
 {
   /* Convert coefficients to per channel column. */
-  mat4x4 per_channel = transpose(mat4x4(sh.L0.M0, sh.L1.Mn1, sh.L1.M0, sh.L1.Mp1));
+  float4x4 per_channel = transpose(float4x4(sh.L0.M0, sh.L1.Mn1, sh.L1.M0, sh.L1.Mp1));
   /* Magnitude per channel. */
   vec3 mag_L1;
   mag_L1.r = length(per_channel[0].yzw);

@@ -63,7 +63,7 @@ void main()
     vec3 direction = safe_normalize_and_get_length(local_direction[0].xyz / local_direction[0].w,
                                                    len);
 
-    mat3x3 tx = transpose(from_up_axis(direction));
+    float3x3 tx = transpose(from_up_axis(direction));
     /* Convert to transform. */
     sunlight_buf.object_to_world.x = vec4(tx[0], 0.0f);
     sunlight_buf.object_to_world.y = vec4(tx[1], 0.0f);

@@ -42,7 +42,7 @@ void main()
   select_id_set(in_select_id);
 
   int cell = gl_VertexID / 8;
-  mat3 rot_mat = mat3(0.0f);
+  float3x3 rot_mat = float3x3(0.0f);
 
   vec3 cell_offset = vec3(0.5f);
   ivec3 cell_div = volumeSize;

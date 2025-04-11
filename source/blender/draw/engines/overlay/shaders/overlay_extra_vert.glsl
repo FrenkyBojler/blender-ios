@@ -54,14 +54,14 @@ void main()
 
   /* Loading the matrix first before doing the manipulation fixes an issue
    * with the Metal compiler on older Intel macs (see #130867). */
-  mat4 inst_obmat = data_buf[gl_InstanceID].object_to_world;
-  mat4x4 input_mat = inst_obmat;
+  float4x4 inst_obmat = data_buf[gl_InstanceID].object_to_world;
+  float4x4 input_mat = inst_obmat;
 
   /* Extract data packed inside the unused mat4 members. */
   vec4 inst_data = vec4(input_mat[0][3], input_mat[1][3], input_mat[2][3], input_mat[3][3]);
   float4 color = data_buf[gl_InstanceID].color_;
   float inst_color_data = color.a;
-  mat4 obmat = input_mat;
+  float4x4 obmat = input_mat;
   obmat[0][3] = obmat[1][3] = obmat[2][3] = 0.0f;
   obmat[3][3] = 1.0f;
 

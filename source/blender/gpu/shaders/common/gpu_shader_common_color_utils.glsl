@@ -155,7 +155,7 @@ void ycca_to_rgba_itu_601(vec4 ycca, out vec4 color)
 {
   ycca.xyz *= 255.0f;
   ycca.xyz -= vec3(16.0f, 128.0f, 128.0f);
-  color.rgb = mat3(1.164f, 1.164f, 1.164f, 0.0f, -0.392f, 2.017f, 1.596f, -0.813f, 0.0f) *
+  color.rgb = float3x3(1.164f, 1.164f, 1.164f, 0.0f, -0.392f, 2.017f, 1.596f, -0.813f, 0.0f) *
               ycca.xyz;
   color.rgb /= 255.0f;
   color.a = ycca.a;
@@ -165,7 +165,7 @@ void ycca_to_rgba_itu_709(vec4 ycca, out vec4 color)
 {
   ycca.xyz *= 255.0f;
   ycca.xyz -= vec3(16.0f, 128.0f, 128.0f);
-  color.rgb = mat3(1.164f, 1.164f, 1.164f, 0.0f, -0.213f, 2.115f, 1.793f, -0.534f, 0.0f) *
+  color.rgb = float3x3(1.164f, 1.164f, 1.164f, 0.0f, -0.213f, 2.115f, 1.793f, -0.534f, 0.0f) *
               ycca.xyz;
   color.rgb /= 255.0f;
   color.a = ycca.a;
@@ -174,7 +174,8 @@ void ycca_to_rgba_itu_709(vec4 ycca, out vec4 color)
 void ycca_to_rgba_jpeg(vec4 ycca, out vec4 color)
 {
   ycca.xyz *= 255.0f;
-  color.rgb = mat3(1.0f, 1.0f, 1.0f, 0.0f, -0.34414f, 1.772f, 1.402f, -0.71414f, 0.0f) * ycca.xyz;
+  color.rgb = float3x3(1.0f, 1.0f, 1.0f, 0.0f, -0.34414f, 1.772f, 1.402f, -0.71414f, 0.0f) *
+              ycca.xyz;
   color.rgb += vec3(-179.456f, 135.45984f, -226.816f);
   color.rgb /= 255.0f;
   color.a = ycca.a;
@@ -185,7 +186,7 @@ void ycca_to_rgba_jpeg(vec4 ycca, out vec4 color)
 void rgba_to_ycca_itu_601(vec4 rgba, out vec4 ycca)
 {
   rgba.rgb *= 255.0f;
-  ycca.xyz = mat3(0.257f, -0.148f, 0.439f, 0.504f, -0.291f, -0.368f, 0.098f, 0.439f, -0.071f) *
+  ycca.xyz = float3x3(0.257f, -0.148f, 0.439f, 0.504f, -0.291f, -0.368f, 0.098f, 0.439f, -0.071f) *
              rgba.rgb;
   ycca.xyz += vec3(16.0f, 128.0f, 128.0f);
   ycca.xyz /= 255.0f;
@@ -195,7 +196,7 @@ void rgba_to_ycca_itu_601(vec4 rgba, out vec4 ycca)
 void rgba_to_ycca_itu_709(vec4 rgba, out vec4 ycca)
 {
   rgba.rgb *= 255.0f;
-  ycca.xyz = mat3(0.183f, -0.101f, 0.439f, 0.614f, -0.338f, -0.399f, 0.062f, 0.439f, -0.040f) *
+  ycca.xyz = float3x3(0.183f, -0.101f, 0.439f, 0.614f, -0.338f, -0.399f, 0.062f, 0.439f, -0.040f) *
              rgba.rgb;
   ycca.xyz += vec3(16.0f, 128.0f, 128.0f);
   ycca.xyz /= 255.0f;
@@ -205,7 +206,8 @@ void rgba_to_ycca_itu_709(vec4 rgba, out vec4 ycca)
 void rgba_to_ycca_jpeg(vec4 rgba, out vec4 ycca)
 {
   rgba.rgb *= 255.0f;
-  ycca.xyz = mat3(0.299f, -0.16874f, 0.5f, 0.587f, -0.33126f, -0.41869f, 0.114f, 0.5f, -0.08131f) *
+  ycca.xyz = float3x3(
+                 0.299f, -0.16874f, 0.5f, 0.587f, -0.33126f, -0.41869f, 0.114f, 0.5f, -0.08131f) *
              rgba.rgb;
   ycca.xyz += vec3(0.0f, 128.0f, 128.0f);
   ycca.xyz /= 255.0f;
@@ -216,7 +218,7 @@ void rgba_to_ycca_jpeg(vec4 rgba, out vec4 ycca)
 
 void yuva_to_rgba_itu_709(vec4 yuva, out vec4 color)
 {
-  color.rgb = mat3(1.0f, 1.0f, 1.0f, 0.0f, -0.21482f, 2.12798f, 1.28033f, -0.38059f, 0.0f) *
+  color.rgb = float3x3(1.0f, 1.0f, 1.0f, 0.0f, -0.21482f, 2.12798f, 1.28033f, -0.38059f, 0.0f) *
               yuva.xyz;
   color.a = yuva.a;
 }
@@ -226,7 +228,8 @@ void yuva_to_rgba_itu_709(vec4 yuva, out vec4 color)
 void rgba_to_yuva_itu_709(vec4 rgba, out vec4 yuva)
 {
   yuva.xyz =
-      mat3(0.2126f, -0.09991f, 0.615f, 0.7152f, -0.33609f, -0.55861f, 0.0722f, 0.436f, -0.05639f) *
+      float3x3(
+          0.2126f, -0.09991f, 0.615f, 0.7152f, -0.33609f, -0.55861f, 0.0722f, 0.436f, -0.05639f) *
       rgba.rgb;
   yuva.a = rgba.a;
 }

@@ -22,7 +22,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_shadow_tag_update)
 #include "eevee_shadow_tilemap_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-vec3 safe_project(mat4 winmat, mat4 viewmat, inout int clipped, vec3 v)
+vec3 safe_project(float4x4 winmat, float4x4 viewmat, inout int clipped, vec3 v)
 {
   vec4 tmp = winmat * (viewmat * vec4(v, 1.0f));
   /* Detect case when point is behind the camera. */

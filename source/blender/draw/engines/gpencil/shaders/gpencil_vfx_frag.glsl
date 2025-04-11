@@ -33,7 +33,8 @@ void main()
 #elif defined(COLORIZE)
 
 #  define sepia_mat \
-    mat3(vec3(0.393f, 0.349f, 0.272f), vec3(0.769f, 0.686f, 0.534f), vec3(0.189f, 0.168f, 0.131f))
+    float3x3( \
+        vec3(0.393f, 0.349f, 0.272f), vec3(0.769f, 0.686f, 0.534f), vec3(0.189f, 0.168f, 0.131f))
 
 #  define MODE_GRAYSCALE 0
 #  define MODE_SEPIA 1

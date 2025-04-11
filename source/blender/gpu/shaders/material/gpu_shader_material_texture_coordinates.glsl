@@ -9,7 +9,7 @@ void node_tex_coord_position(out vec3 out_pos)
   out_pos = g_data.P;
 }
 
-void node_tex_coord(mat4 obmatinv,
+void node_tex_coord(float4x4 obmatinv,
                     vec3 attr_orco,
                     vec4 attr_uv,
                     out vec3 generated,

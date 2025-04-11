@@ -103,7 +103,7 @@ void main()
   vec3 wnor = safe_normalize(drw_normal_object_to_world(nor));
 
   if (isHair) {
-    mat4 obmat = hairDupliMatrix;
+    float4x4 obmat = hairDupliMatrix;
     wpos = (obmat * vec4(pos, 1.0f)).xyz;
     wnor = -normalize(to_float3x3(obmat) * nor);
   }

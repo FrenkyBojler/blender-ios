@@ -35,7 +35,7 @@ BsdfSample ray_generate_direction(vec2 noise, ClosureUndetermined cl, vec3 V, fl
       break;
   }
 
-  mat3 tangent_to_world = from_up_axis(cl.N);
+  float3x3 tangent_to_world = from_up_axis(cl.N);
 
   BsdfSample samp;
   samp.pdf = 0.0f;

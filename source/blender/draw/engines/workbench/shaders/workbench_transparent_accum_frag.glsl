@@ -15,7 +15,7 @@ FRAGMENT_SHADER_CREATE_INFO(workbench_lighting_matcap)
 #include "workbench_world_light_lib.glsl"
 
 /* Special function only to be used with calculate_transparent_weight(). */
-float linear_zdepth(float depth, mat4 proj_mat)
+float linear_zdepth(float depth, float4x4 proj_mat)
 {
   if (proj_mat[3][3] == 0.0f) {
     float d = 2.0f * depth - 1.0f;

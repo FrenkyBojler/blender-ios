@@ -134,8 +134,8 @@ void velocity_vertex(
     vec3 lP_prev, vec3 lP, vec3 lP_next, out vec3 motion_prev, out vec3 motion_next)
 {
   VelocityIndex vel = velocity_indirection_buf[drw_resource_id()];
-  mat4 obmat_prev = velocity_obj_prev_buf[vel.obj.ofs[STEP_PREVIOUS]];
-  mat4 obmat_next = velocity_obj_next_buf[vel.obj.ofs[STEP_NEXT]];
+  float4x4 obmat_prev = velocity_obj_prev_buf[vel.obj.ofs[STEP_PREVIOUS]];
+  float4x4 obmat_next = velocity_obj_next_buf[vel.obj.ofs[STEP_NEXT]];
   vec3 P_prev = transform_point(obmat_prev, lP_prev);
   vec3 P_next = transform_point(obmat_next, lP_next);
   vec3 P = transform_point(drw_modelmat(), lP);

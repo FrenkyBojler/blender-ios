@@ -41,12 +41,12 @@ void main()
       break;
   }
 
-  mat3x3 TBN = from_up_axis(surfel.normal);
+  float3x3 TBN = from_up_axis(surfel.normal);
 
-  mat4 model_matrix = mat4(vec4(TBN[0] * debug_surfel_radius, 0),
-                           vec4(TBN[1] * debug_surfel_radius, 0),
-                           vec4(TBN[2] * debug_surfel_radius, 0),
-                           vec4(surfel.position, 1));
+  float4x4 model_matrix = float4x4(vec4(TBN[0] * debug_surfel_radius, 0),
+                                   vec4(TBN[1] * debug_surfel_radius, 0),
+                                   vec4(TBN[2] * debug_surfel_radius, 0),
+                                   vec4(surfel.position, 1));
 
   P = (model_matrix * vec4(lP, 1)).xyz;
 

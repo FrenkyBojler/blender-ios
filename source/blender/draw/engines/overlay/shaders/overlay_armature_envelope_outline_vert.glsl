@@ -23,7 +23,7 @@ vec2 compute_dir(vec2 v0, vec2 v1, vec2 v2)
   return dir;
 }
 
-mat3 compute_mat(vec4 sphere, vec3 bone_vec, out float z_ofs)
+float3x3 compute_mat(vec4 sphere, vec3 bone_vec, out float z_ofs)
 {
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
   vec3 cam_ray = (is_persp) ? sphere.xyz - drw_view().viewinv[3].xyz : -drw_view().viewinv[2].xyz;
@@ -58,7 +58,7 @@ mat3 compute_mat(vec4 sphere, vec3 bone_vec, out float z_ofs)
     z_ofs = -rad * cos_b;
   }
 
-  return mat3(x_axis, y_axis, z_axis);
+  return float3x3(x_axis, y_axis, z_axis);
 }
 
 struct Bone {
@@ -75,8 +75,8 @@ bool bone_blend_starts(vec3 p, Bone b)
 vec3 get_outline_point(vec2 pos,
                        vec4 sph_near,
                        vec4 sph_far,
-                       mat3 mat_near,
-                       mat3 mat_far,
+                       float3x3 mat_near,
+                       float3x3 mat_far,
                        float z_ofs_near,
                        float z_ofs_far,
                        Bone b)
@@ -121,8 +121,8 @@ void main()
   b.vec = bone_vec * bone_lenrcp;
 
   float z_ofs_near, z_ofs_far;
-  mat3 mat_near = compute_mat(sph_near, bone_vec, z_ofs_near);
-  mat3 mat_far = compute_mat(sph_far, bone_vec, z_ofs_far);
+  float3x3 mat_near = compute_mat(sph_near, bone_vec, z_ofs_near);
+  float3x3 mat_far = compute_mat(sph_far, bone_vec, z_ofs_far);
 
   vec3 wpos0 = get_outline_point(
       pos0, sph_near, sph_far, mat_near, mat_far, z_ofs_near, z_ofs_far, b);

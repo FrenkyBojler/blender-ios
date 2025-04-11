@@ -28,7 +28,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_volume_probe_data)
  * `grid_res` is the un-padded grid resolution.
  * `cell_coord` is the coordinate of the sample in [0..grid_res) range.
  */
-vec3 lightprobe_volume_grid_sample_position(mat4 grid_local_to_world_mat,
+vec3 lightprobe_volume_grid_sample_position(float4x4 grid_local_to_world_mat,
                                             ivec3 grid_res,
                                             ivec3 cell_coord)
 {

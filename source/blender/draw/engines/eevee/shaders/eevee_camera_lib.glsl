@@ -87,12 +87,12 @@ vec3 camera_mirror_ball_to_direction(CameraData cam, vec2 uv)
 /** \name Regular projections
  * \{ */
 
-vec3 camera_view_from_uv(mat4 projmat, vec2 uv)
+vec3 camera_view_from_uv(float4x4 projmat, vec2 uv)
 {
   return project_point(projmat, vec3(uv * 2.0f - 1.0f, 0.0f));
 }
 
-vec2 camera_uv_from_view(mat4 projmat, bool is_persp, vec3 vV)
+vec2 camera_uv_from_view(float4x4 projmat, bool is_persp, vec3 vV)
 {
   vec4 tmp = projmat * vec4(vV, 1.0f);
   if (is_persp && tmp.w <= 0.0f) {

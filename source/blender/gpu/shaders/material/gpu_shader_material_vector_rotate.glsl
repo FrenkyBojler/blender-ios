@@ -55,7 +55,7 @@ void node_vector_rotate_axis_z(
 void node_vector_rotate_euler_xyz(
     vec3 vector_in, vec3 center, vec3 axis, float angle, vec3 rotation, float invert, out vec3 vec)
 {
-  mat3 rmat = (invert < 0.0f) ? transpose(from_rotation(as_EulerXYZ(rotation))) :
-                                from_rotation(as_EulerXYZ(rotation));
+  float3x3 rmat = (invert < 0.0f) ? transpose(from_rotation(as_EulerXYZ(rotation))) :
+                                    from_rotation(as_EulerXYZ(rotation));
   vec = rmat * (vector_in - center) + center;
 }

@@ -219,27 +219,27 @@ void cubeface_sync(int tilemap_id,
 
   /* Update View Matrix. */
   /* TODO(fclem): Could avoid numerical inversion since the transform is a unit matrix. */
-  mat4x4 viewmat = invert(transform_to_matrix(object_to_world));
+  float4x4 viewmat = invert(transform_to_matrix(object_to_world));
 
   /* Use switch instead of inline array of float3x3. */
   switch (cubeface) {
     case Z_NEG:
-      viewmat = to_float4x4(mat3x3(+1, +0, +0, +0, +1, +0, +0, +0, +1)) * viewmat;
+      viewmat = to_float4x4(float3x3(+1, +0, +0, +0, +1, +0, +0, +0, +1)) * viewmat;
       break;
     case X_POS:
-      viewmat = to_float4x4(mat3x3(+0, +0, -1, -1, +0, +0, +0, +1, +0)) * viewmat;
+      viewmat = to_float4x4(float3x3(+0, +0, -1, -1, +0, +0, +0, +1, +0)) * viewmat;
       break;
     case X_NEG:
-      viewmat = to_float4x4(mat3x3(+0, +0, +1, +1, +0, +0, +0, +1, +0)) * viewmat;
+      viewmat = to_float4x4(float3x3(+0, +0, +1, +1, +0, +0, +0, +1, +0)) * viewmat;
       break;
     case Y_POS:
-      viewmat = to_float4x4(mat3x3(+1, +0, +0, +0, +0, -1, +0, +1, +0)) * viewmat;
+      viewmat = to_float4x4(float3x3(+1, +0, +0, +0, +0, -1, +0, +1, +0)) * viewmat;
       break;
     case Y_NEG:
-      viewmat = to_float4x4(mat3x3(-1, +0, +0, +0, +0, +1, +0, +1, +0)) * viewmat;
+      viewmat = to_float4x4(float3x3(-1, +0, +0, +0, +0, +1, +0, +1, +0)) * viewmat;
       break;
     case Z_POS:
-      viewmat = to_float4x4(mat3x3(+1, +0, +0, +0, -1, +0, +0, +0, -1)) * viewmat;
+      viewmat = to_float4x4(float3x3(+1, +0, +0, +0, -1, +0, +0, +0, -1)) * viewmat;
       break;
   }
 

@@ -13,9 +13,9 @@
 
 vec3 colorspace_YCoCg_from_scene_linear(vec3 rgb_color)
 {
-  const mat3 colorspace_tx = transpose(mat3(vec3(1, 2, 1),     /* Y */
-                                            vec3(2, 0, -2),    /* Co */
-                                            vec3(-1, 2, -1))); /* Cg */
+  const float3x3 colorspace_tx = transpose(float3x3(vec3(1, 2, 1),     /* Y */
+                                                    vec3(2, 0, -2),    /* Co */
+                                                    vec3(-1, 2, -1))); /* Cg */
   return colorspace_tx * rgb_color;
 }
 

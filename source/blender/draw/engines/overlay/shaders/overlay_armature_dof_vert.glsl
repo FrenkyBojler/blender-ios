@@ -19,8 +19,8 @@ vec3 sphere_project(float ax, float az)
 
 void main()
 {
-  mat4 inst_obmat = data_buf[gl_InstanceID].object_to_world;
-  mat4 model_mat = inst_obmat;
+  float4x4 inst_obmat = data_buf[gl_InstanceID].object_to_world;
+  float4x4 model_mat = inst_obmat;
   model_mat[0][3] = model_mat[1][3] = model_mat[2][3] = 0.0f;
   model_mat[3][3] = 1.0f;
 

@@ -39,7 +39,7 @@ void main()
   sp.z += (is_head) ? 0.0f : bone_len;
 
   /* Convert to world space */
-  mat3 bone_mat = mat3(x_axis, y_axis, z_axis);
+  float3x3 bone_mat = float3x3(x_axis, y_axis, z_axis);
   sp = bone_mat * sp.xzy + data_buf[gl_InstanceID].head_sphere.xyz;
   nor = bone_mat * nor.xzy;
 

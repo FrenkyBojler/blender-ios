@@ -110,7 +110,7 @@ void main()
           view_start = view_start * tilemap_data.half_size + tilemap_data.center_offset;
           view_end = view_end * tilemap_data.half_size + tilemap_data.center_offset;
 
-          mat4x4 winmat;
+          float4x4 winmat;
           if (tilemap_data.projection_type != SHADOW_PROJECTION_CUBEFACE) {
             winmat = projection_orthographic(
                 view_start.x, view_end.x, view_start.y, view_end.y, clip_near, clip_far);

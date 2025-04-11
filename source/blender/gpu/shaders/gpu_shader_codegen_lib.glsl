@@ -42,7 +42,10 @@ vec2 calc_barycentric_co(int vertid)
 #  define barycentric_get() hair_get_barycentric()
 #  define barycentric_resolve(bary) hair_resolve_barycentric(bary)
 
-vec3 orco_get(vec3 local_pos, mat4 modelmatinv, vec4 orco_madd[2], const samplerBuffer orco_samp)
+vec3 orco_get(vec3 local_pos,
+              float4x4 modelmatinv,
+              vec4 orco_madd[2],
+              const samplerBuffer orco_samp)
 {
   /* TODO: fix ORCO with modifiers. */
   vec3 orco = (modelmatinv * vec4(local_pos, 1.0f)).xyz;
@@ -54,7 +57,7 @@ float hair_len_get(int id, const samplerBuffer len)
   return texelFetch(len, id).x;
 }
 
-vec4 tangent_get(const samplerBuffer attr, mat3 normalmat)
+vec4 tangent_get(const samplerBuffer attr, float3x3 normalmat)
 {
   /* Unsupported */
   return vec4(0.0f);
@@ -69,7 +72,7 @@ vec4 tangent_get(const samplerBuffer attr, mat3 normalmat)
 #  define barycentric_get() vec2(0)
 #  define barycentric_resolve(bary) bary
 
-vec3 orco_get(vec3 local_pos, mat4 modelmatinv, vec4 orco_madd[2], vec4 orco)
+vec3 orco_get(vec3 local_pos, float4x4 modelmatinv, vec4 orco_madd[2], vec4 orco)
 {
   /* If the object does not have any deformation, the orco layer calculation is done on the fly
    * using the orco_madd factors.
@@ -88,7 +91,7 @@ float hair_len_get(int id, const float len)
   return len;
 }
 
-vec4 tangent_get(vec4 attr, mat3 normalmat)
+vec4 tangent_get(vec4 attr, float3x3 normalmat)
 {
   vec4 tangent;
   tangent.xyz = normalmat * attr.xyz;

@@ -26,7 +26,7 @@ void main()
 
   probe_index = display_data_buf[display_index].probe_index;
 
-  mat4 plane_to_world = display_data_buf[display_index].plane_to_world;
+  float4x4 plane_to_world = display_data_buf[display_index].plane_to_world;
   probe_normal = safe_normalize(plane_to_world[2].xyz);
 
   vec3 P = transform_point(plane_to_world, vec3(lP, 0.0f));

@@ -30,7 +30,7 @@ void node_composite_color_balance_asc_cdl(
 
 void node_composite_color_balance_whitepoint(float factor,
                                              vec4 color,
-                                             mat4 matrix,
+                                             float4x4 matrix,
                                              out vec4 result)
 {
   result = mix(color, matrix * color, min(factor, 1.0f));

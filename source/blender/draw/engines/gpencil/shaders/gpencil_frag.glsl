@@ -21,7 +21,7 @@ vec3 gpencil_lighting()
     gpLightType type = gpLightType(floatBitsToUint(gp_lights[i]._type));
     /* Spot Attenuation. */
     if (type == GP_LIGHT_TYPE_SPOT) {
-      mat3 rot_scale = mat3(gp_lights[i]._right, gp_lights[i]._up, gp_lights[i]._forward);
+      float3x3 rot_scale = float3x3(gp_lights[i]._right, gp_lights[i]._up, gp_lights[i]._forward);
       vec3 local_L = rot_scale * L;
       local_L /= abs(local_L.z);
       float ellipse = inversesqrt(length_squared(local_L));

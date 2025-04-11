@@ -140,13 +140,13 @@ vec3 ltc_edge_integral_vec(vec3 v1, vec3 v2)
   return cross(v1, v2) * theta_sintheta;
 }
 
-mat3 ltc_matrix(vec4 lut)
+float3x3 ltc_matrix(vec4 lut)
 {
   /* Load inverse matrix. */
-  return mat3(vec3(lut.x, 0, lut.y), vec3(0, 1, 0), vec3(lut.z, 0, lut.w));
+  return float3x3(vec3(lut.x, 0, lut.y), vec3(0, 1, 0), vec3(lut.z, 0, lut.w));
 }
 
-mat3x3 ltc_tangent_basis(vec3 N, vec3 V)
+float3x3 ltc_tangent_basis(vec3 N, vec3 V)
 {
   float NV = dot(N, V);
   if (NV > 0.999999f) {
@@ -156,13 +156,13 @@ mat3x3 ltc_tangent_basis(vec3 N, vec3 V)
   /* Construct orthonormal basis around N. */
   vec3 T1 = normalize(V - N * NV);
   vec3 T2 = cross(N, T1);
-  return mat3x3(T1, T2, N);
+  return float3x3(T1, T2, N);
 }
 
-void ltc_transform_quad(vec3 N, vec3 V, mat3 Minv, inout vec3 corners[4])
+void ltc_transform_quad(vec3 N, vec3 V, float3x3 Minv, inout vec3 corners[4])
 {
   /* Construct orthonormal basis around N. */
-  mat3 T = ltc_tangent_basis(N, V);
+  float3x3 T = ltc_tangent_basis(N, V);
 
   /* Rotate area light in (T1, T2, R) basis. */
   Minv = Minv * transpose(T);
@@ -200,13 +200,14 @@ float ltc_evaluate_disk_simple(sampler2DArray utility_tx, float disk_radius, flo
 }
 
 /* disk_points are WS vectors from the shading point to the disk "bounding domain" */
-float ltc_evaluate_disk(sampler2DArray utility_tx, vec3 N, vec3 V, mat3 Minv, vec3 disk_points[3])
+float ltc_evaluate_disk(
+    sampler2DArray utility_tx, vec3 N, vec3 V, float3x3 Minv, vec3 disk_points[3])
 {
   /* Construct orthonormal basis around N. */
-  mat3 T = ltc_tangent_basis(N, V);
+  float3x3 T = ltc_tangent_basis(N, V);
 
   /* Rotate area light in (T1, T2, R) basis. */
-  mat3 R = transpose(T);
+  float3x3 R = transpose(T);
 
   /* Intermediate step: init ellipse. */
   vec3 L_[3];
@@ -300,7 +301,7 @@ float ltc_evaluate_disk(sampler2DArray utility_tx, vec3 N, vec3 V, mat3 Minv, ve
    * `b * y0 / (b - b * e2)` simplifies to `y0 / (1.0f - e2)`. */
   vec3 avg_dir = vec3(ab * x0 / (ab - e2), y0 / (1.0f - e2), 1.0f);
 
-  mat3 rotate = mat3(V1, V2, V3);
+  float3x3 rotate = float3x3(V1, V2, V3);
 
   avg_dir = rotate * avg_dir;
   avg_dir = normalize(avg_dir);

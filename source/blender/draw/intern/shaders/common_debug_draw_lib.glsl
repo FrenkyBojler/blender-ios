@@ -190,7 +190,7 @@ void drw_debug_sphere(vec3 p, float radius)
 /**
  * Draw a matrix transformation as 3 colored axes.
  */
-void drw_debug_matrix(mat4 mat, uint lifetime)
+void drw_debug_matrix(float4x4 mat, uint lifetime)
 {
   vec4 p[4] = float4_array(vec4(0, 0, 0, 1), vec4(1, 0, 0, 1), vec4(0, 1, 0, 1), vec4(0, 0, 1, 1));
   for (int i = 0; i < 4; i++) {
@@ -201,7 +201,7 @@ void drw_debug_matrix(mat4 mat, uint lifetime)
   drw_debug_line(p[0].xyz, p[1].xyz, vec4(0, 1, 0, 1), lifetime);
   drw_debug_line(p[0].xyz, p[2].xyz, vec4(0, 0, 1, 1), lifetime);
 }
-void drw_debug_matrix(mat4 mat)
+void drw_debug_matrix(float4x4 mat)
 {
   drw_debug_matrix(mat, drw_debug_default_lifetime);
 }
@@ -209,7 +209,7 @@ void drw_debug_matrix(mat4 mat)
 /**
  * Draw a matrix as a 2 units length bounding box, centered on origin.
  */
-void drw_debug_matrix_as_bbox(mat4 mat, vec4 v_color, uint lifetime)
+void drw_debug_matrix_as_bbox(float4x4 mat, vec4 v_color, uint lifetime)
 {
   vec4 p[8] = float4_array(vec4(-1, -1, -1, 1),
                            vec4(1, -1, -1, 1),
@@ -230,11 +230,11 @@ void drw_debug_matrix_as_bbox(mat4 mat, vec4 v_color, uint lifetime)
   drw_debug_line(p[3].xyz, p[7].xyz, v_color, lifetime);
   drw_debug_quad(p[4].xyz, p[5].xyz, p[6].xyz, p[7].xyz, v_color, lifetime);
 }
-void drw_debug_matrix_as_bbox(mat4 mat, vec4 v_color)
+void drw_debug_matrix_as_bbox(float4x4 mat, vec4 v_color)
 {
   drw_debug_matrix_as_bbox(mat, v_color, drw_debug_default_lifetime);
 }
-void drw_debug_matrix_as_bbox(mat4 mat)
+void drw_debug_matrix_as_bbox(float4x4 mat)
 {
   drw_debug_matrix_as_bbox(mat, drw_debug_default_color);
 }

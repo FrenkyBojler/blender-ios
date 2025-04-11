@@ -80,7 +80,7 @@ float sample_weight(vec3 out_direction, vec3 in_direction, float linear_roughnes
   return exp(2.0f * (NH - 1.0f) / square(m));
 }
 
-mat3x3 tangent_basis(vec3 N)
+float3x3 tangent_basis(vec3 N)
 {
   /* TODO(fclem): This create a discontinuity at Z=0. */
   return from_up_axis(N);
@@ -114,7 +114,7 @@ void main()
       vec2(out_local_texel), out_texel_area, sample_coord);
   out_direction = normalize(out_direction);
 
-  mat3x3 basis = tangent_basis(out_direction);
+  float3x3 basis = tangent_basis(out_direction);
 
   ivec2 out_texel = out_texel_area.offset + out_local_texel;
 

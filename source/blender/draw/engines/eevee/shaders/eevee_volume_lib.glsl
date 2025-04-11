@@ -73,8 +73,8 @@ vec3 volume_jitter_to_view(vec3 coord)
   /* Since we use an infinite projection matrix for rendering inside the jittered volumes,
    * we need to use a different matrix to reconstruct positions as the infinite matrix is not
    * always invertible. */
-  mat4x4 winmat = uniform_buf.volumes.winmat_finite;
-  mat4x4 wininv = uniform_buf.volumes.wininv_finite;
+  float4x4 winmat = uniform_buf.volumes.winmat_finite;
+  float4x4 wininv = uniform_buf.volumes.wininv_finite;
   /* Input coordinates are in jittered volume texture space. */
   float view_z = volume_z_to_view_z(coord.z);
   /* We need to recover the NDC position for correct perspective divide. */
@@ -90,7 +90,7 @@ vec3 volume_view_to_jitter(vec3 vP)
   /* Since we use an infinite projection matrix for rendering inside the jittered volumes,
    * we need to use a different matrix to reconstruct positions as the infinite matrix is not
    * always invertible. */
-  mat4x4 winmat = uniform_buf.volumes.winmat_finite;
+  float4x4 winmat = uniform_buf.volumes.winmat_finite;
   /* View to ndc. */
   vec3 ndc_P = drw_perspective_divide(winmat * vec4(vP, 1.0f));
   /* Here, screen is the same as volume texture UVW space. */
@@ -120,8 +120,8 @@ vec3 volume_screen_to_resolve(vec3 coord)
  * Returns vec3(-1) if history is unavailable. */
 vec3 volume_history_uvw_get(ivec3 froxel)
 {
-  mat4x4 wininv = uniform_buf.volumes.wininv_stable;
-  mat4x4 winmat = uniform_buf.volumes.winmat_stable;
+  float4x4 wininv = uniform_buf.volumes.wininv_stable;
+  float4x4 winmat = uniform_buf.volumes.winmat_stable;
   /* We can't reproject by a simple matrix multiplication. We first need to remap to the view Z,
    * then transform, then remap back to Volume range. */
   vec3 uvw = (vec3(froxel) + 0.5f) * uniform_buf.volumes.inv_tex_size;

@@ -22,7 +22,7 @@
 #define DRW_BASE_FROM_SET (1 << 3)
 #define DRW_BASE_ACTIVE (1 << 4)
 
-mat4 extract_matrix_packed_data(mat4 mat, out vec4 dataA, out vec4 dataB)
+float4x4 extract_matrix_packed_data(float4x4 mat, out vec4 dataA, out vec4 dataB)
 {
   const float div = 1.0f / 255.0f;
   int a = int(mat[0][3]);
@@ -57,7 +57,7 @@ vec4 pack_line_data(vec2 frag_co, vec2 edge_start, vec2 edge_pos)
 /* View-space Z is used to adjust for perspective projection.
  * Homogenous W is used to convert from NDC to homogenous space.
  * Offset is in view-space, so positive values are closer to the camera. */
-float get_homogenous_z_offset(mat4x4 winmat, float vs_z, float hs_w, float vs_offset)
+float get_homogenous_z_offset(float4x4 winmat, float vs_z, float hs_w, float vs_offset)
 {
   if (vs_offset == 0.0f) {
     /* Don't calculate homogenous offset if view-space offset is zero. */

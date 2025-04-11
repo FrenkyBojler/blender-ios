@@ -16,10 +16,10 @@ VERTEX_SHADER_CREATE_INFO(overlay_armature_shape_wire)
 
 struct VertIn {
   vec3 lP;
-  mat4 inst_matrix;
+  float4x4 inst_matrix;
 };
 
-VertIn input_assembly(uint in_vertex_id, mat4x4 inst_matrix)
+VertIn input_assembly(uint in_vertex_id, float4x4 inst_matrix)
 {
   uint v_i = gpu_index_load(in_vertex_id);
 
@@ -39,7 +39,7 @@ struct VertOut {
 VertOut vertex_main(VertIn v_in)
 {
   vec4 bone_color, state_color;
-  mat4 model_mat = extract_matrix_packed_data(v_in.inst_matrix, state_color, bone_color);
+  float4x4 model_mat = extract_matrix_packed_data(v_in.inst_matrix, state_color, bone_color);
 
   VertOut v_out;
 
@@ -209,8 +209,8 @@ void main()
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
                            ouput_invocation_count;
 
-  mat4 inst_obmat = data_buf[gl_InstanceID];
-  mat4x4 inst_matrix = inst_obmat;
+  float4x4 inst_obmat = data_buf[gl_InstanceID];
+  float4x4 inst_matrix = inst_obmat;
 
 #ifdef FROM_LINE_STRIP
   uint32_t RESTART_INDEX = gpu_index_16bit ? 0xFFFF : 0xFFFFFFFF;

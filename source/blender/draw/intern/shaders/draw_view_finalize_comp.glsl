@@ -13,7 +13,7 @@
 
 COMPUTE_SHADER_CREATE_INFO(draw_view_finalize)
 
-void projmat_dimensions(mat4 winmat,
+void projmat_dimensions(float4x4 winmat,
                         out float r_left,
                         out float r_right,
                         out float r_bottom,
@@ -41,7 +41,7 @@ void projmat_dimensions(mat4 winmat,
   }
 }
 
-void frustum_boundbox_calc(mat4 winmat, mat4 viewinv, out FrustumCorners frustum_corners)
+void frustum_boundbox_calc(float4x4 winmat, float4x4 viewinv, out FrustumCorners frustum_corners)
 {
   float left = 0.0f, right = 0.0f, bottom = 0.0f, top = 0.0f, near = 0.0f, far = 0.0f;
   bool is_persp = winmat[3][3] == 0.0f;
@@ -77,7 +77,7 @@ void frustum_boundbox_calc(mat4 winmat, mat4 viewinv, out FrustumCorners frustum
   }
 }
 
-void planes_from_projmat(mat4 mat, out FrustumPlanes frustum_planes)
+void planes_from_projmat(float4x4 mat, out FrustumPlanes frustum_planes)
 {
   /* References:
    *
@@ -93,9 +93,11 @@ void planes_from_projmat(mat4 mat, out FrustumPlanes frustum_planes)
   frustum_planes.planes[5] = mat[3] - mat[2];
 }
 
-void frustum_culling_planes_calc(mat4 winmat, mat4 viewmat, out FrustumPlanes frustum_planes)
+void frustum_culling_planes_calc(float4x4 winmat,
+                                 float4x4 viewmat,
+                                 out FrustumPlanes frustum_planes)
 {
-  mat4 persmat = winmat * viewmat;
+  float4x4 persmat = winmat * viewmat;
   planes_from_projmat(persmat, frustum_planes);
 
   /* Normalize. */

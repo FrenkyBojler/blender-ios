@@ -137,9 +137,9 @@ struct GPUSource {
         return GPU_VEC3;
       case metadata::Type::vec4:
         return GPU_VEC4;
-      case metadata::Type::mat3:
+      case metadata::Type::float3x3:
         return GPU_MAT3;
-      case metadata::Type::mat4:
+      case metadata::Type::float4x4:
         return GPU_MAT4;
       case metadata::Type::sampler1DArray:
         return GPU_TEX1D_ARRAY;

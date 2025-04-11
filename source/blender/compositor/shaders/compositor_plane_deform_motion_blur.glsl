@@ -13,7 +13,7 @@ void main()
 
   vec4 accumulated_color = vec4(0.0f);
   for (int i = 0; i < number_of_motion_blur_samples; i++) {
-    mat3 homography_matrix = to_float3x3(homography_matrices[i]);
+    float3x3 homography_matrix = to_float3x3(homography_matrices[i]);
 
     vec3 transformed_coordinates = homography_matrix * vec3(coordinates, 1.0f);
     /* Point is at infinity and will be zero when sampled, so early exit. */

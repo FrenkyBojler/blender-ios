@@ -20,7 +20,7 @@ void main()
     return;
   }
 
-  mat4 model_mat = matrix_buf[resource_id].model;
+  float4x4 model_mat = matrix_buf[resource_id].model;
   ObjectInfos infos = infos_buf[resource_id];
   ObjectBounds bounds = bounds_buf[resource_id];
 

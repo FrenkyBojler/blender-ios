@@ -23,9 +23,9 @@ int pointcloud_get_point_id()
   return 0;
 }
 
-mat3 pointcloud_get_facing_matrix(vec3 p)
+float3x3 pointcloud_get_facing_matrix(vec3 p)
 {
-  mat3 facing_mat;
+  float3x3 facing_mat;
   facing_mat[2] = drw_world_incident_vector(p);
   facing_mat[1] = normalize(cross(drw_view().viewinv[0].xyz, facing_mat[2]));
   facing_mat[0] = cross(facing_mat[1], facing_mat[2]);
@@ -48,7 +48,7 @@ void pointcloud_get_pos_nor_radius(out vec3 outpos, out vec3 outnor, out float o
   float radius = 0.0f;
   pointcloud_get_pos_and_radius(p, radius);
 
-  mat3 facing_mat = pointcloud_get_facing_matrix(p);
+  float3x3 facing_mat = pointcloud_get_facing_matrix(p);
 
   uint vert_id = 0u;
 #  ifdef GPU_VERTEX_SHADER

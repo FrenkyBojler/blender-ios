@@ -22,35 +22,35 @@ bool is_integer(uvec4 v) { return true; }
 bool is_integer(vec2 v) { return false; }
 bool is_integer(vec3 v) { return false; }
 bool is_integer(vec4 v) { return false; }
-bool is_integer(mat2x2 v) { return false; }
-bool is_integer(mat2x3 v) { return false; }
-bool is_integer(mat2x4 v) { return false; }
-bool is_integer(mat3x2 v) { return false; }
-bool is_integer(mat3x3 v) { return false; }
-bool is_integer(mat3x4 v) { return false; }
-bool is_integer(mat4x2 v) { return false; }
-bool is_integer(mat4x3 v) { return false; }
-bool is_integer(mat4x4 v) { return false; }
+bool is_integer(float2x2 v) { return false; }
+bool is_integer(float2x3 v) { return false; }
+bool is_integer(float2x4 v) { return false; }
+bool is_integer(float3x2 v) { return false; }
+bool is_integer(float3x3 v) { return false; }
+bool is_integer(float3x4 v) { return false; }
+bool is_integer(float4x2 v) { return false; }
+bool is_integer(float4x3 v) { return false; }
+bool is_integer(float4x4 v) { return false; }
 
-int mat_row_len(mat2x2 v) { return 2; }
-int mat_row_len(mat2x3 v) { return 3; }
-int mat_row_len(mat2x4 v) { return 4; }
-int mat_row_len(mat3x2 v) { return 2; }
-int mat_row_len(mat3x3 v) { return 3; }
-int mat_row_len(mat3x4 v) { return 4; }
-int mat_row_len(mat4x2 v) { return 2; }
-int mat_row_len(mat4x3 v) { return 3; }
-int mat_row_len(mat4x4 v) { return 4; }
+int mat_row_len(float2x2 v) { return 2; }
+int mat_row_len(float2x3 v) { return 3; }
+int mat_row_len(float2x4 v) { return 4; }
+int mat_row_len(float3x2 v) { return 2; }
+int mat_row_len(float3x3 v) { return 3; }
+int mat_row_len(float3x4 v) { return 4; }
+int mat_row_len(float4x2 v) { return 2; }
+int mat_row_len(float4x3 v) { return 3; }
+int mat_row_len(float4x4 v) { return 4; }
 
-int mat_col_len(mat2x2 v) { return 2; }
-int mat_col_len(mat2x3 v) { return 2; }
-int mat_col_len(mat2x4 v) { return 2; }
-int mat_col_len(mat3x2 v) { return 3; }
-int mat_col_len(mat3x3 v) { return 3; }
-int mat_col_len(mat3x4 v) { return 3; }
-int mat_col_len(mat4x2 v) { return 4; }
-int mat_col_len(mat4x3 v) { return 4; }
-int mat_col_len(mat4x4 v) { return 4; }
+int mat_col_len(float2x2 v) { return 2; }
+int mat_col_len(float2x3 v) { return 2; }
+int mat_col_len(float2x4 v) { return 2; }
+int mat_col_len(float3x2 v) { return 3; }
+int mat_col_len(float3x3 v) { return 3; }
+int mat_col_len(float3x4 v) { return 3; }
+int mat_col_len(float4x2 v) { return 4; }
+int mat_col_len(float4x3 v) { return 4; }
+int mat_col_len(float4x4 v) { return 4; }
 int mat_col_len(ivec2 v) { return 2; }
 int mat_col_len(ivec3 v) { return 3; }
 int mat_col_len(ivec4 v) { return 4; }
@@ -76,15 +76,15 @@ uint to_type(uvec4 v) { return TEST_TYPE_UVEC4; }
 uint to_type(vec2 v) { return TEST_TYPE_VEC2; }
 uint to_type(vec3 v) { return TEST_TYPE_VEC3; }
 uint to_type(vec4 v) { return TEST_TYPE_VEC4; }
-uint to_type(mat2x2 v) { return TEST_TYPE_MAT2X2; }
-uint to_type(mat2x3 v) { return TEST_TYPE_MAT2X3; }
-uint to_type(mat2x4 v) { return TEST_TYPE_MAT2X4; }
-uint to_type(mat3x2 v) { return TEST_TYPE_MAT3X2; }
-uint to_type(mat3x3 v) { return TEST_TYPE_MAT3X3; }
-uint to_type(mat3x4 v) { return TEST_TYPE_MAT3X4; }
-uint to_type(mat4x2 v) { return TEST_TYPE_MAT4X2; }
-uint to_type(mat4x3 v) { return TEST_TYPE_MAT4X3; }
-uint to_type(mat4x4 v) { return TEST_TYPE_MAT4X4; }
+uint to_type(float2x2 v) { return TEST_TYPE_MAT2X2; }
+uint to_type(float2x3 v) { return TEST_TYPE_MAT2X3; }
+uint to_type(float2x4 v) { return TEST_TYPE_MAT2X4; }
+uint to_type(float3x2 v) { return TEST_TYPE_MAT3X2; }
+uint to_type(float3x3 v) { return TEST_TYPE_MAT3X3; }
+uint to_type(float3x4 v) { return TEST_TYPE_MAT3X4; }
+uint to_type(float4x2 v) { return TEST_TYPE_MAT4X2; }
+uint to_type(float4x3 v) { return TEST_TYPE_MAT4X3; }
+uint to_type(float4x4 v) { return TEST_TYPE_MAT4X4; }
 /* clang-format on */
 
 #define WRITE_MATRIX(v) \
@@ -136,15 +136,15 @@ TestOutputRawData as_raw_data(uvec4 v) { WRITE_INT_VECTOR(v); }
 TestOutputRawData as_raw_data(vec2 v) { WRITE_FLOAT_VECTOR(v); }
 TestOutputRawData as_raw_data(vec3 v) { WRITE_FLOAT_VECTOR(v); }
 TestOutputRawData as_raw_data(vec4 v) { WRITE_FLOAT_VECTOR(v); }
-TestOutputRawData as_raw_data(mat2x2 v) { WRITE_MATRIX(v); }
-TestOutputRawData as_raw_data(mat2x3 v) { WRITE_MATRIX(v); }
-TestOutputRawData as_raw_data(mat2x4 v) { WRITE_MATRIX(v); }
-TestOutputRawData as_raw_data(mat3x2 v) { WRITE_MATRIX(v); }
-TestOutputRawData as_raw_data(mat3x3 v) { WRITE_MATRIX(v); }
-TestOutputRawData as_raw_data(mat3x4 v) { WRITE_MATRIX(v); }
-TestOutputRawData as_raw_data(mat4x2 v) { WRITE_MATRIX(v); }
-TestOutputRawData as_raw_data(mat4x3 v) { WRITE_MATRIX(v); }
-TestOutputRawData as_raw_data(mat4x4 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float2x2 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float2x3 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float2x4 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float3x2 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float3x3 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float3x4 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float4x2 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float4x3 v) { WRITE_MATRIX(v); }
+TestOutputRawData as_raw_data(float4x4 v) { WRITE_MATRIX(v); }
 /* clang-format on */
 
 int g_test_id = 0;

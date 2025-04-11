@@ -42,14 +42,14 @@ vec3 weight_to_color(float weight)
   return r_rgb;
 }
 
-mat3 rotation_from_vector(vec3 v)
+float3x3 rotation_from_vector(vec3 v)
 {
   /* Add epsilon to avoid NaN. */
   vec3 N = normalize(v + 1e-8f);
   vec3 UpVector = abs(N.z) < 0.99999f ? vec3(0.0f, 0.0f, 1.0f) : vec3(1.0f, 0.0f, 0.0f);
   vec3 T = normalize(cross(UpVector, N));
   vec3 B = cross(N, T);
-  return mat3(T, B, N);
+  return float3x3(T, B, N);
 }
 
 vec3 get_vector(ivec3 cell_co)
@@ -178,7 +178,7 @@ void main()
     vector_length = 0.0f;
   }
 
-  mat3 rot_mat = rotation_from_vector(vector);
+  float3x3 rot_mat = rotation_from_vector(vector);
 
 #  ifdef USE_NEEDLE
   /* NOTE(Metal): Declaring constant arrays in function scope to avoid increasing local shader

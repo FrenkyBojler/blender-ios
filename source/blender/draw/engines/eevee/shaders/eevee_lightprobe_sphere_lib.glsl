@@ -41,12 +41,12 @@ ReflectionProbeLowFreqLight lightprobe_spheres_extract_low_freq(SphericalHarmoni
   /* Bias to avoid division by zero. */
   result.ambient += 1e-6f;
 
-  mat3x4 L1_per_band;
+  float3x4 L1_per_band;
   L1_per_band[0] = sh.L1.Mn1;
   L1_per_band[1] = sh.L1.M0;
   L1_per_band[2] = sh.L1.Mp1;
 
-  mat4x3 L1_per_comp = transpose(L1_per_band);
+  float4x3 L1_per_comp = transpose(L1_per_band);
   result.direction = L1_per_comp[0] + L1_per_comp[1] + L1_per_comp[2];
 
   return result;
