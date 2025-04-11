@@ -23,7 +23,7 @@ void main()
     return;
   }
 
-  ivec3 cluster = surfel_cluster_index_get(imageSize(cluster_list_img),
+  int3 cluster = surfel_cluster_index_get(imageSize(cluster_list_img),
                                            capture_info_buf.irradiance_grid_world_to_local,
                                            surfel_buf[surfel_index].position);
   /* For debugging. */

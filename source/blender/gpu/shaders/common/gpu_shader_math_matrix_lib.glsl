@@ -17,31 +17,31 @@
 
 float2x2 mat2x2_diagonal(float v)
 {
-  return float2x2(vec2(v, 0.0f), vec2(0.0f, v));
+  return float2x2(float2(v, 0.0f), float2(0.0f, v));
 }
 float3x3 mat3x3_diagonal(float v)
 {
-  return float3x3(vec3(v, 0.0f, 0.0f), vec3(0.0f, v, 0.0f), vec3(0.0f, 0.0f, v));
+  return float3x3(float3(v, 0.0f, 0.0f), float3(0.0f, v, 0.0f), float3(0.0f, 0.0f, v));
 }
 float4x4 mat4x4_diagonal(float v)
 {
-  return float4x4(vec4(v, 0.0f, 0.0f, 0.0f),
-                  vec4(0.0f, v, 0.0f, 0.0f),
-                  vec4(0.0f, 0.0f, v, 0.0f),
-                  vec4(0.0f, 0.0f, 0.0f, v));
+  return float4x4(float4(v, 0.0f, 0.0f, 0.0f),
+                  float4(0.0f, v, 0.0f, 0.0f),
+                  float4(0.0f, 0.0f, v, 0.0f),
+                  float4(0.0f, 0.0f, 0.0f, v));
 }
 
 float2x2 mat2x2_all(float v)
 {
-  return float2x2(vec2(v), vec2(v));
+  return float2x2(float2(v), float2(v));
 }
 float3x3 mat3x3_all(float v)
 {
-  return float3x3(vec3(v), vec3(v), vec3(v));
+  return float3x3(float3(v), float3(v), float3(v));
 }
 float4x4 mat4x4_all(float v)
 {
-  return float4x4(vec4(v), vec4(v), vec4(v), vec4(v));
+  return float4x4(float4(v), float4(v), float4(v), float4(v));
 }
 
 float2x2 mat2x2_zero()
@@ -113,15 +113,15 @@ float4x4 normalize(float4x4 mat);
  * Normalize each column of the matrix individually.
  * Return the length of each column vector.
  */
-float2x2 normalize_and_get_size(float2x2 mat, out vec2 r_size);
-float2x3 normalize_and_get_size(float2x3 mat, out vec2 r_size);
-float2x4 normalize_and_get_size(float2x4 mat, out vec2 r_size);
-float3x2 normalize_and_get_size(float3x2 mat, out vec3 r_size);
-float3x3 normalize_and_get_size(float3x3 mat, out vec3 r_size);
-float3x4 normalize_and_get_size(float3x4 mat, out vec3 r_size);
-float4x2 normalize_and_get_size(float4x2 mat, out vec4 r_size);
-float4x3 normalize_and_get_size(float4x3 mat, out vec4 r_size);
-float4x4 normalize_and_get_size(float4x4 mat, out vec4 r_size);
+float2x2 normalize_and_get_size(float2x2 mat, out float2 r_size);
+float2x3 normalize_and_get_size(float2x3 mat, out float2 r_size);
+float2x4 normalize_and_get_size(float2x4 mat, out float2 r_size);
+float3x2 normalize_and_get_size(float3x2 mat, out float3 r_size);
+float3x3 normalize_and_get_size(float3x3 mat, out float3 r_size);
+float3x4 normalize_and_get_size(float3x4 mat, out float3 r_size);
+float4x2 normalize_and_get_size(float4x2 mat, out float4 r_size);
+float4x3 normalize_and_get_size(float4x3 mat, out float4 r_size);
+float4x4 normalize_and_get_size(float4x4 mat, out float4 r_size);
 
 /**
  * Returns the determinant of the matrix.
@@ -139,8 +139,8 @@ float4x4 adjoint(float4x4 mat);
 /**
  * Equivalent to `mat * from_location(translation)` but with fewer operation.
  */
-float4x4 translate(float4x4 mat, vec2 translation);
-float4x4 translate(float4x4 mat, vec3 translation);
+float4x4 translate(float4x4 mat, float2 translation);
+float4x4 translate(float4x4 mat, float3 translation);
 
 /**
  * Equivalent to `mat * from_rotation(rotation)` but with fewer operation.
@@ -154,10 +154,10 @@ float4x4 rotate(float4x4 mat, EulerXYZ rotation);
 /**
  * Equivalent to `mat * from_scale(scale)` but with fewer operation.
  */
-float3x3 scale(float3x3 mat, vec2 scale);
-float3x3 scale(float3x3 mat, vec3 scale);
-float4x4 scale(float4x4 mat, vec2 scale);
-float4x4 scale(float4x4 mat, vec3 scale);
+float3x3 scale(float3x3 mat, float2 scale);
+float3x3 scale(float3x3 mat, float3 scale);
+float4x4 scale(float4x4 mat, float2 scale);
+float4x4 scale(float4x4 mat, float3 scale);
 
 /**
  * Interpolate each component linearly.
@@ -203,14 +203,14 @@ float4x4 interpolate_fast(float4x4 a, float4x4 b, float t);
 /**
  * Create a translation only matrix. Matrix dimensions should be at least 4 col x 3 row.
  */
-float4x4 from_location(vec3 location);
+float4x4 from_location(float3 location);
 
 /**
  * Create a matrix whose diagonal is defined by the given scale vector.
  */
-float2x2 from_scale(vec2 scale);
-float3x3 from_scale(vec3 scale);
-float4x4 from_scale(vec4 scale);
+float2x2 from_scale(float2 scale);
+float3x3 from_scale(float3 scale);
+float4x4 from_scale(float4 scale);
 
 /**
  * Create a rotation only matrix.
@@ -223,23 +223,23 @@ float3x3 from_rotation(AxisAngle rotation);
 /**
  * Create a transform matrix with rotation and scale applied in this order.
  */
-float3x3 from_rot_scale(EulerXYZ rotation, vec3 scale);
+float3x3 from_rot_scale(EulerXYZ rotation, float3 scale);
 
 /**
  * Create a transform matrix with translation and rotation applied in this order.
  */
-float4x4 from_loc_rot(vec3 location, EulerXYZ rotation);
+float4x4 from_loc_rot(float3 location, EulerXYZ rotation);
 
 /**
  * Create a transform matrix with translation, rotation and scale applied in this order.
  */
-float4x4 from_loc_rot_scale(vec3 location, EulerXYZ rotation, vec3 scale);
+float4x4 from_loc_rot_scale(float3 location, EulerXYZ rotation, float3 scale);
 
 /**
  * Creates a 2D rotation matrix with the angle that the given direction makes with the x axis.
  * Assumes the direction vector is normalized.
  */
-float2x2 from_direction(vec2 direction);
+float2x2 from_direction(float2 direction);
 
 /**
  * Create a rotation matrix from 2 basis vectors.
@@ -262,7 +262,7 @@ float2x2 from_direction(vec2 direction);
  * \note The output of this function is not given to be same across blender version. Prefer using
  * `from_orthonormal_axes` for more stable output.
  */
-float3x3 from_up_axis(vec3 up);
+float3x3 from_up_axis(float3 up);
 
 /** \} */
 
@@ -291,10 +291,10 @@ Quaternion to_quaternion(float4x4 mat, const bool normalized);
 /**
  * Extract the absolute 3d scale from a transform matrix.
  */
-vec3 to_scale(float3x3 mat);
-vec3 to_scale(float3x3 mat, const bool allow_negative_scale);
-vec3 to_scale(float4x4 mat);
-vec3 to_scale(float4x4 mat, const bool allow_negative_scale);
+float3 to_scale(float3x3 mat);
+float3 to_scale(float3x3 mat, const bool allow_negative_scale);
+float3 to_scale(float4x4 mat);
+float3 to_scale(float4x4 mat, const bool allow_negative_scale);
 
 /**
  * Decompose a matrix into location, rotation, and scale components.
@@ -302,48 +302,48 @@ vec3 to_scale(float4x4 mat, const bool allow_negative_scale);
  * Rotation and scale values will be flipped if it is negative.
  * This is a costly operation so it is disabled by default.
  */
-void to_rot_scale(float3x3 mat, out EulerXYZ r_rotation, out vec3 r_scale);
-void to_rot_scale(float3x3 mat, out Quaternion r_rotation, out vec3 r_scale);
-void to_rot_scale(float3x3 mat, out AxisAngle r_rotation, out vec3 r_scale);
+void to_rot_scale(float3x3 mat, out EulerXYZ r_rotation, out float3 r_scale);
+void to_rot_scale(float3x3 mat, out Quaternion r_rotation, out float3 r_scale);
+void to_rot_scale(float3x3 mat, out AxisAngle r_rotation, out float3 r_scale);
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out EulerXYZ r_rotation,
-                      out vec3 r_scale);
+                      out float3 r_scale);
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out Quaternion r_rotation,
-                      out vec3 r_scale);
+                      out float3 r_scale);
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out AxisAngle r_rotation,
-                      out vec3 r_scale);
+                      out float3 r_scale);
 
 void to_rot_scale(float3x3 mat,
                   out EulerXYZ r_rotation,
-                  out vec3 r_scale,
+                  out float3 r_scale,
                   const bool allow_negative_scale);
 void to_rot_scale(float3x3 mat,
                   out Quaternion r_rotation,
-                  out vec3 r_scale,
+                  out float3 r_scale,
                   const bool allow_negative_scale);
 void to_rot_scale(float3x3 mat,
                   out AxisAngle r_rotation,
-                  out vec3 r_scale,
+                  out float3 r_scale,
                   const bool allow_negative_scale);
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out EulerXYZ r_rotation,
-                      out vec3 r_scale,
+                      out float3 r_scale,
                       const bool allow_negative_scale);
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out Quaternion r_rotation,
-                      out vec3 r_scale,
+                      out float3 r_scale,
                       const bool allow_negative_scale);
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out AxisAngle r_rotation,
-                      out vec3 r_scale,
+                      out float3 r_scale,
                       const bool allow_negative_scale);
 
 /** \} */
@@ -355,28 +355,28 @@ void to_loc_rot_scale(float4x4 mat,
 /**
  * Transform a 3d point using a 3x3 matrix (rotation & scale).
  */
-vec3 transform_point(float3x3 mat, vec3 point);
+float3 transform_point(float3x3 mat, float3 point);
 
 /**
  * Transform a 3d point using a 4x4 matrix (location & rotation & scale).
  */
-vec3 transform_point(float4x4 mat, vec3 point);
+float3 transform_point(float4x4 mat, float3 point);
 
 /**
  * Transform a 3d direction vector using a 3x3 matrix (rotation & scale).
  */
-vec3 transform_direction(float3x3 mat, vec3 direction);
+float3 transform_direction(float3x3 mat, float3 direction);
 
 /**
  * Transform a 3d direction vector using a 4x4 matrix (rotation & scale).
  */
-vec3 transform_direction(float4x4 mat, vec3 direction);
+float3 transform_direction(float4x4 mat, float3 direction);
 
 /**
  * Project a point using a matrix (location & rotation & scale & perspective divide).
  */
-vec2 project_point(float3x3 mat, vec2 point);
-vec3 project_point(float4x4 mat, vec3 point);
+float2 project_point(float3x3 mat, float2 point);
+float3 project_point(float4x4 mat, float3 point);
 
 /** \} */
 
@@ -497,15 +497,15 @@ float4x4 invert(float4x4 mat, out bool r_success)
 }
 
 #  if defined(GPU_OPENGL) || defined(GPU_METAL)
-vec2 normalize(vec2 a)
+float2 normalize(float2 a)
 {
   return a * inversesqrt(length_squared(a));
 }
-vec3 normalize(vec3 a)
+float3 normalize(float3 a)
 {
   return a * inversesqrt(length_squared(a));
 }
-vec4 normalize(vec4 a)
+float4 normalize(float4 a)
 {
   return a * inversesqrt(length_squared(a));
 }
@@ -584,64 +584,64 @@ float4x4 normalize(float4x4 mat)
   return ret;
 }
 
-float2x2 normalize_and_get_size(float2x2 mat, out vec2 r_size)
+float2x2 normalize_and_get_size(float2x2 mat, out float2 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f;
   float2x2 ret;
   ret[0] = normalize_and_get_length(mat[0], size_x);
   ret[1] = normalize_and_get_length(mat[1], size_y);
-  r_size = vec2(size_x, size_y);
+  r_size = float2(size_x, size_y);
   return ret;
 }
-float2x3 normalize_and_get_size(float2x3 mat, out vec2 r_size)
+float2x3 normalize_and_get_size(float2x3 mat, out float2 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f;
   float2x3 ret;
   ret[0] = normalize_and_get_length(mat[0], size_x);
   ret[1] = normalize_and_get_length(mat[1], size_y);
-  r_size = vec2(size_x, size_y);
+  r_size = float2(size_x, size_y);
   return ret;
 }
-float2x4 normalize_and_get_size(float2x4 mat, out vec2 r_size)
+float2x4 normalize_and_get_size(float2x4 mat, out float2 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f;
   float2x4 ret;
   ret[0] = normalize_and_get_length(mat[0], size_x);
   ret[1] = normalize_and_get_length(mat[1], size_y);
-  r_size = vec2(size_x, size_y);
+  r_size = float2(size_x, size_y);
   return ret;
 }
-float3x2 normalize_and_get_size(float3x2 mat, out vec3 r_size)
+float3x2 normalize_and_get_size(float3x2 mat, out float3 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f;
   float3x2 ret;
   ret[0] = normalize_and_get_length(mat[0], size_x);
   ret[1] = normalize_and_get_length(mat[1], size_y);
   ret[2] = normalize_and_get_length(mat[2], size_z);
-  r_size = vec3(size_x, size_y, size_z);
+  r_size = float3(size_x, size_y, size_z);
   return ret;
 }
-float3x3 normalize_and_get_size(float3x3 mat, out vec3 r_size)
+float3x3 normalize_and_get_size(float3x3 mat, out float3 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f;
   float3x3 ret;
   ret[0] = normalize_and_get_length(mat[0], size_x);
   ret[1] = normalize_and_get_length(mat[1], size_y);
   ret[2] = normalize_and_get_length(mat[2], size_z);
-  r_size = vec3(size_x, size_y, size_z);
+  r_size = float3(size_x, size_y, size_z);
   return ret;
 }
-float3x4 normalize_and_get_size(float3x4 mat, out vec3 r_size)
+float3x4 normalize_and_get_size(float3x4 mat, out float3 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f;
   float3x4 ret;
   ret[0] = normalize_and_get_length(mat[0], size_x);
   ret[1] = normalize_and_get_length(mat[1], size_y);
   ret[2] = normalize_and_get_length(mat[2], size_z);
-  r_size = vec3(size_x, size_y, size_z);
+  r_size = float3(size_x, size_y, size_z);
   return ret;
 }
-float4x2 normalize_and_get_size(float4x2 mat, out vec4 r_size)
+float4x2 normalize_and_get_size(float4x2 mat, out float4 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f, size_w = 0.0f;
   float4x2 ret;
@@ -649,10 +649,10 @@ float4x2 normalize_and_get_size(float4x2 mat, out vec4 r_size)
   ret[1] = normalize_and_get_length(mat[1], size_y);
   ret[2] = normalize_and_get_length(mat[2], size_z);
   ret[3] = normalize_and_get_length(mat[3], size_w);
-  r_size = vec4(size_x, size_y, size_z, size_w);
+  r_size = float4(size_x, size_y, size_z, size_w);
   return ret;
 }
-float4x3 normalize_and_get_size(float4x3 mat, out vec4 r_size)
+float4x3 normalize_and_get_size(float4x3 mat, out float4 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f, size_w = 0.0f;
   float4x3 ret;
@@ -660,10 +660,10 @@ float4x3 normalize_and_get_size(float4x3 mat, out vec4 r_size)
   ret[1] = normalize_and_get_length(mat[1], size_y);
   ret[2] = normalize_and_get_length(mat[2], size_z);
   ret[3] = normalize_and_get_length(mat[3], size_w);
-  r_size = vec4(size_x, size_y, size_z, size_w);
+  r_size = float4(size_x, size_y, size_z, size_w);
   return ret;
 }
-float4x4 normalize_and_get_size(float4x4 mat, out vec4 r_size)
+float4x4 normalize_and_get_size(float4x4 mat, out float4 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f, size_w = 0.0f;
   float4x4 ret;
@@ -671,7 +671,7 @@ float4x4 normalize_and_get_size(float4x4 mat, out vec4 r_size)
   ret[1] = normalize_and_get_length(mat[1], size_y);
   ret[2] = normalize_and_get_length(mat[2], size_z);
   ret[3] = normalize_and_get_length(mat[3], size_w);
-  r_size = vec4(size_x, size_y, size_z, size_w);
+  r_size = float4(size_x, size_y, size_z, size_w);
   return ret;
 }
 
@@ -743,14 +743,14 @@ float4x4 adjoint(float4x4 mat)
   return adj;
 }
 
-float4x4 translate(float4x4 mat, vec3 translation)
+float4x4 translate(float4x4 mat, float3 translation)
 {
   mat[3].xyz += translation[0] * mat[0].xyz;
   mat[3].xyz += translation[1] * mat[1].xyz;
   mat[3].xyz += translation[2] * mat[2].xyz;
   return mat;
 }
-float4x4 translate(float4x4 mat, vec2 translation)
+float4x4 translate(float4x4 mat, float2 translation)
 {
   mat[3].xyz += translation[0] * mat[0].xyz;
   mat[3].xyz += translation[1] * mat[1].xyz;
@@ -798,13 +798,13 @@ float3x3 rotate(float3x3 mat, EulerXYZ rotation)
 {
   AxisAngle axis_angle;
   if (rotation.y == 0.0f && rotation.z == 0.0f) {
-    axis_angle = AxisAngle(vec3(1.0f, 0.0f, 0.0f), rotation.x);
+    axis_angle = AxisAngle(float3(1.0f, 0.0f, 0.0f), rotation.x);
   }
   else if (rotation.x == 0.0f && rotation.z == 0.0f) {
-    axis_angle = AxisAngle(vec3(0.0f, 1.0f, 0.0f), rotation.y);
+    axis_angle = AxisAngle(float3(0.0f, 1.0f, 0.0f), rotation.y);
   }
   else if (rotation.x == 0.0f && rotation.y == 0.0f) {
-    axis_angle = AxisAngle(vec3(0.0f, 0.0f, 1.0f), rotation.z);
+    axis_angle = AxisAngle(float3(0.0f, 0.0f, 1.0f), rotation.z);
   }
   else {
     /* Un-optimized case. Arbitrary rotation. */
@@ -838,26 +838,26 @@ float4x4 rotate(float4x4 mat, EulerXYZ rotation)
   return result;
 }
 
-float3x3 scale(float3x3 mat, vec2 scale)
+float3x3 scale(float3x3 mat, float2 scale)
 {
   mat[0] *= scale[0];
   mat[1] *= scale[1];
   return mat;
 }
-float3x3 scale(float3x3 mat, vec3 scale)
+float3x3 scale(float3x3 mat, float3 scale)
 {
   mat[0] *= scale[0];
   mat[1] *= scale[1];
   mat[2] *= scale[2];
   return mat;
 }
-float4x4 scale(float4x4 mat, vec2 scale)
+float4x4 scale(float4x4 mat, float2 scale)
 {
   mat[0] *= scale[0];
   mat[1] *= scale[1];
   return mat;
 }
-float4x4 scale(float4x4 mat, vec3 scale)
+float4x4 scale(float4x4 mat, float3 scale)
 {
   mat[0] *= scale[0];
   mat[1] *= scale[1];
@@ -865,21 +865,21 @@ float4x4 scale(float4x4 mat, vec3 scale)
   return mat;
 }
 
-float4x4 from_location(vec3 location)
+float4x4 from_location(float3 location)
 {
   float4x4 ret = float4x4(1.0f);
   ret[3].xyz = location;
   return ret;
 }
 
-float2x2 from_scale(vec2 scale)
+float2x2 from_scale(float2 scale)
 {
   float2x2 ret = float2x2(0.0f);
   ret[0][0] = scale[0];
   ret[1][1] = scale[1];
   return ret;
 }
-float3x3 from_scale(vec3 scale)
+float3x3 from_scale(float3 scale)
 {
   float3x3 ret = float3x3(0.0f);
   ret[0][0] = scale[0];
@@ -887,7 +887,7 @@ float3x3 from_scale(vec3 scale)
   ret[2][2] = scale[2];
   return ret;
 }
-float4x4 from_scale(vec4 scale)
+float4x4 from_scale(float4 scale)
 {
   float4x4 ret = float4x4(0.0f);
   ret[0][0] = scale[0];
@@ -969,12 +969,12 @@ float3x3 from_rotation(AxisAngle rotation)
 {
   float angle_sin = sin(rotation.angle);
   float angle_cos = cos(rotation.angle);
-  vec3 axis = rotation.axis;
+  float3 axis = rotation.axis;
 
   float ico = (float(1) - angle_cos);
-  vec3 nsi = axis * angle_sin;
+  float3 nsi = axis * angle_sin;
 
-  vec3 n012 = (axis * axis) * ico;
+  float3 n012 = (axis * axis) * ico;
   float n_01 = (axis[0] * axis[1]) * ico;
   float n_02 = (axis[0] * axis[2]) * ico;
   float n_12 = (axis[1] * axis[2]) * ico;
@@ -989,65 +989,65 @@ float3x3 from_rotation(AxisAngle rotation)
   return mat;
 }
 
-float3x3 from_rot_scale(EulerXYZ rotation, vec3 scale)
+float3x3 from_rot_scale(EulerXYZ rotation, float3 scale)
 {
   return from_rotation(rotation) * from_scale(scale);
 }
-float3x3 from_rot_scale(Quaternion rotation, vec3 scale)
+float3x3 from_rot_scale(Quaternion rotation, float3 scale)
 {
   return from_rotation(rotation) * from_scale(scale);
 }
-float3x3 from_rot_scale(AxisAngle rotation, vec3 scale)
+float3x3 from_rot_scale(AxisAngle rotation, float3 scale)
 {
   return from_rotation(rotation) * from_scale(scale);
 }
 
-float4x4 from_loc_rot(vec3 location, EulerXYZ rotation)
+float4x4 from_loc_rot(float3 location, EulerXYZ rotation)
 {
   float4x4 ret = to_float4x4(from_rotation(rotation));
   ret[3].xyz = location;
   return ret;
 }
-float4x4 from_loc_rot(vec3 location, Quaternion rotation)
+float4x4 from_loc_rot(float3 location, Quaternion rotation)
 {
   float4x4 ret = to_float4x4(from_rotation(rotation));
   ret[3].xyz = location;
   return ret;
 }
-float4x4 from_loc_rot(vec3 location, AxisAngle rotation)
+float4x4 from_loc_rot(float3 location, AxisAngle rotation)
 {
   float4x4 ret = to_float4x4(from_rotation(rotation));
   ret[3].xyz = location;
   return ret;
 }
 
-float4x4 from_loc_rot_scale(vec3 location, EulerXYZ rotation, vec3 scale)
+float4x4 from_loc_rot_scale(float3 location, EulerXYZ rotation, float3 scale)
 {
   float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
   ret[3].xyz = location;
   return ret;
 }
-float4x4 from_loc_rot_scale(vec3 location, Quaternion rotation, vec3 scale)
+float4x4 from_loc_rot_scale(float3 location, Quaternion rotation, float3 scale)
 {
   float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
   ret[3].xyz = location;
   return ret;
 }
-float4x4 from_loc_rot_scale(vec3 location, AxisAngle rotation, vec3 scale)
+float4x4 from_loc_rot_scale(float3 location, AxisAngle rotation, float3 scale)
 {
   float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
   ret[3].xyz = location;
   return ret;
 }
 
-float2x2 from_direction(vec2 direction)
+float2x2 from_direction(float2 direction)
 {
   float cos_angle = direction.x;
   float sin_angle = direction.y;
   return float2x2(cos_angle, sin_angle, -sin_angle, cos_angle);
 }
 
-float3x3 from_up_axis(vec3 up)
+float3x3 from_up_axis(float3 up)
 {
   /* Duff, Tom, et al. "Building an orthonormal basis, revisited." JCGT 6.1 (2017). */
   float z_sign = up.z >= 0.0f ? 1.0f : -1.0f;
@@ -1055,8 +1055,8 @@ float3x3 from_up_axis(vec3 up)
   float b = up.x * up.y * a;
 
   float3x3 basis;
-  basis[0] = vec3(1.0f + z_sign * square(up.x) * a, z_sign * b, -z_sign * up.x);
-  basis[1] = vec3(b, z_sign + square(up.y) * a, -up.y);
+  basis[0] = float3(1.0f + z_sign * square(up.x) * a, z_sign * b, -z_sign * up.x);
+  basis[1] = float3(b, z_sign + square(up.y) * a, -up.y);
   basis[2] = up;
   return basis;
 }
@@ -1219,13 +1219,13 @@ Quaternion to_quaternion(float4x4 mat, const bool normalized)
   return to_quaternion(to_float3x3(mat), normalized);
 }
 
-vec3 to_scale(float3x3 mat)
+float3 to_scale(float3x3 mat)
 {
-  return vec3(length(mat[0]), length(mat[1]), length(mat[2]));
+  return float3(length(mat[0]), length(mat[1]), length(mat[2]));
 }
-vec3 to_scale(float3x3 mat, const bool allow_negative_scale)
+float3 to_scale(float3x3 mat, const bool allow_negative_scale)
 {
-  vec3 result = to_scale(mat);
+  float3 result = to_scale(mat);
   if (allow_negative_scale) {
     if (is_negative(mat)) {
       result = -result;
@@ -1233,23 +1233,23 @@ vec3 to_scale(float3x3 mat, const bool allow_negative_scale)
   }
   return result;
 }
-vec3 to_scale(float4x4 mat)
+float3 to_scale(float4x4 mat)
 {
   return to_scale(to_float3x3(mat));
 }
-vec3 to_scale(float4x4 mat, const bool allow_negative_scale)
+float3 to_scale(float4x4 mat, const bool allow_negative_scale)
 {
   return to_scale(to_float3x3(mat), allow_negative_scale);
 }
 
-void to_rot_scale(float3x3 mat, out EulerXYZ r_rotation, out vec3 r_scale)
+void to_rot_scale(float3x3 mat, out EulerXYZ r_rotation, out float3 r_scale)
 {
   r_scale = to_scale(mat);
   r_rotation = to_euler(mat, true);
 }
 void to_rot_scale(float3x3 mat,
                   out EulerXYZ r_rotation,
-                  out vec3 r_scale,
+                  out float3 r_scale,
                   const bool allow_negative_scale)
 {
   float3x3 normalized_mat = normalize_and_get_size(mat, r_scale);
@@ -1261,14 +1261,14 @@ void to_rot_scale(float3x3 mat,
   }
   r_rotation = to_euler(mat, true);
 }
-void to_rot_scale(float3x3 mat, out Quaternion r_rotation, out vec3 r_scale)
+void to_rot_scale(float3x3 mat, out Quaternion r_rotation, out float3 r_scale)
 {
   r_scale = to_scale(mat);
   r_rotation = to_quaternion(mat, true);
 }
 void to_rot_scale(float3x3 mat,
                   out Quaternion r_rotation,
-                  out vec3 r_scale,
+                  out float3 r_scale,
                   const bool allow_negative_scale)
 {
   float3x3 normalized_mat = normalize_and_get_size(mat, r_scale);
@@ -1281,81 +1281,81 @@ void to_rot_scale(float3x3 mat,
   r_rotation = to_quaternion(mat, true);
 }
 
-void to_loc_rot_scale(float4x4 mat, out vec3 r_location, out EulerXYZ r_rotation, out vec3 r_scale)
+void to_loc_rot_scale(float4x4 mat, out float3 r_location, out EulerXYZ r_rotation, out float3 r_scale)
 {
   r_location = mat[3].xyz;
   to_rot_scale(to_float3x3(mat), r_rotation, r_scale);
 }
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out EulerXYZ r_rotation,
-                      out vec3 r_scale,
+                      out float3 r_scale,
                       const bool allow_negative_scale)
 {
   r_location = mat[3].xyz;
   to_rot_scale(to_float3x3(mat), r_rotation, r_scale, allow_negative_scale);
 }
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out Quaternion r_rotation,
-                      out vec3 r_scale)
+                      out float3 r_scale)
 {
   r_location = mat[3].xyz;
   to_rot_scale(to_float3x3(mat), r_rotation, r_scale);
 }
 void to_loc_rot_scale(float4x4 mat,
-                      out vec3 r_location,
+                      out float3 r_location,
                       out Quaternion r_rotation,
-                      out vec3 r_scale,
+                      out float3 r_scale,
                       const bool allow_negative_scale)
 {
   r_location = mat[3].xyz;
   to_rot_scale(to_float3x3(mat), r_rotation, r_scale, allow_negative_scale);
 }
 
-vec3 transform_point(float3x3 mat, vec3 point)
+float3 transform_point(float3x3 mat, float3 point)
 {
   return mat * point;
 }
 
-vec3 transform_point(float4x4 mat, vec3 point)
+float3 transform_point(float4x4 mat, float3 point)
 {
-  return (mat * vec4(point, 1.0f)).xyz;
+  return (mat * float4(point, 1.0f)).xyz;
 }
 
-vec3 transform_direction(float3x3 mat, vec3 direction)
+float3 transform_direction(float3x3 mat, float3 direction)
 {
   return mat * direction;
 }
 
-vec3 transform_direction(float4x4 mat, vec3 direction)
+float3 transform_direction(float4x4 mat, float3 direction)
 {
   return to_float3x3(mat) * direction;
 }
 
-vec2 project_point(float3x3 mat, vec2 point)
+float2 project_point(float3x3 mat, float2 point)
 {
-  vec3 tmp = mat * vec3(point, 1.0f);
+  float3 tmp = mat * float3(point, 1.0f);
   /* Absolute value to not flip the frustum upside down behind the camera. */
   return tmp.xy / abs(tmp.z);
 }
-vec3 project_point(float4x4 mat, vec3 point)
+float3 project_point(float4x4 mat, float3 point)
 {
-  vec4 tmp = mat * vec4(point, 1.0f);
+  float4 tmp = mat * float4(point, 1.0f);
   /* Absolute value to not flip the frustum upside down behind the camera. */
   return tmp.xyz / abs(tmp.w);
 }
 
 float4x4 interpolate_fast(float4x4 a, float4x4 b, float t)
 {
-  vec3 a_loc, b_loc;
-  vec3 a_scale, b_scale;
+  float3 a_loc, b_loc;
+  float3 a_scale, b_scale;
   Quaternion a_quat, b_quat;
   to_loc_rot_scale(a, a_loc, a_quat, a_scale);
   to_loc_rot_scale(b, b_loc, b_quat, b_scale);
 
-  vec3 location = interpolate(a_loc, b_loc, t);
-  vec3 scale = interpolate(a_scale, b_scale, t);
+  float3 location = interpolate(a_loc, b_loc, t);
+  float3 scale = interpolate(a_scale, b_scale, t);
   Quaternion rotation = interpolate(a_quat, b_quat, t);
   return from_loc_rot_scale(location, rotation, scale);
 }

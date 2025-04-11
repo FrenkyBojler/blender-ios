@@ -6,11 +6,11 @@
 
 void main()
 {
-  ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
 
   /* The Van Vliet filter is a parallel interconnection filter, meaning its output is the sum of
    * all of its causal and non causal filters. */
-  vec4 filter_output = texture_load(first_causal_input_tx, texel) +
+  float4 filter_output = texture_load(first_causal_input_tx, texel) +
                        texture_load(first_non_causal_input_tx, texel) +
                        texture_load(second_causal_input_tx, texel) +
                        texture_load(second_non_causal_input_tx, texel);

@@ -106,12 +106,12 @@ void frustum_culling_planes_calc(float4x4 winmat,
   }
 }
 
-vec4 frustum_culling_sphere_calc(FrustumCorners frustum_corners)
+float4 frustum_culling_sphere_calc(FrustumCorners frustum_corners)
 {
   /* Extract Bounding Sphere */
   /* TODO(fclem): This is significantly less precise than CPU, but it isn't used in most cases. */
 
-  vec4 bsphere;
+  float4 bsphere;
   bsphere.xyz = (frustum_corners.corners[0].xyz + frustum_corners.corners[6].xyz) * 0.5f;
   bsphere.w = 0.0f;
   for (int i = 0; i < 8; i++) {
@@ -125,9 +125,9 @@ void main()
   drw_view_id = gl_LocalInvocationID.x;
 
   /* Invalid views are disabled. */
-  if (all(equal(drw_view().viewinv[2].xyz, vec3(0.0f)))) {
+  if (all(equal(drw_view().viewinv[2].xyz, float3(0.0f)))) {
     /* Views with negative radius are treated as disabled. */
-    view_culling_buf[drw_view_id].bound_sphere = vec4(-1.0f);
+    view_culling_buf[drw_view_id].bound_sphere = float4(-1.0f);
     return;
   }
 

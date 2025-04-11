@@ -678,10 +678,10 @@ enum Qualifier : uint64_t {
 };
 
 enum Type : uint64_t {
-  vec1 = Preprocessor::hash("float"),
-  vec2 = Preprocessor::hash("vec2"),
-  vec3 = Preprocessor::hash("vec3"),
-  vec4 = Preprocessor::hash("vec4"),
+  float1 = Preprocessor::hash("float"),
+  float2 = Preprocessor::hash("float2"),
+  float3 = Preprocessor::hash("float3"),
+  float4 = Preprocessor::hash("float4"),
   float3x3 = Preprocessor::hash("float3x3"),
   float4x4 = Preprocessor::hash("float4x4"),
   sampler1DArray = Preprocessor::hash("sampler1DArray"),
