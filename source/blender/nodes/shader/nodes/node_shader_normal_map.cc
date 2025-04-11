@@ -38,14 +38,14 @@ static void node_shader_buts_normal_map(uiLayout *layout, bContext *C, PointerRN
 
   if (RNA_enum_get(ptr, "space") == SHD_SPACE_TANGENT) {
     PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
+    Object *object = static_cast<Object *>(obptr.data);
 
-    if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
-      PointerRNA eval_obptr;
-
+    if (object && object->type == OB_MESH) {
       Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+
       if (depsgraph) {
-        DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
-        PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
+        Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+        PointerRNA dataptr = RNA_id_pointer_create(static_cast<ID *>(object_eval->data));
         uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
         return;
       }
@@ -57,7 +57,7 @@ static void node_shader_buts_normal_map(uiLayout *layout, bContext *C, PointerRN
 
 static void node_shader_init_normal_map(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderNormalMap *attr = MEM_cnew<NodeShaderNormalMap>("NodeShaderNormalMap");
+  NodeShaderNormalMap *attr = MEM_callocN<NodeShaderNormalMap>("NodeShaderNormalMap");
   node->storage = attr;
 }
 

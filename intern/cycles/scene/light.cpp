@@ -138,7 +138,7 @@ void Light::tag_update(Scene *scene)
   }
 }
 
-bool Light::has_contribution(Scene *scene)
+bool Light::has_contribution(const Scene *scene, const Object *object)
 {
   if (strength == zero_float3()) {
     return false;
@@ -148,6 +148,15 @@ bool Light::has_contribution(Scene *scene)
   }
   if (light_type == LIGHT_BACKGROUND) {
     return true;
+  }
+  if (light_type == LIGHT_AREA) {
+    if ((get_sizeu() * get_sizev() * get_size() == 0.0f) ||
+        is_zero(transform_get_column(&object->get_tfm(), 0)) ||
+        is_zero(transform_get_column(&object->get_tfm(), 1)))
+    {
+      /* Area light with a size of zero does not contribute to the scene. */
+      return false;
+    }
   }
 
   const Shader *effective_shader = (get_shader()) ? get_shader() : scene->default_light;
@@ -219,7 +228,7 @@ void LightManager::test_enabled_lights(Scene *scene)
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    light->is_enabled = light->has_contribution(scene);
+    light->is_enabled = light->has_contribution(scene, object);
     has_portal |= light->is_portal;
 
     if (light->light_type == LIGHT_BACKGROUND) {
@@ -664,7 +673,8 @@ static std::pair<int, LightTreeMeasure> light_tree_specialize_nodes_flatten(
     const uint64_t light_link_mask,
     const int depth,
     vector<KernelLightTreeNode> &knodes,
-    int &next_node_index)
+    int &next_node_index,
+    bool can_share = true)
 {
   assert(!node->is_instance());
 
@@ -680,7 +690,7 @@ static std::pair<int, LightTreeMeasure> light_tree_specialize_nodes_flatten(
     node_index = next_node_index++;
     new_node.make_leaf(-1, 0);
   }
-  else if (node->light_link.shareable && node->light_link.shared_node_index != -1) {
+  else if (can_share && node->light_link.shareable && node->light_link.shared_node_index != -1) {
     /* Share subtree already built for another light link set. */
     return std::make_pair(node->light_link.shared_node_index, node->measure);
   }
@@ -732,8 +742,11 @@ static std::pair<int, LightTreeMeasure> light_tree_specialize_nodes_flatten(
       only_node = left_node;
     }
     if (only_node) {
+      /* Can not share the node as its bit_skip will be modified.
+       * Also don't store shareable_index so other branches of the tree that do not skip any nodes
+       * do not share node created here. */
       const auto [only_index, only_measure] = light_tree_specialize_nodes_flatten(
-          flatten, only_node, light_link_mask, depth + 1, knodes, next_node_index);
+          flatten, only_node, light_link_mask, depth + 1, knodes, next_node_index, false);
 
       assert(only_index != -1);
       knodes[only_index].bit_skip++;
@@ -1293,7 +1306,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       if (light->ellipse) {
         area *= M_PI_4_F;
       }
-      float invarea = (light->normalize && area != 0.0f) ? 1.0f / area : 1.0f;
+      float invarea = light->normalize ? 1.0f / area : 1.0f;
       if (light->ellipse) {
         /* Negative inverse area indicates ellipse. */
         invarea = -invarea;

@@ -168,8 +168,18 @@ void device_hip_info(vector<DeviceInfo> &devices)
     info.description = string(name);
     info.num = num;
 
+    const bool is_rdna2_or_newer = hipIsRDNA2OrNewer(num);
+
+    /* Disable MNEE on devices that don't work properly with it.
+     * Common symptoms are either rendering artifacts,
+     * or renders that get stuck in the MNEE kernel.
+     * These are most likely compiler bugs and can be re-enabled in the future. */
+#  ifdef _WIN32
+    info.has_mnee = is_rdna2_or_newer && !hipIsRDNA4OrNewer(num);
+#  else
+    info.has_mnee = is_rdna2_or_newer;
+#  endif
     info.has_nanovdb = true;
-    info.has_mnee = true;
 
     info.has_gpu_queue = true;
     /* Check if the device has P2P access to any other device in the system. */
@@ -181,7 +191,8 @@ void device_hip_info(vector<DeviceInfo> &devices)
       }
     }
 
-    info.use_hardware_raytracing = has_hardware_raytracing;
+    /* Disable on RDNA1 due to bug rendering curves in HIP-RT 2.5 or HIP SDK 6.3. */
+    info.use_hardware_raytracing = has_hardware_raytracing && is_rdna2_or_newer;
 
     int pci_location[3] = {0, 0, 0};
     hipDeviceGetAttribute(&pci_location[0], hipDeviceAttributePciDomainID, num);

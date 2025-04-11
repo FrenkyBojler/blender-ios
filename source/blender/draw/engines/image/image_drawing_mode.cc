@@ -18,7 +18,7 @@ void ScreenSpaceDrawingMode::add_shgroups() const
   PassSimple &pass = instance_.state.image_ps;
   GPUShader *shader = ShaderModule::module_get().color.get();
   const ShaderParameters &sh_params = instance_.state.sh_params;
-  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+  DefaultTextureList *dtxl = DRW_context_get()->viewport_texture_list_get();
 
   pass.shader_set(shader);
   pass.push_constant("far_near_distances", sh_params.far_near);
@@ -123,7 +123,7 @@ void ScreenSpaceDrawingMode::do_partial_update_float_buffer(
     return;
   }
 
-  IMB_float_from_rect_ex(float_buffer, src, &clipped_update_region);
+  IMB_float_from_byte_ex(float_buffer, src, &clipped_update_region);
 }
 
 void ScreenSpaceDrawingMode::do_partial_update(
@@ -204,7 +204,7 @@ void ScreenSpaceDrawingMode::do_partial_update(
 
       ImBuf extracted_buffer;
       IMB_initImBuf(
-          &extracted_buffer, texture_region_width, texture_region_height, 32, IB_rectfloat);
+          &extracted_buffer, texture_region_width, texture_region_height, 32, IB_float_data);
 
       int offset = 0;
       for (int y = gpu_texture_region_to_update.ymin; y < gpu_texture_region_to_update.ymax; y++) {
@@ -234,7 +234,7 @@ void ScreenSpaceDrawingMode::do_partial_update(
                              extracted_buffer.x,
                              extracted_buffer.y,
                              0);
-      imb_freerectImbuf_all(&extracted_buffer);
+      IMB_free_all_data(&extracted_buffer);
     }
   }
 }
@@ -255,7 +255,7 @@ void ScreenSpaceDrawingMode::do_full_update_gpu_texture(TextureInfo &info,
   ImBuf texture_buffer;
   const int texture_width = GPU_texture_width(info.texture);
   const int texture_height = GPU_texture_height(info.texture);
-  IMB_initImBuf(&texture_buffer, texture_width, texture_height, 0, IB_rectfloat);
+  IMB_initImBuf(&texture_buffer, texture_width, texture_height, 0, IB_float_data);
   ImageUser tile_user = {nullptr};
   if (image_user) {
     tile_user = *image_user;
@@ -276,7 +276,7 @@ void ScreenSpaceDrawingMode::do_full_update_gpu_texture(TextureInfo &info,
   }
   IMB_gpu_clamp_half_float(&texture_buffer);
   GPU_texture_update(info.texture, GPU_DATA_FLOAT, texture_buffer.float_buffer.data);
-  imb_freerectImbuf_all(&texture_buffer);
+  IMB_free_all_data(&texture_buffer);
 }
 
 void ScreenSpaceDrawingMode::do_full_update_texture_slot(const TextureInfo &texture_info,
@@ -328,7 +328,7 @@ void ScreenSpaceDrawingMode::do_full_update_texture_slot(const TextureInfo &text
 void ScreenSpaceDrawingMode::begin_sync() const
 {
   {
-    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    DefaultTextureList *dtxl = DRW_context_get()->viewport_texture_list_get();
     instance_.state.depth_fb.ensure(GPU_ATTACHMENT_TEXTURE(dtxl->depth));
     instance_.state.color_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(dtxl->color));
   }
