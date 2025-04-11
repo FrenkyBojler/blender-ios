@@ -5,8 +5,8 @@
 set(INC
   ../asset
   ../include
-  ../../makesrna
   ../../asset_system
+  ../../makesrna
   ../../../../extern/fmtlib/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -37,6 +37,7 @@ set(SRC
   time_scrub_ui.cc
 
   anim_intern.hh
+  keyframes_general_intern.hh
 )
 
 set(LIB

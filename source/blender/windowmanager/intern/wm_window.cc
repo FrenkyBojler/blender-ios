@@ -29,6 +29,7 @@
 
 #include "GHOST_C-api.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
@@ -48,6 +49,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+#include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
 
 #include "RNA_access.hh"
@@ -150,6 +152,9 @@ static const struct {
     {KM_OSKEY,
      {GHOST_kKeyLeftOS, GHOST_kKeyRightOS},
      {GHOST_kModifierKeyLeftOS, GHOST_kModifierKeyRightOS}},
+    {KM_HYPER,
+     {GHOST_kKeyLeftHyper, GHOST_kKeyRightHyper},
+     {GHOST_kModifierKeyLeftHyper, GHOST_kModifierKeyRightHyper}},
 };
 
 enum ModSide {
@@ -289,6 +294,7 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
   BKE_workspace_instance_hook_free(G_MAIN, win->workspace_hook);
   MEM_freeN(win->stereo3d_format);
 
+  MEM_delete(win->runtime);
   MEM_freeN(win);
 }
 
@@ -306,16 +312,16 @@ static int find_free_winid(wmWindowManager *wm)
 
 wmWindow *wm_window_new(const Main *bmain, wmWindowManager *wm, wmWindow *parent, bool dialog)
 {
-  wmWindow *win = static_cast<wmWindow *>(MEM_callocN(sizeof(wmWindow), "window"));
+  wmWindow *win = MEM_callocN<wmWindow>("window");
 
   BLI_addtail(&wm->windows, win);
   win->winid = find_free_winid(wm);
 
   /* Dialogs may have a child window as parent. Otherwise, a child must not be a parent too. */
   win->parent = (!dialog && parent && parent->parent) ? parent->parent : parent;
-  win->stereo3d_format = static_cast<Stereo3dFormat *>(
-      MEM_callocN(sizeof(Stereo3dFormat), "Stereo 3D Format (window)"));
+  win->stereo3d_format = MEM_callocN<Stereo3dFormat>("Stereo 3D Format (window)");
   win->workspace_hook = BKE_workspace_instance_hook_create(bmain, win->winid);
+  win->runtime = MEM_new<blender::bke::WindowRuntime>(__func__);
 
   return win;
 }
@@ -387,8 +393,7 @@ static void wm_save_file_on_quit_dialog_callback(bContext *C, void * /*user_data
  */
 static void wm_confirm_quit(bContext *C)
 {
-  wmGenericCallback *action = static_cast<wmGenericCallback *>(
-      MEM_callocN(sizeof(*action), __func__));
+  wmGenericCallback *action = MEM_callocN<wmGenericCallback>(__func__);
   action->exec = wm_save_file_on_quit_dialog_callback;
   wm_close_file_dialog(C, action);
 }
@@ -622,7 +627,7 @@ void WM_window_decoration_style_flags_set(const wmWindow *win,
                                           eWM_WindowDecorationStyleFlag style_flags)
 {
   BLI_assert(WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES);
-  unsigned int ghost_style_flags = GHOST_kDecorationNone;
+  uint ghost_style_flags = GHOST_kDecorationNone;
 
   if (style_flags & WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR) {
     ghost_style_flags |= GHOST_kDecorationColoredTitleBar;
@@ -788,7 +793,7 @@ static void wm_window_ensure_eventstate(wmWindow *win)
     return;
   }
 
-  win->eventstate = static_cast<wmEvent *>(MEM_callocN(sizeof(wmEvent), "window event state"));
+  win->eventstate = MEM_callocN<wmEvent>("window event state");
   wm_window_update_eventstate(win);
 }
 
@@ -876,7 +881,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     /* Until screens get drawn, make it nice gray. */
     GPU_clear_color(0.25f, 0.25f, 0.25f, 1.0f);
 
-    /* Needed here, because it's used before it reads userdef. */
+    /* Needed here, because it's used before it reads #UserDef. */
     WM_window_set_dpi(win);
 
     wm_window_swap_buffers(win);
@@ -1194,7 +1199,7 @@ wmWindow *WM_window_open(bContext *C,
 /** \name Operators
  * \{ */
 
-int wm_window_close_exec(bContext *C, wmOperator * /*op*/)
+wmOperatorStatus wm_window_close_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
@@ -1202,7 +1207,7 @@ int wm_window_close_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-int wm_window_new_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win_src = CTX_wm_window(C);
   ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_TYPE_ANY, 0);
@@ -1231,7 +1236,7 @@ int wm_window_new_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-int wm_window_new_main_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win_src = CTX_wm_window(C);
 
@@ -1243,7 +1248,7 @@ int wm_window_new_main_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-int wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op*/)
+wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindow *window = CTX_wm_window(C);
 
@@ -1546,7 +1551,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       win->active = 1;
 
       /* Zero the `keymodifier`, it hangs on hotkeys that open windows otherwise. */
-      win->eventstate->keymodifier = 0;
+      win->eventstate->keymodifier = EVENT_NONE;
 
       win->addmousemove = 1; /* Enables highlighted buttons. */
 
@@ -1568,7 +1573,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       copy_v2_v2_int(event.prev_xy, event.xy);
       event.flag = eWM_EventFlag(0);
 
-      wm_event_add(win, &event);
+      WM_event_add(win, &event);
 
       break;
     }
@@ -1730,7 +1735,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       wm->winactive = win;
       win->active = 1;
 
-      wm_event_add(win, &event);
+      WM_event_add(win, &event);
 
       /* Make blender drop event with custom data pointing to wm drags. */
       event.type = EVT_DROP;
@@ -1739,7 +1744,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       event.customdata = &wm->drags;
       event.customdata_free = true;
 
-      wm_event_add(win, &event);
+      WM_event_add(win, &event);
 
       // printf("Drop detected\n");
 
@@ -1874,11 +1879,11 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
       event.type = wt->event_type;
       event.val = KM_NOTHING;
-      event.keymodifier = 0;
+      event.keymodifier = EVENT_NONE;
       event.flag = eWM_EventFlag(0);
       event.custom = EVT_DATA_TIMER;
       event.customdata = wt;
-      wm_event_add(win, &event);
+      WM_event_add(win, &event);
 
       has_event = true;
     }
@@ -2073,9 +2078,10 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
 
 static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, void * /*arg1*/)
 {
-  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   const char *title = RPT_("Python script uses OpenGL for drawing");
   const char *message1 = RPT_("This may lead to unexpected behavior");
@@ -2101,7 +2107,7 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
                                     text_width + int(style->columnspace * 2.5));
 
-  const short icon_size = 64 * UI_SCALE_FAC;
+  const short icon_size = 40 * UI_SCALE_FAC;
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 
@@ -2111,16 +2117,20 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   /* Title and explanation text. */
   uiItemL_ex(col, title, ICON_NONE, true, false);
   uiItemS_ex(col, 0.8f, LayoutSeparatorType::Space);
-  uiItemL(col, message1, ICON_NONE);
-  uiItemL(col, message2, ICON_NONE);
-  uiItemL(col, message3, ICON_NONE);
+
+  uiLayout *messages = uiLayoutColumn(col, false);
+  uiLayoutSetScaleY(messages, 0.8f);
+
+  uiItemL(messages, message1, ICON_NONE);
+  uiItemL(messages, message2, ICON_NONE);
+  uiItemL(messages, message3, ICON_NONE);
   if (G.opengl_deprecation_usage_filename) {
     char location[1024];
     SNPRINTF(
         location, "%s:%d", G.opengl_deprecation_usage_filename, G.opengl_deprecation_usage_lineno);
-    uiItemL(col, location, ICON_NONE);
+    uiItemL(messages, location, ICON_NONE);
   }
-  uiItemL(col, message4, ICON_NONE);
+  uiItemL(messages, message4, ICON_NONE);
 
   uiItemS_ex(col, 0.5f, LayoutSeparatorType::Space);
 
@@ -2169,23 +2179,24 @@ void wm_test_opengl_deprecation_warning(bContext *C)
 
 static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, void * /*arg1*/)
 {
-  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
 
   /* Title and explanation text. */
   uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayoutSetScaleY(col, 0.8f);
   uiItemL_ex(
       col, RPT_("Failed to load using Vulkan, using OpenGL instead."), ICON_NONE, true, false);
-  uiItemL(col, RPT_(""), ICON_NONE);
+  uiItemS_ex(col, 1.3f, LayoutSeparatorType::Space);
+
   uiItemL(col, RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
   uiItemL(col,
           RPT_("The graphics backend can be changed in the System section of the Preferences."),
           ICON_NONE);
-
-  uiItemS(layout);
 
   UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
 
@@ -2265,6 +2276,9 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   if (ghost_flag & GHOST_kCapabilityWindowDecorationStyles) {
     flag |= WM_CAPABILITY_WINDOW_DECORATION_STYLES;
   }
+  if (ghost_flag & GHOST_kCapabilityKeyboardHyperKey) {
+    flag |= WM_CAPABILITY_KEYBOARD_HYPER_KEY;
+  }
 
   return flag;
 }
@@ -2291,12 +2305,12 @@ void WM_event_timer_sleep(wmWindowManager *wm, wmWindow * /*win*/, wmTimer *time
 
 wmTimer *WM_event_timer_add(wmWindowManager *wm,
                             wmWindow *win,
-                            const int event_type,
+                            const wmEventType event_type,
                             const double time_step)
 {
   BLI_assert(ISTIMER(event_type));
 
-  wmTimer *wt = static_cast<wmTimer *>(MEM_callocN(sizeof(wmTimer), "window timer"));
+  wmTimer *wt = MEM_callocN<wmTimer>("window timer");
   BLI_assert(time_step >= 0.0f);
 
   wt->event_type = event_type;
@@ -2316,7 +2330,7 @@ wmTimer *WM_event_timer_add_notifier(wmWindowManager *wm,
                                      const uint type,
                                      const double time_step)
 {
-  wmTimer *wt = static_cast<wmTimer *>(MEM_callocN(sizeof(wmTimer), "window timer"));
+  wmTimer *wt = MEM_callocN<wmTimer>("window timer");
   BLI_assert(time_step >= 0.0f);
 
   wt->event_type = TIMERNOTIFIER;
@@ -2379,7 +2393,7 @@ void WM_event_timer_remove(wmWindowManager *wm, wmWindow * /*win*/, wmTimer *tim
   }
   /* There might be events in queue with this timer as customdata. */
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    LISTBASE_FOREACH (wmEvent *, event, &win->event_queue) {
+    LISTBASE_FOREACH (wmEvent *, event, &win->runtime->event_queue) {
       if (event->customdata == timer) {
         event->customdata = nullptr;
         event->type = EVENT_NONE; /* Timer users customdata, don't want `nullptr == nullptr`. */
@@ -2450,8 +2464,8 @@ static void wm_clipboard_text_set_impl(const char *buf, bool selection)
 {
   if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
     if (g_wm_clipboard_text_simulate == nullptr) {
-      g_wm_clipboard_text_simulate = static_cast<decltype(g_wm_clipboard_text_simulate)>(
-          MEM_callocN(sizeof(*g_wm_clipboard_text_simulate), __func__));
+      g_wm_clipboard_text_simulate =
+          MEM_callocN<std::remove_pointer_t<decltype(g_wm_clipboard_text_simulate)>>(__func__);
     }
     char **buf_src_p = &(g_wm_clipboard_text_simulate->buffers[int(selection)]);
     MEM_SAFE_FREE(*buf_src_p);
@@ -2495,7 +2509,7 @@ static char *wm_clipboard_text_get_ex(bool selection,
   }
 
   /* Always convert from `\r\n` to `\n`. */
-  char *newbuf = static_cast<char *>(MEM_mallocN(buf_len + 1, __func__));
+  char *newbuf = MEM_malloc_arrayN<char>(size_t(buf_len + 1), __func__);
   char *p2 = newbuf;
 
   if (firstline) {
@@ -2554,7 +2568,7 @@ void WM_clipboard_text_set(const char *buf, bool selection)
       }
     }
 
-    newbuf = static_cast<char *>(MEM_callocN(newlen + 1, "WM_clipboard_text_set"));
+    newbuf = MEM_calloc_arrayN<char>(newlen + 1, "WM_clipboard_text_set");
 
     for (p = buf, p2 = newbuf; *p; p++, p2++) {
       if (*p == '\n') {

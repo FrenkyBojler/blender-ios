@@ -17,6 +17,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -867,7 +869,7 @@ static void ui_offset_panel_block(uiBlock *block)
 
   const int ofsy = block->panel->sizey - style->panelspace;
 
-  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
+  for (const std::unique_ptr<uiBut> &but : block->buttons) {
     but->rect.ymin += ofsy;
     but->rect.ymax += ofsy;
   }
@@ -948,7 +950,7 @@ static void panel_remove_invisible_layouts_recursive(Panel *panel, const Panel *
   if (parent_panel != nullptr && UI_panel_is_closed(parent_panel)) {
     /* The parent panel is closed, so this panel can be completely removed. */
     UI_block_set_search_only(block, true);
-    LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
+    for (const std::unique_ptr<uiBut> &but : block->buttons) {
       but->flag |= UI_HIDDEN;
     }
   }
@@ -1165,36 +1167,13 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
 
   /* Draw drag widget. */
   if (!is_subpanel && show_background) {
-    const int drag_widget_size = header_height * 0.7f;
-    const int col_tint = 84;
-    float color_high[4], color_dark[4];
-    UI_GetThemeColorShade4fv(TH_PANEL_HEADER, col_tint, color_high);
-    UI_GetThemeColorShade4fv(TH_PANEL_BACK, -col_tint, color_dark);
-    if (panel_custom_pin_to_last_get(panel)) {
-      GPU_blend(GPU_BLEND_ALPHA);
-      UI_icon_draw_ex(widget_rect.xmax - scaled_unit * 1.15,
-                      widget_rect.ymin + (header_height - drag_widget_size) * 0.5f,
-                      ICON_PINNED,
-                      aspect * UI_INV_SCALE_FAC,
-                      1.0f,
-                      0.0f,
-                      title_color,
-                      false,
-                      UI_NO_ICON_OVERLAY_TEXT);
-      GPU_blend(GPU_BLEND_NONE);
-    }
-    else {
-      GPU_matrix_push();
-      /* The magic numbers here center the widget vertically and offset it to the left.
-       * Currently this depends on the height of the header, although it could be independent. */
-      GPU_matrix_translate_2f(widget_rect.xmax - scaled_unit * 1.15,
-                              widget_rect.ymin + (header_height - drag_widget_size) * 0.5f);
-      blender::gpu::Batch *batch = GPU_batch_preset_panel_drag_widget(
-          U.pixelsize, color_high, color_dark, drag_widget_size);
-      GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_FLAT_COLOR);
-      GPU_batch_draw(batch);
-      GPU_matrix_pop();
-    }
+    const float x = widget_rect.xmax - scaled_unit * 1.15;
+    const float y = widget_rect.ymin + (header_height - (header_height * 0.7f)) * 0.5f;
+    const bool is_pin = panel_custom_pin_to_last_get(panel);
+    const int icon = is_pin ? ICON_PINNED : ICON_GRIP;
+    const float size = aspect * UI_INV_SCALE_FAC;
+    const float alpha = is_pin ? 1.0f : 0.5f;
+    UI_icon_draw_ex(x, y, icon, size, alpha, 0.0f, title_color, false, UI_NO_ICON_OVERLAY_TEXT);
   }
 }
 
@@ -1376,6 +1355,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   View2D *v2d = &region->v2d;
   const uiStyle *style = UI_style_get();
   const uiFontStyle *fstyle = &style->widget;
+  UI_fontstyle_set(fstyle);
   const int fontid = fstyle->uifont_id;
   float fstyle_points = fstyle->points;
   const float aspect = BLI_listbase_is_empty(&region->runtime->uiblocks) ?
@@ -2143,6 +2123,9 @@ static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, voi
       /* Don't let any left-mouse event fall through! */
       retval = WM_UI_HANDLER_BREAK;
       break;
+    default: {
+      break;
+    }
   }
 
   return retval;
@@ -2152,7 +2135,7 @@ void ui_panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
 {
   wmWindow *win = CTX_wm_window(C);
   const wmEvent *event = win->eventstate;
-  uiPanelDragCollapseHandle *dragcol_data = MEM_cnew<uiPanelDragCollapseHandle>(__func__);
+  uiPanelDragCollapseHandle *dragcol_data = MEM_callocN<uiPanelDragCollapseHandle>(__func__);
 
   dragcol_data->was_first_open = was_open;
   copy_v2_v2_int(dragcol_data->xy_init, event->xy);
@@ -2331,7 +2314,7 @@ static void ui_panel_category_active_set(ARegion *region, const char *idname, bo
     BLI_remlink(lb, pc_act);
   }
   else {
-    pc_act = MEM_cnew<PanelCategoryStack>(__func__);
+    pc_act = MEM_callocN<PanelCategoryStack>(__func__);
     STRNCPY(pc_act->idname, idname);
   }
 
@@ -2418,7 +2401,7 @@ static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const
 
 void UI_panel_category_add(ARegion *region, const char *name)
 {
-  PanelCategoryDyn *pc_dyn = MEM_cnew<PanelCategoryDyn>(__func__);
+  PanelCategoryDyn *pc_dyn = MEM_callocN<PanelCategoryDyn>(__func__);
   BLI_addtail(&region->runtime->panels_category, pc_dyn);
 
   STRNCPY(pc_dyn->idname, name);
@@ -2562,9 +2545,7 @@ int ui_handler_panel_region(bContext *C,
 
       /* The panel collapse / expand key "A" is special as it takes priority over
        * active button handling. */
-      if (event->type == EVT_AKEY &&
-          ((event->modifier & (KM_SHIFT | KM_CTRL | KM_ALT | KM_OSKEY)) == 0))
-      {
+      if ((event->type == EVT_AKEY) && (event->modifier == 0)) {
         retval = WM_UI_HANDLER_BREAK;
         ui_handle_panel_header(
             C, block, mx, event->type, event->modifier & KM_CTRL, event->modifier & KM_SHIFT);

@@ -522,7 +522,7 @@ static int rna_userdef_use_online_access_editable(const PointerRNA * /*ptr*/, co
   if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
     /* Return 0 when blender was invoked with `--offline-mode` "forced". */
     if (G.f & G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE) {
-      *r_info = "Launched with \"--offline-mode\", cannot be changed";
+      *r_info = N_("Launched with \"--offline-mode\", cannot be changed");
       return 0;
     }
   }
@@ -556,8 +556,7 @@ static void rna_userdef_script_directory_name_set(PointerRNA *ptr, const char *v
 
 static bUserScriptDirectory *rna_userdef_script_directory_new()
 {
-  bUserScriptDirectory *script_dir = static_cast<bUserScriptDirectory *>(
-      MEM_callocN(sizeof(*script_dir), __func__));
+  bUserScriptDirectory *script_dir = MEM_callocN<bUserScriptDirectory>(__func__);
   BLI_addtail(&U.script_directories, script_dir);
   USERDEF_TAG_DIRTY;
   return script_dir;
@@ -572,7 +571,7 @@ static void rna_userdef_script_directory_remove(ReportList *reports, PointerRNA 
   }
 
   BLI_freelinkN(&U.script_directories, script_dir);
-  RNA_POINTER_INVALIDATE(ptr);
+  ptr->invalidate();
   USERDEF_TAG_DIRTY;
 }
 
@@ -611,7 +610,7 @@ static void rna_userdef_asset_library_remove(bContext *C, ReportList *reports, P
   /* Trigger refresh for the Asset Browser. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 
-  RNA_POINTER_INVALIDATE(ptr);
+  ptr->invalidate();
   USERDEF_TAG_DIRTY;
 }
 
@@ -656,7 +655,7 @@ static void rna_userdef_extension_repo_remove(ReportList *reports, PointerRNA *p
     return;
   }
   BKE_preferences_extension_repo_remove(&U, repo);
-  RNA_POINTER_INVALIDATE(ptr);
+  ptr->invalidate();
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
   USERDEF_TAG_DIRTY;
@@ -834,42 +833,42 @@ static const EnumPropertyItem *rna_UseDef_active_section_itemf(bContext * /*C*/,
 
 static PointerRNA rna_UserDef_view_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesView, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesView, ptr->data);
 }
 
 static PointerRNA rna_UserDef_edit_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesEdit, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesEdit, ptr->data);
 }
 
 static PointerRNA rna_UserDef_input_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesInput, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesInput, ptr->data);
 }
 
 static PointerRNA rna_UserDef_keymap_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesKeymap, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesKeymap, ptr->data);
 }
 
 static PointerRNA rna_UserDef_filepaths_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesFilePaths, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesFilePaths, ptr->data);
 }
 
 static PointerRNA rna_UserDef_extensions_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesExtensions, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesExtensions, ptr->data);
 }
 
 static PointerRNA rna_UserDef_system_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesSystem, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesSystem, ptr->data);
 }
 
 static PointerRNA rna_UserDef_apps_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_PreferencesApps, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PreferencesApps, ptr->data);
 }
 
 /* Reevaluate objects with a subsurf modifier as the last in their modifiers stacks. */
@@ -899,19 +898,6 @@ static void rna_Userdef_memcache_update(Main * /*bmain*/, Scene * /*scene*/, Poi
   const int64_t new_limit = int64_t(U.memcachelimit) * 1024 * 1024;
   MEM_CacheLimiter_set_maximum(new_limit);
   blender::memory_cache::set_approximate_size_limit(new_limit);
-  USERDEF_TAG_DIRTY;
-}
-
-static void rna_Userdef_disk_cache_dir_update(Main * /*bmain*/,
-                                              Scene * /*scene*/,
-                                              PointerRNA * /*ptr*/)
-{
-  if (U.sequencer_disk_cache_dir[0] != '\0') {
-    BLI_path_abs(U.sequencer_disk_cache_dir, BKE_main_blendfile_path_from_global());
-    BLI_path_slash_ensure(U.sequencer_disk_cache_dir, sizeof(U.sequencer_disk_cache_dir));
-    BLI_path_make_safe(U.sequencer_disk_cache_dir);
-  }
-
   USERDEF_TAG_DIRTY;
 }
 
@@ -989,14 +975,13 @@ static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *addon_ptr)
   }
   BLI_remlink(addons_list, addon);
   BKE_addon_free(addon);
-  RNA_POINTER_INVALIDATE(addon_ptr);
+  addon_ptr->invalidate();
   USERDEF_TAG_DIRTY;
 }
 
 static bPathCompare *rna_userdef_pathcompare_new()
 {
-  bPathCompare *path_cmp = static_cast<bPathCompare *>(
-      MEM_callocN(sizeof(bPathCompare), "bPathCompare"));
+  bPathCompare *path_cmp = MEM_callocN<bPathCompare>("bPathCompare");
   BLI_addtail(&U.autoexec_paths, path_cmp);
   USERDEF_TAG_DIRTY;
   return path_cmp;
@@ -1011,7 +996,7 @@ static void rna_userdef_pathcompare_remove(ReportList *reports, PointerRNA *path
   }
 
   BLI_freelinkN(&U.autoexec_paths, path_cmp);
-  RNA_POINTER_INVALIDATE(path_cmp_ptr);
+  path_cmp_ptr->invalidate();
   USERDEF_TAG_DIRTY;
 }
 
@@ -1031,22 +1016,22 @@ static void rna_userdef_text_update(Main * /*bmain*/, Scene * /*scene*/, Pointer
 
 static PointerRNA rna_Theme_space_generic_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceGeneric, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceGeneric, ptr->data);
 }
 
 static PointerRNA rna_Theme_gradient_colors_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_ThemeGradientColors, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeGradientColors, ptr->data);
 }
 
 static PointerRNA rna_Theme_space_gradient_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceGradient, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceGradient, ptr->data);
 }
 
 static PointerRNA rna_Theme_space_list_generic_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceListGeneric, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceListGeneric, ptr->data);
 }
 
 static const EnumPropertyItem *rna_userdef_audio_device_itemf(bContext * /*C*/,
@@ -1166,7 +1151,7 @@ static PointerRNA rna_Addon_preferences_get(PointerRNA *ptr)
       addon->prop =
           blender::bke::idprop::create_group(addon->module, IDP_FLAG_STATIC_TYPE).release();
     }
-    return rna_pointer_inherit_refine(ptr, apt->rna_ext.srna, addon->prop);
+    return RNA_pointer_create_with_parent(*ptr, apt->rna_ext.srna, addon->prop);
   }
   else {
     return PointerRNA_NULL;
@@ -1249,7 +1234,7 @@ static StructRNA *rna_AddonPref_register(Main *bmain,
   }
 
   /* Create a new add-on preference type. */
-  apt = static_cast<bAddonPrefType *>(MEM_mallocN(sizeof(bAddonPrefType), "addonpreftype"));
+  apt = MEM_mallocN<bAddonPrefType>("addonpreftype");
   memcpy(apt, &dummy_apt, sizeof(dummy_apt));
   BKE_addon_pref_type_add(apt);
 
@@ -1287,9 +1272,9 @@ static void rna_ThemeUI_roundness_set(PointerRNA *ptr, float value)
 }
 
 /* Studio Light */
-static void rna_UserDef_studiolight_begin(CollectionPropertyIterator *iter, PointerRNA * /*ptr*/)
+static void rna_UserDef_studiolight_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  rna_iterator_listbase_begin(iter, BKE_studiolight_listbase(), nullptr);
+  rna_iterator_listbase_begin(iter, ptr, BKE_studiolight_listbase(), nullptr);
 }
 
 static void rna_StudioLights_refresh(UserDef * /*userdef*/)
@@ -1374,7 +1359,8 @@ static void rna_UserDef_studiolight_solid_lights_begin(CollectionPropertyIterato
                                                        PointerRNA *ptr)
 {
   StudioLight *sl = (StudioLight *)ptr->data;
-  rna_iterator_array_begin(iter, sl->light, sizeof(*sl->light), ARRAY_SIZE(sl->light), 0, nullptr);
+  rna_iterator_array_begin(
+      iter, ptr, sl->light, sizeof(*sl->light), ARRAY_SIZE(sl->light), 0, nullptr);
 }
 
 static int rna_UserDef_studiolight_solid_lights_length(PointerRNA * /*ptr*/)
@@ -1676,6 +1662,26 @@ static void rna_def_userdef_theme_ui_wcol_state(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "uiWidgetStateColors");
   RNA_def_struct_ui_text(
       srna, "Theme Widget State Color", "Theme settings for widget state colors");
+
+  prop = RNA_def_property(srna, "error", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Error", "Color for error items");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "warning", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Warning", "Color for warning items");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "info", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Info", "Color for informational items");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "success", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Success", "Color for successful items");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "inner_anim", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -3133,29 +3139,14 @@ static void rna_def_userdef_theme_space_info(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Selected Line Text Color", "Text color of selected line");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "info_error", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Error Icon Background", "Background color of Error icon");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   prop = RNA_def_property(srna, "info_error_text", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Error Icon Foreground", "Foreground color of Error icon");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "info_warning", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Warning Icon Background", "Background color of Warning icon");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   prop = RNA_def_property(srna, "info_warning_text", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Warning Icon Foreground", "Foreground color of Warning icon");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "info_info", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Info Icon Background", "Background color of Info icon");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "info_info_text", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -3495,6 +3486,12 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "node_zone_foreach_geometry_element");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "For Each Geometry Element Zone", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "closure_zone", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "node_zone_closure");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Closure Zone", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
@@ -5138,6 +5135,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.5f, 3.0f, 1, 2);
   RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
+  prop = RNA_def_property(srna, "border_width", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Border Width", "Size of the padding around each editor.");
+  RNA_def_property_range(prop, 1.0f, 10.f);
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
   prop = RNA_def_property(srna, "ui_line_width", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, line_width);
   RNA_def_property_ui_text(
@@ -5159,9 +5161,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_developer_ui", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_DEVELOPER_UI);
   RNA_def_property_ui_text(
-      prop,
-      "Developer Extras",
-      "Show options for developers (edit source in context menu, geometry indices)");
+      prop, "Developer Extras", "Display advanced settings and tools for developers");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "show_object_info", PROP_BOOLEAN, PROP_NONE);
@@ -6204,7 +6204,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "sequencer_disk_cache_dir", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "sequencer_disk_cache_dir");
-  RNA_def_property_update(prop, 0, "rna_Userdef_disk_cache_dir_update");
   RNA_def_property_ui_text(prop, "Disk Cache Directory", "Override default directory");
 
   prop = RNA_def_property(srna, "sequencer_disk_cache_size_limit", PROP_INT, PROP_NONE);
@@ -7316,16 +7315,19 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "font_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "fontdir");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(
       prop, "Fonts Directory", "The default directory to search for loading fonts");
 
   prop = RNA_def_property(srna, "texture_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "textudir");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(
       prop, "Textures Directory", "The default directory to search for textures");
 
   prop = RNA_def_property(srna, "render_output_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "renderdir");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop,
                            "Render Output Directory",
                            "The default directory for rendering output, for new scenes");
@@ -7348,6 +7350,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   prop = RNA_def_property(srna, "sound_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "sounddir");
   RNA_def_property_ui_text(prop, "Sounds Directory", "The default directory to search for sounds");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
 
   prop = RNA_def_property(srna, "temporary_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "tempdir");
@@ -7360,6 +7363,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   prop = RNA_def_property(srna, "render_cache_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "render_cachedir");
   RNA_def_property_ui_text(prop, "Render Cache Path", "Where to cache raw render results");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
 
   prop = RNA_def_property(srna, "image_editor", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "image_editor");
@@ -7537,7 +7541,9 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "file load (can be useful to help fixing broken files). Also see the "
                            "`--disable-liboverride-auto-resync` command line option");
 
-  prop = RNA_def_property(srna, "use_new_point_cloud_type", PROP_BOOLEAN, PROP_NONE);
+  /* The DNA doesn't match the RNA name. This is intentional, and a side-effect of a massive
+   * renaming of `point_cloud` > `pointclout` which didn't want to affect people's DNA. */
+  prop = RNA_def_property(srna, "use_new_pointcloud_type", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_new_point_cloud_type", 1);
   RNA_def_property_ui_text(
       prop, "New Point Cloud Type", "Enable the new point cloud type in the ui");
@@ -7606,14 +7612,14 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "New Volume Nodes", "Enables visibility of the new Volume nodes in the UI");
 
-  prop = RNA_def_property(srna, "use_new_file_import_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop, "New File Import Nodes", "Enables visibility of the new File Import nodes in the UI");
-
   prop = RNA_def_property(srna, "use_shader_node_previews", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop, "Shader Node Previews", "Enables previews in the shader node editor");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
+
+  prop = RNA_def_property(srna, "use_bundle_and_closure_nodes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Bundle and Closure Nodes", "Enables bundle and closure nodes in Geometry Nodes");
 
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

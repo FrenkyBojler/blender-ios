@@ -245,6 +245,15 @@ static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
   uint16_t bound_attr = 0u;
   for (uint a_idx = 0; a_idx < format->attr_len; a_idx++) {
     const GPUVertAttr *a = &format->attrs[a_idx];
+
+    if (format->deinterleaved) {
+      offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].size) * vbo->vertex_len;
+      stride = a->size;
+    }
+    else {
+      offset = a->offset;
+    }
+
     for (uint n_idx = 0; n_idx < a->name_len; n_idx++) {
       const char *name = GPU_vertformat_attr_name_get(format, a, n_idx);
       const ShaderInput *input = interface->ssbo_get(name);
@@ -257,14 +266,6 @@ static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
       /* WORKAROUND: This is to support complex format. But ideally this should not be supported.
        */
       uniform_name[9] = '0' + input->location;
-
-      if (format->deinterleaved) {
-        offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].size) * vbo->vertex_len;
-        stride = a->size;
-      }
-      else {
-        offset = a->offset;
-      }
 
       /* Only support 4byte aligned attributes. */
       BLI_assert((stride % 4) == 0);
@@ -379,13 +380,17 @@ blender::IndexRange GPU_batch_draw_expanded_parameter_get(GPUPrimType input_prim
 static void polyline_draw_workaround(
     Batch *batch, int vertex_first, int vertex_count, int instance_first, int instance_count)
 {
+  /* Early out as this can cause crashes on some backend (see #136831). */
+  if (vertex_count == 0) {
+    return;
+  }
   /* Check compatible input primitive. */
   BLI_assert(ELEM(batch->prim_type, GPU_PRIM_LINES, GPU_PRIM_LINE_STRIP, GPU_PRIM_LINE_LOOP));
 
   GPU_batch_bind_as_resources(batch, batch->shader);
   blender::IndexRange range = GPU_batch_draw_expanded_parameter_get(
       batch->prim_type, GPU_PRIM_TRIS, vertex_count, vertex_first, 2);
-  Batch *tri_batch = Context::get()->polyline_batch_get();
+  Batch *tri_batch = Context::get()->procedural_triangles_batch_get();
   GPU_batch_set_shader(tri_batch, batch->shader);
 
   int vert_stride_count[3] = {(batch->prim_type == GPU_PRIM_LINES) ? 2 : 1, vertex_count, 0};
@@ -519,6 +524,26 @@ void GPU_batch_program_set_builtin(Batch *batch, eGPUBuiltinShader shader_id)
 void GPU_batch_program_set_imm_shader(Batch *batch)
 {
   GPU_batch_set_shader(batch, immGetShader());
+}
+
+blender::gpu::Batch *GPU_batch_procedural_points_get()
+{
+  return blender::gpu::Context::get()->procedural_points_batch_get();
+}
+
+blender::gpu::Batch *GPU_batch_procedural_lines_get()
+{
+  return blender::gpu::Context::get()->procedural_lines_batch_get();
+}
+
+blender::gpu::Batch *GPU_batch_procedural_triangles_get()
+{
+  return blender::gpu::Context::get()->procedural_triangles_batch_get();
+}
+
+blender::gpu::Batch *GPU_batch_procedural_triangle_strips_get()
+{
+  return blender::gpu::Context::get()->procedural_triangle_strips_batch_get();
 }
 
 /** \} */

@@ -483,7 +483,7 @@ static PointerRNA rna_Image_active_tile_get(PointerRNA *ptr)
   ImageTile *tile = static_cast<ImageTile *>(
       BLI_findlink(&image->tiles, image->active_tile_index));
 
-  return rna_pointer_inherit_refine(ptr, &RNA_UDIMTile, tile);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_UDIMTile, tile);
 }
 
 static void rna_Image_active_tile_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -731,7 +731,7 @@ static PointerRNA rna_Image_packed_file_get(PointerRNA *ptr)
 
   if (BKE_image_has_packedfile(ima)) {
     ImagePackedFile *imapf = static_cast<ImagePackedFile *>(ima->packedfiles.first);
-    return rna_pointer_inherit_refine(ptr, &RNA_PackedFile, imapf->packedfile);
+    return RNA_pointer_create_with_parent(*ptr, &RNA_PackedFile, imapf->packedfile);
   }
   return PointerRNA_NULL;
 }
@@ -750,7 +750,7 @@ static PointerRNA rna_render_slots_active_get(PointerRNA *ptr)
   Image *image = (Image *)ptr->owner_id;
   RenderSlot *render_slot = BKE_image_get_renderslot(image, image->render_slot);
 
-  return rna_pointer_inherit_refine(ptr, &RNA_RenderSlot, render_slot);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_RenderSlot, render_slot);
 }
 
 static void rna_render_slots_active_set(PointerRNA *ptr,
@@ -905,6 +905,7 @@ static void rna_def_image_packed_files(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_struct_name_property(srna, prop);
 
   prop = RNA_def_property(srna, "view", PROP_INT, PROP_NONE);
@@ -1160,12 +1161,14 @@ static void rna_def_image(BlenderRNA *brna)
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "File Name", "Image/Movie file name");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_reload_update");
 
   /* eek. this is horrible but needed so we can save to a new name without blanking the data :( */
   prop = RNA_def_property(srna, "filepath_raw", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "File Name", "Image/Movie file name (without data refreshing)");
 
   prop = RNA_def_property(srna, "file_format", PROP_ENUM, PROP_NONE);

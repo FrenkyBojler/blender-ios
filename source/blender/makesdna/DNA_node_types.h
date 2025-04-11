@@ -39,7 +39,6 @@ class bNodeSocketRuntime;
 namespace blender::bke {
 class bNodeTreeZones;
 class bNodeTreeZone;
-struct bNodeInstanceHash;
 struct bNodeTreeType;
 struct bNodeType;
 struct bNodeSocketType;
@@ -51,7 +50,6 @@ using bNodeTreeRuntimeHandle = blender::bke::bNodeTreeRuntime;
 using bNodeRuntimeHandle = blender::bke::bNodeRuntime;
 using bNodeSocketRuntimeHandle = blender::bke::bNodeSocketRuntime;
 using RuntimeNodeEnumItemsHandle = blender::bke::RuntimeNodeEnumItems;
-using NodeInstanceHashHandle = blender::bke::bNodeInstanceHash;
 using bNodeTreeTypeHandle = blender::bke::bNodeTreeType;
 using bNodeTypeHandle = blender::bke::bNodeType;
 using bNodeSocketTypeHandle = blender::bke::bNodeSocketType;
@@ -78,7 +76,6 @@ struct PreviewImage;
 struct Tex;
 struct bGPdata;
 struct bNodeLink;
-struct bNodePreview;
 struct bNode;
 struct NodeEnumDefinition;
 
@@ -276,6 +273,8 @@ typedef enum eNodeSocketDatatype {
   SOCK_ROTATION = 14,
   SOCK_MENU = 15,
   SOCK_MATRIX = 16,
+  SOCK_BUNDLE = 17,
+  SOCK_CLOSURE = 18,
 } eNodeSocketDatatype;
 
 /** Socket shape. */
@@ -490,6 +489,7 @@ typedef struct bNode {
   bool is_reroute() const;
   bool is_frame() const;
   bool is_group() const;
+  bool is_custom_group() const;
   bool is_group_input() const;
   bool is_group_output() const;
   bool is_undefined() const;
@@ -646,15 +646,6 @@ typedef struct bNodeInstanceHashEntry {
   short tag;
 } bNodeInstanceHashEntry;
 
-#
-#
-typedef struct bNodePreview {
-  /** Must be first. */
-  bNodeInstanceHashEntry hash_entry;
-
-  struct ImBuf *ibuf;
-} bNodePreview;
-
 typedef struct bNodeLink {
   struct bNodeLink *next, *prev;
 
@@ -783,11 +774,6 @@ typedef struct bNodeTree {
 
   bNodeTreeInterface tree_interface;
 
-  /**
-   * Node preview hash table.
-   * Only available in base node trees (e.g. scene->node_tree).
-   */
-  NodeInstanceHashHandle *previews;
   /**
    * Defines the node tree instance to use for the "active" context,
    * in case multiple different editors are used and make context ambiguous.
@@ -1028,7 +1014,7 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_SCULPT = (1 << 2),
   GEO_NODE_ASSET_MESH = (1 << 3),
   GEO_NODE_ASSET_CURVE = (1 << 4),
-  GEO_NODE_ASSET_POINT_CLOUD = (1 << 5),
+  GEO_NODE_ASSET_POINTCLOUD = (1 << 5),
   GEO_NODE_ASSET_MODIFIER = (1 << 6),
   GEO_NODE_ASSET_OBJECT = (1 << 7),
   GEO_NODE_ASSET_WAIT_FOR_CURSOR = (1 << 8),
@@ -1521,6 +1507,10 @@ typedef struct NodeTranslateData {
   short interpolation;
 } NodeTranslateData;
 
+typedef struct NodeScaleData {
+  short interpolation;
+} NodeScaleData;
+
 typedef struct NodePlaneTrackDeformData {
   char tracking_object[64];
   char plane_track_name[64];
@@ -1833,6 +1823,11 @@ typedef struct NodeGeometryCurvePrimitiveQuad {
 typedef struct NodeGeometryCurveResample {
   /** #GeometryNodeCurveResampleMode. */
   uint8_t mode;
+  /**
+   * If false, curves may be collapsed to a single point. This is unexpected and is only supported
+   * for compatibility reasons (#102598).
+   */
+  uint8_t keep_last_segment;
 } NodeGeometryCurveResample;
 
 typedef struct NodeGeometryCurveFillet {
@@ -2118,6 +2113,85 @@ typedef struct NodeGeometryForeachGeometryElementOutput {
   char _pad[3];
 } NodeGeometryForeachGeometryElementOutput;
 
+typedef struct NodeGeometryClosureInput {
+  /** bNode.identifier of the corresponding output node. */
+  int32_t output_node_id;
+} NodeGeometryClosureInput;
+
+typedef struct NodeGeometryClosureInputItem {
+  char *name;
+  /** #eNodeSocketDatatype. */
+  short socket_type;
+  char _pad[2];
+  int identifier;
+} NodeGeometryClosureInputItem;
+
+typedef struct NodeGeometryClosureOutputItem {
+  char *name;
+  /** #eNodeSocketDatatype. */
+  short socket_type;
+  char _pad[2];
+  int identifier;
+} NodeGeometryClosureOutputItem;
+
+typedef struct NodeGeometryClosureInputItems {
+  NodeGeometryClosureInputItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+  char _pad[4];
+} NodeGeometryClosureInputItems;
+
+typedef struct NodeGeometryClosureOutputItems {
+  NodeGeometryClosureOutputItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+  char _pad[4];
+} NodeGeometryClosureOutputItems;
+
+typedef struct NodeGeometryClosureOutput {
+  NodeGeometryClosureInputItems input_items;
+  NodeGeometryClosureOutputItems output_items;
+} NodeGeometryClosureOutput;
+
+typedef struct NodeGeometryEvaluateClosureInputItem {
+  char *name;
+  /** #eNodeSocketDatatype */
+  short socket_type;
+  char _pad[2];
+  int identifier;
+} NodeGeometryEvaluateClosureInputItem;
+
+typedef struct NodeGeometryEvaluateClosureOutputItem {
+  char *name;
+  /** #eNodeSocketDatatype */
+  short socket_type;
+  char _pad[2];
+  int identifier;
+} NodeGeometryEvaluateClosureOutputItem;
+
+typedef struct NodeGeometryEvaluateClosureInputItems {
+  NodeGeometryEvaluateClosureInputItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+  char _pad[4];
+} NodeGeometryEvaluateClosureInputItems;
+
+typedef struct NodeGeometryEvaluateClosureOutputItems {
+  NodeGeometryEvaluateClosureOutputItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+  char _pad[4];
+} NodeGeometryEvaluateClosureOutputItems;
+
+typedef struct NodeGeometryEvaluateClosure {
+  NodeGeometryEvaluateClosureInputItems input_items;
+  NodeGeometryEvaluateClosureOutputItems output_items;
+} NodeGeometryEvaluateClosure;
+
 typedef struct IndexSwitchItem {
   /** Generated unique identifier which stays the same even when the item order or names change. */
   int identifier;
@@ -2231,6 +2305,36 @@ typedef struct NodeGeometryBake {
   int active_index;
   char _pad[4];
 } NodeGeometryBake;
+
+typedef struct NodeGeometryCombineBundleItem {
+  char *name;
+  int identifier;
+  int16_t socket_type;
+  char _pad[2];
+} NodeGeometryCombineBundleItem;
+
+typedef struct NodeGeometryCombineBundle {
+  NodeGeometryCombineBundleItem *items;
+  int items_num;
+  int next_identifier;
+  int active_index;
+  char _pad[4];
+} NodeGeometryCombineBundle;
+
+typedef struct NodeGeometrySeparateBundleItem {
+  char *name;
+  int identifier;
+  int16_t socket_type;
+  char _pad[2];
+} NodeGeometrySeparateBundleItem;
+
+typedef struct NodeGeometrySeparateBundle {
+  NodeGeometrySeparateBundleItem *items;
+  int items_num;
+  int next_identifier;
+  int active_index;
+  char _pad[4];
+} NodeGeometrySeparateBundle;
 
 /* script node mode */
 enum {
@@ -2826,6 +2930,14 @@ typedef enum CMPNodeInterpolation {
   CMP_NODE_INTERPOLATION_BILINEAR = 1,
   CMP_NODE_INTERPOLATION_BICUBIC = 2,
 } CMPNodeInterpolation;
+
+/* CornerPin node interpolation option. */
+typedef enum CMPNodeCornerPinInterpolation {
+  CMP_NODE_CORNER_PIN_INTERPOLATION_NEAREST = 0,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR = 1,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC = 2,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC = 3,
+} CMPNodeCornerPinInterpolation;
 
 /* Stabilize 2D node. Stored in custom2. */
 typedef enum CMPNodeStabilizeInverse {

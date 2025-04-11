@@ -12,6 +12,7 @@
 #include "DNA_material_types.h"
 
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 
 #include "BLT_translation.hh"
 
@@ -219,6 +220,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 #  include "BKE_lib_query.hh"
 #  include "BKE_lib_remap.hh"
 #  include "BKE_library.hh"
+#  include "BKE_main_invariants.hh"
 #  include "BKE_material.hh"
 #  include "BKE_preview_image.hh"
 #  include "BKE_vfont.hh"
@@ -595,9 +597,9 @@ int rna_ID_is_runtime_editable(const PointerRNA *ptr, const char **r_info)
   if (id->tag & (ID_TAG_NO_MAIN | ID_TAG_TEMP_MAIN | ID_TAG_LOCALIZED |
                  ID_TAG_COPIED_ON_EVAL_FINAL_RESULT | ID_TAG_COPIED_ON_EVAL))
   {
-    *r_info =
+    *r_info = N_(
         "Cannot edit 'runtime' status of non-blendfile data-blocks, as they are by definition "
-        "always runtime";
+        "always runtime");
     return 0;
   }
 
@@ -714,6 +716,7 @@ static ID *rna_ID_copy(ID *id, Main *bmain)
   }
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
+  BKE_main_ensure_invariants(*bmain, *newid);
 
   return newid;
 }
@@ -1146,7 +1149,8 @@ void **rna_ID_instance(PointerRNA *ptr)
 static void rna_IDPArray_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   IDProperty *prop = (IDProperty *)ptr->data;
-  rna_iterator_array_begin(iter, IDP_IDPArray(prop), sizeof(IDProperty), prop->len, 0, nullptr);
+  rna_iterator_array_begin(
+      iter, ptr, IDP_IDPArray(prop), sizeof(IDProperty), prop->len, 0, nullptr);
 }
 
 static int rna_IDPArray_length(PointerRNA *ptr)
@@ -1279,8 +1283,8 @@ static void rna_ImagePreview_size_set(PointerRNA *ptr, const int *values, enum e
   BKE_previewimg_clear_single(prv_img, size);
 
   if (values[0] && values[1]) {
-    prv_img->rect[size] = static_cast<unsigned int *>(
-        MEM_callocN(values[0] * values[1] * sizeof(uint), "prv_rect"));
+    prv_img->rect[size] = MEM_calloc_arrayN<uint>(size_t(values[0]) * size_t(values[1]),
+                                                  "prv_rect");
 
     prv_img->w[size] = values[0];
     prv_img->h[size] = values[1];
@@ -1514,7 +1518,7 @@ static PointerRNA rna_IDPreview_get(PointerRNA *ptr)
   ID *id = (ID *)ptr->data;
   PreviewImage *prv_img = BKE_previewimg_id_get(id);
 
-  return rna_pointer_inherit_refine(ptr, &RNA_ImagePreview, prv_img);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ImagePreview, prv_img);
 }
 
 static IDProperty **rna_IDPropertyWrapPtr_idprops(PointerRNA *ptr)
@@ -1528,9 +1532,9 @@ static IDProperty **rna_IDPropertyWrapPtr_idprops(PointerRNA *ptr)
 static void rna_Library_version_get(PointerRNA *ptr, int *value)
 {
   Library *lib = (Library *)ptr->data;
-  value[0] = lib->runtime.versionfile / 100;
-  value[1] = lib->runtime.versionfile % 100;
-  value[2] = lib->runtime.subversionfile;
+  value[0] = lib->runtime->versionfile / 100;
+  value[1] = lib->runtime->versionfile % 100;
+  value[2] = lib->runtime->subversionfile;
 }
 
 static void rna_Library_reload(Library *lib, bContext *C, ReportList *reports)
@@ -2607,11 +2611,12 @@ static void rna_def_library(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "File Path", "Path to the library .blend file");
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Library_filepath_set");
 
   prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "runtime.parent");
+  RNA_def_property_pointer_sdna(prop, nullptr, "runtime->parent");
   RNA_def_property_struct_type(prop, "Library");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Parent", "");
@@ -2635,7 +2640,7 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_THICK_WRAP);
 
   prop = RNA_def_property(srna, "needs_liboverride_resync", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "runtime.tag", LIBRARY_TAG_RESYNC_REQUIRED);
+  RNA_def_property_boolean_sdna(prop, nullptr, "runtime->tag", LIBRARY_TAG_RESYNC_REQUIRED);
   RNA_def_property_ui_text(prop,
                            "Library Overrides Need resync",
                            "True if this library contains library overrides that are linked in "
@@ -2643,7 +2648,7 @@ static void rna_def_library(BlenderRNA *brna)
                            "(it is recommended to open and re-save that library blendfile then)");
 
   prop = RNA_def_property(srna, "is_editable", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "runtime.tag", LIBRARY_ASSET_EDITABLE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "runtime->tag", LIBRARY_ASSET_EDITABLE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Editable",
@@ -2668,12 +2673,11 @@ static void rna_def_library_weak_reference(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "library_filepath");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "File Path", "Path to the library .blend file");
 
   prop = RNA_def_property(srna, "id_name", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "library_id_name");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop,
       "ID name",

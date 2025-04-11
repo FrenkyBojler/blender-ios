@@ -10,6 +10,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 
 #include "BKE_appdir.hh"
@@ -50,7 +51,7 @@ static void view3d_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filep
 /** \name Viewport Copy Operator
  * \{ */
 
-static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::blendfile;
 
@@ -100,7 +101,7 @@ static void VIEW3D_OT_copybuffer(wmOperatorType *ot)
 /** \name Viewport Paste Operator
  * \{ */
 
-static int view3d_pastebuffer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_pastebuffer_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   short flag = 0;
@@ -229,7 +230,7 @@ void view3d_operatortypes()
   WM_operatortype_append(VIEW3D_OT_ruler_add);
   WM_operatortype_append(VIEW3D_OT_ruler_remove);
 
-  transform_operatortypes();
+  blender::ed::transform::transform_operatortypes();
 }
 
 void view3d_keymap(wmKeyConfig *keyconf)

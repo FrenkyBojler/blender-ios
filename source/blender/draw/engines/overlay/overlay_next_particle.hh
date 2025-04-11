@@ -62,24 +62,25 @@ class Particles : Overlay {
       auto &pass = particle_ps_;
       pass.init();
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
       res.select_bind(pass);
       {
         auto &sub = pass.sub("Dots");
-        sub.shader_set(res.shaders.particle_dot.get());
+        sub.shader_set(res.shaders->particle_dot.get());
         sub.bind_texture("weightTex", res.weight_ramp_tx);
         dot_ps_ = &sub;
       }
       {
         auto &sub = pass.sub("Shapes");
-        sub.shader_set(res.shaders.particle_shape.get());
+        sub.shader_set(res.shaders->particle_shape.get());
         sub.bind_texture("weightTex", res.weight_ramp_tx);
         shape_ps_ = &sub;
       }
       {
         auto &sub = pass.sub("Hair");
-        sub.shader_set(res.shaders.particle_hair.get());
+        sub.shader_set(res.shaders->particle_hair.get());
         sub.push_constant("colorType", state.v3d->shading.wire_color_type);
         sub.push_constant("isTransform", is_transform);
         hair_ps_ = &sub;
@@ -90,12 +91,13 @@ class Particles : Overlay {
       auto &pass = edit_particle_ps_;
       pass.init();
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
       res.select_bind(pass);
       {
         auto &sub = pass.sub("Dots");
-        sub.shader_set(res.shaders.particle_edit_vert.get());
+        sub.shader_set(res.shaders->particle_edit_vert.get());
         sub.bind_texture("weightTex", res.weight_ramp_tx);
         sub.push_constant("useWeight", show_weight_);
         sub.push_constant("useGreasePencil", false);
@@ -103,7 +105,7 @@ class Particles : Overlay {
       }
       {
         auto &sub = pass.sub("Edges");
-        sub.shader_set(res.shaders.particle_edit_edge.get());
+        sub.shader_set(res.shaders->particle_edit_edge.get());
         sub.bind_texture("weightTex", res.weight_ramp_tx);
         sub.push_constant("useWeight", false);
         sub.push_constant("useGreasePencil", false);
@@ -154,7 +156,7 @@ class Particles : Overlay {
      */
     Object *object_eval = ob_ref.object;
     Object *object_orig = DEG_get_original_object(object_eval);
-    Scene *scene_orig = (Scene *)DEG_get_original_id(const_cast<ID *>(&state.scene->id));
+    Scene *scene_orig = (Scene *)DEG_get_original_id(&state.scene->id);
     PTCacheEdit *edit = PE_create_current(state.depsgraph, scene_orig, object_orig);
     if (edit == nullptr) {
       /* Happens when trying to edit particles in EMITTER mode without having them cached. */

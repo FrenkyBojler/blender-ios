@@ -879,7 +879,7 @@ static void rna_UVProject_projectors_begin(CollectionPropertyIterator *iter, Poi
 {
   UVProjectModifierData *uvp = (UVProjectModifierData *)ptr->data;
   rna_iterator_array_begin(
-      iter, (void *)uvp->projectors, sizeof(Object *), uvp->projectors_num, 0, nullptr);
+      iter, ptr, (void *)uvp->projectors, sizeof(Object *), uvp->projectors_num, 0, nullptr);
 }
 
 static StructRNA *rna_Modifier_refine(PointerRNA *ptr)
@@ -1221,7 +1221,7 @@ static void rna_HookModifier_vertex_indices_set(HookModifierData *hmd,
 
     /* Copy and sort the index array. */
     size_t size = sizeof(int) * indices_num;
-    int *buffer = static_cast<int *>(MEM_mallocN(size, "hook indexar"));
+    int *buffer = MEM_malloc_arrayN<int>(size_t(indices_num), "hook indexar");
     memcpy(buffer, indices, size);
 
     qsort(buffer, indices_num, sizeof(int), BLI_sortutil_cmp_int);
@@ -1245,7 +1245,7 @@ static void rna_HookModifier_vertex_indices_set(HookModifierData *hmd,
 static PointerRNA rna_UVProjector_object_get(PointerRNA *ptr)
 {
   Object **ob = (Object **)ptr->data;
-  return rna_pointer_inherit_refine(ptr, &RNA_Object, *ob);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(*ob));
 }
 
 static void rna_UVProjector_object_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -1354,19 +1354,19 @@ static bool rna_MeshDeformModifier_is_bound_get(PointerRNA *ptr)
 static PointerRNA rna_SoftBodyModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return rna_pointer_inherit_refine(ptr, &RNA_SoftBodySettings, ob->soft);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_SoftBodySettings, ob->soft);
 }
 
 static PointerRNA rna_SoftBodyModifier_point_cache_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return rna_pointer_inherit_refine(ptr, &RNA_PointCache, ob->soft->shared->pointcache);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PointCache, ob->soft->shared->pointcache);
 }
 
 static PointerRNA rna_CollisionModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return rna_pointer_inherit_refine(ptr, &RNA_CollisionSettings, ob->pd);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_CollisionSettings, ob->pd);
 }
 
 /* Special update function for setting the number of segments of the modifier that also resamples
@@ -1959,7 +1959,7 @@ static blender::nodes::geo_eval_log::GeoTreeLog *get_nodes_modifier_log(NodesMod
   if (!nmd.runtime->eval_log) {
     return nullptr;
   }
-  blender::bke::ModifierComputeContext compute_context{nullptr, nmd.modifier.name};
+  blender::bke::ModifierComputeContext compute_context{nullptr, nmd};
   return &nmd.runtime->eval_log->get_tree_log(compute_context.hash());
 }
 
@@ -1967,7 +1967,7 @@ static blender::Span<blender::nodes::geo_eval_log::NodeWarning> get_node_modifie
     NodesModifierData &nmd)
 {
   if (auto *log = get_nodes_modifier_log(nmd)) {
-    log->ensure_node_warnings(nmd.node_group);
+    log->ensure_node_warnings(nmd);
     return log->all_warnings;
   }
   return {};
@@ -1992,9 +1992,8 @@ static PointerRNA rna_NodesModifier_node_warnings_iterator_get(CollectionPropert
 {
   NodesModifierData *nmd = static_cast<NodesModifierData *>(iter->parent.data);
   blender::Span warnings = get_node_modifier_warnings(*nmd);
-  return RNA_pointer_create_discrete(iter->parent.owner_id,
-                                     &RNA_NodesModifierWarning,
-                                     (void *)&warnings[iter->internal.count.item]);
+  return RNA_pointer_create_with_parent(
+      iter->parent, &RNA_NodesModifierWarning, (void *)&warnings[iter->internal.count.item]);
 }
 
 static int rna_NodesModifier_node_warnings_length(PointerRNA *ptr)
@@ -2101,10 +2100,15 @@ static void rna_GreasePencilModifier_material_set(PointerRNA *ptr,
                                                   Material **ma_target)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
+  Material *ma_old = *ma_target;
   Material *ma = reinterpret_cast<Material *>(value.data);
 
   if (ma == nullptr || BKE_object_material_index_get(ob, ma) != -1) {
-    id_lib_extern(reinterpret_cast<ID *>(ob));
+    id_us_min(&ma_old->id);
+    id_us_plus_no_lib(&ma->id);
+    if (!ID_IS_LINKED(&ob->id)) {
+      id_lib_extern(&ma->id);
+    }
     *ma_target = ma;
   }
   else {
@@ -2271,6 +2275,7 @@ static void rna_GreasePencilDashModifier_segments_begin(CollectionPropertyIterat
 {
   auto *dmd = static_cast<GreasePencilDashModifierData *>(ptr->data);
   rna_iterator_array_begin(iter,
+                           ptr,
                            dmd->segments_array,
                            sizeof(GreasePencilDashModifierSegment),
                            dmd->segments_num,
@@ -2374,6 +2379,7 @@ static void rna_GreasePencilTimeModifier_segments_begin(CollectionPropertyIterat
 {
   auto *tmd = static_cast<GreasePencilTimeModifierData *>(ptr->data);
   rna_iterator_array_begin(iter,
+                           ptr,
                            tmd->segments_array,
                            sizeof(GreasePencilTimeModifierSegment),
                            tmd->segments_num,
@@ -2538,6 +2544,9 @@ static void rna_def_modifier_subsurf(BlenderRNA *brna)
                            "Place vertices at the surface that would be produced with infinite "
                            "levels of subdivision (smoothest possible shape)");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  rna_def_modifier_panel_open_prop(srna, "open_adaptive_subdivision_panel", 0);
+  rna_def_modifier_panel_open_prop(srna, "open_advanced_panel", 1);
 
   RNA_define_lib_overridable(false);
 }
@@ -2727,6 +2736,7 @@ static void rna_def_modifier_multires(BlenderRNA *brna)
                                 "rna_MultiresModifier_filepath_length",
                                 "rna_MultiresModifier_filepath_set");
   RNA_def_property_ui_text(prop, "File Path", "Path to external displacements file");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "show_only_control_edges", PROP_BOOLEAN, PROP_NONE);
@@ -6659,8 +6669,10 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Ocean is Cached", "Whether the ocean is using cached data or simulating");
 
+  /* TODO: rename to `dirpath`. */
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "cachepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "Cache Path", "Path to a folder to store external baked images");
   // RNA_def_property_update(prop, 0, "rna_Modifier_update");
   /* XXX how to update? */
@@ -6853,6 +6865,7 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File Path", "Path to external displacements file");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
@@ -7928,6 +7941,7 @@ static void rna_def_modifier_nodes_bake(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Nodes Modifier Bake", "");
 
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "Directory", "Location on disk where the bake data is stored");
   RNA_def_property_update(prop, 0, "rna_NodesModifier_bake_update");
 
@@ -8078,6 +8092,7 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_NodesModifier_node_group_update");
 
   prop = RNA_def_property(srna, "bake_directory", PROP_STRING, PROP_DIRPATH);
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(
       prop, "Simulation Bake Directory", "Location on disk where the bake data is stored");
   RNA_def_property_update(prop, 0, "rna_NodesModifier_bake_update");
