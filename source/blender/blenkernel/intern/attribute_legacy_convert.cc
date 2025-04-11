@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "BLI_string.h"
+#include "BLI_string_utils.hh"
 
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
@@ -183,6 +183,7 @@ static void convert_storage_to_customdata(
     const AttributeStorage &storage,
     const Map<AttrDomain, std::pair<CustomData *, int>> &custom_data_domains)
 {
+  /* NOTE: Name uniqueness is handled by the #CustomData API. */
   storage.foreach ([&](const Attribute &attribute) {
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
         attribute.data_type());
@@ -219,24 +220,34 @@ static auto mesh_domains(Mesh &mesh)
       {AttrDomain::Corner, {&mesh.corner_data, mesh.corners_num}}};
 }
 
-static std::optional<CustomDataLayer> create_layer_for_file_write(const Attribute &attribute)
+static void create_layer_for_file_write(const Attribute &attribute,
+                                        Vector<CustomDataLayer, 16> &layers)
 {
   const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
       attribute.data_type());
   if (!data_type) {
-    return std::nullopt;
+    return;
   }
   const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
   if (!array_data) {
-    return std::nullopt;
+    return;
   }
 
   CustomDataLayer layer;
-  BLI_strncpy(layer.name, attribute.name().c_str(), MAX_CUSTOMDATA_LAYER_NAME);
+  BLI_uniquename_cb(
+      [&](const StringRefNull name) {
+        return std::any_of(layers.begin(), layers.end(), [&](const CustomDataLayer &other_layer) {
+          return other_layer.name == name;
+        });
+      },
+      attribute.name().c_str(),
+      '.',
+      layer.name,
+      MAX_CUSTOMDATA_LAYER_NAME);
   layer.type = *data_type;
   layer.data = array_data->data;
   layer.sharing_info = array_data->sharing_info.get();
-  return layer;
+  layers.append(layer);
 }
 
 void mesh_convert_storage_to_customdata_for_file_write(const AttributeStorage &storage,
@@ -272,7 +283,7 @@ void mesh_convert_storage_to_customdata_for_file_write(const AttributeStorage &s
       default:
         return;
     }
-    layers->append(create_layer_for_file_write(attribute).value());
+    create_layer_for_file_write(attribute, *layers);
   });
 }
 void mesh_convert_storage_to_customdata(Mesh &mesh)
@@ -321,7 +332,7 @@ void curves_convert_storage_to_customdata_for_file_write(const AttributeStorage 
       default:
         return;
     }
-    layers->append(create_layer_for_file_write(attribute).value());
+    create_layer_for_file_write(attribute, *layers);
   });
 }
 void curves_convert_customdata_to_storage(CurvesGeometry &curves)
@@ -354,7 +365,7 @@ void pointcloud_convert_storage_to_customdata_for_file_write(
     if (!array_data) {
       return;
     }
-    point_layers.append(create_layer_for_file_write(attribute).value());
+    create_layer_for_file_write(attribute, point_layers);
   });
 }
 void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
@@ -387,7 +398,7 @@ void grease_pencil_convert_storage_to_customdata_for_file_write(
     if (!array_data) {
       return;
     }
-    layers.append(create_layer_for_file_write(attribute).value());
+    create_layer_for_file_write(attribute, layers);
   });
 }
 void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
