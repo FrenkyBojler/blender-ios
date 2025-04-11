@@ -34,11 +34,19 @@ struct NodeMaskResult {
 void do_clay_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &ob,
-                   const IndexMask &node_mask);
+                   const IndexMask &node_mask,
+                   const float3 &plane_normal,
+                   const float3 &plane_center);
 void do_clay_strips_brush(const Depsgraph &depsgraph,
                           const Sculpt &sd,
                           Object &ob,
                           const IndexMask &node_mask);
+namespace brushes::clay_strips {
+NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
+                              Object &ob,
+                              const Brush &brush,
+                              IndexMaskMemory &memory);
+}
 void do_clay_thumb_brush(const Depsgraph &depsgraph,
                          const Sculpt &sd,
                          Object &ob,
