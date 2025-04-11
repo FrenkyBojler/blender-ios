@@ -5,7 +5,7 @@
 /** \file
  * \ingroup gpu
  *
- * Generate shader code from the intermediate node graph.
+ * Generate and cache shaders generated from the intermediate node graph.
  */
 
 #pragma once

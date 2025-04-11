@@ -265,6 +265,7 @@ struct GPUUniformAttrList {
 const GPUUniformAttrList *GPU_material_uniform_attributes(const GPUMaterial *material);
 
 /* Functions to create GPU Materials nodes. */
+/* TODO: Move to its own header. */
 
 struct GPUNodeStack {
   eGPUType type;

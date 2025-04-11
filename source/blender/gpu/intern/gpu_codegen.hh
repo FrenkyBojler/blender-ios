@@ -15,6 +15,7 @@
 #include "BLI_vector.hh"
 
 #include "GPU_material.hh"
+#include "GPU_vertex_format.hh"
 #include "gpu_node_graph.hh"
 #include "gpu_shader_create_info.hh"
 
