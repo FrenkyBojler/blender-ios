@@ -120,10 +120,8 @@ ccl_device_forceinline void integrator_split_shadow_catcher(
   INTEGRATOR_STATE_WRITE(state, path, flag) |= PATH_RAY_SHADOW_CATCHER_PASS;
 
   /* Shadow catcher path does not use guiding.
-   * For the main paths after branching guiding_record checks the path flag, but the flag does not
-   * exist for shadow paths branched-off from the shadow catcher ones. For those it is easier to
-   * set the path_segment to nullptr after branching the shadow catcher path and rely on the simple
-   * null-pointer check in the guiding_record functions that operate on shadow state. */
+   * Clear the path_segment to ensure we do not reference possibly stale data from the main path.
+   */
 #  ifdef __PATH_GUIDING__
   INTEGRATOR_STATE_WRITE(state, guiding, path_segment) = nullptr;
 #  endif
