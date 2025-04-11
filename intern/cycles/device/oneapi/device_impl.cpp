@@ -1350,7 +1350,7 @@ int parse_driver_build_version(const sycl::device &device)
     VLOG_WARNING << "Unable to parse unknown Intel GPU driver version. \"" << driver_version
                  << "\" does not match xx.xx.xxxxx (Linux), x.x.xxxx (L0),"
                  << " xx.xx.xxx.xxxx (Windows) for device \""
-                 << device.get_info<sycl::info::device::name>() << "\"." << std::endl;
+                 << device.get_info<sycl::info::device::name>() << "\".";
   }
 
   return driver_build_version;
