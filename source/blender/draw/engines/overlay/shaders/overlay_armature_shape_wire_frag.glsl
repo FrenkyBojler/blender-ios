@@ -13,14 +13,14 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_armature_shape_wire)
  * We replace the square pixel with a circle of the same area and try to find the intersection
  * area. The area we search is the circular segment. https://en.wikipedia.org/wiki/Circular_segment
  * The formula for the area uses inverse trig function and is quite complex. Instead,
- * we approximate it by using the smooth-step function and a 1.05 factor to the disc radius.
+ * we approximate it by using the smooth-step function and a 1.05f factor to the disc radius.
  */
 
-#define M_1_SQRTPI 0.5641895835477563 /* `1/sqrt(pi)`. */
+#define M_1_SQRTPI 0.5641895835477563f /* `1/sqrt(pi)`. */
 
-#define DISC_RADIUS (M_1_SQRTPI * 1.05)
-#define GRID_LINE_SMOOTH_START (0.5 - DISC_RADIUS)
-#define GRID_LINE_SMOOTH_END (0.5 + DISC_RADIUS)
+#define DISC_RADIUS (M_1_SQRTPI * 1.05f)
+#define GRID_LINE_SMOOTH_START (0.5f - DISC_RADIUS)
+#define GRID_LINE_SMOOTH_END (0.5f + DISC_RADIUS)
 
 float edge_step(float dist)
 {
@@ -28,19 +28,19 @@ float edge_step(float dist)
     return smoothstep(GRID_LINE_SMOOTH_START, GRID_LINE_SMOOTH_END, dist);
   }
   else {
-    return step(0.5, dist);
+    return step(0.5f, dist);
   }
 }
 
 void main()
 {
-  float half_size = (do_smooth_wire ? wire_width - 0.5 : wire_width) / 2.0;
+  float half_size = (do_smooth_wire ? wire_width - 0.5f : wire_width) / 2.0f;
 
   float dist = abs(edgeCoord) - half_size;
-  const float mix_w = clamp(edge_step(dist), 0.0, 1.0);
+  const float mix_w = clamp(edge_step(dist), 0.0f, 1.0f);
 
   fragColor = mix(vec4(finalColor.rgb, alpha), vec4(0), mix_w);
-  fragColor.a *= 1.0 - mix_w;
+  fragColor.a *= 1.0f - mix_w;
   lineOutput = vec4(0);
 
   select_id_output(select_id);
