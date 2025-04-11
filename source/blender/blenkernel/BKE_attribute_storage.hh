@@ -50,7 +50,12 @@ class Attribute {
   DataVariant data_;
 
  public:
-  /** Unique name across all domains. */
+  /**
+   * Unique name across all domains.
+   * \note Compared to #CustomData, which doesn't enforce uniqueness, across domains on its own,
+   * this is enforced by asserts when adding attributes. See #unique_name_calc() (which is also
+   * called during the conversion process).
+   */
   StringRefNull name() const;
   /** Which part of a geometry the attribute corresponds to. */
   AttrDomain domain() const;
@@ -107,10 +112,11 @@ class AttributeStorage : public ::AttributeStorage {
   Attribute *lookup(StringRef name);
   const Attribute *lookup(StringRef name) const;
   bool remove(StringRef name);
-  Attribute &add(StringRef name,
+  Attribute &add(std::string name,
                  bke::AttrDomain domain,
                  bke::AttrType data_type,
                  Attribute::ArrayData data);
+  std::string unique_name_calc(StringRef name);
 
   void blend_read(BlendDataReader &reader);
   struct BlendWriteData {
@@ -122,7 +128,7 @@ class AttributeStorage : public ::AttributeStorage {
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 
  private:
-  Attribute &add_without_data(StringRef name, bke::AttrDomain domain, bke::AttrType data_type);
+  Attribute &add_without_data(std::string name, bke::AttrDomain domain, bke::AttrType data_type);
 };
 
 inline StringRefNull Attribute::name() const

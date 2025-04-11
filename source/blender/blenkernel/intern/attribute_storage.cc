@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_implicit_sharing.hh"
+#include "BLI_string_utils.hh"
 #include "BLI_vector_set.hh"
 
 #include "BLO_read_write.hh"
@@ -169,7 +170,7 @@ bool AttributeStorage::remove(const StringRef name)
   return this->runtime->attributes.remove_as(name);
 }
 
-Attribute &AttributeStorage::add(const StringRef name,
+Attribute &AttributeStorage::add(std::string name,
                                  const AttrDomain domain,
                                  const AttrType data_type,
                                  Attribute::ArrayData data)
@@ -179,14 +180,20 @@ Attribute &AttributeStorage::add(const StringRef name,
   return attribute;
 }
 
-Attribute &AttributeStorage::add_without_data(const StringRef name,
+std::string AttributeStorage::unique_name_calc(const StringRef name)
+{
+  return BLI_uniquename_cb(
+      [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
+}
+
+Attribute &AttributeStorage::add_without_data(std::string name,
                                               const AttrDomain domain,
                                               const AttrType data_type)
 {
   BLI_assert(!this->lookup(name));
   std::unique_ptr<Attribute> ptr = std::make_unique<Attribute>();
   Attribute &attribute = *ptr;
-  attribute.name_ = name;
+  attribute.name_ = std::move(name);
   attribute.domain_ = domain;
   attribute.type_ = data_type;
   this->runtime->attributes.add_new(std::move(ptr));

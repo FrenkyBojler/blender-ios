@@ -137,7 +137,10 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
     array_data.data = attribute.array_data;
     array_data.size = attribute.array_size;
     array_data.sharing_info = ImplicitSharingPtr<>(attribute.sharing_info);
-    storage.add(attribute.name, attribute.domain, attribute.type, std::move(array_data));
+    storage.add(storage.unique_name_calc(attribute.name),
+                attribute.domain,
+                attribute.type,
+                std::move(array_data));
   }
 
   return storage;
