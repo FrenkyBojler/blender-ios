@@ -234,7 +234,8 @@ class ShaderModule {
                                    bool deferred_compilation);
   GPUMaterial *world_shader_get(::World *blender_world,
                                 bNodeTree *nodetree,
-                                eMaterialPipeline pipeline_type);
+                                eMaterialPipeline pipeline_type,
+                                bool deferred_compilation);
 
   void material_create_info_amend(GPUMaterial *mat, GPUCodegenOutput *codegen);
 

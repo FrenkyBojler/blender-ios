@@ -993,17 +993,16 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
 
 GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
                                             bNodeTree *nodetree,
-                                            eMaterialPipeline pipeline_type)
+                                            eMaterialPipeline pipeline_type,
+                                            bool deferred_compilation)
 {
-  bool defer_compilation = pipeline_type == MAT_PIPE_VOLUME_MATERIAL;
-
   uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type, MAT_GEOM_WORLD);
 
   return DRW_shader_from_world(blender_world,
                                nodetree,
                                GPU_MAT_EEVEE,
                                shader_uuid,
-                               defer_compilation,
+                               deferred_compilation,
                                codegen_callback,
                                this);
 }

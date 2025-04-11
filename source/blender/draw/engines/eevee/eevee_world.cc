@@ -143,7 +143,7 @@ void World::sync()
 
   inst_.light_probes.sync_world(bl_world, has_update);
 
-  GPUMaterial *gpumat = inst_.shaders.world_shader_get(bl_world, ntree, MAT_PIPE_DEFERRED);
+  GPUMaterial *gpumat = inst_.shaders.world_shader_get(bl_world, ntree, MAT_PIPE_DEFERRED, false);
 
   inst_.manager->register_layer_attributes(gpumat);
 
@@ -164,7 +164,8 @@ void World::sync_volume(const WorldHandle &world_handle)
 
   /* Only the scene world nodetree can have volume shader. */
   if (world && world->nodetree && world->use_nodes) {
-    gpumat = inst_.shaders.world_shader_get(world, world->nodetree, MAT_PIPE_VOLUME_MATERIAL);
+    gpumat = inst_.shaders.world_shader_get(
+        world, world->nodetree, MAT_PIPE_VOLUME_MATERIAL, !inst_.is_image_render);
   }
 
   bool had_volume = has_volume_;
