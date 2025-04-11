@@ -187,13 +187,13 @@ static void calc_grids(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const float4x4 &mat,
-                       const float3 &plane_normal,
+                       const float3 &offset,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
-  /*SculptSession& ss = *object.sculpt;
-  const StrokeCache& cache = *ss.cache;
-  SubdivCCG& subdiv_ccg = *ss.subdiv_ccg;
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
+  SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
   const Span<int> grids = node.grids();
   const MutableSpan positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
@@ -206,36 +206,30 @@ static void calc_grids(const Depsgraph &depsgraph,
     calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
   }
 
+  tls.xy_positions.resize(positions.size());
+  tls.z_positions.resize(positions.size());
+  MutableSpan<float2> xy_positions = tls.xy_positions;
+  MutableSpan<float> z_positions = tls.z_positions;
+
+  calc_local_positions(positions, mat, xy_positions, z_positions);
+
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_cube_distances(brush, mat, positions, distances, factors);
-  apply_z_axis_falloff(positions, mat, factors);
+  calc_brush_xy_distances(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
-    eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
 
-  scale_factors(factors, strength);
-
-  if (flip) {
-    filter_below_plane_factors(positions, plane, factors);
-  }
-  else {
-    filter_above_plane_factors(positions, plane, factors);
-  }
-
   tls.translations.resize(positions.size());
-  const MutableSpan<float3> translations = tls.translations;
-  calc_translations_to_plane(positions, plane, translations);
-  filter_plane_trim_limit_factors(brush, cache, translations, factors);
-  scale_translations(translations, factors);
+  translations_from_offset_and_factors(offset, factors, tls.translations);
 
-  clip_and_lock_translations(sd, ss, positions, translations);
-  apply_translations(translations, grids, subdiv_ccg);*/
+  clip_and_lock_translations(sd, ss, positions, tls.translations);
+  apply_translations(tls.translations, grids, subdiv_ccg);
 }
 
 static void calc_bmesh(const Depsgraph &depsgraph,
@@ -243,14 +237,14 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const float4x4 &mat,
-                       const float3 &plane_normal,
+                       const float3 &offset,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
-  /*SculptSession& ss = *object.sculpt;
-  const StrokeCache& cache = *ss.cache;
+  SculptSession &ss = *object.sculpt;
+  const StrokeCache &cache = *ss.cache;
 
-  const Set<BMVert*, 0>& verts = BKE_pbvh_bmesh_node_unique_verts(&node);
+  const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
   const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
 
   tls.factors.resize(verts.size());
@@ -261,36 +255,30 @@ static void calc_bmesh(const Depsgraph &depsgraph,
     calc_front_face(cache.view_normal_symm, verts, factors);
   }
 
-  tls.distances.resize(verts.size());
+  tls.xy_positions.resize(positions.size());
+  tls.z_positions.resize(positions.size());
+  MutableSpan<float2> xy_positions = tls.xy_positions;
+  MutableSpan<float> z_positions = tls.z_positions;
+
+  calc_local_positions(positions, mat, xy_positions, z_positions);
+
+  tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_cube_distances(brush, mat, positions, distances, factors);
-  apply_z_axis_falloff(positions, mat, factors);
+  calc_brush_xy_distances(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
-    eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   calc_brush_texture_factors(ss, brush, positions, factors);
 
-  scale_factors(factors, strength);
+  tls.translations.resize(positions.size());
+  translations_from_offset_and_factors(offset, factors, tls.translations);
 
-  if (flip) {
-    filter_below_plane_factors(positions, plane, factors);
-  }
-  else {
-    filter_above_plane_factors(positions, plane, factors);
-  }
-
-  tls.translations.resize(verts.size());
-  const MutableSpan<float3> translations = tls.translations;
-  calc_translations_to_plane(positions, plane, translations);
-  filter_plane_trim_limit_factors(brush, cache, translations, factors);
-  scale_translations(translations, factors);
-
-  clip_and_lock_translations(sd, ss, positions, translations);
-  apply_translations(translations, verts);*/
+  clip_and_lock_translations(sd, ss, positions, tls.translations);
+  apply_translations(tls.translations, verts);
 }
 
 }  // namespace clay_strips_cc
