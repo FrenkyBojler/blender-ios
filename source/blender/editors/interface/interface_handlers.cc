@@ -683,6 +683,18 @@ static void ui_mouse_scale_warp(uiHandleButtonData *data,
 /** \name UI Utilities
  * \{ */
 
+#ifdef USE_DRAG_MULTINUM
+static bool ui_multibut_drag_wait(uiHandleButtonMulti multi_data)
+{
+  const bool initializing = ELEM(
+      multi_data.init, uiHandleButtonMulti::INIT_UNSET, uiHandleButtonMulti::INIT_SETUP);
+  const bool vertical_dragging = abs(multi_data.drag_dir[1]) > abs(multi_data.drag_dir[0]);
+
+  /* Continue waiting if we are dragging vertically but have not yet detected gesture. */
+  return (initializing && vertical_dragging);
+}
+#endif /* USE_DRAG_MULTINUM */
+
 /**
  * Ignore mouse movements within some horizontal pixel threshold before starting to drag
  */
@@ -694,17 +706,12 @@ static bool ui_but_dragedit_update_mval(uiHandleButtonData *data, int mx)
 
   if (data->draglock) {
     const int threshold = WM_event_drag_threshold(data->window->event_last_handled);
-    if (abs(mx - data->dragstartx) <= threshold) {
+    if (abs(mx - data->dragstartx) < threshold) {
       return false;
     }
 #ifdef USE_DRAG_MULTINUM
-    /* We are over threshold but still in draglock. If we have dragged vertically
-     * more than horizontally then continue to wait for multi-drag initialization. */
-    if (ELEM(data->multi_data.init,
-             uiHandleButtonMulti::INIT_UNSET,
-             uiHandleButtonMulti::INIT_SETUP) &&
-        abs(data->multi_data.drag_dir[1]) > abs(data->multi_data.drag_dir[0]))
-    {
+    /* Continue to wait for multibut drag initialization if dragging vertically. */
+    if (ui_multibut_drag_wait(data->multi_data)) {
       return false;
     }
 #endif
