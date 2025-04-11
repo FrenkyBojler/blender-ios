@@ -40,7 +40,7 @@
 
 #include "BLI_threads.h"
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
 const EnumPropertyItem rna_enum_exr_codec_items[] = {
     {R_IMF_EXR_CODEC_NONE, "NONE", 0, "None", "No compression"},
     {R_IMF_EXR_CODEC_ZIP, "ZIP", 0, "ZIP", "Lossless zip compression of 16 row image blocks"},
@@ -273,7 +273,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
     {R_IMF_IMTYPE_DDS, "DDS", ICON_FILE_IMAGE, "DDS", "Output image in DDS format"},
 #endif
 
-#ifdef WITH_OPENJPEG
+#ifdef WITH_IMAGE_OPENJPEG
 #  define R_IMF_ENUM_JPEG2K \
     {R_IMF_IMTYPE_JP2, \
      "JPEG2000", \
@@ -284,7 +284,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 #  define R_IMF_ENUM_JPEG2K
 #endif
 
-#ifdef WITH_CINEON
+#ifdef WITH_IMAGE_CINEON
 #  define R_IMF_ENUM_CINEON \
     {R_IMF_IMTYPE_CINEON, "CINEON", ICON_FILE_IMAGE, "Cineon", "Output image in Cineon format"},
 #  define R_IMF_ENUM_DPX \
@@ -294,7 +294,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 #  define R_IMF_ENUM_DPX
 #endif
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
 #  define R_IMF_ENUM_EXR_MULTILAYER \
     {R_IMF_IMTYPE_MULTILAYER, \
      "OPEN_EXR_MULTILAYER", \
@@ -322,7 +322,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 #define R_IMF_ENUM_TIFF \
   {R_IMF_IMTYPE_TIFF, "TIFF", ICON_FILE_IMAGE, "TIFF", "Output image in TIFF format"},
 
-#ifdef WITH_WEBP
+#ifdef WITH_IMAGE_WEBP
 #  define R_IMF_ENUM_WEBP \
     {R_IMF_IMTYPE_WEBP, "WEBP", ICON_FILE_IMAGE, "WebP", "Output image in WebP format"},
 #else
@@ -1393,8 +1393,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
    * where 'BW' will force grayscale even if the output format writes
    * as RGBA, this is age old blender convention and not sure how useful
    * it really is but keep it for now. */
-  char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
-                   (is_render ? IMA_CHAN_FLAG_BW : 0);
+  char chan_flag = BKE_imtype_valid_channels(imf->imtype) | (is_render ? IMA_CHAN_FLAG_BW : 0);
 
   /* a WAY more crappy case than B&W flag: depending on codec, file format MIGHT support
    * alpha channel. for example MPEG format with h264 codec can't do alpha channel, but
@@ -1404,7 +1403,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 
-    if (MOV_codec_supports_alpha(rd->ffcodecdata.codec)) {
+    if (MOV_codec_supports_alpha(rd->ffcodecdata)) {
       chan_flag |= IMA_CHAN_FLAG_RGBA;
     }
   }
@@ -1525,7 +1524,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_views_format_itemf(bConte
   }
 }
 
-#  ifdef WITH_OPENEXR
+#  ifdef WITH_IMAGE_OPENEXR
 /* OpenEXR */
 
 static const EnumPropertyItem *rna_ImageFormatSettings_exr_codec_itemf(bContext * /*C*/,
@@ -5868,6 +5867,7 @@ static void rna_def_bake_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File Path", "Image filepath to use when saving externally");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "width", PROP_INT, PROP_PIXEL);
@@ -6232,7 +6232,7 @@ static void rna_def_image_format_stereo3d_format(BlenderRNA *brna)
 static void rna_def_scene_image_format_data(BlenderRNA *brna)
 {
 
-#  ifdef WITH_OPENJPEG
+#  ifdef WITH_IMAGE_OPENJPEG
   static const EnumPropertyItem jp2_codec_items[] = {
       {R_IMF_JP2_CODEC_JP2, "JP2", 0, "JP2", ""},
       {R_IMF_JP2_CODEC_J2K, "J2K", 0, "J2K", ""},
@@ -6320,7 +6320,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
 
   /* format specific */
 
-#  ifdef WITH_OPENEXR
+#  ifdef WITH_IMAGE_OPENEXR
   /* OpenEXR */
 
   prop = RNA_def_property(srna, "exr_codec", PROP_ENUM, PROP_NONE);
@@ -6331,7 +6331,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 #  endif
 
-#  ifdef WITH_OPENJPEG
+#  ifdef WITH_IMAGE_OPENJPEG
   /* JPEG 2000 */
   prop = RNA_def_property(srna, "use_jpeg2k_ycc", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "jp2_flag", R_IMF_JP2_FLAG_YCC);
@@ -6478,6 +6478,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
       {FFMPEG_CODEC_ID_MPEG2VIDEO, "MPEG2", 0, "MPEG-2", ""},
       {FFMPEG_CODEC_ID_MPEG4, "MPEG4", 0, "MPEG-4 (divx)", ""},
       {FFMPEG_CODEC_ID_PNG, "PNG", 0, "PNG", ""},
+      {FFMPEG_CODEC_ID_PRORES, "PRORES", 0, "ProRes", ""},
       {FFMPEG_CODEC_ID_QTRLE, "QTRLE", 0, "QuickTime Animation", ""},
       {FFMPEG_CODEC_ID_THEORA, "THEORA", 0, "Theora", ""},
       {0, nullptr, 0, nullptr, nullptr},
@@ -6494,6 +6495,16 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
        "Recommended if you have lots of time and want the best compression efficiency"},
       {FFM_PRESET_GOOD, "GOOD", 0, "Good", "The default and recommended for most applications"},
       {FFM_PRESET_REALTIME, "REALTIME", 0, "Realtime", "Recommended for fast encoding"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem ffmpeg_prores_profiles_items[] = {
+      {FFM_PRORES_PROFILE_422_PROXY, "422_PROXY", 0, "ProRes 422 Proxy", ""},
+      {FFM_PRORES_PROFILE_422_LT, "422_LT", 0, "ProRes 422 LT", ""},
+      {FFM_PRORES_PROFILE_422_STD, "422_STD", 0, "ProRes 422", ""},
+      {FFM_PRORES_PROFILE_422_HQ, "422_HQ", 0, "ProRes 422 HQ", ""},
+      {FFM_PRORES_PROFILE_4444, "4444", 0, "ProRes 4444", ""},
+      {FFM_PRORES_PROFILE_4444_XQ, "4444_XQ", 0, "ProRes 4444 XQ", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6653,6 +6664,14 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, FFM_PRESET_GOOD);
   RNA_def_property_ui_text(
       prop, "Encoding Speed", "Tradeoff between encoding speed and compression ratio");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "ffmpeg_prores_profile", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ffmpeg_prores_profile");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, ffmpeg_prores_profiles_items);
+  RNA_def_property_enum_default(prop, FFM_PRORES_PROFILE_422_STD);
+  RNA_def_property_ui_text(prop, "Profile", "ProRes Profile");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "use_autosplit", PROP_BOOLEAN, PROP_NONE);
@@ -7191,11 +7210,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "pic");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop,
                            "Output Path",
                            "Directory/name to save animations, # characters define the position "
                            "and padding of frame numbers");
-  RNA_def_property_flag(prop, PROP_PATH_OUTPUT);
+  RNA_def_property_flag(prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   /* Render result EXR cache. */

@@ -110,6 +110,15 @@ typedef enum eFFMpegAudioChannels {
   FFM_CHANNELS_SURROUND71 = 8,
 } eFFMpegAudioChannels;
 
+typedef enum eFFMpegProresProfile {
+  FFM_PRORES_PROFILE_422_PROXY = 0, /* FF_PROFILE_PRORES_PROXY */
+  FFM_PRORES_PROFILE_422_LT = 1,    /* FF_PROFILE_PRORES_LT */
+  FFM_PRORES_PROFILE_422_STD = 2,   /* FF_PROFILE_PRORES_STANDARD */
+  FFM_PRORES_PROFILE_422_HQ = 3,    /* FF_PROFILE_PRORES_HQ*/
+  FFM_PRORES_PROFILE_4444 = 4,      /* FF_PROFILE_PRORES_4444 */
+  FFM_PRORES_PROFILE_4444_XQ = 5,   /* FF_PROFILE_PRORES_XQ */
+} eFFMpegProresProfile;
+
 typedef struct FFMpegCodecData {
   int type;
   int codec;
@@ -126,13 +135,14 @@ typedef struct FFMpegCodecData {
   int constant_rate_factor;
   /** See eFFMpegPreset. */
   int ffmpeg_preset;
+  int ffmpeg_prores_profile;
 
   int rc_min_rate;
   int rc_max_rate;
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  void *_pad1;
+  char _pad0[4];
 } FFMpegCodecData;
 
 /** \} */
@@ -653,7 +663,6 @@ typedef enum eBakePassFilter {
 typedef struct RenderData {
   struct ImageFormatData im_format;
 
-  void *_pad;
   struct FFMpegCodecData ffcodecdata;
 
   /** Frames as in 'images'. */

@@ -41,17 +41,18 @@ const char *imb_ext_image[] = {
     /* #IMB_FTYPE_JPG */
     ".jpg",
     ".jpeg",
-    /* #IMB_FTYPE_IMAGIC */
+    /* #IMB_FTYPE_IRIS */
     ".sgi",
     ".rgb",
     ".rgba",
     /* #IMB_FTYPE_TIF */
     ".tif",
     ".tiff",
-    /* A convention for naming tiled images at different resolutions (MIP-mapped).
-     * These are typically TIFF or EXR images. See the tool `maketx` from Arnold. */
+    /* A convention for naming tiled images at different resolutions (MIP-mapped),
+     * supported by various render engines texture caching systems.
+     * These are typically TIFF or EXR images. See the tool `maketx` from OpenImageIO. */
     ".tx",
-#ifdef WITH_OPENJPEG
+#ifdef WITH_IMAGE_OPENJPEG
     /* #IMB_FTYPE_JP2 */
     ".jp2",
     ".j2c",
@@ -60,13 +61,13 @@ const char *imb_ext_image[] = {
     ".hdr",
     /* #IMB_FTYPE_DDS */
     ".dds",
-#ifdef WITH_CINEON
+#ifdef WITH_IMAGE_CINEON
     /* #IMB_FTYPE_DPX */
     ".dpx",
     /* #IMB_FTYPE_CINEON */
     ".cin",
 #endif
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
     /* #IMB_FTYPE_EXR */
     ".exr",
 #endif
@@ -74,7 +75,7 @@ const char *imb_ext_image[] = {
     ".psd",
     ".pdd",
     ".psb",
-#ifdef WITH_WEBP
+#ifdef WITH_IMAGE_WEBP
     /* #IMB_FTYPE_WEBP */
     ".webp",
 #endif
