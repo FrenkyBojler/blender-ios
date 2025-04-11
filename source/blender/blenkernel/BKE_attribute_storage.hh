@@ -18,6 +18,10 @@ struct BlendWriter;
 
 namespace blender::bke {
 
+enum class AttrDomain : int8_t;
+enum class AttrType : int16_t;
+enum class AttrStorageType : int8_t;
+
 /** Data and metadata for a single geometry attribute. */
 class Attribute {
  public:
