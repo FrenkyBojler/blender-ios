@@ -136,8 +136,7 @@ bool debug_tilemaps(float3 P, LightData light, bool do_debug_sample_tile)
       ShadowSamplingTile tile = shadow_sampling_tile_unpack(
           texelFetch(shadow_tilemaps_tx, int2(tilemap_texel), 0).x);
       /* Leave 1 px border between tile-maps. */
-      if (!any(
-              equal(int2(gl_FragCoord.xy) % (SHADOW_TILEMAP_RES * debug_tile_size_px), int2(0))))
+      if (!any(equal(int2(gl_FragCoord.xy) % (SHADOW_TILEMAP_RES * debug_tile_size_px), int2(0))))
       {
         gl_FragDepth = 0.0f;
         out_color_add = float4(debug_tile_lod(light.type, tile), 0.0f);
@@ -153,8 +152,7 @@ bool debug_tilemaps(float3 P, LightData light, bool do_debug_sample_tile)
           uint2(px + SHADOW_TILEMAP_RES) % SHADOW_TILEMAP_RES, tilemap.tiles_index, 0);
       ShadowTileData tile = shadow_tile_unpack(tiles_buf[tile_index]);
       /* Leave 1 px border between tile-maps. */
-      if (!any(
-              equal(int2(gl_FragCoord.xy) % (SHADOW_TILEMAP_RES * debug_tile_size_px), int2(0))))
+      if (!any(equal(int2(gl_FragCoord.xy) % (SHADOW_TILEMAP_RES * debug_tile_size_px), int2(0))))
       {
         gl_FragDepth = 0.0f;
         out_color_add = float4(debug_tile_state_color(tile), 0.0f);

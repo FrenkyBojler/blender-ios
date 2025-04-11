@@ -121,8 +121,13 @@ void tex_box_sample_cubic(
   node_tex_image_cubic(uv.xyy, ima, color3, alpha);
 }
 
-void tex_box_blend(
-    float3 N, float4 color1, float4 color2, float4 color3, float blend, out float4 color, out float alpha)
+void tex_box_blend(float3 N,
+                   float4 color1,
+                   float4 color2,
+                   float4 color3,
+                   float blend,
+                   out float4 color,
+                   out float alpha)
 {
   /* project from direction vector to barycentric coordinates in triangles */
   N = abs(N);

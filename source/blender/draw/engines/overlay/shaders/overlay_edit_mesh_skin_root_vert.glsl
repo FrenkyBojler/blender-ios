@@ -24,7 +24,8 @@ void main()
   int vert_id = gl_VertexID % 64;
   /* TODO(fclem): Use correct vertex format. For now we read the format manually. */
   float circle_size = size[instance_id * 4];
-  float3 lP = float3(size[instance_id * 4 + 1], size[instance_id * 4 + 2], size[instance_id * 4 + 3]);
+  float3 lP = float3(
+      size[instance_id * 4 + 1], size[instance_id * 4 + 2], size[instance_id * 4 + 3]);
 
   float theta = M_TAU * (float(vert_id) / 63.0f);
   float3 circle_P = float3(cos(theta), 0.0f, sin(theta));

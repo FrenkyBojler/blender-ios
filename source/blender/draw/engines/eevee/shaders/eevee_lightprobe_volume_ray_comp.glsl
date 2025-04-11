@@ -21,7 +21,10 @@ COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_volume_ray)
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-void irradiance_capture(float3 L, float3 irradiance, float visibility, inout SphericalHarmonicL1 sh)
+void irradiance_capture(float3 L,
+                        float3 irradiance,
+                        float visibility,
+                        inout SphericalHarmonicL1 sh)
 {
   float3 lL = transform_direction(capture_info_buf.irradiance_grid_world_to_local_rotation, L);
 
@@ -94,9 +97,10 @@ void main()
     return;
   }
 
-  float3 P = lightprobe_volume_grid_sample_position(capture_info_buf.irradiance_grid_local_to_world,
-                                                  capture_info_buf.irradiance_grid_size,
-                                                  grid_coord);
+  float3 P = lightprobe_volume_grid_sample_position(
+      capture_info_buf.irradiance_grid_local_to_world,
+      capture_info_buf.irradiance_grid_size,
+      grid_coord);
 
   /* Add virtual offset to avoid baking inside of geometry as much as possible. */
   P += imageLoadFast(virtual_offset_img, grid_coord).xyz;

@@ -22,7 +22,8 @@ void main()
   /* Center uv in range [-1..1]. */
   gather_uv = gather_uv * 2.0f - 1.0f;
 
-  float2 slight_focus_texel = float2(gl_GlobalInvocationID.xy) - float(dof_max_slight_focus_radius);
+  float2 slight_focus_texel = float2(gl_GlobalInvocationID.xy) -
+                              float(dof_max_slight_focus_radius);
 
   float radius = length(gather_uv);
 

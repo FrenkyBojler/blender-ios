@@ -278,8 +278,8 @@ float noise(float p)
 
 float snoise(float2 p)
 {
-  float2 precision_correction = 0.5f *
-                              float2(float(abs(p.x) >= 1000000.0f), float(abs(p.y) >= 1000000.0f));
+  float2 precision_correction = 0.5f * float2(float(abs(p.x) >= 1000000.0f),
+                                              float(abs(p.y) >= 1000000.0f));
   /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */
@@ -296,8 +296,8 @@ float noise(float2 p)
 float snoise(float3 p)
 {
   float3 precision_correction = 0.5f * float3(float(abs(p.x) >= 1000000.0f),
-                                          float(abs(p.y) >= 1000000.0f),
-                                          float(abs(p.z) >= 1000000.0f));
+                                              float(abs(p.y) >= 1000000.0f),
+                                              float(abs(p.z) >= 1000000.0f));
   /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */
@@ -314,9 +314,9 @@ float noise(float3 p)
 float snoise(float4 p)
 {
   float4 precision_correction = 0.5f * float4(float(abs(p.x) >= 1000000.0f),
-                                          float(abs(p.y) >= 1000000.0f),
-                                          float(abs(p.z) >= 1000000.0f),
-                                          float(abs(p.w) >= 1000000.0f));
+                                              float(abs(p.y) >= 1000000.0f),
+                                              float(abs(p.z) >= 1000000.0f),
+                                              float(abs(p.w) >= 1000000.0f));
   /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */

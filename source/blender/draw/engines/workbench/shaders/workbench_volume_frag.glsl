@@ -196,14 +196,15 @@ void eval_volume_step(inout float3 Lscat, float extinction, float step_len, out 
 
 #define P(x) ((x + 0.5f) * (1.0f / 16.0f))
 
-float4 volume_integration(float3 ray_ori, float3 ray_dir, float ray_inc, float ray_max, float step_len)
+float4 volume_integration(
+    float3 ray_ori, float3 ray_dir, float ray_inc, float ray_max, float step_len)
 {
   /* NOTE: Constant array declared inside function scope to reduce shader core thread memory
    * pressure on Apple Silicon. */
   const float4 dither_mat[4] = float4_array(float4(P(0.0f), P(8.0f), P(2.0f), P(10.0f)),
-                                          float4(P(12.0f), P(4.0f), P(14.0f), P(6.0f)),
-                                          float4(P(3.0f), P(11.0f), P(1.0f), P(9.0f)),
-                                          float4(P(15.0f), P(7.0f), P(13.0f), P(5.0f)));
+                                            float4(P(12.0f), P(4.0f), P(14.0f), P(6.0f)),
+                                            float4(P(3.0f), P(11.0f), P(1.0f), P(9.0f)),
+                                            float4(P(15.0f), P(7.0f), P(13.0f), P(5.0f)));
   /* Start with full transmittance and no scattered light. */
   float3 final_scattering = float3(0.0f);
   float final_transmittance = 1.0f;

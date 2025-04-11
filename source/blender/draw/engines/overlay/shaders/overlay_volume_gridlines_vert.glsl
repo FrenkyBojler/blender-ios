@@ -98,11 +98,12 @@ void main()
   /* Corners for cell outlines. 0.45 is arbitrary. Any value below 0.5f can be used to avoid
    * overlapping of the outlines. */
   const float3 corners[4] = float3_array(float3(-0.45f, 0.45f, 0.0f),
-                                       float3(0.45f, 0.45f, 0.0f),
-                                       float3(0.45f, -0.45f, 0.0f),
-                                       float3(-0.45f, -0.45f, 0.0f));
+                                         float3(0.45f, 0.45f, 0.0f),
+                                         float3(0.45f, -0.45f, 0.0f),
+                                         float3(-0.45f, -0.45f, 0.0f));
 
-  float3 pos = domainOriginOffset + cellSize * (float3(cell_co + adaptiveCellOffset) + cell_offset);
+  float3 pos = domainOriginOffset +
+               cellSize * (float3(cell_co + adaptiveCellOffset) + cell_offset);
   float3 rotated_pos = rot_mat * corners[indices[gl_VertexID % 8]];
   pos += rotated_pos * cellSize;
 

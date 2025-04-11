@@ -136,7 +136,7 @@ void geometry_main(VertOut geom_in[2], uint out_vert_id, uint out_prim_id, uint 
 
   float4 final_color1 = geom_in[0].final_color;
   float4 final_color2 = (geom_in[0].select_override == 0u) ? geom_in[1].final_color :
-                                                           geom_in[0].final_color;
+                                                             geom_in[0].final_color;
 
   do_vertex(0, out_vert_id, out_prim_id, final_color1, pos0, wpos0, half_size, edge_ofs.xy);
   do_vertex(1, out_vert_id, out_prim_id, final_color1, pos0, wpos0, -half_size, -edge_ofs.xy);

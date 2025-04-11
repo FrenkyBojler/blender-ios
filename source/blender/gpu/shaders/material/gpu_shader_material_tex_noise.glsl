@@ -21,96 +21,96 @@
 \
   value = NOISE_TYPE(p, detail, roughness, lacunarity, offset, gain, normalize != 0.0f); \
   color = float4(value, \
-               NOISE_TYPE(p + random_float_offset(1.0f), \
-                          detail, \
-                          roughness, \
-                          lacunarity, \
-                          offset, \
-                          gain, \
-                          normalize != 0.0f), \
-               NOISE_TYPE(p + random_float_offset(2.0f), \
-                          detail, \
-                          roughness, \
-                          lacunarity, \
-                          offset, \
-                          gain, \
-                          normalize != 0.0f), \
-               1.0f);
+                 NOISE_TYPE(p + random_float_offset(1.0f), \
+                            detail, \
+                            roughness, \
+                            lacunarity, \
+                            offset, \
+                            gain, \
+                            normalize != 0.0f), \
+                 NOISE_TYPE(p + random_float_offset(2.0f), \
+                            detail, \
+                            roughness, \
+                            lacunarity, \
+                            offset, \
+                            gain, \
+                            normalize != 0.0f), \
+                 1.0f);
 
 #define NOISE_FRACTAL_DISTORTED_2D(NOISE_TYPE) \
   if (distortion != 0.0f) { \
     p += float2(snoise(p + random_vec2_offset(0.0f)) * distortion, \
-              snoise(p + random_vec2_offset(1.0f)) * distortion); \
+                snoise(p + random_vec2_offset(1.0f)) * distortion); \
   } \
 \
   value = NOISE_TYPE(p, detail, roughness, lacunarity, offset, gain, normalize != 0.0f); \
   color = float4(value, \
-               NOISE_TYPE(p + random_vec2_offset(2.0f), \
-                          detail, \
-                          roughness, \
-                          lacunarity, \
-                          offset, \
-                          gain, \
-                          normalize != 0.0f), \
-               NOISE_TYPE(p + random_vec2_offset(3.0f), \
-                          detail, \
-                          roughness, \
-                          lacunarity, \
-                          offset, \
-                          gain, \
-                          normalize != 0.0f), \
-               1.0f);
+                 NOISE_TYPE(p + random_vec2_offset(2.0f), \
+                            detail, \
+                            roughness, \
+                            lacunarity, \
+                            offset, \
+                            gain, \
+                            normalize != 0.0f), \
+                 NOISE_TYPE(p + random_vec2_offset(3.0f), \
+                            detail, \
+                            roughness, \
+                            lacunarity, \
+                            offset, \
+                            gain, \
+                            normalize != 0.0f), \
+                 1.0f);
 
 #define NOISE_FRACTAL_DISTORTED_3D(NOISE_TYPE) \
   if (distortion != 0.0f) { \
     p += float3(snoise(p + random_vec3_offset(0.0f)) * distortion, \
-              snoise(p + random_vec3_offset(1.0f)) * distortion, \
-              snoise(p + random_vec3_offset(2.0f)) * distortion); \
+                snoise(p + random_vec3_offset(1.0f)) * distortion, \
+                snoise(p + random_vec3_offset(2.0f)) * distortion); \
   } \
 \
   value = NOISE_TYPE(p, detail, roughness, lacunarity, offset, gain, normalize != 0.0f); \
   color = float4(value, \
-               NOISE_TYPE(p + random_vec3_offset(3.0f), \
-                          detail, \
-                          roughness, \
-                          lacunarity, \
-                          offset, \
-                          gain, \
-                          normalize != 0.0f), \
-               NOISE_TYPE(p + random_vec3_offset(4.0f), \
-                          detail, \
-                          roughness, \
-                          lacunarity, \
-                          offset, \
-                          gain, \
-                          normalize != 0.0f), \
-               1.0f);
+                 NOISE_TYPE(p + random_vec3_offset(3.0f), \
+                            detail, \
+                            roughness, \
+                            lacunarity, \
+                            offset, \
+                            gain, \
+                            normalize != 0.0f), \
+                 NOISE_TYPE(p + random_vec3_offset(4.0f), \
+                            detail, \
+                            roughness, \
+                            lacunarity, \
+                            offset, \
+                            gain, \
+                            normalize != 0.0f), \
+                 1.0f);
 
 #define NOISE_FRACTAL_DISTORTED_4D(NOISE_TYPE) \
   if (distortion != 0.0f) { \
     p += float4(snoise(p + random_vec4_offset(0.0f)) * distortion, \
-              snoise(p + random_vec4_offset(1.0f)) * distortion, \
-              snoise(p + random_vec4_offset(2.0f)) * distortion, \
-              snoise(p + random_vec4_offset(3.0f)) * distortion); \
+                snoise(p + random_vec4_offset(1.0f)) * distortion, \
+                snoise(p + random_vec4_offset(2.0f)) * distortion, \
+                snoise(p + random_vec4_offset(3.0f)) * distortion); \
   } \
 \
   value = NOISE_TYPE(p, detail, roughness, lacunarity, offset, gain, normalize != 0.0f); \
   color = float4(value, \
-               NOISE_TYPE(p + random_vec4_offset(4.0f), \
-                          detail, \
-                          roughness, \
-                          lacunarity, \
-                          offset, \
-                          gain, \
-                          normalize != 0.0f), \
-               NOISE_TYPE(p + random_vec4_offset(5.0f), \
-                          detail, \
-                          roughness, \
-                          lacunarity, \
-                          offset, \
-                          gain, \
-                          normalize != 0.0f), \
-               1.0f);
+                 NOISE_TYPE(p + random_vec4_offset(4.0f), \
+                            detail, \
+                            roughness, \
+                            lacunarity, \
+                            offset, \
+                            gain, \
+                            normalize != 0.0f), \
+                 NOISE_TYPE(p + random_vec4_offset(5.0f), \
+                            detail, \
+                            roughness, \
+                            lacunarity, \
+                            offset, \
+                            gain, \
+                            normalize != 0.0f), \
+                 1.0f);
 
 float random_float_offset(float seed)
 {
@@ -120,22 +120,22 @@ float random_float_offset(float seed)
 float2 random_vec2_offset(float seed)
 {
   return float2(100.0f + hash_vec2_to_float(float2(seed, 0.0f)) * 100.0f,
-              100.0f + hash_vec2_to_float(float2(seed, 1.0f)) * 100.0f);
+                100.0f + hash_vec2_to_float(float2(seed, 1.0f)) * 100.0f);
 }
 
 float3 random_vec3_offset(float seed)
 {
   return float3(100.0f + hash_vec2_to_float(float2(seed, 0.0f)) * 100.0f,
-              100.0f + hash_vec2_to_float(float2(seed, 1.0f)) * 100.0f,
-              100.0f + hash_vec2_to_float(float2(seed, 2.0f)) * 100.0f);
+                100.0f + hash_vec2_to_float(float2(seed, 1.0f)) * 100.0f,
+                100.0f + hash_vec2_to_float(float2(seed, 2.0f)) * 100.0f);
 }
 
 float4 random_vec4_offset(float seed)
 {
   return float4(100.0f + hash_vec2_to_float(float2(seed, 0.0f)) * 100.0f,
-              100.0f + hash_vec2_to_float(float2(seed, 1.0f)) * 100.0f,
-              100.0f + hash_vec2_to_float(float2(seed, 2.0f)) * 100.0f,
-              100.0f + hash_vec2_to_float(float2(seed, 3.0f)) * 100.0f);
+                100.0f + hash_vec2_to_float(float2(seed, 1.0f)) * 100.0f,
+                100.0f + hash_vec2_to_float(float2(seed, 2.0f)) * 100.0f,
+                100.0f + hash_vec2_to_float(float2(seed, 3.0f)) * 100.0f);
 }
 
 /* Noise fBM */

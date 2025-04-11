@@ -232,7 +232,10 @@ struct ShadowRayPunctual {
 };
 
 /* Return ray in UV clip space [0..1]. */
-ShadowRayPunctual shadow_ray_generate_punctual(LightData light, float2 random_2d, float3 lP, float3 lNg)
+ShadowRayPunctual shadow_ray_generate_punctual(LightData light,
+                                               float2 random_2d,
+                                               float3 lP,
+                                               float3 lNg)
 {
   if (light.type == LIGHT_RECT) {
     random_2d = random_2d * 2.0f - 1.0f;
@@ -478,7 +481,7 @@ float shadow_eval(LightData light,
   P += N_bias * (texel_radius * shadow_normal_offset(Ng, L));
 
   float3 lP = is_directional ? light_world_to_local_direction(light, P) :
-                             light_world_to_local_point(light, P);
+                               light_world_to_local_point(light, P);
   float3 lNg = light_world_to_local_direction(light, Ng);
   /* Invert horizon clipping. */
   lNg = (is_transmission) ? -lNg : lNg;

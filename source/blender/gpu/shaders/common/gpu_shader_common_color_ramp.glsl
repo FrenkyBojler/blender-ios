@@ -43,7 +43,8 @@ float compute_color_map_coordinate(float coordinate)
   return coordinate * sampler_scale + sampler_offset;
 }
 
-void valtorgb(float fac, sampler1DArray colormap, float layer, out float4 outcol, out float outalpha)
+void valtorgb(
+    float fac, sampler1DArray colormap, float layer, out float4 outcol, out float outalpha)
 {
   outcol = texture(colormap, float2(compute_color_map_coordinate(fac), layer));
   outalpha = outcol.a;

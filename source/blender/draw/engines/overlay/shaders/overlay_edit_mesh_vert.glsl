@@ -107,7 +107,8 @@ void main()
 #if !defined(FACE)
   /* Facing based color blend */
   float3 view_normal = normalize(drw_normal_object_to_view(vnor) + 1e-4f);
-  float3 view_vec = (drw_view().winmat[3][3] == 0.0f) ? normalize(view_pos) : float3(0.0f, 0.0f, 1.0f);
+  float3 view_vec = (drw_view().winmat[3][3] == 0.0f) ? normalize(view_pos) :
+                                                        float3(0.0f, 0.0f, 1.0f);
   float facing = dot(view_vec, view_normal);
   facing = 1.0f - abs(facing) * 0.2f;
 

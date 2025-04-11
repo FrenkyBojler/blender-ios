@@ -265,9 +265,9 @@ ShadowCoordinates shadow_coordinate_from_uvs(int tilemap_index, float2 tilemap_u
 
 /* Retain sign bit and avoid costly int division. */
 int2 shadow_decompress_grid_offset(eLightType light_type,
-                                    int2 offset_neg,
-                                    int2 offset_pos,
-                                    int level_relative)
+                                   int2 offset_neg,
+                                   int2 offset_pos,
+                                   int level_relative)
 {
   if (light_type == LIGHT_SUN_ORTHO) {
     return shadow_cascade_grid_offset(offset_pos, level_relative);

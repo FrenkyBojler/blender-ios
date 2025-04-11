@@ -51,7 +51,8 @@ void shadow_tag_usage_tilemap_directional_at_level(uint l_idx, float3 P, int lev
   shadow_tag_usage_tile(light, coord.tilemap_tile, 0, coord.tilemap_index);
 }
 
-void shadow_tag_usage_tilemap_directional(uint l_idx, float3 P, float3 V, float radius, int lod_bias)
+void shadow_tag_usage_tilemap_directional(
+    uint l_idx, float3 P, float3 V, float radius, int lod_bias)
 {
   LightData light = light_buf[l_idx];
 

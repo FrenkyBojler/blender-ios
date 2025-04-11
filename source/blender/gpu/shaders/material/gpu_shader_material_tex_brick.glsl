@@ -5,15 +5,15 @@
 #include "gpu_shader_common_hash.glsl"
 
 float2 calc_brick_texture(float3 p,
-                        float mortar_size,
-                        float mortar_smooth,
-                        float bias,
-                        float brick_width,
-                        float row_height,
-                        float offset_amount,
-                        int offset_frequency,
-                        float squash_amount,
-                        int squash_frequency)
+                          float mortar_size,
+                          float mortar_smooth,
+                          float bias,
+                          float brick_width,
+                          float row_height,
+                          float offset_amount,
+                          int offset_frequency,
+                          float squash_amount,
+                          int squash_frequency)
 {
   int bricknum, rownum;
   float offset = 0.0f;
@@ -64,15 +64,15 @@ void node_tex_brick(float3 co,
                     out float fac)
 {
   float2 f2 = calc_brick_texture(co * scale,
-                               mortar_size,
-                               mortar_smooth,
-                               bias,
-                               brick_width,
-                               row_height,
-                               offset_amount,
-                               int(offset_frequency),
-                               squash_amount,
-                               int(squash_frequency));
+                                 mortar_size,
+                                 mortar_smooth,
+                                 bias,
+                                 brick_width,
+                                 row_height,
+                                 offset_amount,
+                                 int(offset_frequency),
+                                 squash_amount,
+                                 int(squash_frequency));
   float tint = f2.x;
   float f = f2.y;
   if (f != 1.0f) {

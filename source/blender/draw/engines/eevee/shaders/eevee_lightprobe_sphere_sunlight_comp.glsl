@@ -61,7 +61,7 @@ void main()
      * the sun light. */
     float len;
     float3 direction = safe_normalize_and_get_length(local_direction[0].xyz / local_direction[0].w,
-                                                   len);
+                                                     len);
 
     float3x3 tx = transpose(from_up_axis(direction));
     /* Convert to transform. */

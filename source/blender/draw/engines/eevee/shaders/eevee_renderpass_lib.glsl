@@ -45,9 +45,8 @@ void output_aov(float4 color, float value, uint hash)
 #if defined(MAT_RENDER_PASS_SUPPORT) && defined(GPU_FRAGMENT_SHADER)
   for (int i = 0; i < AOV_MAX && i < uniform_buf.render_pass.aovs.color_len; i++) {
     if (uniform_buf.render_pass.aovs.hash_color[i].x == hash) {
-      imageStoreFast(rp_color_img,
-                     int3(int2(gl_FragCoord.xy), uniform_buf.render_pass.color_len + i),
-                     color);
+      imageStoreFast(
+          rp_color_img, int3(int2(gl_FragCoord.xy), uniform_buf.render_pass.color_len + i), color);
       return;
     }
   }

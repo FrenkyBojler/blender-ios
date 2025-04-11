@@ -23,9 +23,9 @@ float4 cryptomatte_false_color(float hash)
 {
   uint m3hash = floatBitsToUint(hash);
   return float4(hash,
-              float(m3hash << 8) / float(0xFFFFFFFFu),
-              float(m3hash << 16) / float(0xFFFFFFFFu),
-              1.0f);
+                float(m3hash << 8) / float(0xFFFFFFFFu),
+                float(m3hash << 16) / float(0xFFFFFFFFu),
+                1.0f);
 }
 
 void main()
@@ -43,8 +43,7 @@ void main()
     out_color = imageLoadFast(color_accum_img, int3(texel, display_id));
   }
   else /* PASS_STORAGE_CRYPTOMATTE */ {
-    out_color = cryptomatte_false_color(
-        imageLoadFast(cryptomatte_img, int3(texel, display_id)).r);
+    out_color = cryptomatte_false_color(imageLoadFast(cryptomatte_img, int3(texel, display_id)).r);
   }
 
   float out_depth = imageLoadFast(depth_img, texel).r;

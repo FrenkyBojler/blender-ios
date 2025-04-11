@@ -35,19 +35,19 @@ void main()
    * We detect causality by even numbers. */
   bool is_causal = gl_GlobalInvocationID.y % 2 == 0;
   float2 first_feedforward_coefficients = is_causal ? first_causal_feedforward_coefficients :
-                                                    first_non_causal_feedforward_coefficients;
+                                                      first_non_causal_feedforward_coefficients;
   float first_boundary_coefficient = is_causal ? first_causal_boundary_coefficient :
                                                  first_non_causal_boundary_coefficient;
   float2 second_feedforward_coefficients = is_causal ? second_causal_feedforward_coefficients :
-                                                     second_non_causal_feedforward_coefficients;
+                                                       second_non_causal_feedforward_coefficients;
   float second_boundary_coefficient = is_causal ? second_causal_boundary_coefficient :
                                                   second_non_causal_boundary_coefficient;
   /* And we detect the filter by order. */
   bool is_first_filter = gl_GlobalInvocationID.y < 2;
   float2 feedforward_coefficients = is_first_filter ? first_feedforward_coefficients :
-                                                    second_feedforward_coefficients;
+                                                      second_feedforward_coefficients;
   float2 feedback_coefficients = is_first_filter ? first_feedback_coefficients :
-                                                 second_feedback_coefficients;
+                                                   second_feedback_coefficients;
   float boundary_coefficient = is_first_filter ? first_boundary_coefficient :
                                                  second_boundary_coefficient;
 
@@ -64,7 +64,8 @@ void main()
    * boundary coefficient. See the VanVlietGaussianCoefficients class for more information on the
    * boundary handing. */
   float4 output_boundary = input_boundary * boundary_coefficient;
-  float4 outputs[FILTER_ORDER + 1] = float4_array(output_boundary, output_boundary, output_boundary);
+  float4 outputs[FILTER_ORDER + 1] = float4_array(
+      output_boundary, output_boundary, output_boundary);
 
   for (int x = 0; x < width; x++) {
     /* Run forward across rows for the causal filter and backward for the non causal filter. */

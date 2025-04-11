@@ -143,7 +143,7 @@ void clipmap_sync(inout LightData light)
 {
   float3 ws_camera_position = uniform_buf.camera.viewinv[3].xyz;
   float3 ls_camera_position = transform_direction_transposed(light.object_to_world,
-                                                           ws_camera_position);
+                                                             ws_camera_position);
 
   int level_min = light_sun_data_get(light).clipmap_lod_min;
   int level_max = light_sun_data_get(light).clipmap_lod_max;
@@ -310,7 +310,7 @@ void main()
 
       if (is_area_light(light.type)) {
         float2 point_on_unit_shape = (light.type == LIGHT_RECT) ? rand.xy * 2.0f - 1.0f :
-                                                                sample_disk(rand.xy);
+                                                                  sample_disk(rand.xy);
         position_on_light = float3(point_on_unit_shape * light_area_data_get(light).size, 0.0f);
       }
       else {

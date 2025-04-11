@@ -27,7 +27,8 @@ float4 gpu_attr_decode_1010102_snorm(uint in_data)
   bool4 v_sign = greaterThan(v_data & uint4(0x3FF, 0x3FF, 0x3FF, 0x3),
                              uint4(0x1FF, 0x1FF, 0x1FF, 0x1));
   uint4 v_data_u = floatBitsToUint(mix(uintBitsToFloat(v_data), uintBitsToFloat(~v_data), v_sign));
-  float4 mag = float4(v_data_u & uint4(0x1FF, 0x1FF, 0x1FF, 0x1)) / float4(0x1FF, 0x1FF, 0x1FF, 0x1);
+  float4 mag = float4(v_data_u & uint4(0x1FF, 0x1FF, 0x1FF, 0x1)) /
+               float4(0x1FF, 0x1FF, 0x1FF, 0x1);
   return mix(mag, -mag, v_sign);
 }
 

@@ -98,8 +98,8 @@ void main()
           float lod_res = float(SHADOW_TILEMAP_RES >> lod);
 
           /* TODO(fclem): These should be the culling planes. */
-          // vec2 cull_region_start = (vec2(rect_min) / lod_res) * 2.0f - 1.0f;
-          // vec2 cull_region_end = (vec2(rect_max) / lod_res) * 2.0f - 1.0f;
+          // float2 cull_region_start = (float2(rect_min) / lod_res) * 2.0f - 1.0f;
+          // float2 cull_region_end = (float2(rect_max) / lod_res) * 2.0f - 1.0f;
           float2 view_start = (float2(rect_min) / lod_res) * 2.0f - 1.0f;
           float2 view_end = (float2(rect_min + viewport_size) / lod_res) * 2.0f - 1.0f;
 

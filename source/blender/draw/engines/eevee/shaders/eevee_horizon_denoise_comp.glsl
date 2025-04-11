@@ -24,7 +24,7 @@ float sample_weight_get(
     float3 center_N, float3 center_P, int2 sample_texel, float2 sample_uv, int2 sample_offset)
 {
   int2 sample_texel_fullres = sample_texel * uniform_buf.raytrace.horizon_resolution_scale +
-                               uniform_buf.raytrace.horizon_resolution_bias;
+                              uniform_buf.raytrace.horizon_resolution_bias;
   float sample_depth = texelFetch(hiz_tx, sample_texel_fullres, 0).r;
 
   bool is_valid;
@@ -64,7 +64,7 @@ void main()
 
   float2 texel_size = 1.0f / float2(textureSize(in_sh_0_tx, 0).xy);
   int2 texel_fullres = texel * uniform_buf.raytrace.horizon_resolution_scale +
-                        uniform_buf.raytrace.horizon_resolution_bias;
+                       uniform_buf.raytrace.horizon_resolution_bias;
 
   bool is_valid;
   float center_depth = texelFetch(hiz_tx, texel_fullres, 0).r;

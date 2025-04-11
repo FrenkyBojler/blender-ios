@@ -17,8 +17,8 @@ void main()
 
   for (uint vertex_id = vertex_start; vertex_id < vertex_end; vertex_id++) {
     out_buf[start_offset + vertex_id] = float4(in_buf[vertex_id * vertex_stride + 0],
-                                             in_buf[vertex_id * vertex_stride + 1],
-                                             in_buf[vertex_id * vertex_stride + 2],
-                                             1.0f);
+                                               in_buf[vertex_id * vertex_stride + 1],
+                                               in_buf[vertex_id * vertex_stride + 2],
+                                               1.0f);
   }
 }

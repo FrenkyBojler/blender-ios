@@ -23,18 +23,18 @@ void main()
   const float center_weight = 1.0f - 2.0f * corner_weight;
 
   float3 x_partial_derivative = texture_load(input_tx, texel + int2(-1, 1)).rgb * -corner_weight +
-                              texture_load(input_tx, texel + int2(-1, 0)).rgb * -center_weight +
-                              texture_load(input_tx, texel + int2(-1, -1)).rgb * -corner_weight +
-                              texture_load(input_tx, texel + int2(1, 1)).rgb * corner_weight +
-                              texture_load(input_tx, texel + int2(1, 0)).rgb * center_weight +
-                              texture_load(input_tx, texel + int2(1, -1)).rgb * corner_weight;
+                                texture_load(input_tx, texel + int2(-1, 0)).rgb * -center_weight +
+                                texture_load(input_tx, texel + int2(-1, -1)).rgb * -corner_weight +
+                                texture_load(input_tx, texel + int2(1, 1)).rgb * corner_weight +
+                                texture_load(input_tx, texel + int2(1, 0)).rgb * center_weight +
+                                texture_load(input_tx, texel + int2(1, -1)).rgb * corner_weight;
 
   float3 y_partial_derivative = texture_load(input_tx, texel + int2(-1, 1)).rgb * corner_weight +
-                              texture_load(input_tx, texel + int2(0, 1)).rgb * center_weight +
-                              texture_load(input_tx, texel + int2(1, 1)).rgb * corner_weight +
-                              texture_load(input_tx, texel + int2(-1, -1)).rgb * -corner_weight +
-                              texture_load(input_tx, texel + int2(0, -1)).rgb * -center_weight +
-                              texture_load(input_tx, texel + int2(1, -1)).rgb * -corner_weight;
+                                texture_load(input_tx, texel + int2(0, 1)).rgb * center_weight +
+                                texture_load(input_tx, texel + int2(1, 1)).rgb * corner_weight +
+                                texture_load(input_tx, texel + int2(-1, -1)).rgb * -corner_weight +
+                                texture_load(input_tx, texel + int2(0, -1)).rgb * -center_weight +
+                                texture_load(input_tx, texel + int2(1, -1)).rgb * -corner_weight;
 
   float dxdx = dot(x_partial_derivative, x_partial_derivative);
   float dxdy = dot(x_partial_derivative, y_partial_derivative);

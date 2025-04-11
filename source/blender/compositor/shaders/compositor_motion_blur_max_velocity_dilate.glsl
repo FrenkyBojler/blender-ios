@@ -68,7 +68,7 @@ void main()
   }
 
   float4 max_motion = texture_load(input_tx, src_tile) *
-                    float4(float2(shutter_speed), float2(-shutter_speed));
+                      float4(float2(shutter_speed), float2(-shutter_speed));
 
   MotionPayload payload_prv = motion_blur_tile_indirection_pack_payload(max_motion.xy,
                                                                         uint2(src_tile));

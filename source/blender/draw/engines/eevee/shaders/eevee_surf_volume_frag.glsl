@@ -51,7 +51,8 @@ struct VolumeProperties {
 
 VolumeProperties eval_froxel(int3 froxel, float jitter)
 {
-  float3 uvw = (float3(froxel) + float3(0.5f, 0.5f, 0.5f - jitter)) * uniform_buf.volumes.inv_tex_size;
+  float3 uvw = (float3(froxel) + float3(0.5f, 0.5f, 0.5f - jitter)) *
+               uniform_buf.volumes.inv_tex_size;
 
   float3 vP = volume_jitter_to_view(uvw);
   float3 wP = drw_point_view_to_world(vP);

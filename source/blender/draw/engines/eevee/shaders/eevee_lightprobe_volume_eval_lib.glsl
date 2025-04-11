@@ -33,8 +33,8 @@ int3 lightprobe_volume_grid_brick_coord(float3 lP)
  * Return the local coordinated of the shading point inside the brick in unnormalized coordinate.
  */
 float3 lightprobe_volume_grid_brick_local_coord(VolumeProbeData grid_data,
-                                              float3 lP,
-                                              int3 brick_coord)
+                                                float3 lP,
+                                                int3 brick_coord)
 {
   /* Avoid sampling adjacent bricks around the origin. */
   lP = max(lP, float3(0.5f));
@@ -47,9 +47,9 @@ float3 lightprobe_volume_grid_brick_local_coord(VolumeProbeData grid_data,
  * Return the biased local brick local coordinated.
  */
 float3 lightprobe_volume_grid_bias_sample_coord(VolumeProbeData grid_data,
-                                              uint2 brick_atlas_coord,
-                                              float3 brick_lP,
-                                              float3 lNg)
+                                                uint2 brick_atlas_coord,
+                                                float3 brick_lP,
+                                                float3 lNg)
 {
   /* A cell is the interpolation region between 8 texels. */
   float3 cell_lP = brick_lP - 0.5f;
@@ -60,7 +60,7 @@ float3 lightprobe_volume_grid_bias_sample_coord(VolumeProbeData grid_data,
   uint vis_comp = uint(cell_start.z) % 4u;
   /* Visibility is stored after the irradiance. */
   int3 vis_coord = int3(int2(brick_atlas_coord), IRRADIANCE_GRID_BRICK_SIZE * 4) +
-                    int3(cell_start);
+                   int3(cell_start);
   /* Visibility is stored packed 1 cell per channel. */
   vis_coord.z -= int(vis_comp);
   float cell_visibility = texelFetch(irradiance_atlas_tx, vis_coord, 0)[vis_comp];
@@ -82,7 +82,8 @@ float3 lightprobe_volume_grid_bias_sample_coord(VolumeProbeData grid_data,
   for (int i = 0; i < 8; i++) {
     int3 sample_position = lightprobe_volume_grid_cell_corner(i);
 
-    float3 trilinear = select(1.0f - cell_fract, cell_fract, greaterThan(sample_position, int3(0)));
+    float3 trilinear = select(
+        1.0f - cell_fract, cell_fract, greaterThan(sample_position, int3(0)));
     float positional_weight = trilinear.x * trilinear.y * trilinear.z;
 
     float len;
@@ -114,7 +115,7 @@ float3 lightprobe_volume_grid_bias_sample_coord(VolumeProbeData grid_data,
 SphericalHarmonicL1 lightprobe_volume_sample_atlas(sampler3D atlas_tx, float3 atlas_coord)
 {
   float4 texture_coord = float4(atlas_coord, float(IRRADIANCE_GRID_BRICK_SIZE)) /
-                       float3(textureSize(atlas_tx, 0)).xyzz;
+                         float3(textureSize(atlas_tx, 0)).xyzz;
   SphericalHarmonicL1 sh;
   sh.L0.M0 = textureLod(atlas_tx, texture_coord.xyz, 0.0f);
   texture_coord.z += texture_coord.w;

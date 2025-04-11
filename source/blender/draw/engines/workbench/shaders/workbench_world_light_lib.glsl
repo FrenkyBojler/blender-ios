@@ -24,8 +24,13 @@ float3 brdf_approx(float3 spec_color, float roughness, float NV)
   return mix(spec_color, float3(1.0f), fresnel);
 }
 
-void prep_specular(
-    float3 L, float3 I, float3 N, float3 R, out float NL, out float wrapped_NL, out float spec_angle)
+void prep_specular(float3 L,
+                   float3 I,
+                   float3 N,
+                   float3 R,
+                   out float NL,
+                   out float wrapped_NL,
+                   out float spec_angle)
 {
   wrapped_NL = dot(L, R);
   float3 half_dir = normalize(L + I);
@@ -68,9 +73,9 @@ float3 get_world_lighting(float3 base_color, float roughness, float metallic, fl
   float3 specular_light = world_data.ambient_color.rgb;
   float3 diffuse_light = world_data.ambient_color.rgb;
   float4 wrap = float4(world_data.lights[0].diffuse_color_wrap.a,
-                   world_data.lights[1].diffuse_color_wrap.a,
-                   world_data.lights[2].diffuse_color_wrap.a,
-                   world_data.lights[3].diffuse_color_wrap.a);
+                       world_data.lights[1].diffuse_color_wrap.a,
+                       world_data.lights[2].diffuse_color_wrap.a,
+                       world_data.lights[3].diffuse_color_wrap.a);
 
   if (world_data.use_specular) {
     /* Prepare Specular computation. Eval 4 lights at once. */

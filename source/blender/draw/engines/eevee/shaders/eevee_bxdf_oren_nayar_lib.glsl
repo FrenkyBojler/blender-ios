@@ -77,7 +77,8 @@ ClosureLight bxdf_oren_nayar_light(ClosureUndetermined cl)
 {
   ClosureLight light;
   /* TODO(fclem): LTC fit. */
-  light.ltc_mat = float4(1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
+  light.ltc_mat = float4(
+      1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;

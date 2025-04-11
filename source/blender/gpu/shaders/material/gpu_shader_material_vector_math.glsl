@@ -11,7 +11,8 @@ float3 vector_math_safe_normalize(float3 a)
   return (length_sqr > 1e-35f) ? a * inversesqrt(length_sqr) : float3(0.0f);
 }
 
-void vector_math_add(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_add(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = a + b;
 }
@@ -34,7 +35,8 @@ void vector_math_divide(
   outVector = safe_divide(a, b);
 }
 
-void vector_math_cross(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_cross(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = cross(a, b);
 }
@@ -52,7 +54,8 @@ void vector_math_reflect(
   outVector = reflect(a, vector_math_safe_normalize(b));
 }
 
-void vector_math_dot(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_dot(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outValue = dot(a, b);
 }
@@ -69,7 +72,8 @@ void vector_math_length(
   outValue = length(a);
 }
 
-void vector_math_scale(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_scale(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = a * scale;
 }
@@ -85,17 +89,20 @@ void vector_math_normalize(
   }
 }
 
-void vector_math_snap(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_snap(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = floor(safe_divide(a, b)) * b;
 }
 
-void vector_math_floor(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_floor(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = floor(a);
 }
 
-void vector_math_ceil(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_ceil(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = ceil(a);
 }
@@ -106,7 +113,8 @@ void vector_math_modulo(
   outVector = compatible_mod(a, b);
 }
 
-void vector_math_wrap(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_wrap(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = wrap(a, b, c);
 }
@@ -135,7 +143,8 @@ void vector_math_maximum(
   outVector = max(a, b);
 }
 
-void vector_math_sine(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_sine(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = sin(a);
 }

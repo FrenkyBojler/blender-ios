@@ -33,7 +33,7 @@ uint outline_colorid_get()
 
 /* Replace top 2 bits (of the 16bit output) by outlineId.
  * This leaves 16K different IDs to create outlines between objects.
- * `vec3 world_pos = drw_point_object_to_world(pos);`
+ * `float3 world_pos = drw_point_object_to_world(pos);`
  * `SHIFT = (32 - (16 - 2))`. */
 #define SHIFT 18u
 

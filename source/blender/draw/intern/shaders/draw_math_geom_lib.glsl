@@ -52,9 +52,9 @@ float line_plane_intersect_dist(float3 line_origin, float3 line_direction, float
 }
 
 float3 line_plane_intersect(float3 line_origin,
-                          float3 line_direction,
-                          float3 plane_origin,
-                          float3 plane_normal)
+                            float3 line_direction,
+                            float3 plane_origin,
+                            float3 plane_normal)
 {
   float dist = line_plane_intersect_dist(line_origin, line_direction, plane_origin, plane_normal);
   return line_origin + line_direction * dist;
@@ -66,7 +66,9 @@ float3 line_plane_intersect(float3 line_origin, float3 line_direction, float4 pl
   return line_origin + line_direction * dist;
 }
 
-float line_aligned_plane_intersect_dist(float3 line_origin, float3 line_direction, float3 plane_origin)
+float line_aligned_plane_intersect_dist(float3 line_origin,
+                                        float3 line_direction,
+                                        float3 plane_origin)
 {
   /* aligned plane normal */
   float3 L = plane_origin - line_origin;
@@ -124,7 +126,9 @@ float line_unit_box_intersect_dist(float3 line_origin, float3 line_direction)
 float line_unit_box_intersect_dist_safe(float3 line_origin, float3 line_direction)
 {
   float3 safe_line_direction = max(float3(1e-8f), abs(line_direction)) *
-                             select(float3(1.0f), -float3(1.0f), lessThan(line_direction, float3(0.0f)));
+                               select(float3(1.0f),
+                                      -float3(1.0f),
+                                      lessThan(line_direction, float3(0.0f)));
   return line_unit_box_intersect_dist(line_origin, safe_line_direction);
 }
 
@@ -142,7 +146,9 @@ float line_unit_square_intersect_dist(float2 line_origin, float2 line_direction)
 float line_unit_square_intersect_dist_safe(float2 line_origin, float2 line_direction)
 {
   float2 safe_line_direction = max(float2(1e-8f), abs(line_direction)) *
-                             select(float2(1.0f), -float2(1.0f), lessThan(line_direction, float2(0.0f)));
+                               select(float2(1.0f),
+                                      -float2(1.0f),
+                                      lessThan(line_direction, float2(0.0f)));
   return line_unit_square_intersect_dist(line_origin, safe_line_direction);
 }
 
@@ -152,9 +158,13 @@ float line_unit_square_intersect_dist_safe(float2 line_origin, float2 line_direc
  * Safe even if \a line_direction is degenerate.
  * It assumes that an intersection exists (i.e: that \a line_direction points towards the AABB).
  */
-float line_aabb_clipping_dist(float3 line_origin, float3 line_direction, float3 aabb_min, float3 aabb_max)
+float line_aabb_clipping_dist(float3 line_origin,
+                              float3 line_direction,
+                              float3 aabb_min,
+                              float3 aabb_max)
 {
-  float3 safe_dir = select(line_direction, float3(1e-5f), lessThan(abs(line_direction), float3(1e-5f)));
+  float3 safe_dir = select(
+      line_direction, float3(1e-5f), lessThan(abs(line_direction), float3(1e-5f)));
   float3 dir_inv = 1.0f / safe_dir;
 
   float3 first_plane = (aabb_min - line_origin) * dir_inv;

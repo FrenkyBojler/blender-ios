@@ -297,7 +297,7 @@ VoronoiOutput voronoi_f1(VoronoiParams params, float2 coord)
     for (int i = -1; i <= 1; i++) {
       float2 cellOffset = float2(i, j);
       float2 pointPosition = cellOffset +
-                           hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
+                             hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
       float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
       if (distanceToPoint < minDistance) {
         targetOffset = cellOffset;
@@ -327,7 +327,7 @@ VoronoiOutput voronoi_smooth_f1(VoronoiParams params, float2 coord)
     for (int i = -2; i <= 2; i++) {
       float2 cellOffset = float2(i, j);
       float2 pointPosition = cellOffset +
-                           hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
+                             hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
       float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
       h = h == -1.0f ?
               1.0f :
@@ -365,7 +365,7 @@ VoronoiOutput voronoi_f2(VoronoiParams params, float2 coord)
     for (int i = -1; i <= 1; i++) {
       float2 cellOffset = float2(i, j);
       float2 pointPosition = cellOffset +
-                           hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
+                             hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
       float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
       if (distanceToPoint < distanceF1) {
         distanceF2 = distanceF1;
@@ -401,8 +401,8 @@ float voronoi_distance_to_edge(VoronoiParams params, float2 coord)
     for (int i = -1; i <= 1; i++) {
       float2 cellOffset = float2(i, j);
       float2 vectorToPoint = cellOffset +
-                           hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness -
-                           localPosition;
+                             hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness -
+                             localPosition;
       float distanceToPoint = dot(vectorToPoint, vectorToPoint);
       if (distanceToPoint < minDistance) {
         minDistance = distanceToPoint;
@@ -416,8 +416,8 @@ float voronoi_distance_to_edge(VoronoiParams params, float2 coord)
     for (int i = -1; i <= 1; i++) {
       float2 cellOffset = float2(i, j);
       float2 vectorToPoint = cellOffset +
-                           hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness -
-                           localPosition;
+                             hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness -
+                             localPosition;
       float2 perpendicularToEdge = vectorToPoint - vectorToClosest;
       if (dot(perpendicularToEdge, perpendicularToEdge) > 0.0001f) {
         float distanceToEdge = dot((vectorToClosest + vectorToPoint) / 2.0f,
@@ -442,7 +442,7 @@ float voronoi_n_sphere_radius(VoronoiParams params, float2 coord)
     for (int i = -1; i <= 1; i++) {
       float2 cellOffset = float2(i, j);
       float2 pointPosition = cellOffset +
-                           hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
+                             hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
       float distanceToPoint = distance(pointPosition, localPosition);
       if (distanceToPoint < minDistance) {
         minDistance = distanceToPoint;
@@ -461,7 +461,7 @@ float voronoi_n_sphere_radius(VoronoiParams params, float2 coord)
       }
       float2 cellOffset = float2(i, j) + closestPointOffset;
       float2 pointPosition = cellOffset +
-                           hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
+                             hash_vec2_to_vec2(cellPosition + cellOffset) * params.randomness;
       float distanceToPoint = distance(closestPoint, pointPosition);
       if (distanceToPoint < minDistance) {
         minDistance = distanceToPoint;
@@ -493,7 +493,7 @@ VoronoiOutput voronoi_f1(VoronoiParams params, float3 coord)
       for (int i = -1; i <= 1; i++) {
         float3 cellOffset = float3(i, j, k);
         float3 pointPosition = cellOffset +
-                             hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
+                               hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
         float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
         if (distanceToPoint < minDistance) {
           targetOffset = cellOffset;
@@ -525,7 +525,7 @@ VoronoiOutput voronoi_smooth_f1(VoronoiParams params, float3 coord)
       for (int i = -2; i <= 2; i++) {
         float3 cellOffset = float3(i, j, k);
         float3 pointPosition = cellOffset +
-                             hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
+                               hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
         float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
         h = h == -1.0f ?
                 1.0f :
@@ -565,7 +565,7 @@ VoronoiOutput voronoi_f2(VoronoiParams params, float3 coord)
       for (int i = -1; i <= 1; i++) {
         float3 cellOffset = float3(i, j, k);
         float3 pointPosition = cellOffset +
-                             hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
+                               hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
         float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
         if (distanceToPoint < distanceF1) {
           distanceF2 = distanceF1;
@@ -603,8 +603,8 @@ float voronoi_distance_to_edge(VoronoiParams params, float3 coord)
       for (int i = -1; i <= 1; i++) {
         float3 cellOffset = float3(i, j, k);
         float3 vectorToPoint = cellOffset +
-                             hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness -
-                             localPosition;
+                               hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness -
+                               localPosition;
         float distanceToPoint = dot(vectorToPoint, vectorToPoint);
         if (distanceToPoint < minDistance) {
           minDistance = distanceToPoint;
@@ -620,8 +620,8 @@ float voronoi_distance_to_edge(VoronoiParams params, float3 coord)
       for (int i = -1; i <= 1; i++) {
         float3 cellOffset = float3(i, j, k);
         float3 vectorToPoint = cellOffset +
-                             hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness -
-                             localPosition;
+                               hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness -
+                               localPosition;
         float3 perpendicularToEdge = vectorToPoint - vectorToClosest;
         if (dot(perpendicularToEdge, perpendicularToEdge) > 0.0001f) {
           float distanceToEdge = dot((vectorToClosest + vectorToPoint) / 2.0f,
@@ -648,7 +648,7 @@ float voronoi_n_sphere_radius(VoronoiParams params, float3 coord)
       for (int i = -1; i <= 1; i++) {
         float3 cellOffset = float3(i, j, k);
         float3 pointPosition = cellOffset +
-                             hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
+                               hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
         float distanceToPoint = distance(pointPosition, localPosition);
         if (distanceToPoint < minDistance) {
           minDistance = distanceToPoint;
@@ -669,7 +669,7 @@ float voronoi_n_sphere_radius(VoronoiParams params, float3 coord)
         }
         float3 cellOffset = float3(i, j, k) + closestPointOffset;
         float3 pointPosition = cellOffset +
-                             hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
+                               hash_vec3_to_vec3(cellPosition + cellOffset) * params.randomness;
         float distanceToPoint = distance(closestPoint, pointPosition);
         if (distanceToPoint < minDistance) {
           minDistance = distanceToPoint;
@@ -703,7 +703,7 @@ VoronoiOutput voronoi_f1(VoronoiParams params, float4 coord)
         for (int i = -1; i <= 1; i++) {
           float4 cellOffset = float4(i, j, k, u);
           float4 pointPosition = cellOffset +
-                               hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
+                                 hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
           float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
           if (distanceToPoint < minDistance) {
             targetOffset = cellOffset;
@@ -737,7 +737,7 @@ VoronoiOutput voronoi_smooth_f1(VoronoiParams params, float4 coord)
         for (int i = -2; i <= 2; i++) {
           float4 cellOffset = float4(i, j, k, u);
           float4 pointPosition = cellOffset +
-                               hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
+                                 hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
           float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
           h = h == -1.0f ?
                   1.0f :
@@ -779,7 +779,7 @@ VoronoiOutput voronoi_f2(VoronoiParams params, float4 coord)
         for (int i = -1; i <= 1; i++) {
           float4 cellOffset = float4(i, j, k, u);
           float4 pointPosition = cellOffset +
-                               hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
+                                 hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
           float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
           if (distanceToPoint < distanceF1) {
             distanceF2 = distanceF1;
@@ -819,8 +819,8 @@ float voronoi_distance_to_edge(VoronoiParams params, float4 coord)
         for (int i = -1; i <= 1; i++) {
           float4 cellOffset = float4(i, j, k, u);
           float4 vectorToPoint = cellOffset +
-                               hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness -
-                               localPosition;
+                                 hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness -
+                                 localPosition;
           float distanceToPoint = dot(vectorToPoint, vectorToPoint);
           if (distanceToPoint < minDistance) {
             minDistance = distanceToPoint;
@@ -838,8 +838,8 @@ float voronoi_distance_to_edge(VoronoiParams params, float4 coord)
         for (int i = -1; i <= 1; i++) {
           float4 cellOffset = float4(i, j, k, u);
           float4 vectorToPoint = cellOffset +
-                               hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness -
-                               localPosition;
+                                 hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness -
+                                 localPosition;
           float4 perpendicularToEdge = vectorToPoint - vectorToClosest;
           if (dot(perpendicularToEdge, perpendicularToEdge) > 0.0001f) {
             float distanceToEdge = dot((vectorToClosest + vectorToPoint) / 2.0f,
@@ -868,7 +868,7 @@ float voronoi_n_sphere_radius(VoronoiParams params, float4 coord)
         for (int i = -1; i <= 1; i++) {
           float4 cellOffset = float4(i, j, k, u);
           float4 pointPosition = cellOffset +
-                               hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
+                                 hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
           float distanceToPoint = distance(pointPosition, localPosition);
           if (distanceToPoint < minDistance) {
             minDistance = distanceToPoint;
@@ -891,7 +891,7 @@ float voronoi_n_sphere_radius(VoronoiParams params, float4 coord)
           }
           float4 cellOffset = float4(i, j, k, u) + closestPointOffset;
           float4 pointPosition = cellOffset +
-                               hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
+                                 hash_vec4_to_vec4(cellPosition + cellOffset) * params.randomness;
           float distanceToPoint = distance(closestPoint, pointPosition);
           if (distanceToPoint < minDistance) {
             minDistance = distanceToPoint;

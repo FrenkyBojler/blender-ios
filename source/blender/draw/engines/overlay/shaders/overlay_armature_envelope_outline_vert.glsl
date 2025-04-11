@@ -26,7 +26,8 @@ float2 compute_dir(float2 v0, float2 v1, float2 v2)
 float3x3 compute_mat(float4 sphere, float3 bone_vec, out float z_ofs)
 {
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
-  float3 cam_ray = (is_persp) ? sphere.xyz - drw_view().viewinv[3].xyz : -drw_view().viewinv[2].xyz;
+  float3 cam_ray = (is_persp) ? sphere.xyz - drw_view().viewinv[3].xyz :
+                                -drw_view().viewinv[2].xyz;
 
   /* Sphere center distance from the camera (persp) in world space. */
   float cam_dist = length(cam_ray);
@@ -73,13 +74,13 @@ bool bone_blend_starts(float3 p, Bone b)
 }
 
 float3 get_outline_point(float2 pos,
-                       float4 sph_near,
-                       float4 sph_far,
-                       float3x3 mat_near,
-                       float3x3 mat_far,
-                       float z_ofs_near,
-                       float z_ofs_far,
-                       Bone b)
+                         float4 sph_near,
+                         float4 sph_far,
+                         float3x3 mat_near,
+                         float3x3 mat_far,
+                         float z_ofs_near,
+                         float z_ofs_far,
+                         Bone b)
 {
   /* Compute outline position on the nearest sphere and check
    * if it penetrates the capsule body. If it does, put this

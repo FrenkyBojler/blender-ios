@@ -47,10 +47,10 @@ float dir_compare(float2 offset, float2 sample_motion, float sample_motion_lengt
 
 /* Return background (x) and foreground (y) weights. */
 float2 sample_weights(float center_depth,
-                    float sample_depth,
-                    float center_motion_length,
-                    float sample_motion_length,
-                    float offset_length)
+                      float sample_depth,
+                      float center_motion_length,
+                      float sample_motion_length,
+                      float offset_length)
 {
   /* Classify foreground/background. */
   float2 depth_weight = depth_compare(center_depth, sample_depth);
@@ -76,7 +76,7 @@ void gather_sample(float2 screen_uv,
 {
   float2 sample_uv = screen_uv - offset / float2(texture_size(input_tx));
   float4 sample_vectors = texture(velocity_tx, sample_uv) *
-                        float4(float2(shutter_speed), float2(-shutter_speed));
+                          float4(float2(shutter_speed), float2(-shutter_speed));
   float2 sample_motion = (next) ? sample_vectors.zw : sample_vectors.xy;
   float sample_motion_len = length(sample_motion);
   float sample_depth = texture(depth_tx, sample_uv).r;
@@ -152,14 +152,15 @@ void main()
 
   /* Data of the center pixel of the gather (target). */
   float center_depth = texture_load(depth_tx, texel).x;
-  float4 center_motion = texture(velocity_tx, uv) * float4(float2(shutter_speed), float2(-shutter_speed));
+  float4 center_motion = texture(velocity_tx, uv) *
+                         float4(float2(shutter_speed), float2(-shutter_speed));
   float4 center_color = textureLod(input_tx, uv, 0.0f);
 
   /* Randomize tile boundary to avoid ugly discontinuities. Randomize 1/4th of the tile.
    * Note this randomize only in one direction but in practice it's enough. */
   float rand = interleaved_gradient_noise(texel);
   int2 tile = (texel + int2(rand * 2.0f - 1.0f * float(MOTION_BLUR_TILE_SIZE) * 0.25f)) /
-               MOTION_BLUR_TILE_SIZE;
+              MOTION_BLUR_TILE_SIZE;
 
   float4 max_motion;
   /* Load dilation result from the indirection table. */

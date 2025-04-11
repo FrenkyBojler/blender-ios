@@ -170,9 +170,10 @@ void main()
     return;
   }
 
-  float3 P = lightprobe_volume_grid_sample_position(capture_info_buf.irradiance_grid_local_to_world,
-                                                  capture_info_buf.irradiance_grid_size,
-                                                  grid_coord);
+  float3 P = lightprobe_volume_grid_sample_position(
+      capture_info_buf.irradiance_grid_local_to_world,
+      capture_info_buf.irradiance_grid_size,
+      grid_coord);
 
   int closest_surfel_id = find_closest_surfel(grid_coord, P);
   if (closest_surfel_id == -1) {
@@ -181,7 +182,7 @@ void main()
   }
 
   /* Offset direction towards the sampling point. */
-  // vec3 offset_direction = safe_normalize(surfel_buf[closest_surfel_id].position - P);
+  // float3 offset_direction = safe_normalize(surfel_buf[closest_surfel_id].position - P);
   /* NOTE: Use normal direction of the surfel instead for stability reasons. */
   float3 offset_direction = surfel_buf[closest_surfel_id].normal;
   bool is_front_facing = dot(surfel_buf[closest_surfel_id].position - P,

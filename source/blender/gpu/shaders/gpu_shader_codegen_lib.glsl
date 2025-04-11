@@ -43,9 +43,9 @@ float2 calc_barycentric_co(int vertid)
 #  define barycentric_resolve(bary) hair_resolve_barycentric(bary)
 
 float3 orco_get(float3 local_pos,
-              float4x4 modelmatinv,
-              float4 orco_madd[2],
-              const samplerBuffer orco_samp)
+                float4x4 modelmatinv,
+                float4 orco_madd[2],
+                const samplerBuffer orco_samp)
 {
   /* TODO: fix ORCO with modifiers. */
   float3 orco = (modelmatinv * float4(local_pos, 1.0f)).xyz;

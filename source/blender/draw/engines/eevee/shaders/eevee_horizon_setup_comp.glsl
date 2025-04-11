@@ -21,7 +21,7 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
   int2 texel_fullres = texel * uniform_buf.raytrace.horizon_resolution_scale +
-                        uniform_buf.raytrace.horizon_resolution_bias;
+                       uniform_buf.raytrace.horizon_resolution_bias;
 
   /* Return early for padding threads so we can use imageStoreFast. */
   if (any(greaterThanEqual(texel, imageSize(out_radiance_img).xy))) {

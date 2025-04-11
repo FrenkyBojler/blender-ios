@@ -60,7 +60,7 @@ void main()
 
   float3 ws_aabb_min = bounds.bounding_corners[0].xyz;
   float3 ws_aabb_max = bounds.bounding_corners[0].xyz + bounds.bounding_corners[1].xyz +
-                     bounds.bounding_corners[2].xyz + bounds.bounding_corners[3].xyz;
+                       bounds.bounding_corners[2].xyz + bounds.bounding_corners[3].xyz;
 
   float3 ls_center = drw_point_world_to_object(midpoint(ws_aabb_min, ws_aabb_max));
 

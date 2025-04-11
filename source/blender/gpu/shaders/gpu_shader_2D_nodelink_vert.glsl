@@ -98,7 +98,7 @@ void main()
   float one_minus_t2_3 = 3.0f * one_minus_t2;
 
   float2 point = (P0 * one_minus_t2 * one_minus_t + P1 * one_minus_t2_3 * t +
-                P2 * t2_3 * one_minus_t + P3 * t2 * t);
+                  P2 * t2_3 * one_minus_t + P3 * t2 * t);
 
   float2 tangent = ((P1 - P0) * one_minus_t2_3 + (P2 - P1) * 6.0f * (t - t2) + (P3 - P2) * t2_3);
 

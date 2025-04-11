@@ -29,8 +29,8 @@ SHADER_LIBRARY_CREATE_INFO(eevee_volume_probe_data)
  * `cell_coord` is the coordinate of the sample in [0..grid_res) range.
  */
 float3 lightprobe_volume_grid_sample_position(float4x4 grid_local_to_world_mat,
-                                            int3 grid_res,
-                                            int3 cell_coord)
+                                              int3 grid_res,
+                                              int3 cell_coord)
 {
   float3 ls_cell_pos = (float3(cell_coord + 1)) / float3(grid_res + 1);
   ls_cell_pos = ls_cell_pos * 2.0f - 1.0f;

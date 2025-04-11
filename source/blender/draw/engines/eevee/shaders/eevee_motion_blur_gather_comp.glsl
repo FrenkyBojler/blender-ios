@@ -55,10 +55,10 @@ float dir_compare(float2 offset, float2 sample_motion, float sample_motion_lengt
 
 /* Return background (x) and foreground (y) weights. */
 float2 sample_weights(float center_depth,
-                    float sample_depth,
-                    float center_motion_length,
-                    float sample_motion_length,
-                    float offset_length)
+                      float sample_depth,
+                      float center_motion_length,
+                      float sample_motion_length,
+                      float offset_length)
 {
   /* Classify foreground/background. */
   float2 depth_weight = depth_compare(center_depth, sample_depth);
@@ -171,14 +171,15 @@ void main()
 
   float noise_offset = sampling_rng_1D_get(SAMPLING_TIME);
   /** TODO(fclem) Blue noise. */
-  float2 rand = float2(interlieved_gradient_noise(float2(gl_GlobalInvocationID.xy), 0, noise_offset),
-                   interlieved_gradient_noise(float2(gl_GlobalInvocationID.xy), 1, noise_offset));
+  float2 rand = float2(
+      interlieved_gradient_noise(float2(gl_GlobalInvocationID.xy), 0, noise_offset),
+      interlieved_gradient_noise(float2(gl_GlobalInvocationID.xy), 1, noise_offset));
 
   /* Randomize tile boundary to avoid ugly discontinuities. Randomize 1/4th of the tile.
    * Note this randomize only in one direction but in practice it's enough. */
   rand.x = rand.x * 2.0f - 1.0f;
   int2 tile = (texel + int2(rand.x * float(MOTION_BLUR_TILE_SIZE) * 0.25f)) /
-               MOTION_BLUR_TILE_SIZE;
+              MOTION_BLUR_TILE_SIZE;
   tile = clamp(tile, int2(0), imageSize(in_tiles_img) - 1);
   /* NOTE: Tile velocity is already in pixel space and with correct zw sign. */
   float4 max_motion;

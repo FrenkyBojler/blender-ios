@@ -298,15 +298,15 @@ float3 spherical_harmonics_evaluate(float3 direction, SphericalHarmonicL0 sh)
 float3 spherical_harmonics_evaluate(float3 direction, SphericalHarmonicL1 sh)
 {
   float3 radiance = spherical_harmonics_L0_evaluate(direction, sh.L0).rgb +
-                  spherical_harmonics_L1_evaluate(direction, sh.L1).rgb;
+                    spherical_harmonics_L1_evaluate(direction, sh.L1).rgb;
   return max(float3(0.0f), radiance);
 }
 
 float3 spherical_harmonics_evaluate(float3 direction, SphericalHarmonicL2 sh)
 {
   float3 radiance = spherical_harmonics_L0_evaluate(direction, sh.L0).rgb +
-                  spherical_harmonics_L1_evaluate(direction, sh.L1).rgb +
-                  spherical_harmonics_L2_evaluate(direction, sh.L2).rgb;
+                    spherical_harmonics_L1_evaluate(direction, sh.L1).rgb +
+                    spherical_harmonics_L2_evaluate(direction, sh.L2).rgb;
   return max(float3(0.0f), radiance);
 }
 
@@ -371,14 +371,14 @@ float3 spherical_harmonics_evaluate_lambert(float3 N, SphericalHarmonicL0 sh)
 float3 spherical_harmonics_evaluate_lambert(float3 N, SphericalHarmonicL1 sh)
 {
   float3 radiance = spherical_harmonics_L0_evaluate(N, sh.L0).rgb +
-                  spherical_harmonics_L1_evaluate(N, sh.L1).rgb * (2.0f / 3.0f);
+                    spherical_harmonics_L1_evaluate(N, sh.L1).rgb * (2.0f / 3.0f);
   return max(float3(0.0f), radiance);
 }
 float3 spherical_harmonics_evaluate_lambert(float3 N, SphericalHarmonicL2 sh)
 {
   float3 radiance = spherical_harmonics_L0_evaluate(N, sh.L0).rgb +
-                  spherical_harmonics_L1_evaluate(N, sh.L1).rgb * (2.0f / 3.0f) +
-                  spherical_harmonics_L2_evaluate(N, sh.L2).rgb * (1.0f / 4.0f);
+                    spherical_harmonics_L1_evaluate(N, sh.L1).rgb * (2.0f / 3.0f) +
+                    spherical_harmonics_L2_evaluate(N, sh.L2).rgb * (1.0f / 4.0f);
   return max(float3(0.0f), radiance);
 }
 
@@ -410,8 +410,8 @@ float3 spherical_harmonics_evaluate_lambert_non_linear(float3 N, SphericalHarmon
   float3 R1_b = float3(-sh.L1.Mp1.b, -sh.L1.Mn1.b, sh.L1.M0.b);
 
   float3 radiance = float3(spherical_harmonics_evaluate_non_linear(N, sh.L0.M0.r, R1_r),
-                       spherical_harmonics_evaluate_non_linear(N, sh.L0.M0.g, R1_g),
-                       spherical_harmonics_evaluate_non_linear(N, sh.L0.M0.b, R1_b));
+                           spherical_harmonics_evaluate_non_linear(N, sh.L0.M0.g, R1_g),
+                           spherical_harmonics_evaluate_non_linear(N, sh.L0.M0.b, R1_b));
   /* Return lambertian radiance. So divide by PI. */
   return radiance / M_PI;
 }

@@ -357,9 +357,9 @@ float3 compatible_mod(float3 a, float b)
 float4 compatible_mod(float4 a, float b)
 {
   return float4(compatible_mod(a.x, b),
-              compatible_mod(a.y, b),
-              compatible_mod(a.z, b),
-              compatible_mod(a.w, b));
+                compatible_mod(a.y, b),
+                compatible_mod(a.z, b),
+                compatible_mod(a.w, b));
 }
 
 float2 compatible_mod(float2 a, float2 b)
@@ -373,9 +373,9 @@ float3 compatible_mod(float3 a, float3 b)
 float4 compatible_mod(float4 a, float4 b)
 {
   return float4(compatible_mod(a.x, b.x),
-              compatible_mod(a.y, b.y),
-              compatible_mod(a.z, b.z),
-              compatible_mod(a.w, b.w));
+                compatible_mod(a.y, b.y),
+                compatible_mod(a.z, b.z),
+                compatible_mod(a.w, b.w));
 }
 
 float2 wrap(float2 a, float2 b, float2 c)
@@ -388,7 +388,8 @@ float3 wrap(float3 a, float3 b, float3 c)
 }
 float4 wrap(float4 a, float4 b, float4 c)
 {
-  return float4(wrap(a.x, b.x, c.x), wrap(a.y, b.y, c.y), wrap(a.z, b.z, c.z), wrap(a.w, b.w, c.w));
+  return float4(
+      wrap(a.x, b.x, c.x), wrap(a.y, b.y, c.y), wrap(a.z, b.z, c.z), wrap(a.w, b.w, c.w));
 }
 
 int2 ceil_to_multiple(int2 a, int2 b)
@@ -653,15 +654,15 @@ float2 fallback_pow(float2 a, float b, float2 fallback)
 float3 fallback_pow(float3 a, float b, float3 fallback)
 {
   return float3(fallback_pow(a.x, b, fallback.x),
-              fallback_pow(a.y, b, fallback.y),
-              fallback_pow(a.z, b, fallback.z));
+                fallback_pow(a.y, b, fallback.y),
+                fallback_pow(a.z, b, fallback.z));
 }
 float4 fallback_pow(float4 a, float b, float4 fallback)
 {
   return float4(fallback_pow(a.x, b, fallback.x),
-              fallback_pow(a.y, b, fallback.y),
-              fallback_pow(a.z, b, fallback.z),
-              fallback_pow(a.w, b, fallback.w));
+                fallback_pow(a.y, b, fallback.y),
+                fallback_pow(a.z, b, fallback.z),
+                fallback_pow(a.w, b, fallback.w));
 }
 
 float2 interpolate(float2 a, float2 b, float t)

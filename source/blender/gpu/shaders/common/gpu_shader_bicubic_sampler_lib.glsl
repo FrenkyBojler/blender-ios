@@ -7,7 +7,8 @@
 #include "gpu_glsl_cpp_stubs.hh"
 
 /** \param f: Offset from texel center in pixel space. */
-void cubic_bspline_coefficients(float2 f, out float2 w0, out float2 w1, out float2 w2, out float2 w3)
+void cubic_bspline_coefficients(
+    float2 f, out float2 w0, out float2 w1, out float2 w2, out float2 w3)
 {
   float2 f2 = f * f;
   float2 f3 = f2 * f;
@@ -51,7 +52,8 @@ float4 texture_bicubic(sampler2D sampler_2d, float2 coordinates)
   return sampled_color;
 
 #else /* Reference brute-force 16 taps. */
-  float4 color = texelFetch(sampler_2d, int2(texel_center + float2(-1.0f, -1.0f)), 0) * w0.x * w0.y;
+  float4 color = texelFetch(sampler_2d, int2(texel_center + float2(-1.0f, -1.0f)), 0) * w0.x *
+                 w0.y;
   color += texelFetch(sampler_2d, int2(texel_center + float2(0.0f, -1.0f)), 0) * w1.x * w0.y;
   color += texelFetch(sampler_2d, int2(texel_center + float2(1.0f, -1.0f)), 0) * w2.x * w0.y;
   color += texelFetch(sampler_2d, int2(texel_center + float2(2.0f, -1.0f)), 0) * w3.x * w0.y;

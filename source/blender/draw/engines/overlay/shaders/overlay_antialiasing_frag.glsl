@@ -73,8 +73,11 @@ float neighbor_dist(float3 line_dir_and_dist, float2 ofs)
   return dist;
 }
 
-void neighbor_blend(
-    float line_coverage, float line_depth, float4 line_color, inout float frag_depth, inout float4 col)
+void neighbor_blend(float line_coverage,
+                    float line_depth,
+                    float4 line_color,
+                    inout float frag_depth,
+                    inout float4 col)
 {
   line_color *= line_coverage;
   if (line_coverage > 0.0f && line_depth < frag_depth) {
@@ -146,7 +149,8 @@ void main()
 #if 1
   /* Fix aliasing issue with really dense meshes and 1 pixel sized lines. */
   if (!original_col_has_alpha && dist_raw > 0.0f && line_kernel < 0.45f) {
-    float4 lines = float4(neightbor_line0.z, neightbor_line1.z, neightbor_line2.z, neightbor_line3.z);
+    float4 lines = float4(
+        neightbor_line0.z, neightbor_line1.z, neightbor_line2.z, neightbor_line3.z);
     /* Count number of line neighbors. */
     float blend = dot(float4(0.25f), step(0.001f, lines));
     /* Only do blend if there are more than 2 neighbors. This avoids losing too much AA. */

@@ -26,7 +26,7 @@ void main()
    * causal one. */
   bool is_causal = gl_GlobalInvocationID.y == 0;
   float4 feedforward_coefficients = is_causal ? causal_feedforward_coefficients :
-                                              non_causal_feedforward_coefficients;
+                                                non_causal_feedforward_coefficients;
   float boundary_coefficient = is_causal ? causal_boundary_coefficient :
                                            non_causal_boundary_coefficient;
 

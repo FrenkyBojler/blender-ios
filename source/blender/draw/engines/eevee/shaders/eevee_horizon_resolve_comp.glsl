@@ -26,8 +26,9 @@ float sample_weight_get(float3 center_N, float3 center_P, int2 center_texel, int
 {
   int2 sample_texel = center_texel + sample_offset;
   int2 sample_texel_fullres = sample_texel * uniform_buf.raytrace.horizon_resolution_scale +
-                               uniform_buf.raytrace.horizon_resolution_bias;
-  float2 sample_uv = (float2(sample_texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
+                              uniform_buf.raytrace.horizon_resolution_bias;
+  float2 sample_uv = (float2(sample_texel_fullres) + 0.5f) *
+                     uniform_buf.raytrace.full_resolution_inv;
 
   float sample_depth = texelFetch(depth_tx, sample_texel_fullres, 0).r;
 
@@ -72,7 +73,7 @@ void main()
   int2 texel_fullres = int2(gl_LocalInvocationID.xy + tile_coord * tile_size);
 
   int2 texel = max(int2(0), texel_fullres - uniform_buf.raytrace.horizon_resolution_bias) /
-                uniform_buf.raytrace.horizon_resolution_scale;
+               uniform_buf.raytrace.horizon_resolution_scale;
 
   int2 extent = textureSize(gbuf_header_tx, 0).xy;
   if (any(greaterThanEqual(texel_fullres, extent))) {
@@ -97,8 +98,8 @@ void main()
   }
   else {
     float2 interp = float2(texel_fullres - texel * uniform_buf.raytrace.horizon_resolution_scale -
-                       uniform_buf.raytrace.horizon_resolution_bias) /
-                  float2(uniform_buf.raytrace.horizon_resolution_scale);
+                           uniform_buf.raytrace.horizon_resolution_bias) /
+                    float2(uniform_buf.raytrace.horizon_resolution_scale);
     float4 interp4 = float4(interp, 1.0f - interp);
     float4 bilinear_weight = interp4.zxzx * interp4.wwyy;
 

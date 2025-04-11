@@ -15,7 +15,7 @@ void main()
   select_id_set(in_select_buf[gl_InstanceID]);
 
   float3 bone_vec = data_buf[gl_InstanceID].tail_sphere.xyz -
-                  data_buf[gl_InstanceID].head_sphere.xyz;
+                    data_buf[gl_InstanceID].head_sphere.xyz;
   float bone_len = max(1e-8f, sqrt(dot(bone_vec, bone_vec)));
   float bone_lenrcp = 1.0f / bone_len;
 #ifdef SMOOTH_ENVELOPE

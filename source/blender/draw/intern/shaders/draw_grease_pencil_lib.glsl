@@ -19,7 +19,8 @@ SHADER_LIBRARY_CREATE_INFO(draw_gpencil)
 #endif
 
 #ifdef GPU_FRAGMENT_SHADER
-float gpencil_stroke_round_cap_mask(float2 p1, float2 p2, float2 aspect, float thickness, float hardfac)
+float gpencil_stroke_round_cap_mask(
+    float2 p1, float2 p2, float2 aspect, float thickness, float hardfac)
 {
   /* We create our own uv space to avoid issues with triangulation and linear
    * interpolation artifacts. */
@@ -119,7 +120,7 @@ bool gpencil_is_stroke_vertex()
  *
  * To declare in vertex shader.
  * in ivec4 ma, ma1, ma2, ma3;
- * in vec4 pos, pos1, pos2, pos3, uv1, uv2, col1, col2, fcol1;
+ * in float4 pos, pos1, pos2, pos3, uv1, uv2, col1, col2, fcol1;
  *
  * All of these attributes are quad loaded the same way
  * as GL_LINES_ADJACENCY would feed a geometry shader:
@@ -140,26 +141,26 @@ bool gpencil_is_stroke_vertex()
  * considers gl_VertexID and gl_InstanceID as vertex attribute. (see #74536)
  */
 float4 gpencil_vertex(float4 viewport_size,
-                    gpMaterialFlag material_flags,
-                    float2 alignment_rot,
-                    /* World Position. */
-                    out float3 out_P,
-                    /* World Normal. */
-                    out float3 out_N,
-                    /* Vertex Color. */
-                    out float4 out_color,
-                    /* Stroke Strength. */
-                    out float out_strength,
-                    /* UV coordinates. */
-                    out float2 out_uv,
-                    /* Screen-Space segment endpoints. */
-                    out float4 out_sspos,
-                    /* Stroke aspect ratio. */
-                    out float2 out_aspect,
-                    /* Stroke thickness (x: clamped, y: unclamped). */
-                    out float2 out_thickness,
-                    /* Stroke hardness. */
-                    out float out_hardness)
+                      gpMaterialFlag material_flags,
+                      float2 alignment_rot,
+                      /* World Position. */
+                      out float3 out_P,
+                      /* World Normal. */
+                      out float3 out_N,
+                      /* Vertex Color. */
+                      out float4 out_color,
+                      /* Stroke Strength. */
+                      out float out_strength,
+                      /* UV coordinates. */
+                      out float2 out_uv,
+                      /* Screen-Space segment endpoints. */
+                      out float4 out_sspos,
+                      /* Stroke aspect ratio. */
+                      out float2 out_aspect,
+                      /* Stroke thickness (x: clamped, y: unclamped). */
+                      out float2 out_thickness,
+                      /* Stroke hardness. */
+                      out float out_hardness)
 {
   int stroke_point_id = (gl_VertexID & ~GP_IS_STROKE_VERTEX_BIT) >> GP_VERTEX_ID_SHIFT;
 
@@ -379,15 +380,15 @@ float4 gpencil_vertex(float4 viewport_size,
 }
 
 float4 gpencil_vertex(float4 viewport_size,
-                    out float3 out_P,
-                    out float3 out_N,
-                    out float4 out_color,
-                    out float out_strength,
-                    out float2 out_uv,
-                    out float4 out_sspos,
-                    out float2 out_aspect,
-                    out float2 out_thickness,
-                    out float out_hardness)
+                      out float3 out_P,
+                      out float3 out_N,
+                      out float4 out_color,
+                      out float out_strength,
+                      out float2 out_uv,
+                      out float4 out_sspos,
+                      out float2 out_aspect,
+                      out float2 out_thickness,
+                      out float out_hardness)
 {
   return gpencil_vertex(viewport_size,
                         gpMaterialFlag(0u),

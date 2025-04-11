@@ -128,7 +128,7 @@ float2 do_tria()
     pos = tria2 ? float2(0.0f) : arrow_pos[vidx]; /* Solo tria */
     pos = float2(pos.y, -pos.x);                  /* Rotate */
     pos += float2(-0.05f, 0.0f);                  /* Translate */
-    size *= 0.8f;                               /* Scale */
+    size *= 0.8f;                                 /* Scale */
     uvInterp = arrow_uvs[vidx];
     uvInterp -= float2(0.05f, 0.63f); /* Translate */
     outRectSize = float2(0.74f, 0.17f);
@@ -141,7 +141,7 @@ float2 do_tria()
     pos = arrow_pos[min(vidx, 2)];  /* Only keep 1 triangle. */
     pos.y = tria2 ? -pos.y : pos.y; /* Mirror along X */
     pos = pos.x * float2(0.0872f, -0.996f) + pos.y * float2(0.996f, 0.0872f); /* Rotate (85deg) */
-    pos += float2(-0.1f, 0.2f);                                             /* Translate */
+    pos += float2(-0.1f, 0.2f);                                               /* Translate */
     center = tria1Center;
     size = tria1Size * 1.7f; /* Scale */
     uvInterp = arrow_uvs[vidx];
@@ -153,10 +153,10 @@ float2 do_tria()
     /* ROUNDBOX_TRIA_HOLD_ACTION_ARROW */
     /* We use a single triangle to cut the round rect in half.
      * The edge will not be Anti-aliased. */
-    pos = tria2 ? float2(0.0f) : arrow_pos[min(vidx, 2)];                 /* Only keep 1 triangle. */
+    pos = tria2 ? float2(0.0f) : arrow_pos[min(vidx, 2)]; /* Only keep 1 triangle. */
     pos = pos.x * float2(0.707f, 0.707f) + pos.y * float2(-0.707f, 0.707f); /* Rotate (45deg) */
     pos += float2(-1.7f, 2.4f); /* Translate (hard-coded, might want to remove). */
-    size *= 0.4f;             /* Scale */
+    size *= 0.4f;               /* Scale */
     uvInterp = arrow_uvs[vidx];
     uvInterp -= float2(0.05f, 0.05f); /* Translate */
     outRectSize = float2(0.75f);

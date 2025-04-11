@@ -26,7 +26,7 @@ void main()
   int2 texel = int2(gl_LocalInvocationID.xy + tile_coord * tile_size);
 
   int2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
-                        uniform_buf.raytrace.resolution_bias;
+                       uniform_buf.raytrace.resolution_bias;
 
   /* Check if texel is out of bounds,
    * so we can utilize fast texture functions and early-out if not. */

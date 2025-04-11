@@ -17,8 +17,9 @@ void main()
   /* Skip the first vertex containing header data. */
   DRWDebugVertPair vert = in_debug_lines_buf[line_id + drw_debug_draw_offset];
 
-  float3 pos = uintBitsToFloat((is_provoking_vertex) ? uint3(vert.pos1_x, vert.pos1_y, vert.pos1_z) :
-                                                     uint3(vert.pos2_x, vert.pos2_y, vert.pos2_z));
+  float3 pos = uintBitsToFloat((is_provoking_vertex) ?
+                                   uint3(vert.pos1_x, vert.pos1_y, vert.pos1_z) :
+                                   uint3(vert.pos2_x, vert.pos2_y, vert.pos2_z));
   float4 col = float4((uint4(vert.vert_color) >> uint4(0, 8, 16, 24)) & 0xFFu) / 255.0f;
 
   /* Lifetime management. */

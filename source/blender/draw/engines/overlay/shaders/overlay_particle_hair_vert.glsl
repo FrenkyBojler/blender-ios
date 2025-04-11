@@ -52,7 +52,8 @@ void wire_color_get(out float3 rim_col, out float3 wire_col)
 
 float3 hsv_to_rgb(float3 hsv)
 {
-  float3 nrgb = abs(hsv.x * 6.0f - float3(3.0f, 2.0f, 4.0f)) * float3(1, -1, -1) + float3(-1, 2, 2);
+  float3 nrgb = abs(hsv.x * 6.0f - float3(3.0f, 2.0f, 4.0f)) * float3(1, -1, -1) +
+                float3(-1, 2, 2);
   nrgb = clamp(nrgb, 0.0f, 1.0f);
   return ((nrgb - 1.0f) * hsv.y + 1.0f) * hsv.z;
 }

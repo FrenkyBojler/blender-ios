@@ -55,7 +55,7 @@ float dof_slight_focus_coc_tile_get(float2 frag_coord)
    * dof_max_slight_focus_radius is less than the group size. */
   for (int i = 0; i < 4; i++) {
     float2 sample_uv = (frag_coord + quad_offsets[i] * 2.0f * dof_max_slight_focus_radius) /
-                     float2(textureSize(color_tx, 0));
+                       float2(textureSize(color_tx, 0));
     float coc = dof_coc_from_depth(dof_buf, sample_uv, textureLod(depth_tx, sample_uv, 0.0f).r);
     coc = clamp(coc, -dof_buf.coc_abs_max, dof_buf.coc_abs_max);
     if (abs(coc) < dof_max_slight_focus_radius) {
@@ -84,7 +84,8 @@ float3 dof_neighborhood_clamp(float2 frag_coord, float3 color, float center_coc,
 {
   /* Stabilize color by clamping with the stable half res neighborhood. */
   float3 neighbor_min, neighbor_max;
-  const float2 corners[4] = float2_array(float2(-1, -1), float2(1, -1), float2(-1, 1), float2(1, 1));
+  const float2 corners[4] = float2_array(
+      float2(-1, -1), float2(1, -1), float2(-1, 1), float2(1, 1));
   for (int i = 0; i < 4; i++) {
     /**
      * Visit the 4 half-res texels around (and containing) the full-resolution texel.
@@ -100,7 +101,8 @@ float3 dof_neighborhood_clamp(float2 frag_coord, float3 color, float center_coc,
      * │       │       │
      * └───────┴───────┘
      */
-    float2 uv_sample = ((frag_coord + corners[i]) * 0.5f) / float2(textureSize(stable_color_tx, 0));
+    float2 uv_sample = ((frag_coord + corners[i]) * 0.5f) /
+                       float2(textureSize(stable_color_tx, 0));
     /* Reminder: The content of this buffer is YCoCg + CoC. */
     float3 ycocg_sample = textureLod(stable_color_tx, uv_sample, 0.0f).rgb;
     neighbor_min = (i == 0) ? ycocg_sample : min(neighbor_min, ycocg_sample);

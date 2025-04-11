@@ -153,14 +153,14 @@ float3 offset_ray(float3 P, float3 Ng)
 
   int3 of_i = int3(int_scale * Ng);
   of_i = int3((P.x < 0.0f) ? -of_i.x : of_i.x,
-               (P.y < 0.0f) ? -of_i.y : of_i.y,
-               (P.z < 0.0f) ? -of_i.z : of_i.z);
+              (P.y < 0.0f) ? -of_i.y : of_i.y,
+              (P.z < 0.0f) ? -of_i.z : of_i.z);
   float3 P_i = intBitsToFloat(floatBitsToInt(P) + of_i);
 
   float3 uf = P + float_scale * Ng;
   return float3((abs(P.x) < origin) ? uf.x : P_i.x,
-              (abs(P.y) < origin) ? uf.y : P_i.y,
-              (abs(P.z) < origin) ? uf.z : P_i.z);
+                (abs(P.y) < origin) ? uf.y : P_i.y,
+                (abs(P.z) < origin) ? uf.z : P_i.z);
 }
 
 #endif /* GPU_SHADER_UTILDEFINES_GLSL */

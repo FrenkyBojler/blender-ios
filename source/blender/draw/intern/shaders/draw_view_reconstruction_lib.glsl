@@ -11,12 +11,12 @@
  * This samples the depth buffer 4 time for each direction to get the most correct
  * implicit normal reconstruction out of the depth buffer. */
 float3 view_position_derivative_from_depth(sampler2D scene_depth_tx,
-                                         int2 extent,
-                                         float2 uv,
-                                         int2 texel,
-                                         int2 offset,
-                                         float3 vP,
-                                         float depth_center)
+                                           int2 extent,
+                                           float2 uv,
+                                           int2 texel,
+                                           int2 offset,
+                                           float3 vP,
+                                           float depth_center)
 {
   float4 H;
   H.x = texelFetch(scene_depth_tx, texel - offset * 2, 0).r;

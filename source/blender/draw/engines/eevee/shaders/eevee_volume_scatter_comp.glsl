@@ -25,7 +25,8 @@ COMPUTE_SHADER_CREATE_INFO(eevee_volume_scatter)
 
 #ifdef VOLUME_LIGHTING
 
-float3 volume_light_eval(const bool is_directional, float3 P, float3 V, uint l_idx, float s_anisotropy)
+float3 volume_light_eval(
+    const bool is_directional, float3 P, float3 V, uint l_idx, float s_anisotropy)
 {
   LightData light = light_buf[l_idx];
 
@@ -92,7 +93,8 @@ void main()
 
   float offset = sampling_rng_1D_get(SAMPLING_VOLUME_W);
   float jitter = volume_froxel_jitter(froxel.xy, offset);
-  float3 uvw = (float3(froxel) + float3(0.5f, 0.5f, 0.5f - jitter)) * uniform_buf.volumes.inv_tex_size;
+  float3 uvw = (float3(froxel) + float3(0.5f, 0.5f, 0.5f - jitter)) *
+               uniform_buf.volumes.inv_tex_size;
   float3 vP = volume_jitter_to_view(uvw);
 
   float3 P = drw_point_view_to_world(vP);
@@ -112,7 +114,7 @@ void main()
     LIGHT_FOREACH_END
 
     float2 pixel = ((float2(froxel.xy) + 0.5f) * uniform_buf.volumes.inv_tex_size.xy) *
-                 uniform_buf.volumes.main_view_extent;
+                   uniform_buf.volumes.main_view_extent;
 
     LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, pixel, vP.z, l_idx)
     {

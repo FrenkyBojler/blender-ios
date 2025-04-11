@@ -52,7 +52,8 @@ LightVector light_shape_vector_get(LightData light, const bool is_directional, f
     else {
       ls_closest_point = clamp(ls_closest_point, -area.size, area.size);
     }
-    float3 ws_closest_point = transform_point(light.object_to_world, float3(ls_closest_point, 0.0f));
+    float3 ws_closest_point = transform_point(light.object_to_world,
+                                              float3(ls_closest_point, 0.0f));
 
     float3 L = ws_closest_point - P;
     float inv_distance = inversesqrt(length_squared(L));

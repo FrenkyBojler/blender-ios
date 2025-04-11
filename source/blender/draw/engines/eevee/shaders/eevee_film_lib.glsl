@@ -83,7 +83,8 @@ FilmSample film_sample_get(int sample_n, int2 texel_film)
 
     float2 film_coord = 0.5f + float2(texel_film % scaling_factor);
     /* Sample position inside the render pixel region. */
-    float2 jittered_sample_coord = (0.5f - uniform_buf.film.subpixel_offset) * float(scaling_factor);
+    float2 jittered_sample_coord = (0.5f - uniform_buf.film.subpixel_offset) *
+                                   float(scaling_factor);
     /* Offset the film samples to always sample the 4 nearest neighbors in the render target.
      * `film_sample.texel` is set to visit all 4 neighbors in [0..1] region. */
     int2 quad_offset = -int2(lessThan(film_coord, jittered_sample_coord));
@@ -347,10 +348,10 @@ void film_combined_neighbor_boundbox(int2 texel, out float4 min_c, out float4 ma
 {
   /* Plus (+) shape offsets. */
   const int2 plus_offsets[5] = int2_array(int2(0, 0), /* Center */
-                                           int2(-1, 0),
-                                           int2(0, -1),
-                                           int2(1, 0),
-                                           int2(0, 1));
+                                          int2(-1, 0),
+                                          int2(0, -1),
+                                          int2(1, 0),
+                                          int2(0, 1));
 #if 0
   /**
    * Compute Variance of neighborhood as described in:
@@ -446,13 +447,15 @@ float film_history_blend_factor(float velocity,
    * "High Quality Temporal Supersampling" by Brian Karis at SIGGRAPH 2014 (Slide 43)
    * Bias towards history if incoming pixel is near clamping. Reduces flicker.
    */
-  float distance_to_luma_clip = reduce_min(float2(luma_history - luma_min, luma_max - luma_history));
+  float distance_to_luma_clip = reduce_min(
+      float2(luma_history - luma_min, luma_max - luma_history));
   /* Divide by bbox size to get a factor. 2 factor to compensate the line above. */
   distance_to_luma_clip *= 2.0f * safe_rcp(luma_max - luma_min);
   /* Linearly blend when history gets below to 25% of the bbox size. */
   blend *= saturate(distance_to_luma_clip * 4.0f + 0.1f);
   /* Discard out of view history. */
-  if (any(lessThan(texel, float2(0))) || any(greaterThanEqual(texel, float2(uniform_buf.film.extent))))
+  if (any(lessThan(texel, float2(0))) ||
+      any(greaterThanEqual(texel, float2(uniform_buf.film.extent))))
   {
     blend = 1.0f;
   }
@@ -681,7 +684,8 @@ void film_process_data(int2 texel_film, out float4 out_color, out float out_dept
       float depth = texelFetch(depth_tx, film_sample.texel, 0).x;
       float4 vector = velocity_resolve(vector_tx, film_sample.texel, depth);
       /* Transform to pixel space, matching Cycles format. */
-      vector *= float4(float2(uniform_buf.film.render_extent), float2(uniform_buf.film.render_extent));
+      vector *= float4(float2(uniform_buf.film.render_extent),
+                       float2(uniform_buf.film.render_extent));
 
       film_store_depth(texel_film, depth, out_depth);
       if (normal_id != -1) {

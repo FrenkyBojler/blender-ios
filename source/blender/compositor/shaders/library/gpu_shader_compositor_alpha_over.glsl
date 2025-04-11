@@ -20,7 +20,10 @@ void node_composite_alpha_over_mixed(
   }
 }
 
-void node_composite_alpha_over_key(float factor, float4 color, float4 over_color, out float4 result)
+void node_composite_alpha_over_key(float factor,
+                                   float4 color,
+                                   float4 over_color,
+                                   out float4 result)
 {
   if (over_color.a <= 0.0f) {
     result = color;

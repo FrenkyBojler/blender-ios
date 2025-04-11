@@ -30,6 +30,7 @@ void main()
   /* Write the accumulated color divided by the accumulated weight if any pixel in the window was
    * accumulated, otherwise, write a fallback black color. */
   float4 fallback = float4(float3(0.0f), 1.0f);
-  float4 color = (accumulated_weight != 0.0f) ? (accumulated_color / accumulated_weight) : fallback;
+  float4 color = (accumulated_weight != 0.0f) ? (accumulated_color / accumulated_weight) :
+                                                fallback;
   imageStore(output_img, texel, color);
 }

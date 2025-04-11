@@ -28,8 +28,8 @@ int surfel_list_index_get(int2 ray_grid_size, float3 P, out float r_ray_distance
  * It will clamp any coordinate outside valid bounds to nearest cluster.
  */
 int3 surfel_cluster_index_get(int3 cluster_grid_size,
-                               float4x4 irradiance_grid_world_to_local,
-                               float3 P)
+                              float4x4 irradiance_grid_world_to_local,
+                              float3 P)
 {
   float3 lP = transform_point(irradiance_grid_world_to_local, P) * 0.5f + 0.5f;
   int3 cluster_index = int3(lP * float3(cluster_grid_size));

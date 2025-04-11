@@ -261,16 +261,16 @@ float4 gbuffer_sss_radii_pack(float3 sss_radii)
 {
   /* TODO(fclem): Something better. */
   return gbuffer_closure_color_pack(float3(gbuffer_ior_pack(sss_radii.x),
-                                         gbuffer_ior_pack(sss_radii.y),
-                                         gbuffer_ior_pack(sss_radii.z)));
+                                           gbuffer_ior_pack(sss_radii.y),
+                                           gbuffer_ior_pack(sss_radii.z)));
 }
 float3 gbuffer_sss_radii_unpack(float4 sss_radii_packed)
 {
   /* TODO(fclem): Something better. */
   float3 radii_packed = gbuffer_closure_color_unpack(sss_radii_packed);
   return float3(gbuffer_ior_unpack(radii_packed.x),
-              gbuffer_ior_unpack(radii_packed.y),
-              gbuffer_ior_unpack(radii_packed.z));
+                gbuffer_ior_unpack(radii_packed.y),
+                gbuffer_ior_unpack(radii_packed.z));
 }
 
 /**
@@ -339,7 +339,7 @@ float3 gbuffer_geometry_normal_unpack(uint data, float3 N)
     return N;
   }
   float3 Ng = float3((uint3(data) >> (uint3(0, 1, 2) + 20u)) & 1u) -
-            float3((uint3(data) >> (uint3(3, 4, 5) + 20u)) & 1u);
+              float3((uint3(data) >> (uint3(3, 4, 5) + 20u)) & 1u);
   return normalize(Ng);
 }
 

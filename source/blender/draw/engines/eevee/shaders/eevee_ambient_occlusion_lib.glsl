@@ -189,8 +189,8 @@ OcclusionData ambient_occlusion_search(float3 vP,
 }
 
 float2 ambient_occlusion_clamp_horizons_to_hemisphere(float2 horizons,
-                                                    float angle_N,
-                                                    const float inverted)
+                                                      float angle_N,
+                                                      const float inverted)
 {
   /* Add a little bias to fight self shadowing. */
   const float max_angle = M_PI_2 - 0.05f;
@@ -330,8 +330,13 @@ float ambient_occlusion_diffuse(OcclusionData data, int2 texel, float3 V, float3
   return saturate(visibility);
 }
 
-float ambient_occlusion_diffuse(
-    OcclusionData data, int2 texel, float3 V, float3 N, float3 Ng, float3 albedo, out float3 bent_normal)
+float ambient_occlusion_diffuse(OcclusionData data,
+                                int2 texel,
+                                float3 V,
+                                float3 N,
+                                float3 Ng,
+                                float3 albedo,
+                                out float3 bent_normal)
 {
   float visibility;
   float unused_error;

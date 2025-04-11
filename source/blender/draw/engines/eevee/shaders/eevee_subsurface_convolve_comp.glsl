@@ -109,7 +109,7 @@ void main()
 
   float homcoord = drw_view().winmat[2][3] * vP.z + drw_view().winmat[3][3];
   float2 sample_scale = float2(drw_view().winmat[0][0], drw_view().winmat[1][1]) *
-                      (0.5f * max_radius / homcoord);
+                        (0.5f * max_radius / homcoord);
 
   float pixel_footprint = sample_scale.x * textureSize(depth_tx, 0).x;
   if (pixel_footprint <= 1.0f) {
@@ -119,8 +119,8 @@ void main()
 
   /* Avoid too small radii that have float imprecision. */
   float3 clamped_sss_radius = max(float3(uniform_buf.subsurface.min_radius),
-                                closure.sss_radius / max_radius) *
-                            max_radius;
+                                  closure.sss_radius / max_radius) *
+                              max_radius;
   /* Scale albedo because we can have HDR value caused by BSDF sampling. */
   float3 albedo = closure.color / max(1e-6f, reduce_max(closure.color));
   float3 d = burley_setup(clamped_sss_radius, albedo);

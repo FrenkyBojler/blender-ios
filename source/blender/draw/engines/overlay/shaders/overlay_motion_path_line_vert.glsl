@@ -53,8 +53,8 @@ VertOut vertex_main(VertIn vert_in)
   int frame = int(vert_in.vert_id) + cacheStart;
 
   float3 blend_base = (abs(frame - frameCurrent) == 0) ?
-                        colorCurrentFrame.rgb :
-                        colorBackground.rgb; /* "bleed" CFRAME color to ease color blending */
+                          colorCurrentFrame.rgb :
+                          colorBackground.rgb; /* "bleed" CFRAME color to ease color blending */
   bool use_custom_color = customColorPre.x >= 0.0f;
 
   if (frame < frameCurrent) {

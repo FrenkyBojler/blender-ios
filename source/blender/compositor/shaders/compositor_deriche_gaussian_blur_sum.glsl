@@ -11,7 +11,7 @@ void main()
   /* The Deriche filter is a parallel interconnection filter, meaning its output is the sum of its
    * causal and non causal filters. */
   float4 filter_output = texture_load(causal_input_tx, texel) +
-                       texture_load(non_causal_input_tx, texel);
+                         texture_load(non_causal_input_tx, texel);
 
   /* Write the color using the transposed texel. See the sum_causal_and_non_causal_results method
    * in the deriche_gaussian_blur.cc file for more information on the rational behind this. */

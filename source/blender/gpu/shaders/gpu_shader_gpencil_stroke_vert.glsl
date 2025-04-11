@@ -188,17 +188,17 @@ void geometry_main(VertOut geom_in[4], uint out_vertex_id, uint out_primitive_id
       geom_out.tex_coord = float2(0, 0);
       geom_out.final_color = geom_in[1].final_color;
       geom_out.gpu_position = float4((sp1 + geom_in[1].final_thickness * n0) /
-                                       gpencil_stroke_data.viewport,
-                                   getZdepth(P1),
-                                   1.0f);
+                                         gpencil_stroke_data.viewport,
+                                     getZdepth(P1),
+                                     1.0f);
       strip_EmitVertex(0, out_vertex_id, out_primitive_id, geom_out);
 
       geom_out.tex_coord = float2(0, 0);
       geom_out.final_color = geom_in[1].final_color;
       geom_out.gpu_position = float4((sp1 + geom_in[1].final_thickness * n1) /
-                                       gpencil_stroke_data.viewport,
-                                   getZdepth(P1),
-                                   1.0f);
+                                         gpencil_stroke_data.viewport,
+                                     getZdepth(P1),
+                                     1.0f);
       strip_EmitVertex(1, out_vertex_id, out_primitive_id, geom_out);
 
       geom_out.tex_coord = float2(0, 0.5f);
@@ -210,17 +210,17 @@ void geometry_main(VertOut geom_in[4], uint out_vertex_id, uint out_primitive_id
       geom_out.tex_coord = float2(0, 1);
       geom_out.final_color = geom_in[1].final_color;
       geom_out.gpu_position = float4((sp1 - geom_in[1].final_thickness * n1) /
-                                       gpencil_stroke_data.viewport,
-                                   getZdepth(P1),
-                                   1.0f);
+                                         gpencil_stroke_data.viewport,
+                                     getZdepth(P1),
+                                     1.0f);
       strip_EmitVertex(0, out_vertex_id, out_primitive_id, geom_out);
 
       geom_out.tex_coord = float2(0, 1);
       geom_out.final_color = geom_in[1].final_color;
       geom_out.gpu_position = float4((sp1 - geom_in[1].final_thickness * n0) /
-                                       gpencil_stroke_data.viewport,
-                                   getZdepth(P1),
-                                   1.0f);
+                                         gpencil_stroke_data.viewport,
+                                     getZdepth(P1),
+                                     1.0f);
       strip_EmitVertex(1, out_vertex_id, out_primitive_id, geom_out);
 
       geom_out.tex_coord = float2(0, 0.5f);
@@ -245,7 +245,8 @@ void geometry_main(VertOut geom_in[4], uint out_vertex_id, uint out_primitive_id
     geom_out.tex_coord = float2(1, 0.5f);
     geom_out.final_color = float4(geom_in[1].final_color.rgb, geom_in[1].final_color.a * -1.0f);
     float2 svn1 = normalize(sp1 - sp2) * length_a * 4.0f * extend;
-    geom_out.gpu_position = float4((sp1 + svn1) / gpencil_stroke_data.viewport, getZdepth(P1), 1.0f);
+    geom_out.gpu_position = float4(
+        (sp1 + svn1) / gpencil_stroke_data.viewport, getZdepth(P1), 1.0f);
     strip_EmitVertex(4, out_vertex_id, out_primitive_id, geom_out);
 
     geom_out.tex_coord = float2(0, 0);
@@ -303,7 +304,8 @@ void geometry_main(VertOut geom_in[4], uint out_vertex_id, uint out_primitive_id
     geom_out.tex_coord = float2(1, 0.5f);
     geom_out.final_color = float4(geom_in[2].final_color.rgb, geom_in[2].final_color.a * -1.0f);
     float2 svn2 = normalize(sp2 - sp1) * length_b * 4.0f * extend;
-    geom_out.gpu_position = float4((sp2 + svn2) / gpencil_stroke_data.viewport, getZdepth(P2), 1.0f);
+    geom_out.gpu_position = float4(
+        (sp2 + svn2) / gpencil_stroke_data.viewport, getZdepth(P2), 1.0f);
     strip_EmitVertex(13, out_vertex_id, out_primitive_id, geom_out);
   }
 }

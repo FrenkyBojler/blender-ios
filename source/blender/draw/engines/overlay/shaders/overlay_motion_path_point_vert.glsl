@@ -16,7 +16,8 @@ VERTEX_SHADER_CREATE_INFO(overlay_motion_path_point)
 
 void main()
 {
-  gl_Position = drw_view().winmat * (drw_view().viewmat * (camera_space_matrix * float4(pos, 1.0f)));
+  gl_Position = drw_view().winmat *
+                (drw_view().viewmat * (camera_space_matrix * float4(pos, 1.0f)));
   gl_PointSize = float(pointSize + 2);
 
   int frame = gl_VertexID + cacheStart;

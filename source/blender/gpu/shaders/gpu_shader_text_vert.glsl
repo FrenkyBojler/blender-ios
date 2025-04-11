@@ -23,11 +23,12 @@ void main()
   float2 quad = float2(x, y);
 
   float2 interp_offset = float(interp_size) / abs(pos.zw - pos.xy);
-  texCoord_interp = mix(-interp_offset, 1.0f + interp_offset, quad) * float2(glyph_dim) + float2(0.5f);
+  texCoord_interp = mix(-interp_offset, 1.0f + interp_offset, quad) * float2(glyph_dim) +
+                    float2(0.5f);
 
   float2 final_pos = mix(float2(int2(pos.xy) + int2(-interp_size, interp_size)),
-                       float2(int2(pos.zw) + int2(interp_size, -interp_size)),
-                       quad);
+                         float2(int2(pos.zw) + int2(interp_size, -interp_size)),
+                         quad);
 
   gl_Position = ModelViewProjectionMatrix * float4(final_pos, 0.0f, 1.0f);
 }

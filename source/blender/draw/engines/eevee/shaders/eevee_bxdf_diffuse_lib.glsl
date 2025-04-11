@@ -55,7 +55,8 @@ LightProbeRay bxdf_diffuse_lightprobe(float3 N)
 ClosureLight bxdf_diffuse_light(ClosureUndetermined cl)
 {
   ClosureLight light;
-  light.ltc_mat = float4(1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
+  light.ltc_mat = float4(
+      1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
@@ -144,7 +145,8 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, float thic
    * only focusing the light a tiny bit. Using the flipped normal is good enough approximation.
    */
   ClosureLight light;
-  light.ltc_mat = float4(1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
+  light.ltc_mat = float4(
+      1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
   light.N = -cl.N;
   light.type = (thickness > 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
   return light;

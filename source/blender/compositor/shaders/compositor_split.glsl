@@ -14,6 +14,6 @@ void main()
   bool condition = (output_size.y * split_ratio) <= texel.y;
 #endif
   float4 color = condition ? texture_load(first_image_tx, texel) :
-                           texture_load(second_image_tx, texel);
+                             texture_load(second_image_tx, texel);
   imageStore(output_img, texel, color);
 }

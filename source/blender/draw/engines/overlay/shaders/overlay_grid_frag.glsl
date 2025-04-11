@@ -190,7 +190,7 @@ void main()
       axes_fwidth.z = dot(fwidthPos.xy, plane_axes.xy);
     }
 
-    /* Computing all axes at once using vec3 */
+    /* Computing all axes at once using float3 */
     float3 axes = get_axes(axes_dist, axes_fwidth, 0.1f);
 
     if (flag_test(grid_flag, SHOW_AXIS_X)) {

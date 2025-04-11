@@ -150,9 +150,9 @@ float2 compute_2d_gabor_noise_cell(
 /* Computes the Gabor noise value by dividing the space into a grid and evaluating the Gabor noise
  * in the space of each cell of the 3x3 cell neighborhood. */
 float2 compute_2d_gabor_noise(float2 coordinates,
-                            float frequency,
-                            float isotropy,
-                            float base_orientation)
+                              float frequency,
+                              float isotropy,
+                              float base_orientation)
 {
   float2 cell_position = floor(coordinates);
   float2 local_position = coordinates - cell_position;
@@ -224,7 +224,8 @@ float3 compute_3d_orientation(float3 orientation, float isotropy, float4 seed)
   azimuth += random_angles.y * isotropy;
 
   /* Convert back to Cartesian coordinates, */
-  return float3(sin(inclination) * cos(azimuth), sin(inclination) * sin(azimuth), cos(inclination));
+  return float3(
+      sin(inclination) * cos(azimuth), sin(inclination) * sin(azimuth), cos(inclination));
 }
 
 float2 compute_3d_gabor_noise_cell(
@@ -260,9 +261,9 @@ float2 compute_3d_gabor_noise_cell(
 
 /* Identical to compute_2d_gabor_noise but works in the 3D neighborhood of the noise. */
 float2 compute_3d_gabor_noise(float3 coordinates,
-                            float frequency,
-                            float isotropy,
-                            float3 base_orientation)
+                              float frequency,
+                              float isotropy,
+                              float3 base_orientation)
 {
   float3 cell_position = floor(coordinates);
   float3 local_position = coordinates - cell_position;

@@ -48,7 +48,8 @@ void main()
       int2 closest_seed_texel_to_neighbor = jump_flooding_value;
 
       /* Compute the squared distance to the neighbor's closest seed pixel. */
-      float squared_distance = distance_squared(float2(closest_seed_texel_to_neighbor), float2(texel));
+      float squared_distance = distance_squared(float2(closest_seed_texel_to_neighbor),
+                                                float2(texel));
 
       if (squared_distance < minimum_squared_distance) {
         minimum_squared_distance = squared_distance;

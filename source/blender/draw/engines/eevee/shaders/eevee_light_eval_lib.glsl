@@ -218,8 +218,12 @@ void light_eval_transmission(inout ClosureLightStack stack,
   LIGHT_FOREACH_END
 }
 
-void light_eval_reflection(
-    inout ClosureLightStack stack, float3 P, float3 Ng, float3 V, float vPz, uchar receiver_light_set)
+void light_eval_reflection(inout ClosureLightStack stack,
+                           float3 P,
+                           float3 Ng,
+                           float3 V,
+                           float vPz,
+                           uchar receiver_light_set)
 {
 #ifdef SKIP_LIGHT_EVAL
   return;

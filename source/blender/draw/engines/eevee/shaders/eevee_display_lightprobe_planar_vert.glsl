@@ -14,12 +14,12 @@ void main()
   /* Constant array moved inside function scope.
    * Minimizes local register allocation in MSL. */
   const float2 pos[6] = float2_array(float2(-1.0f, -1.0f),
-                                   float2(1.0f, -1.0f),
-                                   float2(-1.0f, 1.0f),
+                                     float2(1.0f, -1.0f),
+                                     float2(-1.0f, 1.0f),
 
-                                   float2(1.0f, -1.0f),
-                                   float2(1.0f, 1.0f),
-                                   float2(-1.0f, 1.0f));
+                                     float2(1.0f, -1.0f),
+                                     float2(1.0f, 1.0f),
+                                     float2(-1.0f, 1.0f));
 
   float2 lP = pos[gl_VertexID % 6];
   int display_index = gl_VertexID / 6;

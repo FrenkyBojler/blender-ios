@@ -217,7 +217,7 @@ void main()
     float3 n1 = normalize(cross(edge, world_pos - p1));
     bool persp = (drw_view().winmat[3][3] == 0.0f);
     float3 V = (persp) ? normalize(drw_view().viewinv[3].xyz - world_pos) :
-                       drw_view().viewinv[2].xyz;
+                         drw_view().viewinv[2].xyz;
     /* Discard non-silhouette edges. */
     bool facing0 = dot(n0, V) > 0.0f;
     bool facing1 = dot(n1, V) > 0.0f;

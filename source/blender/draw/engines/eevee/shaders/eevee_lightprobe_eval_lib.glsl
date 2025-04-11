@@ -68,9 +68,9 @@ float3 lightprobe_sphere_parallax(SphereProbeData probe, float3 P, float3 L)
  * This avoid most of light leaking and reduce the need for many local probes.
  */
 float3 lightprobe_spherical_sample_normalized_with_parallax(LightProbeSample samp,
-                                                          float3 P,
-                                                          float3 L,
-                                                          float lod)
+                                                            float3 P,
+                                                            float3 L,
+                                                            float lod)
 {
   SphereProbeData probe = lightprobe_sphere_buf[samp.spherical_id];
   ReflectionProbeLowFreqLight shading_sh = lightprobe_spheres_extract_low_freq(
@@ -97,7 +97,8 @@ float3 lightprobe_eval_direction(LightProbeSample samp, float3 P, float3 L, floa
 #  ifdef EEVEE_UTILITY_TX
 
 /* TODO: Port that inside a BSSDF file. */
-float3 lightprobe_eval(LightProbeSample samp, ClosureSubsurface cl, float3 P, float3 V, float thickness)
+float3 lightprobe_eval(
+    LightProbeSample samp, ClosureSubsurface cl, float3 P, float3 V, float thickness)
 {
   float3 sss_profile = subsurface_transmission(cl.sss_radius, abs(thickness));
   float3 radiance_sh = spherical_harmonics_evaluate_lambert(cl.N, samp.volume_irradiance);
@@ -116,7 +117,7 @@ float3 lightprobe_eval(
   float3 radiance_cube = lightprobe_spherical_sample_normalized_with_parallax(
       samp, P, ray.dominant_direction, lod);
   float3 radiance_sh = spherical_harmonics_evaluate_lambert(ray.dominant_direction,
-                                                          samp.volume_irradiance);
+                                                            samp.volume_irradiance);
   return mix(radiance_cube, radiance_sh, fac);
 }
 #  endif

@@ -14,12 +14,12 @@ void main()
   /* Constant array moved inside function scope.
    * Minimizes local register allocation in MSL. */
   const float2 pos[6] = float2_array(float2(-1.0f, -1.0f),
-                                   float2(1.0f, -1.0f),
-                                   float2(-1.0f, 1.0f),
+                                     float2(1.0f, -1.0f),
+                                     float2(-1.0f, 1.0f),
 
-                                   float2(1.0f, -1.0f),
-                                   float2(1.0f, 1.0f),
-                                   float2(-1.0f, 1.0f));
+                                     float2(1.0f, -1.0f),
+                                     float2(1.0f, 1.0f),
+                                     float2(-1.0f, 1.0f));
 
   lP = pos[gl_VertexID % 6];
   int cell_index = gl_VertexID / 6;
@@ -27,8 +27,8 @@ void main()
   int3 grid_res = grid_resolution;
 
   cell = int3(cell_index / (grid_res.z * grid_res.y),
-               (cell_index / grid_res.z) % grid_res.y,
-               cell_index % grid_res.z);
+              (cell_index / grid_res.z) % grid_res.y,
+              cell_index % grid_res.z);
 
   float3 ws_cell_pos = lightprobe_volume_grid_sample_position(grid_to_world, grid_res, cell);
 

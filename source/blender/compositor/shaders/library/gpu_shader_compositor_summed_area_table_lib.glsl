@@ -45,7 +45,7 @@ float4 summed_area_table_sum(sampler2D table, int2 lower_bound, int2 upper_bound
   int2 corrected_lower_bound = lower_bound - int2(1);
   int2 corrected_upper_bound = min(texture_size(table) - int2(1), upper_bound);
   float4 addend = texture_load(table, corrected_upper_bound, float4(0.0f)) +
-                texture_load(table, corrected_lower_bound, float4(0.0f));
+                  texture_load(table, corrected_lower_bound, float4(0.0f));
   float4 subtrahend =
       texture_load(table, int2(corrected_lower_bound.x, corrected_upper_bound.y), float4(0.0f)) +
       texture_load(table, int2(corrected_upper_bound.x, corrected_lower_bound.y), float4(0.0f));

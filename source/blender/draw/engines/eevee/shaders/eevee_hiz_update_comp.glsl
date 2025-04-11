@@ -30,9 +30,9 @@ float4 load_local_depths(int2 pixel)
 {
   pixel *= 2;
   return float4(local_depths[pixel.y + 1][pixel.x + 0],
-              local_depths[pixel.y + 1][pixel.x + 1],
-              local_depths[pixel.y + 0][pixel.x + 1],
-              local_depths[pixel.y + 0][pixel.x + 0]);
+                local_depths[pixel.y + 1][pixel.x + 1],
+                local_depths[pixel.y + 0][pixel.x + 1],
+                local_depths[pixel.y + 0][pixel.x + 0]);
 }
 
 void store_local_depth(int2 pixel, float depth)

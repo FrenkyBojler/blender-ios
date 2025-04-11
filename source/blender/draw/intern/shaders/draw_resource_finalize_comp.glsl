@@ -60,8 +60,8 @@ void main()
      * Fixing them is too much computation but might be worth doing if a use case for it.
      * Do not compute the real length to save some instructions. */
     float3 object_scale = float3(reduce_add(abs(model_mat[0].xyz)),
-                             reduce_add(abs(model_mat[1].xyz)),
-                             reduce_add(abs(model_mat[2].xyz)));
+                                 reduce_add(abs(model_mat[1].xyz)),
+                                 reduce_add(abs(model_mat[2].xyz)));
     if (any(lessThan(abs(object_scale), float3(1e-10f)))) {
       bounds.bounding_sphere.w = -2.0f;
     }

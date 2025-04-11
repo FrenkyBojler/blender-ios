@@ -117,7 +117,7 @@ float3 volume_screen_to_resolve(float3 coord)
 }
 
 /* Returns the uvw (normalized coordinate) of a froxel in the previous frame.
- * Returns vec3(-1) if history is unavailable. */
+ * Returns float3(-1) if history is unavailable. */
 float3 volume_history_uvw_get(int3 froxel)
 {
   float4x4 wininv = uniform_buf.volumes.wininv_stable;
@@ -262,7 +262,9 @@ struct VolumeResolveSample {
   float3 scattering;
 };
 
-VolumeResolveSample volume_resolve(float3 ndc_P, sampler3D transmittance_tx, sampler3D scattering_tx)
+VolumeResolveSample volume_resolve(float3 ndc_P,
+                                   sampler3D transmittance_tx,
+                                   sampler3D scattering_tx)
 {
   float3 coord = volume_screen_to_resolve(ndc_P);
 

@@ -1281,7 +1281,10 @@ void to_rot_scale(float3x3 mat,
   r_rotation = to_quaternion(mat, true);
 }
 
-void to_loc_rot_scale(float4x4 mat, out float3 r_location, out EulerXYZ r_rotation, out float3 r_scale)
+void to_loc_rot_scale(float4x4 mat,
+                      out float3 r_location,
+                      out EulerXYZ r_rotation,
+                      out float3 r_scale)
 {
   r_location = mat[3].xyz;
   to_rot_scale(to_float3x3(mat), r_rotation, r_scale);

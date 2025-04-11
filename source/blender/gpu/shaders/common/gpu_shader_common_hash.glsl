@@ -182,16 +182,17 @@ float2 hash_vec2_to_vec2(float2 k)
 
 float3 hash_vec3_to_vec3(float3 k)
 {
-  return float3(
-      hash_vec3_to_float(k), hash_vec4_to_float(float4(k, 1.0f)), hash_vec4_to_float(float4(k, 2.0f)));
+  return float3(hash_vec3_to_float(k),
+                hash_vec4_to_float(float4(k, 1.0f)),
+                hash_vec4_to_float(float4(k, 2.0f)));
 }
 
 float4 hash_vec4_to_vec4(float4 k)
 {
   return float4(hash_vec4_to_float(k.xyzw),
-              hash_vec4_to_float(k.wxyz),
-              hash_vec4_to_float(k.zwxy),
-              hash_vec4_to_float(k.yzwx));
+                hash_vec4_to_float(k.wxyz),
+                hash_vec4_to_float(k.zwxy),
+                hash_vec4_to_float(k.yzwx));
 }
 
 /* Hashing float or vec[234] into vec3 of components in range [0, 1]. */
@@ -199,19 +200,21 @@ float4 hash_vec4_to_vec4(float4 k)
 float3 hash_float_to_vec3(float k)
 {
   return float3(hash_float_to_float(k),
-              hash_vec2_to_float(float2(k, 1.0f)),
-              hash_vec2_to_float(float2(k, 2.0f)));
+                hash_vec2_to_float(float2(k, 1.0f)),
+                hash_vec2_to_float(float2(k, 2.0f)));
 }
 
 float3 hash_vec2_to_vec3(float2 k)
 {
-  return float3(
-      hash_vec2_to_float(k), hash_vec3_to_float(float3(k, 1.0f)), hash_vec3_to_float(float3(k, 2.0f)));
+  return float3(hash_vec2_to_float(k),
+                hash_vec3_to_float(float3(k, 1.0f)),
+                hash_vec3_to_float(float3(k, 2.0f)));
 }
 
 float3 hash_vec4_to_vec3(float4 k)
 {
-  return float3(hash_vec4_to_float(k.xyzw), hash_vec4_to_float(k.zxwy), hash_vec4_to_float(k.wzyx));
+  return float3(
+      hash_vec4_to_float(k.xyzw), hash_vec4_to_float(k.zxwy), hash_vec4_to_float(k.wzyx));
 }
 
 /* Hashing float or vec[234] into vec2 of components in range [0, 1]. */

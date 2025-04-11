@@ -184,9 +184,9 @@ void main()
   /* NOTE(Metal): Declaring constant arrays in function scope to avoid increasing local shader
    * memory pressure. */
   const float3 corners[4] = float3_array(float3(0.0f, 0.2f, -0.5f),
-                                       float3(-0.2f * 0.866f, -0.2f * 0.5f, -0.5f),
-                                       float3(0.2f * 0.866f, -0.2f * 0.5f, -0.5f),
-                                       float3(0.0f, 0.0f, 0.5f));
+                                         float3(-0.2f * 0.866f, -0.2f * 0.5f, -0.5f),
+                                         float3(0.2f * 0.866f, -0.2f * 0.5f, -0.5f),
+                                         float3(0.0f, 0.0f, 0.5f));
 
   const int indices[12] = int_array(0, 1, 1, 2, 2, 0, 0, 3, 1, 3, 2, 3);
 

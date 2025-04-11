@@ -47,7 +47,8 @@ void main()
     float4x4 m4 = float4x4(
         float4(1, 2, -3, 3), float4(3, 4, -5, 3), float4(5, 6, 7, -3), float4(5, 6, 7, 1));
     float2x2 expect2 = transpose(float2x2(float2(4, -3), float2(-2, 1)));
-    float3x3 expect3 = transpose(float3x3(float3(-2, -4, -2), float3(-32, -8, 16), float3(-22, -4, 10)));
+    float3x3 expect3 = transpose(
+        float3x3(float3(-2, -4, -2), float3(-32, -8, 16), float3(-22, -4, 10)));
     float4x4 expect4 = transpose(float4x4(float4(232, -184, -8, -0),
                                           float4(-128, 88, 16, 0),
                                           float4(80, -76, 4, 28),
@@ -62,7 +63,8 @@ void main()
     float4x4 expect;
 
     float4x4 m = from_location(float3(1, 2, 3));
-    expect = float4x4(float4(1, 0, 0, 0), float4(0, 1, 0, 0), float4(0, 0, 1, 0), float4(1, 2, 3, 1));
+    expect = float4x4(
+        float4(1, 0, 0, 0), float4(0, 1, 0, 0), float4(0, 0, 1, 0), float4(1, 2, 3, 1));
     EXPECT_TRUE(is_equal(m, expect, 0.00001f));
 
     expect = transpose(float4x4(float4(0.411982f, -0.833738f, -0.36763f, 0),
@@ -80,15 +82,18 @@ void main()
     EXPECT_NEAR(m, expect, 3e-4f); /* Has some precision issue on some platform. */
 
     m = from_scale(float4(1, 2, 3, 4));
-    expect = float4x4(float4(1, 0, 0, 0), float4(0, 2, 0, 0), float4(0, 0, 3, 0), float4(0, 0, 0, 4));
+    expect = float4x4(
+        float4(1, 0, 0, 0), float4(0, 2, 0, 0), float4(0, 0, 3, 0), float4(0, 0, 0, 4));
     EXPECT_TRUE(is_equal(m, expect, 0.00001f));
 
     m = to_float4x4(from_scale(float3(1, 2, 3)));
-    expect = float4x4(float4(1, 0, 0, 0), float4(0, 2, 0, 0), float4(0, 0, 3, 0), float4(0, 0, 0, 1));
+    expect = float4x4(
+        float4(1, 0, 0, 0), float4(0, 2, 0, 0), float4(0, 0, 3, 0), float4(0, 0, 0, 1));
     EXPECT_TRUE(is_equal(m, expect, 0.00001f));
 
     m = to_float4x4(from_scale(float2(1, 2)));
-    expect = float4x4(float4(1, 0, 0, 0), float4(0, 2, 0, 0), float4(0, 0, 1, 0), float4(0, 0, 0, 1));
+    expect = float4x4(
+        float4(1, 0, 0, 0), float4(0, 2, 0, 0), float4(0, 0, 1, 0), float4(0, 0, 0, 1));
     EXPECT_TRUE(is_equal(m, expect, 0.00001f));
 
     m = from_loc_rot(float3(1, 2, 3), EulerXYZ(1, 2, 3));
@@ -110,41 +115,53 @@ void main()
   {
     const float epsilon = 1e-6f;
     float4x4 result, expect;
-    float4x4 m1 = float4x4(float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(0, 0, 0, 1));
+    float4x4 m1 = float4x4(
+        float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(0, 0, 0, 1));
 
-    expect = float4x4(float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(4, 9, 2, 1));
+    expect = float4x4(
+        float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(4, 9, 2, 1));
     result = translate(m1, float3(3, 2, 1));
     EXPECT_NEAR(result, expect, epsilon);
 
-    expect = float4x4(float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(4, 0, 0, 1));
+    expect = float4x4(
+        float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(4, 0, 0, 1));
     result = translate(m1, float2(0, 2));
     EXPECT_NEAR(result, expect, epsilon);
 
-    expect = float4x4(float4(0, 0, -2, 0), float4(2, 0, 0, 0), float4(0, 3, 0, 0), float4(0, 0, 0, 1));
+    expect = float4x4(
+        float4(0, 0, -2, 0), float4(2, 0, 0, 0), float4(0, 3, 0, 0), float4(0, 0, 0, 1));
     result = rotate(m1, AxisAngle(float3(0, 1, 0), M_PI_2));
     EXPECT_NEAR(result, expect, epsilon);
 
-    expect = float4x4(float4(0, 9, 0, 0), float4(4, 0, 0, 0), float4(0, 0, 8, 0), float4(0, 0, 0, 1));
+    expect = float4x4(
+        float4(0, 9, 0, 0), float4(4, 0, 0, 0), float4(0, 0, 8, 0), float4(0, 0, 0, 1));
     result = scale(m1, float3(3, 2, 4));
     EXPECT_NEAR(result, expect, epsilon);
 
-    expect = float4x4(float4(0, 9, 0, 0), float4(4, 0, 0, 0), float4(0, 0, 2, 0), float4(0, 0, 0, 1));
+    expect = float4x4(
+        float4(0, 9, 0, 0), float4(4, 0, 0, 0), float4(0, 0, 2, 0), float4(0, 0, 0, 1));
     result = scale(m1, float2(3, 2));
     EXPECT_NEAR(result, expect, epsilon);
   }
 
   TEST(math_matrix, MatrixCompareTest)
   {
-    float4x4 m1 = float4x4(float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(0, 0, 0, 1));
+    float4x4 m1 = float4x4(
+        float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(0, 0, 0, 1));
     float4x4 m2 = float4x4(float4(0, 3.001f, 0, 0),
                            float4(1.999f, 0, 0, 0),
                            float4(0, 0, 2.001f, 0),
                            float4(0, 0, 0, 1.001f));
-    float4x4 m3 = float4x4(
-        float4(0, 3.001f, 0, 0), float4(1, 1, 0, 0), float4(0, 0, 2.001f, 0), float4(0, 0, 0, 1.001f));
-    float4x4 m4 = float4x4(float4(0, 1, 0, 0), float4(1, 0, 0, 0), float4(0, 0, 1, 0), float4(0, 0, 0, 1));
-    float4x4 m5 = float4x4(float4(0, 0, 0, 0), float4(0, 0, 0, 0), float4(0, 0, 0, 0), float4(0, 0, 0, 0));
-    float4x4 m6 = float4x4(float4(1, 0, 0, 0), float4(0, 1, 0, 0), float4(0, 0, 1, 0), float4(0, 0, 0, 1));
+    float4x4 m3 = float4x4(float4(0, 3.001f, 0, 0),
+                           float4(1, 1, 0, 0),
+                           float4(0, 0, 2.001f, 0),
+                           float4(0, 0, 0, 1.001f));
+    float4x4 m4 = float4x4(
+        float4(0, 1, 0, 0), float4(1, 0, 0, 0), float4(0, 0, 1, 0), float4(0, 0, 0, 1));
+    float4x4 m5 = float4x4(
+        float4(0, 0, 0, 0), float4(0, 0, 0, 0), float4(0, 0, 0, 0), float4(0, 0, 0, 0));
+    float4x4 m6 = float4x4(
+        float4(1, 0, 0, 0), float4(0, 1, 0, 0), float4(0, 0, 1, 0), float4(0, 0, 0, 1));
     EXPECT_TRUE(is_equal(m1, m2, 0.01f));
     EXPECT_FALSE(is_equal(m1, m2, 0.0001f));
     EXPECT_FALSE(is_equal(m1, m3, 0.01f));
@@ -164,7 +181,8 @@ void main()
 
   TEST(math_matrix, MatrixMethods)
   {
-    float4x4 m = float4x4(float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(0, 1, 0, 1));
+    float4x4 m = float4x4(
+        float4(0, 3, 0, 0), float4(2, 0, 0, 0), float4(0, 0, 2, 0), float4(0, 1, 0, 1));
     EulerXYZ expect_eul = EulerXYZ(0, 0, M_PI_2);
     Quaternion expect_qt = Quaternion(0, -M_SQRT1_2, M_SQRT1_2, 0);
     float3 expect_scale = float3(3, 2, 2);
@@ -203,7 +221,8 @@ void main()
 
   TEST(math_matrix, MatrixTranspose)
   {
-    float4x4 m = float4x4(float4(1, 2, 3, 4), float4(5, 6, 7, 8), float4(9, 1, 2, 3), float4(2, 5, 6, 7));
+    float4x4 m = float4x4(
+        float4(1, 2, 3, 4), float4(5, 6, 7, 8), float4(9, 1, 2, 3), float4(2, 5, 6, 7));
     float4x4 expect = float4x4(
         float4(1, 5, 9, 2), float4(2, 6, 1, 5), float4(3, 7, 2, 6), float4(4, 8, 3, 7));
     EXPECT_EQ(transpose(m), expect);

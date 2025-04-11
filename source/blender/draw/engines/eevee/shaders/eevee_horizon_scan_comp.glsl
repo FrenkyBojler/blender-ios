@@ -19,7 +19,7 @@ void main()
   int2 texel = int2(gl_LocalInvocationID.xy + tile_coord * tile_size);
 
   int2 texel_fullres = texel * uniform_buf.raytrace.horizon_resolution_scale +
-                        uniform_buf.raytrace.horizon_resolution_bias;
+                       uniform_buf.raytrace.horizon_resolution_bias;
 
   /* Avoid tracing the outside border if dispatch is too big. */
   int2 extent = textureSize(gbuf_header_tx, 0).xy;

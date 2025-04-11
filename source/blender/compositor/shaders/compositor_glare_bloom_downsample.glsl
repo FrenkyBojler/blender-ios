@@ -71,11 +71,11 @@ void main()
    * only once, essentially totaling 32 samples. So the weights are as used in the following code
    * section. */
   float4 result = (4.0f / 32.0f) * center +
-                (4.0f / 32.0f) *
-                    (upper_left_near + upper_right_near + lower_left_near + lower_right_near) +
-                (2.0f / 32.0f) * (left_far + right_far + upper_far + lower_far) +
-                (1.0f / 32.0f) *
-                    (upper_left_far + upper_right_far + lower_left_far + lower_right_far);
+                  (4.0f / 32.0f) *
+                      (upper_left_near + upper_right_near + lower_left_near + lower_right_near) +
+                  (2.0f / 32.0f) * (left_far + right_far + upper_far + lower_far) +
+                  (1.0f / 32.0f) *
+                      (upper_left_far + upper_right_far + lower_left_far + lower_right_far);
 #elif defined(KARIS_AVERAGE)
   /* Reduce the contributions of fireflies on the result by reducing each group of pixels using a
    * Karis brightness weighted sum. This is described in slide 168 titled "Fireflies - Partial
@@ -100,8 +100,8 @@ void main()
    *   4 + 1 + 1 + 1 + 1 = 8
    * So the weights are as used in the following code section. */
   float4 result = (4.0f / 8.0f) * center_weighted_sum +
-                (1.0f / 8.0f) * (upper_left_weighted_sum + upper_right_weighted_sum +
-                                 lower_left_weighted_sum + lower_right_weighted_sum);
+                  (1.0f / 8.0f) * (upper_left_weighted_sum + upper_right_weighted_sum +
+                                   lower_left_weighted_sum + lower_right_weighted_sum);
 #endif
 
   imageStore(output_img, texel, result);

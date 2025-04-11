@@ -244,7 +244,8 @@ bool intersect_view(IsectBox i_box)
   for (int p = 0; p < 6; ++p) {
     bool is_any_vertex_on_positive_side = false;
     for (int v = 0; v < 8; ++v) {
-      float test = dot(drw_view_culling().frustum_planes.planes[p], float4(i_box.corners[v], 1.0f));
+      float test = dot(drw_view_culling().frustum_planes.planes[p],
+                       float4(i_box.corners[v], 1.0f));
       if (test > 0.0f) {
         is_any_vertex_on_positive_side = true;
         break;

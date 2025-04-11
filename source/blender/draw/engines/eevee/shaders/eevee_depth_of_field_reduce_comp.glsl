@@ -104,9 +104,9 @@ float load_coc_cache(uint2 coord)
 float4 load4_coc_cache(uint2 coord)
 {
   return float4(load_coc_cache(coord + quad_offsets_u[0]),
-              load_coc_cache(coord + quad_offsets_u[1]),
-              load_coc_cache(coord + quad_offsets_u[2]),
-              load_coc_cache(coord + quad_offsets_u[3]));
+                load_coc_cache(coord + quad_offsets_u[1]),
+                load_coc_cache(coord + quad_offsets_u[2]),
+                load_coc_cache(coord + quad_offsets_u[3]));
 }
 
 void main()

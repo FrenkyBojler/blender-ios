@@ -135,8 +135,10 @@ void main()
   }
   if (render_pass_specular_light_enabled) {
     float3 specular_light = specular_direct + specular_indirect;
-    output_renderpass_color(uniform_buf.render_pass.specular_color_id, float4(specular_color, 1.0f));
-    output_renderpass_color(uniform_buf.render_pass.specular_light_id, float4(specular_light, 1.0f));
+    output_renderpass_color(uniform_buf.render_pass.specular_color_id,
+                            float4(specular_color, 1.0f));
+    output_renderpass_color(uniform_buf.render_pass.specular_light_id,
+                            float4(specular_light, 1.0f));
   }
   if (render_pass_normal_enabled) {
     float normal_len = length(average_normal);

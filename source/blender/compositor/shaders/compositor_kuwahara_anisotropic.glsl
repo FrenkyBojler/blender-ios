@@ -48,7 +48,7 @@ void main()
   float2 eigenvector = float2(first_eigenvalue - dxdx, -dxdy);
   float eigenvector_length = length(eigenvector);
   float2 unit_eigenvector = eigenvector_length != 0.0f ? eigenvector / eigenvector_length :
-                                                       float2(1.0f);
+                                                         float2(1.0f);
 
   /* Compute the amount of anisotropy using equations in section "3.1 Orientation and Anisotropy
    * Estimation" of the paper. The anisotropy ranges from 0 to 1, where 0 corresponds to isotropic
@@ -100,8 +100,7 @@ void main()
    * ensure the filter window is at least 1x1. */
   float2 ellipse_major_axis = ellipse_width * unit_eigenvector;
   float2 ellipse_minor_axis = ellipse_height * unit_eigenvector.yx * float2(-1, 1);
-  int2 ellipse_bounds = int2(
-      ceil(sqrt(square(ellipse_major_axis) + square(ellipse_minor_axis))));
+  int2 ellipse_bounds = int2(ceil(sqrt(square(ellipse_major_axis) + square(ellipse_minor_axis))));
 
   /* Compute the overlap polynomial parameters for 8-sector ellipse based on the equations in
    * section "3 Alternative Weighting Functions" of the polynomial weights paper. More on this
@@ -175,7 +174,7 @@ void main()
        * and can be computed once for the x and once for the y coordinates. So we compute every
        * other even-indexed 4 weights by successive 90 degree rotations as discussed. */
       float2 polynomial = sector_center_overlap_parameter -
-                        cross_sector_overlap_parameter * square(disk_point);
+                          cross_sector_overlap_parameter * square(disk_point);
       sector_weights[0] = square(max(0.0f, disk_point.y + polynomial.x));
       sector_weights[2] = square(max(0.0f, -disk_point.x + polynomial.y));
       sector_weights[4] = square(max(0.0f, -disk_point.y + polynomial.x));
@@ -184,12 +183,12 @@ void main()
       /* Then we rotate the disk point by 45 degrees, which is a simple expression involving a
        * constant as can be demonstrated by applying a 45 degree rotation matrix. */
       float2 rotated_disk_point = M_SQRT1_2 *
-                                float2(disk_point.x - disk_point.y, disk_point.x + disk_point.y);
+                                  float2(disk_point.x - disk_point.y, disk_point.x + disk_point.y);
 
       /* Finally, we compute every other odd-index 4 weights starting from the 45 degrees rotated
        * disk point. */
       float2 rotated_polynomial = sector_center_overlap_parameter -
-                                cross_sector_overlap_parameter * square(rotated_disk_point);
+                                  cross_sector_overlap_parameter * square(rotated_disk_point);
       sector_weights[1] = square(max(0.0f, rotated_disk_point.y + rotated_polynomial.x));
       sector_weights[3] = square(max(0.0f, -rotated_disk_point.x + rotated_polynomial.y));
       sector_weights[5] = square(max(0.0f, -rotated_disk_point.y + rotated_polynomial.x));

@@ -74,9 +74,9 @@ void main()
 
   int2 tile_co = int2(gl_GlobalInvocationID.xy);
   int2 tile_shifted = tile_co +
-                       clamp(tilemap.is_dirty ? int2(SHADOW_TILEMAP_RES) : tilemap.grid_shift,
-                             int2(-SHADOW_TILEMAP_RES),
-                             int2(SHADOW_TILEMAP_RES));
+                      clamp(tilemap.is_dirty ? int2(SHADOW_TILEMAP_RES) : tilemap.grid_shift,
+                            int2(-SHADOW_TILEMAP_RES),
+                            int2(SHADOW_TILEMAP_RES));
   int2 tile_wrapped = int2((int2(SHADOW_TILEMAP_RES) + tile_shifted) % SHADOW_TILEMAP_RES);
 
   /* If this tile was shifted in and contains old information, update it.

@@ -110,7 +110,10 @@ struct Pyramid {
  * base_corner_01 is vertex 2
  * base_corner_10 is vertex 4
  */
-Pyramid shape_pyramid(float3 apex, float3 base_corner_00, float3 base_corner_01, float3 base_corner_10)
+Pyramid shape_pyramid(float3 apex,
+                      float3 base_corner_00,
+                      float3 base_corner_01,
+                      float3 base_corner_10)
 {
   Pyramid pyramid;
   pyramid.corners[0] = apex;

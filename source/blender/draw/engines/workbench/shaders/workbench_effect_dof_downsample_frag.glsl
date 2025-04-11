@@ -47,7 +47,8 @@ void main()
 
   /* Now we need to write the near-far fields pre-multiplied by the COC
    * also use bilateral weighting by each COC values to avoid bleeding. */
-  float4 near_weights = step(0.0f, cocs_near) * clamp(1.0f - abs(coc_near - cocs_near), 0.0f, 1.0f);
+  float4 near_weights = step(0.0f, cocs_near) *
+                        clamp(1.0f - abs(coc_near - cocs_near), 0.0f, 1.0f);
   float4 far_weights = step(0.0f, cocs_far) * clamp(1.0f - abs(coc_far - cocs_far), 0.0f, 1.0f);
 
   /* now write output to weighted buffers. */

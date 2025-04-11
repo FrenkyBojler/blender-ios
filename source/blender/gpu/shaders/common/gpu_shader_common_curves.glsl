@@ -26,7 +26,10 @@ float extrapolate_if_needed(float parameter, float value, float start_slope, flo
 }
 
 /* Same as extrapolate_if_needed but vectorized. */
-float3 extrapolate_if_needed(float3 parameters, float3 values, float3 start_slopes, float3 end_slopes)
+float3 extrapolate_if_needed(float3 parameters,
+                             float3 values,
+                             float3 start_slopes,
+                             float3 end_slopes)
 {
   float3 end_or_zero_slopes = mix(float3(0.0f), end_slopes, greaterThan(parameters, float3(1.0f)));
   float3 slopes = mix(end_or_zero_slopes, start_slopes, lessThan(parameters, float3(0.0f)));
@@ -118,7 +121,8 @@ void curves_combined_only(float factor,
   result.b = texture(curve_map, float2(coordinates.z, layer)).a;
 
   /* Then, extrapolate if needed. */
-  result.rgb = extrapolate_if_needed(parameters, result.rgb, float3(start_slope), float3(end_slope));
+  result.rgb = extrapolate_if_needed(
+      parameters, result.rgb, float3(start_slope), float3(end_slope));
 
   result.a = color.a;
 

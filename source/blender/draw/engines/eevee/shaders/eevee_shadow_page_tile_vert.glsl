@@ -28,7 +28,8 @@ void main()
   /* Load where fragment should write the tile data. */
   uint3 dst_page_co = shadow_page_unpack(dst_coord_buf[tile_id]);
   /* Interpolate output texel. */
-  interp_noperspective.out_texel_xy = (float2(dst_page_co.xy) + tile_corner) * float2(SHADOW_PAGE_RES);
+  interp_noperspective.out_texel_xy = (float2(dst_page_co.xy) + tile_corner) *
+                                      float2(SHADOW_PAGE_RES);
   interp_flat.out_page_z = dst_page_co.z;
 #endif
 

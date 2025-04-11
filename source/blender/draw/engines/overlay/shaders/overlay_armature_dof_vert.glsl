@@ -28,7 +28,7 @@ void main()
   float2 amax = float2(inst_obmat[2][3], inst_obmat[3][3]);
 
   float3 final_pos = sphere_project(pos.x * abs((pos.x > 0.0f) ? amax.x : amin.x),
-                                  pos.y * abs((pos.y > 0.0f) ? amax.y : amin.y));
+                                    pos.y * abs((pos.y > 0.0f) ? amax.y : amin.y));
 
   float3 world_pos = (model_mat * float4(final_pos, 1.0f)).xyz;
   gl_Position = drw_point_world_to_homogenous(world_pos);

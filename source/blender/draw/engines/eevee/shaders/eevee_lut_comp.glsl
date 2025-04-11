@@ -19,8 +19,8 @@ COMPUTE_SHADER_CREATE_INFO(eevee_lut)
  * https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
  * Parametrizing with `x = roughness` and `y = sqrt(1.0f - cos(theta))`.
  * The result is interpreted as: `integral = F0 * scale + F90 * bias - F82_tint * metal_bias`.
- * with `F82_tint = mix(F0, vec3(1.0f), pow5f(6.0f / 7.0f)) * (7.0f / pow6f(6.0f / 7.0f)) * (1.0f -
- * F82)`
+ * with `F82_tint = mix(F0, float3(1.0f), pow5f(6.0f / 7.0f)) * (7.0f / pow6f(6.0f / 7.0f)) * (1.0f
+ * - F82)`
  */
 float4 ggx_brdf_split_sum(float3 lut_coord)
 {
@@ -121,7 +121,7 @@ float4 ggx_bsdf_split_sum(float3 lut_coord)
     /* Refraction. */
     float3 T = bxdf_ggx_sample_refraction(Xi, V, roughness, ior, 0.0f, false).direction;
     float NT = T.z;
-    /* In the case of TIR, `T == vec3(0)`. */
+    /* In the case of TIR, `T == float3(0)`. */
     if (NT < 0.0f) {
       float3 H = normalize(ior * T + V);
       float HL = abs(dot(H, T));
@@ -225,8 +225,8 @@ float4 random_walk_sss_translucency(float3 lut_coord)
   float3 scale = float3(0.31f, 0.47f, 0.32f);
   float3 exponent = float3(-22.0f, -5.8f, -0.5f);
   float3 profile = float3(dot(scale, exp(exponent * r.r)),
-                      dot(scale, exp(exponent * r.g)),
-                      dot(scale, exp(exponent * r.b)));
+                          dot(scale, exp(exponent * r.g)),
+                          dot(scale, exp(exponent * r.b)));
   profile = saturate(profile - 0.1f);
   /* Mask off the end progressively to 0. */
   profile *= saturate(1.0f - pow5f(lut_coord.x));

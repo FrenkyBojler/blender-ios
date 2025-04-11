@@ -61,9 +61,12 @@ float4 velocity_background(float3 vV)
   float3 V = transform_direction(camera_curr.viewinv, vV);
   /* NOTE: We use CameraData matrices instead of drw_view().winmat to avoid adding the TAA jitter
    * to the velocity. */
-  float2 prev_uv = project_point(camera_prev.winmat, transform_direction(camera_prev.viewmat, V)).xy;
-  float2 curr_uv = project_point(camera_curr.winmat, transform_direction(camera_curr.viewmat, V)).xy;
-  float2 next_uv = project_point(camera_next.winmat, transform_direction(camera_next.viewmat, V)).xy;
+  float2 prev_uv =
+      project_point(camera_prev.winmat, transform_direction(camera_prev.viewmat, V)).xy;
+  float2 curr_uv =
+      project_point(camera_curr.winmat, transform_direction(camera_curr.viewmat, V)).xy;
+  float2 next_uv =
+      project_point(camera_next.winmat, transform_direction(camera_next.viewmat, V)).xy;
   /* NOTE: We output both vectors in the same direction so we can reuse the same vector
    * with RGRG swizzle in viewport. */
   float4 motion = float4(prev_uv - curr_uv, curr_uv - next_uv);

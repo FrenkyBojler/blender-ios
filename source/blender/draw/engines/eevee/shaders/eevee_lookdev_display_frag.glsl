@@ -23,7 +23,7 @@ void main()
   float alpha = clamp(1.0f - factor, 0.0f, 1.0f);
 
   float4 color = sphere_id == 0 ? texture(metallic_tx, uv_coord.xy, 0) :
-                                texture(diffuse_tx, uv_coord.xy, 0);
+                                  texture(diffuse_tx, uv_coord.xy, 0);
   color.a = alpha;
   out_color = color;
 

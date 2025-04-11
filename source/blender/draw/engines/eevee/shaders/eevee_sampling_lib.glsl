@@ -38,8 +38,8 @@ float2 sampling_rng_2D_get(const eSamplingDimension dimension)
 float3 sampling_rng_3D_get(const eSamplingDimension dimension)
 {
   return float3(sampling_buf.dimensions[dimension],
-              sampling_buf.dimensions[dimension + 1u],
-              sampling_buf.dimensions[dimension + 2u]);
+                sampling_buf.dimensions[dimension + 1u],
+                sampling_buf.dimensions[dimension + 2u]);
 }
 
 #endif
@@ -62,14 +62,14 @@ float interlieved_gradient_noise(float2 pixel, float seed, float offset)
 float2 interlieved_gradient_noise(float2 pixel, float2 seed, float2 offset)
 {
   return float2(interlieved_gradient_noise(pixel, seed.x, offset.x),
-              interlieved_gradient_noise(pixel, seed.y, offset.y));
+                interlieved_gradient_noise(pixel, seed.y, offset.y));
 }
 
 float3 interlieved_gradient_noise(float2 pixel, float3 seed, float3 offset)
 {
   return float3(interlieved_gradient_noise(pixel, seed.x, offset.x),
-              interlieved_gradient_noise(pixel, seed.y, offset.y),
-              interlieved_gradient_noise(pixel, seed.z, offset.z));
+                interlieved_gradient_noise(pixel, seed.y, offset.y),
+                interlieved_gradient_noise(pixel, seed.z, offset.z));
 }
 
 /* From: http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html */

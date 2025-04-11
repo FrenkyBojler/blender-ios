@@ -108,7 +108,7 @@ void main()
   }
 
   float2 fb_size = max(float2(textureSize(gpSceneDepthTexture, 0).xy),
-                     float2(textureSize(gpMaskTexture, 0).xy));
+                       float2(textureSize(gpMaskTexture, 0).xy));
   float2 uvs = gl_FragCoord.xy / fb_size;
   /* Manual depth test */
   float scene_depth = texture(gpSceneDepthTexture, uvs).r;

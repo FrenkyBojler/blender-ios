@@ -21,21 +21,21 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_depth_of_field_scatter)
 void main()
 {
   float4 coc4 = float4(interp_flat.color_and_coc1.w,
-                   interp_flat.color_and_coc2.w,
-                   interp_flat.color_and_coc3.w,
-                   interp_flat.color_and_coc4.w);
+                       interp_flat.color_and_coc2.w,
+                       interp_flat.color_and_coc3.w,
+                       interp_flat.color_and_coc4.w);
   float4 shapes;
   if (use_bokeh_lut) {
     shapes = float4(texture(bokeh_lut_tx, interp_noperspective.rect_uv1).r,
-                  texture(bokeh_lut_tx, interp_noperspective.rect_uv2).r,
-                  texture(bokeh_lut_tx, interp_noperspective.rect_uv3).r,
-                  texture(bokeh_lut_tx, interp_noperspective.rect_uv4).r);
+                    texture(bokeh_lut_tx, interp_noperspective.rect_uv2).r,
+                    texture(bokeh_lut_tx, interp_noperspective.rect_uv3).r,
+                    texture(bokeh_lut_tx, interp_noperspective.rect_uv4).r);
   }
   else {
     shapes = float4(length(interp_noperspective.rect_uv1),
-                  length(interp_noperspective.rect_uv2),
-                  length(interp_noperspective.rect_uv3),
-                  length(interp_noperspective.rect_uv4));
+                    length(interp_noperspective.rect_uv2),
+                    length(interp_noperspective.rect_uv3),
+                    length(interp_noperspective.rect_uv4));
   }
   shapes *= interp_flat.distance_scale;
   /* Becomes signed distance field in pixel units. */

@@ -131,7 +131,8 @@ void node_bsdf_principled(float4 base_color,
       float coat_neta = 1.0f / coat_ior;
       float NT = sqrt_fast(1.0f - coat_neta * coat_neta * (1 - NV * NV));
       /* Tint lower layers. */
-      coat_tint.rgb = mix(float3(1.0f), pow(coat_tint.rgb, float3(1.0f / NT)), saturate(coat_weight));
+      coat_tint.rgb = mix(
+          float3(1.0f), pow(coat_tint.rgb, float3(1.0f / NT)), saturate(coat_weight));
     }
   }
   else {

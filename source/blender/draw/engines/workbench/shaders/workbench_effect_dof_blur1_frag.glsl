@@ -46,7 +46,8 @@ void main()
 
   float coc = dof_decode_coc(texelFetch(inputCocTex, texel, 0).rg);
   float max_radius = coc;
-  float2 noise = get_random_vector(noiseOffset) * 0.2f * clamp(max_radius * 0.2f - 4.0f, 0.0f, 1.0f);
+  float2 noise = get_random_vector(noiseOffset) * 0.2f *
+                 clamp(max_radius * 0.2f - 4.0f, 0.0f, 1.0f);
   for (int i = 0; i < NUM_SAMPLES; i++) {
     float2 tc = uv + (noise + samples[i].xy) * invertedViewportSize * max_radius;
 

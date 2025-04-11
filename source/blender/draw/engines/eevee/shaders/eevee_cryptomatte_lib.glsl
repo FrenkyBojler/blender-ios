@@ -30,9 +30,9 @@ float4 cryptomatte_false_color(float hash)
 {
   uint m3hash = floatBitsToUint(hash);
   return float4(hash,
-              float(m3hash << 8) / float(0xFFFFFFFFu),
-              float(m3hash << 16) / float(0xFFFFFFFFu),
-              1.0f);
+                float(m3hash << 8) / float(0xFFFFFFFFu),
+                float(m3hash << 16) / float(0xFFFFFFFFu),
+                1.0f);
 }
 
 void cryptomatte_clear_samples(FilmSample dst)

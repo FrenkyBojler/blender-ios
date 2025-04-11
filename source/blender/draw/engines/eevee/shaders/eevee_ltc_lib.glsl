@@ -175,7 +175,8 @@ void ltc_transform_quad(float3 N, float3 V, float3x3 Minv, inout float3 corners[
 }
 
 /* If corners have already pass through ltc_transform_quad(),
- * then N **MUST** be vec3(0.0f, 0.0f, 1.0f), corresponding to the Up axis of the shading basis. */
+ * then N **MUST** be float3(0.0f, 0.0f, 1.0f), corresponding to the Up axis of the shading basis.
+ */
 float ltc_evaluate_quad(sampler2DArray utility_tx, float3 corners[4], float3 N)
 {
   /* Approximation using a sphere of the same solid angle than the quad.
