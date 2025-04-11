@@ -2,3 +2,4 @@ Referenced by issue #53683, 2.79a release
 Referenced by issue #52776, Proposal: Remove SGI image format support
 Referenced by issue #52654, Talos security advisory for Blender product
 Referenced by commit 2cbb07d7adc2c4bcdabe5b3ecf651baff2d52ceb, Fix: error reading RLE compressed Iris images
+Referenced by pull request #137322, Fix: error reading RLE compressed Iris images (4.4x backport)
