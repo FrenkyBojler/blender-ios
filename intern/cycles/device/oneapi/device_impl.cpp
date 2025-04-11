@@ -1343,7 +1343,6 @@ int parse_driver_build_version(const sycl::device &device)
       }
     }
     catch (std::invalid_argument &) {
-      driver_build_version = 0;
     }
   }
 
