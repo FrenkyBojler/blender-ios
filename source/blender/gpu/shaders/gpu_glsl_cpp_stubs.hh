@@ -574,7 +574,7 @@ struct SamplerBase {
 TEX_TEMPLATE SizeVec textureSize(T, int) RET;
 TEX_TEMPLATE DataVec texelFetch(T, IntCoord, int) RET;
 TEX_TEMPLATE DataVec texelFetchOffset(T, IntCoord, int, IntCoord) RET;
-TEX_TEMPLATE DataVec texture(T, FltCoord, double /*bias*/ = 0.0) RET;
+TEX_TEMPLATE DataVec texture(T, FltCoord, double /*bias*/ = 0.0f) RET;
 TEX_TEMPLATE DataVec textureGather(T, FltCoord) RET;
 TEX_TEMPLATE DataVec textureGrad(T, FltCoord, DerivVec, DerivVec) RET;
 TEX_TEMPLATE DataVec textureLod(T, FltCoord, double) RET;
