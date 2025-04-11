@@ -128,7 +128,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   Vector<CustomDataLayer, 16> point_layers;
   CustomData_blend_write_prepare(pointcloud->pdata, point_layers);
   blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  if (BLO_write_is_undo(writer)) {
+  if (U.experimental.use_attribute_storage_write_debug || BLO_write_is_undo(writer)) {
     pointcloud->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
   }
   else {

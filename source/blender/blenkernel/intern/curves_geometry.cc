@@ -1882,7 +1882,7 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
 CurvesGeometry::BlendWriteData CurvesGeometry::blend_write_prepare(BlendWriter &writer)
 {
   CurvesGeometry::BlendWriteData write_data;
-  if (BLO_write_is_undo(&writer)) {
+  if (U.experimental.use_attribute_storage_write_debug || BLO_write_is_undo(&writer)) {
     this->attribute_storage.wrap().blend_write_prepare(writer, write_data.attribute_data);
   }
   else {

@@ -367,7 +367,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
     CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
-    if (is_undo) {
+    if (U.experimental.use_attribute_storage_write_debug || is_undo) {
       mesh->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
     }
     else {
