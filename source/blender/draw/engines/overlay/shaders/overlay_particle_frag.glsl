@@ -24,7 +24,7 @@ void main()
 
   /* The default value of GL_POINT_SPRITE_COORD_ORIGIN is GL_UPPER_LEFT. Need to reverse the Y. */
   uv.y = -uv.y;
-  /* Subtract distance to outer edge of the circle. (0.75f is manually tweaked to look better) */
+  /* Subtract distance to outer edge of the circle. (0.75 is manually tweaked to look better) */
   vec2 edge_pos = gl_FragCoord.xy - uv * (0.75f / (dist + 1e-9f));
   vec2 edge_start = edge_pos + vec2(-uv.y, uv.x);
 

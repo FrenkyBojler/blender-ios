@@ -161,7 +161,7 @@ void main()
     /* FIXME(fclem): Tried to match the old occlusion look. I don't know why it's needed. */
     occlusion *= 0.5f;
     /* TODO(fclem): Ideally, we should just combine both local and distant irradiance and evaluate
-     * once. Unfortunately, I couldn't find a way to do the same (1.0f - occlusion) with the
+     * once. Unfortunately, I couldn't find a way to do the same (1.0 - occlusion) with the
      * spherical harmonic coefficients. */
     float visibility = saturate(1.0f - occlusion);
 

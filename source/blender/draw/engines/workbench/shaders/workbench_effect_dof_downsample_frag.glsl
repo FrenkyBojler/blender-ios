@@ -17,7 +17,7 @@
 FRAGMENT_SHADER_CREATE_INFO(workbench_effect_dof_downsample)
 
 /**
- * ----------------- STEP 0.5f ------------------
+ * ----------------- STEP 0.5 ------------------
  * Custom COC aware down-sampling. Quarter res pass.
  */
 

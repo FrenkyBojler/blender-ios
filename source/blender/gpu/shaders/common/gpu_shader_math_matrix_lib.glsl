@@ -176,8 +176,8 @@ mat4x4 scale(mat4x4 mat, vec3 scale);
  * However, it gives un-expected results even with non-uniformly scaled matrices,
  * see #46418 for an example.
  *
- * \param A: Input matrix which is totally effective with `t = 0.0f`.
- * \param B: Input matrix which is totally effective with `t = 1.0f`.
+ * \param A: Input matrix which is totally effective with `t = 0.0`.
+ * \param B: Input matrix which is totally effective with `t = 1.0`.
  * \param t: Interpolation factor.
  */
 mat3x3 interpolate_fast(mat3x3 a, mat3x3 b, float t);
@@ -1043,7 +1043,7 @@ mat2x2 from_direction(vec2 direction)
 
 mat3x3 from_up_axis(vec3 up)
 {
-  /* Duff, Tom, et al. "Building an orthonormal basis, revisited." JCGT 6.1f (2017). */
+  /* Duff, Tom, et al. "Building an orthonormal basis, revisited." JCGT 6.1 (2017). */
   float z_sign = up.z >= 0.0f ? 1.0f : -1.0f;
   float a = -1.0f / (z_sign + up.z);
   float b = up.x * up.y * a;

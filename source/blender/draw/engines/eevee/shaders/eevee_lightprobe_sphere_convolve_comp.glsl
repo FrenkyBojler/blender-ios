@@ -43,7 +43,7 @@ float cone_cosine_from_roughness(float linear_roughness)
 {
   /* From linear roughness to GGX roughness input. */
   float m = square(linear_roughness);
-  /* Chosen so that roughness of 1.0f maps to half pi cone aperture. */
+  /* Chosen so that roughness of 1.0 maps to half pi cone aperture. */
   float cutoff_value = mix(0.01f, 0.14f, m);
   /* Inversion of the spherical gaussian. This gives the cutoff for the half angle from N.H. */
   float half_angle_cos = 1.0f + (log(cutoff_value) * square(m)) / 2.0f;

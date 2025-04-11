@@ -237,7 +237,7 @@
  *
  * 3. The full SMAA 1x pipeline must be run for each separated buffer, storing
  *    the results in the final buffer. The second run should alpha blend with
- *    the existing final buffer using a blending factor of 0.5f.
+ *    the existing final buffer using a blending factor of 0.5.
  *    'subsampleIndices' must be adjusted as in the SMAA T2x case (see point
  *    b).
  *
@@ -316,10 +316,10 @@
  * performance.
  *
  * Range: [0, 0.5f]
- *   0.1f is a reasonable value, and allows to catch most visible edges.
- *   0.05f is a rather overkill value, that allows to catch 'em all.
+ *   0.1 is a reasonable value, and allows to catch most visible edges.
+ *   0.05 is a rather overkill value, that allows to catch 'em all.
  *
- *   If temporal supersampling is used, 0.2f could be a reasonable value, as low
+ *   If temporal supersampling is used, 0.2 could be a reasonable value, as low
  *   contrast edges are properly filtered by just 2x.
  */
 #ifndef SMAA_THRESHOLD
@@ -1105,7 +1105,7 @@ float SMAASearchXLeft(SMAATexture2D(edgesTex),
 {
   /**
    * @PSEUDO_GATHER4
-   * This texcoord has been offset by (-0.25f, -0.125f) in the vertex shader to
+   * This texcoord has been offset by (-0.25, -0.125f) in the vertex shader to
    * sample between edge, thus fetching four edges in a row.
    * Sampling with different offsets in each direction allows to disambiguate
    * which edges are active from the four fetched ones.

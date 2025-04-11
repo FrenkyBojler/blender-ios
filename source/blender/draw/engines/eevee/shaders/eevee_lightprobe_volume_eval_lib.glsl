@@ -199,7 +199,7 @@ SphericalHarmonicL1 lightprobe_volume_sample(
 
 SphericalHarmonicL1 lightprobe_volume_world()
 {
-  /* We need a 0.5f offset because of filtering. */
+  /* We need a 0.5 offset because of filtering. */
   return lightprobe_volume_sample_atlas(irradiance_atlas_tx, vec3(0.5001f));
 }
 

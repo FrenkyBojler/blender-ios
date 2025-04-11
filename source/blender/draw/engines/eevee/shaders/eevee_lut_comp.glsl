@@ -26,7 +26,7 @@ vec4 ggx_brdf_split_sum(vec3 lut_coord)
 {
   /* Squaring for perceptually linear roughness, see [Physically Based Shading at Disney]
    * (https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf)
-   * Section 5.4f. */
+   * Section 5.4. */
   float roughness = square(lut_coord.x);
 
   float NV = clamp(1.0f - square(lut_coord.y), 1e-4f, 0.9999f);
@@ -88,7 +88,7 @@ vec4 ggx_bsdf_split_sum(vec3 lut_coord)
 
   /* Squaring for perceptually linear roughness, see [Physically Based Shading at Disney]
    * (https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf)
-   * Section 5.4f. */
+   * Section 5.4. */
   float roughness = square(lut_coord.z);
 
   vec3 V = vec3(sqrt(1.0f - square(NV)), 0.0f, NV);
@@ -158,7 +158,7 @@ vec4 ggx_btdf_gt_one(vec3 lut_coord)
 
   /* Squaring for perceptually linear roughness, see [Physically Based Shading at Disney]
    * (https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf)
-   * Section 5.4f. */
+   * Section 5.4. */
   float roughness = square(lut_coord.z);
 
   /* Integrating BTDF. */
@@ -200,8 +200,8 @@ vec4 burley_sss_translucency(vec3 lut_coord)
   float thickness = lut_coord.x * SSS_TRANSMIT_LUT_RADIUS;
   vec3 r = thickness / radii;
   /* Manual fit based on cycles render of a backlit slab of varying thickness.
-   * Mean Error: 0.003f
-   * Max Error: 0.015f */
+   * Mean Error: 0.003
+   * Max Error: 0.015 */
   vec3 exponential = exp(-3.6f * pow(r, vec3(1.11f)));
   vec3 gaussian = exp(-pow(3.4f * r, vec3(1.6f)));
   vec3 fac = square(saturate(0.5f + r / 0.6f));
@@ -220,8 +220,8 @@ vec4 random_walk_sss_translucency(vec3 lut_coord)
   float thickness = lut_coord.x * SSS_TRANSMIT_LUT_RADIUS;
   vec3 r = thickness / radii;
   /* Manual fit based on cycles render of a backlit slab of varying thickness.
-   * Mean Error: 0.003f
-   * Max Error: 0.016f */
+   * Mean Error: 0.003
+   * Max Error: 0.016 */
   vec3 scale = vec3(0.31f, 0.47f, 0.32f);
   vec3 exponent = vec3(-22.0f, -5.8f, -0.5f);
   vec3 profile = vec3(dot(scale, exp(exponent * r.r)),

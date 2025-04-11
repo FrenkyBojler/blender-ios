@@ -10,7 +10,7 @@
  * '-----------'   '--------------'   '----------------'
  *
  * The threshold operation just converts the input into a binary image, where the pixel is 1 if it
- * is larger than 0.5f and 0 otherwise. Pixels that are 1 in the output of the threshold operation
+ * is larger than 0.5 and 0 otherwise. Pixels that are 1 in the output of the threshold operation
  * are said to be masked. The dilate/erode operation is a dilate or erode morphological operation
  * with a circular structuring element depending on the sign of the distance, where it is a dilate
  * operation if the distance is positive and an erode operation otherwise. This is equivalent to
@@ -57,7 +57,7 @@ void main()
   ivec2 image_size = texture_size(input_tx);
 
   /* Apply a threshold operation on the center pixel, where the threshold is currently hard-coded
-   * at 0.5f. The pixels with values larger than the threshold are said to be masked. */
+   * at 0.5. The pixels with values larger than the threshold are said to be masked. */
   bool is_center_masked = texture_load(input_tx, texel).x > 0.5f;
 
   /* Since the distance search window is limited to the given radius, the maximum possible squared

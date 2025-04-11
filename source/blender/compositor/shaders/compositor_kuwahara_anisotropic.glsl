@@ -243,7 +243,7 @@ void main()
     float standard_deviation = dot(sqrt(color_variance.rgb), vec3(1.0f));
 
     /* Compute the sector weight based on the weight function introduced in section "3.3.1
-     * Single-scale Filtering" of the multi-scale paper. Use a threshold of 0.02f to avoid zero
+     * Single-scale Filtering" of the multi-scale paper. Use a threshold of 0.02 to avoid zero
      * division and avoid artifacts in homogeneous regions as demonstrated in the paper. */
     float weight = 1.0f / pow(max(0.02f, standard_deviation), sharpness);
 

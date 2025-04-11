@@ -44,7 +44,7 @@ float atan_fast(float x)
   float t = s * s;
   /* http://mathforum.org/library/drmath/view/62672.html
    * Examined 4278190080 values of atan:
-   *   2.36864877f avg ULP diff, 302 max ULP, 6.55651e-06f max error      // (with  denormals)
+   *   2.36864877 avg ULP diff, 302 max ULP, 6.55651e-06f max error      // (with  denormals)
    * Examined 4278190080 values of atan:
    *   171160502 avg ULP diff, 855638016 max ULP, 6.55651e-06f max error // (crush denormals)
    */

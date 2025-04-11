@@ -9,7 +9,7 @@ void main()
   ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
   ivec2 input_size = texture_size(input_ghost_tx);
 
-  /* Add 0.5f to evaluate the input sampler at the center of the pixel and divide by the image size
+  /* Add 0.5 to evaluate the input sampler at the center of the pixel and divide by the image size
    * to get the coordinates into the sampler's expected [0, 1] range. */
   vec2 coordinates = (vec2(texel) + vec2(0.5f)) / vec2(input_size);
 
@@ -20,7 +20,7 @@ void main()
     float scale = scales[i];
     vec4 color_modulator = color_modulators[i];
 
-    /* Scale the coordinates for the ghost, pre subtract 0.5f and post add 0.5f to use 0.5f as the
+    /* Scale the coordinates for the ghost, pre subtract 0.5 and post add 0.5f to use 0.5f as the
      * origin of the scaling. */
     vec2 scaled_coordinates = (coordinates - 0.5f) * scale + 0.5f;
 

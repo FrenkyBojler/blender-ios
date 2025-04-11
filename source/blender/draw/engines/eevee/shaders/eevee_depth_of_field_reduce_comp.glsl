@@ -154,7 +154,7 @@ void main()
     coc4 *= 0.5f;
     /* Sprite center position. Center sprite around the 4 texture taps. */
     vec2 offset = vec2(gl_GlobalInvocationID.xy) + 1;
-    /* Add 2.5f to max_coc because the max_coc may not be centered on the sprite origin
+    /* Add 2.5 to max_coc because the max_coc may not be centered on the sprite origin
      * and because we smooth the bokeh shape a bit in the pixel shader. */
     vec2 half_extent = reduce_max(abs(coc4)) * dof_buf.bokeh_anisotropic_scale + 2.5f;
     /* Follows quad_offsets order. */

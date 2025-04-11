@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* This shader implements a single pass of the Jump Flooding algorithm described in sections 3.1f
+/* This shader implements a single pass of the Jump Flooding algorithm described in sections 3.1
  * and 3.2 of the paper:
  *
  *   Rong, Guodong, and Tiow-Seng Tan. "Jump flooding in GPU with applications to Voronoi diagram

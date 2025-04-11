@@ -36,7 +36,7 @@ void main()
 
       /* If the user specified include_edges_of_image to be true, then we assume the outer mask is
        * bounded by the image boundary, otherwise, we assume the outer mask is open-ended. This is
-       * practically implemented by falling back to 0.0f or 1.0f for out of bound pixels. */
+       * practically implemented by falling back to 0.0 or 1.0 for out of bound pixels. */
       vec4 boundary_fallback = include_edges_of_image ? vec4(0.0f) : vec4(1.0f);
       if (texture_load(outer_mask_tx, texel + offset, boundary_fallback).x == 0.0f) {
         has_outer_non_masked_neighbors = true;

@@ -264,7 +264,7 @@ float noise_scale4(float result)
 float snoise(float p)
 {
   float precision_correction = 0.5f * float(abs(p) >= 1000000.0f);
-  /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. */
   p = compatible_mod(p, 100000.0f) + precision_correction;
 
@@ -280,7 +280,7 @@ float snoise(vec2 p)
 {
   vec2 precision_correction = 0.5f *
                               vec2(float(abs(p.x) >= 1000000.0f), float(abs(p.y) >= 1000000.0f));
-  /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */
   p = compatible_mod(p, 100000.0f) + precision_correction;
@@ -298,7 +298,7 @@ float snoise(vec3 p)
   vec3 precision_correction = 0.5f * vec3(float(abs(p.x) >= 1000000.0f),
                                           float(abs(p.y) >= 1000000.0f),
                                           float(abs(p.z) >= 1000000.0f));
-  /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */
   p = compatible_mod(p, 100000.0f) + precision_correction;
@@ -317,7 +317,7 @@ float snoise(vec4 p)
                                           float(abs(p.y) >= 1000000.0f),
                                           float(abs(p.z) >= 1000000.0f),
                                           float(abs(p.w) >= 1000000.0f));
-  /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
    * representation issues. This causes discontinuities every 100000.0f, however at such scales
    * this usually shouldn't be noticeable. */
   p = compatible_mod(p, 100000.0f) + precision_correction;

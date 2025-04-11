@@ -368,7 +368,7 @@ void dof_gather_accumulate_resolve(int total_sample_count,
   else {
     out_weight = 0.0f;
   }
-  /* Gathering may not accumulate to 1.0f alpha because of float precision. */
+  /* Gathering may not accumulate to 1.0 alpha because of float precision. */
   if (out_weight > 0.99f) {
     out_weight = 1.0f;
   }
@@ -497,7 +497,7 @@ void dof_gather_accumulator(sampler2D color_tx,
       for (int i = 0; i < 2; i++) {
         vec2 offset_co = ((i == 0) ? offset : -offset);
         if (DOF_BOKEH_TEXTURE) {
-          /* Scaling to 0.25f for speed. Improves texture cache hit. */
+          /* Scaling to 0.25 for speed. Improves texture cache hit. */
           offset_co = texture(bkh_lut_tx, offset_co * 0.25f + 0.5f).rg;
           offset_co *= (IS_FOREGROUND) ? -dof_buf.bokeh_anisotropic_scale :
                                          dof_buf.bokeh_anisotropic_scale;

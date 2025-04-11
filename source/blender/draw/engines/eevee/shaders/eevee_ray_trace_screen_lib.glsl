@@ -77,7 +77,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
     raytrace_clip_ray_to_near_plane(ray);
   }
 
-  /* NOTE: The 2.0f factor here is because we are applying it in NDC space. */
+  /* NOTE: The 2.0 factor here is because we are applying it in NDC space. */
   ScreenSpaceRay ssray = raytrace_screenspace_ray_create(
       ray, 2.0f * rt_data.full_resolution_inv, rt_data.thickness);
 
@@ -180,7 +180,7 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
   }
 
   vec2 inv_texture_size = 1.0f / vec2(textureSize(planar_depth_tx, 0).xy);
-  /* NOTE: The 2.0f factor here is because we are applying it in NDC space. */
+  /* NOTE: The 2.0 factor here is because we are applying it in NDC space. */
   /* TODO(@fclem): This uses the main view's projection matrix, not the planar's one.
    * This works fine for reflection, but this prevent the use of any other projection capture. */
   ScreenSpaceRay ssray = raytrace_screenspace_ray_create(ray, 2.0f * inv_texture_size);

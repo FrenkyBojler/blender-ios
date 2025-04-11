@@ -48,7 +48,7 @@
  * so it felt like an appropriate choice.
  *
  * Finally, instead of computing the Gabor value directly, we instead use the complex phasor
- * formulation described in section 3.1f.1 in Tricard's paper. That's done to be able to compute
+ * formulation described in section 3.1.1 in Tricard's paper. That's done to be able to compute
  * the phase and intensity of the Gabor noise after summation based on equations (8) and (9). The
  * return value of the Gabor kernel function is then a complex number whose real value is the
  * value computed in the original Gabor noise paper, and whose imaginary part is the sine
@@ -56,7 +56,7 @@
  *
  * Note that while the original Gabor noise paper uses the cosine part of the phasor, that is, the
  * real part of the phasor, we use the sine part instead, that is, the imaginary part of the
- * phasor, as suggested by Tavernier's paper in "Section 3.3f. Instance stationarity and
+ * phasor, as suggested by Tavernier's paper in "Section 3.3. Instance stationarity and
  * normalization", to ensure a zero mean, which should help with normalization. */
 vec2 compute_2d_gabor_kernel(vec2 position, float frequency, float orientation)
 {
@@ -87,7 +87,7 @@ vec2 compute_2d_gabor_kernel(vec2 position, float frequency, float orientation)
  *
  *  \frac{1 - e^{-2 \pi f_0^2}}{4}
  *
- * Secondly, we note that the second moment of the weights distribution is 0.5f since it is a
+ * Secondly, we note that the second moment of the weights distribution is 0.5 since it is a
  * fair Bernoulli distribution. So the final standard deviation expression is square root the
  * integral multiplied by the impulse density multiplied by the second moment.
  *
@@ -97,7 +97,7 @@ vec2 compute_2d_gabor_kernel(vec2 position, float frequency, float orientation)
  *
  *  \lim_{x \to \infty} \frac{1 - e^{-2 \pi f_0^2}}{4}
  *
- * To get an approximation of 0.25f. */
+ * To get an approximation of 0.25. */
 float compute_2d_gabor_standard_deviation()
 {
   float integral_of_gabor_squared = 0.25f;

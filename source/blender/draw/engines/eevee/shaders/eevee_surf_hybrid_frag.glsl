@@ -70,7 +70,7 @@ void main()
     /* alpha is set from rejected pixels / dithering. */
     g_holdout = 1.0f;
 
-    /* Set alpha to 0.0f so that lighting is not computed. */
+    /* Set alpha to 0.0 so that lighting is not computed. */
     alpha_rcp = 0.0f;
   }
 

@@ -13,7 +13,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_armature_shape_wire)
  * We replace the square pixel with a circle of the same area and try to find the intersection
  * area. The area we search is the circular segment. https://en.wikipedia.org/wiki/Circular_segment
  * The formula for the area uses inverse trig function and is quite complex. Instead,
- * we approximate it by using the smooth-step function and a 1.05f factor to the disc radius.
+ * we approximate it by using the smooth-step function and a 1.05 factor to the disc radius.
  */
 
 #define M_1_SQRTPI 0.5641895835477563f /* `1/sqrt(pi)`. */

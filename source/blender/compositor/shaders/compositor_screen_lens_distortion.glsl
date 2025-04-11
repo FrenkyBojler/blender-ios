@@ -72,7 +72,7 @@ ivec3 compute_number_of_integration_steps(vec2 uv, float distance_squared)
 }
 
 /* Returns a random jitter amount, which is essentially a random value in the [0, 1] range. If
- * jitter is not enabled, return a constant 0.5f value instead. */
+ * jitter is not enabled, return a constant 0.5 value instead. */
 float get_jitter(int seed)
 {
 #if defined(JITTER)
@@ -145,11 +145,11 @@ void main()
 
   /* The integration above performed weighted accumulation, and thus the color needs to be divided
    * by the sum of the weights. Assuming no jitter, the weights are generated as an arithmetic
-   * progression starting from (0.5f / n) to ((n - 0.5f) / n) for n terms. The sum of an arithmetic
+   * progression starting from (0.5 / n) to ((n - 0.5f) / n) for n terms. The sum of an arithmetic
    * progression can be computed as (n * (start + end) / 2), which when subsisting the start and
    * end reduces to (n / 2). So the color should be multiplied by 2 / n. The jitter sequence
    * approximately sums to the same value because it is a uniform random value whose mean value is
-   * 0.5f, so the expression doesn't change regardless of jitter. */
+   * 0.5, so the expression doesn't change regardless of jitter. */
   color *= 2.0f / vec3(number_of_steps);
 
   imageStore(output_img, texel, vec4(color, 1.0f));

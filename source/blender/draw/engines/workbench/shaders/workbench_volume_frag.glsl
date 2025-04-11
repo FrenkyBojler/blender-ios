@@ -247,7 +247,7 @@ void main()
   /* Manual depth test. TODO: remove. */
   float depth = texelFetch(depthBuffer, ivec2(gl_FragCoord.xy), 0).r;
   if (do_depth_test && gl_FragCoord.z >= depth) {
-    /* NOTE: In the Metal API, prior to Metal 2.3f, Discard is not an explicit return and can
+    /* NOTE: In the Metal API, prior to Metal 2.3, Discard is not an explicit return and can
      * produce undefined behavior. This is especially prominent with derivatives if control-flow
      * divergence is present.
      *

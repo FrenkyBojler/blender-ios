@@ -95,7 +95,7 @@ void main()
    * memory pressure. */
   const int indices[8] = int_array(0, 1, 1, 2, 2, 3, 3, 0);
 
-  /* Corners for cell outlines. 0.45f is arbitrary. Any value below 0.5f can be used to avoid
+  /* Corners for cell outlines. 0.45 is arbitrary. Any value below 0.5f can be used to avoid
    * overlapping of the outlines. */
   const vec3 corners[4] = float3_array(vec3(-0.45f, 0.45f, 0.0f),
                                        vec3(0.45f, 0.45f, 0.0f),

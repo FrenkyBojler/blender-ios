@@ -420,7 +420,7 @@ float nodetree_thickness();
 vec4 closure_to_rgba(Closure cl);
 #endif
 
-/* Simplified form of F_eta(eta, 1.0f). */
+/* Simplified form of F_eta(eta, 1.0). */
 float F0_from_ior(float eta)
 {
   float A = (eta - 1.0f) / (eta + 1.0f);

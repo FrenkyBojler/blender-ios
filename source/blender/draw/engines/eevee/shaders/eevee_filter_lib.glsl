@@ -21,8 +21,8 @@
  * https://en.wikipedia.org/wiki/Standard_deviation#/media/File:Standard_deviation_diagram.svg
  *
  * Example: for a 5px 1d gaussian filter, one would set `linear_distance` of 2.5f.
- * `standard_deviation = 1.0f` will cover 68% of the gaussian weight inside the 5px radius.
- * `standard_deviation = 2.0f` will cover 95% of the gaussian weight inside the 5px radius.
+ * `standard_deviation = 1.0` will cover 68% of the gaussian weight inside the 5px radius.
+ * `standard_deviation = 2.0` will cover 95% of the gaussian weight inside the 5px radius.
  */
 float filter_gaussian_factor(float linear_distance, float standard_deviation)
 {

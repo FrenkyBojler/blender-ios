@@ -16,7 +16,7 @@
  *
  * - (#B1#) Compute luma on the fly using BT. 709 luma function
  * - (#B2#) main function instead of #include, due to lack of
- *          ARB_shading_language_include in 3.3f
+ *          ARB_shading_language_include in 3.3
  * - (#B3#) version and extension directives
  * - removed "FXAA Console" algorithm support and shader parameters
  * - removed  HLSL support shims
@@ -302,8 +302,8 @@ vec4 FxaaPixelShader(
     /*
      * Only used on FXAA Quality.
      * This must be from a constant/uniform.
-     * {x_} = 1.0f/screenWidthInPixels
-     * {_y} = 1.0f/screenHeightInPixels */
+     * {x_} = 1.0/screenWidthInPixels
+     * {_y} = 1.0/screenHeightInPixels */
     vec2 fxaaQualityRcpFrame,
     /*
      * Only used on FXAA Quality.
@@ -311,31 +311,31 @@ vec4 FxaaPixelShader(
      * It is here now to allow easier tuning.
      * Choose the amount of sub-pixel aliasing removal.
      * This can effect sharpness.
-     *   1.00f - upper limit (softer)
-     *   0.75f - default amount of filtering
-     *   0.50f - lower limit (sharper, less sub-pixel aliasing removal)
-     *   0.25f - almost off
-     *   0.00f - completely off */
+     *   1.00 - upper limit (softer)
+     *   0.75 - default amount of filtering
+     *   0.50 - lower limit (sharper, less sub-pixel aliasing removal)
+     *   0.25 - almost off
+     *   0.00 - completely off */
     float fxaaQualitySubpix,
     /*
      * Only used on FXAA Quality.
      * This used to be the FXAA_QUALITY__EDGE_THRESHOLD define.
      * It is here now to allow easier tuning.
      * The minimum amount of local contrast required to apply algorithm.
-     *   0.333f - too little (faster)
-     *   0.250f - low quality
-     *   0.166f - default
-     *   0.125f - high quality
-     *   0.063f - overkill (slower) */
+     *   0.333 - too little (faster)
+     *   0.250 - low quality
+     *   0.166 - default
+     *   0.125 - high quality
+     *   0.063 - overkill (slower) */
     float fxaaQualityEdgeThreshold,
     /*
      * Only used on FXAA Quality.
      * This used to be the FXAA_QUALITY__EDGE_THRESHOLD_MIN define.
      * It is here now to allow easier tuning.
      * Trims the algorithm from processing darks.
-     *   0.0833f - upper limit (default, the start of visible unfiltered edges)
-     *   0.0625f - high quality (faster)
-     *   0.0312f - visible limit (slower) */
+     *   0.0833 - upper limit (default, the start of visible unfiltered edges)
+     *   0.0625 - high quality (faster)
+     *   0.0312 - visible limit (slower) */
     float fxaaQualityEdgeThresholdMin)
 {
   /*--------------------------------------------------------------------------*/

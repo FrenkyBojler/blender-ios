@@ -40,7 +40,7 @@ vec3 extrapolate_if_needed(vec3 parameters, vec3 values, vec3 start_slopes, vec3
 float compute_curve_map_coordinates(float parameter)
 {
   /* Curve maps have a fixed width of 257. We offset by the equivalent of half a pixel and scale
-   * down such that the normalized parameter 1.0f corresponds to the center of the last pixel. */
+   * down such that the normalized parameter 1.0 corresponds to the center of the last pixel. */
   float sampler_offset = 0.5f / 257.0f;
   float sampler_scale = 1.0f - (1.0f / 257.0f);
   return parameter * sampler_scale + sampler_offset;
@@ -127,8 +127,8 @@ void curves_combined_only(float factor,
 
 /* Contrary to standard tone curve implementations, the film-like implementation tries to preserve
  * the hue of the colors as much as possible. To understand why this might be a problem, consider
- * the violet color (0.5f, 0.0f, 1.0f). If this color was to be evaluated at a power curve x^4, the
- * color will be blue (0.0625f, 0.0f, 1.0f). So the color changes and not just its luminosity,
+ * the violet color (0.5, 0.0f, 1.0f). If this color was to be evaluated at a power curve x^4, the
+ * color will be blue (0.0625, 0.0f, 1.0f). So the color changes and not just its luminosity,
  * which is what film-like tone curves tries to avoid.
  *
  * First, the channels with the lowest and highest values are identified and evaluated at the

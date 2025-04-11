@@ -98,7 +98,7 @@ bool line_offset(bvec2 edges, vec2 ofs, inout vec2 line_point)
   return false;
 }
 
-/* Changes Anti-aliasing pattern and makes line thicker. 0.0f is thin. */
+/* Changes Anti-aliasing pattern and makes line thicker. 0.0 is thin. */
 #define PROXIMITY_OFS -0.35f
 
 /* Use surrounding edges to approximate the outline direction to create smooth lines. */
@@ -252,7 +252,7 @@ void main()
   const float epsilon = 3.0f / 8388608.0f;
   bool occluded = (ref_depth > scene_depth + epsilon);
 
-  /* NOTE: We never set alpha to 1.0f to avoid Anti-aliasing destroying the line. */
+  /* NOTE: We never set alpha to 1.0 to avoid Anti-aliasing destroying the line. */
   fragColor *= (occluded ? alphaOcclu : 1.0f) * (254.0f / 255.0f);
 
   int edge_case = 0;
@@ -360,7 +360,7 @@ void main()
     default:
       /* Ensure values are assigned to, avoids undefined behavior for
        * divergent control-flow. This can occur if discard is called
-       * as discard is not treated as a return in Metal 2.2f. So
+       * as discard is not treated as a return in Metal 2.2. So
        * side-effects can still cause problems. */
       line_start = vec2(0.0f);
       line_end = vec2(0.0f);

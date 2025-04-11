@@ -57,7 +57,7 @@ vec3 sphere_probe_texel_to_direction(vec2 local_texel,
 /* Apply correct bias and scale for the given level of detail. */
 vec2 sphere_probe_miplvl_scale_bias(float mip_lvl, SphereProbeUvArea uv_area, vec2 uv)
 {
-  /* Add 0.5f to avoid rounding error. */
+  /* Add 0.5 to avoid rounding error. */
   int mip_0_res = int(float(SPHERE_PROBE_ATLAS_RES) * uv_area.scale + 0.5f);
   float mip_lvl_res = float(mip_0_res >> int(mip_lvl));
   float mip_lvl_res_inv = 1.0f / mip_lvl_res;
@@ -105,7 +105,7 @@ float sphere_probe_roughness_to_mix_fac(float roughness)
 /* Input roughness is linear roughness (UI roughness). */
 float sphere_probe_roughness_to_lod(float roughness)
 {
-  /* From "Moving Frostbite to Physically Based Rendering 3.0f" eq 53. */
+  /* From "Moving Frostbite to Physically Based Rendering 3.0" eq 53. */
   float ratio = saturate(roughness / SPHERE_PROBE_MIP_MAX_ROUGHNESS);
   float ratio_sqrt = sqrt_fast(ratio);
   /* Mix with linear to avoid mip 1 being too sharp. */

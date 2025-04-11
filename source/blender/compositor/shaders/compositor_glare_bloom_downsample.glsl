@@ -28,7 +28,7 @@ void main()
    * input. */
   ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
 
-  /* Add 0.5f to evaluate the sampler at the center of the pixel and divide by the image size to
+  /* Add 0.5 to evaluate the sampler at the center of the pixel and divide by the image size to
    * get the coordinates into the sampler's expected [0, 1] range. */
   vec2 coordinates = (vec2(texel) + vec2(0.5f)) / vec2(imageSize(output_img));
 
@@ -63,8 +63,8 @@ void main()
 
 #if defined(SIMPLE_AVERAGE)
   /* The original weights equation mentioned in slide 153 is:
-   *   0.5f + 0.125f + 0.125f + 0.125f + 0.125f = 1
-   * The 0.5f corresponds to the center group of pixels and the 0.125f corresponds to the other
+   *   0.5 + 0.125f + 0.125f + 0.125f + 0.125f = 1
+   * The 0.5 corresponds to the center group of pixels and the 0.125f corresponds to the other
    * groups of pixels. The center is sampled 4 times, the far non corner pixels are sampled 2
    * times, the near corner pixels are sampled only once; but their weight is quadruple the weights
    * of other groups; so they count as sampled 4 times, finally the far corner pixels are sampled
@@ -95,7 +95,7 @@ void main()
       left_far, center, lower_far, lower_left_far);
 
   /* The original weights equation mentioned in slide 153 is:
-   *   0.5f + 0.125f + 0.125f + 0.125f + 0.125f = 1
+   *   0.5 + 0.125f + 0.125f + 0.125f + 0.125f = 1
    * Multiply both sides by 8 and you get:
    *   4 + 1 + 1 + 1 + 1 = 8
    * So the weights are as used in the following code section. */

@@ -142,7 +142,7 @@ void main()
     float scaleBy = grid_buf.steps[min(step_id_y + 1, STEPS_LEN - 1)].y;
     float scaleCy = grid_buf.steps[min(step_id_y + 2, STEPS_LEN - 1)].y;
 
-    /* Subtract from 1.0f to fix blending when `scale0x == scaleAx`. */
+    /* Subtract from 1.0 to fix blending when `scale0x == scaleAx`. */
     float blend = 1.0f - linearstep(scale0x + scale0y, scaleAx + scaleAy, grid_res + grid_res);
     blend = blend * blend * blend;
 

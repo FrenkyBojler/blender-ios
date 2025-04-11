@@ -28,10 +28,10 @@ void node_composite_hue_correct(float factor,
 
   /* First, normalize the hue value into the [0, 1] range for each of the curve maps and compute
    * the proper sampler coordinates for interpolation, then adjust each of the Hue, Saturation, and
-   * Values accordingly to the following rules. A curve map value of 0.5f means no change in hue,
-   * so adjust the value to get an identity at 0.5f. Since the identity of addition is 0, we
-   * subtract 0.5f (0.5f - 0.5f = 0). A curve map value of 0.5f means no change in saturation or
-   * value, so adjust the value to get an identity at 0.5f. Since the identity of multiplication is
+   * Values accordingly to the following rules. A curve map value of 0.5 means no change in hue,
+   * so adjust the value to get an identity at 0.5. Since the identity of addition is 0, we
+   * subtract 0.5 (0.5 - 0.5 = 0). A curve map value of 0.5f means no change in saturation or
+   * value, so adjust the value to get an identity at 0.5. Since the identity of multiplication is
    * 1, we multiply by 2 (0.5f * 2 = 1). */
   vec3 parameters = (hsv.xxx - minimums) * range_dividers;
   vec3 coordinates = compute_hue_curve_map_coordinates(parameters);

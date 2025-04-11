@@ -264,7 +264,7 @@ void ambient_occlusion_eval(OcclusionData data,
     h = ambient_occlusion_clamp_horizons_to_hemisphere(h, angle_N, inverted);
 
     float bent_angle = (h.x + h.y) * 0.5f;
-    /* NOTE: here we multiply z by 0.5f as it shows less difference with the geometric normal.
+    /* NOTE: here we multiply z by 0.5 as it shows less difference with the geometric normal.
      * Also modulate by projected normal length to reduce issues with slanted surfaces.
      * All of this is ad-hoc and not really grounded. */
     bent_normal += proj_N_len * (T * sin(bent_angle) + V * 0.5f * cos(bent_angle));
@@ -292,7 +292,7 @@ void ambient_occlusion_eval(OcclusionData data,
   visibility = min(visibility, data.custom_occlusion);
 
   if (AO_BENT_NORMALS) {
-    /* NOTE: using pow(visibility, 6.0f) produces NaN (see #87369). */
+    /* NOTE: using pow(visibility, 6.0) produces NaN (see #87369). */
     float tmp = saturate(pow6f(visibility));
     bent_normal = normalize(mix(bent_normal, N, tmp));
   }
@@ -389,7 +389,7 @@ float ambient_occlusion_specular(
   /* Visibility to cone angle (eq. 18). */
   float vis_angle = acos_fast(sqrt(1 - visibility));
   /* Roughness to cone angle (eq. 26). */
-  /* A 0.001f min_angle can generate NaNs on Intel GPUs. See D12508. */
+  /* A 0.001 min_angle can generate NaNs on Intel GPUs. See D12508. */
   const float min_angle = 0.00990998744964599609375f;
   float spec_angle = max(min_angle, acos_fast(ambient_occlusion_cone_cosine(roughness)));
   /* Angle between cone axes. */

@@ -226,7 +226,7 @@ void node_bsdf_principled(vec4 base_color,
     ClosureSubsurface sss_data;
     sss_data.N = N;
     sss_data.sss_radius = max(subsurface_radius * subsurface_scale, vec3(0.0f));
-    /* Subsurface Scattering materials behave unpredictably with values greater than 1.0f in
+    /* Subsurface Scattering materials behave unpredictably with values greater than 1.0 in
      * Cycles. So it's clamped there and we clamp here for consistency with Cycles. */
     sss_data.color = (subsurface_weight * weight) * clamped_base_color.rgb * coat_tint.rgb;
     /* Add energy of the sheen layer until we have proper sheen BSDF. */

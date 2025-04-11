@@ -47,7 +47,7 @@ ShadowMapTracingState shadow_map_trace_init(int sample_count, float step_offset)
   ShadowMapTracingState state;
   state.occluder_history = vec2(SHADOW_TRACING_INVALID_HISTORY);
   state.occluder_slope = SHADOW_TRACING_INVALID_HISTORY;
-  /* We trace the ray in reverse. From 1.0f (light) to 0.0f (shading point). */
+  /* We trace the ray in reverse. From 1.0 (light) to 0.0f (shading point). */
   state.ray_step_mul = -1.0f / float(sample_count);
   state.ray_step_bias = 1.0f + step_offset * state.ray_step_mul;
   state.hit = false;

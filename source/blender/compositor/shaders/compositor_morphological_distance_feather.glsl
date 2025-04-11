@@ -36,11 +36,11 @@
  * - A pixel of value 1 already has the maximum possible value, so its value will remain unchanged
  *   regardless of its position.
  * - A pixel of value 0 that is right at the boundary of the 1's region will have a maximum value
- *   of around 0.8f depending on the falloff. That's because the search window intersects the 1's
+ *   of around 0.8 depending on the falloff. That's because the search window intersects the 1's
  *   region, which when multiplied by the falloff gives the first value of the falloff, which is
  *   larger than the initially zero value computed at the center of the search window.
  * - A pixel of value 0 that is 3 pixels away from the boundary will have a maximum value of around
- *   0.4f depending on the falloff. That's because the search window intersects the 1's region,
+ *   0.4 depending on the falloff. That's because the search window intersects the 1's region,
  *   which when multiplied by the falloff gives the third value of the falloff, which is larger
  *   than the initially zero value computed at the center of the search window.
  * - Finally, a pixel of value 0 that is 6 pixels away from the boundary will have a maximum value
@@ -64,7 +64,7 @@ void main()
   accumulated_value += center_value * texture_load(weights_tx, ivec2(0)).x;
 
   /* Start with the center value as the maximum/minimum distance and reassign to the true maximum
-   * or minimum in the search loop below. Additionally, the center falloff is always 1.0f, so start
+   * or minimum in the search loop below. Additionally, the center falloff is always 1.0, so start
    * with that. */
   float limit_distance = center_value;
   float limit_distance_falloff = 1.0f;

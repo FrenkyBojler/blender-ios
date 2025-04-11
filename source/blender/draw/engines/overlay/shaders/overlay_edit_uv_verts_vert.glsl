@@ -22,8 +22,8 @@ void main()
 
   vec3 world_pos = vec3(au, 0.0f);
   /* Move selected vertices to the top
-   * Vertices are between 0.0f and 0.2f, Edges between 0.2f and 0.4f
-   * actual pixels are at 0.75f, 1.0f is used for the background. */
+   * Vertices are between 0.0 and 0.2f, Edges between 0.2f and 0.4f
+   * actual pixels are at 0.75, 1.0f is used for the background. */
   float depth = is_selected ? (is_pinned ? 0.05f : 0.10f) : 0.15f;
   gl_Position = vec4(drw_point_world_to_homogenous(world_pos).xy, depth, 1.0f);
   gl_PointSize = pointSize;

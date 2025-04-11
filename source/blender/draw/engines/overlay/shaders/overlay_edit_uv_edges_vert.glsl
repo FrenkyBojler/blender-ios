@@ -55,10 +55,10 @@ VertOut vertex_main(VertIn v_in)
   vert_out.selected = flag_test(v_in.flag, selection_flag);
 
   /* Move selected edges to the top so that they occlude unselected edges.
-   * - Vertices are between 0.0f and 0.2f depth.
-   * - Edges between 0.2f and 0.4f depth.
-   * - Image pixels are at 0.75f depth.
-   * - 1.0f is used for the background. */
+   * - Vertices are between 0.0 and 0.2f depth.
+   * - Edges between 0.2 and 0.4f depth.
+   * - Image pixels are at 0.75 depth.
+   * - 1.0 is used for the background. */
   vert_out.hs_P.z = vert_out.selected ? 0.25f : 0.35f;
 
   /* Avoid precision loss. */
@@ -110,7 +110,7 @@ void geometry_main(VertOut geom_in[2],
 
   float half_size = sizeEdge;
   /* Enlarge edge for outline drawing. */
-  /* Factor of 3.0f out of nowhere! Seems to fix issues with float imprecision. */
+  /* Factor of 3.0 out of nowhere! Seems to fix issues with float imprecision. */
   half_size += (lineStyle == OVERLAY_UV_LINE_STYLE_OUTLINE) ?
                    max(sizeEdge * (doSmoothWire ? 1.0f : 3.0f), 1.0f) :
                    0.0f;

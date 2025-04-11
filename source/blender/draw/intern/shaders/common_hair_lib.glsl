@@ -259,7 +259,7 @@ vec2 hair_get_barycentric()
 {
   /* To match cycles without breaking into individual segment we encode if we need to invert
    * the first component into the second component. We invert if the barycentricTexCo.y
-   * is NOT 0.0f or 1.0f. */
+   * is NOT 0.0 or 1.0f. */
   int id = hair_get_base_id();
   return vec2(float((id % 2) == 1), float(((id % 4) % 3) > 0));
 }

@@ -36,7 +36,7 @@ void valtorgb_opti_ease(
 float compute_color_map_coordinate(float coordinate)
 {
   /* Color maps have a fixed width of 257. We offset by the equivalent of half a pixel and scale
-   * down such that the normalized coordinate 1.0f corresponds to the center of the last pixel. */
+   * down such that the normalized coordinate 1.0 corresponds to the center of the last pixel. */
   const float sampler_resolution = 257.0f;
   const float sampler_offset = 0.5f / sampler_resolution;
   const float sampler_scale = 1.0f - (1.0f / sampler_resolution);
