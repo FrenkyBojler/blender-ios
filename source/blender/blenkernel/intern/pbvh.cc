@@ -150,6 +150,8 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        MutableSpan<int> faces,
                                        Vector<MeshNode> &nodes)
 {
+  BLI_assert(parent_index >= -1);
+
   MeshNode &node = nodes[node_index];
   node.parent_ = parent_index;
 
@@ -308,6 +310,8 @@ static void build_nodes_recursive_grids(const Span<int> material_indices,
                                         MutableSpan<int> faces,
                                         Vector<GridsNode> &nodes)
 {
+  BLI_assert(parent_index >= -1);
+
   GridsNode &node = nodes[node_index];
   node.parent_ = parent_index;
 

@@ -2093,6 +2093,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
                                                    const int node_index,
                                                    const int parent_index)
 {
+  BLI_assert(parent_index >= -1);
   nodes[node_index].parent_ = parent_index;
 
   /* Two cases, node does not have children or does have children. */
