@@ -808,7 +808,7 @@ static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush
 static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, const Brush &brush)
 {
   /* The normal for the Plane brush is expected to have already been calculated in
-   * `calc_brush_plane`. */
+   * #calc_brush_plane. */
   BLI_assert_msg(!math::is_zero(ss.cache->sculpt_normal),
                  "Normal should have been previously calculated.");
 
