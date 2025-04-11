@@ -377,10 +377,10 @@ void AttributeStorage::blend_write_prepare(BlendWriter &writer,
                                            AttributeStorage::BlendWriteData &write_data)
 {
   const Span<std::unique_ptr<Attribute>> attributes = this->runtime->attributes;
-  write_data.attributes.reinitialize(attributes.size());
+  write_data.attributes.resize(attributes.size());
 
-  write_data.arrays.reinitialize(attributes.size());
-  write_data.singles.reinitialize(attributes.size());
+  write_data.arrays.resize(attributes.size());
+  write_data.singles.resize(attributes.size());
 
   for (const int i : attributes.index_range()) {
     Attribute &attr = *attributes[i];

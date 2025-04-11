@@ -367,6 +367,12 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
     CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
+    if (U.experimental.use_attribute_storage_write_debug) {
+      /* Used for testing the forward compatibility process. To be removed when the runtime format
+       * changes. */
+      blender::bke::mesh_convert_customdata_to_storage(*mesh);
+    }
+
     if (U.experimental.use_attribute_storage_write_debug || is_undo) {
       mesh->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
     }
@@ -415,6 +421,12 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
         sizeof(int) * mesh->faces_num,
         mesh_runtime->face_offsets_sharing_info,
         [&]() { BLO_write_int32_array(writer, mesh->faces_num + 1, mesh->face_offset_indices); });
+  }
+
+  if (U.experimental.use_attribute_storage_write_debug) {
+    /* Used for testing the forward compatibility process. To be removed when the runtime format
+     * changes. */
+    blender::bke::mesh_convert_storage_to_customdata(*mesh);
   }
 }
 

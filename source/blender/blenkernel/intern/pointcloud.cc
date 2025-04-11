@@ -127,15 +127,20 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
 
   Vector<CustomDataLayer, 16> point_layers;
   CustomData_blend_write_prepare(pointcloud->pdata, point_layers);
-  blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  if (U.experimental.use_attribute_storage_write_debug || BLO_write_is_undo(writer)) {
-    pointcloud->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
+
+  if (U.experimental.use_attribute_storage_write_debug) {
+    /* Used for testing the forward compatibility process. To be removed when the runtime format
+     * changes. Use placement new because this is a shallow `memcpy` of the ID. */
+    new (&pointcloud->attribute_storage.wrap()) blender::bke::AttributeStorage(
+        blender::bke::pointcloud_convert_customdata_to_storage(*pointcloud));
   }
   else {
-    /* Write forward compatible format. To be removed in 5.0. */
     blender::bke::pointcloud_convert_storage_to_customdata_for_file_write(
         pointcloud->attribute_storage.wrap(), point_layers);
   }
+
+  blender::bke::AttributeStorage::BlendWriteData attribute_data;
+  pointcloud->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
@@ -152,6 +157,10 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   pointcloud->attribute_storage.wrap().blend_write(*writer, attribute_data);
 
   BLO_write_pointer_array(writer, pointcloud->totcol, pointcloud->mat);
+
+  if (U.experimental.use_attribute_storage_write_debug) {
+    std::destroy_at(&pointcloud->attribute_storage.wrap());
+  }
 }
 
 static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)

@@ -11,6 +11,7 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
@@ -88,12 +89,20 @@ static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomD
     case CD_PROP_QUATERNION:
       return AttrType::Quaternion;
   }
-  BLI_assert_unreachable();
   return std::nullopt;
 }
 
-AttributeStorage attribute_legacy_convert_customdata_to_storage(
-    const Map<AttrDomain, std::pair<CustomData *, int>> &domains)
+void remove_storage_layers(CustomData &custom_data)
+{
+  for (const int i : IndexRange(CD_NUMTYPES)) {
+    if (custom_data_type_to_attribute_type(eCustomDataType(i))) {
+      CustomData_free_layers(&custom_data, eCustomDataType(i));
+    }
+  }
+}
+
+static AttributeStorage attribute_legacy_convert_customdata_to_storage(
+    const Map<AttrDomain, std::pair<const CustomData *, int>> &domains)
 {
   AttributeStorage storage{};
   struct AttributeToAdd {
@@ -107,29 +116,18 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
   Vector<AttributeToAdd> attributes_to_add;
   for (const auto &item : domains.items()) {
     const AttrDomain domain = item.key;
-    CustomData &custom_data = *item.value.first;
+    const CustomData &custom_data = *item.value.first;
     const int domain_size = item.value.second;
-    Vector<CustomDataLayer> kept_layers;
-    for (CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
-      if (std::optional<AttrType> attr_type = custom_data_type_to_attribute_type(
-              eCustomDataType(layer.type)))
-      {
-        attributes_to_add.append(
-            {layer.name, domain, *attr_type, layer.data, domain_size, layer.sharing_info});
-        layer.data = nullptr;
-        layer.sharing_info = nullptr;
+    for (const CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
+      const std::optional<AttrType> attr_type = custom_data_type_to_attribute_type(
+          eCustomDataType(layer.type));
+      if (!attr_type) {
+        continue;
       }
-      else {
-        layer.sharing_info->add_user();
-        kept_layers.append(layer);
-      }
+      attributes_to_add.append(
+          {layer.name, domain, *attr_type, layer.data, domain_size, layer.sharing_info});
+      layer.sharing_info->add_user();
     }
-    CustomData_free(&custom_data);
-    VectorData<CustomDataLayer, GuardedAllocator> kept_layers_data = kept_layers.release();
-    custom_data.layers = kept_layers_data.data;
-    custom_data.totlayer = kept_layers_data.size;
-    custom_data.maxlayer = kept_layers_data.capacity;
-    CustomData_update_typemap(&custom_data);
   }
 
   for (AttributeToAdd &attribute : attributes_to_add) {
@@ -211,15 +209,6 @@ static void convert_storage_to_customdata(
   });
 }
 
-static auto mesh_domains(Mesh &mesh)
-{
-  return Map<AttrDomain, std::pair<CustomData *, int>>{
-      {AttrDomain::Point, {&mesh.vert_data, mesh.verts_num}},
-      {AttrDomain::Edge, {&mesh.edge_data, mesh.edges_num}},
-      {AttrDomain::Face, {&mesh.face_data, mesh.faces_num}},
-      {AttrDomain::Corner, {&mesh.corner_data, mesh.corners_num}}};
-}
-
 static void create_layer_for_file_write(const Attribute &attribute,
                                         Vector<CustomDataLayer, 16> &layers)
 {
@@ -288,24 +277,30 @@ void mesh_convert_storage_to_customdata_for_file_write(const AttributeStorage &s
 }
 void mesh_convert_storage_to_customdata(Mesh &mesh)
 {
-  convert_storage_to_customdata(mesh.attribute_storage.wrap(), mesh_domains(mesh));
+  convert_storage_to_customdata(mesh.attribute_storage.wrap(),
+                                Map<AttrDomain, std::pair<CustomData *, int>>{
+                                    {AttrDomain::Point, {&mesh.vert_data, mesh.verts_num}},
+                                    {AttrDomain::Edge, {&mesh.edge_data, mesh.edges_num}},
+                                    {AttrDomain::Face, {&mesh.face_data, mesh.faces_num}},
+                                    {AttrDomain::Corner, {&mesh.corner_data, mesh.corners_num}}});
 }
-void mesh_convert_customdata_to_storage(Mesh &mesh)
+AttributeStorage mesh_convert_customdata_to_storage(const Mesh &mesh)
 {
-  mesh.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
-      mesh_domains(mesh));
-}
-
-static auto curves_domains(CurvesGeometry &curves)
-{
-  return Map<AttrDomain, std::pair<CustomData *, int>>{
-      {AttrDomain::Point, {&curves.point_data, curves.points_num()}},
-      {AttrDomain::Curve, {&curves.curve_data, curves.curves_num()}}};
+  return bke::attribute_legacy_convert_customdata_to_storage(
+      Map<AttrDomain, std::pair<const CustomData *, int>>{
+          {AttrDomain::Point, {&mesh.vert_data, mesh.verts_num}},
+          {AttrDomain::Edge, {&mesh.edge_data, mesh.edges_num}},
+          {AttrDomain::Face, {&mesh.face_data, mesh.faces_num}},
+          {AttrDomain::Corner, {&mesh.corner_data, mesh.corners_num}}});
 }
 
 void curves_convert_storage_to_customdata(CurvesGeometry &curves)
 {
-  convert_storage_to_customdata(curves.attribute_storage.wrap(), curves_domains(curves));
+  convert_storage_to_customdata(
+      curves.attribute_storage.wrap(),
+      Map<AttrDomain, std::pair<CustomData *, int>>{
+          {AttrDomain::Point, {&curves.point_data, curves.points_num()}},
+          {AttrDomain::Curve, {&curves.curve_data, curves.curves_num()}}});
 }
 void curves_convert_storage_to_customdata_for_file_write(const AttributeStorage &storage,
                                                          Vector<CustomDataLayer, 16> &point_layers,
@@ -335,26 +330,26 @@ void curves_convert_storage_to_customdata_for_file_write(const AttributeStorage 
     create_layer_for_file_write(attribute, *layers);
   });
 }
-void curves_convert_customdata_to_storage(CurvesGeometry &curves)
+AttributeStorage curves_convert_customdata_to_storage(const CurvesGeometry &curves)
 {
-  curves.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
-      curves_domains(curves));
-}
-
-static auto pointcloud_domains(PointCloud &pointcloud)
-{
-  return Map<AttrDomain, std::pair<CustomData *, int>>{
-      {AttrDomain::Point, {&pointcloud.pdata, pointcloud.totpoint}}};
+  return attribute_legacy_convert_customdata_to_storage(
+      Map<AttrDomain, std::pair<const CustomData *, int>>{
+          {AttrDomain::Point, {&curves.point_data, curves.points_num()}},
+          {AttrDomain::Curve, {&curves.curve_data, curves.curves_num()}}});
 }
 
 void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
 {
-  convert_storage_to_customdata(pointcloud.attribute_storage.wrap(),
-                                pointcloud_domains(pointcloud));
+  convert_storage_to_customdata(
+      pointcloud.attribute_storage.wrap(),
+      Map<AttrDomain, std::pair<CustomData *, int>>{
+          {AttrDomain::Point, {&pointcloud.pdata, pointcloud.totpoint}}});
 }
 void pointcloud_convert_storage_to_customdata_for_file_write(
     const AttributeStorage &storage, Vector<CustomDataLayer, 16> &point_layers)
 {
+  // if (U.experimental.use_attribute_storage_write_debug) {
+  // }
   storage.foreach ([&](const Attribute &attribute) {
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
         attribute.data_type());
@@ -368,22 +363,19 @@ void pointcloud_convert_storage_to_customdata_for_file_write(
     create_layer_for_file_write(attribute, point_layers);
   });
 }
-void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
+AttributeStorage pointcloud_convert_customdata_to_storage(const PointCloud &pointcloud)
 {
-  pointcloud.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
-      pointcloud_domains(pointcloud));
-}
-
-static auto grease_pencil_domains(GreasePencil &grease_pencil)
-{
-  return Map<AttrDomain, std::pair<CustomData *, int>>{
-      {AttrDomain::Layer, {&grease_pencil.layers_data, grease_pencil.layers().size()}}};
+  return attribute_legacy_convert_customdata_to_storage(
+      Map<AttrDomain, std::pair<const CustomData *, int>>{
+          {AttrDomain::Point, {&pointcloud.pdata, pointcloud.totpoint}}});
 }
 
 void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
 {
-  convert_storage_to_customdata(grease_pencil.attribute_storage.wrap(),
-                                grease_pencil_domains(grease_pencil));
+  convert_storage_to_customdata(
+      grease_pencil.attribute_storage.wrap(),
+      Map<AttrDomain, std::pair<CustomData *, int>>{
+          {AttrDomain::Layer, {&grease_pencil.layers_data, grease_pencil.layers().size()}}});
 }
 void grease_pencil_convert_storage_to_customdata_for_file_write(
     const AttributeStorage &storage, Vector<CustomDataLayer, 16> &layers)
@@ -401,10 +393,11 @@ void grease_pencil_convert_storage_to_customdata_for_file_write(
     create_layer_for_file_write(attribute, layers);
   });
 }
-void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
+AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil &grease_pencil)
 {
-  grease_pencil.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
-      grease_pencil_domains(grease_pencil));
+  return attribute_legacy_convert_customdata_to_storage(
+      Map<AttrDomain, std::pair<const CustomData *, int>>{
+          {AttrDomain::Layer, {&grease_pencil.layers_data, grease_pencil.layers().size()}}});
 }
 
 }  // namespace blender::bke

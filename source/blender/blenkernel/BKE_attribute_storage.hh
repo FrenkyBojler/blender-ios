@@ -120,9 +120,9 @@ class AttributeStorage : public ::AttributeStorage {
 
   void blend_read(BlendDataReader &reader);
   struct BlendWriteData {
-    Array<AttributeDNA, 16> attributes;
-    Array<AttributeArrayDNA, 16> arrays;
-    Array<AttributeSingleDNA, 16> singles;
+    Vector<AttributeDNA, 16> attributes;
+    Vector<AttributeArrayDNA, 16> arrays;
+    Vector<AttributeSingleDNA, 16> singles;
   };
   void blend_write_prepare(BlendWriter &writer, AttributeStorage::BlendWriteData &write_data);
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);

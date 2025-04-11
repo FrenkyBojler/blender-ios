@@ -25,6 +25,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
@@ -108,8 +109,19 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   /* Only for forward compatibility. */
   curves->attributes_active_index_legacy = curves->geometry.attributes_active_index;
 
-  blender::bke::CurvesGeometry::BlendWriteData write_data =
+  blender::bke::CurvesGeometry::BlendWriteData write_data =  // TODO
       curves->geometry.wrap().blend_write_prepare(*writer);
+
+  if (U.experimental.use_attribute_storage_write_debug) {
+    /* Used for testing the forward compatibility process. To be removed when the runtime format
+     * changes. Use placement new because this is a shallow `memcpy` of the ID. */
+    new (&curves->geometry.attribute_storage.wrap()) blender::bke::AttributeStorage(
+        blender::bke::curves_convert_customdata_to_storage(curves->geometry.wrap()));
+  }
+  else {
+    blender::bke::curves_convert_storage_to_customdata_for_file_write(
+        curves->geometry.wrap().attribute_storage.wrap(), write);
+  }
 
   /* Write LibData */
   BLO_write_id_struct(writer, Curves, id_address, &curves->id);
@@ -121,6 +133,10 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_string(writer, curves->surface_uv_map);
 
   BLO_write_pointer_array(writer, curves->totcol, curves->mat);
+
+  if (U.experimental.use_attribute_storage_write_debug) {
+    std::destroy_at(&curves->geometry.attribute_storage.wrap());
+  }
 }
 
 static void curves_blend_read_data(BlendDataReader *reader, ID *id)
