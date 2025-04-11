@@ -23,6 +23,7 @@
 #include "BLI_utildefines.h"
 
 #include "BLI_asan.h"
+#include "BLI_math_base.h"
 #include "BLI_mempool.h"         /* own include */
 #include "BLI_mempool_private.h" /* own include */
 
@@ -159,19 +160,6 @@ static void mempool_asan_lock(BLI_mempool *pool)
   UNUSED_VARS(pool);
 #endif
 }
-
-#ifdef USE_CHUNK_POW2
-static uint power_of_2_max_u(uint x)
-{
-  x -= 1;
-  x = x | (x >> 1);
-  x = x | (x >> 2);
-  x = x | (x >> 4);
-  x = x | (x >> 8);
-  x = x | (x >> 16);
-  return x + 1;
-}
-#endif
 
 BLI_INLINE BLI_mempool_chunk *mempool_chunk_find(BLI_mempool_chunk *head, uint index)
 {
@@ -340,7 +328,7 @@ BLI_mempool *BLI_mempool_create(uint esize, uint elem_num, uint pchunk, uint fla
   uint i, maxchunks;
 
   /* allocate the pool structure */
-  pool = MEM_cnew<BLI_mempool>("memory pool");
+  pool = MEM_callocN<BLI_mempool>("memory pool");
 
 #ifdef WITH_ASAN
   BLI_mutex_init(&pool->mutex);
@@ -618,8 +606,9 @@ ParallelMempoolTaskData *mempool_iter_threadsafe_create(BLI_mempool *pool, const
 {
   BLI_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
 
-  ParallelMempoolTaskData *iter_arr = MEM_cnew_array<ParallelMempoolTaskData>(iter_num, __func__);
-  BLI_mempool_chunk **curchunk_threaded_shared = MEM_cnew<BLI_mempool_chunk *>(__func__);
+  ParallelMempoolTaskData *iter_arr = MEM_calloc_arrayN<ParallelMempoolTaskData>(iter_num,
+                                                                                 __func__);
+  BLI_mempool_chunk **curchunk_threaded_shared = MEM_callocN<BLI_mempool_chunk *>(__func__);
 
   mempool_threadsafe_iternew(pool, &iter_arr->ts_iter);
 

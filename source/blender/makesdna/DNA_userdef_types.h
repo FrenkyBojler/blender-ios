@@ -322,7 +322,7 @@ typedef struct ThemeSpace {
   unsigned char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4],
       handle_sel_auto_clamped[4];
 
-  /** Dopesheet. */
+  /** Dope-sheet. */
   unsigned char ds_channel[4], ds_subchannel[4], ds_ipoline[4];
   /** Keytypes. */
   unsigned char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4],
@@ -359,14 +359,16 @@ typedef struct ThemeSpace {
   unsigned char node_zone_simulation[4];
   unsigned char node_zone_repeat[4];
   unsigned char node_zone_foreach_geometry_element[4];
+  unsigned char node_zone_closure[4];
   unsigned char simulated_frames[4];
+  char _pad7[4];
 
   /** For sequence editor. */
   unsigned char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];
   unsigned char effect[4], transition[4], meta[4], text_strip[4], color_strip[4];
   unsigned char active_strip[4], selected_strip[4], text_strip_cursor[4], selected_text[4];
 
-  /** For dopesheet - scale factor for size of keyframes (i.e. height of channels). */
+  /** For dope-sheet - scale factor for size of keyframes (i.e. height of channels). */
   float keyframe_scale_fac;
 
   unsigned char editmesh_active[4];
@@ -765,8 +767,8 @@ typedef struct UserDef_Experimental {
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
   char use_new_volume_nodes;
-  char use_new_file_import_nodes;
   char use_shader_node_previews;
+  char use_bundle_and_closure_nodes;
   char _pad[5];
 } UserDef_Experimental;
 
@@ -854,7 +856,11 @@ typedef struct UserDef {
   short versions;
   short dbl_click_time;
 
-  char _pad0[3];
+  char _pad0[2];
+
+  /** Space around each area. Inter-editor gap width. */
+  char border_width;
+
   char mini_axis_type;
   /** #eUserpref_UI_Flag. */
   int uiflag;
@@ -876,7 +882,12 @@ typedef struct UserDef {
 
   /** Setting for UI scale (fractional), before screen DPI has been applied. */
   float ui_scale;
-  /** Setting for UI line width. */
+  /**
+   * Setting for UI line width.
+   *
+   * In most cases this should not be used directly it is an offset used to calculate `pixelsize`
+   * which should be used to define the line width.
+   */
   int ui_line_width;
   /** Runtime, full DPI divided by `pixelsize`. */
   int dpi;
@@ -884,7 +895,18 @@ typedef struct UserDef {
   float scale_factor;
   /** Runtime, `1.0 / scale_factor` */
   float inv_scale_factor;
-  /** Runtime, calculated from line-width and point-size based on DPI (rounded to int). */
+  /**
+   * Runtime, calculated from line-width and point-size based on DPI.
+   *
+   * - Rounded down to an integer, clamped to a minimum of 1.0.
+   * - This includes both the UI scale and windowing system's DPI.
+   *   so a HI-DPI display of 200% with a UI scale of 3.0 results in a pixel-size of 6.0
+   *   (when the line-width is set to auto).
+   * - The line-width is added to this value, so lines & vertex drawing can be adjusted.
+   *
+   * \note This should never be used as a UI scale value otherwise changing the line-width
+   * could double or halve the size of UI elements. Use #UI_SCALE_FAC instead.
+   */
   float pixelsize;
   /** Deprecated, for forward compatibility. */
   int virtual_pixel;

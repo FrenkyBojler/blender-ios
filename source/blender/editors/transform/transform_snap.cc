@@ -9,6 +9,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_time.h"
 
 #include "DNA_userdef_types.h"
@@ -693,7 +694,7 @@ static eSnapMode snap_mode_from_spacetype(TransInfo *t)
   }
 
   if (t->spacetype == SPACE_SEQ) {
-    return eSnapMode(SEQ_tool_settings_snap_mode_get(t->scene));
+    return eSnapMode(seq::tool_settings_snap_mode_get(t->scene));
   }
 
   if (t->spacetype == SPACE_VIEW3D) {
@@ -1077,7 +1078,7 @@ void addSnapPoint(TransInfo *t)
 {
   /* Currently only 3D viewport works for snapping points. */
   if (t->tsnap.status & SNAP_TARGET_FOUND && t->spacetype == SPACE_VIEW3D) {
-    TransSnapPoint *p = MEM_cnew<TransSnapPoint>("SnapPoint");
+    TransSnapPoint *p = MEM_callocN<TransSnapPoint>("SnapPoint");
 
     t->tsnap.selectedPoint = p;
 
@@ -1693,6 +1694,11 @@ static void snap_increment_apply(const TransInfo *t,
 bool transform_snap_increment_ex(const TransInfo *t, bool use_local_space, float *r_val)
 {
   if (!transform_snap_is_active(t)) {
+    return false;
+  }
+
+  if (t->spacetype == SPACE_SEQ) {
+    /* Sequencer has its own dedicated enum for snap_mode with increment snap bit overridden.  */
     return false;
   }
 

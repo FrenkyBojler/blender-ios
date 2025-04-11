@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/overlay_edit_mode_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_depth_mesh_conservative)
+
 #include "draw_model_lib.glsl"
 #include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
@@ -95,7 +99,7 @@ void geometry_main(VertOut geom_in[3],
 
 void main()
 {
-  select_id_set(drw_CustomID);
+  select_id_set(drw_custom_id());
 
   /* Triangle list primitive. */
   const uint input_primitive_vertex_count = 3u;

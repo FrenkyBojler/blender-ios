@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/overlay_edit_mode_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_edit_uv_edges)
+
 #include "draw_model_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
@@ -179,6 +183,8 @@ void main()
   VertOut vert_out[input_primitive_vertex_count];
   vert_out[0] = vertex_main(vert_in[0]);
   vert_out[1] = vertex_main(vert_in[1]);
+
+  drw_ResourceID_iface.resource_index = drw_resource_id();
 
   /* Discard by default. */
   gl_Position = vec4(NAN_FLT);

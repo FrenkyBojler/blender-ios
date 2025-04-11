@@ -75,6 +75,7 @@ class Geometry : public Node {
     HAIR,
     VOLUME,
     POINTCLOUD,
+    LIGHT,
   };
 
   Type geometry_type;
@@ -162,7 +163,7 @@ class Geometry : public Node {
   bool is_instanced() const;
 
   bool has_true_displacement() const;
-  bool has_motion_blur() const;
+  virtual bool has_motion_blur() const;
   bool has_voxel_attributes() const;
 
   bool is_mesh() const
@@ -183,6 +184,11 @@ class Geometry : public Node {
   bool is_volume() const
   {
     return geometry_type == VOLUME;
+  }
+
+  bool is_light() const
+  {
+    return geometry_type == LIGHT;
   }
 
   /* Updates */
