@@ -1805,7 +1805,6 @@ static void do_version_bokeh_image_node_options_to_inputs(bNodeTree *node_tree, 
     return;
   }
 
-  /* Get the newly added inputs. */
   if (!blender::bke::node_find_socket(*node, SOCK_IN, "Flaps")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
         *node_tree, *node, SOCK_IN, SOCK_INT, PROP_NONE, "Flaps", "Flaps");
@@ -1814,13 +1813,13 @@ static void do_version_bokeh_image_node_options_to_inputs(bNodeTree *node_tree, 
 
   if (!blender::bke::node_find_socket(*node, SOCK_IN, "Angle")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_INT, PROP_ANGLE, "Angle", "Angle");
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_ANGLE, "Angle", "Angle");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->angle;
   }
 
   if (!blender::bke::node_find_socket(*node, SOCK_IN, "Roundness")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_INT, PROP_FACTOR, "Roughness", "Roughness");
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Roughness", "Roughness");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->rounding;
   }
 
@@ -1828,7 +1827,7 @@ static void do_version_bokeh_image_node_options_to_inputs(bNodeTree *node_tree, 
     bNodeSocket *input = blender::bke::node_add_static_socket(*node_tree,
                                                               *node,
                                                               SOCK_IN,
-                                                              SOCK_INT,
+                                                              SOCK_FLOAT,
                                                               PROP_FACTOR,
                                                               "Catadioptric Size",
                                                               "Catadioptric Size");
@@ -1837,7 +1836,7 @@ static void do_version_bokeh_image_node_options_to_inputs(bNodeTree *node_tree, 
 
   if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Shift")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_INT, PROP_FACTOR, "Color Shift", "Color Shift");
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Color Shift", "Color Shift");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->lensshift;
   }
 
