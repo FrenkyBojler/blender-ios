@@ -27,10 +27,10 @@
 #include "GPU_context.hh"
 
 #include "GPU_batch.hh"
+#include "GPU_pass.hh"
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
 #include "gpu_matrix_private.hh"
-#include "gpu_pass.hh"
 #include "gpu_private.hh"
 #include "gpu_shader_private.hh"
 
