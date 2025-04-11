@@ -357,18 +357,15 @@ NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
   const float offset = brush_plane_offset_get(brush, ss);
   const float displace = ss.cache->radius * (0.18f + offset) * (flip ? -1.0f : 1.0f);
 
-  /* With a cube influence area, this brush needs slightly more than the radius.
-   *
-   * SQRT3 because the cube circumscribes the spherical brush area, so the current radius is equal
-   * to half of the length of a side of the cube. */
-  const float radius_squared = math::square(ss.cache->radius * math::numbers::sqrt3);
+  /* TODO: Test to see if the sqrt2 extra factor can be removed */
+  const float initial_radius_squared = math::square(ss.cache->radius * math::numbers::sqrt2);
 
   const bool use_original = !ss.cache->accum;
   const IndexMask initial_node_mask = gather_nodes(pbvh,
                                                    eBrushFalloffShape(brush.falloff_shape),
                                                    use_original,
                                                    ss.cache->location_symm,
-                                                   radius_squared,
+                                                   initial_radius_squared,
                                                    ss.cache->view_normal_symm,
                                                    memory);
 
@@ -386,6 +383,11 @@ NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
   plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
   plane_center += plane_normal * ss.cache->scale * displace;
 
+  /* With a cube influence area, this brush needs slightly more than the radius.
+   *
+   * SQRT3 because the cube circumscribes the spherical brush area, so the current radius is equal
+   * to half of the length of a side of the cube. */
+  const float radius_squared = math::square(ss.cache->radius * math::numbers::sqrt3);
   const IndexMask plane_mask = bke::pbvh::search_nodes(
       pbvh, memory, [&](const bke::pbvh::Node &node) {
         if (node_fully_masked_or_hidden(node)) {
