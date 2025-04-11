@@ -985,6 +985,111 @@ void add_segments(const int curve_k,
   all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 }
 
+static BooleanResult follow_segments(const Span<Segment> all_segments,
+                                     const VArray<bool> &is_fill,
+                                     const Span<IntersectionPoint> intersections,
+                                     const Span<bool> all_inside_left,
+                                     const Span<bool> all_inside_right)
+{
+  /* Follow each segment until it loops or ends. */
+  Array<bool> processed_segments(all_segments.size(), false);
+
+  /* Remove all noncontributing segments. */
+  for (const int segment_i : all_segments.index_range()) {
+    const Segment &segment = all_segments[segment_i];
+    if (is_fill[segment.curve]) {
+      if (!all_inside_left[segment_i] ^ all_inside_right[segment_i]) {
+        processed_segments[segment_i] = true;
+      }
+    }
+    else {
+      BLI_assert(all_inside_left[segment_i] == all_inside_right[segment_i]);
+      if (all_inside_left[segment_i]) {
+        processed_segments[segment_i] = true;
+      }
+    }
+  }
+
+  int start_segment = processed_segments.as_span().first_index_try(false);
+
+  BooleanResult result;
+  result.segment_offsets.append(0);
+
+  while (start_segment != -1) {
+    int current_i = start_segment;
+
+    bool PolygonDone = false;
+    bool PolygonClosed = false;
+    bool last_reversed = false;
+    while (!PolygonDone) {
+      if (processed_segments[current_i] == true) {
+        BLI_assert_unreachable();
+        break;
+      }
+
+      const Segment &current_segment = all_segments[current_i];
+      processed_segments[current_i] = true;
+
+      if (result.segments.size() == 0) {
+        result.segments.append(current_segment);
+        result.segment_reversed.append(last_reversed);
+      }
+      /* Check if the last segment can be joined with this one. */
+      else if (!check_and_join_segments(result.segments.last(), current_segment)) {
+        result.segments.append(current_segment);
+        result.segment_reversed.append(last_reversed);
+      }
+
+      const int next_segment = get_next_segment(current_i,
+                                                last_reversed,
+                                                all_segments,
+                                                intersections,
+                                                is_fill,
+                                                all_inside_left,
+                                                all_inside_right);
+
+      if (next_segment == -1) {
+        PolygonDone = true;
+        PolygonClosed = current_segment.is_loop();
+        break;
+      }
+
+      if (next_segment == start_segment) {
+        PolygonDone = true;
+        PolygonClosed = true;
+
+        /* Check if the last segment can be joined to the first one. */
+        if ((!result.segments.index_range().is_empty()) &&
+            result.segment_offsets.last() != result.segments.index_range().last())
+        {
+          if (check_and_join_segments(result.segments[result.segment_offsets.last()],
+                                      result.segments.last()))
+          {
+            result.segments.remove_last();
+          }
+        }
+
+        break;
+      }
+
+      const int current_end_index = last_reversed ? current_segment.intersection_index[0] :
+                                                    current_segment.intersection_index[1];
+      const Segment &next_seg = all_segments[next_segment];
+      const bool next_reversed = next_seg.intersection_index[0] != current_end_index;
+
+      last_reversed = next_reversed;
+      current_i = next_segment;
+    }
+    result.segment_offsets.append(result.segments.size());
+    result.cyclic.append(PolygonClosed);
+
+    /* Get the next unprocessed segment. */
+    start_segment = processed_segments.as_span().first_index_try(false);
+  }
+
+  return result;
+}
+
 BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
                                      const int subj_shape_id,
                                      const Span<float2> points,
@@ -1117,101 +1222,8 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
 
   /* -------------------- */
 
-  /* Follow each segment until it loops or ends. */
-  Array<bool> processed_segments(all_segments.size(), false);
-
-  /* Remove all noncontributing segments. */
-  for (const int segment_i : all_segments.index_range()) {
-    const Segment &segment = all_segments[segment_i];
-    if (is_fill[segment.curve]) {
-      if (!all_inside_left[segment_i] ^ all_inside_right[segment_i]) {
-        processed_segments[segment_i] = true;
-      }
-    }
-    else {
-      BLI_assert(all_inside_left[segment_i] == all_inside_right[segment_i]);
-      if (all_inside_left[segment_i]) {
-        processed_segments[segment_i] = true;
-      }
-    }
-  }
-
-  int start_segment = processed_segments.as_span().first_index_try(false);
-
-  BooleanResult result;
-  result.segment_offsets.append(0);
-
-  while (start_segment != -1) {
-    int current_i = start_segment;
-
-    bool PolygonDone = false;
-    bool PolygonClosed = false;
-    bool last_reversed = false;
-    while (!PolygonDone) {
-      if (processed_segments[current_i] == true) {
-        BLI_assert_unreachable();
-        break;
-      }
-
-      const Segment &current_segment = all_segments[current_i];
-      processed_segments[current_i] = true;
-
-      if (result.segments.size() == 0) {
-        result.segments.append(current_segment);
-        result.segment_reversed.append(last_reversed);
-      }
-      /* Check if the last segment can be joined with this one. */
-      else if (!check_and_join_segments(result.segments.last(), current_segment)) {
-        result.segments.append(current_segment);
-        result.segment_reversed.append(last_reversed);
-      }
-
-      const int next_segment = get_next_segment(current_i,
-                                                last_reversed,
-                                                all_segments,
-                                                intersections,
-                                                is_fill,
-                                                all_inside_left,
-                                                all_inside_right);
-
-      if (next_segment == -1) {
-        PolygonDone = true;
-        PolygonClosed = current_segment.is_loop();
-        break;
-      }
-
-      if (next_segment == start_segment) {
-        PolygonDone = true;
-        PolygonClosed = true;
-
-        /* Check if the last segment can be joined to the first one. */
-        if ((!result.segments.index_range().is_empty()) &&
-            result.segment_offsets.last() != result.segments.index_range().last())
-        {
-          if (check_and_join_segments(result.segments[result.segment_offsets.last()],
-                                      result.segments.last()))
-          {
-            result.segments.remove_last();
-          }
-        }
-
-        break;
-      }
-
-      const int current_end_index = last_reversed ? current_segment.intersection_index[0] :
-                                                    current_segment.intersection_index[1];
-      const Segment &next_seg = all_segments[next_segment];
-      const bool next_reversed = next_seg.intersection_index[0] != current_end_index;
-
-      last_reversed = next_reversed;
-      current_i = next_segment;
-    }
-    result.segment_offsets.append(result.segments.size());
-    result.cyclic.append(PolygonClosed);
-
-    /* Get the next unprocessed segment. */
-    start_segment = processed_segments.as_span().first_index_try(false);
-  }
+  const BooleanResult result = follow_segments(
+      all_segments, is_fill, intersections, all_inside_left, all_inside_right);
 
   return result;
 }
