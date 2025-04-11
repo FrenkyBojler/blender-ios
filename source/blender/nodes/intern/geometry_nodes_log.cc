@@ -925,15 +925,16 @@ const ViewerNodeLog *GeoModifierLog::find_viewer_node_log_for_path(const ViewerP
   }
   nodes::geo_eval_log::GeoModifierLog *modifier_log = nmd->runtime->eval_log.get();
 
-  ComputeContextBuilder compute_context_builder;
-  compute_context_builder.push<bke::ModifierComputeContext>(*nmd);
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *compute_context = &compute_context_cache.for_modifier(nullptr, *nmd);
   for (const ViewerPathElem *elem : parsed_path->node_path) {
-    if (!ed::viewer_path::add_compute_context_for_viewer_path_elem(*elem, compute_context_builder))
-    {
+    compute_context = ed::viewer_path::compute_context_for_viewer_path_elem(
+        *elem, compute_context_cache, compute_context);
+    if (!compute_context) {
       return nullptr;
     }
   }
-  const ComputeContextHash context_hash = compute_context_builder.hash();
+  const ComputeContextHash context_hash = compute_context->hash();
   nodes::geo_eval_log::GeoTreeLog &tree_log = modifier_log->get_tree_log(context_hash);
   tree_log.ensure_viewer_node_logs();
 

@@ -672,18 +672,17 @@ static void find_side_effect_nodes_for_viewer_path(
     return;
   }
 
-  ComputeContextBuilder compute_context_builder;
-  compute_context_builder.push<bke::ModifierComputeContext>(nmd);
-
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current = &compute_context_cache.for_modifier(nullptr, nmd);
   for (const ViewerPathElem *elem : parsed_path->node_path) {
-    if (!ed::viewer_path::add_compute_context_for_viewer_path_elem(*elem, compute_context_builder))
-    {
+    current = ed::viewer_path::compute_context_for_viewer_path_elem(
+        *elem, compute_context_cache, current);
+    if (!current) {
       return;
     }
   }
 
-  try_add_side_effect_node(
-      *compute_context_builder.current(), parsed_path->viewer_node_id, nmd, r_side_effect_nodes);
+  try_add_side_effect_node(*current, parsed_path->viewer_node_id, nmd, r_side_effect_nodes);
 }
 
 static void find_side_effect_nodes_for_nested_node(
@@ -691,8 +690,8 @@ static void find_side_effect_nodes_for_nested_node(
     const int root_nested_node_id,
     nodes::GeoNodesSideEffectNodes &r_side_effect_nodes)
 {
-  ComputeContextBuilder compute_context_builder;
-  compute_context_builder.push<bke::ModifierComputeContext>(nmd);
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *compute_context = &compute_context_cache.for_modifier(nullptr, nmd);
 
   int nested_node_id = root_nested_node_id;
   const bNodeTree *tree = nmd.node_group;
@@ -717,13 +716,12 @@ static void find_side_effect_nodes_for_nested_node(
       if (!node->id) {
         return;
       }
-      compute_context_builder.push<bke::GroupNodeComputeContext>(*node, *tree);
+      compute_context = &compute_context_cache.for_group_node(compute_context, *node, *tree);
       tree = reinterpret_cast<const bNodeTree *>(node->id);
       nested_node_id = ref->path.id_in_node;
     }
     else {
-      try_add_side_effect_node(
-          *compute_context_builder.current(), ref->path.node_id, nmd, r_side_effect_nodes);
+      try_add_side_effect_node(*compute_context, ref->path.node_id, nmd, r_side_effect_nodes);
       return;
     }
   }
