@@ -357,11 +357,11 @@ NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
   const float offset = brush_plane_offset_get(brush, ss);
   const float displace = ss.cache->radius * (0.18f + offset) * (flip ? -1.0f : 1.0f);
 
-  /* With a square influence area, this brush needs slightly more than the radius.
+  /* With a cube influence area, this brush needs slightly more than the radius.
    *
-   * SQRT2 because the square circumscribes the circular brush area, so the current radius is equal
-   * to half of the length of the side of the square. */
-  const float radius_squared = math::square(ss.cache->radius * math::numbers::sqrt2);
+   * SQRT3 because the cube circumscribes the spherical brush area, so the current radius is equal
+   * to half of the length of a side of the cube. */
+  const float radius_squared = math::square(ss.cache->radius * math::numbers::sqrt3);
 
   const bool use_original = !ss.cache->accum;
   const IndexMask initial_node_mask = gather_nodes(pbvh,
