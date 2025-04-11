@@ -37,6 +37,7 @@
 
 #include "BKE_bake_data_block_map.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
@@ -762,12 +763,12 @@ static void find_side_effect_nodes_for_active_gizmos(
   Object *object_orig = DEG_get_original_object(ctx.object);
   const NodesModifierData &nmd_orig = *reinterpret_cast<const NodesModifierData *>(
       BKE_modifier_get_original(ctx.object, const_cast<ModifierData *>(&nmd.modifier)));
-  ComputeContextBuilder compute_context_builder;
+  bke::ComputeContextCache compute_context_cache;
   nodes::gizmos::foreach_active_gizmo_in_modifier(
       *object_orig,
       nmd_orig,
       wm,
-      compute_context_builder,
+      compute_context_cache,
       [&](const ComputeContext &compute_context,
           const bNode &gizmo_node,
           const bNodeSocket &gizmo_socket) {
