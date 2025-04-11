@@ -195,8 +195,7 @@ static void stats_object(Object *ob,
       stats->totgplayer += grease_pencil->layers().size();
       break;
     }
-    case OB_CURVES:
-    {
+    case OB_CURVES: {
       using namespace blender;
       const Curves &curves_id = *static_cast<Curves *>(ob->data);
       const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
@@ -634,10 +633,7 @@ static void get_stats_string(char *info,
   else if (ob && (ob->type == OB_CURVES)) {
     const char *count = (object_mode == OB_MODE_SCULPT_CURVES) ? stats_fmt->totvertsculpt :
                                                                  stats_fmt->totcuvepoints;
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
-                              IFACE_("Points:%s"),
-                              count);
+    *ofs += BLI_snprintf_rlen(info + *ofs, len - *ofs, IFACE_("Points:%s"), count);
   }
   else if (ob && (object_mode & OB_MODE_SCULPT)) {
     if (stats_is_object_dynamic_topology_sculpt(ob)) {
@@ -886,7 +882,8 @@ void ED_info_draw_stats(
       stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
     }
     else if (ob->type == OB_CURVES) {
-      stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totcuvepoints, y, height);
+      stats_row(
+          col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totcuvepoints, y, height);
     }
     else if (ob->type != OB_FONT) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
