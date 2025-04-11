@@ -11,6 +11,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_xpbd_constraints.hh"
 #include "NOD_xpbd_solver.hh"
