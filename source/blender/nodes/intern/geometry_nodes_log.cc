@@ -584,6 +584,8 @@ void GeoTreeLog::ensure_evaluated_gizmo_nodes()
       this->evaluated_gizmo_nodes.add(evaluated_gizmo.node_id);
     }
   }
+
+  reduced_evaluated_gizmo_nodes_ = true;
 }
 
 void GeoTreeLog::ensure_layer_names()
