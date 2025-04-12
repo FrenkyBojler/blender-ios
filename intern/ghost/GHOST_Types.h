@@ -689,7 +689,7 @@ typedef struct {
   /** The key code. */
   GHOST_TKey key;
 
-  /** The unicode character. if the length is 6, not nullptr terminated if all 6 are set. */
+  /** The unicode character. if the length is 6, not null terminated if all 6 are set. */
   char utf8_buf[6];
 
   /**
@@ -897,7 +897,8 @@ typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsOpenGL,
   GHOST_kXrGraphicsVulkan,
 #  ifdef WIN32
-  GHOST_kXrGraphicsD3D11,
+  GHOST_kXrGraphicsOpenGLD3D11,
+  GHOST_kXrGraphicsVulkanD3D11,
 #  endif
   /* For later */
   //  GHOST_kXrGraphicsVulkan,
