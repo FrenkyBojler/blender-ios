@@ -1361,12 +1361,16 @@ int parse_driver_build_version(const sycl::device &device)
 
 std::vector<sycl::device> available_sycl_devices()
 {
+    VLOG(0) << "Started available_sycl_devices()";
   bool allow_all_devices = false;
   if (getenv("CYCLES_ONEAPI_ALL_DEVICES") != nullptr) {
+      VLOG(0) << "CYCLES_ONEAPI_ALL_DEVICES was set, allowing all SYCL devices";
     allow_all_devices = true;
   }
 
+  VLOG(0) << "Getting avaliable devices";
   const std::vector<sycl::platform> &oneapi_platforms = sycl::platform::get_platforms();
+  VLOG(0) << "Number of avaliable devices: " << oneapi_platforms.size();
 
   std::vector<sycl::device> available_devices;
   for (const sycl::platform &platform : oneapi_platforms) {
