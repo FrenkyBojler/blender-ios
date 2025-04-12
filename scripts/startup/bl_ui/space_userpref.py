@@ -1033,14 +1033,13 @@ class USERPREF_PT_theme(ThemePanel, Panel):
         row.menu("USERPREF_MT_interface_theme_presets", text=preset_label)
         del filepath, preset_label
 
-        row.operator("preferences.theme_reload", text="", icon='FILE_REFRESH')
         row.operator("wm.interface_theme_preset_add", text="", icon='ADD')
         row.operator("wm.interface_theme_preset_remove", text="", icon='REMOVE')
         row.operator("wm.interface_theme_preset_save", text="", icon='FILE_TICK')
 
         row = split.row(align=True)
         row.operator("preferences.theme_install", text="Install...", icon='IMPORT')
-        row.operator("preferences.reset_default_theme", text="Reset", icon='LOOP_BACK')
+        row.operator("preferences.theme_reload", text="Reset", icon='LOOP_BACK')
 
 
 class USERPREF_PT_theme_user_interface(ThemePanel, CenterAlignMixIn, Panel):
