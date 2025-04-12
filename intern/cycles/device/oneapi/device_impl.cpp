@@ -1322,6 +1322,7 @@ static const int lowest_supported_driver_version_neo = 31740;
 int parse_driver_build_version(const sycl::device &device)
 {
   const std::string &driver_version = device.get_info<sycl::info::device::driver_version>();
+  VLOG(0) << "Getting the GPU driver version from: " << driver_version;
   int driver_build_version = 0;
 
   size_t second_dot_position = driver_version.find('.', driver_version.find('.') + 1);
@@ -1361,10 +1362,10 @@ int parse_driver_build_version(const sycl::device &device)
 
 std::vector<sycl::device> available_sycl_devices()
 {
-    VLOG(0) << "Started available_sycl_devices()";
+  VLOG(0) << "Started available_sycl_devices()";
   bool allow_all_devices = false;
   if (getenv("CYCLES_ONEAPI_ALL_DEVICES") != nullptr) {
-      VLOG(0) << "CYCLES_ONEAPI_ALL_DEVICES was set, allowing all SYCL devices";
+    VLOG(0) << "CYCLES_ONEAPI_ALL_DEVICES was set, allowing all SYCL devices";
     allow_all_devices = true;
   }
 
@@ -1373,16 +1374,22 @@ std::vector<sycl::device> available_sycl_devices()
   VLOG(0) << "Number of avaliable devices: " << oneapi_platforms.size();
 
   std::vector<sycl::device> available_devices;
+  int i = 0;
   for (const sycl::platform &platform : oneapi_platforms) {
+    i += 1;
+    VLOG(0) << "Checking on device number: " << i;
     /* ignore OpenCL platforms to avoid using the same devices through both Level-Zero and OpenCL.
      */
+    VLOG(0) << "SYCL platform is: " << platform.get_backend();
     if (platform.get_backend() == sycl::backend::opencl) {
+      VLOG(0) << "SYCL platform is OpenCL. Skipping this device.";
       continue;
     }
 
     const std::vector<sycl::device> &oneapi_devices =
         (allow_all_devices) ? platform.get_devices(sycl::info::device_type::all) :
                               platform.get_devices(sycl::info::device_type::gpu);
+    VLOG(0) << "Number of oneAPI after deciding between GPUs or other: " << oneapi_devices.size();
 
     for (const sycl::device &device : oneapi_devices) {
       bool filter_out = false;
@@ -1390,22 +1397,37 @@ std::vector<sycl::device> available_sycl_devices()
         /* For now we support all Intel(R) Arc(TM) devices and likely any future GPU,
          * assuming they have either more than 96 Execution Units or not 7 threads per EU.
          * Official support can be broaden to older and smaller GPUs once ready. */
+        VLOG(0) << "Running GPU check";
+        VLOG(0) << "Is GPU? " << device.is_gpu();
         if (!device.is_gpu() || platform.get_backend() != sycl::backend::ext_oneapi_level_zero) {
+          VLOG(0) << "Device was filtered out because it either wasn't a GPU, or because it "
+                     "wasn't using oneAPI's level zero";
           filter_out = true;
         }
         else {
+          VLOG(0) << "Checking EU count and thread per EU count";
           /* Filtered-out defaults in-case these values aren't available. */
           int number_of_eus = 96;
           int threads_per_eu = 7;
           if (device.has(sycl::aspect::ext_intel_gpu_eu_count)) {
             number_of_eus = device.get_info<sycl::ext::intel::info::device::gpu_eu_count>();
+            VLOG(0) << "Number of EUs " << number_of_eus;
+          }
+          else {
+            VLOG(0) << "Device doesn't support Intel's EU count check";
           }
           if (device.has(sycl::aspect::ext_intel_gpu_hw_threads_per_eu)) {
             threads_per_eu =
                 device.get_info<sycl::ext::intel::info::device::gpu_hw_threads_per_eu>();
+            VLOG(0) << "Threads per EU " << threads_per_eu;
+          }
+          else {
+            VLOG(0) << "Device doesn't support Intel's thread count check";
           }
           /* This filters out all Level-Zero supported GPUs from older generation than Arc. */
           if (number_of_eus <= 96 && threads_per_eu == 7) {
+            VLOG(0)
+                << "Device was filtered out because it doesn't have enough EUs or threads per EU";
             filter_out = true;
           }
           /* if not already filtered out, check driver version. */
@@ -1414,7 +1436,14 @@ std::vector<sycl::device> available_sycl_devices()
           if (check_driver_version &&
               device.get_info<sycl::info::device::vendor>().find("Intel") == std::string::npos)
           {
+            VLOG(0) << "Not checking the driver version because the device was either filtered "
+                       "out earlier ("
+                    << check_driver_version << ") or doesn't contain Intel in the vendor name: "
+                    << device.get_info<sycl::info::device::vendor>();
             check_driver_version = false;
+          }
+          else {
+            VLOG(0) << "Moving onto checking the GPU driver version";
           }
           /* Because of https://github.com/oneapi-src/unified-runtime/issues/1777, future drivers
            * may break parsing done by a SYCL runtime from before the fix we expect in major
@@ -1423,6 +1452,7 @@ std::vector<sycl::device> available_sycl_devices()
            * runtime, we disable driver version check in case LIBSYCL_MAJOR_VERSION is below 8 and
            * actual driver version doesn't start with 1.3. */
 #  if __LIBSYCL_MAJOR_VERSION < 8
+          VLOG(0) << "LIBSYCL_MAJOR_VERSION < 8";
           if (check_driver_version &&
               !string_startswith(device.get_info<sycl::info::device::driver_version>(), "1.3."))
           {
@@ -1435,13 +1465,23 @@ std::vector<sycl::device> available_sycl_devices()
                  driver_build_version < lowest_supported_driver_version_win) ||
                 driver_build_version < lowest_supported_driver_version_neo)
             {
+              VLOG(0) << "Discarding this device because it's driver is too old";
+              VLOG(0) << "Driver obtained: " << driver_build_version
+                      << "Expected: " << lowest_supported_driver_version_neo << " or newer";
               filter_out = true;
+            }
+            else {
+              VLOG(0) << "Passed the GPU driver check with: " << driver_build_version;
             }
           }
         }
       }
       if (!filter_out) {
+        VLOG(0) << "Added device to device list";
         available_devices.push_back(device);
+      }
+      else {
+        VLOG(0) << "Did not add device to device list";
       }
     }
   }
