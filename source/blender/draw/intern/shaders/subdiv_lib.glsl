@@ -20,8 +20,8 @@ uint get_global_invocation_index()
 
 vec2 decode_uv(uint encoded_uv)
 {
-  float u = float((encoded_uv >> 16) & 0xFFFFu) / 65535.0;
-  float v = float(encoded_uv & 0xFFFFu) / 65535.0;
+  float u = float((encoded_uv >> 16) & 0xFFFFu) / 65535.0f;
+  float v = float(encoded_uv & 0xFFFFu) / 65535.0f;
   return vec2(u, v);
 }
 
@@ -113,7 +113,7 @@ uint coarse_face_index_from_subdiv_quad_index(uint subdiv_quad_index, uint coars
     }
   }
 
-  if (subdiv_face_offset[first] == subdiv_quad_index) {
+  if (first < coarse_face_count && subdiv_face_offset[first] == subdiv_quad_index) {
     return first;
   }
 

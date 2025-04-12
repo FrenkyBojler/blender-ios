@@ -111,7 +111,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     uiLayout *input_socket_layout = uiLayoutRow(&row, true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_INPUT) {
       /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(input_socket_layout, UI_EMBOSS);
+      uiLayoutSetEmboss(input_socket_layout, blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(input_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -125,7 +125,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     uiLayout *output_socket_layout = uiLayoutRow(&row, true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
       /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(output_socket_layout, UI_EMBOSS);
+      uiLayoutSetEmboss(output_socket_layout, blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(output_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -192,16 +192,13 @@ class NodePanelViewItem : public BasicTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiLayout *toggle_layout = uiLayoutRow(&row, true);
     /* Add boolean socket if panel has a toggle. */
     if (toggle_ != nullptr) {
+      uiLayout *toggle_layout = uiLayoutRow(&row, true);
       /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(toggle_layout, UI_EMBOSS);
+      uiLayoutSetEmboss(toggle_layout, blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(toggle_layout, /*C*/ nullptr, toggle_->socket_color());
-    }
-    else {
-      uiItemL(toggle_layout, "", ICON_BLANK1);
     }
 
     this->add_label(row);
@@ -340,7 +337,7 @@ eWM_DragDataType NodeTreeInterfaceDragController::get_drag_type() const
 
 void *NodeTreeInterfaceDragController::create_drag_data() const
 {
-  wmDragNodeTreeInterface *drag_data = MEM_cnew<wmDragNodeTreeInterface>(__func__);
+  wmDragNodeTreeInterface *drag_data = MEM_callocN<wmDragNodeTreeInterface>(__func__);
   drag_data->item = &item_;
   return drag_data;
 }
@@ -541,7 +538,7 @@ void uiTemplateNodeTreeInterface(uiLayout *layout, bContext *C, PointerRNA *ptr)
       "Node Tree Declaration Tree View",
       std::make_unique<blender::ui::nodes::NodeTreeInterfaceView>(nodetree, interface));
   tree_view->set_context_menu_title("Node Tree Interface");
-  tree_view->set_default_rows(3);
+  tree_view->set_default_rows(5);
 
   blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

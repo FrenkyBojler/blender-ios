@@ -965,13 +965,13 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
 {
   Object *object = preview->active_object;
   if (object == nullptr) {
-    WM_report(RPT_WARNING, "No active object, unable to apply the Action before rendering");
+    WM_global_report(RPT_WARNING, "No active object, unable to apply the Action before rendering");
     return nullptr;
   }
   if (object->pose == nullptr) {
-    WM_reportf(RPT_WARNING,
-               "Object %s has no pose, unable to apply the Action before rendering",
-               object->id.name + 2);
+    WM_global_reportf(RPT_WARNING,
+                      "Object %s has no pose, unable to apply the Action before rendering",
+                      object->id.name + 2);
     return nullptr;
   }
 
@@ -979,7 +979,7 @@ static PoseBackup *action_preview_render_prepare(IconPreview *preview)
   blender::animrig::Action &pose_action = reinterpret_cast<bAction *>(preview->id)->wrap();
 
   if (pose_action.slot_array_num == 0) {
-    WM_report(RPT_WARNING, "Action has no data, cannot render preview");
+    WM_global_report(RPT_WARNING, "Action has no data, cannot render preview");
     return nullptr;
   }
 
@@ -1351,7 +1351,7 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
     BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&brush->id));
 
     /* Use default color-spaces for brushes. */
-    brush->icon_imbuf = IMB_loadiffname(filepath, flags, nullptr);
+    brush->icon_imbuf = IMB_load_image_from_filepath(filepath, flags);
 
     if (brush->icon_imbuf) {
       BKE_icon_changed(BKE_icon_id_ensure(&brush->id));
@@ -1518,7 +1518,7 @@ static void other_id_types_preview_render(IconPreview *ip,
                                           const ePreviewRenderMethod pr_method,
                                           wmJobWorkerStatus *worker_status)
 {
-  ShaderPreview *sp = MEM_cnew<ShaderPreview>("Icon ShaderPreview");
+  ShaderPreview *sp = MEM_callocN<ShaderPreview>("Icon ShaderPreview");
 
   /* These types don't use the ShaderPreview mess, they have their own types and functions. */
   BLI_assert(!ip->id || !ELEM(GS(ip->id->name), ID_OB));
@@ -1596,11 +1596,14 @@ static void icon_preview_startjob_all_sizes(void *customdata, wmJobWorkerStatus 
 
     /* check_engine_supports_preview() checks whether the engine supports "preview mode" (think:
      * Material Preview). This check is only relevant when the render function called below is
-     * going to use such a mode. Object and Action render functions use Solid mode, though, so
-     * they can skip this test. */
+     * going to use such a mode. Group, Object and Action render functions use Solid mode, though,
+     * so they can skip this test. Same is true for Images and Brushes, they can also skip this
+     * test since their preview is just pulled from ImBuf which is not dependent on the render
+     * engine. */
     /* TODO: Decouple the ID-type-specific render functions from this function, so that it's not
      * necessary to know here what happens inside lower-level functions. */
-    const bool use_solid_render_mode = (ip->id != nullptr) && ELEM(GS(ip->id->name), ID_OB, ID_AC);
+    const bool use_solid_render_mode = (ip->id != nullptr) &&
+                                       ELEM(GS(ip->id->name), ID_OB, ID_AC, ID_IM, ID_GR, ID_BR);
     if (!use_solid_render_mode && preview_method_is_render(pr_method) &&
         !ED_check_engine_supports_preview(ip->scene))
     {
@@ -1661,7 +1664,7 @@ static void icon_preview_add_size(IconPreview *ip, uint *rect, int sizex, int si
     cur_size = cur_size->next;
   }
 
-  IconPreviewSize *new_size = MEM_cnew<IconPreviewSize>("IconPreviewSize");
+  IconPreviewSize *new_size = MEM_callocN<IconPreviewSize>("IconPreviewSize");
   new_size->sizex = sizex;
   new_size->sizey = sizey;
   new_size->rect = rect;
@@ -2046,7 +2049,7 @@ void ED_preview_icon_job(
                               WM_JOB_EXCL_RENDER,
                               WM_JOB_TYPE_RENDER_PREVIEW);
 
-  ip = MEM_cnew<IconPreview>("icon preview");
+  ip = MEM_callocN<IconPreview>("icon preview");
 
   /* render all resolutions from suspended job too */
   old_ip = static_cast<IconPreview *>(WM_jobs_customdata_get(wm_job));
@@ -2113,7 +2116,7 @@ void ED_preview_shader_job(const bContext *C,
                        "Shader Preview",
                        WM_JOB_EXCL_RENDER,
                        WM_JOB_TYPE_RENDER_PREVIEW);
-  sp = MEM_cnew<ShaderPreview>("shader preview");
+  sp = MEM_callocN<ShaderPreview>("shader preview");
 
   /* customdata for preview thread */
   sp->scene = scene;
@@ -2168,6 +2171,14 @@ void ED_preview_kill_jobs(wmWindowManager *wm, Main * /*bmain*/)
   }
 }
 
+void ED_preview_kill_jobs_for_id(wmWindowManager *wm, const ID *id)
+{
+  const PreviewImage *preview = BKE_previewimg_id_get(id);
+  if (wm && preview) {
+    WM_jobs_kill_type(wm, preview, WM_JOB_TYPE_RENDER_PREVIEW);
+  }
+}
+
 struct PreviewRestartQueueEntry {
   PreviewRestartQueueEntry *next, *prev;
 
@@ -2184,7 +2195,7 @@ void ED_preview_restart_queue_free()
 
 void ED_preview_restart_queue_add(ID *id, enum eIconSizes size)
 {
-  PreviewRestartQueueEntry *queue_entry = MEM_cnew<PreviewRestartQueueEntry>(__func__);
+  PreviewRestartQueueEntry *queue_entry = MEM_callocN<PreviewRestartQueueEntry>(__func__);
   queue_entry->size = size;
   queue_entry->id = id;
   BLI_addtail(&G_restart_previews_queue, queue_entry);
