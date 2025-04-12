@@ -989,20 +989,24 @@ static int gizmo_cage2d_test_select(bContext *C, wmGizmo *gz, const int mval[2])
     const bool draw_corners = draw_options & ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES;
 
     if (BLI_rctf_isect_pt_v(&r_xmin, point_local)) {
-      if (BLI_rctf_isect_pt_v(&r_ymin, point_local) && draw_corners) {
-        return ED_GIZMO_CAGE2D_PART_SCALE_MIN_X_MIN_Y;
-      }
-      if (BLI_rctf_isect_pt_v(&r_ymax, point_local) && draw_corners) {
-        return ED_GIZMO_CAGE2D_PART_SCALE_MIN_X_MAX_Y;
+      if (draw_corners) {
+        if (BLI_rctf_isect_pt_v(&r_ymin, point_local)) {
+          return ED_GIZMO_CAGE2D_PART_SCALE_MIN_X_MIN_Y;
+        }
+        if (BLI_rctf_isect_pt_v(&r_ymax, point_local)) {
+          return ED_GIZMO_CAGE2D_PART_SCALE_MIN_X_MAX_Y;
+        }
       }
       return ED_GIZMO_CAGE2D_PART_SCALE_MIN_X;
     }
     if (BLI_rctf_isect_pt_v(&r_xmax, point_local)) {
-      if (BLI_rctf_isect_pt_v(&r_ymin, point_local) && draw_corners) {
-        return ED_GIZMO_CAGE2D_PART_SCALE_MAX_X_MIN_Y;
-      }
-      if (BLI_rctf_isect_pt_v(&r_ymax, point_local) && draw_corners) {
-        return ED_GIZMO_CAGE2D_PART_SCALE_MAX_X_MAX_Y;
+      if (draw_corners) {
+        if (BLI_rctf_isect_pt_v(&r_ymin, point_local)) {
+          return ED_GIZMO_CAGE2D_PART_SCALE_MAX_X_MIN_Y;
+        }
+        if (BLI_rctf_isect_pt_v(&r_ymax, point_local)) {
+          return ED_GIZMO_CAGE2D_PART_SCALE_MAX_X_MAX_Y;
+        }
       }
       return ED_GIZMO_CAGE2D_PART_SCALE_MAX_X;
     }
