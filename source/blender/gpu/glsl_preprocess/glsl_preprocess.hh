@@ -98,6 +98,7 @@ class Preprocessor {
     str = enum_macro_injection(str);
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
+    str = template_macro_replacement(str, filename, report_error);
     return line_directive_prefix(filename) + str + threadgroup_variables_suffix() +
            "//__blender_metadata_sta\n" + gpu_functions_.str() + static_strings_suffix() +
            gpu_builtins_suffix(filename) + dependency_suffix() + "//__blender_metadata_end\n";
@@ -172,6 +173,57 @@ class Preprocessor {
     /* Remove trailing white space as they make the subsequent regex much slower. */
     std::regex regex(R"((\ )*?\n)");
     return std::regex_replace(out_str, regex, "\n");
+  }
+
+  std::string template_macro_replacement(const std::string &str,
+                                         const std::string &filename,
+                                         report_callback &report_error)
+  {
+    if (filename.find(".msl") != std::string::npos) {
+      /* MSL supports template and some file uses them fully. */
+      return str;
+    }
+    if (str.find("template<") == std::string::npos) {
+      return str;
+    }
+
+    std::string out_str = str;
+    {
+      /* Transform template definition into macro declaration. */
+      std::regex regex(R"(template<([\w+ ,]+)>(\s\w+\s(\w+)\())");
+      out_str = std::regex_replace(out_str, regex, "#define $3_TEMPLATE($1) $2");
+    }
+    {
+      /* Add backslash for each newline in template macro. */
+      size_t start, end = 0;
+      while ((start = out_str.find("_TEMPLATE(", end)) != std::string::npos) {
+        {
+          /* Remove parameter type from macro argument list. */
+          end = out_str.find(")", start);
+          std::string arg_list = out_str.substr(start, end - start);
+          arg_list = std::regex_replace(arg_list, std::regex(R"(\w+ (\w+))"), "$1");
+          out_str.replace(start, end - start, arg_list);
+        }
+        /* Find last closing bracket. */
+        end = out_str.find("\n}", start);
+        if (end == std::string::npos) {
+          report_error(std::smatch(), "Template function declaration is missing closing bracket");
+          break;
+        }
+        /* Still process the last `\n`. */
+        end += 1;
+        std::string macro_body = out_str.substr(start, end - start);
+        macro_body = std::regex_replace(macro_body, std::regex(R"(\n)"), " \\\n");
+
+        out_str.replace(start, end - start, macro_body);
+      }
+    }
+    /* Replace explicit instantiation by macro call. */
+    /* Only `template ret_t fn<T>(args);` syntax is supported. */
+    std::regex regex_instance(R"(template \w+ (\w+)<([\w+, \n]+)>\(([\w+ ,\n]+)\);)");
+    /* Notice the stupid way of keeping the number of lines the same by copying the argument list
+     * inside a multiline comment. */
+    return std::regex_replace(out_str, regex_instance, "$1_TEMPLATE($2)/*$3*/");
   }
 
   std::string remove_quotes(const std::string &str)
