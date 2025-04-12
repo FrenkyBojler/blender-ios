@@ -1974,7 +1974,6 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                grid_positions[CCG_grid_xy_to_index(grid_size, x + 1, y + 1)],
                grid_positions[CCG_grid_xy_to_index(grid_size, x + 1, y)],
                grid_positions[CCG_grid_xy_to_index(grid_size, x, y)]}};
-
           if (ray_face_intersection_quad(
                   ray_start, isect_precalc, co[0], co[1], co[2], co[3], depth))
           {
