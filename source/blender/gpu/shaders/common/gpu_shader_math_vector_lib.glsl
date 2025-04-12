@@ -266,59 +266,35 @@ float average(vec4 a);
 /** \name Implementation
  * \{ */
 
-bool is_zero(vec2 vec)
+template<typename VecT> bool is_zero(VecT vec)
 {
-  return all(equal(vec, vec2(0.0f)));
+  return all(equal(vec, VecT(0.0f)));
 }
-bool is_zero(vec3 vec)
-{
-  return all(equal(vec, vec3(0.0f)));
-}
-bool is_zero(vec4 vec)
-{
-  return all(equal(vec, vec4(0.0f)));
-}
+template bool is_zero<vec2>(vec2);
+template bool is_zero<vec3>(vec3);
+template bool is_zero<vec4>(vec4);
 
-bool is_any_zero(vec2 vec)
+template<typename VecT> bool is_any_zero(VecT vec)
 {
-  return any(equal(vec, vec2(0.0f)));
+  return any(equal(vec, VecT(0.0f)));
 }
-bool is_any_zero(vec3 vec)
-{
-  return any(equal(vec, vec3(0.0f)));
-}
-bool is_any_zero(vec4 vec)
-{
-  return any(equal(vec, vec4(0.0f)));
-}
+template bool is_any_zero<vec2>(vec2);
+template bool is_any_zero<vec3>(vec3);
+template bool is_any_zero<vec4>(vec4);
 
-bool almost_equal_relative(vec2 a, vec2 b, const float epsilon_factor)
+template<typename VecT, int dim>
+bool almost_equal_relative(VecT a, VecT b, const float epsilon_factor)
 {
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < dim; i++) {
     if (abs(a[i] - b[i]) > epsilon_factor * abs(a[i])) {
       return false;
     }
   }
   return true;
 }
-bool almost_equal_relative(vec3 a, vec3 b, const float epsilon_factor)
-{
-  for (int i = 0; i < 3; i++) {
-    if (abs(a[i] - b[i]) > epsilon_factor * abs(a[i])) {
-      return false;
-    }
-  }
-  return true;
-}
-bool almost_equal_relative(vec4 a, vec4 b, const float epsilon_factor)
-{
-  for (int i = 0; i < 4; i++) {
-    if (abs(a[i] - b[i]) > epsilon_factor * abs(a[i])) {
-      return false;
-    }
-  }
-  return true;
-}
+template bool almost_equal_relative<vec2, 2>(vec2 a, vec2 b, const float epsilon_factor);
+template bool almost_equal_relative<vec3, 3>(vec3 a, vec3 b, const float epsilon_factor);
+template bool almost_equal_relative<vec4, 4>(vec4 a, vec4 b, const float epsilon_factor);
 
 vec2 safe_mod(vec2 a, vec2 b)
 {
