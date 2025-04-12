@@ -1013,7 +1013,10 @@ class USERPREF_PT_theme(ThemePanel, Panel):
         import os
 
         layout = self.layout
-        row = layout.row(align=True)
+
+        split = layout.split(factor=0.6)
+
+        row = split.row(align=True)
 
         # Unlike most presets (which use the classes bl_label),
         # themes store the path, use this when set.
@@ -1033,11 +1036,11 @@ class USERPREF_PT_theme(ThemePanel, Panel):
         row.operator("preferences.theme_reload", text="", icon='FILE_REFRESH')
         row.operator("wm.interface_theme_preset_add", text="", icon='ADD')
         row.operator("wm.interface_theme_preset_remove", text="", icon='REMOVE')
+        row.operator("wm.interface_theme_preset_save", text="", icon='FILE_TICK')
 
-        row.separator()
-        row.operator("preferences.theme_install", text="", icon='IMPORT')
-        row.separator()
-        row.operator("wm.interface_theme_preset_save", text="", icon='EXPORT')
+        row = split.row(align=True)
+        row.operator("preferences.theme_install", text="Install...", icon='IMPORT')
+        row.operator("preferences.reset_default_theme", text="Reset", icon='LOOP_BACK')
 
 
 class USERPREF_PT_theme_user_interface(ThemePanel, CenterAlignMixIn, Panel):
