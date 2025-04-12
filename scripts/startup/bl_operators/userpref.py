@@ -625,6 +625,9 @@ class PREFERENCES_OT_theme_reload(Operator):
     bl_idname = "preferences.theme_reload"
     bl_label = "Reload Theme..."
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event, title="Reload Theme", confirm_text="Reload")
+
     def execute(self, context):
         import traceback
 
