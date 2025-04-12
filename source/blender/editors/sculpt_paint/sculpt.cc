@@ -4651,8 +4651,6 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                                           srd.ray_normal,
                                           &srd.isect_precalc,
                                           &srd.depth,
-                                          &srd.back_depth,
-                                          &srd.back_hit,
                                           grids_active_vert,
                                           srd.active_face_grid_index,
                                           srd.face_normal);

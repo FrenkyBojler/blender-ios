@@ -1690,6 +1690,7 @@ bool ray_face_intersection_quad(const float3 &ray_start,
       (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t2, t3, &depth_test, nullptr) &&
        (depth_test < *depth)))
   {
+    return true;
   }
 
   return false;
@@ -1703,7 +1704,10 @@ bool ray_face_intersection_tri(const float3 &ray_start,
                                float *depth)
 {
   float depth_test;
-  if (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr)) {
+  if (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr) &&
+      depth_test < *depth)
+  {
+    *depth = depth_test;
   }
 
   return false;

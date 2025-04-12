@@ -1892,14 +1892,8 @@ bool raycast_node_detail_bmesh(BMeshNode &node,
       BMVert *v_tri[3];
       bool hit_local;
       BM_face_as_array_vert_tri(f, v_tri);
-      hit_local = ray_face_intersection_tri(ray_start,
-                                            isect_precalc,
-                                            v_tri[0]->co,
-                                            v_tri[1]->co,
-                                            v_tri[2]->co,
-                                            depth,
-                                            nullptr,
-                                            nullptr);
+      hit_local = ray_face_intersection_tri(
+          ray_start, isect_precalc, v_tri[0]->co, v_tri[1]->co, v_tri[2]->co, depth);
 
       if (hit_local) {
         f_hit = f;
