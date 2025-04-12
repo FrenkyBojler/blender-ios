@@ -609,6 +609,8 @@ bool SCULPT_brush_type_needs_all_pbvh_nodes(const Brush &brush);
 
 namespace blender::ed::sculpt_paint {
 
+float brush_plane_offset_get(const Brush &brush, const SculptSession &ss);
+
 /**
  * \warning This call is *not* idempotent and changes values inside the StrokeCache.
  *
@@ -660,8 +662,6 @@ std::optional<BMVert *> nearest_vert_calc_bmesh(const bke::pbvh::Tree &pbvh,
                                                 bool use_original);
 }  // namespace blender::ed::sculpt_paint
 
-float SCULPT_brush_plane_offset_get(const Sculpt &sd, const SculptSession &ss);
-
 ePaintSymmetryAreas SCULPT_get_vertex_symm_area(const float co[3]);
 bool SCULPT_check_vertex_pivot_symmetry(const float vco[3], const float pco[3], char symm);
 /**
@@ -710,6 +710,13 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
                       const bke::pbvh::Node &node,
                       float radius_sq,
                       bool original);
+IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
+                       eBrushFalloffShape falloff_shape,
+                       bool use_original,
+                       const float3 &location,
+                       float radius_sq,
+                       const std::optional<float3> &ray_direction,
+                       IndexMaskMemory &memory);
 
 }  // namespace blender::ed::sculpt_paint
 
