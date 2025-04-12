@@ -6,6 +6,7 @@ set(INC
   ../include
   ../io
   ../../makesrna
+  ../../nodes
 )
 
 set(INC_SYS

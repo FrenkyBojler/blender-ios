@@ -24,6 +24,7 @@ set(INC
   ../../editors/include
   ../../ikplugin
   ../../makesrna
+  ../../nodes
   ../../../../intern/iksolver/extern
 )
 

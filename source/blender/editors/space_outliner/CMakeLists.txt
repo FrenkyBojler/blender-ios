@@ -6,6 +6,7 @@ set(INC
   ../include
   ../../blenfont
   ../../makesrna
+  ../../nodes
 
   ../../../../extern/fmtlib/include
 
