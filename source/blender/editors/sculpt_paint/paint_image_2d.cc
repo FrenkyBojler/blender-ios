@@ -109,17 +109,17 @@ enum ImagePaintTileState {
 
 struct ImagePaintTile {
   ImageUser iuser;
-  ImBuf *canvas;
-  float radius_fac;
-  int size[2];
-  float uv_origin[2]; /* Stores the position of this tile in UV space. */
-  bool need_redraw;
-  BrushPainterCache cache;
+  ImBuf *canvas = nullptr;
+  float radius_fac = 0.0f;
+  int size[2] = {};
+  float uv_origin[2] = {}; /* Stores the position of this tile in UV space. */
+  bool need_redraw = false;
+  BrushPainterCache cache = {};
 
-  ImagePaintTileState state;
+  ImagePaintTileState state = PAINT2D_TILE_UNINITIALIZED;
 
-  float last_paintpos[2];  /* position of last paint op */
-  float start_paintpos[2]; /* position of first paint */
+  float last_paintpos[2] = {};  /* position of last paint op */
+  float start_paintpos[2] = {}; /* position of first paint */
 };
 
 struct ImagePaintState {

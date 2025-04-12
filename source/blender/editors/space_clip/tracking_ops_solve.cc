@@ -35,16 +35,16 @@
 /********************** solve camera operator *********************/
 
 struct SolveCameraJob {
-  wmWindowManager *wm;
-  Scene *scene;
-  MovieClip *clip;
+  wmWindowManager *wm = nullptr;
+  Scene *scene = nullptr;
+  MovieClip *clip = nullptr;
   MovieClipUser user;
 
-  ReportList *reports;
+  ReportList *reports = nullptr;
 
-  char stats_message[256];
+  char stats_message[256] = "";
 
-  MovieReconstructContext *context;
+  MovieReconstructContext *context = nullptr;
 };
 
 static bool solve_camera_initjob(

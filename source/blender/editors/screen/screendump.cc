@@ -45,10 +45,10 @@
 #include "screen_intern.hh"
 
 struct ScreenshotData {
-  uint8_t *dumprect;
-  int dumpsx, dumpsy;
-  rcti crop;
-  bool use_crop;
+  uint8_t *dumprect = nullptr;
+  int dumpsx = 0, dumpsy = 0;
+  rcti crop = {};
+  bool use_crop = false;
 
   ImageFormatData im_format;
 };

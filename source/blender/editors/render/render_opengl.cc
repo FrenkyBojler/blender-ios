@@ -1009,7 +1009,7 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
 }
 
 struct WriteTaskData {
-  RenderResult *rr;
+  RenderResult *rr = nullptr;
   Scene tmp_scene;
 };
 

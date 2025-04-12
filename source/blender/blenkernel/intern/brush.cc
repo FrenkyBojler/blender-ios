@@ -570,12 +570,11 @@ void BKE_brush_system_exit()
 
 static void brush_defaults(Brush *brush)
 {
-
-  const Brush *brush_def = DNA_struct_default_get(Brush);
+  const Brush brush_def;
 
 #define FROM_DEFAULT(member) \
-  memcpy((void *)&brush->member, (void *)&brush_def->member, sizeof(brush->member))
-#define FROM_DEFAULT_PTR(member) memcpy(brush->member, brush_def->member, sizeof(brush->member))
+  memcpy((void *)&brush->member, (void *)&brush_def.member, sizeof(brush->member))
+#define FROM_DEFAULT_PTR(member) memcpy(brush->member, brush_def.member, sizeof(brush->member))
 
   FROM_DEFAULT(blend);
   FROM_DEFAULT(flag);
