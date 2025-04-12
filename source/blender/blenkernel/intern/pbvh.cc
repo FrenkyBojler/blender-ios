@@ -1690,6 +1690,7 @@ bool ray_face_intersection_quad(const float3 &ray_start,
       (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t2, t3, &depth_test, nullptr) &&
        (depth_test < *depth)))
   {
+    *depth = depth_test;
     return true;
   }
 
@@ -1708,10 +1709,12 @@ bool ray_face_intersection_tri(const float3 &ray_start,
       depth_test < *depth)
   {
     *depth = depth_test;
+    return true;
   }
 
   return false;
 }
+
 /* Take advantage of the fact we know this won't be an intersection.
  * Just handle ray-tri edges. */
 static float dist_squared_ray_to_tri_v3_fast(const float3 &ray_origin,
