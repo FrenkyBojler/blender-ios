@@ -1,10 +1,19 @@
-/* SPDX-FileCopyrightText: 2024 Tenkai Raiko
+/* SPDX-FileCopyrightText: 2024-2025 Tenkai Raiko
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
 CCL_NAMESPACE_BEGIN
+
+/* Define macro flags for code adaption. */
+#define ADAPT_TO_SVM
+
+/* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
+#include "radial_tiling_generic.h"
+
+/* Undefine macro flags used for code adaption. */
+#undef ADAPT_TO_SVM
 
 struct RoundedPolygonStackOffsets {
   uint vector;
@@ -15,15 +24,6 @@ struct RoundedPolygonStackOffsets {
   uint max_unit_parameter;
   uint x_axis_A_angle_bisector;
 };
-
-/* Define macro flags for code translation. */
-#define TRANSLATE_TO_SVM
-
-/* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
-#include "radial_tiling_generic.h"
-
-/* Undefine macro flags used for code translation. */
-#undef TRANSLATE_TO_SVM
 
 template<uint node_feature_mask>
 ccl_device_noinline int svm_node_radial_tiling(

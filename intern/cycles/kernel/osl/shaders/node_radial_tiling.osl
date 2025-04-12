@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Tenkai Raiko
+/* SPDX-FileCopyrightText: 2024-2025 Tenkai Raiko
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -9,14 +9,14 @@
 
 #define vector3 point
 
-/* Define macro flags for code translation. */
-#define TRANSLATE_TO_OSL
+/* Define macro flags for code adaption. */
+#define ADAPT_TO_OSL
 
 /* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
 #include "../../svm/radial_tiling_generic.h"
 
-/* Undefine macro flags used for code translation. */
-#undef TRANSLATE_TO_OSL
+/* Undefine macro flags used for code adaption. */
+#undef ADAPT_TO_OSL
 
 shader node_radial_tiling(int normalize_r_gon_parameter = 0,
                           vector3 Vector = P,

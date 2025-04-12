@@ -1,17 +1,17 @@
-/* SPDX-FileCopyrightText: 2024 Tenkai Raiko
+/* SPDX-FileCopyrightText: 2024-2025 Tenkai Raiko
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "gpu_shader_math_base_lib.glsl"
 
-/* Define macro flags for code translation. */
-/* No macro flags necessary, as code is translated to GLSL by default. */
+/* Define macro flags for code adaption. */
+/* No macro flags necessary, as code is adapted to GLSL by default. */
 
 /* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
 #include "radial_tiling_generic.h"
 
-/* Undefine macro flags used for code translation. */
-/* No macro flags necessary, as code is translated to GLSL by default. */
+/* Undefine macro flags used for code adaption. */
+/* No macro flags necessary, as code is adapted to GLSL by default. */
 
 void node_radial_tiling(vec3 coord,
                         float r_gon_sides,

@@ -1,13 +1,13 @@
-/* SPDX-FileCopyrightText: 2024 Tenkai Raiko
+/* SPDX-FileCopyrightText: 2024-2025 Tenkai Raiko
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
 /* The SVM implementation is used as the base generic version because multiple math function
- * identifiers are already used as macros in the SVM code, making a code translation into an SVM
+ * identifiers are already used as macros in the SVM code, making a code adaption into an SVM
  * implementation using macros impossible. */
 
-/* Define macros for code translation. */
-#ifdef TRANSLATE_TO_GEOMETRY_NODES
+/* Define macros for code adaption. */
+#ifdef ADAPT_TO_GEOMETRY_NODES
 #  define atanf atan
 #  define atan2f atan2
 #  define ceilf ceil
@@ -30,7 +30,7 @@
 
 using namespace math;
 #else
-#  ifdef TRANSLATE_TO_OSL
+#  ifdef ADAPT_TO_OSL
 #    define atanf atan
 #    define atan2f atan2
 #    define ceilf ceil
@@ -57,10 +57,10 @@ using namespace math;
 #    define false 0
 #    define true 1
 #  else
-#    ifdef TRANSLATE_TO_SVM
-/* No code translation necessary for the SVM implementation as it is the base generic version. */
+#    ifdef ADAPT_TO_SVM
+/* No code adaption necessary for the SVM implementation as it is the base generic version. */
 #    else
-/* Translate code to GLSL by default. */
+/* Adapt code to GLSL by default. */
 #      define atanf atan
 #      define atan2f atan2
 #      define ceilf ceil
@@ -86,6 +86,18 @@ using namespace math;
 #  endif
 #endif
 
+#ifdef __KERNEL_GPU__
+#  define KERNEL_GPU_REPLACE_WITH_TRUE(X) true
+#else
+#  define KERNEL_GPU_REPLACE_WITH_TRUE(X) (X)
+#endif
+
+#ifdef __KERNEL_METAL__
+#  define KERNEL_METAL_REPLACE_WITH_TRUE(X) true
+#else
+#  define KERNEL_METAL_REPLACE_WITH_TRUE(X) (X)
+#endif
+
 /* Naming convention for the Radial Tiling node code:
  * Let x and y be 2D vectors.
  * The length of X is expressed as l_x, which is an abbreviation of length_x.
@@ -98,6 +110,7 @@ using namespace math;
  * Let z and w be scalars.
  * The ratio z/w is expressed as z_R_w, which is an abbreviation of z_Ratio_y. */
 
+#ifndef __KERNEL_METAL__
 ccl_device float4
 calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_parameter_field,
                                                           bool normalize_r_gon_parameter,
@@ -288,6 +301,7 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
         l_angle_bisector, r_gon_parameter, max_unit_parameter, x_axis_A_angle_bisector);
   }
 }
+#endif
 
 ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
                                                              bool calculate_max_unit_parameter,
@@ -359,7 +373,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
         float spline_start_outer_last_bevel_start = (float(1.0) - effective_roundness) *
                                                     x_axis_A_outer_last_bevel_start;
 
-        if (calculate_r_gon_parameter_field) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
           if (ref_A_coord < ref_A_angle_bisector) {
             r_gon_parameter *= -float(1.0);
@@ -380,7 +394,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
 
         float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
 
-        if (calculate_r_gon_parameter_field) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
           if (ref_A_coord < ref_A_angle_bisector) {
             r_gon_parameter *= -float(1.0);
@@ -396,7 +410,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
         }
       }
 
-      if (calculate_r_gon_parameter_field) {
+      if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
         r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
         if (ref_A_coord < ref_A_angle_bisector) {
           r_gon_parameter *= -float(1.0);
@@ -436,7 +450,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
           }
         }
       }
-      if (calculate_max_unit_parameter) {
+      if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
         max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
                              r_gon_roundness * ref_A_bevel_start;
       }
@@ -466,7 +480,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
 
       float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
 
-      if (calculate_r_gon_parameter_field) {
+      if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
         float coord_A_bevel_start = ref_A_bevel_start - fabsf(nearest_ref_SA_coord);
         r_gon_parameter = l_coord * sinf(bevel_start_A_angle_bisector);
 
@@ -503,7 +517,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                                  coord_A_bevel_start / ref_A_bevel_start);
         }
       }
-      if (calculate_max_unit_parameter) {
+      if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
         max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
                              r_gon_roundness * ref_A_bevel_start;
       }
@@ -535,7 +549,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
       float spline_start_bevel_start = (float(1.0) - r_gon_roundness) *
                                        inner_last_bevel_start_A_x_axis;
 
-      if (calculate_r_gon_parameter_field) {
+      if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
         r_gon_parameter = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector *
                           tanf(fabsf(last_angle_bisector_A_x_axis - ref_A_coord));
         if (ref_A_coord < last_angle_bisector_A_x_axis) {
@@ -551,7 +565,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
           r_gon_parameter /= normalize_based_on_l_l_angle_bisector;
         }
       }
-      if (calculate_max_unit_parameter) {
+      if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
         max_unit_parameter = tanf(inner_last_bevel_start_A_last_angle_bisector) +
                              l_angle_bisector_R_l_last_angle_bisector *
                                  (spline_start_bevel_start *
@@ -600,7 +614,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
         float spline_start_bevel_start = (float(1.0) - r_gon_roundness) *
                                          inner_last_bevel_start_A_x_axis;
 
-        if (calculate_r_gon_parameter_field) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
           float coord_A_bevel_start = inner_last_bevel_start_A_x_axis -
                                       fabsf(nearest_ref_MSA_coord);
           r_gon_parameter = l_angle_bisector_R_l_last_angle_bisector * l_coord *
@@ -646,7 +660,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                                    coord_A_bevel_start / inner_last_bevel_start_A_x_axis);
           }
         }
-        if (calculate_max_unit_parameter) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(inner_last_bevel_start_A_last_angle_bisector) +
                                l_angle_bisector_R_l_last_angle_bisector *
                                    (spline_start_bevel_start *
@@ -665,7 +679,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
         float spline_start_outer_last_bevel_start = (float(1.0) - effective_roundness) *
                                                     x_axis_A_outer_last_bevel_start;
 
-        if (calculate_r_gon_parameter_field) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
           float coord_A_bevel_start = x_axis_A_outer_last_bevel_start -
                                       fabsf(nearest_ref_MSA_coord);
           r_gon_parameter = l_coord * sinf(outer_last_bevel_start_A_angle_bisector);
@@ -707,7 +721,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                                    coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
           }
         }
-        if (calculate_max_unit_parameter) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
           float bevel_start_A_angle_bisector = ref_A_angle_bisector - ref_A_bevel_start;
           float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
 
@@ -748,7 +762,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 
       l_angle_bisector = l_coord * cosf(ref_A_angle_bisector - ref_A_coord);
 
-      if (calculate_r_gon_parameter_field) {
+      if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
         r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
         if (ref_A_coord < ref_A_angle_bisector) {
           r_gon_parameter *= -float(1.0);
@@ -757,7 +771,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
           r_gon_parameter /= l_angle_bisector * tanf(ref_A_angle_bisector);
         }
       }
-      if (calculate_max_unit_parameter) {
+      if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
         max_unit_parameter = (r_gon_sides != float(2.0)) ? tanf(ref_A_angle_bisector) : float(0.0);
       }
       out_variables = make_float4(l_angle_bisector,
@@ -769,7 +783,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
       /* Regular rounded part. */
 
       float r_gon_parameter = float(0.0);
-      if (calculate_r_gon_parameter_field) {
+      if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
         r_gon_parameter = fabsf(ref_A_angle_bisector - ref_A_coord);
         if (ref_A_coord < ref_A_angle_bisector) {
           r_gon_parameter *= -float(1.0);
@@ -811,7 +825,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 
         float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
 
-        if (calculate_r_gon_parameter_field) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
           float coord_A_bevel_start = ref_A_bevel_start - fabsf(nearest_ref_SA_coord);
           r_gon_parameter = l_coord * sinf(bevel_start_A_angle_bisector);
 
@@ -848,7 +862,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                    coord_A_bevel_start / ref_A_bevel_start);
           }
         }
-        if (calculate_max_unit_parameter) {
+        if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
                                r_gon_roundness * ref_A_bevel_start;
         }
@@ -868,7 +882,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 
         float spline_start_bevel_start = (float(1.0) - r_gon_roundness) * ref_A_bevel_start;
 
-        if (calculate_r_gon_parameter_field) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
           if (ref_A_coord < ref_A_angle_bisector) {
             r_gon_parameter *= -float(1.0);
@@ -882,7 +896,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
             r_gon_parameter /= normalize_based_on_l_angle_bisector;
           }
         }
-        if (calculate_max_unit_parameter) {
+        if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
                                r_gon_roundness * ref_A_bevel_start;
         }
@@ -912,7 +926,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
         float max_unit_parameter = float(0.0);
 
         l_angle_bisector = l_coord * cosf(ref_A_angle_bisector - ref_A_coord);
-        if (calculate_r_gon_parameter_field) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(ref_A_angle_bisector - ref_A_coord));
           if (ref_A_coord < ref_A_angle_bisector) {
             r_gon_parameter *= -float(1.0);
@@ -921,7 +935,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
             r_gon_parameter /= l_angle_bisector * tanf(ref_A_angle_bisector);
           }
         }
-        if (calculate_max_unit_parameter) {
+        if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(ref_A_angle_bisector);
         }
         out_variables = make_float4(l_angle_bisector,
@@ -942,7 +956,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 
         l_angle_bisector = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector;
 
-        if (calculate_r_gon_parameter_field) {
+        if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector *
                             tanf(fabsf(last_angle_bisector_A_x_axis - ref_A_coord));
           if (ref_A_coord < last_angle_bisector_A_x_axis) {
@@ -953,7 +967,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                tanf(last_angle_bisector_A_x_axis);
           }
         }
-        if (calculate_max_unit_parameter) {
+        if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(last_angle_bisector_A_x_axis);
         }
         out_variables = make_float4(l_angle_bisector,
@@ -962,10 +976,12 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                     segment_id * ref_A_next_ref + last_angle_bisector_A_x_axis);
       }
     }
+#ifndef __KERNEL_METAL__
     else if (r_gon_roundness == float(1.0)) {
       out_variables = calculate_out_variables_full_roundness_irregular_circular(
           calculate_r_gon_parameter_field, normalize_r_gon_parameter, r_gon_sides, coord, l_coord);
     }
+#endif
     else {
       out_variables = calculate_out_variables_irregular_circular(calculate_r_gon_parameter_field,
                                                                  calculate_max_unit_parameter,
@@ -993,8 +1009,8 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
                 ((atan2f(coord.y, coord.x) / M_TAU_F) + float(coord.y < float(0.0))));
 }
 
-/* Undefine macros used for code translation. */
-#ifdef TRANSLATE_TO_GEOMETRY_NODES
+/* Undefine macros used for code adaption. */
+#ifdef ADAPT_TO_GEOMETRY_NODES
 #  undef atanf
 #  undef atan2f
 #  undef ceilf
@@ -1013,7 +1029,7 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #  undef make_float4
 #  undef ccl_device
 #else
-#  ifdef TRANSLATE_TO_OSL
+#  ifdef ADAPT_TO_OSL
 #    undef atanf
 #    undef atan2f
 #    undef ceilf
@@ -1040,10 +1056,10 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #    undef false
 #    undef true
 #  else
-#    ifdef TRANSLATE_TO_SVM
-/* No code translation necessary for the SVM implementation as it is the base generic version. */
+#    ifdef ADAPT_TO_SVM
+/* No code adaption necessary for the SVM implementation as it is the base generic version. */
 #    else
-/* Translate code to GLSL by default. */
+/* Adapt code to GLSL by default. */
 #      undef atanf
 #      undef atan2f
 #      undef ceilf
@@ -1068,3 +1084,6 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #    endif
 #  endif
 #endif
+
+#undef KERNEL_GPU_REPLACE_WITH_TRUE
+#undef KERNEL_METAL_REPLACE_WITH_TRUE

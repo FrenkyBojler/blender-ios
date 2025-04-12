@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Tenkai Raiko
+/* SPDX-FileCopyrightText: 2024-2025 Tenkai Raiko
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -118,14 +118,14 @@ static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
   node_sock_label(outX_axisToAngleBisectorAngleSock, "Segment Rotation");
 }
 
-/* Define macro flags for code translation. */
-#define TRANSLATE_TO_GEOMETRY_NODES
+/* Define macro flags for code adaption. */
+#define ADAPT_TO_GEOMETRY_NODES
 
 /* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
 #include "../../../../../intern/cycles/kernel/svm/radial_tiling_generic.h"
 
-/* Undefine macro flags used for code translation. */
-#undef TRANSLATE_TO_GEOMETRY_NODES
+/* Undefine macro flags used for code adaption. */
+#undef ADAPT_TO_GEOMETRY_NODES
 
 class RoundedPolygonFunction : public mf::MultiFunction {
  private:
