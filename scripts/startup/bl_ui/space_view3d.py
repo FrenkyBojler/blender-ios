@@ -6565,7 +6565,7 @@ class VIEW3D_PT_shading_lighting(Panel):
         split = col.split(factor=0.9)
 
         if shading.type == 'SOLID':
-            split.row().prop(shading, "light", expand=True)
+            col.row().prop(shading, "light", expand=True)
             col = split.column()
 
             split = layout.split(factor=0.9)
@@ -6668,7 +6668,7 @@ class VIEW3D_PT_shading_lighting(Panel):
 class VIEW3D_PT_shading_color(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
-    bl_label = "Wire Color"
+    bl_label = "Wireframe Color"
     bl_parent_id = "VIEW3D_PT_shading"
 
     def _draw_color_type(self, context):
@@ -6683,7 +6683,7 @@ class VIEW3D_PT_shading_color(Panel):
         layout = self.layout
         shading = VIEW3D_PT_shading.get_shading(context)
 
-        layout.row().label(text="Background")
+        layout.row().label(text="Background Color")
         layout.row().prop(shading, "background_type", expand=True)
         if shading.background_type == 'VIEWPORT':
             layout.row().prop(shading, "background_color", text="")
@@ -6696,7 +6696,7 @@ class VIEW3D_PT_shading_color(Panel):
         self.layout.separator()
 
         if shading.type == 'SOLID':
-            layout.row().label(text="Color")
+            layout.row().label(text="Object Color")
             self._draw_color_type(context)
             self.layout.separator()
             self._draw_background_color(context)
@@ -9181,8 +9181,8 @@ classes = (
     VIEW3D_PT_quad_view,
     VIEW3D_PT_view3d_stereo,
     VIEW3D_PT_shading,
-    VIEW3D_PT_shading_lighting,
     VIEW3D_PT_shading_color,
+    VIEW3D_PT_shading_lighting,
     VIEW3D_PT_shading_options,
     VIEW3D_PT_shading_options_shadow,
     VIEW3D_PT_shading_options_ssao,

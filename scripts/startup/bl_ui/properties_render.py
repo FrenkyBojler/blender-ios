@@ -959,7 +959,7 @@ class RENDER_PT_opengl_lighting(RenderButtonsPanel, Panel):
 
 
 class RENDER_PT_opengl_color(RenderButtonsPanel, Panel):
-    bl_label = "Color"
+    bl_label = "Object Color"
     COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
 
     @classmethod
@@ -1128,8 +1128,8 @@ classes = (
     RENDER_PT_grease_pencil_viewport,
     RENDER_PT_grease_pencil_render,
     RENDER_PT_opengl_sampling,
-    RENDER_PT_opengl_lighting,
     RENDER_PT_opengl_color,
+    RENDER_PT_opengl_lighting,
     RENDER_PT_opengl_options,
     RENDER_PT_opengl_film,
     RENDER_PT_hydra_debug,
