@@ -182,9 +182,9 @@ typedef struct SpaceProperties {
 
   /** Context tabs. */
   short mainb, mainbo, mainbuser;
+  uint32_t visible_tabs;
   /** Preview is signal to refresh. */
   short preview;
-  char _pad[4];
   char flag;
 
   /* eSpaceButtons_OutlinerSync */
@@ -238,6 +238,7 @@ enum {
 
 /** #SpaceProperties.mainb new */
 typedef enum eSpaceButtons_Context {
+  BCONTEXT_SEPARATOR = -1,
   BCONTEXT_RENDER = 0,
   BCONTEXT_SCENE = 1,
   BCONTEXT_WORLD = 2,
@@ -870,7 +871,8 @@ typedef struct FileAssetSelectParams {
   bUUID catalog_id;
 
   short import_method; /* eFileAssetImportMethod */
-  char _pad2[6];
+  short import_flags;  /* eFileImportFlags */
+  char _pad2[4];
 } FileAssetSelectParams;
 
 typedef enum eFileAssetImportMethod {
@@ -885,6 +887,11 @@ typedef enum eFileAssetImportMethod {
   /** Default: Follow the preference setting for this asset library. */
   FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
 } eFileAssetImportMethod;
+
+typedef enum eFileAssetImportFlags {
+  FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK = (1 << 0),
+  FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_APPEND = (1 << 1),
+} eFileAssetImportFlags;
 
 /**
  * A wrapper to store previous and next folder lists (#FolderList) for a specific browse mode
@@ -1291,6 +1298,8 @@ typedef struct SpaceImage {
   int flag;
 
   float uv_opacity;
+  float uv_face_opacity;
+  char _pad2[4];
 
   float stretch_opacity;
 
@@ -1372,7 +1381,9 @@ typedef enum eSpaceImage_Flag {
 
   SI_FLAG_UNUSED_24 = (1 << 24),
 
-  SI_NO_DRAW_TEXPAINT = (1 << 25),
+#ifdef DNA_DEPRECATED_ALLOW
+  SI_NO_DRAW_TEXPAINT = (1 << 25), /* deprecated - use SI_NO_DRAW_UV_GUIDE instead, see #135102 */
+#endif
   SI_DRAW_METADATA = (1 << 26),
 
   SI_SHOW_R = (1 << 27),
@@ -1380,6 +1391,8 @@ typedef enum eSpaceImage_Flag {
   SI_SHOW_B = (1 << 29),
 
   SI_GRID_OVER_IMAGE = (1 << 30),
+
+  SI_NO_DRAW_UV_GUIDE = (1 << 31),
 } eSpaceImage_Flag;
 
 typedef enum eSpaceImageOverlay_Flag {

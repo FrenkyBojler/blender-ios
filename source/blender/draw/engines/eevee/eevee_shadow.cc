@@ -120,7 +120,6 @@ void ShadowTileMap::sync_cubeface(eLightType light_type_,
 
 void ShadowTileMap::debug_draw() const
 {
-#ifdef WITH_DRAW_DEBUG
   /** Used for debug drawing. */
   const float4 debug_color[6] = {
       {1.0f, 0.1f, 0.1f, 1.0f},
@@ -135,7 +134,6 @@ void ShadowTileMap::debug_draw() const
 
   float4x4 persinv = winmat * viewmat;
   drw_debug_matrix_as_bbox(math::invert(persinv), color);
-#endif
 }
 
 /** \} */
@@ -1113,7 +1111,7 @@ void ShadowModule::debug_end_sync()
   /* Init but not filled if no active object. */
   debug_draw_ps_.init();
 
-  Object *object_active = DRW_context_get()->obact;
+  Object *object_active = inst_.draw_ctx->obact;
   if (object_active == nullptr) {
     return;
   }

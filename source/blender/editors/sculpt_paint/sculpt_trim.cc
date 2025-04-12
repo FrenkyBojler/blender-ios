@@ -841,7 +841,7 @@ static void initialize_cursor_info(bContext &C,
   }
 }
 
-static int gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
 {
   if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -861,7 +861,7 @@ static int gesture_box_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;
@@ -872,7 +872,7 @@ static int gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static int gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
 {
   if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -892,7 +892,7 @@ static int gesture_lasso_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;
@@ -903,7 +903,7 @@ static int gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *even
   return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static int gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
 {
   if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -923,7 +923,7 @@ static int gesture_line_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;
@@ -934,7 +934,7 @@ static int gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event
   return WM_gesture_straightline_active_side_invoke(C, op, event);
 }
 
-static int gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
 {
   if (!can_exec(*C, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -954,7 +954,7 @@ static int gesture_polyline_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!can_invoke(*C)) {
     return OPERATOR_CANCELLED;

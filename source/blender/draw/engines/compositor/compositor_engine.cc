@@ -43,18 +43,24 @@ class Context : public compositor::Context {
   /* A pointer to the info message of the compositor engine. This is a char array of size
    * GPU_INFO_SIZE. The message is cleared prior to updating or evaluating the compositor. */
   char *info_message_;
+  const Scene *scene_;
 
  public:
   Context(char *info_message) : compositor::Context(), info_message_(info_message) {}
 
+  void set_scene(const Scene *scene)
+  {
+    scene_ = scene;
+  }
+
   const Scene &get_scene() const override
   {
-    return *DRW_context_get()->scene;
+    return *scene_;
   }
 
   const bNodeTree &get_node_tree() const override
   {
-    return *DRW_context_get()->scene->nodetree;
+    return *scene_->nodetree;
   }
 
   bool use_gpu() const override
@@ -82,7 +88,7 @@ class Context : public compositor::Context {
 
   const RenderData &get_render_data() const override
   {
-    return DRW_context_get()->scene->r;
+    return scene_->r;
   }
 
   int2 get_render_size() const override
@@ -95,19 +101,20 @@ class Context : public compositor::Context {
    * the viewport is already the camera region in that case. */
   rcti get_compositing_region() const override
   {
-    const int2 viewport_size = int2(DRW_context_get()->viewport_size_get());
+    const DRWContext *draw_ctx = DRW_context_get();
+    const int2 viewport_size = int2(draw_ctx->viewport_size_get());
     const rcti render_region = rcti{0, viewport_size.x, 0, viewport_size.y};
 
-    if (DRW_context_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render()) {
+    if (draw_ctx->rv3d->persp != RV3D_CAMOB || draw_ctx->is_viewport_image_render()) {
       return render_region;
     }
 
     rctf camera_border;
-    ED_view3d_calc_camera_border(DRW_context_get()->scene,
-                                 DRW_context_get()->depsgraph,
-                                 DRW_context_get()->region,
-                                 DRW_context_get()->v3d,
-                                 DRW_context_get()->rv3d,
+    ED_view3d_calc_camera_border(draw_ctx->scene,
+                                 draw_ctx->depsgraph,
+                                 draw_ctx->region,
+                                 draw_ctx->v3d,
+                                 draw_ctx->rv3d,
                                  false,
                                  &camera_border);
 
@@ -124,7 +131,7 @@ class Context : public compositor::Context {
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color,
                                                     compositor::ResultPrecision::Half);
-    result.wrap_external(DRW_viewport_texture_list_get()->color);
+    result.wrap_external(DRW_context_get()->viewport_texture_list_get()->color);
     return result;
   }
 
@@ -134,14 +141,14 @@ class Context : public compositor::Context {
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color,
                                                     compositor::ResultPrecision::Half);
-    result.wrap_external(DRW_viewport_texture_list_get()->color);
+    result.wrap_external(DRW_context_get()->viewport_texture_list_get()->color);
     return result;
   }
 
   compositor::Result get_pass(const Scene *scene, int view_layer, const char *pass_name) override
   {
     if (DEG_get_original_id(const_cast<ID *>(&scene->id)) !=
-        DEG_get_original_id(&DRW_context_get()->scene->id))
+        DEG_get_original_id(const_cast<ID *>(&scene_->id)))
     {
       return compositor::Result(*this);
     }
@@ -153,7 +160,7 @@ class Context : public compositor::Context {
     /* The combined pass is a special case where we return the viewport color texture, because it
      * includes Grease Pencil objects since GP is drawn using their own engine. */
     if (STREQ(pass_name, RE_PASSNAME_COMBINED)) {
-      GPUTexture *combined_texture = DRW_viewport_texture_list_get()->color;
+      GPUTexture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
       compositor::Result pass = compositor::Result(*this, GPU_texture_format(combined_texture));
       pass.wrap_external(combined_texture);
       return pass;
@@ -229,6 +236,7 @@ class Instance : public DrawEngine {
 
     /* Execute Compositor render commands. */
     {
+      context_.set_scene(DRW_context_get()->scene);
       compositor::Evaluator evaluator(context_);
       evaluator.evaluate();
     }

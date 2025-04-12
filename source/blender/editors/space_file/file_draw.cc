@@ -375,8 +375,17 @@ static void file_but_enable_drag(uiBut *but,
   {
     const int import_method = ED_fileselect_asset_import_method_get(sfile, file);
     BLI_assert(import_method > -1);
+    if (import_method > -1) {
+      AssetImportSettings import_settings{};
+      import_settings.method = eAssetImportMethod(import_method);
+      import_settings.use_instance_collections =
+          (sfile->asset_params->import_flags &
+           (import_method == ASSET_IMPORT_LINK ?
+                FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK :
+                FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_APPEND)) != 0;
 
-    UI_but_drag_set_asset(but, file->asset, import_method, icon, file->preview_icon_id);
+      UI_but_drag_set_asset(but, file->asset, import_settings, icon, file->preview_icon_id);
+    }
   }
   else if (preview_image) {
     UI_but_drag_set_image(but, path, icon, preview_image, scale);
@@ -1218,7 +1227,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
   FileList *files = sfile->files;
   FileDirEntry *file;
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   int numfiles;
   int numfiles_layout;
   int offset;
@@ -1565,7 +1574,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     file_draw_string_multiline(
         sx + UI_UNIT_X, sy, suggestion, width - UI_UNIT_X, line_height, text_col, nullptr, &sy);
 
-    uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+    uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     wmOperatorType *ot = WM_operatortype_find("SCREEN_OT_userpref_show", false);
     uiBut *but = uiDefIconTextButO_ptr(block,
                                        UI_BTYPE_BUT,

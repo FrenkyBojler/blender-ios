@@ -108,7 +108,7 @@ void light_eval_single_closure(LightData light,
                                const bool is_transmission)
 {
   attenuation *= light_power_get(light, cl.type);
-  if (attenuation < 1e-30) {
+  if (attenuation < 1e-30f) {
     return;
   }
   float ltc_result = light_ltc(utility_tx, light, cl.N, V, lv, cl.ltc_mat);
@@ -148,13 +148,19 @@ void light_eval_single(uint l_idx,
   bool is_translucent_with_thickness = is_transmission &&
                                        (stack.cl[0].type == LIGHT_TRANSLUCENT_WITH_THICKNESS);
 
-  float attenuation = light_attenuation_surface(
-      light, is_directional, is_transmission, is_translucent_with_thickness, Ng, lv);
+  float attenuation = light_attenuation_surface(light, is_directional, lv);
+
+  if (!is_translucent_with_thickness) {
+    /* Only do attenuation for this case, since we integrate the whole sphere for translucency.
+     * Moreover, stack.cl[0].N is overwritten for is_translucent_with_thickness. */
+    attenuation *= light_attenuation_facing(light, lv.L, lv.dist, stack.cl[0].N, is_transmission);
+  }
+
   if (attenuation < LIGHT_ATTENUATION_THRESHOLD) {
     return;
   }
 
-  float shadow = 1.0;
+  float shadow = 1.0f;
   if (light.tilemap_index != LIGHT_NO_SHADOW) {
     shadow = shadow_eval(light,
                          is_directional,
@@ -220,12 +226,12 @@ void light_eval_reflection(
 #endif
 
   LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
-    light_eval_single(l_idx, true, false, stack, P, Ng, V, 0.0, receiver_light_set);
+    light_eval_single(l_idx, true, false, stack, P, Ng, V, 0.0f, receiver_light_set);
   }
   LIGHT_FOREACH_END
 
   LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, PIXEL, vPz, l_idx) {
-    light_eval_single(l_idx, false, false, stack, P, Ng, V, 0.0, receiver_light_set);
+    light_eval_single(l_idx, false, false, stack, P, Ng, V, 0.0f, receiver_light_set);
   }
   LIGHT_FOREACH_END
 }

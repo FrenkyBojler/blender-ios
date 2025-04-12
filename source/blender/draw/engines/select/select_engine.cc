@@ -15,6 +15,7 @@
 #include "BLT_translation.hh"
 
 #include "DEG_depsgraph_query.hh"
+#include "DRW_render.hh"
 #include "ED_view3d.hh"
 
 #include "RE_engine.h"
@@ -57,6 +58,8 @@ struct Instance : public DrawEngine {
   View view_edges = {"view_edges"};
   View view_verts = {"view_verts"};
 
+  const DRWContext *draw_ctx = nullptr;
+
  public:
   struct StaticData {
     GPUFrameBuffer *framebuffer_select_id;
@@ -84,8 +87,8 @@ struct Instance : public DrawEngine {
 
   void init() final
   {
+    this->draw_ctx = DRW_context_get();
     StaticData &e_data = StaticData::get();
-    const DRWContext *draw_ctx = DRW_context_get();
     eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
                                   GPU_SHADER_CFG_CLIPPED :
                                   GPU_SHADER_CFG_DEFAULT;
@@ -106,7 +109,6 @@ struct Instance : public DrawEngine {
   void begin_sync() final
   {
     StaticData &e_data = StaticData::get();
-    const DRWContext *draw_ctx = DRW_context_get();
     eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
                                   GPU_SHADER_CFG_CLIPPED :
                                   GPU_SHADER_CFG_DEFAULT;
@@ -208,7 +210,7 @@ struct Instance : public DrawEngine {
   {
     using namespace blender::draw;
     using namespace blender;
-    Mesh &mesh = *static_cast<Mesh *>(ob->data);
+    Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
     BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     ElemIndexRanges ranges{};
@@ -267,7 +269,7 @@ struct Instance : public DrawEngine {
   {
     using namespace blender::draw;
     using namespace blender;
-    Mesh &mesh = *static_cast<Mesh *>(ob->data);
+    Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
     ElemIndexRanges ranges{};
     ranges.total = IndexRange::from_begin_size(initial_index, 0);
@@ -310,7 +312,7 @@ struct Instance : public DrawEngine {
 
     switch (ob->type) {
       case OB_MESH: {
-        const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+        const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
         if (mesh.runtime->edit_mesh) {
           bool draw_facedot = check_ob_drawface_dot(select_mode, v3d, eDrawType(ob->dt));
           return edit_mesh_sync(ob, res_handle, select_mode, draw_facedot, index_start);
@@ -330,13 +332,12 @@ struct Instance : public DrawEngine {
     Object *ob = ob_ref.object;
     StaticData &e_data = StaticData::get();
     SELECTID_Context &sel_ctx = e_data.context;
-    const DRWContext *draw_ctx = DRW_context_get();
 
     if (!sel_ctx.objects.contains(ob) && ob->dt >= OB_SOLID) {
       /* This object is not selectable. It is here to participate in occlusion.
        * This is the case in retopology mode. */
       blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
-          *static_cast<Mesh *>(ob->data));
+          DRW_object_get_data_for_drawing<Mesh>(*ob));
 
       depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
       return;
@@ -361,7 +362,6 @@ struct Instance : public DrawEngine {
 
     DRW_submission_start();
     {
-      const DRWContext *draw_ctx = DRW_context_get();
       View::OffsetData offset_data(*draw_ctx->rv3d);
       /* Create view with depth offset */
       const View &view = View::default_get();
@@ -371,7 +371,7 @@ struct Instance : public DrawEngine {
     }
 
     {
-      DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+      DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
       GPU_framebuffer_bind(dfbl->depth_only_fb);
       GPU_framebuffer_clear_depth(dfbl->depth_only_fb, 1.0f);
       manager.submit(depth_only_ps, view_faces);
@@ -396,7 +396,7 @@ struct Instance : public DrawEngine {
   void framebuffer_setup()
   {
     StaticData &e_data = StaticData::get();
-    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
     int size[2];
     size[0] = GPU_texture_width(dtxl->depth);
     size[1] = GPU_texture_height(dtxl->depth);

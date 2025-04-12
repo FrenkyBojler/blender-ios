@@ -1546,8 +1546,6 @@ static void draw_seq_strips(TimelineDrawContext *timeline_ctx,
 
   /* Draw thumbnails. */
   draw_strip_thumbnails(timeline_ctx, strips_batch, strips);
-  /* Draw retiming continuity ranges. */
-  draw_retiming_continuity_ranges(timeline_ctx, strips);
 
   /* Draw parts of strips above thumbnails. */
   GPU_blend(GPU_BLEND_ALPHA);
@@ -1560,8 +1558,11 @@ static void draw_seq_strips(TimelineDrawContext *timeline_ctx,
     draw_seq_text_overlay(timeline_ctx, &strip_ctx);
     sequencer_retiming_speed_draw(timeline_ctx, strip_ctx);
   }
-  sequencer_retiming_keys_draw(timeline_ctx, strips);
   timeline_ctx->quads->draw();
+
+  /* Draw retiming continuity ranges. */
+  draw_retiming_continuity_ranges(timeline_ctx, strips);
+  sequencer_retiming_keys_draw(timeline_ctx, strips);
 
   draw_strips_foreground(timeline_ctx, strips_batch, strips);
 
@@ -1974,9 +1975,10 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region)
     UI_view2d_view_restore(C);
   }
 
-  ED_time_scrub_draw_current_frame(region, scene, !(sseq->flag & SEQ_DRAWFRAMES));
+  ED_time_scrub_draw_current_frame(
+      region, scene, !(sseq->flag & SEQ_DRAWFRAMES), region->winy >= UI_ANIM_MINY);
 
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (region->winy > UI_ANIM_MINY) {
     const ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
     seq::timeline_boundbox(scene, seqbase, &v2d->tot);
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
