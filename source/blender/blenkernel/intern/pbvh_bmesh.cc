@@ -1810,9 +1810,7 @@ bool node_raycast_bmesh(BMeshNode &node,
       cos[1] = node.orig_positions_[node.orig_tris_[tri_idx][1]];
       cos[2] = node.orig_positions_[node.orig_tris_[tri_idx][2]];
 
-      if (ray_face_intersection_tri(
-              ray_start, isect_precalc, cos[0], cos[1], cos[2], depth, nullptr, nullptr))
-      {
+      if (ray_face_intersection_tri(ray_start, isect_precalc, cos[0], cos[1], cos[2], depth)) {
         hit = true;
 
         normal_tri_v3(r_face_normal, cos[0], cos[1], cos[2]);
@@ -1840,14 +1838,8 @@ bool node_raycast_bmesh(BMeshNode &node,
         BMVert *v_tri[3];
 
         BM_face_as_array_vert_tri(f, v_tri);
-        if (ray_face_intersection_tri(ray_start,
-                                      isect_precalc,
-                                      v_tri[0]->co,
-                                      v_tri[1]->co,
-                                      v_tri[2]->co,
-                                      depth,
-                                      nullptr,
-                                      nullptr))
+        if (ray_face_intersection_tri(
+                ray_start, isect_precalc, v_tri[0]->co, v_tri[1]->co, v_tri[2]->co, depth))
         {
           hit = true;
 

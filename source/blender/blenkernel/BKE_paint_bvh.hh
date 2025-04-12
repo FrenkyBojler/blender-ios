@@ -351,8 +351,6 @@ bool node_raycast_mesh(const MeshNode &node,
                        const float3 &ray_normal,
                        IsectRayPrecalc *isect_precalc,
                        float *depth,
-                       float *back_depth,
-                       bool *back_hit,
                        int &r_active_vertex,
                        int &r_active_face_index,
                        float3 &r_face_normal);

@@ -35,7 +35,6 @@ bool ray_face_nearest_quad(const float3 &ray_start,
                            const float3 &t3,
                            float *r_depth,
                            float *r_dist_sq);
-
 bool ray_face_nearest_tri(const float3 &ray_start,
                           const float3 &ray_normal,
                           const float3 &t0,

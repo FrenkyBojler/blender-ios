@@ -1833,8 +1833,6 @@ bool node_raycast_mesh(const MeshNode &node,
                        const float3 &ray_normal,
                        IsectRayPrecalc *isect_precalc,
                        float *depth,
-                       float *back_depth,
-                       bool *back_hit,
                        int &r_active_vertex,
                        int &r_active_face_index,
                        float3 &r_face_normal)
@@ -1977,20 +1975,18 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
           if (ray_face_intersection_quad(
                   ray_start, isect_precalc, co[0], co[1], co[2], co[3], depth))
           {
-            continue;
+            hit = true;
+            calc_grids_intersect_data(ray_start,
+                                      ray_normal,
+                                      grid,
+                                      x,
+                                      y,
+                                      co,
+                                      *depth,
+                                      r_active_vertex,
+                                      r_active_grid_index,
+                                      r_face_normal);
           }
-
-          hit = true;
-          calc_grids_intersect_data(ray_start,
-                                    ray_normal,
-                                    grid,
-                                    x,
-                                    y,
-                                    co,
-                                    *depth,
-                                    r_active_vertex,
-                                    r_active_grid_index,
-                                    r_face_normal);
         }
       }
     }
