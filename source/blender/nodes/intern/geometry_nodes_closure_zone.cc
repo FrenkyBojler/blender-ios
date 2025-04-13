@@ -645,7 +645,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
       const bke::bNodeSocketType &output_type = *output_bsocket.typeinfo;
       if (input_bsocket) {
         lf::OutputSocket &lf_main_input =
-            *lf_graph_inputs[indices_.inputs.main[output_item_i + input_bsocket->index()]];
+            *lf_graph_inputs[indices_.inputs.main[input_bsocket->index()]];
         lf::GraphOutputSocket &lf_usage_output =
             *lf_graph_outputs[indices_.outputs.input_usages[input_bsocket->index()]];
         const bke::bNodeSocketType &input_type = *input_bsocket->typeinfo;
