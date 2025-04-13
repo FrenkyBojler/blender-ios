@@ -40,6 +40,7 @@ if(NOT WIN32)
 
   harvest(external_openjpeg openjpeg/include/openjpeg-${OPENJPEG_SHORT_VERSION} openjpeg/include "*.h")
   harvest(external_openjpeg openjpeg/lib openjpeg/lib "*.a")
+  harvest(external_openjpeg openjpeg/lib/openjpeg-${OPENJPEG_SHORT_VERSION} openjpeg/lib/cmake/openjpeg "*.cmake")
 else()
   set(OPENJPEG_EXTRA_ARGS ${DEFAULT_CMAKE_FLAGS})
   ExternalProject_Add(external_openjpeg_msvc

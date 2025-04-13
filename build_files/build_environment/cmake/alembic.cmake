@@ -52,7 +52,7 @@ if(WIN32)
   endif()
 else()
   harvest(external_alembic alembic/include alembic/include "*.h")
-  harvest(external_alembic alembic/lib/libAlembic.a alembic/lib/libAlembic.a)
+  harvest_static_lib(external_alembic alembic/lib alembic/lib "libAlembic.a")
   harvest_rpath_bin(external_alembic alembic/bin alembic/bin "*")
 endif()
 

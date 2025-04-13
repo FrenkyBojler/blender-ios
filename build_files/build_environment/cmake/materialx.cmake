@@ -92,8 +92,6 @@ if(WIN32)
   unset(MATERIALX_PYTHON_TARGET_DOS)
 else()
   harvest(external_materialx materialx/include materialx/include "*.h")
-  # CMake files first because harvest_rpath_lib edits them.
-  harvest(external_materialx materialx/lib/cmake/MaterialX materialx/lib/cmake/MaterialX "*.cmake")
   harvest_rpath_lib(external_materialx materialx/lib materialx/lib "*${SHAREDLIBEXT}*")
   harvest(external_materialx materialx/libraries materialx/libraries "*")
   harvest_rpath_python(external_materialx

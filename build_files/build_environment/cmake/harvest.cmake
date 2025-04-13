@@ -56,7 +56,6 @@ else()
         USE_SOURCE_PERMISSIONS
         FILES_MATCHING PATTERN ${pattern}
         PATTERN "pkgconfig" EXCLUDE
-        PATTERN "cmake" EXCLUDE
         PATTERN "__pycache__" EXCLUDE
         PATTERN "tests" EXCLUDE
         PATTERN "meson*" EXCLUDE
@@ -79,6 +78,7 @@ else()
   endif()
 
   function(harvest_rpath_lib project from to pattern)
+    harvest(project ${from} ${to} "*.cmake")
     harvest(project ${from} ${to} ${pattern})
 
     install(CODE "\
@@ -89,6 +89,12 @@ else()
           execute_process(COMMAND ${set_rpath_cmd} \${f}) \n
         endif()\n
       endforeach()")
+  endfunction()
+
+  # Install cmake files along with static libraries.
+  function(harvest_static_lib project from to pattern)
+    harvest(project ${from} ${to} "*.cmake")
+    harvest(project ${from} ${to} ${pattern})
   endfunction()
 
   # Set rpath on utility binaries assuming they are run from their install location.

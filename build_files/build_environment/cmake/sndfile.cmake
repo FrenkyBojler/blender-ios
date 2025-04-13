@@ -73,7 +73,7 @@ if(WIN32)
   endif()
 else()
   harvest(external_sndfile sndfile/include sndfile/include "*.h")
-  harvest(external_sndfile sndfile/lib sndfile/lib "*.a")
+  harvest_static_lib(external_sndfile sndfile/lib sndfile/lib "*.a")
 endif()
 
 add_dependencies(

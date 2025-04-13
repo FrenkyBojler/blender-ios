@@ -117,6 +117,7 @@ else()
   harvest(ll llvm/bin llvm/bin "llvm-config")
   harvest(ll llvm/lib llvm/lib "libLLVM*.a")
   harvest(ll llvm/lib llvm/lib "libclang*.a")
+  harvest(ll llvm/lib llvm/lib "*.cmake")
   harvest(ll llvm/lib/clang llvm/lib/clang "*.h")
 endif()
 

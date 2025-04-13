@@ -16,5 +16,5 @@ ExternalProject_Add(external_ogg
 )
 
 if(NOT WIN32)
-  harvest(external_ogg ogg/lib ffmpeg/lib "*.a")
+  harvest_static_lib(external_ogg ogg/lib ffmpeg/lib "*.a")
 endif()

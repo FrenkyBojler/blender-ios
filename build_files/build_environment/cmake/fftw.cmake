@@ -87,5 +87,5 @@ else()
     external_fftw3_float)
 
   harvest(external_fftw3 fftw3/include fftw3/include "*.h")
-  harvest(external_fftw3 fftw3/lib fftw3/lib "*.a")
+  harvest_static_lib(external_fftw3 fftw3/lib fftw3/lib "*.a")
 endif()

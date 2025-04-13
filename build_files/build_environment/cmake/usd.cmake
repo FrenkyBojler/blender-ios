@@ -213,4 +213,5 @@ else()
     "*"
   )
   harvest(external_usd usd/plugin usd/plugin "*")
+  harvest(external_usd usd usd "*.cmake")
 endif()

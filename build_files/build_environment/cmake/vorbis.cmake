@@ -22,5 +22,5 @@ add_dependencies(
 )
 
 if(NOT WIN32)
-  harvest(external_vorbis vorbis/lib ffmpeg/lib "*.a")
+  harvest_static_lib(external_vorbis vorbis/lib ffmpeg/lib "*.a")
 endif()
