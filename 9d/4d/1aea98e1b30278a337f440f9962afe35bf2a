@@ -1,2 +1,3 @@
 Referenced by commit e2c038218a6, Fix #124045: Console error when using node gesture operation
 Referenced by issue #124040, Fix #124045: Console error when using node gesture operation
+Referenced by commit e113c5bb916fc6df18512f5de41949a1fd221bf5, Fix: crash drawing poly-line gesture
