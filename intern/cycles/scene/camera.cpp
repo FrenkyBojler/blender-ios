@@ -816,8 +816,7 @@ float Camera::world_to_raster_size(const float3 P)
                               &ray);
       }
 #else
-      camera_sample_panorama(nullptr,
-                             &kernel_camera,
+      camera_sample_panorama(&kernel_camera,
                              kernel_camera_motion.data(),
                              0.5f * make_float2(full_width, full_height),
                              zero_float2(),

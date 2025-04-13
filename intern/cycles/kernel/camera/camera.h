@@ -236,8 +236,7 @@ ccl_device Spectrum camera_sample_orthographic(KernelGlobals kg,
 
 /* Custom Camera */
 
-ccl_device_inline void camera_sample_to_ray(KernelGlobals kg,
-                                            ccl_constant KernelCamera *cam,
+ccl_device_inline void camera_sample_to_ray(ccl_constant KernelCamera *cam,
                                             const ccl_global DecomposedTransform *cam_motion,
                                             float3 P,
                                             float3 D,
@@ -323,8 +322,7 @@ ccl_device_inline Spectrum camera_sample_custom(KernelGlobals kg,
     return zero_spectrum();
   }
 
-  camera_sample_to_ray(kg,
-                       cam,
+  camera_sample_to_ray(cam,
                        cam_motion,
                        P,
                        D,
@@ -355,8 +353,7 @@ ccl_device_inline float3 camera_panorama_direction(ccl_constant KernelCamera *ca
   return panorama_to_direction(cam, Pcamera.x, Pcamera.y);
 }
 
-ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
-                                                  ccl_constant KernelCamera *cam,
+ccl_device_inline Spectrum camera_sample_panorama(ccl_constant KernelCamera *cam,
                                                   const ccl_global DecomposedTransform *cam_motion,
                                                   const float2 raster,
                                                   const float2 rand_lens,
@@ -403,8 +400,7 @@ ccl_device_inline Spectrum camera_sample_panorama(KernelGlobals kg,
     D = normalize(Pfocus - P);
   }
 
-  camera_sample_to_ray(kg,
-                       cam,
+  camera_sample_to_ray(cam,
                        cam_motion,
                        P,
                        D,
@@ -486,7 +482,7 @@ ccl_device_inline Spectrum camera_sample(KernelGlobals kg,
   }
   if (kernel_data.cam.type == CAMERA_PANORAMA) {
     const ccl_global DecomposedTransform *cam_motion = kernel_data_array(camera_motion);
-    return camera_sample_panorama(kg, &kernel_data.cam, cam_motion, raster, lens_uv, ray);
+    return camera_sample_panorama(&kernel_data.cam, cam_motion, raster, lens_uv, ray);
   }
   if (kernel_data.cam.type == CAMERA_CUSTOM) {
     const ccl_global DecomposedTransform *cam_motion = kernel_data_array(camera_motion);
