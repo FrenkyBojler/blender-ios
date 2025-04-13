@@ -1239,7 +1239,8 @@ static float calc_radial_symmetry_feather(const Mesh &mesh,
   return overlap;
 }
 
-static float calc_symmetry_feather(const Mesh &mesh, const blender::ed::sculpt_paint::StrokeCache &cache)
+static float calc_symmetry_feather(const Mesh &mesh,
+                                   const blender::ed::sculpt_paint::StrokeCache &cache)
 {
   if (!(mesh.symmetry & ME_SYMMETRY_FEATHER)) {
     return 1.0f;

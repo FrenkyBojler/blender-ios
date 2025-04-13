@@ -50,7 +50,6 @@ const EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-
 #ifdef RNA_RUNTIME
 
 #  include <fmt/format.h>

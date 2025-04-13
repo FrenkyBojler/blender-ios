@@ -1118,7 +1118,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
                                             const Object &ob,
                                             const float radius)
 {
-  const Mesh& mesh = *static_cast<Mesh *>(ob.data);
+  const Mesh &mesh = *static_cast<Mesh *>(ob.data);
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
   const int3 radsymm = mesh.radial_symmetry;
   float3 location;
