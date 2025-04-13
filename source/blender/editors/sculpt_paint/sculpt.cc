@@ -98,7 +98,7 @@
 
 #include "bmesh.hh"
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 
 using blender::float3;
@@ -798,8 +798,8 @@ static bool brush_type_needs_original(const char sculpt_brush_type)
 
 static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush)
 {
-  return SCULPT_BRUSH_TYPE_HAS_TOPOLOGY_RAKE(brush.sculpt_brush_type) &&
-         (brush.topology_rake_factor > 0.0f) && (ss.bm != nullptr);
+  return bke::brush::supports_topology_rake(brush) && (brush.topology_rake_factor > 0.0f) &&
+         (ss.bm != nullptr);
 }
 
 /**
@@ -807,10 +807,17 @@ static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush
  */
 static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, const Brush &brush)
 {
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
+    /* The normal for the Plane brush is expected to have already been calculated in
+     * #calc_brush_plane. */
+    BLI_assert_msg(!math::is_zero(ss.cache->sculpt_normal),
+                   "Normal should have been previously calculated.");
+    return false;
+  }
+
   using namespace blender::ed::sculpt_paint;
   const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
-  return ((SCULPT_BRUSH_TYPE_HAS_NORMAL_WEIGHT(brush.sculpt_brush_type) &&
-           (ss.cache->normal_weight > 0.0f)) ||
+  return ((bke::brush::supports_normal_weight(brush) && (ss.cache->normal_weight > 0.0f)) ||
           auto_mask::needs_normal(ss, sd, &brush) ||
           ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_BLOB,
@@ -830,7 +837,7 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, 
 
 static bool brush_needs_rake_rotation(const Brush &brush)
 {
-  return SCULPT_BRUSH_TYPE_HAS_RAKE(brush.sculpt_brush_type) && (brush.rake_factor != 0.0f);
+  return bke::brush::supports_rake_factor(brush) && (brush.rake_factor != 0.0f);
 }
 
 /** \} */
@@ -2510,6 +2517,40 @@ static IndexMask pbvh_gather_generic(Object &ob,
   return {};
 }
 
+IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
+                       const eBrushFalloffShape falloff_shape,
+                       const bool use_original,
+                       const float3 &location,
+                       const float radius_sq,
+                       const std::optional<float3> &ray_direction,
+                       IndexMaskMemory &memory)
+{
+  switch (falloff_shape) {
+    case PAINT_FALLOFF_SHAPE_SPHERE: {
+      return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        return node_in_sphere(node, location, radius_sq, use_original);
+      });
+    }
+
+    case PAINT_FALLOFF_SHAPE_TUBE: {
+      BLI_assert(ray_direction);
+      const DistRayAABB_Precalc ray_dist_precalc = dist_squared_ray_to_aabb_v3_precalc(
+          location, ray_direction.value_or(float3(0.0f)));
+      return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        return node_in_cylinder(ray_dist_precalc, node, radius_sq, use_original);
+      });
+    }
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
 static IndexMask pbvh_gather_texpaint(Object &ob,
                                       const Brush &brush,
                                       const bool use_original,
@@ -2877,104 +2918,87 @@ void calc_brush_plane(const Depsgraph &depsgraph,
 {
   const SculptSession &ss = *ob.sculpt;
 
-  zero_v3(r_area_co);
-  zero_v3(r_area_no);
+  r_area_no = float3(0.0f);
+  r_area_co = float3(0.0f);
 
   const bool use_original_plane = (brush.flag & BRUSH_ORIGINAL_PLANE) &&
                                   brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_PLANE;
   const bool use_original_normal = (brush.flag & BRUSH_ORIGINAL_NORMAL) &&
                                    brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_PLANE;
 
-  if (SCULPT_stroke_is_main_symmetry_pass(*ss.cache) &&
-      (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) || !use_original_plane ||
-       !use_original_normal))
-  {
+  const bool needs_recalculation = SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) ||
+                                   !use_original_plane || !use_original_normal;
+
+  if (SCULPT_stroke_is_main_symmetry_pass(*ss.cache) && needs_recalculation) {
     switch (brush.sculpt_plane) {
       case SCULPT_DISP_DIR_VIEW:
-        copy_v3_v3(r_area_no, ss.cache->view_normal);
+        r_area_no = ss.cache->view_normal;
         break;
 
       case SCULPT_DISP_DIR_X:
-        ARRAY_SET_ITEMS(r_area_no, 1.0f, 0.0f, 0.0f);
+        r_area_no = float3(1.0f, 0.0f, 0.0f);
         break;
 
       case SCULPT_DISP_DIR_Y:
-        ARRAY_SET_ITEMS(r_area_no, 0.0f, 1.0f, 0.0f);
+        r_area_no = float3(0.0f, 1.0f, 0.0f);
         break;
 
       case SCULPT_DISP_DIR_Z:
-        ARRAY_SET_ITEMS(r_area_no, 0.0f, 0.0f, 1.0f);
+        r_area_no = float3(0.0f, 0.0f, 1.0f);
         break;
 
       case SCULPT_DISP_DIR_AREA:
         calc_area_normal_and_center(depsgraph, brush, ob, node_mask, r_area_no, r_area_co);
         if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
           project_plane_v3_v3v3(r_area_no, r_area_no, ss.cache->view_normal_symm);
-          normalize_v3(r_area_no);
+          r_area_no = math::normalize(r_area_no);
         }
         break;
     }
 
-    /* For flatten center. */
     /* Flatten center has not been calculated yet if we are not using the area normal. */
     if (brush.sculpt_plane != SCULPT_DISP_DIR_AREA) {
+      BLI_assert(math::is_zero(r_area_co));
       calc_area_center(depsgraph, brush, ob, node_mask, r_area_co);
     }
 
-    /* For area normal. */
     if (!SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) && use_original_normal) {
-      copy_v3_v3(r_area_no, ss.cache->sculpt_normal);
+      r_area_no = ss.cache->sculpt_normal;
     }
     else {
-      copy_v3_v3(ss.cache->sculpt_normal, r_area_no);
+      ss.cache->sculpt_normal = r_area_no;
     }
 
-    /* For flatten center. */
     if (!SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) && use_original_plane) {
-      copy_v3_v3(r_area_co, ss.cache->last_center);
+      r_area_co = ss.cache->last_center;
     }
     else {
-      copy_v3_v3(ss.cache->last_center, r_area_co);
+      ss.cache->last_center = r_area_co;
     }
   }
   else {
-    /* For area normal. */
-    copy_v3_v3(r_area_no, ss.cache->sculpt_normal);
+    BLI_assert(math::is_zero(ss.cache->symm_rot_mat.location().xyz()));
 
-    /* For flatten center. */
-    copy_v3_v3(r_area_co, ss.cache->last_center);
-
-    /* For area normal. */
+    r_area_no = ss.cache->sculpt_normal;
     r_area_no = symmetry_flip(r_area_no, ss.cache->mirror_symmetry_pass);
+    r_area_no = math::transform_direction(ss.cache->symm_rot_mat, r_area_no);
 
-    /* For flatten center. */
+    r_area_co = ss.cache->last_center;
     r_area_co = symmetry_flip(r_area_co, ss.cache->mirror_symmetry_pass);
-
-    /* For area normal. */
-    mul_m4_v3(ss.cache->symm_rot_mat.ptr(), r_area_no);
-
-    /* For flatten center. */
-    mul_m4_v3(ss.cache->symm_rot_mat.ptr(), r_area_co);
+    r_area_co = math::transform_point(ss.cache->symm_rot_mat, r_area_co);
 
     /* Shift the plane for the current tile. */
-    add_v3_v3(r_area_co, ss.cache->plane_offset);
+    r_area_co += ss.cache->plane_offset;
   }
+}
+
+float brush_plane_offset_get(const Brush &brush, const SculptSession &ss)
+{
+  return brush.flag & BRUSH_OFFSET_PRESSURE ? brush.plane_offset * ss.cache->pressure :
+                                              brush.plane_offset;
 }
 
 }  // namespace blender::ed::sculpt_paint
-
-float SCULPT_brush_plane_offset_get(const Sculpt &sd, const SculptSession &ss)
-{
-  const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-
-  float rv = brush.plane_offset;
-
-  if (brush.flag & BRUSH_OFFSET_PRESSURE) {
-    rv *= ss.cache->pressure;
-  }
-
-  return rv;
-}
 
 /** \} */
 
@@ -3103,16 +3127,6 @@ static bool brush_type_needs_all_pbvh_nodes(const Brush &brush)
   return false;
 }
 
-struct NodeMaskResult {
-  IndexMask node_mask;
-
-  /* For planar brushes, the plane center and normal are calculated based on the original cursor
-   * position and needed for further calculations when performing brush strokes.
-   */
-  std::optional<float3> plane_center;
-  std::optional<float3> plane_normal;
-};
-
 /** Calculates the nodes that a brush will influence. */
 static NodeMaskResult calc_brush_node_mask(const Depsgraph &depsgraph,
                                            Object &ob,
@@ -3131,29 +3145,7 @@ static NodeMaskResult calc_brush_node_mask(const Depsgraph &depsgraph,
     return {all_leaf_nodes(pbvh, memory), std::nullopt, std::nullopt};
   }
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
-    IndexMaskMemory cursor_mask_memory;
-    const IndexMask cursor_node_mask = pbvh_gather_generic(
-        ob, brush, use_original, 1.0f, cursor_mask_memory);
-
-    float3 plane_center;
-    float3 plane_normal;
-    calc_brush_plane(depsgraph, brush, ob, cursor_node_mask, plane_normal, plane_center);
-
-    /* Recompute the node mask using the center of the brush plane as the center.
-     *
-     * The indices of the nodes in `cursor_node_mask` have been calculated based on the cursor
-     * location. However, for the Plane brush, its effective center often deviates from the cursor
-     * location. Calculating the affected nodes using the cursor location as the center can lead to
-     * issues (see, for example, #123768). */
-    const IndexMask plane_mask = bke::pbvh::search_nodes(
-        pbvh, memory, [&](const bke::pbvh::Node &node) {
-          if (node_fully_masked_or_hidden(node)) {
-            return false;
-          }
-          return node_in_sphere(node, plane_center, pow2f(ss.cache->radius), use_original);
-        });
-
-    return {plane_mask, plane_center, plane_normal};
+    return brushes::plane::calc_node_mask(depsgraph, ob, brush, memory);
   }
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH) {
     return {cloth::brush_affected_nodes_gather(ob, brush, memory), std::nullopt, std::nullopt};
@@ -3870,6 +3862,8 @@ static const char *sculpt_brush_type_name(const Sculpt &sd)
 
 namespace blender::ed::sculpt_paint {
 
+StrokeCache::StrokeCache() = default;
+
 StrokeCache::~StrokeCache()
 {
   if (this->dial) {
@@ -4049,7 +4043,7 @@ static void sculpt_update_cache_invariants(
   cache->normal_weight = brush->normal_weight;
 
   /* Interpret invert as following normal, for grab brushes. */
-  if (SCULPT_BRUSH_TYPE_HAS_NORMAL_WEIGHT(brush->sculpt_brush_type)) {
+  if (bke::brush::supports_normal_weight(*brush)) {
     if (cache->invert) {
       cache->invert = false;
       cache->normal_weight = (cache->normal_weight == 0.0f);
@@ -4092,8 +4086,7 @@ static void sculpt_update_cache_invariants(
   mul_m3_v3(mat, viewDir);
   normalize_v3_v3(cache->view_normal, viewDir);
 
-  cache->supports_gravity = brush_type_supports_gravity(brush->sculpt_brush_type) &&
-                            (sd.gravity_factor > 0.0f);
+  cache->supports_gravity = bke::brush::supports_gravity(*brush) && sd.gravity_factor > 0.0f;
   /* Get gravity vector in world space. */
   if (cache->supports_gravity) {
     if (sd.gravity_object) {
@@ -4124,7 +4117,7 @@ static void sculpt_update_cache_invariants(
     cache->accum = false;
   }
 
-  if (SCULPT_BRUSH_TYPE_HAS_ACCUMULATE(brush->sculpt_brush_type)) {
+  if (bke::brush::supports_accumulate(*brush)) {
     if (!(brush->flag & BRUSH_ACCUMULATE)) {
       cache->accum = false;
       if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_SHARP) {
@@ -5851,7 +5844,7 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
       "Override Location",
       "Override the given `location` array by recalculating object space positions from the "
       "provided `mouse_event` positions");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   RNA_def_boolean(ot->srna,
                   "ignore_background_click",

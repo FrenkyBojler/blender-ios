@@ -9,6 +9,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <type_traits>
 
 #include "BLI_linear_allocator.hh"
 #include "BLI_math_rotation.h"
@@ -3785,6 +3786,51 @@ static void rna_NodeGlare_color_modulation_set(PointerRNA *ptr, const float valu
   RNA_float_set(&input_rna_pointer, "default_value", blender::math::clamp(value, 0.0f, 1.0f));
 }
 
+template<typename T, const char *identifier>
+static T rna_node_property_to_input_getter(PointerRNA *ptr)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+  PointerRNA input_rna_pointer = RNA_pointer_create_discrete(
+      ptr->owner_id, &RNA_NodeSocket, input);
+  if constexpr (std::is_same_v<T, bool>) {
+    return RNA_boolean_get(&input_rna_pointer, "default_value");
+  }
+  else if constexpr (std::is_same_v<T, int>) {
+    return RNA_int_get(&input_rna_pointer, "default_value");
+  }
+  else if constexpr (std::is_same_v<T, float>) {
+    return RNA_float_get(&input_rna_pointer, "default_value");
+  }
+  else {
+    BLI_assert_unreachable();
+    return T(0);
+  }
+}
+
+template<typename T, const char *identifier>
+static void rna_node_property_to_input_setter(PointerRNA *ptr, const T value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+  PointerRNA input_rna_pointer = RNA_pointer_create_discrete(
+      ptr->owner_id, &RNA_NodeSocket, input);
+  if constexpr (std::is_same_v<T, bool>) {
+    RNA_boolean_set(&input_rna_pointer, "default_value", value);
+  }
+  else if constexpr (std::is_same_v<T, int>) {
+    RNA_int_set(&input_rna_pointer, "default_value", value);
+  }
+  else if constexpr (std::is_same_v<T, float>) {
+    RNA_float_set(&input_rna_pointer, "default_value", value);
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
+static const char node_input_diagonal_star[] = "Diagonal Star";
+
 /* --------------------------------------------------------------------
  * White Balance Node.
  */
@@ -6698,6 +6744,7 @@ static void def_sh_tex_ies(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File Path", "IES light path");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
@@ -6771,6 +6818,7 @@ static void def_sh_script(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File Path", "Shader script path");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNodeScript_update");
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
@@ -7336,7 +7384,7 @@ static void def_cmp_output_file(BlenderRNA *brna, StructRNA *srna)
   prop = RNA_def_property(srna, "base_path", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "base_path");
   RNA_def_property_ui_text(prop, "Base Path", "Base output path for the image");
-  RNA_def_property_flag(prop, PROP_PATH_OUTPUT);
+  RNA_def_property_flag(prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "active_input_index", PROP_INT, PROP_NONE);
@@ -8110,7 +8158,7 @@ static void def_cmp_crop(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_int_sdna(prop, nullptr, "y2");
   RNA_def_property_int_funcs(prop, nullptr, "rna_NodeCrop_max_y_set", nullptr);
   RNA_def_property_range(prop, 0, 10000);
-  RNA_def_property_ui_text(prop, "Y2", "Buttom edge of the cropping rectangle");
+  RNA_def_property_ui_text(prop, "Y2", "Bottom edge of the cropping rectangle");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_min_x", PROP_FLOAT, PROP_NONE);
@@ -8138,7 +8186,7 @@ static void def_cmp_crop(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_float_sdna(prop, nullptr, "fac_y2");
   RNA_def_property_float_funcs(prop, nullptr, "rna_NodeCrop_rel_max_y_set", nullptr);
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_ui_text(prop, "Y2", "Buttom edge of the cropping rectangle");
+  RNA_def_property_ui_text(prop, "Y2", "Bottom edge of the cropping rectangle");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -8326,9 +8374,14 @@ static void def_cmp_glare(BlenderRNA * /*brna*/, StructRNA *srna)
       prop, "Fade", "Streak fade-out factor. (Deprecated: Use Fade input instead)");
 
   prop = RNA_def_property(srna, "use_rotate_45", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "star_45", 0);
-  RNA_def_property_ui_text(
-      prop, "Rotate 45°", "Simple star filter: add 45 degree rotation offset");
+  RNA_def_property_boolean_funcs(
+      prop,
+      "rna_node_property_to_input_getter<bool, node_input_diagonal_star>",
+      "rna_node_property_to_input_setter<bool, node_input_diagonal_star>");
+  RNA_def_property_ui_text(prop,
+                           "Rotate 45°",
+                           "Simple star filter: add 45 degree rotation offset. (Deprecated: Use "
+                           "Diagonal input instead)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
@@ -9188,6 +9241,42 @@ static void def_cmp_colorcorrection(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, -1, 1);
   RNA_def_property_ui_text(prop, "Highlights Lift", "Highlights lift");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_cornerpin(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem cmp_cornerpin_interpolation_items[] = {
+      {CMP_NODE_CORNER_PIN_INTERPOLATION_NEAREST,
+       "NEAREST",
+       0,
+       "Nearest",
+       "Use Nearest interpolation"},
+      {CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR,
+       "BILINEAR",
+       0,
+       "Bilinear",
+       "Use Bilinear interpolation"},
+      {CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC,
+       "BICUBIC",
+       0,
+       "Bicubic",
+       "Use Cubic B-Spline interpolation"},
+      {CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC,
+       "ANISOTROPIC",
+       0,
+       "Anisotropic",
+       "Use Anisotropic interpolation"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, cmp_cornerpin_interpolation_items);
+  RNA_def_property_enum_default(prop, CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC);
+  RNA_def_property_ui_text(prop, "Interpolation", "Interpolation method");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -12544,7 +12633,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeCombYUVA");
   define("CompositorNode", "CompositorNodeComposite", def_cmp_composite);
   define("CompositorNode", "CompositorNodeConvertColorSpace", def_cmp_convert_color_space);
-  define("CompositorNode", "CompositorNodeCornerPin");
+  define("CompositorNode", "CompositorNodeCornerPin", def_cmp_cornerpin);
   define("CompositorNode", "CompositorNodeCrop", def_cmp_crop);
   define("CompositorNode", "CompositorNodeCryptomatte", def_cmp_cryptomatte_legacy);
   define("CompositorNode", "CompositorNodeCryptomatteV2", def_cmp_cryptomatte);
@@ -12750,7 +12839,10 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeExtrudeMesh");
   define("GeometryNode", "GeometryNodeFaceOfCorner");
   define("GeometryNode", "GeometryNodeFieldAtIndex");
+  define("GeometryNode", "GeometryNodeFieldAverage");
+  define("GeometryNode", "GeometryNodeFieldMinAndMax");
   define("GeometryNode", "GeometryNodeFieldOnDomain");
+  define("GeometryNode", "GeometryNodeFieldVariance");
   define("GeometryNode", "GeometryNodeFillCurve");
   define("GeometryNode", "GeometryNodeFilletCurve");
   define("GeometryNode", "GeometryNodeFlipFaces");
@@ -12870,11 +12962,14 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSetInstanceTransform");
   define("GeometryNode", "GeometryNodeSetMaterial");
   define("GeometryNode", "GeometryNodeSetMaterialIndex");
+  define("GeometryNode", "GeometryNodeSetMeshNormal");
   define("GeometryNode", "GeometryNodeSetPointRadius");
   define("GeometryNode", "GeometryNodeSetPosition");
   define("GeometryNode", "GeometryNodeSetShadeSmooth");
   define("GeometryNode", "GeometryNodeSetSplineCyclic");
   define("GeometryNode", "GeometryNodeSetSplineResolution");
+  define("GeometryNode", "GeometryNodeSetGreasePencilColor");
+  define("GeometryNode", "GeometryNodeSetGreasePencilDepth");
   define("GeometryNode", "GeometryNodeSimulationInput", def_geo_simulation_input);
   define("GeometryNode", "GeometryNodeSimulationOutput", def_geo_simulation_output);
   define("GeometryNode", "GeometryNodeSortElements");

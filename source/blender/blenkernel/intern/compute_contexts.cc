@@ -2,13 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 
 #include <ostream>
 
 namespace blender::bke {
+
+ModifierComputeContext::ModifierComputeContext(const ComputeContext *parent,
+                                               const NodesModifierData &nmd)
+    : ModifierComputeContext(parent, nmd.modifier.name)
+{
+  nmd_ = &nmd;
+}
 
 ModifierComputeContext::ModifierComputeContext(const ComputeContext *parent,
                                                std::string modifier_name)
@@ -45,12 +54,14 @@ GroupNodeComputeContext::GroupNodeComputeContext(
   }
 }
 
-GroupNodeComputeContext::GroupNodeComputeContext(const ComputeContext *parent,
-                                                 const bNode &node,
-                                                 const bNodeTree &caller_tree)
-    : GroupNodeComputeContext(parent, node.identifier)
+GroupNodeComputeContext::GroupNodeComputeContext(
+    const ComputeContext *parent,
+    const bNode &caller_group_node,
+    const bNodeTree &caller_tree,
+    const std::optional<ComputeContextHash> &cached_hash)
+    : GroupNodeComputeContext(parent, caller_group_node.identifier, cached_hash)
 {
-  caller_group_node_ = &node;
+  caller_group_node_ = &caller_group_node;
   caller_tree_ = &caller_tree;
 }
 
@@ -159,11 +170,14 @@ EvaluateClosureComputeContext::EvaluateClosureComputeContext(const ComputeContex
   hash_.mix_in(buffer, buffer_size);
 }
 
-EvaluateClosureComputeContext::EvaluateClosureComputeContext(const ComputeContext *parent,
-                                                             const bNode &node)
+EvaluateClosureComputeContext::EvaluateClosureComputeContext(
+    const ComputeContext *parent,
+    const bNode &node,
+    const std::optional<nodes::ClosureSourceLocation> &closure_source_location)
     : EvaluateClosureComputeContext(parent, node.identifier)
 {
   evaluate_node_ = &node;
+  closure_source_location_ = closure_source_location;
 }
 
 void EvaluateClosureComputeContext::print_current_in_line(std::ostream &stream) const
@@ -182,9 +196,50 @@ OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent)
   hash_.mix_in(s_static_type, strlen(s_static_type));
 }
 
+OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent, const bNodeTree &tree)
+    : OperatorComputeContext(parent)
+{
+  tree_ = &tree;
+}
+
 void OperatorComputeContext::print_current_in_line(std::ostream &stream) const
 {
   stream << "Operator";
+}
+
+const ModifierComputeContext &ComputeContextCache::for_modifier(const ComputeContext *parent,
+                                                                const NodesModifierData &nmd)
+{
+  return *modifier_contexts_cache_.lookup_or_add_cb(
+      std::pair{parent, StringRef(nmd.modifier.name)},
+      [&]() { return &this->for_any_uncached<ModifierComputeContext>(parent, nmd); });
+}
+
+const ModifierComputeContext &ComputeContextCache::for_modifier(const ComputeContext *parent,
+                                                                StringRef modifier_name)
+{
+  return *modifier_contexts_cache_.lookup_or_add_cb(std::pair{parent, modifier_name}, [&]() {
+    return &this->for_any_uncached<ModifierComputeContext>(parent, modifier_name);
+  });
+}
+
+const GroupNodeComputeContext &ComputeContextCache::for_group_node(const ComputeContext *parent,
+                                                                   const int32_t node_id)
+{
+  return *group_node_contexts_cache_.lookup_or_add_cb(std::pair{parent, node_id}, [&]() {
+    return &this->for_any_uncached<GroupNodeComputeContext>(parent, node_id);
+  });
+}
+
+const GroupNodeComputeContext &ComputeContextCache::for_group_node(const ComputeContext *parent,
+                                                                   const bNode &caller_group_node,
+                                                                   const bNodeTree &caller_tree)
+{
+  return *group_node_contexts_cache_.lookup_or_add_cb(
+      std::pair{parent, caller_group_node.identifier}, [&]() {
+        return &this->for_any_uncached<GroupNodeComputeContext>(
+            parent, caller_group_node, caller_tree);
+      });
 }
 
 }  // namespace blender::bke

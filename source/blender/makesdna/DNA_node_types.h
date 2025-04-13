@@ -1262,7 +1262,7 @@ typedef struct NodeGlare {
   char angle DNA_DEPRECATED;
   char _pad0;
   char size DNA_DEPRECATED;
-  char star_45;
+  char star_45 DNA_DEPRECATED;
   char streaks DNA_DEPRECATED;
   float colmod DNA_DEPRECATED;
   float mix DNA_DEPRECATED;
@@ -2930,6 +2930,14 @@ typedef enum CMPNodeInterpolation {
   CMP_NODE_INTERPOLATION_BILINEAR = 1,
   CMP_NODE_INTERPOLATION_BICUBIC = 2,
 } CMPNodeInterpolation;
+
+/* CornerPin node interpolation option. */
+typedef enum CMPNodeCornerPinInterpolation {
+  CMP_NODE_CORNER_PIN_INTERPOLATION_NEAREST = 0,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR = 1,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC = 2,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC = 3,
+} CMPNodeCornerPinInterpolation;
 
 /* Stabilize 2D node. Stored in custom2. */
 typedef enum CMPNodeStabilizeInverse {

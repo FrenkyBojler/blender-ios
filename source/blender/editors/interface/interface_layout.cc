@@ -20,6 +20,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -955,6 +956,11 @@ static void ui_item_enum_expand_tabs(uiLayout *layout,
   const int start_size = block->buttons.size();
 
   ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, UI_BTYPE_TAB, icon_only);
+
+  if (block->buttons.is_empty()) {
+    return;
+  }
+
   BLI_assert(start_size != block->buttons.size());
 
   for (int i = start_size; i < block->buttons.size(); i++) {
@@ -1079,6 +1085,16 @@ static uiBut *ui_item_with_label(uiLayout *layout,
   if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
     UI_block_layout_set_current(block, uiLayoutRow(sub, true));
     but = uiDefAutoButR(block, ptr, prop, index, "", icon, x, y, prop_but_width - UI_UNIT_X, h);
+
+    if (but != nullptr) {
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
+        if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
+          if (BLI_path_is_rel(but->drawstr.c_str())) {
+            UI_but_flag_enable(but, UI_BUT_REDALERT);
+          }
+        }
+      }
+    }
 
     /* BUTTONS_OT_file_browse calls UI_context_active_but_prop_get_filebrowser */
     uiDefIconButO(block,
