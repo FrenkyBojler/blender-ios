@@ -11,7 +11,9 @@
 #include "kernel/util/differential.h"
 #include "kernel/util/lookup_table.h"
 
-#include "kernel/osl/camera.h"
+#ifdef WITH_OSL
+#  include "kernel/osl/camera.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -338,6 +340,12 @@ ccl_device_inline Spectrum camera_sample_custom(KernelGlobals kg,
 
   return throughput;
 #else
+  (void)kg;
+  (void)cam;
+  (void)cam_motion;
+  (void)raster;
+  (void)rand_lens;
+  (void)ray;
   return zero_spectrum();
 #endif
 }

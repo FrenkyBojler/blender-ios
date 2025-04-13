@@ -963,6 +963,12 @@ void Camera::set_osl_camera(Scene *scene,
     tag_modified();
     scene->osl_manager->tag_update();
   }
+#else
+  (void)scene;
+  (void)params;
+  (void)filepath;
+  (void)bytecode_hash;
+  (void)bytecode;
 #endif
 }
 
@@ -977,6 +983,8 @@ void Camera::clear_osl_camera(Scene *scene)
   script_params.clear();
 
   scene->osl_manager->tag_update();
+#else
+  (void)scene;
 #endif
 }
 
