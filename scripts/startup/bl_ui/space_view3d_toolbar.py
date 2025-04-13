@@ -1145,8 +1145,6 @@ class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        sculpt = context.tool_settings.sculpt
-
         row = layout.row(align=True, heading="Mirror")
 
         ob = context.object
@@ -1172,8 +1170,8 @@ class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
 
         layout.separator()
 
-        layout.prop(mesh, "symmetrize_direction")
         layout.label(text="Symmetrize")
+        layout.prop(mesh, "symmetrize_direction")
         layout.prop(WindowManager.operator_properties_last("sculpt.symmetrize"), "merge_tolerance")
         layout.operator("sculpt.symmetrize")
 
