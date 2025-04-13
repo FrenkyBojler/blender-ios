@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -79,6 +80,7 @@ class Preprocessor {
       include_parse(str);
     }
     str = preprocessor_directive_mutation(str);
+    str = loop_unroll(str);
     if (do_string_mutation) {
       str = assert_processing(str, filename);
       static_strings_parsing(str);
@@ -248,6 +250,186 @@ class Preprocessor {
       }
       dependencies_.emplace_back(dependency_name);
     });
+  }
+
+  std::string loop_unroll(const std::string &str)
+  {
+    if (str.find("[[unroll") == std::string::npos) {
+      return str;
+    }
+
+    struct Loop {
+      /* `[[unroll]] for (int i = 0; i < 10; i++)` */
+      std::string definition;
+      /* `{ some_computation(i); }` */
+      std::string body;
+      /* `int i = 0` */
+      std::string init_statement;
+      /* `i < 10` */
+      std::string test_statement;
+      /* `i++` */
+      std::string iter_statement;
+      /* Spaces and newline between loop start and body. */
+      std::string body_prefix;
+      /* Spaces before the loop definition. */
+      std::string indent;
+      /* `10` */
+      int64_t iter_count;
+      /* Line at which the loop was defined. */
+      int64_t definition_line;
+      /* Line at which the body starts. */
+      int64_t body_line;
+      /* Line at which the body ends. */
+      int64_t end_line;
+    };
+
+    std::vector<Loop> loops;
+
+    {
+      /* [[unroll]]. */
+      std::regex regex(R"(( *))"
+                       R"(\[\[unroll\]\])"
+                       R"(\s*for\s*\()"
+                       R"(\s*((?:uint|int)\s+(\w+)\s+=\s+(-?\d+));)"
+                       R"(\s*((\w+)\s+(>|<)(=?)\s+(-?\d+));)"
+                       R"(\s*((\w+)(\+\+|\-\-)))"
+                       R"(\)(\s*))");
+
+      int64_t line = 0;
+
+      regex_global_search(str, regex, [&](const std::smatch &match) {
+        std::string counter_1 = match[3].str();
+        std::string counter_2 = match[6].str();
+        std::string counter_3 = match[11].str();
+
+        std::string content = match[0].str();
+        int64_t lines_in_content = line_count(content);
+
+        line += line_count(match.prefix().str()) + lines_in_content;
+
+        if ((counter_1 != counter_2) || (counter_1 != counter_3)) {
+          std::cout << "Error: Non matching loop counter variable: " << counter_1 << " "
+                    << counter_2 << " " << counter_3 << std::endl;
+          return;
+        }
+
+        Loop loop;
+
+        int64_t init = std::stol(match[4].str());
+        int64_t end = std::stol(match[9].str());
+        /* TODO(fclem): Support arbitrary strides (aka, arbitrary iter statement). */
+        loop.iter_count = std::abs(end - init);
+
+        std::string condition = match[7].str();
+        if (condition.empty()) {
+          std::cout << "Error: Unsupported condition in unrolled loop." << std::endl;
+        }
+
+        std::string equal = match[8].str();
+        if (equal == "=") {
+          loop.iter_count += 1;
+        }
+
+        std::string iter = match[12].str();
+        if (iter == "++") {
+          if (condition == ">") {
+            std::cout << "Error: Unsupported condition in unrolled loop." << std::endl;
+          }
+        }
+        else if (iter == "--") {
+          if (condition == "<") {
+            std::cout << "Error: Unsupported condition in unrolled loop." << std::endl;
+          }
+        }
+        else {
+          std::cout << "Error: Unsupported for loop expression. Expecting ++ or --" << std::endl;
+        }
+
+        std::string suffix = match.suffix().str();
+
+        loop.definition = content;
+        loop.indent = match[1].str();
+        loop.init_statement = match[2].str();
+        loop.test_statement = ""; /* No need for checking since the whole loop is unrolled. */
+        loop.iter_statement = match[10].str();
+        loop.body_prefix = match[13].str();
+        loop.body = get_content_between_balanced_pair(loop.definition + suffix, '{', '}');
+        loop.body = '{' + loop.body + '}';
+
+        loop.definition_line = line - lines_in_content;
+        loop.body_line = line;
+        loop.end_line = loop.body_line + line_count(loop.body);
+
+        loops.emplace_back(loop);
+      });
+    }
+    {
+      /* [[unroll(n)]]. */
+      std::regex regex(R"(( *))"
+                       R"(\[\[unroll\((\d+)\)\]\])"
+                       R"(\s*for\s*\()"
+                       R"(\s*([^;]*);)"
+                       R"(\s*([^;]*);)"
+                       R"(\s*([^)]*))"
+                       R"(\)(\s*))");
+
+      int64_t line = 0;
+
+      regex_global_search(str, regex, [&](const std::smatch &match) {
+        std::string content = match[0].str();
+        std::string suffix = match.suffix().str();
+
+        int64_t lines_in_content = line_count(content);
+
+        line += line_count(match.prefix().str()) + lines_in_content;
+
+        Loop loop;
+        loop.iter_count = std::stol(match[2].str());
+        loop.definition = content;
+        loop.indent = match[1].str();
+        loop.init_statement = match[3].str();
+        loop.test_statement = "if (" + match[4].str() + ") ";
+        loop.iter_statement = match[5].str();
+        loop.body_prefix = match[13].str();
+        loop.body = get_content_between_balanced_pair(loop.definition + suffix, '{', '}');
+        loop.body = '{' + loop.body + '}';
+
+        loop.definition_line = line - lines_in_content;
+        loop.body_line = line;
+        loop.end_line = loop.body_line + line_count(loop.body);
+
+        loops.emplace_back(loop);
+      });
+    }
+
+    std::string out = str;
+
+    for (const Loop &loop : loops) {
+      std::string replacement = loop.indent + "{ " + loop.init_statement + ";";
+      for (int64_t i = 0; i < loop.iter_count; i++) {
+        replacement += std::string("\n#line ") + std::to_string(loop.body_line + 1) + "\n";
+        replacement += loop.indent + loop.test_statement + loop.body;
+        if (i < loop.iter_count - 1) {
+          replacement += std::string("\n#line ") + std::to_string(loop.definition_line + 1) + "\n";
+          replacement += loop.indent + loop.iter_statement + ";";
+        }
+        else {
+          replacement += std::string("\n#line ") + std::to_string(loop.end_line + 1) + "\n";
+          replacement += loop.indent + "}";
+        }
+      }
+
+      std::string replaced = loop.definition + loop.body;
+
+      /* Replace all occurrences in case of recursive unrolling. */
+      replace_all(out, replaced, replacement);
+    }
+
+    if (out.find("[[unroll") != std::string::npos) {
+      std::cout << "Error: Incompatible format for [[unroll]]." << std::endl;
+    }
+
+    return out;
   }
 
   std::string preprocessor_directive_mutation(const std::string &str)
@@ -697,6 +879,49 @@ class Preprocessor {
 #endif
     suffix << "\n";
     return suffix.str();
+  }
+
+  void replace_all(std::string &str, const std::string &from, const std::string &to)
+  {
+    if (from.empty()) {
+      return;
+    }
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+      str.replace(start_pos, from.length(), to);
+      start_pos += to.length();
+    }
+  }
+
+  std::string get_content_between_balanced_pair(const std::string &input,
+                                                const char start_delimiter,
+                                                const char end_delimiter)
+  {
+    int balance = 0;
+    size_t start = std::string::npos;
+    size_t end = std::string::npos;
+
+    for (size_t i = 0; i < input.length(); ++i) {
+      if (input[i] == start_delimiter) {
+        if (balance == 0) {
+          start = i;
+        }
+        balance++;
+      }
+      else if (input[i] == end_delimiter) {
+        balance--;
+        if (balance == 0 && start != std::string::npos) {
+          end = i;
+          return input.substr(start + 1, end - start - 1);
+        }
+      }
+    }
+    return "";
+  }
+
+  int64_t line_count(const std::string &str)
+  {
+    return std::count(str.begin(), str.end(), '\n');
   }
 };
 
