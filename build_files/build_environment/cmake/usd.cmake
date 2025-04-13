@@ -53,6 +53,10 @@ elseif(UNIX)
   endif()
 endif()
 
+if(NOT APPLE)
+  list(APPEND USD_PLATFORM_FLAGS -DPXR_ENABLE_VULKAN_SUPPORT=ON)
+endif()
+
 # Custom namespace to prevent conflicts when importing both bpy module
 # and usd-core pip packages with the same version but different libs.
 string(REPLACE "." "_" USD_NAMESPACE "pxrBlender_v${USD_VERSION}")
@@ -61,7 +65,7 @@ set(USD_EXTRA_ARGS
   ${USD_PLATFORM_FLAGS}
   -DOPENSUBDIV_ROOT_DIR=${LIBDIR}/opensubdiv
   -DOpenImageIO_ROOT=${LIBDIR}/openimageio
-  -DVulkan_ROOT=${LIBDIR}/vulkan_loader
+  -DVulkan_ROOT=${LIBDIR}/vulkan_sdk
   -DMaterialX_ROOT=${LIBDIR}/materialx
   -DOPENEXR_LIBRARIES=${LIBDIR}/imath/lib/${LIBPREFIX}Imath${OPENEXR_VERSION_POSTFIX}${SHAREDLIBEXT}
   -DOPENEXR_INCLUDE_DIR=${LIBDIR}/imath/include
@@ -96,9 +100,6 @@ set(USD_EXTRA_ARGS
   # USD 22.03 does not support OCIO 2.x
   # Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386
   -DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF
-  # We'd like Vulkan support on, but it has trouble not finding the SDK since we have
-  # the invididual components in the deps builder.
-  -DPXR_ENABLE_VULKAN_SUPPORT=OFF
   -DPXR_ENABLE_PTEX_SUPPORT=OFF
   -DPXR_BUILD_USD_TOOLS=OFF
   -DCMAKE_DEBUG_POSTFIX=_d
@@ -127,6 +128,27 @@ ExternalProject_Add(external_usd
   PREFIX ${BUILD_DIR}/usd
   LIST_SEPARATOR ^^
 
+  # USD expects VULKAN_SDK to be an environment variable, and contain both Vulkan
+  # and Shaderc. So create a temporary vulkan_sdk directory with this contents and
+  # override the configure command to point to it.
+  CONFIGURE_COMMAND
+    ${CMAKE_COMMAND} -E copy_directory
+      ${LIBDIR}/vulkan_headers/
+      ${LIBDIR}/vulkan_sdk &&
+    ${CMAKE_COMMAND} -E copy_directory
+      ${LIBDIR}/vulkan_loader/
+      ${LIBDIR}/vulkan_sdk &&
+    ${CMAKE_COMMAND} -E copy_directory
+      ${LIBDIR}/shaderc/
+      ${LIBDIR}/vulkan_sdk &&
+    ${CMAKE_COMMAND}
+      -E env VULKAN_SDK=${LIBDIR}/vulkan_sdk
+      ${CMAKE_COMMAND} ../external_usd
+        -DCMAKE_INSTALL_PREFIX=${LIBDIR}/usd
+        -Wno-dev
+        ${DEFAULT_CMAKE_FLAGS}
+        ${USD_EXTRA_ARGS}
+
   PATCH_COMMAND
     ${USD_EXTRA_PATCHES}
     ${PATCH_CMD} -p 1 -d
@@ -147,11 +169,6 @@ ExternalProject_Add(external_usd
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
       ${PATCH_DIR}/usd_noboost.diff
-  CMAKE_ARGS
-    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/usd
-    -Wno-dev
-    ${DEFAULT_CMAKE_FLAGS}
-    ${USD_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/usd
 )
@@ -163,6 +180,8 @@ add_dependencies(
   external_python
   external_openimageio
   external_materialx
+  external_vulkan_loader
+  external_shaderc
   openvdb
 )
 

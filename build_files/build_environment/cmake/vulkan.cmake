@@ -17,6 +17,96 @@ ExternalProject_Add(external_vulkan_headers
   INSTALL_DIR ${LIBDIR}/vulkan_headers
 )
 
+set(VULKAN_UTILITY_LIBRARIES_EXTRA_ARGS
+  -DVulkanHeaders_DIR=${LIBDIR}/vulkan_headers/share/cmake/VulkanHeaders)
+
+ExternalProject_Add(external_vulkan_utility_libraries
+  URL file://${PACKAGE_DIR}/${VULKAN_UTILITY_LIBRARIES_FILE}
+  URL_HASH ${VULKAN_UTILITY_LIBRARIES_HASH_TYPE}=${VULKAN_UTILITY_LIBRARIES_HASH}
+  PREFIX ${BUILD_DIR}/vulkan_utility_libraries
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
+    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    ${VULKAN_UTILITY_LIBRARIES_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/vulkan_headers
+)
+
+add_dependencies(
+  external_vulkan_utility_libraries
+  external_vulkan_headers)
+
+set(SPIRV_HEADERS_EXTRA_ARGS)
+
+ExternalProject_Add(external_spirv_headers
+  URL file://${PACKAGE_DIR}/${SPIRV_HEADERS_FILE}
+  URL_HASH ${SPIRV_HEADERS_HASH_TYPE}=${SPIRV_HEADERS_HASH}
+  PREFIX ${BUILD_DIR}/spirv_headers
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
+    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    ${SPIRV_HEADERS_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/vulkan_headers
+)
+
+set(SPIRV_REFLECT_EXTRA_ARGS
+  -DSPIRV_REFLECT_STATIC_LIB=ON
+)
+
+ExternalProject_Add(external_spirv_reflect
+  URL file://${PACKAGE_DIR}/${SPIRV_REFLECT_FILE}
+  URL_HASH ${SPIRV_REFLECT_HASH_TYPE}=${SPIRV_REFLECT_HASH}
+  PREFIX ${BUILD_DIR}/spirv_reflect
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
+    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    ${SPIRV_REFLECT_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/vulkan_headers
+)
+
+ExternalProject_Add_Step(external_spirv_reflect after_install
+      COMMAND ${CMAKE_COMMAND} -E make_directory
+        ${LIBDIR}/vulkan_headers/include/SPIRV-Reflect
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${BUILD_DIR}/spirv_reflect/src/external_spirv_reflect/spirv_reflect.h
+        ${BUILD_DIR}/spirv_reflect/src/external_spirv_reflect/spirv_reflect.c
+        ${LIBDIR}/vulkan_headers/include/SPIRV-Reflect
+      DEPENDEES install
+    )
+
+set(VULKAN_MEMORY_ALLOCATOR_EXTRA_ARGS)
+
+ExternalProject_Add(external_vulkan_memory_allocator
+  URL file://${PACKAGE_DIR}/${VULKAN_MEMORY_ALLOCATOR_FILE}
+  URL_HASH ${VULKAN_MEMORY_ALLOCATOR_HASH_TYPE}=${VULKAN_MEMORY_ALLOCATOR_HASH}
+  PREFIX ${BUILD_DIR}/vulkan_memory_allocator
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
+    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    ${VULKAN_MEMORY_ALLOCATOR_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/vulkan_headers
+)
+
+ExternalProject_Add_Step(external_vulkan_memory_allocator after_install
+      COMMAND ${CMAKE_COMMAND} -E make_directory
+        ${LIBDIR}/vulkan_headers/include/vma
+      COMMAND ${CMAKE_COMMAND} -E rename
+        ${LIBDIR}/vulkan_headers/include/vk_mem_alloc.h
+        ${LIBDIR}/vulkan_headers/include/vma/vk_mem_alloc.h
+      DEPENDEES install
+    )
+
+add_dependencies(
+  external_vulkan_memory_allocator
+  external_vulkan_headers)
+
 set(VULKAN_LOADER_EXTRA_ARGS
   -DVULKAN_HEADERS_INSTALL_DIR=${LIBDIR}/vulkan_headers
 )
@@ -54,6 +144,10 @@ ExternalProject_Add(external_vulkan_loader
 add_dependencies(
   external_vulkan_loader
   external_vulkan_headers
+  external_vulkan_utility_libraries
+  external_spirv_reflect
+  external_spirv_headers
+  external_vulkan_memory_allocator
 )
 
 if(UNIX AND NOT APPLE)
