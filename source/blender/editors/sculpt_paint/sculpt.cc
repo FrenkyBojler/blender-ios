@@ -744,7 +744,7 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                char symm)
 {
   for (eMeshSymmetryType symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
-    if (!is_symmetry_iteration_valid(symmpass, symm)) {
+    if (!blender::ed::sculpt_paint::is_symmetry_iteration_valid(symmpass, symm)) {
       continue;
     }
     float3 location = blender::ed::sculpt_paint::symmetry_flip(br_co, symmpass);
