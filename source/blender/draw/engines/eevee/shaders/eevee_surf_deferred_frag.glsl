@@ -120,8 +120,9 @@ void main()
   out_gbuf_normal = gbuf.N[0];
 
   /* Output remaining closures using image store. */
-  for (int layer = GBUF_CLOSURE_FB_LAYER_COUNT; layer < GBUFFER_DATA_MAX && layer < gbuf.data_len;
-       layer++)
+  [[unroll(6)]] for (int layer = GBUF_CLOSURE_FB_LAYER_COUNT;
+                     layer < GBUFFER_DATA_MAX && layer < gbuf.data_len;
+                     layer++)
   {
     /* NOTE: The image view start at layer GBUF_CLOSURE_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_CLOSURE_FB_LAYER_COUNT`. */
@@ -129,9 +130,9 @@ void main()
                    ivec3(out_texel, layer - GBUF_CLOSURE_FB_LAYER_COUNT),
                    gbuf.data[layer]);
   }
-  for (int layer = GBUF_NORMAL_FB_LAYER_COUNT;
-       layer < GBUFFER_NORMAL_MAX && layer < gbuf.normal_len;
-       layer++)
+  [[unroll(4)]] for (int layer = GBUF_NORMAL_FB_LAYER_COUNT;
+                     layer < GBUFFER_NORMAL_MAX && layer < gbuf.normal_len;
+                     layer++)
   {
     /* NOTE: The image view start at layer GBUF_NORMAL_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_NORMAL_FB_LAYER_COUNT`. */
