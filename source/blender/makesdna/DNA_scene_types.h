@@ -1045,7 +1045,8 @@ typedef struct Paint {
   int num_input_samples_deprecated;
 
   /** Flags used for symmetry. */
-  int symmetry_flags;
+  /* TODO: Figure out how to handle tile_x & tile_y for Image Paint */
+  int symmetry_flags /*DNA_DEPRECATED*/;
 
   float tile_offset[3];
   char _pad2[4];
@@ -1170,13 +1171,13 @@ typedef struct Sculpt {
 
   // /* Control tablet input. */
   // char tablet_size, tablet_strength; XXX not used?
-  int radial_symm[3];
+  int radial_symm[3] DNA_DEPRECATED;
 
   /** Maximum edge length for dynamic topology sculpting (in pixels). */
   float detail_size;
 
   /** Direction used for `SCULPT_OT_symmetrize` operator. */
-  int symmetrize_direction;
+  int symmetrize_direction DNA_DEPRECATED;
 
   /** Gravity factor for sculpting. */
   float gravity_factor;
@@ -1258,7 +1259,7 @@ typedef struct VPaint {
   char flag;
   char _pad[3];
   /** For mirrored painting. */
-  int radial_symm[3];
+  int radial_symm[3] DNA_DEPRECATED;
 } VPaint;
 
 /** #VPaint::flag */

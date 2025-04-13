@@ -86,18 +86,6 @@ static const EnumPropertyItem rna_enum_canvas_source_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
-    {BMO_SYMMETRIZE_NEGATIVE_X, "NEGATIVE_X", 0, "-X to +X", ""},
-    {BMO_SYMMETRIZE_POSITIVE_X, "POSITIVE_X", 0, "+X to -X", ""},
-
-    {BMO_SYMMETRIZE_NEGATIVE_Y, "NEGATIVE_Y", 0, "-Y to +Y", ""},
-    {BMO_SYMMETRIZE_POSITIVE_Y, "POSITIVE_Y", 0, "+Y to -Y", ""},
-
-    {BMO_SYMMETRIZE_NEGATIVE_Z, "NEGATIVE_Z", 0, "-Z to +Z", ""},
-    {BMO_SYMMETRIZE_POSITIVE_Z, "POSITIVE_Z", 0, "+Z to -Z", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 #ifdef RNA_RUNTIME
 #  include "MEM_guardedalloc.h"
 
@@ -829,10 +817,6 @@ static void rna_def_sculpt(BlenderRNA *brna)
       prop, "View Normal Falloff", "Extend the angular range with a falloff gradient");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
-  prop = RNA_def_property(srna, "symmetrize_direction", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_symmetrize_direction_items);
-  RNA_def_property_ui_text(prop, "Direction", "Source and destination for symmetrize operator");
-
   prop = RNA_def_property(srna, "detail_refine_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flags");
   RNA_def_property_enum_items(prop, detail_refine_items);
@@ -969,15 +953,6 @@ static void rna_def_vertex_paint(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", VP_FLAG_VGROUP_RESTRICT);
   RNA_def_property_ui_text(prop, "Restrict", "Restrict painting to vertices in the group");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  /* Mirroring */
-  prop = RNA_def_property(srna, "radial_symmetry", PROP_INT, PROP_XYZ);
-  RNA_def_property_int_sdna(prop, nullptr, "radial_symm");
-  RNA_def_property_int_default(prop, 1);
-  RNA_def_property_range(prop, 1, 64);
-  RNA_def_property_ui_range(prop, 1, 32, 1, 1);
-  RNA_def_property_ui_text(
-      prop, "Radial Symmetry Count X Axis", "Number of times to copy strokes across the surface");
 }
 
 static void rna_def_paint_mode(BlenderRNA *brna)
