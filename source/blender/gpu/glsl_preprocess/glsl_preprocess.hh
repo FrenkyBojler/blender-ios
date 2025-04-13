@@ -97,6 +97,8 @@ class Preprocessor {
       small_type_linting(str, report_error);
     }
     str = remove_quotes(str);
+    str = namespace_mutation(str, filename);
+    str = namespace_separator_mutation(str, filename);
     str = enum_macro_injection(str);
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
@@ -428,6 +430,62 @@ class Preprocessor {
     if (out.find("[[unroll") != std::string::npos) {
       std::cout << "Error: Incompatible format for [[unroll]]." << std::endl;
     }
+
+    return out;
+  }
+
+  std::string namespace_mutation(const std::string &str, const std::string &filename)
+  {
+    if (str.find("namespace") == std::string::npos || filename.find(".msl") != std::string::npos ||
+        filename.find(".hh") != std::string::npos)
+    {
+      return str;
+    }
+
+    std::string out = str;
+
+    /* Parse each namespace declaration. */
+    std::regex regex(R"(namespace (\w+(?:\:\:\w+)*))");
+    regex_global_search(str, regex, [&](const std::smatch &match) {
+      std::string namespace_name = match[1].str();
+      std::string content = get_content_between_balanced_pair(match.suffix().str(), '{', '}');
+
+      if (content.find("namespace") != std::string::npos) {
+        std::cout << "Nested namespace are unsupported." << std::endl;
+        return;
+      }
+
+      std::string out_content = content;
+
+      /* Parse all global symbols (struct / functions) inside the content. */
+      std::regex regex(R"(\n(?:const )?\w+ (\w+)\(?)");
+      regex_global_search(content, regex, [&](const std::smatch &match) {
+        std::string function = match[1].str();
+        /* Replace all occurrences of the non-namespace specified symbol.
+         * Reject symbols that contain the target symbol name. */
+        std::regex regex(R"(([^:\w]))" + function + R"(([\s\(]))");
+        out_content = std::regex_replace(
+            out_content, regex, "$1" + namespace_name + "::" + function + "$2");
+      });
+
+      replace_all(out, "namespace " + namespace_name + " {" + content + "}", '\n' + out_content);
+    });
+
+    return out;
+  }
+
+  std::string namespace_separator_mutation(const std::string &str, const std::string &filename)
+  {
+    if (filename.find(".msl") != std::string::npos || filename.find(".hh") != std::string::npos) {
+      return str;
+    }
+
+    std::string out = str;
+
+    /* Global namespace reference. */
+    replace_all(out, " ::", "   ");
+    /* Specific namespace reference. */
+    replace_all(out, "::", "__");
 
     return out;
   }
