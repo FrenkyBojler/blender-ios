@@ -429,7 +429,7 @@ static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
     }
 
     /* initialize custom node color */
-    node->color[0] = node->color[1] = node->color[2] = 0.608f; /* default theme color */
+    node->color[0] = node->color[1] = node->color[2] = 0.188f; /* Default theme color. */
   }
 }
 

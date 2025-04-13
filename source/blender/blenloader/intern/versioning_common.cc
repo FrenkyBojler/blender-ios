@@ -220,7 +220,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
   node->width = ntype->width;
   node->height = ntype->height;
-  node->color[0] = node->color[1] = node->color[2] = 0.608;
+  node->color[0] = node->color[1] = node->color[2] = 0.188f; /* Default theme color. */
 
   node->type_legacy = ntype->type_legacy;
 

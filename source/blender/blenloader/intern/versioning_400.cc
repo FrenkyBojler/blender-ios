@@ -6797,6 +6797,20 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 22)) {
+    /* Update the default theme color used by custom node colors. */
+    const float old_default_color[3] = {0.608f, 0.608f, 0.608f};
+    const float new_default_color[3] = {0.188f, 0.188f, 0.188f};
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (equals_v3v3(node->color, old_default_color) && !(node->flag & NODE_CUSTOM_COLOR)) {
+          copy_v3_v3(node->color, new_default_color);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */
