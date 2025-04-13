@@ -1296,7 +1296,8 @@ static void wm_operator_finished(bContext *C,
     if (hud_status == SET) {
       ScrArea *area = CTX_wm_area(C);
       if (area && ((area->flag & AREA_FLAG_OFFSCREEN) == 0)) {
-        ED_area_type_hud_ensure(C, area);
+        wmOperatorType *ot = WM_operatortype_find("SCREEN_OT_redo_last", true);
+        WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, op->ptr, nullptr);
       }
     }
     else if (hud_status == CLEAR) {

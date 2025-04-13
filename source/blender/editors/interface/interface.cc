@@ -542,7 +542,7 @@ static void ui_block_bounds_calc_post_centered(uiBlock *block)
   ui_block_bounds_calc(block);
 }
 
-static void ui_block_bounds_calc_absolute(wmWindow *window, uiBlock *block)
+static void ui_block_bounds_calc_absolute(wmWindow * /*window*/, uiBlock *block)
 {
   ui_block_bounds_calc(block);
   const int move_x = block->bounds_offset[0] - block->rect.xmin;
