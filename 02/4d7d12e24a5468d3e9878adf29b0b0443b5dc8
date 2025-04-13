@@ -8,3 +8,4 @@ Referenced by issue #136317, Mantaflow moving Collision not detected
 Referenced by pull request #136443, Fix #136317: Mantaflow moving Collision not detected
 Referenced by commit caf8951a0c39831ddd5242326d2e57bb8008c28c, Fix #136317: Mantaflow moving Collision not detected
 Referenced by issue #136779, Regression: Effector object of a fluid simulation is ignored when changing the Domain's resolution
+Referenced by issue #137392, Cut particles to shape leads crash
