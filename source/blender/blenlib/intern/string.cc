@@ -50,7 +50,7 @@ char *BLI_strdup_null(const char *str)
 
 char *BLI_strdupcat(const char *__restrict str1, const char *__restrict str2)
 {
-  /* include the nullptr terminator of str2 only */
+  /* Include the null terminator of `str2` only. */
   const size_t str1_len = strlen(str1);
   const size_t str2_len = strlen(str2) + 1;
   char *str, *s;
@@ -883,7 +883,7 @@ bool BLI_strn_endswith(const char *__restrict str, const char *__restrict end, s
 {
   size_t end_len = strlen(end);
 
-  if (end_len < str_len) {
+  if (end_len <= str_len) {
     const char *iter = &str[str_len - end_len];
     while (*iter) {
       if (*iter++ != *end++) {
@@ -1059,7 +1059,7 @@ size_t BLI_str_partition_ex(const char *str,
         }
       }
       else {
-        tmp = (from_right) ? strrchr(str, *d) : strchr(str, *d);
+        tmp = strchr(str, *d);
         if (tmp >= end) {
           tmp = nullptr;
         }

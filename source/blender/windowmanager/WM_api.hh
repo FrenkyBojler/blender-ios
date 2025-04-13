@@ -187,6 +187,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION = (1 << 7),
   /** Support for window decoration styles. */
   WM_CAPABILITY_WINDOW_DECORATION_STYLES = (1 << 8),
+  /** Support for the "Hyper" modifier key. */
+  WM_CAPABILITY_KEYBOARD_HYPER_KEY = (1 << 9),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -421,9 +423,20 @@ void WM_window_decoration_style_apply(const wmWindow *win, const bScreen *screen
 /* `wm_files.cc`. */
 
 void WM_file_autoexec_init(const char *filepath);
-bool WM_file_read(bContext *C, const char *filepath, ReportList *reports);
+/**
+ * \param use_scripts_autoexec_check: When true, script auto-execution checks excluded directories.
+ * Note that this is passed in as an argument because `filepath` may reference a path to recover.
+ * In this case the that used for exclusion is the recovery path which is only known once
+ * the file has been loaded.
+ */
+bool WM_file_read(bContext *C,
+                  const char *filepath,
+                  const bool use_scripts_autoexec_check,
+                  ReportList *reports);
 void WM_file_autosave_init(wmWindowManager *wm);
-bool WM_file_recover_last_session(bContext *C, ReportList *reports);
+bool WM_file_recover_last_session(bContext *C,
+                                  const bool use_scripts_autoexec_check,
+                                  ReportList *reports);
 void WM_file_tag_modified();
 
 /**
@@ -485,7 +498,7 @@ void WM_cursor_time(wmWindow *win, int nr);
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
                                         bool (*poll)(bContext *C),
-                                        void (*draw)(bContext *C, int, int, void *customdata),
+                                        wmPaintCursorDraw draw,
                                         void *customdata);
 
 bool WM_paint_cursor_end(wmPaintCursor *handle);
@@ -748,7 +761,10 @@ void wm_event_init_from_window(wmWindow *win, wmEvent *event);
 /**
  * At maximum, every time_step seconds it triggers `event_type` events.
  */
-wmTimer *WM_event_timer_add(wmWindowManager *wm, wmWindow *win, int event_type, double time_step);
+wmTimer *WM_event_timer_add(wmWindowManager *wm,
+                            wmWindow *win,
+                            wmEventType event_type,
+                            double time_step);
 wmTimer *WM_event_timer_add_notifier(wmWindowManager *wm,
                                      wmWindow *win,
                                      unsigned int type,

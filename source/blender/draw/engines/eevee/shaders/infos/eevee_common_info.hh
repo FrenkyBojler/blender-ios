@@ -64,7 +64,7 @@ SAMPLER(RBUFS_UTILITY_TEX_SLOT, FLOAT_2D_ARRAY, utility_tx)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_NAMED_INTERFACE_INFO(eevee_clip_plane_iface, clip_interp)
-SMOOTH(FLOAT, clip_distance)
+SMOOTH(float, clip_distance)
 GPU_SHADER_NAMED_INTERFACE_END(clip_interp)
 
 GPU_SHADER_CREATE_INFO(eevee_clip_plane)
@@ -137,7 +137,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_gbuffer_data)
 DEFINE("GBUFFER_LOAD")
-SAMPLER(12, UINT_2D, gbuf_header_tx)
+SAMPLER(12, UINT_2D_ARRAY, gbuf_header_tx)
 SAMPLER(13, FLOAT_2D_ARRAY, gbuf_closure_tx)
 SAMPLER(14, FLOAT_2D_ARRAY, gbuf_normal_tx)
 GPU_SHADER_CREATE_END()
