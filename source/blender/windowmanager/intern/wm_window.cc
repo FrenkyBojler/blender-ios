@@ -880,7 +880,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 #endif
 
     /* Get the window background color from the current theme. Using the top-bar header
-     * background theme color.*/
+     * background theme color to match with the colored title-bar decoration style. */
     float window_bg_color[3];
     UI_SetTheme(SPACE_TOPBAR, RGN_TYPE_HEADER);
     UI_GetThemeColor3fv(TH_BACK, window_bg_color);
