@@ -1047,7 +1047,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
         }
 
         /* Variable expression parse errors, for paths that support it. */
-        if ((RNA_property_flag(rnaprop) & PROP_SUPPORTS_VARIABLES) != 0) {
+        if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_VARIABLES) != 0) {
           const blender::StringRef path = but->drawstr;
           const blender::Vector<VariableParseError> errors = BKE_validate_variable_syntax(path);
 

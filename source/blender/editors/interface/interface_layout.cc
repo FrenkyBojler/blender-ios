@@ -1095,7 +1095,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
           }
         }
 
-        if ((RNA_property_flag(prop) & PROP_SUPPORTS_VARIABLES) != 0) {
+        if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_VARIABLES) != 0) {
           if (!BKE_validate_variable_syntax(but->drawstr.c_str()).is_empty()) {
             UI_but_flag_enable(but, UI_BUT_REDALERT);
           }
