@@ -1,3 +1,4 @@
 Referenced by issue #136594, 4.5 regression, EEVEE smooth normals can leak light in some situations
 Referenced by issue #123595, EEVEE: Shadow terminator artifacts with custom normals
 Referenced by issue #137022, EEVEE: Shadows on reflection planes render incorrectly.
+Referenced by pull request #137485, EEVEE: Remove shadow ray horizon clipping
