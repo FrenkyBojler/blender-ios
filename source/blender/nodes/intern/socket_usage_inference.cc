@@ -749,7 +749,7 @@ struct SocketUsageInferencer {
       void *value = scope_.allocator().allocate(base_type.size, base_type.alignment);
       params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
       all_socket_values_.add_new(output_socket, value);
-      if (!base_type.is_trivially_destructible()) {
+      if (!base_type.is_trivially_destructible) {
         scope_.add_destruct_call(
             [type = &base_type, value]() { type->destruct(const_cast<void *>(value)); });
       }
@@ -831,7 +831,7 @@ struct SocketUsageInferencer {
     void *value_buffer = scope_.allocator().allocate(base_type.size, base_type.alignment);
     socket->typeinfo->get_base_cpp_value(socket->default_value, value_buffer);
     all_socket_values_.add_new(socket, value_buffer);
-    if (!base_type.is_trivially_destructible()) {
+    if (!base_type.is_trivially_destructible) {
       scope_.add_destruct_call(
           [type = &base_type, value_buffer]() { type->destruct(value_buffer); });
     }
@@ -871,7 +871,7 @@ struct SocketUsageInferencer {
     }
     void *dst = scope_.allocator().allocate(to_type->size, to_type->alignment);
     conversions.convert_to_uninitialized(*from_type, *to_type, src, dst);
-    if (!to_type->is_trivially_destructible()) {
+    if (!to_type->is_trivially_destructible) {
       scope_.add_destruct_call([to_type, dst]() { to_type->destruct(dst); });
     }
     return dst;

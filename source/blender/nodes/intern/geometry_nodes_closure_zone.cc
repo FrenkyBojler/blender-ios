@@ -127,7 +127,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
       void *default_value = closure_allocator.allocate(cpp_type.size, cpp_type.alignment);
       construct_socket_default_value(*bsocket.typeinfo, default_value);
       default_input_values.append(default_value);
-      if (!cpp_type.is_trivially_destructible()) {
+      if (!cpp_type.is_trivially_destructible) {
         closure_scope->add_destruct_call(
             [&cpp_type, default_value]() { cpp_type.destruct(default_value); });
       }
@@ -160,7 +160,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
       void *input_ptr = params.try_get_input_data_ptr(zone_info_.indices.inputs.border_links[i]);
       void *stored_ptr = closure_allocator.allocate(cpp_type.size, cpp_type.alignment);
       cpp_type.move_construct(input_ptr, stored_ptr);
-      if (!cpp_type.is_trivially_destructible()) {
+      if (!cpp_type.is_trivially_destructible) {
         closure_scope->add_destruct_call(
             [&cpp_type, stored_ptr]() { cpp_type.destruct(stored_ptr); });
       }
@@ -514,7 +514,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
       void *fallback_value = eval_storage.scope.allocator().allocate(cpp_type.size,
                                                                      cpp_type.alignment);
       construct_socket_default_value(type, fallback_value);
-      if (!cpp_type.is_trivially_destructible()) {
+      if (!cpp_type.is_trivially_destructible) {
         eval_storage.scope.add_destruct_call(
             [fallback_value, type = &cpp_type]() { type->destruct(fallback_value); });
       }

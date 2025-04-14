@@ -224,8 +224,8 @@ CPPType::CPPType(TypeTag<T> /*type*/,
   debug_name_ = debug_name;
   this->size = int64_t(sizeof(T));
   this->alignment = int64_t(alignof(T));
-  is_trivial_ = std::is_trivial_v<T>;
-  is_trivially_destructible_ = std::is_trivially_destructible_v<T>;
+  this->is_trivial = std::is_trivial_v<T>;
+  this->is_trivially_destructible = std::is_trivially_destructible_v<T>;
   if constexpr (std::is_default_constructible_v<T>) {
     default_construct_ = default_construct_cb<T>;
     default_construct_indices_ = default_construct_indices_cb<T>;
@@ -325,8 +325,8 @@ CPPType::CPPType(TypeTag<T> /*type*/,
   }
 
   alignment_mask_ = uintptr_t(this->alignment) - uintptr_t(1);
-  has_special_member_functions_ = (default_construct_ && copy_construct_ && copy_assign_ &&
-                                   move_construct_ && move_assign_ && destruct_);
+  this->has_special_member_functions = (default_construct_ && copy_construct_ && copy_assign_ &&
+                                        move_construct_ && move_assign_ && destruct_);
 }
 
 }  // namespace blender

@@ -17,7 +17,7 @@ GVectorArray::GVectorArray(const CPPType &type, const int64_t array_size)
 
 GVectorArray::~GVectorArray()
 {
-  if (type_.is_trivially_destructible()) {
+  if (type_.is_trivially_destructible) {
     return;
   }
   for (Item &item : items_) {

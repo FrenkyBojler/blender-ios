@@ -262,7 +262,7 @@ template<int BufferSize> class GVArrayImpl_For_SmallTrivialSingleValue : public 
                                           const void *value)
       : GVArrayImpl(type, size)
   {
-    BLI_assert(type.is_trivial());
+    BLI_assert(type.is_trivial);
     BLI_assert(type.alignment <= 8);
     BLI_assert(type.size <= BufferSize);
     type.copy_construct(value, &buffer_);
@@ -687,7 +687,7 @@ GVArray::GVArray(std::shared_ptr<const GVArrayImpl> impl) : GVArrayCommon(std::m
 
 GVArray::GVArray(varray_tag::single /*tag*/, const CPPType &type, int64_t size, const void *value)
 {
-  if (type.is_trivial() && type.size <= 16 && type.alignment <= 8) {
+  if (type.is_trivial && type.size <= 16 && type.alignment <= 8) {
     this->emplace<GVArrayImpl_For_SmallTrivialSingleValue<16>>(type, size, value);
   }
   else {

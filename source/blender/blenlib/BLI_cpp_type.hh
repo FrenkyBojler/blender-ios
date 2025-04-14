@@ -115,11 +115,37 @@ class CPPType : NonCopyable, NonMovable {
    */
   int64_t alignment = 0;
 
+  /**
+   * When true, the value is like a normal C type, it can be copied around with #memcpy and does
+   * not have to be destructed.
+   *
+   * C++ equivalent:
+   *   std::is_trivial_v<T>;
+   */
+  bool is_trivial = false;
+
+  /**
+   * When true, the destructor does not have to be called on this type. This can sometimes be used
+   * for optimization purposes.
+   *
+   * C++ equivalent:
+   *   std::is_trivially_destructible_v<T>;
+   */
+  bool is_trivially_destructible = false;
+
+  /**
+   * Returns true, when the type has the following functions:
+   * - Default constructor.
+   * - Copy constructor.
+   * - Move constructor.
+   * - Copy assignment operator.
+   * - Move assignment operator.
+   * - Destructor.
+   */
+  bool has_special_member_functions = false;
+
  private:
   uintptr_t alignment_mask_ = 0;
-  bool is_trivial_ = false;
-  bool is_trivially_destructible_ = false;
-  bool has_special_member_functions_ = false;
 
   void (*default_construct_)(void *ptr) = nullptr;
   void (*default_construct_indices_)(void *ptr, const IndexMask &mask) = nullptr;
@@ -180,23 +206,6 @@ class CPPType : NonCopyable, NonMovable {
    */
   StringRefNull name() const;
 
-  /**
-   * When true, the destructor does not have to be called on this type. This can sometimes be used
-   * for optimization purposes.
-   *
-   * C++ equivalent:
-   *   std::is_trivially_destructible_v<T>;
-   */
-  bool is_trivially_destructible() const;
-
-  /**
-   * When true, the value is like a normal C type, it can be copied around with #memcpy and does
-   * not have to be destructed.
-   *
-   * C++ equivalent:
-   *   std::is_trivial_v<T>;
-   */
-  bool is_trivial() const;
   bool is_default_constructible() const;
   bool is_copy_constructible() const;
   bool is_move_constructible() const;
@@ -206,17 +215,6 @@ class CPPType : NonCopyable, NonMovable {
   bool is_printable() const;
   bool is_equality_comparable() const;
   bool is_hashable() const;
-
-  /**
-   * Returns true, when the type has the following functions:
-   * - Default constructor.
-   * - Copy constructor.
-   * - Move constructor.
-   * - Copy assignment operator.
-   * - Move assignment operator.
-   * - Destructor.
-   */
-  bool has_special_member_functions() const;
 
   /**
    * Returns true, when the given pointer fulfills the alignment requirement of this type.
@@ -463,16 +461,6 @@ inline StringRefNull CPPType::name() const
   return debug_name_;
 }
 
-inline bool CPPType::is_trivially_destructible() const
-{
-  return is_trivially_destructible_;
-}
-
-inline bool CPPType::is_trivial() const
-{
-  return is_trivial_;
-}
-
 inline bool CPPType::is_default_constructible() const
 {
   return default_construct_ != nullptr;
@@ -516,11 +504,6 @@ inline bool CPPType::is_equality_comparable() const
 inline bool CPPType::is_hashable() const
 {
   return hash_ != nullptr;
-}
-
-inline bool CPPType::has_special_member_functions() const
-{
-  return has_special_member_functions_;
 }
 
 inline bool CPPType::pointer_has_valid_alignment(const void *ptr) const
@@ -625,7 +608,7 @@ inline void CPPType::copy_assign_compressed(const void *src,
 
 inline void CPPType::copy_construct(const void *src, void *dst) const
 {
-  BLI_assert(src != dst || is_trivial_);
+  BLI_assert(src != dst || this->is_trivial);
   BLI_assert(this->pointer_can_point_to_instance(src));
   BLI_assert(this->pointer_can_point_to_instance(dst));
 
@@ -683,7 +666,7 @@ inline void CPPType::move_assign_indices(void *src, void *dst, const IndexMask &
 
 inline void CPPType::move_construct(void *src, void *dst) const
 {
-  BLI_assert(src != dst || is_trivial_);
+  BLI_assert(src != dst || this->is_trivial);
   BLI_assert(this->pointer_can_point_to_instance(src));
   BLI_assert(this->pointer_can_point_to_instance(dst));
 
@@ -706,7 +689,7 @@ inline void CPPType::move_construct_indices(void *src, void *dst, const IndexMas
 
 inline void CPPType::relocate_assign(void *src, void *dst) const
 {
-  BLI_assert(src != dst || is_trivial_);
+  BLI_assert(src != dst || this->is_trivial);
   BLI_assert(this->pointer_can_point_to_instance(src));
   BLI_assert(this->pointer_can_point_to_instance(dst));
 
@@ -729,7 +712,7 @@ inline void CPPType::relocate_assign_indices(void *src, void *dst, const IndexMa
 
 inline void CPPType::relocate_construct(void *src, void *dst) const
 {
-  BLI_assert(src != dst || is_trivial_);
+  BLI_assert(src != dst || this->is_trivial);
   BLI_assert(this->pointer_can_point_to_instance(src));
   BLI_assert(this->pointer_can_point_to_instance(dst));
 

@@ -70,7 +70,7 @@ static const CPPType *get_socket_cpp_type(const bke::bNodeSocketType &typeinfo)
   if (type == nullptr) {
     return nullptr;
   }
-  BLI_assert(type->has_special_member_functions());
+  BLI_assert(type->has_special_member_functions);
   return type;
 }
 
@@ -3840,7 +3840,7 @@ struct GeometryNodesLazyFunctionBuilder {
       return;
     }
     input_lf_socket.set_default_value(value.get());
-    if (!value.type()->is_trivially_destructible()) {
+    if (!value.type()->is_trivially_destructible) {
       scope_.add_destruct_call([value]() mutable { value.destruct(); });
     }
   }

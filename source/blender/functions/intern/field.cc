@@ -393,7 +393,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
         /* Allocate a new buffer for the computed result. */
         buffer = scope.allocator().allocate(type.size * array_size, type.alignment);
 
-        if (!type.is_trivially_destructible()) {
+        if (!type.is_trivially_destructible) {
           /* Destruct values in the end. */
           scope.add_destruct_call(
               [buffer, mask, &type]() { type.destruct_indices(buffer, mask); });
@@ -439,7 +439,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
       /* Allocate memory where the computed value will be stored in. */
       void *buffer = scope.allocator().allocate(type.size, type.alignment);
 
-      if (!type.is_trivially_destructible()) {
+      if (!type.is_trivially_destructible) {
         /* Destruct value in the end. */
         scope.add_destruct_call([buffer, &type]() { type.destruct(buffer); });
       }
