@@ -305,9 +305,17 @@ class CachingDownloader:
         prepped: requests.PreparedRequest = self.http_session.prepare_request(req)
         if meta:
             prepped.headers["If-Modified-Since"] = meta.last_modified
-            prepped.headers["If-Not-Match"] = meta.etag
+            prepped.headers["If-None-Match"] = meta.etag
 
         with self.http_session.send(prepped, stream=True) as stream:
+            logger.debug(
+                "HTTP %s %s (headers %s) -> %d",
+                http_req_descr.http_method,
+                http_req_descr.url,
+                prepped.headers,
+                stream.status_code,
+            )
+
             stream.raise_for_status()
 
             if stream.status_code == 304:  # 304 Not Modified
