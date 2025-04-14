@@ -24,6 +24,7 @@
 
 #define USE_PYGPU_SHADER_INFO_IMAGE_METHOD
 
+using blender::gpu::shader::DepthWrite;
 using blender::gpu::shader::DualBlend;
 using blender::gpu::shader::Frequency;
 using blender::gpu::shader::ImageType;
@@ -63,21 +64,21 @@ static const PyC_FlagSet pygpu_qualifiers[] = {
   "      - ``IVEC4``\n" \
   "      - ``BOOL``\n"
 const PyC_StringEnumItems pygpu_attrtype_items[] = {
-    {int(Type::FLOAT), "FLOAT"},
-    {int(Type::VEC2), "VEC2"},
-    {int(Type::VEC3), "VEC3"},
-    {int(Type::VEC4), "VEC4"},
-    {int(Type::MAT3), "MAT3"},
-    {int(Type::MAT4), "MAT4"},
-    {int(Type::UINT), "UINT"},
-    {int(Type::UVEC2), "UVEC2"},
-    {int(Type::UVEC3), "UVEC3"},
-    {int(Type::UVEC4), "UVEC4"},
-    {int(Type::INT), "INT"},
-    {int(Type::IVEC2), "IVEC2"},
-    {int(Type::IVEC3), "IVEC3"},
-    {int(Type::IVEC4), "IVEC4"},
-    {int(Type::BOOL), "BOOL"},
+    {int(Type::float_t), "FLOAT"},
+    {int(Type::float2_t), "VEC2"},
+    {int(Type::float3_t), "VEC3"},
+    {int(Type::float4_t), "VEC4"},
+    {int(Type::float3x3_t), "MAT3"},
+    {int(Type::float4x4_t), "MAT4"},
+    {int(Type::uint_t), "UINT"},
+    {int(Type::uint2_t), "UVEC2"},
+    {int(Type::uint3_t), "UVEC3"},
+    {int(Type::uint4_t), "UVEC4"},
+    {int(Type::int_t), "INT"},
+    {int(Type::int2_t), "IVEC2"},
+    {int(Type::int3_t), "IVEC3"},
+    {int(Type::int4_t), "IVEC4"},
+    {int(Type::bool_t), "BOOL"},
     {0, nullptr},
 };
 
@@ -160,6 +161,14 @@ static const PyC_StringEnumItems pygpu_dualblend_items[] = {
     {int(DualBlend::NONE), "NONE"},
     {int(DualBlend::SRC_0), "SRC_0"},
     {int(DualBlend::SRC_1), "SRC_1"},
+    {0, nullptr},
+};
+
+static const PyC_StringEnumItems pygpu_depth_write_items[] = {
+    {int(DepthWrite::UNCHANGED), "UNCHANGED"},
+    {int(DepthWrite::ANY), "ANY"},
+    {int(DepthWrite::GREATER), "GREATER"},
+    {int(DepthWrite::LESS), "LESS"},
     {0, nullptr},
 };
 
@@ -348,7 +357,7 @@ PyDoc_STRVAR(
 static PyObject *pygpu_interface_info_name_get(BPyGPUStageInterfaceInfo *self, void * /*closure*/)
 {
   StageInterfaceInfo *interface = reinterpret_cast<StageInterfaceInfo *>(self->interface);
-  return PyUnicode_FromString(interface->name.c_str());
+  return PyC_UnicodeFromStdStr(interface->name);
 }
 
 static PyGetSetDef pygpu_interface_info__tp_getseters[] = {
@@ -634,6 +643,48 @@ static PyObject *pygpu_shader_info_fragment_out(BPyGPUShaderCreateInfo *self,
 
 PyDoc_STRVAR(
     /* Wrap. */
+    pygpu_shader_info_depth_write_doc,
+    ".. method:: depth_write(value)\n"
+    "\n"
+    "   Specify a depth write behavior when modifying gl_FragDepth.\n"
+    "\n"
+    "   There is a common optimization for GPUs that relies on an early depth\n"
+    "   test to be run before the fragment shader so that the shader evaluation\n"
+    "   can be skipped if the fragment ends up being discarded because it is occluded.\n"
+    "\n"
+    "   This optimization does not affect the final rendering, and is typically\n"
+    "   possible when the fragment does not change the depth programmatically.\n"
+    "   There are, however a class of operations on the depth in the shader which\n"
+    "   could still be performed while allowing the early depth test to operate.\n"
+    "\n"
+    "   This function alters the behavior of the optimization to allow those operations\n"
+    "   to be performed.\n"
+    "\n"
+    "   :arg value: Depth write value. "
+    "It can be 'UNCHANGED' (default), 'ANY', 'GREATER' or 'LESS'.\n"
+    "      :UNCHANGED: disables depth write in a fragment shader and execution of the"
+    "fragments can be optimized away.\n"
+    "      :ANY: enables depth write in a fragment shader for any fragments\n"
+    "      :GREATER: enables depth write in a fragment shader for depth values that"
+    "are greater than the depth value in the output buffer.\n"
+    "      :LESS: enables depth write in a fragment shader for depth values that"
+    "are less than the depth value in the output buffer.\n"
+    "   :type blend: str\n");
+static PyObject *pygpu_shader_info_depth_write(BPyGPUShaderCreateInfo *self, PyObject *args)
+{
+  PyC_StringEnum depth_write = {pygpu_depth_write_items, int(DepthWrite::UNCHANGED)};
+  if (!PyC_ParseStringEnum(args, &depth_write)) {
+    return nullptr;
+  }
+
+  ShaderCreateInfo *info = reinterpret_cast<ShaderCreateInfo *>(self->info);
+  info->depth_write(DepthWrite(depth_write.value_found));
+
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     pygpu_shader_info_uniform_buf_doc,
     ".. method:: uniform_buf(slot, type_name, name)\n"
     "\n"
@@ -795,55 +846,55 @@ static PyObject *pygpu_shader_info_sampler(BPyGPUShaderCreateInfo *self, PyObjec
 static int constant_type_size(Type type)
 {
   switch (type) {
-    case Type::BOOL:
-    case Type::FLOAT:
-    case Type::INT:
-    case Type::UINT:
-    case Type::UCHAR4:
-    case Type::CHAR4:
-    case Type::VEC3_101010I2:
-    case Type::USHORT2:
-    case Type::SHORT2:
+    case Type::bool_t:
+    case Type::float_t:
+    case Type::int_t:
+    case Type::uint_t:
+    case Type::uchar4_t:
+    case Type::char4_t:
+    case Type::float3_10_10_10_2_t:
+    case Type::ushort2_t:
+    case Type::short2_t:
       return 4;
       break;
-    case Type::USHORT3:
-    case Type::SHORT3:
+    case Type::ushort3_t:
+    case Type::short3_t:
       return 6;
       break;
-    case Type::VEC2:
-    case Type::UVEC2:
-    case Type::IVEC2:
-    case Type::USHORT4:
-    case Type::SHORT4:
+    case Type::float2_t:
+    case Type::uint2_t:
+    case Type::int2_t:
+    case Type::ushort4_t:
+    case Type::short4_t:
       return 8;
       break;
-    case Type::VEC3:
-    case Type::UVEC3:
-    case Type::IVEC3:
+    case Type::float3_t:
+    case Type::uint3_t:
+    case Type::int3_t:
       return 12;
       break;
-    case Type::VEC4:
-    case Type::UVEC4:
-    case Type::IVEC4:
+    case Type::float4_t:
+    case Type::uint4_t:
+    case Type::int4_t:
       return 16;
       break;
-    case Type::MAT3:
+    case Type::float3x3_t:
       return 36 + 3 * 4;
-    case Type::MAT4:
+    case Type::float4x4_t:
       return 64;
       break;
-    case Type::UCHAR:
-    case Type::CHAR:
+    case Type::uchar_t:
+    case Type::char_t:
       return 1;
       break;
-    case Type::UCHAR2:
-    case Type::CHAR2:
-    case Type::USHORT:
-    case Type::SHORT:
+    case Type::uchar2_t:
+    case Type::char2_t:
+    case Type::ushort_t:
+    case Type::short_t:
       return 2;
       break;
-    case Type::UCHAR3:
-    case Type::CHAR3:
+    case Type::uchar3_t:
+    case Type::char3_t:
       return 3;
       break;
   }
@@ -1189,6 +1240,10 @@ static PyMethodDef pygpu_shader_info__tp_methods[] = {
      (PyCFunction)pygpu_shader_info_vertex_out,
      METH_O,
      pygpu_shader_info_vertex_out_doc},
+    {"depth_write",
+     (PyCFunction)(void *)pygpu_shader_info_depth_write,
+     METH_O,
+     pygpu_shader_info_depth_write_doc},
     {"fragment_out",
      (PyCFunction)(void *)pygpu_shader_info_fragment_out,
      METH_VARARGS | METH_KEYWORDS,

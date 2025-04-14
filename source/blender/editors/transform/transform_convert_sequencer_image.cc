@@ -31,6 +31,8 @@
 
 namespace blender::ed::transform {
 
+namespace {
+
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
@@ -39,6 +41,8 @@ struct TransDataSeq {
   float orig_scale[2];
   float orig_rotation;
 };
+
+}  // namespace
 
 static TransData *SeqToTransData(const Scene *scene,
                                  Strip *strip,
@@ -242,7 +246,7 @@ static void recalcData_sequencer_image(TransInfo *t)
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
-      transform->rotation = tdseq->orig_rotation - t->values_final[0];
+      transform->rotation = tdseq->orig_rotation - (t->values_final[0] * mirror[0] * mirror[1]);
     }
 
     if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {

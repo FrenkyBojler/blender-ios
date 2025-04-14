@@ -226,7 +226,7 @@ static void object_add_drop_xy_props(wmOperatorType *ot)
                      "X-coordinate (screen space) to place the new object under",
                      INT_MIN,
                      INT_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_int(ot->srna,
                      "drop_y",
                      0,
@@ -236,7 +236,7 @@ static void object_add_drop_xy_props(wmOperatorType *ot)
                      "Y-coordinate (screen space) to place the new object under",
                      INT_MIN,
                      INT_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 static bool object_add_drop_xy_is_set(const wmOperator *op)
@@ -268,7 +268,9 @@ static bool object_add_drop_xy_get(bContext *C, wmOperator *op, int (*r_mval)[2]
  * Set the drop coordinate to the mouse position (if not already set) and call the operator's
  * `exec()` callback.
  */
-static int object_add_drop_xy_generic_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_add_drop_xy_generic_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   if (!object_add_drop_xy_is_set(op)) {
     RNA_int_set(op->ptr, "drop_x", event->xy[0]);
@@ -422,7 +424,7 @@ void add_generic_props(wmOperatorType *ot, bool do_editmode)
                            false,
                            "Enter Edit Mode",
                            "Enter edit mode when adding this object");
-    RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+    RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   }
   /* NOTE: this property gets hidden for add-camera operator. */
   prop = RNA_def_enum(
@@ -462,7 +464,7 @@ void add_generic_props(wmOperatorType *ot, bool do_editmode)
                                   "Scale for the newly added object",
                                   -1000.0f,
                                   1000.0f);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 void add_mesh_props(wmOperatorType *ot)
@@ -691,7 +693,7 @@ Object *add_type(bContext *C,
 }
 
 /* for object add operator */
-static int object_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   bool enter_editmode;
@@ -758,7 +760,7 @@ static const char *get_lightprobe_defname(int type)
   }
 }
 
-static int lightprobe_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lightprobe_add_exec(bContext *C, wmOperator *op)
 {
   bool enter_editmode;
   ushort local_view_bits;
@@ -848,7 +850,7 @@ static const char *get_effector_defname(ePFieldType type)
   return CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "Field");
 }
 
-static int effector_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus effector_add_exec(bContext *C, wmOperator *op)
 {
   bool enter_editmode;
   ushort local_view_bits;
@@ -919,7 +921,7 @@ void OBJECT_OT_effector_add(wmOperatorType *ot)
 /** \name Add Camera Operator
  * \{ */
 
-static int object_camera_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_camera_add_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d = CTX_wm_view3d(C);
   Scene *scene = CTX_data_scene(C);
@@ -979,7 +981,7 @@ void OBJECT_OT_camera_add(wmOperatorType *ot)
 /** \name Add Metaball Operator
  * \{ */
 
-static int object_metaball_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_metaball_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1050,7 +1052,7 @@ void OBJECT_OT_metaball_add(wmOperatorType *ot)
 /** \name Add Text Operator
  * \{ */
 
-static int object_add_text_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_text_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   bool enter_editmode;
@@ -1095,7 +1097,7 @@ void OBJECT_OT_text_add(wmOperatorType *ot)
 /** \name Add Armature Operator
  * \{ */
 
-static int object_armature_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_armature_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1168,7 +1170,7 @@ void OBJECT_OT_armature_add(wmOperatorType *ot)
 /** \name Add Empty Operator
  * \{ */
 
-static int object_empty_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_empty_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   int type = RNA_enum_get(op->ptr, "type");
@@ -1208,7 +1210,7 @@ void OBJECT_OT_empty_add(wmOperatorType *ot)
   add_generic_props(ot, false);
 }
 
-static int object_image_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_image_add_exec(bContext *C, wmOperator *op)
 {
   Image *ima = nullptr;
 
@@ -1249,7 +1251,7 @@ static int object_image_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int object_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!RNA_struct_property_is_set(op->ptr, "align")) {
     /* Default to Aligned unless something else was explicitly passed. */
@@ -1343,12 +1345,12 @@ void OBJECT_OT_empty_image_add(wmOperatorType *ot)
                          false,
                          "Put in Background",
                          "Make the image render behind all objects");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   /* Hide the filepath and relative path prop */
   prop = RNA_struct_type_find_property(ot->srna, "filepath");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_PRESET));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_PRESET);
   prop = RNA_struct_type_find_property(ot->srna, "relative_path");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /** \} */
@@ -1367,7 +1369,7 @@ static EnumPropertyItem rna_enum_gpencil_add_stroke_depth_order_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int object_grease_pencil_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1566,7 +1568,7 @@ static const char *get_light_defname(int type)
   }
 }
 
-static int object_light_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_light_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
   Light *la;
@@ -1700,7 +1702,7 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
   return add_info;
 }
 
-static int collection_instance_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_instance_add_exec(bContext *C, wmOperator *op)
 {
   std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(C, op);
   if (!add_info) {
@@ -1724,7 +1726,9 @@ static int collection_instance_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int object_instance_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_instance_add_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   if (!object_add_drop_xy_is_set(op)) {
     RNA_int_set(op->ptr, "drop_x", event->xy[0]);
@@ -1789,7 +1793,7 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
  *
  * \{ */
 
-static int collection_drop_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_drop_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   LayerCollection *active_collection = CTX_data_layer_collection(C);
@@ -1861,19 +1865,18 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
 
   add_generic_props(ot, false);
 
-  /* IMPORTANT: Instancing option. Intentionally remembered across executions (no #PROP_SKIP_SAVE).
-   */
-  RNA_def_boolean(ot->srna,
-                  "use_instance",
-                  true,
-                  "Instance",
-                  "Add the dropped collection as collection instance");
+  prop = RNA_def_boolean(ot->srna,
+                         "use_instance",
+                         true,
+                         "Instance",
+                         "Add the dropped collection as collection instance");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   object_add_drop_xy_props(ot);
 
   prop = RNA_def_enum(ot->srna, "collection", rna_enum_dummy_NULL_items, 0, "Collection", "");
   RNA_def_enum_funcs(prop, RNA_collection_itemf);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE | PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
 }
 
@@ -1885,7 +1888,7 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
  * Use for dropping ID's from the outliner.
  * \{ */
 
-static int object_data_instance_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_data_instance_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   ID *id = nullptr;
@@ -1951,7 +1954,7 @@ void OBJECT_OT_data_instance_add(wmOperatorType *ot)
 /** \name Add Speaker Operator
  * \{ */
 
-static int object_speaker_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_speaker_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2010,7 +2013,7 @@ void OBJECT_OT_speaker_add(wmOperatorType *ot)
 /** \name Add Curves Operator
  * \{ */
 
-static int object_curves_random_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_curves_random_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   float loc[3], rot[3];
@@ -2041,7 +2044,7 @@ void OBJECT_OT_curves_random_add(wmOperatorType *ot)
   add_generic_props(ot, false);
 }
 
-static int object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -2120,7 +2123,7 @@ static bool object_pointcloud_add_poll(bContext *C)
   return ED_operator_objectmode(C);
 }
 
-static int object_pointcloud_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_pointcloud_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   float loc[3], rot[3];
@@ -2184,7 +2187,7 @@ void base_free_and_unlink_no_indirect_check(Main *bmain, Scene *scene, Object *o
   BKE_scene_collections_object_remove(bmain, scene, ob, true);
 }
 
-static int object_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_delete_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2274,7 +2277,9 @@ static int object_delete_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int object_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus object_delete_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(C,
@@ -2306,7 +2311,7 @@ void OBJECT_OT_delete(wmOperatorType *ot)
   PropertyRNA *prop;
   prop = RNA_def_boolean(
       ot->srna, "use_global", false, "Delete Globally", "Remove object from all scenes");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   WM_operator_properties_confirm_or_exec(ot);
 }
 
@@ -2653,7 +2658,7 @@ static void make_object_duplilist_real(bContext *C,
   DEG_id_tag_update(&base->object->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-static int object_duplicates_make_real_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_duplicates_make_real_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -3274,7 +3279,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const int thickness = RNA_int_get(info.op_props, "thickness");
   const float offset = RNA_float_get(info.op_props, "offset");
 
-  /* To be compatible with the thickness value prior to Grease Pencil v3. */
+  /* To be compatible with the thickness value of legacy Grease Pencil. */
   const float stroke_radius = float(thickness) / 2 *
                               bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
 
@@ -3444,6 +3449,8 @@ static Object *convert_curves_to_grease_pencil(Base &base,
     bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, frame_number);
     BLI_assert(drawing != nullptr);
     drawing->strokes_for_write() = curves_eval->geometry.wrap();
+    /* Default radius (1.0 unit) is too thick for converted strokes. */
+    drawing->radii_for_write().fill(0.01f);
 
     BKE_grease_pencil_nomain_to_grease_pencil(grease_pencil, new_grease_pencil);
     BKE_object_material_from_eval_data(info.bmain, newob, &curves_eval->id);
@@ -3921,7 +3928,7 @@ static Object *convert_pointcloud(Base &base,
   }
 }
 
-static int object_convert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -4347,7 +4354,7 @@ Base *add_duplicate(
 }
 
 /* contextual operator dupli */
-static int duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -4478,7 +4485,7 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
  * Use for drag & drop.
  * \{ */
 
-static int object_add_named_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_named_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -4583,7 +4590,7 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
 
   prop = RNA_def_float_matrix(
       ot->srna, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "Matrix", "", 0.0f, 0.0f);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   object_add_drop_xy_props(ot);
 }
@@ -4597,7 +4604,7 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
 /**
  * Alternate behavior for dropping an asset that positions the appended object(s).
  */
-static int object_transform_to_mouse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_transform_to_mouse_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
@@ -4690,7 +4697,7 @@ void OBJECT_OT_transform_to_mouse(wmOperatorType *ot)
       MAX_ID_NAME - 2,
       "Name",
       "Object name to place (uses the active object when this and 'session_uid' are unset)");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE | PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
   prop = RNA_def_int(ot->srna,
                      "session_uid",
                      0,
@@ -4701,11 +4708,11 @@ void OBJECT_OT_transform_to_mouse(wmOperatorType *ot)
                      "'name' are unset)",
                      INT32_MIN,
                      INT32_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE | PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 
   prop = RNA_def_float_matrix(
       ot->srna, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "Matrix", "", 0.0f, 0.0f);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   object_add_drop_xy_props(ot);
 }
@@ -4740,7 +4747,7 @@ static bool object_join_poll(bContext *C)
   return false;
 }
 
-static int object_join_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_join_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = CTX_data_active_object(C);
@@ -4761,7 +4768,7 @@ static int object_join_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  int ret = OPERATOR_CANCELLED;
+  wmOperatorStatus ret = OPERATOR_CANCELLED;
   if (ob->type == OB_MESH) {
     ret = ED_mesh_join_objects_exec(C, op);
   }
@@ -4772,10 +4779,10 @@ static int object_join_exec(bContext *C, wmOperator *op)
     ret = ED_armature_join_objects_exec(C, op);
   }
   else if (ob->type == OB_POINTCLOUD) {
-    ret = pointcloud::join_objects(C, op);
+    ret = pointcloud::join_objects_exec(C, op);
   }
   else if (ob->type == OB_CURVES) {
-    ret = curves::join_objects(C, op);
+    ret = curves::join_objects_exec(C, op);
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     ret = ED_grease_pencil_join_objects_exec(C, op);
@@ -4846,7 +4853,7 @@ static bool join_shapes_poll(bContext *C)
   return false;
 }
 
-static int join_shapes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus join_shapes_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = CTX_data_active_object(C);
@@ -4868,7 +4875,7 @@ static int join_shapes_exec(bContext *C, wmOperator *op)
   }
 
   if (ob->type == OB_MESH) {
-    return ED_mesh_shapes_join_objects_exec(C, op);
+    return ED_mesh_shapes_join_objects_exec(C, op->reports);
   }
 
   return OPERATOR_CANCELLED;

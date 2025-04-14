@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 /**
@@ -248,6 +252,7 @@
 #define CMP_NODE_COMBINE_XYZ 331
 #define CMP_NODE_COMBINE_COLOR 332
 #define CMP_NODE_SEPARATE_COLOR 333
+#define CMP_NODE_IMAGE_INFO 334
 
 /* channel toggles */
 #define CMP_CHAN_RGB 1
@@ -512,6 +517,11 @@
 #define GEO_NODE_MERGE_LAYERS 2150
 #define GEO_NODE_INPUT_COLLECTION 2151
 #define GEO_NODE_INPUT_OBJECT 2152
+#define GEO_NODE_COMBINE_BUNDLE 2153
+#define GEO_NODE_SEPARATE_BUNDLE 2154
+#define GEO_NODE_CLOSURE_OUTPUT 2155
+#define GEO_NODE_EVALUATE_CLOSURE 2156
+#define GEO_NODE_CLOSURE_INPUT 2157
 
 /** \} */
 

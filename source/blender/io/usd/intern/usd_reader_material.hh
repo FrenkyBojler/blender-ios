@@ -19,6 +19,7 @@ struct Main;
 struct Material;
 struct bNode;
 struct bNodeTree;
+struct ReportList;
 
 namespace blender::io::usd {
 

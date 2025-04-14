@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include <memory>
@@ -818,6 +822,11 @@ inline bool bNode::is_frame() const
 inline bool bNode::is_group() const
 {
   return ELEM(this->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP);
+}
+
+inline bool bNode::is_custom_group() const
+{
+  return this->type_legacy == NODE_CUSTOM_GROUP;
 }
 
 inline bool bNode::is_group_input() const

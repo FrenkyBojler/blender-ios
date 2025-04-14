@@ -77,19 +77,16 @@ static TransformOrientation *findOrientationName(ListBase *lb, const char *name)
       BLI_findstring(lb, name, offsetof(TransformOrientation, name)));
 }
 
-static bool uniqueOrientationNameCheck(void *arg, const char *name)
-{
-  return findOrientationName((ListBase *)arg, name) != nullptr;
-}
-
 static void uniqueOrientationName(ListBase *lb, char *name)
 {
-  BLI_uniquename_cb(uniqueOrientationNameCheck,
-                    lb,
-                    CTX_DATA_(BLT_I18NCONTEXT_ID_SCENE, "Space"),
-                    '.',
-                    name,
-                    sizeof(TransformOrientation::name));
+  BLI_uniquename_cb(
+      [&](const StringRefNull check_name) {
+        return findOrientationName(lb, check_name.c_str()) != nullptr;
+      },
+      CTX_DATA_(BLT_I18NCONTEXT_ID_SCENE, "Space"),
+      '.',
+      name,
+      sizeof(TransformOrientation::name));
 }
 
 static TransformOrientation *createViewSpace(bContext *C,
@@ -1220,7 +1217,7 @@ int getTransformOrientation_ex(const Scene *scene,
         }
       }
       else {
-        const bool use_handle = v3d->overlay.handle_display != CURVE_HANDLE_NONE;
+        const bool use_handle = v3d ? (v3d->overlay.handle_display != CURVE_HANDLE_NONE) : true;
 
         for (nu = static_cast<Nurb *>(nurbs->first); nu; nu = nu->next) {
           /* Only bezier has a normal. */

@@ -76,8 +76,7 @@ static bool gather_objects_paths(const pxr::UsdPrim &object, ListBase *object_pa
     gather_objects_paths(childPrim, object_paths);
   }
 
-  void *usd_path_void = MEM_callocN(sizeof(CacheObjectPath), "CacheObjectPath");
-  CacheObjectPath *usd_path = static_cast<CacheObjectPath *>(usd_path_void);
+  CacheObjectPath *usd_path = MEM_callocN<CacheObjectPath>("CacheObjectPath");
 
   STRNCPY(usd_path->path, object.GetPrimPath().GetString().c_str());
   BLI_addtail(object_paths, usd_path);
@@ -265,7 +264,8 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     if (!reader) {
       continue;
     }
-    reader->create_object(data->bmain, 0.0);
+
+    reader->create_object(data->bmain);
     if ((++progress_count & 1023) == 0) {
       *data->do_update = true;
       *data->progress = 0.25f + 0.25f * (progress_count / size);
@@ -335,7 +335,7 @@ static void import_endjob(void *customdata)
   /* Delete objects on cancellation. */
   if (data->was_canceled && data->archive) {
 
-    for (USDPrimReader *reader : data->archive->readers()) {
+    for (const USDPrimReader *reader : data->archive->readers()) {
 
       if (!reader) {
         continue;
@@ -362,7 +362,7 @@ static void import_endjob(void *customdata)
     data->archive->create_proto_collections(data->bmain, lc->collection);
 
     /* Add all objects to the collection. */
-    for (USDPrimReader *reader : data->archive->readers()) {
+    for (const USDPrimReader *reader : data->archive->readers()) {
       if (!reader) {
         continue;
       }
@@ -379,7 +379,7 @@ static void import_endjob(void *customdata)
 
     /* Sync and do the view layer operations. */
     BKE_view_layer_synced_ensure(scene, view_layer);
-    for (USDPrimReader *reader : data->archive->readers()) {
+    for (const USDPrimReader *reader : data->archive->readers()) {
       if (!reader) {
         continue;
       }
@@ -642,7 +642,7 @@ void USD_get_transform(CacheReader *reader, float r_mat_world[4][4], float time,
   if (!reader) {
     return;
   }
-  USDXformReader *usd_reader = reinterpret_cast<USDXformReader *>(reader);
+  const USDXformReader *usd_reader = reinterpret_cast<USDXformReader *>(reader);
 
   bool is_constant = false;
 
