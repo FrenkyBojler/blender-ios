@@ -12,7 +12,7 @@ void node_eevee_specular(float4 diffuse,
                          float clearcoat_roughness,
                          float3 CN,
                          float weight,
-                         const float use_clearcoat,
+                         constexpr float use_clearcoat,
                          out Closure result)
 {
   diffuse = max(diffuse, float4(0));

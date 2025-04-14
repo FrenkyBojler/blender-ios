@@ -70,7 +70,7 @@ void export_vertex(GeomOut geom_out)
 #endif
 }
 
-void strip_EmitVertex(const uint strip_index,
+void strip_EmitVertex(constexpr uint strip_index,
                       uint out_vertex_id,
                       uint out_primitive_id,
                       GeomOut geom_out)
@@ -85,7 +85,7 @@ void strip_EmitVertex(const uint strip_index,
   }
 }
 
-void tri_EmitVertex(const uint tri_index, uint out_vertex_id, GeomOut geom_out)
+void tri_EmitVertex(constexpr uint tri_index, uint out_vertex_id, GeomOut geom_out)
 {
   if (out_vertex_id == tri_index) {
     export_vertex(geom_out);

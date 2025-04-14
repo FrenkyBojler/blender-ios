@@ -27,8 +27,8 @@ void node_bsdf_metallic(float4 base_color,
                         float3 N,
                         float3 T,
                         float weight,
-                        const float do_multiscatter,
-                        const float use_complex_ior,
+                        constexpr float do_multiscatter,
+                        constexpr float use_complex_ior,
                         out Closure result)
 {
   float3 F0 = base_color.rgb;

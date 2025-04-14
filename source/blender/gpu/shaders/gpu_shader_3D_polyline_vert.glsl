@@ -103,7 +103,7 @@ void export_vertex(GeomOut geom_out)
   clip = geom_out.clip;
 }
 
-void strip_EmitVertex(const uint strip_index,
+void strip_EmitVertex(constexpr uint strip_index,
                       uint out_vertex_id,
                       uint out_primitive_id,
                       GeomOut geom_out)
@@ -118,7 +118,7 @@ void strip_EmitVertex(const uint strip_index,
   }
 }
 
-void do_vertex(const uint i,
+void do_vertex(constexpr uint i,
                uint out_vertex_id,
                uint out_primitive_id,
                VertOut geom_in[2],
@@ -179,13 +179,13 @@ void main()
   /* Line list primitive. */
   uint input_primitive_vertex_count = uint(gpu_vert_stride_count_offset.x);
   /* Triangle list primitive (emulating triangle strip). */
-  const uint ouput_primitive_vertex_count = 3u;
-  const uint ouput_primitive_count = 2u;
-  const uint ouput_invocation_count = 1u;
-  const uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                  ouput_primitive_vertex_count;
-  const uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                       ouput_invocation_count;
+  constexpr uint ouput_primitive_vertex_count = 3u;
+  constexpr uint ouput_primitive_count = 2u;
+  constexpr uint ouput_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
+                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
+                                                           ouput_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;

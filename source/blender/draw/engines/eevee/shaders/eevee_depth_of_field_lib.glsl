@@ -59,8 +59,9 @@
 
 #define dof_max_slight_focus_radius DOF_MAX_SLIGHT_FOCUS_RADIUS
 
-const uint2 quad_offsets_u[4] = uint2_array(uint2(0, 1), uint2(1, 1), uint2(1, 0), uint2(0, 0));
-const float2 quad_offsets[4] = float2_array(
+constexpr uint2 quad_offsets_u[4] = uint2_array(
+    uint2(0, 1), uint2(1, 1), uint2(1, 0), uint2(0, 0));
+constexpr float2 quad_offsets[4] = float2_array(
     float2(-0.5f, 0.5f), float2(0.5f, 0.5f), float2(0.5f, -0.5f), float2(-0.5f, -0.5f));
 
 /** \} */
@@ -74,7 +75,7 @@ float dof_hdr_color_weight(float4 color)
   /* Very fast "luma" weighting. */
   float luma = (color.g * 2.0f) + (color.r + color.b);
   /* TODO(fclem) Pass correct exposure. */
-  const float exposure = 1.0f;
+  constexpr float exposure = 1.0f;
   return 1.0f / (luma * exposure + 4.0f);
 }
 
@@ -99,7 +100,7 @@ float4 dof_bilateral_coc_weights(float4 cocs)
 {
   float chosen_coc = dof_coc_select(cocs);
 
-  const float scale = 4.0f; /* TODO(fclem) revisit. */
+  constexpr float scale = 4.0f; /* TODO(fclem) revisit. */
   /* NOTE: The difference between the cocs should be inside a abs() function,
    * but we follow UE4 implementation to improve how dithered transparency looks (see slide 19). */
   return saturate(1.0f - (chosen_coc - cocs) * scale);
@@ -134,7 +135,7 @@ float dof_coc_from_depth(DepthOfFieldData dof_data, float2 uv, float depth)
 /** \name Gather & Scatter Weighting
  * \{ */
 
-float dof_layer_weight(float coc, const bool is_foreground)
+float dof_layer_weight(float coc, constexpr bool is_foreground)
 {
   /* NOTE: These are full-resolution pixel CoC value. */
   if (IS_RESOLVE) {
@@ -162,7 +163,7 @@ float dof_sample_weight(float coc)
   return min(1.0f, 1.0f / square(coc));
 #else
   /* Full intensity if CoC radius is below the pixel footprint. */
-  const float min_coc = 1.0f;
+  constexpr float min_coc = 1.0f;
   coc = max(min_coc, abs(coc));
   return (M_PI * min_coc * min_coc) / (M_PI * coc * coc);
 #endif
@@ -173,7 +174,7 @@ float4 dof_sample_weight(float4 coc)
   return min(float4(1.0f), 1.0f / square(coc));
 #else
   /* Full intensity if CoC radius is below the pixel footprint. */
-  const float min_coc = 1.0f;
+  constexpr float min_coc = 1.0f;
   coc = max(float4(min_coc), abs(coc));
   return (M_PI * min_coc * min_coc) / (M_PI * coc * coc);
 #endif
@@ -248,7 +249,9 @@ void dof_coc_tile_pack(CocTile tile, out float3 out_fg, out float3 out_bg)
     imageStore(tiles_bg_img_, texel_out_, out_bg.xyzz); \
   }
 
-bool dof_do_fast_gather(float max_absolute_coc, float min_absolute_coc, const bool is_foreground)
+bool dof_do_fast_gather(float max_absolute_coc,
+                        float min_absolute_coc,
+                        constexpr bool is_foreground)
 {
   float min_weight = dof_layer_weight((is_foreground) ? -min_absolute_coc : min_absolute_coc,
                                       is_foreground);

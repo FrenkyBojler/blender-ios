@@ -124,7 +124,7 @@ void shadow_map_trace_hit_check(inout ShadowMapTracingState state,
     float2 delta = samp.occluder - state.occluder_history;
     /* Clamping the slope to a minimum avoid light leaking. */
     /* TODO(@fclem): Expose as parameter? */
-    const float min_slope = tan(M_PI * 0.25f);
+    constexpr float min_slope = tan(M_PI * 0.25f);
     state.occluder_slope = max(min_slope, abs(delta.y / delta.x));
     state.occluder_history = samp.occluder;
     /* Intersection test. Intersect if above the ray time. */
@@ -351,7 +351,7 @@ float3 shadow_pcf_offset(float3 L, float3 Ng, float2 random)
  * This is a smooth (not discretized to the LOD transitions) conservative (always above actual
  * density) estimate value.
  */
-float shadow_texel_radius_at_position(LightData light, const bool is_directional, float3 P)
+float shadow_texel_radius_at_position(LightData light, constexpr bool is_directional, float3 P)
 {
   /* For direction, footprint of the sampled clipmap (or cascade) at the given position.
    * For punctual, footprint of the tilemap at given position scaled by the LOD level.
@@ -393,7 +393,7 @@ float shadow_texel_radius_at_position(LightData light, const bool is_directional
   }
   /* Pixel bounding radius inside a tilemap of unit scale.
    * Take only half of it because we want the radius and not the diameter. */
-  const float texel_radius = M_SQRT2 / SHADOW_MAP_MAX_RES;
+  constexpr float texel_radius = M_SQRT2 / SHADOW_MAP_MAX_RES;
   return texel_radius * scale;
 }
 
@@ -409,11 +409,11 @@ float shadow_normal_offset(float3 Ng, float3 L)
   /* Attenuate depending on light angle. */
   float cos_theta = abs(dot(Ng, L));
   /* Ng might have been quantized. Compensate the error by scaling the offset. */
-  const float max_angular_quantization_error = 0.534f; /* Radians. */
-  const float max_error_cos_inv = 1.0f / cos(max_angular_quantization_error);
+  constexpr float max_angular_quantization_error = 0.534f; /* Radians. */
+  constexpr float max_error_cos_inv = 1.0f / cos(max_angular_quantization_error);
   /* The scaling is only to fix the self shadowing we need another bias for shadowing of adjacent
    * polygons. */
-  const float max_error_adjacent_polygon = 0.195f; /* Eye-balled. */
+  constexpr float max_error_adjacent_polygon = 0.195f; /* Eye-balled. */
   return sin_from_cos(cos_theta) * max_error_cos_inv + max_error_adjacent_polygon;
 }
 
@@ -422,8 +422,8 @@ float shadow_normal_offset(float3 Ng, float3 L)
  * Returns light visibility.
  */
 float shadow_eval(LightData light,
-                  const bool is_directional,
-                  const bool is_transmission,
+                  constexpr bool is_directional,
+                  constexpr bool is_transmission,
                   bool is_translucent_with_thickness,
                   float thickness, /* Only used if is_transmission is true. */
                   float3 P,

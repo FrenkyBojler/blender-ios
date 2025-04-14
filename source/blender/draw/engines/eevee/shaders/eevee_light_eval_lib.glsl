@@ -105,7 +105,7 @@ void light_eval_single_closure(LightData light,
                                float3 V,
                                float attenuation,
                                float shadow,
-                               const bool is_transmission)
+                               constexpr bool is_transmission)
 {
   attenuation *= light_power_get(light, cl.type);
   if (attenuation < 1e-30f) {
@@ -119,8 +119,8 @@ void light_eval_single_closure(LightData light,
 }
 
 void light_eval_single(uint l_idx,
-                       const bool is_directional,
-                       const bool is_transmission,
+                       constexpr bool is_directional,
+                       constexpr bool is_transmission,
                        inout ClosureLightStack stack,
                        float3 P,
                        float3 Ng,

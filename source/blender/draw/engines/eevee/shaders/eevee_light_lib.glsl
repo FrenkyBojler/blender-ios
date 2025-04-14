@@ -22,7 +22,7 @@ struct LightVector {
   float dist;
 };
 
-LightVector light_vector_get(LightData light, const bool is_directional, float3 P)
+LightVector light_vector_get(LightData light, constexpr bool is_directional, float3 P)
 {
   LightVector lv;
   if (is_directional) {
@@ -39,7 +39,7 @@ LightVector light_vector_get(LightData light, const bool is_directional, float3 
 }
 
 /* Light vector to the closest point in the light shape. */
-LightVector light_shape_vector_get(LightData light, const bool is_directional, float3 P)
+LightVector light_shape_vector_get(LightData light, constexpr bool is_directional, float3 P)
 {
   if (!is_directional && is_area_light(light.type)) {
     LightAreaData area = light_area_data_get(light);
@@ -94,7 +94,7 @@ float light_spot_attenuation(LightData light, float3 L)
   return (lL.z > 0.0f) ? spotmask : 0.0f;
 }
 
-float light_attenuation_common(LightData light, const bool is_directional, float3 L)
+float light_attenuation_common(LightData light, constexpr bool is_directional, float3 L)
 {
   if (is_directional) {
     return 1.0f;
@@ -127,7 +127,7 @@ float light_shape_radius(LightData light)
  * Ng is ideally the geometric normal.
  */
 float light_attenuation_facing(
-    LightData light, float3 L, float distance_to_light, float3 Ng, const bool is_transmission)
+    LightData light, float3 L, float distance_to_light, float3 Ng, constexpr bool is_transmission)
 {
   /* Sine of angle between light center and light edge. */
   float sin_solid_angle = light_shape_radius(light) / distance_to_light;
@@ -139,7 +139,7 @@ float light_attenuation_facing(
   return saturate((dist + 0.1f) * 10.0f);
 }
 
-float light_attenuation_surface(LightData light, const bool is_directional, LightVector lv)
+float light_attenuation_surface(LightData light, constexpr bool is_directional, LightVector lv)
 {
   float result = light_attenuation_common(light, is_directional, lv.L);
   if (!is_directional) {
@@ -149,7 +149,7 @@ float light_attenuation_surface(LightData light, const bool is_directional, Ligh
   return result;
 }
 
-float light_attenuation_volume(LightData light, const bool is_directional, LightVector lv)
+float light_attenuation_volume(LightData light, constexpr bool is_directional, LightVector lv)
 {
   float result = light_attenuation_common(light, is_directional, lv.L);
   if (!is_directional) {
@@ -161,7 +161,7 @@ float light_attenuation_volume(LightData light, const bool is_directional, Light
 
 /* Cheaper alternative than evaluating the LTC.
  * The result needs to be multiplied by BSDF or Phase Function. */
-float light_point_light(LightData light, const bool is_directional, LightVector lv)
+float light_point_light(LightData light, constexpr bool is_directional, LightVector lv)
 {
   if (is_directional) {
     return 1.0f;

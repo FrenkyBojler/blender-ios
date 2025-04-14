@@ -45,19 +45,19 @@ float2 calc_barycentric_co(int vertid)
 float3 orco_get(float3 local_pos,
                 float4x4 modelmatinv,
                 float4 orco_madd[2],
-                const samplerBuffer orco_samp)
+                constexpr samplerBuffer orco_samp)
 {
   /* TODO: fix ORCO with modifiers. */
   float3 orco = (modelmatinv * float4(local_pos, 1.0f)).xyz;
   return orco_madd[0].xyz + orco * orco_madd[1].xyz;
 }
 
-float hair_len_get(int id, const samplerBuffer len)
+float hair_len_get(int id, constexpr samplerBuffer len)
 {
   return texelFetch(len, id).x;
 }
 
-float4 tangent_get(const samplerBuffer attr, float3x3 normalmat)
+float4 tangent_get(constexpr samplerBuffer attr, float3x3 normalmat)
 {
   /* Unsupported */
   return float4(0.0f);
@@ -86,7 +86,7 @@ float3 orco_get(float3 local_pos, float4x4 modelmatinv, float4 orco_madd[2], flo
   }
 }
 
-float hair_len_get(int id, const float len)
+float hair_len_get(int id, constexpr float len)
 {
   return len;
 }

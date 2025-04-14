@@ -51,7 +51,7 @@ VertOut vertex_main(VertIn v_in)
   vert_out.hs_P.xy = floor(vert_out.hs_P.xy * half_viewport_res) / half_viewport_res +
                      half_pixel_offset;
 
-  const uint selection_flag = use_edge_select ? uint(EDGE_UV_SELECT) : uint(VERT_UV_SELECT);
+  constexpr uint selection_flag = use_edge_select ? uint(EDGE_UV_SELECT) : uint(VERT_UV_SELECT);
   vert_out.selected = flag_test(v_in.flag, selection_flag);
 
   /* Move selected edges to the top so that they occlude unselected edges.
@@ -85,7 +85,7 @@ void export_vertex(GeomOut geom_out)
   gl_Position = geom_out.gpu_position;
 }
 
-void strip_EmitVertex(const uint strip_index,
+void strip_EmitVertex(constexpr uint strip_index,
                       uint out_vertex_id,
                       uint out_primitive_id,
                       GeomOut geom_out)
@@ -156,16 +156,16 @@ void geometry_main(VertOut geom_in[2],
 void main()
 {
   /* Line list primitive. */
-  const uint input_primitive_vertex_count = 2u;
+  constexpr uint input_primitive_vertex_count = 2u;
   /* Triangle list primitive. */
-  const uint ouput_primitive_vertex_count = 3u;
-  const uint ouput_primitive_count = 2u;
-  const uint ouput_invocation_count = 1u;
+  constexpr uint ouput_primitive_vertex_count = 3u;
+  constexpr uint ouput_primitive_count = 2u;
+  constexpr uint ouput_invocation_count = 1u;
 
-  const uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                  ouput_primitive_vertex_count;
-  const uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                       ouput_invocation_count;
+  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
+                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
+                                                           ouput_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;

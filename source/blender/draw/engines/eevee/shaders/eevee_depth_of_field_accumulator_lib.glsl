@@ -144,8 +144,8 @@ void dof_gather_accumulate_sample_pair(DofGatherData pair_data[2],
                                        float bordering_radius,
                                        float intersection_multiplier,
                                        bool first_ring,
-                                       const bool do_fast_gather,
-                                       const bool is_foreground,
+                                       constexpr bool do_fast_gather,
+                                       constexpr bool is_foreground,
                                        inout DofGatherData ring_data,
                                        inout DofGatherData accum_data)
 {
@@ -158,9 +158,9 @@ void dof_gather_accumulate_sample_pair(DofGatherData pair_data[2],
   }
 
 #if 0
-  const float mirroring_threshold = -dof_layer_threshold - dof_layer_offset;
+  constexpr float mirroring_threshold = -dof_layer_threshold - dof_layer_offset;
   /* TODO(fclem) Promote to parameter? dither with Noise? */
-  const float mirroring_min_distance = 15.0f;
+  constexpr float mirroring_min_distance = 15.0f;
   if (pair_data[0].coc < mirroring_threshold &&
       (pair_data[1].coc - mirroring_min_distance) > pair_data[0].coc)
   {
@@ -202,9 +202,9 @@ void dof_gather_accumulate_sample_pair(DofGatherData pair_data[2],
 void dof_gather_accumulate_sample_ring(DofGatherData ring_data,
                                        int sample_count,
                                        bool first_ring,
-                                       const bool do_fast_gather,
+                                       constexpr bool do_fast_gather,
                                        /* accum_data occludes the ring_data if true. */
-                                       const bool reversed_occlusion,
+                                       constexpr bool reversed_occlusion,
                                        inout DofGatherData accum_data)
 {
   if (do_fast_gather) {
@@ -278,7 +278,7 @@ void dof_gather_accumulate_sample_ring(DofGatherData ring_data,
 /* FIXME(fclem) Seems to be wrong since it needs `ringcount + 1` as input for
  * slight-focus gather. */
 /* This should be replaced by web_sample_count_get() but doing so is breaking other things. */
-int dof_gather_total_sample_count(const int ring_count, const int ring_density)
+int dof_gather_total_sample_count(constexpr int ring_count, constexpr int ring_density)
 {
   return (ring_count * ring_count - ring_count) * ring_density + 1;
 }
@@ -286,9 +286,9 @@ int dof_gather_total_sample_count(const int ring_count, const int ring_density)
 void dof_gather_accumulate_center_sample(DofGatherData center_data,
                                          float bordering_radius,
                                          int i_radius,
-                                         const bool do_fast_gather,
-                                         const bool is_foreground,
-                                         const bool is_resolve,
+                                         constexpr bool do_fast_gather,
+                                         constexpr bool is_foreground,
+                                         constexpr bool is_resolve,
                                          inout DofGatherData accum_data)
 {
   float layer_weight = dof_layer_weight(center_data.coc, is_foreground);
@@ -337,8 +337,8 @@ void dof_gather_accumulate_center_sample(DofGatherData center_data,
   }
 }
 
-int dof_gather_total_sample_count_with_density_change(const int ring_count,
-                                                      const int ring_density,
+int dof_gather_total_sample_count_with_density_change(constexpr int ring_count,
+                                                      constexpr int ring_density,
                                                       int density_change)
 {
   int sample_count_per_density_change = dof_gather_total_sample_count(ring_count, ring_density) -
@@ -426,7 +426,7 @@ void dof_gather_init(float base_radius,
 
   /* TODO(fclem) Seems like the default lod selection is too big. Bias to avoid blocky moving out
    * of focus shapes. */
-  const float lod_bias = -2.0f;
+  constexpr float lod_bias = -2.0f;
   lod = max(floor(log2(base_radius * unit_sample_radius) + 0.5f) + lod_bias, 0.0f);
 
   if (no_gather_mipmaps) {
@@ -442,8 +442,8 @@ void dof_gather_accumulator(sampler2D color_tx,
                             sampler2D bkh_lut_tx, /* Renamed because of ugly macro. */
                             float base_radius,
                             float min_intersectable_radius,
-                            const bool do_fast_gather,
-                            const bool do_density_change,
+                            constexpr bool do_fast_gather,
+                            constexpr bool do_density_change,
                             out float4 out_color,
                             out float out_weight,
                             out float2 out_occlusion)
@@ -547,8 +547,8 @@ void dof_gather_accumulator(sampler2D color_tx,
         ring += gather_density_change_ring;
         /* We need to account for the density change in the weights (slide 62).
          * For that multiply old kernel data by its area divided by the new kernel area. */
-        const float outer_rings_weight = 1.0f /
-                                         (radius_downscale_factor * radius_downscale_factor);
+        constexpr float outer_rings_weight = 1.0f /
+                                             (radius_downscale_factor * radius_downscale_factor);
         /* Samples are already weighted per ring in foreground pass. */
         if (!IS_FOREGROUND) {
           dof_gather_amend_weight(accum_data, outer_rings_weight);
@@ -628,7 +628,7 @@ void dof_slight_focus_gather(depth2D depth_tx,
 
   int i_radius = clamp(int(radius), 0, int(dof_layer_threshold));
 
-  const float sample_count_max = float(DOF_SLIGHT_FOCUS_SAMPLE_MAX);
+  constexpr float sample_count_max = float(DOF_SLIGHT_FOCUS_SAMPLE_MAX);
   /* Scale by search area. */
   float sample_count = sample_count_max * saturate(square(radius) / square(dof_layer_threshold));
 
@@ -657,7 +657,7 @@ void dof_slight_focus_gather(depth2D depth_tx,
     }
 
     float bordering_radius = ring_dist + 0.5f;
-    const float isect_mul = 1.0f;
+    constexpr float isect_mul = 1.0f;
     DofGatherData bg_ring = GATHER_DATA_INIT;
     dof_gather_accumulate_sample_pair(
         pair_data, bordering_radius, isect_mul, first_ring, false, false, bg_ring, bg_accum);

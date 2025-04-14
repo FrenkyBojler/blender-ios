@@ -26,7 +26,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_volume_scatter)
 #ifdef VOLUME_LIGHTING
 
 float3 volume_light_eval(
-    const bool is_directional, float3 P, float3 V, uint l_idx, float s_anisotropy)
+    constexpr bool is_directional, float3 P, float3 V, uint l_idx, float s_anisotropy)
 {
   LightData light = light_buf[l_idx];
 

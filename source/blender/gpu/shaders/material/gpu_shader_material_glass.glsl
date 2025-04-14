@@ -7,7 +7,7 @@ void node_bsdf_glass(float4 color,
                      float ior,
                      float3 N,
                      float weight,
-                     const float do_multiscatter,
+                     constexpr float do_multiscatter,
                      out Closure result)
 {
   color = max(color, float4(0.0f));

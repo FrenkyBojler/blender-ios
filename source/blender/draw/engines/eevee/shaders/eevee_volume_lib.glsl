@@ -186,7 +186,7 @@ SphericalHarmonicL1 volume_phase_function_as_sh_L1(float3 V, float g)
   return sh;
 }
 
-float3 volume_light(LightData light, const bool is_directional, LightVector lv)
+float3 volume_light(LightData light, constexpr bool is_directional, LightVector lv)
 {
   float power = 1.0f;
   if (!is_directional) {
@@ -214,7 +214,7 @@ float3 volume_light(LightData light, const bool is_directional, LightVector lv)
 #define VOLUMETRIC_SHADOW_MAX_STEP 128.0f
 
 float3 volume_shadow(
-    LightData ld, const bool is_directional, float3 P, LightVector lv, sampler3D extinction_tx)
+    LightData ld, constexpr bool is_directional, float3 P, LightVector lv, sampler3D extinction_tx)
 {
 #if defined(VOLUME_SHADOW)
   if (uniform_buf.volumes.shadow_steps == 0) {

@@ -77,10 +77,10 @@ HorizonScanResult horizon_scan_eval(float3 vP,
                                     float thickness_near,
                                     float thickness_far,
                                     float angle_bias,
-                                    const int slice_count,
-                                    const int sample_count,
-                                    const bool reversed,
-                                    const bool ao_only)
+                                    constexpr int slice_count,
+                                    constexpr int sample_count,
+                                    constexpr bool reversed,
+                                    constexpr bool ao_only)
 {
   float3 vV = drw_view_incident_vector(vP);
 
@@ -160,7 +160,7 @@ HorizonScanResult horizon_scan_eval(float3 vP,
         }
 
         /* Bias depth a bit to avoid self shadowing issues. */
-        const float bias = 2.0f * 2.4e-7f;
+        constexpr float bias = 2.0f * 2.4e-7f;
         sample_depth += reversed ? -bias : bias;
 
         float3 vP_sample_front = drw_point_screen_to_view(float3(sample_uv, sample_depth));

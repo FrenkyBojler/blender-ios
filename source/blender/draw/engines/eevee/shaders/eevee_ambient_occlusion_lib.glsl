@@ -93,9 +93,9 @@ float ambient_ambient_occlusion_search_horizon(float3 vI,
                                                float noise,
                                                ScreenSpaceRay ssray,
                                                sampler2D depth_tx,
-                                               const float inverted,
+                                               constexpr float inverted,
                                                float radius,
-                                               const float sample_count)
+                                               constexpr float sample_count)
 {
   /* Init at cos(M_PI). */
   float h = (inverted != 0.0f) ? 1.0f : -1.0f;
@@ -124,7 +124,7 @@ float ambient_ambient_occlusion_search_horizon(float3 vI,
     }
 
     /* Bias depth a bit to avoid self shadowing issues. */
-    const float bias = 2.0f * 2.4e-7f;
+    constexpr float bias = 2.0f * 2.4e-7f;
     depth += (inverted != 0.0f) ? -bias : bias;
 
     float3 s = drw_point_screen_to_view(float3(uv, depth));
@@ -153,8 +153,8 @@ OcclusionData ambient_occlusion_search(float3 vP,
                                        sampler2D depth_tx,
                                        int2 texel,
                                        float radius,
-                                       const float inverted,
-                                       const float dir_sample_count)
+                                       constexpr float inverted,
+                                       constexpr float dir_sample_count)
 {
   float2 noise = ambient_occlusion_get_noise(texel);
   float2 dir = ambient_occlusion_get_dir(noise.x);
@@ -190,10 +190,10 @@ OcclusionData ambient_occlusion_search(float3 vP,
 
 float2 ambient_occlusion_clamp_horizons_to_hemisphere(float2 horizons,
                                                       float angle_N,
-                                                      const float inverted)
+                                                      constexpr float inverted)
 {
   /* Add a little bias to fight self shadowing. */
-  const float max_angle = M_PI_2 - 0.05f;
+  constexpr float max_angle = M_PI_2 - 0.05f;
 
   if (inverted != 0.0f) {
     horizons.x = max(horizons.x, angle_N + max_angle);
@@ -211,7 +211,7 @@ void ambient_occlusion_eval(OcclusionData data,
                             float3 V,
                             float3 N,
                             float3 Ng,
-                            const float inverted,
+                            constexpr float inverted,
                             out float visibility,
                             out float visibility_error,
                             out float3 bent_normal)
@@ -395,7 +395,7 @@ float ambient_occlusion_specular(
   float vis_angle = acos_fast(sqrt(1 - visibility));
   /* Roughness to cone angle (eq. 26). */
   /* A 0.001 min_angle can generate NaNs on Intel GPUs. See D12508. */
-  const float min_angle = 0.00990998744964599609375f;
+  constexpr float min_angle = 0.00990998744964599609375f;
   float spec_angle = max(min_angle, acos_fast(ambient_occlusion_cone_cosine(roughness)));
   /* Angle between cone axes. */
   float cone_cone_dist = acos_fast(saturate(dot(visibility_dir, specular_dir)));

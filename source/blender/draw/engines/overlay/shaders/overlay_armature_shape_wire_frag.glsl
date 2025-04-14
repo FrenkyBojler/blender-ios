@@ -37,7 +37,7 @@ void main()
   float half_size = (do_smooth_wire ? wire_width - 0.5f : wire_width) / 2.0f;
 
   float dist = abs(edgeCoord) - half_size;
-  const float mix_w = clamp(edge_step(dist), 0.0f, 1.0f);
+  constexpr float mix_w = clamp(edge_step(dist), 0.0f, 1.0f);
 
   fragColor = mix(float4(finalColor.rgb, alpha), float4(0), mix_w);
   fragColor.a *= 1.0f - mix_w;

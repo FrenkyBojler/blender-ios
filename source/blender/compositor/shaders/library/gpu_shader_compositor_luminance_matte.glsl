@@ -7,7 +7,7 @@
 void node_composite_luminance_matte(float4 color,
                                     float high,
                                     float low,
-                                    const float3 luminance_coefficients,
+                                    constexpr float3 luminance_coefficients,
                                     out float4 result,
                                     out float matte)
 {

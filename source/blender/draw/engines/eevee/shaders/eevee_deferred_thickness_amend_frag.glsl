@@ -23,7 +23,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_thickness_amend)
 #include "eevee_thickness_lib.glsl"
 
 void thickness_from_shadow_single(uint l_idx,
-                                  const bool is_directional,
+                                  constexpr bool is_directional,
                                   float3 P,
                                   float3 Ng,
                                   float gbuffer_thickness,
@@ -115,7 +115,7 @@ void main()
 
   /* Bias the shading point position because of depth buffer precision.
    * Constant is taken from https://www.terathon.com/gdc07_lengyel.pdf. */
-  const float bias = 2.4e-7f;
+  constexpr float bias = 2.4e-7f;
   depth -= bias;
 
   float3 P = drw_point_screen_to_world(float3(uvcoordsvar.xy, depth));

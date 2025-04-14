@@ -46,7 +46,7 @@ float bxdf_ggx_smith_G1(float NX, float a2)
  *
  * \return: the sampled direction and the pdf of sampling the direction.
  */
-BsdfSample bxdf_ggx_sample_reflection(float3 rand, float3 Vt, float alpha, const bool do_clamp)
+BsdfSample bxdf_ggx_sample_reflection(float3 rand, float3 Vt, float alpha, bool do_clamp)
 {
   if (do_clamp && alpha < square(BSDF_ROUGHNESS_THRESHOLD)) {
     BsdfSample samp;
@@ -97,7 +97,7 @@ BsdfSample bxdf_ggx_sample_reflection(float3 rand, float3 Vt, float alpha, const
 
 /* Evaluate the GGX BRDF without the Fresnel term, multiplied by the cosine foreshortening term.
  * Also evaluate the probability of sampling the reflection direction. */
-BsdfEval bxdf_ggx_eval_reflection(float3 N, float3 L, float3 V, float alpha, const bool do_clamp)
+BsdfEval bxdf_ggx_eval_reflection(float3 N, float3 L, float3 V, float alpha, bool do_clamp)
 {
   float NV = dot(N, V);
   if (NV <= 0.0f) {
@@ -197,7 +197,7 @@ float3 bxdf_ggx_sample_vndf(float3 rand, float3 Vt, float alpha, out float G_V)
  * \return: the sampled direction and the pdf of sampling the direction.
  */
 BsdfSample bxdf_ggx_sample_refraction(
-    float3 rand, float3 Vt, float alpha, float ior, float thickness, const bool do_clamp)
+    float3 rand, float3 Vt, float alpha, float ior, float thickness, constexpr bool do_clamp)
 {
   if (thickness != 0.0f) {
     /* The incoming ray is inside the material for the second refraction event. */
@@ -233,7 +233,7 @@ BsdfSample bxdf_ggx_sample_refraction(
 /* Evaluate the GGX BTDF without the Fresnel term, multiplied by the cosine foreshortening term.
  * Also evaluate the probability of sampling the refraction direction. */
 BsdfEval bxdf_ggx_eval_refraction(
-    float3 N, float3 L, float3 V, float alpha, float ior, float thickness, const bool do_clamp)
+    float3 N, float3 L, float3 V, float alpha, float ior, float thickness, constexpr bool do_clamp)
 {
   if (thickness != 0.0f) {
     ior = 1.0f / ior;

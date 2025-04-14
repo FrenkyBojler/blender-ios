@@ -25,17 +25,17 @@ SHADER_LIBRARY_CREATE_INFO(eevee_sampling_data)
 
 #ifdef EEVEE_SAMPLING_DATA
 
-float sampling_rng_1D_get(const eSamplingDimension dimension)
+float sampling_rng_1D_get(constexpr eSamplingDimension dimension)
 {
   return sampling_buf.dimensions[dimension];
 }
 
-float2 sampling_rng_2D_get(const eSamplingDimension dimension)
+float2 sampling_rng_2D_get(constexpr eSamplingDimension dimension)
 {
   return float2(sampling_buf.dimensions[dimension], sampling_buf.dimensions[dimension + 1u]);
 }
 
-float3 sampling_rng_3D_get(const eSamplingDimension dimension)
+float3 sampling_rng_3D_get(constexpr eSamplingDimension dimension)
 {
   return float3(sampling_buf.dimensions[dimension],
                 sampling_buf.dimensions[dimension + 1u],

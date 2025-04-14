@@ -302,7 +302,7 @@ void mix_linear(float fac, float4 col1, float4 col2, out float4 outcol)
   outcol.a = col1.a;
 }
 
-void clamp_color(float4 vec, const float4 min, const float4 max, out float4 out_vec)
+void clamp_color(float4 vec, constexpr float4 min, constexpr float4 max, out float4 out_vec)
 {
   out_vec = clamp(vec, min, max);
 }

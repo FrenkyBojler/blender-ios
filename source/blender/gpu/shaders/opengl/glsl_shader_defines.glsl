@@ -157,5 +157,5 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 
 #define _enum_dummy /* Needed to please `glslang`. */
 #define _enum_type(name) uint
-#define _enum_decl(name) const uint
+#define _enum_decl(name) constexpr uint
 #define _enum_end _enum_dummy;

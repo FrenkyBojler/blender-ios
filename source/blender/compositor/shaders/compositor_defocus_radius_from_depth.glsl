@@ -16,7 +16,7 @@ void main()
   float depth = texture_load(depth_tx, texel).x;
 
   /* Compute `Vu` in equation (7). */
-  const float distance_to_image_of_object = (focal_length * depth) / (depth - focal_length);
+  constexpr float distance_to_image_of_object = (focal_length * depth) / (depth - focal_length);
 
   /* Compute C in equation (8). Notice that the last multiplier was included in the absolute since
    * it is negative when the object distance is less than the focal length, as noted in equation

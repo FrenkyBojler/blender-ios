@@ -5,8 +5,8 @@
 void node_ambient_occlusion(float4 color,
                             float dist,
                             float3 normal,
-                            const float inverted,
-                            const float sample_count,
+                            constexpr float inverted,
+                            constexpr float sample_count,
                             out float4 result_color,
                             out float result_ao)
 {

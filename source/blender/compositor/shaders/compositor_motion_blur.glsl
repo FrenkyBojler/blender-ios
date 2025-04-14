@@ -71,7 +71,7 @@ void gather_sample(float2 screen_uv,
                    float center_motion_len,
                    float2 offset,
                    float offset_len,
-                   const bool next,
+                   constexpr bool next,
                    inout Accumulator accum)
 {
   float2 sample_uv = screen_uv - offset / float2(texture_size(input_tx));
@@ -98,7 +98,7 @@ void gather_blur(float2 screen_uv,
                  float center_depth,
                  float2 max_motion,
                  float ofs,
-                 const bool next,
+                 constexpr bool next,
                  inout Accumulator accum)
 {
   float center_motion_len = length(center_motion);
