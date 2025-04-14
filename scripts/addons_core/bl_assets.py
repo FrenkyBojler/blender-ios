@@ -19,13 +19,13 @@ import logging
 import urllib.parse
 from enum import Enum
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TypeAlias
 
 import bpy
 
 from _bpy_internal.assets.remote_library_index import index_common
 from _bpy_internal.assets.remote_library_index import blender_asset_library_openapi as api_models
-from _bpy_internal.http.downloader import RequestDescription, CachingDownloader, BackgroundDownloader
+from _bpy_internal.http.downloader import RequestDescription, CachingDownloader, BackgroundDownloader, DownloadCancelled
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,13 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
     _timer: bpy.types.Timer | None
     _state: AssetDownloadState
 
-    _on_done_callback: Callable[[RequestDescription, Path], None] | None
+    # Keep track of which callback to call on the completion of which HTTP request.
+    # This assumes that RequestDescriptions are unique, and not queued up
+    # multiple times simultaneously.
+    DownloadDoneCallback: TypeAlias = Callable[[RequestDescription, Path], None]
+    _on_done_callbacks: dict[RequestDescription, DownloadDoneCallback]
+
+    _num_asset_pages_pending: int
 
     @classmethod
     def poll(cls, context: bpy.types.Context) -> bool:
@@ -59,7 +65,8 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
     def execute(self, context: bpy.types.Context) -> set[str]:
         self._local_path = Path(bpy.app.tempdir) / "dummy_asset_library"
         self._state = AssetDownloadState.STARTING
-        self._on_done_callback = None
+        self._on_done_callbacks = {}
+        self._num_asset_pages_pending = 0
 
         downloader = CachingDownloader(
             metadata_cache_location=self._local_path / "_local-meta-cache",
@@ -77,7 +84,14 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def cancel(self, context: bpy.types.Context) -> None:
-        logger.info("Cancel: Shutting down background downloader")
+        num_pending = self._bg_downloader.num_pending_downloads
+
+        logger.info("Cancel: Shutting down background downloader, %d downloads pending", num_pending)
+        if num_pending:
+            # The shutdown call below will block this thread, so by the time the
+            # report is visible, it's already cancelled.
+            self.report({'WARNING'}, "Cancelled {} pending download".format(num_pending))
+
         self._bg_downloader.shutdown()
 
         wm = context.window_manager
@@ -156,22 +170,44 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         json_data = local_file.read_bytes()
         asset_index = api_models.AssetLibraryIndex.model_validate_json(json_data)
 
-        if asset_index.page_urls is None:
-            asset_index.page_urls = []
+        page_urls = asset_index.page_urls or []
 
         logger.info("    Schema version    : %s", asset_index.schema_version)
         logger.info("    Asset count       : %d", asset_index.asset_count)
-        logger.info("    Pages             : %d", len(asset_index.page_urls))
+        logger.info("    Pages             : %d", len(page_urls))
 
-        # TODO: also download the asset pages.
-        logger.warning("Implementation stops here, much TODO")
-        self._state = AssetDownloadState.DONE
+        # Download the asset pages.
+        self._num_asset_pages_pending = len(page_urls)
+        for page_index, page_url in enumerate(page_urls):
+            # These URLs may be absolute or they may be relative. In any case,
+            # do not assume that they can be used direclty as local filesystem path.
+            local_path = index_common.api_versioned(f"assets-{page_index:05}.json")
+            self._queue_download(page_url, local_path, self.on_asset_page_downloaded)
 
-    def _queue_download(self, relative_url: str, relative_path: str,
+    def on_asset_page_downloaded(self,
+                                 http_req_descr: RequestDescription,
+                                 local_file: Path,
+                                 ) -> None:
+        self._num_asset_pages_pending -= 1
+        assert self._num_asset_pages_pending >= 0
+
+        logger.info("Asset index page downloaded: %s", local_file)
+
+        if self._num_asset_pages_pending > 0:
+            # Wait until all files have downloaded.
+            return
+
+        self.report({'INFO'}, "Asset library index downloaded")
+
+    def _queue_download(self, relative_url: str, relative_path: Path | str,
                         on_done: Callable[[RequestDescription, Path], None]) -> None:
         remote_url = urllib.parse.urljoin(self.url, relative_url)
         local_path = self._local_path / relative_path
-        self._on_done_callback = on_done
+
+        http_req_descr = RequestDescription(http_method='GET', url=remote_url)
+        assert http_req_descr not in self._on_done_callbacks
+        self._on_done_callbacks[http_req_descr] = on_done
+
         self._bg_downloader.queue_download(remote_url, local_path)
 
     def _on_download_finished(
@@ -179,10 +215,9 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         http_req_descr: RequestDescription,
         local_file: Path,
     ) -> None:
-        if not self._on_done_callback:
-            raise ValueError("download done, but no idea what to do now")
-        logger.info("download done, calling %s", self._on_done_callback.__name__)
-        self._on_done_callback(http_req_descr, local_file)
+        callback = self._on_done_callbacks.pop(http_req_descr)
+        logger.info("download done, calling %s", callback.__name__)
+        callback(http_req_descr, local_file)
 
     # Below here: CachingDownloadReporter functions:
 
@@ -201,7 +236,12 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         http_req_descr: RequestDescription,
         error: Exception,
     ) -> None:
-        self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
+        if isinstance(error, DownloadCancelled):
+            # Don't report here, because the 'cancel' function itself already reports a warning.
+            pass
+        else:
+            self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
+
         # TODO: pass the context into bg_downloader.update() so that it can be passed to here.
         self.cancel(bpy.context)
 
@@ -212,7 +252,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         downloaded_bytes: int,
     ) -> None:
         percentage = downloaded_bytes / content_length_bytes * 100
-        self.report({'INFO'}, "Download progress: {:.0f}%".format(percentage))
+        self.report({'INFO'}, "File download progress: {:.0f}%".format(percentage))
 
     def download_finished(
         self,

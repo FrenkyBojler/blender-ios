@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 _http_retries = urllib3.util.retry.Retry(
-    total=10,
+    total=8,  # Times,
     backoff_factor=0.05,
 )
 _http_adapter = requests.adapters.HTTPAdapter(max_retries=_http_retries)
@@ -473,6 +473,10 @@ class BackgroundDownloader:
     def all_downloads_done(self) -> bool:
         return self._num_pending_downloads == 0
 
+    @property
+    def num_pending_downloads(self) -> int:
+        return self._num_pending_downloads
+
     def clear_download_counts(self) -> None:
         """Resets the number of ok/error downloads."""
 
@@ -628,6 +632,7 @@ class RequestDescription(pydantic.BaseModel):
     to find the HTTPMetadata file that stores data of previous calls to this
     HTTP requests.
     """
+    model_config = pydantic.ConfigDict(frozen=True)
 
     http_method: str
     url: str
