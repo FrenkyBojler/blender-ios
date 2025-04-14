@@ -90,4 +90,14 @@ UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const 
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context);
 
+[[nodiscard]] ViewerPathElem *viewer_path_elem_for_compute_context(
+    Main &bmain, const ComputeContext &compute_context);
+
+[[nodiscard]] std::optional<ViewerPath> viewer_path_for_compute_context(
+    Main &bmain, const ComputeContext *compute_context);
+[[nodiscard]] const ComputeContext *compute_context_for_viewer_path(
+    const ViewerPath &viewer_path,
+    bke::ComputeContextCache &compute_context_cache,
+    const ComputeContext *parent_compute_context);
+
 }  // namespace blender::ed::viewer_path

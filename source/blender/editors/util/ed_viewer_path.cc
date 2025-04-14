@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "ED_viewer_path.hh"
+#include "BKE_lib_id.hh"
 #include "ED_screen.hh"
 
 #include "BKE_compute_context_cache.hh"
@@ -31,6 +32,90 @@ namespace blender::ed::viewer_path {
 
 using bke::bNodeTreeZone;
 using bke::bNodeTreeZones;
+
+std::optional<ViewerPath> viewer_path_for_compute_context(Main &bmain,
+                                                          const ComputeContext *compute_context)
+{
+  ViewerPath path;
+  for (const ComputeContext *context = compute_context; context; context = context->parent()) {
+    ViewerPathElem *elem = viewer_path_elem_for_compute_context(bmain, *context);
+    if (!elem) {
+      BKE_viewer_path_clear(&path);
+      return std::nullopt;
+    }
+    BLI_addhead(&path.path, elem);
+  }
+  return path;
+}
+
+const ComputeContext *compute_context_for_viewer_path(
+    const ViewerPath &viewer_path,
+    bke::ComputeContextCache &compute_context_cache,
+    const ComputeContext *parent_compute_context)
+{
+  const ComputeContext *current = parent_compute_context;
+  LISTBASE_FOREACH (const ViewerPathElem *, elem, &viewer_path.path) {
+    current = compute_context_for_viewer_path_elem(*elem, compute_context_cache, current);
+    if (!current) {
+      return nullptr;
+    }
+  }
+  return current;
+}
+
+ViewerPathElem *viewer_path_elem_for_compute_context(Main &bmain,
+                                                     const ComputeContext &compute_context)
+{
+  if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(&compute_context)) {
+    ModifierViewerPathElem *elem = BKE_viewer_path_elem_new_modifier();
+    elem->modifier_name = BLI_strdup(context->modifier_name().c_str());
+    return &elem->base;
+  }
+  if (const auto *context = dynamic_cast<const bke::GroupNodeComputeContext *>(&compute_context)) {
+    GroupNodeViewerPathElem *elem = BKE_viewer_path_elem_new_group_node();
+    elem->node_id = context->node_id();
+    return &elem->base;
+  }
+  if (const auto *context = dynamic_cast<const bke::SimulationZoneComputeContext *>(
+          &compute_context))
+  {
+    SimulationZoneViewerPathElem *elem = BKE_viewer_path_elem_new_simulation_zone();
+    elem->sim_output_node_id = context->output_node_id();
+    return &elem->base;
+  }
+  if (const auto *context = dynamic_cast<const bke::RepeatZoneComputeContext *>(&compute_context))
+  {
+    RepeatZoneViewerPathElem *elem = BKE_viewer_path_elem_new_repeat_zone();
+    elem->repeat_output_node_id = context->output_node_id();
+    elem->iteration = context->iteration();
+    return &elem->base;
+  }
+  if (const auto *context = dynamic_cast<const bke::ForeachGeometryElementZoneComputeContext *>(
+          &compute_context))
+  {
+    ForeachGeometryElementZoneViewerPathElem *elem =
+        BKE_viewer_path_elem_new_foreach_geometry_element_zone();
+    elem->zone_output_node_id = context->output_node_id();
+    elem->index = context->index();
+    return &elem->base;
+  }
+  if (const auto *context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
+          &compute_context))
+  {
+    EvaluateClosureNodeViewerPathElem *elem = BKE_viewer_path_elem_new_evaluate_closure();
+    elem->evaluate_node_id = context->node_id();
+    if (const std::optional<nodes::ClosureSourceLocation> &source =
+            context->closure_source_location())
+    {
+      elem->source_output_node_id = source->closure_output_node_id;
+      bNodeTree *tree = reinterpret_cast<bNodeTree *>(
+          BKE_libblock_find_session_uid(&bmain, ID_NT, source->orig_node_tree_session_uid));
+      elem->source_node_tree = tree;
+    }
+    return &elem->base;
+  }
+  return nullptr;
+}
 
 static ViewerPathElem *viewer_path_elem_for_zone(const bNodeTreeZone &zone)
 {
@@ -389,20 +474,20 @@ bool exists_geometry_nodes_viewer(const ViewerPathForGeometryNodesViewer &parsed
         if (parent_zone != zone) {
           return false;
         }
-        if (!typed_elem.closure_tree) {
+        if (!typed_elem.source_node_tree) {
           return false;
         }
-        const bNode *closure_output_node = typed_elem.closure_tree->node_by_id(
-            typed_elem.closure_output_node_id);
+        const bNode *closure_output_node = typed_elem.source_node_tree->node_by_id(
+            typed_elem.source_output_node_id);
         if (!closure_output_node) {
           return false;
         }
-        ngroup = typed_elem.closure_tree;
-        const bNodeTreeZones *closure_tree_zones = typed_elem.closure_tree->zones();
+        ngroup = typed_elem.source_node_tree;
+        const bNodeTreeZones *closure_tree_zones = typed_elem.source_node_tree->zones();
         if (!closure_tree_zones) {
           return false;
         }
-        zone = closure_tree_zones->get_zone_by_node(typed_elem.closure_output_node_id);
+        zone = closure_tree_zones->get_zone_by_node(typed_elem.source_output_node_id);
         break;
       }
       default: {
