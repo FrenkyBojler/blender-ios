@@ -149,6 +149,9 @@ def osl_param_ensure_property(ccam, param):
         'min': 'min', 'max': 'max',
         'slidermin': 'soft_min', 'slidermax': 'soft_max',
     }
+    if 'sensitivity' in metadata:
+        # Blender divides this value by 100 by convention, so counteract that.
+        metadata['sensitivity'] *= 100
     for option, value in metadata.items():
         if option in option_map:
             ui.update(**{option_map[option]: value})
