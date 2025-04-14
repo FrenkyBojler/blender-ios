@@ -162,10 +162,10 @@ bool operator==(const VariableParseError &left, const VariableParseError &right)
 /**
  * Validate the variable syntax in the given path.
  *
- * This does *not* validate whether the variables referenced in the given path
- * exist or not, nor whether the formatting specification in a variable
- * expression is appropriate for its type. This only validates what can be
- * validated without knowing anything about the variables themselves.
+ * This does *not* validate whether the variables referenced in the path exist
+ * or not, nor whether the formatting specification in a variable expression is
+ * appropriate for its type. This only validates what can be validated without
+ * knowing anything about the variables themselves.
  *
  * \return An empty vector if valid, or a vector of the parse errors if invalid.
  */
@@ -178,19 +178,10 @@ blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::String
  * with a total allocation size of at least `FILE_MAX` bytes.
  *
  * The syntax for variable expressions is `{variable_name}` or
- * {variable_name:format_spec}`. They will be substituted with the respective
- * variable value if and only if both of the following hold true:
- *
- * - A variable with that name exists in the passed VariableMap.
- * - The format spec (if any is provided) is syntactically correct and applies
- *   to the variable's type.
- *
- * Otherwise it will be skipped and left as-is, as an indication that it
- * couldn't be processed.
- *
- * The format specification syntax currently only applies to numerical variables
- * (integer or float), and uses hash symbols (#) to indicate the number of
- * digits to print the number with.  It can be in any of the following forms:
+ * {variable_name:format_spec}`. The format specification syntax currently only
+ * applies to numerical variables (integer or float), and uses hash symbols (#)
+ * to indicate the number of digits to print the number with. It can be in any
+ * of the following forms:
  *
  * - `####`: format as an integer with at least 4 digits, padding with zeros as
  *   needed.
@@ -204,9 +195,17 @@ blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::String
  * that this substitution only happens *outside* of the variable syntax, and
  * therefore cannot e.g. be used inside variable names.
  *
- * \return A vector of any errors encountered. If the vector is empty, that
- * means success. Otherwise the path is left unaltered and the errors are
- * returned as a vector.
+ * If any errors are encountered, the path is left unaltered and a list of all
+ * errors encountered is returned. Errors include:
+ *
+ * - Variable expression syntax errors.
+ * - Unescaped curly braces.
+ * - Referenced variables that cannot be found.
+ * - Format specifications that don't apply to the type of variable they're
+ *   paired with.
+ *
+ * \return On success, an empty vector. If there are errors, a vector of all
+ * errors encountered.
  */
 blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
                                                              const VariableMap &variables);

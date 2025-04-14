@@ -553,7 +553,8 @@ static blender::Vector<Token> parse_path(blender::StringRef path)
   return tokens;
 }
 
-/* If the token represents a syntax error, returns that error. Otherwise returns nullopt. */
+/* Convert a token to its corresponding syntax error. If the token doesn't have
+ * an error, returns nullopt. */
 static std::optional<VariableParseError> token_to_syntax_error(const Token &token)
 {
   switch (token.type) {
