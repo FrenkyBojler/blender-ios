@@ -787,6 +787,7 @@ static void *undomesh_from_editmesh(UndoMesh *um, Mesh &mesh, Key *key, UndoMesh
   params.active_shapekey_to_mvert = true;
   BM_mesh_bm_to_me(nullptr, em->bm, &um->mesh, &params);
   BKE_defgroup_copy_list(&um->mesh.vertex_group_names, &mesh.vertex_group_names);
+  um->mesh.vertex_group_active_index = mesh.vertex_group_active_index;
 
   um->selectmode = em->selectmode;
   um->shapenr = em->bm->shapenr;
@@ -859,6 +860,7 @@ static void undomesh_to_editmesh(UndoMesh *um, Object *ob, BMEditMesh *em)
   BM_mesh_bm_from_me(bm, &um->mesh, &convert_params);
   BLI_freelistN(&mesh.vertex_group_names);
   BKE_defgroup_copy_list(&mesh.vertex_group_names, &um->mesh.vertex_group_names);
+  mesh.vertex_group_active_index = um->mesh.vertex_group_active_index;
 
   em_tmp = BKE_editmesh_create(bm);
   *em = *em_tmp;
