@@ -136,7 +136,9 @@ BMLogVert &BMLogVert::operator=(const BMLogVert &other)
 struct BMLogFace {
   std::array<uint, 3> v_ids;
   char hflag;
+
   void *data;
+  blender::Span<CustomDataLayer> layers;
 
   BMLogFace() = default;
   ~BMLogFace();
@@ -145,6 +147,9 @@ struct BMLogFace {
 };
 BMLogFace::~BMLogFace()
 {
+  for (const CustomDataLayer &layer : this->layers) {
+    LayerTypeInfo
+  }
   BLI_assert_msg(this->data == nullptr, "BMLogFace must be cleaned up prior to the destructor...");
 }
 BMLogFace::BMLogFace(const BMLogFace &other)

@@ -3877,6 +3877,24 @@ void CustomData_bmesh_free_block(CustomData *data, void **block)
   *block = nullptr;
 }
 
+void CustomData_bmesh_free_block(const Span<CustomDataLayer> layers, void **block)
+{
+  if (*block == nullptr) {
+    return;
+  }
+
+  for (const CustomDataLayer &layer : layers) {
+    const LayerTypeInfo *typeInfo = layerType_getInfo(eCustomDataType(layer.type));
+
+    if (typeInfo->free) {
+      int offset = layer.offset;
+      typeInfo->free(POINTER_OFFSET(*block, offset), 1);
+    }
+  }
+
+  MEM_SAFE_FREE(*block);
+}
+
 void CustomData_bmesh_free_block_data(CustomData *data, void *block)
 {
   if (block == nullptr) {

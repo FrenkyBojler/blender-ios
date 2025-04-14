@@ -583,7 +583,9 @@ void CustomData_set_layer_flag(CustomData *data, eCustomDataType type, int flag)
 
 void CustomData_bmesh_set_default(CustomData *data, void **block);
 void CustomData_bmesh_free_block(CustomData *data, void **block);
+void CustomData_bmesh_free_block(blender::Span<CustomDataLayer> layers, void **block);
 void CustomData_bmesh_alloc_block(CustomData *data, void **block);
+
 
 /**
  * Same as #CustomData_bmesh_free_block but zero the memory rather than freeing.
