@@ -98,9 +98,24 @@ ENUM_OPERATORS(CPPTypeFlags, CPPTypeFlags::EqualityComparable)
 namespace blender {
 
 class CPPType : NonCopyable, NonMovable {
+ public:
+  /**
+   * Required memory in bytes for an instance of this type.
+   *
+   * C++ equivalent:
+   *   `sizeof(T);`
+   */
+  int64_t size = 0;
+
+  /**
+   * Required memory alignment for an instance of this type.
+   *
+   * C++ equivalent:
+   *   alignof(T);
+   */
+  int64_t alignment = 0;
+
  private:
-  int64_t size_ = 0;
-  int64_t alignment_ = 0;
   uintptr_t alignment_mask_ = 0;
   bool is_trivial_ = false;
   bool is_trivially_destructible_ = false;
@@ -164,22 +179,6 @@ class CPPType : NonCopyable, NonMovable {
    * identifier.
    */
   StringRefNull name() const;
-
-  /**
-   * Required memory in bytes for an instance of this type.
-   *
-   * C++ equivalent:
-   *   `sizeof(T);`
-   */
-  int64_t size() const;
-
-  /**
-   * Required memory alignment for an instance of this type.
-   *
-   * C++ equivalent:
-   *   alignof(T);
-   */
-  int64_t alignment() const;
 
   /**
    * When true, the destructor does not have to be called on this type. This can sometimes be used
@@ -432,8 +431,8 @@ void register_cpp_types();
 
 /* Utility for allocating an uninitialized buffer for a single value of the given #CPPType. */
 #define BUFFER_FOR_CPP_TYPE_VALUE(type, variable_name) \
-  blender::DynamicStackBuffer<64, 64> stack_buffer_for_##variable_name((type).size(), \
-                                                                       (type).alignment()); \
+  blender::DynamicStackBuffer<64, 64> stack_buffer_for_##variable_name((type).size, \
+                                                                       (type).alignment); \
   void *variable_name = stack_buffer_for_##variable_name.buffer();
 
 namespace blender {
@@ -462,16 +461,6 @@ template<typename T> inline const CPPType &CPPType::get()
 inline StringRefNull CPPType::name() const
 {
   return debug_name_;
-}
-
-inline int64_t CPPType::size() const
-{
-  return size_;
-}
-
-inline int64_t CPPType::alignment() const
-{
-  return alignment_;
 }
 
 inline bool CPPType::is_trivially_destructible() const
@@ -792,7 +781,7 @@ inline void CPPType::fill_construct_indices(const void *value,
 inline bool CPPType::can_exist_in_buffer(const int64_t buffer_size,
                                          const int64_t buffer_alignment) const
 {
-  return size_ <= buffer_size && alignment_ <= buffer_alignment;
+  return this->size <= buffer_size && this->alignment <= buffer_alignment;
 }
 
 inline void CPPType::print(const void *value, std::stringstream &ss) const
