@@ -4206,7 +4206,7 @@ void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id)
     if (!BKE_animsys_read_from_rna_path(&anim_rna, &curval)) {
       continue;
     }
-    if (!BKE_animsys_write_to_rna_path(&anim_rna, curval, /*force_setter=*/true)) {
+    if (!BKE_animsys_write_to_rna_path(&anim_rna, curval, /*force_write=*/true)) {
       continue;
     }
 
