@@ -34,10 +34,6 @@
  *   run on different threads.
  */
 
-#include <optional>
-
-#include "BLI_linear_allocator.hh"
-#include "BLI_stack.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_struct_equality_utils.hh"
 

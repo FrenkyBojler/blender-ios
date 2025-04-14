@@ -7,6 +7,7 @@
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_stack.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 
@@ -266,7 +267,7 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
   };
 
   auto log_generic_value = [&](const CPPType &type, const void *value) {
-    void *buffer = this->allocator->allocate(type.size(), type.alignment());
+    void *buffer = this->allocator->allocate(type.size, type.alignment);
     type.copy_construct(value, buffer);
     store_logged_value(this->allocator->construct<GenericValueLog>(GMutablePointer{type, buffer}));
   };
