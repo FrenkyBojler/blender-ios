@@ -7,6 +7,7 @@
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_stack.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 

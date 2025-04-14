@@ -7,6 +7,7 @@
 #include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_compute_contexts.hh"
 
+#include "BLI_linear_allocator.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
 
