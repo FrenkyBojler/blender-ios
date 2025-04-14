@@ -38,9 +38,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Use Tiles")
       .default_value(false)
       .description("Output tiles as single points instead of generating a point for each voxel");
-  b.add_input<decl::Bool>("Use Inactive")
-      .default_value(false)
-      .description("Output inactive voxels and tiles as well");
   b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
 
   b.add_output<decl::Geometry>("Points").description(
