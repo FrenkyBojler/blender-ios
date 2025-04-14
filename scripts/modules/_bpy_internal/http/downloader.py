@@ -9,7 +9,7 @@ import logging
 import queue
 import threading
 from pathlib import Path
-from typing import Protocol, TypeAlias, Any
+from typing import Protocol, TypeAlias, Any, Callable
 
 import pydantic
 import requests
@@ -436,14 +436,25 @@ class BackgroundDownloader:
 
     _logger: logging.Logger = logger.getChild("BackgroundDownloader")
 
-    QueuedDownload: TypeAlias = tuple[str, Path]
+    # Here and below, 'RequestDescription' is quoted because Pylance (used by
+    # VSCode) doesn't fully grasp the `from __future__ import annotations` yet.
+    # Or at least so it seems - it shows these lines in error, while both mypy
+    # is fine with it and at runtime it works.
+    QueuedDownload: TypeAlias = tuple['RequestDescription', Path]
     """Tuple of URL to download, and path to download it to."""
     _queue: queue.Queue[QueuedDownload]
+
+    # Keep track of which callback to call on the completion of which HTTP request.
+    # This assumes that RequestDescriptions are unique, and not queued up
+    # multiple times simultaneously.
+    DownloadDoneCallback: TypeAlias = Callable[['RequestDescription', Path], None]
+    _on_downloaded_callbacks: dict[RequestDescription, DownloadDoneCallback]
 
     def __init__(self, downloader: CachingDownloader) -> None:
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
         self._num_pending_downloads = 0
+        self._on_downloaded_callbacks = {}
 
         # Set up a thread bridge, so that updates are received on the main thread.
         self._thread_bridge = ThreadBridgingReporter()
@@ -465,10 +476,15 @@ class BackgroundDownloader:
         """Add a reporter to receive updates when .update() is called."""
         self._thread_bridge.add_reporter(reporter)
 
-    def queue_download(self, remote_url: str, local_path: Path) -> None:
+    def queue_download(self, remote_url: str, local_path: Path,
+                       on_download_done: DownloadDoneCallback | None = None) -> None:
         """Queue up a download of some URL to a location on disk."""
         self._num_pending_downloads += 1
-        self._queue.put((remote_url, local_path))
+
+        http_req_descr = RequestDescription(http_method='GET', url=remote_url)
+        if on_download_done:
+            self._on_downloaded_callbacks[http_req_descr] = on_download_done
+        self._queue.put((http_req_descr, local_path))
 
     def all_downloads_done(self) -> bool:
         return self._num_pending_downloads == 0
@@ -538,15 +554,18 @@ class BackgroundDownloader:
             except queue.Empty:
                 continue
 
-            remote_url, local_path = queued_download
+            http_req_descr, local_path = queued_download
 
             # Try and download it.
             try:
-                self._downloader.download_to_file(remote_url, local_path)
+                self._downloader.download_to_file(
+                    http_req_descr.url,
+                    local_path,
+                    http_method=http_req_descr.http_method,)
             except DownloadCancelled:
-                logger.warning("download got cancelled: {}".format(remote_url))
+                logger.warning("download got cancelled: {}".format(http_req_descr))
             except Exception as ex:
-                logger.exception("could not download {}: {}".format(remote_url, ex))
+                logger.exception("could not download {}: {}".format(http_req_descr, ex))
 
         self._logger.debug("download thread shutting down")
 
@@ -569,6 +588,7 @@ class BackgroundDownloader:
         self._logger.debug(f"Local file is fresh, no need to re-download: {local_file}")
         self._mark_download_done()
         self.num_downloads_ok += 1
+        self._call_on_downloaded_callback(http_req_descr, local_file)
 
     def download_error(
         self,
@@ -610,11 +630,24 @@ class BackgroundDownloader:
         self._logger.info(f"Download finished, stored at {local_file}")
         self._mark_download_done()
         self.num_downloads_ok += 1
+        self._call_on_downloaded_callback(http_req_descr, local_file)
 
     def _mark_download_done(self) -> None:
         """Reduce the number of pending downloads."""
         self._num_pending_downloads -= 1
         assert self._num_pending_downloads >= 0, "downloaded more files than were queued"
+
+    def _call_on_downloaded_callback(self, http_req_descr: RequestDescription, local_file: Path) -> None:
+        """Call the 'on-download-done' callback for this request."""
+
+        try:
+            callback = self._on_downloaded_callbacks.pop(http_req_descr)
+        except KeyError:
+            # Not having a callback is fine.
+            return
+
+        logger.info("download done, calling %s", callback.__name__)
+        callback(http_req_descr, local_file)
 
 
 class HTTPMetadata(pydantic.BaseModel):

@@ -47,12 +47,6 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
     _timer: bpy.types.Timer | None
     _state: AssetDownloadState
 
-    # Keep track of which callback to call on the completion of which HTTP request.
-    # This assumes that RequestDescriptions are unique, and not queued up
-    # multiple times simultaneously.
-    DownloadDoneCallback: TypeAlias = Callable[[RequestDescription, Path], None]
-    _on_done_callbacks: dict[RequestDescription, DownloadDoneCallback]
-
     _num_asset_pages_pending: int
 
     @classmethod
@@ -65,7 +59,6 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
     def execute(self, context: bpy.types.Context) -> set[str]:
         self._local_path = Path(bpy.app.tempdir) / "dummy_asset_library"
         self._state = AssetDownloadState.STARTING
-        self._on_done_callbacks = {}
         self._num_asset_pages_pending = 0
 
         downloader = CachingDownloader(
@@ -204,20 +197,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         remote_url = urllib.parse.urljoin(self.url, relative_url)
         local_path = self._local_path / relative_path
 
-        http_req_descr = RequestDescription(http_method='GET', url=remote_url)
-        assert http_req_descr not in self._on_done_callbacks
-        self._on_done_callbacks[http_req_descr] = on_done
-
-        self._bg_downloader.queue_download(remote_url, local_path)
-
-    def _on_download_finished(
-        self,
-        http_req_descr: RequestDescription,
-        local_file: Path,
-    ) -> None:
-        callback = self._on_done_callbacks.pop(http_req_descr)
-        logger.info("download done, calling %s", callback.__name__)
-        callback(http_req_descr, local_file)
+        self._bg_downloader.queue_download(remote_url, local_path, on_done)
 
     # Below here: CachingDownloadReporter functions:
 
@@ -229,7 +209,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         http_req_descr: RequestDescription,
         local_file: Path,
     ) -> None:
-        self._on_download_finished(http_req_descr, local_file)
+        self.report({'INFO'}, "Download unnecessary, file already downloaded: {}".format(http_req_descr.url))
 
     def download_error(
         self,
@@ -259,7 +239,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         http_req_descr: RequestDescription,
         local_file: Path,
     ) -> None:
-        self._on_download_finished(http_req_descr, local_file)
+        self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
 
 
 def topbar_blender_menu_draw(self: bpy.types.TOPBAR_MT_blender, context: bpy.types.Context) -> None:
