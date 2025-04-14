@@ -1,3 +1,4 @@
 Referenced by pull request #137322, Fix: error reading RLE compressed Iris images (4.4x backport)
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by issue #137236, Major performance regression in 4.4 with meshes that have nonsensical face material IDs
+Referenced by issue #137430, UI: Missing Timeline Editor header until area is resized on default startup file
