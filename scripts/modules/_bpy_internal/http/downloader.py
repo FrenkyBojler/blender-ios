@@ -346,6 +346,7 @@ class CachingDownloader:
 
             # File was downloaded succesfully, store the metadata.
             meta = HTTPMetadata(
+                request=http_req_descr,
                 etag=stream.headers.get("ETag") or "",
                 last_modified=stream.headers.get("Last-Modified") or "",
                 content_length=num_downloaded_bytes,
@@ -386,7 +387,23 @@ class CachingDownloader:
         if not meta:
             return None
 
-        if local_path.stat().st_size != meta.content_length:
+        assert meta.request == http_req_descr, f"req: {http_req_descr}, meta.req: {meta.request}"
+        if meta.request != http_req_descr:
+            # Somehow the metadata was loaded, but didn't match this request. Weird.
+            return None
+
+        local_file_size = local_path.stat().st_size
+        if local_file_size == 0:
+            # This is an optimization for downloading bigger files. There is no
+            # need to do a conditional download of a zero-bytes file. It is more
+            # likely that something went wrong and a file got truncated.
+            #
+            # And even if the file is of the correct size, non-conditinally
+            # doing the same request for the empty file will require less data
+            # than including the headers necessary for a conditional download.
+            return None
+
+        if local_file_size != meta.content_length:
             return None
 
         return meta
@@ -394,6 +411,8 @@ class CachingDownloader:
     def _save_metadata(
         self, http_req_descr: RequestDescription, meta: HTTPMetadata
     ) -> None:
+        meta.request = http_req_descr
+
         meta_json = meta.model_dump_json()
         meta_path = self._metadata_path(http_req_descr)
 
@@ -658,6 +677,7 @@ class BackgroundDownloader:
 class HTTPMetadata(pydantic.BaseModel):
     """HTTP headers, stored so they can be used for conditional requests later."""
 
+    request: RequestDescription
     etag: str = ""
     last_modified: str = ""
     content_length: int = 0
