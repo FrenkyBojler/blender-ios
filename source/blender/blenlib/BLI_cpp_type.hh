@@ -144,6 +144,13 @@ class CPPType : NonCopyable, NonMovable {
    */
   bool has_special_member_functions = false;
 
+  bool is_default_constructible = false;
+  bool is_copy_constructible = false;
+  bool is_move_constructible = false;
+  bool is_destructible = false;
+  bool is_copy_assignable = false;
+  bool is_move_assignable = false;
+
  private:
   uintptr_t alignment_mask_ = 0;
 
@@ -206,12 +213,6 @@ class CPPType : NonCopyable, NonMovable {
    */
   StringRefNull name() const;
 
-  bool is_default_constructible() const;
-  bool is_copy_constructible() const;
-  bool is_move_constructible() const;
-  bool is_destructible() const;
-  bool is_copy_assignable() const;
-  bool is_move_assignable() const;
   bool is_printable() const;
   bool is_equality_comparable() const;
   bool is_hashable() const;
@@ -459,36 +460,6 @@ template<typename T> inline const CPPType &CPPType::get()
 inline StringRefNull CPPType::name() const
 {
   return debug_name_;
-}
-
-inline bool CPPType::is_default_constructible() const
-{
-  return default_construct_ != nullptr;
-}
-
-inline bool CPPType::is_copy_constructible() const
-{
-  return copy_assign_ != nullptr;
-}
-
-inline bool CPPType::is_move_constructible() const
-{
-  return move_assign_ != nullptr;
-}
-
-inline bool CPPType::is_destructible() const
-{
-  return destruct_ != nullptr;
-}
-
-inline bool CPPType::is_copy_assignable() const
-{
-  return copy_assign_ != nullptr;
-}
-
-inline bool CPPType::is_move_assignable() const
-{
-  return copy_construct_ != nullptr;
 }
 
 inline bool CPPType::is_printable() const

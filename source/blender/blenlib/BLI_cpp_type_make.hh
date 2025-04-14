@@ -327,6 +327,12 @@ CPPType::CPPType(TypeTag<T> /*type*/,
   alignment_mask_ = uintptr_t(this->alignment) - uintptr_t(1);
   this->has_special_member_functions = (default_construct_ && copy_construct_ && copy_assign_ &&
                                         move_construct_ && move_assign_ && destruct_);
+  this->is_default_constructible = default_construct_ != nullptr;
+  this->is_copy_constructible = copy_construct_ != nullptr;
+  this->is_move_constructible = move_construct_ != nullptr;
+  this->is_destructible = destruct_ != nullptr;
+  this->is_copy_assignable = copy_assign_ != nullptr;
+  this->is_move_assignable = move_assign_ != nullptr;
 }
 
 }  // namespace blender
