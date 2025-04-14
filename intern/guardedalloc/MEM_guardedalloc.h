@@ -467,8 +467,8 @@ template<typename T> inline void MEM_delete(const T *ptr)
  * \note MSVC considers C-style types using the #DNA_DEFINE_CXX_METHODS as non-trivial (more
  * specifically, non-trivially copyable, likely because the default copy constructors are
  * deleted by this macro). GCC and clang (both on linux, OSX, and clang-cl on Windows on Arm) do
- * not. So for now, `MEM_[cm]allocN<T>` and related templates use more restricted checks on MSVC.
- * These should still catch most of the real-life invalid cases.
+ * not. So for now, `MEM_[cm]allocN<T>` and related templates use slightly more relaxed checks on
+ * MSVC. These should still catch most of the real-life invalid cases.
  *
  * \{ */
 
@@ -496,6 +496,8 @@ template<typename T> inline T *MEM_callocN(const char *allocation_name)
 
 /**
  * Type-safe version of #MEM_calloc_arrayN/#MEM_calloc_array_alignedN.
+ *
+ * It has the same restrictions and limitations as the type-safe version of #MEM_callocN<T>.
  */
 template<typename T> inline T *MEM_calloc_arrayN(const size_t length, const char *allocation_name)
 {
@@ -533,6 +535,8 @@ template<typename T> inline T *MEM_mallocN(const char *allocation_name)
 
 /**
  * Type-safe version of #MEM_malloc_arrayN/#MEM_malloc_array_alignedN.
+ *
+ * It has the same restrictions and limitations as the type-safe version of #MEM_mallocN<T>.
  */
 template<typename T> inline T *MEM_malloc_arrayN(const size_t length, const char *allocation_name)
 {
