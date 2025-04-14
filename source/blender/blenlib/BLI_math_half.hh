@@ -41,5 +41,6 @@ float half_to_float(uint16_t v);
 
 void float_to_half_array(const float *src, uint16_t *dst, size_t length);
 void half_to_float_array(const uint16_t *src, float *dst, size_t length);
+void clamp_half_inf_array(uint16_t *array, size_t length);
 
 }  // namespace blender::math

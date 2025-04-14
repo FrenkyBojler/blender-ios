@@ -293,3 +293,19 @@ void blender::math::half_to_float_array(const uint16_t *src, float *dst, size_t 
 #ifdef USE_HARDWARE_FP16_NEON
 #  undef USE_HARDWARE_FP16_NEON
 #endif
+
+void blender::math::clamp_half_inf_array(uint16_t *array, size_t length)
+{
+  constexpr uint16_t HALF_INF = 0x7C00U;
+  constexpr uint16_t HALF_MAX = 0x7BFFU;
+  constexpr uint16_t HALF_NEG_INF = 0xFC00U;
+  constexpr uint16_t HALF_MIN = 0xFBFFU;
+  for (size_t i = 0; i < length; i++) {
+    if (array[i] == HALF_INF) {
+      array[i] = HALF_MAX;
+    }
+    if (array[i] == HALF_NEG_INF) {
+      array[i] = HALF_MIN;
+    }
+  }
+}
