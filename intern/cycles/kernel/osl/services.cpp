@@ -978,7 +978,7 @@ bool OSLRenderServices::get_camera_attribute(
     /* The random numbers for aperture sampling are packed into N. */
     const float2 rand_lens = make_float2(globals->N.x, globals->N.y);
     const float2 pos = camera_sample_aperture(&kernel_data.cam, rand_lens);
-    return set_attribute(pos, type, derivatives, val);
+    return set_attribute(pos * kernel_data.cam.aperturesize, type, derivatives, val);
   }
   else if (name == u_focal_distance) {
     return set_attribute(kernel_data.cam.focaldistance, type, derivatives, val);

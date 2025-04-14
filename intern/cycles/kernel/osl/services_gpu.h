@@ -1399,7 +1399,7 @@ ccl_device_inline bool get_camera_attribute(ccl_private ShaderGlobals *sg,
     /* The random numbers for aperture sampling are packed into N. */
     const float2 rand_lens = make_float2(sg->N.x, sg->N.y);
     const float2 pos = camera_sample_aperture(&kernel_data.cam, rand_lens);
-    return set_attribute(pos, type, derivatives, val);
+    return set_attribute(pos * kernel_data.cam.aperturesize, type, derivatives, val);
   }
   else if (name == DeviceStrings::u_focal_distance) {
     return set_attribute(kernel_data.cam.focaldistance, type, derivatives, val);
