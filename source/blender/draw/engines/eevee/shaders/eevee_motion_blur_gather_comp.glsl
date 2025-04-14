@@ -79,7 +79,7 @@ void gather_sample(float2 screen_uv,
                    float center_motion_len,
                    float2 offset,
                    float offset_len,
-                   constexpr bool next,
+                   const bool next,
                    inout Accumulator accum)
 {
   float2 sample_uv = screen_uv - offset * motion_blur_buf.target_size_inv;
@@ -107,7 +107,7 @@ void gather_blur(float2 screen_uv,
                  float center_depth,
                  float2 max_motion,
                  float ofs,
-                 constexpr bool next,
+                 const bool next,
                  inout Accumulator accum)
 {
   float center_motion_len = length(center_motion);

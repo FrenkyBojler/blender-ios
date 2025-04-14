@@ -4,9 +4,9 @@
 
 void node_composite_color_spill(float4 color,
                                 float factor,
-                                constexpr float spill_channel,
+                                const float spill_channel,
                                 float3 spill_scale,
-                                constexpr float2 limit_channels,
+                                const float2 limit_channels,
                                 float limit_scale,
                                 out float4 result)
 {

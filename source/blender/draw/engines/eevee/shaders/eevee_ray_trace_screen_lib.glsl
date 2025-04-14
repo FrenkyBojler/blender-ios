@@ -68,8 +68,8 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
                                               sampler2D hiz_tx,
                                               float stride_rand,
                                               float roughness,
-                                              constexpr bool discard_backface,
-                                              constexpr bool allow_self_intersection,
+                                              const bool discard_backface,
+                                              const bool allow_self_intersection,
                                               Ray ray)
 {
   /* Clip to near plane for perspective view where there is a singularity at the camera origin. */

@@ -26,7 +26,7 @@ uint print_data(uint offset, float data)
   return print_data(offset, floatBitsToUint(data));
 }
 
-uint print_header(constexpr uint data_len, uint format_hash)
+uint print_header(const uint data_len, uint format_hash)
 {
   uint offset = atomicAdd(gpu_print_buf[0], 1u + data_len) + 1u;
   return print_data(offset, format_hash);

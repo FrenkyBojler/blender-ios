@@ -128,7 +128,7 @@ SphericalHarmonicL1 lightprobe_volume_sample_atlas(sampler3D atlas_tx, float3 at
 }
 
 SphericalHarmonicL1 lightprobe_volume_sample(
-    sampler3D atlas_tx, float3 P, float3 V, float3 Ng, constexpr bool do_bias)
+    sampler3D atlas_tx, float3 P, float3 V, float3 Ng, const bool do_bias)
 {
   float3 lP;
   int index = -1;

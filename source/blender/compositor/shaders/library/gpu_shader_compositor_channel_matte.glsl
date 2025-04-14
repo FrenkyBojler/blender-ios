@@ -10,9 +10,9 @@
 #define CMP_NODE_CHANNEL_MATTE_CS_YCC 4.0f
 
 void node_composite_channel_matte(float4 color,
-                                  constexpr float color_space,
-                                  constexpr float matte_channel,
-                                  constexpr float2 limit_channels,
+                                  const float color_space,
+                                  const float matte_channel,
+                                  const float2 limit_channels,
                                   float max_limit,
                                   float min_limit,
                                   out float4 result,

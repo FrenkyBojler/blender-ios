@@ -77,7 +77,7 @@ struct GeomOut {
   float3 ws_P;
 };
 
-void strip_EmitVertex(constexpr uint strip_index,
+void strip_EmitVertex(const uint strip_index,
                       uint out_vertex_id,
                       uint out_primitive_id,
                       GeomOut geom_out)

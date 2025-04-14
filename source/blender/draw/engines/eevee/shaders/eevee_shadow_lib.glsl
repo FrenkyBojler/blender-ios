@@ -81,7 +81,7 @@ float shadow_directional_sample_get(SHADOW_ATLAS_TYPE atlas_tx,
   return receiver_dist - occluder_dist;
 }
 
-float shadow_sample(constexpr bool is_directional,
+float shadow_sample(const bool is_directional,
                     SHADOW_ATLAS_TYPE atlas_tx,
                     usampler2D tilemaps_tx,
                     LightData light,

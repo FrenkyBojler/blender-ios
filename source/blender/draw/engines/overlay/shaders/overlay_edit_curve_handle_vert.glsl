@@ -60,7 +60,7 @@ void export_vertex(GeomOut geom_out)
   view_clipping_distances(geom_out.ws_P);
 }
 
-void strip_EmitVertex(constexpr uint strip_index,
+void strip_EmitVertex(const uint strip_index,
                       uint out_vertex_id,
                       uint out_primitive_id,
                       GeomOut geom_out)
@@ -75,7 +75,7 @@ void strip_EmitVertex(constexpr uint strip_index,
   }
 }
 
-void output_vertex_pair(constexpr uint line_id,
+void output_vertex_pair(const uint line_id,
                         uint out_vertex_id,
                         uint out_primitive_id,
                         VertOut geom_in[2],

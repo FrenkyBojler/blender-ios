@@ -58,7 +58,7 @@ void node_bsdf_principled(float4 base_color,
                           float emission_strength,
                           float thin_film_thickness,
                           float thin_film_ior,
-                          constexpr float do_multiscatter,
+                          const float do_multiscatter,
                           out Closure result)
 {
   /* Match cycles. */

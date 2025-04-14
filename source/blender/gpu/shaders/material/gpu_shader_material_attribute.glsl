@@ -28,14 +28,14 @@ void node_attribute_flame(float4 attr, out float out_attr)
   out_attr = attr.x;
 }
 
-void node_attribute_uniform(float4 attr, constexpr float attr_hash, out float4 out_attr)
+void node_attribute_uniform(float4 attr, const float attr_hash, out float4 out_attr)
 {
   /* Temporary solution to support both old UBO attributes and new SSBO loading.
    * Old UBO load is already done through `attr` and will just be passed through. */
   out_attr = attr_load_uniform(attr, floatBitsToUint(attr_hash));
 }
 
-float4 attr_load_layer(constexpr uint attr_hash)
+float4 attr_load_layer(const uint attr_hash)
 {
 #ifdef VLATTR_LIB
   /* The first record of the buffer stores the length. */

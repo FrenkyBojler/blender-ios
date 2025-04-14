@@ -84,7 +84,7 @@ LightProbeRay bxdf_lightprobe_ray(ClosureUndetermined cl, float3 P, float3 V, fl
 ClosureLight closure_light_new_ex(ClosureUndetermined cl,
                                   float3 V,
                                   float thickness,
-                                  constexpr bool is_transmission)
+                                  const bool is_transmission)
 {
   ClosureLight cl_light;
   if (is_transmission) {

@@ -212,7 +212,7 @@ float safe_acos(float a)
 /**
  * Return true if the difference between`a` and `b` is below the `epsilon` value.
  */
-bool is_equal(float a, float b, constexpr float epsilon)
+bool is_equal(float a, float b, const float epsilon)
 {
   return abs(a - b) <= epsilon;
 }

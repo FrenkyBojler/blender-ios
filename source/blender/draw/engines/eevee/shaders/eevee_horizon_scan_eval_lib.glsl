@@ -77,10 +77,10 @@ HorizonScanResult horizon_scan_eval(float3 vP,
                                     float thickness_near,
                                     float thickness_far,
                                     float angle_bias,
-                                    constexpr int slice_count,
-                                    constexpr int sample_count,
-                                    constexpr bool reversed,
-                                    constexpr bool ao_only)
+                                    const int slice_count,
+                                    const int sample_count,
+                                    const bool reversed,
+                                    const bool ao_only)
 {
   float3 vV = drw_view_incident_vector(vP);
 

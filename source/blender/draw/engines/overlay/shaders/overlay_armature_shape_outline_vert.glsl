@@ -55,7 +55,7 @@ VertOut vertex_main(VertIn v_in)
   return v_out;
 }
 
-void emit_vertex(constexpr uint strip_index,
+void emit_vertex(const uint strip_index,
                  uint out_vertex_id,
                  uint out_primitive_id,
                  float4 color,

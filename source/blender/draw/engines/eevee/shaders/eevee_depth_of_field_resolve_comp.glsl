@@ -24,7 +24,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_resolve)
 shared float array_of_values[threadgroup_size];
 
 /* Only works for 2D thread-groups where the size is a power of 2. */
-float parallelMax(constexpr float value)
+float parallelMax(const float value)
 {
   uint thread_id = gl_LocalInvocationIndex;
   array_of_values[thread_id] = value;

@@ -351,8 +351,8 @@ Closure closure_mix(Closure cl1, Closure cl2, float fac)
 
 float ambient_occlusion_eval(float3 normal,
                              float max_distance,
-                             constexpr float inverted,
-                             constexpr float sample_count)
+                             const float inverted,
+                             const float sample_count)
 {
   /* Avoid multi-line pre-processor conditionals.
    * Some drivers don't handle them correctly. */
@@ -784,7 +784,7 @@ float4 attr_load_color_post(float4 attr)
  *
  * \{ */
 
-float4 attr_load_uniform(float4 attr, constexpr uint attr_hash)
+float4 attr_load_uniform(float4 attr, const uint attr_hash)
 {
   return drw_object_attribute(attr_hash);
 }

@@ -7,7 +7,7 @@
 
 void node_composite_color_correction(float4 color,
                                      float mask,
-                                     constexpr float3 enabled_channels,
+                                     const float3 enabled_channels,
                                      float start_midtones,
                                      float end_midtones,
                                      float master_saturation,
@@ -30,7 +30,7 @@ void node_composite_color_correction(float4 color,
                                      float highlights_gamma,
                                      float highlights_gain,
                                      float highlights_lift,
-                                     constexpr float3 luminance_coefficients,
+                                     const float3 luminance_coefficients,
                                      out float4 result)
 {
   constexpr float margin = 0.10f;

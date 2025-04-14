@@ -93,9 +93,9 @@ float ambient_ambient_occlusion_search_horizon(float3 vI,
                                                float noise,
                                                ScreenSpaceRay ssray,
                                                sampler2D depth_tx,
-                                               constexpr float inverted,
+                                               const float inverted,
                                                float radius,
-                                               constexpr float sample_count)
+                                               const float sample_count)
 {
   /* Init at cos(M_PI). */
   float h = (inverted != 0.0f) ? 1.0f : -1.0f;
@@ -153,8 +153,8 @@ OcclusionData ambient_occlusion_search(float3 vP,
                                        sampler2D depth_tx,
                                        int2 texel,
                                        float radius,
-                                       constexpr float inverted,
-                                       constexpr float dir_sample_count)
+                                       const float inverted,
+                                       const float dir_sample_count)
 {
   float2 noise = ambient_occlusion_get_noise(texel);
   float2 dir = ambient_occlusion_get_dir(noise.x);
@@ -190,7 +190,7 @@ OcclusionData ambient_occlusion_search(float3 vP,
 
 float2 ambient_occlusion_clamp_horizons_to_hemisphere(float2 horizons,
                                                       float angle_N,
-                                                      constexpr float inverted)
+                                                      const float inverted)
 {
   /* Add a little bias to fight self shadowing. */
   constexpr float max_angle = M_PI_2 - 0.05f;
@@ -211,7 +211,7 @@ void ambient_occlusion_eval(OcclusionData data,
                             float3 V,
                             float3 N,
                             float3 Ng,
-                            constexpr float inverted,
+                            const float inverted,
                             out float visibility,
                             out float visibility_error,
                             out float3 bent_normal)

@@ -135,7 +135,7 @@ float dof_coc_from_depth(DepthOfFieldData dof_data, float2 uv, float depth)
 /** \name Gather & Scatter Weighting
  * \{ */
 
-float dof_layer_weight(float coc, constexpr bool is_foreground)
+float dof_layer_weight(float coc, const bool is_foreground)
 {
   /* NOTE: These are full-resolution pixel CoC value. */
   if (IS_RESOLVE) {
@@ -249,9 +249,7 @@ void dof_coc_tile_pack(CocTile tile, out float3 out_fg, out float3 out_bg)
     imageStore(tiles_bg_img_, texel_out_, out_bg.xyzz); \
   }
 
-bool dof_do_fast_gather(float max_absolute_coc,
-                        float min_absolute_coc,
-                        constexpr bool is_foreground)
+bool dof_do_fast_gather(float max_absolute_coc, float min_absolute_coc, const bool is_foreground)
 {
   float min_weight = dof_layer_weight((is_foreground) ? -min_absolute_coc : min_absolute_coc,
                                       is_foreground);

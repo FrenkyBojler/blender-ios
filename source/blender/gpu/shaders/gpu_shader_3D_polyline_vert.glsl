@@ -103,7 +103,7 @@ void export_vertex(GeomOut geom_out)
   clip = geom_out.clip;
 }
 
-void strip_EmitVertex(constexpr uint strip_index,
+void strip_EmitVertex(const uint strip_index,
                       uint out_vertex_id,
                       uint out_primitive_id,
                       GeomOut geom_out)
@@ -118,7 +118,7 @@ void strip_EmitVertex(constexpr uint strip_index,
   }
 }
 
-void do_vertex(constexpr uint i,
+void do_vertex(const uint i,
                uint out_vertex_id,
                uint out_primitive_id,
                VertOut geom_in[2],

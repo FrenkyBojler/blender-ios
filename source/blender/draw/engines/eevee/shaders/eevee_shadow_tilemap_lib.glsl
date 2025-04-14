@@ -392,7 +392,7 @@ float3 shadow_tile_corner_persp(ShadowTileMapData tilemap, int2 tile)
 
 Pyramid shadow_tilemap_cubeface_bounds(ShadowTileMapData tilemap,
                                        int2 tile_start,
-                                       constexpr int2 extent)
+                                       const int2 extent)
 {
   Pyramid shape;
   shape.corners[0] = tilemap.corners[0].xyz;

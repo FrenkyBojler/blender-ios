@@ -23,7 +23,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_thickness_amend)
 #include "eevee_thickness_lib.glsl"
 
 void thickness_from_shadow_single(uint l_idx,
-                                  constexpr bool is_directional,
+                                  const bool is_directional,
                                   float3 P,
                                   float3 Ng,
                                   float gbuffer_thickness,

@@ -144,8 +144,8 @@ void dof_gather_accumulate_sample_pair(DofGatherData pair_data[2],
                                        float bordering_radius,
                                        float intersection_multiplier,
                                        bool first_ring,
-                                       constexpr bool do_fast_gather,
-                                       constexpr bool is_foreground,
+                                       const bool do_fast_gather,
+                                       const bool is_foreground,
                                        inout DofGatherData ring_data,
                                        inout DofGatherData accum_data)
 {
@@ -202,9 +202,9 @@ void dof_gather_accumulate_sample_pair(DofGatherData pair_data[2],
 void dof_gather_accumulate_sample_ring(DofGatherData ring_data,
                                        int sample_count,
                                        bool first_ring,
-                                       constexpr bool do_fast_gather,
+                                       const bool do_fast_gather,
                                        /* accum_data occludes the ring_data if true. */
-                                       constexpr bool reversed_occlusion,
+                                       const bool reversed_occlusion,
                                        inout DofGatherData accum_data)
 {
   if (do_fast_gather) {
@@ -278,7 +278,7 @@ void dof_gather_accumulate_sample_ring(DofGatherData ring_data,
 /* FIXME(fclem) Seems to be wrong since it needs `ringcount + 1` as input for
  * slight-focus gather. */
 /* This should be replaced by web_sample_count_get() but doing so is breaking other things. */
-int dof_gather_total_sample_count(constexpr int ring_count, constexpr int ring_density)
+int dof_gather_total_sample_count(const int ring_count, const int ring_density)
 {
   return (ring_count * ring_count - ring_count) * ring_density + 1;
 }
@@ -286,9 +286,9 @@ int dof_gather_total_sample_count(constexpr int ring_count, constexpr int ring_d
 void dof_gather_accumulate_center_sample(DofGatherData center_data,
                                          float bordering_radius,
                                          int i_radius,
-                                         constexpr bool do_fast_gather,
-                                         constexpr bool is_foreground,
-                                         constexpr bool is_resolve,
+                                         const bool do_fast_gather,
+                                         const bool is_foreground,
+                                         const bool is_resolve,
                                          inout DofGatherData accum_data)
 {
   float layer_weight = dof_layer_weight(center_data.coc, is_foreground);
@@ -337,8 +337,8 @@ void dof_gather_accumulate_center_sample(DofGatherData center_data,
   }
 }
 
-int dof_gather_total_sample_count_with_density_change(constexpr int ring_count,
-                                                      constexpr int ring_density,
+int dof_gather_total_sample_count_with_density_change(const int ring_count,
+                                                      const int ring_density,
                                                       int density_change)
 {
   int sample_count_per_density_change = dof_gather_total_sample_count(ring_count, ring_density) -
@@ -442,8 +442,8 @@ void dof_gather_accumulator(sampler2D color_tx,
                             sampler2D bkh_lut_tx, /* Renamed because of ugly macro. */
                             float base_radius,
                             float min_intersectable_radius,
-                            constexpr bool do_fast_gather,
-                            constexpr bool do_density_change,
+                            const bool do_fast_gather,
+                            const bool do_density_change,
                             out float4 out_color,
                             out float out_weight,
                             out float2 out_occlusion)

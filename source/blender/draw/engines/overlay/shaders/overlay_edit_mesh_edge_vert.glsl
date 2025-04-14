@@ -53,7 +53,7 @@ void export_vertex(GeomOut geom_out)
   gl_Position = geom_out.gpu_position;
 }
 
-void strip_EmitVertex(constexpr uint strip_index,
+void strip_EmitVertex(const uint strip_index,
                       uint out_vertex_id,
                       uint out_primitive_id,
                       GeomOut geom_out)
@@ -68,7 +68,7 @@ void strip_EmitVertex(constexpr uint strip_index,
   }
 }
 
-void do_vertex(constexpr uint strip_index,
+void do_vertex(const uint strip_index,
                uint out_vertex_id,
                uint out_primitive_id,
                float4 final_color,

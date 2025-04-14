@@ -26,6 +26,10 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 
 #undef RESHAPE
 
+/* constexpr is equivalent to const in GLSL + special chaining rules.
+ * See "GLSL Specification section 4.3.3. Constant Expressions". */
+#define constexpr const
+
 /* Boolean in GLSL are 32bit in interface structs. */
 #define bool32_t bool
 #define bool2 bvec2

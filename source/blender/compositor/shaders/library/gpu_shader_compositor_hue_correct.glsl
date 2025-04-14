@@ -18,7 +18,7 @@ float3 compute_hue_curve_map_coordinates(float3 parameters)
 void node_composite_hue_correct(float factor,
                                 float4 color,
                                 sampler1DArray curve_map,
-                                constexpr float layer,
+                                const float layer,
                                 float3 minimums,
                                 float3 range_dividers,
                                 out float4 result)
