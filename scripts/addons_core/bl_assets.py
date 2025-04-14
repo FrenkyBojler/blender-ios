@@ -19,7 +19,8 @@ import logging
 import urllib.parse
 from enum import Enum
 from pathlib import Path
-from typing import Callable, TypeAlias
+from typing import Callable, Generator
+from contextlib import contextmanager
 
 import bpy
 
@@ -47,6 +48,12 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
     _timer: bpy.types.Timer | None
     _state: AssetDownloadState
 
+    # BackgroundDownloader is independent of `bpy`, and I (Sybren) quite like
+    # that. So instead of passing the context to its update() function, so that
+    # it can pass those back to this class, just store the context here for the
+    # duration of the update() call.
+    _operator_context: bpy.types.Context | None
+
     _num_asset_pages_pending: int
 
     @classmethod
@@ -61,6 +68,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         self._local_path = Path("/tmp/dummy_asset_library")
         self._state = AssetDownloadState.STARTING
         self._num_asset_pages_pending = 0
+        self._operator_context = None
 
         downloader = CachingDownloader(
             metadata_cache_location=self._local_path / "_local-meta-cache",
@@ -86,7 +94,8 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
             # report is visible, it's already cancelled.
             self.report({'WARNING'}, "Cancelled {} pending download".format(num_pending))
 
-        self._bg_downloader.shutdown()
+        with self._context(context):
+            self._bg_downloader.shutdown()
 
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
@@ -120,7 +129,9 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
                 return False
 
         # logger.info("operator state: %s", self._state)
-        self._bg_downloader.update()
+
+        with self._context(context):
+            self._bg_downloader.update()
         return True
 
     def on_start(self, context: bpy.types.Context) -> None:
@@ -244,8 +255,8 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         else:
             self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
 
-        # TODO: pass the context into bg_downloader.update() so that it can be passed to here.
-        self.cancel(bpy.context)
+        assert self._operator_context is not None
+        self.cancel(self._operator_context)
 
     def download_progress(
         self,
@@ -262,6 +273,15 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         local_file: Path,
     ) -> None:
         self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
+
+    @contextmanager
+    def _context(self, context: bpy.types.Context) -> Generator:
+        """For the duration of the context manager, set self._operator_context."""
+        try:
+            self._operator_context = context
+            yield
+        finally:
+            self._operator_context = None
 
 
 def topbar_blender_menu_draw(self: bpy.types.TOPBAR_MT_blender, context: bpy.types.Context) -> None:
