@@ -114,9 +114,12 @@ def _write_json_files(
 
     # Library Index file /v1/asset-index.json:
     total_asset_count = sum(len(page.assets) for page in asset_index_pages)
+    asset_size_bytes = sum(asset.archive_size_in_bytes
+                           for page in asset_index_pages
+                           for asset in page.assets)
     index = api_models.AssetLibraryIndex(
         schema_version=SCHEMA_VERSION,
-        asset_size_bytes=0,  # TODO: collect this info.
+        asset_size_bytes=asset_size_bytes,
         asset_count=total_asset_count,
         page_urls=page_urls,
         catalogs=[],  # TODO: collect catalogs.
