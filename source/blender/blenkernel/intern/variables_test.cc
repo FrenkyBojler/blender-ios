@@ -242,7 +242,7 @@ TEST(blender_variables, path_apply_variables)
     EXPECT_EQ(blender::StringRef(path), "{hi}_{missing}_{bye}");
   }
 
-  /* Error: incomplete variable reference. */
+  /* Error: incomplete variable expression. */
   {
     char path[FILE_MAX] = "foo{hi";
     const Vector<VariableParseError> errors = BKE_path_apply_variables(path, variables);

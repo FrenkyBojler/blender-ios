@@ -487,7 +487,7 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
     if (path[byte_index] == ':') {
       if (format_specifier_split == -1) {
         /* Only set if it's the first ":" we've encountered in the variable
-         * reference. Subsequent ones will be handled in the format specifier
+         * expression. Subsequent ones will be handled in the format specifier
          * parsing. */
         format_specifier_split = byte_index;
       }
@@ -501,19 +501,19 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
     }
   }
 
-  /* No variable reference found. */
+  /* No variable expression found. */
   if (start == -1) {
     return std::nullopt;
   }
 
-  /* Unclosed variable reference. Syntax error. */
+  /* Unclosed variable expression. Syntax error. */
   if (end == -1) {
     token.type = TokenType::VARIABLE_SYNTAX_ERROR;
     token.byte_range = blender::IndexRange::from_begin_end(start, path.size());
     return token;
   }
 
-  /* Parse the variable reference we found. */
+  /* Parse the variable expression we found. */
   token.byte_range = blender::IndexRange::from_begin_end(start, end);
   if (format_specifier_split == -1) {
     /* No format specifier. */
@@ -719,7 +719,7 @@ std::string BKE_variable_error_to_string(const VariableParseError &error, blende
 
     case VariableParseErrorType::VARIABLE_SYNTAX: {
       std::string error_message;
-      error_message.append("Invalid or incomplete variable reference '");
+      error_message.append("Invalid or incomplete variable expression '");
       error_message.append(subpath);
       error_message.append("'.");
       return error_message;
@@ -727,7 +727,7 @@ std::string BKE_variable_error_to_string(const VariableParseError &error, blende
 
     case VariableParseErrorType::FORMAT_SPECIFIER: {
       std::string error_message;
-      error_message.append("Invalid format specifier in variable reference '");
+      error_message.append("Invalid format specifier in variable expression '");
       error_message.append(subpath);
       error_message.append("'.");
       return error_message;
@@ -735,7 +735,7 @@ std::string BKE_variable_error_to_string(const VariableParseError &error, blende
 
     case VariableParseErrorType::UNKNOWN_VARIABLE: {
       std::string error_message;
-      error_message.append("Unknown variable referenced in '");
+      error_message.append("Unknown variable referenced in variable expression '");
       error_message.append(subpath);
       error_message.append("'.");
       return error_message;

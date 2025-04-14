@@ -164,7 +164,7 @@ bool operator==(const VariableParseError &left, const VariableParseError &right)
  *
  * This does *not* validate whether the variables referenced in the given path
  * exist or not, nor whether the formatting specification in a variable
- * reference is appropriate for its type. This only validates what can be
+ * expression is appropriate for its type. This only validates what can be
  * validated without knowing anything about the variables themselves.
  *
  * \return An empty vector if valid, or a vector of the parse errors if invalid.
@@ -177,7 +177,7 @@ blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::String
  * This mutates the path in-place. The path must be a null-terminated string
  * with a total allocation size of at least `FILE_MAX` bytes.
  *
- * The syntax for variables is `{variable_name}` or
+ * The syntax for variable expressions is `{variable_name}` or
  * {variable_name:format_spec}`. They will be substituted with the respective
  * variable value if and only if both of the following hold true:
  *

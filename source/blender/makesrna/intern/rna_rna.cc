@@ -204,7 +204,7 @@ const EnumPropertyItem rna_enum_property_flag_items[] = {
     {PROP_SUPPORTS_VARIABLES,
      "SUPPORTS_VARIABLES",
      0,
-     "Variable reference support",
+     "Variable expression support",
      PROP_SUPPORTS_VARIABLES_DESCR},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -808,7 +808,7 @@ static bool rna_Property_is_path_supports_blend_relative_flag_get(PointerRNA *pt
   return (prop->flag & PROP_PATH_SUPPORTS_BLEND_RELATIVE) != 0;
 }
 
-static bool rna_Property_is_variable_reference_supported_flag_get(PointerRNA *ptr)
+static bool rna_Property_is_supports_variable_expressions_flag_get(PointerRNA *ptr)
 {
   PropertyRNA *prop = (PropertyRNA *)ptr->data;
   return (prop->flag & PROP_SUPPORTS_VARIABLES) != 0;
@@ -3327,12 +3327,12 @@ static void rna_def_property(BlenderRNA *brna)
       "Property is a path which supports the \"//\" prefix, "
       "signifying the location as relative to the \".blend\" files directory");
 
-  prop = RNA_def_property(srna, "is_variable_reference_supported", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_supports_variable_expressions", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(
-      prop, "rna_Property_is_variable_reference_supported_flag_get", nullptr);
+      prop, "rna_Property_is_supports_variable_expressions_flag_get", nullptr);
   RNA_def_property_ui_text(prop,
-                           "Variable Reference Support",
+                           "Variable Expression Support",
                            /* TODO: fill in description. */
                            "Blah blah blah...");
 
