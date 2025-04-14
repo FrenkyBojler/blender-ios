@@ -727,11 +727,7 @@ template<typename T> constexpr T log2(T) RET;
 template<typename T> T modf(T, T);
 template<typename T, typename U> constexpr T pow(T, U) RET;
 template<typename T> constexpr T round(T) RET;
-template<typename T> constexpr T sqrt(T)
-{
-  /* Avoid division by zero error. But return garbage. */
-  return T(1);
-}
+template<typename T> constexpr T sqrt(T) RET;
 template<typename T> constexpr T trunc(T) RET;
 template<typename T, typename U> T ldexp(T, U) RET;
 

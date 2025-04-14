@@ -11,7 +11,7 @@ int texture_size(sampler1D sampler_1d)
 /* A shorthand for 1D texelFetch with zero LOD and bounded access clamped to border. */
 float4 texture_load(sampler1D sampler_1d, int x)
 {
-  constexpr int texture_bound = texture_size(sampler_1d) - 1;
+  const int texture_bound = texture_size(sampler_1d) - 1;
   return texelFetch(sampler_1d, clamp(x, 0, texture_bound), 0);
 }
 
@@ -24,7 +24,7 @@ int2 texture_size(sampler2D sampler_2d)
 /* A shorthand for 2D texelFetch with zero LOD and bounded access clamped to border. */
 float4 texture_load(sampler2D sampler_2d, int2 texel)
 {
-  constexpr int2 texture_bounds = texture_size(sampler_2d) - int2(1);
+  const int2 texture_bounds = texture_size(sampler_2d) - int2(1);
   return texelFetch(sampler_2d, clamp(texel, int2(0), texture_bounds), 0);
 }
 
@@ -37,7 +37,7 @@ float4 texture_load_unbound(sampler2D sampler_2d, int2 texel)
 /* A shorthand for 2D texelFetch with zero LOD and a fallback value for out-of-bound access. */
 float4 texture_load(sampler2D sampler_2d, int2 texel, float4 fallback)
 {
-  constexpr int2 texture_bounds = texture_size(sampler_2d) - int2(1);
+  const int2 texture_bounds = texture_size(sampler_2d) - int2(1);
   if (any(lessThan(texel, int2(0))) || any(greaterThan(texel, texture_bounds))) {
     return fallback;
   }
@@ -53,14 +53,14 @@ int2 texture_size(isampler2D sampler_2d)
 /* A shorthand for 2D texelFetch with zero LOD and bounded access clamped to border. */
 int4 texture_load(isampler2D sampler_2d, int2 texel)
 {
-  constexpr int2 texture_bounds = texture_size(sampler_2d) - int2(1);
+  const int2 texture_bounds = texture_size(sampler_2d) - int2(1);
   return texelFetch(sampler_2d, clamp(texel, int2(0), texture_bounds), 0);
 }
 
 /* A shorthand for 2D texelFetch with zero LOD and a fallback value for out-of-bound access. */
 int4 texture_load(isampler2D sampler_2d, int2 texel, int4 fallback)
 {
-  constexpr int2 texture_bounds = texture_size(sampler_2d) - int2(1);
+  const int2 texture_bounds = texture_size(sampler_2d) - int2(1);
   if (any(lessThan(texel, int2(0))) || any(greaterThan(texel, texture_bounds))) {
     return fallback;
   }

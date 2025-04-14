@@ -51,7 +51,7 @@ VertOut vertex_main(VertIn v_in)
   vert_out.hs_P.xy = floor(vert_out.hs_P.xy * half_viewport_res) / half_viewport_res +
                      half_pixel_offset;
 
-  constexpr uint selection_flag = use_edge_select ? uint(EDGE_UV_SELECT) : uint(VERT_UV_SELECT);
+  const uint selection_flag = use_edge_select ? uint(EDGE_UV_SELECT) : uint(VERT_UV_SELECT);
   vert_out.selected = flag_test(v_in.flag, selection_flag);
 
   /* Move selected edges to the top so that they occlude unselected edges.

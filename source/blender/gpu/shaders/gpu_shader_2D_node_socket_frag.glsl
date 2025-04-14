@@ -54,8 +54,8 @@ void main()
   float dot_threshold = -1.0f;
 
   constexpr float circle_radius = 0.5f;
-  constexpr float square_radius = 0.5f / sqrt(2.0f / M_PI) * M_SQRT1_2;
-  constexpr float diamond_radius = 0.5f / sqrt(2.0f / M_PI) * M_SQRT1_2;
+  const float square_radius = 0.5f / sqrt(2.0f / M_PI) * M_SQRT1_2;
+  const float diamond_radius = 0.5f / sqrt(2.0f / M_PI) * M_SQRT1_2;
   constexpr float corner_rounding = 0.0f;
 
   switch (finalShape) {
