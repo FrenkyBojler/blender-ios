@@ -272,4 +272,99 @@ void interpolate_to_evaluated(const BasisCache &basis_cache,
   });
 }
 
+static int count_knot_multiplicity_right(const float knot,
+                                         const Span<float> knots,
+                                         const int begin_from)
+{
+  int count = 0;
+  for (const float current_knot : knots.drop_front(begin_from)) {
+    if (current_knot != knot) {
+      break;
+    }
+    count++;
+  }
+  return count;
+}
+
+static int count_knot_multiplicity_left(const float knot,
+                                        const Span<float> knots,
+                                        const int begin_from)
+{
+  int count = 0;
+  for (int i = begin_from; i >= 0 && knots[i] == knot; i--) {
+    count++;
+  }
+  return count;
+}
+
+void find_span_mult(
+    const float knot, const Span<float> knots, const int order, int &r_span, int &r_mult)
+{
+  if (knot == knots.last(order - 1)) {
+    r_span = knots.size() - order;
+    r_mult = count_knot_multiplicity_left(knot, knots, r_span) +
+             count_knot_multiplicity_right(knot, knots, r_span + 1);
+    return;
+  }
+  int low = order - 1;
+  int high = knots.size() - order;
+  while (low <= high) {
+    const int mid = low + (high - low + 1) / 2;
+    if (knot < knots[mid]) {
+      high = mid - 1;
+    }
+    else if (knot >= knots[mid + 1]) {
+      low = mid;
+    }
+    else {
+      r_span = mid;
+      r_mult = count_knot_multiplicity_left(knot, knots, mid);
+      return;
+    }
+  }
+  r_span = -1;
+  r_mult = 0;
+  return;
+}
+
+IndexRange calc_knot_insertion_weights(const Span<float> knots,
+                                       const int8_t order,
+                                       const float knot,
+                                       const int knot_span,
+                                       const int mult,
+                                       const int repeat,
+                                       MutableSpan<float> insertion_weights)
+{
+  const int altered_point_num = order - mult + repeat - 2;
+  const IndexRange points_to_replace = IndexRange::from_begin_size(knot_span - order + 2,
+                                                                   altered_point_num - repeat);
+
+  Array<float> point_weights_buffer(order * order, 0.0f);
+  MutableSpan<float> point_weights = point_weights_buffer.as_mutable_span();
+  for (const int i : IndexRange(order)) {
+    point_weights[i * order + i] = 1.0f;
+  }
+
+  for (const int r : IndexRange::from_begin_size(1, repeat)) {
+    const int leg = knot_span - order + 1 + r;
+    for (const int i : IndexRange(order - r - mult)) {
+      const float alpha = (knot - knots[leg + i]) / (knots[i + knot_span + 1] - knots[leg + i]);
+      const MutableSpan<float> q_i_weights = point_weights.slice(i * order, order);
+      const Span<float> q_i_1_weights = point_weights.slice((i + 1) * order, order);
+      for (const int point : IndexRange(order)) {
+        q_i_weights[point] = alpha * q_i_1_weights[point] + (1.0f - alpha) * q_i_weights[point];
+      }
+    }
+    insertion_weights.slice((r - 1) * order, order).copy_from(point_weights.slice(0, order));
+    insertion_weights.slice((altered_point_num - r) * order, order)
+        .copy_from(point_weights.slice((order - 1 - r - mult) * order, order));
+  }
+
+  for (const int i : IndexRange::from_begin_size(1, std::max(order - mult - repeat - 2, 0))) {
+    insertion_weights.slice(i * order, order).copy_from(point_weights.slice(i * order, order));
+  }
+
+  return points_to_replace;
+}
+
 }  // namespace blender::bke::curves::nurbs

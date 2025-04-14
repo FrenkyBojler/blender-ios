@@ -5883,6 +5883,7 @@ class VIEW3D_MT_edit_curves(Menu):
 
         layout.separator()
 
+        layout.operator("curves.nurbs_insert_knot")
         layout.operator("curves.separate")
         layout.operator("curves.delete")
 
@@ -5944,7 +5945,7 @@ class VIEW3D_MT_edit_curves_context_menu(Menu):
 
         layout.separator()
 
-        layout.operator("curves.split")
+        layout.operator("curves.nurbs_insert_knot")
 
 
 class VIEW3D_MT_edit_pointcloud(Menu):

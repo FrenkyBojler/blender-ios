@@ -150,6 +150,7 @@ void CURVES_OT_draw(wmOperatorType *ot);
 void CURVES_OT_extrude(wmOperatorType *ot);
 void CURVES_OT_select_linked_pick(wmOperatorType *ot);
 void CURVES_OT_separate(wmOperatorType *ot);
+void CURVES_OT_nurbs_insert_knot(wmOperatorType *ot);
 
 /** \} */
 
