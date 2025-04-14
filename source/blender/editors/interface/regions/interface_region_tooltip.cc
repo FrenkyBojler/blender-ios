@@ -1029,11 +1029,24 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     }
   }
 
-  /* Warn if there are errors parsing variable syntax in paths that support it. */
+  /* Warn on path validity errors. */
   if (ELEM(but->type, UI_BTYPE_TEXT)) {
     if (rnaprop) {
       PropertySubType subtype = RNA_property_subtype(rnaprop);
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
+        /* If relative paths are used when unsupported (will already display red-alert). */
+        if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
+          if (BLI_path_is_rel(but->drawstr.c_str())) {
+            UI_tooltip_text_field_add(*data,
+                                      "Warning: the blend-file relative path prefix \"//\" "
+                                      "is not supported for this property.",
+                                      {},
+                                      UI_TIP_STYLE_NORMAL,
+                                      UI_TIP_LC_ALERT);
+          }
+        }
+
+        /* Variable expression parse errors, for paths that support it. */
         if ((RNA_property_flag(rnaprop) & PROP_SUPPORTS_VARIABLES) != 0) {
           const blender::StringRef path = but->drawstr;
           const blender::Vector<VariableParseError> errors = BKE_validate_variable_syntax(path);

@@ -88,8 +88,10 @@ class LazyFunctionForClosureZone : public LazyFunction {
     }
   }
 
-  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
+    auto &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
+
     /* All border links are captured currently. */
     for (const int i : zone_.border_links.index_range()) {
       params.set_output(zone_info_.indices.outputs.border_link_usages[i], true);
@@ -102,7 +104,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
     const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(output_bnode_.storage);
 
     std::unique_ptr<ResourceScope> closure_scope = std::make_unique<ResourceScope>();
-    LinearAllocator<> &closure_allocator = closure_scope->linear_allocator();
+    LinearAllocator<> &closure_allocator = closure_scope->allocator();
 
     lf::Graph &lf_graph = closure_scope->construct<lf::Graph>("Closure Graph");
     lf::FunctionNode &lf_body_node = lf_graph.add_function(*body_fn_.function);
@@ -125,6 +127,10 @@ class LazyFunctionForClosureZone : public LazyFunction {
       void *default_value = closure_allocator.allocate(cpp_type.size(), cpp_type.alignment());
       construct_socket_default_value(*bsocket.typeinfo, default_value);
       default_input_values.append(default_value);
+      if (!cpp_type.is_trivially_destructible()) {
+        closure_scope->add_destruct_call(
+            [&cpp_type, default_value]() { cpp_type.destruct(default_value); });
+      }
     }
     closure_indices.inputs.main = lf_graph.graph_inputs().index_range().take_back(
         storage.input_items.items_num);
@@ -201,13 +207,19 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     lf::GraphExecutor &lf_graph_executor = closure_scope->construct<lf::GraphExecutor>(
         lf_graph, nullptr, nullptr, nullptr);
-
+    ClosureSourceLocation source_location{
+        btree_orig.id.session_uid,
+        output_bnode_.identifier,
+        user_data.compute_context->hash(),
+    };
     ClosurePtr closure{MEM_new<Closure>(__func__,
                                         closure_signature_,
                                         std::move(closure_scope),
                                         lf_graph_executor,
                                         closure_indices,
-                                        std::move(default_input_values))};
+                                        std::move(default_input_values),
+                                        source_location,
+                                        std::make_shared<ClosureEvalLog>())};
 
     params.set_output(zone_info_.indices.outputs.main[0],
                       bke::SocketValueVariant(std::move(closure)));
@@ -288,23 +300,40 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
 
     auto &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
     auto &eval_storage = *static_cast<EvaluateClosureEvalStorage *>(context.storage);
+    auto local_user_data = *static_cast<GeoNodesLFLocalUserData *>(context.local_user_data);
 
     if (!eval_storage.graph_executor) {
+      if (this->is_recursive_call(user_data)) {
+        if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+                user_data))
+        {
+          tree_logger->node_warnings.append(
+              *tree_logger->allocator,
+              {bnode_.identifier,
+               {geo_eval_log::NodeWarningType::Error, TIP_("Recursive closure is not allowed")}});
+        }
+        this->set_default_outputs(params);
+        return;
+      }
+
       eval_storage.closure = params.extract_input<bke::SocketValueVariant>(indices_.inputs.main[0])
                                  .extract<ClosurePtr>();
       if (!eval_storage.closure) {
-        for (const bNodeSocket *bsocket : bnode_.output_sockets().drop_back(1)) {
-          const int index = bsocket->index();
-          set_default_value_for_output_socket(params, indices_.outputs.main[index], *bsocket);
-          params.set_output(indices_.outputs.input_usages[index], false);
-        }
+        this->set_default_outputs(params);
         return;
       }
       this->generate_closure_compatibility_warnings(*eval_storage.closure, context);
       this->initialize_execution_graph(eval_storage);
+
+      const bNodeTree &btree_orig = *reinterpret_cast<const bNodeTree *>(
+          DEG_get_original_id(&btree_.id));
+      ClosureEvalLocation eval_location{
+          btree_orig.id.session_uid, bnode_.identifier, user_data.compute_context->hash()};
+      eval_storage.closure->log_evaluation(eval_location);
     }
 
-    bke::EvaluateClosureComputeContext closure_compute_context{user_data.compute_context, bnode_};
+    bke::EvaluateClosureComputeContext closure_compute_context{
+        user_data.compute_context, bnode_, eval_storage.closure->source_location()};
     GeoNodesLFUserData closure_user_data = user_data;
     closure_user_data.compute_context = &closure_compute_context;
     GeoNodesLFLocalUserData closure_local_user_data{closure_user_data};
@@ -312,6 +341,33 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     lf::Context eval_graph_context{
         eval_storage.graph_executor_storage, &closure_user_data, &closure_local_user_data};
     eval_storage.graph_executor->execute(params, eval_graph_context);
+  }
+
+  bool is_recursive_call(const GeoNodesLFUserData &user_data) const
+  {
+    for (const ComputeContext *context = user_data.compute_context; context;
+         context = context->parent())
+    {
+      if (const auto *closure_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
+              context))
+      {
+        if (closure_context->evaluate_node() == &bnode_) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void set_default_outputs(lf::Params &params) const
+  {
+    for (const bNodeSocket *bsocket : bnode_.output_sockets().drop_back(1)) {
+      const int index = bsocket->index();
+      set_default_value_for_output_socket(params, indices_.outputs.main[index], *bsocket);
+    }
+    for (const bNodeSocket *bsocket : bnode_.input_sockets().drop_back(1)) {
+      params.set_output(indices_.outputs.input_usages[bsocket->index()], false);
+    }
   }
 
   void generate_closure_compatibility_warnings(const Closure &closure,
@@ -455,8 +511,8 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
 
     auto get_output_default_value = [&](const bke::bNodeSocketType &type) {
       const CPPType &cpp_type = *type.geometry_nodes_cpp_type;
-      void *fallback_value = eval_storage.scope.linear_allocator().allocate(cpp_type.size(),
-                                                                            cpp_type.alignment());
+      void *fallback_value = eval_storage.scope.allocator().allocate(cpp_type.size(),
+                                                                     cpp_type.alignment());
       construct_socket_default_value(type, fallback_value);
       if (!cpp_type.is_trivially_destructible()) {
         eval_storage.scope.add_destruct_call(
@@ -547,7 +603,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     lf_graph.update_node_indices();
     eval_storage.graph_executor.emplace(lf_graph, nullptr, nullptr, nullptr);
     eval_storage.graph_executor_storage = eval_storage.graph_executor->init_storage(
-        eval_storage.scope.linear_allocator());
+        eval_storage.scope.allocator());
 
     /* Log graph for debugging purposes. */
     bNodeTree &btree_orig = *reinterpret_cast<bNodeTree *>(
@@ -569,7 +625,7 @@ void evaluate_closure_eagerly(const Closure &closure, ClosureEagerEvalParams &pa
   const int fn_outputs_num = fn.outputs().size();
 
   ResourceScope scope;
-  LinearAllocator<> &allocator = scope.linear_allocator();
+  LinearAllocator<> &allocator = scope.allocator();
 
   GeoNodesLFLocalUserData local_user_data(*params.user_data);
   void *storage = fn.init_storage(allocator);

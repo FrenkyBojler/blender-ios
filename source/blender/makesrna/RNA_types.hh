@@ -268,7 +268,7 @@ enum PropertySubType {
 
 /* Make sure enums are updated with these */
 /* HIGHEST FLAG IN USE: 1u << 31
- * FREE FLAGS: 14, 15. */
+ * FREE FLAGS: 13. */
 enum PropertyFlag {
   /**
    * Editable means the property is editable in the user
@@ -409,11 +409,16 @@ enum PropertyFlag {
    * as having the +/- operators available in the file browser.
    */
   PROP_PATH_OUTPUT = (1 << 2),
+  /**
+   * Path supports relative prefix: `//`,
+   * paths which don't support the relative suffix show a warning if the suffix is used.
+   */
+  PROP_PATH_SUPPORTS_BLEND_RELATIVE = (1 << 15),
 
   /**
    * Strings and file-paths that are evaluated with variable syntax.
    */
-  PROP_SUPPORTS_VARIABLES = (1 << 13),
+  PROP_SUPPORTS_VARIABLES = (1 << 14),
 
   /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
   PROP_SKIP_PRESET = (1 << 11),
