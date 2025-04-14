@@ -173,13 +173,23 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
         # Download the asset pages.
         self._num_asset_pages_pending = len(page_urls)
+        referenced_local_files: list[Path] = []
         for page_index, page_url in enumerate(page_urls):
             # These URLs may be absolute or they may be relative. In any case,
             # do not assume that they can be used direclty as local filesystem path.
             local_path = index_common.api_versioned(f"assets-{page_index:05}.json")
-            self._queue_download(page_url, local_path, self.on_asset_page_downloaded)
+            download_to = self._queue_download(page_url, local_path, self.on_asset_page_downloaded)
 
-        # TODO: Remove any dangling pages of assets (downloaded before, no longer referenced).
+            referenced_local_files.append(download_to)
+
+        # Remove any dangling pages of assets (downloaded before, no longer referenced).
+        asset_page_dir = self._local_path / index_common.API_VERSIONED_SUBDIR
+        # TODO: when upgrading to Python 3.12+, add `case_sensitive=False` to the glob() call.
+        for asset_page_file in asset_page_dir.glob("assets-*.json"):
+            abs_path = asset_page_dir / asset_page_file
+            if abs_path in referenced_local_files:
+                continue
+            abs_path.unlink()
 
     def on_asset_page_downloaded(self,
                                  http_req_descr: RequestDescription,
@@ -202,11 +212,14 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         self._state = AssetDownloadState.DONE
 
     def _queue_download(self, relative_url: str, relative_path: Path | str,
-                        on_done: Callable[[RequestDescription, Path], None]) -> None:
+                        on_done: Callable[[RequestDescription, Path], None]) -> Path:
+        """Queue up this download, returning the path to which it will be downloaded."""
         remote_url = urllib.parse.urljoin(self.url, relative_url)
-        local_path = self._local_path / relative_path
 
-        self._bg_downloader.queue_download(remote_url, local_path, on_done)
+        download_to_path = self._local_path / relative_path
+        self._bg_downloader.queue_download(remote_url, download_to_path, on_done)
+
+        return download_to_path
 
     # Below here: CachingDownloadReporter functions:
 
