@@ -2724,11 +2724,7 @@ static void ui_but_copy_colorband(uiBut *but)
 
 static void ui_but_paste_colorband(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
-  if (but_copypaste_coba.tot != 0) {
-    if (!but->poin) {
-      but->poin = reinterpret_cast<char *>(MEM_callocN<ColorBand>(__func__));
-    }
-
+  if (but_copypaste_coba.tot != 0 && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
     memcpy(data->coba, &but_copypaste_coba, sizeof(ColorBand));
     button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -2746,11 +2742,7 @@ static void ui_but_copy_curvemapping(uiBut *but)
 
 static void ui_but_paste_curvemapping(bContext *C, uiBut *but)
 {
-  if (but_copypaste_curve_alive) {
-    if (!but->poin) {
-      but->poin = reinterpret_cast<char *>(MEM_callocN<CurveMapping>(__func__));
-    }
-
+  if (but_copypaste_curve_alive && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
     BKE_curvemapping_free_data((CurveMapping *)but->poin);
     BKE_curvemapping_copy_data((CurveMapping *)but->poin, &but_copypaste_curve);
@@ -2769,11 +2761,7 @@ static void ui_but_copy_CurveProfile(uiBut *but)
 
 static void ui_but_paste_CurveProfile(bContext *C, uiBut *but)
 {
-  if (but_copypaste_profile_alive) {
-    if (!but->poin) {
-      but->poin = reinterpret_cast<char *>(MEM_callocN<CurveProfile>(__func__));
-    }
-
+  if (but_copypaste_profile_alive && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
     BKE_curveprofile_free_data((CurveProfile *)but->poin);
     BKE_curveprofile_copy_data((CurveProfile *)but->poin, &but_copypaste_profile);
@@ -9185,6 +9173,16 @@ void UI_context_active_but_prop_handle(bContext *C, const bool handle_undo)
      * currently this is mainly so reset defaults works for the
      * operator redo panel. */
     uiBlock *block = activebut->block;
+
+    /* There are various functions buttons may run on completion.
+     * See #ui_apply_but_funcs_after for reference, we could even call
+     * this function however it may have unforeseen consequences,
+     * see replies to: !134233. */
+
+    /* This may be needed to validate the value, see: #134101. */
+    if (activebut->func) {
+      activebut->func(C, activebut->func_arg1, activebut->func_arg2);
+    }
     if (block->handle_func) {
       block->handle_func(C, block->handle_func_arg, activebut->retval);
     }
@@ -12038,6 +12036,71 @@ static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event
   return retval;
 }
 
+/* Return true if we should open another menu while one is already open. */
+static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEvent *event)
+{
+  if (but == but_other || but_other->flag & UI_BUT_DISABLED || but_other->menu_no_hover_open) {
+    return false;
+  }
+
+  if (!ELEM(but_other->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER, UI_BTYPE_MENU)) {
+    return false;
+  }
+
+  if (!ELEM(but->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER, UI_BTYPE_MENU)) {
+    return false;
+  }
+
+  uiHandleButtonData *data = but->active;
+  if (!(data->menu->direction & (UI_DIR_DOWN | UI_DIR_UP))) {
+    return true;
+  }
+
+  if (data->menu && data->menu->region &&
+      (BLI_rcti_size_x(&data->menu->region->winrct) > (600.0f * UI_SCALE_FAC)))
+  {
+    /* If the open menu is super wide then don't switch to any neighbors. */
+    return false;
+  }
+
+  float safety = 4.0f * UI_SCALE_FAC;
+  if (!but_other->str.empty()) {
+    safety += 4.0f * UI_SCALE_FAC;
+  }
+
+  float left, right;
+  if (but_other->rect.xmin < but->rect.xmin) {
+    /* Right to Left. */
+    if (but->rect.xmin - but_other->rect.xmax > (24.0f * UI_SCALE_FAC)) {
+      /* If they are far enough part just switch. */
+      return true;
+    }
+    right = but->rect.xmax;
+    left = but_other->rect.xmax;
+    if (ELEM(but_other->type, UI_BTYPE_POPOVER, UI_BTYPE_MENU)) {
+      /* Skip the drop-down arrow on the right of it. */
+      safety += 8.0f * UI_SCALE_FAC;
+    }
+    left -= safety;
+  }
+  else {
+    /* Left to Right. */
+    if (but_other->rect.xmin - but->rect.xmax > (24.0f * UI_SCALE_FAC)) {
+      /* If they are far enough part just switch. */
+      return true;
+    }
+    left = but->rect.xmin;
+    right = but_other->rect.xmin;
+    if (but_other->icon && !but_other->str.empty()) {
+      /* Skip the icon on the left of it. */
+      safety += 16.0f * UI_SCALE_FAC;
+    }
+    right += safety;
+  }
+
+  return (event->mval[0] < int(left) || event->mval[0] > int(right));
+}
+
 /* handle buttons at the window level, modal, for example while
  * number sliding, text editing, or when a menu block is open */
 static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*userdata*/)
@@ -12061,10 +12124,8 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
         (ui_region_find_active_but(data->menu->region) == nullptr) &&
         /* make sure mouse isn't inside another menu (see #43247) */
         (ui_screen_region_find_mouse_over(screen, event) == nullptr) &&
-        ELEM(but->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER, UI_BTYPE_MENU) &&
-        (but_other = ui_but_find_mouse_over(region, event)) && (but != but_other) &&
-        ELEM(but_other->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER, UI_BTYPE_MENU) &&
-        !but_other->menu_no_hover_open &&
+        (but_other = ui_but_find_mouse_over(region, event)) &&
+        ui_can_activate_other_menu(but, but_other, event) &&
         /* Hover-opening menu's doesn't work well for buttons over one another
          * along the same axis the menu is opening on (see #71719). */
         (((data->menu->direction & (UI_DIR_LEFT | UI_DIR_RIGHT)) &&
@@ -12074,11 +12135,9 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
     {
       /* if mouse moves to a different root-level menu button,
        * open it to replace the current menu */
-      if ((but_other->flag & UI_BUT_DISABLED) == 0) {
-        ui_handle_button_activate(C, region, but_other, BUTTON_ACTIVATE_OVER);
-        button_activate_state(C, but_other, BUTTON_STATE_MENU_OPEN);
-        retval = WM_UI_HANDLER_BREAK;
-      }
+      ui_handle_button_activate(C, region, but_other, BUTTON_ACTIVATE_OVER);
+      button_activate_state(C, but_other, BUTTON_STATE_MENU_OPEN);
+      retval = WM_UI_HANDLER_BREAK;
     }
     else if (data->state == BUTTON_STATE_MENU_OPEN) {
       /* handle events for menus and their buttons recursively,

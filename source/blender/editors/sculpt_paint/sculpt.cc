@@ -98,7 +98,7 @@
 
 #include "bmesh.hh"
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 
 using blender::float3;
@@ -798,8 +798,8 @@ static bool brush_type_needs_original(const char sculpt_brush_type)
 
 static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush)
 {
-  return SCULPT_BRUSH_TYPE_HAS_TOPOLOGY_RAKE(brush.sculpt_brush_type) &&
-         (brush.topology_rake_factor > 0.0f) && (ss.bm != nullptr);
+  return bke::brush::supports_topology_rake(brush) && (brush.topology_rake_factor > 0.0f) &&
+         (ss.bm != nullptr);
 }
 
 /**
@@ -807,10 +807,17 @@ static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush
  */
 static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, const Brush &brush)
 {
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
+    /* The normal for the Plane brush is expected to have already been calculated in
+     * #calc_brush_plane. */
+    BLI_assert_msg(!math::is_zero(ss.cache->sculpt_normal),
+                   "Normal should have been previously calculated.");
+    return false;
+  }
+
   using namespace blender::ed::sculpt_paint;
   const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
-  return ((SCULPT_BRUSH_TYPE_HAS_NORMAL_WEIGHT(brush.sculpt_brush_type) &&
-           (ss.cache->normal_weight > 0.0f)) ||
+  return ((bke::brush::supports_normal_weight(brush) && (ss.cache->normal_weight > 0.0f)) ||
           auto_mask::needs_normal(ss, sd, &brush) ||
           ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_BLOB,
@@ -830,7 +837,7 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, 
 
 static bool brush_needs_rake_rotation(const Brush &brush)
 {
-  return SCULPT_BRUSH_TYPE_HAS_RAKE(brush.sculpt_brush_type) && (brush.rake_factor != 0.0f);
+  return bke::brush::supports_rake_factor(brush) && (brush.rake_factor != 0.0f);
 }
 
 /** \} */
@@ -2473,8 +2480,11 @@ static IndexMask pbvh_gather_cursor_update(Object &ob, bool use_original, IndexM
 }
 
 /** \return All nodes that are potentially within the cursor or brush's area of influence. */
-static IndexMask pbvh_gather_generic(
-    Object &ob, const Brush &brush, bool use_original, float radius_scale, IndexMaskMemory &memory)
+static IndexMask pbvh_gather_generic(Object &ob,
+                                     const Brush &brush,
+                                     const bool use_original,
+                                     const float radius_scale,
+                                     IndexMaskMemory &memory)
 {
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
@@ -2504,6 +2514,40 @@ static IndexMask pbvh_gather_generic(
     }
   }
 
+  return {};
+}
+
+IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
+                       const eBrushFalloffShape falloff_shape,
+                       const bool use_original,
+                       const float3 &location,
+                       const float radius_sq,
+                       const std::optional<float3> &ray_direction,
+                       IndexMaskMemory &memory)
+{
+  switch (falloff_shape) {
+    case PAINT_FALLOFF_SHAPE_SPHERE: {
+      return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        return node_in_sphere(node, location, radius_sq, use_original);
+      });
+    }
+
+    case PAINT_FALLOFF_SHAPE_TUBE: {
+      BLI_assert(ray_direction);
+      const DistRayAABB_Precalc ray_dist_precalc = dist_squared_ray_to_aabb_v3_precalc(
+          location, ray_direction.value_or(float3(0.0f)));
+      return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        return node_in_cylinder(ray_dist_precalc, node, radius_sq, use_original);
+      });
+    }
+  }
+  BLI_assert_unreachable();
   return {};
 }
 
@@ -2863,39 +2907,6 @@ void SCULPT_flip_quat_by_symm_area(float quat[4],
   }
 }
 
-bool SCULPT_brush_type_needs_all_pbvh_nodes(const Brush &brush)
-{
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) {
-    /* Elastic deformations in any brush need all nodes to avoid artifacts as the effect
-     * of the Kelvinlet is not constrained by the radius. */
-    return true;
-  }
-
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_POSE) {
-    /* Pose needs all nodes because it applies all symmetry iterations at the same time
-     * and the IK chain can grow to any area of the model. */
-    /* TODO: This can be optimized by filtering the nodes after calculating the chain. */
-    return true;
-  }
-
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_BOUNDARY) {
-    /* Boundary needs all nodes because it is not possible to know where the boundary
-     * deformation is going to be propagated before calculating it. */
-    /* TODO: after calculating the boundary info in the first iteration, it should be
-     * possible to get the nodes that have vertices included in any boundary deformation
-     * and cache them. */
-    return true;
-  }
-
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SNAKE_HOOK &&
-      brush.snake_hook_deform_type == BRUSH_SNAKE_HOOK_DEFORM_ELASTIC)
-  {
-    /* Snake hook in elastic deform type has same requirements as the elastic deform brush. */
-    return true;
-  }
-  return false;
-}
-
 namespace blender::ed::sculpt_paint {
 
 void calc_brush_plane(const Depsgraph &depsgraph,
@@ -2907,135 +2918,87 @@ void calc_brush_plane(const Depsgraph &depsgraph,
 {
   const SculptSession &ss = *ob.sculpt;
 
-  zero_v3(r_area_co);
-  zero_v3(r_area_no);
+  r_area_no = float3(0.0f);
+  r_area_co = float3(0.0f);
 
   const bool use_original_plane = (brush.flag & BRUSH_ORIGINAL_PLANE) &&
                                   brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_PLANE;
   const bool use_original_normal = (brush.flag & BRUSH_ORIGINAL_NORMAL) &&
                                    brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_PLANE;
 
-  if (SCULPT_stroke_is_main_symmetry_pass(*ss.cache) &&
-      (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) || !use_original_plane ||
-       !use_original_normal))
-  {
+  const bool needs_recalculation = SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) ||
+                                   !use_original_plane || !use_original_normal;
+
+  if (SCULPT_stroke_is_main_symmetry_pass(*ss.cache) && needs_recalculation) {
     switch (brush.sculpt_plane) {
       case SCULPT_DISP_DIR_VIEW:
-        copy_v3_v3(r_area_no, ss.cache->view_normal);
+        r_area_no = ss.cache->view_normal;
         break;
 
       case SCULPT_DISP_DIR_X:
-        ARRAY_SET_ITEMS(r_area_no, 1.0f, 0.0f, 0.0f);
+        r_area_no = float3(1.0f, 0.0f, 0.0f);
         break;
 
       case SCULPT_DISP_DIR_Y:
-        ARRAY_SET_ITEMS(r_area_no, 0.0f, 1.0f, 0.0f);
+        r_area_no = float3(0.0f, 1.0f, 0.0f);
         break;
 
       case SCULPT_DISP_DIR_Z:
-        ARRAY_SET_ITEMS(r_area_no, 0.0f, 0.0f, 1.0f);
+        r_area_no = float3(0.0f, 0.0f, 1.0f);
         break;
 
       case SCULPT_DISP_DIR_AREA:
         calc_area_normal_and_center(depsgraph, brush, ob, node_mask, r_area_no, r_area_co);
         if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
           project_plane_v3_v3v3(r_area_no, r_area_no, ss.cache->view_normal_symm);
-          normalize_v3(r_area_no);
+          r_area_no = math::normalize(r_area_no);
         }
         break;
     }
 
-    /* For flatten center. */
     /* Flatten center has not been calculated yet if we are not using the area normal. */
     if (brush.sculpt_plane != SCULPT_DISP_DIR_AREA) {
+      BLI_assert(math::is_zero(r_area_co));
       calc_area_center(depsgraph, brush, ob, node_mask, r_area_co);
     }
 
-    /* For area normal. */
     if (!SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) && use_original_normal) {
-      copy_v3_v3(r_area_no, ss.cache->sculpt_normal);
+      r_area_no = ss.cache->sculpt_normal;
     }
     else {
-      copy_v3_v3(ss.cache->sculpt_normal, r_area_no);
+      ss.cache->sculpt_normal = r_area_no;
     }
 
-    /* For flatten center. */
     if (!SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) && use_original_plane) {
-      copy_v3_v3(r_area_co, ss.cache->last_center);
+      r_area_co = ss.cache->last_center;
     }
     else {
-      copy_v3_v3(ss.cache->last_center, r_area_co);
+      ss.cache->last_center = r_area_co;
     }
   }
   else {
-    /* For area normal. */
-    copy_v3_v3(r_area_no, ss.cache->sculpt_normal);
+    BLI_assert(math::is_zero(ss.cache->symm_rot_mat.location().xyz()));
 
-    /* For flatten center. */
-    copy_v3_v3(r_area_co, ss.cache->last_center);
-
-    /* For area normal. */
+    r_area_no = ss.cache->sculpt_normal;
     r_area_no = symmetry_flip(r_area_no, ss.cache->mirror_symmetry_pass);
+    r_area_no = math::transform_direction(ss.cache->symm_rot_mat, r_area_no);
 
-    /* For flatten center. */
+    r_area_co = ss.cache->last_center;
     r_area_co = symmetry_flip(r_area_co, ss.cache->mirror_symmetry_pass);
-
-    /* For area normal. */
-    mul_m4_v3(ss.cache->symm_rot_mat.ptr(), r_area_no);
-
-    /* For flatten center. */
-    mul_m4_v3(ss.cache->symm_rot_mat.ptr(), r_area_co);
+    r_area_co = math::transform_point(ss.cache->symm_rot_mat, r_area_co);
 
     /* Shift the plane for the current tile. */
-    add_v3_v3(r_area_co, ss.cache->plane_offset);
+    r_area_co += ss.cache->plane_offset;
   }
 }
 
-static IndexMask calc_plane_for_plane_brush(const Depsgraph &depsgraph,
-                                            const StrokeCache &cache,
-                                            const Brush &brush,
-                                            Object &object,
-                                            IndexMaskMemory &memory,
-                                            float3 &r_plane_normal,
-                                            float3 &r_plane_center)
+float brush_plane_offset_get(const Brush &brush, const SculptSession &ss)
 {
-  const bool use_original = !cache.accum;
-
-  IndexMaskMemory cursor_mask_memory;
-  const IndexMask cursor_node_mask = pbvh_gather_generic(
-      object, brush, use_original, 1.0f, cursor_mask_memory);
-  calc_brush_plane(depsgraph, brush, object, cursor_node_mask, r_plane_normal, r_plane_center);
-
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-
-  /* Recompute the node mask using the center of the brush plane as the center.
-   *
-   * The indices of the nodes in `cursor_node_mask` have been calculated based on the cursor
-   * location. However, for the Plane brush, its effective center often deviates from the cursor
-   * location. Calculating the affected nodes using the cursor location as the center can lead to
-   * issues (see, for example, #123768). */
-  return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
-    if (node_fully_masked_or_hidden(node)) {
-      return false;
-    }
-    return node_in_sphere(node, r_plane_center, pow2f(cache.radius), use_original);
-  });
+  return brush.flag & BRUSH_OFFSET_PRESSURE ? brush.plane_offset * ss.cache->pressure :
+                                              brush.plane_offset;
 }
 
 }  // namespace blender::ed::sculpt_paint
-
-float SCULPT_brush_plane_offset_get(const Sculpt &sd, const SculptSession &ss)
-{
-  const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-
-  float rv = brush.plane_offset;
-
-  if (brush.flag & BRUSH_OFFSET_PRESSURE) {
-    rv *= ss.cache->pressure;
-  }
-
-  return rv;
-}
 
 /** \} */
 
@@ -3131,6 +3094,79 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   mul_m4_v3(ob.object_to_world().ptr(), location);
 }
 
+static bool brush_type_needs_all_pbvh_nodes(const Brush &brush)
+{
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) {
+    /* Elastic deformations in any brush need all nodes to avoid artifacts as the effect
+     * of the Kelvinlet is not constrained by the radius. */
+    return true;
+  }
+
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_POSE) {
+    /* Pose needs all nodes because it applies all symmetry iterations at the same time
+     * and the IK chain can grow to any area of the model. */
+    /* TODO: This can be optimized by filtering the nodes after calculating the chain. */
+    return true;
+  }
+
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_BOUNDARY) {
+    /* Boundary needs all nodes because it is not possible to know where the boundary
+     * deformation is going to be propagated before calculating it. */
+    /* TODO: after calculating the boundary info in the first iteration, it should be
+     * possible to get the nodes that have vertices included in any boundary deformation
+     * and cache them. */
+    return true;
+  }
+
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SNAKE_HOOK &&
+      brush.snake_hook_deform_type == BRUSH_SNAKE_HOOK_DEFORM_ELASTIC)
+  {
+    /* Snake hook in elastic deform type has same requirements as the elastic deform brush. */
+    return true;
+  }
+  return false;
+}
+
+/** Calculates the nodes that a brush will influence. */
+static NodeMaskResult calc_brush_node_mask(const Depsgraph &depsgraph,
+                                           Object &ob,
+                                           const Brush &brush,
+                                           IndexMaskMemory &memory)
+{
+  const SculptSession &ss = *ob.sculpt;
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+
+  const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
+                                                                                 !ss.cache->accum;
+  /* Build a list of all nodes that are potentially within the brush's area of influence */
+
+  if (brush_type_needs_all_pbvh_nodes(brush)) {
+    /* These brushes need to update all nodes as they are not constrained by the brush radius */
+    return {all_leaf_nodes(pbvh, memory), std::nullopt, std::nullopt};
+  }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
+    return brushes::plane::calc_node_mask(depsgraph, ob, brush, memory);
+  }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH) {
+    return {cloth::brush_affected_nodes_gather(ob, brush, memory), std::nullopt, std::nullopt};
+  }
+
+  float radius_scale = 1.0f;
+  /* Corners of square brushes can go outside the brush radius. */
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    radius_scale = M_SQRT2;
+  }
+
+  /* With these options enabled not all required nodes are inside the original brush radius, so
+   * the brush can produce artifacts in some situations. */
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW && brush.flag & BRUSH_ORIGINAL_NORMAL) {
+    radius_scale = 2.0f;
+  }
+  return {pbvh_gather_generic(ob, brush, use_original, radius_scale, memory),
+          std::nullopt,
+          std::nullopt};
+}
+
 static void push_undo_nodes(const Depsgraph &depsgraph,
                             Object &ob,
                             const Brush &brush,
@@ -3172,9 +3208,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
                             PaintModeSettings &paint_mode_settings)
 {
   SculptSession &ss = *ob.sculpt;
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   IndexMaskMemory memory;
-  IndexMask node_mask, texnode_mask;
+  IndexMask texnode_mask;
 
   const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
                                                                                  !ss.cache->accum;
@@ -3190,37 +3225,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
     }
   }
 
-  float3 plane_normal;
-  float3 plane_center;
-
-  /* Build a list of all nodes that are potentially within the brush's area of influence */
-
-  if (SCULPT_brush_type_needs_all_pbvh_nodes(brush)) {
-    /* These brushes need to update all nodes as they are not constrained by the brush radius */
-    node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
-  }
-  else if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
-    node_mask = calc_plane_for_plane_brush(
-        depsgraph, *ss.cache, brush, ob, memory, plane_normal, plane_center);
-  }
-  else if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH) {
-    node_mask = cloth::brush_affected_nodes_gather(ob, brush, memory);
-  }
-  else {
-    float radius_scale = 1.0f;
-
-    /* Corners of square brushes can go outside the brush radius. */
-    if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
-      radius_scale = M_SQRT2;
-    }
-
-    /* With these options enabled not all required nodes are inside the original brush radius, so
-     * the brush can produce artifacts in some situations. */
-    if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW && brush.flag & BRUSH_ORIGINAL_NORMAL) {
-      radius_scale = 2.0f;
-    }
-    node_mask = pbvh_gather_generic(ob, brush, use_original, radius_scale, memory);
-  }
+  const NodeMaskResult node_mask_result = calc_brush_node_mask(depsgraph, ob, brush, memory);
+  const IndexMask node_mask = node_mask_result.node_mask;
 
   /* Draw Face Sets in draw mode makes a single undo push, in alt-smooth mode deforms the
    * vertices and uses regular coords undo. */
@@ -3452,7 +3458,13 @@ static void do_brush_action(const Depsgraph &depsgraph,
       color::do_smear_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_PLANE:
-      do_plane_brush(depsgraph, sd, ob, node_mask, plane_normal, plane_center);
+      BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
+      do_plane_brush(depsgraph,
+                     sd,
+                     ob,
+                     node_mask,
+                     *node_mask_result.plane_normal,
+                     *node_mask_result.plane_center);
       break;
   }
 
@@ -3850,6 +3862,8 @@ static const char *sculpt_brush_type_name(const Sculpt &sd)
 
 namespace blender::ed::sculpt_paint {
 
+StrokeCache::StrokeCache() = default;
+
 StrokeCache::~StrokeCache()
 {
   if (this->dial) {
@@ -4029,7 +4043,7 @@ static void sculpt_update_cache_invariants(
   cache->normal_weight = brush->normal_weight;
 
   /* Interpret invert as following normal, for grab brushes. */
-  if (SCULPT_BRUSH_TYPE_HAS_NORMAL_WEIGHT(brush->sculpt_brush_type)) {
+  if (bke::brush::supports_normal_weight(*brush)) {
     if (cache->invert) {
       cache->invert = false;
       cache->normal_weight = (cache->normal_weight == 0.0f);
@@ -4072,8 +4086,7 @@ static void sculpt_update_cache_invariants(
   mul_m3_v3(mat, viewDir);
   normalize_v3_v3(cache->view_normal, viewDir);
 
-  cache->supports_gravity = brush_type_supports_gravity(brush->sculpt_brush_type) &&
-                            (sd.gravity_factor > 0.0f);
+  cache->supports_gravity = bke::brush::supports_gravity(*brush) && sd.gravity_factor > 0.0f;
   /* Get gravity vector in world space. */
   if (cache->supports_gravity) {
     if (sd.gravity_object) {
@@ -4104,7 +4117,7 @@ static void sculpt_update_cache_invariants(
     cache->accum = false;
   }
 
-  if (SCULPT_BRUSH_TYPE_HAS_ACCUMULATE(brush->sculpt_brush_type)) {
+  if (bke::brush::supports_accumulate(*brush)) {
     if (!(brush->flag & BRUSH_ACCUMULATE)) {
       cache->accum = false;
       if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_SHARP) {
@@ -5831,7 +5844,7 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
       "Override Location",
       "Override the given `location` array by recalculating object space positions from the "
       "provided `mouse_event` positions");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   RNA_def_boolean(ot->srna,
                   "ignore_background_click",

@@ -277,6 +277,8 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
   BMeshNode *c1 = &nodes[children], *c2 = &nodes[children + 1];
   c1->flag_ |= Node::Leaf | Node::GPU;
   c2->flag_ |= Node::Leaf | Node::GPU;
+  c1->parent_ = node_index;
+  c2->parent_ = node_index;
   c1->gpu_inner_index_ = children;
   c2->gpu_inner_index_ = children + 1;
   c1->leaf_nodes_.append(children);
@@ -2094,8 +2096,12 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
                                                    const Span<BMFace *> nodeinfo,
                                                    const Span<Bounds<float3>> face_bounds,
                                                    const FastNodeBuildInfo *node,
-                                                   const int node_index)
+                                                   const int node_index,
+                                                   const int parent_index)
 {
+  BLI_assert(parent_index >= -1);
+  nodes[node_index].parent_ = parent_index;
+
   /* Two cases, node does not have children or does have children. */
   if (node->child1) {
     int children_offset_ = nodes.size();
@@ -2108,14 +2114,16 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
                                            nodeinfo,
                                            face_bounds,
                                            node->child1,
-                                           children_offset_);
+                                           children_offset_,
+                                           node_index);
     pbvh_bmesh_create_nodes_fast_recursive(nodes,
                                            cd_vert_node_offset,
                                            cd_face_node_offset,
                                            nodeinfo,
                                            face_bounds,
                                            node->child2,
-                                           children_offset_ + 1);
+                                           children_offset_ + 1,
+                                           node_index);
   }
   else {
     /* Node does not have children so it's a leaf node, populate with faces and tag accordingly
@@ -2213,7 +2221,7 @@ Tree Tree::from_bmesh(BMesh &bm)
   Vector<BMeshNode> &nodes = std::get<Vector<BMeshNode>>(pbvh.nodes_);
   nodes.resize(1);
   pbvh_bmesh_create_nodes_fast_recursive(
-      nodes, cd_vert_node_offset, cd_face_node_offset, nodeinfo, face_bounds, &rootnode, 0);
+      nodes, cd_vert_node_offset, cd_face_node_offset, nodeinfo, face_bounds, &rootnode, 0, -1);
 
   pbvh.tag_positions_changed(nodes.index_range());
   pbvh.update_bounds_bmesh(bm);

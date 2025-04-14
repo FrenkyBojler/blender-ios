@@ -173,6 +173,7 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        const int leaf_limit,
                                        const int gpu_limit,
                                        const int node_index,
+                                       const int parent_index,
                                        std::optional<int> gpu_inner_index,
                                        const std::optional<Bounds<float3>> &bounds_precalc,
                                        const Span<float3> face_centers,
@@ -180,7 +181,11 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        MutableSpan<int> faces,
                                        Vector<MeshNode> &nodes)
 {
+  BLI_assert(parent_index >= -1);
+
   MeshNode &node = nodes[node_index];
+  node.parent_ = parent_index;
+
   const bool max_depth_reached = depth >= STACK_FIXED_DEPTH - 1;
   bool needs_material_split = false;
 
@@ -251,6 +256,7 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                              leaf_limit,
                              gpu_limit,
                              nodes[node_index].children_offset_,
+                             node_index,
                              gpu_inner_index,
                              std::nullopt,
                              face_centers,
@@ -261,6 +267,7 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                              leaf_limit,
                              gpu_limit,
                              nodes[node_index].children_offset_ + 1,
+                             node_index,
                              gpu_inner_index,
                              std::nullopt,
                              face_centers,
@@ -334,6 +341,7 @@ Tree Tree::from_mesh(const Mesh &mesh)
                                leaf_limit,
                                gpu_limit,
                                0,
+                               -1,
                                std::nullopt,
                                bounds,
                                face_centers,
@@ -365,17 +373,22 @@ Tree Tree::from_mesh(const Mesh &mesh)
 static void build_nodes_recursive_grids(const Span<int> material_indices,
                                         const int leaf_limit,
                                         const int node_index,
+                                        const int parent_index,
                                         const std::optional<Bounds<float3>> &bounds_precalc,
                                         const Span<float3> face_centers,
                                         const int depth,
                                         MutableSpan<int> faces,
                                         Vector<GridsNode> &nodes)
 {
+  BLI_assert(parent_index >= -1);
+
+  GridsNode &node = nodes[node_index];
+  node.parent_ = parent_index;
+
   /* Decide whether this is a leaf or not */
   const bool below_leaf_limit = faces.size() <= leaf_limit || depth >= STACK_FIXED_DEPTH - 1;
   if (below_leaf_limit) {
     if (!node_needs_material_split(faces, material_indices)) {
-      GridsNode &node = nodes[node_index];
       node.flag_ |= Node::Leaf | Node::GPU;
       node.gpu_inner_index_ = node_index;
       node.leaf_nodes_.append(node_index);
@@ -422,6 +435,7 @@ static void build_nodes_recursive_grids(const Span<int> material_indices,
   build_nodes_recursive_grids(material_indices,
                               leaf_limit,
                               nodes[node_index].children_offset_,
+                              node_index,
                               std::nullopt,
                               face_centers,
                               depth + 1,
@@ -430,6 +444,7 @@ static void build_nodes_recursive_grids(const Span<int> material_indices,
   build_nodes_recursive_grids(material_indices,
                               leaf_limit,
                               nodes[node_index].children_offset_ + 1,
+                              node_index,
                               std::nullopt,
                               face_centers,
                               depth + 1,
@@ -497,7 +512,7 @@ Tree Tree::from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg)
     SCOPED_TIMER_AVERAGED("build_nodes_recursive_grids");
 #endif
     build_nodes_recursive_grids(
-        material_index, leaf_limit, 0, bounds, face_centers, 0, face_indices, nodes);
+        material_index, leaf_limit, 0, -1, bounds, face_centers, 0, face_indices, nodes);
   }
 
   /* Convert face indices into grid indices. */
@@ -890,11 +905,11 @@ static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
-        return mesh_eval->runtime->vert_normals_cache;
+        return mesh_eval->runtime->vert_normals_true_cache;
       }
     }
     if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
-      return mesh_eval->runtime->vert_normals_cache;
+      return mesh_eval->runtime->vert_normals_true_cache;
     }
   }
 
@@ -903,7 +918,7 @@ static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &
     return ss.vert_normals_deform;
   }
 
-  return mesh_orig.runtime->vert_normals_cache;
+  return mesh_orig.runtime->vert_normals_true_cache;
 }
 static SharedCache<Vector<float3>> &vert_normals_cache_eval_for_write(Object &object_orig,
                                                                       Object &object_eval)
@@ -921,11 +936,11 @@ static const SharedCache<Vector<float3>> &face_normals_cache_eval(const Object &
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
-        return mesh_eval->runtime->face_normals_cache;
+        return mesh_eval->runtime->face_normals_true_cache;
       }
     }
     if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
-      return mesh_eval->runtime->face_normals_cache;
+      return mesh_eval->runtime->face_normals_true_cache;
     }
   }
 
@@ -934,7 +949,7 @@ static const SharedCache<Vector<float3>> &face_normals_cache_eval(const Object &
     return ss.face_normals_deform;
   }
 
-  return mesh_orig.runtime->face_normals_cache;
+  return mesh_orig.runtime->face_normals_true_cache;
 }
 static SharedCache<Vector<float3>> &face_normals_cache_eval_for_write(Object &object_orig,
                                                                       Object &object_eval)
@@ -1166,37 +1181,41 @@ void update_node_bounds_bmesh(BMeshNode &node)
   node.bounds_ = bounds;
 }
 
-struct BoundsMergeInfo {
-  Bounds<float3> bounds;
-  bool update;
-};
-
-template<typename NodeT>
-static BoundsMergeInfo merge_child_bounds(MutableSpan<NodeT> nodes,
-                                          const BitSpan dirty,
-                                          const int node_index)
-{
-  NodeT &node = nodes[node_index];
-  if (node.flag_ & Node::Leaf) {
-    const bool update = node_index < dirty.size() && dirty[node_index];
-    return {node.bounds_, update};
-  }
-
-  const BoundsMergeInfo info_0 = merge_child_bounds(nodes, dirty, node.children_offset_ + 0);
-  const BoundsMergeInfo info_1 = merge_child_bounds(nodes, dirty, node.children_offset_ + 1);
-  const bool update = info_0.update || info_1.update;
-  if (update) {
-    node.bounds_ = bounds::merge(info_0.bounds, info_1.bounds);
-  }
-  return {node.bounds_, update};
-}
-
 void Tree::flush_bounds_to_parents()
 {
+  IndexMaskMemory memory;
+  const IndexMask node_mask = IndexMask::from_bits(bounds_dirty_, memory);
+
   std::visit(
       [&](auto &nodes) {
-        nodes.first().bounds_ =
-            merge_child_bounds(nodes.as_mutable_span(), bounds_dirty_, 0).bounds;
+        Set<int> nodes_to_update;
+        nodes_to_update.reserve(node_mask.size());
+
+        node_mask.foreach_index([&](int i) {
+          if (std::optional<int> parent = nodes[i].parent()) {
+            nodes_to_update.add(*parent);
+          }
+        });
+
+        while (!nodes_to_update.is_empty()) {
+          const int node_index = *nodes_to_update.begin();
+          nodes_to_update.remove(node_index);
+
+          auto &node = nodes[node_index];
+          const Bounds<float3> old_bounds = node.bounds_;
+
+          const Bounds<float3> bounds1 = nodes[node.children_offset_].bounds_;
+          const Bounds<float3> bounds2 = nodes[node.children_offset_ + 1].bounds_;
+          node.bounds_ = bounds::merge(bounds1, bounds2);
+
+          const std::optional<int> parent = node.parent();
+          const bool bounds_changed = node.bounds_.min != old_bounds.min ||
+                                      node.bounds_.max != old_bounds.max;
+
+          if (bounds_changed && parent) {
+            nodes_to_update.add(*parent);
+          }
+        }
       },
       this->nodes_);
   bounds_dirty_.clear_and_shrink();
@@ -2466,7 +2485,7 @@ Span<float3> vert_positions_eval(const Depsgraph &depsgraph, const Object &objec
 Span<float3> vert_positions_eval_from_eval(const Object &object_eval)
 {
   BLI_assert(!DEG_is_original_object(&object_eval));
-  const Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
+  const Object &object_orig = *DEG_get_original_object(&object_eval);
   return vert_positions_eval(object_orig, object_eval);
 }
 
@@ -2478,22 +2497,21 @@ MutableSpan<float3> vert_positions_eval_for_write(const Depsgraph &depsgraph, Ob
 
 Span<float3> vert_normals_eval(const Depsgraph &depsgraph, const Object &object_orig)
 {
-  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph,
-                                                        &const_cast<Object &>(object_orig));
+  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> vert_normals_eval_from_eval(const Object &object_eval)
 {
   BLI_assert(!DEG_is_original_object(&object_eval));
-  Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
+  const Object &object_orig = *DEG_get_original_object(&object_eval);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> face_normals_eval_from_eval(const Object &object_eval)
 {
   BLI_assert(!DEG_is_original_object(&object_eval));
-  Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object_eval));
+  const Object &object_orig = *DEG_get_original_object(&object_eval);
   return face_normals_cache_eval(object_orig, object_eval).data();
 }
 
