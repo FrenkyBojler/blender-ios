@@ -37,6 +37,7 @@ std::optional<ViewerPath> viewer_path_for_compute_context(Main &bmain,
                                                           const ComputeContext *compute_context)
 {
   ViewerPath path;
+  BKE_viewer_path_init(&path);
   for (const ComputeContext *context = compute_context; context; context = context->parent()) {
     ViewerPathElem *elem = viewer_path_elem_for_compute_context(bmain, *context);
     if (!elem) {
