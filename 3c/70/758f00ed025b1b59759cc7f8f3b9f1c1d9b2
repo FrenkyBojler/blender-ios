@@ -1,1 +1,2 @@
 Referenced by issue #137439, Vulkan causes GPU to reset
+Referenced by commit b4028ee28fca9a40dfc27224e4b748b3f4ea16fa, Fix #137395: Vulkan: Memory reset to early
