@@ -2766,7 +2766,8 @@ static void radial_control_paint_curve(uint pos, Brush *br, float radius, int li
   immEnd();
 }
 
-static void radial_control_paint_cursor(bContext * /*C*/, int x, int y, void *customdata)
+static void radial_control_paint_cursor(
+    bContext * /*C*/, int x, int y, float /*x_tilt*/, float /*y_tilt*/, void *customdata)
 {
   RadialControl *rc = static_cast<RadialControl *>(customdata);
   const uiStyle *style = UI_style_get();
@@ -4184,6 +4185,7 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_revert_mainfile);
   WM_operatortype_append(WM_OT_link);
   WM_operatortype_append(WM_OT_append);
+  WM_operatortype_append(WM_OT_id_linked_relocate);
   WM_operatortype_append(WM_OT_lib_relocate);
   WM_operatortype_append(WM_OT_lib_reload);
   WM_operatortype_append(WM_OT_recover_last_session);
