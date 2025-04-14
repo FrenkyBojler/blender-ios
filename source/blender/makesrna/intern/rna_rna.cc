@@ -175,8 +175,9 @@ static constexpr auto PROP_PATH_OUTPUT_DESCR = "";
 static constexpr auto PROP_PATH_RELATIVE_DESCR =
     "This path supports relative prefix \"//\" which is expanded the the directory "
     "where the current \".blend\" file is located.";
-/* TODO: fill in description. */
-static constexpr auto PROP_SUPPORTS_VARIABLES_DESCR = "Blah blah blah...";
+static constexpr auto PROP_SUPPORTS_VARIABLES_DESCR =
+    "This path supports the \"{variable_name}\" variable expression syntax, which substitutes the "
+    "value of the referenced variable in place of the expression";
 static constexpr auto PROP_ENUM_FLAG_DESCR = "";
 
 const EnumPropertyItem rna_enum_property_flag_items[] = {
@@ -3331,10 +3332,11 @@ static void rna_def_property(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(
       prop, "rna_Property_is_supports_variable_expressions_flag_get", nullptr);
-  RNA_def_property_ui_text(prop,
-                           "Variable Expression Support",
-                           /* TODO: fill in description. */
-                           "Blah blah blah...");
+  RNA_def_property_ui_text(
+      prop,
+      "Variable Expression Support",
+      "Property is a path which supports the \"{variable_name}\" variable expression syntax, "
+      "which substitutes the value of the referenced variable in place of the expression");
 
   prop = RNA_def_property(srna, "tags", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

@@ -486,8 +486,7 @@ class InfoPropertyRNA:
             type_info.append("blend relative ``//`` prefix supported")
 
         if self.is_supports_variable_expressions:
-            # TODO: fill in description.
-            type_info.append("Blah blah blah...")
+            type_info.append("variable expressions like \"{blend_name}\" are supported")
 
         if type_info:
             type_str += ", ({:s})".format(", ".join(type_info))
