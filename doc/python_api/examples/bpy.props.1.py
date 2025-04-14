@@ -22,8 +22,7 @@ class OBJECT_OT_property_example(bpy.types.Operator):
 
     def execute(self, context):
         self.report(
-            {'INFO'},
-            "F: {:.2f}  B: {!s}  S: {!r}".format(
+            {'INFO'},"F: {:.2f}  B: {!s}  S: {!r}".format(
                 self.my_float, self.my_bool, self.my_string,
             )
         )
