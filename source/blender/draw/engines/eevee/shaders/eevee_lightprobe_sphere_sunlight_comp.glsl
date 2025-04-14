@@ -37,7 +37,7 @@ void main()
   }
 
   /* Then sum across invocations. */
-  constexpr uint local_index = gl_LocalInvocationIndex;
+  const uint local_index = gl_LocalInvocationIndex;
   local_radiance[local_index] = sun.radiance;
   local_direction[local_index] = sun.direction;
 

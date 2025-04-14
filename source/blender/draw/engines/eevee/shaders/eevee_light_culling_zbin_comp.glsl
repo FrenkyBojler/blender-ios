@@ -23,7 +23,7 @@ shared uint zbin_min[CULLING_ZBIN_COUNT];
 void main()
 {
   constexpr uint zbin_iter = CULLING_ZBIN_COUNT / gl_WorkGroupSize.x;
-  constexpr uint zbin_local = gl_LocalInvocationID.x * zbin_iter;
+  const uint zbin_local = gl_LocalInvocationID.x * zbin_iter;
 
   for (uint i = 0u, l = zbin_local; i < zbin_iter; i++, l++) {
     zbin_max[l] = 0x0u;

@@ -209,9 +209,9 @@ int2 orthogonal(int2 v);
 /**
  * Return true if the difference between`a` and `b` is below the `epsilon` value.
  */
-bool is_equal(float2 a, float2 b, constexpr float epsilon);
-bool is_equal(float3 a, float3 b, constexpr float epsilon);
-bool is_equal(float4 a, float4 b, constexpr float epsilon);
+bool is_equal(float2 a, float2 b, float epsilon);
+bool is_equal(float3 a, float3 b, float epsilon);
+bool is_equal(float4 a, float4 b, float epsilon);
 
 /**
  * Return the maximum component of a vector.
@@ -719,15 +719,15 @@ int2 orthogonal(int2 v)
   return int2(-v.y, v.x);
 }
 
-bool is_equal(float2 a, float2 b, constexpr float epsilon)
+bool is_equal(float2 a, float2 b, float epsilon)
 {
   return all(lessThanEqual(abs(a - b), float2(epsilon)));
 }
-bool is_equal(float3 a, float3 b, constexpr float epsilon)
+bool is_equal(float3 a, float3 b, float epsilon)
 {
   return all(lessThanEqual(abs(a - b), float3(epsilon)));
 }
-bool is_equal(float4 a, float4 b, constexpr float epsilon)
+bool is_equal(float4 a, float4 b, float epsilon)
 {
   return all(lessThanEqual(abs(a - b), float4(epsilon)));
 }

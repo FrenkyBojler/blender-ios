@@ -114,7 +114,7 @@ float octahedral_texel_solid_angle(int2 local_texel,
 void main()
 {
   uint work_group_index = gl_NumWorkGroups.x * gl_WorkGroupID.y + gl_WorkGroupID.x;
-  constexpr uint local_index = gl_LocalInvocationIndex;
+  const uint local_index = gl_LocalInvocationIndex;
   constexpr uint group_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 
   SphereProbeUvArea world_coord = reinterpret_as_atlas_coord(world_coord_packed);

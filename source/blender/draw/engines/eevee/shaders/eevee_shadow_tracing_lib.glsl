@@ -124,7 +124,7 @@ void shadow_map_trace_hit_check(inout ShadowMapTracingState state,
     float2 delta = samp.occluder - state.occluder_history;
     /* Clamping the slope to a minimum avoid light leaking. */
     /* TODO(@fclem): Expose as parameter? */
-    constexpr float min_slope = tan(M_PI * 0.25f);
+    const float min_slope = tan(M_PI * 0.25f);
     state.occluder_slope = max(min_slope, abs(delta.y / delta.x));
     state.occluder_history = samp.occluder;
     /* Intersection test. Intersect if above the ray time. */
@@ -409,11 +409,11 @@ float shadow_normal_offset(float3 Ng, float3 L)
   /* Attenuate depending on light angle. */
   float cos_theta = abs(dot(Ng, L));
   /* Ng might have been quantized. Compensate the error by scaling the offset. */
-  constexpr float max_angular_quantization_error = 0.534f; /* Radians. */
-  constexpr float max_error_cos_inv = 1.0f / cos(max_angular_quantization_error);
+  const float max_angular_quantization_error = 0.534f; /* Radians. */
+  const float max_error_cos_inv = 1.0f / cos(max_angular_quantization_error);
   /* The scaling is only to fix the self shadowing we need another bias for shadowing of adjacent
    * polygons. */
-  constexpr float max_error_adjacent_polygon = 0.195f; /* Eye-balled. */
+  const float max_error_adjacent_polygon = 0.195f; /* Eye-balled. */
   return sin_from_cos(cos_theta) * max_error_cos_inv + max_error_adjacent_polygon;
 }
 

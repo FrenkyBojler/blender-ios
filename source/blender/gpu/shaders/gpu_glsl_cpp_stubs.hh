@@ -238,7 +238,8 @@ template<typename T> struct VecBase<T, 2> : VecOp<T, 2> {
   VecBase() = default;
   template<typename U> explicit VecBase(VecOp<U, 2>) {}
   explicit VecBase(T) {}
-  explicit VecBase(T, T) {}
+  /* Implemented correctly for GCC to compile the constexpr float2 arrays. */
+  constexpr explicit VecBase(T x_, T y_) : x(x_), y(y_) {}
 };
 
 template<typename T> struct VecBase<T, 3> : VecOp<T, 3> {
@@ -277,7 +278,8 @@ template<typename T> struct VecBase<T, 4> : VecOp<T, 4> {
   VecBase() = default;
   template<typename U> explicit VecBase(VecOp<U, 4>) {}
   explicit VecBase(T) {}
-  explicit VecBase(T, T, T, T) {}
+  /* Implemented correctly for GCC to compile the constexpr. */
+  constexpr explicit VecBase(T x_, T y_, T z_, T w_) : x(x_), y(y_), z(z_), w(w_) {}
   explicit VecBase(VecOp<T, 2>, T, T) {}
   explicit VecBase(T, VecOp<T, 2>, T) {}
   explicit VecBase(T, T, VecOp<T, 2>) {}

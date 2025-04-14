@@ -41,7 +41,7 @@ void main()
   }
 
   /* Then sum across invocations. */
-  constexpr uint local_index = gl_LocalInvocationIndex;
+  const uint local_index = gl_LocalInvocationIndex;
   local_sh_coefs[local_index][0] = sh.L0.M0;
   local_sh_coefs[local_index][1] = sh.L1.Mn1;
   local_sh_coefs[local_index][2] = sh.L1.M0;
