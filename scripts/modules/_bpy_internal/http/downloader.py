@@ -367,9 +367,14 @@ class CachingDownloader:
         if not meta_path.exists():
             return None
         meta_json = meta_path.read_bytes()
-        # TODO: catch validation errors and remove the file if that happens,
-        # then act as if the file never existed in the first place.
-        return HTTPMetadata.model_validate_json(meta_json)
+
+        try:
+            return HTTPMetadata.model_validate_json(meta_json)
+        except pydantic.ValidationError:
+            # File was an old format, got corrupted, or is otherwise unusable.
+            # Just act as if it never existed in the first place.
+            meta_path.unlink()
+            return None
 
     def _metadata_if_file_matches(
         self, http_req_descr: RequestDescription, local_path: Path
