@@ -81,6 +81,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = SOCK_FLOAT;
 }
 
+#ifdef WITH_OPENVDB
 static float4x4 transform_to_matrix(const openvdb::math::Transform &transform)
 {
   /* Perspective not supported for now, getAffineMap() will leave out the
@@ -378,6 +379,7 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
 
   params.set_output("Points", bke::GeometrySet::from_pointcloud(points));
 }
+#endif
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
