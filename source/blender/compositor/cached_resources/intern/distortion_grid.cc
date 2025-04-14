@@ -82,7 +82,7 @@ DistortionGrid::DistortionGrid(
   /* Extend the size by the deltas of the bounds. */
   const int2 extended_size = size + int2(right_delta + left_delta, bottom_delta + top_delta);
 
-  distortion_grid_ = Array<float2>((int64_t)extended_size.x * extended_size.y);
+  distortion_grid_ = Array<float2>(int64_t(extended_size.x) * extended_size.y);
   parallel_for(extended_size, [&](const int2 texel) {
     /* The tracking distortion functions expect the coordinates to be in the space of the image
      * where the tracking camera was calibrated. So we first remap the coordinates into that space,
@@ -104,7 +104,7 @@ DistortionGrid::DistortionGrid(
     /* Note that we should remap the coordinates back into the original size by dividing by the
      * calibration size and multiplying by the size, however, we skip the latter to store the
      * coordinates in normalized form, since this is what the shader expects. */
-    distortion_grid_[(int64_t)texel.y * extended_size.x + texel.x] = coordinates /
+    distortion_grid_[texel.y * int64_t(extended_size.x) + texel.x] = coordinates /
                                                                      float2(calibration_size);
   });
 
