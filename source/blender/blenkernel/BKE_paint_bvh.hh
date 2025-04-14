@@ -115,15 +115,8 @@ class Node : NonCopyable {
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 
-  Span<int> leaf_nodes() const
-  {
-    return leaf_nodes_;
-  }
-
-  int leaf_offset_in_GPU_buffer() const
-  {
-    return leaf_offset_;
-  }
+  Span<int> leaf_nodes() const;
+  int leaf_offset_in_GPU_buffer() const;
 
   std::optional<int> parent() const;
   const Bounds<float3> &bounds() const;
@@ -640,6 +633,16 @@ void node_update_visibility_bmesh(BMeshNode &node);
 void update_node_bounds_mesh(Span<float3> positions, MeshNode &node);
 void update_node_bounds_grids(int grid_area, Span<float3> positions, GridsNode &node);
 void update_node_bounds_bmesh(BMeshNode &node);
+
+inline Span<int> Node::leaf_nodes() const
+{
+  return leaf_nodes_;
+}
+
+inline int Node::leaf_offset_in_GPU_buffer() const
+{
+  return leaf_offset_;
+}
 
 inline std::optional<int> Node::parent() const
 {
