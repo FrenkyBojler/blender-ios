@@ -25,8 +25,8 @@ class OBJECT_OT_property_example(bpy.types.Operator):
             {'INFO'},
             "F: {:.2f}  B: {!s}  S: {!r}".format(
                 self.my_float, self.my_bool, self.my_string,
-            ),
-        )
+            )
+)
         print('My float:', self.my_float)
         print('My bool:', self.my_bool)
         print('My string:', self.my_string)
