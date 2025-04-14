@@ -7523,6 +7523,8 @@ class VIEW3D_PT_overlay_bones(Panel):
         col = layout.column()
         col.active = display_all
 
+        col.prop(overlay, "show_wireframe_bone")
+
         if mode == 'POSE':
             row = col.row()
             row.prop(overlay, "show_xray_bone", text="")
@@ -7532,8 +7534,6 @@ class VIEW3D_PT_overlay_bones(Panel):
         elif mode == 'PAINT_WEIGHT':
             row = col.row()
             row.prop(overlay, "show_xray_bone")
-
-        col.prop(overlay, "show_wireframe_bone")
 
 
 class VIEW3D_PT_overlay_texture_paint(Panel):
