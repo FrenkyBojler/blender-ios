@@ -1322,9 +1322,10 @@ void DepsgraphNodeBuilder::build_animdata_drivers(ID *id, AnimData *adt)
 
   if (!all_can_multithread) {
     /* If not everything can be multi-threaded, an UNSHARE node is needed. */
+    ID *id_cow = get_cow_id(id);
     ensure_operation_node(
-        id, NodeType::PARAMETERS, OperationCode::DRIVER_UNSHARE, [id](::Depsgraph *depsgraph) {
-          BKE_animsys_eval_driver_unshare(depsgraph, id);
+        id, NodeType::PARAMETERS, OperationCode::DRIVER_UNSHARE, [id_cow](::Depsgraph *depsgraph) {
+          BKE_animsys_eval_driver_unshare(depsgraph, id_cow);
         });
   }
 }

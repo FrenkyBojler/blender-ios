@@ -297,7 +297,7 @@ bool BKE_animsys_read_from_rna_path(struct PathResolvedRNA *anim_rna, float *r_v
  */
 bool BKE_animsys_write_to_rna_path(struct PathResolvedRNA *anim_rna,
                                    float value,
-                                   bool force_setter = false);
+                                   bool force_write = false);
 
 /**
  * Evaluation loop for evaluation animation data

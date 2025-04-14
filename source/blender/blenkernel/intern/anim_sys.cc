@@ -455,7 +455,7 @@ bool BKE_animsys_read_from_rna_path(PathResolvedRNA *anim_rna, float *r_value)
 
 bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna,
                                    const float value,
-                                   const bool force_setter)
+                                   const bool force_write)
 {
   PropertyRNA *prop = anim_rna->prop;
   PointerRNA *ptr = &anim_rna->ptr;
@@ -464,7 +464,7 @@ bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna,
   /* caller must ensure this is animatable */
   BLI_assert(RNA_property_animateable(ptr, prop) || ptr->owner_id == nullptr);
 
-  if (!force_setter) {
+  if (!force_write) {
     /* Check whether value is new. Otherwise we skip all the updates. */
     float old_value;
     if (!BKE_animsys_read_from_rna_path(anim_rna, &old_value)) {
