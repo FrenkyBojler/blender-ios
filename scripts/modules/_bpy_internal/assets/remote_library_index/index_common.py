@@ -7,6 +7,8 @@
 Basically this is shared code between the index generator and index downloader.
 """
 
+from pathlib import Path
+
 API_VERSION = 1
 """The API version supported and produced by this version of Blender."""
 
@@ -26,3 +28,8 @@ ASSET_INDEX_JSON_FILENAME = "asset-index.json"
 This is expected to sit in the `API_VERSIONED_SUBDIR`, and reference other files
 in the same directory.
 """
+
+
+def api_versioned(subpath: Path | str) -> Path:
+    "Return the subpath, prefixed with API_VERSIONED_SUBDIR."
+    return Path(API_VERSIONED_SUBDIR) / subpath

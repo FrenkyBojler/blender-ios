@@ -66,9 +66,9 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
             )
 
         # Download the main index.
-        index_local_path = base_path / index_common.API_VERSIONED_SUBDIR / index_common.ASSET_INDEX_JSON_FILENAME
-        index_remote_url = urllib.parse.urljoin(
-            base_url, f"{index_common.API_VERSIONED_SUBDIR}/{index_common.ASSET_INDEX_JSON_FILENAME}")
+        main_index_relpath = index_common.api_versioned(index_common.ASSET_INDEX_JSON_FILENAME)
+        index_local_path = base_path / main_index_relpath
+        index_remote_url = urllib.parse.urljoin(base_url, main_index_relpath.as_posix())
 
         asset_index = _download_and_parse(
             bg_downloader,
@@ -87,7 +87,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
         for page_index, page_url in enumerate(asset_index.page_urls):
             # These URLs may be absolute or they may be relative. In any case,
             # do not assume that they can be used direclty as local filesystem path.
-            local_path = base_path / index_common.API_VERSIONED_SUBDIR / f"assets-{page_index:05}.json"
+            local_path = base_path / index_common.api_versioned(f"assets-{page_index:05}.json")
             remote_url = urllib.parse.urljoin(base_url, page_url)
 
             page = _download_and_parse(

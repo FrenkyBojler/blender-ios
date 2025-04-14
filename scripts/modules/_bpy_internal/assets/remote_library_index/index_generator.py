@@ -107,7 +107,7 @@ def _write_json_files(
     # the index_common.py file.
     page_urls = []
     for page_index, page in enumerate(asset_index_pages):
-        page_relpath = outdir_versioned.relative_to(outdir_root) / f"assets-{page_index:05}.json"
+        page_relpath = index_common.api_versioned(f"assets-{page_index:05}.json")
         page_urls.append(page_relpath.as_posix())
 
         _save_json(page, outdir_root / page_relpath)

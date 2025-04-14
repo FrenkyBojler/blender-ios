@@ -142,9 +142,10 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
             )
 
         # Download the asset index.
+        relative_path = index_common.api_versioned(index_common.ASSET_INDEX_JSON_FILENAME)
         self._queue_download(
-            f"{index_common.API_VERSIONED_SUBDIR}/{index_common.ASSET_INDEX_JSON_FILENAME}",
-            Path(index_common.API_VERSIONED_SUBDIR) / index_common.ASSET_INDEX_JSON_FILENAME,
+            relative_path.as_posix(),
+            relative_path,
             self.parse_asset_lib_index,
         )
 
