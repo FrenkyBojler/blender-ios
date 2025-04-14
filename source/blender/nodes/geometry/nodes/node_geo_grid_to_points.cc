@@ -56,9 +56,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Level")
       .description("Node level, -1 = leaf voxel, 0 = leaf node, 1,2,.. = other node")
       .field_on_all();
-  b.add_output<decl::Bool>("Active")
-      .description("Active state of the voxel or tile")
-      .field_on_all();
 
   b.add_output(data_type, "Background").description("Value of the grid in empty regions");
   b.add_output(data_type, "Value")
@@ -176,8 +173,6 @@ template<typename T> struct ThreadPointData { /* Coordinates of the node in the 
    * -1 = voxel (not an actual node in the tree)
    */
   Vector<int> levels;
-  /* Active state of the voxel. */
-  Vector<bool> active_state;
   Vector<T> values;
 
   /* Buffer for evaluating the selection field. */
@@ -226,8 +221,6 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
       params.get_output_anonymous_attribute_id_if_needed("Bounds Max");
   const std::optional<std::string> level_id = params.get_output_anonymous_attribute_id_if_needed(
       "Level");
-  const std::optional<std::string> active_state_id =
-      params.get_output_anonymous_attribute_id_if_needed("Active");
   const std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed(
       "Value");
 
@@ -249,7 +242,6 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
       reserve_data_if_needed(bounds_min_id, point_data.bounds_min, node.NUM_VOXELS);
       reserve_data_if_needed(bounds_max_id, point_data.bounds_max, node.NUM_VOXELS);
       reserve_data_if_needed(level_id, point_data.levels, node.NUM_VOXELS);
-      reserve_data_if_needed(active_state_id, point_data.active_state, node.NUM_VOXELS);
       reserve_data_if_needed(value_id, point_data.values, node.NUM_VOXELS);
 
       const GridLeafFieldContext<LeafNodeType> field_context(transform, node.origin());
@@ -261,7 +253,6 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
       const VArraySpan<bool> selection = evaluator.get_evaluated<bool>(0);
       auto add_value = [&](const int index,
                            const openvdb::Coord &coord,
-                           const bool is_active,
                            const typename LeafNodeType::ValueType &value) {
         if (!selection[index]) {
           return;
@@ -279,9 +270,6 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
           /* Indicates a voxel. */
           point_data.levels.append(-1);
         }
-        if (active_state_id) {
-          point_data.active_state.append(is_active);
-        }
         if (value_id) {
           point_data.values.append(type_traits::to_blender(value));
         }
@@ -289,12 +277,12 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
 
       if (node.isDense()) {
         for (const int index : IndexRange(LeafNodeType::NUM_VOXELS)) {
-          add_value(index, node.offsetToGlobalCoord(index), true, node.getValue(index));
+          add_value(index, node.offsetToGlobalCoord(index), node.getValue(index));
         }
       }
       else {
         for (auto iter = node.cbeginValueOn(); iter; ++iter) {
-          add_value(iter.pos(), iter.getCoord(), true, iter.getValue());
+          add_value(iter.pos(), iter.getCoord(), iter.getValue());
         }
       }
     }
@@ -317,7 +305,6 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
   SpanAttributeWriter<float3> bounds_min_writer;
   SpanAttributeWriter<float3> bounds_max_writer;
   SpanAttributeWriter<int> level_writer;
-  SpanAttributeWriter<bool> active_state_writer;
   SpanAttributeWriter<T> value_writer;
   if (coord_id) {
     coord_writer = attributes.lookup_or_add_for_write_only_span<float3>(*coord_id,
@@ -333,10 +320,6 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
   }
   if (level_id) {
     level_writer = attributes.lookup_or_add_for_write_only_span<int>(*level_id, AttrDomain::Point);
-  }
-  if (active_state_id) {
-    active_state_writer = attributes.lookup_or_add_for_write_only_span<bool>(*active_state_id,
-                                                                             AttrDomain::Point);
   }
   if (value_id) {
     value_writer = attributes.lookup_or_add_for_write_only_span<T>(*value_id, AttrDomain::Point);
@@ -360,9 +343,6 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
     if (level_writer) {
       level_writer.span.slice(points_range).copy_from(point_data.levels);
     }
-    if (active_state_writer) {
-      active_state_writer.span.slice(points_range).copy_from(point_data.active_state);
-    }
     if (value_writer) {
       value_writer.span.slice(points_range).copy_from(point_data.values);
     }
@@ -371,7 +351,6 @@ template<typename T> void grid_to_points(GeoNodeExecParams params)
   bounds_min_writer.finish();
   bounds_max_writer.finish();
   level_writer.finish();
-  active_state_writer.finish();
   value_writer.finish();
 
   params.set_output("Points", bke::GeometrySet::from_pointcloud(points));
