@@ -14,15 +14,15 @@
   }
 
 /* clang-format off */
-RESHAPE(float2x2, float2x2, float3x3)
-RESHAPE(float2x2, float2x2, float4x4)
-RESHAPE(float3x3, float3x3, float4x4)
-RESHAPE(float3x3, float3x3, float2x2)
-RESHAPE(float4x4, float4x4, float2x2)
-RESHAPE(float4x4, float4x4, float3x3)
+RESHAPE(float2x2, mat2x2, mat3x3)
+RESHAPE(float2x2, mat2x2, mat4x4)
+RESHAPE(float3x3, mat3x3, mat4x4)
+RESHAPE(float3x3, mat3x3, mat2x2)
+RESHAPE(float4x4, mat4x4, mat2x2)
+RESHAPE(float4x4, mat4x4, mat3x3)
 /* clang-format on */
 /* TODO(fclem): Remove. Use Transform instead. */
-RESHAPE(float3x3, float3x3, float3x4)
+RESHAPE(float3x3, mat3x3, mat3x4)
 
 #undef RESHAPE
 

@@ -593,18 +593,6 @@ float mad(float a, float b, float c)
 #  else
 #    define mad(a, b, c) (a * b + c)
 #  endif
-/* NOTE(Metal): Types already natively declared in MSL. */
-#  ifndef GPU_METAL
-#    define float2 float2
-#    define float3 float3
-#    define float4 float4
-#    define int2 int2
-#    define int3 int3
-#    define int4 int4
-#    define bool2 bool2
-#    define bool3 bool3
-#    define bool4 bool4
-#  endif
 #endif
 
 /* clang-format off */
