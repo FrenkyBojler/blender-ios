@@ -6797,6 +6797,20 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 22)) {
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      mesh->symmetry |= ME_SYMMETRY_FEATHER;
+
+      mesh->radial_symmetry[0] = 1;
+      mesh->radial_symmetry[1] = 1;
+      mesh->radial_symmetry[2] = 1;
+
+      mesh->tile_offset[0] = 1.0f;
+      mesh->tile_offset[1] = 1.0f;
+      mesh->tile_offset[2] = 1.0f;
+    }
+  }
+
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */

@@ -429,10 +429,6 @@
     .automasking_view_normal_falloff = 0.25f, \
     .automasking_boundary_edges_propagation_steps = 1, \
     .flags = SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE,\
-    .paint = {\
-      .symmetry_flags = PAINT_SYMMETRY_FEATHER,\
-      .tile_offset = {1.0f, 1.0f, 1.0f},\
-    }\
   }
 /* clang-format off */
 

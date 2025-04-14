@@ -73,8 +73,8 @@ struct GestureData {
   ViewContext vc;
 
   /* Enabled and currently active symmetry. */
-  eMeshSymmetryType symm;
-  eMeshSymmetryType symmpass;
+  eMeshSymmetryFlags symm;
+  eMeshSymmetryFlags symmpass;
 
   /* Operation parameters. */
   ShapeType shape_type;

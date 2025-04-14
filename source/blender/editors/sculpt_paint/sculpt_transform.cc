@@ -85,7 +85,7 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
 }
 
 static std::array<float4x4, 8> transform_matrices_init(const SculptSession &ss,
-                                                       const eMeshSymmetryType symm,
+                                                       const eMeshSymmetryFlags symm,
                                                        const TransformDisplacementMode t_mode)
 {
   std::array<float4x4, 8> mats;
@@ -172,7 +172,7 @@ BLI_NOINLINE static void calc_symm_area_transform_translations(
 }
 
 BLI_NOINLINE static void filter_translations_with_symmetry(const Span<float3> positions,
-                                                           const eMeshSymmetryType symm,
+                                                           const eMeshSymmetryFlags symm,
                                                            const MutableSpan<float3> translations)
 {
   if ((symm & ME_SYMMETRY_ANY) == 0) {
@@ -213,7 +213,7 @@ static void transform_node_mesh(const Sculpt &sd,
   calc_symm_area_transform_translations(orig_data.positions, transform_mats, translations);
   scale_translations(translations, factors);
 
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   filter_translations_with_symmetry(orig_data.positions, symm, translations);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
@@ -245,7 +245,7 @@ static void transform_node_grids(const Sculpt &sd,
 
   scale_translations(translations, factors);
 
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   filter_translations_with_symmetry(orig_data.positions, symm, translations);
 
   clip_and_lock_translations(sd, ss, orig_data.positions, translations);
@@ -276,7 +276,7 @@ static void transform_node_bmesh(const Sculpt &sd,
 
   scale_translations(translations, factors);
 
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   filter_translations_with_symmetry(orig_positions, symm, translations);
 
   clip_and_lock_translations(sd, ss, orig_positions, translations);
@@ -288,7 +288,7 @@ static void sculpt_transform_all_vertices(const Depsgraph &depsgraph, const Scul
   undo::restore_position_from_undo_step(depsgraph, ob);
 
   SculptSession &ss = *ob.sculpt;
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   std::array<float4x4, 8> transform_mats = transform_matrices_init(
       ss, symm, ss.filter_cache->transform_displacement_mode);
@@ -459,7 +459,7 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
   BLI_assert(ss.filter_cache->transform_displacement_mode ==
              TransformDisplacementMode::Incremental);
 
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   std::array<float4x4, 8> transform_mats = transform_matrices_init(
       ss, symm, ss.filter_cache->transform_displacement_mode);
@@ -477,7 +477,7 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
   BKE_kelvinlet_init_params(&params, transform_radius, force, shear_modulus, poisson_ratio);
 
   threading::EnumerableThreadSpecific<TransformLocalData> all_tls;
-  for (eMeshSymmetryType symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
+  for (eMeshSymmetryFlags symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
     if (!is_symmetry_iteration_valid(symmpass, symm)) {
       continue;
     }
@@ -670,7 +670,7 @@ BLI_NOINLINE static void accumulate_weighted_average_position(const Span<float3>
 static float3 average_unmasked_position(const Depsgraph &depsgraph,
                                         const Object &object,
                                         const float3 &pivot,
-                                        const eMeshSymmetryType symm)
+                                        const eMeshSymmetryFlags symm)
 {
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -792,7 +792,7 @@ BLI_NOINLINE static void mask_border_weight_calc(const Span<float> masks,
 static float3 average_mask_border_position(const Depsgraph &depsgraph,
                                            const Object &object,
                                            const float3 &pivot,
-                                           const eMeshSymmetryType symm)
+                                           const eMeshSymmetryFlags symm)
 {
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -916,7 +916,7 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
   SculptSession &ss = *ob.sculpt;
   ARegion *region = CTX_wm_region(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   const PivotPositionMode mode = PivotPositionMode(RNA_enum_get(op->ptr, "mode"));
 

@@ -304,7 +304,7 @@ static void flip_plane(float out[4], const float in[4], const char symm)
   out[3] = in[3];
 }
 
-static void flip_for_symmetry_pass(GestureData &gesture_data, const eMeshSymmetryType symmpass)
+static void flip_for_symmetry_pass(GestureData &gesture_data, const eMeshSymmetryFlags symmpass)
 {
   gesture_data.symmpass = symmpass;
   for (int j = 0; j < 4; j++) {
@@ -455,7 +455,7 @@ void apply(bContext &C, GestureData &gesture_data, wmOperator &op)
 
   for (int symmpass = 0; symmpass <= gesture_data.symm; symmpass++) {
     if (is_symmetry_iteration_valid(symmpass, gesture_data.symm)) {
-      flip_for_symmetry_pass(gesture_data, eMeshSymmetryType(symmpass));
+      flip_for_symmetry_pass(gesture_data, eMeshSymmetryFlags(symmpass));
       update_affected_nodes(gesture_data);
 
       operation->apply_for_symmetry_pass(C, gesture_data);

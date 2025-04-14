@@ -1124,7 +1124,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
   float3 location;
   float symm_rot_mat[4][4];
 
-  for (eMeshSymmetryType symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
+  for (eMeshSymmetryFlags symmpass = ME_SYMMETRY_NONE; symmpass <= symm; symmpass++) {
     if (is_symmetry_iteration_valid(symmpass, symm)) {
       /* Axis Symmetry. */
       location = symmetry_flip(true_location, symmpass);

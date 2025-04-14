@@ -1110,7 +1110,7 @@ static void fill_topology_automasking_factors_mesh(const Depsgraph &depsgraph,
   flood.add_initial(find_symm_verts_mesh(depsgraph, ob, active_vert, radius));
 
   const bool use_radius = ss.cache && is_constrained_by_radius(brush);
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   float3 location = vert_positions[active_vert];
 
@@ -1151,7 +1151,7 @@ static void fill_topology_automasking_factors_grids(const Sculpt &sd,
   flood.add_initial(key, find_symm_verts_grids(ob, active_vert, radius));
 
   const bool use_radius = ss.cache && is_constrained_by_radius(brush);
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   float3 location = positions[active_vert];
 
@@ -1190,7 +1190,7 @@ static void fill_topology_automasking_factors_bmesh(const Sculpt &sd,
   flood.add_initial(*ss.bm, find_symm_verts_bmesh(ob, BM_elem_index_get(active_vert), radius));
 
   const bool use_radius = ss.cache && is_constrained_by_radius(brush);
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   float3 location = active_vert->co;
 

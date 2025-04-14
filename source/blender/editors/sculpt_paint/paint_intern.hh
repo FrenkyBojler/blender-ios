@@ -498,7 +498,7 @@ inline bool is_symmetry_iteration_valid(const char i, const char symm)
   return i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || !ELEM(i, 3, 5)));
 }
 
-inline float3 symmetry_flip(const float3 &src, const eMeshSymmetryType symm)
+inline float3 symmetry_flip(const float3 &src, const eMeshSymmetryFlags symm)
 {
   float3 dst;
   if (symm & ME_SYMMETRY_X) {

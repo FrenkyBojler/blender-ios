@@ -560,7 +560,7 @@ Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
                                  const int original_vert,
                                  const float max_distance)
 {
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const bool use_original = false;
 
@@ -577,7 +577,7 @@ Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
     if (!is_symmetry_iteration_valid(symm_it, symm)) {
       continue;
     }
-    const float3 symm_location = symmetry_flip(location, eMeshSymmetryType(symm_it));
+    const float3 symm_location = symmetry_flip(location, eMeshSymmetryFlags(symm_it));
     const std::optional<int> nearest = nearest_vert_calc_mesh(
         pbvh, positions, hide_vert, symm_location, max_distance, use_original);
     if (!nearest) {
@@ -594,7 +594,7 @@ Vector<int> find_symm_verts_grids(const Object &object,
                                   const int original_vert,
                                   const float max_distance)
 {
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const bool use_original = false;
 
@@ -610,7 +610,7 @@ Vector<int> find_symm_verts_grids(const Object &object,
     if (!is_symmetry_iteration_valid(symm_it, symm)) {
       continue;
     }
-    const float3 symm_location = symmetry_flip(location, eMeshSymmetryType(symm_it));
+    const float3 symm_location = symmetry_flip(location, eMeshSymmetryFlags(symm_it));
     const std::optional<SubdivCCGCoord> nearest = nearest_vert_calc_grids(
         pbvh, subdiv_ccg, symm_location, max_distance, use_original);
     if (!nearest) {
@@ -627,7 +627,7 @@ Vector<int> find_symm_verts_bmesh(const Object &object,
                                   const int original_vert,
                                   const float max_distance)
 {
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(object);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const bool use_original = false;
 
@@ -642,7 +642,7 @@ Vector<int> find_symm_verts_bmesh(const Object &object,
     if (!is_symmetry_iteration_valid(symm_it, symm)) {
       continue;
     }
-    const float3 symm_location = symmetry_flip(location, eMeshSymmetryType(symm_it));
+    const float3 symm_location = symmetry_flip(location, eMeshSymmetryFlags(symm_it));
     const std::optional<BMVert *> nearest = nearest_vert_calc_bmesh(
         pbvh, symm_location, max_distance, use_original);
     if (!nearest) {
@@ -2156,7 +2156,7 @@ static void find_active_connected_components_from_vert(const Depsgraph &depsgrap
     expand_cache.active_connected_islands[i] = EXPAND_ACTIVE_COMPONENT_NONE;
   }
 
-  const eMeshSymmetryType symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const eMeshSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   const Vector<int> symm_verts = find_symm_verts(depsgraph, ob, initial_vertex);
 

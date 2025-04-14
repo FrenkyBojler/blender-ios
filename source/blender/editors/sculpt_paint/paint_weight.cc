@@ -1699,7 +1699,7 @@ static void wpaint_do_paint(bContext *C,
                             WeightPaintInfo &wpi,
                             Mesh &mesh,
                             Brush &brush,
-                            const eMeshSymmetryType symm,
+                            const eMeshSymmetryFlags symm,
                             const int axis,
                             const int i,
                             const float angle)
@@ -1722,7 +1722,7 @@ static void wpaint_do_radial_symmetry(bContext *C,
                                       WeightPaintInfo &wpi,
                                       Mesh &mesh,
                                       Brush &brush,
-                                      const eMeshSymmetryType symm,
+                                      const eMeshSymmetryFlags symm,
                                       const int axis)
 {
   for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
@@ -1761,7 +1761,7 @@ static void wpaint_do_symmetrical_brush_actions(
 
   for (i = 1; i <= symm; i++) {
     if (is_symmetry_iteration_valid(i, symm)) {
-      const eMeshSymmetryType symm = eMeshSymmetryType(i);
+      const eMeshSymmetryFlags symm = eMeshSymmetryFlags(i);
       cache.mirror_symmetry_pass = symm;
       cache.radial_symmetry_pass = 0;
       SCULPT_cache_calc_brushdata_symm(cache, symm, 0, 0);

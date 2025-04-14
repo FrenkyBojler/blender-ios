@@ -268,7 +268,7 @@ struct StrokeCache {
    */
   int symmetry = 0;
   /* The symmetry pass we are currently on between 0 and 7. */
-  eMeshSymmetryType mirror_symmetry_pass = eMeshSymmetryType(0);
+  eMeshSymmetryFlags mirror_symmetry_pass = eMeshSymmetryFlags(0);
   float3 view_normal = float3(0);
   float3 view_normal_symm = float3(0);
 
@@ -521,7 +521,7 @@ float SCULPT_raycast_init(ViewContext *vc,
                           bool original);
 
 /* Symmetry */
-eMeshSymmetryType SCULPT_mesh_symmetry_xyz_get(const Object &object);
+eMeshSymmetryFlags SCULPT_mesh_symmetry_xyz_get(const Object &object);
 
 /**
  * Returns true when the step belongs to the stroke that is directly performed by the brush and
@@ -673,11 +673,11 @@ bool SCULPT_is_vertex_inside_brush_radius_symm(const float vertex[3],
                                                float radius,
                                                char symm);
 blender::float3 SCULPT_flip_v3_by_symm_area(const blender::float3 &vector,
-                                            eMeshSymmetryType symm,
+                                            eMeshSymmetryFlags symm,
                                             ePaintSymmetryAreas symmarea,
                                             const blender::float3 &pivot);
 void SCULPT_flip_quat_by_symm_area(float quat[4],
-                                   eMeshSymmetryType symm,
+                                   eMeshSymmetryFlags symm,
                                    ePaintSymmetryAreas symmarea,
                                    const float pivot[3]);
 
@@ -772,7 +772,7 @@ void calc_smooth_translations(const Depsgraph &depsgraph,
  * Used to calculate multiple modifications to the mesh when symmetry is enabled.
  */
 void SCULPT_cache_calc_brushdata_symm(blender::ed::sculpt_paint::StrokeCache &cache,
-                                      eMeshSymmetryType symm,
+                                      eMeshSymmetryFlags symm,
                                       char axis,
                                       float angle);
 

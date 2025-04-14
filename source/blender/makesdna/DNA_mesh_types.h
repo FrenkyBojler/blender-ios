@@ -167,7 +167,7 @@ typedef struct Mesh {
   char *default_color_attribute;
 
   /**
-   * User-defined symmetry flag (#eMeshSymmetryType) that causes editing operations to maintain
+   * User-defined symmetry flag (#eMeshSymmetryFlags) that causes editing operations to maintain
    * symmetrical geometry. Supported by operations such as transform and weight-painting.
    */
   char symmetry;
@@ -553,10 +553,8 @@ enum {
   ME_SIMPLE_SUBSURF = 1,
 };
 
-/** #Mesh.symmetry
- *  replicates paint and sculpt symmetry flags
- */
-typedef enum eMeshSymmetryType {
+/** #Mesh.symmetry */
+typedef enum eMeshSymmetryFlags {
   ME_SYMMETRY_NONE = 0,
   ME_SYMMETRY_X = (1 << 0),
   ME_SYMMETRY_Y = (1 << 1),
@@ -565,14 +563,14 @@ typedef enum eMeshSymmetryType {
   ME_TILE_X = (1 << 4),
   ME_TILE_Y = (1 << 5),
   ME_TILE_Z = (1 << 6),
-} eMeshSymmetryType;
-ENUM_OPERATORS(eMeshSymmetryType, ME_TILE_Z);
+} eMeshSymmetryFlags;
+ENUM_OPERATORS(eMeshSymmetryFlags, ME_TILE_Z);
 #define ME_SYMMETRY_ANY (ME_SYMMETRY_X | ME_SYMMETRY_Y | ME_SYMMETRY_Z)
 
 #ifdef __cplusplus
-inline eMeshSymmetryType operator++(eMeshSymmetryType &flags, int)
+inline eMeshSymmetryFlags operator++(eMeshSymmetryFlags &flags, int)
 {
-  flags = eMeshSymmetryType(char(flags) + 1);
+  flags = eMeshSymmetryFlags(char(flags) + 1);
   return flags;
 }
 #endif

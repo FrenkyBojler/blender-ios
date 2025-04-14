@@ -1867,7 +1867,7 @@ static void vpaint_do_paint(bContext *C,
                             Object &ob,
                             Mesh &mesh,
                             const Brush &brush,
-                            const eMeshSymmetryType symm,
+                            const eMeshSymmetryFlags symm,
                             const int axis,
                             const int i,
                             const float angle)
@@ -1903,7 +1903,7 @@ static void vpaint_do_radial_symmetry(bContext *C,
                                       Object &ob,
                                       Mesh &mesh,
                                       const Brush &brush,
-                                      const eMeshSymmetryType symm,
+                                      const eMeshSymmetryFlags symm,
                                       const int axis)
 {
   for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
@@ -1927,7 +1927,7 @@ static void vpaint_do_symmetrical_brush_actions(bContext *C,
   int i = 0;
 
   /* initial stroke */
-  const eMeshSymmetryType initial_symm = ME_SYMMETRY_NONE;
+  const eMeshSymmetryFlags initial_symm = ME_SYMMETRY_NONE;
   cache.mirror_symmetry_pass = ME_SYMMETRY_NONE;
   vpaint_do_paint(C, vp, vpd, ob, mesh, brush, initial_symm, 'X', 0, 0);
   vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, initial_symm, 'X');
@@ -1938,7 +1938,7 @@ static void vpaint_do_symmetrical_brush_actions(bContext *C,
 
   for (i = 1; i <= symm; i++) {
     if (is_symmetry_iteration_valid(i, symm)) {
-      const eMeshSymmetryType symm_pass = eMeshSymmetryType(i);
+      const eMeshSymmetryFlags symm_pass = eMeshSymmetryFlags(i);
       cache.mirror_symmetry_pass = symm_pass;
       cache.radial_symmetry_pass = 0;
       SCULPT_cache_calc_brushdata_symm(cache, symm_pass, 0, 0);

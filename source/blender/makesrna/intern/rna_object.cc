@@ -2073,7 +2073,7 @@ static std::optional<std::string> rna_ObjectLineArt_path(const PointerRNA * /*pt
   return "lineart";
 }
 
-static bool mesh_symmetry_get_common(PointerRNA *ptr, const eMeshSymmetryType sym)
+static bool mesh_symmetry_get_common(PointerRNA *ptr, const eMeshSymmetryFlags sym)
 {
   const Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   if (ob->type != OB_MESH) {
@@ -2101,7 +2101,7 @@ static bool rna_Object_mesh_symmetry_z_get(PointerRNA *ptr)
 
 static void mesh_symmetry_set_common(PointerRNA *ptr,
                                      const bool value,
-                                     const eMeshSymmetryType sym)
+                                     const eMeshSymmetryFlags sym)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   if (ob->type != OB_MESH) {
