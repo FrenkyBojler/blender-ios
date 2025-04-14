@@ -76,6 +76,12 @@ class Node : NonCopyable {
     /** Used internally by `pbvh_bmesh.cc`. */
     TopologyUpdated = 1 << 17,
 
+    /**
+     * Nodes marked with the GPU flag represent sections of the tree whose vertices
+     * are stored in a single GPU buffer. A GPU node may contain multiple leaf nodes in its
+     * subtree, and all vertices within a GPU node must have the same material. A node is allowed
+     * to be both a leaf and a GPU node.
+     */
     GPU = 1 << 18,
   };
 
@@ -91,8 +97,11 @@ class Node : NonCopyable {
    * 'nodes' array. */
   int children_offset_ = 0;
 
+  /* For a leaf node, the index of its GPU inner node. A leaf node can be its own GPU node. */
   std::optional<int> gpu_inner_index_;
+  /* For a GPU node, the indices of its leaf nodes. */
   Vector<int> leaf_nodes_;
+  /* For a leaf node, its offset in the GPU buffer. */
   int leaf_offset_ = 0;
 
   /* Indicates whether this node is a leaf or not; also used for
