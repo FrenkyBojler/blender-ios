@@ -134,6 +134,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
                                  http_req_descr: RequestDescription,
                                  local_file: Path,
                                  ) -> None:
+        logger.info("Parsing %s", local_file)
         json_data = local_file.read_bytes()
         metadata = api_models.AssetLibraryMeta.model_validate_json(json_data)
 
@@ -177,6 +178,8 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
             local_path = index_common.api_versioned(f"assets-{page_index:05}.json")
             self._queue_download(page_url, local_path, self.on_asset_page_downloaded)
 
+        # TODO: Remove any dangling pages of assets (downloaded before, no longer referenced).
+
     def on_asset_page_downloaded(self,
                                  http_req_descr: RequestDescription,
                                  local_file: Path,
@@ -188,9 +191,14 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
         if self._num_asset_pages_pending > 0:
             # Wait until all files have downloaded.
+            self.report(
+                {'INFO'},
+                "Asset library index page downloaded; needs %d more".format(
+                    self._num_asset_pages_pending))
             return
 
         self.report({'INFO'}, "Asset library index downloaded")
+        self._state = AssetDownloadState.DONE
 
     def _queue_download(self, relative_url: str, relative_path: Path | str,
                         on_done: Callable[[RequestDescription, Path], None]) -> None:
