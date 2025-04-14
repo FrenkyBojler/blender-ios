@@ -57,7 +57,8 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         return True
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        self._local_path = Path(bpy.app.tempdir) / "dummy_asset_library"
+        # self._local_path = Path(bpy.app.tempdir) / "dummy_asset_library"
+        self._local_path = Path("/tmp/dummy_asset_library")
         self._state = AssetDownloadState.STARTING
         self._num_asset_pages_pending = 0
 
