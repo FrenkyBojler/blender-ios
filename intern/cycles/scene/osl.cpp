@@ -205,7 +205,7 @@ void OSLManager::device_update_post(Device *device,
         add_param("dDdx", OIIO::TypeVector, false, 12);
         add_param("dDdy", OIIO::TypeVector, false, 15);
       }
-      add_param("pos", OIIO::TypeVector, !explicit_derivs, 0);
+      add_param("pos", OIIO::TypePoint, !explicit_derivs, 0);
       add_param("dir", OIIO::TypeVector, !explicit_derivs, 9);
       add_param("T", OIIO::TypeColor, false, 18);
     });
