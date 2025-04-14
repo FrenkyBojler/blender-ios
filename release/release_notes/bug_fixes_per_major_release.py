@@ -27,13 +27,10 @@ some missing commits), but it's significantly better than nothing.
   - --previous-version (-pv)
   - --current-release-tag (-ct)
   - --previous-release-tag (-pt)
-  - --backport-tasks (-bpt) (Optional but highly recommended)
-- Here is an example if you wish to collect the list for Blender 4.4 during
-the Beta and onwards stage of development:
-  - `python bug_fixes_per_major_release.py -cv 4.4 -pv 4.3 -ct blender-v4.4-release -pt v4.3.2 -bpt 109399 124452 130221`
+  - --backport-tasks (-bpt) (Optional, but recommended)
 - Here is an example if you wish to collect the list for Blender 4.5 during
 the Alpha stage of development.
-  - `python bug_fixes_per_major_release.py -cv 4.5 -pv 4.4 -ct main -pt blender-v4.4-release -bpt 109399 124452`
+  - `python bug_fixes_per_major_release.py -cv 4.5 -pv 4.4 -ct main -pt blender-v4.4-release -bpt 109399 124452 135860`
 - Wait for the script to finish (This can take upwards of 20 minutes).
 - Follow the guide printed to terminal.
 
@@ -315,8 +312,10 @@ class CommitInfo:
         command = ['git', 'show', '-s', '--format=%B', self.hash]
         command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
 
-        # Find every instance of #NUMBER. These are the report that the commit claims to fix.
-        match = re.findall(r'#(\d+)', command_output)
+        # Find every instance of `SPACE#NUMBER`. These are the report that the commit claims to fix.
+        # We are looking for the `SPACE` part because otherwise commits that fix issues in other repositories,
+        # E.g. Fix `blender/blender-manual#NUMBER`, will be picked out for processing.
+        match = re.findall(r'\s#+(\d+)', command_output)
         if match:
             self.fixed_reports = match
 
@@ -543,7 +542,10 @@ def version_extraction(report_body: str) -> tuple[list[str], list[str]]:
             broken_lines += f'{line}\n'
         if lower_line.startswith('work'):
             # Use `work` to be able to detect both "worked" and "working".
-            if not example_in_line:
+            if (not example_in_line) and not ("brok" in lower_line):
+                # Don't add the line to the working_lines if it contains the letters `brok`.
+                # because it means the user probably wrote something like "Worked: It was also broken in X.X"
+                # which lead to incorrect information.
                 working_lines += f'{line}\n'
 
     return get_version_numbers(broken_lines, working_lines)

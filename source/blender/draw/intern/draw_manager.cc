@@ -14,9 +14,10 @@
 #include "BLI_math_base.h"
 #include "GPU_compute.hh"
 
+#include "draw_context_private.hh"
+#include "draw_debug.hh"
 #include "draw_defines.hh"
 #include "draw_manager.hh"
-#include "draw_manager_c.hh"
 #include "draw_pass.hh"
 #include "draw_shader.hh"
 
@@ -74,7 +75,7 @@ void Manager::begin_sync()
   attribute_len_ = 0;
   /* TODO(fclem): Resize buffers if too big, but with an hysteresis threshold. */
 
-  object_active = drw_get().draw_ctx.obact;
+  object_active = drw_get().obact;
 
   /* Init the 0 resource. */
   resource_handle(float4x4::identity());
@@ -98,7 +99,7 @@ void Manager::sync_layer_attributes()
 
   for (uint32_t id : id_list) {
     if (layer_attributes_buf[count].sync(
-            drw_get().draw_ctx.scene, drw_get().draw_ctx.view_layer, layer_attributes.lookup(id)))
+            drw_get().scene, drw_get().view_layer, layer_attributes.lookup(id)))
     {
       /* Check if the buffer is full. */
       if (++count == size) {
@@ -146,15 +147,14 @@ void Manager::end_sync()
 
 void Manager::debug_bind()
 {
-#ifdef WITH_DRAW_DEBUG
-  if (drw_get().debug == nullptr) {
+  GPUStorageBuf *gpu_buf = DebugDraw::get().gpu_draw_buf_get();
+  if (gpu_buf == nullptr) {
     return;
   }
-  GPU_storagebuf_bind(drw_debug_gpu_draw_buf_get(), DRW_DEBUG_DRAW_SLOT);
-#  ifndef DISABLE_DEBUG_SHADER_PRINT_BARRIER
+  GPU_storagebuf_bind(gpu_buf, DRW_DEBUG_DRAW_SLOT);
+#ifndef DISABLE_DEBUG_SHADER_PRINT_BARRIER
   /* Add a barrier to allow multiple shader writing to the same buffer. */
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-#  endif
 #endif
 }
 
@@ -184,9 +184,8 @@ ResourceHandleRange Manager::resource_handle_for_sculpt(const ObjectRef &ref)
 
 void Manager::compute_visibility(View &view)
 {
-  bool freeze_culling = (USER_EXPERIMENTAL_TEST(&U, use_viewport_debug) &&
-                         drw_get().draw_ctx.v3d &&
-                         (drw_get().draw_ctx.v3d->debug_flag & V3D_DEBUG_FREEZE_CULLING) != 0);
+  bool freeze_culling = (USER_EXPERIMENTAL_TEST(&U, use_viewport_debug) && drw_get().v3d &&
+                         (drw_get().v3d->debug_flag & V3D_DEBUG_FREEZE_CULLING) != 0);
 
   BLI_assert_msg(view.manager_fingerprint_ != this->fingerprint_get(),
                  "Resources did not changed, no need to update");
@@ -207,6 +206,10 @@ void Manager::ensure_visibility(View &view)
 
 void Manager::generate_commands(PassMain &pass, View &view)
 {
+  if (pass.is_empty()) {
+    return;
+  }
+
   BLI_assert_msg((pass.manager_fingerprint_ != this->fingerprint_get()) ||
                      (pass.view_fingerprint_ != view.fingerprint_get()),
                  "Resources and view did not changed no need to update");
@@ -227,12 +230,20 @@ void Manager::generate_commands(PassMain &pass, View &view)
 
 void Manager::generate_commands(PassSortable &pass, View &view)
 {
+  if (pass.is_empty()) {
+    return;
+  }
+
   pass.sort();
   generate_commands(static_cast<PassMain &>(pass), view);
 }
 
 void Manager::generate_commands(PassSimple &pass)
 {
+  if (pass.is_empty()) {
+    return;
+  }
+
   BLI_assert_msg(pass.manager_fingerprint_ != this->fingerprint_get(),
                  "Resources did not changed since last generate_command, no need to update");
   pass.manager_fingerprint_ = this->fingerprint_get();
@@ -242,6 +253,10 @@ void Manager::generate_commands(PassSimple &pass)
 
 void Manager::submit_only(PassMain &pass, View &view)
 {
+  if (pass.is_empty()) {
+    return;
+  }
+
   BLI_assert_msg(view.manager_fingerprint_ != 0, "compute_visibility was not called on this view");
   BLI_assert_msg(view.manager_fingerprint_ == this->fingerprint_get(),
                  "Resources changed since last compute_visibility");
@@ -271,6 +286,10 @@ void Manager::submit_only(PassMain &pass, View &view)
 
 void Manager::submit(PassMain &pass, View &view)
 {
+  if (pass.is_empty()) {
+    return;
+  }
+
   if (view.manager_fingerprint_ != this->fingerprint_get()) {
     compute_visibility(view);
   }
@@ -286,6 +305,10 @@ void Manager::submit(PassMain &pass, View &view)
 
 void Manager::submit(PassSortable &pass, View &view)
 {
+  if (pass.is_empty()) {
+    return;
+  }
+
   pass.sort();
 
   this->submit(static_cast<PassMain &>(pass), view);
@@ -293,6 +316,10 @@ void Manager::submit(PassSortable &pass, View &view)
 
 void Manager::submit(PassSimple &pass, bool inverted_view)
 {
+  if (pass.is_empty()) {
+    return;
+  }
+
   if (!pass.has_generated_commands()) {
     generate_commands(pass);
   }
@@ -313,6 +340,10 @@ void Manager::submit(PassSimple &pass, bool inverted_view)
 
 void Manager::submit(PassSimple &pass, View &view)
 {
+  if (pass.is_empty()) {
+    return;
+  }
+
   debug_bind();
 
   view.bind();

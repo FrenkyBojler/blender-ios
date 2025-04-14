@@ -60,6 +60,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "NOD_node_in_compute_context.hh"
+
 #include "io_utils.hh"
 
 #include "node_intern.hh" /* own include */
@@ -384,6 +386,10 @@ bool push_compute_context_for_tree_path(const SpaceNode &snode,
           compute_context_builder.push<bke::ForeachGeometryElementZoneComputeContext>(
               *zone->output_node, storage.inspection_index);
           break;
+        }
+        case GEO_NODE_CLOSURE_OUTPUT: {
+          // TODO: Need to find a place where this closure is evaluated.
+          return false;
         }
       }
     }
@@ -861,9 +867,6 @@ static bool node_color_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
 
 static bool node_import_file_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
-  if (!U.experimental.use_new_file_import_nodes) {
-    return false;
-  }
   if (drag->type != WM_DRAG_PATH) {
     return false;
   }
@@ -933,7 +936,7 @@ static void node_dropboxes()
                  WM_drag_free_imported_drag_ID,
                  nullptr);
   WM_dropbox_add(lb,
-                 "NODE_OT_add_file",
+                 "NODE_OT_add_image",
                  node_id_im_drop_poll,
                  node_id_im_drop_copy,
                  WM_drag_free_imported_drag_ID,
@@ -1140,6 +1143,8 @@ static void node_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_crop);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_sun_beams);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_corner_pin);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
 }
 
 static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
