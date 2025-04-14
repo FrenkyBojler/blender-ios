@@ -511,6 +511,10 @@ class BackgroundDownloader:
     def queue_download(self, remote_url: str, local_path: Path,
                        on_download_done: DownloadDoneCallback | None = None) -> None:
         """Queue up a download of some URL to a location on disk."""
+
+        if self._shutdown_event.is_set():
+            raise RuntimeError("BackgroundDownloader is shutting down, cannot queue new downloads")
+
         self._num_pending_downloads += 1
 
         http_req_descr = RequestDescription(http_method='GET', url=remote_url)
@@ -539,6 +543,10 @@ class BackgroundDownloader:
         if self._shutdown_event.is_set():
             raise ValueError("BackgroundDownloader was shut down, cannot start again")
         self._downloader_thread.start()
+
+    @property
+    def is_shutdown(self) -> bool:
+        return self._shutdown_event.is_set()
 
     def shutdown(self) -> None:
         """Cancel any pending downloads and shut down the background thread.
@@ -585,6 +593,9 @@ class BackgroundDownloader:
                 queued_download = self._queue.get(timeout=0.1)
             except queue.Empty:
                 continue
+
+            if self._shutdown_event.is_set():
+                break
 
             http_req_descr, local_path = queued_download
 
@@ -671,6 +682,10 @@ class BackgroundDownloader:
 
     def _call_on_downloaded_callback(self, http_req_descr: RequestDescription, local_file: Path) -> None:
         """Call the 'on-download-done' callback for this request."""
+
+        if self._shutdown_event.is_set():
+            # Do not call any callbacks any more, as the downloader is trying to shut down.
+            return
 
         try:
             callback = self._on_downloaded_callbacks.pop(http_req_descr)

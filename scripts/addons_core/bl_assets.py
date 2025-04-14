@@ -86,19 +86,18 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def cancel(self, context: bpy.types.Context) -> None:
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)
+
         num_pending = self._bg_downloader.num_pending_downloads
 
+        # It may be tempting to call self.report(...) here, and report on the
+        # cancellation. However, this should be done by the caller, when they know
+        # of the reason of the cancellation and thus can provide more info.
         logger.info("Cancel: Shutting down background downloader, %d downloads pending", num_pending)
-        if num_pending:
-            # The shutdown call below will block this thread, so by the time the
-            # report is visible, it's already cancelled.
-            self.report({'WARNING'}, "Cancelled {} pending download".format(num_pending))
 
         with self._context(context):
             self._bg_downloader.shutdown()
-
-        wm = context.window_manager
-        wm.event_timer_remove(self._timer)
 
     def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
         if event.type in {'RIGHTMOUSE', 'ESC'}:
@@ -129,6 +128,10 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
                 return False
 
         # logger.info("operator state: %s", self._state)
+
+        if self._bg_downloader.is_shutdown:
+            logger.info("background downloader is shut down, ignoring timer")
+            return False
 
         with self._context(context):
             self._bg_downloader.update()
@@ -250,8 +253,8 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         error: Exception,
     ) -> None:
         if isinstance(error, DownloadCancelled):
-            # Don't report here, because the 'cancel' function itself already reports a warning.
-            pass
+            if self._num_asset_pages_pending:
+                self.report({'WARNING'}, "Cancelled {} pending download".format(self._num_asset_pages_pending))
         else:
             self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
 
