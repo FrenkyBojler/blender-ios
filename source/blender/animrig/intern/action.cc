@@ -120,6 +120,13 @@ template<typename T> static void shrink_array(T **array, int *num, const int shr
 {
   BLI_assert(shrink_num > 0);
   const int new_array_num = *num - shrink_num;
+  if (new_array_num == 0) {
+    MEM_freeN(*array);
+    *array = nullptr;
+    *num = 0;
+    return;
+  }
+
   T *new_array = MEM_calloc_arrayN<T>(new_array_num, __func__);
 
   blender::uninitialized_move_n(*array, new_array_num, new_array);
@@ -1974,7 +1981,12 @@ Vector<FCurve *> Channelbag::fcurve_create_many(Main *bmain,
     }
     curve_index++;
   }
-  this->fcurve_array_num = curve_index;
+
+  if (this->fcurve_array_num != curve_index) {
+    /* Some curves were not created, resize to final amount. */
+    shrink_array(
+        &this->fcurve_array, &this->fcurve_array_num, this->fcurve_array_num - curve_index);
+  }
 
   if (make_first_active) {
     /* Set first created curve as active. */
