@@ -1,1 +1,2 @@
 Referenced by commit d0a89a0950e2a133f7b184f14b88dd0a14412700, Fix #134707: Dynamic paint brush object movement ignored
+Referenced by commit 3b9c2c810d1a9fdcb33d59334208fa2dd4d6dcc8, Fix #137392: Hair Particle "Shape Cut" operator crash after Mesh BVH caching
