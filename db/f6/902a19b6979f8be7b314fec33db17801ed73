@@ -1,2 +1,3 @@
 Referenced by issue #137430, UI: Missing Timeline Editor header until area is resized on default startup file
 Referenced by issue #135860, 4.4: Candidates for corrective releases
+Referenced by pull request #137464, [4.4x backport] Fix #137314: Excluded directories ignored when opening from the splash
