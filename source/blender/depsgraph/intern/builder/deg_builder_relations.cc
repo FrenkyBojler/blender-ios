@@ -3055,6 +3055,15 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       ComponentKey vfont_key(id, NodeType::GENERIC_DATABLOCK);
       add_relation(vfont_key, ntree_output_key, "VFont -> Node");
     }
+    else if (id_type == ID_GR) {
+      /* Build relations in the collection itself, but don't hook it up to the tree.
+       * Relations from the collection to the tree are handled by the modifier's update_depsgraph()
+       * callback.
+       *
+       * Other node trees do not currently support references to collections. Once they do this
+       * code needs to be reconsidered. */
+      build_collection(nullptr, reinterpret_cast<Collection *>(id));
+    }
     else if (bnode->is_group()) {
       bNodeTree *group_ntree = (bNodeTree *)id;
       build_nodetree(group_ntree);
@@ -3404,7 +3413,7 @@ void DepsgraphRelationBuilder::build_scene_sequencer(Scene *scene)
 
   Seq_build_prop_cb_data cb_data = {this, sequencer_key, false};
 
-  seq::SEQ_for_each_callback(&scene->ed->seqbase, strip_build_prop_cb, &cb_data);
+  seq::for_each_callback(&scene->ed->seqbase, strip_build_prop_cb, &cb_data);
   if (cb_data.has_audio_strips) {
     add_relation(sequencer_key, scene_audio_key, "Sequencer -> Audio");
   }

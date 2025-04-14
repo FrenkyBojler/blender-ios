@@ -385,7 +385,7 @@ ID *ui_template_id_liboverride_hierarchy_make(
    * NOTE: do not attempt to perform such hierarchy override at all cost, if there is not enough
    * context, better to abort than create random overrides all over the place. */
   if (!ID_IS_OVERRIDABLE_LIBRARY_HIERARCHY(id)) {
-    WM_reportf(RPT_ERROR, "The data-block %s is not overridable", id->name);
+    WM_global_reportf(RPT_ERROR, "The data-block %s is not overridable", id->name);
     return nullptr;
   }
 
@@ -574,16 +574,16 @@ ID *ui_template_id_liboverride_hierarchy_make(
     case ID_MA:
     case ID_TE:
     case ID_IM:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     case ID_WO:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     case ID_PA:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     default:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
   }
 
@@ -657,7 +657,7 @@ static void template_id_liboverride_hierarchy_make(bContext *C,
     }
   }
   else {
-    WM_reportf(RPT_ERROR, "The data-block %s could not be overridden", id->name);
+    WM_global_reportf(RPT_ERROR, "The data-block %s could not be overridden", id->name);
   }
 }
 
@@ -861,7 +861,7 @@ static StringRef template_id_browse_tip(const StructRNA *type)
       case ID_VO:
         return N_("Browse Volume Data to be linked");
       case ID_GP:
-        return N_("Browse Grease Pencil v3 Data to be linked");
+        return N_("Browse Grease Pencil Data to be linked");
 
         /* Use generic text. */
       case ID_LI:

@@ -23,9 +23,9 @@ static void init_solid_color(Strip *strip)
     MEM_freeN(strip->effectdata);
   }
 
-  strip->effectdata = MEM_callocN(sizeof(SolidColorVars), "solidcolor");
+  SolidColorVars *cv = MEM_callocN<SolidColorVars>("solidcolor");
+  strip->effectdata = cv;
 
-  SolidColorVars *cv = (SolidColorVars *)strip->effectdata;
   cv->col[0] = cv->col[1] = cv->col[2] = 0.5;
 }
 
@@ -49,7 +49,7 @@ static StripEarlyOut early_out_color(const Strip * /*strip*/, float /*fac*/)
   return StripEarlyOut::NoInput;
 }
 
-static ImBuf *do_solid_color(const SeqRenderData *context,
+static ImBuf *do_solid_color(const RenderData *context,
                              Strip *strip,
                              float /*timeline_frame*/,
                              float /*fac*/,
@@ -97,7 +97,7 @@ static ImBuf *do_solid_color(const SeqRenderData *context,
   return out;
 }
 
-void solid_color_effect_get_handle(SeqEffectHandle &rval)
+void solid_color_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_solid_color;
   rval.num_inputs = num_inputs_color;
