@@ -436,14 +436,14 @@ std::optional<const ComputeContext *> compute_context_for_tree_path(
   return current;
 }
 
-using BundlePath = Vector<nodes::SocketInterfaceKey, 0>;
-
 [[nodiscard]] const ComputeContext *compute_context_for_closure_evaluation(
     const ComputeContext *closure_socket_context,
     const bNodeSocket &closure_socket,
     bke::ComputeContextCache &compute_context_cache,
     const std::optional<nodes::ClosureSourceLocation> &source_location)
 {
+  using BundlePath = Vector<nodes::SocketInterfaceKey, 0>;
+
   struct SocketToCheck {
     nodes::SocketInContext socket;
     BundlePath bundle_path;

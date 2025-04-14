@@ -93,12 +93,21 @@ std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &s
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context);
 
+/**
+ * Attempts to find a compute context that the closure is evaluated in. If none is found, null is
+ * returned. If multiple are found, it currently picks the first one it finds which is somewhat
+ * arbitrary.
+ */
 [[nodiscard]] const ComputeContext *compute_context_for_closure_evaluation(
     const ComputeContext *closure_socket_context,
     const bNodeSocket &closure_socket,
     bke::ComputeContextCache &compute_context_cache,
     const std::optional<nodes::ClosureSourceLocation> &source_location);
 
+/**
+ * Creates a compute context for the given zone. It takes e.g. the current inspection index into
+ * account.
+ */
 [[nodiscard]] const ComputeContext *compute_context_for_zone(
     const bke::bNodeTreeZone &zone,
     bke::ComputeContextCache &compute_context_cache,
