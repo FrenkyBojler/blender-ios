@@ -696,10 +696,6 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_BOKEHIMAGE) {
-      if (!node->storage) {
-        node->storage = MEM_callocN<NodeBokehImage>(__func__);
-      }
-
       NodeBokehImage *storage = static_cast<NodeBokehImage *>(node->storage);
       write_input_to_property_int("Flaps", storage->flaps);
       write_input_to_property_float("Angle", storage->angle);
