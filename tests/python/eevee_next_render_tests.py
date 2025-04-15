@@ -286,7 +286,7 @@ def main():
         # Noise difference in transparent material
         report.set_fail_threshold(0.05)
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch, fail_silently=args.fail_silently)
+    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
 
 

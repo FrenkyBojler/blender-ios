@@ -141,7 +141,7 @@ def main():
 
     os.environ['BLENDER_HYDRA_EXPORT_METHOD'] = args.export_method
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch, fail_silently=args.fail_silently)
+    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
     sys.exit(not ok)
 
