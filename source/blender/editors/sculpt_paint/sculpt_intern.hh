@@ -894,16 +894,6 @@ bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob);
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Brush Specific Functionality
- * \{ */
-
-namespace blender::ed::sculpt_paint {
-
-}  // namespace blender::ed::sculpt_paint
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Operators
  * \{ */
 
