@@ -605,6 +605,9 @@ static void store_group_output_structure_types(
 {
   const bNode *group_output_node = tree.group_output_node();
   if (!group_output_node) {
+    for (nodes::StructureTypeInterface::OutputDependency &output : interface.outputs) {
+      output.type = StructureType::Dynamic;
+    }
     return;
   }
 
