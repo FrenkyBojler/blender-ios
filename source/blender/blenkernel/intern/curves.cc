@@ -120,7 +120,9 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
   else {
     blender::bke::curves_convert_storage_to_customdata_for_file_write(
-        curves->geometry.wrap().attribute_storage.wrap(), write);
+        curves->geometry.wrap().attribute_storage.wrap(),
+        write_data.point_layers,
+        write_data.curve_layers);
   }
 
   /* Write LibData */

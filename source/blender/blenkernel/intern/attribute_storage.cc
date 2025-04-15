@@ -51,13 +51,13 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   }
 };
 
-void AttributeStorage::foreach (FunctionRef<void(Attribute &)> fn)
+void AttributeStorage::foreach(FunctionRef<void(Attribute &)> fn)
 {
   for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
     fn(*attribute);
   }
 }
-void AttributeStorage::foreach (FunctionRef<void(const Attribute &)> fn) const
+void AttributeStorage::foreach(FunctionRef<void(const Attribute &)> fn) const
 {
   for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
     fn(*attribute);
@@ -81,7 +81,7 @@ Attribute::DataVariant &Attribute::data_for_write()
 
     const CPPType &cpp_type = attribute_type_to_cpp_type(type_);
     void *new_data = MEM_malloc_arrayN_aligned(
-        data->size, cpp_type.size(), cpp_type.alignment(), __func__);
+        data->size, cpp_type.size, cpp_type.alignment, __func__);
     cpp_type.copy_construct_n(data->data, new_data, data->size);
 
     data->data = new_data;
@@ -107,7 +107,7 @@ AttributeStorage::AttributeStorage(const AttributeStorage &other)
   this->dna_attributes_num = 0;
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
   this->runtime->attributes.reserve(other.runtime->attributes.size());
-  other.foreach ([&](const Attribute &attribute) {
+  other.foreach([&](const Attribute &attribute) {
     this->runtime->attributes.add_new(std::make_unique<Attribute>(attribute));
   });
 }
@@ -368,7 +368,7 @@ static void write_shared_array(BlendWriter &writer,
                                const ImplicitSharingInfo &sharing_info)
 {
   const CPPType &cpp_type = attribute_type_to_cpp_type(data_type);
-  BLO_write_shared(&writer, data, cpp_type.size() * size, &sharing_info, [&]() {
+  BLO_write_shared(&writer, data, cpp_type.size * size, &sharing_info, [&]() {
     write_array_data(writer, data_type, data, size);
   });
 }

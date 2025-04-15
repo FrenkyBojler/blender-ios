@@ -181,8 +181,8 @@ static void convert_storage_to_customdata(
     const AttributeStorage &storage,
     const Map<AttrDomain, std::pair<CustomData *, int>> &custom_data_domains)
 {
-  /* NOTE: Name uniqueness is handled by the #CustomData API. */
-  storage.foreach ([&](const Attribute &attribute) {
+  /* Name uniqueness is handled by the #CustomData API. */
+  storage.foreach([&](const Attribute &attribute) {
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
@@ -245,7 +245,7 @@ void mesh_convert_storage_to_customdata_for_file_write(const AttributeStorage &s
                                                        Vector<CustomDataLayer, 16> &face_layers,
                                                        Vector<CustomDataLayer, 16> &loop_layers)
 {
-  storage.foreach ([&](const Attribute &attribute) {
+  storage.foreach([&](const Attribute &attribute) {
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
@@ -306,7 +306,7 @@ void curves_convert_storage_to_customdata_for_file_write(const AttributeStorage 
                                                          Vector<CustomDataLayer, 16> &point_layers,
                                                          Vector<CustomDataLayer, 16> &curve_layers)
 {
-  storage.foreach ([&](const Attribute &attribute) {
+  storage.foreach([&](const Attribute &attribute) {
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
@@ -350,7 +350,7 @@ void pointcloud_convert_storage_to_customdata_for_file_write(
 {
   // if (U.experimental.use_attribute_storage_write_debug) {
   // }
-  storage.foreach ([&](const Attribute &attribute) {
+  storage.foreach([&](const Attribute &attribute) {
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
@@ -380,7 +380,7 @@ void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
 void grease_pencil_convert_storage_to_customdata_for_file_write(
     const AttributeStorage &storage, Vector<CustomDataLayer, 16> &layers)
 {
-  storage.foreach ([&](const Attribute &attribute) {
+  storage.foreach([&](const Attribute &attribute) {
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {

@@ -13,7 +13,7 @@ TEST(attribute_storage, Empty)
 {
   AttributeStorage storage;
   int count = 0;
-  storage.foreach ([&](const Attribute & /*attribute*/) { count++; });
+  storage.foreach([&](const Attribute & /*attribute*/) { count++; });
   EXPECT_EQ(count, 0);
 }
 
@@ -37,7 +37,7 @@ TEST(attribute_storage, Single)
   }
 
   int count = 0;
-  storage.foreach ([&](const Attribute & /*attribute*/) { count++; });
+  storage.foreach([&](const Attribute & /*attribute*/) { count++; });
   EXPECT_EQ(count, 1);
 }
 
@@ -100,7 +100,7 @@ TEST(attribute_storage, MultipleShared)
   }
 
   int count = 0;
-  storage.foreach ([&](const Attribute & /*attribute*/) { count++; });
+  storage.foreach([&](const Attribute & /*attribute*/) { count++; });
   EXPECT_EQ(count, 4);
 }
 
