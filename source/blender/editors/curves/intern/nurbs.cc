@@ -218,37 +218,36 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
   const bool cyclic = ikcd.curves.cyclic()[ikcd.curve];
   MutableSpan<float> new_knots = new_curves.nurbs_custom_knots_for_write().slice(curve_knots);
 
-  const int shifted_span = ikcd.knot_span % curve_points.size();
-  const float shifted_knot = ikcd.knot_to_insert - knots[ikcd.knot_span] + knots[shifted_span];
+  const int span = ikcd.knot_span;
+  const float knot_to_insert = ikcd.knot_to_insert;
+  const bool loop_to_front = span >= curve_points.size();
+  const int first_stable_knot = loop_to_front ? (span + 1) % curve_points.size() : 0;
+  const IndexRange stable_knots = IndexRange::from_begin_end_inclusive(first_stable_knot, span);
+  new_knots.slice(stable_knots).copy_from(knots.slice(stable_knots));
+  new_knots.slice(IndexRange::from_begin_size(span + 1, new_points_added)).fill(knot_to_insert);
+  MutableSpan<float> after_insertion = new_knots.drop_front(stable_knots.one_after_last() +
+                                                            new_points_added);
+  after_insertion.copy_from(knots.slice(span + 1, after_insertion.size()));
 
-  new_knots.take_front(shifted_span + 1).copy_from(knots.take_front(shifted_span + 1));
-  const IndexRange inserted_knots = IndexRange::from_begin_size(shifted_span + 1,
-                                                                new_points_added);
-  new_knots.slice(inserted_knots).fill(shifted_knot);
-  MutableSpan<float> unchanged_knots_tail = new_knots.drop_front(inserted_knots.one_after_last());
-  unchanged_knots_tail.copy_from(knots.slice(inserted_knots.first(), unchanged_knots_tail.size()));
-  if (cyclic) {
-    MutableSpan<float> cyclic_tail = new_knots.drop_front(new_curve_points.size());
-    for (const int i : cyclic_tail.index_range()) {
-      cyclic_tail[i] = cyclic_tail.first() + new_knots[i] - new_knots.first();
-    }
+  /* For cyclic curves only, when new knots are inserted in front and somewhere after
+   * knots[curve_points.size()]. */
+  for (const int k : IndexRange::from_begin_end(0, first_stable_knot)) {
+    new_knots[first_stable_knot - 1 - k] = new_knots[first_stable_knot] +
+                                           new_knots[span + new_points_added - k] -
+                                           new_knots[span + new_points_added + 1];
   }
 
   const bke::AttributeAccessor src_attributes = ikcd.curves.attributes();
   bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
 
-  const int dst_shift = (ikcd.points_to_replace.last() + new_points_added) <= curve_points.last() ?
-                            0 :
-                            new_points_added;
   const IndexRange points_before = IndexRange::from_begin_end(
-      0, curve_points.first() + (dst_shift ? 0 : ikcd.points_to_replace.first()));
+      0, std::min(curve_points.one_after_last(), ikcd.points_to_replace.start()));
   const IndexRange points_after = IndexRange::from_begin_end(
-      curve_points.first() + (dst_shift ? 0 : ikcd.points_to_replace.last()),
-      ikcd.curves.points_num());
+      std::min(curve_points.last(), ikcd.points_to_replace.last()), ikcd.curves.points_num());
 
   Array<bool> is_altered(new_curve_points.size());
   const IndexRange altered_points_range = IndexRange::from_begin_size(
-      ikcd.points_to_replace.first() - ikcd.curve_points.first() + dst_shift,
+      ikcd.points_to_replace.first() - ikcd.curve_points.first(),
       ikcd.points_to_replace.size() + new_points_added);
   for (const int i : altered_points_range) {
     is_altered[i % new_curve_points.size()] = true;
@@ -334,7 +333,7 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
       insert_knot_exit(C, op);
       return OPERATOR_CANCELLED;
     case MOUSEMOVE: {
-      const int repeat = 1;
+      const int repeat = 2;
       int knot_multiplicity;
       ikcd.knot_to_insert = event_to_knot(ikcd, *event);
 
