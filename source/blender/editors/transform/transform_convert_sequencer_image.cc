@@ -81,7 +81,6 @@ static TransData *SeqToTransData(const Scene *scene,
   unit_m3(td->smtx);
 
   axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation * mirror[0] * mirror[1]);
-  // axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
   normalize_m3(td->axismtx);
 
   tdseq->strip = strip;
