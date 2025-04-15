@@ -1005,6 +1005,7 @@ static inline void square_points(int2 &p1, int2 &p2)
     /* Avoids divide by 0 issues. */
     p2.x = p1.x;
     p2.y = p1.y;
+    return;
   }
   if (std::abs(delta.x) < std::abs(delta.y)) {
     delta.x = (delta.x / std::abs(delta.x)) * std::abs(delta.y);
@@ -1014,6 +1015,38 @@ static inline void square_points(int2 &p1, int2 &p2)
   }
   p2.x = p1.x + delta.x;
   p2.y = p1.y + delta.y;
+}
+
+static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
+{
+  PreviewImage *preview_image = BKE_previewimg_id_ensure(id);
+  BKE_previewimg_clear(preview_image);
+
+  for (int size_type = 0; size_type < NUM_ICON_SIZES; size_type++) {
+    BKE_previewimg_ensure(preview_image, size_type);
+    int width = image_buffer->x;
+    int height = image_buffer->y;
+    if (size_type == ICON_SIZE_ICON) {
+      if (image_buffer->x > image_buffer->y) {
+        width = ICON_RENDER_DEFAULT_HEIGHT;
+        height = image_buffer->y * (width / float(image_buffer->x));
+      }
+      else if (image_buffer->y > image_buffer->x) {
+        height = ICON_RENDER_DEFAULT_HEIGHT;
+        width = image_buffer->x * (height / float(image_buffer->y));
+      }
+      else {
+        width = height = ICON_RENDER_DEFAULT_HEIGHT;
+      }
+    }
+    ImBuf *scaled_imbuf = IMB_scale_into_new(
+        image_buffer, width, height, IMBScaleFilter::Nearest, false);
+    preview_image->rect[size_type] = (uint *)MEM_dupallocN(scaled_imbuf->byte_buffer.data);
+    preview_image->w[size_type] = width;
+    preview_image->h[size_type] = height;
+    preview_image->flag[size_type] |= PRV_USER_EDITED;
+    IMB_freeImBuf(scaled_imbuf);
+  }
 }
 
 static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
@@ -1056,34 +1089,9 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
       *bmain, asset_handle->get_id_type(), asset_reference);
   BLI_assert(id != nullptr);
 
-  PreviewImage *preview_image = BKE_previewimg_id_ensure(id);
-  BKE_previewimg_clear(preview_image);
+  ED_preview_kill_jobs_for_id(CTX_wm_manager(C), id);
 
-  for (int size_type = 0; size_type < NUM_ICON_SIZES; size_type++) {
-    BKE_previewimg_ensure(preview_image, size_type);
-    int width = image_buffer->x;
-    int height = image_buffer->y;
-    if (size_type == ICON_SIZE_ICON) {
-      if (image_buffer->x > image_buffer->y) {
-        width = ICON_RENDER_DEFAULT_HEIGHT;
-        height = image_buffer->y * (width / float(image_buffer->x));
-      }
-      else if (image_buffer->y > image_buffer->x) {
-        height = ICON_RENDER_DEFAULT_HEIGHT;
-        width = image_buffer->x * (height / float(image_buffer->y));
-      }
-      else {
-        width = height = ICON_RENDER_DEFAULT_HEIGHT;
-      }
-    }
-    ImBuf *scaled_imbuf = IMB_scale_into_new(
-        image_buffer, width, height, IMBScaleFilter::Nearest, false);
-    preview_image->rect[size_type] = (uint *)MEM_dupallocN(scaled_imbuf->byte_buffer.data);
-    preview_image->w[size_type] = width;
-    preview_image->h[size_type] = height;
-    preview_image->flag[size_type] |= PRV_USER_EDITED;
-    IMB_freeImBuf(scaled_imbuf);
-  }
+  generate_previewimg_from_buffer(id, image_buffer);
 
   if (ID_IS_LINKED(id)) {
     const bool saved = bke::asset_edit_id_save(*bmain, *id, *op->reports);
@@ -1106,6 +1114,7 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(operator_data);
   int2 p1 = data->p1;
   int2 p2 = data->p2;
+
   if (data->force_square) {
     square_points(p1, p2);
   }
