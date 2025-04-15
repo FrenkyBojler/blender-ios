@@ -351,9 +351,9 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
                             reduce_add(gb->color_background.xyz());
   UI_GetThemeColorShade4fv(TH_GRID, (is_bg_darker) ? 20 : -10, gb->color_grid_emphasis);
   /* Grid Axis */
-  UI_GetThemeColorBlendShade4fv(TH_GRID, TH_AXIS_X, 0.5f, -10, gb->color_grid_axis_x);
-  UI_GetThemeColorBlendShade4fv(TH_GRID, TH_AXIS_Y, 0.5f, -10, gb->color_grid_axis_y);
-  UI_GetThemeColorBlendShade4fv(TH_GRID, TH_AXIS_Z, 0.5f, -10, gb->color_grid_axis_z);
+  UI_GetThemeColorBlendShade4fv(TH_BACK, TH_AXIS_X, 0.6f, -10, gb->color_grid_axis_x);
+  UI_GetThemeColorBlendShade4fv(TH_BACK, TH_AXIS_Y, 0.6f, -10, gb->color_grid_axis_y);
+  UI_GetThemeColorBlendShade4fv(TH_BACK, TH_AXIS_Z, 0.6f, -10, gb->color_grid_axis_z);
 
   UI_GetThemeColorShadeAlpha4fv(TH_TRANSFORM, 0, -80, gb->color_deselect);
   UI_GetThemeColorShadeAlpha4fv(TH_WIRE, 0, -30, gb->color_outline);
