@@ -40,7 +40,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Points").description(
       "Point geometry representing grid voxels and tiles");
   b.add_output<decl::Matrix>("Transform").description("Voxel origin transform");
-  b.add_output<decl::Int>("Depth").description("Number of node levels in the tree");
   b.add_output<decl::Vector>("Coordinate")
       .description("Index-space coordinate of the voxel")
       .field_on_all();
@@ -258,7 +257,6 @@ template<typename T> struct GridToPointsConverter {
     const float4x4 transform = transform_to_matrix(grid.grid(tree_token).transform());
     T background_value = type_traits::to_blender(grid.grid(tree_token).background());
     typename TreeType::ConstPtr vdb_tree = grid.grid(tree_token).treePtr();
-    const int tree_depth = vdb_tree->treeDepth();
 
     const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
 
@@ -280,7 +278,6 @@ template<typename T> struct GridToPointsConverter {
     bke::MutableAttributeAccessor attributes = points->attributes_for_write();
 
     params.set_output("Transform", transform);
-    params.set_output("Depth", tree_depth);
     params.set_output("Background", background_value);
 
     IndexRange points_range = {};
