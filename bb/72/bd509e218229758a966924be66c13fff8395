@@ -1,0 +1,1 @@
+Referenced by issue #137514, In version 4.4.0, when using "Holdout", the material mode is adjusted to "Render Method" → "Blender", and the color still exists during rendering.
