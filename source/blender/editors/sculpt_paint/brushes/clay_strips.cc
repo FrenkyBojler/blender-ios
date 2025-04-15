@@ -2,6 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup edsculpt
+ *
+ * The Clay Strips brush displaces vertices toward the brush plane.
+ * The displacement occurs in the direction parallel to the plane's normal.
+ * Only vertices located below the plane (in brush-local space) are affected.
+ *
+ * The magnitude of the displacement is determined by the product of the following factors:
+ * - A falloff factor based on the XY distance from the center of the plane
+ * - A parabolic falloff factor based on the local Z distance from the plane
+ * - Additional standard modifiers such as masking, brush strength, texture masking, etc.
+ */
+
 #include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
@@ -40,6 +53,10 @@ struct LocalData {
   Vector<float3> translations;
 };
 
+/**
+ * Transforms positions from object space positions to brush-local space. Splitting the XZ and Z
+ * components gives slightly better performance.
+ */
 static void calc_local_positions(const Span<float3> vert_positions,
                                  const Span<int> verts,
                                  const float4x4 &mat,
@@ -69,6 +86,14 @@ static void calc_local_positions(const Span<float3> positions,
   }
 }
 
+/**
+ * Applies a parabolic factor of the form `z * (1 - z)` to each vertex.
+ * If plane trimming is enabled, vertices with `z` values greater than the
+ * specified `plane_trim` threshold are ignored (i.e., their factors are set to zero).
+ *
+ * Note: The local coordinate system is constructed such that all relevant `z` values
+ * are non-negative.
+ */
 static void apply_z_axis_factors(const Brush &brush,
                                  const Span<float> z_positions,
                                  const MutableSpan<float> factors)
@@ -88,9 +113,13 @@ static void apply_z_axis_factors(const Brush &brush,
   }
 }
 
-static void calc_brush_xy_distances(const Brush &brush,
-                                    const Span<float2> xy_positions,
-                                    const MutableSpan<float> r_distances)
+/**
+ * Calculates the distances in the xy local plane of the brush.
+ * Similar to #calc_brush_cube_distances.
+ */
+static void calc_xy_distances(const Brush &brush,
+                              const Span<float2> xy_positions,
+                              const MutableSpan<float> r_distances)
 {
   const float roundness = brush.tip_roundness;
   const float hardness = 1.0f - roundness;
@@ -153,7 +182,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_xy_distances(brush, xy_positions, distances);
+  calc_xy_distances(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -204,7 +233,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_xy_distances(brush, xy_positions, distances);
+  calc_xy_distances(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -254,7 +283,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_xy_distances(brush, xy_positions, distances);
+  calc_xy_distances(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -315,9 +344,13 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(area_normal, ss.cache->grab_delta_symm);
   mat.y_axis() = math::cross(area_normal, float3(mat[0]));
+  mat.z_axis() = area_normal;
 
-  /* Clay Strips influences the vertices below the plane. */
-  mat.z_axis() = area_normal * (flip ? 1.0f : -1.0f);
+  /* Flip the z-axis so that the vertices below the plane have positive z-coordinates. When the
+   * brush is inverted, the affected z-coordinates are already positive. */
+  if (!flip) {
+    mat.z_axis() *= -1.0f;
+  }
 
   mat.location() = area_position;
   mat = math::normalize(mat);
