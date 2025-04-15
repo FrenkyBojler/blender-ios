@@ -6,7 +6,6 @@
 
 #include "BLI_index_mask.hh"
 #include "BLI_math_vector_types.hh"
-#include "editors/sculpt_paint/curves_sculpt_intern.hh"
 
 #include <optional>
 
