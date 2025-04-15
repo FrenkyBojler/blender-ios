@@ -39,11 +39,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Geometry>("Points").description(
       "Point geometry representing grid voxels and tiles");
-  b.add_output<decl::Matrix>("Transform").description("Voxel origin transform");
   b.add_output<decl::Vector>("Coordinate")
       .description("Index-space coordinate of the voxel")
       .field_on_all();
-  b.add_output(data_type, "Background").description("Value of the grid in empty regions");
   b.add_output(data_type, "Value")
       .description("Value stored in grid voxels and tiles")
       .field_on_all();
@@ -255,7 +253,6 @@ template<typename T> struct GridToPointsConverter {
     }
     bke::VolumeTreeAccessToken tree_token;
     const float4x4 transform = transform_to_matrix(grid.grid(tree_token).transform());
-    T background_value = type_traits::to_blender(grid.grid(tree_token).background());
     typename TreeType::ConstPtr vdb_tree = grid.grid(tree_token).treePtr();
 
     const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
@@ -276,9 +273,6 @@ template<typename T> struct GridToPointsConverter {
     }
     PointCloud *points = BKE_pointcloud_new_nomain(points_num);
     bke::MutableAttributeAccessor attributes = points->attributes_for_write();
-
-    params.set_output("Transform", transform);
-    params.set_output("Background", background_value);
 
     IndexRange points_range = {};
     MutableSpan<float3> positions = points->positions_for_write();
