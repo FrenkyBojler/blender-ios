@@ -7,10 +7,12 @@
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_stack.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 
 #include "BKE_anonymous_attribute_id.hh"
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
@@ -265,7 +267,7 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
   };
 
   auto log_generic_value = [&](const CPPType &type, const void *value) {
-    void *buffer = this->allocator->allocate(type.size(), type.alignment());
+    void *buffer = this->allocator->allocate(type.size, type.alignment);
     type.copy_construct(value, buffer);
     store_logged_value(this->allocator->construct<GenericValueLog>(GMutablePointer{type, buffer}));
   };
@@ -788,46 +790,27 @@ GeoTreeLog &GeoModifierLog::get_tree_log(const ComputeContextHash &compute_conte
 
 static void find_tree_zone_hash_recursive(
     const bNodeTreeZone &zone,
-    ComputeContextBuilder &compute_context_builder,
+    bke::ComputeContextCache &compute_context_cache,
+    const ComputeContext *current,
     Map<const bNodeTreeZone *, ComputeContextHash> &r_hash_by_zone)
 {
-  switch (zone.output_node->type_legacy) {
-    case GEO_NODE_SIMULATION_OUTPUT: {
-      compute_context_builder.push<bke::SimulationZoneComputeContext>(*zone.output_node);
-      break;
-    }
-    case GEO_NODE_REPEAT_OUTPUT: {
-      const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(
-          zone.output_node->storage);
-      compute_context_builder.push<bke::RepeatZoneComputeContext>(*zone.output_node,
-                                                                  storage.inspection_index);
-      break;
-    }
-    case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
-      const auto &storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
-          zone.output_node->storage);
-      compute_context_builder.push<bke::ForeachGeometryElementZoneComputeContext>(
-          *zone.output_node, storage.inspection_index);
-      break;
-    }
-    case GEO_NODE_CLOSURE_OUTPUT: {
-      /* Can't find hashes for closure zones. Nodes in these zones may be evaluated in different
-       * contexts based on where the closures are called. */
-      return;
-    }
+  current = ed::space_node::compute_context_for_zone(zone, compute_context_cache, current);
+  if (!current) {
+    return;
   }
-  r_hash_by_zone.add_new(&zone, compute_context_builder.hash());
+  r_hash_by_zone.add_new(&zone, current->hash());
   for (const bNodeTreeZone *child_zone : zone.child_zones) {
-    find_tree_zone_hash_recursive(*child_zone, compute_context_builder, r_hash_by_zone);
+    find_tree_zone_hash_recursive(*child_zone, compute_context_cache, current, r_hash_by_zone);
   }
-  compute_context_builder.pop();
 }
 
 Map<const bNodeTreeZone *, ComputeContextHash> GeoModifierLog::
     get_context_hash_by_zone_for_node_editor(const SpaceNode &snode,
-                                             ComputeContextBuilder &compute_context_builder)
+                                             bke::ComputeContextCache &compute_context_cache)
 {
-  if (!ed::space_node::push_compute_context_for_tree_path(snode, compute_context_builder)) {
+  const ComputeContext *current = ed::space_node::compute_context_for_edittree(
+      snode, compute_context_cache);
+  if (!current) {
     return {};
   }
 
@@ -836,22 +819,14 @@ Map<const bNodeTreeZone *, ComputeContextHash> GeoModifierLog::
     return {};
   }
   Map<const bNodeTreeZone *, ComputeContextHash> hash_by_zone;
-  hash_by_zone.add_new(nullptr, compute_context_builder.hash());
+  hash_by_zone.add_new(nullptr, current->hash());
   for (const bNodeTreeZone *zone : tree_zones->root_zones) {
-    find_tree_zone_hash_recursive(*zone, compute_context_builder, hash_by_zone);
+    find_tree_zone_hash_recursive(*zone, compute_context_cache, current, hash_by_zone);
   }
   return hash_by_zone;
 }
 
-Map<const bNodeTreeZone *, ComputeContextHash> GeoModifierLog::
-    get_context_hash_by_zone_for_node_editor(const SpaceNode &snode, const NodesModifierData &nmd)
-{
-  ComputeContextBuilder compute_context_builder;
-  compute_context_builder.push<bke::ModifierComputeContext>(nmd);
-  return get_context_hash_by_zone_for_node_editor(snode, compute_context_builder);
-}
-
-ContextualGeoTreeLogs GeoModifierLog::get_contextual_tree_logs(const SpaceNode &snode)
+static GeoModifierLog *get_root_log(const SpaceNode &snode)
 {
   switch (SpaceNodeGeometryNodesType(snode.geometry_nodes_type)) {
     case SNODE_GEOMETRY_MODIFIER: {
@@ -860,19 +835,7 @@ ContextualGeoTreeLogs GeoModifierLog::get_contextual_tree_logs(const SpaceNode &
       if (!object_and_modifier) {
         return {};
       }
-      GeoModifierLog *modifier_log = object_and_modifier->nmd->runtime->eval_log.get();
-      if (modifier_log == nullptr) {
-        return {};
-      }
-      const Map<const bNodeTreeZone *, ComputeContextHash> hash_by_zone =
-          GeoModifierLog::get_context_hash_by_zone_for_node_editor(snode,
-                                                                   *object_and_modifier->nmd);
-      Map<const bke::bNodeTreeZone *, GeoTreeLog *> tree_logs_by_zone;
-      for (const auto item : hash_by_zone.items()) {
-        GeoTreeLog &tree_log = modifier_log->get_tree_log(item.value);
-        tree_logs_by_zone.add(item.key, &tree_log);
-      }
-      return {tree_logs_by_zone};
+      return object_and_modifier->nmd->runtime->eval_log.get();
     }
     case SNODE_GEOMETRY_TOOL: {
       const ed::geometry::GeoOperatorLog &log =
@@ -880,20 +843,27 @@ ContextualGeoTreeLogs GeoModifierLog::get_contextual_tree_logs(const SpaceNode &
       if (snode.geometry_nodes_tool_tree->id.name + 2 != log.node_group_name) {
         return {};
       }
-      ComputeContextBuilder compute_context_builder;
-      compute_context_builder.push<bke::OperatorComputeContext>();
-      const Map<const bNodeTreeZone *, ComputeContextHash> hash_by_zone =
-          GeoModifierLog::get_context_hash_by_zone_for_node_editor(snode, compute_context_builder);
-      Map<const bke::bNodeTreeZone *, GeoTreeLog *> tree_logs_by_zone;
-      for (const auto item : hash_by_zone.items()) {
-        GeoTreeLog &tree_log = log.log->get_tree_log(item.value);
-        tree_logs_by_zone.add(item.key, &tree_log);
-      }
-      return {tree_logs_by_zone};
+      return log.log.get();
     }
   }
-  BLI_assert_unreachable();
-  return {};
+  return nullptr;
+}
+
+ContextualGeoTreeLogs GeoModifierLog::get_contextual_tree_logs(const SpaceNode &snode)
+{
+  GeoModifierLog *log = get_root_log(snode);
+  if (!log) {
+    return {};
+  }
+  bke::ComputeContextCache compute_context_cache;
+  const Map<const bNodeTreeZone *, ComputeContextHash> hash_by_zone =
+      GeoModifierLog::get_context_hash_by_zone_for_node_editor(snode, compute_context_cache);
+  Map<const bke::bNodeTreeZone *, GeoTreeLog *> tree_logs_by_zone;
+  for (const auto item : hash_by_zone.items()) {
+    GeoTreeLog &tree_log = log->get_tree_log(item.value);
+    tree_logs_by_zone.add(item.key, &tree_log);
+  }
+  return {tree_logs_by_zone};
 }
 
 const ViewerNodeLog *GeoModifierLog::find_viewer_node_log_for_path(const ViewerPath &viewer_path)
@@ -920,15 +890,16 @@ const ViewerNodeLog *GeoModifierLog::find_viewer_node_log_for_path(const ViewerP
   }
   nodes::geo_eval_log::GeoModifierLog *modifier_log = nmd->runtime->eval_log.get();
 
-  ComputeContextBuilder compute_context_builder;
-  compute_context_builder.push<bke::ModifierComputeContext>(*nmd);
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *compute_context = &compute_context_cache.for_modifier(nullptr, *nmd);
   for (const ViewerPathElem *elem : parsed_path->node_path) {
-    if (!ed::viewer_path::add_compute_context_for_viewer_path_elem(*elem, compute_context_builder))
-    {
+    compute_context = ed::viewer_path::compute_context_for_viewer_path_elem(
+        *elem, compute_context_cache, compute_context);
+    if (!compute_context) {
       return nullptr;
     }
   }
-  const ComputeContextHash context_hash = compute_context_builder.hash();
+  const ComputeContextHash context_hash = compute_context->hash();
   nodes::geo_eval_log::GeoTreeLog &tree_log = modifier_log->get_tree_log(context_hash);
   tree_log.ensure_viewer_node_logs();
 
