@@ -620,6 +620,32 @@ static void try_add_side_effect_node(const ComputeContext &final_compute_context
       current_tree = reinterpret_cast<const bNodeTree *>(group_node->id);
       current_zone = nullptr;
     }
+    else if (const auto *compute_context =
+                 dynamic_cast<const bke::EvaluateClosureComputeContext *>(compute_context_generic))
+    {
+      const bNode *evaluate_node = current_tree->node_by_id(compute_context->node_id());
+      if (!evaluate_node) {
+        return;
+      }
+      if (evaluate_node->is_muted()) {
+        return;
+      }
+      if (current_zone != current_zones->get_zone_by_node(evaluate_node->identifier)) {
+        return;
+      }
+      const lf::FunctionNode *lf_evaluate_node =
+          lf_graph_info->mapping.possible_side_effect_node_map.lookup_default(evaluate_node,
+                                                                              nullptr);
+      if (!lf_evaluate_node) {
+        return;
+      }
+      local_side_effect_nodes.nodes_by_context.add(parent_compute_context_hash, lf_evaluate_node);
+      // TODO: Update current tree and zone.
+      // current_tree = ...;
+      // TODO: Check that zones are valid.
+      current_zone = current_tree->zones()->get_zone_by_node(
+          compute_context->closure_source_location()->closure_output_node_id);
+    }
     else {
       return;
     }

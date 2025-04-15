@@ -269,7 +269,8 @@ std::optional<ViewerPathForGeometryNodesViewer> parse_geometry_nodes_viewer(
               VIEWER_PATH_ELEM_TYPE_GROUP_NODE,
               VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE,
               VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE,
-              VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE))
+              VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE,
+              VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE))
     {
       return std::nullopt;
     }
