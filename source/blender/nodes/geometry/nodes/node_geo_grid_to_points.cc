@@ -232,9 +232,9 @@ template<typename T> struct GridToPointsConverter {
           for (const int leaf_i : IndexRange(leaves_dim)) {
             for (const int leaf_j : IndexRange(leaves_dim)) {
               for (const int leaf_k : IndexRange(leaves_dim)) {
-                const openvdb::Coord leaf_offset = {leaf_i * LeafNodeType::DIM,
-                                                    leaf_j * LeafNodeType::DIM,
-                                                    leaf_k * LeafNodeType::DIM};
+                const openvdb::Coord leaf_offset = {leaf_i * int(LeafNodeType::DIM),
+                                                    leaf_j * int(LeafNodeType::DIM),
+                                                    leaf_k * int(LeafNodeType::DIM)};
                 const openvdb::Coord leaf_origin = value_origin + leaf_offset;
 
                 add_leaf_points(
