@@ -1360,14 +1360,6 @@ bool bNodeTreeInterface::remove_item(bNodeTreeInterfaceItem &item, bool move_con
   if (parent == nullptr) {
     return false;
   }
-
-  if (item.item_type == NODE_INTERFACE_PANEL) {
-    bNodeTreeInterfacePanel &active_panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
-    if (bNodeTreeInterfaceSocket *toggle_socket = active_panel.header_toggle_socket()) {
-      active_panel.remove_item(toggle_socket->item, true);
-    }
-  }
-
   if (move_content_to_parent) {
     int position = parent->item_position(item);
     /* Cache children to avoid invalidating the iterator. */
