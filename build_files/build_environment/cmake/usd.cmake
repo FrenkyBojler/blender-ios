@@ -168,7 +168,10 @@ ExternalProject_Add(external_usd
       ${PATCH_DIR}/usd_forward_compat.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
-      ${PATCH_DIR}/usd_noboost.diff
+      ${PATCH_DIR}/usd_noboost.diff &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/usd/src/external_usd <
+      ${PATCH_DIR}/usd_storm_vulkan.diff
 
   INSTALL_DIR ${LIBDIR}/usd
 )

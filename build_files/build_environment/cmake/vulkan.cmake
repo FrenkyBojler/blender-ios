@@ -69,6 +69,7 @@ ExternalProject_Add(external_spirv_reflect
   INSTALL_DIR ${LIBDIR}/vulkan_headers
 )
 
+# Install header and source file to match Vulkan SDK.
 ExternalProject_Add_Step(external_spirv_reflect after_install
       COMMAND ${CMAKE_COMMAND} -E make_directory
         ${LIBDIR}/vulkan_headers/include/SPIRV-Reflect
@@ -94,6 +95,7 @@ ExternalProject_Add(external_vulkan_memory_allocator
   INSTALL_DIR ${LIBDIR}/vulkan_headers
 )
 
+# Change installation location to match Vulkan SDK.
 ExternalProject_Add_Step(external_vulkan_memory_allocator after_install
       COMMAND ${CMAKE_COMMAND} -E make_directory
         ${LIBDIR}/vulkan_headers/include/vma
