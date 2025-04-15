@@ -1575,7 +1575,7 @@ void CurvesGeometry::remove_curves(const IndexMask &curves_to_delete,
     return;
   }
   if (curves_to_delete.size() == this->curves_num()) {
-        CurvesGeometry curves = *this;
+    CurvesGeometry curves = *this;
     *this = {};
     curves.attributes().foreach_attribute([&](const AttributeIter &iter) {
       this->attributes_for_write().add(
