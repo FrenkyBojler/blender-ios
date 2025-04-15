@@ -74,7 +74,7 @@ def list_assets(blendfile: Path, asset_library_root: Path) -> list[api_models.As
     for attr in dir(data_to):
         datablocks = getattr(data_from, attr)
         datablocks_assets = _find_assets(
-            datablocks, blendfile_info, thumbnail_dir, should_write_thumbnails
+            datablocks, blendfile_info, thumbnail_dir, should_write_thumbnails,
         )
         assets.extend(datablocks_assets)
 
@@ -123,8 +123,8 @@ def _find_assets(
         # none of them are set, and prevent the empty metadata from being
         # included.
         meta = api_models.AssetMetadata()
-        if asset_data.catalog_simple_name:
-            meta.catalog = asset_data.catalog_simple_name
+        if asset_data.catalog_id:
+            meta.catalog_id = asset_data.catalog_id
         if asset_data.tags:
             meta.tags = [tag.name for tag in asset_data.tags]
         if asset_data.author:

@@ -229,13 +229,12 @@ components:
         Metadata of an asset, as defined by Blender's `AssetMeta` DNA struct.
         Fields should either be non-empty or absent.
       properties:
-        "catalog":
+        "catalog_id":
           type: string
           description: >
-            The catalog path that contains this asset.
-
-            TODO: we could also put the UUID here, making it easier if we ever
-            need to create a per-blendfile .cats.txt file.
+            The catalog UUID that contains this asset. Having the UUID here
+            makes it easier to create a per-blendfile .cats.txt file, if that's
+            ever necessary.
         "tags":
           type: array
           items: { type: string }
@@ -254,6 +253,5 @@ components:
           type: array
           items:
             type: string
-            format: uuid
           minItems: 1
       required: [path, uuids]

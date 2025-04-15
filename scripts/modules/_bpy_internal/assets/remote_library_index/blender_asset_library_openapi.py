@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated, Optional
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,10 +32,10 @@ class AssetMetadata(BaseModel):
     model_config = ConfigDict(
         extra="allow",
     )
-    catalog: Annotated[
+    catalog_id: Annotated[
         Optional[str],
         Field(
-            description="The catalog path that contains this asset.\nTODO: we could also put the UUID here, making it easier if we ever need to create a per-blendfile .cats.txt file.\n"
+            description="The catalog UUID that contains this asset. Having the UUID here makes it easier to create a per-blendfile .cats.txt file, if that's ever necessary.\n"
         ),
     ] = None
     tags: Annotated[Optional[list[str]], Field(min_length=1)] = None
@@ -51,7 +50,7 @@ class Catalog(BaseModel):
         extra="allow",
     )
     path: str
-    uuids: Annotated[list[UUID], Field(min_length=1)]
+    uuids: Annotated[list[str], Field(min_length=1)]
 
 
 class AssetLibraryMeta(BaseModel):

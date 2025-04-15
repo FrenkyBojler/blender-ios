@@ -7,13 +7,12 @@
 import argparse
 import logging
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pydantic
 
-from . import asset_finder, pagination
+from . import asset_catalogs, asset_finder, index_common, pagination
 from . import blender_asset_library_openapi as api_models
-from . import index_common
 
 SCHEMA_VERSION = "1.0.0"
 
@@ -100,7 +99,7 @@ def _write_json_files(
     for filepath in existing_pages:
         filepath.unlink()
 
-    # Library Index Page /v1/assets-{page}.json
+    # Library Index Page /_v1/assets-{page}.json
     #
     # Note that these paths are determined by the generator, and their URLs are
     # listed explicitly in the index file, so there is no need to have those in
@@ -112,17 +111,18 @@ def _write_json_files(
 
         _save_json(page, outdir_root / page_relpath)
 
-    # Library Index file /v1/asset-index.json:
+    # Library Index file /_v1/asset-index.json:
     total_asset_count = sum(len(page.assets) for page in asset_index_pages)
     asset_size_bytes = sum(asset.archive_size_in_bytes
                            for page in asset_index_pages
                            for asset in page.assets)
+    asset_cats = asset_catalogs.parse_catalogs(arguments.repository)
     index = api_models.AssetLibraryIndex(
         schema_version=SCHEMA_VERSION,
         asset_size_bytes=asset_size_bytes,
         asset_count=total_asset_count,
         page_urls=page_urls,
-        catalogs=[],  # TODO: collect catalogs.
+        catalogs=asset_cats,
     )
     _save_json(index, outdir_versioned / index_common.ASSET_INDEX_JSON_FILENAME)
 
