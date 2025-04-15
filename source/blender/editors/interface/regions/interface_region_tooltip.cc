@@ -899,6 +899,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
    * Otherwise fallback to the regular label. */
   if (!but_tip_label.empty()) {
     UI_tooltip_text_field_add(*data, but_tip_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+    UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
   }
   /* Regular (non-custom) label. Only show when the button doesn't already show the label. Check
    * prefix instead of comparing because the button may include the shortcut. Buttons with dynamic
@@ -907,23 +908,27 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   else if (!but_label.empty() && !blender::StringRef(but->drawstr).startswith(but_label) &&
            !but->tip_func)
   {
-    UI_tooltip_text_field_add(*data, but_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+    if (enum_label.empty()) {
+      UI_tooltip_text_field_add(*data, but_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+    }
+    else {
+      UI_tooltip_text_field_add(*data,
+                                fmt::format("{}: ", but_label),
+                                enum_label,
+                                UI_TIP_STYLE_HEADER,
+                                UI_TIP_LC_NORMAL);
+    }
+    UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
   }
 
   /* Tip */
   if (!but_tip.empty()) {
-    if (!enum_label.empty()) {
-      UI_tooltip_text_field_add(
-          *data, fmt::format("{}: ", but_tip), enum_label, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
-    }
-    else {
-      const bool add_period = ui_tooltip_period_needed(but_tip);
-      UI_tooltip_text_field_add(*data,
-                                fmt::format("{}{}", but_tip, add_period ? "." : ""),
-                                {},
-                                UI_TIP_STYLE_HEADER,
-                                UI_TIP_LC_NORMAL);
-    }
+    const bool add_period = ui_tooltip_period_needed(but_tip);
+    UI_tooltip_text_field_add(*data,
+                              fmt::format("{}{}", but_tip, add_period ? "." : ""),
+                              {},
+                              UI_TIP_STYLE_HEADER,
+                              UI_TIP_LC_NORMAL);
 
     /* special case enum rna buttons */
     if ((but->type & UI_BTYPE_ROW) && rnaprop && RNA_property_flag(rnaprop) & PROP_ENUM_FLAG) {
