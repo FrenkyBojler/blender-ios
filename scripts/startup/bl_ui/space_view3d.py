@@ -295,7 +295,7 @@ class _draw_tool_settings_context_mode:
         )
 
         # direction
-        if not capabilities.has_direction:
+        if capabilities.has_direction:
             layout.row().prop(brush, "direction", expand=True, text="")
 
         return True
@@ -8132,7 +8132,7 @@ class VIEW3D_PT_active_spline(Panel):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        if ob is None or ob.type != 'CURVE' or ob.mode != 'EDIT':
+        if ob is None or ob.type not in {'CURVE', 'SURFACE'} or ob.mode != 'EDIT':
             return False
         curve = ob.data
         return curve.splines.active is not None

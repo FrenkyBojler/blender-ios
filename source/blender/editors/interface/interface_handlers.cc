@@ -208,8 +208,6 @@ static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event
 #define MENU_TOWARDS_MARGIN 20
 /** Tolerance for closing menus (in pixels). */
 #define MENU_TOWARDS_WIGGLE_ROOM 64
-/** Drag-lock distance threshold (in pixels). */
-#define BUTTON_DRAGLOCK_THRESH 3
 
 enum uiButtonActivateType {
   BUTTON_ACTIVATE_OVER,
@@ -685,6 +683,18 @@ static void ui_mouse_scale_warp(uiHandleButtonData *data,
 /** \name UI Utilities
  * \{ */
 
+#ifdef USE_DRAG_MULTINUM
+static bool ui_multibut_drag_wait(const uiHandleButtonMulti &multi_data)
+{
+  const bool initializing = ELEM(
+      multi_data.init, uiHandleButtonMulti::INIT_UNSET, uiHandleButtonMulti::INIT_SETUP);
+  const bool vertical_dragging = abs(multi_data.drag_dir[1]) > abs(multi_data.drag_dir[0]);
+
+  /* Continue waiting if we are dragging vertically but have not yet detected gesture. */
+  return (initializing && vertical_dragging);
+}
+#endif /* USE_DRAG_MULTINUM */
+
 /**
  * Ignore mouse movements within some horizontal pixel threshold before starting to drag
  */
@@ -695,14 +705,13 @@ static bool ui_but_dragedit_update_mval(uiHandleButtonData *data, int mx)
   }
 
   if (data->draglock) {
-    if (abs(mx - data->dragstartx) <= BUTTON_DRAGLOCK_THRESH) {
+    const int threshold = WM_event_drag_threshold(data->window->event_last_handled);
+    if (abs(mx - data->dragstartx) < threshold) {
       return false;
     }
 #ifdef USE_DRAG_MULTINUM
-    if (ELEM(data->multi_data.init,
-             uiHandleButtonMulti::INIT_UNSET,
-             uiHandleButtonMulti::INIT_SETUP))
-    {
+    /* Continue to wait for multibut drag initialization if dragging vertically. */
+    if (ui_multibut_drag_wait(data->multi_data)) {
       return false;
     }
 #endif
@@ -2724,11 +2733,7 @@ static void ui_but_copy_colorband(uiBut *but)
 
 static void ui_but_paste_colorband(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
-  if (but_copypaste_coba.tot != 0) {
-    if (!but->poin) {
-      but->poin = reinterpret_cast<char *>(MEM_callocN<ColorBand>(__func__));
-    }
-
+  if (but_copypaste_coba.tot != 0 && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
     memcpy(data->coba, &but_copypaste_coba, sizeof(ColorBand));
     button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -2746,11 +2751,7 @@ static void ui_but_copy_curvemapping(uiBut *but)
 
 static void ui_but_paste_curvemapping(bContext *C, uiBut *but)
 {
-  if (but_copypaste_curve_alive) {
-    if (!but->poin) {
-      but->poin = reinterpret_cast<char *>(MEM_callocN<CurveMapping>(__func__));
-    }
-
+  if (but_copypaste_curve_alive && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
     BKE_curvemapping_free_data((CurveMapping *)but->poin);
     BKE_curvemapping_copy_data((CurveMapping *)but->poin, &but_copypaste_curve);
@@ -2769,11 +2770,7 @@ static void ui_but_copy_CurveProfile(uiBut *but)
 
 static void ui_but_paste_CurveProfile(bContext *C, uiBut *but)
 {
-  if (but_copypaste_profile_alive) {
-    if (!but->poin) {
-      but->poin = reinterpret_cast<char *>(MEM_callocN<CurveProfile>(__func__));
-    }
-
+  if (but_copypaste_profile_alive && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
     BKE_curveprofile_free_data((CurveProfile *)but->poin);
     BKE_curveprofile_copy_data((CurveProfile *)but->poin, &but_copypaste_profile);
@@ -3783,9 +3780,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
  */
 static eStrCursorJumpType ui_textedit_jump_type_from_event(const wmEvent *event)
 {
-/* TODO: Do not enable these Apple-specific modifiers until we also support them in
- * text objects, console, and text editor to keep everything consistent - Harley. */
-#if defined(__APPLE__) && 0
+#if defined(__APPLE__)
   if (event->modifier & KM_OSKEY) {
     return STRCUR_JUMP_ALL;
   }
