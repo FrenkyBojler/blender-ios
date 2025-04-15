@@ -271,7 +271,6 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
 
   BLO_read_struct_array(&reader, AttributeDNA, this->dna_attributes_num, &this->dna_attributes);
   for (const int i : IndexRange(this->dna_attributes_num)) {
-    BLO_read_struct(&reader, AttributeDNA, &this->dna_attributes[i]);
     AttributeDNA &dna_attr = this->dna_attributes[i];
     BLO_read_string(&reader, &dna_attr.name);
 
@@ -301,7 +300,6 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
 
     MEM_freeN(const_cast<char *>(dna_attr.name));
     MEM_freeN(dna_attr.data);
-    MEM_freeN(&dna_attr);
 
     this->runtime->attributes.add_new(std::move(attribute));
   }
