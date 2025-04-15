@@ -28,7 +28,7 @@ class RemeshTest(unittest.TestCase):
         bpy.ops.sculpt.sculptmode_toggle()
 
     def test_operator_remeshes_basic_cube(self):
-        """Test that using the operator with default settings creates a mesh with an appropriate amount of vertices."""
+        """Test that using the operator with default settings creates a mesh with the expected amount of vertices."""
         mesh = bpy.context.object.data
         mesh.remesh_voxel_size = 0.1
 
@@ -40,12 +40,13 @@ class RemeshTest(unittest.TestCase):
         self.assertEqual(num_vertices, 2648)
 
     def test_operator_doesnt_run_with_0_voxel_size(self):
-        """Test that using the operator doesn't run on ."""
+        """Test that using the operator returns an error to the user with a voxel size of 0."""
         mesh = bpy.context.object.data
         mesh.remesh_voxel_size = 0
 
         with self.assertRaises(RuntimeError):
             bpy.ops.object.voxel_remesh()
+
 
 if __name__ == '__main__':
     import sys
