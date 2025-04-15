@@ -6,6 +6,7 @@
 
 #include "BLI_index_mask.hh"
 #include "BLI_math_vector_types.hh"
+#include "editors/sculpt_paint/curves_sculpt_intern.hh"
 
 #include <optional>
 
@@ -13,12 +14,16 @@ struct Brush;
 struct Depsgraph;
 struct Scene;
 struct Sculpt;
+namespace blender::ed::sculpt_paint {
+struct StrokeCache;
+};
+struct SculptSession;
 struct Object;
 namespace blender::bke::pbvh {
 class Node;
 }
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 /** Represents the result of one or more BVH queries to find a brush's affected nodes. */
 struct NodeMaskResult {
@@ -41,7 +46,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
                           const IndexMask &node_mask,
                           const float3 &plane_normal,
                           const float3 &plane_center);
-namespace brushes::clay_strips {
+namespace clay_strips {
 NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
                               Object &ob,
                               const Brush &brush,
@@ -51,6 +56,8 @@ void do_clay_thumb_brush(const Depsgraph &depsgraph,
                          const Sculpt &sd,
                          Object &ob,
                          const IndexMask &node_mask);
+float clay_thumb_get_stabilized_pressure(const StrokeCache &cache);
+
 void do_crease_brush(const Depsgraph &depsgraph,
                      const Scene &scene,
                      const Sculpt &sd,
@@ -115,7 +122,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
                     const float3 &plane_normal,
                     const float3 &plane_center);
 
-namespace brushes::plane {
+namespace plane {
 NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
                               Object &ob,
                               const Brush &brush,
@@ -147,6 +154,12 @@ void do_multiplane_scrape_brush(const Depsgraph &depsgraph,
                                 const Sculpt &sd,
                                 Object &object,
                                 const IndexMask &node_mask);
+void multiplane_scrape_preview_draw(uint gpuattr,
+                                    const Brush &brush,
+                                    const SculptSession &ss,
+                                    const float outline_col[3],
+                                    float outline_alpha);
+
 void do_pinch_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
@@ -200,18 +213,4 @@ void do_topology_relax_brush(const Depsgraph &depsgraph,
                              Object &object,
                              const IndexMask &node_mask);
 
-namespace boundary {
-void do_boundary_brush(const Depsgraph &depsgraph,
-                       const Sculpt &sd,
-                       Object &object,
-                       const IndexMask &node_mask);
-}
-
-namespace cloth {
-void do_cloth_brush(const Depsgraph &depsgraph,
-                    const Sculpt &sd,
-                    Object &object,
-                    const IndexMask &node_mask);
-}
-
-}  // namespace blender::ed::sculpt_paint
+}  // namespace blender::ed::sculpt_paint::brushes
