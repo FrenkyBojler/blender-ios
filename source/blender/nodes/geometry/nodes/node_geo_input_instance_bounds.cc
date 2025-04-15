@@ -41,14 +41,18 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
     IndexMaskMemory memory;
     IndexMask reference_mask(references.size());
-    if (mask.size() != references.size()) {
-      Array<bool> reference_in_mask(references.size(), false);
-      mask.foreach_index(GrainSize(2048),
-                         [&](const int i) { reference_in_mask[handles[i]] = true; });
-      reference_mask = IndexMask::from_bools(reference_in_mask.as_span(), memory);
-    }
+    Array<bool> reference_in_mask(references.size(), false);
 
+    mask.foreach_index(GrainSize(2048), [&](const int i) {
+      const int handle = handles[i];
+      if (handle < reference_in_mask.size()) {
+        reference_in_mask[handle] = true;
+      }
+    });
+
+    reference_mask = IndexMask::from_bools(reference_in_mask.as_span(), memory);
     Array<float3> reference_bounds(references.size());
+
     reference_mask.foreach_index(GrainSize(128), [&](const int reference_index) {
       const blender::bke::InstanceReference &reference = references[reference_index];
 
