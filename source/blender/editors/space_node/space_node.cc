@@ -390,7 +390,7 @@ static const ComputeContext *compute_context_for_zones(
   return current;
 }
 
-std::optional<const ComputeContext *> compute_context_for_tree_path(
+static std::optional<const ComputeContext *> compute_context_for_tree_path(
     const SpaceNode &snode,
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context)

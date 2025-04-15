@@ -83,13 +83,6 @@ struct ObjectAndModifier {
  * Finds the context-modifier for the node editor.
  */
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode);
-/**
- * Used to get the compute context for the (nested) node group that is currently edited.
- */
-[[nodiscard]] std::optional<const ComputeContext *> compute_context_for_tree_path(
-    const SpaceNode &snode,
-    bke::ComputeContextCache &compute_context_cache,
-    const ComputeContext *parent_compute_context);
 
 [[nodiscard]] const ComputeContext *compute_context_for_edittree(
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache);
