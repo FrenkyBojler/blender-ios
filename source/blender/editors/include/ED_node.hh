@@ -95,6 +95,11 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
 [[nodiscard]] const ComputeContext *compute_context_for_edittree(
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache);
 
+[[nodiscard]] const ComputeContext *compute_context_for_edittree_socket(
+    const SpaceNode &snode,
+    bke::ComputeContextCache &compute_context_cache,
+    const bNodeSocket &socket);
+
 /**
  * Creates a compute context for the given zone. It takes e.g. the current inspection index into
  * account.

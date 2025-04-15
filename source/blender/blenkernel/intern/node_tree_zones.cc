@@ -434,6 +434,21 @@ Vector<const bNodeTreeZone *> bNodeTreeZones::get_zone_stack_for_node(const int 
   return zone_stack;
 }
 
+Vector<const bNodeTreeZone *> bNodeTreeZones::get_zone_stack_for_socket(
+    const bNodeSocket &socket) const
+{
+  const bNodeTreeZone *zone = this->get_zone_by_socket(socket);
+  if (zone == nullptr) {
+    return {};
+  }
+  Vector<const bNodeTreeZone *> zone_stack;
+  for (; zone; zone = zone->parent_zone) {
+    zone_stack.append(zone);
+  }
+  std::reverse(zone_stack.begin(), zone_stack.end());
+  return zone_stack;
+}
+
 bool bNodeTreeZones::link_between_zones_is_allowed(const bNodeTreeZone *from_zone,
                                                    const bNodeTreeZone *to_zone) const
 {

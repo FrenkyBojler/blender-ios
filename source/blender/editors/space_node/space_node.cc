@@ -482,6 +482,23 @@ static const ComputeContext *get_node_editor_root_compute_context(
   return edittree_context;
 }
 
+const ComputeContext *compute_context_for_edittree_socket(
+    const SpaceNode &snode,
+    bke::ComputeContextCache &compute_context_cache,
+    const bNodeSocket &socket)
+{
+  const ComputeContext *context = compute_context_for_edittree(snode, compute_context_cache);
+  if (!context) {
+    return nullptr;
+  }
+  const bke::bNodeTreeZones *zones = snode.edittree->zones();
+  if (!zones) {
+    return nullptr;
+  }
+  const Vector<const bke::bNodeTreeZone *> zone_stack = zones->get_zone_stack_for_socket(socket);
+  return compute_context_for_zones(zone_stack, compute_context_cache, context);
+}
+
 /* ******************** default callbacks for node space ***************** */
 
 static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)

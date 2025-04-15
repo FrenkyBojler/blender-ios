@@ -4993,7 +4993,7 @@ static void draw_nodetree(const bContext &C,
     });
     const WorkSpace *workspace = CTX_wm_workspace(&C);
     tree_draw_ctx.active_geometry_nodes_viewer = viewer_path::find_geometry_nodes_viewer(
-        workspace->viewer_path, *snode);
+        *tree_draw_ctx.bmain, workspace->viewer_path, *snode);
 
     /* This set of socket is used when drawing links to determine which links should use the
      * special gizmo drawing. */

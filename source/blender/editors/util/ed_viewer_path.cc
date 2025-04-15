@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "ED_viewer_path.hh"
-#include "BKE_lib_id.hh"
+#include "ED_node.hh"
 #include "ED_screen.hh"
 
 #include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -118,130 +119,33 @@ ViewerPathElem *viewer_path_elem_for_compute_context(Main &bmain,
   return nullptr;
 }
 
-static ViewerPathElem *viewer_path_elem_for_zone(const bNodeTreeZone &zone)
-{
-  switch (zone.output_node->type_legacy) {
-    case GEO_NODE_SIMULATION_OUTPUT: {
-      SimulationZoneViewerPathElem *node_elem = BKE_viewer_path_elem_new_simulation_zone();
-      node_elem->sim_output_node_id = zone.output_node->identifier;
-      return &node_elem->base;
-    }
-    case GEO_NODE_REPEAT_OUTPUT: {
-      const auto &storage = *static_cast<NodeGeometryRepeatOutput *>(zone.output_node->storage);
-      RepeatZoneViewerPathElem *node_elem = BKE_viewer_path_elem_new_repeat_zone();
-      node_elem->repeat_output_node_id = zone.output_node->identifier;
-      node_elem->iteration = storage.inspection_index;
-      return &node_elem->base;
-    }
-    case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
-      const auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(
-          zone.output_node->storage);
-      ForeachGeometryElementZoneViewerPathElem *node_elem =
-          BKE_viewer_path_elem_new_foreach_geometry_element_zone();
-      node_elem->zone_output_node_id = zone.output_node->identifier;
-      node_elem->index = storage.inspection_index;
-      return &node_elem->base;
-    }
-    case GEO_NODE_CLOSURE_OUTPUT: {
-      // TODO: Need to find a place where this closure is evaluated.
-      return nullptr;
-    }
-  }
-  BLI_assert_unreachable();
-  return nullptr;
-}
-
-static void viewer_path_for_geometry_node(const SpaceNode &snode,
+static void viewer_path_for_geometry_node(Main &bmain,
+                                          const SpaceNode &snode,
                                           const bNode &node,
                                           ViewerPath &r_dst)
 {
   /* Only valid if the node space has a context object. */
   BLI_assert(snode.id != nullptr && GS(snode.id->name) == ID_OB);
+  snode.edittree->ensure_topology_cache();
 
   BKE_viewer_path_init(&r_dst);
+
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *context = space_node::compute_context_for_edittree_socket(
+      snode, compute_context_cache, node.input_socket(0));
+  if (!context) {
+    return;
+  }
+  std::optional<ViewerPath> viewer_path_opt = viewer_path_for_compute_context(bmain, context);
+  if (!viewer_path_opt) {
+    return;
+  }
+  r_dst = *viewer_path_opt;
 
   Object *ob = reinterpret_cast<Object *>(snode.id);
   IDViewerPathElem *id_elem = BKE_viewer_path_elem_new_id();
   id_elem->id = &ob->id;
-  BLI_addtail(&r_dst.path, id_elem);
-
-  NodesModifierData *modifier = nullptr;
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (md->type != eModifierType_Nodes) {
-      continue;
-    }
-    NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-    if (nmd->node_group != snode.nodetree) {
-      continue;
-    }
-    if (snode.flag & SNODE_PIN) {
-      /* If the node group is pinned, use the first matching modifier. This can be improved by
-       * storing the modifier name in the node editor when the context is pinned. */
-      modifier = nmd;
-      break;
-    }
-    if (md->flag & eModifierFlag_Active) {
-      modifier = nmd;
-    }
-  }
-  if (modifier == nullptr) {
-    return;
-  }
-  ModifierViewerPathElem *modifier_elem = BKE_viewer_path_elem_new_modifier();
-  modifier_elem->modifier_name = BLI_strdup(modifier->modifier.name);
-  BLI_addtail(&r_dst.path, modifier_elem);
-
-  Vector<const bNodeTreePath *, 16> tree_path;
-  LISTBASE_FOREACH (const bNodeTreePath *, item, &snode.treepath) {
-    tree_path.append(item);
-  }
-
-  for (const int i : tree_path.index_range().drop_back(1)) {
-    bNodeTree *tree = tree_path[i]->nodetree;
-    /* The tree path contains the name of the node but not its ID. */
-    const char *node_name = tree_path[i + 1]->node_name;
-    const bNode *node = bke::node_find_node_by_name(*tree, node_name);
-    /* The name in the tree path should match a group node in the tree. Sometimes, the tree-path is
-     * out of date though. */
-    if (node == nullptr) {
-      return;
-    }
-
-    tree->ensure_topology_cache();
-    const bNodeTreeZones *tree_zones = tree->zones();
-    if (!tree_zones) {
-      return;
-    }
-    const Vector<const bNodeTreeZone *> zone_stack = tree_zones->get_zone_stack_for_node(
-        node->identifier);
-    for (const bNodeTreeZone *zone : zone_stack) {
-      ViewerPathElem *zone_elem = viewer_path_elem_for_zone(*zone);
-      if (!zone_elem) {
-        return;
-      }
-      BLI_addtail(&r_dst.path, zone_elem);
-    }
-
-    GroupNodeViewerPathElem *node_elem = BKE_viewer_path_elem_new_group_node();
-    node_elem->node_id = node->identifier;
-    node_elem->base.ui_name = BLI_strdup(node->name);
-    BLI_addtail(&r_dst.path, node_elem);
-  }
-
-  snode.edittree->ensure_topology_cache();
-  const bNodeTreeZones *tree_zones = snode.edittree->zones();
-  if (!tree_zones) {
-    return;
-  }
-  const Vector<const bNodeTreeZone *> zone_stack = tree_zones->get_zone_stack_for_node(
-      node.identifier);
-  for (const bNodeTreeZone *zone : zone_stack) {
-    ViewerPathElem *zone_elem = viewer_path_elem_for_zone(*zone);
-    if (!zone_elem) {
-      return;
-    }
-    BLI_addtail(&r_dst.path, zone_elem);
-  }
+  BLI_addhead(&r_dst.path, id_elem);
 
   ViewerNodeViewerPathElem *viewer_node_elem = BKE_viewer_path_elem_new_viewer_node();
   viewer_node_elem->node_id = node.identifier;
@@ -263,7 +167,7 @@ void activate_geometry_node(Main &bmain, SpaceNode &snode, bNode &node)
   ViewerPath new_viewer_path{};
   BLI_SCOPED_DEFER([&]() { BKE_viewer_path_clear(&new_viewer_path); });
   if (snode.id != nullptr && GS(snode.id->name) == ID_OB) {
-    viewer_path_for_geometry_node(snode, node, new_viewer_path);
+    viewer_path_for_geometry_node(bmain, snode, node, new_viewer_path);
   }
 
   bool found_view3d_with_enabled_viewer = false;
@@ -565,7 +469,8 @@ UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const 
         }
         ViewerPath tmp_viewer_path{};
         BLI_SCOPED_DEFER([&]() { BKE_viewer_path_clear(&tmp_viewer_path); });
-        viewer_path_for_geometry_node(snode, *viewer_node, tmp_viewer_path);
+        viewer_path_for_geometry_node(
+            const_cast<Main &>(*bmain), snode, *viewer_node, tmp_viewer_path);
         if (!BKE_viewer_path_equal(
                 &viewer_path, &tmp_viewer_path, VIEWER_PATH_EQUAL_FLAG_IGNORE_ITERATION))
         {
@@ -584,7 +489,9 @@ UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const 
   return UpdateActiveGeometryNodesViewerResult::NotActive;
 }
 
-bNode *find_geometry_nodes_viewer(const ViewerPath &viewer_path, SpaceNode &snode)
+bNode *find_geometry_nodes_viewer(const Main &bmain,
+                                  const ViewerPath &viewer_path,
+                                  SpaceNode &snode)
 {
   /* Viewer path is only valid if the context object is set. */
   if (snode.id == nullptr || GS(snode.id->name) != ID_OB) {
@@ -604,7 +511,8 @@ bNode *find_geometry_nodes_viewer(const ViewerPath &viewer_path, SpaceNode &snod
   }
   ViewerPath tmp_viewer_path;
   BLI_SCOPED_DEFER([&]() { BKE_viewer_path_clear(&tmp_viewer_path); });
-  viewer_path_for_geometry_node(snode, *possible_viewer, tmp_viewer_path);
+  viewer_path_for_geometry_node(
+      const_cast<Main &>(bmain), snode, *possible_viewer, tmp_viewer_path);
 
   if (BKE_viewer_path_equal(&viewer_path, &tmp_viewer_path)) {
     return possible_viewer;

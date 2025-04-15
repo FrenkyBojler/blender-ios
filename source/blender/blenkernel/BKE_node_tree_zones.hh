@@ -80,6 +80,8 @@ class bNodeTreeZones {
    */
   Vector<const bNodeTreeZone *> get_zone_stack_for_node(const int32_t node_id) const;
 
+  Vector<const bNodeTreeZone *> get_zone_stack_for_socket(const bNodeSocket &socket) const;
+
   /**
    * Check if a link from the first zone to a socket in the second zone is allowed. Either zone
    * input may also be null which represents the root tree outside of any zone. Generally, a link
