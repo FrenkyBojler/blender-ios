@@ -74,8 +74,8 @@ static void import_faces(const ufbx_mesh *fmesh, Mesh *mesh)
 {
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  BLI_assert(face_offsets.size() == fmesh->num_faces + 1 ||
-             face_offsets.is_empty() && fmesh->num_faces == 0);
+  BLI_assert((face_offsets.size() == fmesh->num_faces + 1) ||
+             (face_offsets.is_empty() && fmesh->num_faces == 0));
   for (int face_idx = 0; face_idx < fmesh->num_faces; face_idx++) {
     //@TODO: skip < 3 vertex faces?
     const ufbx_face &fface = fmesh->faces[face_idx];
