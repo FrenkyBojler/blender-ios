@@ -1,0 +1,1 @@
+Referenced by issue #137429, `batch_for_shader` with custom glsl shader very slow when inputs are optimized out of the shader program
