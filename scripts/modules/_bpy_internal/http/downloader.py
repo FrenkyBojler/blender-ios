@@ -29,8 +29,8 @@ _http_session.mount("https://", _http_adapter)
 _http_session.mount("http://", _http_adapter)
 
 
-class CachingDownloadReporter(Protocol):
-    """This protocol can be used to receive reporting from CachingDownloader."""
+class DownloadReporter(Protocol):
+    """This protocol can be used to receive reporting from Downloader."""
 
     def download_starts(self, http_req_descr: RequestDescription) -> None: ...
 
@@ -62,11 +62,11 @@ class CachingDownloadReporter(Protocol):
         """The URL was downloaded to the given file."""
 
 
-class _DummyReporter(CachingDownloadReporter):
+class _DummyReporter(DownloadReporter):
     """Dummy CachingDownloadReporter.
 
     Does not do anything. This is mostly used to avoid None checks in the
-    CachingDownloader.
+    Downloader.
     """
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
@@ -102,15 +102,15 @@ class _DummyReporter(CachingDownloadReporter):
         pass
 
 
-class ThreadBridgingReporter(CachingDownloadReporter):
+class ThreadBridgingReporter(DownloadReporter):
     """DownloadReporter that can bridge threads.
 
     Bridging two threads T1 and T2 requires two reporters and the downloader itself:
 
     - Create a CachingDownloadReporter that should get called on T1.
     - Create this ThreadBridgingReporter, passing it the above reporter.
-    - Create the CachingDownloader, and put in the thread-bridging reporter.
-    - Start the CachingDownloader in T2.
+    - Create the Downloader, and put in the thread-bridging reporter.
+    - Start the Downloader in T2.
     - Call ThreadBridgingReporter.update() from T1.
 
     See `BackgroundDownloader` for a concrete use.
@@ -122,7 +122,7 @@ class ThreadBridgingReporter(CachingDownloadReporter):
     _queue: queue.Queue[FunctionCall]
     """Queue of function calls."""
 
-    _reporters: list[CachingDownloadReporter]
+    _reporters: list[DownloadReporter]
 
     _logger: logging.Logger
 
@@ -131,7 +131,7 @@ class ThreadBridgingReporter(CachingDownloadReporter):
         self._queue = queue.Queue()
         self._logger = logger.getChild(self.__class__.__name__)
 
-    def add_reporter(self, reporter: CachingDownloadReporter) -> None:
+    def add_reporter(self, reporter: DownloadReporter) -> None:
         self._reporters.append(reporter)
 
     def update(self, *, limit_num_calls: int = 100) -> bool:
@@ -197,7 +197,7 @@ class ThreadBridgingReporter(CachingDownloadReporter):
         self._queue.put((function_name, function_args))
 
 
-class CachingDownloader:
+class Downloader:
     """Caching file downloader.
 
     Request an URL and stream the body of the response to a file on disk.
@@ -220,7 +220,7 @@ class CachingDownloader:
     chunk_size: int = 8192
     """Download this many bytes before saving to disk and reporting progress."""
 
-    _reporter: CachingDownloadReporter = _DummyReporter()
+    _reporter: DownloadReporter = _DummyReporter()
 
     _cancel_download_event: threading.Event
 
@@ -427,11 +427,11 @@ class CachingDownloader:
         meta_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         meta_path.write_bytes(meta_json.encode())
 
-    def add_reporter(self, reporter: CachingDownloadReporter) -> None:
+    def add_reporter(self, reporter: DownloadReporter) -> None:
         """Add a reporter to receive download progress information.
 
         The reporter's functions are called from the same thread as the calls to
-        this CachingDownloader.
+        this Downloader.
         """
         if self.has_reporter():
             raise ValueError(
@@ -455,7 +455,7 @@ class CachingDownloader:
 
 
 class BackgroundDownloader:
-    """Wrapper for a CachingDownloader + reporter.
+    """Wrapper for a Downloader + reporter.
 
     The downloader will run in a separate thread, and the reporter will receive
     updates on the main thread (or whatever thread runs
@@ -482,7 +482,7 @@ class BackgroundDownloader:
     DownloadDoneCallback: TypeAlias = Callable[['RequestDescription', Path], None]
     _on_downloaded_callbacks: dict[RequestDescription, DownloadDoneCallback]
 
-    def __init__(self, downloader: CachingDownloader) -> None:
+    def __init__(self, downloader: Downloader) -> None:
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
         self._num_pending_downloads = 0
@@ -508,7 +508,7 @@ class BackgroundDownloader:
             daemon=True,
         )
 
-    def add_reporter(self, reporter: CachingDownloadReporter) -> None:
+    def add_reporter(self, reporter: DownloadReporter) -> None:
         """Add a reporter to receive updates when .update() is called."""
         self._thread_bridge.add_reporter(reporter)
 
@@ -760,9 +760,9 @@ class ResponseTooLargeError(HTTPRequestDownloadError):
 
 
 class DownloadCancelled(HTTPRequestDownloadError):
-    """Raised when the CachingDownloader.cancel_download() function was called.
+    """Raised when the Downloader.cancel_download() function was called.
 
     This exception is raised in the thread that called
-    CachingDownloader.download_to_file(), and not from the thread doing the
+    Downloader.download_to_file(), and not from the thread doing the
     cancellation.
     """

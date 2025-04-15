@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pydantic
 
-from _bpy_internal.http.downloader import CachingDownloader, BackgroundDownloader
+from _bpy_internal.http.downloader import Downloader, BackgroundDownloader
 from . import blender_asset_library_openapi as api_models
 from . import index_common
 
@@ -34,7 +34,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     base_url = arguments.url
     base_path = Path(".").resolve() / "_asset_download_location"  # TODO: be sensible.
 
-    downloader = CachingDownloader(
+    downloader = Downloader(
         metadata_cache_location=base_path / "_local-meta-cache",
         chunk_size=10,
     )
