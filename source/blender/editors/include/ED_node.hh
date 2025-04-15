@@ -91,6 +91,9 @@ std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &s
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context);
 
+[[nodiscard]] const ComputeContext *compute_context_for_edittree(
+    const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache);
+
 /**
  * Creates a compute context for the given zone. It takes e.g. the current inspection index into
  * account.

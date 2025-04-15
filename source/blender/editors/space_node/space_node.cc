@@ -426,6 +426,44 @@ std::optional<const ComputeContext *> compute_context_for_tree_path(
   return current;
 }
 
+static const ComputeContext *get_node_editor_root_compute_context(
+    const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache)
+{
+  switch (SpaceNodeGeometryNodesType(snode.geometry_nodes_type)) {
+    case SNODE_GEOMETRY_MODIFIER: {
+      std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
+          ed::space_node::get_modifier_for_node_editor(snode);
+      if (!object_and_modifier) {
+        return nullptr;
+      }
+      return &compute_context_cache.for_modifier(nullptr, *object_and_modifier->nmd);
+    }
+    case SNODE_GEOMETRY_TOOL: {
+      return &compute_context_cache.for_operator(nullptr);
+    }
+  }
+  return nullptr;
+}
+
+[[nodiscard]] const ComputeContext *compute_context_for_edittree(
+    const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache)
+{
+  if (!snode.edittree) {
+    return nullptr;
+  }
+  if (snode.edittree->type != NTREE_GEOMETRY) {
+    return nullptr;
+  }
+  const ComputeContext *root_context = get_node_editor_root_compute_context(snode,
+                                                                            compute_context_cache);
+  if (!root_context) {
+    return nullptr;
+  }
+  const ComputeContext *edittree_context =
+      compute_context_for_tree_path(snode, compute_context_cache, root_context).value_or(nullptr);
+  return edittree_context;
+}
+
 /* ******************** default callbacks for node space ***************** */
 
 static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
