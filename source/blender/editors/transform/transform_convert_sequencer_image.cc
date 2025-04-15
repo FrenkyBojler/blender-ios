@@ -39,6 +39,8 @@ struct TransDataSeq {
   float orig_scale[2];
   float orig_rotation;
   int orig_flag;
+  float active_seq_orig_rotation;
+  float2 orig_mirror;
 };
 
 static TransData *SeqToTransData(const Scene *scene,
@@ -50,6 +52,8 @@ static TransData *SeqToTransData(const Scene *scene,
 {
   const StripTransform *transform = strip->data->transform;
   const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
+  const float2 mirror = seq::image_transform_mirror_factor_get(strip);
+  Editing *ed = seq::editing_get(scene);
   float vertex[2] = {origin[0], origin[1]};
 
   /* Add control vertex, so rotation and scale can be calculated.
@@ -76,7 +80,8 @@ static TransData *SeqToTransData(const Scene *scene,
   unit_m3(td->mtx);
   unit_m3(td->smtx);
 
-  axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
+  axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation * mirror[0] * mirror[1]);
+  // axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
   normalize_m3(td->axismtx);
 
   tdseq->strip = strip;
@@ -87,6 +92,8 @@ static TransData *SeqToTransData(const Scene *scene,
   tdseq->orig_scale[1] = transform->scale_y;
   tdseq->orig_rotation = transform->rotation;
   tdseq->orig_flag = strip->flag;
+  tdseq->orig_mirror = mirror;
+  tdseq->active_seq_orig_rotation = ed->act_seq->data->transform->rotation;
 
   td->extra = (void *)tdseq;
   td->ext = nullptr;
@@ -196,6 +203,7 @@ static void recalcData_sequencer_image(TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
+  Editing *ed = seq::editing_get(t->scene);
   int i;
 
   for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i++, td++, td2d++) {
@@ -221,13 +229,12 @@ static void recalcData_sequencer_image(TransInfo *t)
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
     StripTransform *transform = strip->data->transform;
-    const float2 mirror = seq::image_transform_mirror_factor_get(strip);
 
     /* Calculate translation. */
     float translation[2];
     copy_v2_v2(translation, tdseq->orig_origin_position);
     sub_v2_v2(translation, origin);
-    mul_v2_v2(translation, mirror);
+    mul_v2_v2(translation, tdseq->orig_mirror);
     translation[0] *= t->scene->r.yasp / t->scene->r.xasp;
 
     /* Round resulting position to integer pixels. Resulting strip
@@ -253,7 +260,12 @@ static void recalcData_sequencer_image(TransInfo *t)
       transform->yofs *= t->values_final[1];
 
       if (t->orient_curr == O_SET) {
-        transform->rotation = -tdseq->orig_rotation;
+        if (strip == ed->act_seq) {
+          transform->rotation = -tdseq->orig_rotation;
+        }
+        else {
+          transform->rotation = tdseq->orig_rotation + (2 * -tdseq->active_seq_orig_rotation);
+        }
       }
       else {
         strip->flag = tdseq->orig_flag;
