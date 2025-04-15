@@ -238,8 +238,8 @@ class LazyFunctionForClosureZone : public LazyFunction {
     lf::GraphExecutor &lf_graph_executor = closure_scope->construct<lf::GraphExecutor>(
         lf_graph, nullptr, &side_effect_provider, nullptr);
     ClosureSourceLocation source_location{
-        btree_orig.id.session_uid,
-        output_bnode_.identifier,
+        &btree_,
+        &output_bnode_,
         user_data.compute_context->hash(),
     };
     ClosurePtr closure{MEM_new<Closure>(__func__,
@@ -372,7 +372,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         eval_storage.closure ? eval_storage.closure->source_location() : std::nullopt;
 
     bke::EvaluateClosureComputeContext closure_compute_context{
-        user_data.compute_context, bnode_, closure_source_location};
+        user_data.compute_context, bnode_.identifier, &bnode_, closure_source_location};
     GeoNodesLFUserData closure_user_data = user_data;
     closure_user_data.compute_context = &closure_compute_context;
     closure_user_data.log_socket_values = should_log_socket_values_for_context(

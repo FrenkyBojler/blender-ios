@@ -26,6 +26,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "WM_api.hh"
 
@@ -109,10 +110,9 @@ ViewerPathElem *viewer_path_elem_for_compute_context(Main &bmain,
     if (const std::optional<nodes::ClosureSourceLocation> &source =
             context->closure_source_location())
     {
-      elem->source_output_node_id = source->closure_output_node_id;
-      bNodeTree *tree = reinterpret_cast<bNodeTree *>(
-          BKE_libblock_find_session_uid(&bmain, ID_NT, source->orig_node_tree_session_uid));
-      elem->source_node_tree = tree;
+      elem->source_output_node_id = source->closure_output_node->identifier;
+      BLI_assert(DEG_is_original_id(&source->tree->id));
+      elem->source_node_tree = const_cast<bNodeTree *>(source->tree);
     }
     return &elem->base;
   }
@@ -557,8 +557,18 @@ bNode *find_geometry_nodes_viewer(const Main &bmain,
     }
     case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {
       const auto &elem = reinterpret_cast<const EvaluateClosureNodeViewerPathElem &>(elem_generic);
-      return &compute_context_cache.for_evaluate_closure(parent_compute_context,
-                                                         elem.evaluate_node_id);
+      std::optional<nodes::ClosureSourceLocation> source_location;
+      if (elem.source_node_tree) {
+        const bNode *source_node = elem.source_node_tree->node_by_id(elem.source_output_node_id);
+        if (source_node) {
+          source_location = nodes::ClosureSourceLocation{
+              elem.source_node_tree,
+              source_node,
+              parent_compute_context ? parent_compute_context->hash() : ComputeContextHash{}};
+        }
+      }
+      return &compute_context_cache.for_evaluate_closure(
+          parent_compute_context, elem.evaluate_node_id, nullptr, source_location);
     }
   }
   return nullptr;

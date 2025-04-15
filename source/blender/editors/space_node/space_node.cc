@@ -391,9 +391,11 @@ const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
     case GEO_NODE_CLOSURE_OUTPUT: {
       nodes::ClosureSourceLocation source_location{};
       const bNodeTree &tree = output_node.owner_tree();
-      BLI_assert(DEG_is_original_id(&tree.id));
-      source_location.orig_node_tree_session_uid = tree.id.session_uid;
-      source_location.closure_output_node_id = output_node.identifier;
+      source_location.tree = &tree;
+      source_location.closure_output_node = &output_node;
+      source_location.compute_context_hash = parent_compute_context ?
+                                                 parent_compute_context->hash() :
+                                                 ComputeContextHash{};
       return compute_context_for_closure_evaluation(parent_compute_context,
                                                     output_node.output_socket(0),
                                                     compute_context_cache,
@@ -494,7 +496,8 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
         continue;
       }
       if (node->is_type("GeometryNodeEvaluateClosure")) {
-        return &compute_context_cache.for_evaluate_closure(socket.context, *node, source_location);
+        return &compute_context_cache.for_evaluate_closure(
+            socket.context, node->identifier, node.node, source_location);
       }
       if (node->is_group()) {
         if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id)) {
