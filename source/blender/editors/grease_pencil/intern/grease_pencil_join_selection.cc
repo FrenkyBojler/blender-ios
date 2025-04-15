@@ -133,15 +133,22 @@ void reverse_points_of(bke::CurvesGeometry &dst_curves, const IndexRange points_
     attribute.finish();
   });
 
+  auto swap_handle_positions = [&](MutableSpan<float3> handles_left,
+                                   MutableSpan<float3> handles_right) {
+    threading::parallel_for(handles_left.index_range(), 8192, [&](const IndexRange range) {
+      for (const int point_i : range) {
+        SWAP(float3, handles_left[point_i], handles_right[point_i]);
+      }
+    });
+  };
+
   /* Also needs to swap left/right bezier handles if handle attributes exist. */
   if (!dst_curves.handle_positions_left().is_empty()) {
-    blender::MutableSpan handles_left = dst_curves.handle_positions_left_for_write().slice(
+    MutableSpan<float3> handles_left = dst_curves.handle_positions_left_for_write().slice(
         points_to_reverse);
-    blender::MutableSpan handles_right = dst_curves.handle_positions_right_for_write().slice(
+    MutableSpan<float3> handles_right = dst_curves.handle_positions_right_for_write().slice(
         points_to_reverse);
-    Array<float3> swap_temp(handles_left.as_span());
-    handles_left.copy_from(handles_right);
-    handles_right.copy_from(swap_temp);
+    swap_handle_positions(handles_left, handles_right);
   }
 }
 
