@@ -16,8 +16,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "For curves, point clouds, and Grease Pencil, take the radius attribute into account "
           "when computing the bounds.");
-  b.add_output<decl::Vector>("Bounds Min").field_source();
-  b.add_output<decl::Vector>("Bounds Max").field_source();
+  b.add_output<decl::Vector>("Min").field_source();
+  b.add_output<decl::Vector>("Max").field_source();
 }
 
 class InstanceBoundsField final : public bke::InstancesFieldInput {
@@ -27,7 +27,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
  public:
   InstanceBoundsField(bool use_radius, bool return_max)
-      : bke::InstancesFieldInput(CPPType::get<float3>(), return_max ? "Bounds Max" : "Bounds Min"),
+      : bke::InstancesFieldInput(CPPType::get<float3>(), return_max ? "Max" : "Min"),
         use_radius_(use_radius),
         return_max_(return_max)
   {
@@ -99,9 +99,8 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bool use_radius = params.extract_input<bool>("Use Radius");
-  params.set_output("Bounds Min",
-                    Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, true)));
-  params.set_output("Bounds Max",
+  params.set_output("Min", Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, true)));
+  params.set_output("Max",
                     Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, false)));
 }
 
