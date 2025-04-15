@@ -127,7 +127,8 @@ void light_eval_single(uint l_idx,
                        float3 V,
                        float thickness,
                        uchar receiver_light_set,
-                       float shadow_terminator_normal_offset)
+                       float terminator_normal_offset,
+                       float terminator_geometry_offset)
 {
   LightData light = light_buf[l_idx];
 
@@ -171,7 +172,8 @@ void light_eval_single(uint l_idx,
                          P,
                          Ng,
                          stack.cl[0].N,
-                         shadow_terminator_normal_offset,
+                         terminator_normal_offset,
+                         terminator_geometry_offset,
                          ray_count,
                          ray_step_count);
   }
@@ -205,7 +207,8 @@ void light_eval_transmission(inout ClosureLightStack stack,
                              float vPz,
                              float thickness,
                              uchar receiver_light_set,
-                             float shadow_terminator_normal_offset)
+                             float terminator_normal_offset,
+                             float terminator_geometry_offset)
 {
 #ifdef SKIP_LIGHT_EVAL
   return;
@@ -221,7 +224,8 @@ void light_eval_transmission(inout ClosureLightStack stack,
                       V,
                       thickness,
                       receiver_light_set,
-                      shadow_terminator_normal_offset);
+                      terminator_normal_offset,
+                      terminator_geometry_offset);
   }
   LIGHT_FOREACH_END
 
@@ -235,7 +239,8 @@ void light_eval_transmission(inout ClosureLightStack stack,
                       V,
                       thickness,
                       receiver_light_set,
-                      shadow_terminator_normal_offset);
+                      terminator_normal_offset,
+                      terminator_geometry_offset);
   }
   LIGHT_FOREACH_END
 }
@@ -246,7 +251,8 @@ void light_eval_reflection(inout ClosureLightStack stack,
                            float3 V,
                            float vPz,
                            uchar receiver_light_set,
-                           float shadow_terminator_normal_offset)
+                           float terminator_normal_offset,
+                           float terminator_geometry_offset)
 {
 #ifdef SKIP_LIGHT_EVAL
   return;
@@ -262,7 +268,8 @@ void light_eval_reflection(inout ClosureLightStack stack,
                       V,
                       0.0f,
                       receiver_light_set,
-                      shadow_terminator_normal_offset);
+                      terminator_normal_offset,
+                      terminator_geometry_offset);
   }
   LIGHT_FOREACH_END
 
@@ -276,7 +283,8 @@ void light_eval_reflection(inout ClosureLightStack stack,
                       V,
                       0.0f,
                       receiver_light_set,
-                      shadow_terminator_normal_offset);
+                      terminator_normal_offset,
+                      terminator_geometry_offset);
   }
   LIGHT_FOREACH_END
 }

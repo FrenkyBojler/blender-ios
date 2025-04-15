@@ -379,6 +379,8 @@ typedef struct Object {
   uint8_t modifier_flag;
 
   float shadow_terminator_normal_offset;
+  float shadow_terminator_geometry_offset;
+  float shadow_terminator_shading_offset;
 
   struct PreviewImage *preview;
 

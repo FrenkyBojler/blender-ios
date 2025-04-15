@@ -42,7 +42,9 @@ void forward_lighting_eval(float thickness, out float3 radiance, out float3 tran
   ObjectInfos object_infos = drw_infos[drw_resource_id()];
   uchar receiver_light_set = receiver_light_set_get(object_infos);
   float normal_offset = object_infos.shadow_terminator_normal_offset;
-  light_eval_reflection(stack, g_data.P, g_data.Ng, V, vPz, receiver_light_set, normal_offset);
+  float geometry_offset = object_infos.shadow_terminator_geometry_offset;
+  light_eval_reflection(
+      stack, g_data.P, g_data.Ng, V, vPz, receiver_light_set, normal_offset, geometry_offset);
 
 #if defined(MAT_SUBSURFACE) || defined(MAT_REFRACTION) || defined(MAT_TRANSLUCENT)
 

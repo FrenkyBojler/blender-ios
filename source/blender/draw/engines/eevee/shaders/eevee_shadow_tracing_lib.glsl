@@ -405,13 +405,20 @@ float shadow_normal_offset(float3 Ng, float3 L, float texel_radius)
   return biased_offset * texel_radius;
 }
 
-float shadow_terminator_offset(float3 N, float3 L, float shadow_terminator_normal_offset)
+float shadow_terminator_offset(float3 N,
+                               float3 L,
+                               float shadow_terminator_normal_offset,
+                               float shadow_terminator_geometry_offset)
 {
-  /* Attenuate depending on light angle. */
-  float cos_theta = abs(dot(N, L));
-  float slope_offset = sin_from_cos(cos_theta);
+  const float offset_cutoff = shadow_terminator_geometry_offset;
 
-  return slope_offset * shadow_terminator_normal_offset;
+  if (shadow_terminator_geometry_offset == 0.0) {
+    return 0.0;
+  }
+
+  float cos_theta = dot(N, L);
+  const float offset_amount = saturate(1.0f - cos_theta / offset_cutoff);
+  return offset_amount * shadow_terminator_normal_offset;
 }
 
 /**
@@ -426,7 +433,8 @@ float shadow_eval(LightData light,
                   float3 P,
                   float3 Ng,
                   float3 N,
-                  float shadow_terminator_normal_offset,
+                  float terminator_normal_offset,
+                  float terminator_geometry_offset,
                   int ray_count,
                   int ray_step_count)
 {
@@ -480,7 +488,7 @@ float shadow_eval(LightData light,
   P += N_bias * shadow_normal_offset(Ng, L, texel_radius);
 
   /* Bias more to avoid terminator artifacts. */
-  P += N * shadow_terminator_offset(N, L, shadow_terminator_normal_offset);
+  P += N * shadow_terminator_offset(N, L, terminator_normal_offset, terminator_geometry_offset);
 
   float3 lP = is_directional ? light_world_to_local_direction(light, P) :
                                light_world_to_local_point(light, P);

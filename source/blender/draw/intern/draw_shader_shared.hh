@@ -166,7 +166,7 @@ struct ObjectInfos {
   float random;
   eObjectInfoFlag flag;
   float shadow_terminator_normal_offset;
-  float _pad0;
+  float shadow_terminator_geometry_offset;
   float _pad1;
   float _pad2;
 

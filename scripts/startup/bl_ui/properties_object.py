@@ -576,6 +576,7 @@ class OBJECT_PT_shadow_terminator(ObjectButtonsPanel, Panel):
 
         ob = context.object
         flow.prop(ob, "shadow_terminator_normal_offset", text="Normal Offset")
+        flow.prop(ob, "shadow_terminator_geometry_offset", text="Geometric Offset")
 
 
 class OBJECT_PT_animation(ObjectButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
