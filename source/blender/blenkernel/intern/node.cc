@@ -747,6 +747,16 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
       node->custom1 = int(input->default_value_typed<bNodeSocketValueFloat>()->value * 100.0f);
     }
+
+    if (node->type_legacy == CMP_NODE_INVERT) {
+      write_input_to_property_bool_int16_flag("Invert Color", node->custom1, CMP_CHAN_RGB);
+      write_input_to_property_bool_int16_flag("Invert Alpha", node->custom1, CMP_CHAN_A);
+    }
+
+    if (node->type_legacy == CMP_NODE_ZCOMBINE) {
+      write_input_to_property_bool_int16_flag("Use Alpha", node->custom1, 1 << 0);
+      write_input_to_property_bool_int16_flag("Anti-Alias", node->custom2, 1 << 0, true);
+    }
   }
 }
 
