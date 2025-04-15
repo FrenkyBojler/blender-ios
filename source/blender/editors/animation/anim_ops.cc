@@ -143,15 +143,21 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
     return;
   }
 
+  bAnimContext ac;
+  if (!ANIM_animdata_get_context(C, &ac)) {
+    return;
+  }
+
   ScrArea *area = CTX_wm_area(C);
 
   ListBase anim_data = {nullptr, nullptr};
 
   switch (area->spacetype) {
-    case SPACE_ACTION:
-      // TODO: link to implemented functions.
-      // blender::ed::action::get_visible_elements(C, anim_data);
+    case SPACE_ACTION: {
+      const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
+      ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
       break;
+    }
 
     case SPACE_GRAPH:
       // blender::ed::graph::get_editable_fcurves(C, anim_data);
