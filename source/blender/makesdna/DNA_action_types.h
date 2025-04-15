@@ -290,7 +290,7 @@ typedef struct bPoseChannel {
   /** Constraints that act on this PoseChannel. */
   ListBase constraints;
   /** Need to match bone name length: MAXBONENAME. */
-  char name[256];
+  char name[64];
 
   /** Dynamic, for detecting transform changes. */
   short flag;

@@ -466,7 +466,7 @@ typedef struct bGPDlayer {
   /** Opacity of the layer. */
   float opacity;
   /** Name of the layer used to filter render output. */
-  char viewlayername[256];
+  char viewlayername[64];
 
   /** Blend modes. */
   int blend_mode;

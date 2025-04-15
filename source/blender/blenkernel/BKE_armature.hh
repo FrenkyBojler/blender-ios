@@ -44,8 +44,8 @@ struct EditBone {
    * normal bones when leaving edit-mode.
    */
   EditBone *parent;
-  /** (256 == MAXBONENAME) */
-  char name[256];
+  /** (64 == MAXBONENAME) */
+  char name[64];
   /**
    * Roll along axis.  We'll ultimately use the axis/angle method
    * for determining the transformation matrix of the bone.  The axis

@@ -66,7 +66,7 @@ typedef struct Bone {
   /** Children. */
   ListBase childbase;
   /** Name of the bone - must be unique within the armature, MAXBONENAME. */
-  char name[256];
+  char name[64];
 
   /** Roll is input for edit-mode, length calculated. */
   float roll;
@@ -527,7 +527,7 @@ typedef enum eBone_BBoneHandleFlag {
                            BBONE_HANDLE_SCALE_EASE,
 } eBone_BBoneHandleFlag;
 
-#define MAXBONENAME 256
+#define MAXBONENAME 64
 
 /** #BoneCollection.flag */
 typedef enum eBoneCollection_Flag {
