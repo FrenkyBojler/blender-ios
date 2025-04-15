@@ -25,6 +25,32 @@ namespace blender::nodes {
 using bke::node_tree_reference_lifetimes::ReferenceSetInfo;
 using bke::node_tree_reference_lifetimes::ReferenceSetType;
 
+class ClosureIntermediateSideEffectProvider : public lf::GraphExecutorSideEffectProvider {
+ private:
+  const lf::FunctionNode *body_node_;
+
+ public:
+  ClosureIntermediateSideEffectProvider(const lf::FunctionNode &body_node) : body_node_(&body_node)
+  {
+  }
+
+  Vector<const lf::FunctionNode *> get_nodes_with_side_effects(
+      const lf::Context &context) const override
+  {
+    const GeoNodesLFUserData &user_data = *dynamic_cast<GeoNodesLFUserData *>(context.user_data);
+    const ComputeContextHash &context_hash = user_data.compute_context->hash();
+    if (!user_data.call_data->side_effect_nodes) {
+      return {};
+    }
+    const Span<const lf::FunctionNode *> side_effect_nodes_in_closure =
+        user_data.call_data->side_effect_nodes->nodes_by_context.lookup(context_hash);
+    if (side_effect_nodes_in_closure.is_empty()) {
+      return {};
+    }
+    return {body_node_};
+  }
+};
+
 /**
  * A lazy function that internally has a lazy-function graph that mimics the "body" of the closure
  * zone.
@@ -207,8 +233,10 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     lf_graph.update_node_indices();
 
+    const auto &side_effect_provider =
+        closure_scope->construct<ClosureIntermediateSideEffectProvider>(lf_body_node);
     lf::GraphExecutor &lf_graph_executor = closure_scope->construct<lf::GraphExecutor>(
-        lf_graph, nullptr, nullptr, nullptr);
+        lf_graph, nullptr, &side_effect_provider, nullptr);
     ClosureSourceLocation source_location{
         btree_orig.id.session_uid,
         output_bnode_.identifier,
@@ -233,6 +261,7 @@ struct EvaluateClosureEvalStorage {
   ClosurePtr closure;
   lf::Graph graph;
   std::optional<lf::GraphExecutor> graph_executor;
+  std::optional<ClosureIntermediateSideEffectProvider> side_effect_provider;
   void *graph_executor_storage = nullptr;
 };
 
@@ -613,7 +642,9 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     }
 
     lf_graph.update_node_indices();
-    eval_storage.graph_executor.emplace(lf_graph, nullptr, nullptr, nullptr);
+    eval_storage.side_effect_provider.emplace(lf_closure_node);
+    eval_storage.graph_executor.emplace(
+        lf_graph, nullptr, &*eval_storage.side_effect_provider, nullptr);
     eval_storage.graph_executor_storage = eval_storage.graph_executor->init_storage(
         eval_storage.scope.allocator());
 
