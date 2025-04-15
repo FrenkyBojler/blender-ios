@@ -10,6 +10,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
+#include "BKE_compute_context_cache_fwd.hh"
+
 #include "ED_node_c.hh"
 
 struct SpaceNode;
@@ -20,6 +22,7 @@ struct bNodeSocket;
 struct bNodeTree;
 struct Object;
 struct rcti;
+struct rctf;
 struct NodesModifierData;
 struct uiLayout;
 
@@ -54,6 +57,14 @@ void node_insert_on_link_flags_clear(bNodeTree &node_tree);
  * Draw a single node socket at default size.
  */
 void node_socket_draw(bNodeSocket *sock, const rcti *rect, const float color[4], float scale);
+void node_draw_nodesocket(const rctf *rect,
+                          const float color_inner[4],
+                          const float color_outline[4],
+                          float outline_thickness,
+                          int shape,
+                          float aspect);
+
+void std_node_socket_colors_get(int socket_type, float *r_color);
 
 /**
  * Find the nested node id of a currently visible node in the root tree.
@@ -70,10 +81,11 @@ struct ObjectAndModifier {
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode);
 /**
  * Used to get the compute context for the (nested) node group that is currently edited.
- * Returns true on success.
  */
-[[nodiscard]] bool push_compute_context_for_tree_path(
-    const SpaceNode &snode, ComputeContextBuilder &compute_context_builder);
+[[nodiscard]] std::optional<const ComputeContext *> compute_context_for_tree_path(
+    const SpaceNode &snode,
+    bke::ComputeContextCache &compute_context_cache,
+    const ComputeContext *parent_compute_context);
 
 void ui_template_node_asset_menu_items(uiLayout &layout,
                                        const bContext &C,

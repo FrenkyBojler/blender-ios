@@ -17,6 +17,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -397,8 +398,7 @@ size_t BLI_string_flip_side_name(char *name_dst,
 
 /* Unique name utils. */
 
-void BLI_uniquename_cb(UniquenameCheckCallback unique_check,
-                       void *arg,
+void BLI_uniquename_cb(blender::FunctionRef<bool(blender::StringRefNull)> unique_check,
                        const char *defname,
                        char delim,
                        char *name,
@@ -410,7 +410,7 @@ void BLI_uniquename_cb(UniquenameCheckCallback unique_check,
     BLI_strncpy(name, defname, name_maxncpy);
   }
 
-  if (unique_check(arg, name)) {
+  if (unique_check(name)) {
     char numstr[16];
     char *tempname = static_cast<char *>(alloca(name_maxncpy));
     char *left = static_cast<char *>(alloca(name_maxncpy));
@@ -430,7 +430,7 @@ void BLI_uniquename_cb(UniquenameCheckCallback unique_check,
         tempname_buf = tempname + BLI_strncpy_utf8_rlen(tempname, left, name_maxncpy - numlen);
         memcpy(tempname_buf, numstr, numlen + 1);
       }
-    } while (unique_check(arg, tempname));
+    } while (unique_check(tempname));
 
     BLI_strncpy(name, tempname, name_maxncpy);
   }
@@ -468,45 +468,6 @@ std::string BLI_uniquename_cb(blender::FunctionRef<bool(blender::StringRef)> uni
   return new_name;
 }
 
-/**
- * Generic function to set a unique name. It is only designed to be used in situations
- * where the name is part of the struct.
- *
- * For places where this is used, see `constraint.cc` for example...
- *
- * \param name_offset: should be calculated using `offsetof(structname, membername)`
- * macro from `stddef.h`
- */
-static bool uniquename_find_dupe(const ListBase *list,
-                                 void *vlink,
-                                 const char *name,
-                                 int name_offset)
-{
-  for (Link *link = static_cast<Link *>(list->first); link; link = link->next) {
-    if (link != vlink) {
-      if (STREQ(static_cast<const char *>(POINTER_OFFSET((const char *)link, name_offset)), name))
-      {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-struct UniqueNameCheckData {
-  const ListBase *lb;
-  void *vlink;
-  int name_offset;
-};
-
-static bool uniquename_unique_check(void *arg, const char *name)
-{
-  UniqueNameCheckData *data = static_cast<UniqueNameCheckData *>(arg);
-
-  return uniquename_find_dupe(data->lb, data->vlink, name, data->name_offset);
-}
-
 void BLI_uniquename(const ListBase *list,
                     void *vlink,
                     const char *defname,
@@ -514,11 +475,6 @@ void BLI_uniquename(const ListBase *list,
                     int name_offset,
                     size_t name_maxncpy)
 {
-  UniqueNameCheckData data{};
-  data.lb = list;
-  data.vlink = vlink;
-  data.name_offset = name_offset;
-
   BLI_assert(name_maxncpy > 1);
 
   /* See if we are given an empty string */
@@ -526,12 +482,22 @@ void BLI_uniquename(const ListBase *list,
     return;
   }
 
-  BLI_uniquename_cb(uniquename_unique_check,
-                    &data,
-                    defname,
-                    delim,
-                    static_cast<char *>(POINTER_OFFSET(vlink, name_offset)),
-                    name_maxncpy);
+  BLI_uniquename_cb(
+      [&](const blender::StringRefNull name) {
+        LISTBASE_FOREACH (Link *, link, list) {
+          if (link != vlink) {
+            const char *link_name = POINTER_OFFSET((const char *)link, name_offset);
+            if (name == link_name) {
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      defname,
+      delim,
+      static_cast<char *>(POINTER_OFFSET(vlink, name_offset)),
+      name_maxncpy);
 }
 
 size_t BLI_string_len_array(const char *strings[], uint strings_num)
@@ -607,7 +573,7 @@ size_t BLI_string_join_array_by_sep_char(
 char *BLI_string_join_arrayN(const char *strings[], uint strings_num)
 {
   const size_t result_size = BLI_string_len_array(strings, strings_num) + 1;
-  char *result = MEM_cnew_array<char>(result_size, __func__);
+  char *result = MEM_calloc_arrayN<char>(result_size, __func__);
   char *c = result;
   for (uint i = 0; i < strings_num; i++) {
     const size_t string_len = strlen(strings[i]);
@@ -624,7 +590,7 @@ char *BLI_string_join_array_by_sep_charN(char sep, const char *strings[], uint s
 {
   const size_t result_size = BLI_string_len_array(strings, strings_num) +
                              (strings_num ? strings_num - 1 : 0) + 1;
-  char *result = MEM_cnew_array<char>(result_size, __func__);
+  char *result = MEM_calloc_arrayN<char>(result_size, __func__);
   char *c = result;
   if (strings_num != 0) {
     for (uint i = 0; i < strings_num; i++) {
@@ -654,7 +620,7 @@ char *BLI_string_join_array_by_sep_char_with_tableN(char sep,
     result_size = 1;
   }
 
-  char *result = MEM_cnew_array<char>(result_size, __func__);
+  char *result = MEM_calloc_arrayN<char>(result_size, __func__);
   char *c = result;
   if (strings_num != 0) {
     for (uint i = 0; i < strings_num; i++) {

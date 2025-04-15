@@ -26,6 +26,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_asset.hh"
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_gpencil_legacy.h"
@@ -60,6 +61,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "NOD_node_in_compute_context.hh"
+
 #include "io_utils.hh"
 
 #include "node_intern.hh" /* own include */
@@ -76,7 +79,7 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
   BLI_listbase_clear(&snode->treepath);
 
   if (ntree) {
-    bNodeTreePath *path = MEM_cnew<bNodeTreePath>("node tree path");
+    bNodeTreePath *path = MEM_callocN<bNodeTreePath>("node tree path");
     path->nodetree = ntree;
     path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
 
@@ -109,7 +112,7 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 
 void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 {
-  bNodeTreePath *path = MEM_cnew<bNodeTreePath>("node tree path");
+  bNodeTreePath *path = MEM_callocN<bNodeTreePath>("node tree path");
   bNodeTreePath *prev_path = (bNodeTreePath *)snode->treepath.last;
   path->nodetree = ntree;
   if (gnode) {
@@ -341,15 +344,18 @@ std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &s
   return ObjectAndModifier{object, used_modifier};
 }
 
-bool push_compute_context_for_tree_path(const SpaceNode &snode,
-                                        ComputeContextBuilder &compute_context_builder)
+std::optional<const ComputeContext *> compute_context_for_tree_path(
+    const SpaceNode &snode,
+    bke::ComputeContextCache &compute_context_cache,
+    const ComputeContext *parent_compute_context)
 {
+  const ComputeContext *current = parent_compute_context;
   Vector<const bNodeTreePath *> tree_path;
   LISTBASE_FOREACH (const bNodeTreePath *, item, &snode.treepath) {
     tree_path.append(item);
   }
   if (tree_path.is_empty()) {
-    return true;
+    return current;
   }
 
   for (const int i : tree_path.index_range().drop_back(1)) {
@@ -357,46 +363,50 @@ bool push_compute_context_for_tree_path(const SpaceNode &snode,
     const char *group_node_name = tree_path[i + 1]->node_name;
     const bNode *group_node = blender::bke::node_find_node_by_name(*tree, group_node_name);
     if (group_node == nullptr) {
-      return false;
+      return std::nullopt;
     }
     const blender::bke::bNodeTreeZones *tree_zones = tree->zones();
     if (tree_zones == nullptr) {
-      return false;
+      return std::nullopt;
     }
     const Vector<const blender::bke::bNodeTreeZone *> zone_stack =
         tree_zones->get_zone_stack_for_node(group_node->identifier);
     for (const blender::bke::bNodeTreeZone *zone : zone_stack) {
       switch (zone->output_node->type_legacy) {
         case GEO_NODE_SIMULATION_OUTPUT: {
-          compute_context_builder.push<bke::SimulationZoneComputeContext>(*zone->output_node);
+          current = &compute_context_cache.for_simulation_zone(current, *zone->output_node);
           break;
         }
         case GEO_NODE_REPEAT_OUTPUT: {
           const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(
               zone->output_node->storage);
-          compute_context_builder.push<bke::RepeatZoneComputeContext>(*zone->output_node,
-                                                                      storage.inspection_index);
+          current = &compute_context_cache.for_repeat_zone(
+              current, *zone->output_node, storage.inspection_index);
           break;
         }
         case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
           const auto &storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
               zone->output_node->storage);
-          compute_context_builder.push<bke::ForeachGeometryElementZoneComputeContext>(
-              *zone->output_node, storage.inspection_index);
+          current = &compute_context_cache.for_foreach_geometry_element_zone(
+              current, *zone->output_node, storage.inspection_index);
           break;
+        }
+        case GEO_NODE_CLOSURE_OUTPUT: {
+          // TODO: Need to find a place where this closure is evaluated.
+          return std::nullopt;
         }
       }
     }
-    compute_context_builder.push<bke::GroupNodeComputeContext>(*group_node, *tree);
+    current = &compute_context_cache.for_group_node(current, *group_node, *tree);
   }
-  return true;
+  return current;
 }
 
 /* ******************** default callbacks for node space ***************** */
 
 static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
-  SpaceNode *snode = MEM_cnew<SpaceNode>(__func__);
+  SpaceNode *snode = MEM_callocN<SpaceNode>(__func__);
   snode->spacetype = SPACE_NODE;
 
   snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
@@ -861,16 +871,13 @@ static bool node_color_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
 
 static bool node_import_file_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
-  if (!U.experimental.use_new_file_import_nodes) {
-    return false;
-  }
   if (drag->type != WM_DRAG_PATH) {
     return false;
   }
   const blender::Span<std::string> paths = WM_drag_get_paths(drag);
   for (const StringRef path : paths) {
     if (path.endswith(".csv") || path.endswith(".obj") || path.endswith(".ply") ||
-        path.endswith(".stl"))
+        path.endswith(".stl") || path.endswith(".txt"))
     {
       return true;
     }
@@ -933,7 +940,7 @@ static void node_dropboxes()
                  WM_drag_free_imported_drag_ID,
                  nullptr);
   WM_dropbox_add(lb,
-                 "NODE_OT_add_file",
+                 "NODE_OT_add_image",
                  node_id_im_drop_poll,
                  node_id_im_drop_copy,
                  WM_drag_free_imported_drag_ID,
@@ -1140,6 +1147,8 @@ static void node_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_crop);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_sun_beams);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_corner_pin);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
 }
 
 static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
@@ -1444,7 +1453,7 @@ void ED_spacetype_node()
   st->blend_write = node_space_blend_write;
 
   /* regions: main window */
-  art = MEM_cnew<ARegionType>("spacetype node region");
+  art = MEM_callocN<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = node_main_region_init;
   art->draw = node_main_region_draw;
@@ -1459,7 +1468,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_cnew<ARegionType>("spacetype node region");
+  art = MEM_callocN<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1470,7 +1479,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons */
-  art = MEM_cnew<ARegionType>("spacetype node region");
+  art = MEM_callocN<ARegionType>("spacetype node region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -1481,7 +1490,7 @@ void ED_spacetype_node()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: toolbar */
-  art = MEM_cnew<ARegionType>("spacetype view3d tools region");
+  art = MEM_callocN<ARegionType>("spacetype view3d tools region");
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = int(UI_TOOLBAR_WIDTH);
   art->prefsizey = 50; /* XXX */
@@ -1493,9 +1502,9 @@ void ED_spacetype_node()
   art->draw = node_toolbar_region_draw;
   BLI_addhead(&st->regiontypes, art);
 
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, add_catalog_assets_menu_type()));
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, add_unassigned_assets_menu_type()));
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_catalog_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_root_catalogs_menu_type()));
 
   BKE_spacetype_register(std::move(st));
 }

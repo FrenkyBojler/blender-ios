@@ -6,7 +6,6 @@
 
 #include "scene/background.h"
 #include "scene/camera.h"
-#include "scene/colorspace.h"
 #include "scene/integrator.h"
 #include "scene/light.h"
 #include "scene/mesh.h"
@@ -425,16 +424,15 @@ ShaderManager::ShaderManager()
 
 ShaderManager::~ShaderManager() = default;
 
-unique_ptr<ShaderManager> ShaderManager::create(const int shadingsystem, Device *device)
+unique_ptr<ShaderManager> ShaderManager::create(const int shadingsystem)
 {
   unique_ptr<ShaderManager> manager;
 
   (void)shadingsystem; /* Ignored when built without OSL. */
-  (void)device;
 
 #ifdef WITH_OSL
   if (shadingsystem == SHADINGSYSTEM_OSL) {
-    manager = make_unique<OSLShaderManager>(device);
+    manager = make_unique<OSLShaderManager>();
   }
   else
 #endif
@@ -482,11 +480,12 @@ int ShaderManager::get_shader_id(Shader *shader, bool smooth)
   return id;
 }
 
-void ShaderManager::device_update(Device *device,
-                                  DeviceScene *dscene,
-                                  Scene *scene,
-                                  Progress &progress)
+void ShaderManager::device_update_pre(Device *device,
+                                      DeviceScene *dscene,
+                                      Scene *scene,
+                                      Progress &progress)
 {
+  /* This runs before kernels have been loaded, so can't copy to device yet. */
   if (!need_update()) {
     return;
   }
@@ -504,6 +503,16 @@ void ShaderManager::device_update(Device *device,
   assert(scene->default_empty->reference_count() != 0);
 
   device_update_specific(device, dscene, scene, progress);
+}
+
+void ShaderManager::device_update_post(Device * /*device*/,
+                                       DeviceScene *dscene,
+                                       Scene * /*scene*/,
+                                       Progress & /*progress*/)
+{
+  /* This runs after kernels have been loaded, so can copy to device. */
+  dscene->shaders.copy_to_device_if_modified();
+  dscene->svm_nodes.copy_to_device_if_modified();
 }
 
 void ShaderManager::device_update_common(Device * /*device*/,
@@ -605,8 +614,6 @@ void ShaderManager::device_update_common(Device * /*device*/,
 
     has_transparent_shadow |= (flag & SD_HAS_TRANSPARENT_SHADOW) != 0;
   }
-
-  dscene->shaders.copy_to_device();
 
   /* lookup tables */
   KernelTables *ktables = &dscene->data.tables;
@@ -782,16 +789,6 @@ uint ShaderManager::get_kernel_features(Scene *scene)
   }
 
   return kernel_features;
-}
-
-void ShaderManager::free_memory()
-{
-
-#ifdef WITH_OSL
-  OSLShaderManager::free_memory();
-#endif
-
-  ColorSpaceManager::free_memory();
 }
 
 float ShaderManager::linear_rgb_to_gray(const float3 c)

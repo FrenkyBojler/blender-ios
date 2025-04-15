@@ -53,8 +53,9 @@ Scene ::Scene(const SceneParams &params_, Device *device)
 {
   memset((void *)&dscene.data, 0, sizeof(dscene.data));
 
-  shader_manager = ShaderManager::create(
-      device->info.has_osl ? params.shadingsystem : SHADINGSYSTEM_SVM, device);
+  osl_manager = make_unique<OSLManager>(device);
+  shader_manager = ShaderManager::create(device->info.has_osl ? params.shadingsystem :
+                                                                SHADINGSYSTEM_SVM);
 
   light_manager = make_unique<LightManager>();
   geometry_manager = make_unique<GeometryManager>();
@@ -132,6 +133,7 @@ void Scene::free_memory(bool final)
     object_manager->device_free(device, &dscene, true);
     geometry_manager->device_free(device, &dscene, true);
     shader_manager->device_free(device, &dscene, this);
+    osl_manager->device_free(device, &dscene, this);
     light_manager->device_free(device, &dscene);
 
     particle_system_manager->device_free(device, &dscene);
@@ -153,6 +155,7 @@ void Scene::free_memory(bool final)
     object_manager.reset();
     geometry_manager.reset();
     shader_manager.reset();
+    osl_manager.reset();
     light_manager.reset();
     particle_system_manager.reset();
     image_manager.reset();
@@ -185,15 +188,7 @@ void Scene::device_update(Device *device_, Progress &progress)
   });
 
   /* The order of updates is important, because there's dependencies between
-   * the different managers, using data computed by previous managers.
-   *
-   * - Image manager uploads images used by shaders.
-   * - Camera may be used for adaptive subdivision.
-   * - Displacement shader must have all shader data available.
-   * - Light manager needs lookup tables and final mesh data to compute emission
-   * CDF.
-   * - Lookup tables are done a second time to handle film tables
-   */
+   * the different managers, using data computed by previous managers. */
 
   if (film->update_lightgroups(this)) {
     light_manager->tag_update(this, ccl::LightManager::LIGHT_MODIFIED);
@@ -204,8 +199,38 @@ void Scene::device_update(Device *device_, Progress &progress)
     integrator->tag_modified();
   }
 
+  /* Compile shaders and get information about features they used. */
   progress.set_status("Updating Shaders");
-  shader_manager->device_update(device, &dscene, this, progress);
+  osl_manager->device_update_pre(device, this);
+  shader_manager->device_update_pre(device, &dscene, this, progress);
+
+  if (progress.get_cancel() || device->have_error()) {
+    return;
+  }
+
+  /* Passes. After shader manager as this depends on the shaders. */
+  film->update_passes(this);
+
+  /* Update kernel features. After shaders and passes since those affect features. */
+  update_kernel_features();
+
+  /* Load render kernels, before uploading most data to the GPU, and before displacement and
+   * background light need to run kernels.
+   *
+   * Do it outside of the scene mutex since the heavy part of the loading (i.e. kernel
+   * compilation) does not depend on the scene and some other functionality (like display
+   * driver) might be waiting on the scene mutex to synchronize display pass. */
+  mutex.unlock();
+  const bool kernels_reloaded = load_kernels(progress);
+  mutex.lock();
+
+  if (progress.get_cancel() || device->have_error()) {
+    return;
+  }
+
+  /* Upload shaders to GPU and compile OSL kernels, after kernels have been loaded. */
+  shader_manager->device_update_post(device, &dscene, this, progress);
+  osl_manager->device_update_post(device, this, progress, kernels_reloaded);
 
   if (progress.get_cancel() || device->have_error()) {
     return;
@@ -224,6 +249,7 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  /* Camera will be used by adaptive subdivision, so do early. */
   progress.set_status("Updating Camera");
   camera->device_update(device, &dscene, this);
 
@@ -232,11 +258,11 @@ void Scene::device_update(Device *device_, Progress &progress)
   }
 
   geometry_manager->device_update_preprocess(device, this, progress);
-
   if (progress.get_cancel() || device->have_error()) {
     return;
   }
 
+  /* Update objects after geometry preprocessing. */
   progress.set_status("Updating Objects");
   object_manager->device_update(device, &dscene, this, progress);
 
@@ -251,6 +277,7 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  /* Camera and shaders must be ready here for adaptive subdivision and displacement. */
   progress.set_status("Updating Meshes");
   geometry_manager->device_update(device, &dscene, this, progress);
 
@@ -258,6 +285,7 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  /* Update object flags with final geometry. */
   progress.set_status("Updating Objects Flags");
   object_manager->device_update_flags(device, &dscene, this, progress);
 
@@ -265,6 +293,7 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  /* Update BVH primitive objects with final geometry. */
   progress.set_status("Updating Primitive Offsets");
   object_manager->device_update_prim_offsets(device, &dscene, this);
 
@@ -272,6 +301,8 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  /* Images last, as they should be more likely to use host memory fallback than geometry.
+   * Some images may have been uploaded early for displacement already at this point. */
   progress.set_status("Updating Images");
   image_manager->device_update(device, this, progress);
 
@@ -293,6 +324,7 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  /* Light manager needs shaders and final meshes for triangles in light tree. */
   progress.set_status("Updating Lights");
   light_manager->device_update(device, &dscene, this, progress);
 
@@ -314,6 +346,7 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  /* Update lookup tables a second time for film tables. */
   progress.set_status("Updating Lookup Tables");
   lookup_tables->device_update(device, &dscene, this);
 
@@ -419,8 +452,8 @@ bool Scene::need_reset(const bool check_camera)
 
 void Scene::reset()
 {
-  shader_manager->reset(this);
-  ccl::ShaderManager::add_default(this);
+  osl_manager->reset(this);
+  ShaderManager::add_default(this);
 
   /* ensure all objects are updated */
   camera->tag_modified();
@@ -461,8 +494,6 @@ void Scene::update_kernel_features()
     return;
   }
 
-  const thread_scoped_lock scene_lock(mutex);
-
   /* These features are not being tweaked as often as shaders,
    * so could be done selective magic for the viewport as well. */
   uint kernel_features = shader_manager->get_kernel_features(this);
@@ -496,15 +527,7 @@ void Scene::update_kernel_features()
     if (object->get_is_shadow_catcher() && !geom->is_light()) {
       kernel_features |= KERNEL_FEATURE_SHADOW_CATCHER;
     }
-    if (geom->is_mesh()) {
-#ifdef WITH_OPENSUBDIV
-      Mesh *mesh = static_cast<Mesh *>(geom);
-      if (mesh->get_subdivision_type() != Mesh::SUBDIVISION_NONE) {
-        kernel_features |= KERNEL_FEATURE_PATCH_EVALUATION;
-      }
-#endif
-    }
-    else if (geom->is_hair()) {
+    if (geom->is_hair()) {
       kernel_features |= KERNEL_FEATURE_HAIR;
     }
     else if (geom->is_pointcloud()) {
@@ -564,6 +587,19 @@ bool Scene::update(Progress &progress)
   return true;
 }
 
+bool Scene::update_camera_resolution(Progress &progress, int width, int height)
+{
+  if (!camera->set_screen_size(width, height)) {
+    return false;
+  }
+
+  camera->device_update(device, &dscene, this);
+
+  progress.set_status("Updating Device", "Writing constant memory");
+  device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
+  return true;
+}
+
 static void log_kernel_features(const uint features)
 {
   VLOG_INFO << "Requested features:\n";
@@ -590,16 +626,12 @@ static void log_kernel_features(const uint features)
   VLOG_INFO << "Use Baking " << string_from_bool(features & KERNEL_FEATURE_BAKING) << "\n";
   VLOG_INFO << "Use Subsurface " << string_from_bool(features & KERNEL_FEATURE_SUBSURFACE) << "\n";
   VLOG_INFO << "Use Volume " << string_from_bool(features & KERNEL_FEATURE_VOLUME) << "\n";
-  VLOG_INFO << "Use Patch Evaluation "
-            << string_from_bool(features & KERNEL_FEATURE_PATCH_EVALUATION) << "\n";
   VLOG_INFO << "Use Shadow Catcher " << string_from_bool(features & KERNEL_FEATURE_SHADOW_CATCHER)
             << "\n";
 }
 
 bool Scene::load_kernels(Progress &progress)
 {
-  update_kernel_features();
-
   const uint kernel_features = dscene.data.kernel_features;
 
   if (!kernels_loaded || loaded_kernel_features != kernel_features) {
