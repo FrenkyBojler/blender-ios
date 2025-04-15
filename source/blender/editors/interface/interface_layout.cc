@@ -1087,22 +1087,6 @@ static uiBut *ui_item_with_label(uiLayout *layout,
     UI_block_layout_set_current(block, uiLayoutRow(sub, true));
     but = uiDefAutoButR(block, ptr, prop, index, "", icon, x, y, prop_but_width - UI_UNIT_X, h);
 
-    if (but != nullptr) {
-      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
-        if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
-          if (BLI_path_is_rel(but->drawstr.c_str())) {
-            UI_but_flag_enable(but, UI_BUT_REDALERT);
-          }
-        }
-
-        if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_VARIABLES) != 0) {
-          if (!BKE_validate_variable_syntax(but->drawstr.c_str()).is_empty()) {
-            UI_but_flag_enable(but, UI_BUT_REDALERT);
-          }
-        }
-      }
-    }
-
     /* #BUTTONS_OT_file_browse calls #UI_context_active_but_prop_get_filebrowser. */
     uiDefIconButO(block,
                   UI_BTYPE_BUT,
@@ -1157,6 +1141,28 @@ static uiBut *ui_item_with_label(uiLayout *layout,
                                                  std::nullopt :
                                                  std::make_optional<StringRefNull>("");
     but = uiDefAutoButR(block, ptr, prop, index, str, icon, x, y, prop_but_width, h);
+  }
+
+  /* Highlight in red on path validity errors. */
+  if (but != nullptr && ELEM(but->type, UI_BTYPE_TEXT)) {
+    if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
+      if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
+        if (BLI_path_is_rel(but->drawstr.c_str())) {
+          UI_but_flag_enable(but, UI_BUT_REDALERT);
+        }
+      }
+    }
+
+    /* We include PROP_NONE here because some plain string properties are used
+     * as parts of paths. For example, the sub-paths in the compositor's File
+     * Output node. */
+    if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE)) {
+      if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_VARIABLES) != 0) {
+        if (!BKE_validate_variable_syntax(but->drawstr.c_str()).is_empty()) {
+          UI_but_flag_enable(but, UI_BUT_REDALERT);
+        }
+      }
+    }
   }
 
   if (flag & UI_ITEM_R_IMMEDIATE) {
