@@ -95,7 +95,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
             self._bg_downloader.shutdown()
 
     def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
-        if event.type in {'RIGHTMOUSE', 'ESC'}:
+        if event.type == 'ESC':
             num_pending = self._bg_downloader.num_pending_downloads
             self.cancel(context)
 
