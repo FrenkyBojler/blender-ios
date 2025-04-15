@@ -410,7 +410,6 @@ set_and_warn_dependency(WITH_AUDASPACE WITH_SYSTEM_AUDASPACE OFF)
 
 if(WITH_GHOST_X11)
   option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)" ON)
-  option(WITH_X11_XF86VMODE "Enable X11 video mode switching" ON)
   option(WITH_X11_XFIXES "Enable X11 XWayland cursor warping workaround" ON)
 endif()
 
@@ -1591,7 +1590,7 @@ endif()
 
 # set the endian define
 if(MSVC)
-  # for some reason this fails on msvc
+  # For some reason this fails on MSVC.
   add_definitions(-D__LITTLE_ENDIAN__)
 
   # OSX-Note: as we do cross-compiling with specific set architecture,
@@ -2430,7 +2429,7 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
   string(APPEND C_WARNINGS " -wd188,186,144,913,556,858,597,177,1292,167,279,592,94,2722,3199")
   string(APPEND CXX_WARNINGS " -wd188,186,144,913,556,858,597,177,1292,167,279,592,94,2722,3199")
 elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-  # most msvc warnings are C & C++
+  # Most MSVC warnings are C & C++.
   set(_WARNINGS
     # warning level:
     "/W3"
@@ -2757,7 +2756,6 @@ if(FIRST_RUN)
     info_cfg_option(WITH_GHOST_WAYLAND)
     if(WITH_GHOST_X11)
       info_cfg_option(WITH_GHOST_XDND)
-      info_cfg_option(WITH_X11_XF86VMODE)
       info_cfg_option(WITH_X11_XFIXES)
       info_cfg_option(WITH_X11_XINPUT)
     endif()

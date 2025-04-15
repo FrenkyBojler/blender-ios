@@ -143,7 +143,6 @@ typedef struct FFMpegCodecData {
   int mux_packet_size;
   int mux_rate;
   char _pad0[4];
-  void *_pad1;
 } FFMpegCodecData;
 
 /** \} */
@@ -394,7 +393,7 @@ typedef enum eStereo3dInterlaceType {
 
 /**
  * Generic image format settings,
- * this is used for #NodeImageFile and IMAGE_OT_save_as operator too.
+ * this is used for #NodeImageFile and #IMAGE_OT_save_as operator too.
  *
  * NOTE: its a bit strange that even though this is an image format struct
  * the imtype can still be used to select video formats.
@@ -664,7 +663,6 @@ typedef enum eBakePassFilter {
 typedef struct RenderData {
   struct ImageFormatData im_format;
 
-  void *_pad;
   struct FFMpegCodecData ffcodecdata;
 
   /** Frames as in 'images'. */

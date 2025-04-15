@@ -434,9 +434,16 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
   openxr_data.extent.width = color_attachment->width_get();
   openxr_data.extent.height = color_attachment->height_get();
 
+  /* Determine the data format for data transfer. */
+  const eGPUTextureFormat device_format = color_attachment->device_format_get();
+  eGPUDataFormat data_format = GPU_DATA_HALF_FLOAT;
+  if (ELEM(device_format, GPU_RGBA8)) {
+    data_format = GPU_DATA_UBYTE;
+  }
+
   switch (openxr_data.data_transfer_mode) {
     case GHOST_kVulkanXRModeCPU:
-      openxr_data.cpu.image_data = color_attachment->read(0, GPU_DATA_HALF_FLOAT);
+      openxr_data.cpu.image_data = color_attachment->read(0, data_format);
       break;
 
     case GHOST_kVulkanXRModeFD: {
@@ -445,6 +452,19 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
                          RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
       VKMemoryExport exported_memory = color_attachment->export_memory(
           VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+      openxr_data.gpu.image_handle = exported_memory.handle;
+      openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
+      openxr_data.gpu.memory_size = exported_memory.memory_size;
+      openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+      break;
+    }
+
+    case GHOST_kVulkanXRModeWin32: {
+      flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+      VKMemoryExport exported_memory = color_attachment->export_memory(
+          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
       openxr_data.gpu.image_handle = exported_memory.handle;
       openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
       openxr_data.gpu.memory_size = exported_memory.memory_size;
@@ -467,6 +487,14 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
        * handle. Ref
        * https://registry.khronos.org/vulkan/specs/latest/man/html/VK_KHR_external_memory_fd.html#_issues
        */
+      break;
+
+    case GHOST_kVulkanXRModeWin32:
+#ifdef _WIN32
+      /* Exported handle isn't consumed during import and should be freed after use. */
+      CloseHandle(HANDLE(openxr_data.gpu.image_handle));
+      openxr_data.gpu.image_handle = 0;
+#endif
       break;
   }
 }
