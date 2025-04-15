@@ -78,6 +78,7 @@
 #include "MOD_nodes.hh"
 #include "MOD_ui_common.hh"
 
+#include "ED_node.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
@@ -834,7 +835,9 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
         if (snode.edittree == nullptr || snode.edittree->type != NTREE_GEOMETRY) {
           continue;
         }
-        // TODO: check if the node tree actually show data from this modifier
+        if (!ed::space_node::node_editor_is_for_geometry_nodes_modifier(snode, *ctx.object, nmd)) {
+          continue;
+        }
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
             geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(
                 snode, compute_context_cache);

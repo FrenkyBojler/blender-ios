@@ -84,6 +84,14 @@ struct ObjectAndModifier {
  */
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode);
 
+bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
+                                                const Object &object,
+                                                const NodesModifierData &nmd);
+
+/**
+ * Get the compute context for the active context that the user is currently looking at in that
+ * node tree.
+ */
 [[nodiscard]] const ComputeContext *compute_context_for_edittree(
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache);
 

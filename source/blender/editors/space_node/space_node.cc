@@ -14,7 +14,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_image_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -61,7 +60,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "NOD_node_in_compute_context.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "io_utils.hh"
 
@@ -305,6 +304,9 @@ std::optional<int32_t> find_nested_node_id_in_root(const SpaceNode &snode, const
 
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode)
 {
+  if (snode.geometry_nodes_type != SNODE_GEOMETRY_MODIFIER) {
+    return std::nullopt;
+  }
   if (snode.id == nullptr) {
     return std::nullopt;
   }
@@ -342,6 +344,22 @@ std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &s
     return std::nullopt;
   }
   return ObjectAndModifier{object, used_modifier};
+}
+
+bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
+                                                const Object &object,
+                                                const NodesModifierData &nmd)
+{
+  const std::optional<ObjectAndModifier> object_and_modifier = get_modifier_for_node_editor(snode);
+  if (!object_and_modifier) {
+    return false;
+  }
+  const Object *object_orig = DEG_is_original_object(&object) ? &object :
+                                                                DEG_get_original_object(&object);
+  if (object_and_modifier->object != object_orig) {
+    return false;
+  }
+  return object_and_modifier->nmd->modifier.persistent_uid == nmd.modifier.persistent_uid;
 }
 
 const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
