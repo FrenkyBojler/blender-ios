@@ -558,13 +558,18 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
  * is preserved at all cost.
  * Useful for strings with shortcuts
  * (like `A Very Long Foo Bar Label For Menu Entry|Ctrl O' -> 'AVeryLong...MenuEntry|Ctrl O`).
+ *
+ * \param min_len_left: If less characters than this would end up before the "...", clip on the end
+ * of the string to preserve as much from the beginning as possible. Set to 0 to disable this
+ * behavior.
  */
 float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
                              char *str,
                              float okwidth,
                              float minwidth,
                              size_t max_len,
-                             char rpart_sep);
+                             char rpart_sep,
+                             const size_t min_len_left = 10);
 
 blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
     const uiFontStyle *fstyle,
