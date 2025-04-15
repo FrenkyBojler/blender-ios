@@ -229,8 +229,8 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
                         on_done: Callable[[RequestDescription, Path], None]) -> Path:
         """Queue up this download, returning the path to which it will be downloaded."""
         remote_url = urllib.parse.urljoin(self.url, relative_url)
-
         download_to_path = self._local_path / relative_path
+
         self._bg_downloader.queue_download(remote_url, download_to_path, on_done)
 
         return download_to_path
