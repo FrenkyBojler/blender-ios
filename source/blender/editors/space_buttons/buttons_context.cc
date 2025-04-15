@@ -863,7 +863,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   if (sbuts && sbuts->path == nullptr) {
-    /* path is cleared for SCREEN_OT_redo_last, when global undo does a file-read which clears the
+    /* path is cleared for #SCREEN_OT_redo_last, when global undo does a file-read which clears the
      * path (see lib_link_workspace_layout_restore). */
     buttons_context_compute(C, sbuts);
   }
@@ -1258,7 +1258,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
   uiLayout *pin_row = uiLayoutRow(row, false);
   uiLayoutSetAlignment(pin_row, UI_LAYOUT_ALIGN_RIGHT);
   uiItemSpacer(pin_row);
-  uiLayoutSetEmboss(pin_row, UI_EMBOSS_NONE);
+  uiLayoutSetEmboss(pin_row, blender::ui::EmbossType::None);
   uiItemO(pin_row,
           "",
           (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED,

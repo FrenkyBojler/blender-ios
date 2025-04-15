@@ -148,7 +148,7 @@ static wmOperatorStatus sculpt_detail_flood_fill_exec(bContext *C, wmOperator *o
                                           min_edge_len,
                                           max_edge_len,
                                           center,
-                                          nullptr,
+                                          std::nullopt,
                                           size,
                                           false,
                                           false))
@@ -400,6 +400,9 @@ static wmOperatorStatus sculpt_sample_detail_size_modal(bContext *C,
       ED_workspace_status_text(C, nullptr);
 
       return OPERATOR_CANCELLED;
+    }
+    default: {
+      break;
     }
   }
 

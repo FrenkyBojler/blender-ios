@@ -141,7 +141,9 @@ static void mesh_copy_data(Main *bmain,
    * Caches will be "un-shared" as necessary later on. */
   mesh_dst->runtime->bounds_cache = mesh_src->runtime->bounds_cache;
   mesh_dst->runtime->vert_normals_cache = mesh_src->runtime->vert_normals_cache;
+  mesh_dst->runtime->vert_normals_true_cache = mesh_src->runtime->vert_normals_true_cache;
   mesh_dst->runtime->face_normals_cache = mesh_src->runtime->face_normals_cache;
+  mesh_dst->runtime->face_normals_true_cache = mesh_src->runtime->face_normals_true_cache;
   mesh_dst->runtime->corner_normals_cache = mesh_src->runtime->corner_normals_cache;
   mesh_dst->runtime->loose_verts_cache = mesh_src->runtime->loose_verts_cache;
   mesh_dst->runtime->verts_no_face_cache = mesh_src->runtime->verts_no_face_cache;
@@ -1391,6 +1393,9 @@ std::optional<int> Mesh::material_index_max() const
         this->attributes()
             .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
             .varray);
+    if (value.has_value()) {
+      value = std::clamp(*value, 0, MAXMAT);
+    }
   });
   return this->runtime->max_material_index.data();
 }
@@ -1411,6 +1416,16 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   threading::parallel_for(positions.index_range(), 2048, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position += translation;
+    }
+  });
+}
+
+static void transform_normals(MutableSpan<float3> normals, const float4x4 &matrix)
+{
+  const float3x3 normal_transform = math::transpose(math::invert(float3x3(matrix)));
+  threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
+    for (float3 &normal : normals.slice(range)) {
+      normal = normal_transform * normal;
     }
   });
 }
@@ -1450,6 +1465,16 @@ void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys)
   if (do_shape_keys && mesh.key) {
     LISTBASE_FOREACH (KeyBlock *, kb, &mesh.key->block) {
       transform_positions(MutableSpan(static_cast<float3 *>(kb->data), kb->totelem), transform);
+    }
+  }
+  MutableAttributeAccessor attributes = mesh.attributes_for_write();
+  if (const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(
+          "custom_normal"))
+  {
+    if (meta_data->data_type == CD_PROP_FLOAT3) {
+      bke::SpanAttributeWriter normals = attributes.lookup_for_write_span<float3>("custom_normal");
+      transform_normals(normals.span, transform);
+      normals.finish();
     }
   }
 

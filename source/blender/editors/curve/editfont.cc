@@ -694,7 +694,7 @@ static void text_insert_unicode_confirm(bContext *C, void *arg_block, void *arg_
 
 static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, void *arg_string)
 {
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   char *edit_string = static_cast<char *>(arg_string);
 
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
@@ -2098,6 +2098,9 @@ static wmOperatorStatus font_selection_set_modal(bContext *C,
     case MOUSEMOVE:
       font_cursor_set_apply(C, event);
       break;
+    default: {
+      break;
+    }
   }
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2504,6 +2507,7 @@ static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent *
   else {
     STRNCPY(filepath, U.fontdir);
     BLI_path_slash_ensure(filepath, sizeof(filepath));
+    /* The file selector will expand the blend-file relative prefix. */
   }
   RNA_property_string_set(op->ptr, prop_filepath, filepath);
 
