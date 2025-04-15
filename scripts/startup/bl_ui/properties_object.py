@@ -575,8 +575,10 @@ class OBJECT_PT_shadow_terminator(ObjectButtonsPanel, Panel):
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=True)
 
         ob = context.object
-        flow.prop(ob, "shadow_terminator_normal_offset", text="Normal Offset")
-        flow.prop(ob, "shadow_terminator_geometry_offset", text="Geometric Offset")
+        if context.engine == 'BLENDER_EEVEE_NEXT':
+            flow.prop(ob, "shadow_terminator_normal_offset", text="Normal Offset")
+        flow.prop(ob, "shadow_terminator_geometry_offset", text="Geometry Offset")
+        flow.prop(ob, "shadow_terminator_shading_offset", text="Shading Offset")
 
 
 class OBJECT_PT_animation(ObjectButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
