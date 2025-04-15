@@ -231,6 +231,15 @@ class Downloader:
             http_session: requests.Session = _http_session,
             chunk_size: int = 8192,
     ) -> None:
+        """Create a Downloader.
+
+        :param metadata_cache_location: Location on disk for request metadata,
+            like the last-modified timestamp, etag, and content length.
+        :param http_session: Requests Session object to manage retries,
+            timeouts, TCP/IP connection pooling, cookies, and authentication.
+        :param chunk_size: Number of bytes to download at once. This determines
+            how granular download progress is reported.
+        """
         self.metadata_cache_location = metadata_cache_location
         self.http_session = http_session
         self.chunk_size = chunk_size
