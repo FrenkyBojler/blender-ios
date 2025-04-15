@@ -14,7 +14,7 @@
 #  ifdef __APPLE__
 #    include <MoltenVK/vk_mvk_moltenvk.h>
 #  else
-#    include <vulkan/vulkan.h>
+#    include <vulkan/vulkan_core.h>
 #  endif
 #endif
 
@@ -371,6 +371,7 @@ typedef enum {
   GHOST_kStandardCursorHandOpen,
   GHOST_kStandardCursorHandClosed,
   GHOST_kStandardCursorHandPoint,
+  GHOST_kStandardCursorBlade,
   GHOST_kStandardCursorCustom,
 
 #define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
@@ -689,7 +690,7 @@ typedef struct {
   /** The key code. */
   GHOST_TKey key;
 
-  /** The unicode character. if the length is 6, not nullptr terminated if all 6 are set. */
+  /** The unicode character. if the length is 6, not null terminated if all 6 are set. */
   char utf8_buf[6];
 
   /**
@@ -780,6 +781,14 @@ typedef enum {
    * will import the memory and copy the image to the swapchain.
    */
   GHOST_kVulkanXRModeFD,
+
+  /**
+   * Use Win32 handle to transfer the render result to the XR swapchain.
+   *
+   * Application renders a view, export the memory in an win32 handle.
+   * GHOST_XrGraphicsBindingVulkan will import the memory and copy the image to the swapchain.
+   */
+  GHOST_kVulkanXRModeWin32,
 } GHOST_TVulkanXRModes;
 
 typedef struct {
@@ -889,7 +898,8 @@ typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsOpenGL,
   GHOST_kXrGraphicsVulkan,
 #  ifdef WIN32
-  GHOST_kXrGraphicsD3D11,
+  GHOST_kXrGraphicsOpenGLD3D11,
+  GHOST_kXrGraphicsVulkanD3D11,
 #  endif
   /* For later */
   //  GHOST_kXrGraphicsVulkan,

@@ -575,6 +575,13 @@ if(TEST_SRC_DIR_EXISTS)
 endif()
 
 # ------------------------------------------------------------------------------
+# BRUSH TESTS
+add_blender_test(
+  bl_brush
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_brush_test.py
+)
+
+# ------------------------------------------------------------------------------
 # NODE GROUP TESTS
 # ------------------------------------------------------------------------------
 
@@ -1014,6 +1021,7 @@ endif()
 if(TEST_SRC_DIR_EXISTS)
   set(geo_node_tests
     attributes
+    closure
     curve_primitives
     curves
     curves/interpolate_curves
