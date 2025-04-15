@@ -106,7 +106,6 @@ def create_argparse():
     parser.add_argument("--oiiotool", required=True)
     parser.add_argument("--export_method", required=True)
     parser.add_argument('--batch', default=False, action='store_true')
-    parser.add_argument('--fail-silently', default=False, action='store_true')
     return parser
 
 
