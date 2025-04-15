@@ -46,18 +46,12 @@ static void calc_local_positions(const Span<float3> vert_positions,
                                  const MutableSpan<float2> xy_positions,
                                  const MutableSpan<float> z_positions)
 {
-  const float3 row_x = float3(mat[0][0], mat[1][0], mat[2][0]);
-  const float3 row_y = float3(mat[0][1], mat[1][1], mat[2][1]);
-  const float3 row_z = float3(mat[0][2], mat[1][2], mat[2][2]);
-  const float3 origin = mat.location();
-
   for (const int i : verts.index_range()) {
-    const float3 &position = vert_positions[verts[i]];
-    float2 &xy_position = xy_positions[i];
+    const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
 
-    xy_position.x = math::dot(row_x, position) + origin.x;
-    xy_position.y = math::dot(row_y, position) + origin.y;
-    z_positions[i] = math::dot(row_z, position) + origin.z;
+    xy_positions[i].x = position.x;
+    xy_positions[i].y = position.y;
+    z_positions[i] = position.z;
   }
 }
 
@@ -66,18 +60,12 @@ static void calc_local_positions(const Span<float3> positions,
                                  const MutableSpan<float2> xy_positions,
                                  const MutableSpan<float> z_positions)
 {
-  const float3 row_x = float3(mat[0][0], mat[1][0], mat[2][0]);
-  const float3 row_y = float3(mat[0][1], mat[1][1], mat[2][1]);
-  const float3 row_z = float3(mat[0][2], mat[1][2], mat[2][2]);
-  const float3 origin = mat.location();
-
   for (const int i : positions.index_range()) {
-    const float3 &position = positions[i];
-    float2 &xy_position = xy_positions[i];
+    const float3 position = math::transform_point(mat, positions[i]);
 
-    xy_position.x = math::dot(row_x, position) + origin.x;
-    xy_position.y = math::dot(row_y, position) + origin.y;
-    z_positions[i] = math::dot(row_z, position) + origin.z;
+    xy_positions[i].x = position.x;
+    xy_positions[i].y = position.y;
+    z_positions[i] = position.z;
   }
 }
 
