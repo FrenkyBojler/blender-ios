@@ -2309,6 +2309,7 @@ static const GWL_Cursor_ShapeInfo ghost_wl_cursors = []() -> GWL_Cursor_ShapeInf
     CASE_CURSOR(GHOST_kStandardCursorLeftHandle, "");
     CASE_CURSOR(GHOST_kStandardCursorRightHandle, "");
     CASE_CURSOR(GHOST_kStandardCursorBothHandles, "");
+    CASE_CURSOR(GHOST_kStandardCursorBlade, "");
     CASE_CURSOR(GHOST_kStandardCursorCustom, "");
   }
 #undef CASE_CURSOR
@@ -2429,13 +2430,6 @@ static int memfd_create_sealed(const char *name)
   return fd;
 #endif /* !HAVE_MEMFD_CREATE */
 }
-
-#if defined(WITH_GHOST_WAYLAND_LIBDECOR) && defined(WITH_VULKAN_BACKEND)
-int memfd_create_sealed_for_vulkan_hack(const char *name)
-{
-  return memfd_create_sealed(name);
-}
-#endif
 
 enum {
   GWL_IOR_READ = 1 << 0,
