@@ -17,7 +17,6 @@ bl_info = {
 
 import logging
 import urllib.parse
-from enum import Enum
 from pathlib import Path
 from typing import Callable, Generator
 from contextlib import contextmanager
@@ -31,12 +30,6 @@ from _bpy_internal.http.downloader import RequestDescription, CachingDownloader,
 logger = logging.getLogger(__name__)
 
 
-class AssetDownloadState(Enum):
-    STARTING = 0
-    DOWNLOADING = 1
-    DONE = 2
-
-
 class ASSETS_OT_dummy_download(bpy.types.Operator):
     bl_idname = "assets.dummy_download"
     bl_label = "Dummy Download"
@@ -45,16 +38,14 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
     _local_path: Path
     _bg_downloader: BackgroundDownloader
+    _num_asset_pages_pending: int
     _timer: bpy.types.Timer | None
-    _state: AssetDownloadState
 
     # BackgroundDownloader is independent of `bpy`, and I (Sybren) quite like
     # that. So instead of passing the context to its update() function, so that
     # it can pass those back to this class, just store the context here for the
     # duration of the update() call.
     _operator_context: bpy.types.Context | None
-
-    _num_asset_pages_pending: int
 
     @classmethod
     def poll(cls, context: bpy.types.Context) -> bool:
@@ -66,13 +57,12 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
     def execute(self, context: bpy.types.Context) -> set[str]:
         # self._local_path = Path(bpy.app.tempdir) / "dummy_asset_library"
         self._local_path = Path("/tmp/dummy_asset_library")
-        self._state = AssetDownloadState.STARTING
         self._num_asset_pages_pending = 0
         self._operator_context = None
 
         downloader = CachingDownloader(
             metadata_cache_location=self._local_path / "_local-meta-cache",
-            chunk_size=10,
+            chunk_size=1024 * 16,
         )
 
         self._bg_downloader = BackgroundDownloader(downloader)
@@ -83,62 +73,52 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.01, window=context.window)
         wm.modal_handler_add(self)
 
+        # Kickstart the download process.
+        self.on_start(context)
+
         return {'RUNNING_MODAL'}
 
     def cancel(self, context: bpy.types.Context) -> None:
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
 
-        num_pending = self._bg_downloader.num_pending_downloads
-
         # It may be tempting to call self.report(...) here, and report on the
         # cancellation. However, this should be done by the caller, when they know
         # of the reason of the cancellation and thus can provide more info.
-        logger.info("Cancel: Shutting down background downloader, %d downloads pending", num_pending)
+        num_pending = self._bg_downloader.num_pending_downloads
+        if num_pending:
+            logger.info("Cancel: Shutting down background downloader, %d downloads pending", num_pending)
+        else:
+            logger.info("Cancel: Shutting down background downloader")
 
         with self._context(context):
             self._bg_downloader.shutdown()
 
     def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
         if event.type in {'RIGHTMOUSE', 'ESC'}:
+            num_pending = self._bg_downloader.num_pending_downloads
             self.cancel(context)
+
+            if num_pending:
+                msg = "DummyDownloader cancelled with {} downloads pending".format(num_pending)
+            else:
+                msg = "DummyDownloader cancelled"
+            self.report({'WARNING'}, msg)
+
             return {'CANCELLED'}
 
-        if event.type != 'TIMER':
-            return {'PASS_THROUGH'}
-
-        do_continue = self.on_timer(context)
-        if not do_continue:
+        if self._bg_downloader.is_shutdown:
+            logger.info("downloader done")
+            self.report({'INFO'}, "DummyDownloader Done")
             self.cancel(context)
             return {'FINISHED'}
 
-        return {'PASS_THROUGH'}
-
-    def on_timer(self, context: bpy.types.Context) -> bool:
-        """Returns whether the code needs to continue looping or not."""
-
-        match self._state:
-            case AssetDownloadState.STARTING:
-                self.on_start(context)
-            case AssetDownloadState.DOWNLOADING:
-                pass
-            case AssetDownloadState.DONE:
-                logger.info("downloader done")
-                self.report({'INFO'}, "DummyDownloader Done")
-                return False
-
-        # logger.info("operator state: %s", self._state)
-
-        if self._bg_downloader.is_shutdown:
-            logger.info("background downloader is shut down, ignoring timer")
-            return False
-
         with self._context(context):
             self._bg_downloader.update()
-        return True
+
+        return {'PASS_THROUGH'}
 
     def on_start(self, context: bpy.types.Context) -> None:
-        self._state = AssetDownloadState.DOWNLOADING
         self._queue_download(
             index_common.ASSET_TOP_METADATA_FILENAME,
             index_common.ASSET_TOP_METADATA_FILENAME,
@@ -223,7 +203,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
             return
 
         self.report({'INFO'}, "Asset library index downloaded")
-        self._state = AssetDownloadState.DONE
+        self.cancel(self._operator_context)
 
     def _queue_download(self, relative_url: str, relative_path: Path | str,
                         on_done: Callable[[RequestDescription, Path], None]) -> Path:
