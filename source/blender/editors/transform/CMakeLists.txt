@@ -6,7 +6,6 @@ set(INC
   ../include
   ../../ikplugin
   ../../makesrna
-  ../../nodes
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -119,6 +118,7 @@ set(LIB
   bf_editor_mask
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::render
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager

@@ -24,7 +24,6 @@ set(INC
   ../../editors/include
   ../../ikplugin
   ../../makesrna
-  ../../nodes
   ../../../../intern/iksolver/extern
 )
 
@@ -117,6 +116,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::windowmanager
 )
 

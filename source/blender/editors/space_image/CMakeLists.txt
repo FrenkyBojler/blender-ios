@@ -6,7 +6,6 @@ set(INC
   ../asset
   ../include
   ../../makesrna
-  ../../nodes
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -43,6 +42,7 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
