@@ -4,10 +4,10 @@
 
 #include "common_colormanagement_lib.glsl"
 
-#define Z_DEPTH_BORDER 1.0
-#define Z_DEPTH_IMAGE 0.75
+#define Z_DEPTH_BORDER 1.0f
+#define Z_DEPTH_IMAGE 0.75f
 
-bool is_border(vec2 uv)
+bool is_border(float2 uv)
 {
   return (uv.x < min_max_uv.x || uv.y < min_max_uv.y || uv.x >= min_max_uv.z ||
           uv.y >= min_max_uv.w);

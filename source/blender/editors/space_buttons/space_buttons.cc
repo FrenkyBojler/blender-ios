@@ -59,8 +59,8 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
 
   sbuts = static_cast<SpaceProperties *>(MEM_callocN(sizeof(SpaceProperties), "initbuts"));
   sbuts->spacetype = SPACE_PROPERTIES;
-
   sbuts->mainb = sbuts->mainbuser = BCONTEXT_OBJECT;
+  sbuts->visible_tabs = uint(-1); /* 0xFFFFFFFF - All tabs visible by default. */
 
   /* header */
   region = BKE_area_region_new();
@@ -319,9 +319,7 @@ const char *ED_buttons_search_string_get(SpaceProperties *sbuts)
 
 int ED_buttons_search_string_length(SpaceProperties *sbuts)
 {
-  return (sbuts->runtime) ?
-             BLI_strnlen(sbuts->runtime->search_string, sizeof(sbuts->runtime->search_string)) :
-             0;
+  return (sbuts->runtime) ? STRNLEN(sbuts->runtime->search_string) : 0;
 }
 
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)

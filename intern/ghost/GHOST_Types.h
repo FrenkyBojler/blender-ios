@@ -371,6 +371,7 @@ typedef enum {
   GHOST_kStandardCursorHandOpen,
   GHOST_kStandardCursorHandClosed,
   GHOST_kStandardCursorHandPoint,
+  GHOST_kStandardCursorBlade,
   GHOST_kStandardCursorCustom,
 
 #define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
@@ -689,7 +690,7 @@ typedef struct {
   /** The key code. */
   GHOST_TKey key;
 
-  /** The unicode character. if the length is 6, not nullptr terminated if all 6 are set. */
+  /** The unicode character. if the length is 6, not null terminated if all 6 are set. */
   char utf8_buf[6];
 
   /**
@@ -898,6 +899,7 @@ typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsVulkan,
 #  ifdef WIN32
   GHOST_kXrGraphicsOpenGLD3D11,
+  GHOST_kXrGraphicsVulkanD3D11,
 #  endif
   /* For later */
   //  GHOST_kXrGraphicsVulkan,
