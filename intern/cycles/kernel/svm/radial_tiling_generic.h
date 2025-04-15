@@ -75,10 +75,8 @@ using namespace math;
 #      define squaref square
 #      define tanf tan
 
-#      define float2 vec2
-#      define float4 vec4
-#      define make_float2 vec2
-#      define make_float4 vec4
+#      define make_float2 float2
+#      define make_float4 float4
 #      define M_PI_F M_PI
 #      define M_TAU_F M_TAU
 #      define ccl_device
@@ -1074,8 +1072,6 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #      undef squaref
 #      undef tanf
 
-#      undef float2
-#      undef float4
 #      undef make_float2
 #      undef make_float4
 #      undef M_PI_F
