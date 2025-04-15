@@ -15,7 +15,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_image_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -308,6 +307,9 @@ std::optional<int32_t> find_nested_node_id_in_root(const SpaceNode &snode, const
 
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode)
 {
+  if (snode.geometry_nodes_type != SNODE_GEOMETRY_MODIFIER) {
+    return std::nullopt;
+  }
   if (snode.id == nullptr) {
     return std::nullopt;
   }
@@ -345,6 +347,22 @@ std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &s
     return std::nullopt;
   }
   return ObjectAndModifier{object, used_modifier};
+}
+
+bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
+                                                const Object &object,
+                                                const NodesModifierData &nmd)
+{
+  const std::optional<ObjectAndModifier> object_and_modifier = get_modifier_for_node_editor(snode);
+  if (!object_and_modifier) {
+    return false;
+  }
+  const Object *object_orig = DEG_is_original_object(&object) ? &object :
+                                                                DEG_get_original_object(&object);
+  if (object_and_modifier->object != object_orig) {
+    return false;
+  }
+  return object_and_modifier->nmd->modifier.persistent_uid == nmd.modifier.persistent_uid;
 }
 
 const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
@@ -400,7 +418,7 @@ static const ComputeContext *compute_context_for_zones(
   return current;
 }
 
-std::optional<const ComputeContext *> compute_context_for_tree_path(
+static std::optional<const ComputeContext *> compute_context_for_tree_path(
     const SpaceNode &snode,
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context)
@@ -555,6 +573,44 @@ std::optional<const ComputeContext *> compute_context_for_tree_path(
     }
   }
   return nullptr;
+}
+
+static const ComputeContext *get_node_editor_root_compute_context(
+    const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache)
+{
+  switch (SpaceNodeGeometryNodesType(snode.geometry_nodes_type)) {
+    case SNODE_GEOMETRY_MODIFIER: {
+      std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
+          ed::space_node::get_modifier_for_node_editor(snode);
+      if (!object_and_modifier) {
+        return nullptr;
+      }
+      return &compute_context_cache.for_modifier(nullptr, *object_and_modifier->nmd);
+    }
+    case SNODE_GEOMETRY_TOOL: {
+      return &compute_context_cache.for_operator(nullptr);
+    }
+  }
+  return nullptr;
+}
+
+[[nodiscard]] const ComputeContext *compute_context_for_edittree(
+    const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache)
+{
+  if (!snode.edittree) {
+    return nullptr;
+  }
+  if (snode.edittree->type != NTREE_GEOMETRY) {
+    return nullptr;
+  }
+  const ComputeContext *root_context = get_node_editor_root_compute_context(snode,
+                                                                            compute_context_cache);
+  if (!root_context) {
+    return nullptr;
+  }
+  const ComputeContext *edittree_context =
+      compute_context_for_tree_path(snode, compute_context_cache, root_context).value_or(nullptr);
+  return edittree_context;
 }
 
 /* ******************** default callbacks for node space ***************** */
