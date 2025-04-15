@@ -37,22 +37,22 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
                                  const IndexMask &mask) const final
   {
     const Span<int> handles = instances.reference_handles();
-    Array<float3> bounds(instances.references().size());
+    const Span<bke::InstanceReference> references = instances.references();
 
     IndexMaskMemory memory;
-    IndexMask handles_mask = handles.index_range();
-
-    if (mask.to_range() != handles.index_range()) {
-      Array<bool> reference_is_in_mask(instances.references_num());
+    IndexMask reference_mask(references.size());
+    if (mask.size() != references.size()) {
+      Array<bool> reference_in_mask(references.size());
       mask.foreach_index(GrainSize(2048),
-                         [&](const int index) { reference_is_in_mask[handles[index]] = true; });
-      handles_mask = IndexMask::from_bools(reference_is_in_mask.as_span(), memory);
+                         [&](const int i) { reference_in_mask[handles[i]] = true; });
+      reference_mask = IndexMask::from_bools(reference_in_mask.as_span(), memory);
     }
 
-    handles_mask.foreach_index(GrainSize(128), [&](const int reference_index) {
-      const blender::bke::InstanceReference &reference = instances.references()[reference_index];
-      GeometrySet instance_geometry;
+    Array<float3> reference_bounds(references.size());
+    reference_mask.foreach_index(GrainSize(128), [&](const int reference_index) {
+      const blender::bke::InstanceReference &reference = references[reference_index];
 
+      GeometrySet instance_geometry;
       switch (reference.type()) {
         case blender::bke::InstanceReference::Type::GeometrySet:
           instance_geometry = reference.geometry_set();
@@ -70,13 +70,13 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
           instance_geometry.compute_boundbox_without_instances(use_radius_);
 
       if (sub_bounds) {
-        bounds[reference_index] = return_max_ ? sub_bounds->min : sub_bounds->max;
+        reference_bounds[reference_index] = return_max_ ? sub_bounds->min : sub_bounds->max;
       }
     });
 
     Array<float3> output_bounds(mask.min_array_size());
     mask.foreach_index(GrainSize(4096), [&](const int instance_index) {
-      output_bounds[instance_index] = bounds[handles[instance_index]];
+      output_bounds[instance_index] = reference_bounds[handles[instance_index]];
     });
 
     return VArray<float3>::ForContainer(std::move(output_bounds));
