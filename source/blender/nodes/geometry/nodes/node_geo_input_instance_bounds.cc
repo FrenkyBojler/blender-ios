@@ -42,7 +42,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
     IndexMaskMemory memory;
     IndexMask reference_mask(references.size());
     if (mask.size() != references.size()) {
-      Array<bool> reference_in_mask(references.size());
+      Array<bool> reference_in_mask(references.size(), false);
       mask.foreach_index(GrainSize(2048),
                          [&](const int i) { reference_in_mask[handles[i]] = true; });
       reference_mask = IndexMask::from_bools(reference_in_mask.as_span(), memory);
@@ -71,6 +71,9 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
       if (sub_bounds) {
         reference_bounds[reference_index] = return_max_ ? sub_bounds->min : sub_bounds->max;
+      }
+      else {
+        reference_bounds[reference_index] = float3(0.0f);
       }
     });
 
