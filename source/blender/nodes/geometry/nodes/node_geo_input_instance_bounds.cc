@@ -74,7 +74,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
           instance_geometry.compute_boundbox_without_instances(use_radius_);
 
       if (sub_bounds) {
-        reference_bounds[reference_index] = return_max_ ? sub_bounds->min : sub_bounds->max;
+        reference_bounds[reference_index] = return_max_ ? sub_bounds->max : sub_bounds->min;
       }
       else {
         reference_bounds[reference_index] = float3(0.0f);
@@ -106,9 +106,9 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bool use_radius = params.extract_input<bool>("Use Radius");
-  params.set_output("Min", Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, true)));
-  params.set_output("Max",
+  params.set_output("Min",
                     Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, false)));
+  params.set_output("Max", Field<float3>(std::make_shared<InstanceBoundsField>(use_radius, true)));
 }
 
 static void node_register()
