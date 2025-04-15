@@ -972,6 +972,8 @@ static bool has_external_files(Main *bmain, ReportList *reports)
   return true;
 }
 
+constexpr int DRAG_THRESHOLD = 4;
+
 struct ScreenshotOperatorData {
   void *draw_handle;
   int2 drag_start, drag_end, last_cursor;
@@ -979,7 +981,7 @@ struct ScreenshotOperatorData {
    * the previous size. */
   int2 p1, p2;
 
-  bool dragging;
+  bool is_mouse_down;
   /* Dragged far enough to create the screenshot are instead of registering as a click. */
   bool crossed_threshold;
   /* Move the whole screenshot area when moving the cursor instead of placing `drag_end`. */
@@ -1049,6 +1051,25 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
   }
 }
 
+/**
+ * Takes a screenshot of Blender for the given rect. The returned `ImBuf` has to be freed by the
+ * caller with `IMB_freeImBuf()`.
+ */
+static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
+{
+  int dumprect_size[2];
+  wmWindow *win = CTX_wm_window(C);
+  uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
+
+  ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
+  /* Using IB_TAKE_OWNERSHIP because the crop does kind of take ownership already it seems. At
+   * least freeing the memory after would cause a crash if ownership isn't taken. */
+  IMB_assign_byte_buffer(image_buffer, dumprect, IB_TAKE_OWNERSHIP);
+
+  IMB_rect_crop(image_buffer, &crop_rect);
+  return image_buffer;
+}
+
 static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 {
   int2 p1, p2;
@@ -1068,17 +1089,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  int dumprect_size[2];
-  wmWindow *win = CTX_wm_window(C);
-  uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
-
-  ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
-  /* Using IB_TAKE_OWNERSHIP because the crop does kind of take ownership already it seems. At
-   * least freeing the memory after would cause a crash if ownership isn't taken. */
-  IMB_assign_byte_buffer(image_buffer, dumprect, IB_TAKE_OWNERSHIP);
-
   const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
-  IMB_rect_crop(image_buffer, &crop_rect);
+  ImBuf *image_buffer = take_screenshot_crop(C, crop_rect);
 
   const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
   BLI_assert_msg(asset_handle != nullptr, "This is ensured by poll");
@@ -1092,6 +1104,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   ED_preview_kill_jobs_for_id(CTX_wm_manager(C), id);
 
   generate_previewimg_from_buffer(id, image_buffer);
+  IMB_freeImBuf(image_buffer);
 
   if (ID_IS_LINKED(id)) {
     const bool saved = bke::asset_edit_id_save(*bmain, *id, *op->reports);
@@ -1100,7 +1113,6 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
     }
   }
 
-  IMB_freeImBuf(image_buffer);
   asset::list::storage_tag_main_data_dirty();
   asset::refresh_asset_library_from_asset(C, *asset_handle);
 
@@ -1177,13 +1189,13 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
     case LEFTMOUSE: {
       switch (event->val) {
         case KM_PRESS: {
-          data->dragging = true;
+          data->is_mouse_down = true;
           data->crossed_threshold = false;
           data->drag_start = screen_space_cursor;
           break;
         }
         case KM_RELEASE: {
-          data->dragging = false;
+          data->is_mouse_down = false;
           data->drag_end = screen_space_cursor;
           screenshot_area_transfer_to_rna(op, data);
           screenshot_preview_exec(C, op);
@@ -1242,19 +1254,19 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
 
     case MOUSEMOVE: {
       if (!data->crossed_threshold) {
-        int2 delta = data->drag_end - data->drag_start;
-        if (std::abs(delta.x) > 4 && std::abs(delta.y) > 4) {
+        const int2 delta = data->drag_end - data->drag_start;
+        if (std::abs(delta.x) > DRAG_THRESHOLD && std::abs(delta.y) > DRAG_THRESHOLD) {
           data->crossed_threshold = true;
           data->p1 = data->drag_start;
         }
       }
 
       if (data->shift_area) {
-        int2 delta = screen_space_cursor - data->last_cursor;
+        const int2 delta = screen_space_cursor - data->last_cursor;
         data->p1 += delta;
         data->p2 += delta;
       }
-      else if (data->dragging) {
+      else if (data->is_mouse_down) {
         data->drag_end = screen_space_cursor;
         if (data->crossed_threshold) {
           data->p2 = screen_space_cursor;
@@ -1270,7 +1282,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
   }
 
   WorkspaceStatus status(C);
-  if (data->dragging) {
+  if (data->is_mouse_down) {
     status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
   }
   else {
@@ -1293,7 +1305,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   op->customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
-  data->dragging = false;
+  data->is_mouse_down = false;
   RNA_int_get_array(op->ptr, "p1", data->p1);
   RNA_int_get_array(op->ptr, "p2", data->p2);
   data->last_cursor = data->p1;
