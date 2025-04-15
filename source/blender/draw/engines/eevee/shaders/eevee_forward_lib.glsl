@@ -61,8 +61,15 @@ void forward_lighting_eval(float thickness, out float3 radiance, out float3 tran
     stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
     /* NOTE: Only evaluates `stack.cl[0]`. */
-    light_eval_transmission(
-        stack, g_data.P, g_data.Ng, V, vPz, thickness, receiver_light_set, normal_offset);
+    light_eval_transmission(stack,
+                            g_data.P,
+                            g_data.Ng,
+                            V,
+                            vPz,
+                            thickness,
+                            receiver_light_set,
+                            normal_offset,
+                            geometry_offset);
 
 #  if defined(MAT_SUBSURFACE)
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
