@@ -52,6 +52,7 @@ def parse_catalogs(library_path: Path) -> list[api_models.Catalog]:
             asset_cats_by_path[cat.path] = api_models.Catalog(
                 path=cat.path.as_posix(),
                 uuids=[cat.uuid],
+                simple_name=cat.simple_name,
             )
         else:
             api_catalog.uuids.append(cat.uuid)

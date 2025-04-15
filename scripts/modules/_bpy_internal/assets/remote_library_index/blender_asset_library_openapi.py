@@ -50,6 +50,7 @@ class Catalog(BaseModel):
         extra="allow",
     )
     path: str
+    simple_name: Optional[str] = None
     uuids: Annotated[list[str], Field(min_length=1)]
 
 

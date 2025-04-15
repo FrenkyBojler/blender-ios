@@ -249,6 +249,7 @@ components:
       description: An asset catalog, which can be represented by one or more UUIDs.
       properties:
         "path": { type: string }
+        "simple_name": { type: string }
         "uuids":
           type: array
           items:
