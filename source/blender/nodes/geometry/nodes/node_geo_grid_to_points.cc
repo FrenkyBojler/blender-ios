@@ -32,7 +32,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
+  eCustomDataType data_type = eCustomDataType(node->custom1);
 
   b.add_input(data_type, "Grid");
   b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
@@ -58,7 +58,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = SOCK_FLOAT;
+  node->custom1 = CD_PROP_FLOAT;
 }
 
 #ifdef WITH_OPENVDB
@@ -316,10 +316,10 @@ template<typename T> struct GridToPointsConverter {
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
+  const eCustomDataType data_type = eCustomDataType(params.node().custom1);
 
   bke::attribute_math::convert_to_static_type(
-      *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&](auto type_tag) {
+      *bke::custom_data_type_to_cpp_type(data_type), [&](auto type_tag) {
         using ValueT = decltype(type_tag);
         using type_traits = typename bke::VolumeGridTraits<ValueT>;
 
@@ -343,10 +343,10 @@ static void node_rna(StructRNA *srna)
                     "data_type",
                     "Data Type",
                     "Type of grid data",
-                    rna_enum_node_socket_data_type_items,
+                    rna_enum_attribute_type_items,
                     NOD_inline_enum_accessors(custom1),
-                    SOCK_FLOAT,
-                    grid_socket_type_items_filter_fn);
+                    CD_PROP_FLOAT,
+                    grid_attribute_type_items_filter_fn);
 }
 
 static void node_register()
