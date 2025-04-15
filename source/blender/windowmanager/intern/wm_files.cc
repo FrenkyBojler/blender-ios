@@ -1043,7 +1043,10 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
   bf_reports->resynced_lib_overrides_libraries = nullptr;
 }
 
-bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
+bool WM_file_read(bContext *C,
+                  const char *filepath,
+                  const bool use_scripts_autoexec_check,
+                  ReportList *reports)
 {
   /* Assume automated tasks with background, don't write recent file list. */
   const bool do_history_file_update = (G.background == false) &&
@@ -1108,6 +1111,14 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
         const int flags_keep = G_FLAG_ALL_RUNTIME;
         G.f &= G_FLAG_ALL_READFILE;
         G.f = (G.f & ~flags_keep) | (G_f_orig & flags_keep);
+      }
+
+      /* Set by the `use_scripts` property on file load.
+       * If this was not set, then it should be calculated based on the file-path.
+       * Note that this uses `bmain->filepath` and not `filepath`, necessary when
+       * recovering the last session, where the file-path can be #BLENDER_QUIT_FILE. */
+      if (use_scripts_autoexec_check) {
+        WM_file_autoexec_init(bmain->filepath);
       }
 
       WM_check(C); /* Opens window(s), checks keymaps. */
@@ -2436,7 +2447,7 @@ static void read_factory_reset_props(wmOperatorType *ot)
                          false,
                          "Factory Startup App-Template Only",
                          "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -2459,9 +2470,10 @@ void wm_open_init_load_ui(wmOperator *op, bool use_prefs)
   }
 }
 
-void wm_open_init_use_scripts(wmOperator *op, bool use_prefs)
+bool wm_open_init_use_scripts(wmOperator *op, bool use_prefs)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_scripts");
+  bool use_scripts_autoexec_check = false;
   if (!RNA_property_is_set(op->ptr, prop)) {
     /* Use #G_FLAG_SCRIPT_AUTOEXEC rather than the userpref because this means if
      * the flag has been disabled from the command line, then opening
@@ -2470,7 +2482,9 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs)
                              ((G.f & G_FLAG_SCRIPT_AUTOEXEC) != 0);
 
     RNA_property_boolean_set(op->ptr, prop, value);
+    use_scripts_autoexec_check = true;
   }
+  return use_scripts_autoexec_check;
 }
 
 /** \} */
@@ -2483,7 +2497,7 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs)
  * \see #wm_file_write wraps #BLO_write_file in a similar way.
  * \return success.
  */
-static int wm_homefile_write_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_homefile_write_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -2549,7 +2563,9 @@ static int wm_homefile_write_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static int wm_homefile_write_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_homefile_write_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   if (!U.app_template[0]) {
     return WM_operator_confirm_ex(C,
@@ -2593,7 +2609,7 @@ void WM_OT_save_homefile(wmOperatorType *ot)
  * \{ */
 
 /* Only save the prefs block. operator entry. */
-static int wm_userpref_write_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_userpref_write_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
@@ -2689,7 +2705,7 @@ static void wm_userpref_update_when_changed(bContext *C,
   userdef_curr->runtime.is_dirty = is_dirty;
 }
 
-static int wm_userpref_read_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const bool use_data = false;
@@ -2742,7 +2758,9 @@ void WM_OT_read_userpref(wmOperatorType *ot)
   ot->exec = wm_userpref_read_exec;
 }
 
-static int wm_userpref_read_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_userpref_read_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   std::string title;
 
@@ -2789,7 +2807,7 @@ void WM_OT_read_factory_userpref(wmOperatorType *ot)
 /** \name Read File History Operator
  * \{ */
 
-static int wm_history_file_read_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus wm_history_file_read_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   ED_file_read_bookmarks();
   wm_history_file_read();
@@ -2817,7 +2835,7 @@ void WM_OT_read_history(wmOperatorType *ot)
  * Both #WM_OT_read_homefile & #WM_OT_read_factory_settings.
  * \{ */
 
-static int wm_homefile_read_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
 {
   const bool use_factory_startup_and_userdef = STREQ(op->type->idname,
                                                      "WM_OT_read_factory_settings");
@@ -2931,7 +2949,9 @@ static void wm_homefile_read_after_dialog_callback(bContext *C, void *user_data)
       C, "WM_OT_read_homefile", WM_OP_EXEC_DEFAULT, (IDProperty *)user_data, nullptr);
 }
 
-static int wm_homefile_read_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_homefile_read_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   if (wm_operator_close_file_dialog_if_needed(C, op, wm_homefile_read_after_dialog_callback)) {
     return OPERATOR_INTERFACE;
@@ -2944,7 +2964,7 @@ static void read_homefile_props(wmOperatorType *ot)
   PropertyRNA *prop;
 
   prop = RNA_def_string(ot->srna, "app_template", "Template", sizeof(U.app_template), "", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(
       ot->srna,
@@ -2954,7 +2974,7 @@ static void read_homefile_props(wmOperatorType *ot)
       "After loading, remove everything except scenes, windows, and workspaces. This makes it "
       "possible to load the startup file with its scene configuration and window layout intact, "
       "but no objects, materials, animations, ...");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 void WM_OT_read_homefile(wmOperatorType *ot)
@@ -2978,11 +2998,11 @@ void WM_OT_read_homefile(wmOperatorType *ot)
   /* So scripts can use an alternative start-up file without the UI. */
   prop = RNA_def_boolean(
       ot->srna, "load_ui", true, "Load UI", "Load user interface setup from the .blend file");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* So the splash can be kept open after loading a file (for templates). */
   prop = RNA_def_boolean(ot->srna, "use_splash", false, "Splash", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* So scripts can load factory-startup without resetting preferences
    * (which has other implications such as reloading all add-ons).
@@ -2993,7 +3013,7 @@ void WM_OT_read_homefile(wmOperatorType *ot)
                          "Factory Startup",
                          "Load the default ('factory startup') blend file. "
                          "This is independent of the normal start-up file that the user can save");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   read_factory_reset_props(ot);
 
   read_homefile_props(ot);
@@ -3001,7 +3021,9 @@ void WM_OT_read_homefile(wmOperatorType *ot)
   /* Omit poll to run in background mode. */
 }
 
-static int wm_read_factory_settings_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_read_factory_settings_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent * /*event*/)
 {
   const bool unsaved = wm_file_or_session_data_has_unsaved_changes(CTX_data_main(C),
                                                                    CTX_wm_manager(C));
@@ -3057,18 +3079,16 @@ void WM_OT_read_factory_settings(wmOperatorType *ot)
 /**
  * Wrap #WM_file_read, shared by file reading operators.
  */
-static bool wm_file_read_opwrap(bContext *C, const char *filepath, ReportList *reports)
+static bool wm_file_read_opwrap(bContext *C,
+                                const char *filepath,
+                                const bool use_scripts_autoexec_check,
+                                ReportList *reports)
 {
   /* XXX: wm in context is not set correctly after #WM_file_read -> crash. */
   /* Do it before for now, but is this correct with multiple windows? */
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
-  /* Set by the "use_scripts" property on file load. */
-  if ((G.f & G_FLAG_SCRIPT_AUTOEXEC) == 0) {
-    WM_file_autoexec_init(filepath);
-  }
-
-  const bool success = WM_file_read(C, filepath, reports);
+  const bool success = WM_file_read(C, filepath, use_scripts_autoexec_check, reports);
 
   return success;
 }
@@ -3095,10 +3115,12 @@ static void set_next_operator_state(wmOperator *op, int state)
 
 struct OperatorDispatchTarget {
   int state;
-  int (*run)(bContext *C, wmOperator *op);
+  wmOperatorStatus (*run)(bContext *C, wmOperator *op);
 };
 
-static int operator_state_dispatch(bContext *C, wmOperator *op, OperatorDispatchTarget *targets)
+static wmOperatorStatus operator_state_dispatch(bContext *C,
+                                                wmOperator *op,
+                                                OperatorDispatchTarget *targets)
 {
   int state = get_operator_state(op);
   for (int i = 0; targets[i].run; i++) {
@@ -3123,7 +3145,7 @@ enum {
   OPEN_MAINFILE_STATE_OPEN,
 };
 
-static int wm_open_mainfile_dispatch(bContext *C, wmOperator *op);
+static wmOperatorStatus wm_open_mainfile_dispatch(bContext *C, wmOperator *op);
 
 static void wm_open_mainfile_after_dialog_callback(bContext *C, void *user_data)
 {
@@ -3131,7 +3153,7 @@ static void wm_open_mainfile_after_dialog_callback(bContext *C, void *user_data)
       C, "WM_OT_open_mainfile", WM_OP_INVOKE_DEFAULT, (IDProperty *)user_data, nullptr);
 }
 
-static int wm_open_mainfile__discard_changes(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_open_mainfile__discard_changes_exec(bContext *C, wmOperator *op)
 {
   if (RNA_boolean_get(op->ptr, "display_file_selector")) {
     set_next_operator_state(op, OPEN_MAINFILE_STATE_SELECT_FILE_PATH);
@@ -3146,7 +3168,7 @@ static int wm_open_mainfile__discard_changes(bContext *C, wmOperator *op)
   return wm_open_mainfile_dispatch(C, op);
 }
 
-static int wm_open_mainfile__select_file_path(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_open_mainfile__select_file_path_exec(bContext *C, wmOperator *op)
 {
   set_next_operator_state(op, OPEN_MAINFILE_STATE_OPEN);
 
@@ -3169,7 +3191,8 @@ static int wm_open_mainfile__select_file_path(bContext *C, wmOperator *op)
 
   RNA_string_set(op->ptr, "filepath", blendfile_path);
   wm_open_init_load_ui(op, true);
-  wm_open_init_use_scripts(op, true);
+  const bool use_scripts_autoexec_check = wm_open_init_use_scripts(op, true);
+  UNUSED_VARS(use_scripts_autoexec_check); /* The user can set this in the UI. */
   op->customdata = nullptr;
 
   WM_event_add_fileselect(C, op);
@@ -3177,7 +3200,7 @@ static int wm_open_mainfile__select_file_path(bContext *C, wmOperator *op)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int wm_open_mainfile__open(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_open_mainfile__open(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   bool success;
@@ -3190,11 +3213,11 @@ static int wm_open_mainfile__open(bContext *C, wmOperator *op)
 
   /* Re-use last loaded setting so we can reload a file without changing. */
   wm_open_init_load_ui(op, false);
-  wm_open_init_use_scripts(op, false);
+  const bool use_scripts_autoexec_check = wm_open_init_use_scripts(op, false);
 
   SET_FLAG_FROM_TEST(G.fileflags, !RNA_boolean_get(op->ptr, "load_ui"), G_FILE_NO_UI);
   SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
-  success = wm_file_read_opwrap(C, filepath, op->reports);
+  success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, op->reports);
 
   if (success) {
     if (G.fileflags & G_FILE_NO_UI) {
@@ -3207,23 +3230,25 @@ static int wm_open_mainfile__open(bContext *C, wmOperator *op)
 }
 
 static OperatorDispatchTarget wm_open_mainfile_dispatch_targets[] = {
-    {OPEN_MAINFILE_STATE_DISCARD_CHANGES, wm_open_mainfile__discard_changes},
-    {OPEN_MAINFILE_STATE_SELECT_FILE_PATH, wm_open_mainfile__select_file_path},
+    {OPEN_MAINFILE_STATE_DISCARD_CHANGES, wm_open_mainfile__discard_changes_exec},
+    {OPEN_MAINFILE_STATE_SELECT_FILE_PATH, wm_open_mainfile__select_file_path_exec},
     {OPEN_MAINFILE_STATE_OPEN, wm_open_mainfile__open},
     {0, nullptr},
 };
 
-static int wm_open_mainfile_dispatch(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_open_mainfile_dispatch(bContext *C, wmOperator *op)
 {
   return operator_state_dispatch(C, op, wm_open_mainfile_dispatch_targets);
 }
 
-static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_open_mainfile_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   return wm_open_mainfile_dispatch(C, op);
 }
 
-static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_open_mainfile_exec(bContext *C, wmOperator *op)
 {
   return wm_open_mainfile__open(C, op);
 }
@@ -3328,7 +3353,7 @@ static void wm_open_mainfile_def_property_use_scripts(wmOperatorType *ot)
 {
   RNA_def_boolean(ot->srna,
                   "use_scripts",
-                  true,
+                  false,
                   "Trusted Source",
                   "Allow .blend file to execute scripts automatically, default available from "
                   "system preferences");
@@ -3373,7 +3398,9 @@ void WM_OT_open_mainfile(wmOperatorType *ot)
 /** \name Reload (revert) Main .blend File Operator
  * \{ */
 
-static int wm_revert_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_revert_mainfile_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
 {
   std::string message = IFACE_("Any unsaved changes will be lost.");
   if (ED_image_should_save_modified(CTX_data_main(C))) {
@@ -3390,18 +3417,18 @@ static int wm_revert_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent 
                                 false);
 }
 
-static int wm_revert_mainfile_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_revert_mainfile_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   bool success;
   char filepath[FILE_MAX];
 
-  wm_open_init_use_scripts(op, false);
+  const bool use_scripts_autoexec_check = wm_open_init_use_scripts(op, false);
 
   SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
 
   STRNCPY(filepath, BKE_main_blendfile_path(bmain));
-  success = wm_file_read_opwrap(C, filepath, op->reports);
+  success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, op->reports);
 
   if (success) {
     return OPERATOR_FINISHED;
@@ -3434,21 +3461,24 @@ void WM_OT_revert_mainfile(wmOperatorType *ot)
 /** \name Recover Last Session Operator
  * \{ */
 
-bool WM_file_recover_last_session(bContext *C, ReportList *reports)
+bool WM_file_recover_last_session(bContext *C,
+                                  const bool use_scripts_autoexec_check,
+                                  ReportList *reports)
 {
   char filepath[FILE_MAX];
   BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
   G.fileflags |= G_FILE_RECOVER_READ;
-  const bool success = wm_file_read_opwrap(C, filepath, reports);
+  const bool success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, reports);
   G.fileflags &= ~G_FILE_RECOVER_READ;
   return success;
 }
 
-static int wm_recover_last_session_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_recover_last_session_impl(bContext *C,
+                                                     wmOperator *op,
+                                                     const bool use_scripts_autoexec_check)
 {
-  wm_open_init_use_scripts(op, true);
   SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
-  if (WM_file_recover_last_session(C, op->reports)) {
+  if (WM_file_recover_last_session(C, use_scripts_autoexec_check, op->reports)) {
     if (!G.background) {
       wmOperatorType *ot = op->type;
       PointerRNA *props_ptr = MEM_new<PointerRNA>(__func__);
@@ -3461,24 +3491,32 @@ static int wm_recover_last_session_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
+static wmOperatorStatus wm_recover_last_session_exec(bContext *C, wmOperator *op)
+{
+  const bool use_scripts_autoexec_check = wm_open_init_use_scripts(op, true);
+  return wm_recover_last_session_impl(C, op, use_scripts_autoexec_check);
+}
+
 static void wm_recover_last_session_after_dialog_callback(bContext *C, void *user_data)
 {
   WM_operator_name_call_with_properties(
       C, "WM_OT_recover_last_session", WM_OP_EXEC_DEFAULT, (IDProperty *)user_data, nullptr);
 }
 
-static int wm_recover_last_session_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_recover_last_session_invoke(bContext *C,
+                                                       wmOperator *op,
+                                                       const wmEvent * /*event*/)
 {
   /* Keep the current setting instead of using the preferences since a file selector
    * doesn't give us the option to change the setting. */
-  wm_open_init_use_scripts(op, false);
+  const bool use_scripts_autoexec_check = wm_open_init_use_scripts(op, false);
 
   if (wm_operator_close_file_dialog_if_needed(
           C, op, wm_recover_last_session_after_dialog_callback))
   {
     return OPERATOR_INTERFACE;
   }
-  return wm_recover_last_session_exec(C, op);
+  return wm_recover_last_session_impl(C, op, use_scripts_autoexec_check);
 }
 
 void WM_OT_recover_last_session(wmOperatorType *ot)
@@ -3499,7 +3537,7 @@ void WM_OT_recover_last_session(wmOperatorType *ot)
 /** \name Auto-Save Main .blend File Operator
  * \{ */
 
-static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_recover_auto_save_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   bool success;
@@ -3507,12 +3545,12 @@ static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "filepath", filepath);
   BLI_path_canonicalize_native(filepath, sizeof(filepath));
 
-  wm_open_init_use_scripts(op, true);
+  const bool use_scripts_autoexec_check = wm_open_init_use_scripts(op, true);
   SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
 
   G.fileflags |= G_FILE_RECOVER_READ;
 
-  success = wm_file_read_opwrap(C, filepath, op->reports);
+  success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, op->reports);
 
   G.fileflags &= ~G_FILE_RECOVER_READ;
 
@@ -3529,13 +3567,16 @@ static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static int wm_recover_auto_save_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_recover_auto_save_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   char filepath[FILE_MAX];
 
   wm_autosave_location(filepath);
   RNA_string_set(op->ptr, "filepath", filepath);
-  wm_open_init_use_scripts(op, true);
+  const bool use_scripts_autoexec_check = wm_open_init_use_scripts(op, true);
+  UNUSED_VARS(use_scripts_autoexec_check); /* The user can set this in the UI. */
   WM_event_add_fileselect(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -3628,7 +3669,9 @@ static void save_set_filepath(bContext *C, wmOperator *op)
   }
 }
 
-static int wm_save_as_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent * /*event*/)
 {
 
   save_set_compress(op);
@@ -3645,7 +3688,7 @@ static int wm_save_as_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent
 }
 
 /* Function used for #WM_OT_save_mainfile too. */
-static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   char filepath[FILE_MAX];
@@ -3837,9 +3880,11 @@ void WM_OT_save_as_mainfile(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
-  int ret;
+  wmOperatorStatus ret;
 
   /* Cancel if no active window. */
   if (CTX_wm_window(C) == nullptr) {
@@ -3917,7 +3962,7 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
                   "Remap relative paths when saving to a different directory");
 
   prop = RNA_def_boolean(ot->srna, "exit", false, "Exit", "Exit Blender after saving");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(ot->srna,
                          "incremental",
@@ -3925,7 +3970,7 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
                          "Incremental",
                          "Save the current Blender file with a numerically incremented name that "
                          "does not overwrite any existing files");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -3942,13 +3987,15 @@ static const EnumPropertyItem prop_clear_recent_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int wm_clear_recent_files_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_clear_recent_files_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(
       C, op, event, IFACE_("Clear Recent Files List"), IFACE_("Remove"));
 }
 
-static int wm_clear_recent_files_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus wm_clear_recent_files_exec(bContext * /*C*/, wmOperator *op)
 {
   ClearRecentInclude include = static_cast<ClearRecentInclude>(RNA_enum_get(op->ptr, "remove"));
 
@@ -4052,11 +4099,12 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   const char *title = RPT_(
       "For security reasons, automatic execution of Python scripts "
@@ -4398,7 +4446,8 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
   wmGenericCallback *post_action = static_cast<wmGenericCallback *>(arg1);
   Main *bmain = CTX_data_main(C);
 
-  uiBlock *block = UI_block_begin(C, region, save_file_overwrite_dialog_name, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, save_file_overwrite_dialog_name, blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
@@ -4638,7 +4687,8 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
   wmGenericCallback *post_action = (wmGenericCallback *)arg1;
   Main *bmain = CTX_data_main(C);
 
-  uiBlock *block = UI_block_begin(C, region, close_file_dialog_name, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, close_file_dialog_name, blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);

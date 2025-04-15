@@ -41,6 +41,7 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -60,6 +61,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "UI_interface.hh"
@@ -3800,22 +3802,30 @@ static void knifetool_init_obinfo(KnifeTool_OpData *kcd,
                                   int ob_index,
                                   bool use_tri_indices)
 {
-
   Scene *scene_eval = (Scene *)DEG_get_evaluated_id(kcd->vc.depsgraph, &kcd->scene->id);
   Object *obedit_eval = (Object *)DEG_get_evaluated_id(kcd->vc.depsgraph, &ob->id);
-  BMEditMesh *em_eval = BKE_editmesh_from_object(obedit_eval);
-
-  BM_mesh_elem_index_ensure(em_eval->bm, BM_VERT);
+  const Mesh &mesh_orig = *static_cast<const Mesh *>(ob->data);
+  const Mesh &mesh_eval = *static_cast<const Mesh *>(obedit_eval->data);
 
   KnifeObjectInfo *obinfo = &kcd->objects_info[ob_index];
-  obinfo->em = em_eval;
-  obinfo->positions_cage = BKE_editmesh_vert_coords_alloc(
-      kcd->vc.depsgraph, em_eval, scene_eval, obedit_eval);
+
+  if (BKE_editmesh_eval_orig_map_available(mesh_eval, &mesh_orig)) {
+    BMEditMesh &em_eval = *mesh_eval.runtime->edit_mesh;
+    obinfo->em = &em_eval;
+    obinfo->positions_cage = BKE_editmesh_vert_coords_alloc(
+        kcd->vc.depsgraph, &em_eval, scene_eval, obedit_eval);
+  }
+  else {
+    obinfo->em = mesh_orig.runtime->edit_mesh.get();
+    obinfo->positions_cage = BM_mesh_vert_coords_alloc(obinfo->em->bm);
+  }
+
+  BM_mesh_elem_index_ensure(obinfo->em->bm, BM_VERT);
 
   if (use_tri_indices) {
-    obinfo->tri_indices.reinitialize(em_eval->looptris.size());
-    for (int i = 0; i < em_eval->looptris.size(); i++) {
-      const std::array<BMLoop *, 3> &ltri = em_eval->looptris[i];
+    obinfo->tri_indices.reinitialize(obinfo->em->looptris.size());
+    for (int i = 0; i < obinfo->em->looptris.size(); i++) {
+      const std::array<BMLoop *, 3> &ltri = obinfo->em->looptris[i];
       obinfo->tri_indices[i][0] = BM_elem_index_get(ltri[0]->v);
       obinfo->tri_indices[i][1] = BM_elem_index_get(ltri[1]->v);
       obinfo->tri_indices[i][2] = BM_elem_index_get(ltri[2]->v);
@@ -4145,7 +4155,7 @@ static void knifetool_disable_orientation_locking(KnifeTool_OpData *kcd)
   kcd->axis_constrained = false;
 }
 
-static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   KnifeTool_OpData *kcd = static_cast<KnifeTool_OpData *>(op->customdata);
   bool do_refresh = false;
@@ -4288,6 +4298,7 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
         break;
       case KNF_MODAL_CUT_THROUGH_TOGGLE:
         kcd->cut_through = !kcd->cut_through;
+        knife_update_active(kcd, mval);
         do_refresh = true;
         handled = true;
         break;
@@ -4418,6 +4429,9 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
         }
 
         break;
+      default: {
+        break;
+      }
     }
   }
 
@@ -4496,7 +4510,7 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int knifetool_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus knifetool_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const bool only_select = RNA_boolean_get(op->ptr, "only_selected");
   const bool cut_through = !RNA_boolean_get(op->ptr, "use_occlude_geometry");
@@ -4555,9 +4569,10 @@ static int knifetool_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
     copy_v2_v2_int(event_modal.mval, event->mval);
 
-    int ret = knifetool_modal(C, op, &event_modal);
-    BLI_assert(ret == OPERATOR_RUNNING_MODAL);
-    UNUSED_VARS_NDEBUG(ret);
+    wmOperatorStatus retval = knifetool_modal(C, op, &event_modal);
+    OPERATOR_RETVAL_CHECK(retval);
+    BLI_assert(retval == OPERATOR_RUNNING_MODAL);
+    UNUSED_VARS_NDEBUG(retval);
   }
 
   knife_update_header(C, op, kcd);

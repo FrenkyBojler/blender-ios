@@ -37,6 +37,7 @@
 
 #include "BKE_bake_data_block_map.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
@@ -77,6 +78,7 @@
 #include "MOD_nodes.hh"
 #include "MOD_ui_common.hh"
 
+#include "ED_node.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
@@ -152,6 +154,11 @@ static void add_object_relation(
       DEG_add_customdata_mask(ctx->node, &object, &dependency_data_mask);
     }
   }
+  if (object.type == OB_CAMERA) {
+    if (info.camera_parameters) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
+    }
+  }
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -218,7 +225,9 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   }
   if (eval_deps.needs_active_camera) {
     DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
-    /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+  }
+  /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+  if (eval_deps.needs_active_camera || eval_deps.needs_scene_render_params) {
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
   }
 }
@@ -664,18 +673,17 @@ static void find_side_effect_nodes_for_viewer_path(
     return;
   }
 
-  ComputeContextBuilder compute_context_builder;
-  compute_context_builder.push<bke::ModifierComputeContext>(parsed_path->modifier_name);
-
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current = &compute_context_cache.for_modifier(nullptr, nmd);
   for (const ViewerPathElem *elem : parsed_path->node_path) {
-    if (!ed::viewer_path::add_compute_context_for_viewer_path_elem(*elem, compute_context_builder))
-    {
+    current = ed::viewer_path::compute_context_for_viewer_path_elem(
+        *elem, compute_context_cache, current);
+    if (!current) {
       return;
     }
   }
 
-  try_add_side_effect_node(
-      *compute_context_builder.current(), parsed_path->viewer_node_id, nmd, r_side_effect_nodes);
+  try_add_side_effect_node(*current, parsed_path->viewer_node_id, nmd, r_side_effect_nodes);
 }
 
 static void find_side_effect_nodes_for_nested_node(
@@ -683,8 +691,8 @@ static void find_side_effect_nodes_for_nested_node(
     const int root_nested_node_id,
     nodes::GeoNodesSideEffectNodes &r_side_effect_nodes)
 {
-  ComputeContextBuilder compute_context_builder;
-  compute_context_builder.push<bke::ModifierComputeContext>(nmd.modifier.name);
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *compute_context = &compute_context_cache.for_modifier(nullptr, nmd);
 
   int nested_node_id = root_nested_node_id;
   const bNodeTree *tree = nmd.node_group;
@@ -709,13 +717,12 @@ static void find_side_effect_nodes_for_nested_node(
       if (!node->id) {
         return;
       }
-      compute_context_builder.push<bke::GroupNodeComputeContext>(*node, *tree);
+      compute_context = &compute_context_cache.for_group_node(compute_context, *node, *tree);
       tree = reinterpret_cast<const bNodeTree *>(node->id);
       nested_node_id = ref->path.id_in_node;
     }
     else {
-      try_add_side_effect_node(
-          *compute_context_builder.current(), ref->path.node_id, nmd, r_side_effect_nodes);
+      try_add_side_effect_node(*compute_context, ref->path.node_id, nmd, r_side_effect_nodes);
       return;
     }
   }
@@ -755,12 +762,12 @@ static void find_side_effect_nodes_for_active_gizmos(
   Object *object_orig = DEG_get_original_object(ctx.object);
   const NodesModifierData &nmd_orig = *reinterpret_cast<const NodesModifierData *>(
       BKE_modifier_get_original(ctx.object, const_cast<ModifierData *>(&nmd.modifier)));
-  ComputeContextBuilder compute_context_builder;
+  bke::ComputeContextCache compute_context_cache;
   nodes::gizmos::foreach_active_gizmo_in_modifier(
       *object_orig,
       nmd_orig,
       wm,
-      compute_context_builder,
+      compute_context_cache,
       [&](const ComputeContext &compute_context,
           const bNode &gizmo_node,
           const bNodeSocket &gizmo_socket) {
@@ -818,6 +825,7 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
   if (wm == nullptr) {
     return;
   }
+  bke::ComputeContextCache compute_context_cache;
   LISTBASE_FOREACH (const wmWindow *, window, &wm->windows) {
     const bScreen *screen = BKE_workspace_active_screen_get(window->workspace_hook);
     LISTBASE_FOREACH (const ScrArea *, area, &screen->areabase) {
@@ -827,9 +835,12 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
         if (snode.edittree == nullptr || snode.edittree->type != NTREE_GEOMETRY) {
           continue;
         }
+        if (!ed::space_node::node_editor_is_for_geometry_nodes_modifier(snode, *ctx.object, nmd)) {
+          continue;
+        }
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
-            geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(snode,
-                                                                              nmd.modifier.name);
+            geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(
+                snode, compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_socket_log_contexts.add(hash);
         }
@@ -842,7 +853,9 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
  * \note This could be done in #initialize_group_input, though that would require adding the
  * the object as a parameter, so it's likely better to this check as a separate step.
  */
-static void check_property_socket_sync(const Object *ob, ModifierData *md)
+static void check_property_socket_sync(const Object *ob,
+                                       const nodes::PropertiesVectorSet &properties,
+                                       ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
 
@@ -853,18 +866,17 @@ static void check_property_socket_sync(const Object *ob, ModifierData *md)
     const bNodeTreeInterfaceSocket *socket = nmd->node_group->interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
     const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
+    if (type == SOCK_GEOMETRY) {
+      geometry_socket_count++;
+    }
     /* The first socket is the special geometry socket for the modifier object. */
     if (i == 0 && type == SOCK_GEOMETRY) {
-      geometry_socket_count++;
       continue;
     }
 
-    IDProperty *property = IDP_GetPropertyFromGroup(nmd->settings.properties, socket->identifier);
+    IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
     if (property == nullptr) {
-      if (ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX)) {
-        geometry_socket_count++;
-      }
-      else {
+      if (!ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_BUNDLE, SOCK_CLOSURE)) {
         BKE_modifier_set_error(
             ob, md, "Missing property for input socket \"%s\"", socket->name ? socket->name : "");
       }
@@ -1756,8 +1768,11 @@ static void modifyGeometry(ModifierData *md,
   NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(
       BKE_modifier_get_original(ctx->object, &nmd->modifier));
 
+  nodes::PropertiesVectorSet properties = nodes::build_properties_vector_set(
+      nmd->settings.properties);
+
   const bNodeTree &tree = *nmd->node_group;
-  check_property_socket_sync(ctx->object, md);
+  check_property_socket_sync(ctx->object, properties, md);
 
   tree.ensure_topology_cache();
   const bNode *output_node = tree.group_output_node();
@@ -1823,13 +1838,10 @@ static void modifyGeometry(ModifierData *md,
   find_side_effect_nodes(*nmd, *ctx, side_effect_nodes, socket_log_contexts);
   call_data.side_effect_nodes = &side_effect_nodes;
 
-  bke::ModifierComputeContext modifier_compute_context{nullptr, nmd->modifier.name};
+  bke::ModifierComputeContext modifier_compute_context{nullptr, *nmd};
 
-  geometry_set = nodes::execute_geometry_nodes_on_geometry(tree,
-                                                           nmd->settings.properties,
-                                                           modifier_compute_context,
-                                                           call_data,
-                                                           std::move(geometry_set));
+  geometry_set = nodes::execute_geometry_nodes_on_geometry(
+      tree, properties, modifier_compute_context, call_data, std::move(geometry_set));
 
   if (logging_enabled(ctx)) {
     nmd_orig->runtime->eval_log = std::move(eval_log);
@@ -1864,7 +1876,14 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   modifyGeometry(md, ctx, geometry_set);
 
-  Mesh *new_mesh = geometry_set.get_component_for_write<bke::MeshComponent>().release();
+  bke::MeshComponent &mesh_component = geometry_set.get_component_for_write<bke::MeshComponent>();
+  if (mesh_component.get() != mesh) {
+    /* If this is the same as the input mesh, it's not necessary to make a copy of it even if it's
+     * not owned by the geometry set. That's because we know that the caller manages the ownership
+     * of the mesh. */
+    mesh_component.ensure_owns_direct_data();
+  }
+  Mesh *new_mesh = mesh_component.release();
   if (new_mesh == nullptr) {
     return BKE_mesh_new_nomain(0, 0, 0, 0);
   }
@@ -1916,7 +1935,7 @@ static geo_log::GeoTreeLog *get_root_tree_log(const NodesModifierData &nmd)
   if (!nmd.runtime->eval_log) {
     return nullptr;
   }
-  bke::ModifierComputeContext compute_context{nullptr, nmd.modifier.name};
+  bke::ModifierComputeContext compute_context{nullptr, nmd};
   return &nmd.runtime->eval_log->get_tree_log(compute_context.hash());
 }
 
@@ -1999,6 +2018,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 struct DrawGroupInputsContext {
   const bContext &C;
   NodesModifierData &nmd;
+  nodes::PropertiesVectorSet properties;
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
   Array<bool> input_usages;
@@ -2084,8 +2104,8 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   uiLayout *prop_row = nullptr;
 
-  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(
-      *ctx.nmd.settings.properties, socket);
+  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(ctx.properties,
+                                                                                  socket);
   if (type == SOCK_BOOLEAN && !attribute_name) {
     uiItemL(name_row, "", ICON_NONE);
     prop_row = uiLayoutRow(split, true);
@@ -2133,7 +2153,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = IDP_GetPropertyFromGroup(ctx.nmd.settings.properties, identifier);
+  IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
@@ -2309,7 +2329,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
       const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
       if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
         const StringRefNull identifier = toggle_socket->identifier;
-        IDProperty *property = IDP_GetPropertyFromGroup(ctx.nmd.settings.properties, identifier);
+        IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
         /* IDProperties can be removed with python, so there could be a situation where
          * there isn't a property for a socket or it doesn't have the correct type. */
         if (property == nullptr ||
@@ -2502,7 +2522,7 @@ static void draw_warnings(const bContext *C,
   if (!tree_log) {
     return;
   }
-  tree_log->ensure_node_warnings(nmd.node_group);
+  tree_log->ensure_node_warnings(*CTX_data_main(C));
   const int warnings_num = tree_log->all_warnings.size();
   if (warnings_num == 0) {
     return;
@@ -2557,13 +2577,14 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
-  DrawGroupInputsContext ctx{*C, *nmd, ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{
+      *C, *nmd, nodes::build_properties_vector_set(nmd->settings.properties), ptr, &bmain_ptr};
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
     nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-        *nmd->node_group, nmd->settings.properties, ctx.input_usages);
+        *nmd->node_group, ctx.properties, ctx.input_usages);
     draw_interface_panel_content(ctx, layout, nmd->node_group->tree_interface.root_panel);
   }
 
