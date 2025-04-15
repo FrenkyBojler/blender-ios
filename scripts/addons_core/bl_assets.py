@@ -82,20 +82,26 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
 
-        # It may be tempting to call self.report(...) here, and report on the
-        # cancellation. However, this should be done by the caller, when they know
-        # of the reason of the cancellation and thus can provide more info.
-        num_pending = self._bg_downloader.num_pending_downloads
-        if num_pending:
-            logger.info("Cancel: Shutting down background downloader, %d downloads pending", num_pending)
-        else:
-            logger.info("Cancel: Shutting down background downloader")
+        # Only report if this is actually triggering a shutdown. If that was
+        # already triggered somehow, don't bother.
+        if not self._bg_downloader.is_shutdown_requested:
+            # It may be tempting to call self.report(...) here, and report on the
+            # cancellation. However, this should be done by the caller, when they know
+            # of the reason of the cancellation and thus can provide more info.
+            num_pending = self._bg_downloader.num_pending_downloads
+            if num_pending:
+                logger.info("Shutting down background downloader, %d downloads pending", num_pending)
+            else:
+                logger.info("Shutting down background downloader")
 
         with self._context(context):
             self._bg_downloader.shutdown()
 
     def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
         if event.type == 'ESC':
+            if not self._bg_downloader.is_shutdown_requested:
+                self.report({'WARNING'}, "DummyDownloader aborting by user request")
+
             num_pending = self._bg_downloader.num_pending_downloads
             self.cancel(context)
 
@@ -107,7 +113,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
             return {'CANCELLED'}
 
-        if self._bg_downloader.is_shutdown:
+        if self._bg_downloader.is_shutdown_complete:
             logger.info("downloader done")
             self.report({'INFO'}, "DummyDownloader Done")
             self.cancel(context)
@@ -219,6 +225,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
         self.report({'INFO'}, "Download starting: {}".format(http_req_descr.url))
+        logger.info("Download starting: %s", http_req_descr)
 
     def already_downloaded(
         self,
@@ -226,6 +233,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         local_file: Path,
     ) -> None:
         self.report({'INFO'}, "Download unnecessary, file already downloaded: {}".format(http_req_descr.url))
+        logger.info("Download unnecessary, file already downloaded: %s", http_req_descr.url)
 
     def download_error(
         self,
@@ -235,8 +243,10 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         if isinstance(error, DownloadCancelled):
             if self._num_asset_pages_pending:
                 self.report({'WARNING'}, "Cancelled {} pending download".format(self._num_asset_pages_pending))
+            logger.warning("Download cancelled: %s", http_req_descr)
         else:
             self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
+            logger.warning("Error downloading %s: %s", http_req_descr, error)
 
         assert self._operator_context is not None
         self.cancel(self._operator_context)
@@ -249,6 +259,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
     ) -> None:
         percentage = downloaded_bytes / content_length_bytes * 100
         self.report({'INFO'}, "File download progress: {:.0f}%".format(percentage))
+        # logger.info("File download progress: %.0f%%", percentage)
 
     def download_finished(
         self,
@@ -256,6 +267,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         local_file: Path,
     ) -> None:
         self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
+        logger.info("Download finished: %s", http_req_descr)
 
     @contextmanager
     def _context(self, context: bpy.types.Context) -> Generator:

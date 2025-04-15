@@ -493,7 +493,11 @@ class BackgroundDownloader:
         self._thread_bridge.add_reporter(self)
 
         self._queue = queue.Queue()
+
         self._shutdown_event = threading.Event()
+        """Set this to trigger a shutdown."""
+        self._shutdown_complete_event = threading.Event()
+        """Gets set when shutdown is complete."""
 
         # Set up the downloader in a background thread.
         self._downloader = downloader
@@ -545,8 +549,12 @@ class BackgroundDownloader:
         self._downloader_thread.start()
 
     @property
-    def is_shutdown(self) -> bool:
+    def is_shutdown_requested(self) -> bool:
         return self._shutdown_event.is_set()
+
+    @property
+    def is_shutdown_complete(self) -> bool:
+        return self._shutdown_complete_event.is_set()
 
     def shutdown(self) -> None:
         """Cancel any pending downloads and shut down the background thread.
@@ -556,7 +564,7 @@ class BackgroundDownloader:
 
         NOTE: call this from the same thread as used to call .update().
         """
-        if self._shutdown_event.is_set() and not self._downloader_thread.is_alive():
+        if self._shutdown_complete_event.is_set() and not self._downloader_thread.is_alive():
             self._logger.debug("shutdown already completed")
             return
 
@@ -574,6 +582,7 @@ class BackgroundDownloader:
             pass
 
         self._logger.debug("download thread stopped")
+        self._shutdown_complete_event.set()
 
     def update(self) -> None:
         """Call frequently to ensure the download progress is reported.
@@ -606,18 +615,17 @@ class BackgroundDownloader:
                     local_path,
                     http_method=http_req_descr.http_method,)
             except DownloadCancelled:
-                logger.warning("download got cancelled: {}".format(http_req_descr))
+                # Can be logged at a lower level, because the caller did the
+                # cancelling, and can log/report things more loudly if
+                # necessary.
+                logger.debug("download got cancelled: {}".format(http_req_descr))
             except Exception as ex:
                 logger.exception("could not download {}: {}".format(http_req_descr, ex))
 
         self._logger.debug("download thread shutting down")
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
-        """CachingDownloadReporter interface function.
-
-        Keeps track of internal bookkeeping.
-        """
-        self._logger.info(f"Downloading {http_req_descr.http_method} {http_req_descr.url}")
+        """CachingDownloadReporter interface function."""
 
     def already_downloaded(
         self,
@@ -670,7 +678,7 @@ class BackgroundDownloader:
 
         Keeps track of internal bookkeeping.
         """
-        self._logger.info(f"Download finished, stored at {local_file}")
+        self._logger.debug(f"Download finished, stored at %s", local_file)
         self._mark_download_done()
         self.num_downloads_ok += 1
         self._call_on_downloaded_callback(http_req_descr, local_file)
@@ -693,7 +701,7 @@ class BackgroundDownloader:
             # Not having a callback is fine.
             return
 
-        logger.info("download done, calling %s", callback.__name__)
+        logger.debug("download done, calling %s", callback.__name__)
         callback(http_req_descr, local_file)
 
 
