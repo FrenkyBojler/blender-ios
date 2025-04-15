@@ -3881,9 +3881,6 @@ static const char node_input_motion_blur_shutter[] = "Motion Blur Shutter";
 /* Switch node. */
 static const char node_input_switch[] = "Switch";
 
-/* Split node. */
-static const char node_input_factor[] = "Factor";
-
 /* --------------------------------------------------------------------
  * White Balance Node.
  */
