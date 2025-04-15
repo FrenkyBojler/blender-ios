@@ -476,9 +476,7 @@ static uiBut *file_add_overlay_icon_but(uiBlock *block, int pos_x, int pos_y, in
 }
 
 /**
- * Draw the string over at max \a line_count lines, clipping in the middle so it fits. Wraps at
- * individual characters, not just whitespace or newline characters, like
- * #file_draw_string_multiline() would.
+ * Draw the string over at max \a line_count lines, clipping in the middle so it fits.
  * \param sx, sy: The upper left corner of the text bounding box.
  */
 static void file_draw_string_mulitline_clipped(int sx,
