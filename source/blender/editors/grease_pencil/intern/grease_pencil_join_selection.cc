@@ -136,8 +136,8 @@ void reverse_points_of(bke::CurvesGeometry &dst_curves, const IndexRange points_
   auto swap_handle_positions = [&](MutableSpan<float3> handles_left,
                                    MutableSpan<float3> handles_right) {
     threading::parallel_for(handles_left.index_range(), 8192, [&](const IndexRange range) {
-      for (const int point_i : range) {
-        SWAP(float3, handles_left[point_i], handles_right[point_i]);
+      for (const int point : range) {
+        std::swap(handles_left[point], handles_right[point]);
       }
     });
   };
