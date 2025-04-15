@@ -8,9 +8,10 @@
  * \ingroup bke
  */
 
+#include <optional>
+
 #include "BLI_bounds_types.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
@@ -469,6 +470,19 @@ struct BBoneSplineParameters {
   float curve_in_x, curve_in_z, curve_out_x, curve_out_z;
 };
 
+/** Sets the location of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_location_set(bPoseChannel *pchan, const float location[3]);
+/** Sets the location of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_scale_set(bPoseChannel *pchan, const float scale[3]);
+/** Sets the quaternion rotation of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_rotation_quaternion_set(bPoseChannel *pchan, const float quat[4]);
+/** Sets the euler rotation of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_rotation_euler_set(bPoseChannel *pchan, const float rotation_euler[3]);
+/** Sets the axis-angle rotation of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_rotation_axisangle_set(bPoseChannel *pchan,
+                                                const float axis[3],
+                                                float angle);
+
 /**
  * Get "next" and "prev" bones - these are used for handle calculations.
  */
@@ -674,8 +688,7 @@ SelectedBonesResult BKE_armature_find_selected_bones(const bArmature *armature,
 
 using BoneNameSet = blender::Set<std::string>;
 /**
- * Return a set of names of the selected bones. An empty set means "ignore bone
- * selection", which either means all bones are selected, or none are.
+ * Return a set of names of the selected bones.
  */
 BoneNameSet BKE_armature_find_selected_bone_names(const bArmature *armature);
 

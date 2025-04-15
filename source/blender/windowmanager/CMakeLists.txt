@@ -6,15 +6,9 @@ set(INC
   PUBLIC .
   gizmo
   gizmo/intern
-  ../asset_system
   ../compositor
   ../editors/include
-  ../draw
-  ../imbuf/movie
   ../makesrna
-  ../nodes
-  ../render
-  ../sequencer
   ../../../intern/memutil
 
   # RNA_prototypes.hh
@@ -91,6 +85,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::asset_system
   PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
@@ -99,15 +94,19 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   bf_editor_screen
   bf_editor_undo
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
-  bf_sequencer
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::sequencer
   bf_intern_ghost
   bf_compositor
 )

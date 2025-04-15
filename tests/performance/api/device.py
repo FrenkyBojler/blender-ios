@@ -27,6 +27,8 @@ def get_gpu_device(args: None) -> list:
     import bpy
 
     prefs = bpy.context.preferences
+    if 'cycles' not in prefs.addons.keys():
+        return []
     cprefs = prefs.addons['cycles'].preferences
 
     result = []
@@ -38,6 +40,10 @@ def get_gpu_device(args: None) -> list:
         for device in devices:
             if device.type == device_type:
                 result.append({'type': device.type, 'name': device.name, 'index': index})
+                if device.type in {"HIP", "METAL", "ONEAPI"}:
+                    result.append({'type': f"{device.type}-RT", 'name': device.name, 'index': index})
+                if device.type in {"OPTIX"}:
+                    result.append({'type': f"{device.type}-OSL", 'name': device.name, 'index': index})
                 index += 1
 
     return result
@@ -55,7 +61,8 @@ class TestMachine:
     def __init__(self, env, need_gpus: bool):
         operating_system = platform.system()
 
-        self.devices = [TestDevice('CPU', 'CPU', get_cpu_name(), operating_system)]
+        self.devices = [TestDevice('CPU', 'CPU', get_cpu_name(), operating_system),
+                        TestDevice('CPU-OSL', 'CPU-OSL', get_cpu_name(), operating_system)]
         self.has_gpus = need_gpus
 
         if need_gpus and env.blender_executable:

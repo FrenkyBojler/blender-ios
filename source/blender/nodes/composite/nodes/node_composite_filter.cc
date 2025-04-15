@@ -49,10 +49,10 @@ class FilterOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input_image = get_input("Image");
+    const Result &input_image = this->get_input("Image");
     if (input_image.is_single_value()) {
-      Result &output_image = get_result("Image");
-      input_image.pass_through(output_image);
+      Result &output_image = this->get_result("Image");
+      output_image.share_data(input_image);
       return;
     }
 
@@ -247,13 +247,16 @@ void register_node_type_cmp_filter()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_FILTER, "Filter", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeFilter", CMP_NODE_FILTER);
+  ntype.ui_name = "Filter";
+  ntype.ui_description = "Apply common image enhancement filters";
   ntype.enum_name_legacy = "FILTER";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_filter_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_filter;
   ntype.labelfunc = node_filter_label;
   ntype.flag |= NODE_PREVIEW;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

@@ -5,9 +5,8 @@
 set(INC
   ../include
   ../space_sequencer
-  ../../asset_system
   ../../makesrna
-  ../../sequencer
+  ../../nodes
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -67,6 +66,7 @@ set(SRC
   ../include/ED_paint.hh
   ../include/ED_particle.hh
   ../include/ED_physics.hh
+  ../include/ED_pointcloud.hh
   ../include/ED_render.hh
   ../include/ED_scene.hh
   ../include/ED_screen.hh
@@ -104,6 +104,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::asset_system
   PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
@@ -115,6 +116,7 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 

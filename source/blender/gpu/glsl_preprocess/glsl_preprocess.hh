@@ -565,7 +565,7 @@ class Preprocessor {
     /**
      * Example replacement:
      *
-     * `
+     * \code{.cc}
      * // Source
      * shared float bar[10];                                    // Source declaration.
      * shared float foo;                                        // Source declaration.
@@ -598,7 +598,7 @@ class Preprocessor {
      *
      * }                                                        // Added at runtime by backend.
      * // End of Backend Output
-     * `
+     * \endcode
      */
     std::stringstream args, assign, declare, pass;
 
@@ -678,12 +678,12 @@ enum Qualifier : uint64_t {
 };
 
 enum Type : uint64_t {
-  vec1 = Preprocessor::hash("float"),
-  vec2 = Preprocessor::hash("vec2"),
-  vec3 = Preprocessor::hash("vec3"),
-  vec4 = Preprocessor::hash("vec4"),
-  mat3 = Preprocessor::hash("mat3"),
-  mat4 = Preprocessor::hash("mat4"),
+  float1 = Preprocessor::hash("float"),
+  float2 = Preprocessor::hash("float2"),
+  float3 = Preprocessor::hash("float3"),
+  float4 = Preprocessor::hash("float4"),
+  float3x3 = Preprocessor::hash("float3x3"),
+  float4x4 = Preprocessor::hash("float4x4"),
   sampler1DArray = Preprocessor::hash("sampler1DArray"),
   sampler2DArray = Preprocessor::hash("sampler2DArray"),
   sampler2D = Preprocessor::hash("sampler2D"),

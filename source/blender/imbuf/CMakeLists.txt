@@ -8,7 +8,6 @@ set(INC
   PUBLIC .
   ./movie
   ../makesrna
-  ../sequencer
   ../../../intern/memutil
 )
 
@@ -22,12 +21,14 @@ set(SRC
   intern/allocimbuf.cc
   intern/colormanagement.cc
   intern/colormanagement_inline.h
-  intern/divers.cc
+  intern/conversion.cc
   intern/filetype.cc
   intern/filter.cc
   intern/format_bmp.cc
   intern/format_dds.cc
   intern/format_hdr.cc
+  intern/format_iris.cc
+  intern/format_jpeg.cc
   intern/format_png.cc
   intern/format_psd.cc
   intern/format_svg.cc
@@ -35,8 +36,6 @@ set(SRC
   intern/format_tiff.cc
   intern/imageprocess.cc
   intern/interp.cc
-  intern/iris.cc
-  intern/jpeg.cc
   intern/metadata.cc
   intern/module.cc
   intern/moviecache.cc
@@ -82,22 +81,24 @@ set(LIB
   PRIVATE bf::extern::nanosvg
 
   ${JPEG_LIBRARIES}
+  PRIVATE bf::sequencer
 )
 
 if(WITH_IMAGE_OPENEXR)
   list(APPEND LIB
     bf_imbuf_openexr
   )
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 else()
   list(APPEND SRC
     intern/openexr/openexr_stub.cpp
   )
 endif()
 
-# Keep until APPLE/ARM libraries are updated.
-if((APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES arm64) OR
-   (CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64"))
+# OpenImageIO headers include `Imath` headers when there is no SSE support for
+# matrix operations. This depends on the specific architecture and compiler
+# flags, most reliable is to always include the `Imath` headers if we have them.
+if(DEFINED IMATH_INCLUDE_DIRS)
   list(APPEND INC_SYS
     ${IMATH_INCLUDE_DIRS}
   )
@@ -108,13 +109,13 @@ if(WITH_IMAGE_OPENJPEG)
     ${OPENJPEG_INCLUDE_DIRS}
   )
   list(APPEND SRC
-    intern/jp2.cc
+    intern/format_jp2.cc
   )
   list(APPEND LIB
     ${OPENJPEG_LIBRARIES}
   )
 
-  add_definitions(-DWITH_OPENJPEG ${OPENJPEG_DEFINES})
+  add_definitions(-DWITH_IMAGE_OPENJPEG ${OPENJPEG_DEFINES})
 endif()
 
 if(WITH_IMAGE_CINEON)
@@ -124,12 +125,12 @@ if(WITH_IMAGE_CINEON)
   list(APPEND LIB
     bf_imbuf_cineon
   )
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_WEBP)
   list(APPEND SRC
-    intern/webp.cc
+    intern/format_webp.cc
   )
   list(APPEND INC_SYS
     ${WEBP_INCLUDE_DIRS}
@@ -137,7 +138,7 @@ if(WITH_IMAGE_WEBP)
   list(APPEND LIB
     ${WEBP_LIBRARIES}
   )
-  add_definitions(-DWITH_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 list(APPEND INC

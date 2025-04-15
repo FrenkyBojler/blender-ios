@@ -10,13 +10,8 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_material_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
-#include "DNA_workspace_types.h"
-
-#include "BKE_layer.hh"
 
 #include "BLI_math_base.h"
 #include "BLI_string_utf8_symbols.h"
@@ -39,6 +34,9 @@ static const EnumPropertyItem prop_direction_items[] = {
 };
 
 #ifdef RNA_RUNTIME
+
+#  include "DNA_material_types.h"
+
 static const EnumPropertyItem prop_smooth_direction_items[] = {
     {0, "SMOOTH", ICON_ADD, "Smooth", "Smooth the surface"},
     {BRUSH_DIR_IN,
@@ -163,6 +161,7 @@ const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
     {SCULPT_BRUSH_TYPE_FLATTEN, "FLATTEN", 0, "Flatten", ""},
     {SCULPT_BRUSH_TYPE_FILL, "FILL", 0, "Fill", ""},
     {SCULPT_BRUSH_TYPE_SCRAPE, "SCRAPE", 0, "Scrape", ""},
+    {SCULPT_BRUSH_TYPE_PLANE, "PLANE", 0, "Plane", ""},
     {SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE, "MULTIPLANE_SCRAPE", 0, "Multi-plane Scrape", ""},
     {SCULPT_BRUSH_TYPE_PINCH, "PINCH", 0, "Pinch", ""},
     RNA_ENUM_ITEM_SEPR,
@@ -383,69 +382,36 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "MEM_guardedalloc.h"
-
 #  include "RNA_access.hh"
 
 #  include "BKE_brush.hh"
 #  include "BKE_colorband.hh"
+#  include "BKE_context.hh"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_icons.h"
-#  include "BKE_material.h"
+#  include "BKE_layer.hh"
+#  include "BKE_material.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_preview_image.hh"
 
 #  include "WM_api.hh"
 
-static bool rna_BrushCapabilitiesSculpt_has_accumulate_get(PointerRNA *ptr)
+static bool rna_TextureCapabilities_has_random_texture_angle_get(PointerRNA *ptr)
 {
-  Brush *br = (Brush *)ptr->data;
-  return SCULPT_BRUSH_TYPE_HAS_ACCUMULATE(br->sculpt_brush_type);
+  MTex *mtex = (MTex *)ptr->data;
+  return ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_AREA, MTEX_MAP_MODE_RANDOM);
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_topology_rake_get(PointerRNA *ptr)
+static bool rna_TextureCapabilities_has_texture_angle_get(PointerRNA *ptr)
 {
-  Brush *br = (Brush *)ptr->data;
-  return SCULPT_BRUSH_TYPE_HAS_TOPOLOGY_RAKE(br->sculpt_brush_type);
+  MTex *mtex = (MTex *)ptr->data;
+  return mtex->brush_map_mode != MTEX_MAP_MODE_3D;
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_get(PointerRNA *ptr)
+static bool rna_TextureCapabilities_has_texture_angle_source_get(PointerRNA *ptr)
 {
-  Brush *br = (Brush *)ptr->data;
-  return !ELEM(br->sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_MASK,
-               SCULPT_BRUSH_TYPE_SMOOTH,
-               SCULPT_BRUSH_TYPE_PAINT,
-               SCULPT_BRUSH_TYPE_SMEAR);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return br->sculpt_brush_type == SCULPT_BRUSH_TYPE_LAYER;
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_jitter_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return (!(br->flag & BRUSH_ANCHORED) && !(br->flag & BRUSH_DRAG_DOT) &&
-          !ELEM(br->sculpt_brush_type,
-                SCULPT_BRUSH_TYPE_GRAB,
-                SCULPT_BRUSH_TYPE_ROTATE,
-                SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-                SCULPT_BRUSH_TYPE_THUMB));
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_normal_weight_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return SCULPT_BRUSH_TYPE_HAS_NORMAL_WEIGHT(br->sculpt_brush_type);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_rake_factor_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return SCULPT_BRUSH_TYPE_HAS_RAKE(br->sculpt_brush_type);
+  MTex *mtex = (MTex *)ptr->data;
+  return ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_AREA, MTEX_MAP_MODE_RANDOM);
 }
 
 static bool rna_BrushCapabilities_has_overlay_get(PointerRNA *ptr)
@@ -455,87 +421,10 @@ static bool rna_BrushCapabilities_has_overlay_get(PointerRNA *ptr)
       br->mtex.brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL);
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_persistence_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_LAYER, SCULPT_BRUSH_TYPE_CLOTH);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_pinch_factor_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return ELEM(br->sculpt_brush_type,
-              SCULPT_BRUSH_TYPE_BLOB,
-              SCULPT_BRUSH_TYPE_CREASE,
-              SCULPT_BRUSH_TYPE_SNAKE_HOOK);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_plane_offset_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return ELEM(br->sculpt_brush_type,
-              SCULPT_BRUSH_TYPE_CLAY,
-              SCULPT_BRUSH_TYPE_CLAY_STRIPS,
-              SCULPT_BRUSH_TYPE_CLAY_THUMB,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_SCRAPE);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_random_texture_angle_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return !ELEM(br->sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-               SCULPT_BRUSH_TYPE_THUMB);
-}
-
-static bool rna_TextureCapabilities_has_random_texture_angle_get(PointerRNA *ptr)
-{
-  MTex *mtex = (MTex *)ptr->data;
-  return ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_AREA, MTEX_MAP_MODE_RANDOM);
-}
-
 static bool rna_BrushCapabilities_has_random_texture_angle_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
   return !(br->flag & BRUSH_ANCHORED);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_sculpt_plane_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return !ELEM(br->sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_INFLATE,
-               SCULPT_BRUSH_TYPE_MASK,
-               SCULPT_BRUSH_TYPE_PINCH,
-               SCULPT_BRUSH_TYPE_SMOOTH);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_color_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_PAINT);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_secondary_color_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return BKE_brush_sculpt_has_secondary_color(br);
-}
-
-static bool rna_BrushCapabilitiesSculpt_has_smooth_stroke_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return (!(br->flag & BRUSH_ANCHORED) && !(br->flag & BRUSH_DRAG_DOT) &&
-          !(br->flag & BRUSH_LINE) && !(br->flag & BRUSH_CURVE) &&
-          !ELEM(br->sculpt_brush_type,
-                SCULPT_BRUSH_TYPE_GRAB,
-                SCULPT_BRUSH_TYPE_ROTATE,
-                SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-                SCULPT_BRUSH_TYPE_THUMB));
 }
 
 static bool rna_BrushCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
@@ -545,104 +434,142 @@ static bool rna_BrushCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
           !(br->flag & BRUSH_LINE) && !(br->flag & BRUSH_CURVE));
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_space_attenuation_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return ((br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE)) &&
-          !ELEM(br->sculpt_brush_type,
-                SCULPT_BRUSH_TYPE_GRAB,
-                SCULPT_BRUSH_TYPE_ROTATE,
-                SCULPT_BRUSH_TYPE_SMOOTH,
-                SCULPT_BRUSH_TYPE_SNAKE_HOOK));
-}
-
-static bool rna_BrushCapabilitiesImagePaint_has_space_attenuation_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return (br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE)) &&
-         br->image_brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL;
-}
-
-static bool rna_BrushCapabilitiesImagePaint_has_color_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return ELEM(br->image_brush_type, IMAGE_PAINT_BRUSH_TYPE_DRAW, IMAGE_PAINT_BRUSH_TYPE_FILL);
-}
-
-static bool rna_BrushCapabilitiesVertexPaint_has_color_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return ELEM(br->vertex_brush_type, VPAINT_BRUSH_TYPE_DRAW);
-}
-
-static bool rna_BrushCapabilitiesWeightPaint_has_weight_get(PointerRNA *ptr)
-{
-  Brush *br = (Brush *)ptr->data;
-  return ELEM(br->weight_brush_type, WPAINT_BRUSH_TYPE_DRAW);
-}
-
 static bool rna_BrushCapabilities_has_spacing_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
   return (!(br->flag & BRUSH_ANCHORED));
 }
 
-static bool rna_BrushCapabilitiesSculpt_has_strength_pressure_get(PointerRNA *ptr)
+static bool rna_BrushCapabilitiesSculpt_has_accumulate_get(PointerRNA *ptr)
 {
-  Brush *br = (Brush *)ptr->data;
-  return !ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_SNAKE_HOOK);
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_accumulate(*br);
 }
 
-static bool rna_TextureCapabilities_has_texture_angle_get(PointerRNA *ptr)
+static bool rna_BrushCapabilitiesSculpt_has_topology_rake_get(PointerRNA *ptr)
 {
-  MTex *mtex = (MTex *)ptr->data;
-  return mtex->brush_map_mode != MTEX_MAP_MODE_3D;
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_topology_rake(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_auto_smooth(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_height(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_plane_height(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_plane_depth_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_plane_depth(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_jitter_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_jitter(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_normal_weight_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_normal_weight(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_rake_factor_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_rake_factor(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_persistence_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_persistence(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_pinch_factor_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_pinch_factor(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_plane_offset_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_plane_offset(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_random_texture_angle_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_random_texture_angle(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_sculpt_plane_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_sculpt_plane(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_color_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_color(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_secondary_color_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_secondary_cursor_color(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_smooth_stroke_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_smooth_stroke(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_space_attenuation_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_space_attenuation(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_strength_pressure_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_strength_pressure(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_direction_get(PointerRNA *ptr)
 {
-  Brush *br = (Brush *)ptr->data;
-  return !ELEM(br->sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_DRAW,
-               SCULPT_BRUSH_TYPE_DRAW_SHARP,
-               SCULPT_BRUSH_TYPE_CLAY,
-               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
-               SCULPT_BRUSH_TYPE_SMOOTH,
-               SCULPT_BRUSH_TYPE_LAYER,
-               SCULPT_BRUSH_TYPE_INFLATE,
-               SCULPT_BRUSH_TYPE_BLOB,
-               SCULPT_BRUSH_TYPE_CREASE,
-               SCULPT_BRUSH_TYPE_FLATTEN,
-               SCULPT_BRUSH_TYPE_FILL,
-               SCULPT_BRUSH_TYPE_SCRAPE,
-               SCULPT_BRUSH_TYPE_CLAY,
-               SCULPT_BRUSH_TYPE_PINCH,
-               SCULPT_BRUSH_TYPE_MASK);
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_inverted_direction(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_gravity_get(PointerRNA *ptr)
 {
-  Brush *br = (Brush *)ptr->data;
-  return !ELEM(br->sculpt_brush_type, SCULPT_BRUSH_TYPE_MASK, SCULPT_BRUSH_TYPE_SMOOTH);
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_gravity(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_tilt_get(PointerRNA *ptr)
 {
-  Brush *br = (Brush *)ptr->data;
-  return ELEM(br->sculpt_brush_type,
-              SCULPT_BRUSH_TYPE_DRAW,
-              SCULPT_BRUSH_TYPE_DRAW_SHARP,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
-              SCULPT_BRUSH_TYPE_CLAY_STRIPS,
-              SCULPT_BRUSH_TYPE_CLAY_THUMB);
-}
-
-static bool rna_TextureCapabilities_has_texture_angle_source_get(PointerRNA *ptr)
-{
-  MTex *mtex = (MTex *)ptr->data;
-  return ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_AREA, MTEX_MAP_MODE_RANDOM);
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_tilt(*br);
 }
 
 static bool rna_BrushCapabilitiesImagePaint_has_accumulate_get(PointerRNA *ptr)
@@ -670,34 +597,59 @@ static bool rna_BrushCapabilitiesImagePaint_has_radius_get(PointerRNA *ptr)
   return (br->image_brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL);
 }
 
+static bool rna_BrushCapabilitiesImagePaint_has_space_attenuation_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return (br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE)) &&
+         br->image_brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL;
+}
+
+static bool rna_BrushCapabilitiesImagePaint_has_color_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return ELEM(br->image_brush_type, IMAGE_PAINT_BRUSH_TYPE_DRAW, IMAGE_PAINT_BRUSH_TYPE_FILL);
+}
+
+static bool rna_BrushCapabilitiesVertexPaint_has_color_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return ELEM(br->vertex_brush_type, VPAINT_BRUSH_TYPE_DRAW);
+}
+
+static bool rna_BrushCapabilitiesWeightPaint_has_weight_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return ELEM(br->weight_brush_type, WPAINT_BRUSH_TYPE_DRAW);
+}
+
 static PointerRNA rna_Sculpt_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return rna_pointer_inherit_refine(ptr, &RNA_BrushCapabilitiesSculpt, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesSculpt, ptr->data);
 }
 
 static PointerRNA rna_Imapaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return rna_pointer_inherit_refine(ptr, &RNA_BrushCapabilitiesImagePaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesImagePaint, ptr->data);
 }
 
 static PointerRNA rna_Vertexpaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return rna_pointer_inherit_refine(ptr, &RNA_BrushCapabilitiesVertexPaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesVertexPaint, ptr->data);
 }
 
 static PointerRNA rna_Weightpaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return rna_pointer_inherit_refine(ptr, &RNA_BrushCapabilitiesWeightPaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesWeightPaint, ptr->data);
 }
 
 static PointerRNA rna_Brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return rna_pointer_inherit_refine(ptr, &RNA_BrushCapabilities, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilities, ptr->data);
 }
 
 static void rna_Brush_reset_icon(Brush *br)
@@ -787,12 +739,6 @@ static void rna_Brush_icon_update(Main * /*bmain*/, Scene * /*scene*/, PointerRN
   }
 
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, br);
-}
-
-static bool rna_Brush_imagetype_poll(PointerRNA * /*ptr*/, PointerRNA value)
-{
-  Image *image = (Image *)value.owner_id;
-  return image->type != IMA_TYPE_R_RESULT && image->type != IMA_TYPE_COMPOSITE;
 }
 
 static void rna_TextureSlot_brush_angle_update(bContext *C, PointerRNA *ptr)
@@ -911,6 +857,7 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
         case SCULPT_BRUSH_TYPE_LAYER:
         case SCULPT_BRUSH_TYPE_CLAY:
         case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
+        case SCULPT_BRUSH_TYPE_PLANE:
           return prop_direction_items;
         case SCULPT_BRUSH_TYPE_SMOOTH:
           return prop_smooth_direction_items;
@@ -964,7 +911,6 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
           return rna_enum_dummy_DEFAULT_items;
       }
     case PaintMode::SculptGPencil:
-    case PaintMode::SculptGreasePencil:
       switch (me->gpencil_sculpt_brush_type) {
         case GPSCULPT_BRUSH_TYPE_THICKNESS:
         case GPSCULPT_BRUSH_TYPE_STRENGTH:
@@ -1080,7 +1026,6 @@ static bool rna_GPencilBrush_pin_mode_get(PointerRNA *ptr)
 static void rna_GPencilBrush_pin_mode_set(PointerRNA * /*ptr*/, bool /*value*/)
 {
   /* All data is set in update. Keep this function only to avoid RNA compilation errors. */
-  return;
 }
 
 static void rna_GPencilBrush_pin_mode_update(bContext *C, PointerRNA *ptr)
@@ -1231,6 +1176,8 @@ static void rna_def_brush_texture_slot(BlenderRNA *brna)
   TEXTURE_CAPABILITY(has_texture_angle_source, "Has Texture Angle Source");
   TEXTURE_CAPABILITY(has_random_texture_angle, "Has Random Texture Angle");
   TEXTURE_CAPABILITY(has_texture_angle, "Has Texture Angle Source");
+
+#  undef TEXTURE_CAPABILITY
 }
 
 static void rna_def_sculpt_capabilities(BlenderRNA *brna)
@@ -1257,6 +1204,8 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
   SCULPT_BRUSH_CAPABILITY(has_auto_smooth, "Has Auto Smooth");
   SCULPT_BRUSH_CAPABILITY(has_topology_rake, "Has Topology Rake");
   SCULPT_BRUSH_CAPABILITY(has_height, "Has Height");
+  SCULPT_BRUSH_CAPABILITY(has_plane_depth, "Has Plane Depth");
+  SCULPT_BRUSH_CAPABILITY(has_plane_height, "Has Plane Height");
   SCULPT_BRUSH_CAPABILITY(has_jitter, "Has Jitter");
   SCULPT_BRUSH_CAPABILITY(has_normal_weight, "Has Crease/Pinch Factor");
   SCULPT_BRUSH_CAPABILITY(has_rake_factor, "Has Rake Factor");
@@ -1405,6 +1354,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 3);
   RNA_def_property_ui_text(
       prop, "Strength", "Color strength for new strokes (affect alpha factor of color)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 
@@ -1725,6 +1675,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_extend_modes_items);
   RNA_def_property_ui_text(
       prop, "Closure Mode", "Types of stroke extensions used for closing gaps");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
@@ -1899,6 +1850,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "fill_direction");
   RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_direction_items);
   RNA_def_property_ui_text(prop, "Direction", "Direction of the fill");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
@@ -2395,6 +2347,20 @@ static void rna_def_brush(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem brush_plane_inversion_mode_items[] = {
+      {BRUSH_PLANE_INVERT_DISPLACEMENT,
+       "INVERT_DISPLACEMENT",
+       0,
+       "Invert Displacement",
+       "Displace the vertices away from the plane."},
+      {BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH,
+       "SWAP_DEPTH_AND_HEIGHT",
+       0,
+       "Swap Height and Depth",
+       "Swap the roles of Height and Depth."},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem brush_cloth_deform_type_items[] = {
       {BRUSH_CLOTH_DEFORM_DRAG, "DRAG", 0, "Drag", ""},
       {BRUSH_CLOTH_DEFORM_PUSH, "PUSH", 0, "Push", ""},
@@ -2623,6 +2589,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, sculpt_stroke_method_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Brush_stroke_itemf");
   RNA_def_property_ui_text(prop, "Stroke Method", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, 0, "rna_Brush_stroke_update");
 
   prop = RNA_def_property(srna, "sculpt_plane", PROP_ENUM, PROP_NONE);
@@ -2639,7 +2606,8 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "curve_preset", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_brush_curve_preset_items);
   RNA_def_property_ui_text(prop, "Curve Preset", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVES); /* Abusing id_curves :/ */
+  RNA_def_property_translation_context(prop,
+                                       BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "deform_target", PROP_ENUM, PROP_NONE);
@@ -2659,9 +2627,15 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Deformation", "Deformation type that is used in the brush");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+  prop = RNA_def_property(srna, "plane_inversion_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, brush_plane_inversion_mode_items);
+  RNA_def_property_ui_text(prop, "Inversion Mode", "Inversion Mode");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
   prop = RNA_def_property(srna, "cloth_deform_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_cloth_deform_type_items);
   RNA_def_property_ui_text(prop, "Deformation", "Deformation type that is used in the brush");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "cloth_force_falloff_type", PROP_ENUM, PROP_NONE);
@@ -2692,11 +2666,13 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "smear_deform_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_smear_deform_type_items);
   RNA_def_property_ui_text(prop, "Deformation", "Deformation type that is used in the brush");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "slide_deform_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_slide_deform_type_items);
   RNA_def_property_ui_text(prop, "Deformation", "Deformation type that is used in the brush");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "boundary_deform_type", PROP_ENUM, PROP_NONE);
@@ -2998,6 +2974,45 @@ static void rna_def_brush(BlenderRNA *brna)
       "Affectable height of brush (i.e. the layer height for the layer tool)");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+  prop = RNA_def_property(srna, "plane_depth", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "plane_depth");
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_range(prop, 0, 1.0f);
+  RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Depth",
+                           "The maximum distance below the plane for affected vertices. "
+                           "Increasing the depth affects vertices farther below the plane.");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "plane_height", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "plane_height");
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_range(prop, 0, 1.0f);
+  RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Height",
+                           "The maximum distance above the plane for affected vertices. "
+                           "Increasing the height affects vertices farther above the plane.");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "stabilize_normal", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "stabilize_normal");
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_range(prop, 0, 1.0f);
+  RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
+  RNA_def_property_ui_text(
+      prop, "Stabilize Normal", "Stabilize the orientation of the brush plane.");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "stabilize_plane", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "stabilize_plane");
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_range(prop, 0, 1.0f);
+  RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
+  RNA_def_property_ui_text(prop, "Stabilize Plane", "Stabilize the center of the brush plane.");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
   prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, nullptr, "texture_sample_bias");
   RNA_def_property_float_default(prop, 0);
@@ -3203,10 +3218,12 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "tilt_strength_factor", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "tilt_strength_factor");
   RNA_def_property_float_default(prop, 0);
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 3);
-  RNA_def_property_ui_text(
-      prop, "Tilt Strength", "How much the tilt of the pen will affect the brush");
+  RNA_def_property_range(prop, -1.0f, 1.0f);
+  RNA_def_property_ui_range(prop, -1.0f, 1.0f, 0.001, 3);
+  RNA_def_property_ui_text(prop,
+                           "Tilt Strength",
+                           "How much the tilt of the pen will affect the brush. Negative values "
+                           "indicate inverting the tilt directions.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "normal_radius_factor", PROP_FLOAT, PROP_FACTOR);
@@ -3579,6 +3596,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_SPACE);
   RNA_def_property_ui_text(
       prop, "Space", "Limit brush application to the distance specified by spacing");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "use_line", PROP_BOOLEAN, PROP_NONE);
@@ -3821,29 +3839,10 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Brush_icon_update");
 
   prop = RNA_def_property(srna, "icon_filepath", PROP_STRING, PROP_FILEPATH);
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_string_sdna(prop, nullptr, "icon_filepath");
   RNA_def_property_ui_text(prop, "Brush Icon Filepath", "File path to brush icon");
   RNA_def_property_update(prop, 0, "rna_Brush_icon_update");
-
-  /* clone brush */
-  prop = RNA_def_property(srna, "clone_image", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "clone.image");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Clone Image", "Image for clone brushes");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Brush_update");
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Brush_imagetype_poll");
-
-  prop = RNA_def_property(srna, "clone_alpha", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "clone.alpha");
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_text(prop, "Clone Alpha", "Opacity of clone image display");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "clone_offset", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, nullptr, "clone.offset");
-  RNA_def_property_ui_text(prop, "Clone Offset", "");
-  RNA_def_property_ui_range(prop, -1.0f, 1.0f, 10.0f, 3);
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "brush_capabilities", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -3938,12 +3937,12 @@ static void rna_def_operator_stroke_element(BlenderRNA *brna)
   prop = RNA_def_property(srna, "x_tilt", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   RNA_def_property_range(prop, -1.0f, 1.0f);
-  RNA_def_property_ui_text(prop, "Tilt X", "");
+  RNA_def_property_ui_text(prop, "Tilt X", "Pen tilt from left (-1.0) to right (+1.0)");
 
   prop = RNA_def_property(srna, "y_tilt", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   RNA_def_property_range(prop, -1.0f, 1.0f);
-  RNA_def_property_ui_text(prop, "Tilt Y", "");
+  RNA_def_property_ui_text(prop, "Tilt Y", "Pen tilt from forward (-1.0) to back (+1.0)");
 
   /* used in uv painting */
   prop = RNA_def_property(srna, "time", PROP_FLOAT, PROP_UNSIGNED);

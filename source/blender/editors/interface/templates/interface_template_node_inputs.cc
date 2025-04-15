@@ -56,7 +56,7 @@ static void draw_node_input(bContext *C,
   if (socket.typeinfo->draw == nullptr) {
     return;
   }
-  if (ELEM(socket.type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_SHADER)) {
+  if (ELEM(socket.type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_SHADER, SOCK_BUNDLE, SOCK_CLOSURE)) {
     return;
   }
   const bNode &node = *static_cast<bNode *>(node_ptr->data);
@@ -67,10 +67,33 @@ static void draw_node_input(bContext *C,
     return;
   }
 
-  PointerRNA socket_ptr = RNA_pointer_create(node_ptr->owner_id, &RNA_NodeSocket, &socket);
-  const StringRefNull text(IFACE_(bke::nodeSocketLabel(&socket).c_str()));
+  PointerRNA socket_ptr = RNA_pointer_create_discrete(
+      node_ptr->owner_id, &RNA_NodeSocket, &socket);
+  const StringRefNull text(IFACE_(bke::node_socket_label(socket).c_str()));
   uiLayout *row = uiLayoutRow(layout, true);
   socket.typeinfo->draw(C, row, &socket_ptr, node_ptr, text);
+}
+
+static bool panel_has_input_affecting_node_output(
+    const bNode &node, const blender::nodes::PanelDeclaration &panel_decl)
+{
+  for (const blender::nodes::ItemDeclaration *item_decl : panel_decl.items) {
+    if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
+      if (socket_decl->in_out == SOCK_OUT) {
+        continue;
+      }
+      const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
+      if (socket.affects_node_output()) {
+        return true;
+      }
+    }
+    else if (const auto *sub_panel_decl = dynamic_cast<const PanelDeclaration *>(item_decl)) {
+      if (panel_has_input_affecting_node_output(node, *sub_panel_decl)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 static void draw_node_inputs_recursive(bContext *C,
@@ -81,8 +104,10 @@ static void draw_node_inputs_recursive(bContext *C,
 {
   /* TODO: Use flag on the panel state instead which is better for dynamic panel amounts. */
   const std::string panel_idname = "NodePanel" + std::to_string(panel_decl.identifier);
-  PanelLayout panel = uiLayoutPanel(C, layout, panel_idname.c_str(), panel_decl.default_collapsed);
-  uiItemL(panel.header, IFACE_(panel_decl.name.c_str()), ICON_NONE);
+  PanelLayout panel = uiLayoutPanel(C, layout, panel_idname, panel_decl.default_collapsed);
+  const bool has_used_inputs = panel_has_input_affecting_node_output(node, panel_decl);
+  uiLayoutSetActive(panel.header, has_used_inputs);
+  uiItemL(panel.header, IFACE_(panel_decl.name), ICON_NONE);
   if (!panel.body) {
     return;
   }

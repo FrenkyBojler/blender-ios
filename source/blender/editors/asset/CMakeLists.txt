@@ -5,7 +5,6 @@
 set(INC
   .
   ../include
-  ../../asset_system
   ../../makesrna
   # dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
@@ -23,6 +22,7 @@ set(SRC
   intern/asset_import.cc
   intern/asset_indexer.cc
   intern/asset_library_reference_enum.cc
+  intern/asset_library_utils.cc
   intern/asset_list.cc
   intern/asset_mark_clear.cc
   intern/asset_menu_utils.cc
@@ -53,6 +53,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::asset_system
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blenloader

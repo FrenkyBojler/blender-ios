@@ -7,13 +7,14 @@
  */
 
 #include <cmath>
-#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -29,10 +30,10 @@
 #include "BKE_tracking.h"
 
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 #include "ED_clip.hh"
@@ -213,11 +214,7 @@ static bool annotation_draw_poll(bContext *C)
   if (ED_operator_regionactive(C)) {
     /* check if current context can support GPencil data */
     if (ED_annotation_data_get_pointers(C, nullptr) != nullptr) {
-      /* check if Grease Pencil isn't already running */
-      if (ED_gpencil_session_active() == 0) {
-        return true;
-      }
-      CTX_wm_operator_poll_msg_set(C, "Annotation operator is already active");
+      return true;
     }
     else {
       CTX_wm_operator_poll_msg_set(C, "Failed to find Annotation data to draw into");
@@ -661,7 +658,7 @@ static short annotation_stroke_addpoint(tGPsdata *p,
           }
         }
 
-        view3d_region_operator_needs_opengl(p->win, p->region);
+        view3d_region_operator_needs_gpu(p->region);
         ED_view3d_depth_override(p->depsgraph, p->region, v3d, nullptr, mode, false, nullptr);
       }
 
@@ -1072,7 +1069,7 @@ static void annotation_free_stroke(bGPDframe *gpf, bGPDstroke *gps)
 
   if (gps->dvert) {
     BKE_gpencil_free_stroke_weights(gps);
-    MEM_freeN(gps->dvert);
+    MEM_freeN(static_cast<void *>(gps->dvert));
   }
 
   if (gps->triangles) {
@@ -1221,7 +1218,7 @@ static void annotation_stroke_doeraser(tGPsdata *p)
   if (p->area->spacetype == SPACE_VIEW3D) {
     if (p->flags & GP_PAINTFLAG_V3D_ERASER_DEPTH) {
       View3D *v3d = static_cast<View3D *>(p->area->spacedata.first);
-      view3d_region_operator_needs_opengl(p->win, p->region);
+      view3d_region_operator_needs_gpu(p->region);
       ED_view3d_depth_override(
           p->depsgraph, p->region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &p->depths);
     }
@@ -1409,13 +1406,6 @@ static bool annotation_session_initdata(bContext *C, tGPsdata *p)
   }
   p->gpd = *gpd_ptr;
 
-  if (ED_gpencil_session_active() == 0) {
-    /* initialize undo stack,
-     * also, existing undo stack would make buffer drawn
-     */
-    gpencil_undo_init(p->gpd);
-  }
-
   /* clear out buffer (stored in gp-data), in case something contaminated it */
   annotation_session_validatebuffer(p);
 
@@ -1463,7 +1453,7 @@ static tGPsdata *annotation_session_initpaint(bContext *C)
   tGPsdata *p = nullptr;
 
   /* create new context data */
-  p = static_cast<tGPsdata *>(MEM_callocN(sizeof(tGPsdata), "Annotation Drawing Data"));
+  p = MEM_new<tGPsdata>("Annotation Drawing Data");
 
   /* Try to initialize context data
    * WARNING: This may not always succeed (e.g. using GP in an annotation-only context)
@@ -1473,7 +1463,7 @@ static tGPsdata *annotation_session_initpaint(bContext *C)
      * NOTE: It should be safe to just free the data, since failing context checks should
      * only happen when no data has been allocated.
      */
-    MEM_freeN(p);
+    MEM_delete(p);
     return nullptr;
   }
 
@@ -1518,7 +1508,7 @@ static void annotation_session_free(tGPsdata *p)
   if (p->depths) {
     ED_view3d_depths_free(p->depths);
   }
-  MEM_freeN(p);
+  MEM_delete(p);
 }
 
 /* init new stroke */
@@ -1691,7 +1681,7 @@ static void annotation_paint_strokeend(tGPsdata *p)
       }
     }
     /* need to restore the original projection settings before packing up */
-    view3d_region_operator_needs_opengl(p->win, p->region);
+    view3d_region_operator_needs_gpu(p->region);
     ED_view3d_depth_override(
         p->depsgraph, p->region, v3d, nullptr, mode, false, is_eraser ? nullptr : &p->depths);
   }
@@ -1729,7 +1719,8 @@ static void annotation_paint_cleanup(tGPsdata *p)
 /* ------------------------------- */
 
 /* Helper callback for drawing the cursor itself */
-static void annotation_draw_eraser(bContext * /*C*/, int x, int y, void *p_ptr)
+static void annotation_draw_eraser(
+    bContext * /*C*/, int x, int y, float /*x_tilt*/, float /*y_tilt*/, void *p_ptr)
 {
   tGPsdata *p = (tGPsdata *)p_ptr;
 
@@ -1789,7 +1780,8 @@ static void annotation_draw_toggle_eraser_cursor(tGPsdata *p, short enable)
                                                p);
   }
 }
-static void annotation_draw_stabilizer(bContext *C, int x, int y, void *p_ptr)
+static void annotation_draw_stabilizer(
+    bContext *C, int x, int y, float /*x_tilt*/, float /*y_tilt*/, void *p_ptr)
 {
   ARegion *region = CTX_wm_region(C);
   tGPsdata *p = (tGPsdata *)p_ptr;
@@ -1883,9 +1875,6 @@ static void annotation_draw_exit(bContext *C, wmOperator *op)
      */
     U.gp_eraser = p->radius;
 
-    /* clear undo stack */
-    gpencil_undo_finish();
-
     /* cleanup */
     annotation_paint_cleanup(p);
     annotation_session_cleanup(p);
@@ -1951,62 +1940,39 @@ static void annotation_draw_cursor_set(tGPsdata *p)
 /* update UI indicators of status, including cursor and header prints */
 static void annotation_draw_status_indicators(bContext *C, tGPsdata *p)
 {
+  WorkspaceStatus status(C);
+
   /* header prints */
   switch (p->status) {
     case GP_STATUS_PAINTING:
       switch (p->paintmode) {
         case GP_PAINTMODE_DRAW_POLY:
-          /* Provide usage tips, since this is modal, and unintuitive without hints */
-          ED_workspace_status_text(
-              C,
-              IFACE_("Annotation Create Poly: LMB click to place next stroke vertex | "
-                     "ESC/Enter to end  (or click outside this area)"));
+          status.item(IFACE_("End"), ICON_EVENT_ESC);
+          status.item(IFACE_("Place Next Stroke Vertex"), ICON_MOUSE_LMB);
           break;
-        default:
-          /* Do nothing - the others are self explanatory, exit quickly once the mouse is
-           * released Showing any text would just be annoying as it would flicker.
-           */
+        case GP_PAINTMODE_ERASER:
+          status.item(IFACE_("End"), ICON_EVENT_ESC);
+          status.item(IFACE_("Erase"), ICON_MOUSE_LMB);
+          break;
+        case GP_PAINTMODE_DRAW_STRAIGHT:
+          status.item(IFACE_("End"), ICON_EVENT_ESC);
+          status.item(IFACE_("Draw"), ICON_MOUSE_LMB);
+          break;
+        case GP_PAINTMODE_DRAW:
+          status.item(IFACE_("End"), ICON_EVENT_ESC);
+          status.item(IFACE_("Draw"), ICON_MOUSE_LMB);
+          break;
+
+        default: /* unhandled future cases */
+          status.item(IFACE_("End"), ICON_EVENT_ESC);
           break;
       }
       break;
 
     case GP_STATUS_IDLING:
-      /* print status info */
-      switch (p->paintmode) {
-        case GP_PAINTMODE_ERASER:
-          ED_workspace_status_text(C,
-                                   IFACE_("Annotation Eraser: Hold and drag LMB or RMB to erase | "
-                                          "ESC/Enter to end  (or click outside this area)"));
-          break;
-        case GP_PAINTMODE_DRAW_STRAIGHT:
-          ED_workspace_status_text(C,
-                                   IFACE_("Annotation Line Draw: Hold and drag LMB to draw | "
-                                          "ESC/Enter to end  (or click outside this area)"));
-          break;
-        case GP_PAINTMODE_DRAW:
-          ED_workspace_status_text(C,
-                                   IFACE_("Annotation Freehand Draw: Hold and drag LMB to draw | "
-                                          "E/ESC/Enter to end  (or click outside this area)"));
-          break;
-        case GP_PAINTMODE_DRAW_POLY:
-          ED_workspace_status_text(
-              C,
-              IFACE_("Annotation Create Poly: LMB click to place next stroke vertex | "
-                     "ESC/Enter to end  (or click outside this area)"));
-          break;
-
-        default: /* unhandled future cases */
-          ED_workspace_status_text(
-              C, IFACE_("Annotation Session: ESC/Enter to end   (or click outside this area)"));
-          break;
-      }
-      break;
-
     case GP_STATUS_ERROR:
     case GP_STATUS_DONE:
     case GP_STATUS_CAPTURE:
-      /* clear status string */
-      ED_workspace_status_text(C, nullptr);
       break;
   }
 }
@@ -2221,7 +2187,7 @@ static void annotation_draw_apply_event(
 /* ------------------------------- */
 
 /* operator 'redo' (i.e. after changing some properties, but also for repeat last) */
-static int annotation_draw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
 {
   tGPsdata *p = nullptr;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -2288,7 +2254,7 @@ static int annotation_draw_exec(bContext *C, wmOperator *op)
 /* ------------------------------- */
 
 /* start of interactive drawing part of operator */
-static int annotation_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGPsdata *p = nullptr;
 
@@ -2408,8 +2374,6 @@ static void annotation_stroke_end(wmOperator *op)
 
   annotation_paint_cleanup(p);
 
-  gpencil_undo_push(p->gpd);
-
   annotation_session_cleanup(p);
 
   p->status = GP_STATUS_IDLING;
@@ -2457,11 +2421,11 @@ static void annotation_add_missing_events(bContext *C,
 }
 
 /* events handling during interactive drawing part of operator */
-static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
   /* Default exit state - pass through to support MMB view navigation, etc. */
-  int estate = OPERATOR_PASS_THROUGH;
+  wmOperatorStatus estate = OPERATOR_PASS_THROUGH;
 
 /* NOTE(mike erwin): Not quite what I was looking for, but a good start!
  * grease-pencil continues to draw on the screen while the 3D mouse moves the viewpoint.
@@ -2705,6 +2669,9 @@ static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *eve
             p->radius = 1;
           }
           break;
+        default: {
+          break;
+        }
       }
 
       /* force refresh */
@@ -2746,8 +2713,10 @@ static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *eve
       annotation_draw_exit(C, op);
       break;
 
-    case OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH:
-      /* event doesn't need to be handled */
+      /* Event doesn't need to be handled. */
+      /* `OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH` */
+    default:
+      /* Quiet warnings. */
       break;
   }
 

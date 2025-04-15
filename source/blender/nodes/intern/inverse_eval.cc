@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "NOD_inverse_eval_params.hh"
 #include "NOD_inverse_eval_path.hh"
 #include "NOD_inverse_eval_run.hh"
 #include "NOD_node_in_compute_context.hh"
@@ -12,18 +13,17 @@
 
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
-#include "BKE_idprop.hh"
+#include "BKE_library.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_type_conversions.hh"
 
 #include "BLI_map.hh"
 #include "BLI_math_euler.hh"
-#include "BLI_math_matrix.hh"
 #include "BLI_set.hh"
-#include "BLI_stack.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -131,13 +131,13 @@ LocalInverseEvalTargets find_local_inverse_eval_targets(const bNodeTree &tree,
 
   tree.ensure_topology_cache();
 
-  ResourceScope scope;
+  bke::ComputeContextCache compute_context_cache;
   Map<SocketInContext, ElemVariant> elem_by_socket;
   elem_by_socket.add({nullptr, initial_socket_elem.socket}, initial_socket_elem.elem);
 
   const partial_eval::UpstreamEvalTargets upstream_eval_targets = partial_eval::eval_upstream(
       {{nullptr, initial_socket_elem.socket}},
-      scope,
+      compute_context_cache,
       /* Evaluate node. */
       [&](const NodeInContext &ctx_node, Vector<const bNodeSocket *> &r_modified_inputs) {
         evaluate_node_elem_upstream(ctx_node, r_modified_inputs, elem_by_socket);
@@ -282,7 +282,7 @@ void foreach_element_on_inverse_eval_path(
   if (!initial_socket_elem.elem) {
     return;
   }
-  ResourceScope scope;
+  bke::ComputeContextCache compute_context_cache;
   Map<SocketInContext, ElemVariant> upstream_elem_by_socket;
   upstream_elem_by_socket.add({&initial_context, initial_socket_elem.socket},
                               initial_socket_elem.elem);
@@ -290,7 +290,7 @@ void foreach_element_on_inverse_eval_path(
   /* In a first pass, propagate upstream to find the upstream targets. */
   const partial_eval::UpstreamEvalTargets upstream_eval_targets = partial_eval::eval_upstream(
       {{&initial_context, initial_socket_elem.socket}},
-      scope,
+      compute_context_cache,
       /* Evaluate node. */
       [&](const NodeInContext &ctx_node, Vector<const bNodeSocket *> &r_modified_inputs) {
         evaluate_node_elem_upstream(ctx_node, r_modified_inputs, upstream_elem_by_socket);
@@ -329,7 +329,7 @@ void foreach_element_on_inverse_eval_path(
 
   partial_eval::eval_downstream(
       initial_downstream_evaluation_sockets,
-      scope,
+      compute_context_cache,
       /* Evaluate node. */
       [&](const NodeInContext &ctx_node, Vector<const bNodeSocket *> &r_outputs_to_propagate) {
         evaluate_node_elem_downstream_filtered(
@@ -505,7 +505,7 @@ static bool set_socket_value(bContext &C,
 static bool set_value_node_value(bContext &C, bNode &node, const SocketValueVariant &value_variant)
 {
   bNodeTree &tree = node.owner_tree();
-  switch (node.type) {
+  switch (node.type_legacy) {
     case SH_NODE_VALUE: {
       const float value = value_variant.get<float>();
       const std::string rna_path = fmt::format("nodes[\"{}\"].outputs[0].default_value",
@@ -690,7 +690,7 @@ bool backpropagate_socket_values(bContext &C,
 {
   nmd.node_group->ensure_topology_cache();
 
-  ResourceScope scope;
+  bke::ComputeContextCache compute_context_cache;
   Map<SocketInContext, SocketValueVariant> value_by_socket;
 
   Vector<SocketInContext> initial_sockets;
@@ -726,7 +726,7 @@ bool backpropagate_socket_values(bContext &C,
   /* Actually backpropagate the socket values as far as possible in the node tree. */
   const partial_eval::UpstreamEvalTargets upstream_eval_targets = partial_eval::eval_upstream(
       initial_sockets,
-      scope,
+      compute_context_cache,
       /* Evaluate node. */
       [&](const NodeInContext &ctx_node, Vector<const bNodeSocket *> &r_modified_inputs) {
         backpropagate_socket_values_through_node(
@@ -773,7 +773,7 @@ bool backpropagate_socket_values(bContext &C,
     }
   }
   /* Set new values for modifier inputs. */
-  const bke::ModifierComputeContext modifier_context{nullptr, nmd.modifier.name};
+  const bke::ModifierComputeContext modifier_context{nullptr, nmd};
   for (const bNode *group_input_node : nmd.node_group->group_input_nodes()) {
     for (const bNodeSocket *socket : group_input_node->output_sockets().drop_back(1)) {
       if (const SocketValueVariant *value = value_by_socket.lookup_ptr(

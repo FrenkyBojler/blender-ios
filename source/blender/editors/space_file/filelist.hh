@@ -8,6 +8,11 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
+#include "DNA_space_types.h"
+
 struct AssetLibraryReference;
 struct bContext;
 struct BlendHandle;
@@ -25,7 +30,7 @@ class AssetRepresentation;
 
 struct FileDirEntry;
 
-typedef uint32_t FileUID;
+using FileUID = uint32_t;
 
 enum FileSelType {
   FILE_SEL_REMOVE = 0,
@@ -82,7 +87,6 @@ bool filelist_file_is_preview_pending(const FileList *filelist, const FileDirEnt
  * \return True if a new preview request was pushed, false otherwise (e.g. because the preview is
  * already loaded, invalid or not supported).
  */
-bool filelist_file_ensure_preview_requested(FileList *filelist, FileDirEntry *file);
 ImBuf *filelist_get_preview_image(FileList *filelist, int index);
 ImBuf *filelist_file_get_preview_image(const FileDirEntry *file);
 ImBuf *filelist_geticon_special_file_image_ex(const FileDirEntry *file);
@@ -172,11 +176,10 @@ void filelist_file_cache_slidingwindow_set(FileList *filelist, size_t window_siz
  */
 bool filelist_file_cache_block(FileList *filelist, int index);
 
-void filelist_set_no_preview_auto_cache(FileList *filelist);
-
 bool filelist_needs_force_reset(const FileList *filelist);
 void filelist_tag_force_reset(FileList *filelist);
 void filelist_tag_force_reset_mainfiles(FileList *filelist);
+void filelist_tag_reload_asset_library(FileList *filelist);
 bool filelist_pending(const FileList *filelist);
 bool filelist_needs_reset_on_main_changes(const FileList *filelist);
 bool filelist_is_ready(const FileList *filelist);
@@ -228,13 +231,15 @@ void filelist_freelib(FileList *filelist);
  */
 int filelist_files_num_entries(FileList *filelist);
 
+/** Forcibly run the job as a blocking task on the main thread. */
+void filelist_readjob_blocking_run(FileList *filelist, int space_notifier, const bContext *C);
+
+/** May run the job in either the main thread or asynchronously. */
 void filelist_readjob_start(FileList *filelist, int space_notifier, const bContext *C);
 void filelist_readjob_stop(FileList *filelist, wmWindowManager *wm);
 int filelist_readjob_running(FileList *filelist, wmWindowManager *wm);
 
-void filelist_cache_previews_ensure_running(FileList *filelist);
 bool filelist_cache_previews_update(FileList *filelist);
-bool filelist_cache_previews_enabled(const FileList *filelist);
 void filelist_cache_previews_set(FileList *filelist, bool use_previews);
 bool filelist_cache_previews_running(FileList *filelist);
 bool filelist_cache_previews_done(FileList *filelist);

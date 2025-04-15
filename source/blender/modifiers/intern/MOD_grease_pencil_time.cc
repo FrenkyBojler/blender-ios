@@ -11,7 +11,6 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_vector_set.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
@@ -41,8 +40,6 @@
 
 #include "MOD_grease_pencil_util.hh"
 #include "MOD_ui_common.hh"
-
-#include <iostream>
 
 namespace blender {
 
@@ -134,7 +131,7 @@ struct FrameRange {
  * and after the interval. The extra keys are needed when frames are held at the beginning or when
  * reversing the direction.
  */
-static const IndexRange find_key_range(const Span<int> sorted_keys, const FrameRange &frame_range)
+static IndexRange find_key_range(const Span<int> sorted_keys, const FrameRange &frame_range)
 {
   IndexRange result = sorted_keys.index_range();
   for (const int i : result.index_range()) {
@@ -583,9 +580,10 @@ static void panel_draw(const bContext *C, Panel *panel)
                        "DOWN");
 
     if (tmd->segments().index_range().contains(tmd->segment_active_index)) {
-      PointerRNA segment_ptr = RNA_pointer_create(ptr->owner_id,
-                                                  &RNA_GreasePencilTimeModifierSegment,
-                                                  &tmd->segments()[tmd->segment_active_index]);
+      PointerRNA segment_ptr = RNA_pointer_create_discrete(
+          ptr->owner_id,
+          &RNA_GreasePencilTimeModifierSegment,
+          &tmd->segments()[tmd->segment_active_index]);
 
       sub = uiLayoutColumn(layout, true);
       uiItemR(sub, &segment_ptr, "segment_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -640,8 +638,7 @@ static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_GreasePencilTime, panel_draw);
 
-  uiListType *list_type = static_cast<uiListType *>(
-      MEM_callocN(sizeof(uiListType), "Grease Pencil Time modifier segments"));
+  uiListType *list_type = MEM_callocN<uiListType>("Grease Pencil Time modifier segments");
   STRNCPY(list_type->idname, "MOD_UL_grease_pencil_time_modifier_segments");
   list_type->draw_item = segment_list_item_draw;
   WM_uilisttype_add(list_type);

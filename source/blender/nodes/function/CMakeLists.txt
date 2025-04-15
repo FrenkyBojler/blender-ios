@@ -24,6 +24,7 @@ set(SRC
   nodes/node_fn_combine_transform.cc
   nodes/node_fn_compare.cc
   nodes/node_fn_euler_to_rotation.cc
+  nodes/node_fn_find_in_string.cc
   nodes/node_fn_float_to_int.cc
   nodes/node_fn_hash_value.cc
   nodes/node_fn_input_bool.cc
@@ -36,6 +37,7 @@ set(SRC
   nodes/node_fn_integer_math.cc
   nodes/node_fn_invert_matrix.cc
   nodes/node_fn_invert_rotation.cc
+  nodes/node_fn_match_string.cc
   nodes/node_fn_matrix_determinant.cc
   nodes/node_fn_matrix_multiply.cc
   nodes/node_fn_project_point.cc
@@ -57,7 +59,6 @@ set(SRC
   nodes/node_fn_transform_point.cc
   nodes/node_fn_transpose_matrix.cc
   nodes/node_fn_value_to_string.cc
-  nodes/node_fn_find_in_string.cc
 
   node_function_util.cc
 
@@ -70,6 +71,7 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::dna
   PRIVATE bf::functions
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
 )

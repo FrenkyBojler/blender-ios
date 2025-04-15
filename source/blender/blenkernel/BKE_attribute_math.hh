@@ -2,13 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "BLI_array.hh"
 #include "BLI_color.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_span.hh"
-#include "BLI_generic_virtual_array.hh"
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_color.hh"
 #include "BLI_math_quaternion.hh"
@@ -17,6 +20,10 @@
 #include "BLI_offset_indices.hh"
 
 #include "BKE_attribute.hh"
+
+namespace blender {
+class GVArray;
+}
 
 namespace blender::bke::attribute_math {
 
@@ -699,6 +706,11 @@ void gather_to_groups(OffsetIndices<int> dst_offsets,
                       const IndexMask &src_selection,
                       GSpan src,
                       GMutableSpan dst);
+
+void gather_ranges_to_groups(Span<IndexRange> src_ranges,
+                             OffsetIndices<int> dst_offsets,
+                             GSpan src,
+                             GMutableSpan dst);
 
 /** \} */
 

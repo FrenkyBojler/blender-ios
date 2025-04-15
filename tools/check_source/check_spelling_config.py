@@ -4,6 +4,15 @@
 
 # these must be all lower case for comparisons
 
+__all__ = (
+    "dict_custom",
+    "dict_ignore",
+    "dict_ignore_hyphenated_prefix",
+    "dict_ignore_hyphenated_suffix",
+    "directories_ignore",
+    "files_ignore",
+)
+
 dict_custom = {
     # Added to newer versions of the dictionary,
     # we can remove these when the updated word-lists have been applied to `aspell-en`.
@@ -39,6 +48,7 @@ dict_custom = {
     "adjugate",
     "affectable",
     "alignable",
+    "bakeable",
     "bindable",
     "branchless",
     "allocatable",
@@ -321,6 +331,7 @@ dict_custom = {
     "recursing",
     "recursivity",
     "redefinitions",
+    "rederive",
     "redisplay",
     "redistributions",
     "registerable",

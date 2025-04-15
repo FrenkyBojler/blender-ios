@@ -26,8 +26,6 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "MOD_ui_common.hh"
 
 #include "RE_texture.h"
@@ -77,7 +75,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -226,11 +224,11 @@ struct DisplaceGridOp {
 
     /* Run the operator. This is multi-threaded. It is important that the operator is not shared
      * between the threads, because it contains a non-thread-safe accessor for the old grid. */
-    openvdb::tools::foreach (temp_grid->beginValueOn(),
-                             displace_op,
-                             true,
-                             /* Disable sharing of the operator. */
-                             false);
+    openvdb::tools::foreach(temp_grid->beginValueOn(),
+                            displace_op,
+                            true,
+                            /* Disable sharing of the operator. */
+                            false);
 
     /* It is likely that we produced too many active cells. Those are removed here, to avoid
      * slowing down subsequent operations. */

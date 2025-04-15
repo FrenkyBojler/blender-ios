@@ -6,8 +6,6 @@ set(INC
   ../include
   ../../ikplugin
   ../../makesrna
-  ../../render
-  ../../sequencer
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -39,6 +37,7 @@ set(SRC
   transform_convert_object_texspace.cc
   transform_convert_paintcurve.cc
   transform_convert_particle.cc
+  transform_convert_pointcloud.cc
   transform_convert_sculpt.cc
   transform_convert_sequencer.cc
   transform_convert_sequencer_image.cc
@@ -119,6 +118,9 @@ set(LIB
   bf_editor_mask
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 

@@ -25,7 +25,7 @@
 
 namespace blender::io::usd {
 
-void USDXformReader::create_object(Main *bmain, const double /*motionSampleTime*/)
+void USDXformReader::create_object(Main *bmain)
 {
   object_ = BKE_object_add_only_object(bmain, OB_EMPTY, name_.c_str());
   object_->empty_drawsize = 0.1f;
@@ -37,17 +37,16 @@ void USDXformReader::read_object_data(Main * /*bmain*/, const double motionSampl
   bool is_constant;
   float transform_from_usd[4][4];
 
-  read_matrix(transform_from_usd, motionSampleTime, import_params_.scale, &is_constant);
+  read_matrix(transform_from_usd, motionSampleTime, settings_->scene_scale, &is_constant);
 
   if (!is_constant && settings_->get_cache_file) {
     bConstraint *con = BKE_constraint_add_for_object(
         object_, nullptr, CONSTRAINT_TYPE_TRANSFORM_CACHE);
     bTransformCacheConstraint *data = static_cast<bTransformCacheConstraint *>(con->data);
 
-    std::string prim_path = use_parent_xform_ ? prim_.GetParent().GetPath().GetAsString() :
-                                                prim_path_;
+    pxr::SdfPath prim_path = use_parent_xform_ ? prim_.GetParent().GetPath() : prim_path_;
 
-    STRNCPY(data->object_path, prim_path.c_str());
+    STRNCPY(data->object_path, prim_path.GetAsString().c_str());
 
     data->cache_file = settings_->get_cache_file();
     id_us_plus(&data->cache_file->id);
@@ -59,9 +58,9 @@ void USDXformReader::read_object_data(Main * /*bmain*/, const double motionSampl
   set_props(use_parent_xform(), motionSampleTime);
 }
 
-std::string USDXformReader::object_prim_path() const
+pxr::SdfPath USDXformReader::object_prim_path() const
 {
-  return get_xformable().GetPrim().GetPath().GetAsString();
+  return get_xformable().GetPrim().GetPath();
 }
 
 void USDXformReader::read_matrix(float r_mat[4][4] /* local matrix */,
@@ -102,7 +101,7 @@ void USDXformReader::read_matrix(float r_mat[4][4] /* local matrix */,
 
 bool USDXformReader::prim_has_xform_ops() const
 {
-  pxr::UsdGeomXformable xformable(prim_);
+  const pxr::UsdGeomXformable xformable(prim_);
 
   if (!xformable) {
     /* This might happen if the prim is a Scope. */
@@ -155,7 +154,7 @@ bool USDXformReader::is_root_xform_prim() const
 
 std::optional<XformResult> USDXformReader::get_local_usd_xform(const float time) const
 {
-  pxr::UsdGeomXformable xformable = get_xformable();
+  const pxr::UsdGeomXformable xformable = get_xformable();
 
   if (!xformable) {
     /* This might happen if the prim is a Scope. */

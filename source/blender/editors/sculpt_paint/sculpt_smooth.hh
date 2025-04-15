@@ -9,7 +9,6 @@
 #pragma once
 
 #include "BLI_generic_span.hh"
-#include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
 
@@ -44,10 +43,20 @@ void neighbor_position_average_interior_grids(OffsetIndices<int> faces,
                                               BitSpan boundary_verts,
                                               const SubdivCCG &subdiv_ccg,
                                               Span<int> grids,
+                                              Span<float> factors,
+                                              MutableSpan<float3> new_positions);
+void neighbor_position_average_interior_grids(OffsetIndices<int> faces,
+                                              Span<int> corner_verts,
+                                              BitSpan boundary_verts,
+                                              const SubdivCCG &subdiv_ccg,
+                                              Span<int> grids,
                                               MutableSpan<float3> new_positions);
 
 void neighbor_position_average_bmesh(const Set<BMVert *, 0> &verts,
                                      MutableSpan<float3> new_positions);
+void neighbor_position_average_interior_bmesh(const Set<BMVert *, 0> &verts,
+                                              Span<float> factors,
+                                              MutableSpan<float3> new_positions);
 void neighbor_position_average_interior_bmesh(const Set<BMVert *, 0> &verts,
                                               MutableSpan<float3> new_positions);
 

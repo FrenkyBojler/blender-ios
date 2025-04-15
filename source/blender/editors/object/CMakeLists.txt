@@ -4,13 +4,11 @@
 
 set(INC
   ../include
-  ../../asset_system
-  ../../geometry
   ../../ikplugin
   ../../makesrna
   ../../modifiers
+  ../../nodes
   ../../python
-  ../../render
   ../../shader_fx
 
   # RNA_prototypes.hh
@@ -46,6 +44,7 @@ set(SRC
   object_transform.cc
   object_utils.cc
   object_vgroup.cc
+  object_visual_geometry_to_objects.cc
   object_volume.cc
   object_warp.cc
 
@@ -54,6 +53,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::asset_system
   PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
@@ -66,11 +66,12 @@ set(LIB
   bf_editor_grease_pencil
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  bf_render
+  PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
 
@@ -81,7 +82,7 @@ endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
-  add_definitions(-DWITH_POINT_CLOUD)
+  add_definitions(-DWITH_POINTCLOUD)
 endif()
 
 blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

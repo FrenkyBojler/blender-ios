@@ -45,7 +45,7 @@ static void cmp_node_ellipsemask_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_ellipsemask(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeEllipseMask *data = MEM_cnew<NodeEllipseMask>(__func__);
+  NodeEllipseMask *data = MEM_callocN<NodeEllipseMask>(__func__);
   data->x = 0.5;
   data->y = 0.5;
   data->width = 0.2;
@@ -126,6 +126,11 @@ class EllipseMaskOperation : public NodeOperation {
   {
     const Result &input_mask = get_input("Mask");
     Result &output_mask = get_result("Mask");
+    const float2 size = this->get_size();
+    if (math::is_any_zero(size)) {
+      output_mask.share_data(input_mask);
+      return;
+    }
     /* For single value masks, the output will assume the compositing region, so ensure it is valid
      * first. See the compute_domain method. */
     if (input_mask.is_single_value() && !context().is_valid_compositing_region()) {
@@ -301,15 +306,19 @@ void register_node_type_cmp_ellipsemask()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MASK_ELLIPSE, "Ellipse Mask", NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeEllipseMask", CMP_NODE_MASK_ELLIPSE);
+  ntype.ui_name = "Ellipse Mask";
+  ntype.ui_description =
+      "Create elliptical mask suitable for use as a simple matte or vignette mask";
   ntype.enum_name_legacy = "ELLIPSEMASK";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_ellipsemask_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_ellipsemask;
-  blender::bke::node_type_size(&ntype, 260, 110, 320);
+  blender::bke::node_type_size(ntype, 260, 110, 320);
   ntype.initfunc = file_ns::node_composit_init_ellipsemask;
   blender::bke::node_type_storage(
-      &ntype, "NodeEllipseMask", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeEllipseMask", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

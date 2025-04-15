@@ -9,7 +9,6 @@
 
 #include "BLI_assert.h"
 #include "BLI_math_vector.hh"
-#include "BLI_smaa_textures.h"
 
 #include "IMB_colormanagement.hh"
 
@@ -1283,8 +1282,9 @@ static float4 SMAABlendingWeightCalculationPS(float2 texcoord,
 
 #if !defined(SMAA_DISABLE_DIAG_DETECTION)
     }
-    else
+    else {
       e.x = 0.0f; /* Skip vertical processing. */
+    }
 #endif
   }
 
@@ -1377,36 +1377,35 @@ static float4 SMAANeighborhoodBlendingPS(float2 texcoord,
 
     return color;
   }
-  else {
-    bool h = math::max(a.x, a.z) > math::max(a.y, a.w); /* `max(horizontal) > max(vertical)`. */
 
-    /* Calculate the blending offsets: */
-    float4 blendingOffset = float4(0.0f, a.y, 0.0f, a.w);
-    float2 blendingWeight = float2(a.y, a.w);
-    SMAAMovc(float4(h), blendingOffset, float4(a.x, 0.0f, a.z, 0.0f));
-    SMAAMovc(float2(h), blendingWeight, float2(a.x, a.z));
-    blendingWeight /= math::dot(blendingWeight, float2(1.0f, 1.0f));
+  bool h = math::max(a.x, a.z) > math::max(a.y, a.w); /* `max(horizontal) > max(vertical)`. */
 
-    /* Calculate the texture coordinates: */
-    float4 blendingCoord = float4(texcoord, texcoord) + blendingOffset / float4(size, -size);
+  /* Calculate the blending offsets: */
+  float4 blendingOffset = float4(0.0f, a.y, 0.0f, a.w);
+  float2 blendingWeight = float2(a.y, a.w);
+  SMAAMovc(float4(h), blendingOffset, float4(a.x, 0.0f, a.z, 0.0f));
+  SMAAMovc(float2(h), blendingWeight, float2(a.x, a.z));
+  blendingWeight /= math::dot(blendingWeight, float2(1.0f, 1.0f));
 
-    /* We exploit bilinear filtering to mix current pixel with the chosen neighbor: */
-    float4 color = blendingWeight.x * SMAASampleLevelZero(colorTex, blendingCoord.xy());
-    color += blendingWeight.y * SMAASampleLevelZero(colorTex, blendingCoord.zw());
+  /* Calculate the texture coordinates: */
+  float4 blendingCoord = float4(texcoord, texcoord) + blendingOffset / float4(size, -size);
+
+  /* We exploit bilinear filtering to mix current pixel with the chosen neighbor: */
+  float4 color = blendingWeight.x * SMAASampleLevelZero(colorTex, blendingCoord.xy());
+  color += blendingWeight.y * SMAASampleLevelZero(colorTex, blendingCoord.zw());
 
 #if SMAA_REPROJECTION
-    /* Anti-alias velocity for proper reprojection in a later stage: */
-    float2 velocity = blendingWeight.x *
-                      SMAA_DECODE_VELOCITY(SMAASampleLevelZero(velocityTex, blendingCoord.xy()));
-    velocity += blendingWeight.y *
-                SMAA_DECODE_VELOCITY(SMAASampleLevelZero(velocityTex, blendingCoord.zw()));
+  /* Anti-alias velocity for proper reprojection in a later stage: */
+  float2 velocity = blendingWeight.x *
+                    SMAA_DECODE_VELOCITY(SMAASampleLevelZero(velocityTex, blendingCoord.xy()));
+  velocity += blendingWeight.y *
+              SMAA_DECODE_VELOCITY(SMAASampleLevelZero(velocityTex, blendingCoord.zw()));
 
-    /* Pack velocity into the alpha channel: */
-    color.a = math::sqrt(5.0f * math::length(velocity));
+  /* Pack velocity into the alpha channel: */
+  color.a = math::sqrt(5.0f * math::length(velocity));
 #endif
 
-    return color;
-  }
+  return color;
 }
 
 static float3 get_luminance_coefficients(ResultType type)
@@ -1417,17 +1416,9 @@ static float3 get_luminance_coefficients(ResultType type)
       IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
       return luminance_coefficients;
     }
-    case ResultType::Vector:
-      return float3(1.0f, 1.0f, 1.0f);
     case ResultType::Float:
       return float3(1.0f, 0.0f, 0.0f);
-    case ResultType::Float2:
-      return float3(1.0f, 1.0f, 0.0f);
-    case ResultType::Float3:
-      /* GPU module does not support float3 outputs. */
-      break;
-    case ResultType::Int2:
-      /* SMAA does not support integer types. */
+    default:
       break;
   }
 
@@ -1436,7 +1427,7 @@ static float3 get_luminance_coefficients(ResultType type)
 }
 
 static Result detect_edges_gpu(Context &context,
-                               Result &input,
+                               const Result &input,
                                const float threshold,
                                const float local_contrast_adaptation_factor)
 {
@@ -1466,7 +1457,7 @@ static Result detect_edges_gpu(Context &context,
 }
 
 static Result detect_edges_cpu(Context &context,
-                               Result &input,
+                               const Result &input,
                                const float threshold,
                                const float local_contrast_adaptation_factor)
 {
@@ -1495,7 +1486,7 @@ static Result detect_edges_cpu(Context &context,
 }
 
 static Result detect_edges(Context &context,
-                           Result &input,
+                           const Result &input,
                            const float threshold,
                            const float local_contrast_adaptation_factor)
 {
@@ -1507,7 +1498,7 @@ static Result detect_edges(Context &context,
 }
 
 static Result calculate_blending_weights_gpu(Context &context,
-                                             Result &edges,
+                                             const Result &edges,
                                              const int corner_rounding)
 {
   GPUShader *shader = context.get_shader("compositor_smaa_blending_weight_calculation");
@@ -1539,7 +1530,7 @@ static Result calculate_blending_weights_gpu(Context &context,
 }
 
 static Result calculate_blending_weights_cpu(Context &context,
-                                             Result &edges,
+                                             const Result &edges,
                                              const int corner_rounding)
 {
   const SMAAPrecomputedTextures &smaa_precomputed_textures =
@@ -1573,7 +1564,7 @@ static Result calculate_blending_weights_cpu(Context &context,
 }
 
 static Result calculate_blending_weights(Context &context,
-                                         Result &edges,
+                                         const Result &edges,
                                          const int corner_rounding)
 {
   if (context.use_gpu()) {
@@ -1587,17 +1578,10 @@ static const char *get_blend_shader_name(ResultType type)
 {
   switch (type) {
     case ResultType::Color:
-    case ResultType::Vector:
       return "compositor_smaa_neighborhood_blending_float4";
-    case ResultType::Float2:
-      return "compositor_smaa_neighborhood_blending_float2";
     case ResultType::Float:
       return "compositor_smaa_neighborhood_blending_float";
-    case ResultType::Float3:
-      /* GPU module does not support float3 outputs. */
-      break;
-    case ResultType::Int2:
-      /* SMAA does not support integer types. */
+    default:
       break;
   }
 
@@ -1606,8 +1590,8 @@ static const char *get_blend_shader_name(ResultType type)
 }
 
 static void blend_neighborhood_gpu(Context &context,
-                                   Result &input,
-                                   Result &weights,
+                                   const Result &input,
+                                   const Result &weights,
                                    Result &output)
 {
   GPUShader *shader = context.get_shader(get_blend_shader_name(input.type()));
@@ -1630,7 +1614,7 @@ static void blend_neighborhood_gpu(Context &context,
   output.unbind_as_image();
 }
 
-static void blend_neighborhood_cpu(Result &input, Result &weights, Result &output)
+static void blend_neighborhood_cpu(const Result &input, const Result &weights, Result &output)
 {
   output.allocate_texture(input.domain());
 
@@ -1646,7 +1630,10 @@ static void blend_neighborhood_cpu(Result &input, Result &weights, Result &outpu
   });
 }
 
-static void blend_neighborhood(Context &context, Result &input, Result &weights, Result &output)
+static void blend_neighborhood(Context &context,
+                               const Result &input,
+                               const Result &weights,
+                               Result &output)
 {
   if (context.use_gpu()) {
     blend_neighborhood_gpu(context, input, weights, output);
@@ -1656,40 +1643,15 @@ static void blend_neighborhood(Context &context, Result &input, Result &weights,
   }
 }
 
-static void compute_single_value(Result &input, Result &output)
-{
-  output.allocate_single_value();
-  switch (input.type()) {
-    case ResultType::Color:
-      output.set_color_value(input.get_color_value());
-      break;
-    case ResultType::Vector:
-      output.set_vector_value(input.get_vector_value());
-      break;
-    case ResultType::Float2:
-      output.set_float2_value(input.get_float2_value());
-      break;
-    case ResultType::Float:
-      output.set_float_value(input.get_float_value());
-      break;
-    case ResultType::Float3:
-      output.set_float3_value(input.get_float3_value());
-      break;
-    case ResultType::Int2:
-      output.set_int2_value(input.get_int2_value());
-      break;
-  }
-}
-
 void smaa(Context &context,
-          Result &input,
+          const Result &input,
           Result &output,
           const float threshold,
           const float local_contrast_adaptation_factor,
           const int corner_rounding)
 {
   if (input.is_single_value()) {
-    compute_single_value(input, output);
+    output.share_data(input);
     return;
   }
 

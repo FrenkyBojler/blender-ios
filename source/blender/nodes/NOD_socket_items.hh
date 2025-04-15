@@ -78,7 +78,7 @@ template<typename Accessor> inline void copy_array(const bNode &src_node, bNode 
   SocketItemsRef src_ref = Accessor::get_items_from_node(const_cast<bNode &>(src_node));
   SocketItemsRef dst_ref = Accessor::get_items_from_node(dst_node);
   const int items_num = *src_ref.items_num;
-  *dst_ref.items = MEM_cnew_array<ItemT>(items_num, __func__);
+  *dst_ref.items = MEM_calloc_arrayN<ItemT>(items_num, __func__);
   for (const int i : IndexRange(items_num)) {
     Accessor::copy_item((*src_ref.items)[i], (*dst_ref.items)[i]);
   }
@@ -103,23 +103,17 @@ inline void set_item_name_and_make_unique(bNode &node,
   char unique_name[MAX_NAME + 4];
   STRNCPY(unique_name, value);
 
-  struct Args {
-    SocketItemsRef<ItemT> array;
-    ItemT *item;
-  } args = {array, &item};
   BLI_uniquename_cb(
-      [](void *arg, const char *name) {
-        const Args &args = *static_cast<Args *>(arg);
-        for (ItemT &item : blender::MutableSpan(*args.array.items, *args.array.items_num)) {
-          if (&item != args.item) {
-            if (STREQ(*Accessor::get_name(item), name)) {
+      [&](const StringRef name) {
+        for (ItemT &item_iter : blender::MutableSpan(*array.items, *array.items_num)) {
+          if (&item_iter != &item) {
+            if (*Accessor::get_name(item_iter) == name) {
               return true;
             }
           }
         }
         return false;
       },
-      &args,
       default_name.c_str(),
       '.',
       unique_name,
@@ -141,7 +135,7 @@ template<typename Accessor> inline typename Accessor::ItemT &add_item_to_array(b
   const int old_items_num = *array.items_num;
   const int new_items_num = old_items_num + 1;
 
-  ItemT *new_items = MEM_cnew_array<ItemT>(new_items_num, __func__);
+  ItemT *new_items = MEM_calloc_arrayN<ItemT>(new_items_num, __func__);
   std::copy_n(old_items, old_items_num, new_items);
   ItemT &new_item = new_items[old_items_num];
 
@@ -205,9 +199,7 @@ inline std::string get_socket_identifier(const typename Accessor::ItemT &item,
     if (in_out == SOCK_IN) {
       return Accessor::input_socket_identifier_for_item(item);
     }
-    else {
-      return Accessor::output_socket_identifier_for_item(item);
-    }
+    return Accessor::output_socket_identifier_for_item(item);
   }
 }
 
@@ -257,14 +249,13 @@ template<typename Accessor>
   update_node_declaration_and_sockets(ntree, extend_node);
   if (extend_socket.is_input()) {
     const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_IN);
-    bNodeSocket *new_socket = bke::node_find_socket(
-        &extend_node, SOCK_IN, item_identifier.c_str());
+    bNodeSocket *new_socket = bke::node_find_socket(extend_node, SOCK_IN, item_identifier.c_str());
     link.tosock = new_socket;
   }
   else {
     const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_OUT);
     bNodeSocket *new_socket = bke::node_find_socket(
-        &extend_node, SOCK_OUT, item_identifier.c_str());
+        extend_node, SOCK_OUT, item_identifier.c_str());
     link.fromsock = new_socket;
   }
   return true;

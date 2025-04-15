@@ -9,11 +9,12 @@
  */
 
 #include "BLI_index_mask_fwd.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_string_ref.hh"
 
-#include "BKE_mesh.h"
-#include "BKE_mesh_types.hh"
+#include "BKE_mesh.h"         // IWYU pragma: export
+#include "BKE_mesh_types.hh"  // IWYU pragma: export
 
 namespace blender::bke {
 
@@ -192,7 +193,6 @@ void normals_calc_corners(Span<float3> vert_positions,
                           Span<int> corner_verts,
                           Span<int> corner_edges,
                           Span<int> corner_to_face_map,
-                          Span<float3> vert_normals,
                           Span<float3> face_normals,
                           Span<bool> sharp_edges,
                           Span<bool> sharp_faces,
@@ -231,7 +231,7 @@ void normals_corner_custom_set_from_verts(Span<float3> vert_positions,
                                           MutableSpan<short2> r_clnors_data);
 
 /**
- * Define sharp edges as needed to mimic 'autosmooth' from angle threshold.
+ * Define sharp edges as needed to mimic "auto-smooth" from angle threshold.
  *
  * Used when defining an empty custom corner normals data layer,
  * to keep same shading as with auto-smooth!
@@ -247,11 +247,35 @@ void edges_sharp_from_angle_set(OffsetIndices<int> faces,
                                 const float split_angle,
                                 MutableSpan<bool> sharp_edges);
 
+}  // namespace mesh
+
+/**
+ * Higher level functions hiding most of the code needed around call to
+ * #normals_corner_custom_set().
+ *
+ * \param corner_normals: Is mutable because zero vectors are replaced with automatically
+ * computed normals.
+ */
+void mesh_set_custom_normals(Mesh &mesh, MutableSpan<float3> corner_normals);
+void mesh_set_custom_normals_normalized(Mesh &mesh, MutableSpan<float3> corner_normals);
+
+/**
+ * Higher level functions hiding most of the code needed around call to
+ * #normals_corner_custom_set_from_verts().
+ *
+ * \param vert_normals: Is mutable because zero vectors are replaced with automatically
+ * computed normals.
+ */
+void mesh_set_custom_normals_from_verts(Mesh &mesh, MutableSpan<float3> vert_normals);
+void mesh_set_custom_normals_from_verts_normalized(Mesh &mesh, MutableSpan<float3> vert_normals);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Topology Queries
  * \{ */
+
+namespace mesh {
 
 /**
  * Find the index of the previous corner in the face, looping to the end if necessary.
@@ -340,6 +364,10 @@ Mesh *mesh_new_no_attributes(int verts_num, int edges_num, int faces_num, int co
 /** Calculate edges from faces. */
 void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, bool select_new_edges);
 
+void mesh_translate(Mesh &mesh, const float3 &translation, bool do_shape_keys);
+
+void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys);
+
 void mesh_flip_faces(Mesh &mesh, const IndexMask &selection);
 
 void mesh_ensure_required_data_layers(Mesh &mesh);
@@ -386,6 +414,9 @@ void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
                       Object &ob,
                       const CustomData_MeshMasks &dataMask);
+
+/** Remove strings referring to attributes if they no longer exist. */
+void mesh_remove_invalid_attribute_strings(Mesh &mesh);
 
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 

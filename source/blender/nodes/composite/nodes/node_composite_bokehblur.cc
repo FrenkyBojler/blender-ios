@@ -12,8 +12,6 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_texture.hh"
-
 #include "COM_algorithm_parallel_reduction.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -31,7 +29,7 @@ static void cmp_node_bokehblur_declare(NodeDeclarationBuilder &b)
       .compositor_domain_priority(0);
   b.add_input<decl::Color>("Bokeh")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_realization_options(CompositorInputRealizationOptions::None);
+      .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
   b.add_input<decl::Float>("Size")
       .default_value(1.0f)
       .min(0.0f)
@@ -68,8 +66,10 @@ class BokehBlurOperation : public NodeOperation {
 
   void execute() override
   {
-    if (is_identity()) {
-      get_input("Image").pass_through(get_result("Image"));
+    if (this->is_identity()) {
+      const Result &input = this->get_input("Image");
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -359,7 +359,7 @@ class BokehBlurOperation : public NodeOperation {
 
     /* The [0, 10] range of the size is arbitrary and is merely in place to avoid very long
      * computations of the bokeh blur. */
-    const float size = math::clamp(get_input("Size").get_float_value_default(1.0f), 0.0f, 10.0f);
+    const float size = math::clamp(get_input("Size").get_single_value_default(1.0f), 0.0f, 10.0f);
 
     /* The 100 divisor is arbitrary and was chosen using visual judgment. */
     return size * (max_size / 100.0f);
@@ -379,7 +379,7 @@ class BokehBlurOperation : public NodeOperation {
     /* This input is, in fact, a boolean mask. If it is zero, no blurring will take place.
      * Otherwise, the blurring will take place ignoring the value of the input entirely. */
     const Result &bounding_box = get_input("Bounding box");
-    if (bounding_box.is_single_value() && bounding_box.get_float_value() == 0.0) {
+    if (bounding_box.is_single_value() && bounding_box.get_single_value<float>() == 0.0) {
       return true;
     }
 
@@ -415,12 +415,17 @@ void register_node_type_cmp_bokehblur()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_BOKEHBLUR, "Bokeh Blur", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeBokehBlur", CMP_NODE_BOKEHBLUR);
+  ntype.ui_name = "Bokeh Blur";
+  ntype.ui_description =
+      "Generate a bokeh type blur similar to Defocus. Unlike defocus an in-focus region is "
+      "defined in the compositor";
   ntype.enum_name_legacy = "BOKEHBLUR";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_bokehblur_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_bokehblur;
   ntype.initfunc = file_ns::node_composit_init_bokehblur;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

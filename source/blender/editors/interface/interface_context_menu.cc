@@ -12,7 +12,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BLI_fileops.h"
@@ -22,12 +21,12 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_addon.h"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_screen.hh"
 
 #include "ED_asset.hh"
+#include "ED_buttons.hh"
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
 
@@ -183,9 +182,9 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 
   BLI_assert(kmi != nullptr);
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, &RNA_KeyMapItem, kmi);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
   UI_block_func_handle_set(block, but_shortcut_name_func, but);
   UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
   UI_block_direction_set(block, UI_DIR_CENTER_Y);
@@ -244,9 +243,9 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   km = WM_keymap_guess_opname(C, idname);
   kmi = WM_keymap_item_find_id(km, kmi_id);
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, &RNA_KeyMapItem, kmi);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
   UI_block_func_handle_set(block, but_shortcut_name_func, but);
   UI_block_direction_set(block, UI_DIR_CENTER_Y);
 
@@ -419,7 +418,7 @@ static void ui_but_user_menu_add(bContext *C, uiBut *but, bUserMenu *um)
           }
         }
 #else
-        STRNCPY(drawstr, idname);
+        drawstr = idname;
 #endif
       }
       else if (but->tip_label_func) {
@@ -1379,6 +1378,11 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
                   ICON_NONE,
                   ED_screens_region_flip_menu_create,
                   nullptr);
+      const ScrArea *area = CTX_wm_area(C);
+      if (area && area->spacetype == SPACE_PROPERTIES) {
+        uiItemMenuF(
+            layout, IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
+      }
     }
     else if (region->regiontype == RGN_TYPE_FOOTER) {
       uiItemMenuF(
@@ -1433,7 +1437,7 @@ void ui_popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
     return;
   }
 
-  PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_Panel, panel);
+  PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Panel, panel);
 
   uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Panel"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
@@ -1446,7 +1450,7 @@ void ui_popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
     /* evil, force shortcut flag */
     {
       uiBlock *block = uiLayoutGetBlock(layout);
-      uiBut *but = static_cast<uiBut *>(block->buttons.last);
+      uiBut *but = block->buttons.last().get();
       but->flag |= UI_BUT_HAS_SEP_CHAR;
     }
   }

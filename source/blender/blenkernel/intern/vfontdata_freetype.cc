@@ -6,7 +6,7 @@
 /** \file
  * \ingroup bke
  *
- * This code parses the Freetype font outline data to chains of Blender's bezier-triples.
+ * This code parses the FreeType font outline data to chains of Blender's bezier-triples.
  * Additional information can be found at the bottom of this file.
  *
  * Code that uses exotic character maps is present but commented out.
@@ -46,7 +46,7 @@ VFontData *BKE_vfontdata_from_freetypefont(PackedFile *pf)
   }
 
   /* allocate blender font */
-  VFontData *vfd = static_cast<VFontData *>(MEM_callocN(sizeof(*vfd), "FTVFontData"));
+  VFontData *vfd = MEM_callocN<VFontData>("FTVFontData");
 
   /* Get the font name. */
   char *name = BLF_display_name_from_id(fontid);
@@ -117,7 +117,7 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
     return nullptr;
   }
 
-  VChar *che = (VChar *)MEM_callocN(sizeof(VChar), "objfnt_char");
+  VChar *che = MEM_callocN<VChar>("objfnt_char");
 
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);

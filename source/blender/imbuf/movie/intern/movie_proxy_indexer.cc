@@ -34,10 +34,11 @@ extern "C" {
 #  include "ffmpeg_compat.h"
 #  include <libavutil/imgutils.h>
 }
+
+static const char temp_ext[] = "_part";
 #endif
 
 static const char binary_header_str[] = "BlenMIdx";
-static const char temp_ext[] = "_part";
 
 static const IMB_Proxy_Size proxy_sizes[] = {
     IMB_PROXY_25, IMB_PROXY_50, IMB_PROXY_75, IMB_PROXY_100};
@@ -59,7 +60,7 @@ struct MovieIndexBuilder {
 
 static MovieIndexBuilder *index_builder_create(const char *filepath)
 {
-  MovieIndexBuilder *rv = MEM_cnew<MovieIndexBuilder>("index builder");
+  MovieIndexBuilder *rv = MEM_callocN<MovieIndexBuilder>("index builder");
 
   STRNCPY(rv->filepath, filepath);
 
@@ -371,7 +372,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
                                                    int height,
                                                    int quality)
 {
-  proxy_output_ctx *rv = MEM_cnew<proxy_output_ctx>("alloc_proxy_output");
+  proxy_output_ctx *rv = MEM_callocN<proxy_output_ctx>("alloc_proxy_output");
 
   char filepath[FILE_MAX];
 
@@ -699,7 +700,12 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
                                                       int quality,
                                                       bool build_only_on_bad_performance)
 {
-  MovieProxyBuilder *context = MEM_cnew<MovieProxyBuilder>("FFmpeg index builder context");
+  /* Never build proxies for un-seekable single frame files. */
+  if (anim->never_seek_decode_one_frame) {
+    return nullptr;
+  }
+
+  MovieProxyBuilder *context = MEM_callocN<MovieProxyBuilder>("FFmpeg index builder context");
   int num_proxy_sizes = IMB_PROXY_MAX_SLOT;
   int i, streamcount;
 
@@ -814,7 +820,7 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
     }
   }
 
-  return (MovieProxyBuilder *)context;
+  return context;
 }
 
 static void index_rebuild_ffmpeg_finish(MovieProxyBuilder *context, const bool stop)

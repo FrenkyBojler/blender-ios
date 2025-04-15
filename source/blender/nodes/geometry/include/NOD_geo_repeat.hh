@@ -6,7 +6,6 @@
 
 #include "DNA_node_types.h"
 
-#include "NOD_geo_simulation.hh"
 #include "NOD_socket_items.hh"
 
 namespace blender::nodes {
@@ -82,7 +81,9 @@ struct RepeatItemsAccessor {
                 SOCK_OBJECT,
                 SOCK_MATERIAL,
                 SOCK_IMAGE,
-                SOCK_COLLECTION);
+                SOCK_COLLECTION,
+                SOCK_BUNDLE,
+                SOCK_CLOSURE);
   }
 
   static void init_with_socket_type_and_name(bNode &node,

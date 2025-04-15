@@ -145,7 +145,7 @@ struct IDTypeInfo {
 
   /**
    * Define the position of this data-block type in the virtual list of all data in a Main that is
-   * returned by `set_listbasepointers()`.
+   * returned by `BKE_main_lists_get()`.
    * Very important, this has to be unique and below INDEX_ID_MAX, see DNA_ID.h.
    */
   int main_listbase_index;
@@ -156,7 +156,7 @@ struct IDTypeInfo {
   /**
    * The user visible name for this data-block, also used as default name for a new data-block.
    *
-   * \note: Also used for the 'filepath' ID type part when listing IDs in library blendfiles
+   * \note: Also used for the 'filepath' ID type part when listing IDs in library blend-files
    * (`my_blendfile.blend/<IDType.name>/my_id_name`, e.g. `boat-v001.blend/Collection/PR-boat` for
    * the `GRPR-boat` Collection ID in `boat-v001.blend`).
    */

@@ -4,17 +4,13 @@
 
 set(INC
   PUBLIC .
-  ../asset_system
-  ../draw
   ../ikplugin
   ../makesrna
   ../modifiers
-  ../nodes
   ../nodes/geometry/include
-  ../render
-  ../sequencer
   ../shader_fx
   ../simulation
+  ../windowmanager
   ../../../intern/eigen
   ../../../intern/ghost
   ../../../intern/iksolver/extern
@@ -185,6 +181,7 @@ set(SRC
   intern/linestyle.cc
   intern/main.cc
   intern/main_idmap.cc
+  intern/main_invariants.cc
   intern/main_namemap.cc
   intern/mask.cc
   intern/mask_evaluate.cc
@@ -214,6 +211,7 @@ set(SRC
   intern/mesh_sample.cc
   intern/mesh_tangent.cc
   intern/mesh_tessellate.cc
+  intern/mesh_topology_state.cc
   intern/mesh_validate.cc
   intern/mesh_wrapper.cc
   intern/modifier.cc
@@ -304,6 +302,7 @@ set(SRC
   intern/type_conversions.cc
   intern/undo_system.cc
   intern/unit.cc
+  intern/uvproject.cc
   intern/vfont.cc
   intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
@@ -365,6 +364,8 @@ set(SRC
   BKE_colorband.hh
   BKE_colortools.hh
   BKE_compositor.hh
+  BKE_compute_context_cache.hh
+  BKE_compute_context_cache_fwd.hh
   BKE_compute_contexts.hh
   BKE_constraint.h
   BKE_context.hh
@@ -437,9 +438,10 @@ set(SRC
   BKE_linestyle.h
   BKE_main.hh
   BKE_main_idmap.hh
+  BKE_main_invariants.hh
   BKE_main_namemap.hh
   BKE_mask.h
-  BKE_material.h
+  BKE_material.hh
   BKE_mball.hh
   BKE_mball_tessellate.hh
   BKE_mesh.h
@@ -455,6 +457,7 @@ set(SRC
   BKE_mesh_runtime.hh
   BKE_mesh_sample.hh
   BKE_mesh_tangent.hh
+  BKE_mesh_topology_state.hh
   BKE_mesh_types.hh
   BKE_mesh_wrapper.hh
   BKE_modifier.hh
@@ -463,6 +466,7 @@ set(SRC
   BKE_nla.hh
   BKE_node.hh
   BKE_node_enum.hh
+  BKE_node_legacy_types.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
   BKE_node_tree_dot_export.hh
@@ -490,7 +494,6 @@ set(SRC
   BKE_scene.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
-  BKE_sequencer_offscreen.h
   BKE_shader_fx.h
   BKE_shrinkwrap.hh
   BKE_softbody.h
@@ -513,6 +516,7 @@ set(SRC
   BKE_type_conversions.hh
   BKE_undo_system.hh
   BKE_unit.hh
+  BKE_uvproject.h
   BKE_vfont.hh
   BKE_vfontdata.hh
   BKE_viewer_path.hh
@@ -537,7 +541,7 @@ set(SRC
   intern/CCGSubSurf_inline.h
   intern/CCGSubSurf_intern.h
   intern/attribute_access_intern.hh
-  intern/data_transfer_intern.h
+  intern/data_transfer_intern.hh
   intern/lib_intern.hh
   intern/multires_inline.hh
   intern/multires_reshape.hh
@@ -552,7 +556,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
-  bf_asset_system
+  PRIVATE bf::asset_system
   PRIVATE bf::blenfont
   PRIVATE bf::blenlib
   PRIVATE bf::blenloader
@@ -560,13 +564,13 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_draw
+  PRIVATE bf::draw
   PRIVATE bf::extern::curve_fit_nd
   PRIVATE bf::functions
   PRIVATE bf::gpu
   bf_ikplugin
   PRIVATE bf::imbuf
-  bf::imbuf_movie
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
@@ -574,8 +578,10 @@ set(LIB
   bf_intern_mikktspace
   bf_intern_opensubdiv  # Uses stub when disabled.
   bf_modifiers
-  bf_nodes
+  PRIVATE bf::nodes
+  PRIVATE bf::render
   bf_rna
+  PRIVATE bf::sequencer
   bf_shader_fx
   bf_simulation
   PRIVATE bf::extern::fmtlib
@@ -631,19 +637,19 @@ if(WITH_BULLET)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_WEBP)
-  add_definitions(-DWITH_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -834,6 +840,8 @@ if(WITH_GTESTS)
     intern/volume_test.cc
   )
   set(TEST_INC
+    # WARNING: this is a bad-level include which is only acceptable for tests
+    # and even then it would be good if the dependency could be removed.
     ../editors/include
   )
   set(TEST_LIB

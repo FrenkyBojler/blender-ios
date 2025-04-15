@@ -6,6 +6,7 @@
 #include <string>
 
 #include "BLI_assert.h"
+#include "BLI_color.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_index_mask.hh"
@@ -26,9 +27,10 @@
 
 #include "DNA_node_types.h"
 
+#include "BKE_type_conversions.hh"
+
 #include "NOD_derived_node_tree.hh"
 #include "NOD_multi_function.hh"
-#include "NOD_node_declaration.hh"
 
 #include "COM_context.hh"
 #include "COM_domain.hh"
@@ -52,44 +54,6 @@ MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(Context &contex
   procedure_executor_ = std::make_unique<mf::ProcedureExecutor>(procedure_);
 }
 
-static const CPPType &get_cpp_type(ResultType type)
-{
-  switch (type) {
-    case ResultType::Float:
-      return CPPType::get<float>();
-    case ResultType::Vector:
-    case ResultType::Color:
-      return CPPType::get<float4>();
-    default:
-      /* Other types are internal and needn't be handled by operations. */
-      break;
-  }
-
-  BLI_assert_unreachable();
-  return CPPType::get<float>();
-}
-
-/* Adds the single value parameter of the given input to the given parameter_builder. */
-static void add_single_value_parameter(mf::ParamsBuilder &parameter_builder, const Result &input)
-{
-  BLI_assert(input.is_single_value());
-  switch (input.type()) {
-    case ResultType::Float:
-      parameter_builder.add_readonly_single_input_value(input.get_float_value());
-      return;
-    case ResultType::Color:
-      parameter_builder.add_readonly_single_input_value(input.get_color_value());
-      return;
-    case ResultType::Vector:
-      parameter_builder.add_readonly_single_input_value(input.get_vector_value());
-      return;
-    default:
-      /* Other types are internal and needn't be handled by operations. */
-      BLI_assert_unreachable();
-      break;
-  }
-}
-
 void MultiFunctionProcedureOperation::execute()
 {
   const Domain domain = compute_domain();
@@ -97,29 +61,46 @@ void MultiFunctionProcedureOperation::execute()
   const IndexMask mask = IndexMask(size);
   mf::ParamsBuilder parameter_builder{*procedure_executor_, &mask};
 
+  const bool is_single_value = this->is_single_value_operation();
+
   /* For each of the parameters, either add an input or an output depending on its interface type,
    * allocating the outputs when needed. */
   for (int i = 0; i < procedure_.params().size(); i++) {
     if (procedure_.params()[i].type == mf::ParamType::InterfaceType::Input) {
-      Result &input = get_input(parameter_identifiers_[i]);
+      const Result &input = get_input(parameter_identifiers_[i]);
       if (input.is_single_value()) {
-        add_single_value_parameter(parameter_builder, input);
+        parameter_builder.add_readonly_single_input(input.single_value());
       }
       else {
-        const GSpan span{get_cpp_type(input.type()), input.float_texture(), size};
-        parameter_builder.add_readonly_single_input(span);
+        parameter_builder.add_readonly_single_input(input.cpu_data());
       }
     }
     else {
-      Result &result = get_result(parameter_identifiers_[i]);
-      result.allocate_texture(domain);
-      const GMutableSpan span{get_cpp_type(result.type()), result.float_texture(), size};
-      parameter_builder.add_uninitialized_single_output(span);
+      Result &output = get_result(parameter_identifiers_[i]);
+      if (is_single_value) {
+        output.allocate_single_value();
+        parameter_builder.add_uninitialized_single_output(
+            GMutableSpan(output.get_cpp_type(), output.single_value().get(), 1));
+      }
+      else {
+        output.allocate_texture(domain);
+        parameter_builder.add_uninitialized_single_output(output.cpu_data());
+      }
     }
   }
 
   mf::ContextBuilder context_builder;
   procedure_executor_->call_auto(mask, parameter_builder, context_builder);
+
+  /* In case of single value execution, update single value data. */
+  if (is_single_value) {
+    for (int i = 0; i < procedure_.params().size(); i++) {
+      if (procedure_.params()[i].type == mf::ParamType::InterfaceType::Output) {
+        Result &output = get_result(parameter_identifiers_[i]);
+        output.update_single_value_data();
+      }
+    }
+  }
 }
 
 void MultiFunctionProcedureOperation::build_procedure()
@@ -135,7 +116,7 @@ void MultiFunctionProcedureOperation::build_procedure()
 
     /* Get the variables of the inputs of the node, creating inputs to the operation/procedure if
      * needed. */
-    Vector<mf::Variable *> input_variables = this->get_input_variables(node);
+    Vector<mf::Variable *> input_variables = this->get_input_variables(node, multi_function);
 
     /* Call the node multi-function, getting the variables for its outputs. */
     Vector<mf::Variable *> output_variables = procedure_builder_.add_call(multi_function,
@@ -149,11 +130,17 @@ void MultiFunctionProcedureOperation::build_procedure()
   /* Add destructor calls for the variables. */
   for (const auto &item : output_to_variable_map_.items()) {
     /* Variables that are used by the outputs should not be destructed. */
-    if (!output_sockets_to_output_identifiers_map_.contains(item.key)) {
+    if (!output_variables_.contains(item.value)) {
       procedure_builder_.add_destruct(*item.value);
     }
   }
   for (mf::Variable *variable : implicit_variables_) {
+    /* Variables that are used by the outputs should not be destructed. */
+    if (!output_variables_.contains(variable)) {
+      procedure_builder_.add_destruct(*variable);
+    }
+  }
+  for (mf::Variable *variable : implicit_input_to_variable_map_.values()) {
     procedure_builder_.add_destruct(*variable);
   }
 
@@ -162,8 +149,10 @@ void MultiFunctionProcedureOperation::build_procedure()
   BLI_assert(procedure_.validate());
 }
 
-Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(DNode node)
+Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
+    DNode node, const mf::MultiFunction &multi_function)
 {
+  int available_inputs_index = 0;
   Vector<mf::Variable *> input_variables;
   for (int i = 0; i < node->input_sockets().size(); i++) {
     const DInputSocket input{node.context(), node->input_sockets()[i]};
@@ -172,32 +161,56 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(DNod
       continue;
     }
 
-    /* The origin socket is an input, that means the input is unlinked and we generate a constant
-     * variable for it. */
+    /* The origin socket is an input, that means the input is unlinked. */
     const DSocket origin = get_input_origin_socket(input);
     if (origin->is_input()) {
-      input_variables.append(this->get_constant_input_variable(DInputSocket(origin)));
-      continue;
-    }
+      const InputDescriptor origin_descriptor = input_descriptor_from_input_socket(
+          origin.bsocket());
 
-    /* Otherwise, the origin socket is an output, which means it is linked. */
-    const DOutputSocket output = DOutputSocket(origin);
-
-    /* If the origin node is part of the multi-function procedure operation, then the output has an
-     * existing variable for it. */
-    if (compile_unit_.contains(output.node())) {
-      input_variables.append(output_to_variable_map_.lookup(output));
+      if (origin_descriptor.implicit_input == ImplicitInput::None) {
+        /* No implicit input, so get a constant variable that holds the socket value. */
+        input_variables.append(this->get_constant_input_variable(DInputSocket(origin)));
+      }
+      else {
+        input_variables.append(this->get_implicit_input_variable(input, DInputSocket(origin)));
+      }
     }
     else {
-      /* Otherwise, the origin node is not part of the multi-function procedure operation, and a
-       * variable that represents an input to the multi-function procedure operation is used. */
-      input_variables.append(this->get_multi_function_input_variable(input, output));
+      /* Otherwise, the origin socket is an output, which means it is linked. */
+      const DOutputSocket output = DOutputSocket(origin);
+
+      /* If the origin node is part of the multi-function procedure operation, then the output has
+       * an existing variable for it. */
+      if (compile_unit_.contains(output.node())) {
+        input_variables.append(output_to_variable_map_.lookup(output));
+      }
+      else {
+        /* Otherwise, the origin node is not part of the multi-function procedure operation, and a
+         * variable that represents an input to the multi-function procedure operation is used. */
+        input_variables.append(this->get_multi_function_input_variable(input, output));
+      }
     }
 
-    /* Implicitly convert the variable type if needed by adding a call to an implicit conversion
-     * function. */
-    input_variables.last() = this->do_variable_implicit_conversion(
-        input, output, input_variables.last());
+    /* We allow multi-functions to use float4 as opposed to ColorSceneLinear4f in their signature
+     * for easier development. Float4 and ColorSceneLinear4f will be implicitly converted to one
+     * another without information loss, so this flexibility is fine. However, float4 conversion to
+     * other types is different than ColorSceneLinear4f conversion to other types, and vice versa.
+     * So we need to manually convert to ColorSceneLinear4f if either the input or the origin are
+     * color sockets for proper implicit conversion later on. */
+    if (get_node_socket_result_type(origin.bsocket()) == ResultType::Color ||
+        get_node_socket_result_type(input.bsocket()) == ResultType::Color)
+    {
+      const mf::DataType expected_type = mf::DataType::ForSingle(
+          CPPType::get<ColorSceneLinear4f<eAlpha::Premultiplied>>());
+      input_variables.last() = this->convert_variable(input_variables.last(), expected_type);
+    }
+
+    /* Implicitly convert the variable type to the expected parameter type if needed. */
+    const mf::ParamType parameter_type = multi_function.param_type(available_inputs_index);
+    input_variables.last() = this->convert_variable(input_variables.last(),
+                                                    parameter_type.data_type());
+
+    available_inputs_index++;
   }
 
   return input_variables;
@@ -212,10 +225,19 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float>>(value);
       break;
     }
+    case SOCK_INT: {
+      const int value = input->default_value_typed<bNodeSocketValueInt>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<int32_t>>(value);
+      break;
+    }
+    case SOCK_BOOLEAN: {
+      const bool value = input->default_value_typed<bNodeSocketValueBoolean>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<bool>>(value);
+      break;
+    }
     case SOCK_VECTOR: {
       const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
-      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(
-          float4(value, 0.0f));
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float3>>(value);
       break;
     }
     case SOCK_RGBA: {
@@ -231,6 +253,50 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
   mf::Variable *constant_variable = procedure_builder_.add_call<1>(*constant_function)[0];
   implicit_variables_.append(constant_variable);
   return constant_variable;
+}
+
+mf::Variable *MultiFunctionProcedureOperation::get_implicit_input_variable(
+    const DInputSocket input, const DInputSocket origin)
+{
+  const InputDescriptor origin_descriptor = input_descriptor_from_input_socket(origin.bsocket());
+  const ImplicitInput implicit_input = origin_descriptor.implicit_input;
+
+  /* Inherit the type and implicit input of the origin input since doing implicit conversion inside
+   * the multi-function operation is much cheaper. */
+  InputDescriptor input_descriptor = input_descriptor_from_input_socket(input.bsocket());
+  input_descriptor.type = origin_descriptor.type;
+  input_descriptor.implicit_input = implicit_input;
+
+  /* An input was already declared for that implicit input, so no need to declare it again and we
+   * just return its variable.  */
+  if (implicit_input_to_variable_map_.contains(implicit_input)) {
+    /* But first we update the domain priority of the input descriptor to be the higher priority of
+     * the existing descriptor and the descriptor of the new input socket. That's because the same
+     * implicit input might be used in inputs inside the multi-function procedure operation which
+     * have different priorities. */
+    InputDescriptor &existing_input_descriptor = this->get_input_descriptor(
+        implicit_inputs_to_input_identifiers_map_.lookup(implicit_input));
+    existing_input_descriptor.domain_priority = math::min(
+        existing_input_descriptor.domain_priority, input_descriptor.domain_priority);
+
+    return implicit_input_to_variable_map_.lookup(implicit_input);
+  }
+
+  const int implicit_input_index = implicit_inputs_to_input_identifiers_map_.size();
+  const std::string input_identifier = "implicit_input" + std::to_string(implicit_input_index);
+  declare_input_descriptor(input_identifier, input_descriptor);
+
+  /* Map the implicit input to the identifier of the operation input that was declared for it. */
+  implicit_inputs_to_input_identifiers_map_.add_new(implicit_input, input_identifier);
+
+  mf::Variable &variable = procedure_builder_.add_input_parameter(
+      mf::DataType::ForSingle(Result::cpp_type(input_descriptor.type)), input_identifier);
+  parameter_identifiers_.append(input_identifier);
+
+  /* Map the implicit input to the variable that was created for it. */
+  implicit_input_to_variable_map_.add(implicit_input, &variable);
+
+  return &variable;
 }
 
 mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable(
@@ -266,7 +332,7 @@ mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable
   declare_input_descriptor(input_identifier, input_descriptor);
 
   mf::Variable &variable = procedure_builder_.add_input_parameter(
-      mf::DataType::ForSingle(get_cpp_type(input_descriptor.type)), input_identifier);
+      mf::DataType::ForSingle(Result::cpp_type(input_descriptor.type)), input_identifier);
   parameter_identifiers_.append(input_identifier);
 
   /* Map the output socket to the variable that was created for it. */
@@ -285,90 +351,21 @@ mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable
   return &variable;
 }
 
-/* Returns a multi-function that implicitly converts from the given variable type to the given
- * expected type. nullptr will be returned if no conversion is needed. */
-static mf::MultiFunction *get_conversion_function(const ResultType variable_type,
-                                                  const ResultType expected_type)
-{
-  /* No conversion needed. */
-  if (expected_type == variable_type) {
-    return nullptr;
-  }
-
-  if (variable_type == ResultType::Float && expected_type == ResultType::Vector) {
-    static auto float_to_vector_function = mf::build::SI1_SO<float, float4>(
-        "Float To Vector",
-        [](const float &input) -> float4 { return float4(float3(input), 1.0f); },
-        mf::build::exec_presets::AllSpanOrSingle());
-    return &float_to_vector_function;
-  }
-
-  if (variable_type == ResultType::Float && expected_type == ResultType::Color) {
-    static auto float_to_color_function = mf::build::SI1_SO<float, float4>(
-        "Float To Color",
-        [](const float &input) -> float4 { return float4(float3(input), 1.0f); },
-        mf::build::exec_presets::AllSpanOrSingle());
-    return &float_to_color_function;
-  }
-
-  if (variable_type == ResultType::Vector && expected_type == ResultType::Float) {
-    static auto vector_to_float_function = mf::build::SI1_SO<float4, float>(
-        "Vector To Float",
-        [](const float4 &input) -> float { return (input.x + input.y + input.z) / 3.0f; },
-        mf::build::exec_presets::AllSpanOrSingle());
-    return &vector_to_float_function;
-  }
-
-  if (variable_type == ResultType::Vector && expected_type == ResultType::Color) {
-    static auto vector_to_color_function = mf::build::SI1_SO<float4, float4>(
-        "Vector To Color",
-        [](const float4 &input) -> float4 { return float4(input.xyz(), 1.0f); },
-        mf::build::exec_presets::AllSpanOrSingle());
-    return &vector_to_color_function;
-  }
-
-  if (variable_type == ResultType::Color && expected_type == ResultType::Float) {
-    static auto color_to_float_function = mf::build::SI1_SO<float4, float>(
-        "Color To Float",
-        [](const float4 &input) -> float { return (input.x + input.y + input.z) / 3.0f; },
-        mf::build::exec_presets::AllSpanOrSingle());
-    return &color_to_float_function;
-  }
-
-  if (variable_type == ResultType::Color && expected_type == ResultType::Vector) {
-    /* No conversion needed. */
-    return nullptr;
-  }
-
-  BLI_assert_unreachable();
-  return nullptr;
-}
-
-mf::Variable *MultiFunctionProcedureOperation::do_variable_implicit_conversion(
-    DInputSocket input_socket, DOutputSocket output_socket, mf::Variable *variable)
-{
-  const ResultType expected_type = get_node_socket_result_type(input_socket.bsocket());
-  const ResultType variable_type = get_node_socket_result_type(output_socket.bsocket());
-
-  const mf::MultiFunction *function = get_conversion_function(variable_type, expected_type);
-  if (!function) {
-    return variable;
-  }
-
-  mf::Variable *converted_variable = procedure_builder_.add_call<1>(*function, {variable})[0];
-  implicit_variables_.append(converted_variable);
-  return converted_variable;
-}
-
 void MultiFunctionProcedureOperation::assign_output_variables(DNode node,
                                                               Vector<mf::Variable *> &variables)
 {
   const DOutputSocket preview_output = find_preview_output_socket(node);
 
+  int available_outputs_index = 0;
   for (int i = 0; i < node->output_sockets().size(); i++) {
     const DOutputSocket output{node.context(), node->output_sockets()[i]};
 
-    output_to_variable_map_.add_new(output, variables[i]);
+    if (!output->is_available()) {
+      continue;
+    }
+
+    mf::Variable *output_variable = variables[available_outputs_index];
+    output_to_variable_map_.add_new(output, output_variable);
 
     /* If any of the nodes linked to the output are not part of the multi-function procedure
      * operation but are part of the execution schedule, then an output result needs to be
@@ -385,8 +382,10 @@ void MultiFunctionProcedureOperation::assign_output_variables(DNode node,
     }
 
     if (is_operation_output || is_preview_output) {
-      this->populate_operation_result(output, variables[i]);
+      this->populate_operation_result(output, output_variable);
     }
+
+    available_outputs_index++;
   }
 }
 
@@ -403,8 +402,44 @@ void MultiFunctionProcedureOperation::populate_operation_result(DOutputSocket ou
   /* Map the output socket to the identifier of the newly populated result. */
   output_sockets_to_output_identifiers_map_.add_new(output_socket, output_identifier);
 
-  procedure_builder_.add_output_parameter(*variable);
+  /* Implicitly convert the variable type to the expected result type if needed. */
+  const mf::DataType expected_type = mf::DataType::ForSingle(result.get_cpp_type());
+  mf::Variable *converted_variable = this->convert_variable(variable, expected_type);
+
+  procedure_builder_.add_output_parameter(*converted_variable);
+  output_variables_.add_new(converted_variable);
   parameter_identifiers_.append(output_identifier);
+}
+
+mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *variable,
+                                                                const mf::DataType expected_type)
+{
+  const mf::DataType variable_type = variable->data_type();
+  if (variable_type == expected_type) {
+    return variable;
+  }
+
+  const bke::DataTypeConversions &conversion_table = bke::get_implicit_type_conversions();
+  const mf::MultiFunction *function = conversion_table.get_conversion_multi_function(
+      variable_type, expected_type);
+
+  mf::Variable *converted_variable = procedure_builder_.add_call<1>(*function, {variable})[0];
+  implicit_variables_.append(converted_variable);
+  return converted_variable;
+}
+
+bool MultiFunctionProcedureOperation::is_single_value_operation()
+{
+  /* Return true if all inputs are single values. */
+  for (int i = 0; i < procedure_.params().size(); i++) {
+    if (procedure_.params()[i].type == mf::ParamType::InterfaceType::Input) {
+      Result &input = this->get_input(parameter_identifiers_[i]);
+      if (!input.is_single_value()) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 }  // namespace blender::compositor

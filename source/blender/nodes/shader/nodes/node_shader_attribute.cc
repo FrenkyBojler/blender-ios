@@ -37,7 +37,7 @@ static void node_shader_buts_attribute(uiLayout *layout, bContext * /*C*/, Point
 
 static void node_shader_init_attribute(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderAttribute *attr = MEM_cnew<NodeShaderAttribute>("NodeShaderAttribute");
+  NodeShaderAttribute *attr = MEM_callocN<NodeShaderAttribute>("NodeShaderAttribute");
   node->storage = attr;
 }
 
@@ -106,15 +106,18 @@ void register_node_type_sh_attribute()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_ATTRIBUTE, "Attribute", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, "ShaderNodeAttribute", SH_NODE_ATTRIBUTE);
+  ntype.ui_name = "Attribute";
+  ntype.ui_description = "Retrieve attributes attached to objects or geometry";
   ntype.enum_name_legacy = "ATTRIBUTE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_attribute;
   ntype.initfunc = file_ns::node_shader_init_attribute;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderAttribute", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeShaderAttribute", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_attribute;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

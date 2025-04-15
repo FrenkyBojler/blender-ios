@@ -4,17 +4,14 @@
 
 
 set(INC
-  .
+  PUBLIC .
   intern
   ../compositor
   ../compositor/cached_resources
-  ../draw
+  ../compositor/derived_resources
   ../draw/intern
   ../gpu/intern
-  ../imbuf/movie
   ../makesrna
-  ../nodes
-  ../sequencer
   ../simulation
   ../../../intern/mikktspace
   ../../../intern/mantaflow/extern
@@ -61,12 +58,16 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_compositor
   PRIVATE bf::intern::atomic
+  PRIVATE bf::nodes
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 
@@ -81,7 +82,7 @@ if(WITH_IMAGE_OPENEXR)
   list(APPEND LIB
     bf_imbuf_openexr
   )
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_FREESTYLE)
@@ -99,3 +100,4 @@ if(WITH_HYDRA)
 endif()
 
 blender_add_lib_nolist(bf_render "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::render ALIAS bf_render)

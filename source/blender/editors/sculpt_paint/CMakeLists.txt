@@ -8,13 +8,8 @@ set(INC
   ../asset
   ../include
   ../uvedit
-  ../../asset_system
   ../../blenlib
-  ../../draw
-  ../../geometry
   ../../makesrna
-  ../../nodes
-  ../../render
   ../../../../intern/eigen
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -159,6 +154,7 @@ set(SRC
   brushes/multires_displacement_smear.cc
   brushes/pinch.cc
   brushes/plane.cc
+  brushes/plane_legacy.cc
   brushes/relax.cc
   brushes/rotate.cc
   brushes/smooth.cc
@@ -168,10 +164,11 @@ set(SRC
   brushes/thumb.cc
   brushes/topology_slide.cc
 
-  brushes/types.hh
+  brushes/brushes.hh
 )
 
 set(LIB
+  PRIVATE bf::asset_system
   PRIVATE bf::blenkernel
   PRIVATE bf::animrig
   PRIVATE bf::blenlib
@@ -180,13 +177,17 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
+  PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
 
@@ -206,6 +207,8 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    mesh_brush_common_tests.cc
+    paint_test.cc
     sculpt_detail_test.cc
   )
   set(TEST_INC

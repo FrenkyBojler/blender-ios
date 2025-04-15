@@ -8,7 +8,7 @@
  * used to establish an output link that is then used to track the nodes that contribute to the
  * output of the compositor node tree.
  *
- * The store_[float|vector|color] functions are dynamically generated in
+ * The store_[type] functions are dynamically generated in
  * ShaderOperation::generate_code_for_outputs. */
 
 void node_compositor_store_output_float(const float id, float value, out float out_value)
@@ -17,14 +17,48 @@ void node_compositor_store_output_float(const float id, float value, out float o
   out_value = value;
 }
 
-void node_compositor_store_output_vector(const float id, vec3 vector, out vec3 out_vector)
+/* GPUMaterial doesn't support int, so it is passed as a float. */
+void node_compositor_store_output_int(const float id, float value, out float out_value)
 {
-  store_vector(floatBitsToUint(id), vector);
-  out_vector = vector;
+  store_int(floatBitsToUint(id), value);
+  out_value = value;
 }
 
-void node_compositor_store_output_color(const float id, vec4 color, out vec4 out_color)
+void node_compositor_store_output_float3(const float id, float3 value, out float3 out_value)
 {
-  store_color(floatBitsToUint(id), color);
-  out_color = color;
+  store_float3(floatBitsToUint(id), value);
+  out_value = value;
+}
+
+void node_compositor_store_output_color(const float id, float4 value, out float4 out_value)
+{
+  store_color(floatBitsToUint(id), value);
+  out_value = value;
+}
+
+void node_compositor_store_output_float4(const float id, float4 value, out float4 out_value)
+{
+  store_float4(floatBitsToUint(id), value);
+  out_value = value;
+}
+
+/* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
+void node_compositor_store_output_float2(const float id, float3 value, out float3 out_value)
+{
+  store_float2(floatBitsToUint(id), value);
+  out_value = value;
+}
+
+/* GPUMaterial doesn't support int2, so it is passed as a float3 with z ignored. */
+void node_compositor_store_output_int2(const float id, float3 value, out float3 out_value)
+{
+  store_int2(floatBitsToUint(id), value);
+  out_value = value;
+}
+
+/* GPUMaterial doesn't support bool, so it is passed as a float. */
+void node_compositor_store_output_bool(const float id, float value, out float out_value)
+{
+  store_bool(floatBitsToUint(id), value);
+  out_value = value;
 }
