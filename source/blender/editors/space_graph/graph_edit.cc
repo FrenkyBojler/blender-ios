@@ -2270,8 +2270,13 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 
   bool next = RNA_boolean_get(op->ptr, "next");
 
+  /* Get editor data. */
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
   ListBase anim_data = {nullptr, nullptr};
-  blender::ed::graph::get_editable_fcurves(C, anim_data);
+  blender::ed::graph::get_editable_fcurves(ac, anim_data);
 
   if (BLI_listbase_is_empty(&anim_data)) {
     return OPERATOR_CANCELLED;

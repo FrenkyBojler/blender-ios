@@ -2,21 +2,20 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
- #include "BLI_vector.hh"
+#include "BLI_vector.hh"
 
- struct bAnimListElem;
- struct bContext;
- struct ListBase;
- 
- namespace blender::ed::graph {
+struct bAnimContext;
+struct ListBase;
 
- /**
-  * Return all bAnimListElem for which the keyframes are visible in the
-  * GUI. This excludes FCurves that are drawn as curves but whose keyframes are NOT shown.
-  * All entries of the list will be of type ANIMTYPE_FCURVE.
-  *
-  * The listbase will have to be freed by the caller with ANIM_animdata_freelist;
-  */
- void get_editable_fcurves(bContext *C, ListBase &/* bAnimListElem */r_anim_data);
- 
- }  // namespace blender::ed::graph
+namespace blender::ed::graph {
+
+/**
+ * Return all bAnimListElem for which the keyframes are visible in the
+ * GUI. This excludes FCurves that are drawn as curves but whose keyframes are NOT shown.
+ * All entries of the list will be of type ANIMTYPE_FCURVE.
+ *
+ * The listbase will have to be freed by the caller with ANIM_animdata_freelist;
+ */
+void get_editable_fcurves(bAnimContext &ac, ListBase & /* bAnimListElem */ r_anim_data);
+
+}  // namespace blender::ed::graph
