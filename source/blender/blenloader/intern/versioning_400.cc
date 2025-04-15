@@ -7398,6 +7398,18 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 29)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      IDProperty *cob = version_cycles_properties_from_ID(&object->id);
+      if (cob) {
+        object->shadow_terminator_geometry_offset = version_cycles_property_float(
+            cob, "shadow_terminator_geometry_offset", 0.1f);
+        object->shadow_terminator_shading_offset = version_cycles_property_float(
+            cob, "shadow_terminator_offset", 0.0f);
+      }
+    }
+  }
+
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */
