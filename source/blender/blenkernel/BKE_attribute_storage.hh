@@ -8,6 +8,7 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing_ptr.hh"
+#include "BLI_linear_allocator.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -107,8 +108,8 @@ class AttributeStorage : public ::AttributeStorage {
   AttributeStorage &operator=(AttributeStorage &&other);
   ~AttributeStorage();
 
-  void foreach (FunctionRef<void(Attribute &)> fn);
-  void foreach (FunctionRef<void(const Attribute &)> fn) const;
+  void foreach(FunctionRef<void(Attribute &)> fn);
+  void foreach(FunctionRef<void(const Attribute &)> fn) const;
   Attribute *lookup(StringRef name);
   const Attribute *lookup(StringRef name) const;
   bool remove(StringRef name);
@@ -124,7 +125,6 @@ class AttributeStorage : public ::AttributeStorage {
     Vector<AttributeArrayDNA, 16> arrays;
     Vector<AttributeSingleDNA, 16> singles;
   };
-  void blend_write_prepare(BlendWriter &writer, AttributeStorage::BlendWriteData &write_data);
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 
  private:

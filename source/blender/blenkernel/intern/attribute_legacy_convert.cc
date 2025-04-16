@@ -22,7 +22,7 @@
 
 namespace blender::bke {
 
-static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomDataType data_type)
+static std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data_type)
 {
   switch (data_type) {
     case CD_AUTO_FROM_NAME:
@@ -96,7 +96,7 @@ static std::optional<AttrType> custom_data_type_to_attribute_type(const eCustomD
 void remove_storage_layers(CustomData &custom_data)
 {
   for (const int i : IndexRange(CD_NUMTYPES)) {
-    if (custom_data_type_to_attribute_type(eCustomDataType(i))) {
+    if (custom_data_type_to_attr_type(eCustomDataType(i))) {
       CustomData_free_layers(&custom_data, eCustomDataType(i));
     }
   }
@@ -120,7 +120,7 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
     const CustomData &custom_data = *item.value.first;
     const int domain_size = item.value.second;
     for (const CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
-      const std::optional<AttrType> attr_type = custom_data_type_to_attribute_type(
+      const std::optional<AttrType> attr_type = custom_data_type_to_attr_type(
           eCustomDataType(layer.type));
       if (!attr_type) {
         continue;
@@ -145,7 +145,7 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
   return storage;
 }
 
-static std::optional<eCustomDataType> attribute_to_to_custom_data_type(const AttrType attr_type)
+static std::optional<eCustomDataType> attribute_type_to_custom_data_type(const AttrType attr_type)
 {
   switch (attr_type) {
     case AttrType::Bool:
@@ -184,7 +184,7 @@ static void convert_storage_to_customdata(
 {
   /* Name uniqueness is handled by the #CustomData API. */
   storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
       return;
@@ -213,7 +213,7 @@ static void convert_storage_to_customdata(
 static void create_layer_for_file_write(const Attribute &attribute,
                                         Vector<CustomDataLayer, 16> &layers)
 {
-  const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+  const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
       attribute.data_type());
   if (!data_type) {
     return;
@@ -247,7 +247,7 @@ void mesh_convert_storage_to_customdata_for_file_write(const AttributeStorage &s
                                                        Vector<CustomDataLayer, 16> &loop_layers)
 {
   storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
       return;
@@ -308,7 +308,7 @@ void curves_convert_storage_to_customdata_for_file_write(const AttributeStorage 
                                                          Vector<CustomDataLayer, 16> &curve_layers)
 {
   storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
       return;
@@ -352,7 +352,7 @@ void pointcloud_convert_storage_to_customdata_for_file_write(
   // if (U.experimental.use_attribute_storage_write_debug) {
   // }
   storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
       return;
@@ -382,7 +382,7 @@ void grease_pencil_convert_storage_to_customdata_for_file_write(
     const AttributeStorage &storage, Vector<CustomDataLayer, 16> &layers)
 {
   storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
+    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
       return;
@@ -407,6 +407,88 @@ AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil 
 
 ///
 
+static void add_write_data(const CustomData &data,
+                           const AttrDomain domain,
+                           const int domain_size,
+                           Set<StringRef, 16> &all_names_written,
+                           Vector<CustomDataLayer, 16> &layers_to_write,
+                           AttributeStorage::BlendWriteData &write_data)
+{
+  for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
+    if (layer.flag & CD_FLAG_NOCOPY) {
+      continue;
+    }
+    if (blender::bke::attribute_name_is_anonymous(layer.name)) {
+      continue;
+    }
+    all_names_written.add(layer.name);
+    if (U.experimental.use_attribute_storage_write_debug) {
+      const eCustomDataType data_type = eCustomDataType(layer.type);
+      if (const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type)) {
+        AttributeDNA attribute_dna{};
+        attribute_dna.name = layer.name;
+        attribute_dna.data_type = int16_t(*type);
+        attribute_dna.domain = int8_t(domain);
+        attribute_dna.storage_type = int8_t(AttrStorageType::Array);
+
+        write_data.arrays.append({layer.data, layer.sharing_info, domain_size});
+        attribute_dna.data = &write_data.arrays.last();  // TODO: Pointer stability
+
+        write_data.attributes.append(attribute_dna);
+        continue;
+      }
+    }
+    layers_to_write.append(layer);
+  }
+}
+
+static void add_write_data(AttributeStorage &data,
+                           const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
+                           Set<StringRef, 16> &all_names_written,
+                           AttributeStorage::BlendWriteData &write_data)
+{
+  data.foreach([&](Attribute &attr) {
+    if (!U.experimental.use_attribute_storage_write_debug) {
+      if (const std::optional data_type = attribute_type_to_custom_data_type(attr.data_type())) {
+        if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attr.data())) {
+          CustomDataLayer layer{};
+          layer.type = *data_type;
+          layer.data = array_data->data;
+          layer.sharing_info = array_data->sharing_info.get();
+
+          BLI_uniquename_cb(
+              [&](const StringRefNull name) { return all_names_written.contains(name); },
+              attr.name().c_str(),
+              '.',
+              layer.name,
+              MAX_CUSTOMDATA_LAYER_NAME);
+          all_names_written.add(layer.name);
+
+          layers_to_write.lookup(attr.domain())->append(layer);
+          return;
+        }
+      }
+    }
+    all_names_written.add(attr.name());
+    AttributeDNA attribute_dna{};
+    attribute_dna.name = attr.name().c_str();
+    attribute_dna.data_type = int16_t(attr.data_type());
+    attribute_dna.domain = int8_t(attr.domain());
+    attribute_dna.storage_type = int8_t(attr.storage_type());
+
+    if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
+      write_data.arrays.append({data->data, data->sharing_info.get(), data->size});
+      attribute_dna.data = &write_data.arrays.last();  // TODO: Pointer stability
+    }
+    else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data())) {
+      write_data.singles.append({data->value, data->sharing_info.get()});
+      attribute_dna.data = &write_data.singles.last();  // TODO: Pointer stability
+    }
+
+    write_data.attributes.append(attribute_dna);
+  });
+}
+
 void mesh_prepare_data_for_file_write(Mesh &mesh,
                                       Vector<CustomDataLayer, 16> &vert_layers,
                                       Vector<CustomDataLayer, 16> &edge_layers,
@@ -414,17 +496,48 @@ void mesh_prepare_data_for_file_write(Mesh &mesh,
                                       Vector<CustomDataLayer, 16> &corner_layers,
                                       AttributeStorage::BlendWriteData &write_data)
 {
-  for (const CustomDataLayer &layer : Span(mesh.vert_data.layers, mesh.vert_data.totlayer)) {
-    if (layer.flag & CD_FLAG_NOCOPY) {
-      continue;
-    }
-    if (blender::bke::attribute_name_is_anonymous(layer.name)) {
-      continue;
-    }
-    vert_layers.append(layer);
-  }
+  Set<StringRef, 16> all_names_written;
+  add_write_data(mesh.vert_data,
+                 AttrDomain::Point,
+                 mesh.verts_num,
+                 all_names_written,
+                 vert_layers,
+                 write_data);
+  add_write_data(mesh.edge_data,
+                 AttrDomain::Edge,
+                 mesh.edges_num,
+                 all_names_written,
+                 edge_layers,
+                 write_data);
+  add_write_data(mesh.face_data,
+                 AttrDomain::Face,
+                 mesh.faces_num,
+                 all_names_written,
+                 face_layers,
+                 write_data);
+  add_write_data(mesh.corner_data,
+                 AttrDomain::Corner,
+                 mesh.corners_num,
+                 all_names_written,
+                 corner_layers,
+                 write_data);
+  add_write_data(mesh.attribute_storage.wrap(),
+                 {{AttrDomain::Point, &vert_layers},
+                  {AttrDomain::Edge, &edge_layers},
+                  {AttrDomain::Face, &face_layers},
+                  {AttrDomain::Corner, &corner_layers}},
+                 all_names_written,
+                 write_data);
+  mesh.attribute_storage.dna_attributes = write_data.attributes.data();
+  mesh.attribute_storage.dna_attributes_num = write_data.attributes.size();
   mesh.vert_data.totlayer = vert_layers.size();
   mesh.vert_data.maxlayer = mesh.vert_data.totlayer;
+  mesh.edge_data.totlayer = edge_layers.size();
+  mesh.edge_data.maxlayer = mesh.edge_data.totlayer;
+  mesh.face_data.totlayer = face_layers.size();
+  mesh.face_data.maxlayer = mesh.face_data.totlayer;
+  mesh.corner_data.totlayer = corner_layers.size();
+  mesh.corner_data.maxlayer = mesh.corner_data.totlayer;
 }
 
 }  // namespace blender::bke

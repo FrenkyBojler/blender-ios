@@ -496,15 +496,15 @@ class CurvesGeometry : public ::CurvesGeometry {
    * Helper struct for `CurvesGeometry::blend_write_*` functions.
    */
   struct BlendWriteData {
-    /* The point custom data layers to be written. */
     Vector<CustomDataLayer, 16> point_layers;
-    /* The curve custom data layers to be written. */
     Vector<CustomDataLayer, 16> curve_layers;
     AttributeStorage::BlendWriteData attribute_data;
   };
   /**
-   * This requires specific preparation of the #BlendWriteData struct.
+   * This function needs to be called before `blend_write` and before the `CurvesGeometry` struct
+   * is written because it can mutate the `CustomData` and `AttributeStorage` structs.
    */
+  BlendWriteData blend_write_prepare();
   void blend_write(BlendWriter &writer, ID &id, const BlendWriteData &write_data);
 };
 

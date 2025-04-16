@@ -263,21 +263,6 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
 
   blender::Vector<CustomDataLayer, 16> layers_data_layers;
-  CustomData_blend_write_prepare(grease_pencil->layers_data, layers_data_layers);
-  blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  if (U.experimental.use_attribute_storage_write_debug) {
-    /* Used for testing the forward compatibility process. To be removed when the runtime format
-     * changes. */
-    blender::bke::grease_pencil_convert_customdata_to_storage(*grease_pencil);
-  }
-  if (U.experimental.use_attribute_storage_write_debug || BLO_write_is_undo(writer)) {
-    grease_pencil->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
-  }
-  else {
-    /* Write forward compatible format. To be removed in 5.0. */
-    blender::bke::grease_pencil_convert_storage_to_customdata_for_file_write(
-        grease_pencil->attribute_storage.wrap(), layers_data_layers);
-  }
 
   /* Write LibData */
   BLO_write_id_struct(writer, GreasePencil, id_address, &grease_pencil->id);
@@ -301,12 +286,6 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
       writer, grease_pencil->material_array_num, grease_pencil->material_array);
   /* Write vertex group names. */
   BKE_defbase_blend_write(writer, &grease_pencil->vertex_group_names);
-
-  if (U.experimental.use_attribute_storage_write_debug) {
-    /* Used for testing the forward compatibility process. To be removed when the runtime format
-     * changes. */
-    blender::bke::grease_pencil_convert_storage_to_customdata(*grease_pencil);
-  }
 }
 
 static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)

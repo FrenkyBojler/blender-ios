@@ -22,11 +22,12 @@ namespace blender::bke {
 void remove_storage_layers(CustomData &custom_data);
 
 void mesh_convert_storage_to_customdata(Mesh &mesh);
-void mesh_convert_storage_to_customdata_for_file_write(const AttributeStorage &storage,
-                                                       Vector<CustomDataLayer, 16> &vert_layers,
-                                                       Vector<CustomDataLayer, 16> &edge_layers,
-                                                       Vector<CustomDataLayer, 16> &face_layers,
-                                                       Vector<CustomDataLayer, 16> &loop_layers);
+void mesh_prepare_data_for_file_write(Mesh &mesh,
+                                      Vector<CustomDataLayer, 16> &vert_layers,
+                                      Vector<CustomDataLayer, 16> &edge_layers,
+                                      Vector<CustomDataLayer, 16> &face_layers,
+                                      Vector<CustomDataLayer, 16> &corner_layers,
+                                      AttributeStorage::BlendWriteData &write_data);
 AttributeStorage mesh_convert_customdata_to_storage(const Mesh &mesh);
 
 void curves_convert_storage_to_customdata(CurvesGeometry &curves);

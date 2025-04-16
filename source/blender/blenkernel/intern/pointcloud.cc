@@ -140,7 +140,6 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   }
 
   blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  pointcloud->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);

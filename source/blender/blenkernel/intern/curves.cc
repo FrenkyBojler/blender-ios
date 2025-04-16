@@ -128,9 +128,6 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
         write_data.curve_layers);
   }
 
-  curves->geometry.wrap().attribute_storage.wrap().blend_write_prepare(*writer,
-                                                                       write_data.attribute_data);
-
   /* Write LibData */
   BLO_write_id_struct(writer, Curves, id_address, &curves->id);
   BKE_id_blend_write(writer, &curves->id);
@@ -141,10 +138,6 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_string(writer, curves->surface_uv_map);
 
   BLO_write_pointer_array(writer, curves->totcol, curves->mat);
-
-  if (U.experimental.use_attribute_storage_write_debug) {
-    std::destroy_at(&curves->geometry.attribute_storage.wrap());
-  }
 }
 
 static void curves_blend_read_data(BlendDataReader *reader, ID *id)

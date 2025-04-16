@@ -371,53 +371,28 @@ static void write_shared_array(BlendWriter &writer,
   });
 }
 
-void AttributeStorage::blend_write_prepare(BlendWriter &writer,
-                                           AttributeStorage::BlendWriteData &write_data)
-{
-  const Span<std::unique_ptr<Attribute>> attributes = this->runtime->attributes;
-  write_data.attributes.resize(attributes.size());
-
-  write_data.arrays.resize(attributes.size());
-  write_data.singles.resize(attributes.size());
-
-  for (const int i : attributes.index_range()) {
-    Attribute &attr = *attributes[i];
-    AttributeDNA &dna_attr = write_data.attributes[i];
-    dna_attr.name = attr.name().c_str();
-
-    dna_attr.domain = int8_t(attr.domain_);
-    dna_attr.data_type = int8_t(attr.type_);
-    dna_attr.storage_type = int8_t(attr.storage_type_);
-
-    if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data_)) {
-      write_data.arrays[i] = {data->data, data->sharing_info.get(), data->size};
-      dna_attr.data = &write_data.arrays[i];
-      write_shared_array(writer, attr.type_, data->data, data->size, *data->sharing_info);
-    }
-    else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data_)) {
-      write_data.singles[i] = {data->value, data->sharing_info.get()};
-      dna_attr.data = &write_data.singles[i];
-      write_shared_array(writer, attr.type_, data->value, 1, *data->sharing_info);
-    }
-  }
-
-  this->dna_attributes = write_data.attributes.data();
-  this->dna_attributes_num = attributes.size();
-}
-
 void AttributeStorage::blend_write(BlendWriter &writer,
                                    const AttributeStorage::BlendWriteData &write_data)
 {
   BLO_write_struct_array(
       &writer, AttributeDNA, write_data.attributes.size(), write_data.attributes.data());
-  for (const AttributeDNA &attr : write_data.attributes) {
-    BLO_write_string(&writer, attr.name);
-    switch (AttrStorageType(attr.storage_type)) {
+  for (const AttributeDNA &attr_dna : write_data.attributes) {
+    BLO_write_string(&writer, attr_dna.name);
+    switch (AttrStorageType(attr_dna.storage_type)) {
       case AttrStorageType::Single:
-        BLO_write_struct(&writer, AttributeSingleDNA, attr.data);
+        AttributeSingleDNA *single_dna = static_cast<AttributeSingleDNA *>(attr_dna.data);
+        BLO_write_struct(&writer, AttributeSingleDNA, single_dna);
+        write_shared_array(
+            writer, AttrType(attr_dna.data_type), single_dna->data, 1, *single_dna->sharing_info);
         break;
       case AttrStorageType::Array:
-        BLO_write_struct(&writer, AttributeArrayDNA, attr.data);
+        AttributeArrayDNA *array_dna = static_cast<AttributeArrayDNA *>(attr_dna.data);
+        BLO_write_struct(&writer, AttributeArrayDNA, array_dna);
+        write_shared_array(writer,
+                           AttrType(attr_dna.data_type),
+                           array_dna->data,
+                           array_dna->size,
+                           *array_dna->sharing_info);
         break;
     }
   }

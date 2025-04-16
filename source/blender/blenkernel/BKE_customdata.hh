@@ -727,21 +727,7 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap,
 /* .blend file I/O */
 
 /**
- * Prepare given custom data for file writing.
- *
- * \param data: The custom-data to tweak for .blend file writing (modified in place).
- * \param layers_to_write: A reduced set of layers to be written to file.
- *
- * \warning This function invalidates the custom data struct by changing the layer counts and the
- * #layers pointer, and by invalidating the type map. It expects to work on a shallow copy of
- * the struct.
- */
-void CustomData_blend_write_prepare(CustomData &data,
-                                    blender::Vector<CustomDataLayer, 16> &layers_to_write,
-                                    const blender::Set<std::string> &skip_names = {});
-
-/**
- * \param layers_to_write: Layers created by #CustomData_blend_write_prepare.
+ * \param layers_to_write: Layers created by write preparation process.
  */
 void CustomData_blend_write(BlendWriter *writer,
                             CustomData *data,
