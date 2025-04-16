@@ -57,21 +57,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 }
 
 #ifdef WITH_OPENVDB
-static float4x4 transform_to_matrix(const openvdb::math::Transform &transform)
-{
-  /* Perspective not supported for now, getAffineMap() will leave out the
-   * perspective part of the transform. */
-  openvdb::math::Mat4f matrix = transform.baseMap()->getAffineMap()->getMat4();
-  /* Blender column-major and OpenVDB right-multiplication conventions match. */
-  float4x4 result;
-  for (int col = 0; col < 4; col++) {
-    for (int row = 0; row < 4; row++) {
-      result[col][row] = matrix(col, row);
-    }
-  }
-  return result;
-}
-
 /* Index space of a single leaf buffer. */
 template<typename LeafNodeType> class GridLeafFieldContext : public FieldContext {
   /* Base-2 exponent of the leaf dimension. */
@@ -249,7 +234,7 @@ template<typename T> struct GridToPointsConverter {
       return;
     }
     bke::VolumeTreeAccessToken tree_token;
-    const float4x4 transform = transform_to_matrix(grid.grid(tree_token).transform());
+    const float4x4 transform = BKE_volume_transform_to_blender(grid.grid(tree_token).transform());
     typename TreeType::ConstPtr vdb_tree = grid.grid(tree_token).treePtr();
 
     const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
