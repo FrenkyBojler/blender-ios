@@ -174,8 +174,8 @@ void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr)
   }
 
   if (uiLayoutIsEmpty(layout)) {
-    uiBut *but = uiItemL_ex(layout, "Nothing to display.", ICON_NONE, false, false);
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
+    uiLayoutSetEnabled(layout, false);
+    uiItemL(layout, "Nothing to display.", ICON_NONE);
   }
 }
 
