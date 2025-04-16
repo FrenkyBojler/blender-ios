@@ -335,10 +335,9 @@ struct DummyContextWGL {
         1,                             /* version */
         (DWORD)(PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW |
                 PFD_DOUBLEBUFFER |                /* support double-buffering */
-                (stereoVisual ? PFD_STEREO : 0) | /* support stereo */
-                (0)),
-        PFD_TYPE_RGBA,               /* color type */
-        (BYTE)(needAlpha ? 32 : 24), /* preferred color depth */
+                (stereoVisual ? PFD_STEREO : 0)), /* support stereo */
+        PFD_TYPE_RGBA,                            /* color type */
+        (BYTE)(needAlpha ? 32 : 24),              /* preferred color depth */
         0,
         0,
         0,
