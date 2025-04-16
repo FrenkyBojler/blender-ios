@@ -112,9 +112,6 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   blender::bke::CurvesGeometry::BlendWriteData write_data;
 
-  CustomData_blend_write_prepare(curves->geometry.wrap().point_data, write_data.point_layers);
-  CustomData_blend_write_prepare(curves->geometry.wrap().curve_data, write_data.curve_layers);
-
   if (U.experimental.use_attribute_storage_write_debug) {
     /* Used for testing the forward compatibility process. To be removed when the runtime format
      * changes. Use placement new because this is a shallow `memcpy` of the ID. */

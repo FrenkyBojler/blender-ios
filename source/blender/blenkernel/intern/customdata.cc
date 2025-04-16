@@ -5111,35 +5111,6 @@ static void get_type_file_write_info(const eCustomDataType type,
   *r_struct_num = typeInfo->structnum;
 }
 
-void CustomData_blend_write_prepare(CustomData &data,
-                                    Vector<CustomDataLayer, 16> &layers_to_write,
-                                    const Set<std::string> &skip_names)
-{
-  for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
-    if (layer.flag & CD_FLAG_NOCOPY) {
-      continue;
-    }
-    if (blender::bke::attribute_name_is_anonymous(layer.name)) {
-      continue;
-    }
-    if (skip_names.contains(layer.name)) {
-      continue;
-    }
-    layers_to_write.append(layer);
-  }
-  data.totlayer = layers_to_write.size();
-  data.maxlayer = data.totlayer;
-
-  /* NOTE: `data->layers` may be null, this happens when adding
-   * a legacy #MPoly struct to a mesh with no other face attributes.
-   * This leaves us with no unique ID for DNA to identify the old
-   * data with when loading the file. */
-  if (!data.layers && layers_to_write.size() > 0) {
-    /* We just need an address that's unique. */
-    data.layers = reinterpret_cast<CustomDataLayer *>(&data.layers);
-  }
-}
-
 static void write_mdisps(BlendWriter *writer,
                          const int count,
                          const MDisps *mdlist,
@@ -5380,8 +5351,8 @@ void CustomData_blend_read(BlendDataReader *reader, CustomData *data, const int 
   }
 
   /* Ensure allocated size is set to the size of the read array. While this should always be the
-   * case (see #CustomData_blend_write_prepare), there can be some corruption in rare cases (e.g.
-   * files saved between ff3d535bc2a63092 and 945f32e66d6ada2a). */
+   * case, there can be some corruption in rare cases (e.g. files saved between ff3d535bc2a63092
+   * and 945f32e66d6ada2a). */
   data->maxlayer = data->totlayer;
 
   CustomData_update_typemap(data);
