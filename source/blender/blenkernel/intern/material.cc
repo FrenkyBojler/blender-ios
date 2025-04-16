@@ -2054,10 +2054,10 @@ static void material_default_surface_init(Material *ma)
                               *output,
                               *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
 
-  principled->location[0] = 10.0f;
-  principled->location[1] = 300.0f;
-  output->location[0] = 300.0f;
-  output->location[1] = 300.0f;
+  principled->location[0] = -200.0f;
+  principled->location[1] = 100.0f;
+  output->location[0] = 200.0f;
+  output->location[1] = 100.0f;
 
   blender::bke::node_set_active(*ntree, *output);
 }
@@ -2080,10 +2080,10 @@ static void material_default_volume_init(Material *ma)
                               *output,
                               *blender::bke::node_find_socket(*output, SOCK_IN, "Volume"));
 
-  principled->location[0] = 10.0f;
-  principled->location[1] = 300.0f;
-  output->location[0] = 300.0f;
-  output->location[1] = 300.0f;
+  principled->location[0] = -200.0f;
+  principled->location[1] = 100.0f;
+  output->location[0] = 200.0f;
+  output->location[1] = 100.0f;
 
   blender::bke::node_set_active(*ntree, *output);
 }
