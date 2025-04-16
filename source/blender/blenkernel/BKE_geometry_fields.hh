@@ -22,6 +22,7 @@ namespace blender::bke {
 
 class CurvesGeometry;
 class GeometryFieldInput;
+class GridLeafNodeFieldContext;
 namespace greasepencil {
 class Drawing;
 }
@@ -222,6 +223,8 @@ class GeometryFieldInput : public fn::FieldInput {
                                  ResourceScope &scope) const override;
   virtual GVArray get_varray_for_context(const GeometryFieldContext &context,
                                          const IndexMask &mask) const = 0;
+  virtual GVArray get_varray_for_context(const GridLeafNodeFieldContext &context,
+                                         const IndexMask &mask) const;
   virtual std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const;
 };
 
@@ -308,6 +311,9 @@ class AttributeFieldInput : public GeometryFieldInput {
   }
 
   GVArray get_varray_for_context(const GeometryFieldContext &context,
+                                 const IndexMask &mask) const override;
+
+  GVArray get_varray_for_context(const GridLeafNodeFieldContext &context,
                                  const IndexMask &mask) const override;
 
   std::string socket_inspection_name() const override;

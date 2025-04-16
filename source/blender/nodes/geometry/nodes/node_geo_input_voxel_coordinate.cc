@@ -22,10 +22,7 @@ class VoxelCoordinateFieldInput final : public FieldInput {
     if (const bke::GridLeafNodeFieldContext *grid_leaf_context =
             dynamic_cast<const bke::GridLeafNodeFieldContext *>(&context))
     {
-      return VArray<float3>::ForFunc(
-          grid_leaf_context->size(), [grid_leaf_context](const int64_t index) {
-            return float3(grid_leaf_context->index_to_global_coord(index));
-          });
+      return bke::voxel_coordinate_varray(*grid_leaf_context);
     }
     return {};
   }

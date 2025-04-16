@@ -11,6 +11,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
+#include "BKE_volume_fields.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
@@ -294,6 +295,19 @@ GVArray GeometryFieldInput::get_varray_for_context(const fn::FieldContext &conte
   {
     return this->get_varray_for_context({instances_context->instances()}, mask);
   }
+#ifdef WITH_OPENVDB
+  if (const GridLeafNodeFieldContext *grid_leaf_context =
+          dynamic_cast<const GridLeafNodeFieldContext *>(&context))
+  {
+    return this->get_varray_for_context(*grid_leaf_context, mask);
+  }
+#endif
+  return {};
+}
+
+GVArray GeometryFieldInput::get_varray_for_context(const GridLeafNodeFieldContext & /*context*/,
+                                                   const IndexMask & /*mask*/) const
+{
   return {};
 }
 
@@ -423,6 +437,16 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
     return *attributes->lookup(name_, domain, data_type);
   }
 
+  return {};
+}
+
+GVArray AttributeFieldInput::get_varray_for_context(const GridLeafNodeFieldContext &context,
+                                                    const IndexMask & /*mask*/) const
+{
+  if (name_ == "position") {
+    /* Special case for voxel positions. */
+    return voxel_center_varray(context);
+  }
   return {};
 }
 

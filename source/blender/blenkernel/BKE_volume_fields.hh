@@ -8,15 +8,15 @@
  * \ingroup bke
  */
 
-#ifdef WITH_OPENVDB
+#include "BLI_math_matrix_types.hh"
 
-#  include "BLI_math_matrix_types.hh"
+#include "BKE_volume_openvdb.hh"
 
-#  include "BKE_volume_openvdb.hh"
-
-#  include "FN_field.hh"
+#include "FN_field.hh"
 
 namespace blender::bke {
+
+#ifdef WITH_OPENVDB
 
 /* Index space of a single leaf buffer. */
 class GridLeafNodeFieldContext : public fn::FieldContext {
@@ -85,6 +85,9 @@ class GridLeafNodeFieldContext : public fn::FieldContext {
   }
 };
 
-}  // namespace blender::bke
+VArray<float3> voxel_coordinate_varray(const GridLeafNodeFieldContext &context);
+VArray<float3> voxel_center_varray(const GridLeafNodeFieldContext &context);
 
 #endif
+
+}  // namespace blender::bke

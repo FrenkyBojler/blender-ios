@@ -24,13 +24,7 @@ class VoxelCenterFieldInput final : public FieldInput {
     if (const bke::GridLeafNodeFieldContext *grid_leaf_context =
             dynamic_cast<const bke::GridLeafNodeFieldContext *>(&context))
     {
-      const float4x4 grid_transform = grid_leaf_context->transform();
-      return VArray<float3>::ForFunc(
-          grid_leaf_context->size(), [grid_leaf_context, grid_transform](const int64_t index) {
-            const int3 coord = grid_leaf_context->index_to_global_coord(index);
-            /* Offset by 0.5 to get the center position. */
-            return math::transform_point(grid_transform, float3(coord) + float3(0.5f));
-          });
+      return bke::voxel_center_varray(*grid_leaf_context);
     }
     return {};
   }

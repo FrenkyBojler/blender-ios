@@ -308,6 +308,7 @@ set(SRC
   intern/vfontdata_freetype.cc
   intern/viewer_path.cc
   intern/volume.cc
+  intern/volume_fields.cc
   intern/volume_grid.cc
   intern/volume_grid_file_cache.cc
   intern/volume_render.cc
