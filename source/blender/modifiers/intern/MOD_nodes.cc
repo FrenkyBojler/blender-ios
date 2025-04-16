@@ -666,7 +666,7 @@ static void find_side_effect_nodes_for_viewer_path(
   if (!parsed_path.has_value()) {
     return;
   }
-  if (parsed_path->object != DEG_get_original_object(ctx.object)) {
+  if (parsed_path->object != DEG_get_original(ctx.object)) {
     return;
   }
   if (parsed_path->modifier_name != nmd.modifier.name) {
@@ -759,7 +759,7 @@ static void find_side_effect_nodes_for_active_gizmos(
     nodes::GeoNodesSideEffectNodes &r_side_effect_nodes,
     Set<ComputeContextHash> &r_socket_log_contexts)
 {
-  Object *object_orig = DEG_get_original_object(ctx.object);
+  Object *object_orig = DEG_get_original(ctx.object);
   const NodesModifierData &nmd_orig = *reinterpret_cast<const NodesModifierData *>(
       BKE_modifier_get_original(ctx.object, const_cast<ModifierData *>(&nmd.modifier)));
   bke::ComputeContextCache compute_context_cache;
@@ -1748,7 +1748,7 @@ static void add_data_block_items_writeback(const ModifierEvalContext &ctx,
               });
 
           if (needs_reevaluation) {
-            Object *object_orig = DEG_get_original_object(object_eval);
+            Object *object_orig = DEG_get_original(object_eval);
             DEG_id_tag_update(&object_orig->id, ID_RECALC_GEOMETRY);
             DEG_relations_tag_update(bmain);
           }

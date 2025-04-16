@@ -1451,7 +1451,7 @@ static void drw_particle_update_ptcache_edit(Object *object_eval,
    */
   const DRWContext *draw_ctx = DRW_context_get();
   Scene *scene_orig = DEG_get_original(draw_ctx->scene);
-  Object *object_orig = DEG_get_original_object(object_eval);
+  Object *object_orig = DEG_get_original(object_eval);
   if (psys->flag & PSYS_HAIR_UPDATED) {
     PE_update_object(draw_ctx->depsgraph, scene_orig, object_orig, 0);
     psys->flag &= ~PSYS_HAIR_UPDATED;
@@ -1474,7 +1474,7 @@ static void drw_particle_update_ptcache(Object *object_eval, ParticleSystem *psy
   }
   const DRWContext *draw_ctx = DRW_context_get();
   Scene *scene_orig = DEG_get_original(draw_ctx->scene);
-  Object *object_orig = DEG_get_original_object(object_eval);
+  Object *object_orig = DEG_get_original(object_eval);
   PTCacheEdit *edit = PE_create_current(draw_ctx->depsgraph, scene_orig, object_orig);
   if (edit != nullptr) {
     drw_particle_update_ptcache_edit(object_eval, psys, edit);
@@ -1500,7 +1500,7 @@ static void drw_particle_get_hair_source(Object *object,
   r_draw_source->md = md;
   r_draw_source->edit = edit;
   if (psys_in_edit_mode(draw_ctx->depsgraph, psys)) {
-    r_draw_source->object = DEG_get_original_object(object);
+    r_draw_source->object = DEG_get_original(object);
     r_draw_source->psys = psys_orig_get(psys);
   }
 }

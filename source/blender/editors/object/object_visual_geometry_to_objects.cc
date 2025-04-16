@@ -347,7 +347,7 @@ class GeometryToObjectsBuilder {
         }
         case bke::InstanceReference::Type::Object: {
           Object &object_eval = reference.object();
-          Object *object_orig = DEG_get_original_object(&object_eval);
+          Object *object_orig = DEG_get_original(&object_eval);
           if (ELEM(object_orig, &src_ob_eval, nullptr)) {
             return std::nullopt;
           }
@@ -383,7 +383,7 @@ class GeometryToObjectsBuilder {
       case bke::InstanceReference::Type::Object: {
         /* Create a collection for the object because we can't instance objects directly. */
         Object &object_eval = reference.object();
-        Object *object_orig = DEG_get_original_object(&object_eval);
+        Object *object_orig = DEG_get_original(&object_eval);
 
         if (object_orig->type == OB_EMPTY && object_orig->instance_collection) {
           instance.collection = object_orig->instance_collection;

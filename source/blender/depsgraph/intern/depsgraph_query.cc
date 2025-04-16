@@ -284,16 +284,6 @@ void DEG_get_evaluated_rna_pointer(const Depsgraph *depsgraph,
   }
 }
 
-Object *DEG_get_original_object(Object *object)
-{
-  return DEG_get_original(object);
-}
-
-const Object *DEG_get_original_object(const Object *object)
-{
-  return DEG_get_original(object);
-}
-
 ID *DEG_get_original_id(ID *id)
 {
   return deg::get_original_id(id);

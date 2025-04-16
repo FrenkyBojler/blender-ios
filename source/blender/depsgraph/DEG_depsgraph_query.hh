@@ -115,10 +115,6 @@ void DEG_get_evaluated_rna_pointer(const Depsgraph *depsgraph,
                                    PointerRNA *ptr,
                                    PointerRNA *r_ptr_eval);
 
-/** Get original version of object for given evaluated one. */
-Object *DEG_get_original_object(Object *object);
-const Object *DEG_get_original_object(const Object *object);
-
 /** Get original version of given evaluated ID data-block. */
 ID *DEG_get_original_id(ID *id);
 const ID *DEG_get_original_id(const ID *id);

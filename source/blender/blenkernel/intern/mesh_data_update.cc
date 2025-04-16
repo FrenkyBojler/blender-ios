@@ -1093,9 +1093,9 @@ static void object_get_datamask(const Depsgraph &depsgraph,
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *actob = BKE_view_layer_active_object_get(view_layer);
   if (actob) {
-    actob = DEG_get_original_object(actob);
+    actob = DEG_get_original(actob);
   }
-  if (DEG_get_original_object(&ob) == actob) {
+  if (DEG_get_original(&ob) == actob) {
     bool editing = BKE_paint_select_face_test(actob);
 
     /* weight paint and face select need original indices because of selection buffer drawing */
