@@ -287,7 +287,9 @@ template<typename T> struct GridToPointsConverter {
       points_range = points_range.after(point_data.coords.size());
 
       for (const int i : points_range.index_range()) {
-        positions[points_range[i]] = math::transform_point(transform, point_data.coords[i]);
+        /* Place points at voxel centers. */
+        positions[points_range[i]] = math::transform_point(transform,
+                                                           point_data.coords[i] + float3(0.5f));
       }
       if (coord_writer) {
         coord_writer.span.slice(points_range).copy_from(point_data.coords);
