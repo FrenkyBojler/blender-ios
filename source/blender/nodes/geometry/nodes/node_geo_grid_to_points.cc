@@ -243,7 +243,7 @@ template<typename T> struct GridToPointsConverter {
     std::optional<std::string> value_id;
 
     ThreadPointData thread_point_data;
-    coord_id = params.get_output_anonymous_attribute_id_if_needed("Coordinate");
+    coord_id = params.get_output_anonymous_attribute_id_if_needed("Voxel Coordinate");
     value_id = params.get_output_anonymous_attribute_id_if_needed("Value");
 
     voxels_to_points(
