@@ -46,7 +46,7 @@ static FSMenu *g_fsmenu = nullptr;
 FSMenu *ED_fsmenu_get()
 {
   if (!g_fsmenu) {
-    g_fsmenu = MEM_cnew<FSMenu>(__func__);
+    g_fsmenu = MEM_callocN<FSMenu>(__func__);
   }
   return g_fsmenu;
 }
@@ -261,6 +261,7 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
   if (path_len == 0) {
     return;
   }
+  BLI_assert(!BLI_path_is_rel(path));
   const bool has_trailing_slash = (path[path_len - 1] == SEP);
   FSMenuEntry *fsm_prev;
   FSMenuEntry *fsm_iter;

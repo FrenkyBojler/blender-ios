@@ -70,10 +70,11 @@ bool transdata_check_local_center(const TransInfo *t, short around);
  * Informs if the mode can be switched during modal.
  */
 bool transform_mode_is_changeable(int mode);
+bool transform_mode_affect_only_locations(const TransInfo *t);
 void protectedTransBits(short protectflag, float vec[3]);
-void protectedSizeBits(short protectflag, float size[3]);
+void protectedScaleBits(short protectflag, float scale[3]);
 void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransData *td);
-void constraintSizeLim(const TransInfo *t, const TransDataContainer *tc, TransData *td);
+void constraintScaleLim(const TransInfo *t, const TransDataContainer *tc, TransData *td);
 /**
  * Used by Transform Rotation and Transform Normal Rotation.
  */

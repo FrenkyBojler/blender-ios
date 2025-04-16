@@ -266,11 +266,11 @@ void BKE_curve_calc_coords_axis(const BezTriple *bezt_array,
                                 unsigned int resolu,
                                 bool is_cyclic,
                                 bool use_cyclic_duplicate_endpoint,
-                                /* array params */
+                                /* Array parameters. */
                                 unsigned int axis,
                                 unsigned int stride,
                                 float *r_points);
-
+void BKE_nurb_knot_alloc_u(Nurb *nu);
 void BKE_nurb_knot_calc_u(Nurb *nu);
 void BKE_nurb_knot_calc_v(Nurb *nu);
 

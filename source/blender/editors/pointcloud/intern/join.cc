@@ -24,7 +24,7 @@
 
 namespace blender::ed::pointcloud {
 
-int join_objects(bContext *C, wmOperator *op)
+wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -70,6 +70,11 @@ int join_objects(bContext *C, wmOperator *op)
   bke::GeometrySet realized_geometry = geometry::realize_instances(
       bke::GeometrySet::from_instances(&instances, bke::GeometryOwnershipType::ReadOnly),
       geometry::RealizeInstancesOptions());
+
+  if (!realized_geometry.has_pointcloud()) {
+    BKE_report(op->reports, RPT_WARNING, "No point cloud data to join");
+    return OPERATOR_CANCELLED;
+  }
 
   PointCloud *realized_points =
       realized_geometry.get_component_for_write<bke::PointCloudComponent>().release();

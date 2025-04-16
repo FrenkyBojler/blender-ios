@@ -13,6 +13,7 @@
 
 #include "BKE_paint.hh"
 
+#include "draw_debug.hh"
 #include "overlay_next_instance.hh"
 
 namespace blender::draw::overlay {
@@ -20,9 +21,13 @@ namespace blender::draw::overlay {
 void Instance::init()
 {
   /* TODO(fclem): Remove DRW global usage. */
-  const DRWContextState *ctx = DRW_context_state_get();
+  const DRWContext *ctx = DRW_context_get();
   /* Was needed by `object_wire_theme_id()` when doing the port. Not sure if needed nowadays. */
   BKE_view_layer_synced_ensure(ctx->scene, ctx->view_layer);
+
+  clipping_enabled_ = RV3D_CLIPPING_ENABLED(ctx->v3d, ctx->rv3d);
+
+  resources.init(clipping_enabled_);
 
   state.depsgraph = ctx->depsgraph;
   state.view_layer = ctx->view_layer;
@@ -34,12 +39,12 @@ void Instance::init()
   state.object_active = BKE_view_layer_active_object_get(ctx->view_layer);
   state.object_mode = ctx->object_mode;
   state.cfra = DEG_get_ctime(state.depsgraph);
-  state.is_viewport_image_render = DRW_state_is_viewport_image_render();
-  state.is_image_render = DRW_state_is_image_render();
-  state.is_depth_only_drawing = DRW_state_is_depth();
-  state.is_material_select = DRW_state_is_material_select();
-  state.draw_background = DRW_state_draw_background();
-  state.show_text = DRW_state_show_text();
+  state.is_viewport_image_render = ctx->is_viewport_image_render();
+  state.is_image_render = ctx->is_image_render();
+  state.is_depth_only_drawing = ctx->is_depth();
+  state.is_material_select = ctx->is_material_select();
+  state.draw_background = ctx->options.draw_background;
+  state.show_text = ctx->options.draw_text;
 
   /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity. */
   state.clipping_plane_count = clipping_enabled_ ? 6 : 0;
@@ -66,6 +71,10 @@ void Instance::init()
     state.is_render_depth_available = state.v3d->shading.type <= OB_SOLID ||
                                       (BKE_scene_uses_blender_eevee(state.scene) &&
                                        BKE_render_preview_pixel_size(&state.scene->r) == 1);
+
+    /* For depth only drawing, no other render engine is expected. Except for Grease Pencil which
+     * outputs valid depth. Otherwise depth is cleared and is valid. */
+    state.is_render_depth_available |= state.is_depth_only_drawing;
 
     if (!state.hide_overlays) {
       state.overlay = state.v3d->overlay;
@@ -107,7 +116,7 @@ void Instance::init()
     ED_space_image_get_aspect(space_image, &state.image_aspect.x, &state.image_aspect.y);
   }
 
-  resources.update_theme_settings(state);
+  resources.update_theme_settings(ctx, state);
   resources.update_clip_planes(state);
 
   ensure_weight_ramp_texture();
@@ -200,7 +209,7 @@ void Instance::ensure_weight_ramp_texture()
 void Resources::update_clip_planes(const State &state)
 {
   if (!state.is_space_v3d() || state.clipping_plane_count == 0) {
-    /* Unused, do not care about content but still fullfil the bindings. */
+    /* Unused, do not care about content but still fulfill the bindings. */
     clip_planes_buf.push_update();
     return;
   }
@@ -217,7 +226,7 @@ void Resources::update_clip_planes(const State &state)
   clip_planes_buf.push_update();
 }
 
-void Resources::update_theme_settings(const State &state)
+void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
 {
   using namespace math;
   GlobalsUboStorage *gb = &theme_settings;
@@ -368,7 +377,7 @@ void Resources::update_theme_settings(const State &state)
 
   gb->pixel_fac = (state.rv3d) ? state.rv3d->pixsize : 1.0f;
 
-  gb->size_viewport = float4(DRW_viewport_size_get(), 1.0f / DRW_viewport_size_get());
+  gb->size_viewport = float4(ctx->viewport_size_get(), 1.0f / ctx->viewport_size_get());
 
   /* Color management. */
   {
@@ -378,6 +387,22 @@ void Resources::update_theme_settings(const State &state)
       srgb_to_linearrgb_v4(color, color);
       color += 4;
     } while (color <= gb->UBO_LAST_COLOR);
+  }
+
+  if (state.v3d) {
+    const View3DShading &shading = state.v3d->shading;
+    gb->backface_culling = (shading.type == OB_SOLID) &&
+                           (shading.flag & V3D_SHADING_BACKFACE_CULLING);
+
+    if (is_selection() || state.is_depth_only_drawing) {
+      /* This is bad as this makes a solid mode setting affect material preview / render mode
+       * selection and auto-depth. But users are relying on this to work in scene using backface
+       * culling in shading (see #136335 and #136418). */
+      gb->backface_culling = (shading.flag & V3D_SHADING_BACKFACE_CULLING);
+    }
+  }
+  else {
+    gb->backface_culling = false;
   }
 
   globals_buf.push_update();
@@ -391,7 +416,7 @@ void Instance::begin_sync()
   state.camera_position = view.viewinv().location();
   state.camera_forward = view.viewinv().z_axis();
 
-  resources.begin_sync();
+  resources.begin_sync(state.clipping_plane_count);
 
   background.begin_sync(resources, state);
   cursor.begin_sync(resources, state);
@@ -425,6 +450,7 @@ void Instance::begin_sync()
     layer.names.begin_sync(resources, state);
     layer.paints.begin_sync(resources, state);
     layer.particles.begin_sync(resources, state);
+    layer.pointclouds.begin_sync(resources, state);
     layer.prepass.begin_sync(resources, state);
     layer.relations.begin_sync(resources, state);
     layer.speakers.begin_sync(resources, state);
@@ -442,6 +468,7 @@ void Instance::begin_sync()
 
 void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
 {
+  const bool in_object_mode = ob_ref.object->mode == OB_MODE_OBJECT;
   const bool in_edit_mode = ob_ref.object->mode == OB_MODE_EDIT;
   const bool in_paint_mode = object_is_paint_mode(ob_ref.object);
   const bool in_sculpt_mode = object_is_sculpt_mode(ob_ref);
@@ -462,13 +489,27 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
     layer.particles.edit_object_sync(manager, ob_ref, resources, state);
   }
 
+  /* For 2D UV overlays. */
+  if (!state.hide_overlays && state.is_space_image()) {
+    switch (ob_ref.object->type) {
+      case OB_MESH:
+        if (in_edit_paint_mode) {
+          /* TODO(fclem): Find a better place / condition. */
+          layer.mesh_uvs.edit_object_sync(manager, ob_ref, resources, state);
+        }
+        else if (in_object_mode) {
+          layer.mesh_uvs.object_sync(manager, ob_ref, resources, state);
+        }
+      default:
+        break;
+    }
+  }
+
   if (in_paint_mode && !state.hide_overlays) {
     switch (ob_ref.object->type) {
       case OB_MESH:
         /* TODO(fclem): Make it part of a #Meshes. */
         layer.paints.object_sync(manager, ob_ref, resources, state);
-        /* For wire-frames. */
-        layer.mesh_uvs.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_GREASE_PENCIL:
         layer.grease_pencil.paint_object_sync(manager, ob_ref, resources, state);
@@ -497,8 +538,6 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
     switch (ob_ref.object->type) {
       case OB_MESH:
         layer.meshes.edit_object_sync(manager, ob_ref, resources, state);
-        /* TODO(fclem): Find a better place / condition. */
-        layer.mesh_uvs.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_ARMATURE:
         layer.armatures.edit_object_sync(manager, ob_ref, resources, state);
@@ -515,6 +554,9 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         break;
       case OB_MBALL:
         layer.metaballs.edit_object_sync(manager, ob_ref, resources, state);
+        break;
+      case OB_POINTCLOUD:
+        layer.pointclouds.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_FONT:
         layer.edit_text.edit_object_sync(manager, ob_ref, resources, state);
@@ -614,12 +656,13 @@ void Instance::end_sync()
   /* WORKAROUND: This prevents bad frame-buffer config inside workbench when xray is enabled.
    * Better find a solution to this chicken-egg problem. */
   {
+    const DRWContext *draw_ctx = DRW_context_get();
     /* HACK we allocate the in front depth here to avoid the overhead when if is not needed. */
-    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
+    DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
 
     if (dtxl->depth_in_front == nullptr) {
-      int2 size = int2(DRW_viewport_size_get());
+      int2 size = int2(draw_ctx->viewport_size_get());
 
       dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
                                                    size.x,
@@ -643,8 +686,12 @@ void Instance::draw(Manager &manager)
 
   static gpu::DebugScope select_scope = {"Selection"};
   static gpu::DebugScope draw_scope = {"Overlay"};
+  static gpu::DebugScope depth_scope = {"DepthOnly"};
 
-  if (resources.is_selection()) {
+  if (state.is_depth_only_drawing) {
+    depth_scope.begin_capture();
+  }
+  else if (resources.is_selection()) {
     select_scope.begin_capture();
   }
   else {
@@ -673,6 +720,7 @@ void Instance::draw(Manager &manager)
       layer.lattices.pre_draw(manager, view);
       layer.light_probes.pre_draw(manager, view);
       layer.particles.pre_draw(manager, view);
+      layer.pointclouds.pre_draw(manager, view);
       layer.prepass.pre_draw(manager, view);
       layer.wireframe.pre_draw(manager, view);
     };
@@ -683,7 +731,9 @@ void Instance::draw(Manager &manager)
     outline.pre_draw(manager, view);
   }
 
-  resources.acquire(this->state, *DRW_viewport_texture_list_get());
+  resources.acquire(DRW_context_get(), this->state);
+
+  DRW_submission_start();
 
   /* TODO(fclem): Would be better to have a v2d overlay class instead of these conditions. */
   switch (state.space_type) {
@@ -700,11 +750,16 @@ void Instance::draw(Manager &manager)
       BLI_assert_unreachable();
   }
 
+  DRW_submission_end();
+
   resources.release();
 
   resources.read_result();
 
-  if (resources.is_selection()) {
+  if (state.is_depth_only_drawing) {
+    depth_scope.end_capture();
+  }
+  else if (resources.is_selection()) {
     select_scope.end_capture();
   }
   else {
@@ -760,6 +815,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.speakers.draw_line(framebuffer, manager, view);
     layer.lattices.draw_line(framebuffer, manager, view);
     layer.metaballs.draw_line(framebuffer, manager, view);
+    layer.pointclouds.draw_line(framebuffer, manager, view);
     layer.relations.draw_line(framebuffer, manager, view);
     layer.fluids.draw_line(framebuffer, manager, view);
     layer.particles.draw_line(framebuffer, manager, view);
@@ -767,7 +823,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.armatures.draw_line(framebuffer, manager, view);
     layer.sculpts.draw_line(framebuffer, manager, view);
     layer.grease_pencil.draw_line(framebuffer, manager, view);
-    layer.meshes.draw_line(framebuffer, manager, view);
+    /* NOTE: Temporarily moved after grid drawing (See #136764). */
+    // layer.meshes.draw_line(framebuffer, manager, view);
     layer.curves.draw_line(framebuffer, manager, view);
   };
 
@@ -805,11 +862,15 @@ void Instance::draw_v3d(Manager &manager, View &view)
       }
     }
 
+    if (BLI_thread_is_main() && !state.hide_overlays) {
+      DebugDraw::get().display_to_view(view);
+    }
+
+    regular.prepass.draw_line(resources.overlay_line_fb, manager, view);
+
     /* TODO(fclem): Split overlay and rename draw functions. */
     /* TODO(fclem): Draw on line framebuffer. */
     regular.empties.draw_images(resources.overlay_fb, manager, view);
-
-    regular.prepass.draw_line(resources.overlay_line_fb, manager, view);
 
     if (state.xray_enabled || (state.v3d && state.v3d->shading.type > OB_SOLID)) {
       /* If workbench is not enabled, the infront buffer might contain garbage. */
@@ -851,6 +912,9 @@ void Instance::draw_v3d(Manager &manager, View &view)
     motion_paths.draw_color_only(resources.overlay_color_only_fb, manager, view);
     xray_fade.draw_color_only(resources.overlay_color_only_fb, manager, view);
     grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
+
+    regular.meshes.draw_line(resources.overlay_line_fb, manager, view);
+    infront.meshes.draw_line(resources.overlay_line_in_front_fb, manager, view);
 
     draw_color_only(regular, resources.overlay_color_only_fb);
     draw_color_only(infront, resources.overlay_color_only_fb);
@@ -998,12 +1062,16 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 
   if (in_paint_mode) {
     /* Allow paint overlays to draw with depth equal test. */
-    return object_is_rendered_transparent(ob_ref.object, state);
+    if (object_is_rendered_transparent(ob_ref.object, state)) {
+      return true;
+    }
   }
 
   if (!state.xray_enabled) {
     /* Force depth prepass if depth buffer form render engine is not available. */
-    return !state.is_render_depth_available && (ob_ref.object->dt >= OB_SOLID);
+    if (!state.is_render_depth_available && (ob_ref.object->dt >= OB_SOLID)) {
+      return true;
+    }
   }
 
   return false;

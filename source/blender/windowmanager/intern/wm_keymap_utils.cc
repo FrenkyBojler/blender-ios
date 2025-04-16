@@ -205,10 +205,10 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
         km_id = "Sequencer";
         break;
       case SEQ_VIEW_PREVIEW:
-        km_id = "SequencerPreview";
+        km_id = "Preview";
         break;
       case SEQ_VIEW_SEQUENCE_PREVIEW:
-        km_id = "SequencerCommon";
+        km_id = "Video Sequence Editor";
         break;
     }
   }
@@ -406,9 +406,20 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
         default:
           break;
       }
+
+      if (ARegion *region = CTX_wm_region(C)) {
+        /* When property is in side panel, add shortcut key to User interface Keymap, see: #136998.
+         */
+        if (region->regiontype == RGN_TYPE_UI) {
+          km = WM_keymap_find_all(wm, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
+        }
+      }
       if (km && !WM_keymap_poll((bContext *)C, km)) {
         km = nullptr;
       }
+    }
+    else if (sl->spacetype == SPACE_PROPERTIES) {
+      km = WM_keymap_find_all(wm, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
     }
 
     if (!km) {
@@ -545,6 +556,12 @@ static bool wm_keymap_item_uses_modifier(const wmKeyMapItem *kmi, const int even
       return false;
     }
   }
+  if (kmi->hyper != KM_ANY) {
+    if ((kmi->hyper == KM_NOTHING) != ((event_modifier & KM_HYPER) == 0)) {
+      return false;
+    }
+  }
+
   return true;
 }
 

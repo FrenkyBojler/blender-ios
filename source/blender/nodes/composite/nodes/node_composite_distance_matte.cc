@@ -42,7 +42,7 @@ static void cmp_node_distance_matte_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_distance_matte(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeChroma *c = MEM_cnew<NodeChroma>(__func__);
+  NodeChroma *c = MEM_callocN<NodeChroma>(__func__);
   node->storage = c;
   c->channel = CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA;
   c->t1 = 0.1f;
@@ -197,7 +197,7 @@ void register_node_type_cmp_distance_matte()
   cmp_node_type_base(&ntype, "CompositorNodeDistanceMatte", CMP_NODE_DIST_MATTE);
   ntype.ui_name = "Distance Key";
   ntype.ui_description = "Create matte based on 3D distance between colors";
-  ntype.enum_name_legacy = "DIST_MATTE";
+  ntype.enum_name_legacy = "DISTANCE_MATTE";
   ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_distance_matte_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_distance_matte;

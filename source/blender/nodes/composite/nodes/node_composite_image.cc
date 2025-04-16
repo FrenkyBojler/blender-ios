@@ -111,7 +111,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
           *ntree, *node, SOCK_OUT, type, PROP_NONE, name, name);
     }
     /* extra socket info */
-    NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
+    NodeImageLayer *sockdata = MEM_callocN<NodeImageLayer>(__func__);
     sock->storage = sockdata;
   }
 
@@ -136,13 +136,18 @@ static eNodeSocketDatatype socket_type_from_pass(const RenderPass *pass)
       return SOCK_FLOAT;
     case 2:
     case 3:
-      return SOCK_VECTOR;
-    case 4:
-      if (blender::StringRef(pass->chan_id) == "XYZW") {
-        return SOCK_VECTOR;
+      if (STR_ELEM(pass->chan_id, "RGB", "rgb")) {
+        return SOCK_RGBA;
       }
       else {
+        return SOCK_VECTOR;
+      }
+    case 4:
+      if (STR_ELEM(pass->chan_id, "RGBA", "rgba")) {
         return SOCK_RGBA;
+      }
+      else {
+        return SOCK_VECTOR;
       }
     default:
       break;
@@ -305,8 +310,7 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
     if (engine_type && engine_type->update_render_passes) {
       ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&scene->view_layers, node->custom1);
       if (view_layer) {
-        RLayerUpdateData *data = (RLayerUpdateData *)MEM_mallocN(sizeof(RLayerUpdateData),
-                                                                 "render layer update data");
+        RLayerUpdateData *data = MEM_mallocN<RLayerUpdateData>("render layer update data");
         data->available_sockets = available_sockets;
         data->prev_index = -1;
         node->storage = data;
@@ -420,7 +424,7 @@ static void cmp_node_image_update(bNodeTree *ntree, bNode *node)
 
 static void node_composit_init_image(bNodeTree *ntree, bNode *node)
 {
-  ImageUser *iuser = MEM_cnew<ImageUser>(__func__);
+  ImageUser *iuser = MEM_callocN<ImageUser>(__func__);
   node->storage = iuser;
   iuser->frames = 1;
   iuser->sfra = 1;
@@ -465,6 +469,10 @@ class ImageOperation : public NodeOperation {
   void execute() override
   {
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!output->is_available()) {
+        continue;
+      }
+
       compute_output(output->identifier);
     }
   }
@@ -573,7 +581,7 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
   for (bNodeSocket *sock = (bNodeSocket *)node->outputs.first; sock;
        sock = sock->next, sock_index++)
   {
-    NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
+    NodeImageLayer *sockdata = MEM_callocN<NodeImageLayer>(__func__);
     sock->storage = sockdata;
 
     STRNCPY(sockdata->pass_name, node_cmp_rlayers_sock_to_pass(sock_index));
@@ -706,6 +714,10 @@ class RenderLayerOperation : public NodeOperation {
     }
 
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!output->is_available()) {
+        continue;
+      }
+
       if (STR_ELEM(output->identifier, "Image", "Alpha")) {
         continue;
       }
@@ -793,6 +805,7 @@ class RenderLayerOperation : public NodeOperation {
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Float2:
+      case ResultType::Bool:
         /* Not supported. */
         break;
     }

@@ -465,11 +465,12 @@ static ImBuf *ibuf_from_picture(PlayAnimPict *pic)
   }
   else if (pic->mem) {
     /* Use correct color-space here. */
-    ibuf = IMB_ibImageFromMemory(pic->mem, pic->size, pic->IB_flags, nullptr, pic->filepath);
+    ibuf = IMB_load_image_from_memory(
+        pic->mem, pic->size, pic->IB_flags, pic->filepath, pic->filepath);
   }
   else {
     /* Use correct color-space here. */
-    ibuf = IMB_loadiffname(pic->filepath, pic->IB_flags, nullptr);
+    ibuf = IMB_load_image_from_filepath(pic->filepath, pic->IB_flags);
   }
 
   return ibuf;
@@ -849,7 +850,7 @@ static void build_pict_list_from_anim(ListBase &picsbase,
                                       const int frame_offset)
 {
   /* OCIO_TODO: support different input color space. */
-  MovieReader *anim = MOV_open_file(filepath_first, IB_rect, 0, nullptr);
+  MovieReader *anim = MOV_open_file(filepath_first, IB_byte_data, 0, nullptr);
   if (anim == nullptr) {
     CLOG_WARN(&LOG, "couldn't open anim '%s'", filepath_first);
     return;
@@ -862,10 +863,10 @@ static void build_pict_list_from_anim(ListBase &picsbase,
   }
 
   for (int pic = 0; pic < MOV_get_duration_frames(anim, IMB_TC_NONE); pic++) {
-    PlayAnimPict *picture = static_cast<PlayAnimPict *>(MEM_callocN(sizeof(PlayAnimPict), "Pict"));
+    PlayAnimPict *picture = MEM_callocN<PlayAnimPict>("Pict");
     picture->anim = anim;
     picture->frame = pic + frame_offset;
-    picture->IB_flags = IB_rect;
+    picture->IB_flags = IB_byte_data;
     picture->filepath = BLI_sprintfN("%s : %4.d", filepath_first, pic + 1);
     BLI_addtail(&picsbase, picture);
   }
@@ -915,7 +916,7 @@ static void build_pict_list_from_image_sequence(ListBase &picsbase,
   g_playanim.total_time = 1.0;
 
   for (int pic = 0; pic < totframes; pic++) {
-    if (!IMB_ispic(filepath)) {
+    if (!IMB_test_image(filepath)) {
       break;
     }
 
@@ -930,10 +931,9 @@ static void build_pict_list_from_image_sequence(ListBase &picsbase,
       size = 0;
     }
 
-    PlayAnimPict *picture = static_cast<PlayAnimPict *>(
-        MEM_callocN(sizeof(PlayAnimPict), "picture"));
+    PlayAnimPict *picture = MEM_callocN<PlayAnimPict>("picture");
     picture->size = size;
-    picture->IB_flags = IB_rect;
+    picture->IB_flags = IB_byte_data;
     picture->mem = static_cast<uchar *>(mem);
     picture->filepath = BLI_strdup(filepath);
     picture->error_message = error_message;
@@ -1564,7 +1564,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr p
       if (ddd->dataType == GHOST_kDragnDropTypeFilenames) {
         const GHOST_TStringArray *stra = static_cast<const GHOST_TStringArray *>(ddd->data);
         ps.argc_next = stra->count;
-        ps.argv_next = static_cast<char **>(MEM_mallocN(sizeof(char **) * ps.argc_next, __func__));
+        ps.argv_next = MEM_malloc_arrayN<char *>(size_t(ps.argc_next), __func__);
         for (int i = 0; i < stra->count; i++) {
           ps.argv_next[i] = BLI_strdup(reinterpret_cast<const char *>(stra->strings[i]));
         }
@@ -1814,21 +1814,21 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 
   if (MOV_is_movie_file(filepath)) {
     /* OCIO_TODO: support different input color spaces. */
-    MovieReader *anim = MOV_open_file(filepath, IB_rect, 0, nullptr);
+    MovieReader *anim = MOV_open_file(filepath, IB_byte_data, 0, nullptr);
     if (anim) {
       ibuf = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
       MOV_close(anim);
       anim = nullptr;
     }
   }
-  else if (!IMB_ispic(filepath)) {
+  else if (!IMB_test_image(filepath)) {
     printf("%s: '%s' not an image file\n", __func__, filepath);
     exit(EXIT_FAILURE);
   }
 
   if (ibuf == nullptr) {
     /* OCIO_TODO: support different input color space. */
-    ibuf = IMB_loadiffname(filepath, IB_rect, nullptr);
+    ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
   }
 
   if (ibuf == nullptr) {

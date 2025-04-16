@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
@@ -32,6 +33,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 
@@ -62,14 +64,12 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
 {
   Main *bmain = DEG_get_bmain(depsgraph);
   Scene *scene = DEG_get_input_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
 
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     if (region->regiontype != RGN_TYPE_WINDOW) {
       continue;
     }
 
-    View3D *v3d = static_cast<View3D *>(area->spacedata.first);
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
     RenderEngine *engine = rv3d->view_render ? RE_view_engine_get(rv3d->view_render) : nullptr;
 
@@ -95,20 +95,6 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
 
       CTX_free(C);
     }
-
-    if (!updated) {
-      continue;
-    }
-
-    DRWUpdateContext drw_context = {nullptr};
-    drw_context.bmain = bmain;
-    drw_context.depsgraph = depsgraph;
-    drw_context.scene = scene;
-    drw_context.view_layer = view_layer;
-    drw_context.region = region;
-    drw_context.v3d = v3d;
-    drw_context.engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
-    DRW_notify_view_update(&drw_context);
   }
 }
 
@@ -264,11 +250,17 @@ static void texture_changed(Main *bmain, Tex *tex)
     }
     /* find compositing nodes */
     if (scene->use_nodes && scene->nodetree) {
-      LISTBASE_FOREACH (bNode *, node, &scene->nodetree->nodes) {
+      for (bNode *node : scene->nodetree->all_nodes()) {
         if (node->id == &tex->id) {
           blender::ed::space_node::tag_update_id(&scene->id);
         }
       }
+    }
+  }
+
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    if (ELEM(tex, brush->mtex.tex, brush->mask_mtex.tex)) {
+      BKE_brush_tag_unsaved_changes(brush);
     }
   }
 }

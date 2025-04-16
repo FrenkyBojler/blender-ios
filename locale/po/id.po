@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-17 14:06+0000\n"
-"PO-Revision-Date: 2025-01-31 04:04+0000\n"
-"Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
+"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"PO-Revision-Date: 2025-04-14 08:25+0000\n"
+"Last-Translator: Muhammad Jayadi Anwar <muhajayaanwar@gmail.com>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
 "Language: id\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n!=1);\n"
-"X-Generator: Weblate 5.9.2\n"
+"X-Generator: Weblate 5.10.1\n"
 "X-Poedit-SourceCharset: utf-8\n"
 "X-Poedit-Bookmarks: -1,-1,-1,-1,-1,-1,-1,-1,-1,4"
 
@@ -99,10 +99,6 @@ msgstr "Untuk setiap slot aksi, ada daftar saluran animasi yang dimaksudkan untu
 
 msgid "Action F-Curves"
 msgstr "Aksi F-Kurva"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Koleksi aksi F-Kurva"
 
 
 msgid "Action Group"
@@ -652,14 +648,6 @@ msgstr "Distribusikan memori antar perangkat"
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "Buat spasi lebih banyak untuk adegan besar supaya cukup dengan mendistribusikan memori antar perangkat yang terkoneksi (e.g via NVLink) daripada menduplikasikannya"
-
-
-msgid "HIP RT (Experimental)"
-msgstr "HIP RT (Eksperimental)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT menggunakan pelacakan sinar oleh perangkat keras AMD di RDNA2 dan yang lebih baru, dengan fallback peneduh pada kartu lebih tua. Fitur ini bersifat eksperimental dan beberapa adegan mungkin salah render"
 
 
 msgid "Embree on GPU"
@@ -6192,10 +6180,6 @@ msgid "Exposure"
 msgstr "Eksposur"
 
 
-msgid "Exposure (stops) applied before display transform"
-msgstr "Eksposur (berhenti) diterapkan sebelum transformasi tampilan"
-
-
 msgid "Gamma"
 msgstr "Gamma"
 
@@ -7460,42 +7444,6 @@ msgstr "Gunakan titik pivot di jarak rotasi positif sekitar sumbu-Z"
 
 msgid "Use Relative Offset"
 msgstr "Gunakan Offset Relatif"
-
-
-msgid "Python Constraint"
-msgstr "Batasan Python"
-
-
-msgid "Use Python script for constraint evaluation"
-msgstr "Gunakan skrip Python untuk evaluasi pembatas"
-
-
-msgid "Script Error"
-msgstr "Skrip Error"
-
-
-msgid "The linked Python script has thrown an error"
-msgstr "Skrip Python yang terkoneksi telah melempar error"
-
-
-msgid "Number of Targets"
-msgstr "Jumlah Target"
-
-
-msgid "Usually only 1 to 3 are needed"
-msgstr "Biasanya hanya 1 sampai 3 yang diperlukan"
-
-
-msgid "Target Objects"
-msgstr "Sunting Objek"
-
-
-msgid "Script"
-msgstr "Script"
-
-
-msgid "The text object that contains the Python script"
-msgstr "Objek teks yang mengandung script Python"
 
 
 msgid "Stop vertices from projecting to a face on the target when facing towards/away"
@@ -9414,6 +9362,10 @@ msgid "Realtime"
 msgstr "Waktu nyata"
 
 
+msgid "Profile"
+msgstr "Profil"
+
+
 msgid "Container"
 msgstr "Wadah"
 
@@ -10620,6 +10572,10 @@ msgid "Collection"
 msgstr "Koleksi"
 
 
+msgid "Bundle"
+msgstr "Bundel"
+
+
 msgid "A collection of objects based on which feature edges are selected"
 msgstr "Koleksi objek berdasasrkan dengan tepi fitur yang terseleksi"
 
@@ -11092,58 +11048,6 @@ msgid "Grease Pencil Frames"
 msgstr "Frame Pensil Grease"
 
 
-msgid "Grease Pencil Layer"
-msgstr "Layer Pensil Grease"
-
-
-msgid "Blend Mode"
-msgstr "Mode Blend"
-
-
-msgid "Blend mode"
-msgstr "Mode blend"
-
-
-msgid "Regular"
-msgstr "Biasa"
-
-
-msgid "Hard Light"
-msgstr "Cahaya Keras"
-
-
-msgid "Layer Opacity"
-msgstr "Opasitas Layer"
-
-
-msgid "Parent object"
-msgstr "Objek induk"
-
-
-msgid "Parent Bone"
-msgstr "Tulang Induk"
-
-
-msgid "Pass Index"
-msgstr "Indeks Pass"
-
-
-msgid "Translation"
-msgstr "Terjemahan"
-
-
-msgid "Use Lights"
-msgstr "Gunakan Cahaya"
-
-
-msgid "Enable the use of lights on stroke and fill materials"
-msgstr "Aktifkan penggunaan cahaya di sapuan dan mengisi bahan"
-
-
-msgid "ViewLayer"
-msgstr "TampilkanLayer"
-
-
 msgid "Grease Pencil Masking Layers"
 msgstr "Layer Masking Pensil Grease"
 
@@ -11180,6 +11084,10 @@ msgid "Active Note"
 msgstr "Catatan Aktif"
 
 
+msgid "Regular"
+msgstr "Biasa"
+
+
 msgid "Reverse"
 msgstr "Membalik"
 
@@ -11190,6 +11098,54 @@ msgstr "Ulang"
 
 msgid "Frame Start"
 msgstr "Frame Mulai"
+
+
+msgid "Grease Pencil Layer"
+msgstr "Layer Pensil Grease"
+
+
+msgid "Blend Mode"
+msgstr "Mode Blend"
+
+
+msgid "Blend mode"
+msgstr "Mode blend"
+
+
+msgid "Hard Light"
+msgstr "Cahaya Keras"
+
+
+msgid "Layer Opacity"
+msgstr "Opasitas Layer"
+
+
+msgid "Parent object"
+msgstr "Objek induk"
+
+
+msgid "Parent Bone"
+msgstr "Tulang Induk"
+
+
+msgid "Pass Index"
+msgstr "Indeks Pass"
+
+
+msgid "Translation"
+msgstr "Terjemahan"
+
+
+msgid "Use Lights"
+msgstr "Gunakan Cahaya"
+
+
+msgid "Enable the use of lights on stroke and fill materials"
+msgstr "Aktifkan penggunaan cahaya di sapuan dan mengisi bahan"
+
+
+msgid "ViewLayer"
+msgstr "TampilkanLayer"
 
 
 msgid "Grease Pencil Layers"
@@ -11444,14 +11400,6 @@ msgstr "Radius Kuas"
 
 msgid "Loop"
 msgstr "Putaran"
-
-
-msgid "Clone Image"
-msgstr "Gambar"
-
-
-msgid "Clone Offset"
-msgstr "Kamera"
 
 
 msgid "How much the cloth preserves the original shape, acting as a soft body"
@@ -12079,10 +12027,6 @@ msgid "Round"
 msgstr "Bulat"
 
 
-msgid "Profile"
-msgstr "Profil"
-
-
 msgid "Bevel Object"
 msgstr "Objek"
 
@@ -12697,6 +12641,10 @@ msgid "Matte"
 msgstr "Matte"
 
 
+msgid "Script"
+msgstr "Script"
+
+
 msgid "Pattern"
 msgstr "Pola"
 
@@ -13301,11 +13249,6 @@ msgstr "Kanan"
 
 msgid "Wood Texture"
 msgstr "Tekstur"
-
-
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Klip"
 
 
 msgid "Window manager data-block defining open windows and other user interface data"
@@ -15139,18 +15082,6 @@ msgid "Mask"
 msgstr "Masker"
 
 
-msgid "Mirror"
-msgstr "Cermin"
-
-
-msgid "Snap"
-msgstr "Jepret"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
-
-
 msgid "Select Linked"
 msgstr "Seleksi yang Terhubung"
 
@@ -15201,6 +15132,18 @@ msgstr "Menggabungkan"
 
 msgid "Text"
 msgstr "Teks"
+
+
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
 
 
 msgctxt "MovieClip"
@@ -17148,10 +17091,6 @@ msgid "Movie tracking track data"
 msgstr "Data lintasan pelacakan film"
 
 
-msgid "Bundle"
-msgstr "Bundel"
-
-
 msgid "Has Bundle"
 msgstr "Punya Bundel"
 
@@ -17843,6 +17782,10 @@ msgid "To"
 msgstr "Ke"
 
 
+msgid "Interpolation method"
+msgstr "Metode Interpolasi"
+
+
 msgid "Cryptomatte (Legacy)"
 msgstr "Cryptomatte (Warisan)"
 
@@ -18147,12 +18090,12 @@ msgid "Ghosts"
 msgstr "Hantu"
 
 
-msgid "Simple star filter: add 45 degree rotation offset"
-msgstr "Filter bintang sederhana: tambah offset rotasi 45 derajat"
-
-
 msgid "ID Mask"
 msgstr "Masker ID"
+
+
+msgid "Image Info"
+msgstr "Informasi Gambar"
 
 
 msgid "Post Blur"
@@ -18637,10 +18580,6 @@ msgid "Secondary"
 msgstr "Sekunder"
 
 
-msgid "Image Info"
-msgstr "Informasi Gambar"
-
-
 msgctxt "Image"
 msgid "Mirror"
 msgstr "Cermin"
@@ -18742,6 +18681,10 @@ msgid "Set Instance Transform"
 msgstr "Set Transformasi Contoh"
 
 
+msgid "Tangent Space"
+msgstr "Tekstur"
+
+
 msgid "Sort Elements"
 msgstr "Sortir Elemen"
 
@@ -18836,10 +18779,6 @@ msgstr "Tipe Interpolasi"
 
 msgid "Space of the input normal"
 msgstr "Tidak dapat membuka dokumen"
-
-
-msgid "Tangent Space"
-msgstr "Tekstur"
 
 
 msgid "Object space normal mapping"
@@ -20711,6 +20650,10 @@ msgid "Select Mode"
 msgstr "Seleksi"
 
 
+msgid "Fill Opacity"
+msgstr "Isi Opasitas"
+
+
 msgid "Assign the active material slot to the selected strokes"
 msgstr "Tugaskan slot bahan aktif ke sapuan terpilih"
 
@@ -21167,10 +21110,6 @@ msgstr "Bebaskan bagian dalam"
 
 msgid "Plane Normal"
 msgstr "Bidang Normal"
-
-
-msgid "Interpolation method"
-msgstr "Metode Interpolasi"
 
 
 msgid "Blend Surface"
@@ -21674,15 +21613,6 @@ msgstr "Modus Sunting"
 msgctxt "Operator"
 msgid "Add Node Collection"
 msgstr "Tambah Koleksi Node"
-
-
-msgctxt "Operator"
-msgid "Add File Node"
-msgstr "Tambah Node Dokumen"
-
-
-msgid "Add a file node to the current node editor"
-msgstr "Tambah node dokumen ke editor node sekarang"
 
 
 msgctxt "Operator"
@@ -24217,10 +24147,6 @@ msgid "Exports UVs from the modified mesh"
 msgstr "Mengekspor UV dari jala yang dimodifikasi"
 
 
-msgid "Fill Opacity"
-msgstr "Isi Opasitas"
-
-
 msgid "Hide (un)selected UV vertices"
 msgstr "Menyembunyikan simpul UV yang (tidak) terpilih"
 
@@ -25374,6 +25300,14 @@ msgstr "Ukurang"
 
 msgid "Canvas"
 msgstr "Kanvas"
+
+
+msgid "Clone Image"
+msgstr "Gambar"
+
+
+msgid "Clone Offset"
+msgstr "Kamera"
 
 
 msgid "Clone Map"
@@ -26646,6 +26580,10 @@ msgid "Edit shader nodes from Line Style"
 msgstr "Edit node shader dari Gaya Garis"
 
 
+msgid "Texture Node Editor"
+msgstr "Editor Simpul Tekstur"
+
+
 msgid "Blender File"
 msgstr "Situs Blender"
 
@@ -26712,6 +26650,11 @@ msgstr "Adegan"
 msgctxt "Sequence"
 msgid "Movie"
 msgstr "Film"
+
+
+msgctxt "Sequence"
+msgid "Clip"
+msgstr "Klip"
 
 
 msgctxt "Sequence"
@@ -28020,10 +27963,6 @@ msgstr "Faktor Mulai"
 
 msgid "Bold & Italic"
 msgstr "Tebal & Miring"
-
-
-msgid "Interpolation Tilt"
-msgstr "Kemiringan Interpolasi"
 
 
 msgctxt "Operator"
@@ -30142,6 +30081,10 @@ msgid "Delete Vertices"
 msgstr "Menghapus Simpul"
 
 
+msgid "Interpolation Tilt"
+msgstr "Kemiringan Interpolasi"
+
+
 msgctxt "Operator"
 msgid "Remove from Active Group"
 msgstr "Hapus dari Kelompok Aktif"
@@ -30192,6 +30135,10 @@ msgstr "Permukaan"
 
 msgid "Untitled"
 msgstr "Untitled"
+
+
+msgid "True Normal"
+msgstr "Normal Sesungguhnya"
 
 
 msgid "materials"
@@ -31391,10 +31338,6 @@ msgid "Open Recent"
 msgstr "Buka yang Belakangan Ini"
 
 
-msgid "Create object instance from object-data"
-msgstr "Buat contoh benda dari benda-data"
-
-
 msgid "Control Point:"
 msgstr "Titik Kontrol:"
 
@@ -31485,6 +31428,10 @@ msgstr "Perspektif Pengguna"
 
 msgid " (Viewer)"
 msgstr " (Penampil)"
+
+
+msgid "Create object instance from object-data"
+msgstr "Buat contoh benda dari benda-data"
 
 
 msgid "Cannot fly an object with constraints"
@@ -32098,10 +32045,6 @@ msgid "Transparency"
 msgstr "Transparansi"
 
 
-msgid "True Normal"
-msgstr "Normal Sesungguhnya"
-
-
 msgid "Tangent Normal"
 msgstr "Nama"
 
@@ -32172,10 +32115,6 @@ msgstr "Atribut Temperatur"
 
 msgid "Patterns"
 msgstr "Adegan"
-
-
-msgid "Texture Node Editor"
-msgstr "Editor Simpul Tekstur"
 
 
 msgid "Bricks 1"

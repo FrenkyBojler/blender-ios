@@ -38,6 +38,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -134,7 +135,7 @@ struct TreeDrawContext {
    * Geometry nodes logs various data during execution. The logged data that corresponds to the
    * currently drawn node tree can be retrieved from the log below.
    */
-  Map<const bNodeTreeZone *, geo_log::GeoTreeLog *> geo_log_by_zone;
+  geo_log::ContextualGeoTreeLogs tree_logs;
 
   NestedTreePreviews *nested_group_infos = nullptr;
   /**
@@ -354,7 +355,8 @@ static Array<uiBlock *> node_uiblocks_init(const bContext &C, const Span<bNode *
   for (const int i : nodes.index_range()) {
     const bNode &node = *nodes[i];
     std::string block_name = "node_" + std::string(node.name);
-    uiBlock *block = UI_block_begin(&C, scene, window, region, std::move(block_name), UI_EMBOSS);
+    uiBlock *block = UI_block_begin(
+        &C, scene, window, region, std::move(block_name), blender::ui::EmbossType::Emboss);
     blocks[node.index()] = block;
     /* This cancels events for background nodes. */
     UI_block_flag_enable(block, UI_BLOCK_CLIP_EVENTS);
@@ -445,14 +447,14 @@ const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_l
 {
   /* Get the short label if possible. This is used when grouping sockets under panels,
    * to avoid redundancy in the label. */
-  const std::optional<StringRefNull> socket_short_label = bke::nodeSocketShortLabel(*socket);
+  const std::optional<StringRefNull> socket_short_label = bke::node_socket_short_label(*socket);
   const char *socket_translation_context = node_socket_get_translation_context(*socket);
 
   if (socket_short_label.has_value()) {
     return CTX_IFACE_(socket_translation_context, socket_short_label->c_str());
   }
 
-  const StringRefNull socket_label = bke::nodeSocketLabel(*socket);
+  const StringRefNull socket_label = bke::node_socket_label(*socket);
   const char *translated_socket_label = CTX_IFACE_(socket_translation_context,
                                                    socket_label.c_str());
 
@@ -586,6 +588,8 @@ struct Separator {
 struct PanelHeader {
   static constexpr Type type = Type::PanelHeader;
   const nodes::PanelDeclaration *decl;
+  /** Optional input that is drawn in the header. */
+  bNodeSocket *input = nullptr;
 };
 struct PanelContentBegin {
   static constexpr Type type = Type::PanelContentBegin;
@@ -747,7 +751,14 @@ static void add_flat_items_for_panel(bNode &node,
   if (!panel_visibility[panel_decl.index]) {
     return;
   }
-  r_items.append({flat_item::PanelHeader{&panel_decl}});
+  flat_item::PanelHeader header_item;
+  header_item.decl = &panel_decl;
+  const nodes::SocketDeclaration *panel_input_decl = panel_decl.panel_input_decl();
+  if (panel_input_decl) {
+    header_item.input = &node.socket_by_decl(*panel_input_decl);
+  }
+  r_items.append({header_item});
+
   const bNodePanelState &panel_state = node.panel_states_array[panel_decl.index];
   if (panel_state.is_collapsed()) {
     return;
@@ -755,6 +766,9 @@ static void add_flat_items_for_panel(bNode &node,
   r_items.append({flat_item::PanelContentBegin{&panel_decl}});
   const nodes::SocketDeclaration *prev_socket_decl = nullptr;
   for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
+    if (item_decl == panel_input_decl) {
+      continue;
+    }
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
       add_flat_items_for_socket(node, *socket_decl, &panel_decl, prev_socket_decl, r_items);
       prev_socket_decl = socket_decl;
@@ -1071,6 +1085,7 @@ static void node_update_basis_from_declaration(
   for (bke::bNodePanelRuntime &panel_runtime : node.runtime->panels) {
     panel_runtime.header_center_y.reset();
     panel_runtime.content_extent.reset();
+    panel_runtime.input_socket = nullptr;
   }
   for (bNodeSocket *socket : node.input_sockets()) {
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
@@ -1155,6 +1170,11 @@ static void node_update_basis_from_declaration(
             locy -= panel_header_height / 2;
             panel_runtime.header_center_y = locy;
             locy -= panel_header_height / 2;
+            bNodeSocket *input_socket = item.input;
+            if (input_socket) {
+              panel_runtime.input_socket = input_socket;
+              input_socket->runtime->location = float2(locx, *panel_runtime.header_center_y);
+            }
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::PanelContentBegin>) {
             const nodes::PanelDeclaration &node_decl = *item.decl;
@@ -1509,12 +1529,6 @@ static void create_inspection_string_for_generic_value(const bNodeSocket &socket
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_GR);
     return;
   }
-  if (value_type.is<std::string>()) {
-    fmt::format_to(fmt::appender(buf),
-                   fmt::runtime(TIP_("{} (String)")),
-                   *static_cast<const std::string *>(buffer));
-    return;
-  }
 
   const CPPType &socket_type = *socket.typeinfo->base_cpp_type;
 
@@ -1805,6 +1819,48 @@ static void create_inspection_string_for_geometry_socket(fmt::memory_buffer &buf
   }
 }
 
+static void create_inspection_string_for_bundle(const geo_log::BundleValueLog &value_log,
+                                                fmt::memory_buffer &buf)
+{
+  if (value_log.items.is_empty()) {
+    fmt::format_to(fmt::appender(buf), "{}", TIP_("Empty Bundle"));
+    return;
+  }
+  fmt::format_to(fmt::appender(buf), "{}", TIP_("Bundle values:\n"));
+  for (const geo_log::BundleValueLog::Item &item : value_log.items) {
+    fmt::format_to(fmt::appender(buf),
+                   fmt::runtime("\u2022 \"{}\" ({})\n"),
+                   item.key.identifiers().first(),
+                   TIP_(item.type->label));
+  }
+}
+
+static void create_inspection_string_for_closure(const geo_log::ClosureValueLog &value_log,
+                                                 fmt::memory_buffer &buf)
+{
+  if (value_log.inputs.is_empty() && value_log.outputs.is_empty()) {
+    fmt::format_to(fmt::appender(buf), "{}", TIP_("Empty Closure"));
+  }
+  if (!value_log.inputs.is_empty()) {
+    fmt::format_to(fmt::appender(buf), "{}:\n", TIP_("Inputs"));
+    for (const geo_log::ClosureValueLog::Item &item : value_log.inputs) {
+      fmt::format_to(fmt::appender(buf),
+                     fmt::runtime("\u2022 {} ({})\n"),
+                     item.key.identifiers().first(),
+                     IFACE_(item.type->label));
+    }
+  }
+  if (!value_log.outputs.is_empty()) {
+    fmt::format_to(fmt::appender(buf), "{}:\n", TIP_("Outputs"));
+    for (const geo_log::ClosureValueLog::Item &item : value_log.outputs) {
+      fmt::format_to(fmt::appender(buf),
+                     fmt::runtime("\u2022 {} ({})\n"),
+                     item.key.identifiers().first(),
+                     IFACE_(item.type->label));
+    }
+  }
+}
+
 static void create_inspection_string_for_default_socket_value(const bNodeSocket &socket,
                                                               fmt::memory_buffer &buf)
 {
@@ -1872,6 +1928,16 @@ static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeL
   {
     create_inspection_string_for_generic_value(socket, generic_value_log->value, buf);
   }
+  else if (const geo_log::StringLog *string_log = dynamic_cast<const geo_log::StringLog *>(
+               value_log))
+  {
+    if (string_log->truncated) {
+      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("{}... (String)")), string_log->value);
+    }
+    else {
+      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("{} (String)")), string_log->value);
+    }
+  }
   else if (const geo_log::FieldInfoLog *gfield_value_log =
                dynamic_cast<const geo_log::FieldInfoLog *>(value_log))
   {
@@ -1881,6 +1947,16 @@ static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeL
                dynamic_cast<const geo_log::GeometryInfoLog *>(value_log))
   {
     create_inspection_string_for_geometry_info(*geo_value_log, buf);
+  }
+  else if (const geo_log::BundleValueLog *bundle_value_log =
+               dynamic_cast<const geo_log::BundleValueLog *>(value_log))
+  {
+    create_inspection_string_for_bundle(*bundle_value_log, buf);
+  }
+  else if (const geo_log::ClosureValueLog *closure_value_log =
+               dynamic_cast<const geo_log::ClosureValueLog *>(value_log))
+  {
+    create_inspection_string_for_closure(*closure_value_log, buf);
   }
 
   std::string str = fmt::to_string(buf);
@@ -1906,18 +1982,6 @@ static std::optional<std::string> create_declaration_inspection_string(const bNo
   return str;
 }
 
-static geo_log::GeoTreeLog *geo_tree_log_for_socket(const bNodeTree &ntree,
-                                                    const bNodeSocket &socket,
-                                                    TreeDrawContext &tree_draw_ctx)
-{
-  const bNodeTreeZones *zones = ntree.zones();
-  if (!zones) {
-    return nullptr;
-  }
-  const bNodeTreeZone *zone = zones->get_zone_by_socket(socket);
-  return tree_draw_ctx.geo_log_by_zone.lookup_default(zone, nullptr);
-}
-
 static Vector<std::string> lines_of_text(std::string text)
 {
   Vector<std::string> result;
@@ -1929,7 +1993,7 @@ static Vector<std::string> lines_of_text(std::string text)
 }
 
 static std::optional<std::string> create_multi_input_log_inspection_string(
-    const bNodeTree &ntree, const bNodeSocket &socket, TreeDrawContext &tree_draw_ctx)
+    const bNodeSocket &socket, TreeDrawContext &tree_draw_ctx)
 {
   if (!socket.is_multi_input()) {
     return std::nullopt;
@@ -1951,8 +2015,8 @@ static std::optional<std::string> create_multi_input_log_inspection_string(
       continue;
     }
     const bNodeSocket &connected_socket = *link->fromsock;
-    geo_log::GeoTreeLog *geo_tree_log = geo_tree_log_for_socket(
-        ntree, connected_socket, tree_draw_ctx);
+    geo_log::GeoTreeLog *geo_tree_log = tree_draw_ctx.tree_logs.get_main_tree_log(
+        connected_socket);
     const std::optional<std::string> input_log = create_log_inspection_string(geo_tree_log,
                                                                               connected_socket);
     if (!input_log.has_value()) {
@@ -2066,12 +2130,11 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
   TreeDrawContext tree_draw_ctx;
   if (snode != nullptr) {
     if (ntree.type == NTREE_GEOMETRY) {
-      tree_draw_ctx.geo_log_by_zone =
-          geo_log::GeoModifierLog::get_tree_log_by_zone_for_node_editor(*snode);
+      tree_draw_ctx.tree_logs = geo_log::GeoModifierLog::get_contextual_tree_logs(*snode);
     }
   }
 
-  geo_log::GeoTreeLog *geo_tree_log = geo_tree_log_for_socket(ntree, socket, tree_draw_ctx);
+  geo_log::GeoTreeLog *geo_tree_log = tree_draw_ctx.tree_logs.get_main_tree_log(socket);
 
   Vector<std::string> inspection_strings;
 
@@ -2090,7 +2153,7 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
     inspection_strings.append(std::move(*info));
   }
   else if (std::optional<std::string> info = create_multi_input_log_inspection_string(
-               ntree, socket, tree_draw_ctx))
+               socket, tree_draw_ctx))
   {
     inspection_strings.append(std::move(*info));
   }
@@ -2110,15 +2173,13 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
     const bool is_extend = StringRef(socket.idname) == "NodeSocketVirtual";
     const bNode &node = socket.owner_node();
     if (node.is_reroute()) {
-      char reroute_name[MAX_NAME];
-      bke::nodeLabel(ntree, node, reroute_name, sizeof(reroute_name));
-      output << reroute_name;
+      output << bke::node_label(ntree, node);
     }
     else if (is_extend) {
       output << TIP_("Connect a link to create a new socket");
     }
     else {
-      output << bke::nodeSocketLabel(socket);
+      output << bke::node_socket_label(socket);
     }
 
     if (ntree.type == NTREE_GEOMETRY && !is_extend) {
@@ -2155,7 +2216,7 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
     const bNodeSocket *socket;
   };
 
-  SocketTooltipData *data = MEM_cnew<SocketTooltipData>(__func__);
+  SocketTooltipData *data = MEM_callocN<SocketTooltipData>(__func__);
   data->ntree = &ntree;
   data->socket = &sock;
 
@@ -2183,7 +2244,9 @@ void node_socket_draw(bNodeSocket *sock, const rcti *rect, const float color[4],
       center.y - radius,
       center.y + radius,
   };
-  float outline_color[4] = {0};
+
+  ColorTheme4f outline_color;
+  node_socket_outline_color_get(sock->flag & SELECT, sock->type, outline_color);
 
   node_draw_nodesocket(&draw_rect,
                        color,
@@ -2487,6 +2550,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
   for (const int panel_i : node_decl.panels.index_range()) {
     const nodes::PanelDeclaration &panel_decl = *node_decl.panels[panel_i];
     const bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[panel_i];
+    bNodeSocket *input_socket = panel_runtime.input_socket;
     const bNodePanelState &panel_state = node.panel_states_array[panel_i];
     if (!panel_runtime.header_center_y.has_value()) {
       continue;
@@ -2496,42 +2560,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                               draw_bounds.xmax,
                               *panel_runtime.header_center_y - NODE_DYS,
                               *panel_runtime.header_center_y + NODE_DYS};
-    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
-
-    /* Collapse/expand icon. */
-    const int but_size = U.widget_unit * 0.8f;
-    uiDefIconBut(&block,
-                 UI_BTYPE_BUT_TOGGLE,
-                 0,
-                 panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
-                 draw_bounds.xmin + (NODE_MARGIN_X / 3),
-                 *panel_runtime.header_center_y - but_size / 2,
-                 but_size,
-                 but_size,
-                 nullptr,
-                 0.0f,
-                 0.0f,
-                 "");
-
-    /* Panel label. */
-    uiBut *label_but = uiDefBut(
-        &block,
-        UI_BTYPE_LABEL,
-        0,
-        IFACE_(panel_decl.name),
-        int(draw_bounds.xmin + NODE_MARGIN_X + 0.4f),
-        int(*panel_runtime.header_center_y - NODE_DYS),
-        short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * UI_SCALE_FAC)),
-        NODE_DY,
-        nullptr,
-        0,
-        0,
-        "");
-
-    const bool only_inactive_inputs = panel_has_only_inactive_inputs(node, panel_decl);
-    if (node.is_muted() || only_inactive_inputs) {
-      UI_but_flag_enable(label_but, UI_BUT_INACTIVE);
-    }
+    UI_block_emboss_set(&block, blender::ui::EmbossType::None);
 
     /* Invisible button covering the entire header for collapsing/expanding. */
     const int header_but_margin = NODE_MARGIN_X / 3;
@@ -2555,7 +2584,66 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                     const_cast<bNodePanelState *>(&panel_state),
                     &ntree);
 
-    UI_block_emboss_set(&block, UI_EMBOSS);
+    /* Collapse/expand icon. */
+    const int but_size = U.widget_unit * 0.8f;
+    const int but_padding = NODE_MARGIN_X / 4;
+    int offsetx = draw_bounds.xmin + (NODE_MARGIN_X / 3);
+    uiDefIconBut(&block,
+                 UI_BTYPE_LABEL,
+                 0,
+                 panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
+                 offsetx,
+                 *panel_runtime.header_center_y - but_size / 2,
+                 but_size,
+                 but_size,
+                 nullptr,
+                 0.0f,
+                 0.0f,
+                 "");
+    offsetx += but_size + but_padding;
+
+    UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
+
+    /* Panel toggle. */
+    if (input_socket && !input_socket->is_logically_linked()) {
+      PointerRNA socket_ptr = RNA_pointer_create_discrete(
+          &ntree.id, &RNA_NodeSocket, input_socket);
+      uiDefButR(&block,
+                UI_BTYPE_CHECKBOX,
+                -1,
+                "",
+                offsetx,
+                int(*panel_runtime.header_center_y - NODE_DYS),
+                UI_UNIT_X,
+                NODE_DY,
+                &socket_ptr,
+                "default_value",
+                0,
+                0,
+                0,
+                "");
+      offsetx += UI_UNIT_X;
+    }
+
+    /* Panel label. */
+    uiBut *label_but = uiDefBut(
+        &block,
+        UI_BTYPE_LABEL,
+        0,
+        IFACE_(panel_decl.name),
+        offsetx,
+        int(*panel_runtime.header_center_y - NODE_DYS),
+        short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * UI_SCALE_FAC)),
+        NODE_DY,
+        nullptr,
+        0,
+        0,
+        "");
+
+    const bool only_inactive_inputs = panel_has_only_inactive_inputs(node, panel_decl);
+    if (node.is_muted() || only_inactive_inputs) {
+      UI_but_flag_enable(label_but, UI_BUT_INACTIVE);
+    }
   }
 }
 
@@ -2605,7 +2693,7 @@ static void node_add_unsupported_compositor_operation_error_message_button(const
                                                                            float &icon_offset)
 {
   icon_offset -= NODE_HEADER_ICON_SIZE;
-  UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+  UI_block_emboss_set(&block, blender::ui::EmbossType::None);
   uiDefIconBut(&block,
                UI_BTYPE_BUT,
                0,
@@ -2618,7 +2706,7 @@ static void node_add_unsupported_compositor_operation_error_message_button(const
                0,
                0,
                TIP_(node.typeinfo->compositor_unsupported_message));
-  UI_block_emboss_set(&block, UI_EMBOSS);
+  UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
 }
 
 static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
@@ -2641,7 +2729,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
     if (zone && ELEM(&node, zone->input_node, zone->output_node)) {
       zone = zone->parent_zone;
     }
-    return tree_draw_ctx.geo_log_by_zone.lookup_default(zone, nullptr);
+    return tree_draw_ctx.tree_logs.get_main_tree_log(zone);
   }();
 
   Span<geo_log::NodeWarning> warnings;
@@ -2660,7 +2748,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
   tooltip_data->warnings = warnings;
 
   icon_offset -= NODE_HEADER_ICON_SIZE;
-  UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+  UI_block_emboss_set(&block, blender::ui::EmbossType::None);
   uiBut *but = uiDefIconBut(&block,
                             UI_BTYPE_BUT,
                             0,
@@ -2676,7 +2764,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
   UI_but_func_tooltip_set(but, node_errors_tooltip_fn, tooltip_data, [](void *arg) {
     MEM_delete(static_cast<NodeErrorsTooltipData *>(arg));
   });
-  UI_block_emboss_set(&block, UI_EMBOSS);
+  UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
 }
 
 static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
@@ -2693,7 +2781,7 @@ static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
     if (zone && ELEM(&node, zone->input_node, zone->output_node)) {
       zone = zone->parent_zone;
     }
-    return tree_draw_ctx.geo_log_by_zone.lookup_default(zone, nullptr);
+    return tree_draw_ctx.tree_logs.get_main_tree_log(zone);
   }();
 
   if (tree_log == nullptr) {
@@ -2922,14 +3010,7 @@ static NodeExtraInfoRow row_from_used_named_attribute(
 static std::optional<NodeExtraInfoRow> node_get_accessed_attributes_row(
     TreeDrawContext &tree_draw_ctx, const bNode &node)
 {
-  geo_log::GeoTreeLog *geo_tree_log = [&]() -> geo_log::GeoTreeLog * {
-    const bNodeTreeZones *zones = node.owner_tree().zones();
-    if (!zones) {
-      return nullptr;
-    }
-    const bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
-    return tree_draw_ctx.geo_log_by_zone.lookup_default(zone, nullptr);
-  }();
+  geo_log::GeoTreeLog *geo_tree_log = tree_draw_ctx.tree_logs.get_main_tree_log(node);
   if (geo_tree_log == nullptr) {
     return std::nullopt;
   }
@@ -3069,7 +3150,8 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             NODE_GROUP_OUTPUT,
             GEO_NODE_SIMULATION_OUTPUT,
             GEO_NODE_REPEAT_OUTPUT,
-            GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT)))
+            GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
+            GEO_NODE_EVALUATE_CLOSURE)))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
         tree_draw_ctx, snode, node);
@@ -3078,14 +3160,7 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
     }
   }
 
-  geo_log::GeoTreeLog *tree_log = [&]() -> geo_log::GeoTreeLog * {
-    const bNodeTreeZones *tree_zones = node.owner_tree().zones();
-    if (!tree_zones) {
-      return nullptr;
-    }
-    const bNodeTreeZone *zone = tree_zones->get_zone_by_node(node.identifier);
-    return tree_draw_ctx.geo_log_by_zone.lookup_default(zone, nullptr);
-  }();
+  geo_log::GeoTreeLog *tree_log = tree_draw_ctx.tree_logs.get_main_tree_log(node);
 
   if (tree_log) {
     tree_log->ensure_debug_messages();
@@ -3113,7 +3188,7 @@ static void node_draw_extra_info_row(const bNode &node,
   const float but_icon_width = NODE_HEADER_ICON_SIZE * 0.8f;
   const float but_icon_right = but_icon_left + but_icon_width;
 
-  UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+  UI_block_emboss_set(&block, blender::ui::EmbossType::None);
   uiBut *but_icon = uiDefIconBut(&block,
                                  UI_BTYPE_BUT,
                                  0,
@@ -3132,7 +3207,7 @@ static void node_draw_extra_info_row(const bNode &node,
                             extra_info_row.tooltip_fn_arg,
                             extra_info_row.tooltip_fn_free_arg);
   }
-  UI_block_emboss_set(&block, UI_EMBOSS);
+  UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
 
   const float but_text_left = but_icon_right + 6.0f * UI_SCALE_FAC;
   const float but_text_right = rect.xmax;
@@ -3272,7 +3347,7 @@ static void node_draw_extra_info_panel(const bContext &C,
 
 static short get_viewer_shortcut_icon(const bNode &node)
 {
-  BLI_assert(node.is_type("CompositorNodeViewer"));
+  BLI_assert(node.is_type("CompositorNodeViewer") || node.is_type("GeometryNodeViewer"));
   switch (node.custom1) {
     case NODE_VIEWER_SHORTCUT_NONE:
       /* No change by default. */
@@ -3298,6 +3373,35 @@ static short get_viewer_shortcut_icon(const bNode &node)
   }
 
   return node.typeinfo->ui_icon;
+}
+
+/* Returns true if the given node has an undefined type, a missing group node tree, or is
+ * unsupported in the given node tree. */
+static bool node_undefined_or_unsupported(const bNodeTree &node_tree, const bNode &node)
+{
+  if (node.typeinfo == &bke::NodeTypeUndefined) {
+    return true;
+  }
+
+  const char *disabled_hint = nullptr;
+  if (!node.typeinfo->poll(node.typeinfo, &node_tree, &disabled_hint)) {
+    return true;
+  }
+
+  if (node.is_group()) {
+    const ID *group_tree = node.id;
+    if (group_tree == nullptr) {
+      return false;
+    }
+    if (!ID_IS_LINKED(group_tree)) {
+      return false;
+    }
+    if ((group_tree->tag & ID_TAG_MISSING) == 0) {
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 static void node_draw_basis(const bContext &C,
@@ -3348,8 +3452,9 @@ static void node_draw_basis(const bContext &C,
     bool drawn_with_previews = false;
 
     if (show_preview) {
-      bke::bNodeInstanceHash *previews_compo = static_cast<bke::bNodeInstanceHash *>(
-          CTX_data_pointer_get(&C, "node_previews").data);
+      Map<bNodeInstanceKey, bke::bNodePreview> *previews_compo =
+          static_cast<Map<bNodeInstanceKey, bke::bNodePreview> *>(
+              CTX_data_pointer_get(&C, "node_previews").data);
       NestedTreePreviews *previews_shader = tree_draw_ctx.nested_group_infos;
 
       if (previews_shader) {
@@ -3359,9 +3464,7 @@ static void node_draw_basis(const bContext &C,
         drawn_with_previews = true;
       }
       else if (previews_compo) {
-        bNodePreview *preview_compositor = static_cast<bNodePreview *>(
-            bke::node_instance_hash_lookup(previews_compo, key));
-        if (preview_compositor) {
+        if (bke::bNodePreview *preview_compositor = previews_compo->lookup_ptr(key)) {
           node_draw_extra_info_panel(
               C, tree_draw_ctx, snode, node, preview_compositor->ibuf, block);
           drawn_with_previews = true;
@@ -3407,7 +3510,7 @@ static void node_draw_basis(const bContext &C,
    * don't check for NODE_GROUP_CUSTOM here. */
   if (node.type_legacy == NODE_GROUP) {
     iconofs -= iconbutw;
-    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::None);
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT_TOGGLE,
                               0,
@@ -3427,13 +3530,13 @@ static void node_draw_basis(const bContext &C,
     if (node.id) {
       UI_but_icon_indicator_number_set(but, ID_REAL_USERS(node.id));
     }
-    UI_block_emboss_set(&block, UI_EMBOSS);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
   /* Preview. */
   if (node_is_previewable(snode, ntree, node)) {
     const bool is_active = node.flag & NODE_PREVIEW;
     iconofs -= iconbutw;
-    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::None);
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT_TOGGLE,
                               0,
@@ -3450,13 +3553,13 @@ static void node_draw_basis(const bContext &C,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
                     (void *)"NODE_OT_preview_toggle");
-    UI_block_emboss_set(&block, UI_EMBOSS);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
   if (ELEM(node.type_legacy, NODE_CUSTOM, NODE_CUSTOM_GROUP) &&
       node.typeinfo->ui_icon != ICON_NONE)
   {
     iconofs -= iconbutw;
-    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::None);
     uiDefIconBut(&block,
                  UI_BTYPE_BUT,
                  0,
@@ -3469,16 +3572,16 @@ static void node_draw_basis(const bContext &C,
                  0,
                  0,
                  "");
-    UI_block_emboss_set(&block, UI_EMBOSS);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
   if (node.type_legacy == GEO_NODE_VIEWER) {
     const bool is_active = &node == tree_draw_ctx.active_geometry_nodes_viewer;
     iconofs -= iconbutw;
-    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::None);
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT,
                               0,
-                              is_active ? ICON_HIDE_OFF : ICON_HIDE_ON,
+                              is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
                               iconofs,
                               rct.ymax - NODE_DY,
                               iconbutw,
@@ -3488,18 +3591,32 @@ static void node_draw_basis(const bContext &C,
                               0,
                               "");
     /* Selection implicitly activates the node. */
-    const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" : "NODE_OT_select";
+    const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" :
+                                              "NODE_OT_activate_viewer";
     UI_but_func_set(
         but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)operator_idname);
-    UI_block_emboss_set(&block, UI_EMBOSS);
+
+    short shortcut_icon = get_viewer_shortcut_icon(node);
+    uiDefIconBut(&block,
+                 UI_BTYPE_BUT,
+                 0,
+                 shortcut_icon,
+                 iconofs - 1.2 * iconbutw,
+                 rct.ymax - NODE_DY,
+                 iconbutw,
+                 UI_UNIT_Y,
+                 nullptr,
+                 0,
+                 0,
+                 "");
+    UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
   /* Viewer node shortcuts. */
   if (node.is_type("CompositorNodeViewer")) {
     short shortcut_icon = get_viewer_shortcut_icon(node);
     iconofs -= iconbutw;
-    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
-
     const bool is_active = node.flag & NODE_DO_OUTPUT;
+    UI_block_emboss_set(&block, blender::ui::EmbossType::None);
     uiDefIconBut(&block,
                  UI_BTYPE_BUT,
                  0,
@@ -3525,7 +3642,7 @@ static void node_draw_basis(const bContext &C,
                  0,
                  0,
                  "");
-    UI_block_emboss_set(&block, UI_EMBOSS);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
 
   node_add_error_message_button(tree_draw_ctx, node, block, rct, iconofs);
@@ -3541,7 +3658,7 @@ static void node_draw_basis(const bContext &C,
   /* Collapse/expand icon. */
   {
     const int but_size = U.widget_unit * 0.8f;
-    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::None);
 
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT_TOGGLE,
@@ -3560,11 +3677,10 @@ static void node_draw_basis(const bContext &C,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
                     (void *)"NODE_OT_hide_toggle");
-    UI_block_emboss_set(&block, UI_EMBOSS);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
 
-  char showname[128];
-  bke::nodeLabel(ntree, node, showname, sizeof(showname));
+  const std::string showname = bke::node_label(ntree, node);
 
   uiBut *but = uiDefBut(&block,
                         UI_BTYPE_LABEL,
@@ -3603,7 +3719,7 @@ static void node_draw_basis(const bContext &C,
   const float outline_width = U.pixelsize;
   {
     /* Use warning color to indicate undefined types. */
-    if (bke::node_type_is_undefined(node)) {
+    if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
     }
     /* Muted nodes get a mix of the background with the node color. */
@@ -3681,7 +3797,7 @@ static void node_draw_basis(const bContext &C,
     if (node.flag & SELECT) {
       UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_outline);
     }
-    else if (bke::node_type_is_undefined(node)) {
+    else if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
     else if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(node.type_legacy)) {
@@ -3745,7 +3861,7 @@ static void node_draw_hidden(const bContext &C,
   /* Body. */
   float color[4];
   {
-    if (bke::node_type_is_undefined(node)) {
+    if (node_undefined_or_unsupported(ntree, node)) {
       /* Use warning color to indicate undefined types. */
       UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
     }
@@ -3793,7 +3909,7 @@ static void node_draw_hidden(const bContext &C,
   /* Collapse/expand icon. */
   {
     const int but_size = U.widget_unit * 1.0f;
-    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::None);
 
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT_TOGGLE,
@@ -3812,11 +3928,10 @@ static void node_draw_hidden(const bContext &C,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
                     (void *)"NODE_OT_hide_toggle");
-    UI_block_emboss_set(&block, UI_EMBOSS);
+    UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
 
-  char showname[128];
-  bke::nodeLabel(ntree, node, showname, sizeof(showname));
+  const std::string showname = bke::node_label(ntree, node);
 
   uiBut *but = uiDefBut(&block,
                         UI_BTYPE_LABEL,
@@ -3847,7 +3962,7 @@ static void node_draw_hidden(const bContext &C,
     if (node.flag & SELECT) {
       UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_outline);
     }
-    else if (bke::node_type_is_undefined(node)) {
+    else if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
     else {
@@ -4114,8 +4229,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   const NodeFrame *data = (const NodeFrame *)node.storage;
   const float font_size = data->label_size / aspect;
 
-  char label[MAX_NAME];
-  bke::nodeLabel(ntree, node, label, sizeof(label));
+  const std::string label = bke::node_label(ntree, node);
 
   BLF_enable(fontid, BLF_ASPECT);
   BLF_aspect(fontid, aspect, aspect, 1.0f);
@@ -4128,7 +4242,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   BLF_color3ubv(fontid, color);
 
   const float margin = NODE_FRAME_MARGIN;
-  const float width = BLF_width(fontid, label, sizeof(label));
+  const float width = BLF_width(fontid, label.c_str(), label.size());
   const int label_height = frame_node_label_height(*data);
 
   const rctf &rct = node.runtime->draw_bounds;
@@ -4139,7 +4253,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   const bool has_label = node.label[0] != '\0';
   if (has_label) {
     BLF_position(fontid, label_x, label_y, 0);
-    BLF_draw(fontid, label, sizeof(label));
+    BLF_draw(fontid, label.c_str(), label.size());
   }
 
   /* Draw text body. */
@@ -4264,27 +4378,18 @@ static Set<const bNodeSocket *> find_sockets_on_active_gizmo_paths(const bContex
   }
   snode.edittree->ensure_topology_cache();
 
-  /* Compute the compute context hash for the current node tree path. */
-  std::optional<ComputeContextHash> current_compute_context_hash =
-      [&]() -> std::optional<ComputeContextHash> {
-    ComputeContextBuilder compute_context_builder;
-    compute_context_builder.push<bke::ModifierComputeContext>(
-        object_and_modifier->nmd->modifier.name);
-    if (!ed::space_node::push_compute_context_for_tree_path(snode, compute_context_builder)) {
-      return std::nullopt;
-    }
-    return compute_context_builder.current()->hash();
-  }();
-  if (!current_compute_context_hash) {
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current_compute_context = ed::space_node::compute_context_for_edittree(
+      snode, compute_context_cache);
+  if (!current_compute_context) {
     return {};
   }
 
   Set<const bNodeSocket *> sockets_on_gizmo_paths;
 
-  ComputeContextBuilder compute_context_builder;
   nodes::gizmos::foreach_active_gizmo(
       C,
-      compute_context_builder,
+      compute_context_cache,
       [&](const Object &gizmo_object,
           const NodesModifierData &gizmo_nmd,
           const ComputeContext &gizmo_context,
@@ -4303,7 +4408,7 @@ static Set<const bNodeSocket *> find_sockets_on_active_gizmo_paths(const bContex
             [&](const ComputeContext &compute_context,
                 const bNodeSocket &socket,
                 const nodes::inverse_eval::ElemVariant & /*elem*/) {
-              if (compute_context.hash() == *current_compute_context_hash) {
+              if (compute_context.hash() == current_compute_context->hash()) {
                 sockets_on_gizmo_paths.add(&socket);
               }
             });
@@ -4813,7 +4918,7 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   const int y = region.winy - UI_UNIT_Y * 0.6f;
   const int width = BLI_rcti_size_x(rect) - 2 * padding_x;
 
-  uiBlock *block = UI_block_begin(&C, &region, __func__, UI_EMBOSS_NONE);
+  uiBlock *block = UI_block_begin(&C, &region, __func__, blender::ui::EmbossType::None);
   uiLayout *layout = UI_block_layout(
       block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, x, y, width, 1, 0, style);
 
@@ -4895,12 +5000,11 @@ static void draw_nodetree(const bContext &C,
 
   BLI_SCOPED_DEFER([&]() { ntree.runtime->sockets_on_active_gizmo_paths.clear(); });
   if (ntree.type == NTREE_GEOMETRY) {
-    tree_draw_ctx.geo_log_by_zone = geo_log::GeoModifierLog::get_tree_log_by_zone_for_node_editor(
-        *snode);
-    for (geo_log::GeoTreeLog *log : tree_draw_ctx.geo_log_by_zone.values()) {
-      log->ensure_node_warnings(&ntree);
-      log->ensure_execution_times();
-    }
+    tree_draw_ctx.tree_logs = geo_log::GeoModifierLog::get_contextual_tree_logs(*snode);
+    tree_draw_ctx.tree_logs.foreach_tree_log([&](geo_log::GeoTreeLog &log) {
+      log.ensure_node_warnings(*tree_draw_ctx.bmain);
+      log.ensure_execution_times();
+    });
     const WorkSpace *workspace = CTX_wm_workspace(&C);
     tree_draw_ctx.active_geometry_nodes_viewer = viewer_path::find_geometry_nodes_viewer(
         workspace->viewer_path, *snode);

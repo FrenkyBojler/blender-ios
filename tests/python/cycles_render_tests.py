@@ -70,10 +70,12 @@ BLOCKLIST_OPTIX = [
 ]
 
 BLOCKLIST_OPTIX_OSL = [
-    # OPTIX OSL doesn't support trace function needed for AO and bevel
-    'bake_bevel.blend',
+    # OptiX OSL does support AO or Bevel
     'ambient_occlusion.*.blend',
+    'bake_bevel.blend',
     'bevel.blend',
+    'principled_bsdf_bevel_emission_137420.blend',
+    # OptiX OSL doesn't support the trace function
     'osl_trace_shader.blend',
     # Bump evaluation is not implemented yet. See 104276
     'compare_bump.blend',
@@ -254,9 +256,12 @@ def main():
     # OSL tests:
     # Blackbody is slightly different between SVM and OSL.
     # Microfacet hair renders slightly differently, and fails on Windows and Linux with OSL
+    #
+    # both_displacement.blend has slight differences between Linux and other platforms.
 
     test_dir_name = Path(args.testdir).name
-    if (test_dir_name in {'motion_blur', 'integrator'}) or ((args.osl) and (test_dir_name in {'shader', 'hair'})):
+    if (test_dir_name in {'motion_blur', 'integrator', "displacement"}) or \
+       ((args.osl) and (test_dir_name in {'shader', 'hair'})):
         report.set_fail_threshold(0.032)
 
     # Layer mixing is different between SVM and OSL, so a few tests have

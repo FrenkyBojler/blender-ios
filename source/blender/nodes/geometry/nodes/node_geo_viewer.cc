@@ -37,7 +37,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryViewer *data = MEM_cnew<NodeGeometryViewer>(__func__);
+  NodeGeometryViewer *data = MEM_callocN<NodeGeometryViewer>(__func__);
   data->data_type = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Auto);
   node->storage = data;
@@ -138,6 +138,15 @@ static void node_rna(StructRNA *srna)
                     rna_enum_attribute_domain_with_auto_items,
                     NOD_storage_enum_accessors(domain),
                     int(AttrDomain::Point));
+
+  PropertyRNA *prop;
+  prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs_runtime(
+      prop, rna_Node_Viewer_shortcut_node_get, rna_Node_Viewer_shortcut_node_set, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
+  RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
+  RNA_def_property_update_notifier(prop, NC_NODE | ND_DISPLAY);
 }
 
 static void node_register()

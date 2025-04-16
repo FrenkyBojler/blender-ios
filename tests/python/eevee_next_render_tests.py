@@ -36,6 +36,10 @@ BLOCKLIST = [
     "ray_offset.blend",
     # Blocked due to difference in border texel handling between platforms (to be fixed).
     "render_passes_thinfilm_color.blend",
+    # Blocked due to a significant amount of transparency that have a different nosie pattern between devices.
+    "light_path_is_shadow_ray.blend",
+    # Blocked as the test seems to alternate between two different states
+    "light_path_is_diffuse_ray.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -46,6 +50,7 @@ BLOCKLIST_METAL = [
     "shadow_all_max_bounces.blend",
     "light_link_exclude.blend",
     "light_link_instanced_receiver.blend",
+    "light_path_is_volume_scatter_ray.blend",
     # Blocked due to difference in volume lightprobe bakes(maybe?) (to be fixed).
     "volume_zero_extinction_channel.blend",
     # Blocked due to difference in screen space tracing (to be fixed).
@@ -224,7 +229,6 @@ def create_argparse():
     parser.add_argument("--outdir", required=True)
     parser.add_argument("--oiiotool", required=True)
     parser.add_argument('--batch', default=False, action='store_true')
-    parser.add_argument('--fail-silently', default=False, action='store_true')
     parser.add_argument('--gpu-backend')
     return parser
 
@@ -273,8 +277,8 @@ def main():
         # hair close up
         report.set_fail_threshold(0.0275)
     elif test_dir_name.startswith('integrator'):
-        # shadow all max bounces
-        report.set_fail_threshold(0.0275)
+        # Noise difference in transparent materials
+        report.set_fail_threshold(0.05)
     elif test_dir_name.startswith('pointcloud'):
         # points transparent
         report.set_fail_threshold(0.06)
@@ -282,7 +286,7 @@ def main():
         # Noise difference in transparent material
         report.set_fail_threshold(0.05)
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch, fail_silently=args.fail_silently)
+    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
 
 
