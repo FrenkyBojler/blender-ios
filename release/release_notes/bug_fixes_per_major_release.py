@@ -746,16 +746,14 @@ def sort_reverts(list_of_commits: list[CommitInfo]) -> None:
                 # A commit hash wasn't provided.
                 continue
 
-            # Assume the revert commit fixed a old issue.
-            # If it turns out to have reverted a commit made in the current release,
-            # then it technically fixed a new issue and will have it's classification
-            # adjusted accordingly.
-            revert_commit.classification = FIXED_OLD_ISSUE
+            # This is just to shift the commit into a list we don't share in the release notes.
+            # An alternative is `IGNORED` but then the information won't be saved to the cache.
+            revert_commit.classification = FIXED_NEW_ISSUE
 
             for hash in reverted_commit_hashs:
                 for commit in list_of_commits:
                     if commit.hash.startswith(hash):
-                        revert_commit.classification = FIXED_NEW_ISSUE
+                        # This is just to shift the commit out of the list of `FIXED_OLD_ISSUE`.
                         commit.classification = FIXED_NEW_ISSUE
 
 
