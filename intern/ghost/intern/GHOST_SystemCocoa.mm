@@ -980,10 +980,14 @@ GHOST_TSuccess GHOST_SystemCocoa::getButtons(GHOST_Buttons &buttons) const
 
 GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
 {
-  return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
-                               ~(
-                                   /* Cocoa has no support for a primary selection clipboard. */
-                                   GHOST_kCapabilityPrimaryClipboard));
+  return GHOST_TCapabilityFlag(
+      GHOST_CAPABILITY_FLAG_ALL &
+      ~(
+          /* Cocoa has no support for a primary selection clipboard. */
+          GHOST_kCapabilityPrimaryClipboard |
+          /* Cocoa doesn't define a Hyper modifier key,
+           * it's possible another modifier could be optionally used in it's place. */
+          GHOST_kCapabilityKeyboardHyperKey));
 }
 
 /* --------------------------------------------------------------------
@@ -1477,9 +1481,10 @@ GHOST_TSuccess GHOST_SystemCocoa::handleTabletEvent(void *eventPtr, short eventT
       }
 
       ct.Pressure = event.pressure;
+      /* Range: -1 (left) to 1 (right). */
       ct.Xtilt = event.tilt.x;
-      /* On macOS, the y tilt behavior is inverted; an increase in the tilt
-       * value corresponds to tilting the device away from the user. */
+      /* On macOS, the y tilt behavior is inverted from what we expect: negative
+       * meaning a tilt toward the user, positive meaning away from the user. */
       ct.Ytilt = -event.tilt.y;
       break;
 

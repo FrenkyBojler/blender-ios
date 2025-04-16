@@ -463,12 +463,16 @@ static void get_proxy_filepath(const MovieClip *clip,
   BLI_strncat(filepath, ".jpg", FILE_MAX);
 }
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
+
+namespace {
 
 struct MultilayerConvertContext {
   float *combined_pass;
   int num_combined_channels;
 };
+
+}  // namespace
 
 static void *movieclip_convert_multilayer_add_view(void * /*ctx_v*/, const char * /*view_name*/)
 {
@@ -507,14 +511,14 @@ static void movieclip_convert_multilayer_add_pass(void * /*layer*/,
   }
 }
 
-#endif /* WITH_OPENEXR */
+#endif /* WITH_IMAGE_OPENEXR */
 
 void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
     return;
   }
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
   if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->userdata == nullptr) {
     return;
   }
@@ -572,7 +576,7 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
   loadflag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
 
   /* read ibuf */
-  ibuf = IMB_loadiffname(filepath, loadflag, colorspace);
+  ibuf = IMB_load_image_from_filepath(filepath, loadflag, colorspace);
   BKE_movieclip_convert_multilayer_ibuf(ibuf);
 
   return ibuf;
@@ -771,8 +775,7 @@ static void *moviecache_getprioritydata(void *key_v)
   MovieClipImBufCacheKey *key = (MovieClipImBufCacheKey *)key_v;
   MovieClipCachePriorityData *priority_data;
 
-  priority_data = static_cast<MovieClipCachePriorityData *>(
-      MEM_callocN(sizeof(*priority_data), "movie cache clip priority data"));
+  priority_data = MEM_callocN<MovieClipCachePriorityData>("movie cache clip priority data");
   priority_data->framenr = key->framenr;
 
   return priority_data;
@@ -853,8 +856,7 @@ static bool put_imbuf_cache(
     // char cache_name[64];
     // SNPRINTF(cache_name, "movie %s", clip->id.name);
 
-    clip->cache = static_cast<MovieClipCache *>(
-        MEM_callocN(sizeof(MovieClipCache), "movieClipCache"));
+    clip->cache = MEM_callocN<MovieClipCache>("movieClipCache");
 
     moviecache = IMB_moviecache_create(
         "movieclip", sizeof(MovieClipImBufCacheKey), moviecache_hashhash, moviecache_hashcmp);
@@ -938,7 +940,7 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   STRNCPY(filepath, clip->filepath);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
-  ibuf = IMB_testiffname(filepath, IB_byte_data | IB_multilayer);
+  ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer | IB_test);
   if (ibuf) {
     clip->source = MCLIP_SRC_SEQUENCE;
     IMB_freeImBuf(ibuf);
@@ -1795,7 +1797,7 @@ static void movieclip_build_proxy_ibuf(const MovieClip *clip,
   BLI_thread_lock(LOCK_MOVIECLIP);
 
   BLI_file_ensure_parent_dir_exists(filepath);
-  if (IMB_saveiff(scaleibuf, filepath, IB_byte_data) == 0) {
+  if (IMB_save_image(scaleibuf, filepath, IB_byte_data) == 0) {
     perror(filepath);
   }
 
@@ -1995,8 +1997,7 @@ static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
 
   /* If not, allocate a new one. */
   if (tex == nullptr) {
-    tex = (MovieClip_RuntimeGPUTexture *)MEM_mallocN(sizeof(MovieClip_RuntimeGPUTexture),
-                                                     __func__);
+    tex = MEM_mallocN<MovieClip_RuntimeGPUTexture>(__func__);
 
     for (int i = 0; i < TEXTARGET_COUNT; i++) {
       tex->gputexture[i] = nullptr;

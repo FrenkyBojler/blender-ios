@@ -170,9 +170,6 @@
  */
 #define USE_BHEAD_READ_ON_DEMAND
 
-/** Use #GHash for restoring pointers by name. */
-#define USE_GHASH_RESTORE_POINTER
-
 static CLG_LogRef LOG = {"blo.readfile"};
 static CLG_LogRef LOG_UNDO = {"blo.readfile.undo"};
 
@@ -3277,7 +3274,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
-  /* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
+  /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
 
   /* don't forget to set version number in BKE_blender_version.h! */
 
@@ -4563,7 +4560,9 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
   /* FIXME Temporary 'fix' to a problem in how temp ID are copied in
    * `BKE_lib_override_library_main_update`, see #103062.
    * Proper fix involves first addressing #90610. */
-  BKE_main_collections_parent_relations_rebuild(mainvar);
+  if ((flag & BLO_LIBLINK_COLLECTION_NO_HIERARCHY_REBUILD) == 0) {
+    BKE_main_collections_parent_relations_rebuild(mainvar);
+  }
 
   /* Make all relative paths, relative to the open blend file. */
   fix_relpaths_library(BKE_main_blendfile_path(mainvar), mainvar);

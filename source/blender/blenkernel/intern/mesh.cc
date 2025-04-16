@@ -26,7 +26,7 @@
 #include "BLI_implicit_sharing.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_memory_counter.hh"
 #include "BLI_set.hh"
@@ -141,7 +141,9 @@ static void mesh_copy_data(Main *bmain,
    * Caches will be "un-shared" as necessary later on. */
   mesh_dst->runtime->bounds_cache = mesh_src->runtime->bounds_cache;
   mesh_dst->runtime->vert_normals_cache = mesh_src->runtime->vert_normals_cache;
+  mesh_dst->runtime->vert_normals_true_cache = mesh_src->runtime->vert_normals_true_cache;
   mesh_dst->runtime->face_normals_cache = mesh_src->runtime->face_normals_cache;
+  mesh_dst->runtime->face_normals_true_cache = mesh_src->runtime->face_normals_true_cache;
   mesh_dst->runtime->corner_normals_cache = mesh_src->runtime->corner_normals_cache;
   mesh_dst->runtime->loose_verts_cache = mesh_src->runtime->loose_verts_cache;
   mesh_dst->runtime->verts_no_face_cache = mesh_src->runtime->verts_no_face_cache;
@@ -231,9 +233,20 @@ static void mesh_free_data(ID *id)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
 
-  BKE_mesh_clear_geometry_and_metadata(mesh);
+  CustomData_free(&mesh->vert_data);
+  CustomData_free(&mesh->edge_data);
+  CustomData_free(&mesh->fdata_legacy);
+  CustomData_free(&mesh->corner_data);
+  CustomData_free(&mesh->face_data);
+  BLI_freelistN(&mesh->vertex_group_names);
+  MEM_SAFE_FREE(mesh->active_color_attribute);
+  MEM_SAFE_FREE(mesh->default_color_attribute);
+  if (mesh->face_offset_indices) {
+    blender::implicit_sharing::free_shared_data(&mesh->face_offset_indices,
+                                                &mesh->runtime->face_offsets_sharing_info);
+  }
+  MEM_SAFE_FREE(mesh->mselect);
   MEM_SAFE_FREE(mesh->mat);
-
   delete mesh->runtime;
 }
 
@@ -680,8 +693,7 @@ void BKE_mesh_face_offsets_ensure_alloc(Mesh *mesh)
   if (mesh->faces_num == 0) {
     return;
   }
-  mesh->face_offset_indices = static_cast<int *>(
-      MEM_malloc_arrayN(mesh->faces_num + 1, sizeof(int), __func__));
+  mesh->face_offset_indices = MEM_malloc_arrayN<int>(size_t(mesh->faces_num) + 1, __func__);
   mesh->runtime->face_offsets_sharing_info = blender::implicit_sharing::info_for_mem_free(
       mesh->face_offset_indices);
 
@@ -1364,30 +1376,12 @@ void Mesh::bounds_set_eager(const blender::Bounds<float3> &bounds)
   this->runtime->bounds_cache.ensure([&](blender::Bounds<float3> &r_data) { r_data = bounds; });
 }
 
-void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys)
-{
-  MutableSpan<float3> positions = mesh->vert_positions_for_write();
-
-  for (float3 &position : positions) {
-    mul_m4_v3(mat, position);
-  }
-
-  if (do_keys && mesh->key) {
-    LISTBASE_FOREACH (KeyBlock *, kb, &mesh->key->block) {
-      float *fp = (float *)kb->data;
-      for (int i = kb->totelem; i--; fp += 3) {
-        mul_m4_v3(mat, fp);
-      }
-    }
-  }
-
-  mesh->tag_positions_changed();
-}
-
 std::optional<int> Mesh::material_index_max() const
 {
   this->runtime->max_material_index.ensure([&](std::optional<int> &value) {
-    if (this->runtime->edit_mesh && this->runtime->edit_mesh->bm) {
+    if (this->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH && this->runtime->edit_mesh &&
+        this->runtime->edit_mesh->bm)
+    {
       BMesh *bm = this->runtime->edit_mesh->bm;
       if (bm->totface == 0) {
         value = std::nullopt;
@@ -1410,13 +1404,26 @@ std::optional<int> Mesh::material_index_max() const
         this->attributes()
             .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
             .varray);
+    if (value.has_value()) {
+      value = std::clamp(*value, 0, MAXMAT);
+    }
   });
   return this->runtime->max_material_index.data();
 }
 
+namespace blender::bke {
+
+static void transform_positions(MutableSpan<float3> positions, const float4x4 &matrix)
+{
+  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
+    for (float3 &position : positions.slice(range)) {
+      position = math::transform_point(matrix, position);
+    }
+  });
+}
+
 static void translate_positions(MutableSpan<float3> positions, const float3 &translation)
 {
-  using namespace blender;
   threading::parallel_for(positions.index_range(), 2048, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position += translation;
@@ -1424,33 +1431,68 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   });
 }
 
-void BKE_mesh_translate(Mesh *mesh, const float offset[3], const bool do_keys)
+static void transform_normals(MutableSpan<float3> normals, const float4x4 &matrix)
 {
-  using namespace blender;
-  if (math::is_zero(float3(offset))) {
+  const float3x3 normal_transform = math::transpose(math::invert(float3x3(matrix)));
+  threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
+    for (float3 &normal : normals.slice(range)) {
+      normal = normal_transform * normal;
+    }
+  });
+}
+
+void mesh_translate(Mesh &mesh, const float3 &translation, const bool do_shape_keys)
+{
+  if (math::is_zero(translation)) {
     return;
   }
 
   std::optional<Bounds<float3>> bounds;
-  if (mesh->runtime->bounds_cache.is_cached()) {
-    bounds = mesh->runtime->bounds_cache.data();
+  if (mesh.runtime->bounds_cache.is_cached()) {
+    bounds = mesh.runtime->bounds_cache.data();
   }
 
-  translate_positions(mesh->vert_positions_for_write(), offset);
-  if (do_keys && mesh->key) {
-    LISTBASE_FOREACH (KeyBlock *, kb, &mesh->key->block) {
-      translate_positions({static_cast<float3 *>(kb->data), kb->totelem}, offset);
+  translate_positions(mesh.vert_positions_for_write(), translation);
+
+  if (do_shape_keys && mesh.key) {
+    LISTBASE_FOREACH (KeyBlock *, kb, &mesh.key->block) {
+      translate_positions({static_cast<float3 *>(kb->data), kb->totelem}, translation);
     }
   }
 
-  mesh->tag_positions_changed_uniformly();
+  mesh.tag_positions_changed_uniformly();
 
   if (bounds) {
-    bounds->min += offset;
-    bounds->max += offset;
-    mesh->bounds_set_eager(*bounds);
+    bounds->min += translation;
+    bounds->max += translation;
+    mesh.bounds_set_eager(*bounds);
   }
 }
+
+void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys)
+{
+  transform_positions(mesh.vert_positions_for_write(), transform);
+
+  if (do_shape_keys && mesh.key) {
+    LISTBASE_FOREACH (KeyBlock *, kb, &mesh.key->block) {
+      transform_positions(MutableSpan(static_cast<float3 *>(kb->data), kb->totelem), transform);
+    }
+  }
+  MutableAttributeAccessor attributes = mesh.attributes_for_write();
+  if (const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(
+          "custom_normal"))
+  {
+    if (meta_data->data_type == CD_PROP_FLOAT3) {
+      bke::SpanAttributeWriter normals = attributes.lookup_for_write_span<float3>("custom_normal");
+      transform_normals(normals.span, transform);
+      normals.finish();
+    }
+  }
+
+  mesh.tag_positions_changed();
+}
+
+}  // namespace blender::bke
 
 void BKE_mesh_tessface_clear(Mesh *mesh)
 {
@@ -1478,8 +1520,7 @@ void BKE_mesh_mselect_validate(Mesh *mesh)
   }
 
   mselect_src = mesh->mselect;
-  mselect_dst = (MSelect *)MEM_malloc_arrayN(
-      (mesh->totselect), sizeof(MSelect), "Mesh selection history");
+  mselect_dst = MEM_malloc_arrayN<MSelect>(size_t(mesh->totselect), "Mesh selection history");
 
   const AttributeAccessor attributes = mesh->attributes();
   const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
