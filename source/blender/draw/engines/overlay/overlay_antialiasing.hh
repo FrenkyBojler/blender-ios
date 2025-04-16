@@ -75,7 +75,7 @@ class AntiAliasing : Overlay {
       pass.bind_texture("depthTex", &res.depth_tx);
       pass.bind_texture("colorTex", &res.overlay_tx);
       pass.bind_texture("lineTex", &res.line_tx);
-      pass.push_constant("doSmoothLines", do_smooth_lines);
+      pass.push_constant("do_smooth_lines", do_smooth_lines);
       pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     }
   }

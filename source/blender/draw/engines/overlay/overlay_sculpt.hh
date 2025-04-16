@@ -77,8 +77,8 @@ class Sculpts : Overlay {
       {
         auto &sub = sculpt_mask_.sub("Mesh");
         sub.shader_set(res.shaders->sculpt_mesh.get());
-        sub.push_constant("maskOpacity", mask_opacity);
-        sub.push_constant("faceSetsOpacity", face_set_opacity);
+        sub.push_constant("mask_opacity", mask_opacity);
+        sub.push_constant("face_sets_opacity", face_set_opacity);
         mesh_ps_ = &sub;
       }
       {

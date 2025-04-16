@@ -26,7 +26,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_antialiasing)
  */
 float line_coverage(float distance_to_line, float line_kernel_size)
 {
-  if (doSmoothLines) {
+  if (do_smooth_lines) {
     return smoothstep(
         LINE_SMOOTH_END, LINE_SMOOTH_START, abs(distance_to_line) - line_kernel_size);
   }
@@ -36,7 +36,7 @@ float line_coverage(float distance_to_line, float line_kernel_size)
 }
 float4 line_coverage(float4 distance_to_line, float line_kernel_size)
 {
-  if (doSmoothLines) {
+  if (do_smooth_lines) {
     return smoothstep(
         LINE_SMOOTH_END, LINE_SMOOTH_START, abs(distance_to_line) - line_kernel_size);
   }
@@ -105,7 +105,7 @@ void main()
   float dist_raw = texelFetch(lineTex, center_texel, 0).b;
   float dist = decode_line_dist(dist_raw);
 
-  if (!doSmoothLines && dist <= 1.0f) {
+  if (!do_smooth_lines && dist <= 1.0f) {
     /* No expansion or AA should be applied. */
     return;
   }

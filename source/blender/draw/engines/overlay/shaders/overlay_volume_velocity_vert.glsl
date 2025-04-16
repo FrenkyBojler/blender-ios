@@ -109,16 +109,16 @@ void main()
 
   int3 cell_ofs = int3(0);
   int3 cell_div = volume_size;
-  if (sliceAxis == 0) {
-    cell_ofs.x = int(slicePosition * float(volume_size.x));
+  if (slice_axis == 0) {
+    cell_ofs.x = int(slice_position * float(volume_size.x));
     cell_div.x = 1;
   }
-  else if (sliceAxis == 1) {
-    cell_ofs.y = int(slicePosition * float(volume_size.y));
+  else if (slice_axis == 1) {
+    cell_ofs.y = int(slice_position * float(volume_size.y));
     cell_div.y = 1;
   }
-  else if (sliceAxis == 2) {
-    cell_ofs.z = int(slicePosition * float(volume_size.z));
+  else if (slice_axis == 2) {
+    cell_ofs.z = int(slice_position * float(volume_size.z));
     cell_div.z = 1;
   }
 
@@ -128,50 +128,50 @@ void main()
   cell_co.z = cell / (cell_div.x * cell_div.y);
   cell_co += cell_ofs;
 
-  float3 pos = domainOriginOffset + cellSize * (float3(cell_co + adaptiveCellOffset) + 0.5f);
+  float3 pos = domain_origin_offset + cell_size * (float3(cell_co + adaptive_cell_offset) + 0.5f);
 
   float3 vector;
 
 #ifdef USE_MAC
   float3 color;
-  vector = (isCellCentered) ? get_vector_mac(cell_co) : get_vector(cell_co);
+  vector = (is_cell_centered) ? get_vector_mac(cell_co) : get_vector(cell_co);
 
   switch (gl_VertexID % 6) {
     case 0: /* Tail of X component. */
-      pos.x += (drawMACX) ? -0.5f * cellSize.x : 0.0f;
+      pos.x += (draw_macx) ? -0.5f * cell_size.x : 0.0f;
       color = float3(1.0f, 0.0f, 0.0f); /* red */
       break;
     case 1: /* Head of X component. */
-      pos.x += (drawMACX) ? (-0.5f + vector.x * displaySize) * cellSize.x : 0.0f;
+      pos.x += (draw_macx) ? (-0.5f + vector.x * display_size) * cell_size.x : 0.0f;
       color = float3(1.0f, 1.0f, 0.0f); /* yellow */
       break;
     case 2: /* Tail of Y component. */
-      pos.y += (drawMACY) ? -0.5f * cellSize.y : 0.0f;
+      pos.y += (draw_macy) ? -0.5f * cell_size.y : 0.0f;
       color = float3(0.0f, 1.0f, 0.0f); /* green */
       break;
     case 3: /* Head of Y component. */
-      pos.y += (drawMACY) ? (-0.5f + vector.y * displaySize) * cellSize.y : 0.0f;
+      pos.y += (draw_macy) ? (-0.5f + vector.y * display_size) * cell_size.y : 0.0f;
       color = float3(1.0f, 1.0f, 0.0f); /* yellow */
       break;
     case 4: /* Tail of Z component. */
-      pos.z += (drawMACZ) ? -0.5f * cellSize.z : 0.0f;
+      pos.z += (draw_macz) ? -0.5f * cell_size.z : 0.0f;
       color = float3(0.0f, 0.0f, 1.0f); /* blue */
       break;
     case 5: /* Head of Z component. */
-      pos.z += (drawMACZ) ? (-0.5f + vector.z * displaySize) * cellSize.z : 0.0f;
+      pos.z += (draw_macz) ? (-0.5f + vector.z * display_size) * cell_size.z : 0.0f;
       color = float3(1.0f, 1.0f, 0.0f); /* yellow */
       break;
   }
 
-  finalColor = float4(color, 1.0f);
+  final_color = float4(color, 1.0f);
 #else
-  vector = (isCellCentered) ? get_vector(cell_co) : get_vector_centered(cell_co);
+  vector = (is_cell_centered) ? get_vector(cell_co) : get_vector_centered(cell_co);
 
-  finalColor = float4(weight_to_color(length(vector)), 1.0f);
+  final_color = float4(weight_to_color(length(vector)), 1.0f);
 
   float vector_length = 1.0f;
 
-  if (scaleWithMagnitude) {
+  if (scale_with_magnitude) {
     vector_length = length(vector);
   }
   else if (length(vector) == 0.0f) {
@@ -191,10 +191,10 @@ void main()
   constexpr int indices[12] = int_array(0, 1, 1, 2, 2, 0, 0, 3, 1, 3, 2, 3);
 
   float3 rotated_pos = rot_mat * corners[indices[gl_VertexID % 12]];
-  pos += rotated_pos * vector_length * displaySize * cellSize;
+  pos += rotated_pos * vector_length * display_size * cell_size;
 #  else
   float3 rotated_pos = rot_mat * float3(0.0f, 0.0f, 1.0f);
-  pos += ((gl_VertexID % 2) == 1) ? rotated_pos * vector_length * displaySize * cellSize :
+  pos += ((gl_VertexID % 2) == 1) ? rotated_pos * vector_length * display_size * cell_size :
                                     float3(0.0f);
 #  endif
 #endif

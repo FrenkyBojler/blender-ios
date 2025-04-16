@@ -11,9 +11,9 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_particle_shape_base)
 
 void main()
 {
-  fragColor = finalColor;
+  fragColor = final_color;
 
-  lineOutput = pack_line_data(gl_FragCoord.xy, edgeStart, edgePos);
+  lineOutput = pack_line_data(gl_FragCoord.xy, edge_start, edgePos);
 
   select_id_output(select_id);
 }

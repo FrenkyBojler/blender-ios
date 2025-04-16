@@ -25,10 +25,10 @@ void main()
   float midStroke = 0.5f * (radii[1] + radii[2]);
 
   if (dist > midStroke) {
-    fragColor.rgb = outlineColor.rgb;
-    fragColor.a = mix(outlineColor.a, 0.0f, smoothstep(radii[1], radii[0], dist));
+    fragColor.rgb = outline_color.rgb;
+    fragColor.a = mix(outline_color.a, 0.0f, smoothstep(radii[1], radii[0], dist));
   }
   else {
-    fragColor = mix(fillColor, outlineColor, smoothstep(radii[3], radii[2], dist));
+    fragColor = mix(fill_color, outline_color, smoothstep(radii[3], radii[2], dist));
   }
 }

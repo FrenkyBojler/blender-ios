@@ -29,7 +29,7 @@ float3 weight_to_rgb(float t)
 
 void main()
 {
-  finalColor = float4(weight_to_rgb(weight), 1.0f);
+  final_color = float4(weight_to_rgb(weight), 1.0f);
 
   float3 world_pos = drw_point_object_to_world(pos);
   gl_Position = drw_point_world_to_homogenous(world_pos);

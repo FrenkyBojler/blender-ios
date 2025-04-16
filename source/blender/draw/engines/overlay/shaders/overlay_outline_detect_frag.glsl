@@ -178,7 +178,7 @@ void main()
 #ifdef GPU_ARB_texture_gather
   /* Reminder: Samples order is CW starting from top left. */
   uint2 tmp1, tmp2, tmp3, tmp4;
-  if (doThickOutlines) {
+  if (do_thick_outlines) {
     tmp1 = textureGather(outlineId, uvs + ofs.xy * float2(1.5f, -0.5f)).xy;
     tmp2 = textureGather(outlineId, uvs + ofs.xy * float2(-1.5f, -0.5f)).yx;
     tmp3 = textureGather(outlineId, uvs + ofs.xy * float2(0.5f, 1.5f)).wx;
@@ -204,7 +204,7 @@ void main()
   bool has_edge_pos_y = has_edge(ids.z, uvs + ofs.zy, ref, ref_col, depth_uv);
   bool has_edge_neg_y = has_edge(ids.w, uvs - ofs.zy, ref, ref_col, depth_uv);
 
-  if (doThickOutlines) {
+  if (do_thick_outlines) {
     if (!any(bool4(has_edge_pos_x, has_edge_neg_x, has_edge_pos_y, has_edge_neg_y))) {
 #ifdef GPU_ARB_texture_gather
       ids.x = tmp1.y;
@@ -225,7 +225,7 @@ void main()
     }
   }
 
-  if (isXrayWires) {
+  if (is_xray_wires) {
     /* Don't inflate the wire outlines too much. */
     has_edge_neg_x = has_edge_neg_y = false;
   }
@@ -253,7 +253,7 @@ void main()
   bool occluded = (ref_depth > scene_depth + epsilon);
 
   /* NOTE: We never set alpha to 1.0 to avoid Anti-aliasing destroying the line. */
-  fragColor *= (occluded ? alphaOcclu : 1.0f) * (254.0f / 255.0f);
+  fragColor *= (occluded ? alpha_occlu : 1.0f) * (254.0f / 255.0f);
 
   int edge_case = 0;
   edge_case += int(has_edge_pos_x) * XPOS;
@@ -269,7 +269,7 @@ void main()
     return;
   }
 
-  if (!doAntiAliasing) {
+  if (!do_anti_aliasing) {
     lineOutput = float4(0.0f);
     return;
   }

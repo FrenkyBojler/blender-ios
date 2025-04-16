@@ -42,11 +42,11 @@ void main()
   float mix_w = edge_step(dist);
   float mix_w_outer = edge_step(dist_outer);
   /* Line color & alpha. */
-  fragColor = mix(geometry_flat_out.finalColorOuter,
-                  geometry_out.finalColor,
-                  1.0f - mix_w * geometry_flat_out.finalColorOuter.a);
+  fragColor = mix(geometry_flat_out.final_color_outer,
+                  geometry_out.final_color,
+                  1.0f - mix_w * geometry_flat_out.final_color_outer.a);
   /* Line edges shape. */
-  fragColor.a *= 1.0f - (geometry_flat_out.finalColorOuter.a > 0.0f ? mix_w_outer : mix_w);
+  fragColor.a *= 1.0f - (geometry_flat_out.final_color_outer.a > 0.0f ? mix_w_outer : mix_w);
 
   fragColor.a *= test_occlusion() ? alpha : 1.0f;
   lineOutput = float4(0.0f);

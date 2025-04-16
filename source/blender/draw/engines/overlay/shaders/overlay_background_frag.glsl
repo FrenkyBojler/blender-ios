@@ -41,9 +41,9 @@ void main()
 
   /* BG_SOLID_CHECKER selects BG_SOLID when no pixel has been drawn otherwise use the BG_CHERKER.
    */
-  int bg_type = bgType == BG_SOLID_CHECKER ? (depth == 1.0f ? BG_SOLID : BG_CHECKER) : bgType;
+  int type = bg_type == BG_SOLID_CHECKER ? (depth == 1.0f ? BG_SOLID : BG_CHECKER) : bg_type;
 
-  switch (bg_type) {
+  switch (type) {
     case BG_SOLID:
       bg_col = colorBackground.rgb;
       break;
@@ -83,7 +83,7 @@ void main()
       return;
   }
 
-  bg_col = mix(bg_col, colorOverride.rgb, colorOverride.a);
+  bg_col = mix(bg_col, color_override.rgb, color_override.a);
 
   /* Mimic alpha under behavior. Result is premultiplied. */
   fragColor = float4(bg_col, 1.0f) * (1.0f - alpha);

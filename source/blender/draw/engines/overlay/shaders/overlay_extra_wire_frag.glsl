@@ -11,7 +11,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_extra_wire_base)
 
 void main()
 {
-  fragColor = finalColor;
+  fragColor = final_color;
 
   /* Stipple */
   constexpr float dash_width = 6.0f;

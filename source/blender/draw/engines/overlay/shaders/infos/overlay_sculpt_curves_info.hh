@@ -39,8 +39,8 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_sculpt_curves_selection)
 
 GPU_SHADER_INTERFACE_INFO(overlay_sculpt_curves_cage_iface)
 NO_PERSPECTIVE(float2, edgePos)
-FLAT(float2, edgeStart)
-SMOOTH(float4, finalColor)
+FLAT(float2, edge_start)
+SMOOTH(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_sculpt_curves_cage)

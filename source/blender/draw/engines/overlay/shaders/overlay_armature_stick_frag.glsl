@@ -11,7 +11,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_armature_stick)
 void main()
 {
   float fac = smoothstep(1.0f, 0.2f, colorFac);
-  fragColor.rgb = mix(finalInnerColor.rgb, finalWireColor.rgb, fac);
+  fragColor.rgb = mix(final_inner_color.rgb, final_wire_color.rgb, fac);
   fragColor.a = alpha;
   lineOutput = float4(0.0f);
   select_id_output(select_id);

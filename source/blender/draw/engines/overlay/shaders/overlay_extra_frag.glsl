@@ -11,11 +11,11 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_extra_groundline)
 
 void main()
 {
-  fragColor = finalColor;
+  fragColor = final_color;
 #ifdef IS_SPOT_CONE
   lineOutput = float4(0.0f);
 #else
-  lineOutput = pack_line_data(gl_FragCoord.xy, edgeStart, edgePos);
+  lineOutput = pack_line_data(gl_FragCoord.xy, edge_start, edgePos);
   select_id_output(select_id);
 #endif
 }

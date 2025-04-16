@@ -43,7 +43,7 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_paint_face)
  * \{ */
 
 GPU_SHADER_INTERFACE_INFO(overlay_overlay_paint_point_iface)
-SMOOTH(float4, finalColor)
+SMOOTH(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_paint_point)
@@ -79,10 +79,10 @@ VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float2, mu) /* Masking uv map. */
 VERTEX_OUT(overlay_paint_texture_iface)
 SAMPLER(0, FLOAT_2D, maskImage)
-PUSH_CONSTANT(float3, maskColor)
+PUSH_CONSTANT(float3, mask_color)
 PUSH_CONSTANT(float, opacity) /* `1.0f` by default. */
-PUSH_CONSTANT(bool, maskInvertStencil)
-PUSH_CONSTANT(bool, maskImagePremultiplied)
+PUSH_CONSTANT(bool, mask_invert_stencil)
+PUSH_CONSTANT(bool, mask_image_premultiplied)
 FRAGMENT_OUT(0, float4, fragColor)
 VERTEX_SOURCE("overlay_paint_texture_vert.glsl")
 FRAGMENT_SOURCE("overlay_paint_texture_frag.glsl")
@@ -114,8 +114,8 @@ VERTEX_IN(1, float3, pos)
 VERTEX_IN(2, float3, nor)
 VERTEX_OUT(overlay_paint_weight_iface)
 SAMPLER(0, FLOAT_1D, colorramp)
-PUSH_CONSTANT(float, opacity)     /* `1.0f` by default. */
-PUSH_CONSTANT(bool, drawContours) /* `false` by default. */
+PUSH_CONSTANT(float, opacity)      /* `1.0f` by default. */
+PUSH_CONSTANT(bool, draw_contours) /* `false` by default. */
 FRAGMENT_OUT(0, float4, fragColor)
 FRAGMENT_OUT(1, float4, lineOutput)
 VERTEX_SOURCE("overlay_paint_weight_vert.glsl")
@@ -146,7 +146,7 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_paint_weight_fake_shading)
  * \{ */
 
 GPU_SHADER_INTERFACE_INFO(overlay_paint_wire_iface)
-FLAT(float4, finalColor)
+FLAT(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_paint_wire)
@@ -154,7 +154,7 @@ DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float4, nor) /* flag stored in w */
 VERTEX_OUT(overlay_paint_wire_iface)
-PUSH_CONSTANT(bool, useSelect)
+PUSH_CONSTANT(bool, use_select)
 FRAGMENT_OUT(0, float4, fragColor)
 VERTEX_SOURCE("overlay_paint_wire_vert.glsl")
 FRAGMENT_SOURCE("overlay_varying_color.glsl")

@@ -19,7 +19,7 @@ uint outline_colorid_get()
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
 
-  if (isTransform) {
+  if (is_transform) {
     return 0u; /* colorTransform */
   }
   else if (is_active) {

@@ -21,7 +21,7 @@
 #include "overlay_common_info.hh"
 
 GPU_SHADER_INTERFACE_INFO(overlay_viewer_attribute_iface)
-SMOOTH(float4, finalColor)
+SMOOTH(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_viewer_attribute_common)

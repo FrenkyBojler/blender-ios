@@ -20,7 +20,7 @@ void main()
   }
   /* Nice sphere falloff. */
   float intensity = sqrt(1.0f - dist * 2.0f) * 0.5f + 0.5f;
-  fragColor = finalColor * float4(intensity, intensity, intensity, 1.0f);
+  fragColor = final_color * float4(intensity, intensity, intensity, 1.0f);
 
   /* The default value of GL_POINT_SPRITE_COORD_ORIGIN is GL_UPPER_LEFT. Need to reverse the Y. */
   uv.y = -uv.y;

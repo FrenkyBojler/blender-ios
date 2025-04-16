@@ -58,9 +58,9 @@ VertOut vertex_main(VertIn vert_in)
 
   /* Offset Z position for retopology overlay. */
   vert_out.gpu_position.z += get_homogenous_z_offset(
-      drw_view().winmat, view_pos.z, vert_out.gpu_position.w, retopologyOffset);
+      drw_view().winmat, view_pos.z, vert_out.gpu_position.w, retopology_offset);
 
-  uint4 m_data = vert_in.e_data & uint4(dataMask);
+  uint4 m_data = vert_in.e_data & uint4(data_mask);
 
 #if defined(VERT)
   vertexCrease = float(m_data.z >> 4) / 15.0f;

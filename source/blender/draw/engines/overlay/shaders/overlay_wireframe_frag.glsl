@@ -15,7 +15,7 @@ void main()
 #if !defined(POINTS) && !defined(CURVES)
   /* Needed only because of wireframe slider.
    * If we could get rid of it would be nice because of performance drain of discard. */
-  if (edgeStart.r == -1.0f) {
+  if (edge_start.r == -1.0f) {
     discard;
     return;
   }
@@ -30,15 +30,15 @@ void main()
   float fac = dist * dist * 4.0f;
   /* Create a small gradient so that dense objects have a small fresnel effect. */
   /* Non linear blend. */
-  float3 rim_col = sqrt(finalColorInner.rgb);
-  float3 wire_col = sqrt(finalColor.rgb);
+  float3 rim_col = sqrt(final_color_inner.rgb);
+  float3 wire_col = sqrt(final_color.rgb);
   float3 final_front_col = mix(rim_col, wire_col, 0.35f);
   fragColor = float4(mix(final_front_col, rim_col, saturate(fac)), 1.0f);
   fragColor *= fragColor;
 
 #elif !defined(SELECT_ENABLE)
-  lineOutput = pack_line_data(gl_FragCoord.xy, edgeStart, edgePos);
-  fragColor = finalColor;
+  lineOutput = pack_line_data(gl_FragCoord.xy, edge_start, edgePos);
+  fragColor = final_color;
 
 #  if !defined(CURVES)
   if (use_custom_depth_bias) {

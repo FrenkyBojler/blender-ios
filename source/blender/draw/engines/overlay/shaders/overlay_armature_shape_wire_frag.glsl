@@ -40,7 +40,7 @@ void main()
   float dist = abs(edgeCoord) - half_size;
   float mix_w = saturate(edge_step(dist));
 
-  fragColor = mix(float4(finalColor.rgb, alpha), float4(0), mix_w);
+  fragColor = mix(float4(final_color.rgb, alpha), float4(0), mix_w);
   fragColor.a *= 1.0f - mix_w;
   lineOutput = float4(0);
 

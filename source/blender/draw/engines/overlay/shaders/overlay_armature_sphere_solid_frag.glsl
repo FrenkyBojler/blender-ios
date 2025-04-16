@@ -19,15 +19,15 @@ void main()
 
   /* Single matrix mul without branch. */
   float4 mul_vec = (is_perp) ? float4(ray_dir_view, 0.0f) : float4(ray_ori_view, 1.0f);
-  float3 mul_res = (sphereMatrix * mul_vec).xyz;
+  float3 mul_res = (sphere_matrix * mul_vec).xyz;
 
   /* Reminder :
-   * sphereMatrix[3] is the view space origin in sphere space (sph_ori -> view_ori).
-   * sphereMatrix[2] is the view space Z axis in sphere space. */
+   * sphere_matrix[3] is the view space origin in sphere space (sph_ori -> view_ori).
+   * sphere_matrix[2] is the view space Z axis in sphere space. */
 
   /* convert to sphere local space */
-  float3 ray_ori = (is_perp) ? sphereMatrix[3].xyz : mul_res;
-  float3 ray_dir = (is_perp) ? mul_res : -sphereMatrix[2].xyz;
+  float3 ray_ori = (is_perp) ? sphere_matrix[3].xyz : mul_res;
+  float3 ray_dir = (is_perp) ? mul_res : -sphere_matrix[2].xyz;
   float ray_len = length(ray_dir);
   ray_dir /= ray_len;
 
@@ -41,12 +41,12 @@ void main()
   /* Compute dot product for lighting */
   float3 p = ray_dir * t + ray_ori; /* Point on sphere */
   float3 n = normalize(p);          /* Normal is just the point in sphere space, normalized. */
-  float3 l = normalize(sphereMatrix[2].xyz); /* Just the view Z axis in the sphere space. */
+  float3 l = normalize(sphere_matrix[2].xyz); /* Just the view Z axis in the sphere space. */
 
   /* Smooth lighting factor. */
   constexpr float s = 0.2f; /* [0.0f-0.5f] range */
   float fac = clamp((dot(n, l) * (1.0f - s)) + s, 0.0f, 1.0f);
-  fragColor.rgb = mix(finalStateColor, finalBoneColor, fac * fac);
+  fragColor.rgb = mix(final_state_color, final_bone_color, fac * fac);
 
   /* 2x2 dither pattern to smooth the lighting. */
   float dither = (0.5f + dot(float2(int2(gl_FragCoord.xy) & int2(1)), float2(1.0f, 2.0f))) * 0.25f;

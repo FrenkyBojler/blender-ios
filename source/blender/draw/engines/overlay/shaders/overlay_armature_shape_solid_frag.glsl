@@ -17,7 +17,7 @@ void main()
     discard;
     return;
   }
-  fragColor = float4(finalColor.rgb, alpha);
+  fragColor = float4(final_color.rgb, alpha);
   lineOutput = float4(0.0f);
   select_id_output(select_id);
 }

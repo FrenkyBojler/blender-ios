@@ -11,7 +11,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_armature_envelope_solid)
 void main()
 {
   float n = normalize(normalView).z;
-  if (isDistance) {
+  if (is_distance) {
     n = 1.0f - clamp(-n, 0.0f, 1.0f);
     fragColor = float4(1.0f, 1.0f, 1.0f, 0.33f * alpha) * n;
   }
@@ -19,7 +19,7 @@ void main()
     /* Smooth lighting factor. */
     constexpr float s = 0.2f; /* [0.0f-0.5f] range */
     float fac = clamp((n * (1.0f - s)) + s, 0.0f, 1.0f);
-    fragColor.rgb = mix(finalStateColor, finalBoneColor, fac * fac);
+    fragColor.rgb = mix(final_state_color, final_bone_color, fac * fac);
     fragColor.a = alpha;
   }
   lineOutput = float4(0.0f);

@@ -21,14 +21,14 @@ void main()
   }
 
 #if defined(VERT)
-  fragColor = finalColor;
+  fragColor = final_color;
 
   float midStroke = 0.5f * rad_squared;
   if (vertexCrease > 0.0f && dist_squared > midStroke) {
-    fragColor.rgb = mix(finalColor.rgb, colorEdgeCrease.rgb, vertexCrease);
+    fragColor.rgb = mix(final_color.rgb, colorEdgeCrease.rgb, vertexCrease);
   }
 #else
-  fragColor = finalColor;
+  fragColor = final_color;
 #endif
 
 #ifdef LINE_OUTPUT
