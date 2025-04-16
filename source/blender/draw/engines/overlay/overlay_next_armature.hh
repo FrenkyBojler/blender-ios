@@ -519,14 +519,12 @@ class Armatures : Overlay {
     ctx.drawtype = eArmature_Drawtype(arm.drawtype);
 
     const bool is_edit_or_pose_mode = draw_mode != ARM_DRAW_MODE_OBJECT;
-    const bool force_wireframe = state.show_wireframe_bone();
-    const bool draw_as_wire = (ctx.ob->dt < OB_SOLID) || (is_edit_or_pose_mode && force_wireframe);
+    const bool draw_as_wire = (ctx.ob->dt < OB_SOLID);
     const bool is_transparent = draw_transparent || (draw_as_wire && is_edit_or_pose_mode);
 
     ctx.bone_buf = is_transparent ? &transparent_ : &opaque_;
-    ctx.is_filled = !(draw_transparent || draw_as_wire) ||
-                    (is_edit_or_pose_mode && !force_wireframe);
 
+    ctx.is_filled = (!draw_transparent && !draw_as_wire) || is_edit_or_pose_mode;
     ctx.show_relations = show_relations;
     ctx.do_relations = show_relations && is_edit_or_pose_mode;
     ctx.draw_envelope_distance = is_edit_or_pose_mode;

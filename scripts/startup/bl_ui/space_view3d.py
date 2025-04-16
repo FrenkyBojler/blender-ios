@@ -1085,9 +1085,11 @@ class VIEW3D_HT_header(Header):
             sub.popover(panel="VIEW3D_PT_overlay_grease_pencil_options", text="", icon='OUTLINER_DATA_GREASEPENCIL')
 
         # Separate from `elif` chain because it may coexist with weight-paint.
-        if has_pose_mode or mode_string == 'EDIT_ARMATURE':
-            bone_overlay_icon = 'POSE_HLT' if has_pose_mode else 'EDITMODE_HLT'
-            sub.popover(panel="VIEW3D_PT_overlay_bones", text="", icon=bone_overlay_icon)
+        if (
+            has_pose_mode or
+            (object_mode in {'EDIT_ARMATURE', 'OBJECT'} and VIEW3D_PT_overlay_bones.is_using_wireframe(context))
+        ):
+            sub.popover(panel="VIEW3D_PT_overlay_bones", text="", icon='POSE_HLT')
 
         row = layout.row()
         row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
@@ -2664,8 +2666,7 @@ class VIEW3D_MT_add(Menu):
         layout.menu("VIEW3D_MT_surface_add", icon='OUTLINER_OB_SURFACE')
         layout.menu("VIEW3D_MT_metaball_add", text="Metaball", icon='OUTLINER_OB_META')
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
-        if context.preferences.experimental.use_new_pointcloud_type:
-            layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
+        layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
         layout.menu("VIEW3D_MT_volume_add", text="Volume", text_ctxt=i18n_contexts.id_id, icon='OUTLINER_OB_VOLUME')
         layout.menu("VIEW3D_MT_grease_pencil_add", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
 
@@ -7503,10 +7504,28 @@ class VIEW3D_PT_overlay_bones(Panel):
     bl_region_type = 'HEADER'
     bl_label = "Bones"
 
+    @staticmethod
+    def is_using_wireframe(context):
+        mode = context.mode
+
+        if mode in {'POSE', 'PAINT_WEIGHT'}:
+            armature = context.pose_object
+        elif mode == 'EDIT_ARMATURE':
+            armature = context.edit_object
+        else:
+            return False
+
+        return armature and armature.display_type == 'WIRE'
+
     @classmethod
     def poll(cls, context):
         mode = context.mode
-        return mode in {'POSE', 'EDIT_ARMATURE'} or (mode == 'PAINT_WEIGHT' and context.pose_object)
+        return (
+            (mode == 'POSE') or
+            (mode == 'PAINT_WEIGHT' and context.pose_object) or
+            (mode == 'EDIT_ARMATURE' and
+             VIEW3D_PT_overlay_bones.is_using_wireframe(context))
+        )
 
     def draw(self, context):
         layout = self.layout
@@ -7515,15 +7534,10 @@ class VIEW3D_PT_overlay_bones(Panel):
         overlay = view.overlay
         display_all = overlay.show_overlays
 
-        if mode == 'EDIT_ARMATURE':
-            layout.label(text="Armature Edit Overlays")
-        else:
-            layout.label(text="Armature Overlays")
+        layout.label(text="Armature Overlays")
 
         col = layout.column()
         col.active = display_all
-
-        col.prop(overlay, "show_wireframe_bone")
 
         if mode == 'POSE':
             row = col.row()
@@ -8117,7 +8131,7 @@ class VIEW3D_PT_active_spline(Panel):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        if ob is None or ob.type != 'CURVE' or ob.mode != 'EDIT':
+        if ob is None or ob.type not in {'CURVE', 'SURFACE'} or ob.mode != 'EDIT':
             return False
         curve = ob.data
         return curve.splines.active is not None

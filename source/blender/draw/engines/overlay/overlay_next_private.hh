@@ -271,10 +271,6 @@ struct State {
   {
     return (this->overlay.flag & V3D_OVERLAY_SHOW_LIGHT_COLORS);
   }
-  bool show_wireframe_bone() const
-  {
-    return (this->overlay.flag & V3D_OVERLAY_BONE_WIREFRAME);
-  }
 };
 
 /* Matches Vertex Format. */

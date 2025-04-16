@@ -35,11 +35,13 @@
 #include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator_chunked_list.hh"
 
+#include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_volume_grid_fwd.hh"
 
+#include "NOD_geometry_nodes_closure_location.hh"
 #include "NOD_socket_interface_key.hh"
 
 #include "FN_field.hh"
@@ -208,8 +210,13 @@ class ClosureValueLog : public ValueLog {
 
   Vector<Item> inputs;
   Vector<Item> outputs;
+  std::optional<ClosureSourceLocation> source_location;
+  std::shared_ptr<ClosureEvalLog> eval_log;
 
-  ClosureValueLog(Vector<Item> inputs, Vector<Item> outputs);
+  ClosureValueLog(Vector<Item> inputs,
+                  Vector<Item> outputs,
+                  const std::optional<ClosureSourceLocation> &source_location,
+                  std::shared_ptr<ClosureEvalLog> eval_log);
 };
 
 /**
@@ -452,10 +459,8 @@ class GeoModifierLog {
    * Utility accessor to logged data.
    */
   static Map<const bke::bNodeTreeZone *, ComputeContextHash>
-  get_context_hash_by_zone_for_node_editor(const SpaceNode &snode, const NodesModifierData &nmd);
-  static Map<const bke::bNodeTreeZone *, ComputeContextHash>
   get_context_hash_by_zone_for_node_editor(const SpaceNode &snode,
-                                           ComputeContextBuilder &compute_context_builder);
+                                           bke::ComputeContextCache &compute_context_cache);
 
   static ContextualGeoTreeLogs get_contextual_tree_logs(const SpaceNode &snode);
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
