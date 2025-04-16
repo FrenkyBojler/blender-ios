@@ -732,9 +732,17 @@ static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*ar
     input_len -= 1;
     ret = PyTuple_New(input_len);
     while (attrs_added < input_len) {
-      if (!GPU_shader_get_ssbo_input_info(self->shader, location_test++, name)) {
+      int attr_loc;
+      if ((attr_loc = GPU_shader_get_attribute(self->shader, name)) < 0) {
+        /* If a named vertex attribute is not found, it means that it's been optimized away by the
+         * shader compiler, skip adding this attribute, but still increase `attrs_added` so the
+         * number of attribute processed still matches `attr_len`, to prevents infinite loop. */
+        attrs_added++;
         continue;
       }
+      bool got_attribute_info = GPU_shader_get_attribute_info(self->shader, attr_loc, name, &type);
+      BLI_assert(got_attribute_info);
+
       if (STREQ(name, "gpu_index_buf")) {
         continue;
       }
@@ -763,9 +771,14 @@ static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*ar
 
     ret = PyTuple_New(attr_len);
     while (attrs_added < attr_len) {
-      if (!GPU_shader_get_attribute_info(self->shader, location_test++, name, &type)) {
+      int attr_loc;
+      if ((attr_loc = GPU_shader_get_attribute(self->shader, name)) < 0) {
+        attrs_added++;
         continue;
       }
+      bool got_attribute_info = GPU_shader_get_attribute_info(self->shader, attr_loc, name, &type);
+      BLI_assert(got_attribute_info);
+
       PyObject *py_type;
       if (type != -1) {
         py_type = PyUnicode_InternFromString(
