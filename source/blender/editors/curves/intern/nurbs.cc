@@ -218,13 +218,20 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
   }
 
   new_curves.nurbs_custom_knots_update_size();
+  /* Shift knots of curves stored after curve being modified. */
+  const OffsetIndices<int> new_knots_by_curve = new_curves.nurbs_custom_knots_by_curve();
+  const IndexRange curve_knots = new_knots_by_curve[ikcd.curve];
+  const IndexRange tail = IndexRange::from_begin_end(curve_knots.one_after_last(),
+                                                     new_knots_by_curve.total_size());
+  MutableSpan<float> new_knots_all = new_curves.nurbs_custom_knots_for_write();
+  new_knots_all.slice(tail).copy_from(ikcd.curves.nurbs_custom_knots().take_back(tail.size()));
+
   const IndexRange curve_points = ikcd.curve_points;
   const IndexRange new_curve_points = IndexRange::from_begin_size(
       curve_points.first(), curve_points.size() + new_points_added);
-  const IndexRange curve_knots = new_curves.nurbs_custom_knots_by_curve()[ikcd.curve];
   const Span<float> knots = ikcd.knots;
   const bool cyclic = ikcd.curves.cyclic()[ikcd.curve];
-  MutableSpan<float> new_knots = new_curves.nurbs_custom_knots_for_write().slice(curve_knots);
+  MutableSpan<float> new_knots = new_knots_all.slice(curve_knots);
 
   BLI_assert(ikcd.knot_span < curve_points.size() + ikcd.order - 1);
 
