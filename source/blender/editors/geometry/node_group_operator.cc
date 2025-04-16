@@ -20,6 +20,7 @@
 #include "WM_api.hh"
 
 #include "BKE_asset.hh"
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -156,11 +157,10 @@ static void find_socket_log_contexts(const Main &bmain,
         if (snode.edittree == nullptr) {
           continue;
         }
-        ComputeContextBuilder compute_context_builder;
-        compute_context_builder.push<bke::OperatorComputeContext>();
+        bke::ComputeContextCache compute_context_cache;
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
             geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(
-                snode, compute_context_builder);
+                snode, compute_context_cache, &compute_context_cache.for_operator(nullptr));
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_socket_log_contexts.add(hash);
         }
@@ -638,7 +638,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
-  tree_log.ensure_node_warnings(node_tree);
+  tree_log.ensure_node_warnings(*bmain);
   for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
     if (warning.type == geo_log::NodeWarningType::Info) {
       BKE_report(op->reports, RPT_INFO, warning.message.c_str());

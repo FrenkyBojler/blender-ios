@@ -217,40 +217,6 @@ bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windo
   return system->validWindow(window);
 }
 
-GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
-                                         const GHOST_DisplaySetting *setting,
-                                         const bool stereoVisual)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-  GHOST_IWindow *window = nullptr;
-  bool bstereoVisual;
-
-  if (stereoVisual) {
-    bstereoVisual = true;
-  }
-  else {
-    bstereoVisual = false;
-  }
-
-  system->beginFullScreen(*setting, &window, bstereoVisual);
-
-  return (GHOST_WindowHandle)window;
-}
-
-GHOST_TSuccess GHOST_EndFullScreen(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->endFullScreen();
-}
-
-bool GHOST_GetFullScreen(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->getFullScreen();
-}
-
 GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemhandle,
                                               int32_t x,
                                               int32_t y)
@@ -770,6 +736,11 @@ GHOST_TSuccess GHOST_ReleaseGPUContext(GHOST_ContextHandle contexthandle)
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
 
   return context->releaseDrawingContext();
+}
+
+GHOST_ContextHandle GHOST_GetActiveGPUContext()
+{
+  return (GHOST_ContextHandle)GHOST_IContext::getActiveDrawingContext();
 }
 
 uint GHOST_GetContextDefaultGPUFramebuffer(GHOST_ContextHandle contexthandle)
