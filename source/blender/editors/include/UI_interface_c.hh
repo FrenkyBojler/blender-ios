@@ -551,17 +551,13 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
  *
  * Cut off the middle of the text to fit into the given width.
  *
- * \note in case this middle clipping would just remove a few chars,
- * it rather clips right, which is more readable.
- *
  * If `rpart_sep` is not null, the part of `str` starting to first occurrence of `rpart_sep`
  * is preserved at all cost.
  * Useful for strings with shortcuts
  * (like `A Very Long Foo Bar Label For Menu Entry|Ctrl O' -> 'AVeryLong...MenuEntry|Ctrl O`).
  *
- * \param min_len_left: If less characters than this would end up before the "...", clip on the end
- * of the string to preserve as much from the beginning as possible. Set to 0 to disable this
- * behavior.
+ * \param clip_right_if_tight: In case this middle clipping would just remove a few chars, or there
+ * are less than 10 characters before the clipping, it rather clips right, which is more readable.
  */
 float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
                              char *str,
@@ -569,7 +565,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
                              float minwidth,
                              size_t max_len,
                              char rpart_sep,
-                             const size_t min_len_left = 10);
+                             bool clip_right_if_tight = true);
 
 blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
     const uiFontStyle *fstyle,

@@ -1494,7 +1494,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
                              const float minwidth,
                              const size_t max_len,
                              const char rpart_sep,
-                             const size_t min_len_left)
+                             const bool clip_right_if_tight)
 {
   BLI_assert(str[0]);
 
@@ -1543,7 +1543,9 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
 
     const size_t l_end = BLF_width_to_strlen(
         fstyle->uifont_id, str, max_len, parts_strwidth, nullptr);
-    if (l_end < min_len_left || min_ff(parts_strwidth, strwidth - okwidth) < minwidth) {
+    if (clip_right_if_tight &&
+        (l_end < 10 || min_ff(parts_strwidth, strwidth - okwidth) < minwidth))
+    {
       /* If we really have no place, or we would clip a very small piece of string in the middle,
        * only show start of string.
        */
@@ -1683,15 +1685,20 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
     BLI_strncpy(clipped_str_buf, str, max_len_clipped_str_buf);
 
     UI_text_clip_middle_ex(
-        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0', 0);
+        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0');
     clipped_lines.append(clipped_str_buf);
     return clipped_lines;
   }
   if (max_lines == 2) {
     clipped_lines.append(lines[0]);
     BLI_strncpy(clipped_str_buf, str + lines[0].size(), max_len_clipped_str_buf);
-    UI_text_clip_middle_ex(
-        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0', 0);
+    UI_text_clip_middle_ex(fstyle,
+                           clipped_str_buf,
+                           max_line_width,
+                           UI_ICON_SIZE,
+                           max_len_clipped_str_buf,
+                           '\0',
+                           false);
     clipped_lines.append(clipped_str_buf);
     return clipped_lines;
   }
@@ -1708,8 +1715,13 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
   /* Clip the middle of the middle line. */
   {
     lines[middle_index].copy_utf8_truncated(clipped_str_buf, max_len_clipped_str_buf);
-    UI_text_clip_middle_ex(
-        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0', 0);
+    UI_text_clip_middle_ex(fstyle,
+                           clipped_str_buf,
+                           max_line_width,
+                           UI_ICON_SIZE,
+                           max_len_clipped_str_buf,
+                           '\0',
+                           false);
     clipped_lines.append(clipped_str_buf);
   }
 
