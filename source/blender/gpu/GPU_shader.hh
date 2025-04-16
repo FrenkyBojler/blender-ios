@@ -205,6 +205,7 @@ void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, cons
  * \{ */
 
 uint GPU_shader_get_attribute_len(const GPUShader *shader);
+uint GPU_shader_get_attribute_len_program(const GPUShader *shader);
 uint GPU_shader_get_ssbo_input_len(const GPUShader *shader);
 int GPU_shader_get_attribute(const GPUShader *shader, const char *name);
 bool GPU_shader_get_attribute_info(const GPUShader *shader,

@@ -210,6 +210,10 @@ GLShaderInterface::GLShaderInterface(GLuint program)
   GLint max_attr_name_len = 0, attr_len = 0;
   glGetProgramiv(program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &max_attr_name_len);
   glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, &attr_len);
+  /* Unused attributes will be optimized by the shader linker, so record the actual usable
+   * attribute length from the shader program.
+   * See https://projects.blender.org/blender/blender/issues/137429. */
+  attr_len_program_ = attr_len;
 
   GLint max_ubo_name_len = 0, ubo_len = 0;
   glGetProgramiv(program, GL_ACTIVE_UNIFORM_BLOCK_MAX_NAME_LENGTH, &max_ubo_name_len);

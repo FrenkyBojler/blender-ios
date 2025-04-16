@@ -54,6 +54,7 @@ class ShaderInterface {
   char *name_buffer_ = nullptr;
   /** Input counts inside input array. */
   uint attr_len_ = 0;
+  uint attr_len_program_ = 0;
   uint ubo_len_ = 0;
   uint uniform_len_ = 0;
   uint ssbo_len_ = 0;

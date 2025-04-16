@@ -759,7 +759,7 @@ static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*ar
     }
   }
   else {
-    uint attr_len = GPU_shader_get_attribute_len(self->shader);
+    uint attr_len = GPU_shader_get_attribute_len_program(self->shader);
 
     ret = PyTuple_New(attr_len);
     while (attrs_added < attr_len) {

@@ -618,6 +618,12 @@ uint GPU_shader_get_attribute_len(const GPUShader *shader)
   return interface->attr_len_;
 }
 
+uint GPU_shader_get_attribute_len_program(const GPUShader *shader)
+{
+  const ShaderInterface *interface = unwrap(shader)->interface;
+  return interface->attr_len_program_;
+}
+
 uint GPU_shader_get_ssbo_input_len(const GPUShader *shader)
 {
   const ShaderInterface *interface = unwrap(shader)->interface;
