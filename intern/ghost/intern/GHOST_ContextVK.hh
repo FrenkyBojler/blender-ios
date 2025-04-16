@@ -251,5 +251,6 @@ class GHOST_ContextVK : public GHOST_Context {
 
   const char *getPlatformSpecificSurfaceExtension() const;
   GHOST_TSuccess recreateSwapchain();
+  GHOST_TSuccess initializeFrameData();
   GHOST_TSuccess destroySwapchain();
 };
