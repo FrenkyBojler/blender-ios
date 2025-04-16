@@ -746,7 +746,6 @@ static bool armature_bone_select_poll(bContext *C)
     return false;
   }
 
-
   if (armature->runtime.active_collection == nullptr) {
     CTX_wm_operator_poll_msg_set(C, "No active bone collection");
     return false;
@@ -809,7 +808,6 @@ static wmOperatorStatus bone_collection_select_exec(bContext *C, wmOperator * /*
     return OPERATOR_CANCELLED;
   }
 
-  
   BoneCollection *bcoll = armature->runtime.active_collection;
   if (bcoll == nullptr) {
     return OPERATOR_CANCELLED;
