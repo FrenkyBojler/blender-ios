@@ -38,7 +38,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
 
   b.add_output<decl::Geometry>("Points").description("Point geometry representing grid voxels");
-  b.add_output<decl::Vector>("Coordinate")
+  b.add_output<decl::Vector>("Voxel Coordinate")
       .description("Index-space coordinate of the voxel")
       .field_on_all();
   b.add_output(data_type, "Value").description("Value stored in grid voxels").field_on_all();
