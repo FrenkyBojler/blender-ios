@@ -93,11 +93,13 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext *, PointerRNA *ptr) {
+static void node_layout(uiLayout *layout, bContext *, PointerRNA *ptr)
+{
   uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-static void node_rna(StructRNA *srna) {
+static void node_rna(StructRNA *srna)
+{
   static const EnumPropertyItem data_types[] = {
     {SOCK_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
     {SOCK_INT, "INT", 0, "Integer", "32-bit integer"},
