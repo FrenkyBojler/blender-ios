@@ -251,15 +251,17 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
   bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
 
   const IndexRange points_before = IndexRange::from_begin_end(
-      0, std::min(curve_points.one_after_last(), ikcd.points_to_replace.start()));
+      0,
+      std::min(curve_points.one_after_last(),
+               curve_points.first() + ikcd.points_to_replace.start()));
   const IndexRange points_after = IndexRange::from_begin_end(
-      std::min(curve_points.one_after_last(), ikcd.points_to_replace.last()),
+      std::min(curve_points.one_after_last(),
+               curve_points.first() + ikcd.points_to_replace.last()),
       ikcd.curves.points_num());
 
   Array<bool> is_altered(new_curve_points.size());
   const IndexRange altered_points_range = IndexRange::from_begin_size(
-      ikcd.points_to_replace.first() - ikcd.curve_points.first(),
-      ikcd.points_to_replace.size() + new_points_added);
+      ikcd.points_to_replace.first(), ikcd.points_to_replace.size() + new_points_added);
   for (const int i : altered_points_range) {
     is_altered[i % new_curve_points.size()] = true;
   }
