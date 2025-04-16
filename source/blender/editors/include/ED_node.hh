@@ -97,6 +97,9 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
 [[nodiscard]] const ComputeContext *compute_context_for_edittree(
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache);
 
+/**
+ * Get the active compute context for the given socket in the current edittree.
+ */
 [[nodiscard]] const ComputeContext *compute_context_for_edittree_socket(
     const SpaceNode &snode,
     bke::ComputeContextCache &compute_context_cache,

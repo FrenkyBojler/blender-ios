@@ -78,7 +78,7 @@ class ComputeContextCache {
                                                             int32_t node_id);
   const EvaluateClosureComputeContext &for_evaluate_closure(
       const ComputeContext *parent,
-      const int32_t evaluate_node_id,
+      int32_t evaluate_node_id,
       const bNode *evaluate_node,
       const std::optional<nodes::ClosureSourceLocation> &closure_source_location);
 

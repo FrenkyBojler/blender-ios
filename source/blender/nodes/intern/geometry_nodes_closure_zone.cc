@@ -25,12 +25,24 @@ namespace blender::nodes {
 using bke::node_tree_reference_lifetimes::ReferenceSetInfo;
 using bke::node_tree_reference_lifetimes::ReferenceSetType;
 
-class ClosureIntermediateSideEffectProvider : public lf::GraphExecutorSideEffectProvider {
+/**
+ * Evaluating a closure lazy function creates a wrapper lazy function graph around it which handles
+ * things like type conversion and missing inputs. This side effect provider is used to make sure
+ * that if the closure itself contains a side-effect node (e.g. a viewer), the wrapper graph will
+ * also have a side-effect node. Otherwise, the inner side-effect node will not be executed in some
+ * cases.
+ */
+class ClosureIntermediateGraphSideEffectProvider : public lf::GraphExecutorSideEffectProvider {
  private:
+  /**
+   * The node that is wrapped and should be marked as having side effects if the closure
+   * itself has side effects.
+   */
   const lf::FunctionNode *body_node_;
 
  public:
-  ClosureIntermediateSideEffectProvider(const lf::FunctionNode &body_node) : body_node_(&body_node)
+  ClosureIntermediateGraphSideEffectProvider(const lf::FunctionNode &body_node)
+      : body_node_(&body_node)
   {
   }
 
@@ -40,11 +52,13 @@ class ClosureIntermediateSideEffectProvider : public lf::GraphExecutorSideEffect
     const GeoNodesLFUserData &user_data = *dynamic_cast<GeoNodesLFUserData *>(context.user_data);
     const ComputeContextHash &context_hash = user_data.compute_context->hash();
     if (!user_data.call_data->side_effect_nodes) {
+      /* There are no requested side effect nodes at all. */
       return {};
     }
     const Span<const lf::FunctionNode *> side_effect_nodes_in_closure =
         user_data.call_data->side_effect_nodes->nodes_by_context.lookup(context_hash);
     if (side_effect_nodes_in_closure.is_empty()) {
+      /* The closure does not have any side effect nodes, so the wrapper also does not have any. */
       return {};
     }
     return {body_node_};
@@ -234,7 +248,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
     lf_graph.update_node_indices();
 
     const auto &side_effect_provider =
-        closure_scope->construct<ClosureIntermediateSideEffectProvider>(lf_body_node);
+        closure_scope->construct<ClosureIntermediateGraphSideEffectProvider>(lf_body_node);
     lf::GraphExecutor &lf_graph_executor = closure_scope->construct<lf::GraphExecutor>(
         lf_graph, nullptr, &side_effect_provider, nullptr);
     ClosureSourceLocation source_location{
@@ -261,7 +275,7 @@ struct EvaluateClosureEvalStorage {
   ClosurePtr closure;
   lf::Graph graph;
   std::optional<lf::GraphExecutor> graph_executor;
-  std::optional<ClosureIntermediateSideEffectProvider> side_effect_provider;
+  std::optional<ClosureIntermediateGraphSideEffectProvider> side_effect_provider;
   void *graph_executor_storage = nullptr;
 };
 

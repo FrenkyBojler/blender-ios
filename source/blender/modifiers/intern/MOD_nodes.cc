@@ -648,6 +648,8 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
       if (!lf_evaluate_node) {
         return;
       }
+      /* The tree may sometimes be original and sometimes evaluated, depending on the source of the
+       * compute context. */
       const bNodeTree *eval_closure_tree = DEG_is_evaluated_id(&source_location->tree->id) ?
                                                source_location->tree :
                                                reinterpret_cast<const bNodeTree *>(

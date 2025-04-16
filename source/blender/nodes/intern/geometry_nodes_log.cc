@@ -756,6 +756,7 @@ GeoTreeLogger &GeoModifierLog::get_local_tree_logger(const ComputeContext &compu
     const std::optional<nodes::ClosureSourceLocation> &location =
         context->closure_source_location();
     if (location.has_value()) {
+      BLI_assert(DEG_is_evaluated_id(&location->tree->id));
       tree_logger.tree_orig_session_uid = DEG_get_original_id(&location->tree->id)->session_uid;
     }
   }
