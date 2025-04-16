@@ -1491,12 +1491,8 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
     return;
   }
   if (points_to_delete.size() == this->points_num()) {
-    CurvesGeometry curves = *this;
-    *this = {};
-    curves.attributes().foreach_attribute([&](const AttributeIter &iter) {
-      this->attributes_for_write().add(
-          iter.name, iter.domain, iter.data_type, AttributeInitConstruct());
-    });
+    this->resize(0, 0);
+    this->update_curve_types();
     return;
   }
   IndexMaskMemory memory;
@@ -1575,12 +1571,8 @@ void CurvesGeometry::remove_curves(const IndexMask &curves_to_delete,
     return;
   }
   if (curves_to_delete.size() == this->curves_num()) {
-    CurvesGeometry curves = *this;
-    *this = {};
-    curves.attributes().foreach_attribute([&](const AttributeIter &iter) {
-      this->attributes_for_write().add(
-          iter.name, iter.domain, iter.data_type, AttributeInitConstruct());
-    });
+    this->resize(0, 0);
+    this->update_curve_types();
     return;
   }
   IndexMaskMemory memory;
