@@ -746,7 +746,7 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
 /**
  * \param um_ref: The reference to use for de-duplicating memory between undo-steps.
  */
-static void *undomesh_from_editmesh(UndoMesh *um, Mesh &mesh, Key *key, UndoMesh *um_ref)
+static void *undomesh_from_editmesh(UndoMesh *um, Mesh &mesh, UndoMesh *um_ref)
 {
   BMEditMesh *em = mesh.runtime->edit_mesh.get();
   BLI_assert(BLI_array_is_zeroed(um, 1));
@@ -757,7 +757,7 @@ static void *undomesh_from_editmesh(UndoMesh *um, Mesh &mesh, Key *key, UndoMesh
   }
 #endif
   /* make sure shape keys work */
-  if (key != nullptr) {
+  if (Key *key = mesh.key) {
     um->mesh.key = (Key *)BKE_id_copy_ex(
         nullptr, &key->id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_NO_ANIMDATA);
   }
@@ -980,8 +980,7 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
     elem->obedit_ref.ptr = ob;
     Mesh *mesh = static_cast<Mesh *>(elem->obedit_ref.ptr->data);
     BMEditMesh *em = mesh->runtime->edit_mesh.get();
-    undomesh_from_editmesh(
-        &elem->data, *mesh, mesh->key, um_references ? um_references[i] : nullptr);
+    undomesh_from_editmesh(&elem->data, *mesh, um_references ? um_references[i] : nullptr);
     em->needs_flush_to_id = 1;
     us->step.data_size += elem->data.undo_size;
     elem->data.uv_selectmode = ts->uv_selectmode;
