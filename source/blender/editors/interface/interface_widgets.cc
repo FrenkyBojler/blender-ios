@@ -4303,15 +4303,12 @@ static void widget_optionbut(uiWidgetColors *wcol,
                              rcti *rect,
                              const uiWidgetStateInfo *state,
                              int /*roundboxalign*/,
-                             const float /*zoom*/)
+                             const float zoom)
 {
   /* For a right aligned layout (signified by #UI_BUT_TEXT_RIGHT), draw the text on the left of the
    * checkbox. */
   const bool text_before_widget = (state->but_drawflag & UI_BUT_TEXT_RIGHT);
   rcti recttemp = *rect;
-
-  uiWidgetBase wtb;
-  widget_init(&wtb);
 
   /* square */
   if (text_before_widget) {
@@ -4333,21 +4330,23 @@ static void widget_optionbut(uiWidgetColors *wcol,
     color_blend_v4_v4v4(wcol->inner, wcol->inner, wcol->inner_sel, 0.75f);
   }
 
-  const float rad = widget_radius_from_rcti(&recttemp, wcol);
-  round_box_edges(&wtb, UI_CNR_ALL, &recttemp, rad);
+  GPU_blend(GPU_BLEND_ALPHA);
+  UI_widgetbase_draw_cache_flush();
+  GPU_blend(GPU_BLEND_NONE);
 
-  /* decoration */
-  if (state->but_drawflag & UI_BUT_INDETERMINATE) {
-    shape_preset_trias_from_rect_dash(&wtb.tria1, &recttemp);
-  }
-  else if (state->but_flag & UI_SELECT) {
-    shape_preset_trias_from_rect_checkmark(&wtb.tria1, &recttemp);
-  }
+  UI_icon_draw_ex(rect->xmin - (1.0f * UI_SCALE_FAC * zoom),
+                  rect->ymin + (1.5f * UI_SCALE_FAC * zoom),
+                  state->but_flag & UI_SELECT ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT,
+                  UI_INV_SCALE_FAC / zoom,
+                  1.0f,
+                  0.0f,
+                  wcol->text,
+                  false,
+                  UI_NO_ICON_OVERLAY_TEXT);
 
-  widgetbase_draw(&wtb, wcol);
 
   /* Text space - factor is really just eyeballed. */
-  const float offset = delta * 0.9;
+  const float offset = delta;
   if (text_before_widget) {
     rect->xmax = recttemp.xmin - offset;
   }
