@@ -1038,7 +1038,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "View transform was automatically converted from %s to %s",
+                "View transform is now %s (automatically converted from %s)",
                 vt_old,
                 scene->view_settings.view_transform);
   }
@@ -1046,7 +1046,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
   if (fps_old != scene->r.frs_sec / scene->r.frs_sec_base) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "Scene frame rate was automatically converted from %.4g to %.4g",
+                "Scene frame rate is now %.4g (automatically converted from %.4g)",
                 fps_old,
                 scene->r.frs_sec / scene->r.frs_sec_base);
   }
@@ -1417,7 +1417,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "View transform was automatically converted from %s to %s",
+                "View transform is now %s (automatically converted from %s)",
                 vt_old,
                 scene->view_settings.view_transform);
   }
