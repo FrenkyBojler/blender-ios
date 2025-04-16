@@ -535,7 +535,7 @@ class Armatures : Overlay {
     ctx.const_wire = !ctx.is_filled ? 1.0f : 0.0f;
 
     if ((ctx.ob->base_flag & BASE_SELECTED) && show_outline) {
-      ctx.const_wire = 0.5f;
+      ctx.const_wire = 1.5f;
     }
     return ctx;
   }
