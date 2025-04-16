@@ -363,6 +363,11 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     mesh->face_offset_indices = nullptr;
   }
   else {
+    CustomData_blend_write_prepare(mesh->vert_data, vert_layers, {});
+    CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
+    CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
+    CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
+
     if (U.experimental.use_attribute_storage_write_debug) {
       /* Used for testing the forward compatibility process. To be removed when the runtime format
        * changes. Use placement new because this is a shallow `memcpy` of the ID. */
@@ -373,11 +378,6 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
       mesh_convert_storage_to_customdata_for_file_write(
           mesh->attribute_storage.wrap(), vert_layers, edge_layers, face_layers, loop_layers);
     }
-
-    CustomData_blend_write_prepare(mesh->vert_data, vert_layers, {});
-    CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
-    CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
-    CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
 
     mesh->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
     /* Write forward compatible format. To be removed in 5.0. */
