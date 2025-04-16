@@ -747,7 +747,7 @@ def sort_reverts(list_of_commits: list[CommitInfo]) -> None:
                 continue
 
             # This is just to shift the commit into a list we don't share in the release notes.
-            # An alternative is `IGNORED` but then the information won't be saved to the cache.
+            # An alternative classification is `IGNORED` but then the information won't be saved to the cache.
             revert_commit.classification = FIXED_NEW_ISSUE
 
             for hash in reverted_commit_hashs:
