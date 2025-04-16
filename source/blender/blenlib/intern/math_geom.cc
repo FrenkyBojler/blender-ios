@@ -4691,7 +4691,8 @@ void projmat_dimensions(const float winmat[4][4],
     *r_bottom = near * ((winmat[2][1] - 1.0f) / winmat[1][1]);
     *r_top = near * ((winmat[2][1] + 1.0f) / winmat[1][1]);
     *r_near = near;
-    *r_far = winmat[3][2] / (winmat[2][2] + 1.0f);
+    const float far_denom = winmat[2][2] + 1.0f;
+    *r_far = winmat[3][2] / (far_denom + (far_denom < 0.0f ? -1.0f : 1.0f) * FLT_EPSILON);
   }
   else {
     *r_left = (-winmat[3][0] - 1.0f) / winmat[0][0];
