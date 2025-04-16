@@ -311,6 +311,11 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
 
             print("\nfile://" + str(html_filepath))
 
+    if sys.version_info[1] > (9):
+        sys.stderr.write(
+            f'Warning: Using a local version ({sys.version_info[0]}.{sys.version_info[1]}) higher than what is used on '
+            'the daily builders (3.9), some language features may not work correctly!\n')
+
     sys.exit(exit_code)
 
 
