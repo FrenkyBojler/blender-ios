@@ -304,7 +304,14 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
     });
     attribute.dst.finish();
   }
-
+  OffsetIndices<int> new_points_by_curve = new_curves.points_by_curve();
+  foreach_selection_attribute_writer(
+      new_curves, bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
+        for (const int curve : new_curves.curves_range()) {
+          fill_selection_false(selection.span.slice(new_points_by_curve[curve]));
+        }
+        fill_selection_true(selection.span.slice(new_points_by_curve[ikcd.curve]), altered_points);
+      });
   ikcd.curves = new_curves;
   return OPERATOR_FINISHED;
 }
