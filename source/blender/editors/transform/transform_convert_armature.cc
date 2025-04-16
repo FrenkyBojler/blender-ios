@@ -1084,13 +1084,14 @@ static void recalcData_edit_armature(TransInfo *t)
       }
       else if (t->mode != TFM_BONE_ENVELOPE) {
         /* If bones change length, lets do that for the deform distance as well. */
-        ebo->dist *= ebo->length / ebo->oldlength;
-        ebo->rad_head *= ebo->length / ebo->oldlength;
-        ebo->rad_tail *= ebo->length / ebo->oldlength;
+        const float length_fac = ebo->length / ebo->oldlength;
+        ebo->dist *= length_fac;
+        ebo->rad_head *= length_fac;
+        ebo->rad_tail *= length_fac;
         ebo->oldlength = ebo->length;
 
         if (ebo_parent) {
-          ebo_parent->rad_tail = ebo->rad_head;
+          ebo_parent->rad_tail *= length_fac;
         }
       }
     }
