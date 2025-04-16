@@ -503,10 +503,8 @@ class CurvesGeometry : public ::CurvesGeometry {
     AttributeStorage::BlendWriteData attribute_data;
   };
   /**
-   * This function needs to be called before `blend_write` and before the `CurvesGeometry` struct
-   * is written because it can mutate the `CustomData` struct.
+   * This requires specific preparation of the #BlendWriteData struct.
    */
-  BlendWriteData blend_write_prepare(BlendWriter &writer);
   void blend_write(BlendWriter &writer, ID &id, const BlendWriteData &write_data);
 };
 

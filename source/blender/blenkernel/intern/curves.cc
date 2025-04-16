@@ -27,6 +27,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_curves.hh"
+#include "BKE_customdata.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_idtype.hh"
@@ -109,8 +110,10 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   /* Only for forward compatibility. */
   curves->attributes_active_index_legacy = curves->geometry.attributes_active_index;
 
-  blender::bke::CurvesGeometry::BlendWriteData write_data =  // TODO
-      curves->geometry.wrap().blend_write_prepare(*writer);
+  blender::bke::CurvesGeometry::BlendWriteData write_data;
+
+  CustomData_blend_write_prepare(curves->geometry.wrap().point_data, write_data.point_layers);
+  CustomData_blend_write_prepare(curves->geometry.wrap().curve_data, write_data.curve_layers);
 
   if (U.experimental.use_attribute_storage_write_debug) {
     /* Used for testing the forward compatibility process. To be removed when the runtime format
@@ -124,6 +127,9 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
         write_data.point_layers,
         write_data.curve_layers);
   }
+
+  curves->geometry.wrap().attribute_storage.wrap().blend_write_prepare(*writer,
+                                                                       write_data.attribute_data);
 
   /* Write LibData */
   BLO_write_id_struct(writer, Curves, id_address, &curves->id);
