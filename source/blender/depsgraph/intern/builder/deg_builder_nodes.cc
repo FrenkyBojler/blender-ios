@@ -2272,6 +2272,13 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
 
 void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
 {
+  add_operation_node(&scene->id,
+                     NodeType::SEQUENCER,
+                     OperationCode::SEQUENCES_CACHE,
+                     [main = bmain_, scene](::Depsgraph * /*depsgraph*/) {
+                       blender::seq::relations_invalidate_scene_strips(main, scene);
+                     });
+
   if (scene->ed == nullptr) {
     return;
   }
@@ -2285,13 +2292,6 @@ void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
                      OperationCode::SEQUENCES_EVAL,
                      [scene_cow](::Depsgraph *depsgraph) {
                        seq::eval_sequences(depsgraph, scene_cow, &scene_cow->ed->seqbase);
-                     });
-
-  add_operation_node(&scene->id,
-                     NodeType::SEQUENCER,
-                     OperationCode::SEQUENCES_CACHE,
-                     [main = bmain_, scene](::Depsgraph * /*depsgraph*/) {
-                       blender::seq::relations_invalidate_scene_strips(main, scene);
                      });
 
   /* Make sure data for sequences is in the graph. */
