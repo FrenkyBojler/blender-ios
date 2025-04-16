@@ -60,6 +60,8 @@ using blender::Vector;
 
 /* ********************** smart stitch operator *********************** */
 
+namespace {
+
 /* object that stores display data for previewing before confirming stitching */
 struct StitchPreviewer {
   /* here we'll store the preview triangle indices of the mesh */
@@ -230,6 +232,8 @@ struct StitchStateInit {
   int uv_selected_count;
   UvElementID *to_select;
 };
+
+}  // namespace
 
 /* constructor */
 static StitchPreviewer *stitch_preview_init()
@@ -2339,7 +2343,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   return 1;
 }
 
-static int stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (!stitch_init_all(C, op)) {
     return OPERATOR_CANCELLED;
@@ -2458,7 +2462,7 @@ static void stitch_cancel(bContext *C, wmOperator *op)
   stitch_exit(C, op, 0);
 }
 
-static int stitch_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -2528,7 +2532,7 @@ static StitchState *stitch_select(bContext *C,
   return nullptr;
 }
 
-static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   StitchStateContainer *ssc;
   Scene *scene = CTX_data_scene(C);

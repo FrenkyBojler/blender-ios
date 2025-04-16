@@ -41,6 +41,7 @@ enum class ResultType : uint8_t {
   Int,
   Int2,
   Color,
+  Bool,
 };
 
 /* The precision of the data. CPU data is always stored using full precision at the moment. */
@@ -129,7 +130,7 @@ class Result {
    * which will be identical to that stored in the data_ member. The active variant member depends
    * on the type of the result. This member is uninitialized and should not be used if the result
    * is not a single value. */
-  std::variant<float, float2, float3, float4, int32_t, int2> single_value_ = 0.0f;
+  std::variant<float, float2, float3, float4, int32_t, int2, bool> single_value_ = 0.0f;
   /* The domain of the result. This only matters if the result was not a single value. See the
    * discussion in COM_domain.hh for more information. */
   Domain domain_ = Domain::identity();
@@ -408,6 +409,9 @@ class Result {
   /* Identical to sample_nearest_extended but with bilinear interpolation. */
   float4 sample_bilinear_extended(const float2 &coordinates) const;
 
+  /* Identical to sample_nearest_extended but with cubic interpolation. */
+  float4 sample_cubic_extended(const float2 &coordinates) const;
+
   float4 sample_nearest_wrap(const float2 &coordinates, bool wrap_x, bool wrap_y) const;
   float4 sample_bilinear_wrap(const float2 &coordinates, bool wrap_x, bool wrap_y) const;
   float4 sample_cubic_wrap(const float2 &coordinates, bool wrap_x, bool wrap_y) const;
@@ -449,6 +453,7 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
   switch (type_) {
     case ResultType::Float:
     case ResultType::Int:
+    case ResultType::Bool:
       return 1;
     case ResultType::Float2:
     case ResultType::Int2:
@@ -751,6 +756,28 @@ BLI_INLINE_METHOD float4 Result::sample_bilinear_extended(const float2 &coordina
                                 this->channels_count(),
                                 texel_coordinates.x,
                                 texel_coordinates.y);
+  return pixel_value;
+}
+
+BLI_INLINE_METHOD float4 Result::sample_cubic_extended(const float2 &coordinates) const
+{
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  if (is_single_value_) {
+    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
+    return pixel_value;
+  }
+
+  const int2 size = domain_.size;
+  const float2 texel_coordinates = (coordinates * float2(size)) - 0.5f;
+
+  const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  math::interpolate_cubic_bspline_fl(buffer,
+                                     pixel_value,
+                                     size.x,
+                                     size.y,
+                                     this->channels_count(),
+                                     texel_coordinates.x,
+                                     texel_coordinates.y);
   return pixel_value;
 }
 

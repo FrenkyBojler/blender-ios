@@ -46,6 +46,8 @@
 
 #include "UI_view2d.hh"
 
+namespace {
+
 enum eBrushUVSculptTool {
   UV_SCULPT_BRUSH_TYPE_GRAB = 0,
   UV_SCULPT_BRUSH_TYPE_RELAX = 1,
@@ -144,6 +146,8 @@ struct UvSculptData {
   /** Base for constrain_to_bounds. */
   float uv_base_offset[2];
 };
+
+}  // namespace
 
 static void apply_sculpt_data_constraints(UvSculptData *sculptdata, float uv[2])
 {
@@ -912,7 +916,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   return static_cast<UvSculptData *>(op->customdata);
 }
 
-static int uv_sculpt_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus uv_sculpt_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   UvSculptData *data;
   Object *obedit = CTX_data_edit_object(C);
@@ -934,7 +938,7 @@ static int uv_sculpt_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *e
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int uv_sculpt_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus uv_sculpt_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   UvSculptData *data = (UvSculptData *)op->customdata;
   Object *obedit = CTX_data_edit_object(C);
@@ -971,7 +975,7 @@ static void register_common_props(wmOperatorType *ot)
 
   prop = RNA_def_boolean(
       ot->srna, "use_invert", false, "Invert", "Invert action for the duration of the stroke");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 void SCULPT_OT_uv_sculpt_grab(wmOperatorType *ot)

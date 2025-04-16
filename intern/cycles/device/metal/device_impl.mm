@@ -99,8 +99,38 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
       use_metalrt = (atoi(metalrt) != 0);
     }
 
+#  if defined(MAC_OS_VERSION_15_0)
+    /* Use "Ray tracing with per component motion interpolation" if available.
+     * Requires Apple9 support (https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf). */
+    if (use_metalrt && [mtlDevice supportsFamily:MTLGPUFamilyApple9]) {
+      if (@available(macos 15.0, *)) {
+        use_pcmi = DebugFlags().metal.use_metalrt_pcmi;
+      }
+    }
+#  endif
+
     if (getenv("CYCLES_DEBUG_METAL_CAPTURE_KERNEL")) {
       capture_enabled = true;
+    }
+
+    /* Create a global counter sampling buffer when kernel profiling is enabled.
+     * There's a limit to the number of concurrent counter sampling buffers per device, so we
+     * create one that can be reused by successive device queues. */
+    if (auto str = getenv("CYCLES_METAL_PROFILING")) {
+      if (atoi(str) && [mtlDevice supportsCounterSampling:MTLCounterSamplingPointAtStageBoundary])
+      {
+        NSArray<id<MTLCounterSet>> *counterSets = [mtlDevice counterSets];
+
+        NSError *error = nil;
+        MTLCounterSampleBufferDescriptor *desc = [[MTLCounterSampleBufferDescriptor alloc] init];
+        [desc setStorageMode:MTLStorageModeShared];
+        [desc setLabel:@"CounterSampleBuffer"];
+        [desc setSampleCount:MAX_SAMPLE_BUFFER_LENGTH];
+        [desc setCounterSet:counterSets[0]];
+        mtlCounterSampleBuffer = [mtlDevice newCounterSampleBufferWithDescriptor:desc
+                                                                           error:&error];
+        [mtlCounterSampleBuffer retain];
+      }
     }
 
     /* Set kernel_specialization_level based on user preferences. */
@@ -286,6 +316,9 @@ MetalDevice::~MetalDevice()
   [mtlAncillaryArgEncoder release];
   [mtlComputeCommandQueue release];
   [mtlGeneralCommandQueue release];
+  if (mtlCounterSampleBuffer) {
+    [mtlCounterSampleBuffer release];
+  }
   [mtlDevice release];
 
   texture_info.free();
@@ -433,7 +466,7 @@ bool MetalDevice::load_kernels(const uint _kernel_features)
      * This is necessary since objects may be reported to have motion if the Vector pass is
      * active, but may still need to be rendered without motion blur if that isn't active as well.
      */
-    motion_blur |= kernel_features & KERNEL_FEATURE_OBJECT_MOTION;
+    motion_blur = motion_blur || (kernel_features & KERNEL_FEATURE_OBJECT_MOTION);
 
     /* Only request generic kernels if they aren't cached in memory. */
     refresh_source_and_kernels_md5(PSO_GENERIC);
@@ -1360,6 +1393,7 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
     BVHMetal *bvh_metal = static_cast<BVHMetal *>(bvh);
     bvh_metal->motion_blur = motion_blur;
+    bvh_metal->use_pcmi = use_pcmi;
     if (bvh_metal->build(progress, mtlDevice, mtlGeneralCommandQueue, refit)) {
 
       if (bvh->params.top_level) {

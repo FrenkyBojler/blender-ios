@@ -30,6 +30,7 @@ class MetalDevice : public Device {
   id<MTLCommandQueue> mtlGeneralCommandQueue = nil;
   id<MTLArgumentEncoder> mtlAncillaryArgEncoder =
       nil; /* encoder used for fetching device pointers from MTLBuffers */
+  id<MTLCounterSampleBuffer> mtlCounterSampleBuffer = nil;
   string source[PSO_NUM];
   string kernels_md5[PSO_NUM];
   string global_defines_md5[PSO_NUM];
@@ -41,6 +42,7 @@ class MetalDevice : public Device {
   /* MetalRT members ----------------------------------*/
   bool use_metalrt = false;
   bool motion_blur = false;
+  bool use_pcmi = false;
   id<MTLArgumentEncoder> mtlASArgEncoder =
       nil; /* encoder used for fetching device pointers from MTLAccelerationStructure */
 

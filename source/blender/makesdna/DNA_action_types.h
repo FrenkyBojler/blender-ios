@@ -771,7 +771,9 @@ typedef struct bAction {
 
   /* Storage for the underlying data of strips. Each strip type has its own
    * array, and strips reference this data with an enum indicating the strip
-   * type and an int containing the index in the array to use. */
+   * type and an int containing the index in the array to use.
+   *
+   * NOTE: when adding new strip data arrays, also update `duplicate_slot()`. */
   struct ActionStripKeyframeData **strip_keyframe_data_array;
   int strip_keyframe_data_array_num;
 
@@ -842,11 +844,11 @@ typedef enum eAction_Flags {
 } eAction_Flags;
 
 /* ************************************************ */
-/* Action/Dopesheet Editor */
+/* Action/Dope-sheet Editor */
 
-/** Storage for Dopesheet/Grease-Pencil Editor data. */
+/** Storage for Dope-sheet/Grease-Pencil Editor data. */
 typedef struct bDopeSheet {
-  /** Currently ID_SCE (for Dopesheet), and ID_SC (for Grease Pencil). */
+  /** Currently ID_SCE (for Dope-sheet), and ID_SC (for Grease Pencil). */
   ID *source;
   /** Cache for channels (only initialized when pinned). */ /* XXX not used! */
   ListBase chanbase;
