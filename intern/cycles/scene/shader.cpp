@@ -259,9 +259,9 @@ void Shader::estimate_emission()
     /* Lower importance of emission nodes from automatic value/color to shader conversion, as these
      * are likely used for previewing and can be slow to build a light tree for on dense meshes. */
     float scale = 1.0f;
-    const ShaderNode *node = surf->link->parent;
-    if (node->type == EmissionNode::get_node_type()) {
-      const EmissionNode *emission_node = static_cast<const EmissionNode *>(node);
+    const ShaderOutput *output = surf->link;
+    if (output && output->parent->type == EmissionNode::get_node_type()) {
+      const EmissionNode *emission_node = static_cast<const EmissionNode *>(output->parent);
       if (emission_node->from_auto_conversion) {
         scale = 0.1f;
       }
