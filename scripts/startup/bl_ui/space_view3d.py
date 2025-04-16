@@ -6675,7 +6675,7 @@ class VIEW3D_PT_shading_color(Panel):
         layout = self.layout
         shading = VIEW3D_PT_shading.get_shading(context)
 
-        layout.grid_flow(columns=3, align=True).prop(shading, "color_type", expand=True)
+        layout.grid_flow(row_major=True, columns=3, align=True).prop(shading, "color_type", expand=True)
         if shading.color_type == 'SINGLE':
             layout.row().prop(shading, "single_color", text="")
 
@@ -9270,8 +9270,8 @@ classes = (
     VIEW3D_PT_quad_view,
     VIEW3D_PT_view3d_stereo,
     VIEW3D_PT_shading,
-    VIEW3D_PT_shading_color,
     VIEW3D_PT_shading_lighting,
+    VIEW3D_PT_shading_color,
     VIEW3D_PT_shading_options,
     VIEW3D_PT_shading_options_shadow,
     VIEW3D_PT_shading_options_ssao,
