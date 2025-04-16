@@ -618,11 +618,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
       ::LoadIcon(nullptr, IDI_APPLICATION);
     }
     wc.hCursor = ::LoadCursor(0, IDC_ARROW);
-    wc.hbrBackground =
-#ifdef INW32_COMPISITING
-        (HBRUSH)CreateSolidBrush
-#endif
-        (HBRUSH) GetStockObject(DKGRAY_BRUSH);
+    wc.hbrBackground = (HBRUSH)GetStockObject(DKGRAY_BRUSH);
     wc.lpszMenuName = 0;
     wc.lpszClassName = L"GHOST_WindowClass";
 

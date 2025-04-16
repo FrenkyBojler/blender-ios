@@ -210,25 +210,6 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
 
   ::ShowWindow(m_hWnd, nCmdShow);
 
-#ifdef WIN32_COMPOSITING
-  if (alphaBackground && parentwindowhwnd == 0) {
-
-    HRESULT hr = S_OK;
-
-    /* Create and populate the Blur Behind structure. */
-    DWM_BLURBEHIND bb = {0};
-
-    /* Enable Blur Behind and apply to the entire client area. */
-    bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
-    bb.fEnable = true;
-    bb.hRgnBlur = CreateRectRgn(0, 0, -1, -1);
-
-    /* Apply Blur Behind. */
-    hr = DwmEnableBlurBehindWindow(m_hWnd, &bb);
-    DeleteObject(bb.hRgnBlur);
-  }
-#endif
-
   /* Initialize WINTAB. */
   if (system->getTabletAPI() != GHOST_kTabletWinPointer) {
     loadWintab(GHOST_kWindowStateMinimized != state);
