@@ -162,7 +162,7 @@ static float3 output_estimate_emission(ShaderOutput *output, bool &is_constant)
      * build a light tree for on dense meshes. */
     if (node->type == EmissionNode::get_node_type()) {
       EmissionNode *emission_node = static_cast<EmissionNode *>(node);
-      if (emission_node->from_auto_conversion) {
+      if (emission_node->from_auto_conversion && !is_constant) {
         estimate *= 0.1f;
       }
     }
