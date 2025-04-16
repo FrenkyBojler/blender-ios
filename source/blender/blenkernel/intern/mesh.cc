@@ -363,28 +363,28 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     mesh->face_offset_indices = nullptr;
   }
   else {
+    if (U.experimental.use_attribute_storage_write_debug) {
+      /* Used for testing the forward compatibility process. To be removed when the runtime format
+       * changes. Use placement new because this is a shallow `memcpy` of the ID. */
+      new (&mesh->attribute_storage.wrap())
+          blender::bke::AttributeStorage(mesh_convert_customdata_to_storage(*mesh));
+    }
+    else {
+      mesh_convert_storage_to_customdata_for_file_write(
+          mesh->attribute_storage.wrap(), vert_layers, edge_layers, face_layers, loop_layers);
+    }
+
     CustomData_blend_write_prepare(mesh->vert_data, vert_layers, {});
     CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
     CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
-    if (U.experimental.use_attribute_storage_write_debug) {
-      /* Used for testing the forward compatibility process. To be removed when the runtime format
-       * changes. */
-      blender::bke::mesh_convert_customdata_to_storage(*mesh);
-    }
 
-    if (U.experimental.use_attribute_storage_write_debug || is_undo) {
-      mesh->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
-    }
-    else {
-      /* Write forward compatible format. To be removed in 5.0. */
-      rename_seam_layer_to_old_name(
-          mesh->vertex_group_names, vert_layers, edge_layers, face_layers, loop_layers);
-      mesh_sculpt_mask_to_legacy(vert_layers);
-      mesh_custom_normals_to_legacy(loop_layers);
-      mesh_convert_storage_to_customdata_for_file_write(
-          mesh->attribute_storage.wrap(), vert_layers, edge_layers, face_layers, loop_layers);
-    }
+    mesh->attribute_storage.wrap().blend_write_prepare(*writer, attribute_data);
+    /* Write forward compatible format. To be removed in 5.0. */
+    rename_seam_layer_to_old_name(
+        mesh->vertex_group_names, vert_layers, edge_layers, face_layers, loop_layers);
+    mesh_sculpt_mask_to_legacy(vert_layers);
+    mesh_custom_normals_to_legacy(loop_layers);
   }
 
   const blender::bke::MeshRuntime *mesh_runtime = mesh->runtime;
@@ -424,9 +424,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   }
 
   if (U.experimental.use_attribute_storage_write_debug) {
-    /* Used for testing the forward compatibility process. To be removed when the runtime format
-     * changes. */
-    blender::bke::mesh_convert_storage_to_customdata(*mesh);
+    std::destroy_at(&mesh->attribute_storage.wrap());
   }
 }
 
