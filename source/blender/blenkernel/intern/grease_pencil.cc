@@ -4242,10 +4242,24 @@ static void write_drawing_array(GreasePencil &grease_pencil, BlendWriter *writer
     switch (GreasePencilDrawingType(drawing_base->type)) {
       case GP_DRAWING: {
         GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-        bke::CurvesGeometry::BlendWriteData write_data =
-            drawing->wrap().strokes_for_write().blend_write_prepare(*writer);
+        bke::CurvesGeometry &curves = drawing->wrap().strokes_for_write();
+
+        bke::CurvesGeometry::BlendWriteData write_data;
+        CustomData_blend_write_prepare(curves.wrap().point_data, write_data.point_layers);
+        CustomData_blend_write_prepare(curves.wrap().curve_data, write_data.curve_layers);
+        if (U.experimental.use_attribute_storage_write_debug) {
+          bke::curves_convert_customdata_to_storage(curves);
+        }
+        else {
+          bke::curves_convert_storage_to_customdata(curves);
+        }
+
         BLO_write_struct(writer, GreasePencilDrawing, drawing);
-        drawing->wrap().strokes_for_write().blend_write(*writer, grease_pencil.id, write_data);
+        curves.blend_write(*writer, grease_pencil.id, write_data);
+
+        if (U.experimental.use_attribute_storage_write_debug) {
+          bke::curves_convert_storage_to_customdata(curves);
+        }
         break;
       }
       case GP_DRAWING_REFERENCE: {
