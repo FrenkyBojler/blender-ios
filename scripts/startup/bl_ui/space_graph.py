@@ -11,6 +11,24 @@ from bl_ui.space_dopesheet import (
 from bl_ui.space_time import playback_controls
 
 
+def drivers_editor_footer(layout, context):
+    act_fcurve = context.active_editable_fcurve
+    act_driver = act_fcurve.driver if act_fcurve else None
+
+    layout.separator_spacer()
+
+    if act_fcurve:
+        layout.label(text="Driver: %s (%s)" % (act_fcurve.id_data.name, act_fcurve.data_path))
+
+    if act_driver and act_driver.variables:
+        layout.separator(type='LINE')
+        layout.label(text="Variables: %i" % len(act_driver.variables))
+
+    if act_driver and act_driver.type == 'SCRIPTED' and act_driver.expression:
+        layout.separator(type='LINE')
+        layout.label(text="Expression: %s" % act_driver.expression)
+
+
 class GRAPH_HT_header(Header):
     bl_space_type = 'GRAPH_EDITOR'
 
@@ -86,8 +104,12 @@ class GRAPH_HT_playback_controls(Header):
 
     def draw(self, context):
         layout = self.layout
+        is_drivers_editor = context.space_data.mode == 'DRIVERS'
 
-        playback_controls(layout, context)
+        if is_drivers_editor:
+            drivers_editor_footer(layout, context)
+        else:
+            playback_controls(layout, context)
 
 
 class GRAPH_PT_proportional_edit(Panel):
