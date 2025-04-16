@@ -13035,6 +13035,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputSplineCyclic");
   define("GeometryNode", "GeometryNodeInputSplineResolution");
   define("GeometryNode", "GeometryNodeInputTangent");
+  define("GeometryNode", "GeometryNodeInputVoxelCenter");
+  define("GeometryNode", "GeometryNodeInputVoxelCoordinate");
   define("GeometryNode", "GeometryNodeInstanceOnPoints");
   define("GeometryNode", "GeometryNodeInstancesToPoints");
   define("GeometryNode", "GeometryNodeInstanceTransform");

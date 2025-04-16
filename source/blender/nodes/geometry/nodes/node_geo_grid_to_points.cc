@@ -8,6 +8,7 @@
 
 #include "BKE_attribute_math.hh"
 #include "BKE_pointcloud.hh"
+#include "BKE_volume_fields.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 
@@ -57,73 +58,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 }
 
 #ifdef WITH_OPENVDB
-/* Index space of a single leaf buffer. */
-template<typename LeafNodeType> class GridLeafFieldContext : public FieldContext {
-  /* Base-2 exponent of the leaf dimension. */
-  static const int32_t LOG2DIM = LeafNodeType::LOG2DIM;
-  /* Leaf buffer dimension along one coordinate axis. */
-  static const int32_t DIM = LeafNodeType::DIM;
-  /* Total number of voxels in a leaf buffer. */
-  static const int32_t NUM_VOXELS = LeafNodeType::NUM_VOXELS;
-
- private:
-  float4x4 transform_;
-  openvdb::Coord leaf_origin_;
-
- public:
-  GridLeafFieldContext(const float4x4 &transform, const openvdb::Coord &leaf_origin)
-      : transform_(transform), leaf_origin_(leaf_origin)
-  {
-  }
-
-  const float4x4 &transform() const
-  {
-    return transform_;
-  }
-
-  const openvdb::Coord &leaf_origin() const
-  {
-    return leaf_origin_;
-  }
-
-  int64_t size() const
-  {
-    return NUM_VOXELS;
-  }
-
-  openvdb::Coord index_to_global_coord(const int64_t index) const
-  {
-    return LeafNodeType::offsetToLocalCoord(index) + leaf_origin_;
-  }
-
-  GVArray get_varray_for_input(const FieldInput &field_input,
-                               const IndexMask & /*mask*/,
-                               ResourceScope & /*scope*/) const override
-  {
-    const bke::AttributeFieldInput *attribute_field_input =
-        dynamic_cast<const bke::AttributeFieldInput *>(&field_input);
-    if (attribute_field_input == nullptr) {
-      return {};
-    }
-
-    if (attribute_field_input->attribute_name() == "position") {
-      return VArray<float3>::ForFunc(NUM_VOXELS, [&](const int64_t index) {
-        const openvdb::Coord vdb_coord = index_to_global_coord(index);
-        const float3 coord = float3(vdb_coord.x(), vdb_coord.y(), vdb_coord.z());
-        /* Cell center position. */
-        return math::transform_point(transform_, coord + float3(0.5f));
-      });
-    }
-    if (attribute_field_input->attribute_name() == "coordinate") {
-      return VArray<float3>::ForFunc(NUM_VOXELS, [&](const int64_t index) {
-        const openvdb::Coord vdb_coord = index_to_global_coord(index);
-        return float3(vdb_coord.x(), vdb_coord.y(), vdb_coord.z());
-      });
-    }
-    return {};
-  }
-};
-
 template<typename T> struct GridToPointsConverter {
   using type_traits = bke::VolumeGridTraits<T>;
   using TreeType = typename type_traits::TreeType;
@@ -154,7 +88,8 @@ template<typename T> struct GridToPointsConverter {
   {
     constexpr int num_voxels = LeafNodeType::NUM_VOXELS;
 
-    const GridLeafFieldContext<LeafNodeType> field_context(transform, leaf_origin);
+    const bke::GridLeafNodeFieldContext field_context(
+        transform, int3(leaf_origin.x(), leaf_origin.y(), leaf_origin.z()));
     FieldEvaluator evaluator(field_context, field_context.size());
     evaluator.add_with_destination(selection_field, point_data.selection_buffer.as_mutable_span());
     evaluator.evaluate();

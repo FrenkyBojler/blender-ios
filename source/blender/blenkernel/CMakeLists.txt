@@ -522,6 +522,7 @@ set(SRC
   BKE_viewer_path.hh
   BKE_volume.hh
   BKE_volume_enums.hh
+  BKE_volume_fields.hh
   BKE_volume_grid.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh

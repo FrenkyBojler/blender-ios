@@ -796,6 +796,8 @@ class NODE_MT_geometry_node_GEO_VOLUME_READ(Menu):
     def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeGetNamedGrid")
+        node_add_menu.add_node_type(layout, "GeometryNodeInputVoxelCenter")
+        node_add_menu.add_node_type(layout, "GeometryNodeInputVoxelCoordinate")
         node_add_menu.draw_assets_for_catalog(layout, "Volume/Read")
 
 
