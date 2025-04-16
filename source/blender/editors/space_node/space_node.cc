@@ -630,7 +630,8 @@ const ComputeContext *compute_context_for_edittree_socket(
   if (!zones) {
     return nullptr;
   }
-  const Vector<const bke::bNodeTreeZone *> zone_stack = zones->get_zone_stack_for_socket(socket);
+  const bke::bNodeTreeZone *zone = zones->get_zone_by_socket(socket);
+  const Vector<const bke::bNodeTreeZone *> zone_stack = zones->get_zones_to_enter_from_root(zone);
   return compute_context_for_zones(zone_stack, compute_context_cache, context);
 }
 
