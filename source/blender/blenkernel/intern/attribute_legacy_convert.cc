@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_anonymous_attribute_id.hh"
 #define DNA_DEPRECATED_ALLOW
 
 #include <optional>
@@ -406,31 +407,24 @@ AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil 
 
 ///
 
-void mesh_prepare_data_for_file_write(Mesh &mesh)
+void mesh_prepare_data_for_file_write(Mesh &mesh,
+                                      Vector<CustomDataLayer, 16> &vert_layers,
+                                      Vector<CustomDataLayer, 16> &edge_layers,
+                                      Vector<CustomDataLayer, 16> &face_layers,
+                                      Vector<CustomDataLayer, 16> &corner_layers,
+                                      AttributeStorage::BlendWriteData &write_data)
 {
-  for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
+  for (const CustomDataLayer &layer : Span(mesh.vert_data.layers, mesh.vert_data.totlayer)) {
     if (layer.flag & CD_FLAG_NOCOPY) {
       continue;
     }
     if (blender::bke::attribute_name_is_anonymous(layer.name)) {
       continue;
     }
-    if (skip_names.contains(layer.name)) {
-      continue;
-    }
-    layers_to_write.append(layer);
+    vert_layers.append(layer);
   }
-  data.totlayer = layers_to_write.size();
-  data.maxlayer = data.totlayer;
-
-  /* NOTE: `data->layers` may be null, this happens when adding
-   * a legacy #MPoly struct to a mesh with no other face attributes.
-   * This leaves us with no unique ID for DNA to identify the old
-   * data with when loading the file. */
-  if (!data.layers && layers_to_write.size() > 0) {
-    /* We just need an address that's unique. */
-    data.layers = reinterpret_cast<CustomDataLayer *>(&data.layers);
-  }
+  mesh.vert_data.totlayer = vert_layers.size();
+  mesh.vert_data.maxlayer = mesh.vert_data.totlayer;
 }
 
 }  // namespace blender::bke
