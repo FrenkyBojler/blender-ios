@@ -392,7 +392,7 @@ const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
       nodes::ClosureSourceLocation source_location{};
       const bNodeTree &tree = output_node.owner_tree();
       source_location.tree = &tree;
-      source_location.closure_output_node = &output_node;
+      source_location.closure_output_node_id = output_node.identifier;
       source_location.compute_context_hash = parent_compute_context ?
                                                  parent_compute_context->hash() :
                                                  ComputeContextHash{};

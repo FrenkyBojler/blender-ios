@@ -50,21 +50,6 @@ std::optional<ViewerPath> viewer_path_for_compute_context(const ComputeContext *
   return path;
 }
 
-const ComputeContext *compute_context_for_viewer_path(
-    const ViewerPath &viewer_path,
-    bke::ComputeContextCache &compute_context_cache,
-    const ComputeContext *parent_compute_context)
-{
-  const ComputeContext *current = parent_compute_context;
-  LISTBASE_FOREACH (const ViewerPathElem *, elem, &viewer_path.path) {
-    current = compute_context_for_viewer_path_elem(*elem, compute_context_cache, current);
-    if (!current) {
-      return nullptr;
-    }
-  }
-  return current;
-}
-
 ViewerPathElem *viewer_path_elem_for_compute_context(const ComputeContext &compute_context)
 {
   if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(&compute_context)) {
@@ -108,7 +93,7 @@ ViewerPathElem *viewer_path_elem_for_compute_context(const ComputeContext &compu
     if (const std::optional<nodes::ClosureSourceLocation> &source =
             context->closure_source_location())
     {
-      elem->source_output_node_id = source->closure_output_node->identifier;
+      elem->source_output_node_id = source->closure_output_node_id;
       BLI_assert(DEG_is_original_id(&source->tree->id));
       elem->source_node_tree = const_cast<bNodeTree *>(source->tree);
     }
@@ -552,13 +537,10 @@ bNode *find_geometry_nodes_viewer(const ViewerPath &viewer_path, SpaceNode &snod
       const auto &elem = reinterpret_cast<const EvaluateClosureNodeViewerPathElem &>(elem_generic);
       std::optional<nodes::ClosureSourceLocation> source_location;
       if (elem.source_node_tree) {
-        const bNode *source_node = elem.source_node_tree->node_by_id(elem.source_output_node_id);
-        if (source_node) {
-          source_location = nodes::ClosureSourceLocation{
-              elem.source_node_tree,
-              source_node,
-              parent_compute_context ? parent_compute_context->hash() : ComputeContextHash{}};
-        }
+        source_location = nodes::ClosureSourceLocation{
+            elem.source_node_tree,
+            elem.source_output_node_id,
+            parent_compute_context ? parent_compute_context->hash() : ComputeContextHash{}};
       }
       return &compute_context_cache.for_evaluate_closure(
           parent_compute_context, elem.evaluate_node_id, nullptr, source_location);

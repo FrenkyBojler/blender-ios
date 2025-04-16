@@ -233,7 +233,7 @@ ClosureValueLog::ClosureValueLog(Vector<Item> inputs,
     const bNodeTree *tree_orig = reinterpret_cast<const bNodeTree *>(
         DEG_get_original_id(&tree_eval->id));
     this->source = Source{tree_orig->id.session_uid,
-                          source_location->closure_output_node->identifier,
+                          source_location->closure_output_node_id,
                           source_location->compute_context_hash};
   }
 }

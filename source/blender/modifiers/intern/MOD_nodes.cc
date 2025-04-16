@@ -653,10 +653,14 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
                                                reinterpret_cast<const bNodeTree *>(
                                                    DEG_get_evaluated_id(
                                                        ctx.depsgraph, &source_location->tree->id));
+      const bNode *closure_output_node = eval_closure_tree->node_by_id(
+          source_location->closure_output_node_id);
+      if (!closure_output_node) {
+        return;
+      }
       local_side_effect_nodes.nodes_by_context.add(parent_compute_context_hash, lf_evaluate_node);
       current_tree = eval_closure_tree;
-      current_zone = eval_closure_tree->zones()->get_zone_by_node(
-          source_location->closure_output_node->identifier);
+      current_zone = eval_closure_tree->zones()->get_zone_by_node(closure_output_node->identifier);
     }
     else {
       return;

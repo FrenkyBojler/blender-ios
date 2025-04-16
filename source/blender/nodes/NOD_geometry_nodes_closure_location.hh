@@ -22,8 +22,12 @@ struct ClosureEvalLocation {
 };
 
 struct ClosureSourceLocation {
+  /**
+   * Tree where the closure is created. Note that this may be an original or evaluated tree,
+   * depending on where it is used.
+   */
   const bNodeTree *tree;
-  const bNode *closure_output_node;
+  int closure_output_node_id;
   ComputeContextHash compute_context_hash;
 };
 

@@ -239,7 +239,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
         lf_graph, nullptr, &side_effect_provider, nullptr);
     ClosureSourceLocation source_location{
         &btree_,
-        &output_bnode_,
+        output_bnode_.identifier,
         user_data.compute_context->hash(),
     };
     ClosurePtr closure{MEM_new<Closure>(__func__,

@@ -208,6 +208,10 @@ class ClosureValueLog : public ValueLog {
     const bke::bNodeSocketType *type;
   };
 
+  /**
+   * Similar to #ClosureSourceLocation but does not keep pointer references to potentially
+   * temporary data.
+   */
   struct Source {
     uint32_t orig_node_tree_session_uid;
     int closure_output_node_id;
