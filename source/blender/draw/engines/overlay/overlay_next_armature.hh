@@ -42,8 +42,8 @@ class Armatures : Overlay {
 
   PassSimple armature_ps_ = {"Armature"};
 
-  /* Force transparent drawing in X-ray mode. */
-  bool draw_transparent = false;
+  /* Force wireframe drawing in Wireframe Shading and X-Ray mode. */
+  bool draw_wireframe = false;
   /* Force disable drawing relation is relations are off in viewport. */
   bool show_relations = false;
   /* Show selection state. */
@@ -152,7 +152,7 @@ class Armatures : Overlay {
       return;
     }
 
-    draw_transparent = (state.v3d->shading.type == OB_WIRE) || XRAY_FLAG_ENABLED(state.v3d);
+    draw_wireframe = (state.v3d->shading.type == OB_WIRE) || XRAY_FLAG_ENABLED(state.v3d);
     show_relations = !((state.v3d->flag & V3D_HIDE_HELPLINES) || res.is_selection());
     show_outline = (state.v3d->flag & V3D_SELECT_OUTLINE);
 
@@ -519,21 +519,23 @@ class Armatures : Overlay {
     ctx.drawtype = eArmature_Drawtype(arm.drawtype);
 
     const bool is_edit_or_pose_mode = draw_mode != ARM_DRAW_MODE_OBJECT;
-    const bool draw_as_wire = (ctx.ob->dt < OB_SOLID);
-    const bool is_transparent = draw_transparent || (draw_as_wire && is_edit_or_pose_mode);
+    const bool obj_drawn_as_wire = (ctx.ob->dt < OB_SOLID);
 
-    ctx.bone_buf = is_transparent ? &transparent_ : &opaque_;
+    ctx.bone_buf = &opaque_; /* Can also be &transparent_, currently unused. */
+    ctx.is_filled = !(draw_wireframe || obj_drawn_as_wire);
 
-    ctx.is_filled = (!draw_transparent && !draw_as_wire) || is_edit_or_pose_mode;
     ctx.show_relations = show_relations;
     ctx.do_relations = show_relations && is_edit_or_pose_mode;
+
     ctx.draw_envelope_distance = is_edit_or_pose_mode;
     ctx.draw_relation_from_head = (arm.flag & ARM_DRAW_RELATION_FROM_HEAD);
     ctx.show_text = state.show_text;
+
     ctx.const_color = is_edit_or_pose_mode ? nullptr : &res.object_wire_color(ob_ref, state)[0];
-    ctx.const_wire = (!ctx.is_filled || is_transparent) ? 1.0f : 0.0f;
+    ctx.const_wire = !ctx.is_filled ? 1.0f : 0.0f;
+
     if ((ctx.ob->base_flag & BASE_SELECTED) && show_outline) {
-      ctx.const_wire = 1.5f;
+      ctx.const_wire = 0.5f;
     }
     return ctx;
   }
