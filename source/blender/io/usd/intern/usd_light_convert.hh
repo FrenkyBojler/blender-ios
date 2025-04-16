@@ -4,7 +4,6 @@
 #pragma once
 
 #include <pxr/usd/usd/common.h>
-#include <pxr/usd/usdLux/domeLight.h>
 
 struct Main;
 struct Scene;
@@ -21,7 +20,7 @@ void world_material_to_dome_light(const USDExportParams &params,
 void dome_light_to_world_material(const USDImportParams &params,
                                   Scene *scene,
                                   Main *bmain,
-                                  const pxr::UsdLuxDomeLight &dome_light,
+                                  const pxr::UsdPrim &dome_light,
                                   const double motionSampleTime = 0.0);
 
 }  // namespace blender::io::usd

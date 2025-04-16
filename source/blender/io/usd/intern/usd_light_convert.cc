@@ -17,6 +17,7 @@
 #include <pxr/usd/usdGeom/xformCache.h>
 #include <pxr/usd/usdGeom/xformCommonAPI.h>
 #include <pxr/usd/usdLux/domeLight.h>
+#include <pxr/usd/usdLux/domeLight_1.h>
 
 #include "BKE_image.hh"
 #include "BKE_library.hh"
@@ -375,97 +376,12 @@ void world_material_to_dome_light(const USDExportParams &params,
   xform_api.SetRotate(rot_vec, pxr::UsdGeomXformCommonAPI::RotationOrderXYZ);
 }
 
-/* Import the dome light as a world material. */
-
-void dome_light_to_world_material(const USDImportParams &params,
-                                  Scene *scene,
-                                  Main *bmain,
-                                  const pxr::UsdLuxDomeLight &dome_light,
-                                  const double motionSampleTime)
+template<typename T>
+void set_domeligth_tex_and_color(
+  const USDImportParams &params, Main *bmain,
+  bNodeTree *ntree, bNode *output, bNode *bgshader,
+  T dome_light, float motionSampleTime)
 {
-  if (!(scene && scene->world && dome_light)) {
-    return;
-  }
-
-  if (!scene->world->use_nodes) {
-    scene->world->use_nodes = true;
-  }
-
-  if (!scene->world->nodetree) {
-    scene->world->nodetree = bke::node_tree_add_tree(nullptr, "Shader Nodetree", "ShaderNodeTree");
-    if (!scene->world->nodetree) {
-      CLOG_WARN(&LOG, "Couldn't create world ntree");
-      return;
-    }
-  }
-
-  bNodeTree *ntree = scene->world->nodetree;
-  bNode *output = nullptr;
-  bNode *bgshader = nullptr;
-
-  /* We never delete existing nodes, but we might disconnect them
-   * and move them out of the way. */
-
-  /* Look for the output and background shader nodes, which we will reuse. */
-  for (bNode *node : ntree->all_nodes()) {
-    if (node->type_legacy == SH_NODE_OUTPUT_WORLD) {
-      output = node;
-    }
-    else if (node->type_legacy == SH_NODE_BACKGROUND) {
-      bgshader = node;
-    }
-    else {
-      /* Move existing node out of the way. */
-      node->location[1] += 300;
-    }
-  }
-
-  /* Create the output and background shader nodes, if they don't exist. */
-  if (!output) {
-    output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
-
-    if (!output) {
-      CLOG_WARN(&LOG, "Couldn't create world output node");
-      return;
-    }
-
-    output->location[0] = 300.0f;
-    output->location[1] = 300.0f;
-  }
-
-  if (!bgshader) {
-    bgshader = append_node(output, SH_NODE_BACKGROUND, "Background", "Surface", ntree, 200);
-
-    if (!bgshader) {
-      CLOG_WARN(&LOG, "Couldn't create world shader node");
-      return;
-    }
-
-    /* Set the default background color. */
-    bNodeSocket *color_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
-    copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &scene->world->horr);
-  }
-
-  /* Make sure the first input to the shader node is disconnected. */
-  bNodeSocket *shader_input = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
-
-  if (shader_input && shader_input->link) {
-    bke::node_remove_link(ntree, *shader_input->link);
-  }
-
-  /* Set the background shader intensity. */
-  float intensity = 1.0f;
-  get_authored_value(dome_light.GetIntensityAttr(),
-                     motionSampleTime,
-                     dome_light.GetPrim(),
-                     usdtokens::intensity,
-                     &intensity);
-
-  intensity *= params.light_intensity_scale;
-
-  bNodeSocket *strength_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Strength");
-  ((bNodeSocketValueFloat *)strength_sock->default_value)->value = intensity;
-
   /* Get the dome light texture file and color. */
   pxr::SdfAssetPath tex_path;
   bool has_tex = get_authored_value(dome_light.GetTextureFileAttr(),
@@ -485,9 +401,6 @@ void dome_light_to_world_material(const USDImportParams &params,
       bNodeSocket *color_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
       copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, color.data());
     }
-
-    bke::node_set_active(*ntree, *output);
-    BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
 
     return;
   }
@@ -564,6 +477,116 @@ void dome_light_to_world_material(const USDImportParams &params,
   }
 
   tex->id = &image->id;
+}
+
+template<typename T>
+void set_domeligth_intensity(const USDImportParams &params, 
+  bNode *bgshader, T dome_light, float motionSampleTime)
+{
+  /* Set the background shader intensity. */
+  float intensity = 1.0f;
+  get_authored_value(dome_light.GetIntensityAttr(),
+                     motionSampleTime,
+                     dome_light.GetPrim(),
+                     usdtokens::intensity,
+                     &intensity);
+
+  intensity *= params.light_intensity_scale;
+
+  bNodeSocket *strength_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Strength");
+  ((bNodeSocketValueFloat *)strength_sock->default_value)->value = intensity;
+}
+
+/* Import the dome light as a world material. */
+
+void dome_light_to_world_material(const USDImportParams &params,
+                                  Scene *scene,
+                                  Main *bmain,
+                                  const pxr::UsdPrim &dome_light,
+                                  const double motionSampleTime)
+{
+  if (!(scene && scene->world && dome_light)) {
+    return;
+  }
+
+  if (!scene->world->use_nodes) {
+    scene->world->use_nodes = true;
+  }
+
+  if (!scene->world->nodetree) {
+    scene->world->nodetree = bke::node_tree_add_tree(nullptr, "Shader Nodetree", "ShaderNodeTree");
+    if (!scene->world->nodetree) {
+      CLOG_WARN(&LOG, "Couldn't create world ntree");
+      return;
+    }
+  }
+
+  bNodeTree *ntree = scene->world->nodetree;
+  bNode *output = nullptr;
+  bNode *bgshader = nullptr;
+
+  /* We never delete existing nodes, but we might disconnect them
+   * and move them out of the way. */
+
+  /* Look for the output and background shader nodes, which we will reuse. */
+  for (bNode *node : ntree->all_nodes()) {
+    if (node->type_legacy == SH_NODE_OUTPUT_WORLD) {
+      output = node;
+    }
+    else if (node->type_legacy == SH_NODE_BACKGROUND) {
+      bgshader = node;
+    }
+    else {
+      /* Move existing node out of the way. */
+      node->location[1] += 300;
+    }
+  }
+
+  /* Create the output and background shader nodes, if they don't exist. */
+  if (!output) {
+    output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
+
+    if (!output) {
+      CLOG_WARN(&LOG, "Couldn't create world output node");
+      return;
+    }
+
+    output->location[0] = 300.0f;
+    output->location[1] = 300.0f;
+  }
+
+  if (!bgshader) {
+    bgshader = append_node(output, SH_NODE_BACKGROUND, "Background", "Surface", ntree, 200);
+
+    if (!bgshader) {
+      CLOG_WARN(&LOG, "Couldn't create world shader node");
+      return;
+    }
+
+    /* Set the default background color. */
+    bNodeSocket *color_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
+    copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &scene->world->horr);
+  }
+
+  /* Make sure the first input to the shader node is disconnected. */
+  bNodeSocket *shader_input = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
+
+  if (shader_input && shader_input->link) {
+    bke::node_remove_link(ntree, *shader_input->link);
+  }
+
+  if (dome_light.IsA<pxr::UsdLuxDomeLight>()) {
+    pxr::UsdLuxDomeLight concrete_dome_light = pxr::UsdLuxDomeLight(dome_light);
+    set_domeligth_intensity(params, bgshader, concrete_dome_light, motionSampleTime);
+    set_domeligth_tex_and_color<pxr::UsdLuxDomeLight>(
+      params, bmain, ntree, output, bgshader, concrete_dome_light, motionSampleTime);
+  }
+  else if (dome_light.IsA<pxr::UsdLuxDomeLight_1>()) {
+    pxr::UsdLuxDomeLight_1 concrete_dome_light = pxr::UsdLuxDomeLight_1(dome_light);
+    set_domeligth_intensity(params, bgshader, concrete_dome_light, motionSampleTime);
+    set_domeligth_tex_and_color<pxr::UsdLuxDomeLight_1>(
+        params, bmain, ntree, output, bgshader, concrete_dome_light, motionSampleTime);
+  }
 
   /* Set the transform. */
   pxr::UsdGeomXformCache xf_cache(motionSampleTime);
@@ -592,11 +615,11 @@ void dome_light_to_world_material(const USDImportParams &params,
   /* Convert degrees to radians. */
   rot_vec *= M_PI / 180.0f;
 
-  if (bNodeSocket *socket = bke::node_find_socket(*mapping, SOCK_IN, "Rotation")) {
-    bNodeSocketValueVector *rot_value = static_cast<bNodeSocketValueVector *>(
-        socket->default_value);
-    copy_v3_v3(rot_value->value, rot_vec.data());
-  }
+  // if (bNodeSocket *socket = bke::node_find_socket(*mapping, SOCK_IN, "Rotation")) {
+  //   bNodeSocketValueVector *rot_value = static_cast<bNodeSocketValueVector *>(
+  //       socket->default_value);
+  //   copy_v3_v3(rot_value->value, rot_vec.data());
+  // }
 
   bke::node_set_active(*ntree, *output);
   DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
