@@ -418,7 +418,7 @@ static void add_write_data(const CustomData &data,
     if (layer.flag & CD_FLAG_NOCOPY) {
       continue;
     }
-    if (blender::bke::attribute_name_is_anonymous(layer.name)) {
+    if (attribute_name_is_anonymous(layer.name)) {
       continue;
     }
     all_names_written.add(layer.name);
