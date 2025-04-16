@@ -1726,7 +1726,7 @@ static void add_data_block_items_writeback(const ModifierEvalContext &ctx,
               bake_orig, sorted_new_mappings, [&](const bake::BakeDataBlockID &key) -> ID * {
                 ID *id_orig = nullptr;
                 if (ID *id_eval = data.new_mappings.lookup_default(key, nullptr)) {
-                  id_orig = DEG_get_original_id(id_eval);
+                  id_orig = DEG_get_original(id_eval);
                 }
                 else {
                   needs_reevaluation = true;

@@ -105,8 +105,7 @@ static void copy_materials_to_new_geometry_object(const Object &src_ob_eval,
   for (int i = 0; i < materials_num; i++) {
     const Material *material_eval = BKE_object_material_get_eval(
         src_ob_eval, src_data_eval, i + 1);
-    Material *material_orig = reinterpret_cast<Material *>(
-        DEG_get_original_id(const_cast<ID *>(&material_eval->id)));
+    Material *material_orig = const_cast<Material *>(DEG_get_original(material_eval));
     if (material_orig) {
       (*dst_materials)[i] = material_orig;
       id_us_plus(&material_orig->id);
@@ -408,8 +407,7 @@ class GeometryToObjectsBuilder {
         /* For collections, we don't need to create a new wrapper collection, we can just create
          * objects that instance the existing collection. */
         Collection &collection_eval = reference.collection();
-        Collection *collection_orig = reinterpret_cast<Collection *>(
-            DEG_get_original_id(&collection_eval.id));
+        Collection *collection_orig = DEG_get_original(&collection_eval);
         instance.collection = collection_orig;
         break;
       }

@@ -1450,7 +1450,7 @@ static void drw_particle_update_ptcache_edit(Object *object_eval,
    * this is where depsgraph will be setting flags to.
    */
   const DRWContext *draw_ctx = DRW_context_get();
-  Scene *scene_orig = (Scene *)DEG_get_original_id(&draw_ctx->scene->id);
+  Scene *scene_orig = DEG_get_original(draw_ctx->scene);
   Object *object_orig = DEG_get_original_object(object_eval);
   if (psys->flag & PSYS_HAIR_UPDATED) {
     PE_update_object(draw_ctx->depsgraph, scene_orig, object_orig, 0);
@@ -1473,7 +1473,7 @@ static void drw_particle_update_ptcache(Object *object_eval, ParticleSystem *psy
     return;
   }
   const DRWContext *draw_ctx = DRW_context_get();
-  Scene *scene_orig = (Scene *)DEG_get_original_id(&draw_ctx->scene->id);
+  Scene *scene_orig = DEG_get_original(draw_ctx->scene);
   Object *object_orig = DEG_get_original_object(object_eval);
   PTCacheEdit *edit = PE_create_current(draw_ctx->depsgraph, scene_orig, object_orig);
   if (edit != nullptr) {
