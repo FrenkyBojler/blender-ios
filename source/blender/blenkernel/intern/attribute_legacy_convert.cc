@@ -400,4 +400,37 @@ AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil 
           {AttrDomain::Layer, {&grease_pencil.layers_data, grease_pencil.layers().size()}}});
 }
 
+///
+
+///
+
+///
+
+void mesh_prepare_data_for_file_write(Mesh &mesh)
+{
+  for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
+    if (layer.flag & CD_FLAG_NOCOPY) {
+      continue;
+    }
+    if (blender::bke::attribute_name_is_anonymous(layer.name)) {
+      continue;
+    }
+    if (skip_names.contains(layer.name)) {
+      continue;
+    }
+    layers_to_write.append(layer);
+  }
+  data.totlayer = layers_to_write.size();
+  data.maxlayer = data.totlayer;
+
+  /* NOTE: `data->layers` may be null, this happens when adding
+   * a legacy #MPoly struct to a mesh with no other face attributes.
+   * This leaves us with no unique ID for DNA to identify the old
+   * data with when loading the file. */
+  if (!data.layers && layers_to_write.size() > 0) {
+    /* We just need an address that's unique. */
+    data.layers = reinterpret_cast<CustomDataLayer *>(&data.layers);
+  }
+}
+
 }  // namespace blender::bke
