@@ -35,21 +35,6 @@ namespace blender::ed::viewer_path {
 using bke::bNodeTreeZone;
 using bke::bNodeTreeZones;
 
-std::optional<ViewerPath> viewer_path_for_compute_context(const ComputeContext *compute_context)
-{
-  ViewerPath path;
-  BKE_viewer_path_init(&path);
-  for (const ComputeContext *context = compute_context; context; context = context->parent()) {
-    ViewerPathElem *elem = viewer_path_elem_for_compute_context(*context);
-    if (!elem) {
-      BKE_viewer_path_clear(&path);
-      return std::nullopt;
-    }
-    BLI_addhead(&path.path, elem);
-  }
-  return path;
-}
-
 ViewerPathElem *viewer_path_elem_for_compute_context(const ComputeContext &compute_context)
 {
   if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(&compute_context)) {
@@ -113,21 +98,25 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
   BKE_viewer_path_init(&r_dst);
 
   bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *context = space_node::compute_context_for_edittree_socket(
+  const ComputeContext *socket_context = space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, node.input_socket(0));
-  if (!context) {
+  if (!socket_context) {
     return;
   }
-  std::optional<ViewerPath> viewer_path_opt = viewer_path_for_compute_context(context);
-  if (!viewer_path_opt) {
-    return;
-  }
-  r_dst = *viewer_path_opt;
 
   Object *ob = reinterpret_cast<Object *>(snode.id);
   IDViewerPathElem *id_elem = BKE_viewer_path_elem_new_id();
   id_elem->id = &ob->id;
   BLI_addhead(&r_dst.path, id_elem);
+
+  for (const ComputeContext *context = socket_context; context; context = context->parent()) {
+    ViewerPathElem *elem = viewer_path_elem_for_compute_context(*context);
+    if (!elem) {
+      BKE_viewer_path_clear(&r_dst);
+      return;
+    }
+    BLI_insertlinkafter(&r_dst.path, id_elem, elem);
+  }
 
   ViewerNodeViewerPathElem *viewer_node_elem = BKE_viewer_path_elem_new_viewer_node();
   viewer_node_elem->node_id = node.identifier;
