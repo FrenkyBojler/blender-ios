@@ -117,7 +117,6 @@ static const EnumPropertyItem blend_type_items[] = {
 
 #  include <fmt/format.h>
 
-#  include "DNA_brush_types.h"
 #  include "DNA_particle_types.h"
 
 #  include "MEM_guardedalloc.h"
@@ -184,14 +183,6 @@ static void rna_Texture_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
     DEG_id_tag_update(&tex->id, ID_RECALC_EDITORS);
     WM_main_add_notifier(NC_TEXTURE, tex);
     WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, nullptr);
-
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      struct MTex mtex;
-      struct MTex mask_mtex;
-      if (ELEM(tex, brush->mtex.tex, brush->mask_mtex.tex)) {
-        BKE_brush_tag_unsaved_changes(brush);
-      }
-    }
   }
   else if (GS(id->name) == ID_NT) {
     bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
