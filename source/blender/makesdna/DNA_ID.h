@@ -1263,7 +1263,7 @@ template<typename T> struct has_ID_member<T, std::void_t<decltype(&T::id)>> : st
 template<typename T> constexpr bool has_ID_as_first_member()
 {
   if constexpr (std::is_standard_layout_v<T> && has_ID_member<T>::value) {
-    return offsetof(T, id) == 0;
+    return offsetof(T, id) == 0 && std::is_same_v<decltype(T::id), ID>;
   }
   else {
     return false;
@@ -1271,6 +1271,10 @@ template<typename T> constexpr bool has_ID_as_first_member()
 }
 }  // namespace detail
 
+/**
+ * Type trait to check if a type is a ID data-block. It just actually checks whether the type has
+ * #ID is first data member, which should be good enough in practice.
+ */
 template<typename T>
 constexpr bool is_ID_v = detail::has_ID_as_first_member<T>() || std::is_same_v<T, ID>;
 

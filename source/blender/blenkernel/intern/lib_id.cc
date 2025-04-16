@@ -2630,3 +2630,15 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
     }
   }
 }
+
+struct SomeTypeWithIDMember {
+  int id;
+};
+
+static_assert(blender::dna::is_ID_v<ID>);
+static_assert(blender::dna::is_ID_v<Object>);
+static_assert(!blender::dna::is_ID_v<int>);
+static_assert(!blender::dna::is_ID_v<ID *>);
+static_assert(!blender::dna::is_ID_v<const ID>);
+static_assert(!blender::dna::is_ID_v<ListBase>);
+static_assert(!blender::dna::is_ID_v<SomeTypeWithIDMember>);
