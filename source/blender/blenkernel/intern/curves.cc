@@ -111,19 +111,10 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   curves->attributes_active_index_legacy = curves->geometry.attributes_active_index;
 
   blender::bke::CurvesGeometry::BlendWriteData write_data;
-
-  if (U.experimental.use_attribute_storage_write_debug) {
-    /* Used for testing the forward compatibility process. To be removed when the runtime format
-     * changes. Use placement new because this is a shallow `memcpy` of the ID. */
-    new (&curves->geometry.attribute_storage.wrap()) blender::bke::AttributeStorage(
-        blender::bke::curves_convert_customdata_to_storage(curves->geometry.wrap()));
-  }
-  else {
-    blender::bke::curves_convert_storage_to_customdata_for_file_write(
-        curves->geometry.wrap().attribute_storage.wrap(),
-        write_data.point_layers,
-        write_data.curve_layers);
-  }
+  blender::bke::curves_prepare_data_for_file_write(curves->geometry.wrap(),
+                                                   write_data.point_layers,
+                                                   write_data.curve_layers,
+                                                   write_data.attribute_data);
 
   /* Write LibData */
   BLO_write_id_struct(writer, Curves, id_address, &curves->id);

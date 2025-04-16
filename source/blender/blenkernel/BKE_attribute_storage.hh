@@ -8,7 +8,7 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing_ptr.hh"
-#include "BLI_linear_allocator.hh"
+#include "BLI_resource_scope.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -121,9 +121,8 @@ class AttributeStorage : public ::AttributeStorage {
 
   void blend_read(BlendDataReader &reader);
   struct BlendWriteData {
+    ResourceScope scope;
     Vector<AttributeDNA, 16> attributes;
-    Vector<AttributeArrayDNA, 16> arrays;
-    Vector<AttributeSingleDNA, 16> singles;
   };
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 

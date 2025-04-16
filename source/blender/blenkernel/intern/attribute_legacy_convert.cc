@@ -210,72 +210,6 @@ static void convert_storage_to_customdata(
   });
 }
 
-static void create_layer_for_file_write(const Attribute &attribute,
-                                        Vector<CustomDataLayer, 16> &layers)
-{
-  const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
-      attribute.data_type());
-  if (!data_type) {
-    return;
-  }
-  const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
-  if (!array_data) {
-    return;
-  }
-
-  CustomDataLayer layer;
-  BLI_uniquename_cb(
-      [&](const StringRefNull name) {
-        return std::any_of(layers.begin(), layers.end(), [&](const CustomDataLayer &other_layer) {
-          return other_layer.name == name;
-        });
-      },
-      attribute.name().c_str(),
-      '.',
-      layer.name,
-      MAX_CUSTOMDATA_LAYER_NAME);
-  layer.type = *data_type;
-  layer.data = array_data->data;
-  layer.sharing_info = array_data->sharing_info.get();
-  layers.append(layer);
-}
-
-void mesh_convert_storage_to_customdata_for_file_write(const AttributeStorage &storage,
-                                                       Vector<CustomDataLayer, 16> &vert_layers,
-                                                       Vector<CustomDataLayer, 16> &edge_layers,
-                                                       Vector<CustomDataLayer, 16> &face_layers,
-                                                       Vector<CustomDataLayer, 16> &loop_layers)
-{
-  storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
-        attribute.data_type());
-    if (!data_type) {
-      return;
-    }
-    const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
-    if (!array_data) {
-      return;
-    }
-    Vector<CustomDataLayer, 16> *layers = nullptr;
-    switch (attribute.domain()) {
-      case AttrDomain::Point:
-        layers = &vert_layers;
-        break;
-      case AttrDomain::Edge:
-        layers = &edge_layers;
-        break;
-      case AttrDomain::Face:
-        layers = &face_layers;
-        break;
-      case AttrDomain::Corner:
-        layers = &loop_layers;
-        break;
-      default:
-        return;
-    }
-    create_layer_for_file_write(attribute, *layers);
-  });
-}
 void mesh_convert_storage_to_customdata(Mesh &mesh)
 {
   convert_storage_to_customdata(mesh.attribute_storage.wrap(),
@@ -303,34 +237,6 @@ void curves_convert_storage_to_customdata(CurvesGeometry &curves)
           {AttrDomain::Point, {&curves.point_data, curves.points_num()}},
           {AttrDomain::Curve, {&curves.curve_data, curves.curves_num()}}});
 }
-void curves_convert_storage_to_customdata_for_file_write(const AttributeStorage &storage,
-                                                         Vector<CustomDataLayer, 16> &point_layers,
-                                                         Vector<CustomDataLayer, 16> &curve_layers)
-{
-  storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
-        attribute.data_type());
-    if (!data_type) {
-      return;
-    }
-    const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
-    if (!array_data) {
-      return;
-    }
-    Vector<CustomDataLayer, 16> *layers = nullptr;
-    switch (attribute.domain()) {
-      case AttrDomain::Point:
-        layers = &point_layers;
-        break;
-      case AttrDomain::Curve:
-        layers = &curve_layers;
-        break;
-      default:
-        return;
-    }
-    create_layer_for_file_write(attribute, *layers);
-  });
-}
 AttributeStorage curves_convert_customdata_to_storage(const CurvesGeometry &curves)
 {
   return attribute_legacy_convert_customdata_to_storage(
@@ -346,24 +252,7 @@ void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
       Map<AttrDomain, std::pair<CustomData *, int>>{
           {AttrDomain::Point, {&pointcloud.pdata, pointcloud.totpoint}}});
 }
-void pointcloud_convert_storage_to_customdata_for_file_write(
-    const AttributeStorage &storage, Vector<CustomDataLayer, 16> &point_layers)
-{
-  // if (U.experimental.use_attribute_storage_write_debug) {
-  // }
-  storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
-        attribute.data_type());
-    if (!data_type) {
-      return;
-    }
-    const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
-    if (!array_data) {
-      return;
-    }
-    create_layer_for_file_write(attribute, point_layers);
-  });
-}
+
 AttributeStorage pointcloud_convert_customdata_to_storage(const PointCloud &pointcloud)
 {
   return attribute_legacy_convert_customdata_to_storage(
@@ -378,22 +267,6 @@ void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
       Map<AttrDomain, std::pair<CustomData *, int>>{
           {AttrDomain::Layer, {&grease_pencil.layers_data, grease_pencil.layers().size()}}});
 }
-void grease_pencil_convert_storage_to_customdata_for_file_write(
-    const AttributeStorage &storage, Vector<CustomDataLayer, 16> &layers)
-{
-  storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
-        attribute.data_type());
-    if (!data_type) {
-      return;
-    }
-    const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data());
-    if (!array_data) {
-      return;
-    }
-    create_layer_for_file_write(attribute, layers);
-  });
-}
 AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil &grease_pencil)
 {
   return attribute_legacy_convert_customdata_to_storage(
@@ -407,12 +280,12 @@ AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil 
 
 ///
 
-static void add_write_data(const CustomData &data,
-                           const AttrDomain domain,
-                           const int domain_size,
-                           Set<StringRef, 16> &all_names_written,
-                           Vector<CustomDataLayer, 16> &layers_to_write,
-                           AttributeStorage::BlendWriteData &write_data)
+static void add_custom_data_write_data(CustomData &data,
+                                       const AttrDomain domain,
+                                       const int domain_size,
+                                       Set<StringRef, 16> &all_names_written,
+                                       Vector<CustomDataLayer, 16> &layers_to_write,
+                                       AttributeStorage::BlendWriteData &write_data)
 {
   for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
     if (layer.flag & CD_FLAG_NOCOPY) {
@@ -431,8 +304,11 @@ static void add_write_data(const CustomData &data,
         attribute_dna.domain = int8_t(domain);
         attribute_dna.storage_type = int8_t(AttrStorageType::Array);
 
-        write_data.arrays.append({layer.data, layer.sharing_info, domain_size});
-        attribute_dna.data = &write_data.arrays.last();  // TODO: Pointer stability
+        auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();
+        array_dna.data = layer.data;
+        array_dna.sharing_info = layer.sharing_info;
+        array_dna.size = domain_size;
+        attribute_dna.data = &array_dna;
 
         write_data.attributes.append(attribute_dna);
         continue;
@@ -440,12 +316,15 @@ static void add_write_data(const CustomData &data,
     }
     layers_to_write.append(layer);
   }
+  data.totlayer = layers_to_write.size();
+  data.maxlayer = data.totlayer;
 }
 
-static void add_write_data(AttributeStorage &data,
-                           const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
-                           Set<StringRef, 16> &all_names_written,
-                           AttributeStorage::BlendWriteData &write_data)
+static void add_storage_write_data(
+    AttributeStorage &data,
+    const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
+    Set<StringRef, 16> &all_names_written,
+    AttributeStorage::BlendWriteData &write_data)
 {
   data.foreach([&](Attribute &attr) {
     if (!U.experimental.use_attribute_storage_write_debug) {
@@ -465,8 +344,8 @@ static void add_write_data(AttributeStorage &data,
           all_names_written.add(layer.name);
 
           layers_to_write.lookup(attr.domain())->append(layer);
-          return;
         }
+        return;
       }
     }
     all_names_written.add(attr.name());
@@ -477,12 +356,17 @@ static void add_write_data(AttributeStorage &data,
     attribute_dna.storage_type = int8_t(attr.storage_type());
 
     if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
-      write_data.arrays.append({data->data, data->sharing_info.get(), data->size});
-      attribute_dna.data = &write_data.arrays.last();  // TODO: Pointer stability
+      auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();
+      array_dna.data = data->data;
+      array_dna.sharing_info = data->sharing_info.get();
+      array_dna.size = data->size;
+      attribute_dna.data = &array_dna;
     }
     else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data())) {
-      write_data.singles.append({data->value, data->sharing_info.get()});
-      attribute_dna.data = &write_data.singles.last();  // TODO: Pointer stability
+      auto &single_dna = write_data.scope.construct<AttributeSingleDNA>();
+      single_dna.data = data->value;
+      single_dna.sharing_info = data->sharing_info.get();
+      attribute_dna.data = &single_dna;
     }
 
     write_data.attributes.append(attribute_dna);
@@ -497,47 +381,103 @@ void mesh_prepare_data_for_file_write(Mesh &mesh,
                                       AttributeStorage::BlendWriteData &write_data)
 {
   Set<StringRef, 16> all_names_written;
-  add_write_data(mesh.vert_data,
-                 AttrDomain::Point,
-                 mesh.verts_num,
-                 all_names_written,
-                 vert_layers,
-                 write_data);
-  add_write_data(mesh.edge_data,
-                 AttrDomain::Edge,
-                 mesh.edges_num,
-                 all_names_written,
-                 edge_layers,
-                 write_data);
-  add_write_data(mesh.face_data,
-                 AttrDomain::Face,
-                 mesh.faces_num,
-                 all_names_written,
-                 face_layers,
-                 write_data);
-  add_write_data(mesh.corner_data,
-                 AttrDomain::Corner,
-                 mesh.corners_num,
-                 all_names_written,
-                 corner_layers,
-                 write_data);
-  add_write_data(mesh.attribute_storage.wrap(),
-                 {{AttrDomain::Point, &vert_layers},
-                  {AttrDomain::Edge, &edge_layers},
-                  {AttrDomain::Face, &face_layers},
-                  {AttrDomain::Corner, &corner_layers}},
-                 all_names_written,
-                 write_data);
+  add_storage_write_data(mesh.attribute_storage.wrap(),
+                         {{AttrDomain::Point, &vert_layers},
+                          {AttrDomain::Edge, &edge_layers},
+                          {AttrDomain::Face, &face_layers},
+                          {AttrDomain::Corner, &corner_layers}},
+                         all_names_written,
+                         write_data);
+  add_custom_data_write_data(mesh.vert_data,
+                             AttrDomain::Point,
+                             mesh.verts_num,
+                             all_names_written,
+                             vert_layers,
+                             write_data);
+  add_custom_data_write_data(mesh.edge_data,
+                             AttrDomain::Edge,
+                             mesh.edges_num,
+                             all_names_written,
+                             edge_layers,
+                             write_data);
+  add_custom_data_write_data(mesh.face_data,
+                             AttrDomain::Face,
+                             mesh.faces_num,
+                             all_names_written,
+                             face_layers,
+                             write_data);
+  add_custom_data_write_data(mesh.corner_data,
+                             AttrDomain::Corner,
+                             mesh.corners_num,
+                             all_names_written,
+                             corner_layers,
+                             write_data);
   mesh.attribute_storage.dna_attributes = write_data.attributes.data();
   mesh.attribute_storage.dna_attributes_num = write_data.attributes.size();
-  mesh.vert_data.totlayer = vert_layers.size();
-  mesh.vert_data.maxlayer = mesh.vert_data.totlayer;
-  mesh.edge_data.totlayer = edge_layers.size();
-  mesh.edge_data.maxlayer = mesh.edge_data.totlayer;
-  mesh.face_data.totlayer = face_layers.size();
-  mesh.face_data.maxlayer = mesh.face_data.totlayer;
-  mesh.corner_data.totlayer = corner_layers.size();
-  mesh.corner_data.maxlayer = mesh.corner_data.totlayer;
+}
+
+void curves_prepare_data_for_file_write(CurvesGeometry &curves,
+                                        Vector<CustomDataLayer, 16> &point_layers,
+                                        Vector<CustomDataLayer, 16> &curve_layers,
+                                        AttributeStorage::BlendWriteData &write_data)
+{
+  Set<StringRef, 16> all_names_written;
+  add_storage_write_data(curves.attribute_storage.wrap(),
+                         {{AttrDomain::Point, &point_layers}, {AttrDomain::Curve, &curve_layers}},
+                         all_names_written,
+                         write_data);
+  add_custom_data_write_data(curves.point_data,
+                             AttrDomain::Point,
+                             curves.points_num(),
+                             all_names_written,
+                             point_layers,
+                             write_data);
+  add_custom_data_write_data(curves.curve_data,
+                             AttrDomain::Corner,
+                             curves.curves_num(),
+                             all_names_written,
+                             curve_layers,
+                             write_data);
+  curves.attribute_storage.dna_attributes = write_data.attributes.data();
+  curves.attribute_storage.dna_attributes_num = write_data.attributes.size();
+}
+
+void pointcloud_prepare_data_for_file_write(PointCloud &pointcloud,
+                                            Vector<CustomDataLayer, 16> &point_layers,
+                                            AttributeStorage::BlendWriteData &write_data)
+{
+  Set<StringRef, 16> all_names_written;
+  add_storage_write_data(pointcloud.attribute_storage.wrap(),
+                         {{AttrDomain::Point, &point_layers}},
+                         all_names_written,
+                         write_data);
+  add_custom_data_write_data(pointcloud.pdata,
+                             AttrDomain::Point,
+                             pointcloud.totpoint,
+                             all_names_written,
+                             point_layers,
+                             write_data);
+  pointcloud.attribute_storage.dna_attributes = write_data.attributes.data();
+  pointcloud.attribute_storage.dna_attributes_num = write_data.attributes.size();
+}
+
+void grease_pencil_prepare_data_for_file_write(GreasePencil &grease_pencil,
+                                               Vector<CustomDataLayer, 16> &layers_layers,
+                                               AttributeStorage::BlendWriteData &write_data)
+{
+  Set<StringRef, 16> all_names_written;
+  add_storage_write_data(grease_pencil.attribute_storage.wrap(),
+                         {{AttrDomain::Layer, &layers_layers}},
+                         all_names_written,
+                         write_data);
+  add_custom_data_write_data(grease_pencil.layers_data,
+                             AttrDomain::Layer,
+                             grease_pencil.layers().size(),
+                             all_names_written,
+                             layers_layers,
+                             write_data);
+  grease_pencil.attribute_storage.dna_attributes = write_data.attributes.data();
+  grease_pencil.attribute_storage.dna_attributes_num = write_data.attributes.size();
 }
 
 }  // namespace blender::bke
