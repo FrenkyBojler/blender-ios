@@ -1881,12 +1881,10 @@ void NODE_OT_activate_viewer(wmOperatorType *ot)
 
 static wmOperatorStatus node_deactivate_viewer_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main &bmain = *CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
   WorkSpace &workspace = *CTX_wm_workspace(C);
 
-  bNode *active_viewer = viewer_path::find_geometry_nodes_viewer(
-      bmain, workspace.viewer_path, snode);
+  bNode *active_viewer = viewer_path::find_geometry_nodes_viewer(workspace.viewer_path, snode);
 
   for (bNode *node : snode.edittree->all_nodes()) {
     if (node->type_legacy != GEO_NODE_VIEWER) {

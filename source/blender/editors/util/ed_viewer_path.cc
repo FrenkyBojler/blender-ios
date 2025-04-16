@@ -35,13 +35,12 @@ namespace blender::ed::viewer_path {
 using bke::bNodeTreeZone;
 using bke::bNodeTreeZones;
 
-std::optional<ViewerPath> viewer_path_for_compute_context(Main &bmain,
-                                                          const ComputeContext *compute_context)
+std::optional<ViewerPath> viewer_path_for_compute_context(const ComputeContext *compute_context)
 {
   ViewerPath path;
   BKE_viewer_path_init(&path);
   for (const ComputeContext *context = compute_context; context; context = context->parent()) {
-    ViewerPathElem *elem = viewer_path_elem_for_compute_context(bmain, *context);
+    ViewerPathElem *elem = viewer_path_elem_for_compute_context(*context);
     if (!elem) {
       BKE_viewer_path_clear(&path);
       return std::nullopt;
@@ -66,8 +65,7 @@ const ComputeContext *compute_context_for_viewer_path(
   return current;
 }
 
-ViewerPathElem *viewer_path_elem_for_compute_context(Main &bmain,
-                                                     const ComputeContext &compute_context)
+ViewerPathElem *viewer_path_elem_for_compute_context(const ComputeContext &compute_context)
 {
   if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(&compute_context)) {
     ModifierViewerPathElem *elem = BKE_viewer_path_elem_new_modifier();
@@ -119,8 +117,7 @@ ViewerPathElem *viewer_path_elem_for_compute_context(Main &bmain,
   return nullptr;
 }
 
-static void viewer_path_for_geometry_node(Main &bmain,
-                                          const SpaceNode &snode,
+static void viewer_path_for_geometry_node(const SpaceNode &snode,
                                           const bNode &node,
                                           ViewerPath &r_dst)
 {
@@ -136,7 +133,7 @@ static void viewer_path_for_geometry_node(Main &bmain,
   if (!context) {
     return;
   }
-  std::optional<ViewerPath> viewer_path_opt = viewer_path_for_compute_context(bmain, context);
+  std::optional<ViewerPath> viewer_path_opt = viewer_path_for_compute_context(context);
   if (!viewer_path_opt) {
     return;
   }
@@ -167,7 +164,7 @@ void activate_geometry_node(Main &bmain, SpaceNode &snode, bNode &node)
   ViewerPath new_viewer_path{};
   BLI_SCOPED_DEFER([&]() { BKE_viewer_path_clear(&new_viewer_path); });
   if (snode.id != nullptr && GS(snode.id->name) == ID_OB) {
-    viewer_path_for_geometry_node(bmain, snode, node, new_viewer_path);
+    viewer_path_for_geometry_node(snode, node, new_viewer_path);
   }
 
   bool found_view3d_with_enabled_viewer = false;
@@ -470,8 +467,7 @@ UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const 
         }
         ViewerPath tmp_viewer_path{};
         BLI_SCOPED_DEFER([&]() { BKE_viewer_path_clear(&tmp_viewer_path); });
-        viewer_path_for_geometry_node(
-            const_cast<Main &>(*bmain), snode, *viewer_node, tmp_viewer_path);
+        viewer_path_for_geometry_node(snode, *viewer_node, tmp_viewer_path);
         if (!BKE_viewer_path_equal(
                 &viewer_path, &tmp_viewer_path, VIEWER_PATH_EQUAL_FLAG_IGNORE_ITERATION))
         {
@@ -490,9 +486,7 @@ UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const 
   return UpdateActiveGeometryNodesViewerResult::NotActive;
 }
 
-bNode *find_geometry_nodes_viewer(const Main &bmain,
-                                  const ViewerPath &viewer_path,
-                                  SpaceNode &snode)
+bNode *find_geometry_nodes_viewer(const ViewerPath &viewer_path, SpaceNode &snode)
 {
   /* Viewer path is only valid if the context object is set. */
   if (snode.id == nullptr || GS(snode.id->name) != ID_OB) {
@@ -512,8 +506,7 @@ bNode *find_geometry_nodes_viewer(const Main &bmain,
   }
   ViewerPath tmp_viewer_path;
   BLI_SCOPED_DEFER([&]() { BKE_viewer_path_clear(&tmp_viewer_path); });
-  viewer_path_for_geometry_node(
-      const_cast<Main &>(bmain), snode, *possible_viewer, tmp_viewer_path);
+  viewer_path_for_geometry_node(snode, *possible_viewer, tmp_viewer_path);
 
   if (BKE_viewer_path_equal(&viewer_path, &tmp_viewer_path)) {
     return possible_viewer;
