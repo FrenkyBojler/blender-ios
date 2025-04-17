@@ -961,9 +961,12 @@ void ED_region_image_render_region_draw(
   const float y1 = frame->ymin - frame_height / 2;
   const float y2 = frame->ymax - frame_height / 2;
 
+  /* Darken the area outside the frame. */
   if (passepartout_alpha > 0) {
-    /* Darken the area outside the frame. */
-    constexpr float inf = 100000.0f;
+    /* Using numeric_limity::max() instead of numeric_limits::inifinity(), because infinity causes
+     * issues when evaluating the vertex shader as it contains multiplications with infinity, which
+     * evaluate to NaNs, and therefore cause comparisons to fail.  */
+    constexpr float inf = std::numeric_limits<float>::max();
     immUniformColor4f(0, 0, 0, passepartout_alpha);
     immRectf(pos, -inf, y2, inf, inf);
     immRectf(pos, -inf, y1, inf, -inf);
@@ -975,8 +978,8 @@ void ED_region_image_render_region_draw(
   UI_GetThemeColor3fv(TH_WIRE_EDIT, wire_color);
   immUniformColor4f(wire_color[0], wire_color[1], wire_color[2], 1);
 
-  /* The bounding box must be drawn last to ensure it remains visible when passepartout_alpha > 0.
-   */
+  /* The bounding box must be drawn last to ensure it remains visible
+   * when passepartout_alpha > 0. */
   imm_draw_box_wire_2d(pos, x1, y1, x2, y2);
 
   immUnbindProgram();
