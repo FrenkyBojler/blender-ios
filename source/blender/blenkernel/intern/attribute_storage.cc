@@ -18,41 +18,6 @@
 
 namespace blender::bke {
 
-/**
- * \note There is a possibility to support some caches here, like the min and max values of the
- * array.
- */
-class ArrayDataImplicitSharing : public ImplicitSharingInfo {
- private:
-  void *data_;
-  int64_t size_;
-  const CPPType &type_;
-
- public:
-  ArrayDataImplicitSharing(void *data, const int64_t size, const CPPType &type)
-      : ImplicitSharingInfo(), data_(data), size_(size), type_(type)
-  {
-  }
-
- private:
-  void delete_self_with_data() override
-  {
-    if (data_ != nullptr) {
-      type_.destruct_n(data_, size_);
-      MEM_freeN(data_);
-    }
-    MEM_delete(this);
-  }
-
-  void delete_data_only() override
-  {
-    type_.destruct_n(data_, size_);
-    MEM_freeN(data_);
-    data_ = nullptr;
-    size_ = 0;
-  }
-};
-
 void AttributeStorage::foreach(FunctionRef<void(Attribute &)> fn)
 {
   for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
@@ -66,13 +31,6 @@ void AttributeStorage::foreach(FunctionRef<void(const Attribute &)> fn) const
   }
 }
 
-static ImplicitSharingInfo *create_sharing_info_for_array(void *data,
-                                                          const int64_t size,
-                                                          const CPPType &type)
-{
-  return MEM_new<ArrayDataImplicitSharing>(__func__, data, size, type);
-}
-
 Attribute::DataVariant &Attribute::data_for_write()
 {
   if (auto *data = std::get_if<Attribute::ArrayData>(&data_)) {
@@ -82,13 +40,11 @@ Attribute::DataVariant &Attribute::data_for_write()
     }
 
     const CPPType &cpp_type = attribute_type_to_cpp_type(type_);
-    void *new_data = MEM_malloc_arrayN_aligned(
-        data->size, cpp_type.size, cpp_type.alignment, __func__);
-    cpp_type.copy_construct_n(data->data, new_data, data->size);
+    auto *new_value = new ImplicitSharedValue<GArray<>>(cpp_type, data->size);
+    cpp_type.copy_construct_n(data->data, new_value->data.data(), data->size);
 
-    data->data = new_data;
-    data->sharing_info = ImplicitSharingPtr<>(
-        create_sharing_info_for_array(data->data, data->size, cpp_type));
+    data->data = new_value->data.data();
+    data->sharing_info = ImplicitSharingPtr<>(new_value);
   }
   else if (std::get_if<Attribute::SingleData>(&data_)) {
     BLI_assert_unreachable();
@@ -369,7 +325,7 @@ void attribute_storage_blend_write_prepare(
   Set<StringRef, 16> all_names_written;
   data.foreach([&](Attribute &attr) {
     if (!U.experimental.use_attribute_storage_write_debug) {
-/* In version 4.5, all attribute data is written in the #CustomData format (at least when the
+      /* In version 4.5, all attribute data is written in the #CustomData format (at least when the
        * debug option is not enabled), so the #Attribute needs to be converted to a
        * #CustomDataLayer in the proper list. This is only relevant when #AttributeStorage is
        * actually used at runtime. */
@@ -380,7 +336,7 @@ void attribute_storage_blend_write_prepare(
           layer.data = array_data->data;
           layer.sharing_info = array_data->sharing_info.get();
 
-/* Because the #Attribute::name_ `std::string` has no length limit (unlike
+          /* Because the #Attribute::name_ `std::string` has no length limit (unlike
            * #CustomDataLayer::name), we have to manually make the name unique in case it exceeds
            * the limit. */
           BLI_uniquename_cb(
@@ -393,8 +349,8 @@ void attribute_storage_blend_write_prepare(
 
           layers_to_write.lookup(attr.domain())->append(layer);
         }
-              }
-return;
+      }
+      return;
     }
 
     all_names_written.add(attr.name());
@@ -404,7 +360,7 @@ return;
     attribute_dna.domain = int8_t(attr.domain());
     attribute_dna.storage_type = int8_t(attr.storage_type());
 
-/* The idea is to use a separate DNA struct for each #AttrStorageType. They each need to have a
+    /* The idea is to use a separate DNA struct for each #AttrStorageType. They each need to have a
      * unique address (while writing a specific ID anyway) in order to be identified when
      * reading the file, so we add them to the resource scope which outlives this function call.
      * Using a #ResourceScope is a simple way to get pointer stability when adding every new data
