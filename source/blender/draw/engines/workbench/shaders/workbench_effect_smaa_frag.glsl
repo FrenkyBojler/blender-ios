@@ -26,13 +26,13 @@ void main()
 
 #elif SMAA_STAGE == 2
   out_color = float4(0.0f);
-  if (mixFactor > 0.0f) {
-    out_color += SMAANeighborhoodBlendingPS(uvs, offset[0], colorTex, blendTex) * mixFactor;
+  if (mix_factor > 0.0f) {
+    out_color += SMAANeighborhoodBlendingPS(uvs, offset[0], colorTex, blendTex) * mix_factor;
   }
-  if (mixFactor < 1.0f) {
-    out_color += texture(colorTex, uvs) * (1.0f - mixFactor);
+  if (mix_factor < 1.0f) {
+    out_color += texture(colorTex, uvs) * (1.0f - mix_factor);
   }
-  out_color /= taaAccumulatedWeight;
+  out_color /= taa_accumulated_weight;
   /* Exit log2 space used for Anti-aliasing. */
   out_color = exp2(out_color) - 0.5f;
 

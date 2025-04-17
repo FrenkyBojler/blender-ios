@@ -36,7 +36,7 @@ float2 get_random_vector(float offset)
 
 void main()
 {
-  float2 uv = gl_FragCoord.xy * invertedViewportSize * 2.0f;
+  float2 uv = gl_FragCoord.xy * inverted_viewport_size * 2.0f;
 
   float2 size = float2(textureSize(halfResColorTex, 0).xy);
   int2 texel = int2(uv * size);
@@ -46,10 +46,10 @@ void main()
 
   float coc = dof_decode_coc(texelFetch(inputCocTex, texel, 0).rg);
   float max_radius = coc;
-  float2 noise = get_random_vector(noiseOffset) * 0.2f *
+  float2 noise = get_random_vector(noise_offset) * 0.2f *
                  clamp(max_radius * 0.2f - 4.0f, 0.0f, 1.0f);
   for (int i = 0; i < NUM_SAMPLES; i++) {
-    float2 tc = uv + (noise + samples[i].xy) * invertedViewportSize * max_radius;
+    float2 tc = uv + (noise + samples[i].xy) * inverted_viewport_size * max_radius;
 
     /* decode_signed_coc return biggest coc. */
     coc = abs(dof_decode_signed_coc(texture(inputCocTex, tc).rg));

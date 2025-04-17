@@ -91,5 +91,5 @@ void main()
   mnmx5(v[1], v[2], v[3], v[4], v[6]);
   mnmx4(v[2], v[3], v[4], v[7]);
   mnmx3(v[3], v[4], v[8]);
-  toVec(finalColor) = v[4];
+  toVec(final_color) = v[4];
 }

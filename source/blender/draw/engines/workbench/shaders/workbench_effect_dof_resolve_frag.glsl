@@ -32,6 +32,6 @@ void main()
   float coc = dof_calculate_coc(zdepth);
 
   float blend = smoothstep(1.0f, 3.0f, abs(coc));
-  finalColorAdd = texture(halfResColorTex, uv) * blend;
-  finalColorMul = float4(1.0f - blend);
+  final_colorAdd = texture(halfResColorTex, uv) * blend;
+  final_colorMul = float4(1.0f - blend);
 }

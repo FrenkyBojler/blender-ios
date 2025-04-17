@@ -12,7 +12,7 @@
 #  define SMAA_STAGE 1
 #  define SMAA_PRESET_HIGH
 #  define SMAA_NO_DISCARD
-#  define SMAA_RT_METRICS viewportMetrics
+#  define SMAA_RT_METRICS viewport_metrics
 #  define SMAA_LUMA_WEIGHT float4(1.0f, 1.0f, 1.0f, 1.0f)
 #endif
 
@@ -45,12 +45,12 @@ GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(workbench_smaa)
 DEFINE("SMAA_GLSL_3")
-DEFINE_VALUE("SMAA_RT_METRICS", "viewportMetrics")
+DEFINE_VALUE("SMAA_RT_METRICS", "viewport_metrics")
 DEFINE("SMAA_PRESET_HIGH")
 DEFINE_VALUE("SMAA_LUMA_WEIGHT", "float4(1.0f, 1.0f, 1.0f, 1.0f)")
 DEFINE("SMAA_NO_DISCARD")
 VERTEX_OUT(workbench_smaa_iface)
-PUSH_CONSTANT(float4, viewportMetrics)
+PUSH_CONSTANT(float4, viewport_metrics)
 VERTEX_SOURCE("workbench_effect_smaa_vert.glsl")
 FRAGMENT_SOURCE("workbench_effect_smaa_frag.glsl")
 GPU_SHADER_CREATE_END()
@@ -77,8 +77,8 @@ GPU_SHADER_CREATE_INFO(workbench_smaa_stage_2)
 DEFINE_VALUE("SMAA_STAGE", "2")
 SAMPLER(0, FLOAT_2D, colorTex)
 SAMPLER(1, FLOAT_2D, blendTex)
-PUSH_CONSTANT(float, mixFactor)
-PUSH_CONSTANT(float, taaAccumulatedWeight)
+PUSH_CONSTANT(float, mix_factor)
+PUSH_CONSTANT(float, taa_accumulated_weight)
 FRAGMENT_OUT(0, float4, out_color)
 ADDITIONAL_INFO(workbench_smaa)
 DO_STATIC_COMPILATION()
