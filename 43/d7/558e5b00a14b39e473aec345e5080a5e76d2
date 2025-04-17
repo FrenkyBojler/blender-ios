@@ -3,3 +3,4 @@ Referenced by issue #130268, Assertion: `ID_REAL_USERS(related_id) == 0` trigger
 Referenced by issue #134636, VSE - Fade In and Out not working
 Referenced by issue #136887, Name Filter/Search in Dope Sheet and Timeline editors do not hide channels properly
 Referenced by issue #137610, Motion Paths don't auto-update
+Referenced by pull request #137653, Fix #137610: Motion Paths don't auto-update
