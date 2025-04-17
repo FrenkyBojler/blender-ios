@@ -19,6 +19,7 @@
 #include "BLI_sys_types.h"
 #include "BLI_vector.hh"
 
+#include "BKE_attribute_storage.hh"
 #include "BKE_volume_enums.hh"
 
 #include "DNA_customdata_types.h"
@@ -31,6 +32,10 @@ struct CustomData;
 struct CustomDataTransferLayerMap;
 struct ID;
 struct MeshPairRemap;
+
+namespace blender::bke {
+enum class AttrDomain : int8_t;
+}
 
 /* These names are used as prefixes for UV layer names to find the associated boolean
  * layers. They should never be longer than 2 chars, as #MAX_CUSTOMDATA_LAYER_NAME
@@ -727,7 +732,24 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap,
 /* .blend file I/O */
 
 /**
- * \param layers_to_write: Layers created by write preparation process.
+ * Prepare given custom data for file writing.
+ *
+ * \param data: The custom-data to tweak for .blend file writing (modified in place).
+ * \param layers_to_write: A reduced set of layers to be written to file.
+ *
+ * \warning This function invalidates the custom data struct by changing the layer counts and the
+ * #layers pointer, and by invalidating the type map. It expects to work on a shallow copy of
+ * the struct.
+ */
+void CustomData_blend_write_prepare(CustomData &data,
+                                    const blender::bke::AttrDomain domain,
+                                    const int domain_size,
+                                    blender::Set<blender::StringRef, 16> &all_names_written,
+                                    blender::Vector<CustomDataLayer, 16> &layers_to_write,
+                                    blender::bke::AttributeStorage::BlendWriteData &write_data);
+
+/**
+ * \param layers_to_write: Layers created by #CustomData_blend_write_prepare.
  */
 void CustomData_blend_write(BlendWriter *writer,
                             CustomData *data,

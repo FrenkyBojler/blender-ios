@@ -44,7 +44,9 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_customdata.hh"
 #include "BKE_customdata_file.h"
 #include "BKE_deform.hh"
@@ -5111,6 +5113,57 @@ static void get_type_file_write_info(const eCustomDataType type,
   *r_struct_num = typeInfo->structnum;
 }
 
+void CustomData_blend_write_prepare(CustomData &data,
+                                    const blender::bke::AttrDomain domain,
+                                    const int domain_size,
+                                    Set<StringRef, 16> &all_names_written,
+                                    Vector<CustomDataLayer, 16> &layers_to_write,
+                                    blender::bke::AttributeStorage::BlendWriteData &write_data)
+{
+  using namespace blender::bke;
+  for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
+    if (layer.flag & CD_FLAG_NOCOPY) {
+      continue;
+    }
+    const StringRef name = layer.name;
+    if (attribute_name_is_anonymous(name)) {
+      continue;
+    }
+    all_names_written.add(name);
+    if (U.experimental.use_attribute_storage_write_debug) {
+      const eCustomDataType data_type = eCustomDataType(layer.type);
+      if (const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type)) {
+        AttributeDNA attribute_dna{};
+        attribute_dna.name = layer.name;
+        attribute_dna.data_type = int16_t(*type);
+        attribute_dna.domain = int8_t(domain);
+        attribute_dna.storage_type = int8_t(AttrStorageType::Array);
+
+        auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();
+        array_dna.data = layer.data;
+        array_dna.sharing_info = layer.sharing_info;
+        array_dna.size = domain_size;
+        attribute_dna.data = &array_dna;
+
+        write_data.attributes.append(attribute_dna);
+        continue;
+      }
+    }
+    layers_to_write.append(layer);
+  }
+  data.totlayer = layers_to_write.size();
+  data.maxlayer = data.totlayer;
+
+  /* NOTE: `data->layers` may be null, this happens when adding
+   * a legacy #MPoly struct to a mesh with no other face attributes.
+   * This leaves us with no unique ID for DNA to identify the old
+   * data with when loading the file. */
+  if (!data.layers && layers_to_write.size() > 0) {
+    /* We just need an address that's unique. */
+    data.layers = reinterpret_cast<CustomDataLayer *>(&data.layers);
+  }
+}
+
 static void write_mdisps(BlendWriter *writer,
                          const int count,
                          const MDisps *mdlist,
@@ -5351,8 +5404,8 @@ void CustomData_blend_read(BlendDataReader *reader, CustomData *data, const int 
   }
 
   /* Ensure allocated size is set to the size of the read array. While this should always be the
-   * case, there can be some corruption in rare cases (e.g. files saved between ff3d535bc2a63092
-   * and 945f32e66d6ada2a). */
+   * case (see #CustomData_blend_write_prepare), there can be some corruption in rare cases (e.g.
+   * files saved between ff3d535bc2a63092 and 945f32e66d6ada2a). */
   data->maxlayer = data->totlayer;
 
   CustomData_update_typemap(data);
