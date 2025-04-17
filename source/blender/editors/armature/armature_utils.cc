@@ -11,9 +11,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_armature.hh"
@@ -730,7 +731,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     newBone->color = eBone->color;
 
     LISTBASE_FOREACH (BoneCollectionReference *, ref, &eBone->bone_collections) {
-      BoneCollectionReference *newBoneRef = MEM_cnew<BoneCollectionReference>(
+      BoneCollectionReference *newBoneRef = MEM_dupallocN<BoneCollectionReference>(
           "ED_armature_from_edit", *ref);
       BLI_addtail(&newBone->runtime.collections, newBoneRef);
     }

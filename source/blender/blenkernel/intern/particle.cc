@@ -31,10 +31,12 @@
 #include "DNA_object_force_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_texture_types.h"
 
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -497,12 +499,13 @@ static ParticleCacheKey **psys_alloc_path_cache_buffers(ListBase *bufs, int tot,
 
   tot = std::max(tot, 1);
   totkey = 0;
-  cache = static_cast<ParticleCacheKey **>(MEM_callocN(tot * sizeof(void *), "PathCacheArray"));
+  cache = MEM_calloc_arrayN<ParticleCacheKey *>(size_t(tot), "PathCacheArray");
 
   while (totkey < tot) {
     totbufkey = std::min(tot - totkey, PATH_CACHE_BUF_SIZE);
-    buf = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), "PathCacheLinkData"));
-    buf->data = MEM_callocN(sizeof(ParticleCacheKey) * totbufkey * totkeys, "ParticleCacheKey");
+    buf = MEM_callocN<LinkData>("PathCacheLinkData");
+    buf->data = MEM_calloc_arrayN<ParticleCacheKey>(size_t(totbufkey) * size_t(totkeys),
+                                                    "ParticleCacheKey");
 
     for (i = 0; i < totbufkey; i++) {
       cache[totkey + i] = ((ParticleCacheKey *)buf->data) + i * totkeys;
@@ -795,8 +798,7 @@ void psys_check_group_weights(ParticleSettings *part)
     }
 
     if (!dw) {
-      dw = static_cast<ParticleDupliWeight *>(
-          MEM_callocN(sizeof(ParticleDupliWeight), "ParticleDupliWeight"));
+      dw = MEM_callocN<ParticleDupliWeight>("ParticleDupliWeight");
       dw->ob = object;
       dw->count = 1;
       BLI_addtail(&part->instance_weights, dw);
@@ -1446,7 +1448,9 @@ static void do_particle_interpolation(ParticleSystem *psys,
 
     while (pind->hkey[1]->time < real_t) {
       pind->hkey[1]++;
-      pind->vert_positions[1]++;
+      if (pind->mesh) {
+        pind->vert_positions[1]++;
+      }
     }
 
     pind->hkey[0] = pind->hkey[1] - 1;
@@ -2313,8 +2317,8 @@ void precalc_guides(ParticleSimulationData *sim, ListBase *effectors)
       }
 
       if (!eff->guide_data) {
-        eff->guide_data = static_cast<GuideEffectorData *>(
-            MEM_callocN(sizeof(GuideEffectorData) * psys->totpart, "GuideEffectorData"));
+        eff->guide_data = MEM_calloc_arrayN<GuideEffectorData>(size_t(psys->totpart),
+                                                               "GuideEffectorData");
       }
 
       data = eff->guide_data + p;
@@ -2583,7 +2587,7 @@ float *psys_cache_vgroup(Mesh *mesh, ParticleSystem *psys, int vgroup)
     const MDeformVert *dvert = mesh->deform_verts().data();
     if (dvert) {
       int totvert = mesh->verts_num, i;
-      vg = static_cast<float *>(MEM_callocN(sizeof(float) * totvert, "vg_cache"));
+      vg = MEM_calloc_arrayN<float>(size_t(totvert), "vg_cache");
       if (psys->vg_neg & (1 << vgroup)) {
         for (i = 0; i < totvert; i++) {
           vg[i] = 1.0f - BKE_defvert_find_weight(&dvert[i], psys->vgroup[vgroup] - 1);
@@ -2615,9 +2619,7 @@ void psys_find_parents(ParticleSimulationData *sim, const bool use_render_params
   }
 
   /* hard limit, workaround for it being ignored above */
-  if (sim->psys->totpart < totparent) {
-    totparent = sim->psys->totpart;
-  }
+  totparent = std::min(sim->psys->totpart, totparent);
 
   tree = BLI_kdtree_3d_new(totparent);
 
@@ -3150,24 +3152,19 @@ void psys_cache_child_paths(ParticleSimulationData *sim,
                             const bool editupdate,
                             const bool use_render_params)
 {
-  TaskPool *task_pool;
-  ParticleThreadContext ctx;
-  ParticleTask *tasks_parent, *tasks_child;
-  int numtasks_parent, numtasks_child;
-  int i, totchild, totparent;
-
   if (sim->psys->flag & PSYS_GLOBAL_HAIR) {
     return;
   }
 
   /* create a task pool for child path tasks */
+  ParticleThreadContext ctx;
   if (!psys_thread_context_init_path(&ctx, sim, sim->scene, cfra, editupdate, use_render_params)) {
     return;
   }
 
-  task_pool = BLI_task_pool_create(&ctx, TASK_PRIORITY_HIGH);
-  totchild = ctx.totchild;
-  totparent = ctx.totparent;
+  TaskPool *task_pool = BLI_task_pool_create(&ctx, TASK_PRIORITY_HIGH);
+  const int totchild = ctx.totchild;
+  const int totparent = ctx.totparent;
 
   if (editupdate && sim->psys->childcache && totchild == sim->psys->totchildcache) {
     /* just overwrite the existing cache */
@@ -3183,30 +3180,26 @@ void psys_cache_child_paths(ParticleSimulationData *sim,
 
   /* cache parent paths */
   ctx.parent_pass = 1;
-  psys_tasks_create(&ctx, 0, totparent, &tasks_parent, &numtasks_parent);
-  for (i = 0; i < numtasks_parent; i++) {
-    ParticleTask *task = &tasks_parent[i];
-
-    psys_task_init_path(task, sim);
-    BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, nullptr);
+  blender::Vector<ParticleTask> tasks_parent = psys_tasks_create(&ctx, 0, totparent);
+  for (ParticleTask &task : tasks_parent) {
+    psys_task_init_path(&task, sim);
+    BLI_task_pool_push(task_pool, exec_child_path_cache, &task, false, nullptr);
   }
   BLI_task_pool_work_and_wait(task_pool);
 
   /* cache child paths */
   ctx.parent_pass = 0;
-  psys_tasks_create(&ctx, totparent, totchild, &tasks_child, &numtasks_child);
-  for (i = 0; i < numtasks_child; i++) {
-    ParticleTask *task = &tasks_child[i];
-
-    psys_task_init_path(task, sim);
-    BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, nullptr);
+  blender::Vector<ParticleTask> tasks_child = psys_tasks_create(&ctx, totparent, totchild);
+  for (ParticleTask &task : tasks_child) {
+    psys_task_init_path(&task, sim);
+    BLI_task_pool_push(task_pool, exec_child_path_cache, &task, false, nullptr);
   }
   BLI_task_pool_work_and_wait(task_pool);
 
   BLI_task_pool_free(task_pool);
 
-  psys_tasks_free(tasks_parent, numtasks_parent);
-  psys_tasks_free(tasks_child, numtasks_child);
+  psys_tasks_free(tasks_parent);
+  psys_tasks_free(tasks_child);
 
   psys_thread_context_free(&ctx);
 }
@@ -3938,7 +3931,7 @@ static ModifierData *object_add_or_copy_particle_system(
     psys->flag &= ~PSYS_CURRENT;
   }
 
-  psys = static_cast<ParticleSystem *>(MEM_callocN(sizeof(ParticleSystem), "particle_system"));
+  psys = MEM_callocN<ParticleSystem>("particle_system");
   psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
   BLI_addtail(&ob->particlesystem, psys);
   psys_unique_name(ob, psys, name);
@@ -3998,10 +3991,10 @@ void object_remove_particle_system(Main *bmain,
   }
 
   ParticleSystemModifierData *psmd;
-  ModifierData *md;
+  ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Fluid);
 
   /* Clear particle system in fluid modifier. */
-  if ((md = BKE_modifiers_findby_type(ob, eModifierType_Fluid))) {
+  if (md) {
     FluidModifierData *fmd = (FluidModifierData *)md;
 
     /* Clear particle system pointer in flow settings. */
@@ -4151,7 +4144,7 @@ static int get_particle_uv(Mesh *mesh,
                            ParticleData *pa,
                            int index,
                            const float fuv[4],
-                           char *name,
+                           const char *name,
                            float *texco,
                            bool from_vert)
 {

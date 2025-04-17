@@ -81,10 +81,12 @@ class VKDiscardPool {
   TimelineResources<std::pair<VkImage, VmaAllocation>> images_;
   TimelineResources<std::pair<VkBuffer, VmaAllocation>> buffers_;
   TimelineResources<VkImageView> image_views_;
+  TimelineResources<VkBufferView> buffer_views_;
   TimelineResources<VkShaderModule> shader_modules_;
   TimelineResources<VkPipelineLayout> pipeline_layouts_;
   TimelineResources<VkRenderPass> render_passes_;
   TimelineResources<VkFramebuffer> framebuffers_;
+  TimelineResources<VkDescriptorPool> descriptor_pools_;
 
   std::mutex mutex_;
 
@@ -96,10 +98,12 @@ class VKDiscardPool {
   void discard_image(VkImage vk_image, VmaAllocation vma_allocation);
   void discard_image_view(VkImageView vk_image_view);
   void discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocation);
+  void discard_buffer_view(VkBufferView vk_buffer_view);
   void discard_shader_module(VkShaderModule vk_shader_module);
   void discard_pipeline_layout(VkPipelineLayout vk_pipeline_layout);
   void discard_framebuffer(VkFramebuffer vk_framebuffer);
   void discard_render_pass(VkRenderPass vk_render_pass);
+  void discard_descriptor_pool(VkDescriptorPool vk_descriptor_pool);
 
   /**
    * Move discarded resources from src_pool into this.

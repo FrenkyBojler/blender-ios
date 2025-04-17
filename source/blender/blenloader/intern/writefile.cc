@@ -60,7 +60,6 @@
 
 #include <cerrno>
 #include <climits>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -83,25 +82,22 @@
 /* Allow writefile to use deprecated functionality (for forward compatibility code). */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_collection_types.h"
 #include "DNA_fileglobal_types.h"
 #include "DNA_genfile.h"
 #include "DNA_key_types.h"
 #include "DNA_print.hh"
 #include "DNA_sdna_types.h"
+#include "DNA_userdef_types.h"
 
-#include "BLI_bitmap.h"
-#include "BLI_blenlib.h"
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
 #include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
-#include "BLI_link_utils.h"
-#include "BLI_linklist.h"
 #include "BLI_math_base.h"
-#include "BLI_mempool.h"
 #include "BLI_multi_value_map.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_threads.h"
 
 #include "MEM_guardedalloc.h" /* MEM_freeN */
@@ -116,6 +112,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
@@ -279,8 +276,7 @@ void ZstdWriteWrap::write_task(ZstdWriteBlockTask *task)
   }
   else {
     if (base_wrap.write(out_buf, out_size)) {
-      ZstdFrame *frameinfo = static_cast<ZstdFrame *>(
-          MEM_mallocN(sizeof(ZstdFrame), "zstd frameinfo"));
+      ZstdFrame *frameinfo = MEM_mallocN<ZstdFrame>("zstd frameinfo");
       frameinfo->uncompressed_size = task->size;
       frameinfo->compressed_size = out_size;
       BLI_addtail(&frames, frameinfo);
@@ -313,11 +309,11 @@ bool ZstdWriteWrap::open(const char *filepath)
   return true;
 }
 
-void ZstdWriteWrap::write_u32_le(const uint32_t val)
+void ZstdWriteWrap::write_u32_le(uint32_t val)
 {
-#ifdef __BIG_ENDIAN__
-  BLI_endian_switch_uint32(&val);
-#endif
+  if (ENDIAN_ORDER == B_ENDIAN) {
+    BLI_endian_switch_uint32(&val);
+  }
   base_wrap.write(&val, sizeof(uint32_t));
 }
 
@@ -374,8 +370,7 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
     return false;
   }
 
-  ZstdWriteBlockTask *task = static_cast<ZstdWriteBlockTask *>(
-      MEM_mallocN(sizeof(ZstdWriteBlockTask), __func__));
+  ZstdWriteBlockTask *task = MEM_mallocN<ZstdWriteBlockTask>(__func__);
   task->data = MEM_mallocN(buf_len, __func__);
   memcpy(task->data, buf, buf_len);
   task->size = buf_len;
@@ -671,7 +666,7 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
       if (MemFileChunk *ref = wd->mem.id_session_uid_mapping.lookup_default(id->session_uid,
                                                                             nullptr))
       {
-        wd->mem.reference_current_chunk = static_cast<MemFileChunk *>(ref);
+        wd->mem.reference_current_chunk = ref;
       }
       /* Else, no existing memchunk found, i.e. this is supposed to be a new ID. */
     }
@@ -1072,6 +1067,21 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
   }
 }
 
+/**
+ * Writes ID and all its direct data to the file.
+ */
+static void write_id(WriteData *wd, ID *id)
+{
+  const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
+  mywrite_id_begin(wd, id);
+  if (id_type->blend_write != nullptr) {
+    BlendWriter writer = {wd};
+    BLO_Write_IDBuffer id_buffer{*id, &writer};
+    id_type->blend_write(&writer, id_buffer.get(), id);
+  }
+  mywrite_id_end(wd, id);
+}
+
 /** Keep it last of `write_*_data` functions. */
 static void write_libraries(WriteData *wd, Main *bmain)
 {
@@ -1127,17 +1137,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
       continue;
     }
 
-    BlendWriter writer = {wd};
-    writestruct(wd, ID_LI, Library, 1, &library);
-    BKE_id_blend_write(&writer, &library.id);
-
-    /* Write packed file if necessary. */
-    if (library.packedfile) {
-      BKE_packedfile_blend_write(&writer, library.packedfile);
-      if (!wd->use_memfile) {
-        CLOG_INFO(&LOG, 2, "Write packed .blend: %s", library.filepath);
-      }
-    }
+    write_id(wd, &library.id);
 
     /* Write placeholders for linked data-blocks that are used. */
     for (const ID *id : ids_used_from_library) {
@@ -1146,7 +1146,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
                    "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
                    "directly linked",
                    id->name,
-                   library.runtime.filepath_abs);
+                   library.runtime->filepath_abs);
       }
       writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
     }
@@ -1274,11 +1274,6 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
   temp_id->py_instance = nullptr;
   /* Clear runtime data struct. */
   memset(&temp_id->runtime, 0, sizeof(temp_id->runtime));
-
-  DrawDataList *drawdata = DRW_drawdatalist_from_id(temp_id);
-  if (drawdata) {
-    BLI_listbase_clear(reinterpret_cast<ListBase *>(drawdata));
-  }
 }
 
 BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, BlendWriter *writer)
@@ -1320,21 +1315,6 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
   }
 
   return IDWALK_RET_NOP;
-}
-
-/**
- * Writes ID and all its direct data to the file.
- */
-static void write_id(WriteData *wd, ID *id)
-{
-  const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
-  mywrite_id_begin(wd, id);
-  if (id_type->blend_write != nullptr) {
-    BlendWriter writer = {wd};
-    BLO_Write_IDBuffer id_buffer{*id, &writer};
-    id_type->blend_write(&writer, id_buffer.get(), id);
-  }
-  mywrite_id_end(wd, id);
 }
 
 static void write_blend_file_header(WriteData *wd)
@@ -1599,7 +1579,7 @@ static void write_file_main_validate_pre(Main *bmain, ReportList *reports)
   }
 
   BLO_main_validate_shapekeys(bmain, reports);
-  if (!BKE_main_namemap_validate_and_fix(bmain)) {
+  if (!BKE_main_namemap_validate_and_fix(*bmain)) {
     BKE_report(reports,
                RPT_ERROR,
                "Critical data corruption: Conflicts and/or otherwise invalid data-blocks names "
@@ -1791,7 +1771,10 @@ static bool BLO_write_file_impl(Main *mainvar,
   }
 
   write_file_main_validate_post(mainvar, reports);
-
+  if (mainvar->is_global_main && !params->use_save_as_copy) {
+    /* It is used to reload Blender after a crash on Windows OS. */
+    STRNCPY(G.filepath_last_blend, filepath);
+  }
   return true;
 }
 

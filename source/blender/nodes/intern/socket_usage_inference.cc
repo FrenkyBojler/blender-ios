@@ -6,6 +6,7 @@
 
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_multi_function.hh"
+#include "NOD_node_declaration.hh"
 #include "NOD_node_in_compute_context.hh"
 #include "NOD_socket_usage_inference.hh"
 
@@ -13,6 +14,7 @@
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -21,6 +23,7 @@
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_stack.hh"
 
 namespace blender::nodes::socket_usage_inference {
@@ -30,6 +33,7 @@ struct SocketUsageInferencer {
  private:
   /** Owns e.g. intermediate evaluated values. */
   ResourceScope scope_;
+  bke::ComputeContextCache compute_context_cache_;
 
   /** Root node tree. */
   const bNodeTree &root_tree_;
@@ -67,7 +71,7 @@ struct SocketUsageInferencer {
                         const std::optional<Span<GPointer>> tree_input_values)
       : root_tree_(tree)
   {
-    scope_.linear_allocator().provide_buffer(scope_buffer_);
+    scope_.allocator().provide_buffer(scope_buffer_);
     root_tree_.ensure_topology_cache();
     root_tree_.ensure_interface_cache();
     this->ensure_animation_data_processed(root_tree_);
@@ -147,6 +151,15 @@ struct SocketUsageInferencer {
     if (all_socket_usages_.contains(socket)) {
       return;
     }
+    const bNode &node = socket->owner_node();
+    if (!socket->is_available()) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    if (node.is_undefined() && !node.is_custom_group()) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
     if (socket->is_input()) {
       this->usage_task__input(socket);
     }
@@ -158,6 +171,12 @@ struct SocketUsageInferencer {
   void usage_task__input(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
+
+    if (node->is_muted()) {
+      this->usage_task__input__muted_node(socket);
+      return;
+    }
+
     switch (node->type_legacy) {
       case NODE_GROUP:
       case NODE_CUSTOM_GROUP: {
@@ -302,13 +321,13 @@ struct SocketUsageInferencer {
 
     /* The group node input is used if any of the matching group inputs within the group is
      * used. */
-    const ComputeContext &group_context = scope_.construct<bke::GroupNodeComputeContext>(
+    const ComputeContext &group_context = compute_context_cache_.for_group_node(
         socket.context, *node, node->owner_tree());
     Vector<const bNodeSocket *> dependent_sockets;
     for (const bNode *group_input_node : group->group_input_nodes()) {
       dependent_sockets.append(&group_input_node->output_socket(socket->index()));
     }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, &group_context);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, &group_context);
   }
 
   void usage_task__input__group_output_node(const SocketInContext &socket)
@@ -324,7 +343,8 @@ struct SocketUsageInferencer {
         *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
     const bNodeSocket &group_node_output = group_context.caller_group_node()->output_socket(
         output_i);
-    this->usage_task__with_dependent_sockets(socket, {&group_node_output}, group_context.parent());
+    this->usage_task__with_dependent_sockets(
+        socket, {&group_node_output}, {}, group_context.parent());
   }
 
   void usage_task__output(const SocketInContext &socket)
@@ -336,7 +356,7 @@ struct SocketUsageInferencer {
         dependent_sockets.append(link->tosock);
       }
     }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
   }
 
   void usage_task__input__simulation_input_node(const SocketInContext &socket)
@@ -355,7 +375,7 @@ struct SocketUsageInferencer {
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(sim_output_node->output_sockets());
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
   }
 
   void usage_task__input__repeat_input_node(const SocketInContext &socket)
@@ -375,27 +395,42 @@ struct SocketUsageInferencer {
     Vector<const bNodeSocket *, 16> dependent_sockets;
     dependent_sockets.extend(node->output_sockets());
     dependent_sockets.extend(repeat_output_node->output_sockets());
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
   }
 
   void usage_task__input__foreach_element_output_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     this->usage_task__with_dependent_sockets(
-        socket, {&node->output_by_identifier(socket->identifier)}, socket.context);
+        socket, {&node->output_by_identifier(socket->identifier)}, {}, socket.context);
   }
 
   void usage_task__input__capture_attribute_node(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     this->usage_task__with_dependent_sockets(
-        socket, {&node->output_socket(socket->index())}, socket.context);
+        socket, {&node->output_socket(socket->index())}, {}, socket.context);
   }
 
   void usage_task__input__fallback(const SocketInContext &socket)
   {
+    Vector<const bNodeSocket *> dependent_boolean_inputs;
+    /* For built-in nodes we assume that sockets in a panel with a panel-toggle are disabled when
+     * the panel is disabled. */
+    if (const SocketDeclaration *socket_decl = socket->runtime->declaration) {
+      for (const PanelDeclaration *panel_decl = socket_decl->parent; panel_decl;
+           panel_decl = panel_decl->parent)
+      {
+        if (const SocketDeclaration *panel_toggle_decl = panel_decl->panel_input_decl()) {
+          if (panel_toggle_decl != socket_decl) {
+            dependent_boolean_inputs.append(
+                &socket->owner_node().socket_by_decl(*panel_toggle_decl));
+          }
+        }
+      }
+    }
     this->usage_task__with_dependent_sockets(
-        socket, socket->owner_node().output_sockets(), socket.context);
+        socket, socket->owner_node().output_sockets(), dependent_boolean_inputs, socket.context);
   }
 
   void usage_task__input__foreach_element_input_node(const SocketInContext &socket)
@@ -419,7 +454,20 @@ struct SocketUsageInferencer {
       dependent_sockets.extend(node->output_sockets());
       dependent_sockets.extend(foreach_output_node->output_sockets());
     }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, socket.context);
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
+  }
+
+  void usage_task__input__muted_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    Vector<const bNodeSocket *> dependent_sockets;
+    for (const bNodeLink &internal_link : node->internal_links()) {
+      if (internal_link.fromsock != socket.socket) {
+        continue;
+      }
+      dependent_sockets.append(internal_link.tosock);
+    }
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
   }
 
   /**
@@ -427,38 +475,63 @@ struct SocketUsageInferencer {
    * used.
    */
   void usage_task__with_dependent_sockets(const SocketInContext &socket,
-                                          const Span<const bNodeSocket *> dependent_sockets,
+                                          const Span<const bNodeSocket *> dependent_outputs,
+                                          const Span<const bNodeSocket *> condition_inputs,
                                           const ComputeContext *dependent_socket_context)
   {
-    /* Check if any of the dependent sockets is used. */
-    SocketInContext next_unknown_socket;
-    for (const bNodeSocket *dependent_socket_ptr : dependent_sockets) {
+    /* Check if any of the dependent outputs are used. */
+    SocketInContext next_unknown_output;
+    bool any_output_used = false;
+    for (const bNodeSocket *dependent_socket_ptr : dependent_outputs) {
       const SocketInContext dependent_socket{dependent_socket_context, dependent_socket_ptr};
       const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
-      if (!is_used.has_value() && !next_unknown_socket) {
-        next_unknown_socket = dependent_socket;
+      if (!is_used.has_value() && !next_unknown_output) {
+        next_unknown_output = dependent_socket;
         continue;
       }
       if (is_used.value_or(false)) {
-        all_socket_usages_.add_new(socket, true);
-        return;
+        any_output_used = true;
+        break;
       }
     }
-    if (next_unknown_socket) {
+    if (next_unknown_output) {
       /* Create a task that checks if the next dependent socket is used. Intentionally only create
        * a task for the very next one and not for all, because that could potentially trigger a lot
        * of unnecessary evaluations. */
-      this->push_usage_task(next_unknown_socket);
+      this->push_usage_task(next_unknown_output);
       return;
     }
-    /* None of the dependent sockets is used, so the current socket is not used either. */
-    all_socket_usages_.add_new(socket, false);
+    if (!any_output_used) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    bool all_condition_inputs_true = true;
+    for (const bNodeSocket *condition_input_ptr : condition_inputs) {
+      const SocketInContext condition_input{dependent_socket_context, condition_input_ptr};
+      const void *condition_value = this->get_socket_value(condition_input);
+      if (condition_value == nullptr) {
+        /* The condition is not known, so it may be true. */
+        continue;
+      }
+      BLI_assert(condition_input_ptr->type == SOCK_BOOLEAN);
+      const bool condition = *static_cast<const bool *>(condition_value);
+      if (!condition) {
+        all_condition_inputs_true = false;
+        break;
+      }
+    }
+    all_socket_usages_.add_new(socket, all_condition_inputs_true);
   }
 
   void value_task(const SocketInContext &socket)
   {
     if (all_socket_values_.contains(socket)) {
       /* Task is done already. */
+      return;
+    }
+    const bNode &node = socket->owner_node();
+    if (node.is_undefined() && !node.is_custom_group()) {
+      all_socket_values_.add_new(socket, nullptr);
       return;
     }
     const CPPType *base_type = socket->typeinfo->base_cpp_type;
@@ -529,6 +602,7 @@ struct SocketUsageInferencer {
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
+    group->ensure_topology_cache();
     if (group->has_available_link_cycle()) {
       all_socket_values_.add_new(socket, nullptr);
       return;
@@ -540,7 +614,7 @@ struct SocketUsageInferencer {
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
-    const ComputeContext &group_context = scope_.construct<bke::GroupNodeComputeContext>(
+    const ComputeContext &group_context = compute_context_cache_.for_group_node(
         socket.context, *node, node->owner_tree());
     const SocketInContext socket_in_group{&group_context,
                                           &group_output_node->input_socket(socket->index())};
@@ -672,10 +746,10 @@ struct SocketUsageInferencer {
       }
       /* Allocate memory for the output value. */
       const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
-      void *value = scope_.linear_allocator().allocate(base_type.size(), base_type.alignment());
+      void *value = scope_.allocator().allocate(base_type.size, base_type.alignment);
       params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
       all_socket_values_.add_new(output_socket, value);
-      if (!base_type.is_trivially_destructible()) {
+      if (!base_type.is_trivially_destructible) {
         scope_.add_destruct_call(
             [type = &base_type, value]() { type->destruct(const_cast<void *>(value)); });
       }
@@ -745,13 +819,19 @@ struct SocketUsageInferencer {
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
+    if (const SocketDeclaration *socket_decl = socket.socket->runtime->declaration) {
+      if (socket_decl->input_field_type == InputSocketFieldType::Implicit) {
+        /* Implicit fields inputs don't have a single static value. */
+        all_socket_values_.add_new(socket, nullptr);
+        return;
+      }
+    }
 
     const CPPType &base_type = *socket->typeinfo->base_cpp_type;
-    void *value_buffer = scope_.linear_allocator().allocate(base_type.size(),
-                                                            base_type.alignment());
+    void *value_buffer = scope_.allocator().allocate(base_type.size, base_type.alignment);
     socket->typeinfo->get_base_cpp_value(socket->default_value, value_buffer);
     all_socket_values_.add_new(socket, value_buffer);
-    if (!base_type.is_trivially_destructible()) {
+    if (!base_type.is_trivially_destructible) {
       scope_.add_destruct_call(
           [type = &base_type, value_buffer]() { type->destruct(value_buffer); });
     }
@@ -789,9 +869,9 @@ struct SocketUsageInferencer {
     if (!conversions.is_convertible(*from_type, *to_type)) {
       return nullptr;
     }
-    void *dst = scope_.linear_allocator().allocate(to_type->size(), to_type->alignment());
+    void *dst = scope_.allocator().allocate(to_type->size, to_type->alignment);
     conversions.convert_to_uninitialized(*from_type, *to_type, src, dst);
-    if (!to_type->is_trivially_destructible()) {
+    if (!to_type->is_trivially_destructible) {
       scope_.add_destruct_call([to_type, dst]() { to_type->destruct(dst); });
     }
     return dst;
@@ -930,8 +1010,14 @@ struct SocketUsageInferencer {
     if (!animated_inputs_by_node_name.is_empty()) {
       for (const bNode *node : tree.all_nodes()) {
         const Span<int> animated_inputs = animated_inputs_by_node_name.lookup(node->name);
+        const Span<const bNodeSocket *> input_sockets = node->input_sockets();
         for (const int socket_index : animated_inputs) {
-          const bNodeSocket &socket = node->input_socket(socket_index);
+          if (socket_index < 0 || socket_index >= input_sockets.size()) {
+            /* This can happen when the animation data is not immediately updated after a socket is
+             * removed. */
+            continue;
+          }
+          const bNodeSocket &socket = *input_sockets[socket_index];
           animated_sockets_.add(&socket);
         }
       }
@@ -993,7 +1079,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
     if (base_type == nullptr) {
       continue;
     }
-    void *value = allocator.allocate(base_type->size(), base_type->alignment());
+    void *value = allocator.allocate(base_type->size, base_type->alignment);
     stype.get_base_cpp_value(socket.default_value, value);
     input_values[i] = GPointer(base_type, value);
   }
@@ -1008,7 +1094,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
 }
 
 void infer_group_interface_inputs_usage(const bNodeTree &group,
-                                        const IDProperty *properties,
+                                        const PropertiesVectorSet &properties,
                                         MutableSpan<bool> r_input_usages)
 {
   const int inputs_num = group.interface_inputs().size();

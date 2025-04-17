@@ -221,6 +221,35 @@ class Action : public ::bAction {
   void slot_display_name_set(Main &bmain, Slot &slot, StringRefNull new_display_name);
 
   /**
+   * Set the slot display name (the part of the identifier after the two-letter
+   * ID prefix), and ensure the resulting identifier is unique.
+   *
+   * This has to be done on the Action level to ensure each slot has a unique
+   * identifier within the Action.
+   *
+   * \note This does NOT propagate the resulting slot identifier to the slot's
+   * users.
+   *
+   * \see #Action::slot_display_name_set
+   * \see #Action::slot_identifier_propagate
+   */
+  void slot_display_name_define(Slot &slot, StringRefNull new_display_name);
+
+  /**
+   * Set the slot's target ID type, updating the identifier prefix to match and
+   * ensuring that the resulting identifier is unique.
+   *
+   * This has to be done on the Action level to ensure each slot has a unique
+   * identifier within the Action.
+   *
+   * \note This does NOT propagate the identifier to the slot's users. That is
+   * the caller's responsibility.
+   *
+   * \see #Action::slot_identifier_propagate
+   */
+  void slot_idtype_define(Slot &slot, ID_Type idtype);
+
+  /**
    * Set the slot identifier, ensure it is unique, and propagate the new identifier to
    * all data-blocks that use it.
    *
@@ -615,9 +644,9 @@ class Strip : public ::ActionStrip {
    *
    * For example, to get a keyframe strip's data:
    *
-   * ```
+   * \code{.cc}
    * StripKeyframeData &strip_data = strip.data<StripKeyframeData>(action);
-   * ```
+   * \endcode
    */
   template<typename T> const T &data(const Action &owning_action) const;
   template<typename T> T &data(Action &owning_action);
@@ -780,12 +809,37 @@ class Slot : public ::ActionSlot {
   static_assert(sizeof(NlaStrip::last_slot_identifier) == identifier_length_max);
 
   /**
-   * Return the prefix of this Slot's identifier.
+   * Return a string that represents the Slot's 'idtype'.
    *
-   * This corresponds to the intended ID type (`idtype`) of the slot, e.g "OB"
-   * for object, "CA" for camera, etc.
+   * E.g "OB" for object, "CA" for camera, etc.
+   *
+   * This is different from `identifier_prefix()`: this constructs a
+   * string directly from the actual 'idtype' field of the Slot, whereas
+   * `identifier_prefix()` returns the first two characters of the
+   * identifier string.
+   *
+   * This distinction matters in some lower-level code where the two can
+   * momentarily be out of sync, although this should always be corrected before
+   * exiting such code so that it's never observable in higher-level code.
+   *
+   * \see identifier_prefix()
+   * \see identifier_ensure_prefix()
    */
-  std::string identifier_prefix_for_idtype() const;
+  std::string idtype_string() const;
+
+  /**
+   * Return the two-character type prefix of this Slot's identifier.
+   *
+   * This corresponds to the intended ID type of the slot, e.g "OB" for object,
+   * "CA" for camera, etc.
+   *
+   * This is subtly different from `idtype_string()`. See its documentation for
+   * details.
+   *
+   * \see idtype_string()
+   * \see identifier_ensure_prefix()
+   */
+  StringRef identifier_prefix() const;
 
   /**
    * Return this Slot's identifier without the prefix, also known as the
@@ -793,7 +847,7 @@ class Slot : public ::ActionSlot {
    *
    * E.g. if the identifier is "OBCube", then "Cube" is returned.
    *
-   * \see identifier_prefix_for_idtype
+   * \see identifier_prefix()
    */
   StringRefNull identifier_without_prefix() const;
 
@@ -816,14 +870,15 @@ class Slot : public ::ActionSlot {
    * method returning `false` should NOT be taken as a guarantee that this Slot
    * will never be used by the given ID or other IDs of the same type.
    *
-   * \see identifier_prefix_for_idtype() \see has_idtype()
+   * \see idtype_string()
+   * \see has_idtype()
    */
   bool is_suitable_for(const ID &animated_id) const;
 
   /**
    * Return whether this Slot has a specified intended ID type (`idtype`) set.
    *
-   * \see identifier_prefix_for_idtype()
+   * \see idtype_string()
    * \see is_suitable_for()
    */
   bool has_idtype() const;
@@ -971,6 +1026,7 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
    * Find the channelbag for the given slot, or if none exists, create it.
    */
   Channelbag &channelbag_for_slot_ensure(const Slot &slot);
+  Channelbag &channelbag_for_slot_ensure(slot_handle_t slot_handle);
 
   /**
    * Remove the given channelbag from this strip data.
@@ -989,6 +1045,13 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
   void slot_data_remove(slot_handle_t slot_handle);
 
   /**
+   * Clone the channelbag belonging to the source slot, and assign it to the target slot.
+   *
+   * This is typically only called from #duplicate_slot().
+   */
+  void slot_data_duplicate(slot_handle_t source_slot_handle, slot_handle_t target_slot_handle);
+
+  /**
    * Return the index of `channelbag` in this strip data's channelbag array, or
    * -1 if `channelbag` doesn't exist in this strip data.
    */
@@ -996,7 +1059,7 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
 
   SingleKeyingResult keyframe_insert(Main *bmain,
                                      const Slot &slot,
-                                     FCurveDescriptor fcurve_descriptor,
+                                     const FCurveDescriptor &fcurve_descriptor,
                                      float2 time_value,
                                      const KeyframeSettings &settings,
                                      eInsertKeyFlags insert_key_flags = INSERTKEY_NOFLAGS,
@@ -1031,8 +1094,8 @@ class Channelbag : public ::ActionChannelbag {
    *
    * If it cannot be found, `nullptr` is returned.
    */
-  const FCurve *fcurve_find(FCurveDescriptor fcurve_descriptor) const;
-  FCurve *fcurve_find(FCurveDescriptor fcurve_descriptor);
+  const FCurve *fcurve_find(const FCurveDescriptor &fcurve_descriptor) const;
+  FCurve *fcurve_find(const FCurveDescriptor &fcurve_descriptor);
 
   /**
    * Find an FCurve matching the fcurve descriptor, or create one if it doesn't
@@ -1044,7 +1107,7 @@ class Channelbag : public ::ActionChannelbag {
    * nullptr, in which case the tagging is skipped and is left as the
    * responsibility of the caller.
    */
-  FCurve &fcurve_ensure(Main *bmain, FCurveDescriptor fcurve_descriptor);
+  FCurve &fcurve_ensure(Main *bmain, const FCurveDescriptor &fcurve_descriptor);
 
   /**
    * Create an F-Curve, but only if it doesn't exist yet in this Channelbag.
@@ -1057,7 +1120,35 @@ class Channelbag : public ::ActionChannelbag {
    * nullptr, in which case the tagging is skipped and is left as the
    * responsibility of the caller.
    */
-  FCurve *fcurve_create_unique(Main *bmain, FCurveDescriptor fcurve_descriptor);
+  FCurve *fcurve_create_unique(Main *bmain, const FCurveDescriptor &fcurve_descriptor);
+
+  /**
+   * Create many F-Curves at once.
+   *
+   * Conceptually the same as adding many curves in a loop:
+   * \code{.cc}
+   * Vector<FCurve*> res(fcurve_descriptors.size(), nullptr);
+   * for (int64_t i = 0; i < fcurve_descriptors.size(); i++) {
+   *  const FCurveDescriptor &desc = fcurve_descriptors[i];
+   *  res[i] = this->fcurve_create_unique(bmain, desc);
+   * }
+   * return res;
+   * \endcode
+   *
+   * However that is quadratic complexity due to each curve uniqueness check being
+   * a linear scan, plus invariants rebuilding after each curve.
+   *
+   * \return Vector of created F-Curves. Vector size is the same as input span size.
+   * A vector element can be nullptr if input descriptor has empty RNA path, or if
+   * if such curve already exists.
+   *
+   * \param bmain: Used to tag the dependency graph(s) for relationship
+   * rebuilding. This is necessary when adding a new F-Curve, as a
+   * previously-unanimated depsgraph component may become animated now. Can be
+   * nullptr, in which case the tagging is skipped and is left as the
+   * responsibility of the caller.
+   */
+  Vector<FCurve *> fcurve_create_many(Main *bmain, Span<FCurveDescriptor> fcurve_descriptors);
 
   /**
    * Append an F-Curve to this Channelbag.
@@ -1096,7 +1187,7 @@ class Channelbag : public ::ActionChannelbag {
    *
    * \see fcurve_remove
    */
-  void fcurve_remove_by_index(int64_t fcurve_array_index);
+  void fcurve_remove_by_index(int64_t fcurve_index);
 
   /**
    * Detach an F-Curve from the Channelbag.
@@ -1121,7 +1212,7 @@ class Channelbag : public ::ActionChannelbag {
    *
    * \see fcurve_detach
    */
-  void fcurve_detach_by_index(int64_t fcurve_array_index);
+  void fcurve_detach_by_index(int64_t fcurve_index);
 
   /**
    * Move the given fcurve to position `to_fcurve_index` in the fcurve array.
@@ -1158,6 +1249,14 @@ class Channelbag : public ::ActionChannelbag {
    */
   const bActionGroup *channel_group_find(StringRef name) const;
   bActionGroup *channel_group_find(StringRef name);
+
+  /**
+   * Find the index of the channel group.
+   *
+   * \return The index of the channel group if found, or -1 if no such group is
+   * found.
+   */
+  int channel_group_find_index(const bActionGroup *group) const;
 
   /**
    * Find the channel group that contains the fcurve at `fcurve_array_index` as
@@ -1251,7 +1350,7 @@ class Channelbag : public ::ActionChannelbag {
    * nullptr, in which case the tagging is skipped and is left as the
    * responsibility of the caller.
    */
-  FCurve &fcurve_create(Main *bmain, FCurveDescriptor fcurve_descriptor);
+  FCurve &fcurve_create(Main *bmain, const FCurveDescriptor &fcurve_descriptor);
 
  private:
   /**
@@ -1570,6 +1669,43 @@ Span<FCurve *> fcurves_for_action_slot(Action &action, slot_handle_t slot_handle
 Span<const FCurve *> fcurves_for_action_slot(const Action &action, slot_handle_t slot_handle);
 
 /**
+ * Find or create a Channelbag on the given action, for the given ID.
+ *
+ * This function also ensures that there is a layer and a keyframe strip for the
+ * channelbag to exist on.
+ *
+ * \param action: MUST already be assigned to the animated ID.
+ *
+ * \param animated_id: The ID that is animated by this Action. It is used to
+ * create and assign an appropriate slot if needed when creating the fcurve, and
+ * set the fcurve color properly
+ */
+Channelbag &action_channelbag_ensure(bAction &dna_action, ID &animated_id);
+
+/**
+ * Find or create an F-Curve on the given action that matches the given fcurve
+ * descriptor.
+ *
+ * \param bmain:  If not nullptr, this function also ensures that dependency
+ * graph relationships are rebuilt. This is necessary when adding a new F-Curve,
+ * as a previously-unanimated depsgraph component may become animated now.
+ *
+ * \param action: MUST already be assigned to the animated ID.
+ *
+ * \param animated_id: The ID that is animated by this Action. It is used to
+ * create and assign an appropriate slot if needed when creating the fcurve, and
+ * set the fcurve color properly
+ *
+ * \param fcurve_descriptor: description of the fcurve to lookup/create. Note
+ * that this is *not* relative to `ptr` (e.g. if `ptr` is not an ID). It should
+ * contain the exact data path of the fcurve to be looked up/created.
+ */
+FCurve &action_fcurve_ensure(Main *bmain,
+                             bAction &action,
+                             ID &animated_id,
+                             const FCurveDescriptor &fcurve_descriptor);
+
+/**
  * Find or create an F-Curve on the given action that matches the given fcurve
  * descriptor.
  *
@@ -1590,12 +1726,15 @@ Span<const FCurve *> fcurves_for_action_slot(const Action &action, slot_handle_t
  * \param fcurve_descriptor: description of the fcurve to lookup/create. Note
  * that this is *not* relative to `ptr` (e.g. if `ptr` is not an ID). It should
  * contain the exact data path of the fcurve to be looked up/created.
+ *
+ * \see action_fcurve_ensure for a function that is specific to layered actions,
+ * and is easier to use because it does not depend on an RNA pointer.
  */
-FCurve *action_fcurve_ensure(Main *bmain,
-                             bAction *act,
-                             const char group[],
-                             PointerRNA *ptr,
-                             FCurveDescriptor fcurve_descriptor);
+FCurve *action_fcurve_ensure_ex(Main *bmain,
+                                bAction *act,
+                                const char group[],
+                                PointerRNA *ptr,
+                                const FCurveDescriptor &fcurve_descriptor);
 
 /**
  * Same as above, but creates a legacy Action.
@@ -1610,7 +1749,7 @@ FCurve *action_fcurve_ensure_legacy(Main *bmain,
                                     bAction *act,
                                     const char group[],
                                     PointerRNA *ptr,
-                                    FCurveDescriptor fcurve_descriptor);
+                                    const FCurveDescriptor &fcurve_descriptor);
 
 /**
  * Find the F-Curve in the given Action.
@@ -1620,7 +1759,7 @@ FCurve *action_fcurve_ensure_legacy(Main *bmain,
  *
  * \see #blender::animrig::fcurve_find_in_action_slot
  */
-FCurve *fcurve_find_in_action(bAction *act, FCurveDescriptor fcurve_descriptor);
+FCurve *fcurve_find_in_action(bAction *act, const FCurveDescriptor &fcurve_descriptor);
 
 /**
  * Find the F-Curve in the given Action Slot.
@@ -1629,14 +1768,14 @@ FCurve *fcurve_find_in_action(bAction *act, FCurveDescriptor fcurve_descriptor);
  */
 FCurve *fcurve_find_in_action_slot(bAction *act,
                                    slot_handle_t slot_handle,
-                                   FCurveDescriptor fcurve_descriptor);
+                                   const FCurveDescriptor &fcurve_descriptor);
 
 /**
  * Find the F-Curve in the Action Slot assigned to this ADT.
  *
  * \see #blender::animrig::fcurve_find_in_action
  */
-FCurve *fcurve_find_in_assigned_slot(AnimData &adt, FCurveDescriptor fcurve_descriptor);
+FCurve *fcurve_find_in_assigned_slot(AnimData &adt, const FCurveDescriptor &fcurve_descriptor);
 
 /**
  * Return whether `fcurve` targets the given collection path + data name.
@@ -1865,6 +2004,15 @@ Action *convert_to_layered_action(Main &bmain, const Action &legacy_action);
  * users which means it will not be saved (unless it has a fake user).
  */
 void move_slot(Main &bmain, Slot &slot, Action &from_action, Action &to_action);
+
+/**
+ * Duplicate a slot, and all its animation data.
+ *
+ * Data-blocks using the slot are not updated, so the returned slot will be unused.
+ *
+ * The `action` MUST own `slot`.
+ */
+Slot &duplicate_slot(Action &action, const Slot &slot);
 
 /**
  * Deselect the keys of all actions in the Span. Duplicate entries are only visited once.

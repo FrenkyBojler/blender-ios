@@ -9,23 +9,18 @@
 #include <fmt/format.h>
 
 #include <cerrno>
-#include <climits>
-#include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <forward_list>
 
 #include "DNA_anim_types.h"
-#include "DNA_collection_types.h"
 #include "DNA_image_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -68,6 +63,7 @@
 #include "NOD_composite.hh"
 
 #include "COM_compositor.hh"
+#include "COM_context.hh"
 #include "COM_render_context.hh"
 
 #include "DEG_depsgraph.hh"
@@ -402,6 +398,8 @@ void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
       rr->rectx = re->result->rectx;
       rr->recty = re->result->recty;
 
+      copy_v2_v2_db(rr->ppm, re->result->ppm);
+
       /* creates a temporary duplication of views */
       render_result_views_shallowcopy(rr, re->result);
 
@@ -453,6 +451,8 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 
       rr->rectx = re->result->rectx;
       rr->recty = re->result->recty;
+
+      copy_v2_v2_db(rr->ppm, re->result->ppm);
 
       /* `scene.rd.actview` view. */
       rv = RE_RenderViewGetById(re->result, view_id);
@@ -617,15 +617,20 @@ void RE_FreeAllRender()
     RE_FreeRender(static_cast<Render *>(RenderGlobal.render_list.front()));
   }
 
-  for (Render *render : RenderGlobal.interactive_compositor_renders.values()) {
-    RE_FreeRender(render);
-  }
-  RenderGlobal.interactive_compositor_renders.clear();
+  RE_FreeInteractiveCompositorRenders();
 
 #ifdef WITH_FREESTYLE
   /* finalize Freestyle */
   FRS_exit();
 #endif
+}
+
+void RE_FreeInteractiveCompositorRenders()
+{
+  for (Render *render : RenderGlobal.interactive_compositor_renders.values()) {
+    RE_FreeRender(render);
+  }
+  RenderGlobal.interactive_compositor_renders.clear();
 }
 
 void RE_FreeAllRenderResults()
@@ -917,9 +922,10 @@ void RE_InitState(Render *re,
 
     /* make empty render result, so display callbacks can initialize */
     render_result_free(re->result);
-    re->result = MEM_cnew<RenderResult>("new render result");
+    re->result = MEM_callocN<RenderResult>("new render result");
     re->result->rectx = re->rectx;
     re->result->recty = re->recty;
+    BKE_scene_ppm_get(&re->r, re->result->ppm);
     render_result_view_new(re->result, "");
   }
 
@@ -1192,8 +1198,8 @@ static Scene *get_scene_referenced_by_node(const bNode *node)
   if (node->type_legacy == CMP_NODE_R_LAYERS) {
     return reinterpret_cast<Scene *>(node->id);
   }
-  else if (node->type_legacy == CMP_NODE_CRYPTOMATTE &&
-           node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)
+  if (node->type_legacy == CMP_NODE_CRYPTOMATTE &&
+      node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)
   {
     return reinterpret_cast<Scene *>(node->id);
   }
@@ -1372,6 +1378,14 @@ static void do_render_compositor(Render *re)
           /* If we have consistent depsgraph now would be a time to update them. */
         }
 
+        blender::compositor::OutputTypes needed_outputs =
+            blender::compositor::OutputTypes::Composite |
+            blender::compositor::OutputTypes::FileOutput;
+        if (!G.background) {
+          needed_outputs |= blender::compositor::OutputTypes::Viewer |
+                            blender::compositor::OutputTypes::Previews;
+        }
+
         blender::compositor::RenderContext compositor_render_context;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           COM_execute(re,
@@ -1380,7 +1394,8 @@ static void do_render_compositor(Render *re)
                       ntree,
                       rv->name,
                       &compositor_render_context,
-                      nullptr);
+                      nullptr,
+                      needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
 
@@ -1426,14 +1441,17 @@ static void renderresult_stampinfo(Render *re)
     RE_SetActiveRenderView(re, rv->name);
     RE_AcquireResultImage(re, &rres, nr);
 
-    Object *ob_camera_eval = DEG_get_evaluated_object(re->pipeline_depsgraph, RE_GetCamera(re));
-    BKE_image_stamp_buf(re->scene,
-                        ob_camera_eval,
-                        (re->scene->r.stamp & R_STAMP_STRIPMETA) ? rres.stamp_data : nullptr,
-                        rres.ibuf->byte_buffer.data,
-                        rres.ibuf->float_buffer.data,
-                        rres.rectx,
-                        rres.recty);
+    if (rres.ibuf != nullptr) {
+      Object *ob_camera_eval = DEG_get_evaluated_object(re->pipeline_depsgraph, RE_GetCamera(re));
+      BKE_image_stamp_buf(re->scene,
+                          ob_camera_eval,
+                          (re->scene->r.stamp & R_STAMP_STRIPMETA) ? rres.stamp_data : nullptr,
+                          rres.ibuf->byte_buffer.data,
+                          rres.ibuf->float_buffer.data,
+                          rres.rectx,
+                          rres.recty);
+    }
+
     RE_ReleaseResultImage(re);
     nr++;
   }
@@ -1448,7 +1466,7 @@ bool RE_seq_render_active(Scene *scene, RenderData *rd)
   }
 
   LISTBASE_FOREACH (Strip *, seq, &ed->seqbase) {
-    if (seq->type != STRIP_TYPE_SOUND_RAM && !SEQ_render_is_muted(&ed->channels, seq)) {
+    if (seq->type != STRIP_TYPE_SOUND_RAM && !blender::seq::render_is_muted(&ed->channels, seq)) {
       return true;
     }
   }
@@ -1473,23 +1491,23 @@ static ImBuf *seq_process_render_image(ImBuf *src,
   if (seq_result_needs_float(im_format) && src->float_buffer.data == nullptr) {
     /* If render output needs >8-BPP input and we only have 8-BPP, convert to float. */
     dst = IMB_allocImBuf(src->x, src->y, src->planes, 0);
-    imb_addrectfloatImBuf(dst, src->channels, false);
+    IMB_alloc_float_pixels(dst, src->channels, false);
     /* Transform from sequencer space to scene linear. */
     const char *from_colorspace = IMB_colormanagement_get_rect_colorspace(src);
     const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_SCENE_LINEAR);
-    IMB_colormanagement_transform_from_byte_threaded(dst->float_buffer.data,
-                                                     src->byte_buffer.data,
-                                                     src->x,
-                                                     src->y,
-                                                     src->channels,
-                                                     from_colorspace,
-                                                     to_colorspace);
+    IMB_colormanagement_transform_byte_to_float(dst->float_buffer.data,
+                                                src->byte_buffer.data,
+                                                src->x,
+                                                src->y,
+                                                src->channels,
+                                                from_colorspace,
+                                                to_colorspace);
   }
   else {
     /* Duplicate sequencer output and ensure it is in needed color space. */
     dst = IMB_dupImBuf(src);
-    SEQ_render_imbuf_from_sequencer_space(scene, dst);
+    blender::seq::render_imbuf_from_sequencer_space(scene, dst);
   }
   IMB_metadata_copy(dst, src);
   IMB_freeImBuf(src);
@@ -1504,7 +1522,7 @@ static void do_render_sequencer(Render *re)
   ImBuf *out;
   RenderResult *rr; /* don't assign re->result here as it might change during give_ibuf_seq */
   int cfra = re->r.cfra;
-  SeqRenderData context;
+  blender::seq::RenderData context;
   int view_id, tot_views;
   int re_x, re_y;
 
@@ -1526,21 +1544,21 @@ static void do_render_sequencer(Render *re)
   tot_views = BKE_scene_multiview_num_views_get(&re->r);
   blender::Vector<ImBuf *> ibuf_arr(tot_views);
 
-  SEQ_render_new_render_data(re->main,
-                             re->pipeline_depsgraph,
-                             re->scene,
-                             re_x,
-                             re_y,
-                             SEQ_RENDER_SIZE_SCENE,
-                             true,
-                             &context);
+  render_new_render_data(re->main,
+                         re->pipeline_depsgraph,
+                         re->scene,
+                         re_x,
+                         re_y,
+                         SEQ_RENDER_SIZE_SCENE,
+                         true,
+                         &context);
 
   /* The render-result gets destroyed during the rendering, so we first collect all ibufs
    * and then we populate the final render-result. */
 
   for (view_id = 0; view_id < tot_views; view_id++) {
     context.view_id = view_id;
-    out = SEQ_render_give_ibuf(&context, cfra, 0);
+    out = render_give_ibuf(&context, cfra, 0);
     ibuf_arr[view_id] = seq_process_render_image(out, re->r.im_format, re->pipeline_scene_eval);
   }
 
@@ -1567,7 +1585,7 @@ static void do_render_sequencer(Render *re)
       if (recurs_depth == 0) { /* With nested scenes, only free on top-level. */
         Editing *ed = re->pipeline_scene_eval->ed;
         if (ed) {
-          SEQ_relations_free_imbuf(re->pipeline_scene_eval, &ed->seqbase, true);
+          blender::seq::relations_free_imbuf(re->pipeline_scene_eval, &ed->seqbase, true);
         }
       }
       IMB_freeImBuf(ibuf_arr[view_id]);
@@ -1613,7 +1631,7 @@ static void do_render_full_pipeline(Render *re)
 
   /* ensure no images are in memory from previous animated sequences */
   BKE_image_all_free_anim_ibufs(re->main, re->r.cfra);
-  SEQ_cache_cleanup(re->scene);
+  blender::seq::cache_cleanup(re->scene);
 
   if (RE_engine_render(re, true)) {
     /* in this case external render overrides all */
@@ -2436,7 +2454,6 @@ void RE_RenderAnim(Render *re,
     }
 
     if (is_error) {
-      BKE_report(re->reports, RPT_ERROR, "Movie format unsupported");
       re_movie_free_all(re);
       render_pipeline_free(re);
       return;
@@ -2740,7 +2757,7 @@ void RE_layer_load_from_file(
   }
 
   /* OCIO_TODO: assume layer was saved in default color space */
-  ImBuf *ibuf = IMB_loadiffname(filepath, IB_rect, nullptr);
+  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
   RenderPass *rpass = nullptr;
 
   /* multi-view: since the API takes no 'view', we use the first combined pass found */
@@ -2761,7 +2778,7 @@ void RE_layer_load_from_file(
   if (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data)) {
     if (ibuf->x == layer->rectx && ibuf->y == layer->recty) {
       if (ibuf->float_buffer.data == nullptr) {
-        IMB_float_from_rect(ibuf);
+        IMB_float_from_byte(ibuf);
       }
 
       memcpy(rpass->ibuf->float_buffer.data,
@@ -2773,10 +2790,10 @@ void RE_layer_load_from_file(
         ImBuf *ibuf_clip;
 
         if (ibuf->float_buffer.data == nullptr) {
-          IMB_float_from_rect(ibuf);
+          IMB_float_from_byte(ibuf);
         }
 
-        ibuf_clip = IMB_allocImBuf(layer->rectx, layer->recty, 32, IB_rectfloat);
+        ibuf_clip = IMB_allocImBuf(layer->rectx, layer->recty, 32, IB_float_data);
         if (ibuf_clip) {
           IMB_rectcpy(ibuf_clip, ibuf, 0, 0, x, y, layer->rectx, layer->recty);
 
@@ -2895,7 +2912,7 @@ RenderPass *RE_create_gp_pass(RenderResult *rr, const char *layername, const cha
   RenderLayer *rl = RE_GetRenderLayer(rr, layername);
   /* only create render layer if not exist */
   if (!rl) {
-    rl = MEM_cnew<RenderLayer>(layername);
+    rl = MEM_callocN<RenderLayer>(layername);
     BLI_addtail(&rr->layers, rl);
     STRNCPY(rl->name, layername);
     rl->layflag = SCE_LAY_SOLID;

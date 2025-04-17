@@ -15,7 +15,10 @@
 #include "ANIM_action.hh"
 
 #include <limits>
+#include <optional>
+#include <string>
 
+struct FCurve;
 struct ID;
 struct Main;
 
@@ -37,6 +40,14 @@ struct KeyframeCopyBuffer {
    * possible on the dope sheet) and still distinguish between their slots.
    */
   animrig::StripKeyframeData keyframe_data;
+
+  /**
+   * Slot identifier used for slotless keyframes.
+   *
+   * These are keyframes copied from F-Curves not owned by an Action, such as drivers and NLA
+   * control curves.
+   */
+  static constexpr const char *SLOTLESS_SLOT_IDENTIFIER = "";
 
   /**
    * Just a more-or-less randomly chosen number to start at.
@@ -92,6 +103,9 @@ struct KeyframeCopyBuffer {
   bool is_empty() const;
   bool is_single_fcurve() const;
   bool is_bone(const FCurve &fcurve) const;
+  int num_slots() const;
+
+  animrig::Channelbag *channelbag_for_slot(StringRef slot_identifier);
 
   /**
    * Print the contents of the copy buffer to stdout.

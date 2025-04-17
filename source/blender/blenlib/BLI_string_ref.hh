@@ -36,7 +36,6 @@
 #include <string_view>
 
 #include "BLI_span.hh"
-#include "BLI_utildefines.h"
 
 namespace blender {
 
@@ -125,7 +124,7 @@ class StringRefNull : public StringRefBase {
   constexpr StringRefNull();
   constexpr StringRefNull(const char *str, int64_t size);
   StringRefNull(std::nullptr_t) = delete;
-  StringRefNull(const char *str);
+  constexpr StringRefNull(const char *str);
   StringRefNull(const std::string &str);
 
   constexpr char operator[](int64_t index) const;
@@ -145,6 +144,7 @@ class StringRef : public StringRefBase {
   constexpr StringRef(const char *str, int64_t length);
   constexpr StringRef(const char *begin, const char *one_after_end);
   constexpr StringRef(std::string_view view);
+  constexpr StringRef(Span<char> span);
   StringRef(const std::string &str);
 
   constexpr StringRef drop_prefix(int64_t n) const;
@@ -431,7 +431,8 @@ constexpr StringRefNull::StringRefNull(const char *str, const int64_t size)
  * Construct a StringRefNull from a null terminated c-string. The pointer must not point to
  * NULL.
  */
-inline StringRefNull::StringRefNull(const char *str) : StringRefBase(str, int64_t(strlen(str)))
+constexpr StringRefNull::StringRefNull(const char *str)
+    : StringRefBase(str, int64_t(std::char_traits<char>::length(str)))
 {
   BLI_assert(str != nullptr);
   BLI_assert(data_[size_] == '\0');
@@ -558,6 +559,8 @@ constexpr StringRef::StringRef(std::string_view view)
     : StringRefBase(view.data(), int64_t(view.size()))
 {
 }
+
+constexpr StringRef::StringRef(Span<char> span) : StringRefBase(span.data(), span.size()) {}
 
 /** \} */
 
