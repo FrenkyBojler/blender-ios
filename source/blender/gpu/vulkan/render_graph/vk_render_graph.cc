@@ -20,19 +20,40 @@ VKRenderGraph::VKRenderGraph(VKResourceStateTracker &resources) : resources_(res
 
 void VKRenderGraph::reset()
 {
+  //memstats();
   submission_id.next();
 
-  links_.clear();
+  links_.clear_and_shrink();
   for (VKRenderGraphNode &node : nodes_) {
     node.free_data(storage_);
   }
-  nodes_.clear();
+  nodes_.clear_and_shrink();
   storage_.reset();
 
   debug_.node_group_map.clear();
   debug_.used_groups.clear();
   debug_.group_stack.clear();
   debug_.groups.clear();
+}
+
+void VKRenderGraph::memstats() const
+{
+  std::cout << __func__ << " nodes: (" << nodes_.size() << "/" << nodes_.capacity() << "), "
+            << "links: (" << links_.size() << "/" << links_.capacity() << ")\n";
+#define P(name) \
+  std::cout << " " #name " : (" << storage_.name.size() << " / " << storage_.name.capacity() \
+            << ")\n "
+
+  P(begin_rendering);
+  P(clear_attachments);
+  P(blit_image);
+  P(copy_buffer_to_image);
+  P(copy_image);
+  P(copy_image_to_buffer);
+  P(draw);
+  P(draw_indexed);
+  P(draw_indexed_indirect);
+  P(draw_indirect);
 }
 
 /** \} */
