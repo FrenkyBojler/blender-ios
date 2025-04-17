@@ -104,4 +104,79 @@ TEST(attribute_storage, MultipleShared)
   EXPECT_EQ(count, 4);
 }
 
+TEST(attribute_storage, CopyConstruct)
+{
+  AttributeStorage storage;
+
+  auto *sharing_info = new ImplicitSharedValue<Array<float>>(Span<float>{1.5f, 1.2f, 1.1f, 1.0f});
+  Attribute::ArrayData data{};
+  data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+  data.data = sharing_info->data.data();
+  data.size = 4;
+  storage.add("foo", AttrDomain::Corner, AttrType::Float, std::move(data));
+
+  AttributeStorage copy{storage};
+
+  EXPECT_TRUE(copy.lookup("foo"));
+  EXPECT_EQ(copy.lookup("foo")->domain(), AttrDomain::Corner);
+  EXPECT_EQ(copy.lookup("foo")->data_type(), AttrType::Float);
+  {
+    const auto &data = std::get<Attribute::ArrayData>(copy.lookup("foo")->data());
+    /* The data is shared, so it should be the same as the original. */
+    EXPECT_EQ(data.data, sharing_info->data.data());
+  }
+}
+
+TEST(attribute_storage, MoveConstruct)
+{
+  AttributeStorage storage;
+
+  auto *sharing_info = new ImplicitSharedValue<Array<float>>(Span<float>{1.5f, 1.2f, 1.1f, 1.0f});
+  Attribute::ArrayData data{};
+  data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+  data.data = sharing_info->data.data();
+  data.size = 4;
+  storage.add("foo", AttrDomain::Corner, AttrType::Float, std::move(data));
+
+  AttributeStorage copy{std::move(storage)};
+
+  EXPECT_TRUE(copy.lookup("foo"));
+  EXPECT_EQ(copy.lookup("foo")->domain(), AttrDomain::Corner);
+  EXPECT_EQ(copy.lookup("foo")->data_type(), AttrType::Float);
+  {
+    const auto &data = std::get<Attribute::ArrayData>(copy.lookup("foo")->data());
+    /* The data is shared, so it should be the same as the original. */
+    EXPECT_EQ(data.data, sharing_info->data.data());
+  }
+}
+
+TEST(attribute_storage, UniqueNames)
+{
+  AttributeStorage storage;
+
+  auto create_array_data = []() {
+    auto *sharing_info = new ImplicitSharedValue<Array<float>>(
+        Span<float>{1.5f, 1.2f, 1.1f, 1.0f});
+    Attribute::ArrayData data{};
+    data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+    data.data = sharing_info->data.data();
+    data.size = 4;
+    return data;
+  };
+
+  storage.add("foo", AttrDomain::Corner, AttrType::Float, create_array_data());
+  storage.add("foo_2", AttrDomain::Face, AttrType::Float, create_array_data());
+  storage.add("foo_3", AttrDomain::Point, AttrType::Float, create_array_data());
+  storage.add(
+      storage.unique_name_calc("foo"), AttrDomain::Edge, AttrType::Float, create_array_data());
+  storage.add(
+      storage.unique_name_calc("foo"), AttrDomain::Corner, AttrType::Float, create_array_data());
+  storage.add(
+      storage.unique_name_calc("foo_2"), AttrDomain::Point, AttrType::Float, create_array_data());
+
+  int count = 0;
+  storage.foreach([&](const Attribute & /*attribute*/) { count++; });
+  EXPECT_EQ(count, 6);
+}
+
 }  // namespace blender::bke::tests
