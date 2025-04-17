@@ -2700,24 +2700,33 @@ static void calc_brush_local_mat(const float rotation,
   invert_m4_m4(local_mat, tmat);
 }
 
-float3 tilt_apply_to_normal(const float3 &normal,
-                            const StrokeCache &cache,
+float3 tilt_apply_to_normal(const Object &object,
+                            const float4x4 &view_inverse,
+                            const float3 &normal,
+                            const float2 &tilt,
                             const float tilt_strength)
 {
   if (!USER_EXPERIMENTAL_TEST(&U, use_sculpt_tools_tilt)) {
     return normal;
   }
-  const float3 world_space = math::transform_direction(cache.vc->obact->object_to_world(), normal);
+  const float3 world_space = math::transform_direction(object.object_to_world(), normal);
 
   constexpr float tilt_sensitivity = 0.7f;
   const float rot_max = M_PI_2 * tilt_strength * tilt_sensitivity;
   const float3 normal_tilt_y = math::rotate_direction_around_axis(
-      world_space, cache.vc->rv3d->viewinv[0], cache.tilt.y * rot_max);
+      world_space, view_inverse.x_axis(), tilt.y * rot_max);
   const float3 normal_tilt_xy = math::rotate_direction_around_axis(
-      normal_tilt_y, cache.vc->rv3d->viewinv[1], cache.tilt.x * rot_max);
+      normal_tilt_y, view_inverse.y_axis(), tilt.x * rot_max);
 
-  return math::normalize(
-      math::transform_direction(cache.vc->obact->world_to_object(), normal_tilt_xy));
+  return math::normalize(math::transform_direction(object.world_to_object(), normal_tilt_xy));
+}
+
+float3 tilt_apply_to_normal(const float3 &normal,
+                            const StrokeCache &cache,
+                            const float tilt_strength)
+{
+  return tilt_apply_to_normal(
+      *cache.vc->obact, float4x4(cache.vc->rv3d->viewinv), normal, cache.tilt, tilt_strength);
 }
 
 float3 tilt_effective_normal_get(const SculptSession &ss, const Brush &brush)
@@ -3128,10 +3137,10 @@ static bool brush_type_needs_all_pbvh_nodes(const Brush &brush)
 }
 
 /** Calculates the nodes that a brush will influence. */
-static NodeMaskResult calc_brush_node_mask(const Depsgraph &depsgraph,
-                                           Object &ob,
-                                           const Brush &brush,
-                                           IndexMaskMemory &memory)
+static brushes::NodeMaskResult calc_brush_node_mask(const Depsgraph &depsgraph,
+                                                    Object &ob,
+                                                    const Brush &brush,
+                                                    IndexMaskMemory &memory)
 {
   const SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
@@ -3146,6 +3155,9 @@ static NodeMaskResult calc_brush_node_mask(const Depsgraph &depsgraph,
   }
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
     return brushes::plane::calc_node_mask(depsgraph, ob, brush, memory);
+  }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLAY_STRIPS) {
+    return brushes::clay_strips::calc_node_mask(depsgraph, ob, brush, memory);
   }
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH) {
     return {cloth::brush_affected_nodes_gather(ob, brush, memory), std::nullopt, std::nullopt};
@@ -3225,7 +3237,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
     }
   }
 
-  const NodeMaskResult node_mask_result = calc_brush_node_mask(depsgraph, ob, brush, memory);
+  const brushes::NodeMaskResult node_mask_result = calc_brush_node_mask(
+      depsgraph, ob, brush, memory);
   const IndexMask node_mask = node_mask_result.node_mask;
 
   /* Draw Face Sets in draw mode makes a single undo push, in alt-smooth mode deforms the
@@ -3316,10 +3329,10 @@ static void do_brush_action(const Depsgraph &depsgraph,
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_DRAW: {
       if (brush_uses_vector_displacement(brush)) {
-        do_draw_vector_displacement_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_draw_vector_displacement_brush(depsgraph, sd, ob, node_mask);
       }
       else {
-        do_draw_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_draw_brush(depsgraph, sd, ob, node_mask);
       }
       break;
     }
@@ -3331,85 +3344,91 @@ static void do_brush_action(const Depsgraph &depsgraph,
          * enhance brush in the middle of the stroke. */
         if (ss.cache->initial_direction_flipped) {
           /* Invert mode, intensify details. */
-          do_enhance_details_brush(depsgraph, sd, ob, node_mask);
+          brushes::do_enhance_details_brush(depsgraph, sd, ob, node_mask);
         }
         else {
-          do_smooth_brush(
+          brushes::do_smooth_brush(
               depsgraph, sd, ob, node_mask, std::clamp(ss.cache->bstrength, 0.0f, 1.0f));
         }
       }
       else if (brush.smooth_deform_type == BRUSH_SMOOTH_DEFORM_SURFACE) {
-        do_surface_smooth_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_surface_smooth_brush(depsgraph, sd, ob, node_mask);
       }
       break;
     case SCULPT_BRUSH_TYPE_CREASE:
-      do_crease_brush(depsgraph, scene, sd, ob, node_mask);
+      brushes::do_crease_brush(depsgraph, scene, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_BLOB:
-      do_blob_brush(depsgraph, scene, sd, ob, node_mask);
+      brushes::do_blob_brush(depsgraph, scene, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_PINCH:
-      do_pinch_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_pinch_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_INFLATE:
-      do_inflate_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_inflate_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_GRAB:
-      do_grab_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_grab_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_ROTATE:
-      do_rotate_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_rotate_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_SNAKE_HOOK:
-      do_snake_hook_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_snake_hook_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_NUDGE:
-      do_nudge_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_nudge_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_THUMB:
-      do_thumb_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_thumb_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_LAYER:
-      do_layer_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_layer_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_FLATTEN:
-      do_flatten_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_flatten_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_CLAY:
-      do_clay_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_clay_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
-      do_clay_strips_brush(depsgraph, sd, ob, node_mask);
+      BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
+      brushes::do_clay_strips_brush(depsgraph,
+                                    sd,
+                                    ob,
+                                    node_mask,
+                                    *node_mask_result.plane_normal,
+                                    *node_mask_result.plane_center);
       break;
     case SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE:
-      do_multiplane_scrape_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_multiplane_scrape_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_CLAY_THUMB:
-      do_clay_thumb_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_clay_thumb_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_FILL:
       if (invert && brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
-        do_scrape_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_scrape_brush(depsgraph, sd, ob, node_mask);
       }
       else {
-        do_fill_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_fill_brush(depsgraph, sd, ob, node_mask);
       }
       break;
     case SCULPT_BRUSH_TYPE_SCRAPE:
       if (invert && brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
-        do_fill_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_fill_brush(depsgraph, sd, ob, node_mask);
       }
       else {
-        do_scrape_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_scrape_brush(depsgraph, sd, ob, node_mask);
       }
       break;
     case SCULPT_BRUSH_TYPE_MASK:
       switch ((BrushMaskTool)brush.mask_tool) {
         case BRUSH_MASK_DRAW:
-          do_mask_brush(depsgraph, sd, ob, node_mask);
+          brushes::do_mask_brush(depsgraph, sd, ob, node_mask);
           break;
         case BRUSH_MASK_SMOOTH:
-          do_smooth_mask_brush(depsgraph, sd, ob, node_mask, ss.cache->bstrength);
+          brushes::do_smooth_mask_brush(depsgraph, sd, ob, node_mask, ss.cache->bstrength);
           break;
       }
       break;
@@ -3417,17 +3436,17 @@ static void do_brush_action(const Depsgraph &depsgraph,
       pose::do_pose_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_DRAW_SHARP:
-      do_draw_sharp_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_draw_sharp_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_ELASTIC_DEFORM:
-      do_elastic_deform_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_elastic_deform_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_SLIDE_RELAX:
       if (ss.cache->alt_smooth) {
-        do_topology_relax_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_topology_relax_brush(depsgraph, sd, ob, node_mask);
       }
       else {
-        do_topology_slide_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_topology_slide_brush(depsgraph, sd, ob, node_mask);
       }
       break;
     case SCULPT_BRUSH_TYPE_BOUNDARY:
@@ -3438,17 +3457,17 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_DRAW_FACE_SETS:
       if (!ss.cache->alt_smooth) {
-        do_draw_face_sets_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_draw_face_sets_brush(depsgraph, sd, ob, node_mask);
       }
       else {
-        do_relax_face_sets_brush(depsgraph, sd, ob, node_mask);
+        brushes::do_relax_face_sets_brush(depsgraph, sd, ob, node_mask);
       }
       break;
     case SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER:
-      do_displacement_eraser_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_displacement_eraser_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR:
-      do_displacement_smear_brush(depsgraph, sd, ob, node_mask);
+      brushes::do_displacement_smear_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_PAINT:
       color::do_paint_brush(
@@ -3459,12 +3478,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_PLANE:
       BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
-      do_plane_brush(depsgraph,
-                     sd,
-                     ob,
-                     node_mask,
-                     *node_mask_result.plane_normal,
-                     *node_mask_result.plane_center);
+      brushes::do_plane_brush(depsgraph,
+                              sd,
+                              ob,
+                              node_mask,
+                              *node_mask_result.plane_normal,
+                              *node_mask_result.plane_center);
       break;
   }
 
@@ -3472,21 +3491,22 @@ static void do_brush_action(const Depsgraph &depsgraph,
       brush.autosmooth_factor > 0)
   {
     if (brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
-      do_smooth_brush(
+      brushes::do_smooth_brush(
           depsgraph, sd, ob, node_mask, brush.autosmooth_factor * (1.0f - ss.cache->pressure));
     }
     else {
-      do_smooth_brush(depsgraph, sd, ob, node_mask, brush.autosmooth_factor);
+      brushes::do_smooth_brush(depsgraph, sd, ob, node_mask, brush.autosmooth_factor);
     }
   }
 
   if (brush_uses_topology_rake(ss, brush)) {
-    do_bmesh_topology_rake_brush(depsgraph, sd, ob, node_mask, brush.topology_rake_factor);
+    brushes::do_bmesh_topology_rake_brush(
+        depsgraph, sd, ob, node_mask, brush.topology_rake_factor);
   }
 
   /* The cloth brush adds the gravity as a regular force and it is processed in the solver. */
   if (ss.cache->supports_gravity && brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_CLOTH) {
-    do_gravity_brush(depsgraph, sd, ob, node_mask);
+    brushes::do_gravity_brush(depsgraph, sd, ob, node_mask);
   }
 
   if (brush.deform_target == BRUSH_DEFORM_TARGET_CLOTH_SIM) {
@@ -4155,7 +4175,7 @@ static float brush_dynamic_size_get(const Brush &brush,
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
       return max_ff(initial_size * 0.30f, initial_size * powf(cache.pressure, 1.5f));
     case SCULPT_BRUSH_TYPE_CLAY_THUMB: {
-      float clay_stabilized_pressure = clay_thumb_get_stabilized_pressure(cache);
+      float clay_stabilized_pressure = brushes::clay_thumb_get_stabilized_pressure(cache);
       return initial_size * clay_stabilized_pressure;
     }
     default:
