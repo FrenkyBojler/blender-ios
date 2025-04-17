@@ -4106,8 +4106,8 @@ static void sculpt_update_cache_invariants(
     }
 
     /* Transform to sculpted object space. */
-    cache->gravity_direction = math::transform_direction(ob.world_to_object(),
-                                                         cache->gravity_direction);
+    cache->gravity_direction = math::normalize(
+        math::transform_direction(ob.world_to_object(), cache->gravity_direction));
   }
 
   cache->accum = true;
