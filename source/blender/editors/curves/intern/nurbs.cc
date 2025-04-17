@@ -230,7 +230,6 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
   const IndexRange new_curve_points = IndexRange::from_begin_size(
       curve_points.first(), curve_points.size() + new_points_added);
   const Span<float> knots = ikcd.knots;
-  const bool cyclic = ikcd.curves.cyclic()[ikcd.curve];
   MutableSpan<float> new_knots = new_knots_all.slice(curve_knots);
 
   BLI_assert(ikcd.knot_span < curve_points.size() + ikcd.order - 1);
@@ -276,8 +275,6 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
   const IndexMask altered_points = IndexMask::from_bools(
       IndexRange(new_curve_points.size()), is_altered, memory);
   const int8_t order = ikcd.order;
-  const IndexRange src_point_range = IndexRange::from_begin_size(
-      ikcd.points_to_replace.one_before_start(), order);
   const Span<float> control_weights = ikcd.curves.nurbs_weights().slice(curve_points);
 
   for (auto &attribute : bke::retrieve_attributes_for_transfer(

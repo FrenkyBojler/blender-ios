@@ -335,6 +335,7 @@ IndexRange calc_knot_insertion_weights(const Span<float> knots,
                                        const int repeat,
                                        MutableSpan<float> insertion_weights)
 {
+  BLI_assert(mult + repeat < order);
   const int altered_point_num = order - mult + repeat - 2;
   const IndexRange points_to_replace = IndexRange::from_begin_size(knot_span - order + 2,
                                                                    altered_point_num - repeat);
