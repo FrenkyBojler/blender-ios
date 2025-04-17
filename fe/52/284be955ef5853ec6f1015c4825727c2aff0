@@ -1,2 +1,3 @@
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by pull request #137614, Fix #137600: Curve to points node anonymous attribute outputs broken
+Referenced by commit 0852c7b5ee49f238afd7608aee460cf9bc61a378, Fix #137600: Curve to points node anonymous attribute outputs broken
