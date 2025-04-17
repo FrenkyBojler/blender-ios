@@ -27,6 +27,9 @@ enum class AttrStorageType : int8_t;
 class Attribute {
  public:
   struct ArrayData {
+    /* NOTE: Since the shared data pointed to by `sharing_info` knows how to free itself, it often
+     * stores the size and type itself. It may be possible to make use of that fact to avoid
+     * storing it here, or even vice versa. */
     void *data;
     int64_t size;
     ImplicitSharingPtr<> sharing_info;
