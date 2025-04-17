@@ -762,7 +762,6 @@ typedef struct UserDef_Experimental {
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
   char use_new_curves_tools;
-  char use_new_point_cloud_type;
   char use_sculpt_tools_tilt;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
@@ -770,7 +769,7 @@ typedef struct UserDef_Experimental {
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
   char use_socket_structure_type;
-  char _pad[4];
+  char _pad[5];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
