@@ -181,6 +181,8 @@ struct uiLayout : uiItem {
   float units[2];
   /** Is copied to uiButs created in this layout. */
   float search_weight;
+
+  LayoutSuppressFlag suppress_flag;
 };
 
 struct uiLayoutItemFlow : uiLayout {
@@ -1087,6 +1089,22 @@ static uiBut *ui_item_with_label(uiLayout *layout,
     UI_block_layout_set_current(block, uiLayoutRow(sub, true));
     but = uiDefAutoButR(block, ptr, prop, index, "", icon, x, y, prop_but_width - UI_UNIT_X, h);
 
+    if (but != nullptr) {
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
+        if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
+          if (BLI_path_is_rel(but->drawstr.c_str())) {
+
+            /* Finally check that this isn't suppressed, see: #137507. */
+            if ((uiLayoutSuppressFlagGet(layout) &
+                 LayoutSuppressFlag::PathSupportsBlendFileRelative) != LayoutSuppressFlag(0))
+            {
+              UI_but_flag_enable(but, UI_BUT_REDALERT);
+            }
+          }
+        }
+      }
+    }
+
     /* #BUTTONS_OT_file_browse calls #UI_context_active_but_prop_get_filebrowser. */
     uiDefIconButO(block,
                   UI_BTYPE_BUT,
@@ -1143,16 +1161,8 @@ static uiBut *ui_item_with_label(uiLayout *layout,
     but = uiDefAutoButR(block, ptr, prop, index, str, icon, x, y, prop_but_width, h);
   }
 
-  /* Highlight in red on path validity errors. */
+  /* Highlight in red on path template validity errors. */
   if (but != nullptr && ELEM(but->type, UI_BTYPE_TEXT)) {
-    if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
-      if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
-        if (BLI_path_is_rel(but->drawstr.c_str())) {
-          UI_but_flag_enable(but, UI_BUT_REDALERT);
-        }
-      }
-    }
-
     /* We include PROP_NONE here because some plain string properties are used
      * as parts of paths. For example, the sub-paths in the compositor's File
      * Output node. */
@@ -5495,6 +5505,21 @@ void uiLayoutListItemAddPadding(uiLayout *layout)
 
   /* Restore. */
   UI_block_layout_set_current(block, layout);
+}
+
+LayoutSuppressFlag uiLayoutSuppressFlagGet(const uiLayout *layout)
+{
+  return layout->suppress_flag;
+}
+
+void uiLayoutSuppressFlagSet(uiLayout *layout, LayoutSuppressFlag flag)
+{
+  layout->suppress_flag |= flag;
+}
+
+void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag)
+{
+  layout->suppress_flag &= ~flag;
 }
 
 /** \} */
