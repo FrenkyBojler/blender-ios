@@ -210,7 +210,11 @@ def list_render_passes(scene, srl):
     if srl.use_pass_emit:                  yield ("Emit",          "RGB",  'COLOR')
     if srl.use_pass_environment:           yield ("Env",           "RGB",  'COLOR')
     if srl.use_pass_ambient_occlusion:     yield ("AO",            "RGB",  'COLOR')
-    if crl.use_pass_shadow_catcher:        yield ("Shadow Catcher",      "RGB",  'COLOR')
+    if crl.use_pass_shadow_catcher:        yield ("Shadow Catcher","RGB",  'COLOR')
+    
+    # Grease pencil.
+    if srl.eevee.use_pass_grease_pencil:   yield ("GreasePencil",  "RGBA", 'COLOR')
+
     # autopep8: on
 
     # Debug passes.

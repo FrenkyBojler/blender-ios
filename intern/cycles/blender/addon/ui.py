@@ -1030,6 +1030,8 @@ class CYCLES_RENDER_PT_passes_data(CyclesButtonsPanel, Panel):
 
         col.prop(cycles_view_layer, "denoising_store_passes", text="Denoising Data")
 
+        col.prop(view_layer.eevee, "use_pass_grease_pencil")
+
         col = layout.column(heading="Indexes", align=True)
         col.prop(view_layer, "use_pass_object_index")
         col.prop(view_layer, "use_pass_material_index")

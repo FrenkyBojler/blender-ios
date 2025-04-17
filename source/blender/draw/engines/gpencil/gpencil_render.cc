@@ -243,6 +243,36 @@ static void render_result_separated_pass(RenderPass *rp, Instance &instance, con
                              rp->ibuf->float_buffer.data);
 }
 
+static void render_frame(RenderEngine *engine,
+                         Depsgraph *depsgraph,
+                         const DRWContext *draw_ctx,
+                         RenderLayer *render_layer,
+                         const rcti rect,
+                         gpencil::Instance &inst,
+                         Manager &manager,
+                         const bool separated_pass)
+{
+  const float aa_radius = clamp_f(draw_ctx->scene->r.gauss, 0.0f, 100.0f);
+  const int sample_count = draw_ctx->scene->grease_pencil_settings.aa_samples;
+  for (auto i : IndexRange(sample_count)) {
+    float2 aa_offset = Instance::antialiasing_sample_get(i, sample_count) * aa_radius;
+    aa_offset = 2.0f * aa_offset / float2(inst.render_color_tx.size());
+    render_set_view(engine, depsgraph, aa_offset);
+    render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect, separated_pass);
+
+    /* Render the gpencil object and merge the result to the underlying render. */
+    inst.draw(manager);
+
+    /* Weight of this render SSAA sample. The sum of previous samples is weighted by `1 -
+     * weight`. This diminishes after each new sample as we want all samples to be equally
+     * weighted inside the final result (inside the combined buffer). This weighting scheme
+     * allows to always store the resolved result making it ready for in-progress display or
+     * read-back. */
+    const float weight = 1.0f / (1.0f + i);
+    inst.antialiasing_accumulate(manager, weight);
+  }
+}
+
 void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, const rcti rect)
 {
   const char *viewname = RE_GetActiveRenderView(engine->re);
@@ -277,34 +307,12 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   manager.end_sync();
 
-  auto render_frame = [&](const bool separated_pass) {
-    const float aa_radius = clamp_f(draw_ctx->scene->r.gauss, 0.0f, 100.0f);
-    const int sample_count = draw_ctx->scene->grease_pencil_settings.aa_samples;
-    for (auto i : IndexRange(sample_count)) {
-      float2 aa_offset = Instance::antialiasing_sample_get(i, sample_count) * aa_radius;
-      aa_offset = 2.0f * aa_offset / float2(inst.render_color_tx.size());
-      render_set_view(engine, depsgraph, aa_offset);
-      render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect, separated_pass);
-
-      /* Render the gpencil object and merge the result to the underlying render. */
-      inst.draw(manager);
-
-      /* Weight of this render SSAA sample. The sum of previous samples is weighted by `1 -
-       * weight`. This diminishes after each new sample as we want all samples to be equally
-       * weighted inside the final result (inside the combined buffer). This weighting scheme
-       * allows to always store the resolved result making it ready for in-progress display or
-       * read-back. */
-      const float weight = 1.0f / (1.0f + i);
-      inst.antialiasing_accumulate(manager, weight);
-    }
-  };
-
-  render_frame(false);
+  render_frame(engine, depsgraph, draw_ctx, render_layer, rect, inst, manager, false);
   render_result_combined(render_layer, viewname, inst, &rect);
 
   RenderPass *rp = RE_pass_find_by_name(render_layer, RE_PASSNAME_GREASE_PENCIL, viewname);
   if (rp) {
-    render_frame(true);
+    render_frame(draw_ctx, inst, engine, render_layer, depsgraph, &rect, true);
     render_result_separated_pass(rp, inst, &rect);
   }
 
