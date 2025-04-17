@@ -18,8 +18,6 @@
 #include "BLI_set.hh"
 #include "BLI_struct_equality_utils.hh"
 
-#include "DNA_attribute_types.h"
-
 #include "BKE_attribute.h"
 #include "BKE_attribute_filters.hh"
 

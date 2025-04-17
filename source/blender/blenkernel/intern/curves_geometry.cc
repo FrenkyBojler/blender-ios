@@ -1880,37 +1880,28 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   this->update_curve_types();
 }
 
-static void prepare_attribute_data_for_write(CurvesGeometry &curves,
-                                             Vector<CustomDataLayer, 16> &point_layers,
-                                             Vector<CustomDataLayer, 16> &curve_layers,
-                                             AttributeStorage::BlendWriteData &write_data)
-{
-  Set<StringRef, 16> all_names_written;
-  attribute_storage_blend_write_prepare(
-      curves.attribute_storage.wrap(),
-      {{AttrDomain::Point, &point_layers}, {AttrDomain::Curve, &curve_layers}},
-      all_names_written,
-      write_data);
-  CustomData_blend_write_prepare(curves.point_data,
-                                 AttrDomain::Point,
-                                 curves.points_num(),
-                                 all_names_written,
-                                 point_layers,
-                                 write_data);
-  CustomData_blend_write_prepare(curves.curve_data,
-                                 AttrDomain::Corner,
-                                 curves.curves_num(),
-                                 all_names_written,
-                                 curve_layers,
-                                 write_data);
-  curves.attribute_storage.dna_attributes = write_data.attributes.data();
-  curves.attribute_storage.dna_attributes_num = write_data.attributes.size();
-}
-
 void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data)
 {
-  prepare_attribute_data_for_write(
-      *this, write_data.point_layers, write_data.curve_layers, write_data.attribute_data);
+  Set<StringRef, 16> all_names_written;
+  attribute_storage_blend_write_prepare(this->attribute_storage.wrap(),
+                                        {{AttrDomain::Point, &write_data.point_layers},
+                                         {AttrDomain::Curve, &write_data.curve_layers}},
+                                        all_names_written,
+                                        write_data.attribute_data);
+  CustomData_blend_write_prepare(this->point_data,
+                                 AttrDomain::Point,
+                                 this->points_num(),
+                                 all_names_written,
+                                 write_data.point_layers,
+                                 write_data.attribute_data);
+  CustomData_blend_write_prepare(this->curve_data,
+                                 AttrDomain::Corner,
+                                 this->curves_num(),
+                                 all_names_written,
+                                 write_data.curve_layers,
+                                 write_data.attribute_data);
+  this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
+  this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
 }
 
 void CurvesGeometry::blend_write(BlendWriter &writer,

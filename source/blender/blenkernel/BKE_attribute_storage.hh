@@ -41,7 +41,7 @@ class Attribute {
  private:
   /**
    * Because it's used as the custom ID for the attributes vector set, the name cannot be changed
-   * without adding and removing attribute.
+   * without adding and removing the attribute.
    */
   std::string name_;
   AttrDomain domain_;
@@ -58,13 +58,16 @@ class Attribute {
    * called during the conversion process).
    */
   StringRefNull name() const;
+
   /** Which part of a geometry the attribute corresponds to. */
   AttrDomain domain() const;
+
   /**
    * The data type exposed to the user. Depending on the storage type, the actual internal values
    * may not be the same type.
    */
   AttrType data_type() const;
+
   /**
    * The method used to store the data. This gives flexibility to optimize the internal storage
    * even though conceptually the attribute is an array of values.
@@ -76,6 +79,7 @@ class Attribute {
    * the storage type.
    */
   const DataVariant &data() const;
+
   /**
    * The same as #data(), but if the attribute data is shared initially, it will be unshared and
    * made mutable.

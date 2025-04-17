@@ -122,35 +122,27 @@ static void pointcloud_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static void prepare_attribute_data_for_write(
-    PointCloud &pointcloud,
-    Vector<CustomDataLayer, 16> &point_layers,
-    blender::bke::AttributeStorage::BlendWriteData &write_data)
+static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   using namespace blender;
   using namespace blender::bke;
-  Set<StringRef, 16> all_names_written;
-  attribute_storage_blend_write_prepare(pointcloud.attribute_storage.wrap(),
-                                        {{AttrDomain::Point, &point_layers}},
-                                        all_names_written,
-                                        write_data);
-  CustomData_blend_write_prepare(pointcloud.pdata,
-                                 AttrDomain::Point,
-                                 pointcloud.totpoint,
-                                 all_names_written,
-                                 point_layers,
-                                 write_data);
-  pointcloud.attribute_storage.dna_attributes = write_data.attributes.data();
-  pointcloud.attribute_storage.dna_attributes_num = write_data.attributes.size();
-}
-
-static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_address)
-{
   PointCloud *pointcloud = (PointCloud *)id;
 
   Vector<CustomDataLayer, 16> point_layers;
-  blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  prepare_attribute_data_for_write(*pointcloud, point_layers, attribute_data);
+  bke::AttributeStorage::BlendWriteData attribute_data;
+  Set<StringRef, 16> all_names_written;
+  attribute_storage_blend_write_prepare(pointcloud->attribute_storage.wrap(),
+                                        {{AttrDomain::Point, &point_layers}},
+                                        all_names_written,
+                                        attribute_data);
+  CustomData_blend_write_prepare(pointcloud->pdata,
+                                 AttrDomain::Point,
+                                 pointcloud->totpoint,
+                                 all_names_written,
+                                 point_layers,
+                                 attribute_data);
+  pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
+  pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);

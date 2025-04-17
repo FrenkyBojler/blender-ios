@@ -742,8 +742,8 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap,
  * the struct.
  */
 void CustomData_blend_write_prepare(CustomData &data,
-                                    const blender::bke::AttrDomain domain,
-                                    const int domain_size,
+                                    blender::bke::AttrDomain domain,
+                                    int domain_size,
                                     blender::Set<blender::StringRef, 16> &all_names_written,
                                     blender::Vector<CustomDataLayer, 16> &layers_to_write,
                                     blender::bke::AttributeStorage::BlendWriteData &write_data);

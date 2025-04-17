@@ -340,40 +340,6 @@ static void prepare_attribute_data_for_write(
 {
   using namespace blender;
   using namespace blender::bke;
-  Set<StringRef, 16> all_names_written;
-  attribute_storage_blend_write_prepare(mesh.attribute_storage.wrap(),
-                                        {{AttrDomain::Point, &vert_layers},
-                                         {AttrDomain::Edge, &edge_layers},
-                                         {AttrDomain::Face, &face_layers},
-                                         {AttrDomain::Corner, &corner_layers}},
-                                        all_names_written,
-                                        write_data);
-  CustomData_blend_write_prepare(mesh.vert_data,
-                                 AttrDomain::Point,
-                                 mesh.verts_num,
-                                 all_names_written,
-                                 vert_layers,
-                                 write_data);
-  CustomData_blend_write_prepare(mesh.edge_data,
-                                 AttrDomain::Edge,
-                                 mesh.edges_num,
-                                 all_names_written,
-                                 edge_layers,
-                                 write_data);
-  CustomData_blend_write_prepare(mesh.face_data,
-                                 AttrDomain::Face,
-                                 mesh.faces_num,
-                                 all_names_written,
-                                 face_layers,
-                                 write_data);
-  CustomData_blend_write_prepare(mesh.corner_data,
-                                 AttrDomain::Corner,
-                                 mesh.corners_num,
-                                 all_names_written,
-                                 corner_layers,
-                                 write_data);
-  mesh.attribute_storage.dna_attributes = write_data.attributes.data();
-  mesh.attribute_storage.dna_attributes_num = write_data.attributes.size();
 }
 
 static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -410,13 +376,47 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     mesh->face_offset_indices = nullptr;
   }
   else {
-    prepare_attribute_data_for_write(
-        *mesh, vert_layers, edge_layers, face_layers, loop_layers, attribute_data);
-    /* Write forward compatible format. To be removed in 5.0. */
-    rename_seam_layer_to_old_name(
-        mesh->vertex_group_names, vert_layers, edge_layers, face_layers, loop_layers);
-    mesh_sculpt_mask_to_legacy(vert_layers);
-    mesh_custom_normals_to_legacy(loop_layers);
+    Set<StringRef, 16> all_names_written;
+    attribute_storage_blend_write_prepare(mesh->attribute_storage.wrap(),
+                                          {{AttrDomain::Point, &vert_layers},
+                                           {AttrDomain::Edge, &edge_layers},
+                                           {AttrDomain::Face, &face_layers},
+                                           {AttrDomain::Corner, &loop_layers}},
+                                          all_names_written,
+                                          attribute_data);
+    CustomData_blend_write_prepare(mesh->vert_data,
+                                   AttrDomain::Point,
+                                   mesh->verts_num,
+                                   all_names_written,
+                                   vert_layers,
+                                   attribute_data);
+    CustomData_blend_write_prepare(mesh->edge_data,
+                                   AttrDomain::Edge,
+                                   mesh->edges_num,
+                                   all_names_written,
+                                   edge_layers,
+                                   attribute_data);
+    CustomData_blend_write_prepare(mesh->face_data,
+                                   AttrDomain::Face,
+                                   mesh->faces_num,
+                                   all_names_written,
+                                   face_layers,
+                                   attribute_data);
+    CustomData_blend_write_prepare(mesh->corner_data,
+                                   AttrDomain::Corner,
+                                   mesh->corners_num,
+                                   all_names_written,
+                                   loop_layers,
+                                   attribute_data);
+    mesh->attribute_storage.dna_attributes = attribute_data.attributes.data();
+    mesh->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
+    if (!is_undo) {
+      /* Write forward compatible format. To be removed in 5.0. */
+      rename_seam_layer_to_old_name(
+          mesh->vertex_group_names, vert_layers, edge_layers, face_layers, loop_layers);
+      mesh_sculpt_mask_to_legacy(vert_layers);
+      mesh_custom_normals_to_legacy(loop_layers);
+    }
   }
 
   const blender::bke::MeshRuntime *mesh_runtime = mesh->runtime;
