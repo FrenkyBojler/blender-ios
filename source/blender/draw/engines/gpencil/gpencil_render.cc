@@ -312,10 +312,12 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   RenderPass *rp = RE_pass_find_by_name(render_layer, RE_PASSNAME_GREASE_PENCIL, viewname);
   if (rp) {
-    render_frame(draw_ctx, inst, engine, render_layer, depsgraph, &rect, true);
+    render_frame(engine, depsgraph, draw_ctx, render_layer, rect, inst, manager, true);
     render_result_separated_pass(rp, inst, &rect);
   }
 
+  /* Transfer depth in the last step, because if we need to render separate pass, we need original
+   * untouched depth buffer. */
   render_result_z(draw_ctx, render_layer, viewname, inst, &rect);
 }
 
