@@ -370,18 +370,36 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
     return;
   }
 
-  /* For now, assume that only one node is created by the callback. */
-  BLI_assert(new_nodes.size() == 1);
-  bNode *new_node = new_nodes.first();
-
-  new_node->location[0] = storage.cursor.x / UI_SCALE_FAC;
-  new_node->location[1] = storage.cursor.y / UI_SCALE_FAC + 20;
-  if (storage.in_out() == SOCK_IN) {
-    new_node->location[0] -= new_node->width;
+  node_tree.ensure_topology_cache();
+  bNode *new_directly_linked_node = nullptr;
+  for (const bNodeLink *link : storage.from_socket.directly_linked_links()) {
+    if (new_nodes.contains(link->fromnode)) {
+      new_directly_linked_node = link->fromnode;
+      break;
+    }
+    if (new_nodes.contains(link->tonode)) {
+      new_directly_linked_node = link->tonode;
+      break;
+    }
   }
 
-  bke::node_set_selected(*new_node, true);
-  bke::node_set_active(node_tree, *new_node);
+  const float2 cursor_offset = (storage.cursor / UI_SCALE_FAC) + float2(0.0f, 20.0f);
+  float2 link_offset{};
+  if (new_directly_linked_node) {
+    link_offset -= new_directly_linked_node->location;
+    if (storage.in_out() == SOCK_IN) {
+      link_offset.x -= new_directly_linked_node->width;
+    }
+  }
+
+  const float2 offset_in_tree = cursor_offset + link_offset;
+  for (bNode *new_node : new_nodes) {
+    /* The node may have an initial offset already, so use +=. */
+    new_node->location[0] += offset_in_tree.x;
+    new_node->location[1] += offset_in_tree.y;
+    bke::node_set_selected(*new_node, true);
+  }
+  bke::node_set_active(node_tree, *new_nodes[0]);
 
   /* Ideally it would be possible to tag the node tree in some way so it updates only after the
    * translate operation is finished, but normally moving nodes around doesn't cause updates. */
