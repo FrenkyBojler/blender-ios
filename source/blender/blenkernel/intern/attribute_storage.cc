@@ -369,6 +369,10 @@ void attribute_storage_blend_write_prepare(
   Set<StringRef, 16> all_names_written;
   data.foreach([&](Attribute &attr) {
     if (!U.experimental.use_attribute_storage_write_debug) {
+/* In version 4.5, all attribute data is written in the #CustomData format (at least when the
+       * debug option is not enabled), so the #Attribute needs to be converted to a
+       * #CustomDataLayer in the proper list. This is only relevant when #AttributeStorage is
+       * actually used at runtime. */
       if (const std::optional data_type = attr_type_to_custom_data_type(attr.data_type())) {
         if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attr.data())) {
           CustomDataLayer layer{};
@@ -376,6 +380,9 @@ void attribute_storage_blend_write_prepare(
           layer.data = array_data->data;
           layer.sharing_info = array_data->sharing_info.get();
 
+/* Because the #Attribute::name_ `std::string` has no length limit (unlike
+           * #CustomDataLayer::name), we have to manually make the name unique in case it exceeds
+           * the limit. */
           BLI_uniquename_cb(
               [&](const StringRefNull name) { return all_names_written.contains(name); },
               attr.name().c_str(),
@@ -386,15 +393,23 @@ void attribute_storage_blend_write_prepare(
 
           layers_to_write.lookup(attr.domain())->append(layer);
         }
-        return;
-      }
+              }
+return;
     }
+
     all_names_written.add(attr.name());
     AttributeDNA attribute_dna{};
     attribute_dna.name = attr.name().c_str();
     attribute_dna.data_type = int16_t(attr.data_type());
     attribute_dna.domain = int8_t(attr.domain());
     attribute_dna.storage_type = int8_t(attr.storage_type());
+
+/* The idea is to use a separate DNA struct for each #AttrStorageType. They each need to have a
+     * unique address (while writing a specific ID anyway) in order to be identified when
+     * reading the file, so we add them to the resource scope which outlives this function call.
+     * Using a #ResourceScope is a simple way to get pointer stability when adding every new data
+     * struct without the cost of many small allocations or unnecessary overhead of storing a full
+     * array for every storage type. */
 
     if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
       auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();

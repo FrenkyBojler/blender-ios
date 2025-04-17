@@ -5129,6 +5129,11 @@ void CustomData_blend_write_prepare(CustomData &data,
       continue;
     }
     if (U.experimental.use_attribute_storage_write_debug) {
+      /* When this experimental option is turned on, we always write the data in the new
+       * #AttributeStorage format, even though it's not yet used at runtime. This is meant for
+       * testing the forward compatibility capabilities meant to be shipped in version 4.5, in
+       * other words, the ability to read #AttributeStorage and convert it to #CustomData. This
+       * block should be removed when the new format is used at runtime. */
       const eCustomDataType data_type = eCustomDataType(layer.type);
       if (const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type)) {
         AttributeDNA attribute_dna{};
