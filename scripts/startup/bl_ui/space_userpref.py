@@ -687,17 +687,17 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system
+        import gpu
 
         col = layout.column()
         col.prop(system, "gpu_backend", text="Backend")
+        if system.gpu_backend == 'VULKAN':
+            col = layout.column()
+            col.enabled = gpu.platform.backend_type_get() == 'VULKAN'
+            col.prop(system, "gpu_preferred_device")
 
-        import gpu
         if system.gpu_backend != gpu.platform.backend_type_get():
             layout.label(text="A restart of Blender is required", icon='INFO')
-
-        if system.gpu_backend == gpu.platform.backend_type_get() == 'VULKAN':
-            col = layout.column()
-            col.prop(system, "gpu_preferred_device")
 
         if system.gpu_backend == 'VULKAN':
             col = layout.column()
@@ -1721,7 +1721,7 @@ class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
 
 
 class USERPREF_UL_asset_libraries(UIList):
-    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         asset_library = item
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
