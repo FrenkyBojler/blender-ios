@@ -1122,6 +1122,85 @@ static bool node_import_file_drop_poll(bContext * /*C*/, wmDrag *drag, const wmE
   return false;
 }
 
+static bool node_socket_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
+  if (drag->type != WM_DRAG_NODE_TREE_INTERFACE) {
+    return false;
+  }
+  SpaceNode *snode = CTX_wm_space_node(C);
+  if (!snode || !snode->edittree) {
+    return false;
+  }
+  const bNodeTree* target_ntree = snode->edittree;
+
+  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+
+  /* Drag only onto node editors of the same node tree. */
+  const bNodeTree* source_ntree = drag_data->tree;
+  if (target_ntree != source_ntree) {
+    return false;
+  }
+
+  /* Accept only socket items. */
+  const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(drag_data->item);
+  if (socket) {
+    return true;
+  }
+
+  /* Unless Ctrl is being held, prefer dragging the toggle socket alone from a panel with toggle. */
+  if (!(event->modifier & KM_CTRL)) {
+    const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
+    if (panel && panel->header_toggle_socket()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool node_panel_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
+  if (drag->type != WM_DRAG_NODE_TREE_INTERFACE) {
+    return false;
+  }
+  SpaceNode *snode = CTX_wm_space_node(C);
+  if (!snode || !snode->edittree) {
+    return false;
+  }
+  const bNodeTree* target_ntree = snode->edittree;
+
+  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+
+  /* Drag only onto node editors of the same node. */
+  const bNodeTree* source_ntree = drag_data->tree;
+  if (target_ntree != source_ntree) {
+    return false;
+  }
+
+  /* Accept only panel items. */
+  const bNodeTreeInterfacePanel* panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
+  if (panel) {
+    /* Unless Ctrl is being held, prefer dragging only the toggle socket of a panel with toggle. */
+    if (!(event->modifier & KM_CTRL)) {
+      if (panel->header_toggle_socket()) {
+        return false;
+      }
+    }
+
+    /* Ensure the panel has at least one socket. */
+    bool has_any_socket = false;
+    panel->foreach_item([&has_any_socket] (bNodeTreeInterfaceItem item) {
+      if (item.item_type == NODE_INTERFACE_SOCKET) {
+        has_any_socket = true;
+        return false; // break
+      }
+      return true; // continue
+    });
+
+    return has_any_socket;
+  }
+  return false;
+}
+
 static void node_group_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
   ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
@@ -1151,6 +1230,85 @@ static void node_id_im_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 static void node_import_file_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 {
   io::paths_to_operator_properties(drop->ptr, WM_drag_get_paths(drag));
+}
+
+static void node_socket_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+{
+  if (drag->type != WM_DRAG_NODE_TREE_INTERFACE) {
+    return;
+  }
+
+  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(drag_data->item);
+  if (!socket) {
+    const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
+    socket = panel->header_toggle_socket();
+  }
+
+  if (socket) {
+    RNA_string_set(drop->ptr, "socket_identifier", socket->identifier);
+
+    bool is_output_socket = socket->flag & NODE_INTERFACE_SOCKET_OUTPUT;
+    RNA_boolean_set(drop->ptr, "output_socket", is_output_socket);
+  } else {
+    BLI_assert_unreachable();
+  }
+}
+
+static void node_panel_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+{
+  if (drag->type != WM_DRAG_NODE_TREE_INTERFACE) {
+    return;
+  }
+
+  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
+  if (panel) {
+    RNA_int_set(drop->ptr, "panel_identifier", panel->identifier);
+  } else {
+    BLI_assert_unreachable();
+  }
+}
+
+static std::string node_socket_drop_tooltip(bContext * /*C*/, wmDrag *drag, const int /*xy*/[2], wmDropBox * /*drop*/)
+{
+  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(drag_data->item);
+
+  if (socket) {
+    if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
+      return BLI_sprintfN(TIP_("Add \"%s\" Input (Shift to label)"), socket->name);
+    }
+    if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+      return BLI_sprintfN( TIP_("Add \"%s\" Output (Shift to label)"), socket->name);
+    }
+  } else {
+    const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
+    socket = panel->header_toggle_socket();
+
+    /* Dragging a panel with toggle defaults to dragging the toggle socket. Offer shortcut to drag panel. */
+    if (socket) {
+      if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
+        return BLI_sprintfN(TIP_("Add \"%s\" Input (Shift to label, Ctrl to add panel)"), socket->name);
+      }
+      if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+        return BLI_sprintfN(TIP_("Add \"%s\" Output (Shift to label, Ctrl to add panel)"), socket->name);
+      }
+    }
+  }
+  BLI_assert_unreachable();
+  return "Error: Unsupported socket.";
+}
+
+static std::string node_panel_drop_tooltip(bContext * /*C*/, wmDrag *drag, const int /*xy*/[2], wmDropBox * /*drop*/)
+{
+  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
+  if (panel) {
+    return BLI_sprintfN(TIP_("Add \"%s\" Panel (Shift to label)"), panel->name);
+  }
+  BLI_assert_unreachable();
+  return "Error: Unsupported panel.";
 }
 
 /* this region dropbox definition */
@@ -1202,6 +1360,18 @@ static void node_dropboxes()
                  node_import_file_drop_copy,
                  nullptr,
                  nullptr);
+  WM_dropbox_add(lb,
+                 "NODE_OT_add_group_node_with_socket",
+                 node_socket_drop_poll,
+                 node_socket_drop_copy,
+                 nullptr,
+                 node_socket_drop_tooltip);
+  WM_dropbox_add(lb,
+                 "NODE_OT_add_group_node_with_panel",
+                 node_panel_drop_poll,
+                 node_panel_drop_copy,
+                 nullptr,
+                 node_panel_drop_tooltip);
 }
 
 /* ************* end drop *********** */

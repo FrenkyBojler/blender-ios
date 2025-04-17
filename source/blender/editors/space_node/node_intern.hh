@@ -294,6 +294,8 @@ void NODE_OT_add_material(wmOperatorType *ot);
 void NODE_OT_add_color(wmOperatorType *ot);
 void NODE_OT_add_import_node(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
+void NODE_OT_add_group_node_with_socket(wmOperatorType *ot);
+void NODE_OT_add_group_node_with_panel(wmOperatorType *ot);
 
 /* `node_group.cc` */
 

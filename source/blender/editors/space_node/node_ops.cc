@@ -87,6 +87,8 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_add_material);
   WM_operatortype_append(NODE_OT_add_color);
   WM_operatortype_append(NODE_OT_add_import_node);
+  WM_operatortype_append(NODE_OT_add_group_node_with_socket);
+  WM_operatortype_append(NODE_OT_add_group_node_with_panel);
 
   WM_operatortype_append(NODE_OT_new_node_tree);
 
