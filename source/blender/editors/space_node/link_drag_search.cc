@@ -349,6 +349,19 @@ static void link_drag_search_update_fn(
   }
 }
 
+static bNode *get_new_linked_node(bNodeSocket &socket, const Span<bNode *> new_nodes)
+{
+  for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (new_nodes.contains(link->fromnode)) {
+      return link->fromnode;
+    }
+    if (new_nodes.contains(link->tonode)) {
+      return link->tonode;
+    }
+  }
+  return nullptr;
+}
+
 static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
 {
   Main &bmain = *CTX_data_main(C);
@@ -370,22 +383,13 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
     return;
   }
 
-  node_tree.ensure_topology_cache();
-  bNode *new_directly_linked_node = nullptr;
-  for (const bNodeLink *link : storage.from_socket.directly_linked_links()) {
-    if (new_nodes.contains(link->fromnode)) {
-      new_directly_linked_node = link->fromnode;
-      break;
-    }
-    if (new_nodes.contains(link->tonode)) {
-      new_directly_linked_node = link->tonode;
-      break;
-    }
-  }
-
+  /* Used to position the new nodes where the cursor is. */
   const float2 cursor_offset = (storage.cursor / UI_SCALE_FAC) + float2(0.0f, 20.0f);
+
+  /* Used to position the new nodes so that the newly linked socket is aligned to the cursor. */
   float2 link_offset{};
-  if (new_directly_linked_node) {
+  node_tree.ensure_topology_cache();
+  if (bNode *new_directly_linked_node = get_new_linked_node(storage.from_socket, new_nodes)) {
     link_offset -= new_directly_linked_node->location;
     if (storage.in_out() == SOCK_IN) {
       link_offset.x -= new_directly_linked_node->width;
