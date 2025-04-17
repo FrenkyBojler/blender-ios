@@ -45,6 +45,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
+#include "BKE_attribute_storage_blend_write.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_bpath.hh"
 #include "BKE_deform.hh"
@@ -329,6 +330,52 @@ static void rename_seam_layer_to_old_name(const ListBase vertex_groups,
   STRNCPY(seam_layer->name, ".uv_seam");
 }
 
+static void prepare_attribute_data_for_write(
+    Mesh &mesh,
+    Vector<CustomDataLayer, 16> &vert_layers,
+    Vector<CustomDataLayer, 16> &edge_layers,
+    Vector<CustomDataLayer, 16> &face_layers,
+    Vector<CustomDataLayer, 16> &corner_layers,
+    blender::bke::AttributeStorage::BlendWriteData &write_data)
+{
+  using namespace blender;
+  using namespace blender::bke;
+  Set<StringRef, 16> all_names_written;
+  attribute_storage_blend_write_prepare(mesh.attribute_storage.wrap(),
+                                        {{AttrDomain::Point, &vert_layers},
+                                         {AttrDomain::Edge, &edge_layers},
+                                         {AttrDomain::Face, &face_layers},
+                                         {AttrDomain::Corner, &corner_layers}},
+                                        all_names_written,
+                                        write_data);
+  CustomData_blend_write_prepare(mesh.vert_data,
+                                 AttrDomain::Point,
+                                 mesh.verts_num,
+                                 all_names_written,
+                                 vert_layers,
+                                 write_data);
+  CustomData_blend_write_prepare(mesh.edge_data,
+                                 AttrDomain::Edge,
+                                 mesh.edges_num,
+                                 all_names_written,
+                                 edge_layers,
+                                 write_data);
+  CustomData_blend_write_prepare(mesh.face_data,
+                                 AttrDomain::Face,
+                                 mesh.faces_num,
+                                 all_names_written,
+                                 face_layers,
+                                 write_data);
+  CustomData_blend_write_prepare(mesh.corner_data,
+                                 AttrDomain::Corner,
+                                 mesh.corners_num,
+                                 all_names_written,
+                                 corner_layers,
+                                 write_data);
+  mesh.attribute_storage.dna_attributes = write_data.attributes.data();
+  mesh.attribute_storage.dna_attributes_num = write_data.attributes.size();
+}
+
 static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   using namespace blender;
@@ -363,7 +410,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     mesh->face_offset_indices = nullptr;
   }
   else {
-    blender::bke::mesh_prepare_data_for_file_write(
+    prepare_attribute_data_for_write(
         *mesh, vert_layers, edge_layers, face_layers, loop_layers, attribute_data);
     /* Write forward compatible format. To be removed in 5.0. */
     rename_seam_layer_to_old_name(

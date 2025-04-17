@@ -25,6 +25,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
+#include "BKE_attribute_storage_blend_write.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
@@ -121,13 +122,35 @@ static void pointcloud_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void prepare_attribute_data_for_write(
+    PointCloud &pointcloud,
+    Vector<CustomDataLayer, 16> &point_layers,
+    blender::bke::AttributeStorage::BlendWriteData &write_data)
+{
+  using namespace blender;
+  using namespace blender::bke;
+  Set<StringRef, 16> all_names_written;
+  attribute_storage_blend_write_prepare(pointcloud.attribute_storage.wrap(),
+                                        {{AttrDomain::Point, &point_layers}},
+                                        all_names_written,
+                                        write_data);
+  CustomData_blend_write_prepare(pointcloud.pdata,
+                                 AttrDomain::Point,
+                                 pointcloud.totpoint,
+                                 all_names_written,
+                                 point_layers,
+                                 write_data);
+  pointcloud.attribute_storage.dna_attributes = write_data.attributes.data();
+  pointcloud.attribute_storage.dna_attributes_num = write_data.attributes.size();
+}
+
 static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   PointCloud *pointcloud = (PointCloud *)id;
 
   Vector<CustomDataLayer, 16> point_layers;
   blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  blender::bke::pointcloud_prepare_data_for_file_write(*pointcloud, point_layers, attribute_data);
+  prepare_attribute_data_for_write(*pointcloud, point_layers, attribute_data);
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);

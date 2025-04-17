@@ -15,6 +15,7 @@
 #include "BKE_asset_edit.hh"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
+#include "BKE_attribute_storage_blend_write.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
@@ -258,13 +259,35 @@ static void grease_pencil_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void prepare_attribute_data_for_write(
+    GreasePencil &grease_pencil,
+    blender::Vector<CustomDataLayer, 16> &layers_layers,
+    blender::bke::AttributeStorage::BlendWriteData &write_data)
+{
+  using namespace blender;
+  using namespace blender::bke;
+  Set<StringRef, 16> all_names_written;
+  attribute_storage_blend_write_prepare(grease_pencil.attribute_storage.wrap(),
+                                        {{AttrDomain::Layer, &layers_layers}},
+                                        all_names_written,
+                                        write_data);
+  CustomData_blend_write_prepare(grease_pencil.layers_data,
+                                 AttrDomain::Layer,
+                                 grease_pencil.layers().size(),
+                                 all_names_written,
+                                 layers_layers,
+                                 write_data);
+  grease_pencil.attribute_storage.dna_attributes = write_data.attributes.data();
+  grease_pencil.attribute_storage.dna_attributes_num = write_data.attributes.size();
+}
+
 static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
 
   blender::Vector<CustomDataLayer, 16> layers_data_layers;
   blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  grease_pencil_prepare_data_for_file_write(*grease_pencil, layers_data_layers, attribute_data);
+  prepare_attribute_data_for_write(*grease_pencil, layers_data_layers, attribute_data);
 
   /* Write LibData */
   BLO_write_id_struct(writer, GreasePencil, id_address, &grease_pencil->id);

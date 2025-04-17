@@ -29,6 +29,7 @@
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_attribute_storage.hh"
+#include "BKE_attribute_storage_blend_write.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
@@ -1879,7 +1880,38 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   this->update_curve_types();
 }
 
-void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data) {}
+static void prepare_attribute_data_for_write(CurvesGeometry &curves,
+                                             Vector<CustomDataLayer, 16> &point_layers,
+                                             Vector<CustomDataLayer, 16> &curve_layers,
+                                             AttributeStorage::BlendWriteData &write_data)
+{
+  Set<StringRef, 16> all_names_written;
+  attribute_storage_blend_write_prepare(
+      curves.attribute_storage.wrap(),
+      {{AttrDomain::Point, &point_layers}, {AttrDomain::Curve, &curve_layers}},
+      all_names_written,
+      write_data);
+  CustomData_blend_write_prepare(curves.point_data,
+                                 AttrDomain::Point,
+                                 curves.points_num(),
+                                 all_names_written,
+                                 point_layers,
+                                 write_data);
+  CustomData_blend_write_prepare(curves.curve_data,
+                                 AttrDomain::Corner,
+                                 curves.curves_num(),
+                                 all_names_written,
+                                 curve_layers,
+                                 write_data);
+  curves.attribute_storage.dna_attributes = write_data.attributes.data();
+  curves.attribute_storage.dna_attributes_num = write_data.attributes.size();
+}
+
+void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data)
+{
+  prepare_attribute_data_for_write(
+      *this, write_data.point_layers, write_data.curve_layers, write_data.attribute_data);
+}
 
 void CurvesGeometry::blend_write(BlendWriter &writer,
                                  ID &id,
