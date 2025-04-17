@@ -125,6 +125,10 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context);
 
+Vector<const bNode *> find_separate_bundle_nodes(const ComputeContext *bundle_socket_context,
+                                                 const bNodeSocket &bundle_socket,
+                                                 bke::ComputeContextCache &compute_context_cache);
+
 void ui_template_node_asset_menu_items(uiLayout &layout,
                                        const bContext &C,
                                        StringRef catalog_path);

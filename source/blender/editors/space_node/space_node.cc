@@ -457,6 +457,37 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
   return current;
 }
 
+static Vector<nodes::SocketInContext> get_linked_sockets_in_context(
+    const nodes::SocketInContext &socket, bke::ComputeContextCache &compute_context_cache)
+{
+  const nodes::NodeInContext &node = socket.owner_node();
+  const bke::bNodeTreeZones *zones = node->owner_tree().zones();
+  if (!zones) {
+    return {};
+  }
+  Vector<nodes::SocketInContext> linked_sockets;
+  const bke::bNodeTreeZone *from_zone = zones->get_zone_by_socket(*socket.socket);
+  for (const bNodeLink *link : socket->directly_linked_links()) {
+    if (!link->is_used()) {
+      continue;
+    }
+    bNodeSocket *to_socket = link->tosock;
+    const bke::bNodeTreeZone *to_zone = zones->get_zone_by_socket(*to_socket);
+    if (!zones->link_between_zones_is_allowed(from_zone, to_zone)) {
+      continue;
+    }
+    const Vector<const bke::bNodeTreeZone *> zones_to_enter = zones->get_zones_to_enter(from_zone,
+                                                                                        to_zone);
+    const ComputeContext *compute_context = compute_context_for_zones(
+        zones_to_enter, compute_context_cache, socket.context);
+    if (!compute_context) {
+      continue;
+    }
+    linked_sockets.append({compute_context, to_socket});
+  }
+  return linked_sockets;
+}
+
 [[nodiscard]] const ComputeContext *compute_context_for_closure_evaluation(
     const ComputeContext *closure_socket_context,
     const bNodeSocket &closure_socket,
@@ -551,32 +582,86 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
       }
     }
     else {
-      const bke::bNodeTreeZones *zones = node->owner_tree().zones();
-      if (!zones) {
-        continue;
-      }
-      const bke::bNodeTreeZone *from_zone = zones->get_zone_by_socket(*socket.socket);
-      for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (!link->is_used()) {
-          continue;
-        }
-        bNodeSocket *to_socket = link->tosock;
-        const bke::bNodeTreeZone *to_zone = zones->get_zone_by_socket(*to_socket);
-        if (!zones->link_between_zones_is_allowed(from_zone, to_zone)) {
-          continue;
-        }
-        const Vector<const bke::bNodeTreeZone *> zones_to_enter = zones->get_zones_to_enter(
-            from_zone, to_zone);
-        const ComputeContext *compute_context = compute_context_for_zones(
-            zones_to_enter, compute_context_cache, socket.context);
-        if (!compute_context) {
-          continue;
-        }
-        add_if_new({compute_context, to_socket}, bundle_path);
+      for (const nodes::SocketInContext &linked_socket :
+           get_linked_sockets_in_context(socket, compute_context_cache))
+      {
+        add_if_new(linked_socket, bundle_path);
       }
     }
   }
   return nullptr;
+}
+
+Vector<const bNode *> find_separate_bundle_nodes(const ComputeContext *bundle_socket_context,
+                                                 const bNodeSocket &bundle_socket,
+                                                 bke::ComputeContextCache &compute_context_cache)
+{
+  using BundlePath = Vector<nodes::SocketInterfaceKey, 0>;
+
+  struct SocketToCheck {
+    nodes::SocketInContext socket;
+    BundlePath bundle_path;
+  };
+
+  Stack<SocketToCheck> sockets_to_check;
+  Set<nodes::SocketInContext> added_sockets;
+
+  auto add_if_new = [&](const nodes::SocketInContext &socket, BundlePath bundle_path) {
+    if (added_sockets.add(socket)) {
+      sockets_to_check.push({socket, std::move(bundle_path)});
+    }
+  };
+
+  const nodes::SocketInContext start_socket{bundle_socket_context, &bundle_socket};
+  add_if_new(start_socket, {});
+
+  VectorSet<const bNode *> separate_bundle_nodes;
+
+  while (!sockets_to_check.is_empty()) {
+    const SocketToCheck socket_to_check = sockets_to_check.pop();
+    const nodes::SocketInContext socket = socket_to_check.socket;
+    const BundlePath &bundle_path = socket_to_check.bundle_path;
+    const nodes::NodeInContext &node = socket.owner_node();
+    if (socket->is_input()) {
+      if (node->is_muted()) {
+        for (const bNodeLink &link : node->internal_links()) {
+          if (link.fromsock == socket.socket) {
+            add_if_new({socket.context, link.tosock}, bundle_path);
+          }
+        }
+        continue;
+      }
+      if (node->is_group()) {
+        /* TODO */
+        continue;
+      }
+      if (node->is_group_output()) {
+        /* TODO */
+        continue;
+      }
+      if (node->is_type("GeometryNodeSeparateBundle")) {
+        if (bundle_path.is_empty()) {
+          separate_bundle_nodes.add(node.node);
+          continue;
+        }
+        /* TODO */
+        continue;
+      }
+      if (node->is_type("GeometryNodeCombineBundle")) {
+        /* TODO*/
+        continue;
+      }
+    }
+    else {
+      for (const nodes::SocketInContext &linked_socket :
+           get_linked_sockets_in_context(socket, compute_context_cache))
+      {
+        add_if_new(linked_socket, bundle_path);
+      }
+    }
+  }
+
+  return separate_bundle_nodes.extract_vector();
 }
 
 static const ComputeContext *get_node_editor_root_compute_context(
