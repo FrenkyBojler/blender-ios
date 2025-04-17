@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_variables.hh"
+#include "BKE_templates.hh"
 
 #include "testing/testing.h"
 

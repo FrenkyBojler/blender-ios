@@ -22,7 +22,7 @@
 
 #include "BKE_colortools.hh"
 #include "BKE_image_format.hh"
-#include "BKE_variables.hh"
+#include "BKE_templates.hh"
 
 /* Init/Copy/Free */
 

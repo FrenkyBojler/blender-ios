@@ -303,7 +303,7 @@ set(SRC
   intern/undo_system.cc
   intern/unit.cc
   intern/uvproject.cc
-  intern/variables.cc
+  intern/templates.cc
   intern/vfont.cc
   intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
@@ -518,7 +518,7 @@ set(SRC
   BKE_undo_system.hh
   BKE_unit.hh
   BKE_uvproject.h
-  BKE_variables.hh
+  BKE_templates.hh
   BKE_vfont.hh
   BKE_vfontdata.hh
   BKE_viewer_path.hh
@@ -839,7 +839,7 @@ if(WITH_GTESTS)
     intern/nla_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
-    intern/variables_test.cc
+    intern/templates_test.cc
     intern/volume_test.cc
   )
   set(TEST_INC

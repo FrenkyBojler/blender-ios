@@ -32,7 +32,7 @@
 #  include "BKE_global.hh"
 #  include "BKE_image.hh"
 #  include "BKE_main.hh"
-#  include "BKE_variables.hh"
+#  include "BKE_templates.hh"
 
 #  include "IMB_imbuf.hh"
 

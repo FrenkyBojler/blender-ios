@@ -5,7 +5,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_scene.hh"
-#include "BKE_variables.hh"
+#include "BKE_templates.hh"
 
 bool VariableMap::contains(blender::StringRef name) const
 {
