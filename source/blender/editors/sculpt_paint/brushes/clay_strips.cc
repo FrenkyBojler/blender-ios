@@ -88,26 +88,36 @@ static void calc_local_positions(const Span<float3> positions,
 
 /**
  * Applies a parabolic factor of the form `z * (1 - z)` to each vertex.
- * If plane trimming is enabled, vertices with `z` values greater than the
- * specified `plane_trim` threshold are ignored (i.e., their factors are set to zero).
- *
+ * Vertices outside of the interval (0, 1) are out of range and their factors are set to zero.
  * Note: The local coordinate system is constructed such that all relevant `z` values
  * are non-negative.
  */
-static void apply_z_axis_factors(const Brush &brush,
-                                 const Span<float> z_positions,
-                                 const MutableSpan<float> factors)
+static void apply_z_axis_factors(const Span<float> z_positions, const MutableSpan<float> factors)
 {
-  const bool use_plane_trim = brush.flag & BRUSH_PLANE_TRIM;
-  const float z_range = use_plane_trim ? brush.plane_trim : 1.0f;
-
   for (const int i : factors.index_range()) {
     const float local_z = z_positions[i];
 
-    if (local_z > 0.0f && local_z < z_range) {
-      factors[i] *= local_z * (1.0f - local_z);
-    }
-    else {
+    /* Note: if `local_z > 1`, then `1 - local_z < 0` and the product is negative. */
+    factors[i] *= math::max(0.0f, local_z * (1.0f - local_z));
+  }
+}
+
+/**
+ * If plane trim is enabled, vertices with `z` values greater than the
+ * specified `plane_trim` threshold are ignored (i.e., their factors are set to zero).
+ */
+static void apply_plane_trim_factors(const Brush &brush,
+                                     const Span<float> z_positions,
+                                     const MutableSpan<float> factors)
+{
+  const bool use_plane_trim = brush.flag & BRUSH_PLANE_TRIM;
+
+  if (!use_plane_trim) {
+    return;
+  }
+
+  for (const int i : factors.index_range()) {
+    if (z_positions[i] > brush.plane_trim) {
       factors[i] = 0.0f;
     }
   }
@@ -178,7 +188,8 @@ static void calc_faces(const Depsgraph &depsgraph,
   MutableSpan<float> z_positions = tls.z_positions;
 
   calc_local_positions(position_data.eval, verts, mat, xy_positions, z_positions);
-  apply_z_axis_factors(brush, z_positions, factors);
+  apply_z_axis_factors(z_positions, factors);
+  apply_plane_trim_factors(brush, z_positions, factors);
 
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
@@ -229,7 +240,8 @@ static void calc_grids(const Depsgraph &depsgraph,
   MutableSpan<float> z_positions = tls.z_positions;
 
   calc_local_positions(positions, mat, xy_positions, z_positions);
-  apply_z_axis_factors(brush, z_positions, factors);
+  apply_z_axis_factors(z_positions, factors);
+  apply_plane_trim_factors(brush, z_positions, factors);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
@@ -279,7 +291,8 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   MutableSpan<float> z_positions = tls.z_positions;
 
   calc_local_positions(positions, mat, xy_positions, z_positions);
-  apply_z_axis_factors(brush, z_positions, factors);
+  apply_z_axis_factors(z_positions, factors);
+  apply_plane_trim_factors(brush, z_positions, factors);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
