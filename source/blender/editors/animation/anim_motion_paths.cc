@@ -490,7 +490,17 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
         }
       }
       else {
-        fcurve_list = &adt->action->curves;
+        Action &action = adt->action->wrap();
+        if (action.is_action_layered()) {
+          ListBase tmp = {nullptr, nullptr};
+          for (FCurve *fcu : channelbag_for_action_slot(action, adt->slot_handle)->fcurves()) {
+            BLI_addtail(&tmp, fcu);
+          }
+          fcurve_list = &tmp;
+        }
+        else {
+          fcurve_list = &adt->action->curves;
+        }
         action_to_keylist(adt, adt->action, mpt->keylist, 0, {-FLT_MAX, FLT_MAX});
       }
     }
