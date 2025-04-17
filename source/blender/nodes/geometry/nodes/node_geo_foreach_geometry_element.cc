@@ -403,6 +403,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item_full_name(
         IFACE_("For Each Element " UI_MENU_ARROW_SEP " Main"), [](LinkSearchOpParams &params) {
           const auto [input_node, output_node] = add_foreach_zone(params);
+          socket_items::clear<ForeachGeometryElementGenerationItemsAccessor>(*output_node);
           params.update_and_connect_available_socket(*output_node, "Geometry");
         });
 
