@@ -12,7 +12,9 @@
 #include "DNA_meshdata_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
+#include "BKE_attribute_storage_blend_write.hh"
 
 namespace blender::bke {
 
@@ -357,6 +359,59 @@ static void write_array_data(BlendWriter &writer,
           &writer, MStringProperty, size, static_cast<const MStringProperty *>(data));
       break;
   }
+}
+
+void attribute_storage_blend_write_prepare(
+    AttributeStorage &data,
+    const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
+    Set<StringRef, 16> &all_names_written,
+    AttributeStorage::BlendWriteData &write_data)
+{
+  data.foreach([&](Attribute &attr) {
+    if (!U.experimental.use_attribute_storage_write_debug) {
+      if (const std::optional data_type = attr_type_to_custom_data_type(attr.data_type())) {
+        if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attr.data())) {
+          CustomDataLayer layer{};
+          layer.type = *data_type;
+          layer.data = array_data->data;
+          layer.sharing_info = array_data->sharing_info.get();
+
+          BLI_uniquename_cb(
+              [&](const StringRefNull name) { return all_names_written.contains(name); },
+              attr.name().c_str(),
+              '.',
+              layer.name,
+              MAX_CUSTOMDATA_LAYER_NAME);
+          all_names_written.add(layer.name);
+
+          layers_to_write.lookup(attr.domain())->append(layer);
+        }
+        return;
+      }
+    }
+    all_names_written.add(attr.name());
+    AttributeDNA attribute_dna{};
+    attribute_dna.name = attr.name().c_str();
+    attribute_dna.data_type = int16_t(attr.data_type());
+    attribute_dna.domain = int8_t(attr.domain());
+    attribute_dna.storage_type = int8_t(attr.storage_type());
+
+    if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
+      auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();
+      array_dna.data = data->data;
+      array_dna.sharing_info = data->sharing_info.get();
+      array_dna.size = data->size;
+      attribute_dna.data = &array_dna;
+    }
+    else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data())) {
+      auto &single_dna = write_data.scope.construct<AttributeSingleDNA>();
+      single_dna.data = data->value;
+      single_dna.sharing_info = data->sharing_info.get();
+      attribute_dna.data = &single_dna;
+    }
+
+    write_data.attributes.append(attribute_dna);
+  });
 }
 
 static void write_shared_array(BlendWriter &writer,

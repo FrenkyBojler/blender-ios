@@ -2,23 +2,20 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_anonymous_attribute_id.hh"
 #define DNA_DEPRECATED_ALLOW
 
 #include <optional>
 
-#include "BLI_string_utils.hh"
-
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 
 #include "BKE_attribute_legacy_convert.hh"
+#include "BKE_attribute_storage_blend_write.hh"
 
 namespace blender::bke {
 
@@ -136,7 +133,7 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
   return storage;
 }
 
-static std::optional<eCustomDataType> attribute_type_to_custom_data_type(const AttrType attr_type)
+std::optional<eCustomDataType> attr_type_to_custom_data_type(const AttrType attr_type)
 {
   switch (attr_type) {
     case AttrType::Bool:
@@ -175,7 +172,7 @@ static void convert_storage_to_customdata(
 {
   /* Name uniqueness is handled by the #CustomData API. */
   storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attribute_type_to_custom_data_type(
+    const std::optional<eCustomDataType> data_type = attr_type_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
       return;
@@ -271,59 +268,6 @@ AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil 
 
 ///
 
-static void add_storage_write_data(
-    AttributeStorage &data,
-    const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
-    Set<StringRef, 16> &all_names_written,
-    AttributeStorage::BlendWriteData &write_data)
-{
-  data.foreach([&](Attribute &attr) {
-    if (!U.experimental.use_attribute_storage_write_debug) {
-      if (const std::optional data_type = attribute_type_to_custom_data_type(attr.data_type())) {
-        if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attr.data())) {
-          CustomDataLayer layer{};
-          layer.type = *data_type;
-          layer.data = array_data->data;
-          layer.sharing_info = array_data->sharing_info.get();
-
-          BLI_uniquename_cb(
-              [&](const StringRefNull name) { return all_names_written.contains(name); },
-              attr.name().c_str(),
-              '.',
-              layer.name,
-              MAX_CUSTOMDATA_LAYER_NAME);
-          all_names_written.add(layer.name);
-
-          layers_to_write.lookup(attr.domain())->append(layer);
-        }
-        return;
-      }
-    }
-    all_names_written.add(attr.name());
-    AttributeDNA attribute_dna{};
-    attribute_dna.name = attr.name().c_str();
-    attribute_dna.data_type = int16_t(attr.data_type());
-    attribute_dna.domain = int8_t(attr.domain());
-    attribute_dna.storage_type = int8_t(attr.storage_type());
-
-    if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
-      auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();
-      array_dna.data = data->data;
-      array_dna.sharing_info = data->sharing_info.get();
-      array_dna.size = data->size;
-      attribute_dna.data = &array_dna;
-    }
-    else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data())) {
-      auto &single_dna = write_data.scope.construct<AttributeSingleDNA>();
-      single_dna.data = data->value;
-      single_dna.sharing_info = data->sharing_info.get();
-      attribute_dna.data = &single_dna;
-    }
-
-    write_data.attributes.append(attribute_dna);
-  });
-}
-
 void mesh_prepare_data_for_file_write(Mesh &mesh,
                                       Vector<CustomDataLayer, 16> &vert_layers,
                                       Vector<CustomDataLayer, 16> &edge_layers,
@@ -332,13 +276,13 @@ void mesh_prepare_data_for_file_write(Mesh &mesh,
                                       AttributeStorage::BlendWriteData &write_data)
 {
   Set<StringRef, 16> all_names_written;
-  add_storage_write_data(mesh.attribute_storage.wrap(),
-                         {{AttrDomain::Point, &vert_layers},
-                          {AttrDomain::Edge, &edge_layers},
-                          {AttrDomain::Face, &face_layers},
-                          {AttrDomain::Corner, &corner_layers}},
-                         all_names_written,
-                         write_data);
+  attribute_storage_blend_write_prepare(mesh.attribute_storage.wrap(),
+                                        {{AttrDomain::Point, &vert_layers},
+                                         {AttrDomain::Edge, &edge_layers},
+                                         {AttrDomain::Face, &face_layers},
+                                         {AttrDomain::Corner, &corner_layers}},
+                                        all_names_written,
+                                        write_data);
   CustomData_blend_write_prepare(mesh.vert_data,
                                  AttrDomain::Point,
                                  mesh.verts_num,
@@ -373,10 +317,11 @@ void curves_prepare_data_for_file_write(CurvesGeometry &curves,
                                         AttributeStorage::BlendWriteData &write_data)
 {
   Set<StringRef, 16> all_names_written;
-  add_storage_write_data(curves.attribute_storage.wrap(),
-                         {{AttrDomain::Point, &point_layers}, {AttrDomain::Curve, &curve_layers}},
-                         all_names_written,
-                         write_data);
+  attribute_storage_blend_write_prepare(
+      curves.attribute_storage.wrap(),
+      {{AttrDomain::Point, &point_layers}, {AttrDomain::Curve, &curve_layers}},
+      all_names_written,
+      write_data);
   CustomData_blend_write_prepare(curves.point_data,
                                  AttrDomain::Point,
                                  curves.points_num(),
@@ -398,10 +343,10 @@ void pointcloud_prepare_data_for_file_write(PointCloud &pointcloud,
                                             AttributeStorage::BlendWriteData &write_data)
 {
   Set<StringRef, 16> all_names_written;
-  add_storage_write_data(pointcloud.attribute_storage.wrap(),
-                         {{AttrDomain::Point, &point_layers}},
-                         all_names_written,
-                         write_data);
+  attribute_storage_blend_write_prepare(pointcloud.attribute_storage.wrap(),
+                                        {{AttrDomain::Point, &point_layers}},
+                                        all_names_written,
+                                        write_data);
   CustomData_blend_write_prepare(pointcloud.pdata,
                                  AttrDomain::Point,
                                  pointcloud.totpoint,
@@ -417,10 +362,10 @@ void grease_pencil_prepare_data_for_file_write(GreasePencil &grease_pencil,
                                                AttributeStorage::BlendWriteData &write_data)
 {
   Set<StringRef, 16> all_names_written;
-  add_storage_write_data(grease_pencil.attribute_storage.wrap(),
-                         {{AttrDomain::Layer, &layers_layers}},
-                         all_names_written,
-                         write_data);
+  attribute_storage_blend_write_prepare(grease_pencil.attribute_storage.wrap(),
+                                        {{AttrDomain::Layer, &layers_layers}},
+                                        all_names_written,
+                                        write_data);
   CustomData_blend_write_prepare(grease_pencil.layers_data,
                                  AttrDomain::Layer,
                                  grease_pencil.layers().size(),

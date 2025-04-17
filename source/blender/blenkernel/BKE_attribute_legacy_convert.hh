@@ -20,6 +20,7 @@ struct Mesh;
 namespace blender::bke {
 
 std::optional<AttrType> custom_data_type_to_attr_type(eCustomDataType data_type);
+std::optional<eCustomDataType> attr_type_to_custom_data_type(AttrType attr_type);
 
 void mesh_convert_storage_to_customdata(Mesh &mesh);
 AttributeStorage mesh_convert_customdata_to_storage(const Mesh &mesh);
