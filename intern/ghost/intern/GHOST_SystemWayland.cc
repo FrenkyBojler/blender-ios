@@ -4791,7 +4791,8 @@ static void tablet_tool_handle_tilt(void *data,
                                     const wl_fixed_t tilt_x,
                                     const wl_fixed_t tilt_y)
 {
-  /* Map degrees to `-1.0 (left/forward)..1.0 (right/back)`. */
+  /* Map X tilt to `-1.0 (left)..1.0 (right)`.
+   * Map Y tilt to `-1.0 (away from user)..1.0 (toward user)`. */
   const float tilt_unit[2] = {
       float(wl_fixed_to_double(tilt_x) / 90.0f),
       float(wl_fixed_to_double(tilt_y) / 90.0f),
