@@ -97,15 +97,15 @@ const Object *DEG_get_evaluated_object(const Depsgraph *depsgraph, const Object 
 ID *DEG_get_evaluated_id(const Depsgraph *depsgraph, ID *id);
 const ID *DEG_get_evaluated_id(const Depsgraph *depsgraph, const ID *id);
 
-template<typename T, BLI_ENABLE_IF((blender::dna::is_ID_v<T>))>
-T *DEG_get_evaluated(const Depsgraph *depsgraph, T *id)
+template<typename T> T *DEG_get_evaluated(const Depsgraph *depsgraph, T *id)
 {
+  static_assert(blender::dna::is_ID_v<T>);
   return reinterpret_cast<T *>(DEG_get_evaluated_id(depsgraph, reinterpret_cast<ID *>(id)));
 }
 
-template<typename T, BLI_ENABLE_IF((blender::dna::is_ID_v<T>))>
-const T *DEG_get_evaluated(const Depsgraph *depsgraph, const T *id)
+template<typename T> const T *DEG_get_evaluated(const Depsgraph *depsgraph, const T *id)
 {
+  static_assert(blender::dna::is_ID_v<T>);
   return reinterpret_cast<const T *>(
       DEG_get_evaluated_id(depsgraph, reinterpret_cast<const ID *>(id)));
 }
@@ -119,14 +119,15 @@ void DEG_get_evaluated_rna_pointer(const Depsgraph *depsgraph,
 ID *DEG_get_original_id(ID *id);
 const ID *DEG_get_original_id(const ID *id);
 
-template<typename T, BLI_ENABLE_IF((blender::dna::is_ID_v<T>))> T *DEG_get_original(T *id)
+template<typename T> T *DEG_get_original(T *id)
 {
+  static_assert(blender::dna::is_ID_v<T>);
   return reinterpret_cast<T *>(DEG_get_original_id(reinterpret_cast<ID *>(id)));
 }
 
-template<typename T, BLI_ENABLE_IF((blender::dna::is_ID_v<T>))>
-const T *DEG_get_original(const T *id)
+template<typename T> const T *DEG_get_original(const T *id)
 {
+  static_assert(blender::dna::is_ID_v<T>);
   return reinterpret_cast<const T *>(DEG_get_original_id(reinterpret_cast<const ID *>(id)));
 }
 
