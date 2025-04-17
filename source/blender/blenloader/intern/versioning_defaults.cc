@@ -729,12 +729,10 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           if (node->type_legacy == SH_NODE_OUTPUT_WORLD) {
             node->location[0] = 200.0f;
             node->location[1] = 100.0f;
-            BKE_ntree_update_tag_node_property(world->nodetree, node);
           }
           else if (node->type_legacy == SH_NODE_BACKGROUND) {
             node->location[0] = -200.0f;
             node->location[1] = 100.0f;
-            BKE_ntree_update_tag_node_property(world->nodetree, node);
           }
         }
       }
