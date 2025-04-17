@@ -1055,8 +1055,8 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
        * as parts of paths. For example, the sub-paths in the compositor's File
        * Output node. */
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE)) {
-        /* Variable expression parse errors, for paths that support it. */
-        if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_VARIABLES) != 0) {
+        /* Template parse errors, for paths that support it. */
+        if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
           const blender::StringRef path = but->drawstr;
           const blender::Vector<VariableParseError> errors = BKE_validate_variable_syntax(path);
 

@@ -416,9 +416,9 @@ enum PropertyFlag {
   PROP_PATH_SUPPORTS_BLEND_RELATIVE = (1 << 15),
 
   /**
-   * Paths that are evaluated with variable syntax.
+   * Paths that are evaluated with templating.
    */
-  PROP_PATH_SUPPORTS_VARIABLES = (1 << 14),
+  PROP_PATH_SUPPORTS_TEMPLATES = (1 << 14),
 
   /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
   PROP_SKIP_PRESET = (1 << 11),
