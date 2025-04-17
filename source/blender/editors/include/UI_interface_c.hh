@@ -1876,6 +1876,7 @@ enum uiTooltipStyle {
   UI_TIP_STYLE_MONO,       /* Mono-spaced text. */
   UI_TIP_STYLE_IMAGE,      /* Image field. */
   UI_TIP_STYLE_SPACER,     /* Padding to separate sections. */
+  UI_TIP_STYLE_SHORTCUT,   /* Keyboard shortcut. */
 };
 
 enum uiTooltipColorID {

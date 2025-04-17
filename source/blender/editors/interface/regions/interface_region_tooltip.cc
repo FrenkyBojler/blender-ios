@@ -89,6 +89,9 @@
 #define UI_TIP_PADDING_X 1.95f
 #define UI_TIP_PADDING_Y 1.28f
 
+/* Padding to the left of right-aligned shortcut. */
+#define UI_TIP_SHORTCUT_PADDING 4.0f
+
 #define UI_TIP_MAXWIDTH 600
 #define UI_TIP_MAXIMAGEWIDTH 500
 #define UI_TIP_MAXIMAGEHEIGHT 300
@@ -344,6 +347,20 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
     }
     else if (field->format.style == UI_TIP_STYLE_SPACER) {
       bbox.ymax -= data->lineh * UI_TIP_SPACER;
+    }
+    else if (field->format.style == UI_TIP_STYLE_SHORTCUT) {
+      bbox.ymax += data->lineh;
+      // don't change line spacing. draw at top-right corner.
+      uiFontStyleDraw_Params fs_params{};
+      fs_params.align = UI_STYLE_TEXT_RIGHT;
+      fs_params.word_wrap = false;
+      rgb_float_to_uchar(drawcol, tip_colors[int(field->format.color_id)]);
+      UI_fontstyle_set(&data->fstyle);
+      rcti rect = data->bbox;
+      rect.ymin = rect.ymax - data->lineh - pad_y;
+      rect.xmax -= int(pad_x / 2.0f);
+      UI_fontstyle_draw(
+          &data->fstyle, &rect, field->text.c_str(), field->text.size(), drawcol, &fs_params);
     }
     else {
       BLI_assert(field->format.style == UI_TIP_STYLE_NORMAL);
@@ -968,12 +985,8 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
   /* Property context-toggle shortcut. */
   if (!prop_keymap.empty()) {
-    UI_tooltip_text_field_add(*data,
-                              fmt::format(fmt::runtime(TIP_("Shortcut: {}")), prop_keymap),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_VALUE,
-                              true);
+    UI_tooltip_text_field_add(
+        *data, prop_keymap, {}, UI_TIP_STYLE_SHORTCUT, UI_TIP_LC_VALUE, true);
   }
 
   if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
@@ -1343,6 +1356,8 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
                BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
 
   int i, fonth, fontw;
+  int fontw_first = 0;
+
   for (i = 0, fontw = 0, fonth = 0; i < data->fields.size(); i++) {
     uiTooltipField *field = &data->fields[i];
     ResultBLF info = {0};
@@ -1379,6 +1394,19 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
     if (field->format.style == UI_TIP_STYLE_IMAGE && field->image) {
       fonth += field->image->height;
       w = max_ii(w, field->image->width);
+    }
+
+    if (field->format.style == UI_TIP_STYLE_SHORTCUT) {
+      fonth -= h;
+      if (fontw_first) {
+        w = max_ii(w,
+                   fontw_first + (UI_TIP_SHORTCUT_PADDING * h) +
+                       BLF_width(font_id, field->text.c_str(), field->text.size()));
+      }
+    }
+
+    if (!fontw_first && w) {
+      fontw_first = w;
     }
 
     fontw = max_ii(fontw, w);
