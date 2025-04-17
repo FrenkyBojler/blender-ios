@@ -81,7 +81,7 @@ bool get_domeligth_color(T dome_light, float motionSampleTime, pxr::GfVec3f *col
   return has_color;
 }
 
-void USDDomeLightReader::create_world_material(Scene *scene, Main *bmain)
+void USDDomeLightReader::create_object(Scene *scene, Main *bmain)
 {
   USDImportDomeLightAttr attr;
 

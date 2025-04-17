@@ -4,19 +4,19 @@
 #pragma once
 
 #include "usd.hh"
-#include "usd_reader_xform.hh"
+#include "usd_reader_prim.hh"
 
 #include <pxr/usd/usdSkel/skeleton.h>
 
 namespace blender::io::usd {
 
-class USDDomeLightReader : public USDXformReader {
+class USDDomeLightReader : public USDPrimReader {
 
  public:
   USDDomeLightReader(const pxr::UsdPrim &prim,
                      const USDImportParams &import_params,
                      const ImportSettings &settings)
-      : USDXformReader(prim, import_params, settings)
+      : USDPrimReader(prim, import_params, settings)
   {
   }
 
@@ -25,7 +25,8 @@ class USDDomeLightReader : public USDXformReader {
     return bool(prim_);
   }
 
-  void create_world_material(Scene *scene, Main *bmain);
+  void create_object(Main * /*bmain*/) {};
+  void create_object(Scene *scene, Main *bmain);
 };
 
 }  // namespace blender::io::usd
