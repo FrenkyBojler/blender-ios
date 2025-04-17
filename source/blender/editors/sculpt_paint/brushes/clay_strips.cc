@@ -6,7 +6,7 @@
  * \ingroup edsculpt
  *
  * The Clay Strips brush displaces vertices toward the brush plane.
- * The displacement occurs in the direction parallel to the plane's normal.
+ * The displacement occurs in the direction of the plane's normal.
  * Only vertices located below the plane (in brush-local space) are affected.
  *
  * The magnitude of the displacement is determined by the product of the following factors:
@@ -132,23 +132,24 @@ static void calc_xy_distances(const Brush &brush,
                               const MutableSpan<float> r_distances)
 {
   const float roundness = brush.tip_roundness;
+  const float roundness_rcp = math::safe_rcp(roundness);
   const float hardness = 1.0f - roundness;
 
   for (const int i : xy_positions.index_range()) {
     const float2 local = math::abs(xy_positions[i]);
 
-    if (!(local.x <= 1.0f && local.y <= 1.0f)) {
+    if (local.x > 1.0f || local.y > 1.0f) {
       r_distances[i] = std::numeric_limits<float>::max();
       continue;
     }
     if (std::min(local.x, local.y) > hardness) {
       /* Corner, distance to the center of the corner circle. */
-      r_distances[i] = math::distance(float2(hardness), float2(local)) / roundness;
+      r_distances[i] = math::distance(float2(hardness), local) * roundness_rcp;
       continue;
     }
     if (std::max(local.x, local.y) > hardness) {
       /* Side, distance to the square XY axis. */
-      r_distances[i] = (std::max(local.x, local.y) - hardness) / roundness;
+      r_distances[i] = (std::max(local.x, local.y) - hardness) * roundness_rcp;
       continue;
     }
 
