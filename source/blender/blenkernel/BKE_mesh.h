@@ -80,12 +80,6 @@ void BKE_mesh_ensure_default_orig_index_customdata(Mesh *mesh);
 void BKE_mesh_ensure_default_orig_index_customdata_no_check(Mesh *mesh);
 
 /**
- * Free (or release) any data used by this mesh (does not free the mesh itself).
- * Only use for undo, in most cases `BKE_id_free(nullptr, me)` should be used.
- */
-void BKE_mesh_free_data_for_undo(Mesh *mesh);
-
-/**
  * Remove all geometry and derived data like caches from the mesh.
  */
 void BKE_mesh_clear_geometry(Mesh *mesh);
@@ -280,11 +274,14 @@ enum {
  * Collection of #MLoopNorSpace basic storage & pre-allocation.
  */
 struct MLoopNorSpaceArray {
-  MLoopNorSpace **lspacearr; /* Face corner aligned array */
-  struct LinkNode
-      *loops_pool; /* Allocated once, avoids to call BLI_linklist_prepend_arena() for each loop! */
-  char data_type;  /* Whether we store loop indices, or pointers to BMLoop. */
-  int spaces_num;  /* Number of clnors spaces defined in this array. */
+  /** Face corner aligned array. */
+  MLoopNorSpace **lspacearr;
+  /** Allocated once, avoids to call #BLI_linklist_prepend_arena() for each loop! */
+  struct LinkNode *loops_pool;
+  /** Whether we store loop indices, or pointers to #BMLoop. */
+  char data_type;
+  /** Number of `clnors` spaces defined in this array. */
+  int spaces_num;
   struct MemArena *mem;
 };
 /**

@@ -18,11 +18,11 @@ uint get_global_invocation_index()
   return gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * invocations_per_row;
 }
 
-vec2 decode_uv(uint encoded_uv)
+float2 decode_uv(uint encoded_uv)
 {
-  float u = float((encoded_uv >> 16) & 0xFFFFu) / 65535.0;
-  float v = float(encoded_uv & 0xFFFFu) / 65535.0;
-  return vec2(u, v);
+  float u = float((encoded_uv >> 16) & 0xFFFFu) / 65535.0f;
+  float v = float(encoded_uv & 0xFFFFu) / 65535.0f;
+  return float2(u, v);
 }
 
 bool is_set(uint i)
@@ -43,12 +43,12 @@ uint get_index(uint i)
   return (i >> 2) & 0x3FFFFFFFu;
 }
 
-vec3 subdiv_position_to_vec3(Position position)
+float3 subdiv_position_to_float3(Position position)
 {
-  return vec3(position.x, position.y, position.z);
+  return float3(position.x, position.y, position.z);
 }
 
-void add_newell_cross_v3_v3v3(inout vec3 n, vec3 v_prev, vec3 v_curr)
+void add_newell_cross_v3_v3v3(inout float3 n, float3 v_prev, float3 v_curr)
 {
   n[0] += (v_prev[1] - v_curr[1]) * (v_prev[2] + v_curr[2]);
   n[1] += (v_prev[2] - v_curr[2]) * (v_prev[0] + v_curr[0]);

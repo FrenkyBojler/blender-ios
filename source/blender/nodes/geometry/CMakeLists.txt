@@ -108,6 +108,7 @@ set(SRC
   nodes/node_geo_input_face_smooth.cc
   nodes/node_geo_input_id.cc
   nodes/node_geo_input_index.cc
+  nodes/node_geo_input_instance_bounds.cc
   nodes/node_geo_input_instance_rotation.cc
   nodes/node_geo_input_instance_scale.cc
   nodes/node_geo_input_instance_transform.cc
@@ -324,7 +325,7 @@ if(WITH_TBB)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_OPENSUBDIV)
