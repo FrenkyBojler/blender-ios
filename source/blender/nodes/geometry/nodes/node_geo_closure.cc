@@ -10,6 +10,9 @@
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 
+#include "BKE_compute_context_cache.hh"
+#include "BKE_main_invariants.hh"
+
 #include "BLO_read_write.hh"
 
 namespace blender::nodes::node_geo_closure_cc {
@@ -186,7 +189,52 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 
 static wmOperatorStatus sync_sockets_exec(bContext *C, wmOperator * /*op*/)
 {
-  printf("sync sockets\n");
+  Main &bmain = *CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  bNodeTree *closure_tree = snode->edittree;
+  closure_tree->ensure_topology_cache();
+  bNode *closure_output_node = bke::node_get_active(*closure_tree);
+  const bNodeSocket &closure_socket = closure_output_node->output_socket(0);
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *source_context = ed::space_node::compute_context_for_edittree_socket(
+      *snode, compute_context_cache, closure_socket);
+  if (!source_context) {
+    return OPERATOR_CANCELLED;
+  }
+  const ComputeContext *evaluation_context_generic =
+      ed::space_node::compute_context_for_closure_evaluation(
+          source_context, closure_socket, compute_context_cache, {});
+  if (!evaluation_context_generic) {
+    return OPERATOR_CANCELLED;
+  }
+  const auto *evaluation_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
+      evaluation_context_generic);
+  const bNode *evaluation_node = evaluation_context->evaluate_node();
+  if (!evaluation_node) {
+    return OPERATOR_CANCELLED;
+  }
+  const auto *evaluate_storage = static_cast<const NodeGeometryEvaluateClosure *>(
+      evaluation_node->storage);
+
+  // TODO: reuse old ids
+  socket_items::clear<ClosureInputItemsAccessor>(*closure_output_node);
+  socket_items::clear<ClosureOutputItemsAccessor>(*closure_output_node);
+
+  for (const int i : IndexRange(evaluate_storage->input_items.items_num)) {
+    const NodeGeometryEvaluateClosureInputItem &evaluate_item =
+        evaluate_storage->input_items.items[i];
+    socket_items::add_item_with_socket_type_and_name<ClosureInputItemsAccessor>(
+        *closure_output_node, eNodeSocketDatatype(evaluate_item.socket_type), evaluate_item.name);
+  }
+  for (const int i : IndexRange(evaluate_storage->output_items.items_num)) {
+    const NodeGeometryEvaluateClosureOutputItem &evaluate_item =
+        evaluate_storage->output_items.items[i];
+    socket_items::add_item_with_socket_type_and_name<ClosureOutputItemsAccessor>(
+        *closure_output_node, eNodeSocketDatatype(evaluate_item.socket_type), evaluate_item.name);
+  }
+
+  BKE_ntree_update_tag_node_property(closure_tree, closure_output_node);
+  BKE_main_ensure_invariants(bmain, closure_tree->id);
   return OPERATOR_FINISHED;
 }
 
@@ -202,6 +250,9 @@ static void node_operators()
     ot->poll = [](bContext *C) {
       SpaceNode *snode = CTX_wm_space_node(C);
       if (!snode) {
+        return false;
+      }
+      if (!snode->edittree) {
         return false;
       }
       bNode *active_node = bke::node_get_active(*snode->edittree);
