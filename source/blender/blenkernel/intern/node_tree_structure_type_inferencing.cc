@@ -309,6 +309,11 @@ static void propagate_right_to_left(const bNodeTree &tree,
           ouput_requirement = merge(ouput_requirement,
                                     input_requirements[socket->index_in_all_inputs()]);
         }
+
+        /* When a data requirement could be provided by multiple node inputs (i.e. only a single
+         * node input involved in a math operation has to be a volume grid for the output to be a
+         * grid), it's better to not propagate the data requirement than incorrectly saying that
+         * all of the inputs have it. */
         Vector<int, 8> inputs_with_links;
         for (const int input : interface.outputs[output].linked_inputs) {
           const bNodeSocket &input_socket = *input_sockets[input];
