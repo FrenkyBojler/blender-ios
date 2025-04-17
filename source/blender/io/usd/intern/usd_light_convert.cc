@@ -41,47 +41,7 @@
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.usd"};
 
-namespace usdtokens {
-// Attribute names.
-static const pxr::TfToken color("color", pxr::TfToken::Immortal);
-static const pxr::TfToken intensity("intensity", pxr::TfToken::Immortal);
-static const pxr::TfToken texture_file("texture:file", pxr::TfToken::Immortal);
-}  // namespace usdtokens
-
 namespace {
-
-/**
- * If the given attribute has an authored value, return its value in the r_value
- * out parameter.
- *
- * We wish to support older UsdLux APIs in older versions of USD.  For example,
- * in previous versions of the API, shader input attributes did not have the
- * "inputs:" prefix.  One can provide the older input attribute name in the
- * 'fallback_attr_name' argument, and that attribute will be queried if 'attr'
- * doesn't exist or doesn't have an authored value.
- */
-template<typename T>
-bool get_authored_value(const pxr::UsdAttribute &attr,
-                        const double motionSampleTime,
-                        const pxr::UsdPrim &prim,
-                        const pxr::TfToken fallback_attr_name,
-                        T *r_value)
-{
-  if (attr && attr.HasAuthoredValue()) {
-    return attr.Get<T>(r_value, motionSampleTime);
-  }
-
-  if (!prim || fallback_attr_name.IsEmpty()) {
-    return false;
-  }
-
-  pxr::UsdAttribute fallback_attr = prim.GetAttribute(fallback_attr_name);
-  if (fallback_attr && fallback_attr.HasAuthoredValue()) {
-    return fallback_attr.Get<T>(r_value, motionSampleTime);
-  }
-
-  return false;
-}
 
 /**
  * Helper struct for retrieving shader information when traversing a world material
@@ -376,136 +336,16 @@ void world_material_to_dome_light(const USDExportParams &params,
   xform_api.SetRotate(rot_vec, pxr::UsdGeomXformCommonAPI::RotationOrderXYZ);
 }
 
-template<typename T>
-void set_domeligth_tex_and_color(
-  const USDImportParams &params, Main *bmain,
-  bNodeTree *ntree, bNode *output, bNode *bgshader,
-  T dome_light, float motionSampleTime)
-{
-  /* Get the dome light texture file and color. */
-  pxr::SdfAssetPath tex_path;
-  bool has_tex = get_authored_value(dome_light.GetTextureFileAttr(),
-                                    motionSampleTime,
-                                    dome_light.GetPrim(),
-                                    usdtokens::texture_file,
-                                    &tex_path);
-
-  pxr::GfVec3f color;
-  bool has_color = get_authored_value(
-      dome_light.GetColorAttr(), motionSampleTime, dome_light.GetPrim(), usdtokens::color, &color);
-
-  if (!has_tex) {
-    /* No texture file is authored on the dome light.  Set the color, if it was authored,
-     * and return early. */
-    if (has_color) {
-      bNodeSocket *color_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
-      copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, color.data());
-    }
-
-    return;
-  }
-
-  /* If the light has authored color, create a color multiply node for the environment
-   * texture output. */
-  bNode *mult = nullptr;
-
-  if (has_color) {
-    mult = append_node(bgshader, SH_NODE_VECTOR_MATH, "Vector", "Color", ntree, 200);
-
-    if (!mult) {
-      CLOG_WARN(&LOG, "Couldn't create vector multiply node");
-      return;
-    }
-
-    mult->custom1 = NODE_VECTOR_MATH_MULTIPLY;
-
-    /* Set the color in the vector math node's second socket. */
-    bNodeSocket *vec_sock = bke::node_find_socket(*mult, SOCK_IN, "Vector");
-    if (vec_sock) {
-      vec_sock = vec_sock->next;
-    }
-
-    if (vec_sock) {
-      copy_v3_v3(((bNodeSocketValueVector *)vec_sock->default_value)->value, color.data());
-    }
-    else {
-      CLOG_WARN(&LOG, "Couldn't find vector multiply second vector socket");
-    }
-  }
-
-  bNode *tex = nullptr;
-
-  /* Append an environment texture node to the mult node, if it was created, or directly to
-   * the background shader. */
-  if (mult) {
-    tex = append_node(mult, SH_NODE_TEX_ENVIRONMENT, "Color", "Vector", ntree, 400);
-  }
-  else {
-    tex = append_node(bgshader, SH_NODE_TEX_ENVIRONMENT, "Color", "Color", ntree, 400);
-  }
-
-  if (!tex) {
-    CLOG_WARN(&LOG, "Couldn't create world environment texture node");
-    return;
-  }
-
-  bNode *mapping = append_node(tex, SH_NODE_MAPPING, "Vector", "Vector", ntree, 200);
-  if (!mapping) {
-    CLOG_WARN(&LOG, "Couldn't create mapping node");
-    return;
-  }
-
-  const bNode *tex_coord = append_node(
-      mapping, SH_NODE_TEX_COORD, "Generated", "Vector", ntree, 200);
-  if (!tex_coord) {
-    CLOG_WARN(&LOG, "Couldn't create texture coordinate node");
-    return;
-  }
-
-  /* Load the texture image. */
-  std::string resolved_path = tex_path.GetResolvedPath();
-
-  if (resolved_path.empty()) {
-    CLOG_WARN(&LOG, "Couldn't get resolved path for asset %s", tex_path.GetAssetPath().c_str());
-    return;
-  }
-
-  Image *image = load_image(resolved_path, bmain, params);
-  if (!image) {
-    CLOG_WARN(&LOG, "Couldn't load image file %s", resolved_path.c_str());
-    return;
-  }
-
-  tex->id = &image->id;
-}
-
-template<typename T>
-void set_domeligth_intensity(const USDImportParams &params, 
-  bNode *bgshader, T dome_light, float motionSampleTime)
-{
-  /* Set the background shader intensity. */
-  float intensity = 1.0f;
-  get_authored_value(dome_light.GetIntensityAttr(),
-                     motionSampleTime,
-                     dome_light.GetPrim(),
-                     usdtokens::intensity,
-                     &intensity);
-
-  intensity *= params.light_intensity_scale;
-
-  bNodeSocket *strength_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Strength");
-  ((bNodeSocketValueFloat *)strength_sock->default_value)->value = intensity;
-}
-
 /* Import the dome light as a world material. */
 
 void dome_light_to_world_material(const USDImportParams &params,
                                   Scene *scene,
                                   Main *bmain,
-                                  const pxr::UsdPrim &dome_light,
+                                  const USDImportDomeLightAttr &dome_light_attr,
+                                  const pxr::UsdPrim &prim,
                                   const double motionSampleTime)
 {
-  if (!(scene && scene->world && dome_light)) {
+  if (!(scene && scene->world && prim)) {
     return;
   }
 
@@ -575,28 +415,111 @@ void dome_light_to_world_material(const USDImportParams &params,
     bke::node_remove_link(ntree, *shader_input->link);
   }
 
-  if (dome_light.IsA<pxr::UsdLuxDomeLight>()) {
-    pxr::UsdLuxDomeLight concrete_dome_light = pxr::UsdLuxDomeLight(dome_light);
-    set_domeligth_intensity(params, bgshader, concrete_dome_light, motionSampleTime);
-    set_domeligth_tex_and_color<pxr::UsdLuxDomeLight>(
-      params, bmain, ntree, output, bgshader, concrete_dome_light, motionSampleTime);
+  /* Set the background shader intensity. */
+  float intensity = dome_light_attr.intensity * params.light_intensity_scale;
+
+  bNodeSocket *strength_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Strength");
+  ((bNodeSocketValueFloat *)strength_sock->default_value)->value = intensity;
+
+  if (!dome_light_attr.has_tex) {
+    /* No texture file is authored on the dome light.  Set the color, if it was authored,
+     * and return early. */
+    if (dome_light_attr.has_color) {
+      bNodeSocket *color_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
+      copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value,
+                 dome_light_attr.color.data());
+    }
+
+    bke::node_set_active(*ntree, *output);
+    BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
+
+    return;
   }
-  else if (dome_light.IsA<pxr::UsdLuxDomeLight_1>()) {
-    pxr::UsdLuxDomeLight_1 concrete_dome_light = pxr::UsdLuxDomeLight_1(dome_light);
-    set_domeligth_intensity(params, bgshader, concrete_dome_light, motionSampleTime);
-    set_domeligth_tex_and_color<pxr::UsdLuxDomeLight_1>(
-        params, bmain, ntree, output, bgshader, concrete_dome_light, motionSampleTime);
+
+  /* If the light has authored color, create a color multiply node for the environment
+   * texture output. */
+  bNode *mult = nullptr;
+
+  if (dome_light_attr.has_color) {
+    mult = append_node(bgshader, SH_NODE_VECTOR_MATH, "Vector", "Color", ntree, 200);
+
+    if (!mult) {
+      CLOG_WARN(&LOG, "Couldn't create vector multiply node");
+      return;
+    }
+
+    mult->custom1 = NODE_VECTOR_MATH_MULTIPLY;
+
+    /* Set the color in the vector math node's second socket. */
+    bNodeSocket *vec_sock = bke::node_find_socket(*mult, SOCK_IN, "Vector");
+    if (vec_sock) {
+      vec_sock = vec_sock->next;
+    }
+
+    if (vec_sock) {
+      copy_v3_v3(((bNodeSocketValueVector *)vec_sock->default_value)->value, dome_light_attr.color.data());
+    }
+    else {
+      CLOG_WARN(&LOG, "Couldn't find vector multiply second vector socket");
+    }
   }
+
+  bNode *tex = nullptr;
+
+  /* Append an environment texture node to the mult node, if it was created, or directly to
+   * the background shader. */
+  if (mult) {
+    tex = append_node(mult, SH_NODE_TEX_ENVIRONMENT, "Color", "Vector", ntree, 400);
+  }
+  else {
+    tex = append_node(bgshader, SH_NODE_TEX_ENVIRONMENT, "Color", "Color", ntree, 400);
+  }
+
+  if (!tex) {
+    CLOG_WARN(&LOG, "Couldn't create world environment texture node");
+    return;
+  }
+
+  bNode *mapping = append_node(tex, SH_NODE_MAPPING, "Vector", "Vector", ntree, 200);
+  if (!mapping) {
+    CLOG_WARN(&LOG, "Couldn't create mapping node");
+    return;
+  }
+
+  const bNode *tex_coord = append_node(
+      mapping, SH_NODE_TEX_COORD, "Generated", "Vector", ntree, 200);
+  if (!tex_coord) {
+    CLOG_WARN(&LOG, "Couldn't create texture coordinate node");
+    return;
+  }
+
+  /* Load the texture image. */
+  std::string resolved_path = dome_light_attr.tex_path.GetResolvedPath();
+
+  if (resolved_path.empty()) {
+    CLOG_WARN(&LOG,
+              "Couldn't get resolved path for asset %s",
+              dome_light_attr.tex_path.GetAssetPath().c_str());
+    return;
+  }
+
+  Image *image = load_image(resolved_path, bmain, params);
+  if (!image) {
+    CLOG_WARN(&LOG, "Couldn't load image file %s", resolved_path.c_str());
+    return;
+  }
+
+  tex->id = &image->id;
 
   /* Set the transform. */
   pxr::UsdGeomXformCache xf_cache(motionSampleTime);
-  pxr::GfMatrix4d xf = xf_cache.GetLocalToWorldTransform(dome_light.GetPrim());
+  pxr::GfMatrix4d xf = xf_cache.GetLocalToWorldTransform(prim.GetPrim());
 
-  pxr::UsdStageRefPtr stage = dome_light.GetPrim().GetStage();
+  pxr::UsdStageRefPtr stage = prim.GetPrim().GetStage();
 
   if (!stage) {
     CLOG_WARN(
-        &LOG, "Couldn't get stage for dome light %s", dome_light.GetPrim().GetPath().GetText());
+        &LOG, "Couldn't get stage for dome light %s", prim.GetPrim().GetPath().GetText());
     return;
   }
 
@@ -615,11 +538,11 @@ void dome_light_to_world_material(const USDImportParams &params,
   /* Convert degrees to radians. */
   rot_vec *= M_PI / 180.0f;
 
-  // if (bNodeSocket *socket = bke::node_find_socket(*mapping, SOCK_IN, "Rotation")) {
-  //   bNodeSocketValueVector *rot_value = static_cast<bNodeSocketValueVector *>(
-  //       socket->default_value);
-  //   copy_v3_v3(rot_value->value, rot_vec.data());
-  // }
+  if (bNodeSocket *socket = bke::node_find_socket(*mapping, SOCK_IN, "Rotation")) {
+    bNodeSocketValueVector *rot_value = static_cast<bNodeSocketValueVector *>(
+        socket->default_value);
+    copy_v3_v3(rot_value->value, rot_vec.data());
+  }
 
   bke::node_set_active(*ntree, *output);
   DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);

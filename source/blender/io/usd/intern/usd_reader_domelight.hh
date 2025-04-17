@@ -12,20 +12,17 @@ namespace blender::io::usd {
 
 class USDDomeLightReader : public USDXformReader {
 
- private:
-  pxr::UsdPrim light_;
-
  public:
   USDDomeLightReader(const pxr::UsdPrim &prim,
-                    const USDImportParams &import_params,
-                    const ImportSettings &settings)
-      : USDXformReader(prim, import_params, settings), light_(prim)
+                     const USDImportParams &import_params,
+                     const ImportSettings &settings)
+      : USDXformReader(prim, import_params, settings)
   {
   }
 
   bool valid() const override
   {
-    return bool(light_);
+    return bool(prim_);
   }
 
   void create_world_material(Scene *scene, Main *bmain);
