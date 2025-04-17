@@ -1091,7 +1091,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
   /* Get the visible drawings. */
   const Vector<ed::greasepencil::DrawingInfo> drawings =
-      ed::greasepencil::retrieve_visible_drawings(scene, grease_pencil, true, object.mode & OB_MODE_PAINT_GREASE_PENCIL);
+      ed::greasepencil::retrieve_visible_drawings(
+          scene, grease_pencil, true, object.mode & OB_MODE_PAINT_GREASE_PENCIL);
 
   /* First, count how many vertices and triangles are needed for the whole object. Also record the
    * offsets into the curves for the vertices and triangles. */
