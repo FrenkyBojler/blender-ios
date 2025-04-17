@@ -158,19 +158,22 @@ class Context : public compositor::Context {
 
   int2 get_render_size() const override
   {
-    /* If a render result already exist, use its size, since the compositor operates on the render
-     * settings at which the render happened. Otherwise, use the size from the render data. */
     Render *render = RE_GetSceneRender(input_data_.scene);
     RenderResult *render_result = RE_AcquireResultRead(render);
+
+    /* If a render result already exist, use its size, since the compositor operates on the render
+     * settings at which the render happened. Otherwise, use the size from the render data. */
+    int2 size;
     if (render_result) {
-      const int2 size = int2(render_result->rectx, render_result->recty);
-      RE_ReleaseResult(render);
-      return size;
+      size = int2(render_result->rectx, render_result->recty);
+    }
+    else {
+      BKE_render_resolution(input_data_.render_data, true, &size.x, &size.y);
     }
 
-    int width, height;
-    BKE_render_resolution(input_data_.render_data, true, &width, &height);
-    return int2(width, height);
+    RE_ReleaseResult(render);
+
+    return size;
   }
 
   rcti get_compositing_region() const override
