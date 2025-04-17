@@ -369,7 +369,7 @@ void attribute_storage_blend_write_prepare(
   Set<StringRef, 16> all_names_written;
   data.foreach([&](Attribute &attr) {
     if (!U.experimental.use_attribute_storage_write_debug) {
-/* In version 4.5, all attribute data is written in the #CustomData format (at least when the
+      /* In version 4.5, all attribute data is written in the #CustomData format (at least when the
        * debug option is not enabled), so the #Attribute needs to be converted to a
        * #CustomDataLayer in the proper list. This is only relevant when #AttributeStorage is
        * actually used at runtime. */
@@ -380,7 +380,7 @@ void attribute_storage_blend_write_prepare(
           layer.data = array_data->data;
           layer.sharing_info = array_data->sharing_info.get();
 
-/* Because the #Attribute::name_ `std::string` has no length limit (unlike
+          /* Because the #Attribute::name_ `std::string` has no length limit (unlike
            * #CustomDataLayer::name), we have to manually make the name unique in case it exceeds
            * the limit. */
           BLI_uniquename_cb(
@@ -393,8 +393,8 @@ void attribute_storage_blend_write_prepare(
 
           layers_to_write.lookup(attr.domain())->append(layer);
         }
-              }
-return;
+      }
+      return;
     }
 
     all_names_written.add(attr.name());
@@ -404,7 +404,7 @@ return;
     attribute_dna.domain = int8_t(attr.domain());
     attribute_dna.storage_type = int8_t(attr.storage_type());
 
-/* The idea is to use a separate DNA struct for each #AttrStorageType. They each need to have a
+    /* The idea is to use a separate DNA struct for each #AttrStorageType. They each need to have a
      * unique address (while writing a specific ID anyway) in order to be identified when
      * reading the file, so we add them to the resource scope which outlives this function call.
      * Using a #ResourceScope is a simple way to get pointer stability when adding every new data
@@ -449,13 +449,14 @@ void AttributeStorage::blend_write(BlendWriter &writer,
   for (const AttributeDNA &attr_dna : write_data.attributes) {
     BLO_write_string(&writer, attr_dna.name);
     switch (AttrStorageType(attr_dna.storage_type)) {
-      case AttrStorageType::Single:
+      case AttrStorageType::Single: {
         AttributeSingleDNA *single_dna = static_cast<AttributeSingleDNA *>(attr_dna.data);
         BLO_write_struct(&writer, AttributeSingleDNA, single_dna);
         write_shared_array(
             writer, AttrType(attr_dna.data_type), single_dna->data, 1, *single_dna->sharing_info);
         break;
-      case AttrStorageType::Array:
+      }
+      case AttrStorageType::Array: {
         AttributeArrayDNA *array_dna = static_cast<AttributeArrayDNA *>(attr_dna.data);
         BLO_write_struct(&writer, AttributeArrayDNA, array_dna);
         write_shared_array(writer,
@@ -464,6 +465,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
                            array_dna->size,
                            *array_dna->sharing_info);
         break;
+      }
     }
   }
 
