@@ -142,7 +142,7 @@ void Light::tag_update(Scene *scene)
         /* If the light shader is modified, the number of lights in the scene might change.
          * Tag light manager for update. */
         scene->light_manager->tag_update(scene, LightManager::LIGHT_MODIFIED);
-        return;
+        break;
       }
     }
   }
