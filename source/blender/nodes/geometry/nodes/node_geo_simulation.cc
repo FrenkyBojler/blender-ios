@@ -868,18 +868,20 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         socket_items::clear<SimulationItemsAccessor>(output_node);
         socket_items::add_item_with_socket_type_and_name<SimulationItemsAccessor>(
             output_node, type, name.c_str());
+        update_node_declaration_and_sockets(params.node_tree, input_node);
+        update_node_declaration_and_sockets(params.node_tree, output_node);
         if (in_out == SOCK_IN) {
-          params.update_and_connect_available_socket(output_node, name);
+          params.connect_available_socket(output_node, name);
         }
         else {
-          params.update_and_connect_available_socket(input_node, name);
+          params.connect_available_socket(input_node, name);
         }
         params.node_tree.ensure_topology_cache();
         bke::node_add_link(params.node_tree,
                            input_node,
-                           input_node.output_socket(0),
+                           input_node.output_socket(1),
                            output_node,
-                           output_node.input_socket(0));
+                           output_node.input_socket(1));
       });
 }
 
