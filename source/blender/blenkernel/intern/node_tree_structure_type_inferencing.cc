@@ -299,29 +299,25 @@ static void propagate_right_to_left(const bNodeTree &tree,
       const Span<const bNodeSocket *> output_sockets = node->output_sockets();
       const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
 
-      Array<Vector<int>> linked_outputs(input_sockets.size());
       for (const int output : interface.outputs.index_range()) {
-        for (const int input : interface.outputs[output].linked_inputs) {
-          linked_outputs[input].append(output);
-        }
-      }
-
-      for (const int input_index : input_sockets.index_range()) {
-        const bNodeSocket &input_socket = *input_sockets[input_index];
-        if (!input_socket.is_available()) {
-          continue;
-        }
-        DataRequirement &requirement = input_requirements[input_socket.index_in_all_inputs()];
-        for (const int output_index : linked_outputs[input_index]) {
-          const bNodeSocket &output_socket = *output_sockets[output_index];
-          if (!output_socket.is_available()) {
+        const bNodeSocket &output_socket = *output_sockets[output];
+        DataRequirement ouput_requirement = DataRequirement::None;
+        for (const bNodeSocket *socket : output_socket.directly_linked_sockets()) {
+          if (!socket->is_available()) {
             continue;
           }
-          for (const bNodeSocket *socket : output_socket.directly_linked_sockets()) {
-            if (!socket->is_available()) {
-              continue;
-            }
-            requirement = merge(requirement, input_requirements[socket->index_in_all_inputs()]);
+          ouput_requirement = merge(ouput_requirement,
+                                    input_requirements[socket->index_in_all_inputs()]);
+        }
+        const Span<int> linked_inputs = interface.outputs[output].linked_inputs;
+        if (linked_inputs.size() == 1) {
+          const bNodeSocket &input_socket = *input_sockets[linked_inputs.first()];
+          input_requirements[input_socket.index_in_all_inputs()] = ouput_requirement;
+        }
+        else {
+          for (const int input : linked_inputs) {
+            const bNodeSocket &input_socket = *input_sockets[input];
+            input_requirements[input_socket.index_in_all_inputs()] = DataRequirement::None;
           }
         }
       }
