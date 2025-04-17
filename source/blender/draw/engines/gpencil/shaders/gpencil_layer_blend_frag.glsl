@@ -18,10 +18,10 @@ void main()
   color.a = 1.0f - textureLod(revealBuf, screen_uv, 0).r;
 
   float mask = textureLod(maskBuf, screen_uv, 0).r;
-  mask *= blendOpacity;
+  mask *= blend_opacity;
 
   fragColor = float4(1.0f, 0.0f, 1.0f, 1.0f);
   fragRevealage = float4(1.0f, 0.0f, 1.0f, 1.0f);
 
-  blend_mode_output(blendMode, color, mask, fragColor, fragRevealage);
+  blend_mode_output(blend_mode, color, mask, fragColor, fragRevealage);
 }

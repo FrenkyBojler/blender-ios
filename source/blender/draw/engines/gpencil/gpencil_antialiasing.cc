@@ -31,9 +31,9 @@ void Instance::antialiasing_init()
     pass.bind_texture("blendTex", &this->color_tx);
     pass.bind_texture("colorTex", &this->color_tx);
     pass.bind_texture("revealTex", &this->reveal_tx);
-    pass.push_constant("doAntiAliasing", false);
-    pass.push_constant("onlyAlpha", this->draw_wireframe);
-    pass.push_constant("viewportMetrics", metrics);
+    pass.push_constant("do_anti_aliasing", false);
+    pass.push_constant("only_alpha", this->draw_wireframe);
+    pass.push_constant("viewport_metrics", metrics);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     return;
   }
@@ -71,8 +71,8 @@ void Instance::antialiasing_init()
     pass.shader_set(ShaderCache::get().antialiasing[0].get());
     pass.bind_texture("colorTex", &this->color_tx);
     pass.bind_texture("revealTex", &this->reveal_tx);
-    pass.push_constant("viewportMetrics", metrics);
-    pass.push_constant("lumaWeight", luma_weight);
+    pass.push_constant("viewport_metrics", metrics);
+    pass.push_constant("luma_weight", luma_weight);
     pass.clear_color(float4(0.0f));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
@@ -85,7 +85,7 @@ void Instance::antialiasing_init()
     pass.bind_texture("edgesTex", &this->smaa_edge_tx);
     pass.bind_texture("areaTex", &this->smaa_area_tx);
     pass.bind_texture("searchTex", &this->smaa_search_tx);
-    pass.push_constant("viewportMetrics", metrics);
+    pass.push_constant("viewport_metrics", metrics);
     pass.clear_color(float4(0.0f));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
@@ -98,9 +98,9 @@ void Instance::antialiasing_init()
     pass.bind_texture("blendTex", &this->smaa_weight_tx);
     pass.bind_texture("colorTex", &this->color_tx);
     pass.bind_texture("revealTex", &this->reveal_tx);
-    pass.push_constant("doAntiAliasing", true);
-    pass.push_constant("onlyAlpha", this->draw_wireframe);
-    pass.push_constant("viewportMetrics", metrics);
+    pass.push_constant("do_anti_aliasing", true);
+    pass.push_constant("only_alpha", this->draw_wireframe);
+    pass.push_constant("viewport_metrics", metrics);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 }

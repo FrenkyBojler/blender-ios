@@ -26,7 +26,7 @@ void main()
 
 #elif SMAA_STAGE == 2
   /* Resolve both buffers. */
-  if (doAntiAliasing) {
+  if (do_anti_aliasing) {
     out_color = SMAANeighborhoodBlendingPS(uvs, offset[0], colorTex, blendTex);
     out_reveal = SMAANeighborhoodBlendingPS(uvs, offset[0], revealTex, blendTex);
   }
@@ -42,7 +42,7 @@ void main()
   /* Add the alpha. */
   out_color.a = 1.0f - out_reveal.a;
 
-  if (onlyAlpha) {
+  if (only_alpha) {
     /* Special case in wire-frame X-ray mode. */
     out_color = float4(0.0f);
     out_reveal.rgb = out_reveal.aaa;

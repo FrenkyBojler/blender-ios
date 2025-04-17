@@ -42,7 +42,7 @@ float3 gpencil_lighting()
     /* Lambertian falloff */
     if (type != GP_LIGHT_TYPE_AMBIENT) {
       L /= sqrt(L_len_sqr);
-      vis *= clamp(dot(gpNormal, L), 0.0f, 1.0f);
+      vis *= clamp(dot(gp_normal, L), 0.0f, 1.0f);
     }
     light_accum += vis * gp_lights[i]._color;
   }
