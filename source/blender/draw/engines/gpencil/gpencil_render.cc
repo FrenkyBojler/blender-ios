@@ -66,7 +66,8 @@ static void render_init_buffers(const DRWContext *draw_ctx,
                                 RenderEngine *engine,
                                 RenderLayer *render_layer,
                                 const Depsgraph *depsgraph,
-                                const rcti *rect)
+                                const rcti *rect,
+                                const bool separated_pass)
 {
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   const int2 size = int2(draw_ctx->viewport_size_get());
@@ -91,9 +92,9 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     remap_depth(view, {pix_z, rpass_z_src->rectx * rpass_z_src->recty});
   }
 
-  const bool do_region = (scene->r.mode & R_BORDER) != 0;
+  const bool do_region = (!separated_pass) && ((scene->r.mode & R_BORDER) != 0);
   const bool do_clear_z = !pix_z || do_region;
-  const bool do_clear_col = !pix_col || do_region;
+  const bool do_clear_col = separated_pass || (!pix_col) || do_region;
 
   /* FIXME(fclem): we have a precision loss in the depth buffer because of this re-upload.
    * Find where it comes from! */
@@ -226,6 +227,22 @@ static void render_result_combined(RenderLayer *rl,
                              rp->ibuf->float_buffer.data);
 }
 
+static void render_result_separated_pass(RenderPass *rp, Instance &instance, const rcti *rect)
+{
+  Framebuffer read_fb;
+  read_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(instance.accumulation_tx));
+  GPU_framebuffer_bind(read_fb);
+  GPU_framebuffer_read_color(read_fb,
+                             rect->xmin,
+                             rect->ymin,
+                             BLI_rcti_size_x(rect),
+                             BLI_rcti_size_y(rect),
+                             4,
+                             0,
+                             GPU_DATA_FLOAT,
+                             rp->ibuf->float_buffer.data);
+}
+
 void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, const rcti rect)
 {
   const char *viewname = RE_GetActiveRenderView(engine->re);
@@ -238,7 +255,7 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
   Manager &manager = *DRW_manager_get();
 
   render_set_view(engine, depsgraph);
-  render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect);
+  render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect, false);
   inst.init();
 
   inst.camera = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
@@ -260,26 +277,37 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
 
   manager.end_sync();
 
-  const float aa_radius = clamp_f(draw_ctx->scene->r.gauss, 0.0f, 100.0f);
-  const int sample_count = draw_ctx->scene->grease_pencil_settings.aa_samples;
-  for (auto i : IndexRange(sample_count)) {
-    float2 aa_offset = Instance::antialiasing_sample_get(i, sample_count) * aa_radius;
-    aa_offset = 2.0f * aa_offset / float2(inst.render_color_tx.size());
-    render_set_view(engine, depsgraph, aa_offset);
-    render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect);
+  auto render_frame = [&](const bool separated_pass) {
+    const float aa_radius = clamp_f(draw_ctx->scene->r.gauss, 0.0f, 100.0f);
+    const int sample_count = draw_ctx->scene->grease_pencil_settings.aa_samples;
+    for (auto i : IndexRange(sample_count)) {
+      float2 aa_offset = Instance::antialiasing_sample_get(i, sample_count) * aa_radius;
+      aa_offset = 2.0f * aa_offset / float2(inst.render_color_tx.size());
+      render_set_view(engine, depsgraph, aa_offset);
+      render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect, separated_pass);
 
-    /* Render the gpencil object and merge the result to the underlying render. */
-    inst.draw(manager);
+      /* Render the gpencil object and merge the result to the underlying render. */
+      inst.draw(manager);
 
-    /* Weight of this render SSAA sample. The sum of previous samples is weighted by `1 - weight`.
-     * This diminishes after each new sample as we want all samples to be equally weighted inside
-     * the final result (inside the combined buffer). This weighting scheme allows to always store
-     * the resolved result making it ready for in-progress display or read-back. */
-    const float weight = 1.0f / (1.0f + i);
-    inst.antialiasing_accumulate(manager, weight);
+      /* Weight of this render SSAA sample. The sum of previous samples is weighted by `1 -
+       * weight`. This diminishes after each new sample as we want all samples to be equally
+       * weighted inside the final result (inside the combined buffer). This weighting scheme
+       * allows to always store the resolved result making it ready for in-progress display or
+       * read-back. */
+      const float weight = 1.0f / (1.0f + i);
+      inst.antialiasing_accumulate(manager, weight);
+    }
+  };
+
+  render_frame(false);
+  render_result_combined(render_layer, viewname, inst, &rect);
+
+  RenderPass *rp = RE_pass_find_by_name(render_layer, RE_PASSNAME_GREASE_PENCIL, viewname);
+  if (rp) {
+    render_frame(true);
+    render_result_separated_pass(rp, inst, &rect);
   }
 
-  render_result_combined(render_layer, viewname, inst, &rect);
   render_result_z(draw_ctx, render_layer, viewname, inst, &rect);
 }
 

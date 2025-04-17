@@ -246,6 +246,8 @@ class Film {
         return data_.cryptomatte_asset_id;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL:
         return data_.cryptomatte_material_id;
+      case EEVEE_RENDER_PASS_GREASE_PENCIL:
+        return data_.grease_pencil_id;
       default:
         return -1;
     }
@@ -325,6 +327,9 @@ class Film {
         break;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL:
         build_cryptomatte_passes(RE_PASSNAME_CRYPTOMATTE_MATERIAL);
+        break;
+      case EEVEE_RENDER_PASS_GREASE_PENCIL:
+        result.append(RE_PASSNAME_GREASE_PENCIL);
         break;
       default:
         BLI_assert(0);

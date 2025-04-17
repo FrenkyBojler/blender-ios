@@ -48,6 +48,7 @@ void RenderBuffers::init()
   data.shadow_id = pass_index_get(EEVEE_RENDER_PASS_SHADOW);
   data.ambient_occlusion_id = pass_index_get(EEVEE_RENDER_PASS_AO);
   data.transparent_id = pass_index_get(EEVEE_RENDER_PASS_TRANSPARENT);
+  data.grease_pencil_id = pass_index_get(EEVEE_RENDER_PASS_GREASE_PENCIL);
 
   data.aovs = inst_.film.aovs_info;
 }

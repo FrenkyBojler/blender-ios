@@ -434,6 +434,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     data_.shadow_id = pass_index_get(EEVEE_RENDER_PASS_SHADOW);
     data_.ambient_occlusion_id = pass_index_get(EEVEE_RENDER_PASS_AO);
     data_.transparent_id = pass_index_get(EEVEE_RENDER_PASS_TRANSPARENT);
+    data_.grease_pencil_id = pass_index_get(EEVEE_RENDER_PASS_GREASE_PENCIL);
 
     data_.aov_color_id = data_.color_len;
     data_.aov_value_id = data_.value_len;
