@@ -160,8 +160,7 @@ void VolumePass::object_sync_modifier(Manager &manager,
 
     sub_ps.bind_texture("density_tx",
                         settings.tex_color ? settings.tex_color : settings.tex_density);
-    sub_ps.bind_texture("flame_tx",
-                        settings.tex_flame ? settings.tex_flame : dummy_volume_tx_);
+    sub_ps.bind_texture("flame_tx", settings.tex_flame ? settings.tex_flame : dummy_volume_tx_);
     sub_ps.bind_texture("flame_color_tx",
                         settings.tex_flame ? settings.tex_flame_coba : dummy_coba_tx_);
     sub_ps.bind_texture("shadow_tx", settings.tex_shadow);
