@@ -147,7 +147,7 @@ class Paints : Overlay {
         pass.shader_set(res.shaders->paint_texture.get());
         pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
         pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-        pass.bind_texture("maskImage", mask_texture);
+        pass.bind_texture("mask_image", mask_texture);
         pass.push_constant("maskPremult", mask_premult);
         pass.push_constant("mask_invert_stencil", mask_inverted);
         pass.push_constant("mask_color", float3(paint_settings.stencil_col));

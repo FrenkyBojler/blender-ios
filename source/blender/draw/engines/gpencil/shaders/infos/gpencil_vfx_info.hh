@@ -18,8 +18,8 @@
 #include "gpu_shader_create_info.hh"
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_common)
-SAMPLER(0, FLOAT_2D, colorBuf)
-SAMPLER(1, FLOAT_2D, revealBuf)
+SAMPLER(0, FLOAT_2D, color_buf)
+SAMPLER(1, FLOAT_2D, reveal_buf)
 /* Reminder: This is considered SRC color in blend equations.
  * Same operation on all buffers. */
 FRAGMENT_OUT(0, float4, frag_color)

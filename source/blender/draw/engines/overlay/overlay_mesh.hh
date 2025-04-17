@@ -166,7 +166,7 @@ class Meshes : Overlay {
       auto shader_pass = [&](GPUShader *shader, const char *name) {
         auto &sub = pass.sub(name);
         sub.shader_set(shader);
-        sub.bind_texture("depthTex", depth_tex);
+        sub.bind_texture("depth_tx", depth_tex);
         sub.push_constant("alpha", backwire_opacity);
         sub.push_constant("is_constant_screen_size_normals", use_screen_size);
         sub.push_constant("normal_size", state.overlay.normals_length);
@@ -218,11 +218,11 @@ class Meshes : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA,
                      state.clipping_plane_count);
       pass.shader_set(res.shaders->mesh_analysis.get());
-      pass.bind_texture("weightTex", res.weight_ramp_tx);
+      pass.bind_texture("weight_tx", res.weight_ramp_tx);
     }
 
     auto mesh_edit_common_resource_bind = [&](PassSimple &pass, float alpha, float ndc_offset) {
-      pass.bind_texture("depthTex", depth_tex);
+      pass.bind_texture("depth_tx", depth_tex);
       /* TODO(fclem): UBO. */
       pass.push_constant("wire_shading", is_wire_shading_mode);
       pass.push_constant("select_face", select_face_);
@@ -938,7 +938,7 @@ class MeshUVs : Overlay {
         BKE_image_get_size_fl(image, nullptr, &size_image[0]);
 
         pass.shader_set(res.shaders->uv_brush_stencil.get());
-        pass.bind_texture("imgTexture", stencil_texture);
+        pass.bind_texture("img_tx", stencil_texture);
         pass.push_constant("img_premultiplied", true);
         pass.push_constant("img_alpha_blend", true);
         pass.push_constant("ucolor", float4(1.0f, 1.0f, 1.0f, image_paint_settings.clone_alpha));
@@ -959,7 +959,7 @@ class MeshUVs : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS |
                      (is_combined ? DRW_STATE_BLEND_MUL : DRW_STATE_BLEND_ALPHA));
       pass.shader_set(res.shaders->uv_paint_mask.get());
-      pass.bind_texture("imgTexture", mask_texture_);
+      pass.bind_texture("img_tx", mask_texture_);
       pass.push_constant("color", float4(1.0f, 1.0f, 1.0f, 1.0f));
       pass.push_constant("opacity", opacity);
       pass.push_constant("brush_offset", float2(0.0f));

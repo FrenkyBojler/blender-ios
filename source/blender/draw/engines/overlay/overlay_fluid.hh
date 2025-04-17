@@ -161,9 +161,9 @@ class Fluids : Overlay {
       DRW_smoke_ensure_velocity(fmd);
 
       PassSimple::Sub &sub = *sub_pass;
-      sub.bind_texture("velocityX", fds->tex_velocity_x);
-      sub.bind_texture("velocityY", fds->tex_velocity_y);
-      sub.bind_texture("velocityZ", fds->tex_velocity_z);
+      sub.bind_texture("velocity_x", fds->tex_velocity_x);
+      sub.bind_texture("velocity_y", fds->tex_velocity_y);
+      sub.bind_texture("velocity_z", fds->tex_velocity_z);
       sub.push_constant("display_size", fds->vector_scale);
       sub.push_constant("slice_position", fds->slice_depth);
       sub.push_constant("cell_size", float3(fds->cell_size));
@@ -195,7 +195,7 @@ class Fluids : Overlay {
           DRW_fluid_ensure_flags(fmd);
 
           sub_pass = grid_lines_flags_ps_;
-          sub_pass->bind_texture("flagTexture", fds->tex_flags);
+          sub_pass->bind_texture("flag_tx", fds->tex_flags);
           break;
         case FLUID_GRIDLINE_COLOR_TYPE_RANGE:
           if (fds->use_coba && (fds->coba_field != FLUID_DOMAIN_FIELD_FLAGS)) {
@@ -203,8 +203,8 @@ class Fluids : Overlay {
             DRW_fluid_ensure_range_field(fmd);
 
             sub_pass = grid_lines_range_ps_;
-            sub_pass->bind_texture("flagTexture", fds->tex_flags);
-            sub_pass->bind_texture("fieldTexture", fds->tex_range_field);
+            sub_pass->bind_texture("flag_tx", fds->tex_flags);
+            sub_pass->bind_texture("field_tx", fds->tex_range_field);
             sub_pass->push_constant("lower_bound", fds->gridlines_lower_bound);
             sub_pass->push_constant("upper_bound", fds->gridlines_upper_bound);
             sub_pass->push_constant("range_color", float4(fds->gridlines_range_color));

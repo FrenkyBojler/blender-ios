@@ -31,7 +31,7 @@ uint outline_colorid_get()
   return 0u;
 }
 
-/* Replace top 2 bits (of the 16bit output) by outlineId.
+/* Replace top 2 bits (of the 16bit output) by outline_id.
  * This leaves 16K different IDs to create outlines between objects.
  * SHIFT = (32 - (16 - 2)) */
 #define SHIFT 18u

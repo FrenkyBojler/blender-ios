@@ -56,9 +56,9 @@ float3 get_vector(int3 cell_co)
 {
   float3 vector;
 
-  vector.x = texelFetch(velocityX, cell_co, 0).r;
-  vector.y = texelFetch(velocityY, cell_co, 0).r;
-  vector.z = texelFetch(velocityZ, cell_co, 0).r;
+  vector.x = texelFetch(velocity_x, cell_co, 0).r;
+  vector.y = texelFetch(velocity_y, cell_co, 0).r;
+  vector.z = texelFetch(velocity_z, cell_co, 0).r;
 
   return vector;
 }
@@ -68,12 +68,12 @@ float3 get_vector_centered(int3 cell_co)
 {
   float3 vector;
 
-  vector.x = 0.5f * (texelFetch(velocityX, cell_co, 0).r +
-                     texelFetch(velocityX, int3(cell_co.x + 1, cell_co.yz), 0).r);
-  vector.y = 0.5f * (texelFetch(velocityY, cell_co, 0).r +
-                     texelFetch(velocityY, int3(cell_co.x, cell_co.y + 1, cell_co.z), 0).r);
-  vector.z = 0.5f * (texelFetch(velocityZ, cell_co, 0).r +
-                     texelFetch(velocityZ, int3(cell_co.xy, cell_co.z + 1), 0).r);
+  vector.x = 0.5f * (texelFetch(velocity_x, cell_co, 0).r +
+                     texelFetch(velocity_x, int3(cell_co.x + 1, cell_co.yz), 0).r);
+  vector.y = 0.5f * (texelFetch(velocity_y, cell_co, 0).r +
+                     texelFetch(velocity_y, int3(cell_co.x, cell_co.y + 1, cell_co.z), 0).r);
+  vector.z = 0.5f * (texelFetch(velocity_z, cell_co, 0).r +
+                     texelFetch(velocity_z, int3(cell_co.xy, cell_co.z + 1), 0).r);
 
   return vector;
 }
@@ -83,12 +83,12 @@ float3 get_vector_mac(int3 cell_co)
 {
   float3 vector;
 
-  vector.x = 0.5f * (texelFetch(velocityX, int3(cell_co.x - 1, cell_co.yz), 0).r +
-                     texelFetch(velocityX, cell_co, 0).r);
-  vector.y = 0.5f * (texelFetch(velocityY, int3(cell_co.x, cell_co.y - 1, cell_co.z), 0).r +
-                     texelFetch(velocityY, cell_co, 0).r);
-  vector.z = 0.5f * (texelFetch(velocityZ, int3(cell_co.xy, cell_co.z - 1), 0).r +
-                     texelFetch(velocityZ, cell_co, 0).r);
+  vector.x = 0.5f * (texelFetch(velocity_x, int3(cell_co.x - 1, cell_co.yz), 0).r +
+                     texelFetch(velocity_x, cell_co, 0).r);
+  vector.y = 0.5f * (texelFetch(velocity_y, int3(cell_co.x, cell_co.y - 1, cell_co.z), 0).r +
+                     texelFetch(velocity_y, cell_co, 0).r);
+  vector.z = 0.5f * (texelFetch(velocity_z, int3(cell_co.xy, cell_co.z - 1), 0).r +
+                     texelFetch(velocity_z, cell_co, 0).r);
 
   return vector;
 }
@@ -105,7 +105,7 @@ void main()
   int cell = gl_VertexID / 2;
 #endif
 
-  int3 volume_size = textureSize(velocityX, 0);
+  int3 volume_size = textureSize(velocity_x, 0);
 
   int3 cell_ofs = int3(0);
   int3 cell_div = volume_size;

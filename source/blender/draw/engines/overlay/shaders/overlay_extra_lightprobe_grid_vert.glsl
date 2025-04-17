@@ -27,7 +27,7 @@ float4 color_from_id(float color_id)
   return colorTransform;
 }
 
-/* Replace top 2 bits (of the 16bit output) by outlineId.
+/* Replace top 2 bits (of the 16bit output) by outline_id.
  * This leaves 16K different IDs to create outlines between objects.
  * SHIFT = (32 - (16 - 2)) */
 #define SHIFT 18u
@@ -61,7 +61,7 @@ void main()
 
   /* Shade occluded points differently. */
   float4 p = gl_Position / gl_Position.w;
-  float z_depth = texture(depthBuffer, p.xy * 0.5f + 0.5f).r * 2.0f - 1.0f;
+  float z_depth = texture(depth_buffer, p.xy * 0.5f + 0.5f).r * 2.0f - 1.0f;
   float z_delta = p.z - z_depth;
   if (z_delta > 0.0f) {
     float fac = 1.0f - z_delta * 10000.0f;

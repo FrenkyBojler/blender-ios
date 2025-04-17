@@ -46,7 +46,7 @@ void main()
     bool dir_horiz = abs(dir.x) > abs(dir.y);
 
     float2 uv = gl_FragCoord.xy * sizeViewportInv;
-    float depth_occluder = texture(depthTex, uv).r;
+    float depth_occluder = texture(depth_tx, uv).r;
     float depth_min = depth_occluder;
     float2 uv_offset = sizeViewportInv;
     if (dir_horiz) {
@@ -56,8 +56,8 @@ void main()
       uv_offset.x = 0.0f;
     }
 
-    depth_min = min(depth_min, texture(depthTex, uv - uv_offset).r);
-    depth_min = min(depth_min, texture(depthTex, uv + uv_offset).r);
+    depth_min = min(depth_min, texture(depth_tx, uv - uv_offset).r);
+    depth_min = min(depth_min, texture(depth_tx, uv + uv_offset).r);
 
     float delta = abs(depth_occluder - depth_min);
 

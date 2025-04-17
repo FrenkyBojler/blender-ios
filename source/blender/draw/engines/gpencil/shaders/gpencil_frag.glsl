@@ -55,13 +55,13 @@ void main()
   float4 col;
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_USE)) {
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_PREMUL);
-    col = texture_read_as_linearrgb(gpStrokeTexture, premul, gp_interp.uv);
+    col = texture_read_as_linearrgb(gp_stroke_tx, premul, gp_interp.uv);
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_USE)) {
     bool use_clip = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_CLIP);
     float2 uvs = (use_clip) ? clamp(gp_interp.uv, 0.0f, 1.0f) : gp_interp.uv;
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_PREMUL);
-    col = texture_read_as_linearrgb(gpFillTexture, premul, uvs);
+    col = texture_read_as_linearrgb(gp_fill_tx, premul, uvs);
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_USE)) {
     bool radial = flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_RADIAL);
@@ -107,11 +107,11 @@ void main()
     }
   }
 
-  float2 fb_size = max(float2(textureSize(gpSceneDepthTexture, 0).xy),
-                       float2(textureSize(gpMaskTexture, 0).xy));
+  float2 fb_size = max(float2(textureSize(gp_scene_depth_tx, 0).xy),
+                       float2(textureSize(gp_mask_tx, 0).xy));
   float2 uvs = gl_FragCoord.xy / fb_size;
   /* Manual depth test */
-  float scene_depth = texture(gpSceneDepthTexture, uvs).r;
+  float scene_depth = texture(gp_scene_depth_tx, uvs).r;
   if (gl_FragCoord.z > scene_depth) {
     discard;
     return;
@@ -119,7 +119,7 @@ void main()
 
   /* FIXME(fclem): Grrr. This is bad for performance but it's the easiest way to not get
    * depth written where the mask obliterate the layer. */
-  float mask = texture(gpMaskTexture, uvs).r;
+  float mask = texture(gp_mask_tx, uvs).r;
   if (mask < 0.001f) {
     discard;
     return;

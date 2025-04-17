@@ -96,13 +96,13 @@ void main()
   int2 center_texel = int2(gl_FragCoord.xy);
   float line_kernel = sizePixel * 0.5f - 0.5f;
 
-  frag_color = texelFetch(colorTex, center_texel, 0);
+  frag_color = texelFetch(color_tx, center_texel, 0);
 
   bool original_col_has_alpha = frag_color.a < 1.0f;
 
-  float depth = texelFetch(depthTex, center_texel, 0).r;
+  float depth = texelFetch(depth_tx, center_texel, 0).r;
 
-  float dist_raw = texelFetch(lineTex, center_texel, 0).b;
+  float dist_raw = texelFetch(line_tx, center_texel, 0).b;
   float dist = decode_line_dist(dist_raw);
 
   if (!do_smooth_lines && dist <= 1.0f) {
@@ -111,21 +111,21 @@ void main()
   }
 
   /* TODO: Optimization: use textureGather. */
-  float4 neightbor_col0 = texelFetchOffset(colorTex, center_texel, 0, int2(1, 0));
-  float4 neightbor_col1 = texelFetchOffset(colorTex, center_texel, 0, int2(-1, 0));
-  float4 neightbor_col2 = texelFetchOffset(colorTex, center_texel, 0, int2(0, 1));
-  float4 neightbor_col3 = texelFetchOffset(colorTex, center_texel, 0, int2(0, -1));
+  float4 neightbor_col0 = texelFetchOffset(color_tx, center_texel, 0, int2(1, 0));
+  float4 neightbor_col1 = texelFetchOffset(color_tx, center_texel, 0, int2(-1, 0));
+  float4 neightbor_col2 = texelFetchOffset(color_tx, center_texel, 0, int2(0, 1));
+  float4 neightbor_col3 = texelFetchOffset(color_tx, center_texel, 0, int2(0, -1));
 
-  float3 neightbor_line0 = texelFetchOffset(lineTex, center_texel, 0, int2(1, 0)).rgb;
-  float3 neightbor_line1 = texelFetchOffset(lineTex, center_texel, 0, int2(-1, 0)).rgb;
-  float3 neightbor_line2 = texelFetchOffset(lineTex, center_texel, 0, int2(0, 1)).rgb;
-  float3 neightbor_line3 = texelFetchOffset(lineTex, center_texel, 0, int2(0, -1)).rgb;
+  float3 neightbor_line0 = texelFetchOffset(line_tx, center_texel, 0, int2(1, 0)).rgb;
+  float3 neightbor_line1 = texelFetchOffset(line_tx, center_texel, 0, int2(-1, 0)).rgb;
+  float3 neightbor_line2 = texelFetchOffset(line_tx, center_texel, 0, int2(0, 1)).rgb;
+  float3 neightbor_line3 = texelFetchOffset(line_tx, center_texel, 0, int2(0, -1)).rgb;
 
   float4 depths;
-  depths.x = texelFetchOffset(depthTex, center_texel, 0, int2(1, 0)).r;
-  depths.y = texelFetchOffset(depthTex, center_texel, 0, int2(-1, 0)).r;
-  depths.z = texelFetchOffset(depthTex, center_texel, 0, int2(0, 1)).r;
-  depths.w = texelFetchOffset(depthTex, center_texel, 0, int2(0, -1)).r;
+  depths.x = texelFetchOffset(depth_tx, center_texel, 0, int2(1, 0)).r;
+  depths.y = texelFetchOffset(depth_tx, center_texel, 0, int2(-1, 0)).r;
+  depths.z = texelFetchOffset(depth_tx, center_texel, 0, int2(0, 1)).r;
+  depths.w = texelFetchOffset(depth_tx, center_texel, 0, int2(0, -1)).r;
 
   float4 line_dists;
   line_dists.x = neighbor_dist(neightbor_line0, float2(1, 0));

@@ -19,7 +19,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_mesh_loop_normal)
 bool test_occlusion()
 {
   float3 ndc = (gl_Position.xyz / gl_Position.w) * 0.5f + 0.5f;
-  return (ndc.z - 0.00035f) > texture(depthTex, ndc.xy).r;
+  return (ndc.z - 0.00035f) > texture(depth_tx, ndc.xy).r;
 }
 
 void main()

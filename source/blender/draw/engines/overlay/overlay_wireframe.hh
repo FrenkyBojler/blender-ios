@@ -87,7 +87,7 @@ class Wireframe : Overlay {
               sub.specialize_constant(shader, "use_custom_depth_bias", do_smooth_lines);
             }
             sub.shader_set(shader);
-            sub.bind_texture("depthTex", depth_tex);
+            sub.bind_texture("depth_tx", depth_tex);
             sub.push_constant("wire_opacity", state.overlay.wireframe_opacity);
             sub.push_constant("is_transform", is_transform);
             sub.push_constant("color_type", state.v3d->shading.wire_color_type);

@@ -32,8 +32,8 @@ void main()
    * This removes the alpha channel and put the background behind reference images
    * while masking the reference images by the render alpha.
    */
-  float alpha = texture(colorBuffer, screen_uv).a;
-  float depth = texture(depthBuffer, screen_uv).r;
+  float alpha = texture(color_buffer, screen_uv).a;
+  float depth = texture(depth_buffer, screen_uv).r;
 
   float3 bg_col;
   float3 col_high;

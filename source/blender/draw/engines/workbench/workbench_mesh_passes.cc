@@ -240,8 +240,8 @@ void TransparentPass::sync(const SceneState &scene_state, SceneResources &resour
   resolve_ps_.init();
   resolve_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
   resolve_ps_.shader_set(ShaderCache::get().transparent_resolve.get());
-  resolve_ps_.bind_texture("transparentAccum", &accumulation_tx);
-  resolve_ps_.bind_texture("transparentRevealage", &reveal_tx);
+  resolve_ps_.bind_texture("transparent_accum", &accumulation_tx);
+  resolve_ps_.bind_texture("transparent_revealage", &reveal_tx);
   resolve_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 

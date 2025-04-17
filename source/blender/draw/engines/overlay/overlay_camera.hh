@@ -603,7 +603,7 @@ class Cameras : Overlay {
         PassMain &pass = is_foreground ?
                              (use_view_transform ? foreground_scene_ps_ : foreground_ps_) :
                              (use_view_transform ? background_scene_ps_ : background_ps_);
-        pass.bind_texture("imgTexture", tex);
+        pass.bind_texture("img_tx", tex);
         pass.push_constant("img_premultiplied", use_alpha_premult);
         pass.push_constant("img_alpha_blend", true);
         pass.push_constant("is_camera_background", true);

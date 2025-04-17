@@ -316,7 +316,7 @@ class Empties : Overlay {
       char depth_mode = state.is_depth_only_drawing ? char(OB_EMPTY_IMAGE_DEPTH_DEFAULT) :
                                                       ob->empty_image_depth;
       PassMain::Sub &pass = create_subpass(state, *ob, use_alpha_blend, mat, res);
-      pass.bind_texture("imgTexture", tex);
+      pass.bind_texture("img_tx", tex);
       pass.push_constant("img_premultiplied", use_alpha_premult);
       pass.push_constant("img_alpha_blend", use_alpha_blend);
       pass.push_constant("is_camera_background", false);

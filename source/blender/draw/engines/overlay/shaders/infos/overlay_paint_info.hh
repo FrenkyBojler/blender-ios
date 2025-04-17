@@ -78,7 +78,7 @@ DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float2, mu) /* Masking uv map. */
 VERTEX_OUT(overlay_paint_texture_iface)
-SAMPLER(0, FLOAT_2D, maskImage)
+SAMPLER(0, FLOAT_2D, mask_image)
 PUSH_CONSTANT(float3, mask_color)
 PUSH_CONSTANT(float, opacity) /* `1.0f` by default. */
 PUSH_CONSTANT(bool, mask_invert_stencil)

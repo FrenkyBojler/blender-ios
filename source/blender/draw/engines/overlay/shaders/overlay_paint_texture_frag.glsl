@@ -10,7 +10,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_paint_texture)
 
 void main()
 {
-  float4 mask = float4(texture_read_as_srgb(maskImage, mask_image_premultiplied, uv_interp).rgb,
+  float4 mask = float4(texture_read_as_srgb(mask_image, mask_image_premultiplied, uv_interp).rgb,
                        1.0f);
   if (mask_invert_stencil) {
     mask.rgb = 1.0f - mask.rgb;

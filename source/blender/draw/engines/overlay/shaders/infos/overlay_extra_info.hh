@@ -63,7 +63,7 @@ FLAT(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_extra_grid_base)
-SAMPLER(0, DEPTH_2D, depthBuffer)
+SAMPLER(0, DEPTH_2D, depth_buffer)
 PUSH_CONSTANT(float4x4, grid_model_matrix)
 PUSH_CONSTANT(bool, is_transform)
 VERTEX_OUT(overlay_extra_grid_iface)
@@ -262,7 +262,7 @@ PUSH_CONSTANT(bool, img_alpha_blend)
 PUSH_CONSTANT(float4, ucolor)
 VERTEX_IN(0, float3, pos)
 VERTEX_OUT(overlay_image_iface)
-SAMPLER(0, FLOAT_2D, imgTexture)
+SAMPLER(0, FLOAT_2D, img_tx)
 FRAGMENT_OUT(0, float4, frag_color)
 VERTEX_SOURCE("overlay_image_vert.glsl")
 FRAGMENT_SOURCE("overlay_image_frag.glsl")
@@ -316,7 +316,7 @@ FLAT(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_particle_dot_base)
-SAMPLER(0, FLOAT_1D, weightTex)
+SAMPLER(0, FLOAT_1D, weight_tx)
 PUSH_CONSTANT(float4, ucolor) /* Draw-size packed in alpha. */
 VERTEX_IN(0, float3, part_pos)
 VERTEX_IN(1, float4, part_rot)
@@ -334,7 +334,7 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_particle_dot, overlay_particle_dot_base
 
 GPU_SHADER_CREATE_INFO(overlay_particle_shape_base)
 TYPEDEF_SOURCE("overlay_shader_shared.hh")
-SAMPLER(0, FLOAT_1D, weightTex)
+SAMPLER(0, FLOAT_1D, weight_tx)
 PUSH_CONSTANT(float4, ucolor) /* Draw-size packed in alpha. */
 PUSH_CONSTANT(int, shape_type)
 /* Use first attribute to only bind one buffer. */

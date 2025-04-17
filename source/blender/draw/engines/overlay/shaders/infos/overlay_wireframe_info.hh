@@ -33,7 +33,7 @@ PUSH_CONSTANT(int, color_type)
 PUSH_CONSTANT(bool, is_hair)
 PUSH_CONSTANT(float4x4, hair_dupli_matrix)
 /* Scene Depth texture copy for manual depth test. */
-SAMPLER(0, DEPTH_2D, depthTex)
+SAMPLER(0, DEPTH_2D, depth_tx)
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float3, nor)
 VERTEX_IN(2, float, wd) /* wire-data. */

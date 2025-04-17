@@ -69,7 +69,7 @@ class Curves : Overlay {
                           DRW_STATE_WRITE_DEPTH,
                       state.clipping_plane_count);
         sub.shader_set(res.shaders->curve_edit_line.get());
-        sub.bind_texture("weightTex", &res.weight_ramp_tx);
+        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
         sub.push_constant("use_weight", false);
         sub.push_constant("use_grease_pencil", false);
         edit_curves_lines_ = &sub;
@@ -87,7 +87,7 @@ class Curves : Overlay {
                           DRW_STATE_WRITE_DEPTH,
                       state.clipping_plane_count);
         sub.shader_set(res.shaders->curve_edit_points.get());
-        sub.bind_texture("weightTex", &res.weight_ramp_tx);
+        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
         sub.push_constant("use_weight", false);
         sub.push_constant("use_grease_pencil", false);
         sub.push_constant("do_stroke_endpoints", false);

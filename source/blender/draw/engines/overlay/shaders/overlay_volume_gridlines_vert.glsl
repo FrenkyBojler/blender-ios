@@ -76,7 +76,7 @@ void main()
   final_color = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
 #if defined(SHOW_FLAGS) || defined(SHOW_RANGE)
-  uint flag = texelFetch(flagTexture, cell_co + int3(cell_offset), 0).r;
+  uint flag = texelFetch(flag_tx, cell_co + int3(cell_offset), 0).r;
 #endif
 
 #ifdef SHOW_FLAGS
@@ -84,7 +84,7 @@ void main()
 #endif
 
 #ifdef SHOW_RANGE
-  float value = texelFetch(fieldTexture, cell_co + int3(cell_offset), 0).r;
+  float value = texelFetch(field_tx, cell_co + int3(cell_offset), 0).r;
   if (value >= lower_bound && value <= upper_bound) {
     if (cell_filter == 0 || bool(uint(cell_filter) & flag)) {
       final_color = range_color;

@@ -122,7 +122,7 @@ class GreasePencil : Overlay {
       if (show_points_) {
         auto &sub = pass.sub("Points");
         sub.shader_set(res.shaders->curve_edit_points.get());
-        sub.bind_texture("weightTex", &res.weight_ramp_tx);
+        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
         sub.push_constant("use_weight", show_weight_);
         sub.push_constant("use_grease_pencil", true);
         sub.push_constant("do_stroke_endpoints", show_direction);
@@ -132,7 +132,7 @@ class GreasePencil : Overlay {
       if (show_lines_) {
         auto &sub = pass.sub("Lines");
         sub.shader_set(res.shaders->curve_edit_line.get());
-        sub.bind_texture("weightTex", &res.weight_ramp_tx);
+        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
         sub.push_constant("use_weight", show_weight_);
         sub.push_constant("use_grease_pencil", true);
         edit_lines_ = &sub;

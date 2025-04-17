@@ -247,7 +247,7 @@ void Instance::begin_sync()
     pass.init();
     pass.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
     pass.shader_set(ShaderCache::get().depth_merge.get());
-    pass.bind_texture("depthBuf", &this->depth_tx);
+    pass.bind_texture("depth_buf", &this->depth_tx);
     pass.push_constant("stroke_order3d", &this->is_stroke_order_3d);
     pass.push_constant("gp_model_matrix", &this->object_bound_mat);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
@@ -462,8 +462,8 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
 
     pass.bind_ubo("gp_lights", lights_ubo);
     pass.bind_ubo("gp_materials", ubo_mat);
-    pass.bind_texture("gpFillTexture", tex_fill);
-    pass.bind_texture("gpStrokeTexture", tex_stroke);
+    pass.bind_texture("gp_fill_tx", tex_fill);
+    pass.bind_texture("gp_stroke_tx", tex_stroke);
     pass.push_constant("gp_material_offset", mat_ofs);
     /* Since we don't use the sbuffer in GPv3, this is always 0. */
     pass.push_constant("gp_stroke_index_offset", 0.0f);
@@ -522,11 +522,11 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
           ubo_mat = new_ubo_mat;
         }
         if (new_tex_fill) {
-          pass.bind_texture("gpFillTexture", new_tex_fill);
+          pass.bind_texture("gp_fill_tx", new_tex_fill);
           tex_fill = new_tex_fill;
         }
         if (new_tex_stroke) {
-          pass.bind_texture("gpStrokeTexture", new_tex_stroke);
+          pass.bind_texture("gp_stroke_tx", new_tex_stroke);
           tex_stroke = new_tex_stroke;
         }
       }

@@ -78,7 +78,7 @@ void main()
     final_color.rgb = shape_pos;
   }
   else {
-    final_color.rgb = part.value < 0.0f ? ucolor.rgb : texture(weightTex, part.value).rgb;
+    final_color.rgb = part.value < 0.0f ? ucolor.rgb : texture(weight_tx, part.value).rgb;
   }
 
   /* Draw-size packed in alpha. */

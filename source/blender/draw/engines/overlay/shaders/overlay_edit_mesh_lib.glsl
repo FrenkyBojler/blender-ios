@@ -29,7 +29,7 @@ struct VertIn {
 bool test_occlusion(float4 gpu_position)
 {
   float3 ndc = (gpu_position.xyz / gpu_position.w) * 0.5f + 0.5f;
-  return ndc.z > texture(depthTex, ndc.xy).r;
+  return ndc.z > texture(depth_tx, ndc.xy).r;
 }
 
 float3 non_linear_blend_color(float3 col1, float3 col2, float fac)

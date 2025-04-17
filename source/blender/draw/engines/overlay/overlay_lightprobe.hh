@@ -66,7 +66,7 @@ class LightProbes : Overlay {
     ps_dots_.shader_set(res.shaders->extra_grid.get());
     ps_dots_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     ps_dots_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-    ps_dots_.bind_texture("depthBuffer", &res.depth_tx);
+    ps_dots_.bind_texture("depth_buffer", &res.depth_tx);
     ps_dots_.push_constant("is_transform", (G.moving & G_TRANSFORM_OBJ) != 0);
     res.select_bind(ps_dots_);
   }

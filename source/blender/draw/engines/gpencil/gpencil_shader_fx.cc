@@ -57,8 +57,8 @@ PassSimple &Instance::vfx_pass_create(
   pass.init();
   pass.state_set(state);
   pass.shader_set(sh);
-  pass.bind_texture("colorBuf", vfx_swapchain_.current().color_tx, sampler);
-  pass.bind_texture("revealBuf", vfx_swapchain_.current().reveal_tx, sampler);
+  pass.bind_texture("color_buf", vfx_swapchain_.current().color_tx, sampler);
+  pass.bind_texture("reveal_buf", vfx_swapchain_.current().reveal_tx, sampler);
 
   vfx_swapchain_.swap();
 

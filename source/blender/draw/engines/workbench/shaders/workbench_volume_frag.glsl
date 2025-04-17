@@ -128,7 +128,7 @@ void volume_properties(float3 ls_pos, out float3 scattering, out float extinctio
   float4 tval;
   if (show_phi) {
     /* Color mapping for level-set representation */
-    float val = sample_volume_texture(densityTexture, co).r * grid_scale;
+    float val = sample_volume_texture(density_tx, co).r * grid_scale;
 
     val = max(min(val * 0.2f, 1.0f), -1.0f);
 
@@ -141,12 +141,12 @@ void volume_properties(float3 ls_pos, out float3 scattering, out float extinctio
   }
   else if (show_flags) {
     /* Color mapping for flags */
-    uint flag = texture(flagTexture, co).r;
+    uint flag = texture(flag_tx, co).r;
     tval = flag_to_color(flag);
   }
   else if (show_pressure) {
     /* Color mapping for pressure */
-    float val = sample_volume_texture(densityTexture, co).r * grid_scale;
+    float val = sample_volume_texture(density_tx, co).r * grid_scale;
 
     if (val > 0) {
       tval = float4(val, val, val, 0.06f);
@@ -156,8 +156,8 @@ void volume_properties(float3 ls_pos, out float3 scattering, out float extinctio
     }
   }
   else {
-    float val = sample_volume_texture(densityTexture, co).r * grid_scale;
-    tval = texture(transferTexture, val);
+    float val = sample_volume_texture(density_tx, co).r * grid_scale;
+    tval = texture(transfer_tx, val);
   }
   tval *= density_fac;
   tval.rgb = pow(tval.rgb, float3(2.2f));
@@ -165,11 +165,11 @@ void volume_properties(float3 ls_pos, out float3 scattering, out float extinctio
   extinction = max(1e-4f, tval.a * 50.0f);
 #else
 #  ifdef VOLUME_SMOKE
-  float flame = sample_volume_texture(flameTexture, co).r;
-  float4 emission = texture(flameColorTexture, flame);
+  float flame = sample_volume_texture(flame_tx, co).r;
+  float4 emission = texture(flame_color_tx, flame);
 #  endif
-  float3 density = sample_volume_texture(densityTexture, co).rgb;
-  float shadows = sample_volume_texture(shadowTexture, co).r;
+  float3 density = sample_volume_texture(density_tx, co).rgb;
+  float shadows = sample_volume_texture(shadow_tx, co).r;
 
   scattering = density * density_fac;
   extinction = max(1e-4f, dot(scattering, float3(0.33333f)));
@@ -246,7 +246,7 @@ void main()
 
 #ifdef VOLUME_SLICE
   /* Manual depth test. TODO: remove. */
-  float depth = texelFetch(depthBuffer, int2(gl_FragCoord.xy), 0).r;
+  float depth = texelFetch(depth_buffer, int2(gl_FragCoord.xy), 0).r;
   if (do_depth_test && gl_FragCoord.z >= depth) {
     /* NOTE: In the Metal API, prior to Metal 2.3, Discard is not an explicit return and can
      * produce undefined behavior. This is especially prominent with derivatives if control-flow
@@ -266,12 +266,12 @@ void main()
 
   frag_color = float4(Lscat, Tr);
 #else
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(depthBuffer, 0).xy);
+  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(depth_buffer, 0).xy);
   bool is_persp = drw_view().winmat[3][3] == 0.0f;
 
   float3 volume_center = drw_modelmat()[3].xyz;
 
-  float depth = do_depth_test ? texelFetch(depthBuffer, int2(gl_FragCoord.xy), 0).r : 1.0f;
+  float depth = do_depth_test ? texelFetch(depth_buffer, int2(gl_FragCoord.xy), 0).r : 1.0f;
   float depth_end = min(depth, gl_FragCoord.z);
   float3 vs_ray_end = drw_point_screen_to_view(float3(screen_uv, depth_end));
   float3 vs_ray_ori = drw_point_screen_to_view(float3(screen_uv, 0.0f));

@@ -19,13 +19,13 @@ void main()
 {
   if (is_first_pass) {
     /* Blend mode is multiply. */
-    frag_color.rgb = fragRevealage.rgb = texture(revealBuf, screen_uv).rgb;
+    frag_color.rgb = fragRevealage.rgb = texture(reveal_buf, screen_uv).rgb;
     frag_color.a = fragRevealage.a = 1.0f;
   }
   else {
     /* Blend mode is additive. */
     fragRevealage = float4(0.0f);
-    frag_color.rgb = texture(colorBuf, screen_uv).rgb;
+    frag_color.rgb = texture(color_buf, screen_uv).rgb;
     frag_color.a = 0.0f;
   }
 }
@@ -45,8 +45,8 @@ void main()
 
 void main()
 {
-  frag_color = texture(colorBuf, screen_uv);
-  fragRevealage = texture(revealBuf, screen_uv);
+  frag_color = texture(color_buf, screen_uv);
+  fragRevealage = texture(reveal_buf, screen_uv);
 
   float luma = dot(frag_color.rgb, float3(0.2126f, 0.7152f, 0.723f));
 
@@ -76,7 +76,7 @@ void main()
 
 void main()
 {
-  float2 pixel_size = 1.0f / float2(textureSize(revealBuf, 0).xy);
+  float2 pixel_size = 1.0f / float2(textureSize(reveal_buf, 0).xy);
   float2 ofs = offset * pixel_size;
 
   frag_color = float4(0.0f);
@@ -89,8 +89,8 @@ void main()
     float weight = gaussian_weight(x);
     weight_accum += weight;
     float2 uv = screen_uv + ofs * x;
-    frag_color.rgb += texture(colorBuf, uv).rgb * weight;
-    fragRevealage.rgb += texture(revealBuf, uv).rgb * weight;
+    frag_color.rgb += texture(color_buf, uv).rgb * weight;
+    fragRevealage.rgb += texture(reveal_buf, uv).rgb * weight;
   }
 
   frag_color /= weight_accum;
@@ -108,7 +108,7 @@ void main()
   uv += sin(wave_time + wave_phase) * wave_offset;
   /* Swirl deform. */
   if (swirl_radius > 0.0f) {
-    float2 tex_size = float2(textureSize(colorBuf, 0).xy);
+    float2 tex_size = float2(textureSize(color_buf, 0).xy);
     float2 pix_coord = uv * tex_size - swirl_center;
     float dist = length(pix_coord);
     float percent = clamp((swirl_radius - dist) / swirl_radius, 0.0f, 1.0f);
@@ -119,15 +119,15 @@ void main()
     uv = (rot * pix_coord + swirl_center) / tex_size;
   }
 
-  frag_color = texture(colorBuf, uv);
-  fragRevealage = texture(revealBuf, uv);
+  frag_color = texture(color_buf, uv);
+  fragRevealage = texture(reveal_buf, uv);
 }
 
 #elif defined(GLOW)
 
 void main()
 {
-  float2 pixel_size = 1.0f / float2(textureSize(revealBuf, 0).xy);
+  float2 pixel_size = 1.0f / float2(textureSize(reveal_buf, 0).xy);
   float2 ofs = offset * pixel_size;
 
   frag_color = float4(0.0f);
@@ -139,8 +139,8 @@ void main()
     float weight = gaussian_weight(x);
     weight_accum += weight;
     float2 uv = screen_uv + ofs * x;
-    float3 col = texture(colorBuf, uv).rgb;
-    float3 rev = texture(revealBuf, uv).rgb;
+    float3 col = texture(color_buf, uv).rgb;
+    float3 rev = texture(reveal_buf, uv).rgb;
     if (threshold.x > -1.0f) {
       if (threshold.y > -1.0f) {
         if (any(greaterThan(abs(col - float3(threshold)), float3(threshold.w)))) {
@@ -167,12 +167,12 @@ void main()
     if (first_pass) {
       /* In first pass we copy the revealage buffer in the alpha channel.
        * This let us do the alpha under in second pass. */
-      float3 original_revealage = texture(revealBuf, screen_uv).rgb;
+      float3 original_revealage = texture(reveal_buf, screen_uv).rgb;
       fragRevealage.a = clamp(dot(original_revealage.rgb, float3(0.333334f)), 0.0f, 1.0f);
     }
     else {
       /* Recover original revealage. */
-      fragRevealage.a = texture(revealBuf, screen_uv).a;
+      fragRevealage.a = texture(reveal_buf, screen_uv).a;
     }
   }
 
@@ -195,7 +195,7 @@ void main()
     float weight = gaussian_weight(x);
     weight_accum += weight;
     float2 uv = screen_uv + blur_dir * x + uv_offset;
-    float3 col = texture(revealBuf, uv).rgb;
+    float3 col = texture(reveal_buf, uv).rgb;
     if (any(not(equal(float2(0.0f), floor(uv))))) {
       col = float3(0.0f);
     }
@@ -205,9 +205,9 @@ void main()
 
   if (is_first_pass) {
     /* In first pass we copy the reveal buffer. This let us do alpha masking in second pass. */
-    frag_color = texture(revealBuf, screen_uv);
+    frag_color = texture(reveal_buf, screen_uv);
     /* Also add the masked color to the reveal buffer. */
-    float3 col = texture(colorBuf, screen_uv).rgb;
+    float3 col = texture(color_buf, screen_uv).rgb;
     if (all(lessThan(abs(col - mask_color), float3(0.05f)))) {
       frag_color = float4(1.0f);
     }
@@ -215,7 +215,7 @@ void main()
   else {
     /* Pre-multiply by foreground alpha (alpha mask). */
     float mask = 1.0f -
-                 clamp(dot(float3(0.333334f), texture(colorBuf, screen_uv).rgb), 0.0f, 1.0f);
+                 clamp(dot(float3(0.333334f), texture(color_buf, screen_uv).rgb), 0.0f, 1.0f);
 
     /* fragRevealage is blurred shadow. */
     float rim = clamp(dot(float3(0.333334f), fragRevealage.rgb), 0.0f, 1.0f);
@@ -250,7 +250,7 @@ void main()
     float weight = gaussian_weight(x);
     weight_accum += weight;
     float2 uv = compute_uvs(x);
-    float3 col = texture(revealBuf, uv).rgb;
+    float3 col = texture(reveal_buf, uv).rgb;
     if (any(not(equal(float2(0.0f), floor(uv))))) {
       col = float3(1.0f);
     }
@@ -261,13 +261,13 @@ void main()
   /* No blending in first pass, alpha over pre-multiply in second pass. */
   if (is_first_pass) {
     /* In first pass we copy the reveal buffer. This let us do alpha under in second pass. */
-    frag_color = texture(revealBuf, screen_uv);
+    frag_color = texture(reveal_buf, screen_uv);
   }
   else {
     /* fragRevealage is blurred shadow. */
     float shadow_fac = 1.0f - clamp(dot(float3(0.333334f), fragRevealage.rgb), 0.0f, 1.0f);
     /* Pre-multiply by foreground revealage (alpha under). */
-    float3 original_revealage = texture(colorBuf, screen_uv).rgb;
+    float3 original_revealage = texture(color_buf, screen_uv).rgb;
     shadow_fac *= clamp(dot(float3(0.333334f), original_revealage), 0.0f, 1.0f);
     /* Modulate by opacity */
     shadow_fac *= shadow_color.a;
@@ -295,8 +295,8 @@ void main()
   for (int i = -samp_count; i <= samp_count; i++) {
     float x = float(i) / float(samp_count + 1);
     float2 uv_ofs = uv + accum_offset * 0.5f * x;
-    frag_color += texture(colorBuf, uv_ofs);
-    fragRevealage += texture(revealBuf, uv_ofs);
+    frag_color += texture(color_buf, uv_ofs);
+    fragRevealage += texture(reveal_buf, uv_ofs);
   }
 
   frag_color /= float(samp_count) * 2.0f + 1.0f;

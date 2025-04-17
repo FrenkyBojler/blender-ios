@@ -13,7 +13,7 @@ void main()
 {
   float2 uvs_clamped = clamp(uvs, 0.0f, 1.0f);
   float4 tex_color;
-  tex_color = texture_read_as_linearrgb(imgTexture, img_premultiplied, uvs_clamped);
+  tex_color = texture_read_as_linearrgb(img_tx, img_premultiplied, uvs_clamped);
 
   frag_color = tex_color * ucolor;
 

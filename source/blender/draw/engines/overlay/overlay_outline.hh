@@ -116,9 +116,9 @@ class Outline : Overlay {
       pass.push_constant("do_thick_outlines", do_expand);
       pass.push_constant("do_anti_aliasing", do_smooth_lines);
       pass.push_constant("is_xray_wires", state.xray_enabled_and_not_wire);
-      pass.bind_texture("outlineId", &object_id_tx_);
-      pass.bind_texture("sceneDepth", &res.depth_tx);
-      pass.bind_texture("outlineDepth", &tmp_depth_tx_);
+      pass.bind_texture("outline_id_tx", &object_id_tx_);
+      pass.bind_texture("scene_depth_tx", &res.depth_tx);
+      pass.bind_texture("outline_depth_tx", &tmp_depth_tx_);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);

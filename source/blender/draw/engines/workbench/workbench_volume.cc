@@ -60,11 +60,11 @@ void VolumePass::object_sync_volume(Manager &manager,
   const float density_fac = volume.display.density *
                             BKE_volume_density_scale(&volume, ob->object_to_world().ptr());
 
-  sub_ps.bind_texture("depthBuffer", &resources.depth_tx);
+  sub_ps.bind_texture("depth_buffer", &resources.depth_tx);
   sub_ps.bind_texture("stencil_tx", &stencil_tx_);
-  sub_ps.bind_texture("densityTexture", grid->texture);
+  sub_ps.bind_texture("density_tx", grid->texture);
   /* TODO: implement shadow texture, see manta_smoke_calc_transparency. */
-  sub_ps.bind_texture("shadowTexture", dummy_shadow_tx_);
+  sub_ps.bind_texture("shadow_tx", dummy_shadow_tx_);
   sub_ps.push_constant("active_color", color);
   sub_ps.push_constant("density_fac", density_fac);
   sub_ps.push_constant("volume_object_to_texture", float4x4(grid->object_to_texture));
@@ -141,14 +141,14 @@ void VolumePass::object_sync_modifier(Manager &manager,
     sub_ps.push_constant("grid_scale", settings.grid_scale);
 
     if (show_flags) {
-      sub_ps.bind_texture("flagTexture", settings.tex_field);
+      sub_ps.bind_texture("flag_tx", settings.tex_field);
     }
     else {
-      sub_ps.bind_texture("densityTexture", settings.tex_field);
+      sub_ps.bind_texture("density_tx", settings.tex_field);
     }
 
     if (!show_flags && !show_pressure && !show_phi) {
-      sub_ps.bind_texture("transferTexture", settings.tex_coba);
+      sub_ps.bind_texture("transfer_tx", settings.tex_coba);
     }
   }
   else {
@@ -158,17 +158,17 @@ void VolumePass::object_sync_modifier(Manager &manager,
     sub_ps.push_constant("active_color",
                          use_constant_color ? float3(settings.active_color) : float3(1));
 
-    sub_ps.bind_texture("densityTexture",
+    sub_ps.bind_texture("density_tx",
                         settings.tex_color ? settings.tex_color : settings.tex_density);
-    sub_ps.bind_texture("flameTexture",
+    sub_ps.bind_texture("flame_tx",
                         settings.tex_flame ? settings.tex_flame : dummy_volume_tx_);
-    sub_ps.bind_texture("flameColorTexture",
+    sub_ps.bind_texture("flame_color_tx",
                         settings.tex_flame ? settings.tex_flame_coba : dummy_coba_tx_);
-    sub_ps.bind_texture("shadowTexture", settings.tex_shadow);
+    sub_ps.bind_texture("shadow_tx", settings.tex_shadow);
   }
 
   sub_ps.push_constant("density_scale", 10.0f * settings.display_thickness);
-  sub_ps.bind_texture("depthBuffer", &resources.depth_tx);
+  sub_ps.bind_texture("depth_buffer", &resources.depth_tx);
   sub_ps.bind_texture("stencil_tx", &stencil_tx_);
 
   if (use_slice) {

@@ -22,7 +22,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_edit_mesh_edge)
 
 bool test_occlusion()
 {
-  return gl_FragCoord.z > texelFetch(depthTex, int2(gl_FragCoord.xy), 0).r;
+  return gl_FragCoord.z > texelFetch(depth_tx, int2(gl_FragCoord.xy), 0).r;
 }
 
 float edge_step(float dist)
