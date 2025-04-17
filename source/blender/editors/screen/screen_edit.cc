@@ -979,7 +979,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
 
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Scene *scene = WM_window_get_active_scene(prevwin);
-    Scene *scene_eval = (Scene *)DEG_get_evaluated_id(depsgraph, &scene->id);
+    Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
     BKE_sound_stop_scene(scene_eval);
   }
   screen->animtimer = nullptr;
@@ -1055,6 +1055,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
   if (area) {
     if (az->type == AZONE_AREA) {
       WM_cursor_set(win, WM_CURSOR_EDIT);
+    }
+    else if (az->type == AZONE_REGION_SCROLL) {
+      WM_cursor_set(win, WM_CURSOR_DEFAULT);
     }
     else if (az->type == AZONE_REGION) {
       if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {

@@ -436,17 +436,26 @@ struct ViewOpsData_Utility : ViewOpsData {
 
       wmKeyMapItem *kmi_cpy = WM_keymap_add_item_copy(&keymap_tmp, kmi);
       if (kmi_merge) {
-        if (kmi_merge->shift == 1 || ELEM(kmi_merge->type, EVT_RIGHTSHIFTKEY, EVT_LEFTSHIFTKEY)) {
-          kmi_cpy->shift = 1;
+        if (kmi_merge->shift == KM_MOD_HELD ||
+            ELEM(kmi_merge->type, EVT_RIGHTSHIFTKEY, EVT_LEFTSHIFTKEY))
+        {
+          kmi_cpy->shift = KM_MOD_HELD;
         }
-        if (kmi_merge->ctrl == 1 || ELEM(kmi_merge->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
-          kmi_cpy->ctrl = 1;
+        if (kmi_merge->ctrl == KM_MOD_HELD ||
+            ELEM(kmi_merge->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY))
+        {
+          kmi_cpy->ctrl = KM_MOD_HELD;
         }
-        if (kmi_merge->alt == 1 || ELEM(kmi_merge->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
-          kmi_cpy->alt = 1;
+        if (kmi_merge->alt == KM_MOD_HELD ||
+            ELEM(kmi_merge->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY))
+        {
+          kmi_cpy->alt = KM_MOD_HELD;
         }
-        if (kmi_merge->oskey == 1 || ELEM(kmi_merge->type, EVT_OSKEY)) {
-          kmi_cpy->oskey = 1;
+        if (kmi_merge->oskey == KM_MOD_HELD || ELEM(kmi_merge->type, EVT_OSKEY)) {
+          kmi_cpy->oskey = KM_MOD_HELD;
+        }
+        if (kmi_merge->hyper == KM_MOD_HELD || ELEM(kmi_merge->type, EVT_HYPER)) {
+          kmi_cpy->hyper = KM_MOD_HELD;
         }
         if (!ISKEYMODIFIER(kmi_merge->type)) {
           kmi_cpy->keymodifier = kmi_merge->type;
@@ -804,7 +813,7 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
   View3D *v3d = CTX_wm_view3d(C);
   BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
   Object *ob_act_eval = BKE_view_layer_active_object_get(view_layer_eval);
-  Object *ob_act = DEG_get_original_object(ob_act_eval);
+  Object *ob_act = DEG_get_original(ob_act_eval);
 
   if (ob_act && (ob_act->mode & OB_MODE_ALL_PAINT) &&
       /* with weight-paint + pose-mode, fall through to using calculateTransformCenter */

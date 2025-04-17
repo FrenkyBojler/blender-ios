@@ -245,11 +245,6 @@ struct WeightsArrayCache {
   float **defgroup_weights;
 };
 
-void BKE_key_free_data(Key *key)
-{
-  shapekey_free_data(&key->id);
-}
-
 void BKE_key_free_nolib(Key *key)
 {
   while (KeyBlock *kb = static_cast<KeyBlock *>(BLI_pophead(&key->block))) {
@@ -1876,6 +1871,16 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
   kb->pos = curpos + 0.1f; /* only used for absolute shape keys */
 
   return kb;
+}
+
+KeyBlock *BKE_keyblock_duplicate(Key *key, const KeyBlock *kb_src)
+{
+  BLI_assert(BLI_findindex(&key->block, kb_src) != -1);
+  KeyBlock *kb_dst = BKE_keyblock_add(key, kb_src->name);
+  kb_dst->totelem = kb_src->totelem;
+  kb_dst->data = MEM_dupallocN(kb_src->data);
+  BKE_keyblock_copy_settings(kb_dst, kb_src);
+  return kb_dst;
 }
 
 KeyBlock *BKE_keyblock_add_ctime(Key *key, const char *name, const bool do_force)
