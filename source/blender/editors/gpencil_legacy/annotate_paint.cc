@@ -1985,7 +1985,7 @@ static void annotation_draw_status_indicators(bContext *C, tGPsdata *p, const wm
 
     const int icon_x = event->tablet.x_tilt > 0.0f ? ICON_EVENT_RIGHT_ARROW :
                                                      ICON_EVENT_LEFT_ARROW;
-    const int icon_y = event->tablet.y_tilt > 0.0f ? ICON_EVENT_UP_ARROW : ICON_EVENT_DOWN_ARROW;
+    const int icon_y = event->tablet.y_tilt > 0.0f ? ICON_EVENT_DOWN_ARROW : ICON_EVENT_UP_ARROW;
     status.item(fmt::format("{:+03.0f}°", event->tablet.x_tilt * 90.0f), icon_x);
     status.item(fmt::format("{:+03.0f}°", event->tablet.y_tilt * 90.0f), icon_y);
   }
