@@ -236,9 +236,9 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   archive->collect_readers();
 
   if (data->params.import_lights && data->params.create_world_material &&
-      !archive->dome_lights_readers().is_empty())
+      !archive->dome_light_readers().is_empty())
   {
-    USDDomeLightReader *domeligth_reader = archive->dome_lights_readers().first();
+    USDDomeLightReader *domeligth_reader = archive->dome_light_readers().first();
     domeligth_reader->create_object(data->scene, data->bmain);
   }
 

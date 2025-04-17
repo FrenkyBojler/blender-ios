@@ -84,7 +84,7 @@ void USDDomeLightReader::create_object(Scene *scene, Main *bmain)
 {
   USDImportDomeLightAttr attr;
 
-  double motionSampleTime = 0.0;
+  const double motionSampleTime = 0.0;
 
   if (prim_.IsA<pxr::UsdLuxDomeLight>()) {
     pxr::UsdLuxDomeLight dome_light = pxr::UsdLuxDomeLight(prim_);

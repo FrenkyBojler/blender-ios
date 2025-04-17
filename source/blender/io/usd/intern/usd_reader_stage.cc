@@ -445,7 +445,7 @@ USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
   }
 
   if (prim.IsA<pxr::UsdLuxDomeLight>() || prim.IsA<pxr::UsdLuxDomeLight_1>()) {
-    dome_lights_readers_.append(new USDDomeLightReader(prim, params_, settings_));
+    dome_light_readers_.append(new USDDomeLightReader(prim, params_, settings_));
   }
 
   pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
@@ -533,7 +533,7 @@ void USDStageReader::collect_readers()
   }
 
   clear_readers();
-  dome_lights_readers_.clear();
+  dome_light_readers_.clear();
 
   /* Identify paths to point instancer prototypes, as these will be converted
    * in a separate pass over the stage. */

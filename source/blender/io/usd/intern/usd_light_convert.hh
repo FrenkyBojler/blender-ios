@@ -13,12 +13,15 @@ namespace blender::io::usd {
 struct USDExportParams;
 struct USDImportParams;
 
+/* This struct contains all DomeLight attribute needed to
+ * create a world environment */
 struct USDImportDomeLightAttr {
   float intensity;
-  bool has_color;
   pxr::GfVec3f color;
-  bool has_tex;
   pxr::SdfAssetPath tex_path;
+
+  bool has_color;
+  bool has_tex;
 };
 
 void world_material_to_dome_light(const USDExportParams &params,

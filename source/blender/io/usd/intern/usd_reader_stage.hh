@@ -42,7 +42,7 @@ class USDStageReader {
 
   /* USD dome lights are converted to a world material,
    * rather than light objects, so are handled differently */
-  blender::Vector<USDDomeLightReader *> dome_lights_readers_;
+  blender::Vector<USDDomeLightReader *> dome_light_readers_;
 
   /* USD material prim paths encountered during stage
    * traversal, for importing unused materials. */
@@ -128,9 +128,9 @@ class USDStageReader {
     return readers_;
   };
 
-  const blender::Vector<USDDomeLightReader *> &dome_lights_readers() const
+  const blender::Vector<USDDomeLightReader *> &dome_light_readers() const
   {
-    return dome_lights_readers_;
+    return dome_light_readers_;
   };
 
   void sort_readers();
