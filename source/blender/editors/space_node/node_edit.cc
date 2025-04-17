@@ -262,8 +262,7 @@ static void compo_initjob(void *cjv)
    * evaluate_on_framechange. */
   DEG_evaluate_on_refresh(cj->compositor_depsgraph);
 
-  bNodeTree *ntree_eval = (bNodeTree *)DEG_get_evaluated_id(cj->compositor_depsgraph,
-                                                            &cj->ntree->id);
+  bNodeTree *ntree_eval = DEG_get_evaluated(cj->compositor_depsgraph, cj->ntree);
 
   cj->localtree = bke::node_tree_localize(ntree_eval, nullptr);
 
@@ -627,10 +626,10 @@ void ED_node_shader_default(const bContext *C, ID *id)
                                   *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
     }
 
-    shader->location[0] = 10.0f;
-    shader->location[1] = 300.0f;
-    output->location[0] = 300.0f;
-    output->location[1] = 300.0f;
+    shader->location[0] = -200.0f;
+    shader->location[1] = 100.0f;
+    output->location[0] = 200.0f;
+    output->location[1] = 100.0f;
     blender::bke::node_set_active(*ntree, *output);
     BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
   }
@@ -1060,11 +1059,12 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
       WM_event_drag_start_mval(event, region, mval);
       float mx, my;
       UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
-      float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
+      const float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
       const float dy = (my - nsw->mystart) / UI_SCALE_FAC;
 
       if (node) {
         float *pwidth = &node->width;
+        float *pheight = &node->height;
         float oldwidth = nsw->oldwidth;
         float widthmin = node->typeinfo->minwidth;
         float widthmax = node->typeinfo->maxwidth;
@@ -1080,13 +1080,13 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
           }
           if (nsw->directions & NODE_RESIZE_LEFT) {
             float locmax = nsw->oldlocx + oldwidth;
+            *pwidth = oldwidth - dx;
 
             if (nsw->snap_to_grid) {
-              dx = nearest_node_grid_coord(dx);
+              *pwidth = nearest_node_grid_coord(*pwidth);
             }
-            node->location[0] = nsw->oldlocx + dx;
-            CLAMP(node->location[0], locmax - widthmax, locmax - widthmin);
-            *pwidth = locmax - node->location[0];
+            CLAMP(*pwidth, widthmin, widthmax);
+            node->location[0] = locmax - *pwidth;
           }
         }
 
@@ -1096,14 +1096,21 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
           float heightmax = UI_SCALE_FAC * node->typeinfo->maxheight;
           if (nsw->directions & NODE_RESIZE_TOP) {
             float locmin = nsw->oldlocy - nsw->oldheight;
+            *pheight = nsw->oldheight + dy;
 
-            node->location[1] = nsw->oldlocy + dy;
-            CLAMP(node->location[1], locmin + heightmin, locmin + heightmax);
-            node->height = node->location[1] - locmin;
+            if (nsw->snap_to_grid) {
+              *pheight = nearest_node_grid_coord(*pheight);
+            }
+            CLAMP(*pheight, heightmin, heightmax);
+            node->location[1] = locmin + *pheight;
           }
           if (nsw->directions & NODE_RESIZE_BOTTOM) {
-            node->height = nsw->oldheight - dy;
-            CLAMP(node->height, heightmin, heightmax);
+            *pheight = nsw->oldheight - dy;
+
+            if (nsw->snap_to_grid) {
+              *pheight = nearest_node_grid_coord(*pheight);
+            }
+            CLAMP(*pheight, heightmin, heightmax);
           }
         }
       }
