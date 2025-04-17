@@ -90,8 +90,13 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
   return std::nullopt;
 }
 
+struct CustomDataAndSize {
+  const CustomData &data;
+  int size;
+};
+
 static AttributeStorage attribute_legacy_convert_customdata_to_storage(
-    const Map<AttrDomain, std::pair<const CustomData *, int>> &domains)
+    const Map<AttrDomain, CustomDataAndSize> &domains)
 {
   AttributeStorage storage{};
   struct AttributeToAdd {
@@ -105,8 +110,8 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
   Vector<AttributeToAdd> attributes_to_add;
   for (const auto &item : domains.items()) {
     const AttrDomain domain = item.key;
-    const CustomData &custom_data = *item.value.first;
-    const int domain_size = item.value.second;
+    const CustomData &custom_data = item.value.data;
+    const int domain_size = item.value.size;
     for (const CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
       const std::optional<AttrType> attr_type = custom_data_type_to_attr_type(
           eCustomDataType(layer.type));
@@ -166,9 +171,14 @@ std::optional<eCustomDataType> attr_type_to_custom_data_type(const AttrType attr
   return std::nullopt;
 }
 
+struct CustomDataAndSizeMutable {
+  CustomData &data;
+  int size;
+};
+
 static void convert_storage_to_customdata(
     const AttributeStorage &storage,
-    const Map<AttrDomain, std::pair<CustomData *, int>> &custom_data_domains)
+    const Map<AttrDomain, CustomDataAndSizeMutable> &custom_data_domains)
 {
   /* Name uniqueness is handled by the #CustomData API. */
   storage.foreach([&](const Attribute &attribute) {
@@ -177,11 +187,11 @@ static void convert_storage_to_customdata(
     if (!data_type) {
       return;
     }
-    CustomData *custom_data = custom_data_domains.lookup(attribute.domain()).first;
-    const int domain_size = custom_data_domains.lookup(attribute.domain()).second;
+    CustomData &custom_data = custom_data_domains.lookup(attribute.domain()).data;
+    const int domain_size = custom_data_domains.lookup(attribute.domain()).size;
     if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data())) {
       BLI_assert(array_data->size == domain_size);
-      CustomData_add_layer_named_with_data(custom_data,
+      CustomData_add_layer_named_with_data(&custom_data,
                                            *data_type,
                                            array_data->data,
                                            array_data->size,
@@ -193,7 +203,7 @@ static void convert_storage_to_customdata(
       auto *value = new ImplicitSharedValue<GArray<>>(cpp_type, domain_size);
       cpp_type.fill_construct_n(single_data->value, value->data.data(), domain_size);
       CustomData_add_layer_named_with_data(
-          custom_data, *data_type, value->data.data(), domain_size, attribute.name(), value);
+          &custom_data, *data_type, value->data.data(), domain_size, attribute.name(), value);
     }
   });
 }
@@ -201,65 +211,55 @@ static void convert_storage_to_customdata(
 void mesh_convert_storage_to_customdata(Mesh &mesh)
 {
   convert_storage_to_customdata(mesh.attribute_storage.wrap(),
-                                Map<AttrDomain, std::pair<CustomData *, int>>{
-                                    {AttrDomain::Point, {&mesh.vert_data, mesh.verts_num}},
-                                    {AttrDomain::Edge, {&mesh.edge_data, mesh.edges_num}},
-                                    {AttrDomain::Face, {&mesh.face_data, mesh.faces_num}},
-                                    {AttrDomain::Corner, {&mesh.corner_data, mesh.corners_num}}});
+                                {{AttrDomain::Point, {mesh.vert_data, mesh.verts_num}},
+                                 {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
+                                 {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
+                                 {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
 }
 AttributeStorage mesh_convert_customdata_to_storage(const Mesh &mesh)
 {
   return bke::attribute_legacy_convert_customdata_to_storage(
-      Map<AttrDomain, std::pair<const CustomData *, int>>{
-          {AttrDomain::Point, {&mesh.vert_data, mesh.verts_num}},
-          {AttrDomain::Edge, {&mesh.edge_data, mesh.edges_num}},
-          {AttrDomain::Face, {&mesh.face_data, mesh.faces_num}},
-          {AttrDomain::Corner, {&mesh.corner_data, mesh.corners_num}}});
+      {{AttrDomain::Point, {mesh.vert_data, mesh.verts_num}},
+       {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
+       {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
+       {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
 }
 
 void curves_convert_storage_to_customdata(CurvesGeometry &curves)
 {
-  convert_storage_to_customdata(
-      curves.attribute_storage.wrap(),
-      Map<AttrDomain, std::pair<CustomData *, int>>{
-          {AttrDomain::Point, {&curves.point_data, curves.points_num()}},
-          {AttrDomain::Curve, {&curves.curve_data, curves.curves_num()}}});
+  convert_storage_to_customdata(curves.attribute_storage.wrap(),
+                                {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
+                                 {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
 }
 AttributeStorage curves_convert_customdata_to_storage(const CurvesGeometry &curves)
 {
   return attribute_legacy_convert_customdata_to_storage(
-      Map<AttrDomain, std::pair<const CustomData *, int>>{
-          {AttrDomain::Point, {&curves.point_data, curves.points_num()}},
-          {AttrDomain::Curve, {&curves.curve_data, curves.curves_num()}}});
+      {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
+       {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
 }
 
 void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
 {
-  convert_storage_to_customdata(
-      pointcloud.attribute_storage.wrap(),
-      Map<AttrDomain, std::pair<CustomData *, int>>{
-          {AttrDomain::Point, {&pointcloud.pdata, pointcloud.totpoint}}});
+  convert_storage_to_customdata(pointcloud.attribute_storage.wrap(),
+                                {{AttrDomain::Point, {pointcloud.pdata, pointcloud.totpoint}}});
 }
 
 AttributeStorage pointcloud_convert_customdata_to_storage(const PointCloud &pointcloud)
 {
   return attribute_legacy_convert_customdata_to_storage(
-      Map<AttrDomain, std::pair<const CustomData *, int>>{
-          {AttrDomain::Point, {&pointcloud.pdata, pointcloud.totpoint}}});
+      {{AttrDomain::Point, {pointcloud.pdata, pointcloud.totpoint}}});
 }
 
 void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
 {
   convert_storage_to_customdata(
       grease_pencil.attribute_storage.wrap(),
-      Map<AttrDomain, std::pair<CustomData *, int>>{
-          {AttrDomain::Layer, {&grease_pencil.layers_data, grease_pencil.layers().size()}}});
+      {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
 }
 AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil &grease_pencil)
 {
   return attribute_legacy_convert_customdata_to_storage(
-      Map<AttrDomain, std::pair<const CustomData *, int>>{
-          {AttrDomain::Layer, {&grease_pencil.layers_data, grease_pencil.layers().size()}}});
+      {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
 }
 
 }  // namespace blender::bke
