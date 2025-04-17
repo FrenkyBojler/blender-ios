@@ -319,9 +319,7 @@ const char *ED_buttons_search_string_get(SpaceProperties *sbuts)
 
 int ED_buttons_search_string_length(SpaceProperties *sbuts)
 {
-  return (sbuts->runtime) ?
-             BLI_strnlen(sbuts->runtime->search_string, sizeof(sbuts->runtime->search_string)) :
-             0;
+  return (sbuts->runtime) ? STRNLEN(sbuts->runtime->search_string) : 0;
 }
 
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)
@@ -353,6 +351,7 @@ static bool property_search_for_context(const bContext *C, ARegion *region, Spac
     return false;
   }
 
+  buttons_context_compute(C, sbuts);
   return ED_region_property_search(
       C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
