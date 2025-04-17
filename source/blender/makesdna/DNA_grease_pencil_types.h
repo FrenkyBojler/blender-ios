@@ -242,6 +242,7 @@ typedef enum GreasePencilLayerTreeNodeFlag {
   GP_LAYER_TREE_NODE_HIDE_MASKS = (1 << 7),
   GP_LAYER_TREE_NODE_DISABLE_MASKS_IN_VIEWLAYER = (1 << 8),
   GP_LAYER_TREE_NODE_IGNORE_LOCKED_MATERIALS = (1 << 9),
+  GP_LAYER_TREE_NODE_USE_SOLO_MODE = (1 << 10),
 } GreasePencilLayerTreeNodeFlag;
 
 struct GreasePencilLayerTreeGroup;

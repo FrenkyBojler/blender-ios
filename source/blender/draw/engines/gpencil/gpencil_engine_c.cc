@@ -398,7 +398,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
   /* Note that we loop over all the drawings (including the onion skinned ones) to make sure we
    * match the offsets of the batch cache. */
   const Vector<DrawingInfo> drawings = retrieve_visible_drawings(
-      *this->scene, grease_pencil, true);
+      *this->scene, grease_pencil, true, ob->mode == OB_MODE_PAINT_GREASE_PENCIL);
   const Span<const Layer *> layers = grease_pencil.layers();
   for (const DrawingInfo info : drawings) {
     const Layer &layer = *layers[info.layer_index];

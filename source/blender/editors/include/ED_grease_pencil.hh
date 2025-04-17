@@ -374,7 +374,8 @@ Vector<MutableDrawingInfo> retrieve_editable_drawings_from_layer_with_falloff(
     const Scene &scene, GreasePencil &grease_pencil, const bke::greasepencil::Layer &layer);
 Vector<DrawingInfo> retrieve_visible_drawings(const Scene &scene,
                                               const GreasePencil &grease_pencil,
-                                              bool do_onion_skinning);
+                                              bool do_onion_skinning,
+                                              bool is_solo_mode = false);
 
 IndexMask retrieve_editable_strokes(Object &grease_pencil_object,
                                     const bke::greasepencil::Drawing &drawing,

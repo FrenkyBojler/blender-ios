@@ -870,7 +870,8 @@ Vector<MutableDrawingInfo> retrieve_editable_drawings_from_layer_with_falloff(
 
 Vector<DrawingInfo> retrieve_visible_drawings(const Scene &scene,
                                               const GreasePencil &grease_pencil,
-                                              const bool do_onion_skinning)
+                                              const bool do_onion_skinning,
+                                              bool is_solo_mode)
 {
   using namespace blender::bke::greasepencil;
   const int current_frame = scene.r.cfra;
@@ -889,7 +890,12 @@ Vector<DrawingInfo> retrieve_visible_drawings(const Scene &scene,
         grease_pencil, layer, current_frame, use_multi_frame_editing, do_onion_skinning);
     for (const auto &[frame_number, onion_id] : frames) {
       if (const Drawing *drawing = grease_pencil.get_drawing_at(layer, frame_number)) {
-        visible_drawings.append({*drawing, layer_i, frame_number, onion_id});
+
+        if (!is_solo_mode || !(layer.base.flag & GP_LAYER_TREE_NODE_USE_SOLO_MODE) ||
+                              layer.frames().lookup_ptr(current_frame))
+        {
+          visible_drawings.append({*drawing, layer_i, frame_number, onion_id});
+        }
       }
     }
   }

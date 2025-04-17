@@ -1188,6 +1188,13 @@ static void rna_def_grease_pencil_layer(BlenderRNA *brna)
   RNA_def_property_float_funcs(
       prop, "rna_GreasePencilLayer_matrix_parent_inverse_get", nullptr, nullptr);
 
+  prop = RNA_def_property(srna, "use_solo_mode", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, "GreasePencilLayerTreeNode", "flag", GP_LAYER_TREE_NODE_USE_SOLO_MODE);
+  RNA_def_property_ui_text(
+      prop, "Show only on keyframed", "Display layers with keyframe on current frame in draw mode");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
+
   RNA_api_grease_pencil_layer(srna);
 }
 

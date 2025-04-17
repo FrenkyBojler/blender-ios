@@ -157,7 +157,7 @@ class GreasePencil_LayerDisplayPanel:
         layer = grease_pencil.layers.active
 
         layout.prop(layer, "channel_color", text="Channel Color")
-
+        layout.prop(layer, "use_solo_mode", text="Show only on keyframed")
 
 class GREASE_PENCIL_MT_layer_mask_add(Menu):
     bl_label = "Add Mask"
