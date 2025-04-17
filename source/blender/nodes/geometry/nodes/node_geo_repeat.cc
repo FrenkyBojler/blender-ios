@@ -228,26 +228,24 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (!RepeatItemsAccessor::supports_socket_type(type)) {
     return;
   }
-  const std::string name = other_socket.name;
-  const int in_out = other_socket.in_out;
-  params.add_item_full_name(IFACE_("Repeat"), [type, name, in_out](LinkSearchOpParams &params) {
+  params.add_item_full_name(IFACE_("Repeat"), [type](LinkSearchOpParams &params) {
     bNode &input_node = params.add_node("GeometryNodeRepeatInput");
     bNode &output_node = params.add_node("GeometryNodeRepeatOutput");
     output_node.location[0] = 300;
 
     auto &input_storage = *static_cast<NodeGeometryRepeatInput *>(input_node.storage);
-
     input_storage.output_node_id = output_node.identifier;
+
     socket_items::clear<RepeatItemsAccessor>(output_node);
     socket_items::add_item_with_socket_type_and_name<RepeatItemsAccessor>(
-        output_node, type, name.c_str());
+        output_node, type, params.socket.name);
     update_node_declaration_and_sockets(params.node_tree, input_node);
     update_node_declaration_and_sockets(params.node_tree, output_node);
-    if (in_out == SOCK_IN) {
-      params.connect_available_socket(output_node, name);
+    if (params.socket.in_out == SOCK_IN) {
+      params.connect_available_socket(output_node, params.socket.name);
     }
     else {
-      params.connect_available_socket(input_node, name);
+      params.connect_available_socket(input_node, params.socket.name);
     }
     params.node_tree.ensure_topology_cache();
     bke::node_add_link(params.node_tree,

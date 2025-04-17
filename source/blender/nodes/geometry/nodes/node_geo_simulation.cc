@@ -854,35 +854,32 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (!SimulationItemsAccessor::supports_socket_type(type)) {
     return;
   }
-  const std::string name = other_socket.name;
-  const int in_out = other_socket.in_out;
-  params.add_item_full_name(
-      IFACE_("Simulation"), [type, name, in_out](LinkSearchOpParams &params) {
-        bNode &input_node = params.add_node("GeometryNodeSimulationInput");
-        bNode &output_node = params.add_node("GeometryNodeSimulationOutput");
-        output_node.location[0] = 300;
+  params.add_item_full_name(IFACE_("Simulation"), [type](LinkSearchOpParams &params) {
+    bNode &input_node = params.add_node("GeometryNodeSimulationInput");
+    bNode &output_node = params.add_node("GeometryNodeSimulationOutput");
+    output_node.location[0] = 300;
 
-        auto &input_storage = *static_cast<NodeGeometrySimulationInput *>(input_node.storage);
+    auto &input_storage = *static_cast<NodeGeometrySimulationInput *>(input_node.storage);
+    input_storage.output_node_id = output_node.identifier;
 
-        input_storage.output_node_id = output_node.identifier;
-        socket_items::clear<SimulationItemsAccessor>(output_node);
-        socket_items::add_item_with_socket_type_and_name<SimulationItemsAccessor>(
-            output_node, type, name.c_str());
-        update_node_declaration_and_sockets(params.node_tree, input_node);
-        update_node_declaration_and_sockets(params.node_tree, output_node);
-        if (in_out == SOCK_IN) {
-          params.connect_available_socket(output_node, name);
-        }
-        else {
-          params.connect_available_socket(input_node, name);
-        }
-        params.node_tree.ensure_topology_cache();
-        bke::node_add_link(params.node_tree,
-                           input_node,
-                           input_node.output_socket(1),
-                           output_node,
-                           output_node.input_socket(1));
-      });
+    socket_items::clear<SimulationItemsAccessor>(output_node);
+    socket_items::add_item_with_socket_type_and_name<SimulationItemsAccessor>(
+        output_node, type, params.socket.name);
+    update_node_declaration_and_sockets(params.node_tree, input_node);
+    update_node_declaration_and_sockets(params.node_tree, output_node);
+    if (params.socket.in_out == SOCK_IN) {
+      params.connect_available_socket(output_node, params.socket.name);
+    }
+    else {
+      params.connect_available_socket(input_node, params.socket.name);
+    }
+    params.node_tree.ensure_topology_cache();
+    bke::node_add_link(params.node_tree,
+                       input_node,
+                       input_node.output_socket(1),
+                       output_node,
+                       output_node.input_socket(1));
+  });
 }
 
 static void node_register()
