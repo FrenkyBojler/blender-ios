@@ -309,15 +309,19 @@ static void propagate_right_to_left(const bNodeTree &tree,
           ouput_requirement = merge(ouput_requirement,
                                     input_requirements[socket->index_in_all_inputs()]);
         }
-        const Span<int> linked_inputs = interface.outputs[output].linked_inputs;
-        if (linked_inputs.size() == 1) {
-          const bNodeSocket &input_socket = *input_sockets[linked_inputs.first()];
-          input_requirements[input_socket.index_in_all_inputs()] = ouput_requirement;
+        Vector<int, 8> inputs_with_links;
+        for (const int input : interface.outputs[output].linked_inputs) {
+          const bNodeSocket &input_socket = *input_sockets[input];
+          if (input_socket.is_directly_linked()) {
+            inputs_with_links.append(input_socket.index_in_all_inputs());
+          }
+        }
+        if (inputs_with_links.size() == 1) {
+          input_requirements[inputs_with_links.first()] = ouput_requirement;
         }
         else {
-          for (const int input : linked_inputs) {
-            const bNodeSocket &input_socket = *input_sockets[input];
-            input_requirements[input_socket.index_in_all_inputs()] = DataRequirement::None;
+          for (const int input : inputs_with_links) {
+            input_requirements[input] = DataRequirement::None;
           }
         }
       }
