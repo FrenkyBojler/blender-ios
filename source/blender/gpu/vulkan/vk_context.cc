@@ -18,8 +18,6 @@
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "GHOST_C-api.h"
 
 namespace blender::gpu {
@@ -399,9 +397,8 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
                      swap_chain_data.submission_fence);
 
   device.resources.remove_image(swap_chain_data.image);
-#if 0
+#if 1
   device.debug_print();
-  MEM_printmemlist_stats();
 #endif
 }
 
