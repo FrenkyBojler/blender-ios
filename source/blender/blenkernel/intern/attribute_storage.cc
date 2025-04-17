@@ -262,7 +262,7 @@ static void read_shared_array(BlendDataReader &reader,
   *sharing_info = BLO_read_shared(&reader, &data, [&]() -> const ImplicitSharingInfo * {
     read_array_data(reader, data_type, size, data);
     const CPPType &cpp_type = attribute_type_to_cpp_type(data_type);
-    return MEM_new<ArrayDataImplicitSharing>(func, data, size, cpp_type);
+    return MEM_new<ArrayDataImplicitSharing>(func, *data, size, cpp_type);
   });
 }
 
