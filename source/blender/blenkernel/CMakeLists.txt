@@ -337,6 +337,7 @@ set(SRC
   BKE_attribute_legacy_convert.hh
   BKE_attribute_math.hh
   BKE_attribute_storage.hh
+  BKE_attribute_storage_blend_write.hh
   BKE_autoexec.hh
   BKE_bake_data_block_id.hh
   BKE_bake_data_block_map.hh
