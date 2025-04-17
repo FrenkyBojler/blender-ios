@@ -36,7 +36,6 @@ struct InsertKnotOpData {
   const int8_t order;
   const IndexRange curve_points;
   const Span<float3> positions;
-  const Span<float> weights;
   Span<float> knots;
   Array<float> knots_buffer;
 
@@ -67,7 +66,6 @@ InsertKnotOpData::InsertKnotOpData(ARegion *region,
       order(curves.nurbs_orders()[curve]),
       curve_points(curves.points_by_curve()[curve]),
       positions(curves.positions().slice(curve_points)),
-      weights(curves.nurbs_weights().slice(curve_points)),
       points_to_replace(0),
       preview_positions_buffer(2 * (order - 1) - 1),
       point_weights(preview_positions_buffer.size() * order)
@@ -202,6 +200,21 @@ static wmOperatorStatus insert_knot_invoke(bContext *C, wmOperator *op, const wm
   return OPERATOR_RUNNING_MODAL;
 }
 
+static Array<float> fill_weights_for_knot_span(const int order,
+                                               const Span<float> all_weights,
+                                               const IndexRange curve_points,
+                                               const int knot_span)
+{
+  Array<float> weights(order, 1.0f);
+  if (!all_weights.is_empty()) {
+    const Span<float> curve_weights = all_weights.slice(curve_points);
+    for (const int i : IndexRange(order)) {
+      weights[i] = curve_weights[(knot_span - order + 1 + i) % curve_points.size()];
+    }
+  }
+  return weights;
+}
+
 static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
 {
   if (ikcd.preview_positions.is_empty()) {
@@ -275,7 +288,8 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
   const IndexMask altered_points = IndexMask::from_bools(
       IndexRange(new_curve_points.size()), is_altered, memory);
   const int8_t order = ikcd.order;
-  const Span<float> control_weights = ikcd.curves.nurbs_weights().slice(curve_points);
+  const Array<float> weights = fill_weights_for_knot_span(
+      ikcd.order, ikcd.curves.nurbs_weights(), ikcd.curve_points, ikcd.knot_span);
 
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
@@ -301,8 +315,7 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
           Span<float> point_weights = ikcd.point_weights.as_span().slice(j * order, order);
           for (const int i : point_weights.index_range()) {
             const int src_i = (ikcd.knot_span - ikcd.order + 1 + i) % curve_points.size();
-            mixer.mix_in(
-                altered_point, src_points[src_i], control_weights[src_i] * point_weights[i]);
+            mixer.mix_in(altered_point, src_points[src_i], weights[i] * point_weights[i]);
           }
         };
         mixer.finalize(altered_points);
@@ -375,14 +388,16 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
         ikcd.preview_positions = ikcd.preview_positions_buffer.as_mutable_span().slice(
             0, ikcd.points_to_replace.size() + repeat);
 
+        const Array<float> weights = fill_weights_for_knot_span(
+            ikcd.order, ikcd.curves.nurbs_weights(), ikcd.curve_points, ikcd.knot_span);
+
         MutableSpan<float3> preview_positions = ikcd.preview_positions;
         for (const int altered_point : preview_positions.index_range()) {
           float4 position = float4(0.0f);
           for (const int i : IndexRange(ikcd.order)) {
             const float point_weight = ikcd.point_weights[altered_point * ikcd.order + i];
             const int src = (ikcd.knot_span - ikcd.order + 1 + i) % ikcd.curve_points.size();
-            const float4 src_position = float4(ikcd.positions[src] * ikcd.weights[src],
-                                               ikcd.weights[src]);
+            const float4 src_position = float4(ikcd.positions[src] * weights[i], weights[i]);
             position += src_position * point_weight;
           }
           preview_positions[altered_point] = position.xyz() / position.w;
