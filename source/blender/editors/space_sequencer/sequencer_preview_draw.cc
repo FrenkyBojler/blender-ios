@@ -1023,8 +1023,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
     return;
   }
-  if ((sseq->flag & SEQ_SHOW_OVERLAY) == 0 ||
-      (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_OUTLINE_SELECTED) == 0)
+  if ((sseq->flag & SEQ_SHOW_OVERLAY) == 0)
   {
     return;
   }
@@ -1053,6 +1052,10 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   immEnd();
   immUnbindProgram();
 
+  if((sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_OUTLINE_SELECTED) == 0){
+    return;
+  }
+  
   /* Outline. */
   const blender::Array<blender::float2> strip_image_quad = seq::image_transform_final_quad_get(
       CTX_data_scene(C), strip);
