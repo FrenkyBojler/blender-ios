@@ -15,7 +15,6 @@
 #include "BKE_customdata.hh"
 
 #include "BKE_attribute_legacy_convert.hh"
-#include "BKE_attribute_storage_blend_write.hh"
 
 namespace blender::bke {
 
