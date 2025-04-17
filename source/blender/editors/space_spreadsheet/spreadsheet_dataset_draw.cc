@@ -562,10 +562,11 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   void build_tree_for_mesh(const Mesh *mesh, ui::TreeViewItemContainer &parent)
   {
     auto &mesh_item = parent.add_tree_item<MeshViewItem>(mesh != nullptr);
+    mesh_item.uncollapse_by_default();
     if (!mesh) {
       return;
     }
-    mesh_item.uncollapse_by_default();
+
     mesh_item.add_tree_item<MeshDomainViewItem>(mesh, bke::AttrDomain::Point);
     mesh_item.add_tree_item<MeshDomainViewItem>(mesh, bke::AttrDomain::Edge);
     mesh_item.add_tree_item<MeshDomainViewItem>(mesh, bke::AttrDomain::Face);
@@ -575,10 +576,11 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   void build_tree_for_curves(const Curves *curves, ui::TreeViewItemContainer &parent)
   {
     auto &curves_item = parent.add_tree_item<CurvesViewItem>(curves != nullptr);
+    curves_item.uncollapse_by_default();
     if (!curves) {
       return;
     }
-    curves_item.uncollapse_by_default();
+
     curves_item.add_tree_item<CurvesDomainViewItem>(curves, bke::AttrDomain::Point);
     curves_item.add_tree_item<CurvesDomainViewItem>(curves, bke::AttrDomain::Curve);
   }
@@ -588,10 +590,11 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   {
     auto &grease_pencil_item = parent.add_tree_item<GreasePencilViewItem>(grease_pencil !=
                                                                           nullptr);
+    grease_pencil_item.uncollapse_by_default();
     if (!grease_pencil) {
       return;
     }
-    grease_pencil_item.uncollapse_by_default();
+
     auto &layers_item = grease_pencil_item.add_tree_item<GreasePencilLayersViewItem>(
         grease_pencil);
     const Span<const bke::greasepencil::Layer *> layers = grease_pencil->layers();
@@ -608,10 +611,11 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   void build_tree_for_pointcloud(const PointCloud *pointcloud, ui::TreeViewItemContainer &parent)
   {
     auto &pointcloud_item = parent.add_tree_item<PointCloudViewItem>(pointcloud != nullptr);
+    pointcloud_item.uncollapse_by_default();
     if (!pointcloud) {
       return;
     }
-    pointcloud_item.uncollapse_by_default();
+
     pointcloud_item.add_tree_item<PointsViewItem>(pointcloud);
   }
 
