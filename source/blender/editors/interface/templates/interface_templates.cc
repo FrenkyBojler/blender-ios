@@ -183,7 +183,7 @@ uiBlock *template_common_search_menu(const bContext *C,
                   UI_SEARCHBOX_BOUNDS;
 
     /* Fake button holds space for search items. */
-    uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, UI_UNIT_Y, w, h, nullptr, 0, 0,  std::nullopt);
+    uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, UI_UNIT_Y, w, h, nullptr, 0, 0, std::nullopt);
 
     but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, w, UI_UNIT_Y, "");
     UI_but_search_preview_grid_size_set(but, preview_rows, preview_cols);
