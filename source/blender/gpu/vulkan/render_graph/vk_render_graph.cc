@@ -20,7 +20,9 @@ VKRenderGraph::VKRenderGraph(VKResourceStateTracker &resources) : resources_(res
 
 void VKRenderGraph::reset()
 {
-  //memstats();
+#if 0
+  memstats();
+#endif
   submission_id.next();
 
   links_.clear_and_shrink();
@@ -40,20 +42,21 @@ void VKRenderGraph::memstats() const
 {
   std::cout << __func__ << " nodes: (" << nodes_.size() << "/" << nodes_.capacity() << "), "
             << "links: (" << links_.size() << "/" << links_.capacity() << ")\n";
-#define P(name) \
+#define PRINT_STORAGE(name) \
   std::cout << " " #name " : (" << storage_.name.size() << " / " << storage_.name.capacity() \
             << ")\n "
 
-  P(begin_rendering);
-  P(clear_attachments);
-  P(blit_image);
-  P(copy_buffer_to_image);
-  P(copy_image);
-  P(copy_image_to_buffer);
-  P(draw);
-  P(draw_indexed);
-  P(draw_indexed_indirect);
-  P(draw_indirect);
+  PRINT_STORAGE(begin_rendering);
+  PRINT_STORAGE(clear_attachments);
+  PRINT_STORAGE(blit_image);
+  PRINT_STORAGE(copy_buffer_to_image);
+  PRINT_STORAGE(copy_image);
+  PRINT_STORAGE(copy_image_to_buffer);
+  PRINT_STORAGE(draw);
+  PRINT_STORAGE(draw_indexed);
+  PRINT_STORAGE(draw_indexed_indirect);
+  PRINT_STORAGE(draw_indirect);
+#undef PRINT_STORAGE
 }
 
 /** \} */
