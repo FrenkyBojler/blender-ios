@@ -28,7 +28,7 @@
 
 GPU_SHADER_CREATE_INFO(workbench_volume_common)
 VERTEX_IN(0, float3, pos)
-FRAGMENT_OUT(0, float4, fragColor)
+FRAGMENT_OUT(0, float4, frag_color)
 SAMPLER(0, DEPTH_2D, depthBuffer)
 SAMPLER(1, FLOAT_3D, densityTexture)
 PUSH_CONSTANT(int, samples_len)
@@ -121,7 +121,7 @@ GPU_SHADER_CREATE_END()
  * \{ */
 
 GPU_SHADER_INTERFACE_INFO(workbench_volume_iface)
-SMOOTH(float3, localPos)
+SMOOTH(float3, local_position)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(workbench_volume_slice)

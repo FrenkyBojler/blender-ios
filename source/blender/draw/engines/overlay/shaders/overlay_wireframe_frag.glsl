@@ -21,7 +21,7 @@ void main()
   }
 #endif
 
-  lineOutput = float4(0.0f);
+  line_output = float4(0.0f);
 
 #if defined(POINTS)
   float2 centered = abs(gl_PointCoord - float2(0.5f));
@@ -33,16 +33,16 @@ void main()
   float3 rim_col = sqrt(final_color_inner.rgb);
   float3 wire_col = sqrt(final_color.rgb);
   float3 final_front_col = mix(rim_col, wire_col, 0.35f);
-  fragColor = float4(mix(final_front_col, rim_col, saturate(fac)), 1.0f);
-  fragColor *= fragColor;
+  frag_color = float4(mix(final_front_col, rim_col, saturate(fac)), 1.0f);
+  frag_color *= frag_color;
 
 #elif !defined(SELECT_ENABLE)
-  lineOutput = pack_line_data(gl_FragCoord.xy, edge_start, edgePos);
-  fragColor = final_color;
+  line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
+  frag_color = final_color;
 
 #  if !defined(CURVES)
   if (use_custom_depth_bias) {
-    float2 dir = lineOutput.xy * 2.0f - 1.0f;
+    float2 dir = line_output.xy * 2.0f - 1.0f;
     bool dir_horiz = abs(dir.x) > abs(dir.y);
 
     float2 uv = gl_FragCoord.xy * sizeViewportInv;

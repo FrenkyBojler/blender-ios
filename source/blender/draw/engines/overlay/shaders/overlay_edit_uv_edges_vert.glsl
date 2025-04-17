@@ -78,10 +78,10 @@ struct GeomOut {
 
 void export_vertex(GeomOut geom_out)
 {
-  selectionFac = float(geom_out.selected);
+  selection_fac = float(geom_out.selected);
   stipple_start = geom_out.stipple_start;
-  stipplePos = geom_out.stipple_pos;
-  edgeCoord = geom_out.edge_coord;
+  stipple_pos = geom_out.stipple_pos;
+  edge_coord = geom_out.edge_coord;
   gl_Position = geom_out.gpu_position;
 }
 

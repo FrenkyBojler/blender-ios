@@ -21,6 +21,6 @@ void main()
   float trans_reveal = trans_accum.a;
 
   /* Listing 4 */
-  fragColor.rgb = trans_accum.rgb / clamp(trans_weight, 1e-4f, 5e4f);
-  fragColor.a = 1.0f - trans_reveal;
+  frag_color.rgb = trans_accum.rgb / clamp(trans_weight, 1e-4f, 5e4f);
+  frag_color.a = 1.0f - trans_reveal;
 }

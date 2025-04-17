@@ -76,22 +76,22 @@ void main()
 
   /* Composite all other colors on top of texture color.
    * Everything is pre-multiply by `col.a` to have the stencil effect. */
-  fragColor = col * gp_interp.color_mul + col.a * gp_interp.color_add;
+  frag_color = col * gp_interp.color_mul + col.a * gp_interp.color_add;
 
-  fragColor.rgb *= gpencil_lighting();
+  frag_color.rgb *= gpencil_lighting();
 
-  fragColor *= gpencil_stroke_round_cap_mask(gp_interp_flat.sspos.xy,
-                                             gp_interp_flat.sspos.zw,
-                                             gp_interp_flat.aspect,
-                                             gp_interp_noperspective.thickness.x,
-                                             gp_interp_noperspective.hardness);
+  frag_color *= gpencil_stroke_round_cap_mask(gp_interp_flat.sspos.xy,
+                                              gp_interp_flat.sspos.zw,
+                                              gp_interp_flat.aspect,
+                                              gp_interp_noperspective.thickness.x,
+                                              gp_interp_noperspective.hardness);
 
   /* To avoid aliasing artifacts, we reduce the opacity of small strokes. */
-  fragColor *= smoothstep(0.0f, 1.0f, gp_interp_noperspective.thickness.y);
+  frag_color *= smoothstep(0.0f, 1.0f, gp_interp_noperspective.thickness.y);
 
   /* Holdout materials. */
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_HOLDOUT | GP_FILL_HOLDOUT)) {
-    revealColor = fragColor.aaaa;
+    revealColor = frag_color.aaaa;
   }
   else {
     /* NOT holdout materials.
@@ -99,9 +99,9 @@ void main()
      * Note that we are limited to mono-chromatic alpha blending here
      * because of the blend equation and the limit of 1 color target
      * when using custom color blending. */
-    revealColor = float4(0.0f, 0.0f, 0.0f, fragColor.a);
+    revealColor = float4(0.0f, 0.0f, 0.0f, frag_color.a);
 
-    if (fragColor.a < 0.001f) {
+    if (frag_color.a < 0.001f) {
       discard;
       return;
     }

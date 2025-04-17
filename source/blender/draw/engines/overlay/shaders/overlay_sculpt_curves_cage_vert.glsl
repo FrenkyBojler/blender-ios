@@ -19,5 +19,5 @@ void main()
   final_color.a *= opacity;
 
   /* Convert to screen position [0..sizeVp]. */
-  edgePos = edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_pos = edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
 }

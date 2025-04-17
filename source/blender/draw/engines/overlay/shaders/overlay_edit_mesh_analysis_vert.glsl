@@ -29,7 +29,7 @@ void main()
 {
   float3 world_pos = drw_point_object_to_world(pos);
   gl_Position = drw_point_world_to_homogenous(world_pos);
-  weightColor = float4(weight_to_rgb(weight), 1.0f);
+  weight_color = float4(weight_to_rgb(weight), 1.0f);
 
   view_clipping_distances(world_pos);
 }

@@ -19,5 +19,5 @@ void main()
   mask.rgb *= mask_color;
   mask.a = mask_step * opacity;
 
-  fragColor = mask;
+  frag_color = mask;
 }

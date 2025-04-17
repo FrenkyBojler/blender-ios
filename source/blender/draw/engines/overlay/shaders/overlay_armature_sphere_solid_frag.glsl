@@ -14,8 +14,8 @@ void main()
   constexpr float sphere_radius = 0.05f;
 
   bool is_perp = (drw_view().winmat[3][3] == 0.0f);
-  float3 ray_ori_view = (is_perp) ? float3(0.0f) : viewPosition.xyz;
-  float3 ray_dir_view = (is_perp) ? viewPosition : float3(0.0f, 0.0f, -1.0f);
+  float3 ray_ori_view = (is_perp) ? float3(0.0f) : view_position.xyz;
+  float3 ray_dir_view = (is_perp) ? view_position : float3(0.0f, 0.0f, -1.0f);
 
   /* Single matrix mul without branch. */
   float4 mul_vec = (is_perp) ? float4(ray_dir_view, 0.0f) : float4(ray_ori_view, 1.0f);
@@ -46,14 +46,14 @@ void main()
   /* Smooth lighting factor. */
   constexpr float s = 0.2f; /* [0.0f-0.5f] range */
   float fac = clamp((dot(n, l) * (1.0f - s)) + s, 0.0f, 1.0f);
-  fragColor.rgb = mix(final_state_color, final_bone_color, fac * fac);
+  frag_color.rgb = mix(final_state_color, final_bone_color, fac * fac);
 
   /* 2x2 dither pattern to smooth the lighting. */
   float dither = (0.5f + dot(float2(int2(gl_FragCoord.xy) & int2(1)), float2(1.0f, 2.0f))) * 0.25f;
   dither *= (1.0f / 255.0f); /* Assume 8bit per color buffer. */
 
-  fragColor = float4(fragColor.rgb + dither, alpha);
-  lineOutput = float4(0.0f);
+  frag_color = float4(frag_color.rgb + dither, alpha);
+  line_output = float4(0.0f);
 
   t /= ray_len;
 

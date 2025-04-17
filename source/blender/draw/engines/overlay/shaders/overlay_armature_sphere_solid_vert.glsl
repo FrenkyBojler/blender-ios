@@ -78,7 +78,7 @@ void main()
   float4 pos_4d = float4(cam_pos, 1.0f);
   float4 V = model_view_matrix * pos_4d;
   gl_Position = drw_view().winmat * V;
-  viewPosition = V.xyz;
+  view_position = V.xyz;
 
   final_state_color = state_color.xyz;
   final_bone_color = bone_color.xyz;

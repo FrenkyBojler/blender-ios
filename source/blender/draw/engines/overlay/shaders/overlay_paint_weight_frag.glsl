@@ -102,6 +102,6 @@ void main()
     color = mix(weight_color, color_unreferenced, alert * alert);
   }
 
-  fragColor = float4(color.rgb, opacity);
-  lineOutput = float4(0.0f);
+  frag_color = float4(color.rgb, opacity);
+  line_output = float4(0.0f);
 }

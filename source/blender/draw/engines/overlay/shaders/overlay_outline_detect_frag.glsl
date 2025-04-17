@@ -233,16 +233,16 @@ void main()
   /* WATCH: Keep in sync with outlineId of the pre-pass. */
   uint color_id = ref_col >> 14u;
   if (ref_col == 0u) {
-    fragColor = float4(0.0f);
+    frag_color = float4(0.0f);
   }
   else if (color_id == 1u) {
-    fragColor = colorSelect;
+    frag_color = colorSelect;
   }
   else if (color_id == 3u) {
-    fragColor = colorActive;
+    frag_color = colorActive;
   }
   else {
-    fragColor = colorTransform;
+    frag_color = colorTransform;
   }
 
   float ref_depth = textureLod(outlineDepth, depth_uv, 0.0f).r;
@@ -253,7 +253,7 @@ void main()
   bool occluded = (ref_depth > scene_depth + epsilon);
 
   /* NOTE: We never set alpha to 1.0 to avoid Anti-aliasing destroying the line. */
-  fragColor *= (occluded ? alpha_occlu : 1.0f) * (254.0f / 255.0f);
+  frag_color *= (occluded ? alpha_occlu : 1.0f) * (254.0f / 255.0f);
 
   int edge_case = 0;
   edge_case += int(has_edge_pos_x) * XPOS;
@@ -270,7 +270,7 @@ void main()
   }
 
   if (!do_anti_aliasing) {
-    lineOutput = float4(0.0f);
+    line_output = float4(0.0f);
     return;
   }
 
@@ -367,5 +367,5 @@ void main()
       break;
   }
 
-  lineOutput = pack_line_data(float2(0.0f), line_start, line_end);
+  line_output = pack_line_data(float2(0.0f), line_start, line_end);
 }

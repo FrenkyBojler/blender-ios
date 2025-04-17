@@ -22,7 +22,7 @@ SAMPLER(0, FLOAT_2D, colorBuf)
 SAMPLER(1, FLOAT_2D, revealBuf)
 /* Reminder: This is considered SRC color in blend equations.
  * Same operation on all buffers. */
-FRAGMENT_OUT(0, float4, fragColor)
+FRAGMENT_OUT(0, float4, frag_color)
 FRAGMENT_OUT(1, float4, fragRevealage)
 FRAGMENT_SOURCE("gpencil_vfx_frag.glsl")
 GPU_SHADER_CREATE_END()

@@ -19,5 +19,5 @@ void main()
 
   float outline_opacity = 1.0f - dot(float4(equal(uint4(center_id), adjacent_ids)), float4(0.25f));
 
-  fragColor = world_data.object_outline_color * outline_opacity;
+  frag_color = world_data.object_outline_color * outline_opacity;
 }

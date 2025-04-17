@@ -261,10 +261,10 @@ void main()
 
   float3 Lscat;
   float s_extinction, Tr;
-  volume_properties(localPos, Lscat, s_extinction);
+  volume_properties(local_position, Lscat, s_extinction);
   eval_volume_step(Lscat, s_extinction, step_length, Tr);
 
-  fragColor = float4(Lscat, Tr);
+  frag_color = float4(Lscat, Tr);
 #else
   float2 screen_uv = gl_FragCoord.xy / float2(textureSize(depthBuffer, 0).xy);
   bool is_persp = drw_view().winmat[3][3] == 0.0f;
@@ -309,13 +309,13 @@ void main()
     return;
   }
 
-  fragColor = volume_integration(ls_ray_ori,
-                                 ls_ray_dir,
-                                 step_length,
-                                 length(ls_vol_isect) / length(ls_ray_dir),
-                                 length(vs_ray_dir) * step_length);
+  frag_color = volume_integration(ls_ray_ori,
+                                  ls_ray_dir,
+                                  step_length,
+                                  length(ls_vol_isect) / length(ls_ray_dir),
+                                  length(vs_ray_dir) * step_length);
 #endif
 
   /* Convert transmittance to alpha so we can use pre-multiply blending. */
-  fragColor.a = 1.0f - fragColor.a;
+  frag_color.a = 1.0f - frag_color.a;
 }

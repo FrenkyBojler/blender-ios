@@ -96,9 +96,9 @@ void main()
   int2 center_texel = int2(gl_FragCoord.xy);
   float line_kernel = sizePixel * 0.5f - 0.5f;
 
-  fragColor = texelFetch(colorTex, center_texel, 0);
+  frag_color = texelFetch(colorTex, center_texel, 0);
 
-  bool original_col_has_alpha = fragColor.a < 1.0f;
+  bool original_col_has_alpha = frag_color.a < 1.0f;
 
   float depth = texelFetch(depthTex, center_texel, 0).r;
 
@@ -136,15 +136,15 @@ void main()
   float4 coverage = line_coverage(line_dists, line_kernel);
 
   if (dist_raw > 0.0f) {
-    fragColor *= line_coverage(dist, line_kernel);
+    frag_color *= line_coverage(dist, line_kernel);
   }
 
   /* We don't order fragments but use alpha over/alpha under based on current minimum frag depth.
    */
-  neighbor_blend(coverage.x, depths.x, neightbor_col0, depth, fragColor);
-  neighbor_blend(coverage.y, depths.y, neightbor_col1, depth, fragColor);
-  neighbor_blend(coverage.z, depths.z, neightbor_col2, depth, fragColor);
-  neighbor_blend(coverage.w, depths.w, neightbor_col3, depth, fragColor);
+  neighbor_blend(coverage.x, depths.x, neightbor_col0, depth, frag_color);
+  neighbor_blend(coverage.y, depths.y, neightbor_col1, depth, frag_color);
+  neighbor_blend(coverage.z, depths.z, neightbor_col2, depth, frag_color);
+  neighbor_blend(coverage.w, depths.w, neightbor_col3, depth, frag_color);
 
 #if 1
   /* Fix aliasing issue with really dense meshes and 1 pixel sized lines. */
@@ -155,7 +155,7 @@ void main()
     float blend = dot(float4(0.25f), step(0.001f, lines));
     /* Only do blend if there are more than 2 neighbors. This avoids losing too much AA. */
     blend = clamp(blend * 2.0f - 1.0f, 0.0f, 1.0f);
-    fragColor = mix(fragColor, fragColor / fragColor.a, blend);
+    frag_color = mix(frag_color, frag_color / frag_color.a, blend);
   }
 #endif
 }

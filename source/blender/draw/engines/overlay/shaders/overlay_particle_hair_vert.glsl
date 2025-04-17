@@ -94,7 +94,7 @@ void main()
 
   gl_Position = drw_point_world_to_homogenous(ws_P);
 
-  edge_start = edgePos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
 
   float3 rim_col, wire_col;
   if (color_type == V3D_SHADING_OBJECT_COLOR || color_type == V3D_SHADING_RANDOM_COLOR) {

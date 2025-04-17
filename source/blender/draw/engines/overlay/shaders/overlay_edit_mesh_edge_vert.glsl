@@ -48,7 +48,7 @@ struct GeomOut {
 void export_vertex(GeomOut geom_out)
 {
   geometry_out.final_color = geom_out.final_color;
-  geometry_noperspective_out.edgeCoord = geom_out.edge_coord;
+  geometry_noperspective_out.edge_coord = geom_out.edge_coord;
   view_clipping_distances(geom_out.world_pos);
   gl_Position = geom_out.gpu_position;
 }

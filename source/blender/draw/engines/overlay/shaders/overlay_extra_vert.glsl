@@ -230,7 +230,7 @@ void main()
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
   /* Convert to screen position [0..sizeVp]. */
-  edgePos = edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_pos = edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
 
 #if defined(SELECT_ENABLE)
   /* HACK: to avoid losing sub-pixel object in selections, we add a bit of randomness to the

@@ -30,8 +30,8 @@ void main()
   final_wire_color = (data_buf[gl_InstanceID].wire_color.a > 0.0f) ?
                          data_buf[gl_InstanceID].wire_color :
                          final_inner_color;
-  colorFac = flag_test(bone_flag, COL_WIRE) ? 0.0f :
-                                              (flag_test(bone_flag, COL_BONE) ? 1.0f : 2.0f);
+  color_fac = flag_test(bone_flag, COL_WIRE) ? 0.0f :
+                                               (flag_test(bone_flag, COL_BONE) ? 1.0f : 2.0f);
 
   float4 boneStart_4d = float4(data_buf[gl_InstanceID].bone_start.xyz, 1.0f);
   float4 boneEnd_4d = float4(data_buf[gl_InstanceID].bone_end.xyz, 1.0f);

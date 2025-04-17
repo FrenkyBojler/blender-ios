@@ -50,9 +50,9 @@ void main()
   uint4 m_data = data & uint4(data_mask);
 
 #if defined(VERT)
-  vertexCrease = float(m_data.z >> 4) / 15.0f;
-  final_color = EDIT_MESH_vertex_color(m_data.y, vertexCrease);
-  gl_PointSize = sizeVertex * ((vertexCrease > 0.0f) ? 3.0f : 2.0f);
+  vertex_crease = float(m_data.z >> 4) / 15.0f;
+  final_color = EDIT_MESH_vertex_color(m_data.y, vertex_crease);
+  gl_PointSize = sizeVertex * ((vertex_crease > 0.0f) ? 3.0f : 2.0f);
   /* Make selected and active vertex always on top. */
   if ((data.x & VERT_SELECTED) != 0u) {
     gl_Position.z -= 5e-7f * abs(gl_Position.w);

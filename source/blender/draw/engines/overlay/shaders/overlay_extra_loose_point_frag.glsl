@@ -15,10 +15,10 @@ void main()
   /* Non linear blend. */
   float4 col1 = sqrt(colorEditMeshMiddle);
   float4 col2 = sqrt(final_color);
-  fragColor = mix(col1, col2, 0.45f + fac * 0.65f);
-  fragColor *= fragColor;
+  frag_color = mix(col1, col2, 0.45f + fac * 0.65f);
+  frag_color *= frag_color;
 
-  lineOutput = float4(0.0f);
+  line_output = float4(0.0f);
 
   /* Make the effect more like a fresnel by offsetting
    * the depth and creating mini-spheres.

@@ -154,7 +154,7 @@ void main()
 #else
   /* Convert to screen position [0..sizeVp]. */
   edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
-  edgePos = edge_start;
+  edge_pos = edge_start;
 
 #  if !defined(SELECT_ENABLE)
   facing = clamp(abs(facing), 0.0f, 1.0f);

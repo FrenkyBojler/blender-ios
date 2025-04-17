@@ -34,7 +34,7 @@ void main()
   gl_Position = drw_point_world_to_homogenous(world_pos);
   final_color = data_buf[gl_InstanceID].color_;
 
-  edge_start = edgePos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
 
   view_clipping_distances(world_pos);
 }

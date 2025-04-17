@@ -25,7 +25,7 @@
 GPU_SHADER_CREATE_INFO(workbench_taa)
 SAMPLER(0, FLOAT_2D, colorBuffer)
 PUSH_CONSTANT_ARRAY(float, samplesWeights, 9)
-FRAGMENT_OUT(0, float4, fragColor)
+FRAGMENT_OUT(0, float4, frag_color)
 FRAGMENT_SOURCE("workbench_effect_taa_frag.glsl")
 ADDITIONAL_INFO(gpu_fullscreen)
 DO_STATIC_COMPILATION()

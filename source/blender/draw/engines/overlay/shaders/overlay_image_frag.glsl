@@ -15,7 +15,7 @@ void main()
   float4 tex_color;
   tex_color = texture_read_as_linearrgb(imgTexture, img_premultiplied, uvs_clamped);
 
-  fragColor = tex_color * ucolor;
+  frag_color = tex_color * ucolor;
 
   if (!img_alpha_blend) {
     /* Arbitrary discard anything below 5% opacity.
@@ -24,12 +24,12 @@ void main()
       discard;
     }
     else {
-      fragColor.a = 1.0f;
+      frag_color.a = 1.0f;
     }
   }
 
   /* Pre-multiplied blending. */
-  fragColor.rgb *= fragColor.a;
+  frag_color.rgb *= frag_color.a;
 
   select_id_output(select_id);
 }

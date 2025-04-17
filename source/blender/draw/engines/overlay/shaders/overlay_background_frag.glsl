@@ -79,17 +79,17 @@ void main()
       break;
     }
     case BG_MASK:
-      fragColor = float4(float3(1.0f - alpha), 0.0f);
+      frag_color = float4(float3(1.0f - alpha), 0.0f);
       return;
   }
 
   bg_col = mix(bg_col, color_override.rgb, color_override.a);
 
   /* Mimic alpha under behavior. Result is premultiplied. */
-  fragColor = float4(bg_col, 1.0f) * (1.0f - alpha);
+  frag_color = float4(bg_col, 1.0f) * (1.0f - alpha);
 
   /* Special case: If the render is not transparent, do not clear alpha values. */
   if (depth == 1.0f && alpha == 1.0f) {
-    fragColor.a = 1.0f;
+    frag_color.a = 1.0f;
   }
 }

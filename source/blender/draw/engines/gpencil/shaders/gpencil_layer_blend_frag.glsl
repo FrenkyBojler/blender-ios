@@ -20,8 +20,8 @@ void main()
   float mask = textureLod(maskBuf, screen_uv, 0).r;
   mask *= blend_opacity;
 
-  fragColor = float4(1.0f, 0.0f, 1.0f, 1.0f);
+  frag_color = float4(1.0f, 0.0f, 1.0f, 1.0f);
   fragRevealage = float4(1.0f, 0.0f, 1.0f, 1.0f);
 
-  blend_mode_output(blend_mode, color, mask, fragColor, fragRevealage);
+  blend_mode_output(blend_mode, color, mask, frag_color, fragRevealage);
 }

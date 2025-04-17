@@ -20,15 +20,15 @@ void main()
 
 #ifdef VOLUME_SLICE
   if (slice_axis == 0) {
-    localPos = float3(slice_position * 2.0f - 1.0f, pos.xy);
+    local_position = float3(slice_position * 2.0f - 1.0f, pos.xy);
   }
   else if (slice_axis == 1) {
-    localPos = float3(pos.x, slice_position * 2.0f - 1.0f, pos.y);
+    local_position = float3(pos.x, slice_position * 2.0f - 1.0f, pos.y);
   }
   else {
-    localPos = float3(pos.xy, slice_position * 2.0f - 1.0f);
+    local_position = float3(pos.xy, slice_position * 2.0f - 1.0f);
   }
-  float3 final_pos = localPos;
+  float3 final_pos = local_position;
 #else
   float3 final_pos = pos;
 #endif

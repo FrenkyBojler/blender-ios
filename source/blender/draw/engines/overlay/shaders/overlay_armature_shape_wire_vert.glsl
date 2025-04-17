@@ -95,7 +95,7 @@ void do_vertex(const uint strip_index,
   }
 
   final_color = color;
-  edgeCoord = coord;
+  edge_coord = coord;
   gl_Position = hs_P;
   /* Multiply offset by 2 because gl_Position range is [-1..1]. */
   gl_Position.xy += offset * 2.0f * hs_P.w;

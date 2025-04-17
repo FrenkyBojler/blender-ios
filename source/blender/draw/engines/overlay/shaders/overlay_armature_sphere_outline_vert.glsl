@@ -76,7 +76,7 @@ void main()
   float2 ofs_dir = normalize(proj(gl_Position) - proj(center));
   gl_Position.xy += ofs_dir * sizeViewportInv * gl_Position.w;
 
-  edge_start = edgePos = proj(gl_Position);
+  edge_start = edge_pos = proj(gl_Position);
 
   final_color = float4(bone_color.rgb, 1.0f);
 
