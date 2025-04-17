@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_bake_items.hh"
 #include "BKE_bake_items_serialize.hh"
 #include "BKE_curves.hh"
@@ -15,11 +16,12 @@
 
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 
-#include "DNA_material_types.h"
-#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_volume_types.h"
 
 #include "RNA_access.hh"
@@ -414,8 +416,8 @@ static std::shared_ptr<DictionaryValue> write_blob_simple_gspan(BlobWriter &blob
                                                                 const GSpan data)
 {
   const CPPType &type = data.type();
-  BLI_assert(type.is_trivial());
-  if (type.size() == 1 || type.is<ColorGeometry4b>()) {
+  BLI_assert(type.is_trivial);
+  if (type.size == 1 || type.is<ColorGeometry4b>()) {
     return write_blob_raw_bytes(blob_writer, blob_sharing, data.data(), data.size_in_bytes());
   }
   return write_blob_raw_data_with_endian(
@@ -427,17 +429,21 @@ static std::shared_ptr<DictionaryValue> write_blob_simple_gspan(BlobWriter &blob
                                                  GMutableSpan r_data)
 {
   const CPPType &type = r_data.type();
-  BLI_assert(type.is_trivial());
-  if (type.size() == 1 || type.is<ColorGeometry4b>()) {
+  BLI_assert(type.is_trivial);
+  if (type.size == 1 || type.is<ColorGeometry4b>()) {
     return read_blob_raw_bytes(blob_reader, io_data, r_data.size_in_bytes(), r_data.data());
   }
   if (type.is_any<int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float>()) {
     return read_blob_raw_data_with_endian(
-        blob_reader, io_data, type.size(), r_data.size(), r_data.data());
+        blob_reader, io_data, type.size, r_data.size(), r_data.data());
   }
   if (type.is_any<float2, int2>()) {
     return read_blob_raw_data_with_endian(
         blob_reader, io_data, sizeof(int32_t), r_data.size() * 2, r_data.data());
+  }
+  if (type.is_any<short2>()) {
+    return read_blob_raw_data_with_endian(
+        blob_reader, io_data, sizeof(short), r_data.size() * 2, r_data.data());
   }
   if (type.is<float3>()) {
     return read_blob_raw_data_with_endian(
@@ -479,7 +485,7 @@ static std::shared_ptr<DictionaryValue> write_blob_shared_simple_gspan(
   const char *func = __func__;
   const std::optional<ImplicitSharingInfoAndData> sharing_info_and_data = blob_sharing.read_shared(
       io_data, [&]() -> std::optional<ImplicitSharingInfoAndData> {
-        void *data_mem = MEM_mallocN_aligned(size * cpp_type.size(), cpp_type.alignment(), func);
+        void *data_mem = MEM_mallocN_aligned(size * cpp_type.size, cpp_type.alignment, func);
         if (!read_blob_simple_gspan(blob_reader, io_data, {cpp_type, data_mem, size})) {
           MEM_freeN(data_mem);
           return std::nullopt;
@@ -606,7 +612,7 @@ static PointCloud *try_load_pointcloud(const DictionaryValue &io_geometry,
     return nullptr;
   }
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(0);
-  CustomData_free_layer_named(&pointcloud->pdata, "position", 0);
+  CustomData_free_layer_named(&pointcloud->pdata, "position");
   pointcloud->totpoint = io_pointcloud->lookup_int("num_points").value_or(0);
 
   auto cancel = [&]() {
@@ -637,7 +643,7 @@ static std::optional<CurvesGeometry> try_load_curves_geometry(const DictionaryVa
   }
 
   CurvesGeometry curves;
-  CustomData_free_layer_named(&curves.point_data, "position", 0);
+  CustomData_free_layer_named(&curves.point_data, "position");
   curves.point_num = io_curves.lookup_int("num_points").value_or(0);
   curves.curve_num = io_curves.lookup_int("num_curves").value_or(0);
 
@@ -826,10 +832,10 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
   }
 
   Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-  CustomData_free_layer_named(&mesh->vert_data, "position", 0);
-  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts", 0);
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert", 0);
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge", 0);
+  CustomData_free_layer_named(&mesh->vert_data, "position");
+  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts");
+  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert");
+  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge");
   mesh->verts_num = io_mesh->lookup_int("num_vertices").value_or(0);
   mesh->edges_num = io_mesh->lookup_int("num_edges").value_or(0);
   mesh->faces_num = io_mesh->lookup_int("num_polygons").value_or(0);
@@ -853,6 +859,19 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
                                       &mesh->runtime->face_offsets_sharing_info))
     {
       return cancel();
+    }
+  }
+
+  /* Create the vertex group name list, then later on when processing generic attributes, these
+   * names will be stored as vertex groups. */
+  if (const auto *io_attributes = io_mesh->lookup_array("vertex_group_names")) {
+    for (const std::shared_ptr<Value> &value : io_attributes->elements()) {
+      if (value->type() != io::serialize::eValueType::String) {
+        return cancel();
+      }
+      bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
+      STRNCPY(defgroup->name, value->as_string_value()->value().c_str());
+      BLI_addtail(&mesh->vertex_group_names, defgroup);
     }
   }
 
@@ -1107,6 +1126,13 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
     auto io_materials = serialize_materials(mesh.runtime->bake_materials);
     io_mesh->append("materials", io_materials);
 
+    if (!BLI_listbase_is_empty(&mesh.vertex_group_names)) {
+      auto io_vertex_group_names = io_mesh->append_array("vertex_group_names");
+      LISTBASE_FOREACH (bDeformGroup *, defgroup, &mesh.vertex_group_names) {
+        io_vertex_group_names->append_str(defgroup->name);
+      }
+    }
+
     auto io_attributes = serialize_attributes(mesh.attributes(), blob_writer, blob_sharing, {});
     io_mesh->append("attributes", io_attributes);
   }
@@ -1271,6 +1297,10 @@ static std::shared_ptr<io::serialize::Value> serialize_primitive_value(
       const int value = *static_cast<const int *>(value_ptr);
       return std::make_shared<io::serialize::IntValue>(value);
     }
+    case CD_PROP_INT16_2D: {
+      const int2 value = int2(*static_cast<const short2 *>(value_ptr));
+      return serialize_int_array({&value.x, 2});
+    }
     case CD_PROP_INT32_2D: {
       const int2 value = *static_cast<const int2 *>(value_ptr);
       return serialize_int_array({&value.x, 2});
@@ -1290,7 +1320,7 @@ static std::shared_ptr<io::serialize::Value> serialize_primitive_value(
     }
     case CD_PROP_FLOAT4X4: {
       const float4x4 value = *static_cast<const float4x4 *>(value_ptr);
-      return serialize_float_array({value.base_ptr(), value.col_len * value.row_len});
+      return serialize_float_array({value.base_ptr(), float4x4::col_len * float4x4::row_len});
     }
     default:
       break;
@@ -1398,6 +1428,9 @@ template<typename T>
       *static_cast<int *>(r_value) = *value;
       return true;
     }
+    case CD_PROP_INT16_2D: {
+      return deserialize_int_array<int16_t>(io_value, {static_cast<int16_t *>(r_value), 2});
+    }
     case CD_PROP_INT32_2D: {
       return deserialize_int_array<int>(io_value, {static_cast<int *>(r_value), 2});
     }
@@ -1473,6 +1506,20 @@ static void serialize_bake_item(const BakeItem &item,
     r_io_item.append_str("type", get_data_type_io_name(data_type));
     auto io_data = serialize_primitive_value(data_type, primitive_state_item->value());
     r_io_item.append("data", std::move(io_data));
+  }
+  else if (const auto *bundle_state_item = dynamic_cast<const BundleBakeItem *>(&item)) {
+    r_io_item.append_str("type", "BUNDLE");
+    ArrayValue &io_items = *r_io_item.append_array("items");
+    for (const BundleBakeItem::Item &item : bundle_state_item->items) {
+      DictionaryValue &io_bundle_item = *io_items.append_dict();
+      ArrayValue &io_key = *io_bundle_item.append_array("key");
+      for (const std::string &identifier : item.key.identifiers()) {
+        io_key.append_str(identifier);
+      }
+      io_bundle_item.append_str("socket_idname", item.socket_idname);
+      io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict("value");
+      serialize_bake_item(*item.value, blob_writer, blob_sharing, io_bundle_item_value);
+    }
   }
 }
 
@@ -1558,6 +1605,44 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
       }
       return std::make_unique<StringBakeItem>(std::move(str));
     }
+  }
+  if (*state_item_type == StringRef("BUNDLE")) {
+    const ArrayValue *io_items = io_item.lookup_array("items");
+    if (!io_items) {
+      return {};
+    }
+    auto bundle = std::make_unique<BundleBakeItem>();
+    for (const auto &io_item_ : io_items->elements()) {
+      const DictionaryValue *io_item = io_item_->as_dictionary_value();
+      if (!io_item) {
+        return {};
+      }
+      const ArrayValue *io_key = io_item->lookup_array("key");
+      if (!io_key) {
+        return {};
+      }
+      Vector<std::string> key;
+      for (const auto &io_key_value : io_key->elements()) {
+        const StringValue *io_key_string = io_key_value->as_string_value();
+        if (!io_key_string) {
+          return {};
+        }
+        key.append(io_key_string->value());
+      }
+      const std::optional<StringRefNull> socket_idname = io_item->lookup_str("socket_idname");
+      if (!socket_idname) {
+        return {};
+      }
+      const DictionaryValue *io_item_value = io_item->lookup_dict("value");
+      std::unique_ptr<BakeItem> value = deserialize_bake_item(
+          *io_item_value, blob_reader, blob_sharing);
+      if (!value) {
+        return {};
+      }
+      bundle->items.append(BundleBakeItem::Item{
+          nodes::SocketInterfaceKey{std::move(key)}, *socket_idname, std::move(value)});
+    }
+    return bundle;
   }
   const std::shared_ptr<io::serialize::Value> *io_data = io_item.lookup("data");
   if (!io_data) {

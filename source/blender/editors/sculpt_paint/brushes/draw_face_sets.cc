@@ -2,14 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
 
 #include "DNA_brush_types.h"
 
 #include "BKE_mesh.hh"
-#include "BKE_pbvh.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
@@ -20,7 +20,9 @@
 #include "editors/sculpt_paint/sculpt_intern.hh"
 #include "editors/sculpt_paint/sculpt_undo.hh"
 
-namespace blender::ed::sculpt_paint {
+#include "bmesh.hh"
+
+namespace blender::ed::sculpt_paint::brushes {
 inline namespace draw_face_sets_cc {
 
 constexpr float FACE_SET_BRUSH_MIN_FADE = 0.05f;
@@ -87,7 +89,7 @@ BLI_NOINLINE static void fill_factor_from_hide_and_mask(const Mesh &mesh,
     r_factors.fill(1.0f);
   }
 
-  if (const VArray hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Point)) {
+  if (const VArray hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face)) {
     const VArraySpan span(hide_poly);
     for (const int i : face_indices.index_range()) {
       if (span[face_indices[i]]) {
@@ -440,4 +442,4 @@ void do_draw_face_sets_brush(const Depsgraph &depsgraph,
       break;
   }
 }
-}  // namespace blender::ed::sculpt_paint
+}  // namespace blender::ed::sculpt_paint::brushes
