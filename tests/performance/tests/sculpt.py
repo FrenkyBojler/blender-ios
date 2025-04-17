@@ -13,7 +13,7 @@ class SculptMode(enum.IntEnum):
     DYNTOPO = 3
 
 
-class BrushType(enum.StrEnum):
+class BrushType(enum.Enum):
     DRAW = "Draw"
     CLAY_STRIPS = "Clay Strips"
     SMOOTH = "Smooth"
@@ -67,13 +67,14 @@ def prepare_sculpt_scene(context: any, mode: SculptMode, brush_type: BrushType):
     group.interface.new_socket("Geometry", in_out='OUTPUT', socket_type='NodeSocketGeometry')
     group_output_node = group.nodes.new('NodeGroupOutput')
 
-    match mode:
-        case SculptMode.MESH:
-            size = 1500
-        case SculptMode.MULTIRES:
-            size = 150
-        case SculptMode.DYNTOPO:
-            size = 1500
+    if mode == SculptMode.MESH:
+        size = 1500
+    elif mode == SculptMode.MULTIRES:
+        size = 150
+    elif mode == SculptMode.DYNTOPO:
+        size = 1500
+    else:
+        raise NotImplementedError
 
     grid_node = group.nodes.new('GeometryNodeMeshGrid')
     grid_node.inputs["Size X"].default_value = 2.0
@@ -98,7 +99,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode, brush_type: BrushType):
     bpy.ops.brush.asset_activate(
         asset_library_type='ESSENTIALS',
         relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/' +
-        brush_type)
+        brush_type.value)
 
     # Reduce the brush strength to avoid deforming the mesh too much and influencing multiple strokes
     context.tool_settings.sculpt.brush.strength = 0.1
