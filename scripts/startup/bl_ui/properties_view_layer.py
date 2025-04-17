@@ -74,6 +74,7 @@ class VIEWLAYER_PT_eevee_next_layer_passes_data(ViewLayerButtonsPanel, Panel):
 
         scene = context.scene
         view_layer = context.view_layer
+        view_layer_eevee = view_layer.eevee
 
         col = layout.column()
         col.prop(view_layer, "use_pass_combined")
@@ -84,6 +85,9 @@ class VIEWLAYER_PT_eevee_next_layer_passes_data(ViewLayerButtonsPanel, Panel):
         sub = col.column()
         sub.active = not scene.render.use_motion_blur
         sub.prop(view_layer, "use_pass_vector")
+
+        col = layout.column()
+        col.prop(view_layer_eevee, "use_pass_grease_pencil", text="Grease Pencil")
 
 
 class VIEWLAYER_PT_workbench_layer_passes_data(ViewLayerButtonsPanel, Panel):
@@ -98,10 +102,14 @@ class VIEWLAYER_PT_workbench_layer_passes_data(ViewLayerButtonsPanel, Panel):
         layout.use_property_decorate = False
 
         view_layer = context.view_layer
+        view_layer_eevee = view_layer.eevee
 
         col = layout.column()
         col.prop(view_layer, "use_pass_combined")
         col.prop(view_layer, "use_pass_z")
+
+        col = layout.column()
+        col.prop(view_layer_eevee, "use_pass_grease_pencil", text="Grease Pencil")
 
 
 class VIEWLAYER_PT_eevee_next_layer_passes_light(ViewLayerButtonsPanel, Panel):
@@ -136,7 +144,6 @@ class VIEWLAYER_PT_eevee_next_layer_passes_light(ViewLayerButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_shadow")
         col.prop(view_layer, "use_pass_ambient_occlusion", text="Ambient Occlusion")
         col.prop(view_layer_eevee, "use_pass_transparent", text="Transparent")
-        col.prop(view_layer_eevee, "use_pass_grease_pencil", text="Grease Pencil")
 
         col = layout.column()
         col.active = view_layer.use_pass_ambient_occlusion
