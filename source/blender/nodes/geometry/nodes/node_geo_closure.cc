@@ -131,9 +131,19 @@ NODE_STORAGE_FUNCS(NodeGeometryClosureOutput);
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
+  b.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA * /*node_ptr*/) {
+    uiItemO(layout, "Sync Sockets", ICON_NONE, "NODE_OT_closure_interface_sync");
+  });
+
+  b.add_output<decl::Closure>("Closure");
+
   const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (node && tree) {
+
     const NodeGeometryClosureOutput &storage = node_storage(*node);
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const NodeGeometryClosureOutputItem &item = storage.output_items.items[i];
@@ -143,7 +153,6 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Closure>("Closure");
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -175,10 +184,37 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
       *ntree, *node, *node, *link);
 }
 
+static wmOperatorStatus sync_sockets_exec(bContext *C, wmOperator * /*op*/)
+{
+  printf("sync sockets\n");
+  return OPERATOR_FINISHED;
+}
+
 static void node_operators()
 {
   socket_items::ops::make_common_operators<ClosureInputItemsAccessor>();
   socket_items::ops::make_common_operators<ClosureOutputItemsAccessor>();
+
+  WM_operatortype_append([](wmOperatorType *ot) {
+    ot->name = "Sync Closure Interface";
+    ot->idname = "NODE_OT_closure_interface_sync";
+    ot->description = "Updates the closure zone to match the place where it is evaluated";
+    ot->poll = [](bContext *C) {
+      SpaceNode *snode = CTX_wm_space_node(C);
+      if (!snode) {
+        return false;
+      }
+      bNode *active_node = bke::node_get_active(*snode->edittree);
+      if (!active_node) {
+        return false;
+      }
+      if (!active_node->is_type("GeometryNodeClosureOutput")) {
+        return false;
+      }
+      return true;
+    };
+    ot->exec = sync_sockets_exec;
+  });
 }
 
 static void node_register()
