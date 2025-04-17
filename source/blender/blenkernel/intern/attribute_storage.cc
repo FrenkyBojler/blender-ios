@@ -364,9 +364,9 @@ static void write_array_data(BlendWriter &writer,
 void attribute_storage_blend_write_prepare(
     AttributeStorage &data,
     const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
-    Set<StringRef, 16> &all_names_written,
     AttributeStorage::BlendWriteData &write_data)
 {
+  Set<StringRef, 16> all_names_written;
   data.foreach([&](Attribute &attr) {
     if (!U.experimental.use_attribute_storage_write_debug) {
       if (const std::optional data_type = attr_type_to_custom_data_type(attr.data_type())) {

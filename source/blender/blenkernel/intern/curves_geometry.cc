@@ -1882,22 +1882,18 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
 
 void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data)
 {
-  Set<StringRef, 16> all_names_written;
   attribute_storage_blend_write_prepare(this->attribute_storage.wrap(),
                                         {{AttrDomain::Point, &write_data.point_layers},
                                          {AttrDomain::Curve, &write_data.curve_layers}},
-                                        all_names_written,
                                         write_data.attribute_data);
   CustomData_blend_write_prepare(this->point_data,
                                  AttrDomain::Point,
                                  this->points_num(),
-                                 all_names_written,
                                  write_data.point_layers,
                                  write_data.attribute_data);
   CustomData_blend_write_prepare(this->curve_data,
                                  AttrDomain::Corner,
                                  this->curves_num(),
-                                 all_names_written,
                                  write_data.curve_layers,
                                  write_data.attribute_data);
   this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();

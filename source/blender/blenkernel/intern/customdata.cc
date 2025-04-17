@@ -5116,7 +5116,6 @@ static void get_type_file_write_info(const eCustomDataType type,
 void CustomData_blend_write_prepare(CustomData &data,
                                     const blender::bke::AttrDomain domain,
                                     const int domain_size,
-                                    Set<StringRef, 16> &all_names_written,
                                     Vector<CustomDataLayer, 16> &layers_to_write,
                                     blender::bke::AttributeStorage::BlendWriteData &write_data)
 {
@@ -5129,7 +5128,6 @@ void CustomData_blend_write_prepare(CustomData &data,
     if (attribute_name_is_anonymous(name)) {
       continue;
     }
-    all_names_written.add(name);
     if (U.experimental.use_attribute_storage_write_debug) {
       const eCustomDataType data_type = eCustomDataType(layer.type);
       if (const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type)) {

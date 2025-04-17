@@ -16,7 +16,6 @@ namespace blender::bke {
 void attribute_storage_blend_write_prepare(
     AttributeStorage &data,
     const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
-    Set<StringRef, 16> &all_names_written,
     AttributeStorage::BlendWriteData &write_data);
 
 }  // namespace blender::bke

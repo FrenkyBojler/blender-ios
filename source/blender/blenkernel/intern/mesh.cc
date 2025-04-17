@@ -330,18 +330,6 @@ static void rename_seam_layer_to_old_name(const ListBase vertex_groups,
   STRNCPY(seam_layer->name, ".uv_seam");
 }
 
-static void prepare_attribute_data_for_write(
-    Mesh &mesh,
-    Vector<CustomDataLayer, 16> &vert_layers,
-    Vector<CustomDataLayer, 16> &edge_layers,
-    Vector<CustomDataLayer, 16> &face_layers,
-    Vector<CustomDataLayer, 16> &corner_layers,
-    blender::bke::AttributeStorage::BlendWriteData &write_data)
-{
-  using namespace blender;
-  using namespace blender::bke;
-}
-
 static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   using namespace blender;
@@ -376,38 +364,20 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     mesh->face_offset_indices = nullptr;
   }
   else {
-    Set<StringRef, 16> all_names_written;
     attribute_storage_blend_write_prepare(mesh->attribute_storage.wrap(),
                                           {{AttrDomain::Point, &vert_layers},
                                            {AttrDomain::Edge, &edge_layers},
                                            {AttrDomain::Face, &face_layers},
                                            {AttrDomain::Corner, &loop_layers}},
-                                          all_names_written,
                                           attribute_data);
-    CustomData_blend_write_prepare(mesh->vert_data,
-                                   AttrDomain::Point,
-                                   mesh->verts_num,
-                                   all_names_written,
-                                   vert_layers,
-                                   attribute_data);
-    CustomData_blend_write_prepare(mesh->edge_data,
-                                   AttrDomain::Edge,
-                                   mesh->edges_num,
-                                   all_names_written,
-                                   edge_layers,
-                                   attribute_data);
-    CustomData_blend_write_prepare(mesh->face_data,
-                                   AttrDomain::Face,
-                                   mesh->faces_num,
-                                   all_names_written,
-                                   face_layers,
-                                   attribute_data);
-    CustomData_blend_write_prepare(mesh->corner_data,
-                                   AttrDomain::Corner,
-                                   mesh->corners_num,
-                                   all_names_written,
-                                   loop_layers,
-                                   attribute_data);
+    CustomData_blend_write_prepare(
+        mesh->vert_data, AttrDomain::Point, mesh->verts_num, vert_layers, attribute_data);
+    CustomData_blend_write_prepare(
+        mesh->edge_data, AttrDomain::Edge, mesh->edges_num, edge_layers, attribute_data);
+    CustomData_blend_write_prepare(
+        mesh->face_data, AttrDomain::Face, mesh->faces_num, face_layers, attribute_data);
+    CustomData_blend_write_prepare(
+        mesh->corner_data, AttrDomain::Corner, mesh->corners_num, loop_layers, attribute_data);
     mesh->attribute_storage.dna_attributes = attribute_data.attributes.data();
     mesh->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
     if (!is_undo) {

@@ -13,7 +13,6 @@
 
 #include "BLI_implicit_sharing.h"
 #include "BLI_memory_counter_fwd.hh"
-#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
@@ -744,7 +743,6 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap,
 void CustomData_blend_write_prepare(CustomData &data,
                                     blender::bke::AttrDomain domain,
                                     int domain_size,
-                                    blender::Set<blender::StringRef, 16> &all_names_written,
                                     blender::Vector<CustomDataLayer, 16> &layers_to_write,
                                     blender::bke::AttributeStorage::BlendWriteData &write_data);
 
