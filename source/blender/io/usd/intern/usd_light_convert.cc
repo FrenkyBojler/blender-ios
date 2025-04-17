@@ -457,7 +457,8 @@ void dome_light_to_world_material(const USDImportParams &params,
     }
 
     if (vec_sock) {
-      copy_v3_v3(((bNodeSocketValueVector *)vec_sock->default_value)->value, dome_light_attr.color.data());
+      copy_v3_v3(((bNodeSocketValueVector *)vec_sock->default_value)->value,
+                 dome_light_attr.color.data());
     }
     else {
       CLOG_WARN(&LOG, "Couldn't find vector multiply second vector socket");
@@ -518,8 +519,7 @@ void dome_light_to_world_material(const USDImportParams &params,
   pxr::UsdStageRefPtr stage = prim.GetPrim().GetStage();
 
   if (!stage) {
-    CLOG_WARN(
-        &LOG, "Couldn't get stage for dome light %s", prim.GetPrim().GetPath().GetText());
+    CLOG_WARN(&LOG, "Couldn't get stage for dome light %s", prim.GetPrim().GetPath().GetText());
     return;
   }
 

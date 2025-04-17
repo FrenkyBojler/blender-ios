@@ -17,7 +17,6 @@ static const pxr::TfToken texture_file("texture:file", pxr::TfToken::Immortal);
 
 namespace blender::io::usd {
 
-
 /**
  * If the given attribute has an authored value, return its value in the r_value
  * out parameter.

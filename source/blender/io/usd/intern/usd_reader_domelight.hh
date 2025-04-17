@@ -25,7 +25,7 @@ class USDDomeLightReader : public USDPrimReader {
     return bool(prim_);
   }
 
-  void create_object(Main * /*bmain*/) {};
+  void create_object(Main * /*bmain*/){};
   void create_object(Scene *scene, Main *bmain);
 };
 
