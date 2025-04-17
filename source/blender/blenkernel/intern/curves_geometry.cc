@@ -1892,7 +1892,7 @@ void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_d
                                  write_data.point_layers,
                                  write_data.attribute_data);
   CustomData_blend_write_prepare(this->curve_data,
-                                 AttrDomain::Corner,
+                                 AttrDomain::Curve,
                                  this->curves_num(),
                                  write_data.curve_layers,
                                  write_data.attribute_data);
