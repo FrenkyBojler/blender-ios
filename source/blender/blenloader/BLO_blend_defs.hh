@@ -91,6 +91,6 @@ enum {
 
 /**
  * Only "modern" systems support writing files with #LargeBHead8 headers. Other systems are
- * deprecated. The reduces the amount of variation we have to deal with when reading .blend files.
+ * deprecated. This reduces the amount of variation we have to deal with when reading .blend files.
  */
 #define SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 (ENDIAN_ORDER == L_ENDIAN && sizeof(void *) == 8)
