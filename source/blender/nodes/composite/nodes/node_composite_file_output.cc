@@ -851,11 +851,27 @@ class FileOutputOperation : public NodeOperation {
    * base path represents a directory, so a trailing slash is ensured. */
   void get_single_layer_image_base_path(const char *base_name, char *base_path)
   {
+    const char *relbase = BKE_main_blendfile_path_from_global();
+    const TemplateVariableMap variables = BKE_build_blender_variables(
+        relbase, &context().get_render_data());
+
+    /* Do template expansion on the node's base path. */
+    char node_base_path[FILE_MAX] = "";
+    BLI_strncpy(node_base_path, get_base_path(), FILE_MAX);
+    BKE_path_apply_template(node_base_path, variables);
+
     if (base_name[0]) {
-      BLI_path_join(base_path, FILE_MAX, get_base_path(), base_name);
+      /* Do template expansion on the socket's sub path ("base name"). */
+      char tmp_base_name[FILE_MAX] = "";
+      BLI_strncpy(tmp_base_name, base_name, FILE_MAX);
+      BKE_path_apply_template(tmp_base_name, variables);
+
+      /* Combine the base path and sub path. */
+      BLI_path_join(base_path, FILE_MAX, node_base_path, tmp_base_name);
     }
     else {
-      BLI_strncpy(base_path, get_base_path(), FILE_MAX);
+      /* Just use the base path, as a directory. */
+      BLI_strncpy(base_path, node_base_path, FILE_MAX);
       BLI_path_slash_ensure(base_path, FILE_MAX);
     }
   }
@@ -865,13 +881,13 @@ class FileOutputOperation : public NodeOperation {
                                    const ImageFormatData &format,
                                    char *image_path)
   {
-    const RenderData &render_data = context().get_render_data();
-    const char *relbase = BKE_main_blendfile_path_from_global();
-    const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &render_data);
     BKE_image_path_from_imformat(image_path,
                                  base_path,
-                                 relbase,
-                                 &variables,
+                                 BKE_main_blendfile_path_from_global(),
+                                 /* No variables, because path templating is
+                                  * already done in
+                                  * `get_single_layer_image_base_path()`. */
+                                 nullptr,
                                  context().get_frame_number(),
                                  &format,
                                  use_file_extension(),
@@ -889,7 +905,7 @@ class FileOutputOperation : public NodeOperation {
     const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &render_data);
     BKE_image_path_from_imtype(image_path,
                                base_path,
-                               BKE_main_blendfile_path_from_global(),
+                               relbase,
                                &variables,
                                context().get_frame_number(),
                                R_IMF_IMTYPE_MULTILAYER,
