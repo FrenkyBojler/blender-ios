@@ -111,6 +111,16 @@ struct PointerRNA {
   {
     this->reset();
   }
+
+  /**
+   * Get the data as a specific type. This expects that the caller knows what the type is and has
+   * undefined behavior otherwise. Using this method is less verbose than casting the type at the
+   * call-site and allows us to potentially add run-time type checks in the future.
+   */
+  template<typename T> T *data_as() const
+  {
+    return static_cast<T *>(this->data);
+  }
 };
 
 extern const PointerRNA PointerRNA_NULL;
