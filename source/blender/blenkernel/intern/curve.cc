@@ -1161,6 +1161,7 @@ static void makeknots(Nurb *nu, short uv)
       if (BKE_nurb_check_valid_u(nu)) {
         nu->knotsu = MEM_calloc_arrayN<float>(size_t(KNOTSU(nu)) + 1, "makeknots");
         calcknots(nu->knotsu, nu->pntsu, nu->orderu, nu->flagu);
+        nu->flagu &= ~CU_NURB_CUSTOM;
       }
       else {
         nu->knotsu = nullptr;
@@ -1173,12 +1174,18 @@ static void makeknots(Nurb *nu, short uv)
       if (BKE_nurb_check_valid_v(nu)) {
         nu->knotsv = MEM_calloc_arrayN<float>(size_t(KNOTSV(nu)) + 1, "makeknots");
         calcknots(nu->knotsv, nu->pntsv, nu->orderv, nu->flagv);
+        nu->flagv &= ~CU_NURB_CUSTOM;
       }
       else {
         nu->knotsv = nullptr;
       }
     }
   }
+}
+
+void BKE_nurb_knot_alloc_u(Nurb *nu)
+{
+  nu->knotsu = static_cast<float *>(MEM_calloc_arrayN(KNOTSU(nu) + 1, sizeof(float), __func__));
 }
 
 void BKE_nurb_knot_calc_u(Nurb *nu)
@@ -5494,7 +5501,7 @@ void BKE_curve_eval_geometry(Depsgraph *depsgraph, Curve *curve)
   DEG_debug_print_eval(depsgraph, __func__, curve->id.name, curve);
   BKE_curve_texspace_calc(curve);
   if (DEG_is_active(depsgraph)) {
-    Curve *curve_orig = (Curve *)DEG_get_original_id(&curve->id);
+    Curve *curve_orig = DEG_get_original(curve);
     if (curve->texspace_flag & CU_TEXSPACE_FLAG_AUTO_EVALUATED) {
       curve_orig->texspace_flag |= CU_TEXSPACE_FLAG_AUTO_EVALUATED;
       copy_v3_v3(curve_orig->texspace_location, curve->texspace_location);

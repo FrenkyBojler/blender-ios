@@ -34,6 +34,8 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
     {SOCK_TEXTURE, "TEXTURE", ICON_NODE_SOCKET_TEXTURE, "Texture", ""},
     {SOCK_MATERIAL, "MATERIAL", ICON_NODE_SOCKET_MATERIAL, "Material", ""},
     {SOCK_MENU, "MENU", ICON_NODE_SOCKET_MENU, "Menu", ""},
+    {SOCK_BUNDLE, "BUNDLE", ICON_NODE_SOCKET_BUNDLE, "Bundle", ""},
+    {SOCK_CLOSURE, "CLOSURE", ICON_NODE_SOCKET_CLOSURE, "Closure", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1565,6 +1567,48 @@ static void rna_def_node_socket_interface_geometry(BlenderRNA *brna, const char 
   rna_def_node_tree_interface_socket_builtin(srna);
 }
 
+static void rna_def_node_socket_bundle(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
+  RNA_def_struct_ui_text(srna, "Bundle Node Socket", "Bundle socket of a node");
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_BUNDLE);
+  RNA_def_struct_sdna(srna, "bNodeSocket");
+}
+
+static void rna_def_node_socket_interface_bundle(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeTreeInterfaceSocket");
+  RNA_def_struct_ui_text(srna, "Bundle Node Socket Interface", "Bundle socket of a node");
+  RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
+
+  rna_def_node_tree_interface_socket_builtin(srna);
+}
+
+static void rna_def_node_socket_closure(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
+  RNA_def_struct_ui_text(srna, "Closure Node Socket", "Closure socket of a node");
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_CLOSURE);
+  RNA_def_struct_sdna(srna, "bNodeSocket");
+}
+
+static void rna_def_node_socket_interface_closure(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeTreeInterfaceSocket");
+  RNA_def_struct_ui_text(srna, "Closure Node Socket Interface", "Closure socket of a node");
+  RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
+
+  rna_def_node_tree_interface_socket_builtin(srna);
+}
+
 static void rna_def_node_socket_collection(BlenderRNA *brna, const char *identifier)
 {
   StructRNA *srna;
@@ -1787,6 +1831,8 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketTexture", "NodeTreeInterfaceSocketTexture", SOCK_TEXTURE, PROP_NONE},
     {"NodeSocketMaterial", "NodeTreeInterfaceSocketMaterial", SOCK_MATERIAL, PROP_NONE},
     {"NodeSocketMenu", "NodeTreeInterfaceSocketMenu", SOCK_MENU, PROP_NONE},
+    {"NodeSocketBundle", "NodeTreeInterfaceSocketBundle", SOCK_BUNDLE, PROP_NONE},
+    {"NodeSocketClosure", "NodeTreeInterfaceSocketClosure", SOCK_CLOSURE, PROP_NONE},
 };
 
 static void rna_def_node_socket_subtypes(BlenderRNA *brna)
@@ -1843,6 +1889,12 @@ static void rna_def_node_socket_subtypes(BlenderRNA *brna)
       case SOCK_MENU:
         rna_def_node_socket_menu(brna, identifier);
         break;
+      case SOCK_BUNDLE:
+        rna_def_node_socket_bundle(brna, identifier);
+        break;
+      case SOCK_CLOSURE:
+        rna_def_node_socket_closure(brna, identifier);
+        break;
 
       case SOCK_CUSTOM:
         break;
@@ -1852,11 +1904,12 @@ static void rna_def_node_socket_subtypes(BlenderRNA *brna)
   rna_def_node_socket_virtual(brna, "NodeSocketVirtual");
 }
 
-/* NOTE: interface items are defined outside this file.
- * The subtypes must be defined after the base type, so this function
- * is called from the interface rna file to ensure correct order. */
 void rna_def_node_socket_interface_subtypes(BlenderRNA *brna)
 {
+  /* NOTE: interface items are defined outside this file.
+   * The subtypes must be defined after the base type, so this function
+   * is called from the interface rna file to ensure correct order. */
+
   for (const bNodeSocketStaticTypeInfo &info : node_socket_subtypes) {
     const char *identifier = info.interface_identifier;
 
@@ -1908,6 +1961,12 @@ void rna_def_node_socket_interface_subtypes(BlenderRNA *brna)
         break;
       case SOCK_MATERIAL:
         rna_def_node_socket_interface_material(brna, identifier);
+        break;
+      case SOCK_BUNDLE:
+        rna_def_node_socket_interface_bundle(brna, identifier);
+        break;
+      case SOCK_CLOSURE:
+        rna_def_node_socket_interface_closure(brna, identifier);
         break;
 
       case SOCK_CUSTOM:
