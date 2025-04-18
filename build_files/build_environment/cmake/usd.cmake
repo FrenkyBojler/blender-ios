@@ -144,11 +144,13 @@ ExternalProject_Add(external_usd
     ${CMAKE_COMMAND}
       -E env VULKAN_SDK=${LIBDIR}/vulkan_sdk
       ${CMAKE_COMMAND} ../external_usd
+        -G ${PLATFORM_ALT_GENERATOR}
         -DCMAKE_INSTALL_PREFIX=${LIBDIR}/usd
         -Wno-dev
         ${DEFAULT_CMAKE_FLAGS}
         ${USD_EXTRA_ARGS}
-
+  BUILD_COMMAND ${CMAKE_COMMAND} --build .
+  INSTALL_COMMAND ${CMAKE_COMMAND} --build . --target install
   PATCH_COMMAND
     ${USD_EXTRA_PATCHES}
     ${PATCH_CMD} -p 1 -d

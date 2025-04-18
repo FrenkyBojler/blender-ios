@@ -61,6 +61,10 @@ if(WIN32)
       COMMAND ${CMAKE_COMMAND} -E copy
         ${LIBDIR}/shaderc/lib/shaderc_shared_d.lib
         ${HARVEST_TARGET}/shaderc/lib/shaderc_shared_d.lib
+      # USD expect this to have this specific name
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/shaderc/lib/shaderc_combined_d.lib
+        ${LIBDIR}/shaderc/lib/shaderc_combinedd.lib
 
       DEPENDEES install
     )
