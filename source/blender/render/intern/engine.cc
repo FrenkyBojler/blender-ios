@@ -1108,7 +1108,8 @@ bool RE_engine_render(Render *re, bool do_all)
   /* Perform delayed grease pencil rendering. */
   if (delay_grease_pencil) {
     FOREACH_VIEW_LAYER_TO_RENDER_BEGIN (re, view_layer_iter) {
-      if ((view_layer_iter->layflag & SCE_LAY_GREASE_PENCIL) == 0) {
+      const bool use_grease_pencil = (view_layer_iter->layflag & SCE_LAY_GREASE_PENCIL) != 0;
+      if (!use_grease_pencil) {
         continue;
       }
       engine_render_view_layer(re, engine, view_layer_iter, false, true);
