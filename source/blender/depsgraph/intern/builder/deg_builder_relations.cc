@@ -657,7 +657,7 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
          * collections. */
         const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
         if (has_node(object_hierarchy_key)) {
-          if constexpr (false) {
+          if constexpr (true) {  // TODO: Change to false before committing.
             /* The use of `built_map_` makes sure that we don't end up with duplicate relations.
              * This runtime check is disabled even in debug builds since it changes the
              * computational complexity from linear to quadratic. */
