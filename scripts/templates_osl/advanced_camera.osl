@@ -40,9 +40,9 @@ shader camera(float focal_length = 50.0 [[ float min = 0.0, float sensitivity = 
               float swirl_scale = 100.0,
               float swirl_amplitude = 0.01,
               float swirl_W = 0.0 [[ float sensitivity = 1 ]],
-              output point pos = 0.0,
-              output vector dir = 0.0,
-              output color T = 1.0)
+              output point position = 0.0,
+              output vector direction = 0.0,
+              output color throughput = 1.0)
 {
   point Pcam = camera_shader_raster_position() - vector(0.5);
 
@@ -51,7 +51,7 @@ shader camera(float focal_length = 50.0 [[ float min = 0.0, float sensitivity = 
         Pcam.x, Pcam.y, distortion_k1, distortion_k2, distortion_k3);
     if (distort < 0.0) {
       // Distortion model failed, skip the path.
-      T = color(0.0);
+      throughput = color(0.0);
       return;
     }
     Pcam *= distort;
@@ -66,14 +66,14 @@ shader camera(float focal_length = 50.0 [[ float min = 0.0, float sensitivity = 
     Pcam += swirl_amplitude * noise("perlin", Pcam * swirl_scale, swirl_W);
   }
 
-  dir = normalize(vector(Pcam.x, Pcam.y, 1.0));
+  direction = normalize(vector(Pcam.x, Pcam.y, 1.0));
 
   if (do_dof) {
     float focal_distance;
     getattribute("cam:focal_distance", focal_distance);
-    getattribute("cam:aperture_position", pos);
+    getattribute("cam:aperture_position", position);
 
-    point Pfocus = dir * focal_distance / dir.z;
-    dir = normalize(Pfocus - pos);
+    point Pfocus = direction * focal_distance / direction.z;
+    direction = normalize(Pfocus - position);
   }
 }
