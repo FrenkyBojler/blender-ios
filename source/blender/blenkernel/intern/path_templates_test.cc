@@ -8,35 +8,35 @@
 
 namespace blender::bke::tests {
 
-// static void debug_print_error(const TemplateError &error)
-// {
-//   const char *type;
-//   switch (error.type) {
-//     case TemplateErrorType::UNESCAPED_CURLY_BRACE:
-//       type = "UNESCAPED_CURLY_BRACE";
-//       break;
-//     case TemplateErrorType::VARIABLE_SYNTAX:
-//       type = "VARIABLE_SYNTAX";
-//       break;
-//     case TemplateErrorType::FORMAT_SPECIFIER:
-//       type = "FORMAT_SPECIFIER";
-//       break;
-//     case TemplateErrorType::UNKNOWN_VARIABLE:
-//       type = "UNKNOWN_VARIABLE";
-//       break;
-//   }
-//   printf("(%s, (%ld, %ld))", type, error.byte_range.start(), error.byte_range.size());
-// }
+[[maybe_unused]] static void debug_print_error(const TemplateError &error)
+{
+  const char *type;
+  switch (error.type) {
+    case TemplateErrorType::UNESCAPED_CURLY_BRACE:
+      type = "UNESCAPED_CURLY_BRACE";
+      break;
+    case TemplateErrorType::VARIABLE_SYNTAX:
+      type = "VARIABLE_SYNTAX";
+      break;
+    case TemplateErrorType::FORMAT_SPECIFIER:
+      type = "FORMAT_SPECIFIER";
+      break;
+    case TemplateErrorType::UNKNOWN_VARIABLE:
+      type = "UNKNOWN_VARIABLE";
+      break;
+  }
+  printf("(%s, (%ld, %ld))", type, error.byte_range.start(), error.byte_range.size());
+}
 
-// static void debug_print_errors(Span<TemplateError> errors)
-// {
-//   printf("[");
-//   for (const TemplateError &error : errors) {
-//     debug_print_error(error);
-//     printf(", ");
-//   }
-//   printf("]\n");
-// }
+[[maybe_unused]] static void debug_print_errors(Span<TemplateError> errors)
+{
+  printf("[");
+  for (const TemplateError &error : errors) {
+    debug_print_error(error);
+    printf(", ");
+  }
+  printf("]\n");
+}
 
 TEST(path_templates, TemplateVariableMap)
 {
