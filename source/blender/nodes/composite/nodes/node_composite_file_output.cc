@@ -862,12 +862,12 @@ class FileOutputOperation : public NodeOperation {
 
     if (base_name[0]) {
       /* Do template expansion on the socket's sub path ("base name"). */
-      char tmp_base_name[FILE_MAX] = "";
-      BLI_strncpy(tmp_base_name, base_name, FILE_MAX);
-      BKE_path_apply_template(tmp_base_name, variables);
+      char sub_path[FILE_MAX] = "";
+      BLI_strncpy(sub_path, base_name, FILE_MAX);
+      BKE_path_apply_template(sub_path, variables);
 
       /* Combine the base path and sub path. */
-      BLI_path_join(base_path, FILE_MAX, node_base_path, tmp_base_name);
+      BLI_path_join(base_path, FILE_MAX, node_base_path, sub_path);
     }
     else {
       /* Just use the base path, as a directory. */
