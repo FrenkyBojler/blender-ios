@@ -46,8 +46,8 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_screen.hh"
-#include "BKE_templates.hh"
 #include "BKE_vfont.hh"
 
 #include "BIF_glutil.hh"

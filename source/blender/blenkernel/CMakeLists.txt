@@ -252,6 +252,7 @@ set(SRC
   intern/particle_child.cc
   intern/particle_distribute.cc
   intern/particle_system.cc
+  intern/path_templates.cc
   intern/pbvh.cc
   intern/pbvh_bmesh.cc
   intern/pbvh_pixels.cc
@@ -303,7 +304,6 @@ set(SRC
   intern/undo_system.cc
   intern/unit.cc
   intern/uvproject.cc
-  intern/templates.cc
   intern/vfont.cc
   intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
@@ -485,6 +485,7 @@ set(SRC
   BKE_paint_bvh.hh
   BKE_paint_bvh_pixels.hh
   BKE_particle.h
+  BKE_path_templates.hh
   BKE_pointcache.h
   BKE_pointcloud.hh
   BKE_pose_backup.h
@@ -518,7 +519,6 @@ set(SRC
   BKE_undo_system.hh
   BKE_unit.hh
   BKE_uvproject.h
-  BKE_templates.hh
   BKE_vfont.hh
   BKE_vfontdata.hh
   BKE_viewer_path.hh
@@ -837,9 +837,9 @@ if(WITH_GTESTS)
     intern/lib_remap_test.cc
     intern/main_test.cc
     intern/nla_test.cc
+    intern/path_templates_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
-    intern/templates_test.cc
     intern/volume_test.cc
   )
   set(TEST_INC

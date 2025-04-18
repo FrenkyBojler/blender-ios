@@ -32,8 +32,8 @@
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_screen.hh"
-#include "BKE_templates.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"

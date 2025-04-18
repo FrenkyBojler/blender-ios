@@ -10,7 +10,7 @@
 
 #include <cstddef>
 
-#include "BKE_templates.hh"
+#include "BKE_path_templates.hh"
 
 struct BlendDataReader;
 struct BlendWriter;
