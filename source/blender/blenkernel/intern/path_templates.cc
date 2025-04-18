@@ -4,8 +4,8 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_scene.hh"
 #include "BKE_path_templates.hh"
+#include "BKE_scene.hh"
 
 bool TemplateVariableMap::contains(blender::StringRef name) const
 {

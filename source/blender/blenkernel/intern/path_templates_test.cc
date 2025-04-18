@@ -38,7 +38,7 @@ namespace blender::bke::tests {
 //   printf("]\n");
 // }
 
-TEST(blender_variables, TemplateVariableMap)
+TEST(path_templates, TemplateVariableMap)
 {
   TemplateVariableMap map;
 
@@ -103,7 +103,7 @@ TEST(blender_variables, TemplateVariableMap)
   EXPECT_EQ(false, map.remove("what"));
 }
 
-TEST(blender_variables, path_apply_variables)
+TEST(path_templates, path_apply_variables)
 {
   TemplateVariableMap variables;
   {
