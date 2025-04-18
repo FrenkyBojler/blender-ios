@@ -763,7 +763,7 @@ static BHeadN *get_bhead(FileData *fd)
       if (!bhead_opt.has_value()) {
         fd->is_eof = true;
       }
-      else if (bhead->len < 0) {
+      else if (bhead_opt->len < 0) {
         /* Make sure people are not trying to parse bad blend files. */
         fd->is_eof = true;
       }
