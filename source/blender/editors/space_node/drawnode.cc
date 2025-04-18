@@ -1147,7 +1147,7 @@ static bool socket_needs_attribute_search(bNode &node, bNodeSocket &socket)
   return node_decl->inputs[socket_index]->is_attribute_name;
 }
 
-static bool socket_needs_layer_search(bNode &node, bNodeSocket &socket)
+static bool socket_needs_layer_search(const bNode &node, const bNodeSocket &socket)
 {
   const nodes::NodeDeclaration *node_decl = node.declaration();
   if (node_decl == nullptr) {

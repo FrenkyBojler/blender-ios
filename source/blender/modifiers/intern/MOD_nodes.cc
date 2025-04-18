@@ -2236,7 +2236,8 @@ static void layer_name_search_update_fn(
       }
     }
   }
-  ui::grease_pencil_layer_search_add_items(str, layer_names.as_span(), items, is_first);
+  BLI_assert(items);
+  ui::grease_pencil_layer_search_add_items(str, layer_names.as_span(), *items, is_first);
 }
 
 static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)

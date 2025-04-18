@@ -132,7 +132,8 @@ static void layer_search_update_fn(
 
   Vector<const std::string *> names = get_layer_names_from_context(*C, *data);
 
-  ui::grease_pencil_layer_search_add_items(str, names, items, is_first);
+  BLI_assert(items);
+  ui::grease_pencil_layer_search_add_items(str, names, *items, is_first);
 }
 
 static void layer_search_exec_fn(bContext *C, void *data_v, void *item_v)
