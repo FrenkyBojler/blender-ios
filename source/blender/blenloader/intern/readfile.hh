@@ -161,6 +161,11 @@ struct FileData {
 #define MIN_SIZEOFBLENDERHEADER 12
 #define MAX_SIZEOFBLENDERHEADER 17
 
+/** See #BLEND_FILE_FORMAT_VERSION_0 for the structure. */
+#define SIZEOFBLENDERHEADER_VERSION_0 12
+/** See #BLEND_FILE_FORMAT_VERSION_1 for the structure. */
+#define SIZEOFBLENDERHEADER_VERSION_1 17
+
 /***/
 void blo_join_main(ListBase *mainlist);
 void blo_split_main(ListBase *mainlist, Main *main);

@@ -1357,11 +1357,10 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
 
 static std::string get_blend_file_header()
 {
-
   if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 &&
       USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks))
   {
-    const int header_size_in_bytes = MAX_SIZEOFBLENDERHEADER;
+    const int header_size_in_bytes = SIZEOFBLENDERHEADER_VERSION_1;
 
     /* New blend file header format. */
     std::stringstream ss;
@@ -1387,7 +1386,7 @@ static std::string get_blend_file_header()
   ss << endian_char;
   ss << BLENDER_FILE_VERSION;
   const std::string header = ss.str();
-  BLI_assert(header.size() == 12);
+  BLI_assert(header.size() == SIZEOFBLENDERHEADER_VERSION_0);
   return header;
 }
 
