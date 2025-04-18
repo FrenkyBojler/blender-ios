@@ -3478,6 +3478,7 @@ static void node_draw_basis(const bContext &C,
   }
 
   const float padding = 0.5f;
+  const float padding_bottom_options = node.flag & NODE_OPTIONS ? 0.0f : 8.0f;
   const float corner_radius = BASIS_RAD + padding;
   /* Header. */
   {
@@ -3747,7 +3748,7 @@ static void node_draw_basis(const bContext &C,
     const rctf rect = {
         rct.xmin - padding,
         rct.xmax + padding,
-        rct.ymin - padding,
+        rct.ymin - padding - padding_bottom_options,
         rct.ymax - (NODE_DY + outline_width) + padding,
     };
 
@@ -3787,7 +3788,7 @@ static void node_draw_basis(const bContext &C,
     const rctf rect = {
         rct.xmin - outline_width,
         rct.xmax + outline_width,
-        rct.ymin - outline_width,
+        rct.ymin - outline_width - padding_bottom_options,
         rct.ymax + outline_width,
     };
 
@@ -3826,17 +3827,17 @@ static void node_draw_basis(const bContext &C,
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformThemeColorShadeAlpha(TH_NODE, 20, 0);
+    immUniformThemeColorShadeAlpha(TH_NODE, 30, 0);
 
     const float pos_center = (rct.xmin + rct.xmax) / 2.0f;
-    const float pos_y = rct.ymin - 10.0f;
-    const float ellipsis_rad = 1.0f + U.pixelsize;
+    const float pos_y = rct.ymin + (padding_bottom_options / 4.0f);
+    const float ellipsis_rad = 0.8f + U.pixelsize;
     const float ellipsis_gap = ellipsis_rad * 2.0f + U.pixelsize;
     const float ellipsis_left = pos_center - ellipsis_rad - ellipsis_gap;
     const float ellipsis_right = pos_center + ellipsis_rad + ellipsis_gap;
 
     imm_draw_circle_fill_2d(pos, ellipsis_left, pos_y, ellipsis_rad, 6);
-    imm_draw_circle_fill_2d(pos, x_center, pos_y, ellipsis_rad, 6);
+    imm_draw_circle_fill_2d(pos, pos_center, pos_y, ellipsis_rad, 6);
     imm_draw_circle_fill_2d(pos, ellipsis_right, pos_y, ellipsis_rad, 6);
 
     immUnbindProgram();
