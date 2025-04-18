@@ -1,2 +1,3 @@
 Referenced by issue #137332, Vulkan: The video memory consumption of final renders keeps increasing
 Referenced by issue #137683, Fog missing every other frame when `Persistent Data` and `Motion Blur` is enabled
+Referenced by issue #137707, GPv3: Sculpting Tools Not Working
