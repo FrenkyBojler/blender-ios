@@ -851,9 +851,8 @@ class FileOutputOperation : public NodeOperation {
    * base path represents a directory, so a trailing slash is ensured. */
   void get_single_layer_image_base_path(const char *base_name, char *base_path)
   {
-    const char *relbase = BKE_main_blendfile_path_from_global();
     const TemplateVariableMap variables = BKE_build_blender_variables(
-        relbase, &context().get_render_data());
+        BKE_main_blendfile_path_from_global(), &context().get_render_data());
 
     /* Do template expansion on the node's base path. */
     char node_base_path[FILE_MAX] = "";
