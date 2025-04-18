@@ -666,6 +666,142 @@ static void update_node_location_legacy(bNodeTree &ntree)
   }
 }
 
+/* Some node properties were turned into inputs, so we write the input values back to the
+ * properties upon write to maintain forward compatibility. */
+static void write_compositor_legacy_properties(bNodeTree &node_tree)
+{
+  if (node_tree.type != NTREE_COMPOSIT) {
+    return;
+  }
+
+  for (bNode *node : node_tree.all_nodes()) {
+    auto write_input_to_property_bool_char = [&](const char *identifier, char &property) {
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+      property = input->default_value_typed<bNodeSocketValueBoolean>()->value;
+    };
+
+    auto write_input_to_property_bool_int16_flag = [&](const char *identifier,
+                                                       int16_t &property,
+                                                       const int flag,
+                                                       const bool negative = false) {
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+      if (bool(input->default_value_typed<bNodeSocketValueBoolean>()->value) != negative) {
+        property |= flag;
+      }
+      else {
+        property &= ~flag;
+      }
+    };
+
+    auto write_input_to_property_int = [&](const char *identifier, int &property) {
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+      property = input->default_value_typed<bNodeSocketValueInt>()->value;
+    };
+
+    auto write_input_to_property_int16 = [&](const char *identifier, int16_t &property) {
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+      property = int16_t(input->default_value_typed<bNodeSocketValueInt>()->value);
+    };
+
+    auto write_input_to_property_float = [&](const char *identifier, float &property) {
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+      property = input->default_value_typed<bNodeSocketValueFloat>()->value;
+    };
+
+    if (node->type_legacy == CMP_NODE_GLARE) {
+      NodeGlare *storage = static_cast<NodeGlare *>(node->storage);
+      write_input_to_property_bool_char("Diagonal Star", storage->star_45);
+    }
+
+    if (node->type_legacy == CMP_NODE_BOKEHIMAGE) {
+      NodeBokehImage *storage = static_cast<NodeBokehImage *>(node->storage);
+      write_input_to_property_int("Flaps", storage->flaps);
+      write_input_to_property_float("Angle", storage->angle);
+      write_input_to_property_float("Roundness", storage->rounding);
+      write_input_to_property_float("Catadioptric Size", storage->catadioptric);
+      write_input_to_property_float("Color Shift", storage->lensshift);
+    }
+
+    if (node->type_legacy == CMP_NODE_TIME) {
+      write_input_to_property_int16("Start Frame", node->custom1);
+      write_input_to_property_int16("End Frame", node->custom2);
+    }
+
+    if (node->type_legacy == CMP_NODE_MASK) {
+      NodeMask *storage = static_cast<NodeMask *>(node->storage);
+      write_input_to_property_int("Size X", storage->size_x);
+      write_input_to_property_int("Size Y", storage->size_y);
+      write_input_to_property_bool_int16_flag(
+          "Feather", node->custom1, CMP_NODE_MASK_FLAG_NO_FEATHER, true);
+      write_input_to_property_bool_int16_flag(
+          "Motion Blur", node->custom1, CMP_NODE_MASK_FLAG_MOTION_BLUR);
+      write_input_to_property_int16("Motion Blur Samples", node->custom2);
+      write_input_to_property_float("Motion Blur Shutter", node->custom3);
+    }
+
+    if (node->type_legacy == CMP_NODE_SWITCH) {
+      write_input_to_property_bool_int16_flag("Switch", node->custom1, 1 << 0);
+    }
+
+    if (node->type_legacy == CMP_NODE_SPLIT) {
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
+      node->custom1 = int(input->default_value_typed<bNodeSocketValueFloat>()->value * 100.0f);
+    }
+
+    if (node->type_legacy == CMP_NODE_INVERT) {
+      write_input_to_property_bool_int16_flag("Invert Color", node->custom1, CMP_CHAN_RGB);
+      write_input_to_property_bool_int16_flag("Invert Alpha", node->custom1, CMP_CHAN_A);
+    }
+
+    if (node->type_legacy == CMP_NODE_ZCOMBINE) {
+      write_input_to_property_bool_int16_flag("Use Alpha", node->custom1, 1 << 0);
+      write_input_to_property_bool_int16_flag("Anti-Alias", node->custom2, 1 << 0, true);
+    }
+
+    if (node->type_legacy == CMP_NODE_TONEMAP) {
+      NodeTonemap *storage = static_cast<NodeTonemap *>(node->storage);
+      write_input_to_property_float("Key", storage->key);
+      write_input_to_property_float("Balance", storage->offset);
+      write_input_to_property_float("Gamma", storage->gamma);
+      write_input_to_property_float("Intensity", storage->f);
+      write_input_to_property_float("Contrast", storage->m);
+      write_input_to_property_float("Light Adaptation", storage->a);
+      write_input_to_property_float("Chromatic Adaptation", storage->c);
+    }
+
+    if (node->type_legacy == CMP_NODE_DILATEERODE) {
+      write_input_to_property_int16("Size", node->custom2);
+      write_input_to_property_float("Falloff Size", node->custom3);
+    }
+
+    if (node->type_legacy == CMP_NODE_INPAINT) {
+      write_input_to_property_int16("Size", node->custom2);
+    }
+
+    if (node->type_legacy == CMP_NODE_PIXELATE) {
+      write_input_to_property_int16("Size", node->custom1);
+    }
+
+    if (node->type_legacy == CMP_NODE_KUWAHARA) {
+      NodeKuwaharaData *storage = static_cast<NodeKuwaharaData *>(node->storage);
+      write_input_to_property_bool_char("High Precision", storage->high_precision);
+      write_input_to_property_int("Uniformity", storage->uniformity);
+      write_input_to_property_float("Sharpness", storage->sharpness);
+      write_input_to_property_float("Eccentricity", storage->eccentricity);
+    }
+
+    if (node->type_legacy == CMP_NODE_DESPECKLE) {
+      write_input_to_property_float("Color Threshold", node->custom3);
+      write_input_to_property_float("Neighbor Threshold", node->custom4);
+    }
+
+    if (node->type_legacy == CMP_NODE_DENOISE) {
+      NodeDenoise *storage = static_cast<NodeDenoise *>(node->storage);
+      write_input_to_property_bool_char("HDR", storage->hdr);
+    }
+  }
+}
+
 }  // namespace forward_compat
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
@@ -750,6 +886,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 
   if (!BLO_write_is_undo(writer)) {
     forward_compat::update_node_location_legacy(*ntree);
+    forward_compat::write_compositor_legacy_properties(*ntree);
   }
 
   for (bNode *node : ntree->all_nodes()) {
@@ -1952,17 +2089,6 @@ bNodeSocket *node_find_enabled_output_socket(bNode &node, const StringRef name)
   return node_find_enabled_socket(node, SOCK_OUT, name);
 }
 
-static bool unique_identifier_check(void *arg, const char *identifier)
-{
-  const ListBase *lb = static_cast<const ListBase *>(arg);
-  LISTBASE_FOREACH (bNodeSocket *, sock, lb) {
-    if (STREQ(sock->identifier, identifier)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 static bNodeSocket *make_socket(bNodeTree *ntree,
                                 bNode * /*node*/,
                                 const int in_out,
@@ -1983,7 +2109,18 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   }
   /* Make the identifier unique. */
   BLI_uniquename_cb(
-      unique_identifier_check, lb, "socket", '_', auto_identifier, sizeof(auto_identifier));
+      [&](const StringRef check_name) {
+        LISTBASE_FOREACH (bNodeSocket *, sock, lb) {
+          if (sock->identifier == check_name) {
+            return true;
+          }
+        }
+        return false;
+      },
+      "socket",
+      '_',
+      auto_identifier,
+      sizeof(auto_identifier));
 
   bNodeSocket *sock = MEM_callocN<bNodeSocket>(__func__);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
@@ -3699,8 +3836,8 @@ void node_tree_set_output(bNodeTree &ntree)
         }
       }
 
-      /* The compositor must always have an active viewer, if viewer nodes exist. */
-      if (output == 0 && is_compositor) {
+      /* Only geometry nodes is allowed to have no active output in the node tree. */
+      if (output == 0 && !is_geometry) {
         node->flag |= NODE_DO_OUTPUT;
       }
     }
@@ -4432,42 +4569,26 @@ std::optional<eNodeSocketDatatype> grid_type_to_socket_type(const VolumeGridType
   }
 }
 
-struct SocketTemplateIdentifierCallbackData {
-  bNodeSocketTemplate *list;
-  bNodeSocketTemplate *ntemp;
-};
-
-static bool unique_socket_template_identifier_check(void *arg, const char *name)
-{
-  const SocketTemplateIdentifierCallbackData *data =
-      static_cast<const SocketTemplateIdentifierCallbackData *>(arg);
-
-  for (bNodeSocketTemplate *ntemp = data->list; ntemp->type >= 0; ntemp++) {
-    if (ntemp != data->ntemp) {
-      if (STREQ(ntemp->identifier, name)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 static void unique_socket_template_identifier(bNodeSocketTemplate *list,
                                               bNodeSocketTemplate *ntemp,
                                               const char defname[],
                                               const char delim)
 {
-  SocketTemplateIdentifierCallbackData data;
-  data.list = list;
-  data.ntemp = ntemp;
-
-  BLI_uniquename_cb(unique_socket_template_identifier_check,
-                    &data,
-                    defname,
-                    delim,
-                    ntemp->identifier,
-                    sizeof(ntemp->identifier));
+  BLI_uniquename_cb(
+      [&](const StringRef check_name) {
+        for (bNodeSocketTemplate *ntemp_iter = list; ntemp_iter->type >= 0; ntemp_iter++) {
+          if (ntemp_iter != ntemp) {
+            if (ntemp_iter->identifier == check_name) {
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      defname,
+      delim,
+      ntemp->identifier,
+      sizeof(ntemp->identifier));
 }
 
 void node_type_socket_templates(bNodeType *ntype,

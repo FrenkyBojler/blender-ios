@@ -53,6 +53,7 @@ set(INC
   intern
   shader
   texture
+  geometry/include
   ../animrig
   ../editors/include
   ../depsgraph
@@ -105,6 +106,7 @@ set(SRC
   NOD_geometry_nodes_closure.hh
   NOD_geometry_nodes_closure_eval.hh
   NOD_geometry_nodes_closure_fwd.hh
+  NOD_geometry_nodes_closure_location.hh
   NOD_geometry_nodes_dependencies.hh
   NOD_geometry_nodes_execute.hh
   NOD_geometry_nodes_gizmos.hh

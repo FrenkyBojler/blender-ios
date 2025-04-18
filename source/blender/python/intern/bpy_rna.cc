@@ -24,6 +24,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -598,7 +599,7 @@ static Mathutils_Callback mathutils_rna_array_cb = {
     (BaseMathSetIndexFunc)mathutils_rna_vector_set_index,
 };
 
-/* bpyrna matrix callbacks */
+/* BPY/RNA matrix callbacks. */
 static uchar mathutils_rna_matrix_cb_index = -1; /* Index for our callbacks. */
 
 static int mathutils_rna_matrix_get(BaseMathObject *bmo, int /*subtype*/)
@@ -945,7 +946,7 @@ static PyObject *pyrna_struct_str(BPy_StructRNA *self)
   }
 
   ID *id = self->ptr->owner_id;
-  if (id && id != DEG_get_original_id(id)) {
+  if (id && id != DEG_get_original(id)) {
     extra_info = ", evaluated";
   }
 
@@ -976,7 +977,7 @@ static PyObject *pyrna_struct_repr(BPy_StructRNA *self)
   PyObject *tmp_str;
   PyObject *ret;
 
-  if (id == nullptr || !PYRNA_STRUCT_IS_VALID(self) || (DEG_get_original_id(id) != id)) {
+  if (id == nullptr || !PYRNA_STRUCT_IS_VALID(self) || (DEG_get_original(id) != id)) {
     /* fallback */
     return pyrna_struct_str(self);
   }
@@ -1770,6 +1771,19 @@ static int pyrna_py_to_prop(
             }
 
             return -1;
+          }
+
+          if ((flag & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
+            if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
+              if (BLI_path_is_rel(param)) {
+                char warning_buf[256];
+                SNPRINTF(warning_buf,
+                         "%.200s.%.200s: does not support blend relative \"//\" prefix",
+                         RNA_struct_identifier(ptr->type),
+                         RNA_property_identifier(prop));
+                PyErr_WarnEx(PyExc_RuntimeWarning, warning_buf, 1);
+              }
+            }
           }
 
           /* Same as bytes (except for UTF8 string copy). */
@@ -5218,7 +5232,7 @@ PyDoc_STRVAR(
     "   (matching Python's dict.values() functionality).\n"
     "\n"
     "   :return: The members of this collection.\n"
-    "   :rtype: list[:class:`bpy.types.bpy_struct`]\n");
+    "   :rtype: list[:class:`bpy.types.bpy_struct` | None]\n");
 static PyObject *pyrna_prop_collection_values(BPy_PropertyRNA *self)
 {
   /* Re-use slice. */

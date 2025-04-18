@@ -1096,11 +1096,11 @@ typedef struct NodeColorCorrection {
 } NodeColorCorrection;
 
 typedef struct NodeBokehImage {
-  float angle;
-  int flaps;
-  float rounding;
-  float catadioptric;
-  float lensshift;
+  float angle DNA_DEPRECATED;
+  int flaps DNA_DEPRECATED;
+  float rounding DNA_DEPRECATED;
+  float catadioptric DNA_DEPRECATED;
+  float lensshift DNA_DEPRECATED;
 } NodeBokehImage;
 
 typedef struct NodeBoxMask {
@@ -1156,10 +1156,10 @@ typedef struct NodeBilateralBlurData {
 typedef struct NodeKuwaharaData {
   short size DNA_DEPRECATED;
   short variation;
-  int uniformity;
-  float sharpness;
-  float eccentricity;
-  char high_precision;
+  int uniformity DNA_DEPRECATED;
+  float sharpness DNA_DEPRECATED;
+  float eccentricity DNA_DEPRECATED;
+  char high_precision DNA_DEPRECATED;
   char _pad[3];
 } NodeKuwaharaData;
 
@@ -1262,7 +1262,7 @@ typedef struct NodeGlare {
   char angle DNA_DEPRECATED;
   char _pad0;
   char size DNA_DEPRECATED;
-  char star_45;
+  char star_45 DNA_DEPRECATED;
   char streaks DNA_DEPRECATED;
   float colmod DNA_DEPRECATED;
   float mix DNA_DEPRECATED;
@@ -1274,8 +1274,13 @@ typedef struct NodeGlare {
 
 /** Tone-map node. */
 typedef struct NodeTonemap {
-  float key, offset, gamma;
-  float f, m, a, c;
+  float key DNA_DEPRECATED;
+  float offset DNA_DEPRECATED;
+  float gamma DNA_DEPRECATED;
+  float f DNA_DEPRECATED;
+  float m DNA_DEPRECATED;
+  float a DNA_DEPRECATED;
+  float c DNA_DEPRECATED;
   int type;
 } NodeTonemap;
 
@@ -1321,7 +1326,8 @@ typedef struct NodeDilateErode {
 } NodeDilateErode;
 
 typedef struct NodeMask {
-  int size_x, size_y;
+  int size_x DNA_DEPRECATED;
+  int size_y DNA_DEPRECATED;
 } NodeMask;
 
 typedef struct NodeSetAlpha {
@@ -1613,7 +1619,7 @@ typedef struct NodeCryptomatte {
 } NodeCryptomatte;
 
 typedef struct NodeDenoise {
-  char hdr;
+  char hdr DNA_DEPRECATED;
   char prefilter;
   char quality;
   char _pad[1];
