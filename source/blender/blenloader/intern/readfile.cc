@@ -757,14 +757,18 @@ static BHeadN *get_bhead(FileData *fd)
 
   if (fd) {
     if (!fd->is_eof) {
-      std::optional<BHead> bhead = BLO_readfile_read_bhead(
+      std::optional<BHead> bhead_opt = BLO_readfile_read_bhead(
           fd->file, fd->blender_header.bhead_type(), do_endian_swap);
-      if (!bhead.has_value() || bhead->len < 0) {
+      BHead *bhead = nullptr;
+      if (!bhead_opt.has_value()) {
         fd->is_eof = true;
       }
-      /* Make sure people are not trying to parse bad blend files. */
-      if (bhead->len < 0) {
+      else if (bhead->len < 0) {
+        /* Make sure people are not trying to parse bad blend files. */
         fd->is_eof = true;
+      }
+      else {
+        bhead = &bhead_opt.value();
       }
 
       /* bhead now contains the (converted) bhead structure. Now read
@@ -774,7 +778,7 @@ static BHeadN *get_bhead(FileData *fd)
         /* pass */
       }
 #ifdef USE_BHEAD_READ_ON_DEMAND
-      else if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(&*bhead)) {
+      else if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(bhead)) {
         /* Delay reading bhead content. */
         new_bhead = MEM_mallocN<BHeadN>("new_bhead");
         if (new_bhead) {
