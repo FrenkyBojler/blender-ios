@@ -257,10 +257,13 @@ static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
       return bke::GeometrySet::from_mesh(mesh_copy);
     }
     case OB_GREASE_PENCIL: {
-      GreasePencil *grease_pencil = BKE_grease_pencil_copy_for_eval(
-          static_cast<const GreasePencil *>(object.data));
-      grease_pencil->runtime->eval_frame = int(DEG_get_ctime(&depsgraph));
-      return bke::GeometrySet::from_grease_pencil(grease_pencil);
+      const GreasePencil *grease_pencil = static_cast<const GreasePencil *>(object.data);
+      if (const bke::greasepencil::Layer *active_layer = grease_pencil->get_active_layer()) {
+        operator_data.active_layer_index = *grease_pencil->get_layer_index(*active_layer);
+      }
+      GreasePencil *grease_pencil_copy = BKE_grease_pencil_copy_for_eval(grease_pencil);
+      grease_pencil_copy->runtime->eval_frame = int(DEG_get_ctime(&depsgraph));
+      return bke::GeometrySet::from_grease_pencil(grease_pencil_copy);
     }
     default:
       return {};
