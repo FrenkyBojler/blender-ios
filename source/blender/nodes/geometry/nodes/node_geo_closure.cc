@@ -210,18 +210,15 @@ static void try_initialize_closure_from_evaluator(SpaceNode &snode, bNode &closu
   if (!evaluate_node) {
     return;
   }
-  const auto *evaluate_node_storage = static_cast<const NodeGeometryEvaluateClosure *>(
-      evaluate_node->storage);
+  const auto *storage = static_cast<const NodeGeometryEvaluateClosure *>(evaluate_node->storage);
 
-  for (const int i : IndexRange(evaluate_node_storage->input_items.items_num)) {
-    const NodeGeometryEvaluateClosureInputItem &evaluate_item =
-        evaluate_node_storage->input_items.items[i];
+  for (const int i : IndexRange(storage->input_items.items_num)) {
+    const NodeGeometryEvaluateClosureInputItem &evaluate_item = storage->input_items.items[i];
     socket_items::add_item_with_socket_type_and_name<ClosureInputItemsAccessor>(
         closure_output_node, eNodeSocketDatatype(evaluate_item.socket_type), evaluate_item.name);
   }
-  for (const int i : IndexRange(evaluate_node_storage->output_items.items_num)) {
-    const NodeGeometryEvaluateClosureOutputItem &evaluate_item =
-        evaluate_node_storage->output_items.items[i];
+  for (const int i : IndexRange(storage->output_items.items_num)) {
+    const NodeGeometryEvaluateClosureOutputItem &evaluate_item = storage->output_items.items[i];
     socket_items::add_item_with_socket_type_and_name<ClosureOutputItemsAccessor>(
         closure_output_node, eNodeSocketDatatype(evaluate_item.socket_type), evaluate_item.name);
   }
