@@ -245,7 +245,7 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
   const int max_line_count = max_height / line_height;
 
   /* Draw from bound-box top. */
-  yofs = max_height - line_height;
+  yofs = max_height - line_height - BLF_descender(fs->uifont_id);
   yofs = std::max(0, yofs);
 
   BLF_clipping(fs->uifont_id, rect->xmin, rect->ymin, rect->xmax, rect->ymax);

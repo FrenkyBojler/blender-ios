@@ -465,38 +465,6 @@ static uiBut *file_add_overlay_icon_but(uiBlock *block, int pos_x, int pos_y, in
   return but;
 }
 
-/**
- * Draw the string over at max \a line_count lines, clipping in the middle so it fits.
- * \param sx, sy: The upper left corner of the text bounding box.
- */
-static void file_draw_string_mulitline_clipped(int sx,
-                                               int sy,
-                                               const char *string,
-                                               float width,
-                                               int line_height,
-                                               int line_count,
-                                               eFontStyle_Align align,
-                                               const uchar col[4])
-{
-  rcti rect;
-
-  if (string[0] == '\0' || width < 1) {
-    return;
-  }
-
-  const uiStyle *style = UI_style_get();
-  uiFontStyle fs = style->widget;
-
-  /* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict
-   * (for buttons it works) */
-  rect.xmin = sx;
-  rect.xmax = sx + round_fl_to_int(width);
-  rect.ymax = sy;
-  rect.ymin = sy - line_height * line_count;
-
-  UI_fontstyle_draw_multiline_clipped(&fs, &rect, string, col, align);
-}
-
 static void file_draw_string(int sx,
                              int sy,
                              const char *string,
@@ -505,7 +473,49 @@ static void file_draw_string(int sx,
                              eFontStyle_Align align,
                              const uchar col[4])
 {
-  file_draw_string_mulitline_clipped(sx, sy, string, width, height, 1, align, col);
+  uiFontStyle fs;
+  rcti rect;
+  char filename[FILE_MAXFILE];
+
+  if (string[0] == '\0' || width < 1) {
+    return;
+  }
+
+  const uiStyle *style = UI_style_get();
+  fs = style->widget;
+
+  STRNCPY(filename, string);
+  UI_text_clip_middle_ex(&fs, filename, width, UI_ICON_SIZE, sizeof(filename), '\0');
+
+  /* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict
+   * (for buttons it works) */
+  rect.xmin = sx;
+  rect.xmax = sx + round_fl_to_int(width);
+  rect.ymin = sy - height;
+  rect.ymax = sy;
+
+  uiFontStyleDraw_Params font_style_params{};
+  font_style_params.align = align;
+
+  UI_fontstyle_draw(&fs, &rect, filename, sizeof(filename), col, &font_style_params);
+}
+
+/**
+ * Draw the string over at max \a line_count lines, clipping in the middle so it fits.
+ */
+static void file_draw_string_mulitline_clipped(const rcti *rect,
+                                               const char *string,
+                                               eFontStyle_Align align,
+                                               const uchar col[4])
+{
+  if (string[0] == '\0' || BLI_rcti_size_x(rect) < 1) {
+    return;
+  }
+
+  const uiStyle *style = UI_style_get();
+  uiFontStyle fs = style->widget;
+
+  UI_fontstyle_draw_multiline_clipped(&fs, rect, string, col, align);
 }
 
 /**
@@ -1230,7 +1240,7 @@ static rcti text_draw_rect_get(const View2D *v2d,
   rcti rect = tile_rect;
   if (display_type == FILE_IMGDISPLAY) {
     rect.ymin += round_fl_to_int(layout->prv_border_y * 0.5f);
-    rect.ymax = rect.ymin + layout->textheight;
+    rect.ymax = rect.ymin + layout->text_line_height * layout->text_lines_count;
   }
   else {
     rect.xmin += icon_ofs_x + 1;
@@ -1461,16 +1471,16 @@ void file_draw_list(const bContext *C, ARegion *region)
     if (file_selflag & FILE_SEL_EDITING) {
       const int but_height =
           (params->display == FILE_IMGDISPLAY) ?
-              layout->textheight * 1.4f :
+              layout->text_line_height * 1.4f :
               /* Just a little smaller than the tile height, clamped to #UI_UNIT_Y as maximum. */
               std::min(short(BLI_rcti_size_y(&text_rect) - 1.0f * UI_SCALE_FAC), UI_UNIT_Y);
       uiBut *but = uiDefBut(block,
                             UI_BTYPE_TEXT,
                             1,
                             "",
+                            text_rect.xmin,
                             /* First line only, when name is displayed in multiple lines. */
-                            text_rect.xmax - but_height,
-                            text_rect.ymin,
+                            text_rect.ymax - but_height,
                             BLI_rcti_size_x(&text_rect),
                             but_height,
                             params->renamefile,
@@ -1499,22 +1509,18 @@ void file_draw_list(const bContext *C, ARegion *region)
 
     /* file_selflag might have been modified by branch above. */
     if ((file_selflag & FILE_SEL_EDITING) == 0) {
-      // file_draw_string(text_rect.xmin,
-      //                  text_rect.ymax,
-      //                  file->name,
-      //                  BLI_rcti_size_x(&text_rect),
-      //                  BLI_rcti_size_y(&text_rect),
-      //                  align,
-      //                  text_col);
-
-      file_draw_string_mulitline_clipped(txpos,
-                                         typos,
-                                         file->name,
-                                         float(twidth),
-                                         layout->text_line_height,
-                                         layout->text_lines_count,
-                                         align,
-                                         text_col);
+      if (layout->text_lines_count == 1) {
+        file_draw_string(text_rect.xmin,
+                         text_rect.ymax,
+                         file->name,
+                         BLI_rcti_size_x(&text_rect),
+                         BLI_rcti_size_y(&text_rect),
+                         align,
+                         text_col);
+      }
+      else {
+        file_draw_string_mulitline_clipped(&text_rect, file->name, align, text_col);
+      }
     }
 
     if (params->display != FILE_IMGDISPLAY) {

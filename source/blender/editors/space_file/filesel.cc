@@ -1053,7 +1053,7 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
   numfiles = filelist_files_ensure(sfile->files);
   layout = sfile->layout;
   /* Slightly increased than font height for padding. */
-  layout->text_line_height = file_font_pointsize() * 1.5f + 0.5f;
+  layout->text_line_height = file_font_pointsize();
   layout->text_lines_count = 1;
 
   if (params->display == FILE_IMGDISPLAY) {
