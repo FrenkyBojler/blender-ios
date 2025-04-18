@@ -39,8 +39,8 @@ void do_clay_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &ob,
                    const IndexMask &node_mask,
-                   const float3& plane_normal,
-                   const float3& plane_center);
+                   const float3 &plane_normal,
+                   const float3 &plane_center);
 namespace clay {
 CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
                                   Object &object,

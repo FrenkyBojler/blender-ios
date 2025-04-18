@@ -3388,8 +3388,13 @@ static void do_brush_action(const Depsgraph &depsgraph,
       brushes::do_flatten_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_CLAY:
-      BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
-      brushes::do_clay_brush(depsgraph, sd, ob, node_mask, *node_mask_result.plane_normal, *node_mask_result.plane_center);
+      BLI_assert(cursor_sample_result.plane_normal && cursor_sample_result.plane_center);
+      brushes::do_clay_brush(depsgraph,
+                             sd,
+                             ob,
+                             node_mask,
+                             *cursor_sample_result.plane_normal,
+                             *cursor_sample_result.plane_center);
       break;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
       BLI_assert(cursor_sample_result.plane_normal && cursor_sample_result.plane_center);

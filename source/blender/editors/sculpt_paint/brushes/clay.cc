@@ -151,8 +151,8 @@ void do_clay_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &object,
                    const IndexMask &node_mask,
-                   const float3& plane_normal,
-                   const float3& plane_center)
+                   const float3 &plane_normal,
+                   const float3 &plane_center)
 {
   SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -262,6 +262,6 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
 
   return {plane_mask, plane_center, plane_normal};
 }
-}
+}  // namespace clay
 
 }  // namespace blender::ed::sculpt_paint::brushes
