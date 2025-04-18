@@ -5530,8 +5530,8 @@ static void version_set_uv_face_overlay_defaults(Main *bmain)
 }
 
 /* Turns all instances of "{" and "}" in a string into "{{" and "}}", escaping
- * them for strings that are processed with Blender Variables so that they don't
- * erroneously get interepreted as variables. */
+ * them for strings that are processed with templates so that they don't
+ * erroneously get interepreted as template expressions. */
 static void escape_curly_braces(char string[], const int string_array_length)
 {
   int bytes_processed = 0;
