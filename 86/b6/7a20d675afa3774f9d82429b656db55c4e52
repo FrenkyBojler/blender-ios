@@ -1,2 +1,3 @@
 Referenced by pull request #137349, Fix: Cycles CUDA errors after recent changes for scene update
 Referenced by commit c8f9fdc0c87b5875fa0dda8bcd586da28c9e9d9c, Fix: Cycles CUDA errors after recent changes for scene update
+Referenced by issue #137683, Fog missing every other frame when `Persistent Data` and `Motion Blur` is enabled
