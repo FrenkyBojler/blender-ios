@@ -71,7 +71,7 @@ enum {
 /**
  * Low level version 0: the header is 12 bytes long.
  * 0-6:  'BLENDER'
- * 7:    '-' for 8 byte pointers (#SmallBHead8) or '_' for 4 byte pointers (#BHead4)
+ * 7:    '-' for 8-byte pointers (#SmallBHead8) or '_' for 4-byte pointers (#BHead4)
  * 8:    'v' for little endian or 'V' for big endian
  * 9-11: 3 ASCII digits encoding #BLENDER_FILE_VERSION (e.g. '305' for Blender 3.5)
  */
