@@ -1140,6 +1140,8 @@ static GeometryNodeAssetTraitFlag asset_flag_for_context(const ObjectType type,
           return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_EDIT | GEO_NODE_ASSET_GREASE_PENCIL);
         case OB_MODE_SCULPT_GREASE_PENCIL:
           return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_SCULPT | GEO_NODE_ASSET_GREASE_PENCIL);
+        case OB_MODE_PAINT_GREASE_PENCIL:
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_PAINT | GEO_NODE_ASSET_GREASE_PENCIL);
         default:
           break;
       }
@@ -1223,6 +1225,10 @@ static asset::AssetItemTree *get_static_item_tree(const ObjectType type, const e
           static asset::AssetItemTree tree;
           return &tree;
         }
+        case OB_MODE_PAINT_GREASE_PENCIL: {
+          static asset::AssetItemTree tree;
+          return &tree;
+        }
         default:
           return nullptr;
       }
@@ -1244,7 +1250,8 @@ void clear_operator_asset_trees()
                                    OB_MODE_EDIT,
                                    OB_MODE_SCULPT,
                                    OB_MODE_SCULPT_CURVES,
-                                   OB_MODE_SCULPT_GREASE_PENCIL})
+                                   OB_MODE_SCULPT_GREASE_PENCIL,
+                                   OB_MODE_PAINT_GREASE_PENCIL})
     {
       if (asset::AssetItemTree *tree = get_static_item_tree(type, mode)) {
         tree->dirty = true;
@@ -1363,6 +1370,10 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
           break;
         case OB_MODE_SCULPT_GREASE_PENCIL:
           menus.add_new("View");
+          break;
+        case OB_MODE_PAINT_GREASE_PENCIL:
+          menus.add_new("View");
+          menus.add_new("Draw");
           break;
         default:
           break;

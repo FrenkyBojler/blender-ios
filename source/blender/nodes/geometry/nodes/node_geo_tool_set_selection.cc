@@ -85,9 +85,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
   const eObjectMode mode = params.user_data()->call_data->operator_data->mode;
-  if (mode == OB_MODE_OBJECT) {
+  if (ELEM(mode, OB_MODE_OBJECT, OB_MODE_PAINT_GREASE_PENCIL)) {
     params.error_message_add(NodeWarningType::Error,
-                             "Selection control is not supported in object mode");
+                             "Selection control is not supported in this mode");
     params.set_output("Geometry", std::move(geometry));
     return;
   }

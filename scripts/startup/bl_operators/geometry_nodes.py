@@ -58,6 +58,8 @@ def geometry_node_group_empty_tool_new(context):
     mode = ob.mode if ob else 'OBJECT'
     if mode in {'SCULPT', 'SCULPT_CURVES', 'SCULPT_GREASE_PENCIL'}:
         group.is_mode_sculpt = True
+    elif mode == 'PAINT_GREASE_PENCIL':
+        group.is_mode_paint = True
     elif mode == 'EDIT':
         group.is_mode_edit = True
     else:
