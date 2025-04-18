@@ -446,7 +446,6 @@ struct FilmData {
   int cryptomatte_object_id;
   int cryptomatte_asset_id;
   int cryptomatte_material_id;
-  int grease_pencil_id;
   /** Max number of samples stored per layer (is even number). */
   int cryptomatte_samples_len;
   /** Settings to render mist pass */
@@ -463,6 +462,7 @@ struct FilmData {
   int samples_len;
   /** Sum of the weights of all samples in the sample table. */
   float samples_weight_total;
+  int _pad2;
   FilmSample samples[FILM_PRECOMP_SAMPLE_MAX];
 };
 BLI_STATIC_ASSERT_ALIGN(FilmData, 16)
@@ -523,12 +523,11 @@ struct RenderBuffersInfoData {
   int emission_id;
   int environment_id;
   int transparent_id;
-  int grease_pencil_id;
   /* Value */
   int value_len;
   int shadow_id;
   int ambient_occlusion_id;
-  int _pad0;
+  int _pad0, _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(RenderBuffersInfoData, 16)
 
