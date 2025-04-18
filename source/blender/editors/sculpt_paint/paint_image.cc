@@ -44,6 +44,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "NOD_texture.h"
@@ -770,7 +771,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
         if (!data->sample_palette) {
           data->sample_palette = true;
           sample_color_update_header(data, C);
-          WM_report(RPT_INFO,"Sampling color for pallette");
+          BKE_report(op->reports, RPT_INFO, "Sampling color for pallette");
         }
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
