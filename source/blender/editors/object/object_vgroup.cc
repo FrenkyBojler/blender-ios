@@ -1856,7 +1856,10 @@ static int inv_cmp_mdef_vert_weights(const void *a1, const void *a2)
   if (&dw1 < &dw2) {
     return 1; /* compare address for stable sort algorithm */
   }
-  return -1;
+  if (&dw1 > &dw2) {
+    return -1;
+  }
+return 0;
 }
 
 /* Used for limiting the number of influencing bones per vertex when exporting
