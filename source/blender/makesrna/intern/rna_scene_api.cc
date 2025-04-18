@@ -118,9 +118,9 @@ static void rna_SceneRender_get_frame_path(RenderData *rd,
   }
   else {
     const char *relbase = BKE_main_blendfile_path(bmain);
-    const VariableMap variables = BKE_build_blender_variables(relbase, rd);
+    const TemplateVariableMap variables = BKE_build_blender_variables(relbase, rd);
 
-    const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+    const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
         filepath,
         rd->pic,
         relbase,
@@ -132,7 +132,7 @@ static void rna_SceneRender_get_frame_path(RenderData *rd,
         suffix);
 
     if (!errors.is_empty() && reports) {
-      BKE_report_path_variable_errors(reports, RPT_ERROR, rd->pic, errors);
+      BKE_report_path_template_errors(reports, RPT_ERROR, rd->pic, errors);
     }
   }
 }

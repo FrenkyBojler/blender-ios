@@ -1141,7 +1141,7 @@ static void cache_filepath(
 
   BLI_path_join(cachepath, sizeof(cachepath), dirname, filename);
 
-  const blender::Vector<VariableParseError> errors = BKE_image_path_from_imtype(
+  const blender::Vector<TemplateError> errors = BKE_image_path_from_imtype(
       filepath, cachepath, relbase, nullptr, frame, R_IMF_IMTYPE_OPENEXR, true, true, "");
   BLI_assert_msg(errors.is_empty(),
                  "Path parsing errors should only occur when a variable map is provided.");

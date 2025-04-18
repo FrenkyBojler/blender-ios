@@ -7,7 +7,7 @@
 #include "BKE_scene.hh"
 #include "BKE_templates.hh"
 
-bool VariableMap::contains(blender::StringRef name) const
+bool TemplateVariableMap::contains(blender::StringRef name) const
 {
   if (this->strings.contains(name)) {
     return true;
@@ -21,7 +21,7 @@ bool VariableMap::contains(blender::StringRef name) const
   return false;
 }
 
-bool VariableMap::remove(blender::StringRef name)
+bool TemplateVariableMap::remove(blender::StringRef name)
 {
   if (this->strings.remove(name)) {
     return true;
@@ -35,7 +35,7 @@ bool VariableMap::remove(blender::StringRef name)
   return false;
 }
 
-bool VariableMap::add_string(blender::StringRef name, blender::StringRef value)
+bool TemplateVariableMap::add_string(blender::StringRef name, blender::StringRef value)
 {
   if (this->contains(name)) {
     return false;
@@ -44,7 +44,7 @@ bool VariableMap::add_string(blender::StringRef name, blender::StringRef value)
   return true;
 }
 
-bool VariableMap::add_integer(blender::StringRef name, const int64_t value)
+bool TemplateVariableMap::add_integer(blender::StringRef name, const int64_t value)
 {
   if (this->contains(name)) {
     return false;
@@ -53,7 +53,7 @@ bool VariableMap::add_integer(blender::StringRef name, const int64_t value)
   return true;
 }
 
-bool VariableMap::add_float(blender::StringRef name, const double value)
+bool TemplateVariableMap::add_float(blender::StringRef name, const double value)
 {
   if (this->contains(name)) {
     return false;
@@ -62,7 +62,8 @@ bool VariableMap::add_float(blender::StringRef name, const double value)
   return true;
 }
 
-std::optional<blender::StringRefNull> VariableMap::get_string(blender::StringRef name) const
+std::optional<blender::StringRefNull> TemplateVariableMap::get_string(
+    blender::StringRef name) const
 {
   const std::string *value = this->strings.lookup_ptr(name);
   if (value == nullptr) {
@@ -71,7 +72,7 @@ std::optional<blender::StringRefNull> VariableMap::get_string(blender::StringRef
   return blender::StringRefNull(*value);
 }
 
-std::optional<int64_t> VariableMap::get_integer(blender::StringRef name) const
+std::optional<int64_t> TemplateVariableMap::get_integer(blender::StringRef name) const
 {
   const int64_t *value = this->integers.lookup_ptr(name);
   if (value == nullptr) {
@@ -80,7 +81,7 @@ std::optional<int64_t> VariableMap::get_integer(blender::StringRef name) const
   return *value;
 }
 
-std::optional<double> VariableMap::get_float(blender::StringRef name) const
+std::optional<double> TemplateVariableMap::get_float(blender::StringRef name) const
 {
   const double *value = this->floats.lookup_ptr(name);
   if (value == nullptr) {
@@ -91,9 +92,10 @@ std::optional<double> VariableMap::get_float(blender::StringRef name) const
 
 /* -------------------------------------------------------------------- */
 
-VariableMap BKE_build_blender_variables(const char *blend_file_path, const RenderData *render_data)
+TemplateVariableMap BKE_build_blender_variables(const char *blend_file_path,
+                                                const RenderData *render_data)
 {
-  VariableMap variables;
+  TemplateVariableMap variables;
 
   /* Blend file name. */
   if (blend_file_path) {
@@ -136,7 +138,7 @@ VariableMap BKE_build_blender_variables(const char *blend_file_path, const Rende
 
 /* -------------------------------------------------------------------- */
 
-bool operator==(const VariableParseError &left, const VariableParseError &right)
+bool operator==(const TemplateError &left, const TemplateError &right)
 {
   return left.type == right.type && left.byte_range == right.byte_range;
 }
@@ -174,7 +176,7 @@ struct FormatSpecifier {
 
 enum class TokenType {
   /* "{variable_name}" or "{variable_name:format_spec}". */
-  VARIABLE,
+  VARIABLE_EXPRESSION,
 
   /* "{{", which is an escaped "{". */
   LEFT_CURLY_BRACE,
@@ -182,7 +184,7 @@ enum class TokenType {
   /* "}}", which is an escaped "}". */
   RIGHT_CURLY_BRACE,
 
-  /* Encountered a syntax error while trying to parse a variable. */
+  /* Encountered a syntax error while trying to parse a variable expression. */
   VARIABLE_SYNTAX_ERROR,
 
   /* Encountered an unescaped curly brace in an invalid position. */
@@ -190,25 +192,25 @@ enum class TokenType {
 };
 
 /**
- * A token that was parsed and should be substituted in the path string.
+ * A token that was parsed and should be substituted in the string.
  */
 struct Token {
-  TokenType type = TokenType::VARIABLE;
+  TokenType type = TokenType::VARIABLE_EXPRESSION;
 
   /* Byte index range (exclusive on the right) of the token or syntax error in
    * the path string. */
   blender::IndexRange byte_range;
 
-  /* Reference to the the variable name as written in the path string. Note that
-   * this points into the path string, and does not own the value.
+  /* Reference to the the variable name as written in the template string. Note
+   * that this points into the template string, and does not own the value.
    *
-   * Only relevant when `type == VARIABLE`. */
+   * Only relevant when `type == VARIABLE_EXPRESSION`. */
   blender::StringRef variable_name;
 
   /* Indicates how the variable's value should be formatted into a string. This
    * is derived from the format specification (e.g. the "###" in "{blah:###}").
    *
-   * Only relevant when `type == VARIABLE`. */
+   * Only relevant when `type == VARIABLE_EXPRESSION`. */
   FormatSpecifier format;
 };
 
@@ -363,7 +365,7 @@ static int format_float_to_string(const FormatSpecifier &format,
   return output_length;
 }
 
-static FormatSpecifier parse_path_variable_format(blender::StringRef format_specifier)
+static FormatSpecifier parse_format_specifier(blender::StringRef format_specifier)
 {
   FormatSpecifier format = {};
 
@@ -446,9 +448,9 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
 
     /* Check for escaped "}".
      *
-     * Note that we only do this check when not already inside a variable, since
-     * it could be a valid closing "}" followed by additional escaped closing
-     * braces. */
+     * Note that we only do this check when not already inside a variable
+     * expression, since it could be a valid closing "}" followed by additional
+     * escaped closing braces. */
     if (start == -1 && (byte_index + 1) < path.size() && path[byte_index] == '}' &&
         path[byte_index + 1] == '}')
     {
@@ -457,7 +459,8 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
       return token;
     }
 
-    /* Check for unescaped "}", which outside of a variable is illegal. */
+    /* Check for unescaped "}", which outside of a variable expression is
+     * illegal. */
     if (start == -1 && path[byte_index] == '}') {
       token.type = TokenType::UNESCAPED_CURLY_BRACE_ERROR;
       token.byte_range = blender::IndexRange::from_begin_end(byte_index, byte_index + 1);
@@ -467,7 +470,7 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
     /* Check if we've found a starting "{". */
     if (path[byte_index] == '{') {
       if (start != -1) {
-        /* Already inside a variable. */
+        /* Already inside a variable expression. */
         token.type = TokenType::VARIABLE_SYNTAX_ERROR;
         token.byte_range = blender::IndexRange::from_begin_end(start, byte_index);
         return token;
@@ -522,7 +525,7 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
   else {
     /* Found format specifier. */
     token.variable_name = path.substr(start + 1, format_specifier_split - (start + 1));
-    token.format = parse_path_variable_format(
+    token.format = parse_format_specifier(
         path.substr(format_specifier_split + 1, (end - 1) - (format_specifier_split + 1)));
     if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
       token.type = TokenType::VARIABLE_SYNTAX_ERROR;
@@ -533,9 +536,9 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
   return token;
 }
 
-/* Parse the given path and return a list of tokens found, in the same order as
- * they appear in the path. */
-static blender::Vector<Token> parse_path(blender::StringRef path)
+/* Parse the given template and return a list of tokens found, in the same order
+ * as they appear in the template. */
+static blender::Vector<Token> parse_template(blender::StringRef path)
 {
   blender::Vector<Token> tokens;
 
@@ -555,26 +558,26 @@ static blender::Vector<Token> parse_path(blender::StringRef path)
 
 /* Convert a token to its corresponding syntax error. If the token doesn't have
  * an error, returns nullopt. */
-static std::optional<VariableParseError> token_to_syntax_error(const Token &token)
+static std::optional<TemplateError> token_to_syntax_error(const Token &token)
 {
   switch (token.type) {
     case TokenType::VARIABLE_SYNTAX_ERROR: {
       if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
-        return {{VariableParseErrorType::FORMAT_SPECIFIER, token.byte_range}};
+        return {{TemplateErrorType::FORMAT_SPECIFIER, token.byte_range}};
       }
       else {
-        return {{VariableParseErrorType::VARIABLE_SYNTAX, token.byte_range}};
+        return {{TemplateErrorType::VARIABLE_SYNTAX, token.byte_range}};
       }
     }
 
     case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {
-      return {{VariableParseErrorType::UNESCAPED_CURLY_BRACE, token.byte_range}};
+      return {{TemplateErrorType::UNESCAPED_CURLY_BRACE, token.byte_range}};
     }
 
     /* Non-errors. */
+    case TokenType::VARIABLE_EXPRESSION:
     case TokenType::LEFT_CURLY_BRACE:
     case TokenType::RIGHT_CURLY_BRACE:
-    case TokenType::VARIABLE:
       return std::nullopt;
   }
 
@@ -582,13 +585,13 @@ static std::optional<VariableParseError> token_to_syntax_error(const Token &toke
   return std::nullopt;
 }
 
-blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::StringRef path)
+blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef path)
 {
-  const blender::Vector<Token> tokens = parse_path(path);
+  const blender::Vector<Token> tokens = parse_template(path);
 
-  blender::Vector<VariableParseError> errors;
+  blender::Vector<TemplateError> errors;
   for (const Token &token : tokens) {
-    if (std::optional<VariableParseError> error = token_to_syntax_error(token)) {
+    if (std::optional<TemplateError> error = token_to_syntax_error(token)) {
       errors.append(*error);
     }
   }
@@ -596,10 +599,10 @@ blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::String
   return errors;
 }
 
-blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
-                                                             const VariableMap &variables)
+blender::Vector<TemplateError> BKE_path_apply_template(char path[FILE_MAX],
+                                                       const TemplateVariableMap &variables)
 {
-  const blender::Vector<Token> tokens = parse_path(path);
+  const blender::Vector<Token> tokens = parse_template(path);
 
   if (tokens.is_empty()) {
     /* No tokens found, so nothing to do. */
@@ -607,7 +610,7 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
   }
 
   /* Accumulates errors as we process the tokens. */
-  blender::Vector<VariableParseError> errors;
+  blender::Vector<TemplateError> errors;
 
   /* We work on a copy of the path, for two reasons:
    *
@@ -624,7 +627,7 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
 
   for (const Token &token : tokens) {
     /* Syntax errors. */
-    if (std::optional<VariableParseError> error = token_to_syntax_error(token)) {
+    if (std::optional<TemplateError> error = token_to_syntax_error(token)) {
       errors.append(*error);
       continue;
     }
@@ -649,8 +652,8 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
         break;
       }
 
-      /* Variable expansion. */
-      case TokenType::VARIABLE: {
+      /* Expand variable expression into the variable's value. */
+      case TokenType::VARIABLE_EXPRESSION: {
         if (std::optional<blender::StringRefNull> string_value = variables.get_string(
                 token.variable_name))
         {
@@ -658,7 +661,7 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
            * specifier: string variables do not support format specifiers. */
           if (token.format.type != FormatSpecifierType::NONE) {
             /* String variables don't take format specifiers: error. */
-            errors.append({VariableParseErrorType::FORMAT_SPECIFIER, token.byte_range});
+            errors.append({TemplateErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
           strcpy(replacement_string, string_value->c_str());
@@ -678,7 +681,7 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
         }
 
         /* No matching variable found: error. */
-        errors.append({VariableParseErrorType::UNKNOWN_VARIABLE, token.byte_range});
+        errors.append({TemplateErrorType::UNKNOWN_VARIABLE, token.byte_range});
         continue;
       }
     }
@@ -705,12 +708,12 @@ blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX]
   return errors;
 }
 
-std::string BKE_variable_error_to_string(const VariableParseError &error, blender::StringRef path)
+std::string BKE_path_template_error_to_string(const TemplateError &error, blender::StringRef path)
 {
   blender::StringRef subpath = path.substr(error.byte_range.start(), error.byte_range.size());
 
   switch (error.type) {
-    case VariableParseErrorType::UNESCAPED_CURLY_BRACE: {
+    case TemplateErrorType::UNESCAPED_CURLY_BRACE: {
       std::string error_message;
       error_message.append("Unescaped curly brace '");
       error_message.append(subpath);
@@ -718,25 +721,25 @@ std::string BKE_variable_error_to_string(const VariableParseError &error, blende
       return error_message;
     }
 
-    case VariableParseErrorType::VARIABLE_SYNTAX: {
+    case TemplateErrorType::VARIABLE_SYNTAX: {
       std::string error_message;
-      error_message.append("Invalid or incomplete variable expression '");
+      error_message.append("Invalid or incomplete template expression '");
       error_message.append(subpath);
       error_message.append("'.");
       return error_message;
     }
 
-    case VariableParseErrorType::FORMAT_SPECIFIER: {
+    case TemplateErrorType::FORMAT_SPECIFIER: {
       std::string error_message;
-      error_message.append("Invalid format specifier in variable expression '");
+      error_message.append("Invalid format specifier in template expression '");
       error_message.append(subpath);
       error_message.append("'.");
       return error_message;
     }
 
-    case VariableParseErrorType::UNKNOWN_VARIABLE: {
+    case TemplateErrorType::UNKNOWN_VARIABLE: {
       std::string error_message;
-      error_message.append("Unknown variable referenced in variable expression '");
+      error_message.append("Unknown variable referenced in template expression '");
       error_message.append(subpath);
       error_message.append("'.");
       return error_message;
@@ -747,10 +750,10 @@ std::string BKE_variable_error_to_string(const VariableParseError &error, blende
   return "Unknown error.";
 }
 
-void BKE_report_path_variable_errors(ReportList *reports,
+void BKE_report_path_template_errors(ReportList *reports,
                                      const eReportType report_type,
                                      blender::StringRef path,
-                                     blender::Span<VariableParseError> errors)
+                                     blender::Span<TemplateError> errors)
 {
   BLI_assert(reports);
   BLI_assert(!errors.is_empty());
@@ -765,9 +768,9 @@ void BKE_report_path_variable_errors(ReportList *reports,
   error_message.append(path);
   error_message.append("':");
 
-  for (const VariableParseError &error : errors) {
+  for (const TemplateError &error : errors) {
     error_message.append("\n- ");
-    error_message.append(BKE_variable_error_to_string(error, path));
+    error_message.append(BKE_path_template_error_to_string(error, path));
   }
 
   BKE_report(reports, report_type, error_message.c_str());

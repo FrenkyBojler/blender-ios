@@ -867,7 +867,7 @@ class FileOutputOperation : public NodeOperation {
   {
     const RenderData &render_data = context().get_render_data();
     const char *relbase = BKE_main_blendfile_path_from_global();
-    const VariableMap variables = BKE_build_blender_variables(relbase, &render_data);
+    const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &render_data);
     BKE_image_path_from_imformat(image_path,
                                  base_path,
                                  relbase,
@@ -886,7 +886,7 @@ class FileOutputOperation : public NodeOperation {
     const RenderData &render_data = context().get_render_data();
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
     const char *relbase = BKE_main_blendfile_path_from_global();
-    const VariableMap variables = BKE_build_blender_variables(relbase, &render_data);
+    const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &render_data);
     BKE_image_path_from_imtype(image_path,
                                base_path,
                                BKE_main_blendfile_path_from_global(),

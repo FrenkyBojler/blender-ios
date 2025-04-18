@@ -27,7 +27,8 @@
  * \{ */
 
 /**
- * A store for the values of variables, addressed by variable name.
+ * A store for the values of variables, addressed by variable name, for use in
+ * template substitution.
  *
  * Note that this is not intended to be a persistent store for variables, but
  * rather a transient one for collecting the values of variables that are
@@ -39,7 +40,7 @@
  * types. For example, you can't have both a string *and* integer variable both
  * with the name "bob".
  */
-class VariableMap {
+class TemplateVariableMap {
   blender::Map<std::string, std::string> strings;
   blender::Map<std::string, int64_t> integers;
   blender::Map<std::string, double> floats;
@@ -123,7 +124,7 @@ class VariableMap {
  * from those parameters will simply not be included.
  *
  * This is typically used to create the variables passed to
- * `BKE_path_apply_variables()`.
+ * `BKE_path_apply_template()`.
  *
  * \param blend_file_path: full path to the blend file, including the file name.
  * Typically you should fetch this with `ID_BLEND_PATH()`, but there are
@@ -138,41 +139,41 @@ class VariableMap {
  * function sometimes have the current frame defined separately from the
  * available RenderData (see e.g. `do_makepicstring()`).
  *
- * \see BKE_path_apply_variables()
+ * \see BKE_path_apply_template()
  *
  * \see BLI_path_abs()
  */
-VariableMap BKE_build_blender_variables(const char *blend_file_path,
-                                        const RenderData *render_data);
+TemplateVariableMap BKE_build_blender_variables(const char *blend_file_path,
+                                                const RenderData *render_data);
 
-enum class VariableParseErrorType {
+enum class TemplateErrorType {
   UNESCAPED_CURLY_BRACE,
   VARIABLE_SYNTAX,
   FORMAT_SPECIFIER,
   UNKNOWN_VARIABLE,
 };
 
-struct VariableParseError {
-  VariableParseErrorType type;
+struct TemplateError {
+  TemplateErrorType type;
   blender::IndexRange byte_range;
 };
 
-bool operator==(const VariableParseError &left, const VariableParseError &right);
+bool operator==(const TemplateError &left, const TemplateError &right);
 
 /**
- * Validate the variable syntax in the given path.
+ * Validate the template syntax in the given path.
  *
- * This does *not* validate whether the variables referenced in the path exist
- * or not, nor whether the formatting specification in a variable expression is
- * appropriate for its type. This only validates what can be validated without
- * knowing anything about the variables themselves.
+ * This does *not* validate whether any variables referenced in the path exist
+ * or not, nor whether the format specification in a variable expression is
+ * appropriate for its type. This only validates that the template syntax itself
+ * is valid.
  *
  * \return An empty vector if valid, or a vector of the parse errors if invalid.
  */
-blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::StringRef path);
+blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef path);
 
 /**
- * Perform variable substitution on the given path.
+ * Perform variable substitution and escaping on the given path.
  *
  * This mutates the path in-place. The path must be a null-terminated string
  * with a total allocation size of at least `FILE_MAX` bytes.
@@ -207,14 +208,20 @@ blender::Vector<VariableParseError> BKE_validate_variable_syntax(blender::String
  * \return On success, an empty vector. If there are errors, a vector of all
  * errors encountered.
  */
-blender::Vector<VariableParseError> BKE_path_apply_variables(char path[FILE_MAX],
-                                                             const VariableMap &variables);
+blender::Vector<TemplateError> BKE_path_apply_template(char path[FILE_MAX],
+                                                       const TemplateVariableMap &variables);
+/**
+ * Produces a human-readable error message for the given template error.
+ */
+std::string BKE_path_template_error_to_string(const TemplateError &error, blender::StringRef path);
 
-std::string BKE_variable_error_to_string(const VariableParseError &error, blender::StringRef path);
-
-void BKE_report_path_variable_errors(ReportList *reports,
+/**
+ * Logs a report for the given template errors, with human-readable error
+ * messages.
+ */
+void BKE_report_path_template_errors(ReportList *reports,
                                      eReportType report_type,
                                      blender::StringRef path,
-                                     blender::Span<VariableParseError> errors);
+                                     blender::Span<TemplateError> errors);
 
 /** \} */

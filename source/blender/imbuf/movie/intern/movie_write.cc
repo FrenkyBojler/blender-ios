@@ -1261,11 +1261,11 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
 
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
-  const blender::Vector<VariableParseError> errors = BKE_path_apply_variables(
+  const blender::Vector<TemplateError> errors = BKE_path_apply_template(
       filepath, BKE_build_blender_variables(BKE_main_blendfile_path_from_global(), rd));
   if (!errors.is_empty()) {
     if (reports) {
-      BKE_report_path_variable_errors(reports, RPT_ERROR, filepath, errors);
+      BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
     }
     return false;
   }

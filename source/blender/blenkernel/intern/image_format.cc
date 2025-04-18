@@ -598,18 +598,18 @@ int BKE_image_path_ext_from_imtype_ensure(char *filepath,
   return do_ensure_image_extension(filepath, filepath_maxncpy, imtype, nullptr);
 }
 
-static blender::Vector<VariableParseError> do_makepicstring(char filepath[FILE_MAX],
-                                                            const char *base,
-                                                            const char *relbase,
-                                                            const VariableMap *variables,
-                                                            int frame,
-                                                            const char imtype,
-                                                            const ImageFormatData *im_format,
-                                                            const bool use_ext,
-                                                            const bool use_frames,
-                                                            const char *suffix)
+static blender::Vector<TemplateError> do_makepicstring(char filepath[FILE_MAX],
+                                                       const char *base,
+                                                       const char *relbase,
+                                                       const TemplateVariableMap *variables,
+                                                       int frame,
+                                                       const char imtype,
+                                                       const ImageFormatData *im_format,
+                                                       const bool use_ext,
+                                                       const bool use_frames,
+                                                       const char *suffix)
 {
-  blender::Vector<VariableParseError> variable_errors;
+  blender::Vector<TemplateError> variable_errors;
 
   if (filepath == nullptr) {
     return {};
@@ -617,8 +617,8 @@ static blender::Vector<VariableParseError> do_makepicstring(char filepath[FILE_M
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
 
   if (variables) {
-    const blender::Vector<VariableParseError> variable_errors = BKE_path_apply_variables(
-        filepath, *variables);
+    const blender::Vector<TemplateError> variable_errors = BKE_path_apply_template(filepath,
+                                                                                   *variables);
     if (!variable_errors.is_empty()) {
       return variable_errors;
     }
@@ -641,15 +641,15 @@ static blender::Vector<VariableParseError> do_makepicstring(char filepath[FILE_M
   return {};
 }
 
-blender::Vector<VariableParseError> BKE_image_path_from_imformat(char *filepath,
-                                                                 const char *base,
-                                                                 const char *relbase,
-                                                                 const VariableMap *variables,
-                                                                 int frame,
-                                                                 const ImageFormatData *im_format,
-                                                                 const bool use_ext,
-                                                                 const bool use_frames,
-                                                                 const char *suffix)
+blender::Vector<TemplateError> BKE_image_path_from_imformat(char *filepath,
+                                                            const char *base,
+                                                            const char *relbase,
+                                                            const TemplateVariableMap *variables,
+                                                            int frame,
+                                                            const ImageFormatData *im_format,
+                                                            const bool use_ext,
+                                                            const bool use_frames,
+                                                            const char *suffix)
 {
   return do_makepicstring(filepath,
                           base,
@@ -663,15 +663,15 @@ blender::Vector<VariableParseError> BKE_image_path_from_imformat(char *filepath,
                           suffix);
 }
 
-blender::Vector<VariableParseError> BKE_image_path_from_imtype(char *filepath,
-                                                               const char *base,
-                                                               const char *relbase,
-                                                               const VariableMap *variables,
-                                                               int frame,
-                                                               const char imtype,
-                                                               const bool use_ext,
-                                                               const bool use_frames,
-                                                               const char *suffix)
+blender::Vector<TemplateError> BKE_image_path_from_imtype(char *filepath,
+                                                          const char *base,
+                                                          const char *relbase,
+                                                          const TemplateVariableMap *variables,
+                                                          int frame,
+                                                          const char imtype,
+                                                          const bool use_ext,
+                                                          const bool use_frames,
+                                                          const char *suffix)
 {
   return do_makepicstring(
       filepath, base, relbase, variables, frame, imtype, nullptr, use_ext, use_frames, suffix);

@@ -2095,8 +2095,8 @@ void RE_RenderFrame(Render *re,
       else {
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-        const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+        const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
+        const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath_override,
             rd.pic,
             relbase,
@@ -2111,7 +2111,7 @@ void RE_RenderFrame(Render *re,
           do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
         }
         else if (re->reports) {
-          BKE_report_path_variable_errors(re->reports, RPT_ERROR, rd.pic, errors);
+          BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
         }
       }
     }
@@ -2326,8 +2326,8 @@ static bool do_write_image_or_movie(
       }
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-        const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+        const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
+        const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath,
             scene->r.pic,
             relbase,
@@ -2338,7 +2338,7 @@ static bool do_write_image_or_movie(
             true,
             nullptr);
         if (!errors.is_empty()) {
-          BKE_report_path_variable_errors(re->reports, RPT_ERROR, scene->r.pic, errors);
+          BKE_report_path_template_errors(re->reports, RPT_ERROR, scene->r.pic, errors);
           ok = false;
         }
       }
@@ -2529,8 +2529,8 @@ void RE_RenderAnim(Render *re,
     if (is_movie == false && do_write_file) {
       if (rd.mode & (R_NO_OVERWRITE | R_TOUCH)) {
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const VariableMap variables = BKE_build_blender_variables(relbase, &rd);
-        const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+        const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &rd);
+        const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath,
             rd.pic,
             BKE_main_blendfile_path(bmain),
@@ -2544,7 +2544,7 @@ void RE_RenderAnim(Render *re,
         /* The filepath cannot be parsed, so we can't save the renders anywhere.
          * So we just cancel. */
         if (!errors.is_empty() && re->reports) {
-          BKE_report_path_variable_errors(re->reports, RPT_ERROR, rd.pic, errors);
+          BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
           /* We have to set the `is_break` flag here so that final cleanup code
            * recognizes that the render as failed. */
           G.is_break = true;

@@ -416,8 +416,8 @@ static void screen_opengl_render_write(OGLRender *oglrender)
   rr = RE_AcquireResultRead(oglrender->re);
 
   const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-  const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-  const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+  const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
+  const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
       filepath,
       scene->r.pic,
       relbase,
@@ -430,7 +430,7 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 
   if (!errors.is_empty()) {
     std::unique_lock lock(oglrender->reports_mutex);
-    BKE_report_path_variable_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+    BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
     ok = false;
   }
   else {
@@ -1048,8 +1048,8 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
      */
     char filepath[FILE_MAX];
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-    const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+    const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
+    const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
         relbase,
@@ -1061,7 +1061,7 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
         nullptr);
 
     if (!errors.is_empty()) {
-      BKE_report_path_variable_errors(&reports, RPT_ERROR, scene->r.pic, errors);
+      BKE_report_path_template_errors(&reports, RPT_ERROR, scene->r.pic, errors);
       ok = false;
     }
     else {
@@ -1148,8 +1148,8 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
 
   if (!is_movie) {
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const VariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
-    const blender::Vector<VariableParseError> errors = BKE_image_path_from_imformat(
+    const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
+    const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
         relbase,
@@ -1162,7 +1162,7 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
 
     if (!errors.is_empty()) {
       std::unique_lock lock(oglrender->reports_mutex);
-      BKE_report_path_variable_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+      BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
       ok = false;
     }
     else if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
