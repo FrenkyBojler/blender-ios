@@ -1,1 +1,2 @@
 Referenced by issue #76947, Optix realtime denoiser progressively reduces brightness of very bright objects.
+Referenced by issue #137676, Denoiser does not handle highly illuminated scenes when run on GPU
