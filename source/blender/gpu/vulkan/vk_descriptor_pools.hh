@@ -41,6 +41,8 @@ class VKDescriptorPools {
   static constexpr uint32_t POOL_SIZE_INPUT_ATTACHMENT = 1000;
 
   Vector<VkDescriptorPool> pools_;
+  static Vector<VkDescriptorPool> unused_pools_;
+  static std::mutex unused_pools_lock_;
   int64_t active_pool_index_ = 0;
 
  public:
@@ -58,6 +60,9 @@ class VKDescriptorPools {
    * resource pools for reuse.
    */
   void discard(VKContext &vk_context);
+
+  static void reuse(VkDescriptorPool vk_descriptor_pool);
+  static void destroy_unused();
 
  private:
   VkDescriptorPool active_pool_get();

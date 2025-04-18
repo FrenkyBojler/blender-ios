@@ -12,6 +12,10 @@
 #include "vk_device.hh"
 
 namespace blender::gpu {
+
+Vector<VkDescriptorPool> VKDescriptorPools::unused_pools_;
+std::mutex VKDescriptorPools::unused_pools_lock_;
+
 VKDescriptorPools::VKDescriptorPools() {}
 
 VKDescriptorPools::~VKDescriptorPools()
@@ -42,8 +46,33 @@ void VKDescriptorPools::discard(VKContext &context)
   active_pool_index_ = 0;
 }
 
+void VKDescriptorPools::reuse(VkDescriptorPool vk_descriptor_pool)
+{
+  std::scoped_lock lock(unused_pools_lock_);
+  unused_pools_.append(vk_descriptor_pool);
+}
+
+void VKDescriptorPools::destroy_unused()
+{
+  std::scoped_lock lock(unused_pools_lock_);
+  const VKDevice &device = VKBackend::get().device;
+  for (const VkDescriptorPool vk_descriptor_pool : unused_pools_) {
+    vkDestroyDescriptorPool(device.vk_handle(), vk_descriptor_pool, nullptr);
+  }
+  unused_pools_.clear_and_shrink();
+}
+
 void VKDescriptorPools::add_new_pool(const VKDevice &device)
 {
+  {
+    std::scoped_lock lock(unused_pools_lock_);
+    if (!unused_pools_.is_empty()) {
+      VkDescriptorPool vk_descriptor_pool = unused_pools_.pop_last();
+      pools_.append(vk_descriptor_pool);
+      return;
+    }
+  }
+
   Vector<VkDescriptorPoolSize> pool_sizes = {
       {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, POOL_SIZE_STORAGE_BUFFER},
       {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, POOL_SIZE_STORAGE_IMAGE},

@@ -166,6 +166,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       };
 
       vk_command_buffer = command_buffers_unused.pop_last();
+      vkResetCommandBuffer(vk_command_buffer, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
       command_buffer = std::make_optional<render_graph::VKCommandBufferWrapper>(
           vk_command_buffer, device->extensions_);
       command_buffer->begin_recording();
