@@ -150,33 +150,16 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 void do_clay_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &object,
-                   const IndexMask &node_mask)
+                   const IndexMask &node_mask,
+                   const float3& plane_normal,
+                   const float3& plane_center)
 {
   SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
-  float3 area_no;
-  float3 area_co;
-  calc_brush_plane(depsgraph, brush, object, node_mask, area_no, area_co);
-
-  const float initial_radius = fabsf(ss.cache->initial_radius);
-  const float offset = brush_plane_offset_get(brush, ss);
-
-  /* This implementation skips a factor calculation as it currently has
-   * no user-facing impact (i.e. is effectively a constant)
-   * See: #123518 */
-  float displace = fabsf(initial_radius * (0.25f + offset + 0.15f));
-
-  const bool flip = ss.cache->bstrength < 0.0f;
-  if (flip) {
-    displace = -displace;
-  }
-
-  const float3 modified_area_co = ss.cache->location_symm + (area_no * ss.cache->scale * displace);
-
   float4 test_plane;
-  plane_from_point_normal_v3(test_plane, modified_area_co, area_no);
+  plane_from_point_normal_v3(test_plane, plane_center, plane_normal);
   BLI_ASSERT_UNIT_V3(test_plane);
 
   const float bstrength = fabsf(ss.cache->bstrength);
@@ -228,6 +211,57 @@ void do_clay_brush(const Depsgraph &depsgraph,
   }
   pbvh.tag_positions_changed(node_mask);
   pbvh.flush_bounds_to_parents();
+}
+
+namespace clay {
+CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
+                                  Object &object,
+                                  const Brush &brush,
+                                  IndexMaskMemory &memory)
+{
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  const SculptSession &ss = *object.sculpt;
+
+  const bool use_original = !ss.cache->accum;
+  const IndexMask initial_node_mask = gather_nodes(pbvh,
+                                                   eBrushFalloffShape(brush.falloff_shape),
+                                                   use_original,
+                                                   ss.cache->location_symm,
+                                                   ss.cache->radius_squared,
+                                                   ss.cache->view_normal_symm,
+                                                   memory);
+
+  float3 plane_center;
+  float3 plane_normal;
+  calc_brush_plane(depsgraph, brush, object, initial_node_mask, plane_normal, plane_center);
+
+  const float initial_radius = fabsf(ss.cache->initial_radius);
+  const float offset = brush_plane_offset_get(brush, ss);
+
+  /* This implementation skips a factor calculation as it currently has
+   * no user-facing impact (i.e. is effectively a constant)
+   * See: #123518 */
+  float displace = fabsf(initial_radius * (0.25f + offset + 0.15f));
+
+  const bool flip = ss.cache->bstrength < 0.0f;
+  if (flip) {
+    displace = -displace;
+  }
+
+  plane_center = plane_center + (plane_normal * ss.cache->scale * displace);
+
+  /* Unsure mathematically why a extra factor of 2 vs sqrt(3) is needed here... */
+  const float radius_squared = math::square(ss.cache->radius * 2);
+  const IndexMask plane_mask = bke::pbvh::search_nodes(
+      pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        return node_in_sphere(node, plane_center, radius_squared, use_original);
+      });
+
+  return {plane_mask, plane_center, plane_normal};
+}
 }
 
 }  // namespace blender::ed::sculpt_paint::brushes

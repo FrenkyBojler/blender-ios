@@ -3152,6 +3152,9 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE) {
     return brushes::plane::calc_node_mask(depsgraph, ob, brush, memory);
   }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLAY) {
+    return brushes::clay::calc_node_mask(depsgraph, ob, brush, memory);
+  }
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLAY_STRIPS) {
     return brushes::clay_strips::calc_node_mask(depsgraph, ob, brush, memory);
   }
@@ -3385,7 +3388,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
       brushes::do_flatten_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_CLAY:
-      brushes::do_clay_brush(depsgraph, sd, ob, node_mask);
+      BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
+      brushes::do_clay_brush(depsgraph, sd, ob, node_mask, *node_mask_result.plane_normal, *node_mask_result.plane_center);
       break;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
       BLI_assert(node_mask_result.plane_normal && node_mask_result.plane_center);
