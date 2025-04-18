@@ -645,22 +645,32 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
      * outside of the layer collection properly recurses into all the nested objects and
      * collections. */
 
-    LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
-      Object *object = cob->ob;
+    if (!built_map_.check_is_built_and_tag(collection,
+                                           BuilderMap::TAG_COLLECTION_CHILDREN_HIERARCHY))
+    {
+      LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
+        Object *object = cob->ob;
 
-      /* Ensure that the hierarchy relations always exists, even for the layer collection.
-       *
-       * Note that the view layer builder can skip bases if they are constantly excluded from the
-       * collections. In order to avoid noisy output check that the target node exists before
-       * adding the relation. */
-      const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
-      if (has_node(object_hierarchy_key)) {
-        add_relation(collection_hierarchy_key,
-                     object_hierarchy_key,
-                     "Collection -> Object hierarchy",
-                     RELATION_CHECK_BEFORE_ADD);
+        /* Ensure that the hierarchy relations always exists, even for the layer collection.
+         *
+         * Note that the view layer builder can skip bases if they are constantly excluded from the
+         * collections. */
+        const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
+        if (has_node(object_hierarchy_key)) {
+          if constexpr (false) {
+            /* The use of `built_map_` makes sure that we don't end up with duplicate relations.
+             * This runtime check is disabled even in debug builds since it changes the
+             * computational complexity from linear to quadratic. */
+            BLI_assert(!graph_->check_nodes_connected(find_node(collection_hierarchy_key),
+                                                      find_node(object_hierarchy_key),
+                                                      "Collection -> Object hierarchy"));
+          }
+          add_relation(
+              collection_hierarchy_key, object_hierarchy_key, "Collection -> Object hierarchy");
+        }
       }
     }
+
     return;
   }
 
