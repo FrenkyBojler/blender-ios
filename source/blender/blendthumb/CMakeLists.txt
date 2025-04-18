@@ -23,6 +23,12 @@ set(SRC
   src/blendthumb_png.cc
 )
 
+if(WITH_BUILDINFO)
+  list(APPEND SRC
+    "$<TARGET_OBJECTS:buildinfoobj>"
+  )
+endif()
+
 if(WIN32)
   # -----------------------------------------------------------------------------
   # Build `BlendThumb.dll`
