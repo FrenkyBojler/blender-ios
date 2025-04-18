@@ -857,7 +857,10 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
     return;
   }
 
-  if (len > INT_MAX) {
+  if ((!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
+       !USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) &&
+      len > INT_MAX)
+  {
     BLI_assert_msg(0, "Cannot write chunks bigger than INT_MAX.");
     return;
   }
