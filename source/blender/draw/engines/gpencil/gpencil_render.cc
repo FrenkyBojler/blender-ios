@@ -17,6 +17,7 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+#include "render_types.h"
 
 #include "IMB_imbuf_types.hh"
 
@@ -227,7 +228,7 @@ static void render_result_combined(RenderLayer *rl,
                              rp->ibuf->float_buffer.data);
 }
 
-static void render_result_separated_pass(RenderPass *rp, Instance &instance, const rcti *rect)
+static void render_result_separated_pass(float *data, Instance &instance, const rcti *rect)
 {
   Framebuffer read_fb;
   read_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(instance.accumulation_tx));
@@ -240,7 +241,7 @@ static void render_result_separated_pass(RenderPass *rp, Instance &instance, con
                              4,
                              0,
                              GPU_DATA_FLOAT,
-                             rp->ibuf->float_buffer.data);
+                             data);
 }
 
 static void render_frame(RenderEngine *engine,
@@ -280,13 +281,9 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
   if (draw_ctx->view_layer->grease_pencil_flags & GREASE_PENCIL_RENDER_PASS_MASTER) {
-    RE_engine_register_pass(engine,
-                            draw_ctx->scene,
-                            draw_ctx->view_layer,
-                            RE_PASSNAME_GREASE_PENCIL,
-                            4,
-                            "RGBA",
-                            SOCK_RGBA);
+    Render *re = engine->re;
+    RE_create_render_pass(
+        re->result, RE_PASSNAME_GREASE_PENCIL, 4, "RGBA", render_layer->name, viewname, true);
   }
 
   gpencil::Instance inst;
@@ -319,10 +316,10 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
   render_frame(engine, depsgraph, draw_ctx, render_layer, rect, inst, manager, false);
   render_result_combined(render_layer, viewname, inst, &rect);
 
-  RenderPass *rp = RE_pass_find_by_name(render_layer, RE_PASSNAME_GREASE_PENCIL, viewname);
-  if (rp) {
+  float *pass_data = RE_RenderLayerGetPass(render_layer, RE_PASSNAME_GREASE_PENCIL, viewname);
+  if (pass_data) {
     render_frame(engine, depsgraph, draw_ctx, render_layer, rect, inst, manager, true);
-    render_result_separated_pass(rp, inst, &rect);
+    render_result_separated_pass(pass_data, inst, &rect);
   }
 
   /* Transfer depth in the last step, because if we need to render separate pass, we need original

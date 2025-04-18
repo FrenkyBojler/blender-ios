@@ -171,7 +171,7 @@ typedef struct ViewLayer {
   float pass_alpha_threshold;
   short cryptomatte_flag;
   short cryptomatte_levels;
-  char _pad1[4];
+  int grease_pencil_flags;
 
   int samples;
 

@@ -329,6 +329,11 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
               ntree, node, scene, view_layer, RE_PASSNAME_FREESTYLE, SOCK_RGBA);
         }
 
+        if (view_layer->grease_pencil_flags & GREASE_PENCIL_RENDER_PASS_MASTER) {
+          node_cmp_rlayers_register_pass(
+              ntree, node, scene, view_layer, RE_PASSNAME_GREASE_PENCIL, SOCK_RGBA);
+        }
+
         MEM_freeN(data);
         node->storage = nullptr;
 
