@@ -1085,7 +1085,6 @@ bool RE_engine_render(Render *re, bool do_all)
   if (type->render) {
     FOREACH_VIEW_LAYER_TO_RENDER_BEGIN (re, view_layer_iter) {
       const bool use_grease_pencil = (view_layer_iter->layflag & SCE_LAY_GREASE_PENCIL) != 0;
-
       engine_render_view_layer(re, engine, view_layer_iter, true, use_grease_pencil);
 
       /* If render passes are not allocated the render engine deferred final pixels write for
