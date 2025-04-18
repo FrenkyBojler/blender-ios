@@ -384,18 +384,18 @@ static void store_result_geometry(const bContext &C,
             drawing_orig->tag_topology_changed();
           }
         }
-        break;
       }
+      else {
+        IndexMaskMemory memory;
+        const IndexMask editable_layers = IndexMask::from_indices(editable_layer_indices.as_span(),
+                                                                  memory);
+        ed::greasepencil::apply_eval_grease_pencil_data(
+            *new_grease_pencil, eval_frame, editable_layers, grease_pencil);
 
-      IndexMaskMemory memory;
-      const IndexMask editable_layers = IndexMask::from_indices(editable_layer_indices.as_span(),
-                                                                memory);
-      ed::greasepencil::apply_eval_grease_pencil_data(
-          *new_grease_pencil, eval_frame, editable_layers, grease_pencil);
-
-      /* There might be layers with empty names after evaluation. Make sure to rename them. */
-      bke::greasepencil::rename_layers_with_empty_name(bmain, grease_pencil);
-      BKE_object_material_from_eval_data(&bmain, &object, &new_grease_pencil->id);
+        /* There might be layers with empty names after evaluation. Make sure to rename them. */
+        bke::greasepencil::rename_layers_with_empty_name(bmain, grease_pencil);
+        BKE_object_material_from_eval_data(&bmain, &object, &new_grease_pencil->id);
+      }
 
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
       if (inserted_new_keyframe) {
