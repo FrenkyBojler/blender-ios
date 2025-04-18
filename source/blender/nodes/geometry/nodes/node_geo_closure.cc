@@ -193,12 +193,15 @@ static void try_initialize_closure_from_evaluator(SpaceNode &snode, bNode &closu
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, closure_socket);
   if (!current_context) {
+    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
+     * removed. */
     return;
   }
   const ComputeContext *evaluate_context_generic =
       ed::space_node::compute_context_for_closure_evaluation(
           current_context, closure_socket, compute_context_cache, std::nullopt);
   if (!evaluate_context_generic) {
+    /* No evaluation of the closure found. */
     return;
   }
   const auto *evaluate_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
