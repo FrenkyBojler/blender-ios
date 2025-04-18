@@ -3821,6 +3821,27 @@ static void node_draw_basis(const bContext &C,
     node_draw_panels(ntree, node, block);
   }
 
+  /* Draw an ellipsis under the node when its options are hidden. */
+  if (!(node.flag & NODE_OPTIONS)) {
+    GPUVertFormat *format = immVertexFormat();
+    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immUniformThemeColorShadeAlpha(TH_NODE, 20, 0);
+
+    const float pos_center = (rct.xmin + rct.xmax) / 2.0f;
+    const float pos_y = rct.ymin - 10.0f;
+    const float ellipsis_rad = 1.0f + U.pixelsize;
+    const float ellipsis_gap = ellipsis_rad * 2.0f + U.pixelsize;
+    const float ellipsis_left = pos_center - ellipsis_rad - ellipsis_gap;
+    const float ellipsis_right = pos_center + ellipsis_rad + ellipsis_gap;
+
+    imm_draw_circle_fill_2d(pos, ellipsis_left, pos_y, ellipsis_rad, 6);
+    imm_draw_circle_fill_2d(pos, x_center, pos_y, ellipsis_rad, 6);
+    imm_draw_circle_fill_2d(pos, ellipsis_right, pos_y, ellipsis_rad, 6);
+
+    immUnbindProgram();
+  }
+
   UI_block_end_ex(&C,
                   tree_draw_ctx.bmain,
                   tree_draw_ctx.window,
