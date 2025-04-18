@@ -4,8 +4,8 @@
 
 /** \file
  *
- * \brief Functions and classes for working with variables (Blender variables,
- * Project variables, etc.).
+ * \brief Functions and classes for applying templates with variable expressions
+ * to filepaths.
  */
 #pragma once
 
@@ -22,18 +22,13 @@
 
 #include "DNA_scene_types.h"
 
-/* -------------------------------------------------------------------- */
-/** \name Blender Variables
- * \{ */
-
 /**
  * A store for the values of variables, addressed by variable name, for use in
  * template substitution.
  *
  * Note that this is not intended to be a persistent store for variables, but
  * rather a transient one for collecting the values of variables that are
- * relevant/available in a given context. This is typically passed to functions
- * that use those variables for processing of some kind.
+ * relevant/available in a given templating context.
  *
  * There are currently three types of variables: string, integer, and float.
  * There can only be a single variable with a given name across all variable
@@ -223,5 +218,3 @@ void BKE_report_path_template_errors(ReportList *reports,
                                      eReportType report_type,
                                      blender::StringRef path,
                                      blender::Span<TemplateError> errors);
-
-/** \} */
