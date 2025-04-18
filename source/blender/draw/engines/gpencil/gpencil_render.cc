@@ -279,6 +279,16 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
   const DRWContext *draw_ctx = DRW_context_get();
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
+  if (draw_ctx->view_layer->grease_pencil_flags & GREASE_PENCIL_RENDER_PASS_MASTER) {
+    RE_engine_register_pass(engine,
+                            draw_ctx->scene,
+                            draw_ctx->view_layer,
+                            RE_PASSNAME_GREASE_PENCIL,
+                            4,
+                            "RGBA",
+                            SOCK_RGBA);
+  }
+
   gpencil::Instance inst;
 
   Manager &manager = *DRW_manager_get();

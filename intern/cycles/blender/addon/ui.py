@@ -16,6 +16,7 @@ from bl_ui.properties_view_layer import (
     ViewLayerCryptomattePanelHelper,
     ViewLayerAOVPanelHelper,
     ViewLayerLightgroupsPanelHelper,
+    ViewLayerGreasePencilPanelHelper,
 )
 
 from bl_ui.properties_object import has_geometry_visibility
@@ -1030,9 +1031,6 @@ class CYCLES_RENDER_PT_passes_data(CyclesButtonsPanel, Panel):
 
         col.prop(cycles_view_layer, "denoising_store_passes", text="Denoising Data")
 
-        sub = col.column()
-        sub.prop(view_layer.eevee, "use_pass_grease_pencil")
-
         col = layout.column(heading="Indexes", align=True)
         col.prop(view_layer, "use_pass_object_index")
         col.prop(view_layer, "use_pass_material_index")
@@ -1090,6 +1088,12 @@ class CYCLES_RENDER_PT_passes_crypto(CyclesButtonsPanel, ViewLayerCryptomattePan
 
 class CYCLES_RENDER_PT_passes_aov(CyclesButtonsPanel, ViewLayerAOVPanelHelper, Panel):
     bl_label = "Shader AOV"
+    bl_context = "view_layer"
+    bl_parent_id = "CYCLES_RENDER_PT_passes"
+
+
+class CYCLES_RENDER_PT_passes_grease_pencil(CyclesButtonsPanel, ViewLayerGreasePencilPanelHelper, Panel):
+    bl_label = "Grease Pencil"
     bl_context = "view_layer"
     bl_parent_id = "CYCLES_RENDER_PT_passes"
 
@@ -2517,6 +2521,7 @@ classes = (
     CYCLES_RENDER_PT_passes_data,
     CYCLES_RENDER_PT_passes_light,
     CYCLES_RENDER_PT_passes_crypto,
+    CYCLES_RENDER_PT_passes_grease_pencil,
     CYCLES_RENDER_PT_passes_aov,
     CYCLES_RENDER_PT_passes_lightgroups,
     CYCLES_RENDER_PT_filter,

@@ -4777,12 +4777,6 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Transparent", "Deliver alpha blended surfaces in a separate pass");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
-
-  prop = RNA_def_property(srna, "use_pass_grease_pencil", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "render_passes", EEVEE_RENDER_PASS_GREASE_PENCIL);
-  RNA_def_property_ui_text(
-      prop, "Grease Pencil", "Deliver grease pencil render result in a separate pass");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
 }
 
 static void rna_def_view_layer_aovs(BlenderRNA *brna, PropertyRNA *cprop)
