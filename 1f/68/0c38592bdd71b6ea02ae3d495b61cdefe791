@@ -2,3 +2,4 @@ Referenced by issue #113634, GPv3: Curve to Points node
 Referenced by issue #113602, GPv3: Geometry Node support via the curve nodes
 Referenced by issue #137163, Curve to Points neither functions or gives warning for Curve Instances
 Referenced by pull request #137732, Fix #137163: Curve to points can ignore instances in input
+Referenced by commit bffc3f824e26740d0c36e695e787cf9b010212b7, Fix #137163: Curve to points can ignore instances in input
