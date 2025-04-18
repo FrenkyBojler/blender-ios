@@ -1,2 +1,3 @@
 Referenced by issue #137683, Fog missing every other frame when `Persistent Data` and `Motion Blur` is enabled
 Referenced by pull request #137696, Fix: Sculpt view normal incorrectly calculated
+Referenced by commit 719c1b9611d0549b8db0ddacb893d1677687e43b, Fix: Sculpt view normal incorrectly calculated
