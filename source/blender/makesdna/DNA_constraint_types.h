@@ -46,7 +46,7 @@ typedef struct bConstraint {
 
   /** Object to use as target for Custom Space of owner. */
   struct Object *space_object;
-  /** Subtarget for Custom Space of owner - pchan or vgroup name, MAX_ID_NAME-2. */
+  /** Sub-target for Custom Space of owner - pose-channel or vertex-group name, MAX_ID_NAME-2. */
   char space_subtarget[64];
 
   /** Constraint name, MAX_NAME. */
@@ -80,7 +80,7 @@ typedef struct bConstraintTarget {
 
   /** Object to use as target. */
   struct Object *tar;
-  /** Subtarget - pchan or vgroup name, MAX_ID_NAME-2. */
+  /** Sub-target - pose-channel or vertex-group name, MAX_ID_NAME-2. */
   char subtarget[64];
 
   /** Matrix used during constraint solving - should be cleared before each use. */
@@ -1068,12 +1068,6 @@ typedef enum eDistLimit_Modes {
   LIMITDIST_OUTSIDE = 1,
   LIMITDIST_ONSURFACE = 2,
 } eDistLimit_Modes;
-
-/* python constraint -> flag */
-typedef enum ePyConstraint_Flags {
-  PYCON_USETARGETS = (1 << 0),
-  PYCON_SCRIPTERROR = (1 << 1),
-} ePyConstraint_Flags;
 
 /* ChildOf Constraint -> flag */
 typedef enum eChildOf_Flags {
