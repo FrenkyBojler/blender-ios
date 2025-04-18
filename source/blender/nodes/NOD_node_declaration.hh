@@ -8,11 +8,12 @@
 #include <functional>
 #include <type_traits>
 
+#include "BLI_array.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.hh"
+#include "BLT_translation.hh" /* IWYU pragma: export */
 
 #include "DNA_node_types.h"
 
@@ -25,8 +26,9 @@ struct uiLayout;
 namespace blender::nodes {
 
 class NodeDeclarationBuilder;
+class PanelDeclaration;
 
-enum class InputSocketFieldType {
+enum class InputSocketFieldType : int8_t {
   /** The input is required to be a single value. */
   None,
   /** The input can be a field. */
@@ -35,7 +37,7 @@ enum class InputSocketFieldType {
   Implicit,
 };
 
-enum class OutputSocketFieldType {
+enum class OutputSocketFieldType : int8_t {
   /** The output is always a single value. */
   None,
   /** The output is always a field, independent of the inputs. */
@@ -48,14 +50,13 @@ enum class OutputSocketFieldType {
 };
 
 /**
- * A bit-field that maps to the #realtime_compositor::InputRealizationOptions.
+ * An enum that maps to the #compositor::InputRealizationMode.
  */
-enum class CompositorInputRealizationOptions : uint8_t {
-  None = 0,
-  RealizeOnOperationDomain = (1 << 0),
+enum class CompositorInputRealizationMode : int8_t {
+  None,
+  Transforms,
+  OperationDomain,
 };
-ENUM_OPERATORS(CompositorInputRealizationOptions,
-               CompositorInputRealizationOptions::RealizeOnOperationDomain)
 
 /**
  * Contains information about how a node output's field state depends on inputs of the same node.
@@ -81,8 +82,8 @@ class OutputFieldDependency {
  * Information about how a node interacts with fields.
  */
 struct FieldInferencingInterface {
-  Vector<InputSocketFieldType> inputs;
-  Vector<OutputFieldDependency> outputs;
+  Array<InputSocketFieldType> inputs;
+  Array<OutputFieldDependency> outputs;
 
   BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
 };
@@ -154,6 +155,8 @@ using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value
 /* Socket or panel declaration. */
 class ItemDeclaration {
  public:
+  const PanelDeclaration *parent = nullptr;
+
   virtual ~ItemDeclaration() = default;
 };
 
@@ -173,7 +176,7 @@ class SocketDeclaration : public ItemDeclaration {
   std::string short_label;
   std::string identifier;
   std::string description;
-  std::string translation_context;
+  std::optional<std::string> translation_context;
   /** Defined by whether the socket is part of the node's input or
    * output socket declaration list. Included here for convenience. */
   eNodeSocketInOut in_out;
@@ -189,20 +192,26 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_default_link_socket = false;
   /** Puts this socket on the same line as the previous one in the UI. */
   bool align_with_previous_socket = false;
+  /** This socket is used as a toggle for the parent panel. */
+  bool is_panel_toggle = false;
+
+  /** Index in the list of inputs or outputs of the node. */
+  int index = -1;
 
   InputSocketFieldType input_field_type = InputSocketFieldType::None;
   OutputFieldDependency output_field_dependency;
 
  private:
-  CompositorInputRealizationOptions compositor_realization_options_ =
-      CompositorInputRealizationOptions::RealizeOnOperationDomain;
+  CompositorInputRealizationMode compositor_realization_mode_ =
+      CompositorInputRealizationMode::OperationDomain;
 
-  /** The priority of the input for determining the domain of the node. See
-   * realtime_compositor::InputDescriptor for more information. */
-  int compositor_domain_priority_ = 0;
+  /** The priority of the input for determining the domain of the node. If negative, then the
+   * domain priority is not set and the index of the input is assumed to be the priority instead.
+   * See compositor::InputDescriptor for more information. */
+  int compositor_domain_priority_ = -1;
 
   /** This input expects a single value and can't operate on non-single values. See
-   * realtime_compositor::InputDescriptor for more information. */
+   * compositor::InputDescriptor for more information. */
   bool compositor_expects_single_value_ = false;
 
   /** Utility method to make the socket available if there is a straightforward way to do so. */
@@ -222,8 +231,7 @@ class SocketDeclaration : public ItemDeclaration {
   friend class BaseSocketDeclarationBuilder;
   template<typename SocketDecl> friend class SocketDeclarationBuilder;
 
- public:
-  virtual ~SocketDeclaration() = default;
+  ~SocketDeclaration() override = default;
 
   virtual bNodeSocket &build(bNodeTree &ntree, bNode &node) const = 0;
   virtual bool matches(const bNodeSocket &socket) const = 0;
@@ -242,7 +250,7 @@ class SocketDeclaration : public ItemDeclaration {
    */
   void make_available(bNode &node) const;
 
-  const CompositorInputRealizationOptions &compositor_realization_options() const;
+  const CompositorInputRealizationMode &compositor_realization_mode() const;
   int compositor_domain_priority() const;
   bool compositor_expects_single_value() const;
 
@@ -257,8 +265,6 @@ class PanelDeclarationBuilder;
 
 class BaseSocketDeclarationBuilder {
  protected:
-  /* Index of the socket in the list of inputs or outputs. */
-  int index_ = -1;
   bool reference_pass_all_ = false;
   bool field_on_all_ = false;
   bool propagate_from_all_ = false;
@@ -283,7 +289,8 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &description(std::string value = "");
 
-  BaseSocketDeclarationBuilder &translation_context(std::string value = BLT_I18NCONTEXT_DEFAULT);
+  BaseSocketDeclarationBuilder &translation_context(
+      std::optional<std::string> value = std::nullopt);
 
   BaseSocketDeclarationBuilder &no_muted_links(bool value = true);
 
@@ -349,19 +356,20 @@ class BaseSocketDeclarationBuilder {
 
   /** Attributes from the all geometry inputs can be propagated. */
   BaseSocketDeclarationBuilder &propagate_all();
+  /** Instance attributes from all geometry inputs can be propagated. */
+  BaseSocketDeclarationBuilder &propagate_all_instance_attributes();
 
-  BaseSocketDeclarationBuilder &compositor_realization_options(
-      CompositorInputRealizationOptions value);
+  BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 
   /**
-   * The priority of the input for determining the domain of the node. See
-   * realtime_compositor::InputDescriptor for more information.
+   * The priority of the input for determining the domain of the node. Needs to be positive. See
+   * compositor::InputDescriptor for more information.
    */
   BaseSocketDeclarationBuilder &compositor_domain_priority(int priority);
 
   /**
    * This input expects a single value and can't operate on non-single values. See
-   * realtime_compositor::InputDescriptor for more information.
+   * compositor::InputDescriptor for more information.
    */
   BaseSocketDeclarationBuilder &compositor_expects_single_value(bool value = true);
 
@@ -388,6 +396,10 @@ class BaseSocketDeclarationBuilder {
                                                 const StructRNA *srna,
                                                 const void *data,
                                                 StringRef property_name);
+  /**
+   * Use the socket as a toggle in its panel.
+   */
+  BaseSocketDeclarationBuilder &panel_toggle(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;
@@ -414,9 +426,19 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
 
-using PanelDrawButtonsFunction = void (*)(uiLayout *, bContext *, PointerRNA *);
+using DrawNodeLayoutFn = void(uiLayout *, bContext *, PointerRNA *);
 
 class SeparatorDeclaration : public ItemDeclaration {};
+
+class LayoutDeclaration : public ItemDeclaration {
+ public:
+  std::function<DrawNodeLayoutFn> draw;
+  /**
+   * Sometimes the default layout has special handling (e.g. choose between #draw_buttons and
+   * #draw_buttons_ex).
+   */
+  bool is_default = false;
+};
 
 /**
  * Describes a panel containing sockets or other panels.
@@ -426,21 +448,28 @@ class PanelDeclaration : public ItemDeclaration {
   int identifier;
   std::string name;
   std::string description;
-  std::string translation_context;
+  std::optional<std::string> translation_context;
   bool default_collapsed = false;
-  PanelDrawButtonsFunction draw_buttons = nullptr;
   Vector<ItemDeclaration *> items;
+  /** Index in the list of panels on the node. */
+  int index = -1;
+  PanelDeclaration *parent_panel = nullptr;
 
  private:
   friend NodeDeclarationBuilder;
   friend class PanelDeclarationBuilder;
 
  public:
-  virtual ~PanelDeclaration() = default;
+  ~PanelDeclaration() override = default;
 
   void build(bNodePanelState &panel) const;
   bool matches(const bNodePanelState &panel) const;
   void update_or_build(const bNodePanelState &old_panel, bNodePanelState &new_panel) const;
+
+  int depth() const;
+
+  /** Get the declaration for a child item that should be drawn as part of the panel header. */
+  const SocketDeclaration *panel_input_decl() const;
 };
 
 /**
@@ -451,6 +480,7 @@ class DeclarationListBuilder {
  public:
   NodeDeclarationBuilder &node_decl_builder;
   Vector<ItemDeclaration *> &items;
+  PanelDeclaration *parent_panel_decl = nullptr;
 
   DeclarationListBuilder(NodeDeclarationBuilder &node_decl_builder,
                          Vector<ItemDeclaration *> &items)
@@ -484,6 +514,8 @@ class DeclarationListBuilder {
   PanelDeclarationBuilder &add_panel(StringRef name, int identifier = -1);
 
   void add_separator();
+  void add_default_layout();
+  void add_layout(std::function<void(uiLayout *, bContext *, PointerRNA *)> draw);
 };
 
 class PanelDeclarationBuilder : public DeclarationListBuilder {
@@ -497,24 +529,25 @@ class PanelDeclarationBuilder : public DeclarationListBuilder {
   PanelDeclarationBuilder(NodeDeclarationBuilder &node_builder, PanelDeclaration &decl)
       : DeclarationListBuilder(node_builder, decl.items), decl_(&decl)
   {
+    this->parent_panel_decl = &decl;
   }
 
   Self &description(std::string value = "");
   Self &default_closed(bool closed);
-  Self &draw_buttons(PanelDrawButtonsFunction func);
 };
 
 using PanelDeclarationPtr = std::unique_ptr<PanelDeclaration>;
 
 class NodeDeclaration {
  public:
-  /* Contains all items including recursive children.*/
+  /* Contains all items including recursive children. */
   Vector<ItemDeclarationPtr> all_items;
   /* Contains only the items in the root. */
   Vector<ItemDeclaration *> root_items;
   /* All input and output socket declarations. */
   Vector<SocketDeclaration *> inputs;
   Vector<SocketDeclaration *> outputs;
+  Vector<PanelDeclaration *> panels;
   std::unique_ptr<aal::RelationsInNode> anonymous_attribute_relations_;
 
   /** Leave the sockets in place, even if they don't match the declaration. Used for dynamic
@@ -553,6 +586,7 @@ class NodeDeclaration {
 
 class NodeDeclarationBuilder : public DeclarationListBuilder {
  private:
+  const bke::bNodeType &typeinfo_;
   NodeDeclaration &declaration_;
   const bNodeTree *ntree_ = nullptr;
   const bNode *node_ = nullptr;
@@ -562,11 +596,11 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
   Vector<std::unique_ptr<PanelDeclarationBuilder>> panel_builders_;
   bool is_function_node_ = false;
 
- private:
   friend DeclarationListBuilder;
 
  public:
-  NodeDeclarationBuilder(NodeDeclaration &declaration,
+  NodeDeclarationBuilder(const bke::bNodeType &typeinfo,
+                         NodeDeclaration &declaration,
                          const bNodeTree *ntree = nullptr,
                          const bNode *node = nullptr);
 
@@ -666,6 +700,7 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(StringRef 
   this->node_decl_builder.declaration_.all_items.append(std::move(socket_decl_ptr));
   this->items.append(&socket_decl);
 
+  socket_decl.parent = this->parent_panel_decl;
   socket_decl_builder.node_decl_builder_ = &this->node_decl_builder;
 
   socket_decl_builder.decl_ = &socket_decl;
@@ -686,12 +721,12 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(StringRef 
 
   if (in_out == SOCK_IN) {
     this->node_decl_builder.input_socket_builders_.append(&socket_decl_builder);
-    socket_decl_builder.index_ = this->node_decl_builder.declaration_.inputs.append_and_get_index(
+    socket_decl.index = this->node_decl_builder.declaration_.inputs.append_and_get_index(
         &socket_decl);
   }
   else {
     this->node_decl_builder.output_socket_builders_.append(&socket_decl_builder);
-    socket_decl_builder.index_ = this->node_decl_builder.declaration_.outputs.append_and_get_index(
+    socket_decl.index = this->node_decl_builder.declaration_.outputs.append_and_get_index(
         &socket_decl);
   }
   return socket_decl_builder;
@@ -705,7 +740,7 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(StringRef 
 
 inline int BaseSocketDeclarationBuilder::index() const
 {
-  return index_;
+  return decl_base_->index;
 }
 
 inline bool BaseSocketDeclarationBuilder::is_input() const

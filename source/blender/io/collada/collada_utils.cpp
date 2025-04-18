@@ -6,18 +6,11 @@
  * \ingroup collada
  */
 
-/* COLLADABU_ASSERT, may be able to remove later */
-#include "COLLADABUPlatform.h"
-
-#include "COLLADAFWGeometry.h"
-#include "COLLADAFWMeshPrimitive.h"
 #include "COLLADAFWMeshVertexData.h"
 #include "COLLADAFWNode.h"
 
 #include <set>
 #include <string>
-
-#include "MEM_guardedalloc.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
@@ -31,6 +24,7 @@
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_string.h"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -38,15 +32,18 @@
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
@@ -66,9 +63,6 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-#if 0
-#  include "NOD_common.h"
-#endif
 
 #include "BlenderContext.h"
 #include "ExportSettings.h"
@@ -170,11 +164,11 @@ std::vector<bAction *> bc_getSceneActions(const bContext *C, Object *ob, bool al
   return actions;
 }
 
-std::string bc_get_action_id(std::string action_name,
-                             std::string ob_name,
-                             std::string channel_type,
-                             std::string axis_name,
-                             std::string axis_separator)
+std::string bc_get_action_id(const std::string &action_name,
+                             const std::string &ob_name,
+                             const std::string &channel_type,
+                             const std::string &axis_name,
+                             const std::string &axis_separator)
 {
   std::string result = action_name + "_" + channel_type;
   if (ob_name.length() > 0) {
@@ -287,13 +281,13 @@ Mesh *bc_get_mesh_copy(BlenderContext &blender_context,
 
   Mesh *mesh = BKE_mesh_copy_for_eval(*tmpmesh);
 
+  /* Ensure data exists if currently in edit mode. */
+  BKE_mesh_wrapper_ensure_mdata(mesh);
+
   if (triangulate) {
     bc_triangulate_mesh(mesh);
   }
   BKE_mesh_tessface_ensure(mesh);
-
-  /* Ensure data exists if currently in edit mode. */
-  BKE_mesh_wrapper_ensure_mdata(mesh);
 
   return mesh;
 }
@@ -377,7 +371,7 @@ int bc_get_active_UVLayer(Object *ob)
   return CustomData_get_active_layer_index(&mesh->corner_data, CD_PROP_FLOAT2);
 }
 
-std::string bc_url_encode(std::string data)
+std::string bc_url_encode(const std::string &data)
 {
   /* XXX We probably do not need to do a full encoding.
    * But in case that is necessary,then it can be added here.
@@ -487,7 +481,7 @@ bool bc_is_leaf_bone(Bone *bone)
   return true;
 }
 
-EditBone *bc_get_edit_bone(bArmature *armature, char *name)
+EditBone *bc_get_edit_bone(bArmature *armature, const char *name)
 {
   LISTBASE_FOREACH (EditBone *, eBone, armature->edbo) {
     if (STREQ(name, eBone->name)) {
@@ -565,7 +559,7 @@ char *BoneExtended::get_name()
   return name;
 }
 
-void BoneExtended::set_name(char *aName)
+void BoneExtended::set_name(const char *aName)
 {
   STRNCPY(name, aName);
 }
@@ -657,7 +651,7 @@ int BoneExtended::get_use_connect()
 
 void bc_set_IDPropertyMatrix(EditBone *ebone, const char *key, float mat[4][4])
 {
-  IDProperty *idgroup = (IDProperty *)ebone->prop;
+  IDProperty *idgroup = ebone->prop;
   if (idgroup == nullptr) {
     idgroup = blender::bke::idprop::create_group("RNA_EditBone ID properties").release();
     ebone->prop = idgroup;
@@ -688,12 +682,12 @@ static void bc_set_IDProperty(EditBone *ebone, const char *key, float value)
 }
 #endif
 
-IDProperty *bc_get_IDProperty(Bone *bone, std::string key)
+IDProperty *bc_get_IDProperty(Bone *bone, const std::string &key)
 {
   return (bone->prop == nullptr) ? nullptr : IDP_GetPropertyFromGroup(bone->prop, key.c_str());
 }
 
-float bc_get_property(Bone *bone, std::string key, float def)
+float bc_get_property(Bone *bone, const std::string &key, float def)
 {
   float result = def;
   IDProperty *property = bc_get_IDProperty(bone, key);
@@ -703,7 +697,7 @@ float bc_get_property(Bone *bone, std::string key, float def)
         result = float(IDP_Int(property));
         break;
       case IDP_FLOAT:
-        result = float(IDP_Float(property));
+        result = IDP_Float(property);
         break;
       case IDP_DOUBLE:
         result = float(IDP_Double(property));
@@ -718,7 +712,7 @@ float bc_get_property(Bone *bone, std::string key, float def)
   return result;
 }
 
-bool bc_get_property_matrix(Bone *bone, std::string key, float mat[4][4])
+bool bc_get_property_matrix(Bone *bone, const std::string &key, float mat[4][4])
 {
   IDProperty *property = bc_get_IDProperty(bone, key);
   if (property && property->type == IDP_ARRAY && property->len == 16) {
@@ -733,7 +727,7 @@ bool bc_get_property_matrix(Bone *bone, std::string key, float mat[4][4])
   return false;
 }
 
-void bc_get_property_vector(Bone *bone, std::string key, float val[3], const float def[3])
+void bc_get_property_vector(Bone *bone, const std::string &key, float val[3], const float def[3])
 {
   val[0] = bc_get_property(bone, key + "_x", def[0]);
   val[1] = bc_get_property(bone, key + "_y", def[1]);
@@ -743,7 +737,7 @@ void bc_get_property_vector(Bone *bone, std::string key, float val[3], const flo
 /**
  * Check if vector exist stored in 3 custom properties (used in Blender <= 2.78)
  */
-static bool has_custom_props(Bone *bone, bool enabled, std::string key)
+static bool has_custom_props(Bone *bone, bool enabled, const std::string &key)
 {
   if (!enabled) {
     return false;
@@ -753,7 +747,7 @@ static bool has_custom_props(Bone *bone, bool enabled, std::string key)
           bc_get_IDProperty(bone, key + "_z"));
 }
 
-void bc_enable_fcurves(AnimData *adt, char *bone_name)
+void bc_enable_fcurves(AnimData *adt, const char *bone_name)
 {
   if (adt == nullptr) {
     return;
@@ -874,7 +868,7 @@ bool bc_has_animations(Object *ob)
   }
 
   Key *key = BKE_key_from_object(ob);
-  if (blender::animrig::legacy::assigned_action_has_keyframes(key->adt)) {
+  if (key && blender::animrig::legacy::assigned_action_has_keyframes(key->adt)) {
     return true;
   }
 
@@ -1116,15 +1110,15 @@ static bNodeTree *prepare_material_nodetree(Material *ma)
 }
 
 static bNode *bc_add_node(
-    bContext *C, bNodeTree *ntree, int node_type, int locx, int locy, std::string label)
+    bContext *C, bNodeTree *ntree, int node_type, int locx, int locy, const std::string &label)
 {
-  bNode *node = blender::bke::node_add_static_node(C, ntree, node_type);
+  bNode *node = blender::bke::node_add_static_node(C, *ntree, node_type);
   if (node) {
     if (label.length() > 0) {
       STRNCPY(node->label, label.c_str());
     }
-    node->locx = locx;
-    node->locy = locy;
+    node->location[0] = locx;
+    node->location[1] = locy;
     node->flag |= NODE_SELECT;
   }
   return node;
@@ -1141,7 +1135,7 @@ static void bc_node_add_link(
   bNodeSocket *from_socket = (bNodeSocket *)BLI_findlink(&from_node->outputs, from_index);
   bNodeSocket *to_socket = (bNodeSocket *)BLI_findlink(&to_node->inputs, to_index);
 
-  blender::bke::node_add_link(ntree, from_node, from_socket, to_node, to_socket);
+  blender::bke::node_add_link(*ntree, *from_node, *from_socket, *to_node, *to_socket);
 }
 
 void bc_add_default_shader(bContext *C, Material *ma)
@@ -1276,7 +1270,7 @@ double bc_get_reflectivity(Material *ma)
 
 bool bc_get_float_from_shader(bNode *shader, double &val, std::string nodeid)
 {
-  bNodeSocket *socket = blender::bke::node_find_socket(shader, SOCK_IN, nodeid);
+  bNodeSocket *socket = blender::bke::node_find_socket(*shader, SOCK_IN, nodeid);
   if (socket) {
     bNodeSocketValueFloat *ref = (bNodeSocketValueFloat *)socket->default_value;
     val = double(ref->value);
@@ -1287,10 +1281,10 @@ bool bc_get_float_from_shader(bNode *shader, double &val, std::string nodeid)
 
 COLLADASW::ColorOrTexture bc_get_cot_from_shader(bNode *shader,
                                                  std::string nodeid,
-                                                 Color &default_color,
+                                                 const Color &default_color,
                                                  bool with_alpha)
 {
-  bNodeSocket *socket = blender::bke::node_find_socket(shader, SOCK_IN, nodeid);
+  bNodeSocket *socket = blender::bke::node_find_socket(*shader, SOCK_IN, nodeid);
   if (socket) {
     bNodeSocketValueRGBA *dcol = (bNodeSocketValueRGBA *)socket->default_value;
     float *col = dcol->value;
@@ -1304,8 +1298,8 @@ bNode *bc_get_master_shader(Material *ma)
 {
   bNodeTree *nodetree = ma->nodetree;
   if (nodetree) {
-    LISTBASE_FOREACH (bNode *, node, &nodetree->nodes) {
-      if (node->typeinfo->type == SH_NODE_BSDF_PRINCIPLED) {
+    for (bNode *node : nodetree->all_nodes()) {
+      if (node->typeinfo->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
         return node;
       }
     }
@@ -1320,7 +1314,7 @@ COLLADASW::ColorOrTexture bc_get_cot(float r, float g, float b, float a)
   return cot;
 }
 
-COLLADASW::ColorOrTexture bc_get_cot(Color col, bool with_alpha)
+COLLADASW::ColorOrTexture bc_get_cot(const Color col, bool with_alpha)
 {
   COLLADASW::Color color(col[0], col[1], col[2], (with_alpha) ? col[3] : 1.0);
   COLLADASW::ColorOrTexture cot(color);

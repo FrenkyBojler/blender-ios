@@ -87,6 +87,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view3d_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_viewer_path_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_volume_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_windowmanager_enums.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_windowmanager_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_workspace_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_types.h
@@ -134,6 +135,7 @@ set(SRC_DNA_DEFAULTS_INC
 # Utility & other headers.
 set(SRC_DNA_OTHER_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_array_utils.hh
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_print.hh
 )
 
 add_subdirectory(datatoc)
@@ -146,6 +148,11 @@ add_subdirectory(blenkernel)
 add_subdirectory(blenlib)
 add_subdirectory(bmesh)
 add_subdirectory(draw)
+add_subdirectory(draw/intern/shaders)
+add_subdirectory(draw/engines/eevee/shaders)
+add_subdirectory(draw/engines/gpencil/shaders)
+add_subdirectory(draw/engines/overlay/shaders)
+add_subdirectory(draw/engines/workbench/shaders)
 add_subdirectory(render)
 add_subdirectory(blenfont)
 add_subdirectory(blentranslation)
@@ -155,6 +162,7 @@ add_subdirectory(ikplugin)
 add_subdirectory(simulation)
 add_subdirectory(geometry)
 add_subdirectory(gpu)
+add_subdirectory(gpu/shaders)
 add_subdirectory(imbuf)
 add_subdirectory(imbuf/intern/oiio)
 add_subdirectory(nodes)

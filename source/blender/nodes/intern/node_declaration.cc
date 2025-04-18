@@ -6,7 +6,7 @@
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
-#include "BLI_stack.hh"
+#include "BLI_assert.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_geometry_fields.hh"
@@ -30,7 +30,7 @@ void build_node_declaration(const bke::bNodeType &typeinfo,
                             const bNode *node)
 {
   reset_declaration(r_declaration);
-  NodeDeclarationBuilder node_decl_builder{r_declaration, ntree, node};
+  NodeDeclarationBuilder node_decl_builder{typeinfo, r_declaration, ntree, node};
   typeinfo.declare(node_decl_builder);
   node_decl_builder.finalize();
 }
@@ -38,7 +38,7 @@ void build_node_declaration(const bke::bNodeType &typeinfo,
 void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
 {
   auto is_data_socket_decl = [](const SocketDeclaration *socket_decl) {
-    return dynamic_cast<const decl::Geometry *>(socket_decl);
+    return ELEM(socket_decl->socket_type, SOCK_GEOMETRY, SOCK_BUNDLE, SOCK_CLOSURE);
   };
 
   Vector<int> geometry_inputs;
@@ -57,7 +57,7 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
   for (BaseSocketDeclarationBuilder *socket_builder : input_socket_builders_) {
     if (socket_builder->field_on_all_) {
       aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
-      const int field_input = socket_builder->index_;
+      const int field_input = socket_builder->decl_base_->index;
       for (const int geometry_input : geometry_inputs) {
         relations.eval_relations.append({field_input, geometry_input});
       }
@@ -66,14 +66,14 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
   for (BaseSocketDeclarationBuilder *socket_builder : output_socket_builders_) {
     if (socket_builder->field_on_all_) {
       aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
-      const int field_output = socket_builder->index_;
+      const int field_output = socket_builder->decl_base_->index;
       for (const int geometry_output : geometry_outputs) {
         relations.available_relations.append({field_output, geometry_output});
       }
     }
     if (socket_builder->reference_pass_all_) {
       aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
-      const int field_output = socket_builder->index_;
+      const int field_output = socket_builder->decl_base_->index;
       for (const int input_i : declaration_.inputs.index_range()) {
         SocketDeclaration &input_socket_decl = *declaration_.inputs[input_i];
         if (input_socket_decl.input_field_type != InputSocketFieldType::None) {
@@ -83,7 +83,7 @@ void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()
     }
     if (socket_builder->propagate_from_all_) {
       aal::RelationsInNode &relations = this->get_anonymous_attribute_relations();
-      const int geometry_output = socket_builder->index_;
+      const int geometry_output = socket_builder->decl_base_->index;
       for (const int geometry_input : geometry_inputs) {
         relations.propagate_relations.append({geometry_input, geometry_output});
       }
@@ -99,14 +99,18 @@ void NodeDeclarationBuilder::finalize()
 #endif
 }
 
-NodeDeclarationBuilder::NodeDeclarationBuilder(NodeDeclaration &declaration,
+NodeDeclarationBuilder::NodeDeclarationBuilder(const bke::bNodeType &typeinfo,
+                                               NodeDeclaration &declaration,
                                                const bNodeTree *ntree,
                                                const bNode *node)
     : DeclarationListBuilder(*this, declaration.root_items),
+      typeinfo_(typeinfo),
       declaration_(declaration),
       ntree_(ntree),
       node_(node)
 {
+  /* Unused in release builds, but used for BLI_assert() in debug builds. */
+  UNUSED_VARS(typeinfo_);
 }
 
 void NodeDeclarationBuilder::use_custom_socket_order(bool enable)
@@ -236,8 +240,10 @@ bool NodeDeclaration::matches(const bNode &node) const
       }
       ++current_panel;
     }
-    else if (dynamic_cast<const SeparatorDeclaration *>(item_decl.get())) {
-      /* Separators are ignored here because they don't have corresponding data in DNA. */
+    else if (dynamic_cast<const SeparatorDeclaration *>(item_decl.get()) ||
+             dynamic_cast<const LayoutDeclaration *>(item_decl.get()))
+    {
+      /* Ignored because they don't have corresponding data in DNA. */
     }
     else {
       /* Unknown item type. */
@@ -348,6 +354,12 @@ static bool socket_type_to_static_decl_type(const eNodeSocketDatatype socket_typ
     case SOCK_MENU:
       fn(TypeTag<decl::Menu>());
       return true;
+    case SOCK_BUNDLE:
+      fn(TypeTag<decl::Bundle>());
+      return true;
+    case SOCK_CLOSURE:
+      fn(TypeTag<decl::Closure>());
+      return true;
     default:
       return false;
   }
@@ -416,6 +428,26 @@ void DeclarationListBuilder::add_separator()
   this->items.append(&decl);
 }
 
+void DeclarationListBuilder::add_default_layout()
+{
+  BLI_assert(this->node_decl_builder.typeinfo_.draw_buttons);
+  this->add_layout([](uiLayout *layout, bContext *C, PointerRNA *ptr) {
+    const bNode &node = *static_cast<bNode *>(ptr->data);
+    node.typeinfo->draw_buttons(layout, C, ptr);
+  });
+  static_cast<LayoutDeclaration &>(*this->items.last()).is_default = true;
+}
+
+void DeclarationListBuilder::add_layout(
+    std::function<void(uiLayout *, bContext *, PointerRNA *)> draw)
+{
+  auto decl_ptr = std::make_unique<LayoutDeclaration>();
+  LayoutDeclaration &decl = *decl_ptr;
+  decl.draw = std::move(draw);
+  this->node_decl_builder.declaration_.all_items.append(std::move(decl_ptr));
+  this->items.append(&decl);
+}
+
 PanelDeclarationBuilder &DeclarationListBuilder::add_panel(const StringRef name, int identifier)
 {
   auto panel_decl_ptr = std::make_unique<PanelDeclaration>();
@@ -432,8 +464,10 @@ PanelDeclarationBuilder &DeclarationListBuilder::add_panel(const StringRef name,
     panel_decl.identifier = this->node_decl_builder.declaration_.all_items.size();
   }
   panel_decl.name = name;
+  panel_decl.parent_panel = this->parent_panel_decl;
+  panel_decl.index = this->node_decl_builder.declaration_.panels.append_and_get_index(&panel_decl);
   this->node_decl_builder.declaration_.all_items.append(std::move(panel_decl_ptr));
-  this->node_decl_builder.panel_builders_.append(std::move(panel_decl_builder_ptr));
+  this->node_decl_builder.panel_builders_.append_and_get_index(std::move(panel_decl_builder_ptr));
   this->items.append(&panel_decl);
   return panel_decl_builder;
 }
@@ -456,6 +490,32 @@ void PanelDeclaration::update_or_build(const bNodePanelState &old_panel,
   build(new_panel);
   /* Copy existing state to the new panel */
   SET_FLAG_FROM_TEST(new_panel.flag, old_panel.is_collapsed(), NODE_PANEL_COLLAPSED);
+}
+
+int PanelDeclaration::depth() const
+{
+  int count = 0;
+  for (const PanelDeclaration *parent = this->parent_panel; parent; parent = parent->parent_panel)
+  {
+    count++;
+  }
+  return count;
+}
+
+const nodes::SocketDeclaration *PanelDeclaration::panel_input_decl() const
+{
+  if (this->items.is_empty()) {
+    return nullptr;
+  }
+  const nodes::ItemDeclaration *item_decl = this->items.first();
+  if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
+    if (socket_decl->is_panel_toggle && (socket_decl->in_out & SOCK_IN) &&
+        (socket_decl->socket_type & SOCK_BOOLEAN))
+    {
+      return socket_decl;
+    }
+  }
+  return nullptr;
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::supports_field()
@@ -508,7 +568,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::reference_pass(
   for (const int from_input : input_indices) {
     aal::ReferenceRelation relation;
     relation.from_field_input = from_input;
-    relation.to_field_output = index_;
+    relation.to_field_output = decl_base_->index;
     relations.reference_relations.append(relation);
   }
   return *this;
@@ -521,7 +581,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
     this->supports_field();
     for (const int input_index : indices) {
       aal::EvalRelation relation;
-      relation.field_input = index_;
+      relation.field_input = decl_base_->index;
       relation.geometry_input = input_index;
       relations.eval_relations.append(relation);
     }
@@ -530,7 +590,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
     this->field_source();
     for (const int output_index : indices) {
       aal::AvailableRelation relation;
-      relation.field_output = index_;
+      relation.field_output = decl_base_->index;
       relation.geometry_output = output_index;
       relations.available_relations.append(relation);
     }
@@ -550,7 +610,8 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::description(std::str
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::translation_context(std::string value)
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::translation_context(
+    std::optional<std::string> value)
 {
   decl_base_->translation_context = std::move(value);
   return *this;
@@ -651,16 +712,25 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all()
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realization_options(
-    CompositorInputRealizationOptions value)
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::propagate_all_instance_attributes()
 {
-  decl_base_->compositor_realization_options_ = value;
+  /* We can't distinguish between actually propagating everything or just instance attributes
+   * currently. It's still nice to be more explicit at the node declaration level. */
+  this->propagate_all();
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realization_mode(
+    CompositorInputRealizationMode value)
+{
+  decl_base_->compositor_realization_mode_ = value;
   return *this;
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_domain_priority(
     int priority)
 {
+  BLI_assert(priority >= 0);
   decl_base_->compositor_domain_priority_ = priority;
   return *this;
 }
@@ -699,10 +769,16 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::socket_name_ptr(
 {
   /* Doing const-casts here because this data is generally only available as const when creating
    * the declaration, but it's still valid to modify later. */
-  return this->socket_name_ptr(RNA_pointer_create(const_cast<ID *>(id),
-                                                  const_cast<StructRNA *>(srna),
-                                                  const_cast<void *>(data)),
+  return this->socket_name_ptr(RNA_pointer_create_discrete(const_cast<ID *>(id),
+                                                           const_cast<StructRNA *>(srna),
+                                                           const_cast<void *>(data)),
                                property_name);
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::panel_toggle(const bool value)
+{
+  decl_base_->is_panel_toggle = value;
+  return *this;
 }
 
 OutputFieldDependency OutputFieldDependency::ForFieldSource()
@@ -749,9 +825,9 @@ Span<int> OutputFieldDependency::linked_input_indices() const
   return linked_input_indices_;
 }
 
-const CompositorInputRealizationOptions &SocketDeclaration::compositor_realization_options() const
+const CompositorInputRealizationMode &SocketDeclaration::compositor_realization_mode() const
 {
-  return compositor_realization_options_;
+  return compositor_realization_mode_;
 }
 
 int SocketDeclaration::compositor_domain_priority() const
@@ -780,12 +856,6 @@ PanelDeclarationBuilder &PanelDeclarationBuilder::description(std::string value)
 PanelDeclarationBuilder &PanelDeclarationBuilder::default_closed(bool closed)
 {
   decl_->default_collapsed = closed;
-  return *this;
-}
-
-PanelDeclarationBuilder &PanelDeclarationBuilder::draw_buttons(PanelDrawButtonsFunction func)
-{
-  decl_->draw_buttons = func;
   return *this;
 }
 

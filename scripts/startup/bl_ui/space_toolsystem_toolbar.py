@@ -1975,7 +1975,6 @@ class _defs_texture_paint:
             idname="builtin.brush",
             label="Paint",
             icon="brush.sculpt.paint",
-            cursor='PAINT_CROSS',
             options={'USE_BRUSHES'},
         )
 
@@ -2037,9 +2036,10 @@ class _defs_weight_paint:
         if context is None:
             return VIEW3D_PT_tools_active._tools_select
         ob = context.active_object
-        if (ob and ob.type == 'MESH' and
-            (ob.data.use_paint_mask or
-             ob.data.use_paint_mask_vertex)):
+        if (
+                ob and ob.type == 'MESH' and
+                (ob.data.use_paint_mask or ob.data.use_paint_mask_vertex)
+        ):
             return VIEW3D_PT_tools_active._tools_select
         elif context.pose_object:
             return VIEW3D_PT_tools_active._tools_select
@@ -2352,10 +2352,10 @@ class _defs_grease_pencil_paint:
             row.use_property_split = False
             row.prop(props, "mode", expand=True)
 
-            if props.mode == "MATERIAL":
+            if props.mode == 'MATERIAL':
                 col = layout.column()
                 col.prop(props, "material_mode")
-            elif props.mode == "PALETTE":
+            elif props.mode == 'PALETTE':
                 tool_settings = context.tool_settings
                 settings = tool_settings.gpencil_paint
 
@@ -2378,6 +2378,19 @@ class _defs_grease_pencil_paint:
 
 
 class _defs_grease_pencil_edit:
+    @ToolDef.from_fn
+    def shear():
+        def draw_settings(context, layout, _tool):
+            _template_widget.VIEW3D_GGT_xform_gizmo.draw_settings_with_index(context, layout, 2)
+        return dict(
+            idname="builtin.shear",
+            label="Shear",
+            icon="ops.gpencil.edit_shear",
+            widget="VIEW3D_GGT_xform_shear",
+            keymap="3D View Tool: Shear",
+            draw_settings=draw_settings,
+        )
+
     @ToolDef.from_fn
     def interpolate():
         def draw_settings(_context, layout, tool):
@@ -2927,7 +2940,7 @@ class _defs_sequencer_generic:
                 "Set the cursor location, drag to transform"
             ),
             icon="ops.generic.cursor",
-            keymap="Sequencer Tool: Cursor",
+            keymap="Preview Tool: Cursor",
         )
 
     @ToolDef.from_fn
@@ -2956,7 +2969,7 @@ class _defs_sequencer_generic:
                 "Sample pixel values under the cursor"
             ),
             icon="ops.paint.weight_sample",  # XXX, needs own icon.
-            keymap="Sequencer Tool: Sample",
+            keymap="Preview Tool: Sample",
         )
 
     @ToolDef.from_fn
@@ -2967,7 +2980,7 @@ class _defs_sequencer_generic:
             icon="ops.transform.translate",
             widget="SEQUENCER_GGT_gizmo2d_translate",
             operator="transform.translate",
-            keymap="Sequencer Tool: Move",
+            keymap="Preview Tool: Move",
         )
 
     @ToolDef.from_fn
@@ -2978,7 +2991,7 @@ class _defs_sequencer_generic:
             icon="ops.transform.rotate",
             widget="SEQUENCER_GGT_gizmo2d_rotate",
             operator="transform.rotate",
-            keymap="Sequencer Tool: Rotate",
+            keymap="Preview Tool: Rotate",
         )
 
     @ToolDef.from_fn
@@ -2989,7 +3002,7 @@ class _defs_sequencer_generic:
             icon="ops.transform.resize",
             widget="SEQUENCER_GGT_gizmo2d_resize",
             operator="transform.resize",
-            keymap="Sequencer Tool: Scale",
+            keymap="Preview Tool: Scale",
         )
 
     @ToolDef.from_fn
@@ -3008,23 +3021,29 @@ class _defs_sequencer_generic:
 
 class _defs_sequencer_select:
     @ToolDef.from_fn
-    def select_timeline():
-        return dict(
-            idname="builtin.select",
-            label="Tweak",
-            icon="ops.generic.select",
-            widget=None,
-            keymap="Sequencer Timeline Tool: Tweak",
-        )
-
-    @ToolDef.from_fn
     def select_preview():
         return dict(
             idname="builtin.select",
             label="Tweak",
             icon="ops.generic.select",
             widget=None,
-            keymap="Sequencer Preview Tool: Tweak",
+            keymap="Preview Tool: Tweak",
+        )
+
+    @ToolDef.from_fn
+    def box_timeline():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sequencer.select_box")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+        return dict(
+            idname="builtin.select_box",
+            label="Select Box",
+            icon="ops.generic.select_box",
+            widget=None,
+            keymap="Sequencer Tool: Select Box",
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -3039,7 +3058,7 @@ class _defs_sequencer_select:
             label="Select Box",
             icon="ops.generic.select_box",
             widget=None,
-            keymap="Sequencer Preview Tool: Select Box",
+            keymap="Preview Tool: Select Box",
             draw_settings=draw_settings,
         )
 
@@ -3073,6 +3092,15 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
     @classmethod
     def tools_all(cls):
         yield from cls._tools.items()
+
+    _brush_tool = ToolDef.from_dict(
+        dict(
+            idname="builtin.brush",
+            label="Brush",
+            icon="brush.generic",
+            options={'USE_BRUSHES'},
+        )
+    )
 
     # Private tool lists for convenient reuse in `_tools`.
 
@@ -3130,9 +3158,10 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
         ],
         'PAINT': [
-            _defs_texture_paint.brush,
+            _brush_tool,
             _defs_texture_paint.blur,
             _defs_texture_paint.smear,
+            _defs_texture_paint.clone,
             _defs_texture_paint.fill,
             _defs_texture_paint.mask,
             None,
@@ -3238,7 +3267,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         dict(
             idname="builtin.brush",
             label="Brush",
-            icon="brush.sculpt.paint",
+            icon="brush.generic",
             options={'USE_BRUSHES'},
         )
     )
@@ -3439,7 +3468,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_edit_curve.curve_radius,
             _defs_transform.bend,
             (
-                _defs_transform.shear,
+                _defs_grease_pencil_edit.shear,
                 _defs_edit_mesh.tosphere,
             ),
             None,
@@ -3448,6 +3477,15 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_grease_pencil_edit.texture_gradient,
             None,
             *_tools_annotate,
+        ],
+        'EDIT_POINTCLOUD': [
+            *_tools_select,
+            _defs_view3d_generic.cursor,
+            None,
+            *_tools_transform,
+            None,
+            *_tools_annotate,
+            _defs_view3d_generic.ruler,
         ],
         'PARTICLE': [
             *_tools_select,
@@ -3528,7 +3566,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             ),
         ],
         'PAINT_TEXTURE': [
-            _defs_texture_paint.brush,
+            _brush_tool,
             _defs_texture_paint.blur,
             _defs_texture_paint.smear,
             _defs_texture_paint.clone,
@@ -3689,11 +3727,11 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
         ],
         'SEQUENCER': [
-            _defs_sequencer_select.select_timeline,
+            _defs_sequencer_select.box_timeline,
             _defs_sequencer_generic.blade,
         ],
         'SEQUENCER_PREVIEW': [
-            _defs_sequencer_select.select_timeline,
+            _defs_sequencer_select.box_timeline,
             *_tools_annotate,
             None,
             _defs_sequencer_generic.blade,

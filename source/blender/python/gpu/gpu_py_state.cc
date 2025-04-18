@@ -77,6 +77,7 @@ PyDoc_STRVAR(
     "   Defines the fixed pipeline blending equation.\n"
     "\n"
     "   :arg mode: The type of blend mode.\n"
+    "\n"
     "      * ``NONE`` No blending.\n"
     "      * ``ALPHA`` The original color channels are interpolated according to the alpha "
     "value.\n"
@@ -301,7 +302,7 @@ PyDoc_STRVAR(
     "        (x, y, xsize, ysize).\n"
     "        x, y: lower left corner of the scissor rectangle, in pixels.\n"
     "        xsize, ysize: width and height of the scissor rectangle.\n"
-    "   :rtype: tuple(int, int, int, int)\n");
+    "   :rtype: tuple[int, int, int, int]\n");
 static PyObject *pygpu_state_scissor_get(PyObject * /*self*/, PyObject * /*args*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
@@ -509,9 +510,14 @@ static PyObject *pygpu_state_active_framebuffer_get(PyObject * /*self*/)
 /** \name Module
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_state__tp_methods[] = {
@@ -593,8 +599,12 @@ static PyMethodDef pygpu_state__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(

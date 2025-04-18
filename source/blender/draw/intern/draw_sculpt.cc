@@ -8,13 +8,21 @@
 
 #include "draw_sculpt.hh"
 
+#include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
 #include "draw_attributes.hh"
+#include "draw_context_private.hh"
+#include "draw_view.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_mesh_types.hh"
+#include "BKE_customdata.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 
+#include "BLI_math_matrix.hh"
+
 #include "DRW_pbvh.hh"
+#include "DRW_render.hh"
 
 namespace blender::draw {
 
@@ -47,7 +55,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   }
 
   /* TODO(Miguel Pozo): Don't use global context. */
-  const DRWContextState *drwctx = DRW_context_state_get();
+  const DRWContext *drwctx = DRW_context_get();
   RegionView3D *rv3d = drwctx->rv3d;
   const bool navigating = rv3d && (rv3d->rflag & RV3D_NAVIGATING);
 
@@ -56,30 +64,15 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
     paint = BKE_paint_get_active_from_context(drwctx->evil_C);
   }
 
-  /* Frustum planes to show only visible pbvh::Tree nodes. */
-  float4 draw_planes[6];
-  PBVHFrustumPlanes draw_frustum = {reinterpret_cast<float(*)[4]>(draw_planes), 6};
-  float4 update_planes[6];
-  PBVHFrustumPlanes update_frustum = {reinterpret_cast<float(*)[4]>(update_planes), 6};
-
   /* TODO: take into account partial redraw for clipping planes. */
-  DRW_view_frustum_planes_get(DRW_view_default_get(), draw_frustum.planes);
+  /* Frustum planes to show only visible pbvh::Tree nodes. */
+  std::array<float4, 6> draw_frustum_planes = View::default_get().frustum_planes_get();
   /* Transform clipping planes to object space. Transforming a plane with a
    * 4x4 matrix is done by multiplying with the transpose inverse.
    * The inverse cancels out here since we transform by inverse(obmat). */
   float4x4 tmat = math::transpose(ob->object_to_world());
-  for (int i : IndexRange(6)) {
-    draw_planes[i] = tmat * draw_planes[i];
-    update_planes[i] = draw_planes[i];
-  }
-
-  if (paint && (paint->flags & PAINT_SCULPT_DELAY_UPDATES)) {
-    if (navigating) {
-      bke::pbvh::get_frustum_planes(*pbvh, &update_frustum);
-    }
-    else {
-      bke::pbvh::set_frustum_planes(*pbvh, &update_frustum);
-    }
+  for (int i : IndexRange(draw_frustum_planes.size())) {
+    draw_frustum_planes[i] = tmat * draw_frustum_planes[i];
   }
 
   /* Fast mode to show low poly multires while navigating. */
@@ -103,7 +96,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   const IndexMask visible_nodes = bke::pbvh::search_nodes(
       *pbvh, memory, [&](const bke::pbvh::Node &node) {
         return !BKE_pbvh_node_fully_hidden_get(node) &&
-               BKE_pbvh_node_frustum_contain_AABB(&node, &draw_frustum);
+               bke::pbvh::node_frustum_contain_aabb(node, draw_frustum_planes);
       });
 
   const IndexMask nodes_to_update = update_only_visible ? visible_nodes :
@@ -169,11 +162,11 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
                                                     Span<const GPUMaterial *> materials)
 {
   BLI_assert(ob->type == OB_MESH);
-  const Mesh *mesh = static_cast<const Mesh *>(ob->data);
+  const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
   DRW_Attributes draw_attrs;
   DRW_MeshCDMask cd_needed;
-  DRW_mesh_get_attributes(*ob, *mesh, materials.data(), materials.size(), &draw_attrs, &cd_needed);
+  DRW_mesh_get_attributes(*ob, mesh, materials, &draw_attrs, &cd_needed);
 
   Vector<pbvh::AttributeRequest, 16> attrs;
 
@@ -188,8 +181,8 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   /* UV maps are not in attribute requests. */
   for (uint i = 0; i < 32; i++) {
     if (cd_needed.uv & (1 << i)) {
-      int layer_i = CustomData_get_layer_index_n(&mesh->corner_data, CD_PROP_FLOAT2, i);
-      CustomDataLayer *layer = layer_i != -1 ? mesh->corner_data.layers + layer_i : nullptr;
+      int layer_i = CustomData_get_layer_index_n(&mesh.corner_data, CD_PROP_FLOAT2, i);
+      CustomDataLayer *layer = layer_i != -1 ? mesh.corner_data.layers + layer_i : nullptr;
       if (layer) {
         attrs.append(pbvh::GenericRequest{layer->name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
       }

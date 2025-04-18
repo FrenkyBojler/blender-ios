@@ -126,6 +126,12 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
         parent = ob.parent
         if parent and ob.parent_type == 'BONE' and parent.type == 'ARMATURE':
             sub.prop_search(ob, "parent_bone", parent.data, "bones")
+        elif ob.parent_type == 'VERTEX':
+            col.prop(ob, "parent_vertices", text="Parent Vertex", index=0)
+            sub.prop(ob, "use_parent_final_indices")
+        elif ob.parent_type == 'VERTEX_3':
+            col.prop(ob, "parent_vertices", text="Parent Vertices")
+            sub.prop(ob, "use_parent_final_indices")
         sub.active = (parent is not None)
         sub.prop(ob, "use_camera_lock_parent")
 
@@ -200,7 +206,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
         is_wire = (obj_type in {'CAMERA', 'EMPTY'})
         is_empty_image = (obj_type == 'EMPTY' and obj.empty_display_type == 'IMAGE')
         is_dupli = (obj.instance_type != 'NONE')
-        is_gpencil = (obj_type == 'GPENCIL')
+        is_gpencil = (obj_type == 'GREASEPENCIL')
 
         col = layout.column(heading="Show")
         col.prop(obj, "show_name", text="Name")
@@ -371,7 +377,11 @@ class OBJECT_PT_motion_paths_display(MotionPathButtonsPanel_display, Panel):
 class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
     bl_label = "Visibility"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -412,7 +422,7 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
                 col.prop(ob, "hide_probe_sphere", text="Sphere", toggle=False, invert_checkbox=True)
                 col.prop(ob, "hide_probe_plane", text="Plane", toggle=False, invert_checkbox=True)
 
-        if ob.type in {'GPENCIL', 'GREASEPENCIL'}:
+        if ob.type == 'GREASEPENCIL':
             col = layout.column(heading="Grease Pencil")
             col.prop(ob, "use_grease_pencil_lights", toggle=False)
 
@@ -433,7 +443,8 @@ def has_geometry_visibility(ob):
             'VOLUME',
             'POINTCLOUD',
             'CURVES',
-        }) or (ob.instance_type == 'COLLECTION' and ob.instance_collection))
+        }) or (ob.instance_type == 'COLLECTION' and ob.instance_collection)
+    )
 
 
 class OBJECT_PT_shading(ObjectButtonsPanel, Panel):
@@ -441,7 +452,10 @@ class OBJECT_PT_shading(ObjectButtonsPanel, Panel):
     bl_context = "object"
     bl_options = {'DEFAULT_CLOSED'}
 
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE_NEXT',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -480,7 +494,8 @@ class OBJECT_PT_light_linking(ObjectButtonsPanel, Panel):
         col.template_ID(
             light_linking,
             "receiver_collection",
-            new="object.light_linking_receiver_collection_new")
+            new="object.light_linking_receiver_collection_new",
+        )
 
         if not light_linking.receiver_collection:
             return
@@ -525,7 +540,8 @@ class OBJECT_PT_shadow_linking(ObjectButtonsPanel, Panel):
         col.template_ID(
             light_linking,
             "blocker_collection",
-            new="object.light_linking_blocker_collection_new")
+            new="object.light_linking_blocker_collection_new",
+        )
 
         if not light_linking.blocker_collection:
             return
@@ -548,7 +564,10 @@ class OBJECT_PT_animation(ObjectButtonsPanel, PropertiesAnimationMixin, Property
 
 
 class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_WORKBENCH',
+    }
     _context_path = "object"
     _property_type = bpy.types.Object
 

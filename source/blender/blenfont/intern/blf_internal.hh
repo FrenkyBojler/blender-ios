@@ -20,6 +20,7 @@ struct GlyphCacheBLF;
 struct ListBase;
 struct ResultBLF;
 struct rcti;
+enum class BLFWrapMode;
 
 /**
  * Max number of FontBLFs in memory. Take care that every font has a glyph cache per size/dpi,
@@ -73,8 +74,6 @@ char *blf_dir_metrics_search(const char *filepath);
 int blf_font_init();
 void blf_font_exit();
 
-bool blf_font_id_is_valid(int fontid);
-
 /**
  * Return glyph id from char-code.
  */
@@ -122,7 +121,8 @@ blender::Array<uchar> blf_svg_icon_bitmap(
 
 blender::Vector<blender::StringRef> blf_font_string_wrap(FontBLF *font,
                                                          blender::StringRef str,
-                                                         int max_pixel_width);
+                                                         int max_pixel_width,
+                                                         BLFWrapMode mode);
 
 /**
  * Use fixed column width, but an utf8 character may occupy multiple columns.
@@ -206,7 +206,8 @@ GlyphBLF *blf_glyph_ensure_icon(
 float blf_character_to_curves(FontBLF *font,
                               unsigned int unicode,
                               ListBase *nurbsbase,
-                              const float scale);
+                              const float scale,
+                              bool use_fallback);
 
 void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int x, int y);
 
