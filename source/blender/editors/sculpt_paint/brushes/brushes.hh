@@ -61,7 +61,15 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
 void do_clay_thumb_brush(const Depsgraph &depsgraph,
                          const Sculpt &sd,
                          Object &ob,
-                         const IndexMask &node_mask);
+                         const IndexMask &node_mask,
+                         const float3 &plane_normal,
+                         const float3 &plane_center);
+namespace clay_thumb {
+CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
+                                  Object &object,
+                                  const Brush &brush,
+                                  IndexMaskMemory &memory);
+}
 float clay_thumb_get_stabilized_pressure(const StrokeCache &cache);
 
 void do_crease_brush(const Depsgraph &depsgraph,

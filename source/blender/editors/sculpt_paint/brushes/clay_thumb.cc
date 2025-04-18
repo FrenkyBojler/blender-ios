@@ -142,22 +142,13 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 void do_clay_thumb_brush(const Depsgraph &depsgraph,
                          const Sculpt &sd,
                          Object &object,
-                         const IndexMask &node_mask)
+                         const IndexMask &node_mask,
+                         const float3& plane_normal,
+                         const float3& plane_center)
 {
   const SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const float3 &location = ss.cache->location_symm;
-
-  float3 area_position;
-  float3 sculpt_plane_normal;
-  calc_brush_plane(depsgraph, brush, object, node_mask, area_position, sculpt_plane_normal);
-
-  float3 area_normal = area_position;
-  /* Ignore brush settings and recalculate the area normal. */
-  if (brush.sculpt_plane != SCULPT_DISP_DIR_AREA || (brush.flag & BRUSH_ORIGINAL_NORMAL)) {
-    area_normal = calc_area_normal(depsgraph, brush, object, node_mask).value_or(float3(0));
-  }
 
   /* Delay the first daub because grab delta is not setup. */
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
@@ -179,10 +170,10 @@ void do_clay_thumb_brush(const Depsgraph &depsgraph,
 
   /* Initialize brush local-space matrix. */
   float4x4 mat = float4x4::identity();
-  mat.x_axis() = math::cross(area_normal, ss.cache->grab_delta_symm);
-  mat.y_axis() = math::cross(area_normal, mat.x_axis());
-  mat.z_axis() = area_normal;
-  mat.location() = ss.cache->location_symm;
+  mat.x_axis() = math::cross(plane_normal, ss.cache->grab_delta_symm);
+  mat.y_axis() = math::cross(plane_normal, mat.x_axis());
+  mat.z_axis() = plane_normal;
+  mat.location() = plane_center;
   /* NOTE: #math::normalize behaves differently for some reason. */
   normalize_m4(mat.ptr());
 
@@ -192,13 +183,13 @@ void do_clay_thumb_brush(const Depsgraph &depsgraph,
 
   float3 normal_tilt;
   rotate_v3_v3v3fl(normal_tilt,
-                   area_position,
+                   math::normalize(plane_center),
                    tmat.x_axis(),
                    DEG2RADF(-ss.cache->clay_thumb_brush.front_angle));
 
   /* Tilted plane (front part of the brush). */
   float4 plane_tilt;
-  plane_from_point_normal_v3(plane_tilt, location, normal_tilt);
+  plane_from_point_normal_v3(plane_tilt, ss.cache->location_symm, normal_tilt);
 
   const float clay_strength = ss.cache->bstrength * clay_thumb_get_stabilized_pressure(*ss.cache);
   threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -257,6 +248,37 @@ float clay_thumb_get_stabilized_pressure(const StrokeCache &cache)
                                              cache.clay_thumb_brush.pressure_stabilizer.end(),
                                              0.0f);
   return pressure_sum / cache.clay_thumb_brush.pressure_stabilizer.size();
+}
+
+namespace clay_thumb {
+CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
+                                  Object &object,
+                                  const Brush &brush,
+                                  IndexMaskMemory &memory)
+{
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  const SculptSession &ss = *object.sculpt;
+
+  const bool use_original = !ss.cache->accum;
+  const IndexMask initial_node_mask = gather_nodes(pbvh,
+                                                   eBrushFalloffShape(brush.falloff_shape),
+                                                   use_original,
+                                                   ss.cache->location_symm,
+                                                   ss.cache->radius_squared * 4,
+                                                   ss.cache->view_normal_symm,
+                                                   memory);
+
+  float3 plane_center;
+  float3 sculpt_plane_normal;
+  calc_brush_plane(depsgraph, brush, object, initial_node_mask, plane_center, sculpt_plane_normal);
+
+  float3 plane_normal = sculpt_plane_normal;
+  /* Ignore brush settings and recalculate the area normal. */
+  if (brush.sculpt_plane != SCULPT_DISP_DIR_AREA || (brush.flag & BRUSH_ORIGINAL_NORMAL)) {
+    plane_normal = calc_area_normal(depsgraph, brush, object, initial_node_mask).value_or(float3(0));
+  }
+  return {initial_node_mask, plane_center, plane_normal};
+}
 }
 
 }  // namespace blender::ed::sculpt_paint::brushes

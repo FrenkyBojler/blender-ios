@@ -3155,6 +3155,9 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLAY_STRIPS) {
     return brushes::clay_strips::calc_node_mask(depsgraph, ob, brush, memory);
   }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLAY_THUMB) {
+    return brushes::clay_thumb::calc_node_mask(depsgraph, ob, brush, memory);
+  }
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH) {
     return {cloth::brush_affected_nodes_gather(ob, brush, memory), std::nullopt, std::nullopt};
   }
@@ -3400,7 +3403,13 @@ static void do_brush_action(const Depsgraph &depsgraph,
       brushes::do_multiplane_scrape_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_CLAY_THUMB:
-      brushes::do_clay_thumb_brush(depsgraph, sd, ob, node_mask);
+      BLI_assert(cursor_sample_result.plane_normal && cursor_sample_result.plane_center);
+      brushes::do_clay_thumb_brush(depsgraph,
+                                   sd,
+                                   ob,
+                                   node_mask,
+                                   *cursor_sample_result.plane_normal,
+                                   *cursor_sample_result.plane_center);
       break;
     case SCULPT_BRUSH_TYPE_FILL:
       if (invert && brush.flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
