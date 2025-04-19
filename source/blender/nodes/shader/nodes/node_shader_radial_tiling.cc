@@ -38,7 +38,8 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("X_axis To Angle Bisector Angle")
       .no_muted_links()
       .description(
-          "Angle between the Y-axis of each segment coordinate system and the global X-axis");
+          "Counterclockwise angle between the Y-axis of each segment coordinate system and the "
+          "global X-axis");
 
   b.add_input<decl::Vector>("Vector")
       .default_value(float3{0.0f, 0.0f, 0.0f})
