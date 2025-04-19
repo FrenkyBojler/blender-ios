@@ -11,8 +11,10 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_mempool.h"
 
 #include "BLT_translation.hh"
@@ -764,7 +766,7 @@ static void curve_draw_exec_precalc(wmOperator *op)
   }
 }
 
-static int curve_draw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
 {
   if (op->customdata == nullptr) {
     if (!curve_draw_init(C, op, false)) {
@@ -1061,7 +1063,7 @@ static int curve_draw_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int curve_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curve_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "stroke")) {
     return curve_draw_exec(C, op);
@@ -1166,9 +1168,9 @@ static void curve_draw_cancel(bContext * /*C*/, wmOperator *op)
 }
 
 /* Modal event handling of frame changing */
-static int curve_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curve_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int ret = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
   CurveDrawData *cdd = static_cast<CurveDrawData *>(op->customdata);
 
   UNUSED_VARS(C, op);

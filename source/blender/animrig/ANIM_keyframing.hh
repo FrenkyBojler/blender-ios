@@ -15,6 +15,7 @@
 #include "BLI_string_ref.hh"
 
 #include "DNA_anim_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "RNA_path.hh"
@@ -93,7 +94,7 @@ class CombinedKeyingResult {
  * "Object Transforms" channel group name.
  */
 std::optional<StringRefNull> default_channel_group_for_path(const PointerRNA *animated_struct,
-                                                            const StringRef prop_rna_path);
+                                                            StringRef prop_rna_path);
 
 /* -------------------------------------------------------------------- */
 
@@ -110,8 +111,8 @@ bool key_insertion_may_create_fcurve(eInsertKeyFlags insert_key_flags);
 /** \name Key-Framing Management
  * \{ */
 
-/* Set the FCurve flag based on the property type of `prop`. */
-void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop);
+/** Ensure FCurve flags are correct for the property type it animates. */
+void update_autoflags_fcurve_direct(FCurve *fcu, PropertyType prop_type);
 
 /**
  * \brief Main key-frame insertion API.

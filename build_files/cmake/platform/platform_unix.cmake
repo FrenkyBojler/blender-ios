@@ -95,11 +95,6 @@ if(DEFINED LIBDIR)
   include(platform_old_libs_update)
 
   set(WITH_STATIC_LIBS ON)
-  # OpenMP usually can't be statically linked into shared libraries,
-  # due to not being compiled with position independent code.
-  if(NOT WITH_PYTHON_MODULE)
-    set(WITH_OPENMP_STATIC ON)
-  endif()
   set(Boost_NO_BOOST_CMAKE ON)
   set(Boost_ROOT ${LIBDIR}/boost)
   set(BOOST_LIBRARYDIR ${LIBDIR}/boost/lib)
@@ -341,19 +336,6 @@ endif()
 if(WITH_OPENCOLLADA)
   find_package_wrapper(OpenCOLLADA)
   if(OPENCOLLADA_FOUND)
-    if(WITH_STATIC_LIBS)
-      # PCRE is bundled with OpenCollada without headers, so can't use
-      # find_package reliably to detect it.
-      # NOTE: newer fork no longer depends on PCRE: see !122270.
-      if(EXISTS ${LIBDIR}/opencollada/lib/libpcre.a)
-        set(PCRE_LIBRARIES ${LIBDIR}/opencollada/lib/libpcre.a)
-      else()
-        # Quiet warnings.
-        set(PCRE_LIBRARIES "")
-      endif()
-    else()
-      find_package_wrapper(PCRE)
-    endif()
     find_package_wrapper(XML2)
   else()
     set_and_warn_library_found("OpenCollada" OPENCOLLADA_FOUND WITH_OPENCOLLADA)
@@ -581,6 +563,10 @@ add_bundled_libraries(opensubdiv/lib)
 
 if(WITH_TBB)
   find_package_wrapper(TBB)
+  if(TBB_FOUND)
+    get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
+    get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  endif()
   set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
 endif()
 add_bundled_libraries(tbb/lib)
@@ -869,19 +855,6 @@ if(WITH_GHOST_X11)
         FATAL_ERROR
         "LibXi not found. "
         "Disable WITH_X11_XINPUT if you want to build without tablet support"
-      )
-    endif()
-  endif()
-
-  if(WITH_X11_XF86VMODE)
-    # XXX, why doesn't cmake make this available?
-    find_library(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
-    mark_as_advanced(X11_Xxf86vmode_LIB)
-    if(NOT X11_Xxf86vmode_LIB)
-      message(
-        FATAL_ERROR
-        "libXxf86vm not found. "
-        "Disable WITH_X11_XF86VMODE if you want to build without"
       )
     endif()
   endif()

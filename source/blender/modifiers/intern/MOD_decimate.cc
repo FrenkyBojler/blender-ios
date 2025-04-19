@@ -67,7 +67,7 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 static DecimateModifierData *getOriginalModifierData(const DecimateModifierData *dmd,
                                                      const ModifierEvalContext *ctx)
 {
-  Object *ob_orig = DEG_get_original_object(ctx->object);
+  Object *ob_orig = DEG_get_original(ctx->object);
   return (DecimateModifierData *)BKE_modifiers_findby_name(ob_orig, dmd->modifier.name);
 }
 
@@ -142,7 +142,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
         const uint vert_tot = mesh->verts_num;
         uint i;
 
-        vweights = static_cast<float *>(MEM_malloc_arrayN(vert_tot, sizeof(float), __func__));
+        vweights = MEM_malloc_arrayN<float>(vert_tot, __func__);
 
         if (dmd->flag & MOD_DECIM_FLAG_INVERT_VGROUP) {
           for (i = 0; i < vert_tot; i++) {

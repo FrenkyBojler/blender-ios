@@ -388,8 +388,8 @@ static void rna_PoseChannel_constraints_remove(
     return;
   }
 
-  BKE_constraint_remove(&pchan->constraints, con);
-  RNA_POINTER_INVALIDATE(con_ptr);
+  BKE_constraint_remove_ex(&pchan->constraints, ob, con);
+  con_ptr->invalidate();
 
   blender::ed::object::constraint_update(bmain, ob);
 
@@ -817,7 +817,6 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_IK_update");
 
   prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, nullptr, "size");
   RNA_def_property_flag(prop, PROP_PROPORTIONAL);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_array_func(prop, "rna_PoseChannel_scale_editable");
@@ -865,7 +864,11 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   /* XXX... disabled, since proxy-locked layers are currently
    * used for ensuring proxy-syncing too */
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
-  RNA_def_property_ui_text(prop, "Rotation Mode", "");
+  RNA_def_property_ui_text(
+      prop,
+      "Rotation Mode",
+      /* This description is shared by other "rotation_mode" properties. */
+      "The kind of rotation to apply, values from other rotation modes aren't used");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   /* Curved bones settings - Applied on top of rest-pose values. */
@@ -1144,7 +1147,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "custom_shape_wire_width");
   RNA_def_property_ui_text(prop, "Wire Width", "Adjust the line thickness of custom shapes");
   /* When changing the upper limit of the range, also adjust the WIRE_WIDTH_COMPRESSION in
-   * overlay_shader_shared.h */
+   * overlay_shader_shared.hh */
   RNA_def_property_range(prop, 1.0f, 16.0f);
   RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 1);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
@@ -1159,6 +1162,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_LOCX, 3);
   RNA_def_property_ui_text(prop, "Lock Location", "Lock editing of location when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1166,6 +1170,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_ROTX, 3);
   RNA_def_property_ui_text(prop, "Lock Rotation", "Lock editing of rotation when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1178,6 +1183,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       "Lock Rotation (4D Angle)",
       "Lock editing of 'angle' component of four-component rotations when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1188,6 +1194,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       prop,
       "Lock Rotations (4D)",
       "Lock editing of four component rotations by components (instead of as Eulers)");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1195,6 +1202,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_SCALEX, 3);
   RNA_def_property_ui_text(prop, "Lock Scale", "Lock editing of scale when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 

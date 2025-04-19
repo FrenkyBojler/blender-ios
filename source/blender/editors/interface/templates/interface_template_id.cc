@@ -13,10 +13,12 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_packedFile.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_search.hh"
 
@@ -383,7 +385,7 @@ ID *ui_template_id_liboverride_hierarchy_make(
    * NOTE: do not attempt to perform such hierarchy override at all cost, if there is not enough
    * context, better to abort than create random overrides all over the place. */
   if (!ID_IS_OVERRIDABLE_LIBRARY_HIERARCHY(id)) {
-    WM_reportf(RPT_ERROR, "The data-block %s is not overridable", id->name);
+    WM_global_reportf(RPT_ERROR, "The data-block %s is not overridable", id->name);
     return nullptr;
   }
 
@@ -572,16 +574,16 @@ ID *ui_template_id_liboverride_hierarchy_make(
     case ID_MA:
     case ID_TE:
     case ID_IM:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     case ID_WO:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     case ID_PA:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     default:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
   }
 
@@ -655,7 +657,7 @@ static void template_id_liboverride_hierarchy_make(bContext *C,
     }
   }
   else {
-    WM_reportf(RPT_ERROR, "The data-block %s could not be overridden", id->name);
+    WM_global_reportf(RPT_ERROR, "The data-block %s could not be overridden", id->name);
   }
 }
 
@@ -788,7 +790,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
   }
 }
 
-static const char *template_id_browse_tip(const StructRNA *type)
+static StringRef template_id_browse_tip(const StructRNA *type)
 {
   if (type) {
     switch ((ID_Type)RNA_type_to_ID_code(type)) {
@@ -859,7 +861,7 @@ static const char *template_id_browse_tip(const StructRNA *type)
       case ID_VO:
         return N_("Browse Volume Data to be linked");
       case ID_GP:
-        return N_("Browse Grease Pencil v3 Data to be linked");
+        return N_("Browse Grease Pencil Data to be linked");
 
         /* Use generic text. */
       case ID_LI:
@@ -983,7 +985,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
                             0,
                             w,
                             but_height,
-                            nullptr);
+                            std::nullopt);
     UI_but_funcN_set(but,
                      template_id_cb,
                      MEM_new<TemplateID>(__func__, template_ui),
@@ -993,7 +995,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
   }
   else {
     but = uiDefIconTextBut(
-        block, but_type, 0, icon, button_text, 0, 0, w, but_height, nullptr, 0, 0, nullptr);
+        block, but_type, 0, icon, button_text, 0, 0, w, but_height, nullptr, 0, 0, std::nullopt);
     UI_but_funcN_set(but,
                      template_id_cb,
                      MEM_new<TemplateID>(__func__, template_ui),
@@ -1236,7 +1238,7 @@ static void template_ID(const bContext *C,
                       0,
                       UI_UNIT_X,
                       UI_UNIT_Y,
-                      nullptr);
+                      std::nullopt);
       }
       else if (!ELEM(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_OB, ID_WS) && (hide_buttons == false))
       {
@@ -1253,7 +1255,7 @@ static void template_ID(const bContext *C,
                       -1,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
       }
     }
   }
@@ -1305,7 +1307,7 @@ static void template_ID(const bContext *C,
                               0,
                               w,
                               UI_UNIT_Y,
-                              nullptr);
+                              std::nullopt);
       UI_but_funcN_set(but,
                        template_id_cb,
                        MEM_new<TemplateID>(__func__, template_ui),
@@ -1326,7 +1328,7 @@ static void template_ID(const bContext *C,
                              nullptr,
                              0,
                              0,
-                             nullptr);
+                             std::nullopt);
       UI_but_funcN_set(but,
                        template_id_cb,
                        MEM_new<TemplateID>(__func__, template_ui),
@@ -1356,7 +1358,7 @@ static void template_ID(const bContext *C,
                           0,
                           UI_UNIT_X,
                           UI_UNIT_Y,
-                          nullptr);
+                          std::nullopt);
       /* so we can access the template from operators, font unlinking needs this */
       UI_but_funcN_set(but,
                        template_id_cb,

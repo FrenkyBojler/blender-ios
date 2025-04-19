@@ -17,6 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -249,7 +250,7 @@ struct uiWidgetType {
   /* converted colors for state */
   uiWidgetColors wcol;
 
-  void (*state)(uiWidgetType *, const uiWidgetStateInfo *state, eUIEmbossType emboss)
+  void (*state)(uiWidgetType *, const uiWidgetStateInfo *state, blender::ui::EmbossType emboss)
       ATTR_NONNULL();
   void (*draw)(uiWidgetColors *,
                rcti *,
@@ -1253,29 +1254,29 @@ static void widget_draw_icon_centered(const BIFIconID icon,
 }
 
 /**
+ * \param aspect: The inverse zoom factor (typically #uiBlock.aspect), with DPI applied (i.e. not
+ * multiplied by #UI_INV_SCALE_FAC).
  * \param mono_color: Only for drawing monochrome icons.
  */
-static void widget_draw_preview_icon(
-    BIFIconID icon, float alpha, float aspect, const rcti *rect, const uchar mono_color[4])
+static void widget_draw_preview_icon(BIFIconID icon,
+                                     float alpha,
+                                     float aspect,
+                                     const bool add_padding,
+                                     const rcti *rect,
+                                     const uchar mono_color[4])
 {
   if (icon == ICON_NONE) {
     return;
   }
 
   if (icon < BIFICONID_LAST_STATIC) {
-    const bool is_loading_icon = icon == ICON_TEMP;
-    /* Special handling: Previews often want to show a loading icon while the preview is being
-     * loaded. Draw this with reduced opacity. */
-    if (is_loading_icon) {
-      alpha *= 0.5f;
-    }
     widget_draw_icon_centered(icon, aspect, alpha, rect, mono_color);
     return;
   }
 
   const int w = BLI_rcti_size_x(rect);
   const int h = BLI_rcti_size_y(rect);
-  const int size = std::min(w, h) - PREVIEW_PAD * 2;
+  const int size = std::min(w, h) - (add_padding ? (PREVIEW_PAD * 2) : 0);
 
   if (size > 0) {
     const int x = rect->xmin + w / 2 - size / 2;
@@ -1287,7 +1288,7 @@ static void widget_draw_preview_icon(
 
 static int ui_but_draw_menu_icon(const uiBut *but)
 {
-  return (but->flag & UI_BUT_ICON_SUBMENU) && (but->emboss == UI_EMBOSS_PULLDOWN);
+  return (but->flag & UI_BUT_ICON_SUBMENU) && (but->emboss == blender::ui::EmbossType::Pulldown);
 }
 
 /* icons have been standardized... and this call draws in untransformed coordinates */
@@ -1295,11 +1296,14 @@ static int ui_but_draw_menu_icon(const uiBut *but)
 static void widget_draw_icon(
     const uiBut *but, BIFIconID icon, float alpha, const rcti *rect, const uchar mono_color[4])
 {
-  const float aspect = but->block->aspect * UI_INV_SCALE_FAC;
-
   if (but->flag & UI_BUT_ICON_PREVIEW) {
     GPU_blend(GPU_BLEND_ALPHA);
-    widget_draw_preview_icon(icon, alpha, aspect, rect, mono_color);
+    widget_draw_preview_icon(icon,
+                             alpha,
+                             but->block->aspect,
+                             !(but->drawflag & UI_BUT_NO_PREVIEW_PADDING),
+                             rect,
+                             mono_color);
     GPU_blend(GPU_BLEND_NONE);
     return;
   }
@@ -1309,6 +1313,7 @@ static void widget_draw_icon(
     return;
   }
 
+  const float aspect = but->block->aspect * UI_INV_SCALE_FAC;
   const float height = ICON_DEFAULT_HEIGHT / aspect;
 
   /* calculate blend color */
@@ -1348,7 +1353,7 @@ static void widget_draw_icon(
       {
         xs = rect->xmin + 2.0f * ofs;
       }
-      else if (but->emboss == UI_EMBOSS_NONE || but->type == UI_BTYPE_LABEL) {
+      else if (but->emboss == blender::ui::EmbossType::None || but->type == UI_BTYPE_LABEL) {
         xs = rect->xmin + 2.0f * ofs;
       }
       else {
@@ -1369,7 +1374,8 @@ static void widget_draw_icon(
     /* Get theme color. */
     uchar color[4] = {mono_color[0], mono_color[1], mono_color[2], mono_color[3]};
     const bTheme *btheme = UI_GetTheme();
-    const bool has_theme = UI_icon_get_theme_color(int(icon), color);
+    /* Only use theme colors if the button doesn't override the color. */
+    const bool has_theme = !but->col[3] && UI_icon_get_theme_color(int(icon), color);
     const bool outline = btheme->tui.icon_border_intensity > 0.0f && has_theme;
 
     /* to indicate draggable */
@@ -1564,6 +1570,9 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
         /* -1 to remove trailing '\0'! */
         final_lpart_len = size_t(l_end + sep_len + r_len - 1);
 
+/* Seems like this was only needed because of an error in #BLF_width_to_rstrlen(), not because of
+ * integer imprecision. See PR #135239. */
+#if 0
         while (BLF_width(fstyle->uifont_id, str, max_len) > okwidth) {
           /* This will happen because a lot of string width processing is done in integer pixels,
            * which can introduce a rather high error in the end (about 2 pixels or so).
@@ -1573,6 +1582,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
           char *c = str + l_end + sep_len;
           memmove(c, c + 1, r_len);
         }
+#endif
       }
     }
 
@@ -1896,8 +1906,8 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
   else {
     if (but->editstr) {
-      /* max length isn't used in this case,
-       * we rely on string being nullptr terminated. */
+      /* The maximum length isn't used in this case,
+       * we rely on string being null terminated. */
       drawstr_left_len = INT_MAX;
 
 #ifdef WITH_INPUT_IME
@@ -2274,7 +2284,6 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
 
   /* Big previews with optional text label below */
   if (but->flag & UI_BUT_ICON_PREVIEW && ui_block_is_menu(but->block)) {
-    const float aspect = but->block->aspect * UI_INV_SCALE_FAC;
     const BIFIconID icon = ui_but_icon(but);
     int icon_size = BLI_rcti_size_y(rect);
     int text_size = 0;
@@ -2289,7 +2298,12 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     /* draw icon in rect above the space reserved for the label */
     rect->ymin += text_size;
     GPU_blend(GPU_BLEND_ALPHA);
-    widget_draw_preview_icon(icon, alpha, aspect, rect, icon_color);
+    widget_draw_preview_icon(icon,
+                             alpha,
+                             but->block->aspect,
+                             !(but->drawflag & UI_BUT_NO_PREVIEW_PADDING),
+                             rect,
+                             icon_color);
     GPU_blend(GPU_BLEND_NONE);
 
     /* offset rect to draw label in */
@@ -2331,7 +2345,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
       /* pass (even if its a menu toolbar) */
     }
     else if (ui_block_is_pie_menu(but->block)) {
-      if (but->emboss == UI_EMBOSS_PIE_MENU) {
+      if (but->emboss == blender::ui::EmbossType::PieMenu) {
         rect->xmin += 0.3f * U.widget_unit;
       }
     }
@@ -2464,10 +2478,11 @@ static void widget_active_color(uiWidgetColors *wcol)
 
 static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wcol_state,
                                                   const uiWidgetStateInfo *state,
-                                                  const eUIEmbossType emboss)
+                                                  const blender::ui::EmbossType emboss)
 {
-  /* Explicitly require #UI_EMBOSS_NONE_OR_STATUS for color blending with no emboss. */
-  if (emboss == UI_EMBOSS_NONE) {
+  /* Explicitly require #blender::ui::EmbossType::NoneOrStatus for color blending with no emboss.
+   */
+  if (emboss == blender::ui::EmbossType::None) {
     return nullptr;
   }
 
@@ -2490,7 +2505,9 @@ static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wco
 }
 
 /* copy colors from theme, and set changes in it based on state */
-static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEmbossType emboss)
+static void widget_state(uiWidgetType *wt,
+                         const uiWidgetStateInfo *state,
+                         blender::ui::EmbossType emboss)
 {
   uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -2537,12 +2554,14 @@ static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEm
   }
 
   if (state->but_flag & UI_BUT_REDALERT) {
-    const uchar red[4] = {255, 0, 0};
-    if (wt->draw && emboss != UI_EMBOSS_NONE) {
-      color_blend_v3_v3(wt->wcol.inner, red, 0.4f);
+    if (wt->draw && emboss != blender::ui::EmbossType::None) {
+      UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.inner);
     }
     else {
-      color_blend_v3_v3(wt->wcol.text, red, 0.4f);
+      uchar red[4];
+      UI_GetThemeColor3ubv(TH_REDALERT, red);
+      color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
+      color_blend_v3_v3(wt->wcol.text, red, 0.5f);
     }
   }
 
@@ -2594,10 +2613,10 @@ static bool draw_emboss(const uiBut *but)
   if (but->drawflag & UI_BUT_ALIGN_DOWN) {
     return false;
   }
-
+  uiBut *but_next = but->block->next_but(but);
   if (but->type == UI_BTYPE_TAB &&
       (BLI_rctf_size_y(&but->block->rect) > BLI_rctf_size_x(&but->block->rect)) &&
-      !(but->next == nullptr || but->next->type == UI_BTYPE_SEPR))
+      !(but_next == nullptr || but_next->type == UI_BTYPE_SEPR))
   {
     /* Vertical tabs, emboss at end and before separators. */
     return false;
@@ -2615,7 +2634,7 @@ static bool draw_emboss(const uiBut *but)
 /* sliders use special hack which sets 'item' as inner when drawing filling */
 static void widget_state_numslider(uiWidgetType *wt,
                                    const uiWidgetStateInfo *state,
-                                   eUIEmbossType emboss)
+                                   blender::ui::EmbossType emboss)
 {
   uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -2640,7 +2659,7 @@ static void widget_state_numslider(uiWidgetType *wt,
 /* labels use theme colors for text */
 static void widget_state_option_menu(uiWidgetType *wt,
                                      const uiWidgetStateInfo *state,
-                                     eUIEmbossType emboss)
+                                     blender::ui::EmbossType emboss)
 {
   const bTheme *btheme = UI_GetTheme();
 
@@ -2659,7 +2678,7 @@ static void widget_state_option_menu(uiWidgetType *wt,
 
 static void widget_state_nothing(uiWidgetType *wt,
                                  const uiWidgetStateInfo * /*state*/,
-                                 eUIEmbossType /*emboss*/)
+                                 blender::ui::EmbossType /*emboss*/)
 {
   wt->wcol = *(wt->wcol_theme);
 }
@@ -2667,7 +2686,7 @@ static void widget_state_nothing(uiWidgetType *wt,
 /* special case, button that calls pulldown */
 static void widget_state_pulldown(uiWidgetType *wt,
                                   const uiWidgetStateInfo * /*state*/,
-                                  eUIEmbossType /*emboss*/)
+                                  blender::ui::EmbossType /*emboss*/)
 {
   wt->wcol = *(wt->wcol_theme);
 }
@@ -2675,7 +2694,7 @@ static void widget_state_pulldown(uiWidgetType *wt,
 /* special case, pie menu items */
 static void widget_state_pie_menu_item(uiWidgetType *wt,
                                        const uiWidgetStateInfo *state,
-                                       eUIEmbossType /*emboss*/)
+                                       blender::ui::EmbossType /*emboss*/)
 {
   wt->wcol = *(wt->wcol_theme);
 
@@ -2708,7 +2727,7 @@ static void widget_state_pie_menu_item(uiWidgetType *wt,
 /* special case, menu items */
 static void widget_state_menu_item(uiWidgetType *wt,
                                    const uiWidgetStateInfo *state,
-                                   eUIEmbossType /*emboss*/)
+                                   blender::ui::EmbossType /*emboss*/)
 {
   wt->wcol = *(wt->wcol_theme);
 
@@ -3265,8 +3284,9 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
     CLAMP(x, rect->xmin + margin, rect->xmax - margin);
     CLAMP(y, rect->ymin + margin, rect->ymax - margin);
     rectf.ymax += 1;
-    rectf.xmin = x - (4.0f * UI_SCALE_FAC) - U.pixelsize;
-    rectf.xmax = x + (4.0f * UI_SCALE_FAC) + U.pixelsize;
+    const float cursor_width = std::max(BLI_rctf_size_y(&rectf) * 0.35f, 1.0f);
+    rectf.xmin = x - cursor_width;
+    rectf.xmax = x + cursor_width;
 
     if (but->flag & UI_SELECT) {
       /* Make the indicator larger while the mouse button is pressed. */
@@ -3316,13 +3336,16 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
   const float inner1[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   const float inner2[4] = {0.0f, 0.0f, 0.0f, 1.0f};
   const float outline[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-  UI_draw_roundbox_4fv_ex(&rectf, inner1, inner2, U.pixelsize, outline, 1.0f, 0.0f);
+
+  const float outline_width = (BLI_rctf_size_x(&rectf) < 4.0f) ? 0.0f : 1.0f;
+  UI_draw_roundbox_4fv_ex(&rectf, inner1, inner2, U.pixelsize, outline, outline_width, 0.0f);
 
   /* cursor */
   float y = rect->ymin + v * BLI_rcti_size_y(rect);
   CLAMP(y, float(rect->ymin) + (2.0f * UI_SCALE_FAC), float(rect->ymax) - (2.0f * UI_SCALE_FAC));
-  rectf.ymin = y - (4.0f * UI_SCALE_FAC) - U.pixelsize;
-  rectf.ymax = y + (4.0f * UI_SCALE_FAC) + U.pixelsize;
+  const float cursor_height = std::max(BLI_rctf_size_x(&rectf) * 0.35f, 1.0f);
+  rectf.ymin = y - cursor_height;
+  rectf.ymax = y + cursor_height;
   float col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
   if (but->flag & UI_SELECT) {
@@ -3614,16 +3637,19 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
     round_box_edges(&wtb, UI_CNR_ALL, slider, rad);
 
     if (state & UI_SCROLL_ARROWS) {
-      if (wcol->item[0] > 48) {
-        wcol->item[0] -= 48;
+      const uchar lightness = srgb_to_grayscale_byte(wcol->item);
+      if (lightness > 70) {
+        wcol->item[0] = 0;
+        wcol->item[1] = 0;
+        wcol->item[2] = 0;
+        wcol->item[3] = 128;
       }
-      if (wcol->item[1] > 48) {
-        wcol->item[1] -= 48;
+      else {
+        wcol->item[0] = 255;
+        wcol->item[1] = 255;
+        wcol->item[2] = 255;
+        wcol->item[3] = 128;
       }
-      if (wcol->item[2] > 48) {
-        wcol->item[2] -= 48;
-      }
-      wcol->item[3] = 255;
 
       if (horizontal) {
         rcti slider_inset = *slider;
@@ -3962,7 +3988,7 @@ static void widget_swatch(uiBut *but,
   if (but->rnaprop) {
     BLI_assert(but->rnaindex == -1);
 
-    if (RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4) {
+    if (RNA_property_array_length(&but->rnapoin, but->rnaprop) >= 4) {
       col[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
     }
   }
@@ -4061,7 +4087,7 @@ static void widget_icon_has_anim(uiBut *but,
 {
   if (state->but_flag & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN |
                          UI_BUT_OVERRIDDEN | UI_BUT_REDALERT) &&
-      but->emboss != UI_EMBOSS_NONE)
+      but->emboss != blender::ui::EmbossType::None)
   {
     uiWidgetBase wtb;
     widget_init(&wtb);
@@ -4262,13 +4288,18 @@ static void widget_preview_tile(uiBut *but,
                                 int roundboxalign,
                                 const float zoom)
 {
-  if (!ELEM(but->emboss, UI_EMBOSS_NONE, UI_EMBOSS_NONE_OR_STATUS)) {
+  if (!ELEM(but->emboss, blender::ui::EmbossType::None, blender::ui::EmbossType::NoneOrStatus)) {
     widget_list_itembut(but, wcol, rect, state, roundboxalign, zoom);
   }
 
   const BIFIconID icon = ui_but_icon(but);
-  ui_draw_preview_item_stateless(
-      &UI_style_get()->widget, rect, but->drawstr, icon, wcol->text, UI_STYLE_TEXT_CENTER);
+  ui_draw_preview_item_stateless(&UI_style_get()->widget,
+                                 rect,
+                                 but->drawstr,
+                                 icon,
+                                 wcol->text,
+                                 UI_STYLE_TEXT_CENTER,
+                                 !(but->drawflag & UI_BUT_NO_PREVIEW_PADDING));
 }
 
 static void widget_optionbut(uiWidgetColors *wcol,
@@ -4331,7 +4362,7 @@ static void widget_optionbut(uiWidgetColors *wcol,
 /* labels use Editor theme colors for text */
 static void widget_state_label(uiWidgetType *wt,
                                const uiWidgetStateInfo *state,
-                               eUIEmbossType emboss)
+                               blender::ui::EmbossType emboss)
 {
   if (state->but_flag & UI_BUT_LIST_ITEM) {
     /* Override default label theme's colors. */
@@ -4352,8 +4383,10 @@ static void widget_state_label(uiWidgetType *wt,
   }
 
   if (state->but_flag & UI_BUT_REDALERT) {
-    const uchar red[4] = {255, 0, 0};
-    color_blend_v3_v3(wt->wcol.text, red, 0.4f);
+    uchar red[4];
+    UI_GetThemeColor3ubv(TH_REDALERT, red);
+    color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
+    color_blend_v3_v3(wt->wcol.text, red, 0.5f);
   }
 }
 
@@ -4824,7 +4857,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   uiWidgetType *wt = nullptr;
 
   /* handle menus separately */
-  if (but->emboss == UI_EMBOSS_PULLDOWN) {
+  if (but->emboss == blender::ui::EmbossType::Pulldown) {
     switch (but->type) {
       case UI_BTYPE_LABEL:
         widget_draw_text_icon(&style->widget, &tui->wcol_menu_back, but, rect);
@@ -4844,9 +4877,10 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
       }
     }
   }
-  else if (ELEM(but->emboss, UI_EMBOSS_NONE, UI_EMBOSS_NONE_OR_STATUS)) {
+  else if (ELEM(but->emboss, blender::ui::EmbossType::None, blender::ui::EmbossType::NoneOrStatus))
+  {
     /* Use the same widget types for both no emboss types. Later on,
-     * #UI_EMBOSS_NONE_OR_STATUS will blend state colors if they apply. */
+     * #blender::ui::EmbossType::NoneOrStatus will blend state colors if they apply. */
     switch (but->type) {
       case UI_BTYPE_LABEL:
       case UI_BTYPE_TEXT:
@@ -4863,11 +4897,11 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         break;
     }
   }
-  else if (but->emboss == UI_EMBOSS_PIE_MENU) {
+  else if (but->emboss == blender::ui::EmbossType::PieMenu) {
     wt = widget_type(UI_WTYPE_MENU_ITEM_PIE);
   }
   else {
-    BLI_assert(but->emboss == UI_EMBOSS);
+    BLI_assert(but->emboss == blender::ui::EmbossType::Emboss);
 
     switch (but->type) {
       case UI_BTYPE_LABEL:
@@ -5126,7 +5160,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   }
 
   bool use_alpha_blend = false;
-  if (but->emboss != UI_EMBOSS_PULLDOWN) {
+  if (but->emboss != blender::ui::EmbossType::Pulldown) {
     if (but->flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
       use_alpha_blend = true;
       ui_widget_color_disabled(wt, &state);
@@ -5201,7 +5235,7 @@ void ui_draw_menu_back(uiStyle * /*style*/, uiBlock *block, const rcti *rect)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_BACK);
 
-  wt->state(wt, &STATE_INFO_NULL, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &STATE_INFO_NULL, blender::ui::EmbossType::Undefined);
   if (block) {
     const float zoom = 1.0f / block->aspect;
     wt->draw_block(&wt->wcol, rect, block->flag, block->direction, zoom);
@@ -5480,7 +5514,7 @@ static void ui_draw_widget_back_color(uiWidgetTypeEnum type,
     widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
   }
 
-  wt->state(wt, &STATE_INFO_NULL, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &STATE_INFO_NULL, blender::ui::EmbossType::Undefined);
   if (color) {
     rgba_float_to_uchar(wt->wcol.inner, color);
   }
@@ -5509,7 +5543,7 @@ void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow)
 void ui_draw_tooltip_background(const uiStyle * /*style*/, uiBlock * /*block*/, const rcti *rect)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
-  wt->state(wt, &STATE_INFO_NULL, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &STATE_INFO_NULL, blender::ui::EmbossType::Undefined);
   /* wt->draw_block ends up using same function to draw the tooltip as menu_back */
   wt->draw_block(&wt->wcol, rect, 0, 0, 1.0f);
 }
@@ -5532,7 +5566,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   uiWidgetStateInfo state = {0};
   state.but_flag = but_flag;
 
-  wt->state(wt, &state, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &state, blender::ui::EmbossType::Undefined);
   wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, 1.0f);
 
   UI_fontstyle_set(fstyle);
@@ -5627,7 +5661,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
       /* Set inactive state for grayed out text. */
       hint_state.but_flag |= UI_BUT_INACTIVE;
 
-      wt->state(wt, &hint_state, UI_EMBOSS_UNDEFINED);
+      wt->state(wt, &hint_state, blender::ui::EmbossType::Undefined);
 
       char hint_drawstr[UI_MAX_DRAW_STR];
       {
@@ -5654,7 +5688,8 @@ void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
                                     const blender::StringRef name,
                                     int iconid,
                                     const uchar text_col[4],
-                                    eFontStyle_Align text_align)
+                                    eFontStyle_Align text_align,
+                                    const bool add_padding)
 {
   rcti trect = *rect;
   const float text_size = UI_UNIT_Y;
@@ -5667,7 +5702,7 @@ void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
     rect->ymin += text_size;
   }
   GPU_blend(GPU_BLEND_ALPHA);
-  widget_draw_preview_icon(iconid, alpha, 1.0f, rect, text_col);
+  widget_draw_preview_icon(iconid, alpha, 1.0f, add_padding, rect, text_col);
   GPU_blend(GPU_BLEND_NONE);
 
   if (!has_text) {
@@ -5676,9 +5711,11 @@ void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
 
   /* text rect */
   trect.ymax = trect.ymin + text_size;
-  trect.ymin += PREVIEW_PAD;
-  trect.xmin += PREVIEW_PAD;
-  trect.xmax -= PREVIEW_PAD;
+  if (add_padding) {
+    trect.ymin += PREVIEW_PAD;
+    trect.xmin += PREVIEW_PAD;
+    trect.xmax -= PREVIEW_PAD;
+  }
 
   {
     char drawstr[UI_MAX_DRAW_STR];
@@ -5709,10 +5746,10 @@ void ui_draw_preview_item(const uiFontStyle *fstyle,
   state.but_flag = but_flag;
 
   /* drawing button background */
-  wt->state(wt, &state, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &state, blender::ui::EmbossType::Undefined);
   wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, 1.0f);
 
-  ui_draw_preview_item_stateless(fstyle, rect, name, iconid, wt->wcol.text, text_align);
+  ui_draw_preview_item_stateless(fstyle, rect, name, iconid, wt->wcol.text, text_align, true);
 }
 
 /** \} */

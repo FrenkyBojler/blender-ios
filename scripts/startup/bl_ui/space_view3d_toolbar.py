@@ -74,7 +74,7 @@ class VIEW3D_MT_brush_gpencil_context_menu(Menu):
             settings = tool_settings.gpencil_paint
         if context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
+        elif context.mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_weight_paint
         elif context.mode == 'VERTEX_GPENCIL':
             settings = tool_settings.gpencil_vertex_paint
@@ -408,7 +408,7 @@ class VIEW3D_PT_tools_brush_settings_advanced(Panel, View3DPaintBrushPanel):
         settings = UnifiedPaintPanel.paint_settings(context)
         brush = settings.brush
 
-        brush_settings_advanced(layout.column(), context, brush, self.is_popover)
+        brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
 
 
 class VIEW3D_PT_tools_brush_color(Panel, View3DPaintPanel):
@@ -2084,7 +2084,7 @@ class VIEW3D_PT_tools_grease_pencil_weight_paint_settings(Panel, View3DPanel, Gr
             )
             brush_basic_gpencil_weight_settings(layout, context, brush)
         else:
-            # Grease Pencil v3
+            # Grease Pencil
             from bl_ui.properties_paint_common import (
                 brush_basic_grease_pencil_weight_settings,
             )

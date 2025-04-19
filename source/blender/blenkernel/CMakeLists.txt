@@ -11,7 +11,6 @@ set(INC
   ../shader_fx
   ../simulation
   ../windowmanager
-  ../editors/include
   ../../../intern/eigen
   ../../../intern/ghost
   ../../../intern/iksolver/extern
@@ -211,8 +210,8 @@ set(SRC
   intern/mesh_runtime.cc
   intern/mesh_sample.cc
   intern/mesh_tangent.cc
-  intern/mesh_topology_state.cc
   intern/mesh_tessellate.cc
+  intern/mesh_topology_state.cc
   intern/mesh_validate.cc
   intern/mesh_wrapper.cc
   intern/modifier.cc
@@ -303,6 +302,7 @@ set(SRC
   intern/type_conversions.cc
   intern/undo_system.cc
   intern/unit.cc
+  intern/uvproject.cc
   intern/vfont.cc
   intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
@@ -364,6 +364,8 @@ set(SRC
   BKE_colorband.hh
   BKE_colortools.hh
   BKE_compositor.hh
+  BKE_compute_context_cache.hh
+  BKE_compute_context_cache_fwd.hh
   BKE_compute_contexts.hh
   BKE_constraint.h
   BKE_context.hh
@@ -492,7 +494,6 @@ set(SRC
   BKE_scene.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
-  BKE_sequencer_offscreen.h
   BKE_shader_fx.h
   BKE_shrinkwrap.hh
   BKE_softbody.h
@@ -515,6 +516,7 @@ set(SRC
   BKE_type_conversions.hh
   BKE_undo_system.hh
   BKE_unit.hh
+  BKE_uvproject.h
   BKE_vfont.hh
   BKE_vfontdata.hh
   BKE_viewer_path.hh
@@ -635,19 +637,19 @@ if(WITH_BULLET)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_WEBP)
-  add_definitions(-DWITH_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -837,9 +839,14 @@ if(WITH_GTESTS)
     intern/tracking_test.cc
     intern/volume_test.cc
   )
+  set(TEST_INC
+    # WARNING: this is a bad-level include which is only acceptable for tests
+    # and even then it would be good if the dependency could be removed.
+    ../editors/include
+  )
   set(TEST_LIB
     ${LIB}
     bf_rna  # RNA_prototypes.hh
   )
-  blender_add_test_suite_lib(blenkernel "${TEST_SRC}" "${INC}" "${INC_SYS}" "${TEST_LIB}")
+  blender_add_test_suite_lib(blenkernel "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()
