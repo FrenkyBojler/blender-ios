@@ -197,7 +197,6 @@ void mesh_calc_edges(Mesh &mesh,
     calc_edges::add_existing_edges_to_hash_maps(mesh, parallel_mask, edge_maps);
   }
   calc_edges::add_face_edges_to_hash_maps(mesh, parallel_mask, edge_maps);
-  printf(">> %s;\n", AT);
   Array<int> edge_sizes(edge_maps.size() + 1);
   for (const int i : edge_maps.index_range()) {
     edge_sizes[i] = edge_maps[i].size();
