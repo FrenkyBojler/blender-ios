@@ -95,7 +95,7 @@ class RandomizeLocRotSize(Operator):
         description="Seed value for the random generator",
         min=0,
         max=10000,
-        default=0,
+        default=1,
     )
     use_delta: BoolProperty(
         name="Transform Delta",
