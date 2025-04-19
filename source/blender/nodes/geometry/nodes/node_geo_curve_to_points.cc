@@ -162,32 +162,33 @@ static void layer_pointclouds_to_instances(const Span<PointCloud *> pointcloud_b
                                            GeometrySet &geometry)
 {
   if (!pointcloud_by_layer.is_empty()) {
-    bke::Instances *instances = new bke::Instances();
+    bke::Instances instances;
     for (PointCloud *pointcloud : pointcloud_by_layer) {
       if (!pointcloud) {
         /* Add an empty reference so the number of layers and instances match.
          * This makes it easy to reconstruct the layers afterwards and keep their
          * attributes. */
-        const int handle = instances->add_reference(bke::InstanceReference());
-        instances->add_instance(handle, float4x4::identity());
+        const int handle = instances.add_reference(bke::InstanceReference());
+        instances.add_instance(handle, float4x4::identity());
         continue;
       }
       GeometrySet temp_set = GeometrySet::from_pointcloud(pointcloud);
-      const int handle = instances->add_reference(bke::InstanceReference{temp_set});
-      instances->add_instance(handle, float4x4::identity());
+      const int handle = instances.add_reference(bke::InstanceReference{temp_set});
+      instances.add_instance(handle, float4x4::identity());
     }
 
     bke::copy_attributes(geometry.get_grease_pencil()->attributes(),
                          bke::AttrDomain::Layer,
                          bke::AttrDomain::Instance,
                          attribute_filter,
-                         instances->attributes_for_write());
-    InstancesComponent &dst_component = geometry.get_component_for_write<InstancesComponent>();
-    GeometrySet new_instances = geometry::join_geometries(
-        {GeometrySet::from_instances(dst_component.release()),
-         GeometrySet::from_instances(instances)},
-        attribute_filter);
-    dst_component.replace(new_instances.get_component_for_write<InstancesComponent>().release());
+                         instances.attributes_for_write());
+
+    bke::Instances *dst_instances = geometry.get_instances_for_write();
+    if (dst_instances == nullptr) {
+      dst_instances = new bke::Instances();
+      geometry.replace_instances(dst_instances);
+    }
+    geometry::join_instances_into(attribute_filter, {&instances}, *dst_instances);
   }
 }
 
