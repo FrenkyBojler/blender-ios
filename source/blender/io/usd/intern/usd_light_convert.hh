@@ -19,6 +19,7 @@ struct USDImportDomeLightAttr {
   float intensity;
   pxr::GfVec3f color;
   pxr::SdfAssetPath tex_path;
+  pxr::TfToken pole_axis;
 
   bool has_color;
   bool has_tex;
