@@ -25,6 +25,10 @@ struct USDImportDomeLightAttr {
   bool has_tex;
 };
 
+/**
+ * If the Blender scene has an environment texture,
+ * export it as a USD dome light.
+ */
 void world_material_to_dome_light(const USDExportParams &params,
                                   const Scene *scene,
                                   pxr::UsdStageRefPtr stage);
