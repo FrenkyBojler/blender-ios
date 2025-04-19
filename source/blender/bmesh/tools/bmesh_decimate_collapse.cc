@@ -368,7 +368,7 @@ struct KD_Symmetry_Data {
 
 static bool bm_edge_symmetry_check_cb(void *user_data,
                                       int index,
-                                      const float[3] /*co*/,
+                                      const float /*co*/[3],
                                       float /*dist_sq*/)
 {
   KD_Symmetry_Data *sym_data = static_cast<KD_Symmetry_Data *>(user_data);
@@ -662,8 +662,14 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
     BMLoop *l_a, *l_b;
     e = edges_tri[i];
     if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+      BMFace *f_double;
+
       BMFace *f_array[2] = {l_a->f, l_b->f};
-      BM_faces_join(bm, f_array, 2, false);
+      BM_faces_join(bm, f_array, 2, false, &f_double);
+      /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+      BLI_assert_msg(f_double == nullptr,
+                     "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
       if (e->l == nullptr) {
         BM_edge_kill(bm, e);
       }

@@ -26,7 +26,7 @@
 
 #include "mtl_framebuffer.hh"
 #include "mtl_shader_interface.hh"
-#include "mtl_shader_shared.h"
+#include "mtl_shader_shared.hh"
 #include "mtl_state.hh"
 #include "mtl_texture.hh"
 
@@ -84,8 +84,6 @@ struct MTLRenderPipelineStateInstance {
   int base_storage_buffer_index;
   /* buffer bind slot used for null attributes (-1 if not needed). */
   int null_attribute_buffer_index;
-  /* buffer bind used for transform feedback output buffer. */
-  int transform_feedback_buffer_index;
   /* Topology class. */
   MTLPrimitiveTopologyClass prim_type;
 
@@ -172,16 +170,6 @@ class MTLShader : public Shader {
  private:
   /* Context Handle. */
   MTLContext *context_ = nullptr;
-
-  /** Transform Feedback. */
-  /* Transform feedback mode. */
-  eGPUShaderTFBType transform_feedback_type_ = GPU_SHADER_TFB_NONE;
-  /* Transform feedback outputs written to TFB buffer. */
-  blender::Vector<std::string> tf_output_name_list_;
-  /* Whether transform feedback is currently active. */
-  bool transform_feedback_active_ = false;
-  /* Vertex buffer to write transform feedback data into. */
-  VertBuf *transform_feedback_vertbuf_ = nullptr;
 
   /** Shader source code. */
   MTLShaderBuilder *shd_builder_ = nullptr;
@@ -294,11 +282,6 @@ class MTLShader : public Shader {
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
 
-  void transform_feedback_names_set(Span<const char *> name_list,
-                                    const eGPUShaderTFBType geom_type) override;
-  bool transform_feedback_enable(VertBuf *buf) override;
-  void transform_feedback_disable() override;
-
   void bind() override;
   void unbind() override;
 
@@ -306,12 +289,6 @@ class MTLShader : public Shader {
   void uniform_int(int location, int comp_len, int array_size, const int *data) override;
   bool get_push_constant_is_dirty();
   void push_constant_bindstate_mark_dirty(bool is_dirty);
-
-  /* DEPRECATED: Kept only because of BGL API. (Returning -1 in METAL). */
-  int program_handle_get() const override
-  {
-    return -1;
-  }
 
   /* Metal shader properties and source mapping. */
   void set_vertex_function_name(NSString *vetex_function_name);
@@ -335,9 +312,6 @@ class MTLShader : public Shader {
   {
     return compute_pso_common_state_;
   }
-  /* Transform Feedback. */
-  VertBuf *get_transform_feedback_active_buffer();
-  bool has_transform_feedback_varying(std::string str);
 
  private:
   /* Generate MSL shader from GLSL source. */

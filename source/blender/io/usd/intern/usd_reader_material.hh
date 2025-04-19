@@ -8,6 +8,7 @@
 #include "WM_types.hh"
 
 #include "BLI_map.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include <pxr/usd/usdShade/material.h>
@@ -18,6 +19,7 @@ struct Main;
 struct Material;
 struct bNode;
 struct bNodeTree;
+struct ReportList;
 
 namespace blender::io::usd {
 
@@ -122,7 +124,7 @@ class USDMaterialReader {
   /** Convert the given USD shader input to an input on the given Blender node. */
   bool set_node_input(const pxr::UsdShadeInput &usd_input,
                       bNode *dest_node,
-                      const char *dest_socket_name,
+                      const StringRefNull dest_socket_name,
                       bNodeTree *ntree,
                       int column,
                       NodePlacementContext *r_ctx,
@@ -134,7 +136,7 @@ class USDMaterialReader {
    */
   bool follow_connection(const pxr::UsdShadeInput &usd_input,
                          bNode *dest_node,
-                         const char *dest_socket_name,
+                         const StringRefNull dest_socket_name,
                          bNodeTree *ntree,
                          int column,
                          NodePlacementContext *r_ctx,
@@ -143,7 +145,7 @@ class USDMaterialReader {
   void convert_usd_uv_texture(const pxr::UsdShadeShader &usd_shader,
                               const pxr::TfToken &usd_source_name,
                               bNode *dest_node,
-                              const char *dest_socket_name,
+                              const StringRefNull dest_socket_name,
                               bNodeTree *ntree,
                               int column,
                               NodePlacementContext *r_ctx,
@@ -151,7 +153,7 @@ class USDMaterialReader {
 
   void convert_usd_transform_2d(const pxr::UsdShadeShader &usd_shader,
                                 bNode *dest_node,
-                                const char *dest_socket_name,
+                                const StringRefNull dest_socket_name,
                                 bNodeTree *ntree,
                                 int column,
                                 NodePlacementContext *r_ctx) const;
@@ -173,7 +175,7 @@ class USDMaterialReader {
   void convert_usd_primvar_reader_float2(const pxr::UsdShadeShader &usd_shader,
                                          const pxr::TfToken &usd_source_name,
                                          bNode *dest_node,
-                                         const char *dest_socket_name,
+                                         const StringRefNull dest_socket_name,
                                          bNodeTree *ntree,
                                          int column,
                                          NodePlacementContext *r_ctx) const;
@@ -187,7 +189,7 @@ class USDMaterialReader {
  * might be modified to be a valid USD identifier, to match material
  * names in the imported USD.
  */
-void build_material_map(const Main *bmain, blender::Map<std::string, Material *> *r_mat_map);
+void build_material_map(const Main *bmain, blender::Map<std::string, Material *> &r_mat_map);
 
 /**
  * Returns an existing Blender material that corresponds to the USD material with the given path.
@@ -205,6 +207,6 @@ void build_material_map(const Main *bmain, blender::Map<std::string, Material *>
 Material *find_existing_material(const pxr::SdfPath &usd_mat_path,
                                  const USDImportParams &params,
                                  const blender::Map<std::string, Material *> &mat_map,
-                                 const blender::Map<std::string, Material *> &usd_path_to_mat);
+                                 const blender::Map<pxr::SdfPath, Material *> &usd_path_to_mat);
 
 }  // namespace blender::io::usd

@@ -18,7 +18,6 @@
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
-#include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -41,7 +40,7 @@ static void cmp_node_crop_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_crop(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTwoXYs *nxy = MEM_cnew<NodeTwoXYs>(__func__);
+  NodeTwoXYs *nxy = MEM_callocN<NodeTwoXYs>(__func__);
   node->storage = nxy;
   nxy->x1 = 0;
   nxy->x2 = 0;
@@ -79,9 +78,10 @@ class CropOperation : public NodeOperation {
 
   void execute() override
   {
-    /* The operation does nothing, so just pass the input through. */
-    if (is_identity()) {
-      get_input("Image").pass_through(get_result("Image"));
+    if (this->is_identity()) {
+      const Result &input = get_input("Image");
+      Result &output = get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -304,8 +304,8 @@ void register_node_type_cmp_crop()
   ntype.draw_buttons = file_ns::node_composit_buts_crop;
   ntype.initfunc = file_ns::node_composit_init_crop;
   blender::bke::node_type_storage(
-      &ntype, "NodeTwoXYs", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeTwoXYs", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

@@ -10,9 +10,7 @@
 
 #include "BPy_Convert.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "../generic/py_capi_utils.hh"
 
 using namespace Freestyle;
 
@@ -143,7 +141,7 @@ static PyObject *StrokeAttribute_repr(BPy_StrokeAttribute *self)
        << " b: " << self->sa->getColorB() << " a: " << self->sa->getAlpha()
        << " - R: " << self->sa->getThicknessR() << " L: " << self->sa->getThicknessL();
 
-  return PyUnicode_FromString(repr.str().c_str());
+  return PyC_UnicodeFromStdStr(repr.str());
 }
 
 PyDoc_STRVAR(
@@ -400,6 +398,16 @@ static PyObject *StrokeAttribute_set_attribute_vec3(BPy_StrokeAttribute *self,
   Py_RETURN_NONE;
 }
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 static PyMethodDef BPy_StrokeAttribute_methods[] = {
     {"get_attribute_real",
      (PyCFunction)StrokeAttribute_get_attribute_real,
@@ -439,6 +447,14 @@ static PyMethodDef BPy_StrokeAttribute_methods[] = {
      StrokeAttribute_set_attribute_vec3_doc},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
 
 /*----------------------mathutils callbacks ----------------------------*/
 
@@ -736,7 +752,3 @@ PyTypeObject StrokeAttribute_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

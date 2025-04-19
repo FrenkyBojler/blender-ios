@@ -23,6 +23,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
@@ -41,10 +42,10 @@
 #include "UI_resources.hh"
 
 #include "draw_cache.hh"
-#include "draw_common_c.hh"
+#include "draw_context_private.hh"
 #include "draw_manager_text.hh"
 
-#include "overlay_next_armature.hh"
+#include "overlay_armature.hh"
 
 #include "draw_cache_impl.hh"
 
@@ -528,7 +529,7 @@ static void drw_shgroup_bone_custom_solid(const Armatures::DrawContext *ctx,
 
   if (ELEM(custom->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     drw_shgroup_custom_bone_curve(ctx,
-                                  static_cast<Curve *>(custom->data),
+                                  &DRW_object_get_data_for_drawing<Curve>(*custom),
                                   bone_mat,
                                   outline_color,
                                   wire_width,
@@ -552,8 +553,13 @@ static void drw_shgroup_bone_custom_wire(const Armatures::DrawContext *ctx,
   }
 
   if (ELEM(custom->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
-    drw_shgroup_custom_bone_curve(
-        ctx, static_cast<Curve *>(custom->data), bone_mat, color, wire_width, select_id, custom);
+    drw_shgroup_custom_bone_curve(ctx,
+                                  &DRW_object_get_data_for_drawing<Curve>(*custom),
+                                  bone_mat,
+                                  color,
+                                  wire_width,
+                                  select_id,
+                                  custom);
   }
 }
 
@@ -598,7 +604,8 @@ static void drw_shgroup_bone_custom_empty(const Armatures::DrawContext *ctx,
   const float4 final_color(UNPACK3(color), 1.0f);
 
   draw::overlay::BoneInstanceData inst_data;
-  inst_data.mat44 = ctx->ob->object_to_world() * float4x4(bone_mat);
+  inst_data.mat44 = ctx->ob->object_to_world() * float4x4(bone_mat) *
+                    math::from_scale<float4x4>(float3(custom->empty_drawsize));
   inst_data.set_hint_color(final_color);
   inst_data.set_color(float4(UNPACK3(final_color), wire_width / WIRE_WIDTH_COMPRESSION));
 
@@ -656,29 +663,32 @@ static void drw_shgroup_bone_relationship_lines(const Armatures::DrawContext *ct
                                                 const float start[3],
                                                 const float end[3])
 {
-  drw_shgroup_bone_relationship_lines_ex(ctx, start, end, G_draw.block.color_wire);
+  const GlobalsUboStorage &theme = ctx->res->theme_settings;
+  drw_shgroup_bone_relationship_lines_ex(ctx, start, end, theme.color_wire);
 }
 
 static void drw_shgroup_bone_ik_lines(const Armatures::DrawContext *ctx,
                                       const float start[3],
                                       const float end[3])
 {
-  drw_shgroup_bone_relationship_lines_ex(ctx, start, end, G_draw.block.color_bone_ik_line);
+  const GlobalsUboStorage &theme = ctx->res->theme_settings;
+  drw_shgroup_bone_relationship_lines_ex(ctx, start, end, theme.color_bone_ik_line);
 }
 
 static void drw_shgroup_bone_ik_no_target_lines(const Armatures::DrawContext *ctx,
                                                 const float start[3],
                                                 const float end[3])
 {
-  drw_shgroup_bone_relationship_lines_ex(
-      ctx, start, end, G_draw.block.color_bone_ik_line_no_target);
+  const GlobalsUboStorage &theme = ctx->res->theme_settings;
+  drw_shgroup_bone_relationship_lines_ex(ctx, start, end, theme.color_bone_ik_line_no_target);
 }
 
 static void drw_shgroup_bone_ik_spline_lines(const Armatures::DrawContext *ctx,
                                              const float start[3],
                                              const float end[3])
 {
-  drw_shgroup_bone_relationship_lines_ex(ctx, start, end, G_draw.block.color_bone_ik_line_spline);
+  const GlobalsUboStorage &theme = ctx->res->theme_settings;
+  drw_shgroup_bone_relationship_lines_ex(ctx, start, end, theme.color_bone_ik_line_spline);
 }
 
 /** \} */
@@ -693,9 +703,9 @@ static void drw_shgroup_bone_ik_spline_lines(const Armatures::DrawContext *ctx,
 /* This function sets the color-set for coloring a certain bone */
 static void set_ctx_bcolor(Armatures::DrawContext *ctx, const UnifiedBonePtr bone)
 {
-  bArmature *arm = static_cast<bArmature *>(ctx->ob->data);
+  bArmature &arm = DRW_object_get_data_for_drawing<bArmature>(*ctx->ob);
 
-  if ((arm->flag & ARM_COL_CUSTOM) == 0) {
+  if ((arm.flag & ARM_COL_CUSTOM) == 0) {
     /* Only set a custom color if that's enabled on this armature. */
     ctx->bcolor = nullptr;
     return;
@@ -741,7 +751,8 @@ static void use_bone_color(float *r_color, const uint8_t *color_from_theme, cons
   srgb_to_linearrgb_v4(r_color, r_color);
 };
 
-static void get_pchan_color_wire(const ThemeWireColor *bcolor,
+static void get_pchan_color_wire(const GlobalsUboStorage &theme,
+                                 const ThemeWireColor *bcolor,
                                  const eArmatureDrawMode draw_mode,
                                  const eBone_Flag boneflag,
                                  float r_color[4])
@@ -767,34 +778,36 @@ static void get_pchan_color_wire(const ThemeWireColor *bcolor,
   }
   else {
     if (draw_active && draw_selected) {
-      wire_color = is_edit ? G_draw.block.color_bone_active : G_draw.block.color_bone_pose_active;
+      wire_color = is_edit ? theme.color_bone_active : theme.color_bone_pose_active;
     }
     else if (draw_active) {
-      wire_color = is_edit ? G_draw.block.color_bone_active_unsel :
-                             G_draw.block.color_bone_pose_active_unsel;
+      wire_color = is_edit ? theme.color_bone_active_unsel : theme.color_bone_pose_active_unsel;
     }
     else if (draw_selected) {
-      wire_color = is_edit ? G_draw.block.color_bone_select : G_draw.block.color_bone_pose;
+      wire_color = is_edit ? theme.color_bone_select : theme.color_bone_pose;
     }
     else {
-      wire_color = is_edit ? G_draw.block.color_wire_edit : G_draw.block.color_wire;
+      wire_color = is_edit ? theme.color_wire_edit : theme.color_wire;
     }
     copy_v4_v4(r_color, wire_color);
   }
 }
 
-static void get_pchan_color_solid(const ThemeWireColor *bcolor, float r_color[4])
+static void get_pchan_color_solid(const GlobalsUboStorage &theme,
+                                  const ThemeWireColor *bcolor,
+                                  float r_color[4])
 {
 
   if (bcolor) {
     use_bone_color(r_color, bcolor->solid, 0);
   }
   else {
-    copy_v4_v4(r_color, G_draw.block.color_bone_solid);
+    copy_v4_v4(r_color, theme.color_bone_solid);
   }
 }
 
-static void get_pchan_color_constraint(const ThemeWireColor *bcolor,
+static void get_pchan_color_constraint(const GlobalsUboStorage &theme,
+                                       const ThemeWireColor *bcolor,
                                        const UnifiedBonePtr bone,
                                        float r_color[4])
 {
@@ -805,26 +818,26 @@ static void get_pchan_color_constraint(const ThemeWireColor *bcolor,
   if ((constflag & flags_to_color) == 0 ||
       (bcolor && (bcolor->flag & TH_WIRECOLOR_CONSTCOLS) == 0))
   {
-    get_pchan_color_solid(bcolor, r_color);
+    get_pchan_color_solid(theme, bcolor, r_color);
     return;
   }
 
   /* The constraint color needs to be blended with the solid color. */
   float solid_color[4];
-  get_pchan_color_solid(bcolor, solid_color);
+  get_pchan_color_solid(theme, bcolor, solid_color);
 
   float4 constraint_color;
   if (constflag & PCHAN_HAS_NO_TARGET) {
-    constraint_color = G_draw.block.color_bone_pose_no_target;
+    constraint_color = theme.color_bone_pose_no_target;
   }
   else if (constflag & PCHAN_HAS_IK) {
-    constraint_color = G_draw.block.color_bone_pose_ik;
+    constraint_color = theme.color_bone_pose_ik;
   }
   else if (constflag & PCHAN_HAS_SPLINEIK) {
-    constraint_color = G_draw.block.color_bone_pose_spline_ik;
+    constraint_color = theme.color_bone_pose_spline_ik;
   }
   else if (constflag & PCHAN_HAS_CONST) {
-    constraint_color = G_draw.block.color_bone_pose_constraint;
+    constraint_color = theme.color_bone_pose_constraint;
   }
   interp_v4_v4v4(r_color, solid_color, constraint_color, 0.5f);
 }
@@ -835,9 +848,9 @@ static void get_pchan_color_constraint(const ThemeWireColor *bcolor,
 /** \name Drawing Color Helpers
  * \{ */
 
-static void bone_locked_color_shade(float color[4])
+static void bone_locked_color_shade(const GlobalsUboStorage &theme, float color[4])
 {
-  float *locked_color = G_draw.block.color_bone_locked;
+  const float *locked_color = theme.color_bone_locked;
 
   interp_v3_v3v3(color, color, locked_color, locked_color[3]);
 }
@@ -845,15 +858,16 @@ static void bone_locked_color_shade(float color[4])
 static const float *get_bone_solid_color(const Armatures::DrawContext *ctx,
                                          const eBone_Flag boneflag)
 {
+  const GlobalsUboStorage &theme = ctx->res->theme_settings;
   if (ctx->const_color) {
-    return G_draw.block.color_bone_solid;
+    return theme.color_bone_solid;
   }
 
   static float disp_color[4];
-  get_pchan_color_solid(ctx->bcolor, disp_color);
+  get_pchan_color_solid(theme, ctx->bcolor, disp_color);
 
   if (ctx->draw_mode == ARM_DRAW_MODE_POSE && (boneflag & BONE_DRAW_LOCKED_WEIGHT)) {
-    bone_locked_color_shade(disp_color);
+    bone_locked_color_shade(theme, disp_color);
   }
 
   return disp_color;
@@ -863,8 +877,9 @@ static const float *get_bone_solid_with_consts_color(const Armatures::DrawContex
                                                      const UnifiedBonePtr bone,
                                                      const eBone_Flag boneflag)
 {
+  const GlobalsUboStorage &theme = ctx->res->theme_settings;
   if (ctx->const_color) {
-    return G_draw.block.color_bone_solid;
+    return theme.color_bone_solid;
   }
 
   const float *col = get_bone_solid_color(ctx, boneflag);
@@ -874,7 +889,7 @@ static const float *get_bone_solid_with_consts_color(const Armatures::DrawContex
   }
 
   static float consts_color[4];
-  get_pchan_color_constraint(ctx->bcolor, bone, consts_color);
+  get_pchan_color_constraint(theme, ctx->bcolor, bone, consts_color);
   return consts_color;
 }
 
@@ -899,19 +914,20 @@ static const float *get_bone_wire_color(const Armatures::DrawContext *ctx,
     copy_v3_v3(disp_color, ctx->const_color);
   }
   else {
+    const GlobalsUboStorage &theme = ctx->res->theme_settings;
     switch (ctx->draw_mode) {
       case ARM_DRAW_MODE_EDIT:
-        get_pchan_color_wire(ctx->bcolor, ctx->draw_mode, boneflag, disp_color);
+        get_pchan_color_wire(theme, ctx->bcolor, ctx->draw_mode, boneflag, disp_color);
         break;
       case ARM_DRAW_MODE_POSE:
-        get_pchan_color_wire(ctx->bcolor, ctx->draw_mode, boneflag, disp_color);
+        get_pchan_color_wire(theme, ctx->bcolor, ctx->draw_mode, boneflag, disp_color);
 
         if (boneflag & BONE_DRAW_LOCKED_WEIGHT) {
-          bone_locked_color_shade(disp_color);
+          bone_locked_color_shade(theme, disp_color);
         }
         break;
       case ARM_DRAW_MODE_OBJECT:
-        copy_v3_v3(disp_color, G_draw.block.color_vertex);
+        copy_v3_v3(disp_color, theme.color_vertex);
         break;
     }
   }
@@ -936,7 +952,7 @@ static const float *get_bone_hint_color(const Armatures::DrawContext *ctx,
   static float hint_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
   if (ctx->const_color) {
-    bone_hint_color_shade(hint_color, G_draw.block.color_bone_solid);
+    bone_hint_color_shade(hint_color, ctx->res->theme_settings.color_bone_solid);
   }
   else {
     const float *wire_color = get_bone_wire_color(ctx, boneflag);
@@ -1203,17 +1219,17 @@ static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone)
 
 static void draw_axes(const Armatures::DrawContext *ctx,
                       const UnifiedBonePtr bone,
-                      const bArmature *arm)
+                      const bArmature &arm)
 {
   float final_col[4];
   const float *col = (ctx->const_color)            ? ctx->const_color :
-                     (bone.flag() & BONE_SELECTED) ? &G_draw.block.color_text_hi.x :
-                                                     &G_draw.block.color_text.x;
+                     (bone.flag() & BONE_SELECTED) ? &ctx->res->theme_settings.color_text_hi.x :
+                                                     &ctx->res->theme_settings.color_text.x;
   copy_v4_v4(final_col, col);
   /* Mix with axes color. */
   final_col[3] = (ctx->const_color) ? 1.0 : (bone.flag() & BONE_SELECTED) ? 0.1 : 0.65;
 
-  if (bone.is_posebone() && bone.as_posebone()->custom && !(arm->flag & ARM_NO_CUSTOM)) {
+  if (bone.is_posebone() && bone.as_posebone()->custom && !(arm.flag & ARM_NO_CUSTOM)) {
     const bPoseChannel *pchan = bone.as_posebone();
     /* Special case: Custom bones can have different scale than the bone.
      * Recompute display matrix without the custom scaling applied. (#65640). */
@@ -1222,14 +1238,14 @@ static void draw_axes(const Armatures::DrawContext *ctx,
     copy_m4_m4(axis_mat, pchan->custom_tx ? pchan->custom_tx->pose_mat : pchan->pose_mat);
     const float3 length_vec = {length, length, length};
     rescale_m4(axis_mat, length_vec);
-    translate_m4(axis_mat, 0.0, arm->axes_position - 1.0, 0.0);
+    translate_m4(axis_mat, 0.0, arm.axes_position - 1.0, 0.0);
 
     drw_shgroup_bone_axes(ctx, axis_mat, final_col);
   }
   else {
     float disp_mat[4][4];
     copy_m4_m4(disp_mat, bone.disp_mat());
-    translate_m4(disp_mat, 0.0, arm->axes_position - 1.0, 0.0);
+    translate_m4(disp_mat, 0.0, arm.axes_position - 1.0, 0.0);
     drw_shgroup_bone_axes(ctx, disp_mat, final_col);
   }
 }
@@ -1243,8 +1259,10 @@ static void draw_points(const Armatures::DrawContext *ctx,
   float col_wire_root[4], col_wire_tail[4];
   float col_hint_root[4], col_hint_tail[4];
 
-  copy_v4_v4(col_wire_root, (ctx->const_color) ? ctx->const_color : &G_draw.block.color_vertex.x);
-  copy_v4_v4(col_wire_tail, (ctx->const_color) ? ctx->const_color : &G_draw.block.color_vertex.x);
+  const GlobalsUboStorage &theme = ctx->res->theme_settings;
+
+  copy_v4_v4(col_wire_root, (ctx->const_color) ? ctx->const_color : &theme.color_vertex.x);
+  copy_v4_v4(col_wire_tail, (ctx->const_color) ? ctx->const_color : &theme.color_vertex.x);
 
   const bool is_envelope_draw = (ctx->drawtype == ARM_ENVELOPE);
   const float envelope_ignore = -1.0f;
@@ -1255,10 +1273,10 @@ static void draw_points(const Armatures::DrawContext *ctx,
   if (ctx->draw_mode == ARM_DRAW_MODE_EDIT) {
     const EditBone *eBone = bone.as_editbone();
     if (eBone->flag & BONE_ROOTSEL) {
-      copy_v3_v3(col_wire_root, G_draw.block.color_vertex_select);
+      copy_v3_v3(col_wire_root, theme.color_vertex_select);
     }
     if (eBone->flag & BONE_TIPSEL) {
-      copy_v3_v3(col_wire_tail, G_draw.block.color_vertex_select);
+      copy_v3_v3(col_wire_tail, theme.color_vertex_select);
     }
   }
   else if (ctx->draw_mode == ARM_DRAW_MODE_POSE) {
@@ -1267,12 +1285,10 @@ static void draw_points(const Armatures::DrawContext *ctx,
     copy_v4_v4(col_wire_root, wire_color);
   }
 
-  const float *hint_color_shade_root = (ctx->const_color) ?
-                                           (const float *)G_draw.block.color_bone_solid :
-                                           col_wire_root;
-  const float *hint_color_shade_tail = (ctx->const_color) ?
-                                           (const float *)G_draw.block.color_bone_solid :
-                                           col_wire_tail;
+  const float *hint_color_shade_root = (ctx->const_color) ? (const float *)theme.color_bone_solid :
+                                                            col_wire_root;
+  const float *hint_color_shade_tail = (ctx->const_color) ? (const float *)theme.color_bone_solid :
+                                                            col_wire_tail;
   bone_hint_color_shade(col_hint_root, hint_color_shade_root);
   bone_hint_color_shade(col_hint_tail, hint_color_shade_tail);
 
@@ -1346,7 +1362,7 @@ static void draw_bone_degrees_of_freedom(const Armatures::DrawContext *ctx,
   /* ... but its own rest-space. */
   mul_m4_m4m3(posetrans, posetrans, pchan->bone->bone_mat);
 
-  float scale = pchan->bone->length * pchan->size[1];
+  float scale = pchan->bone->length * pchan->scale[1];
   scale_m4_fl(tmp, scale);
   tmp[1][1] = -tmp[1][1];
   mul_m4_m4m4(posetrans, posetrans, tmp);
@@ -1727,15 +1743,17 @@ class ArmatureBoneDrawStrategyLine : public ArmatureBoneDrawStrategy {
       col_bone = col_head = col_tail = ctx->const_color;
     }
     else {
+      const GlobalsUboStorage &theme = ctx->res->theme_settings;
+
       if (bone.is_editbone() && bone.flag() & BONE_TIPSEL) {
-        col_tail = &G_draw.block.color_vertex_select.x;
+        col_tail = &theme.color_vertex_select.x;
       }
 
       /* Draw root point if we are not connected to our parent. */
       if (!(bone.has_parent() && (boneflag & BONE_CONNECTED))) {
 
         if (bone.is_editbone()) {
-          col_head = (bone.flag() & BONE_ROOTSEL) ? &G_draw.block.color_vertex_select.x : col_bone;
+          col_head = (bone.flag() & BONE_ROOTSEL) ? &theme.color_vertex_select.x : col_bone;
         }
         else {
           col_head = col_bone;
@@ -1954,12 +1972,12 @@ namespace {
  *
  * See the functions below.
  */
-static ArmatureBoneDrawStrategyOcta strat_octa;
-static ArmatureBoneDrawStrategyLine strat_line;
-static ArmatureBoneDrawStrategyBBone strat_b_bone;
-static ArmatureBoneDrawStrategyEnvelope strat_envelope;
-static ArmatureBoneDrawStrategyWire strat_wire;
-static ArmatureBoneDrawStrategyEmpty strat_empty;
+ArmatureBoneDrawStrategyOcta strat_octa;
+ArmatureBoneDrawStrategyLine strat_line;
+ArmatureBoneDrawStrategyBBone strat_b_bone;
+ArmatureBoneDrawStrategyEnvelope strat_envelope;
+ArmatureBoneDrawStrategyWire strat_wire;
+ArmatureBoneDrawStrategyEmpty strat_empty;
 };  // namespace
 
 /**
@@ -1997,29 +2015,29 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
   Object *ob = ctx->ob;
   EditBone *eBone;
   int index;
-  const bool is_select = DRW_state_is_select();
-  const bool show_text = DRW_state_show_text();
+  const bool is_select = ctx->res->is_selection();
+  const bool show_text = ctx->show_text;
 
-  const Object *ob_orig = DEG_get_original_object(ob);
+  const Object *ob_orig = DEG_get_original(ob);
   /* FIXME(@ideasman42): We should be able to use the evaluated object,
    * however the active bone isn't updated. Long term solution is an 'EditArmature' struct.
    * for now we can draw from the original armature. See: #66773. */
   // bArmature *arm = ob->data;
-  bArmature *arm = static_cast<bArmature *>(ob_orig->data);
+  bArmature &arm = DRW_object_get_data_for_drawing<bArmature>(*ob_orig);
 
-  edbo_compute_bbone_child(arm);
+  edbo_compute_bbone_child(&arm);
 
   /* Determine drawing strategy. */
   const ArmatureBoneDrawStrategy &draw_strat = strategy_for_armature_drawtype(
-      eArmature_Drawtype(arm->drawtype));
+      eArmature_Drawtype(arm.drawtype));
 
-  for (eBone = static_cast<EditBone *>(arm->edbo->first),
+  for (eBone = static_cast<EditBone *>(arm.edbo->first),
       /* Note: Selection Next handles the object id merging later. */
        index = ctx->bone_buf ? 0x0 : ob_orig->runtime->select_id;
        eBone;
        eBone = eBone->next, index += 0x10000)
   {
-    if (!EBONE_VISIBLE(arm, eBone)) {
+    if (!EBONE_VISIBLE(&arm, eBone)) {
       continue;
     }
 
@@ -2027,12 +2045,12 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
 
     /* catch exception for bone with hidden parent */
     eBone_Flag boneflag = eBone_Flag(eBone->flag);
-    if ((eBone->parent) && !EBONE_VISIBLE(arm, eBone->parent)) {
+    if ((eBone->parent) && !EBONE_VISIBLE(&arm, eBone->parent)) {
       boneflag &= ~BONE_CONNECTED;
     }
 
     /* set temporary flag for drawing bone as active, but only if selected */
-    if (eBone == arm->act_edbone) {
+    if (eBone == arm.act_edbone) {
       boneflag |= BONE_DRAW_ACTIVE;
     }
 
@@ -2051,11 +2069,11 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
     draw_strat.draw_bone(ctx, bone, boneflag, select_id);
 
     if (!is_select) {
-      if (show_text && (arm->flag & ARM_DRAWNAMES)) {
+      if (show_text && (arm.flag & ARM_DRAWNAMES)) {
         draw_bone_name(ctx, bone, boneflag);
       }
 
-      if (arm->flag & ARM_DRAWAXES) {
+      if (arm.flag & ARM_DRAWAXES) {
         draw_axes(ctx, bone, arm);
       }
     }
@@ -2065,11 +2083,11 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
 void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
 {
   Object *ob = ctx->ob;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const Scene *scene = draw_ctx->scene;
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature &arm = DRW_object_get_data_for_drawing<bArmature>(*ob);
   int index = -1;
-  const bool show_text = DRW_state_show_text();
+  const bool show_text = ctx->show_text;
   bool draw_locked_weights = false;
 
   /* We can't safely draw non-updated pose, might contain nullptr bone pointers... */
@@ -2100,10 +2118,10 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
                   * (selection code ensures this won't become active). */
                  ((draw_ctx->object_mode & OB_MODE_ALL_WEIGHT_PAINT) &&
                   (draw_ctx->object_pose != nullptr))))) &&
-        DRW_state_is_select();
+        ctx->res->is_selection();
 
     if (is_pose_select) {
-      const Object *ob_orig = DEG_get_original_object(ob);
+      const Object *ob_orig = DEG_get_original(ob);
       /* Note: Selection Next handles the object id merging later. */
       index = ctx->bone_buf ? 0x0 : ob_orig->runtime->select_id;
     }
@@ -2119,7 +2137,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
       pchan->bone->flag &= ~BONE_DRAW_LOCKED_WEIGHT;
     }
 
-    const Object *obact_orig = DEG_get_original_object(draw_ctx->obact);
+    const Object *obact_orig = DEG_get_original(draw_ctx->obact);
 
     const ListBase *defbase = BKE_object_defgroup_list(obact_orig);
     for (const bDeformGroup *dg : ConstListBaseWrapper<bDeformGroup>(defbase)) {
@@ -2137,14 +2155,14 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
   }
 
   const ArmatureBoneDrawStrategy &draw_strat_normal = strategy_for_armature_drawtype(
-      eArmature_Drawtype(arm->drawtype));
+      eArmature_Drawtype(arm.drawtype));
   const ArmatureBoneDrawStrategyCustomShape draw_strat_custom;
 
   for (bPoseChannel *pchan = static_cast<bPoseChannel *>(ob->pose->chanbase.first); pchan;
        pchan = pchan->next, index += 0x10000)
   {
     Bone *bone = pchan->bone;
-    if (!ANIM_bone_is_visible(arm, bone)) {
+    if (!ANIM_bone_is_visible(&arm, bone)) {
       continue;
     }
 
@@ -2167,7 +2185,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
       /* Avoid drawing connection line to hidden parent. */
       boneflag &= ~BONE_CONNECTED;
     }
-    if (bone == arm->act_bone) {
+    if (bone == arm.act_bone) {
       /* Draw bone as active, but only if selected. */
       boneflag |= BONE_DRAW_ACTIVE;
     }
@@ -2175,7 +2193,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
       boneflag &= ~BONE_DRAW_LOCKED_WEIGHT;
     }
 
-    const bool use_custom_shape = (pchan->custom) && !(arm->flag & ARM_NO_CUSTOM);
+    const bool use_custom_shape = (pchan->custom) && !(arm.flag & ARM_NO_CUSTOM);
     const ArmatureBoneDrawStrategy &draw_strat = use_custom_shape ? draw_strat_custom :
                                                                     draw_strat_normal;
     if (!is_pose_select) {
@@ -2193,10 +2211,10 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
     if (draw_dofs) {
       draw_bone_degrees_of_freedom(ctx, pchan);
     }
-    if (show_text && (arm->flag & ARM_DRAWNAMES)) {
+    if (show_text && (arm.flag & ARM_DRAWNAMES)) {
       draw_bone_name(ctx, bone_ptr, boneflag);
     }
-    if (arm->flag & ARM_DRAWAXES) {
+    if (arm.flag & ARM_DRAWAXES) {
       draw_axes(ctx, bone_ptr, arm);
     }
   }
