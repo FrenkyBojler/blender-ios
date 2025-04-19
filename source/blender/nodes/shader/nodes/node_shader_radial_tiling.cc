@@ -24,10 +24,21 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
 
-  b.add_output<decl::Vector>("Segment Coordinates").no_muted_links();
-  b.add_output<decl::Float>("Segment ID").no_muted_links();
-  b.add_output<decl::Float>("Max Unit Parameter").no_muted_links();
-  b.add_output<decl::Float>("X_axis To Angle Bisector Angle").no_muted_links();
+  b.add_output<decl::Vector>("Segment Coordinates")
+      .no_muted_links()
+      .description("Coordinate system for every angular segment");
+  b.add_output<decl::Float>("Segment ID")
+      .no_muted_links()
+      .description(
+          "Unique ID for every angular segment starting at 0 and increasing counterclockwise by "
+          "1");
+  b.add_output<decl::Float>("Max Unit Parameter")
+      .no_muted_links()
+      .description("Maximum X-coordinate value at Y-coordinate = 0 assuming no normalization");
+  b.add_output<decl::Float>("X_axis To Angle Bisector Angle")
+      .no_muted_links()
+      .description(
+          "Angle between the Y-axis of each segment coordinate system and the global X-axis");
 
   b.add_input<decl::Vector>("Vector")
       .default_value(float3{0.0f, 0.0f, 0.0f})
@@ -44,7 +55,7 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
-      .description("Corner roundness of the rounded polygon");
+      .description("Roundness of the segment coordinates");
 }
 
 static void node_shader_buts_radial_tiling(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
