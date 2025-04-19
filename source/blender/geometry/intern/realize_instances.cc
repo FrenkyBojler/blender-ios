@@ -1137,7 +1137,7 @@ static void execute_instances_tasks(
     attributes_for_join[i] = *src_components[i]->attributes();
   }
   join_attributes(attributes_for_join.as_span(),
-                  bke::get_final_attribute_types(
+                  bke::interpolated_attribute_types(
                       attributes_for_join.as_span(),
                       bke::attribute_filter_with_skip_ref(
                           options.attribute_filter, {".reference_index", "instance_transform"})),

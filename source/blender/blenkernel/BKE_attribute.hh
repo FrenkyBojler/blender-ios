@@ -23,23 +23,13 @@
 
 struct Mesh;
 struct PointCloud;
-namespace blender {
-template<typename Key,
-         typename Value,
-         int64_t InlineBufferCapacity,
-         typename ProbingStrategy,
-         typename Hash,
-         typename IsEqual,
-         typename Slot,
-         typename Allocator>
-class Map;
-namespace fn {
+namespace blender::fn {
 namespace multi_function {
 class MultiFunction;
 }
 class GField;
-}  // namespace fn
-}  // namespace blender
+}  // namespace blender::fn
+
 namespace blender::bke {
 
 enum class AttrDomain : int8_t {
@@ -502,6 +492,8 @@ struct AttributeAccessorFunctions {
  *
  * Note, this does not own the attributes. When the owner is freed, it is invalid to access its
  * attributes.
+ *
+ * Default initialized assessor result in undefined behavior.
  */
 class AttributeAccessor {
  protected:
@@ -909,7 +901,11 @@ eCustomDataType attribute_data_type_highest_complexity(Span<eCustomDataType> dat
  */
 AttrDomain attribute_domain_highest_priority(Span<AttrDomain> domains);
 
-Map<StringRef, eCustomDataType> get_final_attribute_types(
+/**
+ * In order to place attributes from different sources in the same layout, they types have to be
+ * interpolated.
+ */
+Map<StringRef, eCustomDataType> interpolated_attribute_types(
     Span<AttributeAccessor> attribute_accessors, const AttributeFilter &attribute_filter);
 
 void gather_attributes(AttributeAccessor src_attributes,

@@ -10,7 +10,6 @@
 
 namespace blender::bke {
 class AttributeAccessor;
-class Instances;
 }  // namespace blender::bke
 
 namespace blender::geometry {

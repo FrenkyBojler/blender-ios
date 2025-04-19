@@ -48,14 +48,14 @@ void join_attributes(const Span<bke::AttributeAccessor> attribute_accessors,
           for (const int i : range) {
             const bke::GAttributeReader src_attribute = attribute_accessors[i].lookup(
                 attribute_id, src_domain, data_type);
+            GMutableSpan dst_range = dst_attribute.span.slice(src_offsets[i]);
             if (!src_attribute) {
-              GMutableSpan dst_range = dst_attribute.span.slice(src_offsets[i]);
               const CPPType &type = dst_range.type();
               type.fill_assign_n(type.default_value(), dst_range.data(), dst_range.size());
               continue;
             }
 
-            array_utils::copy(src_attribute.varray, dst_attribute.span.slice(src_offsets[i]));
+            array_utils::copy(src_attribute.varray, dst_range);
           }
         },
         threading::accumulated_task_sizes(
@@ -109,8 +109,8 @@ static void join_instances(const Span<const GeometryComponent *> src_components,
     all_attributes[i] = *src_components[i]->attributes();
   }
   join_attributes(all_attributes.as_span(),
-                  get_final_attribute_types(
-                      all_attributes.as_span(),
+                  bke::interpolated_attribute_types(
+                      all_attributes,
                       bke::attribute_filter_with_skip_ref(attribute_filter, {".reference_index"})),
                   bke::AttrDomain::Instance,
                   bke::AttrDomain::Instance,
@@ -157,7 +157,7 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter,
     all_attributes[target_item + i] = other_instances[i]->attributes();
   }
   join_attributes(all_attributes.as_span(),
-                  get_final_attribute_types(
+                  bke::interpolated_attribute_types(
                       all_attributes,
                       bke::attribute_filter_with_skip_ref(attribute_filter, {".reference_index"})),
                   bke::AttrDomain::Instance,
