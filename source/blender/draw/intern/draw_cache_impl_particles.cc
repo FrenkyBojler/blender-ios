@@ -1380,7 +1380,7 @@ static void particle_batch_cache_ensure_pos(Object *object,
   ParticleData *pa;
   ParticleKey state;
   ParticleSimulationData sim = {nullptr};
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
 
   sim.depsgraph = draw_ctx->depsgraph;
   sim.scene = draw_ctx->scene;
@@ -1449,9 +1449,9 @@ static void drw_particle_update_ptcache_edit(Object *object_eval,
   /* NOTE: Get flag from particle system coming from drawing object.
    * this is where depsgraph will be setting flags to.
    */
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  Scene *scene_orig = (Scene *)DEG_get_original_id(&draw_ctx->scene->id);
-  Object *object_orig = DEG_get_original_object(object_eval);
+  const DRWContext *draw_ctx = DRW_context_get();
+  Scene *scene_orig = DEG_get_original(draw_ctx->scene);
+  Object *object_orig = DEG_get_original(object_eval);
   if (psys->flag & PSYS_HAIR_UPDATED) {
     PE_update_object(draw_ctx->depsgraph, scene_orig, object_orig, 0);
     psys->flag &= ~PSYS_HAIR_UPDATED;
@@ -1472,9 +1472,9 @@ static void drw_particle_update_ptcache(Object *object_eval, ParticleSystem *psy
   if ((object_eval->mode & OB_MODE_PARTICLE_EDIT) == 0) {
     return;
   }
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  Scene *scene_orig = (Scene *)DEG_get_original_id(&draw_ctx->scene->id);
-  Object *object_orig = DEG_get_original_object(object_eval);
+  const DRWContext *draw_ctx = DRW_context_get();
+  Scene *scene_orig = DEG_get_original(draw_ctx->scene);
+  Object *object_orig = DEG_get_original(object_eval);
   PTCacheEdit *edit = PE_create_current(draw_ctx->depsgraph, scene_orig, object_orig);
   if (edit != nullptr) {
     drw_particle_update_ptcache_edit(object_eval, psys, edit);
@@ -1494,13 +1494,13 @@ static void drw_particle_get_hair_source(Object *object,
                                          PTCacheEdit *edit,
                                          ParticleDrawSource *r_draw_source)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   r_draw_source->object = object;
   r_draw_source->psys = psys;
   r_draw_source->md = md;
   r_draw_source->edit = edit;
   if (psys_in_edit_mode(draw_ctx->depsgraph, psys)) {
-    r_draw_source->object = DEG_get_original_object(object);
+    r_draw_source->object = DEG_get_original(object);
     r_draw_source->psys = psys_orig_get(psys);
   }
 }

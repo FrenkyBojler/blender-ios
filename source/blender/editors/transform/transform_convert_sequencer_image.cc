@@ -31,6 +31,8 @@
 
 namespace blender::ed::transform {
 
+namespace {
+
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
@@ -39,6 +41,8 @@ struct TransDataSeq {
   float orig_scale[2];
   float orig_rotation;
 };
+
+}  // namespace
 
 static TransData *SeqToTransData(const Scene *scene,
                                  Strip *strip,
@@ -49,6 +53,7 @@ static TransData *SeqToTransData(const Scene *scene,
 {
   const StripTransform *transform = strip->data->transform;
   const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
+  const float2 mirror = seq::image_transform_mirror_factor_get(strip);
   float vertex[2] = {origin[0], origin[1]};
 
   /* Add control vertex, so rotation and scale can be calculated.
@@ -75,7 +80,7 @@ static TransData *SeqToTransData(const Scene *scene,
   unit_m3(td->mtx);
   unit_m3(td->smtx);
 
-  axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
+  axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation * mirror[0] * mirror[1]);
   normalize_m3(td->axismtx);
 
   tdseq->strip = strip;
@@ -242,7 +247,7 @@ static void recalcData_sequencer_image(TransInfo *t)
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
-      transform->rotation = tdseq->orig_rotation - t->values_final[0];
+      transform->rotation = tdseq->orig_rotation - (t->values_final[0] * mirror[0] * mirror[1]);
     }
 
     if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {

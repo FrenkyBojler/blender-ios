@@ -1335,8 +1335,8 @@ void transform_convert_mesh_crazyspace_detect(TransInfo *t,
       BKE_scene_graph_evaluated_ensure(t->depsgraph, CTX_data_main(t->context));
 
       /* Use evaluated state because we need b-bone cache. */
-      Scene *scene_eval = (Scene *)DEG_get_evaluated_id(t->depsgraph, &t->scene->id);
-      Object *obedit_eval = (Object *)DEG_get_evaluated_id(t->depsgraph, &tc->obedit->id);
+      Scene *scene_eval = DEG_get_evaluated(t->depsgraph, t->scene);
+      Object *obedit_eval = DEG_get_evaluated(t->depsgraph, tc->obedit);
       BMEditMesh *em_eval = BKE_editmesh_from_object(obedit_eval);
       /* Check if we can use deform matrices for modifier from the
        * start up to stack, they are more accurate than quats. */
@@ -1474,7 +1474,7 @@ static void VertsToTransData(TransInfo *t,
   td->extra = eve;
   if (t->mode == TFM_SHRINKFATTEN) {
     td->ext = tx;
-    tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, no, BM_ELEM_SELECT);
+    tx->iscale[0] = BM_vert_calc_shell_factor_ex(eve, no, BM_ELEM_SELECT);
   }
 }
 

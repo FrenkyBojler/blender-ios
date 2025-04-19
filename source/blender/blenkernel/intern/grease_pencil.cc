@@ -2312,7 +2312,7 @@ void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *o
     GeometryComponentEditData &edit_component =
         geometry_set.get_component_for_write<GeometryComponentEditData>();
     edit_component.grease_pencil_edit_hints_ = std::make_unique<GreasePencilEditHints>(
-        *static_cast<const GreasePencil *>(DEG_get_original_object(object)->data));
+        *static_cast<const GreasePencil *>(DEG_get_original(object)->data));
   }
   grease_pencil_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
@@ -2439,6 +2439,9 @@ void BKE_grease_pencil_point_coords_apply(GreasePencil &grease_pencil,
         radii[i] = all_radii[index];
         index++;
       }
+
+      curves.tag_radii_changed();
+      drawing.tag_positions_changed();
     });
   }
 }
@@ -2472,6 +2475,9 @@ void BKE_grease_pencil_point_coords_apply_with_mat4(GreasePencil &grease_pencil,
         radii[i] = all_radii[index] * scalef;
         index++;
       }
+
+      curves.tag_radii_changed();
+      drawing.tag_positions_changed();
     });
   }
 }

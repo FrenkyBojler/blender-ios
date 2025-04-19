@@ -91,12 +91,19 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description("The smoothness of the extracted highlights")
       .compositor_expects_single_value();
-  highlights_panel.add_input<decl::Float>("Maximum", "Maximum Highlights")
-      .default_value(0.0f)
+
+  PanelDeclarationBuilder &supress_highlights_panel =
+      highlights_panel.add_panel("Suppress").default_closed(true);
+  supress_highlights_panel.add_input<decl::Bool>("Suppress", "Suppress Highlights")
+      .default_value(false)
+      .panel_toggle()
+      .description("Suppress bright highlights")
+      .compositor_expects_single_value();
+  supress_highlights_panel.add_input<decl::Float>("Maximum", "Maximum Highlights")
+      .default_value(10.0f)
       .min(0.0f)
       .description(
-          "Suppresses bright highlights such that their brightness are not larger than this "
-          "value. Zero disables suppression and has no effect")
+          "Suppresses bright highlights such that their brightness are not larger than this value")
       .compositor_expects_single_value();
 
   PanelDeclarationBuilder &mix_panel = b.add_panel("Adjust");
@@ -162,12 +169,10 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description("Modulates colors of streaks and ghosts for a spectral dispersion effect")
       .compositor_expects_single_value();
-  glare_panel.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
-    const int glare_type = RNA_enum_get(ptr, "glare_type");
-    if (glare_type == CMP_NODE_GLARE_SIMPLE_STAR) {
-      uiItemR(layout, ptr, "use_rotate_45", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    }
-  });
+  glare_panel.add_input<decl::Bool>("Diagonal", "Diagonal Star")
+      .default_value(true)
+      .description("Align the star diagonally")
+      .compositor_expects_single_value();
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -175,7 +180,6 @@ static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
   NodeGlare *ndg = MEM_callocN<NodeGlare>(__func__);
   ndg->quality = 1;
   ndg->type = CMP_NODE_GLARE_STREAKS;
-  ndg->star_45 = true;
   node->storage = ndg;
 }
 
@@ -210,6 +214,10 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *streaks_angle_input = bke::node_find_socket(*node, SOCK_IN, "Streaks Angle");
   blender::bke::node_set_socket_availability(
       *ntree, *streaks_angle_input, glare_type == CMP_NODE_GLARE_STREAKS);
+
+  bNodeSocket *diagonal_star_input = bke::node_find_socket(*node, SOCK_IN, "Diagonal Star");
+  blender::bke::node_set_socket_availability(
+      *ntree, *diagonal_star_input, glare_type == CMP_NODE_GLARE_SIMPLE_STAR);
 }
 
 using namespace blender::compositor;
@@ -220,14 +228,14 @@ class GlareOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &image_input = this->get_input("Image");
-    Result &image_output = this->get_result("Image");
+    const Result &image_input = this->get_input("Image");
     Result &glare_output = this->get_result("Glare");
     Result &highlights_output = this->get_result("Highlights");
 
     if (image_input.is_single_value()) {
+      Result &image_output = this->get_result("Image");
       if (image_output.should_compute()) {
-        image_input.pass_through(image_output);
+        image_output.share_data(image_input);
       }
       if (glare_output.should_compute()) {
         glare_output.allocate_invalid();
@@ -346,16 +354,15 @@ class GlareOperation : public NodeOperation {
 
   float get_maximum_brightness()
   {
-    const float max_highlights = this->get_max_highlights();
-    /* Disabled when zero. Return the maximum possible brightness. */
-    if (max_highlights == 0.0f) {
+    /* Suppression disabled, return the maximum possible brightness. */
+    if (!this->get_suppress_highlights()) {
       return std::numeric_limits<float>::max();
     }
 
     /* Brightness of the highlights are relative to the threshold, see execute_highlights_cpu, so
      * we add the threshold such that the maximum brightness corresponds to the actual brightness
      * of the computed highlights. */
-    return this->get_threshold() + max_highlights;
+    return this->get_threshold() + this->get_max_highlights();
   }
 
   /* A Quadratic Polynomial smooth minimum function *without* normalization, based on:
@@ -430,6 +437,11 @@ class GlareOperation : public NodeOperation {
   {
     return math::max(0.0f,
                      this->get_input("Highlights Smoothness").get_single_value_default(0.1f));
+  }
+
+  bool get_suppress_highlights()
+  {
+    return this->get_input("Suppress Highlights").get_single_value_default(false);
   }
 
   float get_max_highlights()
@@ -524,7 +536,7 @@ class GlareOperation : public NodeOperation {
 
   Result execute_simple_star(const Result &highlights)
   {
-    if (node_storage(bnode()).star_45) {
+    if (this->get_diagonal_star()) {
       return execute_simple_star_diagonal(highlights);
     }
     return execute_simple_star_axis_aligned(highlights);
@@ -969,6 +981,11 @@ class GlareOperation : public NodeOperation {
     });
 
     return diagonal_pass_result;
+  }
+
+  bool get_diagonal_star()
+  {
+    return this->get_input("Diagonal Star").get_single_value_default(true);
   }
 
   /* --------------
@@ -1938,7 +1955,6 @@ class GlareOperation : public NodeOperation {
   Result execute_fog_glow(const Result &highlights)
   {
 #if defined(WITH_FFTW3)
-    fftw::initialize_float();
 
     const int kernel_size = compute_fog_glow_kernel_size(highlights);
 
@@ -1976,13 +1992,14 @@ class GlareOperation : public NodeOperation {
         reinterpret_cast<fftwf_complex *>(image_frequency_domain),
         FFTW_ESTIMATE);
 
-    float *highlights_buffer = nullptr;
+    const float *highlights_buffer = nullptr;
     if (this->context().use_gpu()) {
       GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-      highlights_buffer = static_cast<float *>(GPU_texture_read(highlights, GPU_DATA_FLOAT, 0));
+      highlights_buffer = static_cast<const float *>(
+          GPU_texture_read(highlights, GPU_DATA_FLOAT, 0));
     }
     else {
-      highlights_buffer = static_cast<float *>(highlights.cpu_data().data());
+      highlights_buffer = static_cast<const float *>(highlights.cpu_data().data());
     }
 
     /* Zero pad the image to the required spatial domain size, storing each channel in planar
@@ -2061,7 +2078,7 @@ class GlareOperation : public NodeOperation {
     /* For GPU, write the output to the exist highlights_buffer then upload to the result after,
      * while for CPU, write to the result directly. */
     float *output = this->context().use_gpu() ?
-                        highlights_buffer :
+                        const_cast<float *>(highlights_buffer) :
                         static_cast<float *>(fog_glow_result.cpu_data().data());
 
     /* Copy the result to the output. */

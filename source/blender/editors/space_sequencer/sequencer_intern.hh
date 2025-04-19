@@ -10,6 +10,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -171,15 +172,9 @@ void channel_draw_context_init(const bContext *C,
 
 /* `sequencer_edit.cc` */
 
-void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
-Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel);
-void recurs_sel_seq(Strip *strip_meta);
-bool strip_effect_get_new_inputs(Scene *scene,
-                                 bool ignore_active,
-                                 int num_inputs,
-                                 Strip **r_seq1,
-                                 Strip **r_seq2,
-                                 const char **r_error_str);
+void slip_modal_keymap(wmKeyConfig *keyconf);
+VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene, bool ignore_active = false);
+StringRef effect_inputs_validate(const VectorSet<Strip *> &inputs, int num_inputs);
 
 /* Operator helpers. */
 bool sequencer_edit_poll(bContext *C);
@@ -261,6 +256,10 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 
 /* `sequencer_select.cc` */
 
+void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
+Strip *find_neighboring_sequence(Scene *scene, Strip *test, int lr, int sel);
+void recurs_sel_seq(Strip *strip_meta);
+
 void SEQUENCER_OT_select_all(wmOperatorType *ot);
 void SEQUENCER_OT_select(wmOperatorType *ot);
 void SEQUENCER_OT_select_handle(wmOperatorType *ot);
@@ -276,6 +275,8 @@ void SEQUENCER_OT_select_inverse(wmOperatorType *ot);
 void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
 
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2]);
+void sequencer_select_do_updates(const bContext *C, Scene *scene);
+Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mval[2]);
 
 /* `sequencer_add.cc` */
 
@@ -347,18 +348,18 @@ void SEQUENCER_OT_retiming_freeze_frame_add(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_transition_add(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_key_delete(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_segment_speed_set(wmOperatorType *ot);
-int sequencer_retiming_key_select_exec(bContext *C,
-                                       wmOperator *op,
-                                       SeqRetimingKey *key,
-                                       const Strip *key_owner);
+wmOperatorStatus sequencer_retiming_key_select_exec(bContext *C,
+                                                    wmOperator *op,
+                                                    SeqRetimingKey *key,
+                                                    const Strip *key_owner);
 /* Select a key and all following keys. */
-int sequencer_retiming_select_linked_time(bContext *C,
-                                          wmOperator *op,
-                                          SeqRetimingKey *key,
-                                          const Strip *key_owner);
-int sequencer_select_exec(bContext *C, wmOperator *op);
-int sequencer_retiming_select_all_exec(bContext *C, wmOperator *op);
-int sequencer_retiming_box_select_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_retiming_select_linked_time(bContext *C,
+                                                       wmOperator *op,
+                                                       SeqRetimingKey *key,
+                                                       const Strip *key_owner);
+wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op);
 
 /* `sequencer_retiming_draw.cc` */
 void sequencer_retiming_draw_continuity(const TimelineDrawContext *timeline_ctx,
@@ -396,7 +397,7 @@ blender::Vector<Strip *> sequencer_visible_strips_get(const bContext *C);
 blender::Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d);
 
 /* `sequencer_clipboard.cc` */
-int sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
-int sequencer_clipboard_paste_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op);
 
 }  // namespace blender::ed::vse

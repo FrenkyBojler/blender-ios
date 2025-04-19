@@ -56,6 +56,7 @@ ListBase R_engines = {nullptr, nullptr};
 void RE_engines_init()
 {
   DRW_engines_register();
+  DRW_module_init();
 }
 
 void RE_engines_exit()
@@ -63,6 +64,7 @@ void RE_engines_exit()
   RenderEngineType *type, *next;
 
   DRW_engines_free();
+  DRW_module_exit();
 
   for (type = static_cast<RenderEngineType *>(R_engines.first); type; type = next) {
     next = type->next;
@@ -197,6 +199,8 @@ static RenderResult *render_result_from_bake(
   rr->tilerect.ymin = y;
   rr->tilerect.xmax = x + w;
   rr->tilerect.ymax = y + h;
+
+  BKE_scene_ppm_get(&engine->re->r, rr->ppm);
 
   /* Add single baking render layer. */
   RenderLayer *rl = MEM_callocN<RenderLayer>("bake render layer");

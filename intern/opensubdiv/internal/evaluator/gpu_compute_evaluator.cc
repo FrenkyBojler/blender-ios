@@ -55,13 +55,10 @@ template<class T> GPUStorageBuf *create_buffer(std::vector<T> const &src, const 
     return nullptr;
   }
 
-  // TODO: this can lead to an out of bound read. `GPU_storagebuf_update` should have a number of
-  // bytes.
-  size_t buffer_size = src.size() * sizeof(T);
-  size_t buffer_alloc_size = (buffer_size + 15) & ~0b1111;
-
+  const size_t buffer_size = src.size() * sizeof(T);
   GPUStorageBuf *storage_buffer = GPU_storagebuf_create_ex(
-      buffer_alloc_size, &src.at(0), GPU_USAGE_STATIC, name);
+      buffer_size, &src.at(0), GPU_USAGE_STATIC, name);
+
   return storage_buffer;
 }
 
@@ -363,16 +360,16 @@ static GPUShader *compile_eval_stencil_shader(BufferDescriptor const &srcDesc,
       SHADER_SRC_VERTEX_BUFFER_BUF_SLOT, Qualifier::READ, "float", "srcVertexBuffer[]");
   info.storage_buf(
       SHADER_DST_VERTEX_BUFFER_BUF_SLOT, Qualifier::WRITE, "float", "dstVertexBuffer[]");
-  info.push_constant(Type::INT, "srcOffset");
-  info.push_constant(Type::INT, "dstOffset");
+  info.push_constant(Type::int_t, "srcOffset");
+  info.push_constant(Type::int_t, "dstOffset");
 
   bool deriv1 = (duDesc.length > 0 || dvDesc.length > 0);
   if (deriv1) {
     info.define("OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES");
     info.storage_buf(SHADER_DU_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "duBuffer[]");
     info.storage_buf(SHADER_DV_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "dvBuffer[]");
-    info.push_constant(Type::IVEC3, "duDesc");
-    info.push_constant(Type::IVEC3, "dvDesc");
+    info.push_constant(Type::int3_t, "duDesc");
+    info.push_constant(Type::int3_t, "dvDesc");
   }
 
   info.storage_buf(SHADER_SIZES_BUF_SLOT, Qualifier::READ, "int", "sizes_buf[]");
@@ -385,8 +382,8 @@ static GPUShader *compile_eval_stencil_shader(BufferDescriptor const &srcDesc,
     info.storage_buf(
         SHADER_DV_WEIGHTS_BUF_SLOT, Qualifier::READ_WRITE, "float", "dv_weights_buf[]");
   }
-  info.push_constant(Type::INT, "batchStart");
-  info.push_constant(Type::INT, "batchEnd");
+  info.push_constant(Type::int_t, "batchStart");
+  info.push_constant(Type::int_t, "batchEnd");
 
   info.compute_source("osd_eval_stencils_comp.glsl");
   GPUShader *shader = GPU_shader_create_from_info(
@@ -465,16 +462,16 @@ static GPUShader *compile_eval_patches_shader(BufferDescriptor const &srcDesc,
       SHADER_SRC_VERTEX_BUFFER_BUF_SLOT, Qualifier::READ, "float", "srcVertexBuffer[]");
   info.storage_buf(
       SHADER_DST_VERTEX_BUFFER_BUF_SLOT, Qualifier::WRITE, "float", "dstVertexBuffer[]");
-  info.push_constant(Type::INT, "srcOffset");
-  info.push_constant(Type::INT, "dstOffset");
+  info.push_constant(Type::int_t, "srcOffset");
+  info.push_constant(Type::int_t, "dstOffset");
 
   bool deriv1 = (duDesc.length > 0 || dvDesc.length > 0);
   if (deriv1) {
     info.define("OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES");
     info.storage_buf(SHADER_DU_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "duBuffer[]");
     info.storage_buf(SHADER_DV_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "dvBuffer[]");
-    info.push_constant(Type::IVEC3, "duDesc");
-    info.push_constant(Type::IVEC3, "dvDesc");
+    info.push_constant(Type::int3_t, "duDesc");
+    info.push_constant(Type::int3_t, "dvDesc");
   }
 
   info.storage_buf(
