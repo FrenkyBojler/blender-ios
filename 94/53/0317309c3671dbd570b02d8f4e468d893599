@@ -1,3 +1,4 @@
 Referenced by issue #134197, Fix: Geometry Nodes: heap-use-after-free
 Referenced by issue #114109, Blender scene crashing when importing USD asset exported with maya
 Referenced by issue #113602, GPv3: Geometry Node support via the curve nodes
+Referenced by pull request #134197, Fix: Geometry Nodes: heap-use-after-free
