@@ -147,7 +147,7 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter,
 
   /* Drop all attributes in order to do not copy then while resize or next writing (if they in
    * read-only state). */
-  CustomData_free(&target.custom_data_attributes(), target.instances_num());
+  CustomData_free(&target.custom_data_attributes());
   CustomData_reset(&target.custom_data_attributes());
   target.resize(offsets.total_size());
 
