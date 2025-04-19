@@ -31,27 +31,78 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Cluster ID").field_source_reference_all();
 }
 
-/* Fonction qui crée des clusters en assignant des vertices séquentiellement */
-static void create_sequential_clusters(
-    const int total_vertices,
-    const int vertices_per_cluster,
+/* Fonction qui crée des clusters spatialement cohérents en utilisant des points de départ 
+ * aléatoires (k-means simplifié) */
+static void create_spatial_clusters(
+    const Span<float3> positions,
+    const int desired_cluster_count,
     MutableSpan<int> cluster_ids)
 {
-  /* Calculer le nombre total de clusters nécessaires */
-  const int cluster_count = (total_vertices + vertices_per_cluster - 1) / vertices_per_cluster;
+  const int total_vertices = positions.size();
   
-  /* Assigner chaque vertex à un cluster de manière séquentielle */
+  /* Utiliser au maximum le nombre souhaité de clusters ou le nombre de vertex */
+  const int actual_cluster_count = std::min(desired_cluster_count, total_vertices);
+  
+  /* Créer un tableau pour stocker les positions des centres de clusters */
+  Array<float3> cluster_centers(actual_cluster_count);
+  
+  /* Initialiser un générateur de nombres aléatoires */
+  RNG *rng = BLI_rng_new(42);
+  
+  /* Sélectionner des vertices aléatoires comme centres initiaux de clusters */
+  Array<int> selected_indices(actual_cluster_count);
+  for (int i = 0; i < actual_cluster_count; i++) {
+    int random_index;
+    bool index_already_selected;
+    
+    /* Éviter de sélectionner deux fois le même point */
+    do {
+      index_already_selected = false;
+      random_index = BLI_rng_get_int(rng) % total_vertices;
+      
+      for (int j = 0; j < i; j++) {
+        if (selected_indices[j] == random_index) {
+          index_already_selected = true;
+          break;
+        }
+      }
+    } while (index_already_selected);
+    
+    selected_indices[i] = random_index;
+    cluster_centers[i] = positions[random_index];
+  }
+  
+  /* Construire un KD-tree pour une recherche rapide des sommets les plus proches */
+  KDTree_3d *tree = BLI_kdtree_3d_new(actual_cluster_count);
+  
+  /* Ajouter les centres de clusters au KD-tree */
+  for (int i = 0; i < actual_cluster_count; i++) {
+    BLI_kdtree_3d_insert(tree, i, cluster_centers[i]);
+  }
+  
+  /* Construire l'arbre */
+  BLI_kdtree_3d_balance(tree);
+  
+  /* Assigner chaque vertex au cluster le plus proche */
   threading::parallel_for(IndexRange(total_vertices), 1024, [&](IndexRange range) {
     for (const int i : range) {
-      /* Diviser simplement par la taille du cluster pour obtenir l'ID */
-      cluster_ids[i] = i / vertices_per_cluster;
+      KDTreeNearest_3d nearest;
       
-      /* S'assurer que l'ID du cluster ne dépasse pas le nombre maximum de clusters */
-      if (cluster_ids[i] >= cluster_count) {
-        cluster_ids[i] = cluster_count - 1;
+      /* Trouver le centre de cluster le plus proche */
+      if (BLI_kdtree_3d_find_nearest(tree, positions[i], &nearest) != -1) {
+        /* Assigner ce vertex au cluster le plus proche */
+        cluster_ids[i] = nearest.index;
+      }
+      else {
+        /* En cas d'erreur, assigner au cluster 0 (ne devrait pas arriver) */
+        cluster_ids[i] = 0;
       }
     }
   });
+  
+  /* Libérer les ressources */
+  BLI_kdtree_3d_free(tree);
+  BLI_rng_free(rng);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -80,8 +131,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     bke::SpanAttributeWriter<int> cluster_id_attribute =
         attributes.lookup_or_add_for_write_span<int>("cluster_id", bke::AttrDomain::Point);
     
-    /* Assign cluster IDs to each vertex using sequential clustering */
-    create_sequential_clusters(total_vertices, vertices_per_cluster, cluster_id_attribute.span);
+    /* Assign cluster IDs to each vertex using spatial clustering */
+    create_spatial_clusters(positions, cluster_count, cluster_id_attribute.span);
     
     /* Finish cluster ID attribute writing */
     cluster_id_attribute.finish();
