@@ -1150,7 +1150,8 @@ bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
   blender::Vector<blender::float3> loop_normals;
   read_polys(mesh, blender_mesh, loop_normals);
 
-  blender::bke::mesh_calc_edges(*blender_mesh, false, false);
+  blender::bke::mesh_calc_edges(
+      *blender_mesh, false, false, bke::AttributeFilter::default_filter());
 
   /* We must apply custom normals after edges have been calculated, because
    * bke::mesh_set_custom_normals()'s internals expect mesh->medge to be populated

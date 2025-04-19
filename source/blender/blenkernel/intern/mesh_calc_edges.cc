@@ -243,7 +243,7 @@ void mesh_calc_edges(Mesh &mesh,
 
   {
     MutableAttributeAccessor attributes = mesh.attributes_for_write();
-    MutableSpan<int2> new_edges(MEM_cnew_array<int2>(edge_offsets.total_size(), __func__),
+    MutableSpan<int2> new_edges(MEM_malloc_arrayN<int2>(edge_offsets.total_size(), __func__),
                                 edge_offsets.total_size());
     calc_edges::serialize_and_initialize_deduplicated_edges(edge_maps, edge_offsets, new_edges);
     attributes.add<int2>(

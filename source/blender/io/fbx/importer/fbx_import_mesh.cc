@@ -130,7 +130,7 @@ static void import_edges(const ufbx_mesh *fmesh,
   /* Calculate any remaining edges, and add them to explicitly imported ones.
    * Note that this clears any per-edge data, so we have to setup edge creases etc.
    * after that. */
-  bke::mesh_calc_edges(*mesh, true, false);
+  bke::mesh_calc_edges(*mesh, true, false, bke::AttributeFilter::default_filter());
 
   const bool has_edge_creases = fmesh->edge_crease.count > 0 &&
                                 fmesh->edge_crease.count == fmesh->num_edges;
