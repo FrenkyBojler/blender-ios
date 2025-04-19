@@ -404,14 +404,13 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
 
     nested_nt->tree_interface.add_socket(
         route_name, "", nested_socket_iter->idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
-    BKE_ntree_update_after_single_tree_change(*G.pr_main, *nested_nt);
+    BKE_ntree_update_after_single_tree_change(*G.pr_main, *nested_nt, params);
     bNodeSocket *out_socket = blender::bke::node_find_enabled_input_socket(*output_node,
                                                                            route_name);
 
-    //    BKE_ntree_update_main_tree(G.pr_main, nested_nt, &params);
     bke::node_add_link(
         *nested_nt, *nested_node_iter, *nested_socket_iter, *output_node, *out_socket);
-    BKE_ntree_update_after_single_tree_change(*G.pr_main, *nested_nt);
+    BKE_ntree_update_after_single_tree_change(*G.pr_main, *nested_nt, params);
 
     /* Change the `nested_node` pointer to the nested node-group instance node. The tree path
      * contains the name of the instance node but not its ID. */
@@ -419,8 +418,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
 
     /* Update the sockets of the node because we added a new interface. */
     BKE_ntree_update_tag_node_property(path_prev->nodetree, nested_node_iter);
-    //    BKE_ntree_update_main_tree(G.pr_main, path_prev->nodetree, &params);
-    BKE_ntree_update_after_single_tree_change(*G.pr_main, *path_prev->nodetree);
+    BKE_ntree_update_after_single_tree_change(*G.pr_main, *path_prev->nodetree, params);
 
     /* Now use the newly created socket of the node-group as previewing socket of the node-group
      * instance node. */
@@ -428,7 +426,6 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
                                                                        route_name);
   }
 
-  //  BKE_ntree_update_main_tree(G.pr_main, treepath.first()->nodetree, &params);
   bke::node_add_link(*treepath.first()->nodetree,
                      *nested_node_iter,
                      *nested_socket_iter,
@@ -467,7 +464,9 @@ static void connect_node_to_surface_output(const Span<bNodeTreePath *> treepath,
                               output_node,
                               *out_surface_socket,
                               nodesocket.first->name);
-  BKE_ntree_update_after_single_tree_change(*G.pr_main, *main_nt);
+  NodeTreeUpdateExtraParams params = {nullptr};
+  params.avoid_making_previews_dirty = true;
+  BKE_ntree_update_after_single_tree_change(*G.pr_main, *main_nt, params);
 }
 
 /* Connect the nodes to some aov nodes located in the first nodetree from `treepath`. Last element
@@ -520,7 +519,9 @@ static void connect_nodes_to_aovs(const Span<bNodeTreePath *> treepath,
     connect_nested_node_to_node(
         treepath, *node_preview, *socket_preview, *aov_node, *aov_socket, nodesocket.first->name);
   }
-  BKE_ntree_update_after_single_tree_change(*G.pr_main, *main_nt);
+  NodeTreeUpdateExtraParams params = {nullptr};
+  params.avoid_making_previews_dirty = true;
+  BKE_ntree_update_after_single_tree_change(*G.pr_main, *main_nt, params);
 }
 
 /* Called by renderer, checks job stops. */

@@ -822,15 +822,16 @@ class NodeTreeMainUpdater {
 
     while (!nodes_to_visit.is_empty()) {
       bNode *node_iter = nodes_to_visit.pop();
+      if (nodes_visited[node_iter->runtime->index_in_tree]) {
+        continue;
+      }
       nodes_visited[node_iter->runtime->index_in_tree] = true;
       node_iter->runtime->dirtystate.make_dirty();
 
       LISTBASE_FOREACH (bNodeSocket *, socket_iter, &node_iter->outputs) {
         for (bNodeSocket *propagation_socket : socket_iter->runtime->directly_linked_sockets) {
           bNode *child_node = propagation_socket->runtime->owner_node;
-          if (!nodes_visited[child_node->runtime->index_in_tree]) {
-            nodes_to_visit.push(child_node);
-          }
+          nodes_to_visit.push(child_node);
 
           if (child_node->type_legacy == SH_NODE_OUTPUT_MATERIAL &&
               STREQ(propagation_socket->name, "Displacement"))
@@ -846,18 +847,19 @@ class NodeTreeMainUpdater {
 
   void update_nodetree_previews_dirty_state(bNodeTree &ntree)
   {
-    if (ntree.type != NTREE_SHADER) {
+    if (ntree.type != NTREE_SHADER || params_.avoid_making_previews_dirty) {
       /* Those preview dirty states are only used for shader previews. */
       return;
     }
     Stack<bNode *> nodes_to_visit;
+    const uint32_t allowed_flags = NTREE_CHANGED_NOTHING;
     LISTBASE_FOREACH (bNode *, node_iter, &ntree.nodes) {
-      if (node_iter->runtime->changed_flag != NTREE_CHANGED_NOTHING) {
+      if (node_iter->runtime->changed_flag & ~allowed_flags) {
         nodes_to_visit.push(node_iter);
         continue;
       }
       LISTBASE_FOREACH (bNodeSocket *, socket_iter, &node_iter->inputs) {
-        if (socket_iter->runtime->changed_flag != NTREE_CHANGED_NOTHING) {
+        if (socket_iter->runtime->changed_flag & ~allowed_flags) {
           nodes_to_visit.push(node_iter);
           continue;
         }

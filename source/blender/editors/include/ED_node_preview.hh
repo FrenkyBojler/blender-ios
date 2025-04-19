@@ -76,9 +76,6 @@ void free_previews(wmWindowManager &wm, SpaceNode &snode);
 ImBuf *node_preview_acquire_ibuf(bNodeTree &ntree,
                                  NestedTreePreviews &tree_previews,
                                  const bNode &node);
-ImBuf *node_preview_acquire_ibuf(bNodeTree &ntree,
-                                 NestedTreePreviews &tree_previews,
-                                 const bNode &node);
 void node_release_preview_ibuf(NestedTreePreviews &tree_previews);
 /**
  * This function returns the `NestedTreePreviews *` for the node-tree shown in the #SpaceNode.
