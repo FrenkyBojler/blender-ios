@@ -108,7 +108,7 @@ static void join_instances(const Span<const GeometryComponent *> src_components,
     all_attributes[i] = *src_components[i]->attributes();
   }
   join_attributes(all_attributes.as_span(),
-                  bke::get_interpolated_attribute_types(
+                  bke::interpolated_attribute_types(
                       all_attributes,
                       bke::attribute_filter_with_skip_ref(attribute_filter, {".reference_index"})),
                   bke::AttrDomain::Instance,

@@ -881,7 +881,7 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
 
 /** \} */
 
-Map<StringRef, eCustomDataType> get_interpolated_attribute_types(
+Map<StringRef, eCustomDataType> interpolated_attribute_types(
     const Span<AttributeAccessor> attribute_accessors, const AttributeFilter &attribute_filter)
 {
   Map<StringRef, eCustomDataType> info;
