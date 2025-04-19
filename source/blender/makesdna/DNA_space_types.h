@@ -67,10 +67,10 @@ struct SpaceOutliner_Runtime;
 }  // namespace blender::ed::outliner
 using SpaceOutliner_Runtime = blender::ed::outliner::SpaceOutliner_Runtime;
 
-namespace blender::ed::seq {
+namespace blender::ed::vse {
 struct SpaceSeq_Runtime;
-}  // namespace blender::ed::seq
-using SpaceSeq_Runtime = blender::ed::seq::SpaceSeq_Runtime;
+}  // namespace blender::ed::vse
+using SpaceSeq_Runtime = blender::ed::vse::SpaceSeq_Runtime;
 
 namespace blender::ed::text {
 struct SpaceText_Runtime;
@@ -182,9 +182,9 @@ typedef struct SpaceProperties {
 
   /** Context tabs. */
   short mainb, mainbo, mainbuser;
+  uint32_t visible_tabs;
   /** Preview is signal to refresh. */
   short preview;
-  char _pad[4];
   char flag;
 
   /* eSpaceButtons_OutlinerSync */
@@ -238,6 +238,7 @@ enum {
 
 /** #SpaceProperties.mainb new */
 typedef enum eSpaceButtons_Context {
+  BCONTEXT_SEPARATOR = -1,
   BCONTEXT_RENDER = 0,
   BCONTEXT_SCENE = 1,
   BCONTEXT_WORLD = 2,
@@ -484,10 +485,8 @@ typedef struct SpaceGraph {
 
   /** Mode for the Graph editor (eGraphEdit_Mode). */
   short mode;
-  short mode_prev;
   /* Snapping now lives on the Scene. */
   short autosnap DNA_DEPRECATED;
-  char _pad[2];
   /** Settings for Graph editor (eGraphEdit_Flag). */
   int flag;
 
@@ -497,6 +496,7 @@ typedef struct SpaceGraph {
   float cursorVal;
   /** Pivot point for transforms. */
   int around;
+  char _pad[4];
 
   SpaceGraph_Runtime runtime;
 } SpaceGraph;
@@ -832,7 +832,8 @@ typedef struct FileSelectParams {
   int sel_first;
   int sel_last;
   unsigned short thumbnail_size;
-  char _pad1[2];
+  unsigned short list_thumbnail_size;
+  unsigned short list_column_size;
 
   /* short */
   /** XXX: for now store type here, should be moved to the operator. */
@@ -845,7 +846,7 @@ typedef struct FileSelectParams {
   short display;
   /** Details toggles (file size, creation date, etc.) */
   char details_flags;
-  char _pad2[3];
+  char _pad1;
 
   /** Filter when (flags & FILE_FILTER) is true. */
   int filter;
@@ -853,7 +854,7 @@ typedef struct FileSelectParams {
   /** Max number of levels in directory tree to show at once, 0 to disable recursion. */
   short recursion_level;
 
-  char _pad4[2];
+  char _pad2[2];
 } FileSelectParams;
 
 /**
@@ -870,7 +871,8 @@ typedef struct FileAssetSelectParams {
   bUUID catalog_id;
 
   short import_method; /* eFileAssetImportMethod */
-  char _pad2[6];
+  short import_flags;  /* eFileImportFlags */
+  char _pad2[4];
 } FileAssetSelectParams;
 
 typedef enum eFileAssetImportMethod {
@@ -885,6 +887,11 @@ typedef enum eFileAssetImportMethod {
   /** Default: Follow the preference setting for this asset library. */
   FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
 } eFileAssetImportMethod;
+
+typedef enum eFileAssetImportFlags {
+  FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK = (1 << 0),
+  FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_APPEND = (1 << 1),
+} eFileAssetImportFlags;
 
 /**
  * A wrapper to store previous and next folder lists (#FolderList) for a specific browse mode
@@ -915,7 +922,7 @@ typedef struct SpaceFile {
 
   /** Is this a File Browser or an Asset Browser? */
   char browse_mode; /* eFileBrowse_Mode */
-  char browse_mode_prev;
+  char _pad1[1];
 
   short tags;
 
@@ -1291,6 +1298,8 @@ typedef struct SpaceImage {
   int flag;
 
   float uv_opacity;
+  float uv_face_opacity;
+  char _pad2[4];
 
   float stretch_opacity;
 
@@ -1372,7 +1381,9 @@ typedef enum eSpaceImage_Flag {
 
   SI_FLAG_UNUSED_24 = (1 << 24),
 
-  SI_NO_DRAW_TEXPAINT = (1 << 25),
+#ifdef DNA_DEPRECATED_ALLOW
+  SI_NO_DRAW_TEXPAINT = (1 << 25), /* deprecated - use SI_NO_DRAW_UV_GUIDE instead, see #135102 */
+#endif
   SI_DRAW_METADATA = (1 << 26),
 
   SI_SHOW_R = (1 << 27),
@@ -1380,6 +1391,8 @@ typedef enum eSpaceImage_Flag {
   SI_SHOW_B = (1 << 29),
 
   SI_GRID_OVER_IMAGE = (1 << 30),
+
+  SI_NO_DRAW_UV_GUIDE = (1 << 31),
 } eSpaceImage_Flag;
 
 typedef enum eSpaceImageOverlay_Flag {
@@ -1610,7 +1623,6 @@ typedef struct SpaceNode {
 
   /* tree type for the current node tree */
   char tree_idname[64];
-  char tree_idname_prev[64];
   /** Same as #bNodeTree::type (deprecated). */
   int treetype DNA_DEPRECATED;
 

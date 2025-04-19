@@ -58,7 +58,7 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   SpaceAction *saction;
   ARegion *region;
 
-  saction = MEM_cnew<SpaceAction>("initaction");
+  saction = MEM_callocN<SpaceAction>("initaction");
   saction->spacetype = SPACE_ACTION;
 
   saction->mode = SACTCONT_DOPESHEET;
@@ -84,7 +84,7 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   region->regiontype = RGN_TYPE_CHANNELS;
   region->alignment = RGN_ALIGN_LEFT;
 
-  /* only need to set scroll settings, as this will use 'listview' v2d configuration */
+  /* Only need to set scroll settings, as this will use `listview` v2d configuration. */
   region->v2d.scroll = V2D_SCROLL_BOTTOM;
   region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
 
@@ -117,7 +117,7 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   region->v2d.minzoom = 0.01f;
   region->v2d.maxzoom = 50;
   region->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
-  region->v2d.scroll |= V2D_SCROLL_RIGHT;
+  region->v2d.scroll |= V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   region->v2d.keepzoom = V2D_LOCKZOOM_Y;
   region->v2d.keepofs = V2D_KEEPOFS_Y;
   region->v2d.align = V2D_ALIGN_NO_POS_Y;
@@ -185,8 +185,10 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
   short marker_flag = 0;
 
+  const int min_height = UI_ANIM_MINY;
+
   /* scrollers */
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (region->winy >= UI_ANIM_MINY) {
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
   }
   else {
@@ -209,18 +211,22 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_ortho(v2d);
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
 
   UI_view2d_view_ortho(v2d);
 
   /* time grid */
-  UI_view2d_draw_lines_x__discrete_frames_or_seconds(
-      v2d, scene, saction->flag & SACTION_DRAWTIME, true);
+  if (region->winy > min_height) {
+    UI_view2d_draw_lines_x__discrete_frames_or_seconds(
+        v2d, scene, saction->flag & SACTION_DRAWTIME, true);
+  }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
   /* start and end frame */
-  ANIM_draw_framerange(scene, v2d);
+  if (region->winy > min_height) {
+    ANIM_draw_framerange(scene, v2d);
+  }
 
   /* Draw the manually set intended playback frame range highlight in the Action editor. */
   if (ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY) && saction->action) {
@@ -279,10 +285,12 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
   }
 
   /* scrubbing region */
-  ED_time_scrub_draw_current_frame(region, scene, saction->flag & SACTION_DRAWTIME);
+  ED_time_scrub_draw_current_frame(
+      region, scene, saction->flag & SACTION_DRAWTIME, region->winy >= UI_ANIM_MINY);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
+  UI_view2d_scrollers_draw(v2d, &scroller_mask);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -417,14 +425,13 @@ static void saction_channel_region_message_subscribe(const wmRegionMessageSubscr
   msg_sub_value_region_tag_redraw.user_data = region;
   msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
 
-  /* All dopesheet filter settings, etc. affect the drawing of this editor,
+  /* All dope-sheet filter settings, etc. affect the drawing of this editor,
    * also same applies for all animation-related data-types that may appear here,
-   * so just whitelist the entire structs for updates
-   */
+   * so just whitelist the entire structs for updates. */
   {
     wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
-        &RNA_DopeSheet, /* dopesheet filters */
+        &RNA_DopeSheet, /* Dope-sheet filters. */
 
         &RNA_ActionGroup, /* channel groups */
 
@@ -875,8 +882,15 @@ static int action_space_subtype_get(ScrArea *area)
 static void action_space_subtype_set(ScrArea *area, int value)
 {
   SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
-  sact->mode_prev = sact->mode;
-  sact->mode = value;
+  if (value == SACTCONT_TIMELINE) {
+    if (sact->mode != SACTCONT_TIMELINE) {
+      sact->mode_prev = sact->mode;
+    }
+    sact->mode = value;
+  }
+  else {
+    sact->mode = sact->mode_prev;
+  }
 }
 
 static void action_space_subtype_item_extend(bContext * /*C*/,
@@ -884,12 +898,6 @@ static void action_space_subtype_item_extend(bContext * /*C*/,
                                              int *totitem)
 {
   RNA_enum_items_add(item, totitem, rna_enum_space_action_mode_items);
-}
-
-static int action_space_subtype_prev_get(ScrArea *area)
-{
-  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
-  return sact->mode_prev;
 }
 
 static blender::StringRefNull action_space_name_get(const ScrArea *area)
@@ -940,7 +948,6 @@ void ED_spacetype_action()
   st->space_subtype_item_extend = action_space_subtype_item_extend;
   st->space_subtype_get = action_space_subtype_get;
   st->space_subtype_set = action_space_subtype_set;
-  st->space_subtype_prev_get = action_space_subtype_prev_get;
   st->space_name_get = action_space_name_get;
   st->space_icon_get = action_space_icon_get;
   st->blend_read_data = action_space_blend_read_data;
@@ -948,7 +955,7 @@ void ED_spacetype_action()
   st->blend_write = action_space_blend_write;
 
   /* regions: main window */
-  art = MEM_cnew<ARegionType>("spacetype action region");
+  art = MEM_callocN<ARegionType>("spacetype action region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = action_main_region_init;
   art->draw = action_main_region_draw;
@@ -960,7 +967,7 @@ void ED_spacetype_action()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_cnew<ARegionType>("spacetype action region");
+  art = MEM_callocN<ARegionType>("spacetype action region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -972,7 +979,7 @@ void ED_spacetype_action()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: channels */
-  art = MEM_cnew<ARegionType>("spacetype action region");
+  art = MEM_callocN<ARegionType>("spacetype action region");
   art->regionid = RGN_TYPE_CHANNELS;
   art->prefsizex = 200;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
@@ -985,7 +992,7 @@ void ED_spacetype_action()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: UI buttons */
-  art = MEM_cnew<ARegionType>("spacetype action region");
+  art = MEM_callocN<ARegionType>("spacetype action region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;

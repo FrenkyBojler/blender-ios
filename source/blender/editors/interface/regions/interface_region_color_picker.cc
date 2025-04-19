@@ -772,7 +772,7 @@ static void ui_block_colorpicker(uiBlock *block,
            nullptr,
            0.0,
            0.0,
-           nullptr);
+           std::nullopt);
 
   bt = uiDefBut(block,
                 UI_BTYPE_TEXT,
@@ -785,7 +785,7 @@ static void ui_block_colorpicker(uiBlock *block,
                 hexcol,
                 0,
                 cpicker->has_alpha ? 10 : 8,
-                nullptr);
+                std::nullopt);
   const auto bt_tooltip_func = [](bContext & /*C*/, uiTooltipData &tip, void *has_alpha_ptr) {
     const bool *has_alpha = static_cast<bool *>(has_alpha_ptr);
     if (*has_alpha) {
@@ -823,7 +823,7 @@ static void ui_block_colorpicker(uiBlock *block,
                        yco,
                        UI_UNIT_X,
                        UI_UNIT_Y,
-                       nullptr);
+                       std::nullopt);
     UI_but_flag_disable(bt, UI_BUT_UNDO);
     UI_but_drawflag_disable(bt, UI_BUT_ICON_LEFT);
     UI_but_func_set(bt, ui_popup_close_cb, bt, nullptr);
@@ -895,7 +895,7 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
   uiBut *but = static_cast<uiBut *>(arg_but);
   uiBlock *block;
 
-  block = UI_block_begin(C, handle->region, __func__, UI_EMBOSS);
+  block = UI_block_begin(C, handle->region, __func__, blender::ui::EmbossType::Emboss);
 
   if (ui_but_is_color_gamma(but)) {
     block->is_color_gamma_picker = true;
@@ -917,7 +917,7 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 
 ColorPicker *ui_block_colorpicker_create(uiBlock *block)
 {
-  ColorPicker *cpicker = MEM_cnew<ColorPicker>(__func__);
+  ColorPicker *cpicker = MEM_callocN<ColorPicker>(__func__);
   BLI_addhead(&block->color_pickers.list, cpicker);
 
   return cpicker;

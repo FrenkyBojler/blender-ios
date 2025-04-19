@@ -20,8 +20,12 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveResample)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<decl::Geometry>("Curve").supported_type(
       {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   auto &count =
       b.add_input<decl::Int>("Count").default_value(10).min(1).max(100000).field_on_all();
@@ -30,7 +34,6 @@ static void node_declare(NodeDeclarationBuilder &b)
                      .min(0.01f)
                      .subtype(PROP_DISTANCE)
                      .field_on_all();
-  b.add_output<decl::Geometry>("Curve").propagate_all();
 
   const bNode *node = b.node_or_null();
   if (node != nullptr) {
@@ -54,7 +57,7 @@ static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveResample *data = MEM_cnew<NodeGeometryCurveResample>(__func__);
+  NodeGeometryCurveResample *data = MEM_callocN<NodeGeometryCurveResample>(__func__);
 
   data->mode = GEO_NODE_CURVE_RESAMPLE_COUNT;
   data->keep_last_segment = true;
@@ -221,10 +224,10 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryCurveResample", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometryCurveResample", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

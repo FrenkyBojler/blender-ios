@@ -2,44 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* To be compiled with subdiv_lib.glsl */
+#include "subdiv_lib.glsl"
 
-layout(std430, binding = 1) readonly restrict buffer sourceBuffer
-{
-#if defined(GPU_COMP_U16)
-  uint src_data[];
-#elif defined(GPU_COMP_I32)
-  int src_data[];
-#else
-  float src_data[];
+COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_4d_f32)
+
+#if defined(DIMENSIONS_1)
+#  define DIMENSIONS 1
+#elif defined(DIMENSIONS_2)
+#  define DIMENSIONS 2
+#elif defined(DIMENSIONS_3)
+#  define DIMENSIONS 3
+#else  // defined(DIMENSIONS_4)
+#  define DIMENSIONS 4
 #endif
-};
-
-layout(std430, binding = 2) readonly restrict buffer facePTexOffset
-{
-  uint face_ptex_offset[];
-};
-
-layout(std430, binding = 3) readonly restrict buffer patchCoords
-{
-  BlenderPatchCoord patch_coords[];
-};
-
-layout(std430, binding = 4) readonly restrict buffer extraCoarseFaceData
-{
-  uint extra_coarse_face_data[];
-};
-
-layout(std430, binding = 5) writeonly restrict buffer destBuffer
-{
-#if defined(GPU_COMP_U16)
-  uint dst_data[];
-#elif defined(GPU_COMP_I32)
-  int dst_data[];
-#else
-  float dst_data[];
-#endif
-};
 
 struct Vertex {
   float vertex_data[DIMENSIONS];
@@ -48,7 +23,7 @@ struct Vertex {
 void clear(inout Vertex v)
 {
   for (int i = 0; i < DIMENSIONS; i++) {
-    v.vertex_data[i] = 0.0;
+    v.vertex_data[i] = 0.0f;
   }
 }
 
@@ -61,10 +36,10 @@ Vertex read_vertex(uint index)
     uint xy = src_data[base_index];
     uint zw = src_data[base_index + 1];
 
-    float x = float((xy >> 16) & 0xffff) / 65535.0;
-    float y = float(xy & 0xffff) / 65535.0;
-    float z = float((zw >> 16) & 0xffff) / 65535.0;
-    float w = float(zw & 0xffff) / 65535.0;
+    float x = float((xy >> 16) & 0xffff) / 65535.0f;
+    float y = float(xy & 0xffff) / 65535.0f;
+    float z = float((zw >> 16) & 0xffff) / 65535.0f;
+    float w = float(zw & 0xffff) / 65535.0f;
 
     result.vertex_data[0] = x;
     result.vertex_data[1] = y;
@@ -92,12 +67,12 @@ Vertex read_vertex(uint index)
 void write_vertex(uint index, Vertex v)
 {
 #if defined(GPU_COMP_U16)
-  uint base_index = dst_offset + index * 2;
+  uint base_index = shader_data.dst_offset + index * 2;
   if (DIMENSIONS == 4) {
-    uint x = uint(v.vertex_data[0] * 65535.0);
-    uint y = uint(v.vertex_data[1] * 65535.0);
-    uint z = uint(v.vertex_data[2] * 65535.0);
-    uint w = uint(v.vertex_data[3] * 65535.0);
+    uint x = uint(v.vertex_data[0] * 65535.0f);
+    uint y = uint(v.vertex_data[1] * 65535.0f);
+    uint z = uint(v.vertex_data[2] * 65535.0f);
+    uint w = uint(v.vertex_data[3] * 65535.0f);
 
     uint xy = x << 16 | y;
     uint zw = z << 16 | w;
@@ -110,19 +85,19 @@ void write_vertex(uint index, Vertex v)
     dst_data[base_index] = 0;
   }
 #elif defined(GPU_COMP_I32)
-  uint base_index = dst_offset + index * DIMENSIONS;
+  uint base_index = shader_data.dst_offset + index * DIMENSIONS;
   for (int i = 0; i < DIMENSIONS; i++) {
     dst_data[base_index + i] = int(round(v.vertex_data[i]));
   }
 #else
-  uint base_index = dst_offset + index * DIMENSIONS;
+  uint base_index = shader_data.dst_offset + index * DIMENSIONS;
   for (int i = 0; i < DIMENSIONS; i++) {
     dst_data[base_index + i] = v.vertex_data[i];
   }
 #endif
 }
 
-Vertex interp_vertex(Vertex v0, Vertex v1, Vertex v2, Vertex v3, vec2 uv)
+Vertex interp_vertex(Vertex v0, Vertex v1, Vertex v2, Vertex v3, float2 uv)
 {
   Vertex result;
   for (int i = 0; i < DIMENSIONS; i++) {
@@ -144,7 +119,7 @@ Vertex average(Vertex v0, Vertex v1)
 {
   Vertex result;
   for (int i = 0; i < DIMENSIONS; i++) {
-    result.vertex_data[i] = (v0.vertex_data[i] + v1.vertex_data[i]) * 0.5;
+    result.vertex_data[i] = (v0.vertex_data[i] + v1.vertex_data[i]) * 0.5f;
   }
   return result;
 }
@@ -168,21 +143,22 @@ uint get_polygon_corner_index(uint coarse_face, uint patch_index)
 
 uint get_loop_start(uint coarse_face)
 {
-  return extra_coarse_face_data[coarse_face] & coarse_face_loopstart_mask;
+  return extra_coarse_face_data[coarse_face] & shader_data.coarse_face_loopstart_mask;
 }
 
 void main()
 {
   /* We execute for each quad. */
   uint quad_index = get_global_invocation_index();
-  if (quad_index >= total_dispatch_size) {
+  if (quad_index >= shader_data.total_dispatch_size) {
     return;
   }
 
   uint start_loop_index = quad_index * 4;
 
   /* Find which coarse polygon we came from. */
-  uint coarse_face = coarse_face_index_from_subdiv_quad_index(quad_index, coarse_face_count);
+  uint coarse_face = coarse_face_index_from_subdiv_quad_index(quad_index,
+                                                              shader_data.coarse_face_count);
   uint loop_start = get_loop_start(coarse_face);
 
   /* Find the number of vertices for the coarse polygon. */
@@ -206,7 +182,7 @@ void main()
     Vertex center_value;
     clear(center_value);
 
-    float weight = 1.0 / float(number_of_vertices);
+    float weight = 1.0f / float(number_of_vertices);
 
     for (uint l = loop_start; l < loop_end; l++) {
       add_with_weight(center_value, read_vertex(l), weight);
@@ -231,7 +207,7 @@ void main()
    */
   for (uint loop_index = start_loop_index; loop_index < start_loop_index + 4; loop_index++) {
     BlenderPatchCoord co = patch_coords[loop_index];
-    vec2 uv = decode_uv(co.encoded_uv);
+    float2 uv = decode_uv(co.encoded_uv);
     /* NOTE: v2 and v3 are reversed to stay consistent with the interpolation weight on the x-axis:
      *
      * v3 +-----+ v2
@@ -239,7 +215,7 @@ void main()
      *    |     |
      * v0 +-----+ v1
      *
-     * otherwise, weight would be `1.0 - uv.x` for `v2 <-> v3`, but `uv.x` for `v0 <-> v1`.
+     * otherwise, weight would be `1.0f - uv.x` for `v2 <-> v3`, but `uv.x` for `v0 <-> v1`.
      */
     Vertex result = interp_vertex(v0, v1, v3, v2, uv);
     write_vertex(loop_index, result);

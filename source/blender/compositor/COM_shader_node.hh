@@ -24,10 +24,9 @@ using namespace nodes::derived_node_tree_types;
  * other shader nodes to construct a Shader Operation using the GPU material compiler. A GPU node
  * stack for each of the node inputs and outputs is stored and populated during construction in
  * order to represent the node as a GPU node inside the GPU material graph, see GPU_material.hh for
- * more information. Derived classes should implement the compile method to add the node and link
- * it to the GPU material given to the method. The compiler is expected to initialize the input
- * links of the node before invoking the compile method. See the discussion in
- * COM_shader_operation.hh for more information. */
+ * more information. The compiler is expected to initialize the input links of the node inputs
+ * before invoking the compile method. See the discussion in COM_shader_operation.hh for more
+ * information. */
 class ShaderNode {
  private:
   /* The node that this operation represents. */
@@ -51,10 +50,10 @@ class ShaderNode {
   void compile(GPUMaterial *material);
 
   /* Returns the GPU node stack of the input with the given identifier. */
-  GPUNodeStack &get_input(const StringRef identifier);
+  GPUNodeStack &get_input(StringRef identifier);
 
   /* Returns the GPU node stack of the output with the given identifier. */
-  GPUNodeStack &get_output(const StringRef identifier);
+  GPUNodeStack &get_output(StringRef identifier);
 
  private:
   /* Populate the inputs of the node. The input link is set to nullptr and is expected to be

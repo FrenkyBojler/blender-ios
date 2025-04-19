@@ -43,7 +43,7 @@ struct MeshPairRemap;
 #define UV_PINNED_NAME "pn"
 
 /**
- * UV map related customdata offsets into BMesh attribute blocks. See #BM_uv_map_get_offsets.
+ * UV map related customdata offsets into BMesh attribute blocks. See #BM_uv_map_offsets_get.
  * Defined in #BKE_customdata.hh to avoid including bmesh.hh in many unrelated areas.
  * An offset of -1 means that the corresponding layer does not exist.
  */
@@ -234,7 +234,7 @@ void CustomData_reset(CustomData *data);
 /**
  * Frees data associated with a CustomData object (doesn't free the object itself, though).
  */
-void CustomData_free(CustomData *data, int totelem);
+void CustomData_free(CustomData *data);
 
 /**
  * Adds a layer of the given type to the #CustomData object. The new layer is initialized based on
@@ -278,8 +278,8 @@ const void *CustomData_add_layer_named_with_data(CustomData *data,
  *
  * In edit-mode, use #EDBM_data_layer_free instead of this function.
  */
-bool CustomData_free_layer(CustomData *data, eCustomDataType type, int totelem, int index);
-bool CustomData_free_layer_named(CustomData *data, blender::StringRef name, const int totelem);
+bool CustomData_free_layer(CustomData *data, eCustomDataType type, int index);
+bool CustomData_free_layer_named(CustomData *data, blender::StringRef name);
 
 /**
  * Frees the layer index with the give type.
@@ -287,12 +287,12 @@ bool CustomData_free_layer_named(CustomData *data, blender::StringRef name, cons
  *
  * In edit-mode, use #EDBM_data_layer_free instead of this function.
  */
-bool CustomData_free_layer_active(CustomData *data, eCustomDataType type, int totelem);
+bool CustomData_free_layer_active(CustomData *data, eCustomDataType type);
 
 /**
  * Same as #CustomData_free_layer_active, but free all layers with type.
  */
-void CustomData_free_layers(CustomData *data, eCustomDataType type, int totelem);
+void CustomData_free_layers(CustomData *data, eCustomDataType type);
 
 /**
  * Returns true if a layer with the specified type exists.
@@ -590,12 +590,6 @@ void CustomData_bmesh_alloc_block(CustomData *data, void **block);
  */
 void CustomData_bmesh_free_block_data(CustomData *data, void *block);
 
-/**
- * Query info over types.
- */
-void CustomData_file_write_info(eCustomDataType type,
-                                const char **r_struct_name,
-                                int *r_struct_num);
 int CustomData_sizeof(eCustomDataType type);
 
 /**

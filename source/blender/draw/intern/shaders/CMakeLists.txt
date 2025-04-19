@@ -24,12 +24,23 @@ set(SRC_GLSL_FRAG
 )
 
 set(SRC_GLSL_COMP
-  common_hair_refine_comp.glsl
+  draw_hair_refine_comp.glsl
   draw_command_generate_comp.glsl
   # Failed because of mixed definition of ObjectInfos
   # draw_resource_finalize_comp.glsl
   draw_view_finalize_comp.glsl
   draw_visibility_comp.glsl
+
+  subdiv_ibo_lines_comp.glsl
+  subdiv_ibo_tris_comp.glsl
+  subdiv_vbo_edge_fac_comp.glsl
+  subdiv_custom_data_interp_comp.glsl
+  subdiv_vbo_sculpt_data_comp.glsl
+  subdiv_vbo_edituv_strech_angle_comp.glsl
+  subdiv_vbo_edituv_strech_area_comp.glsl
+  subdiv_vbo_lnor_comp.glsl
+  subdiv_normals_accumulate_comp.glsl
+  subdiv_normals_finalize_comp.glsl
 )
 
 # Compile shaders with shader code.

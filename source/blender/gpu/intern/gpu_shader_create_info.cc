@@ -398,7 +398,7 @@ void ShaderCreateInfo::validate_vertex_attributes(const ShaderCreateInfo *other_
   for (auto &attr : vertex_inputs_) {
     if (attr.index >= 16 || attr.index < 0) {
       std::cout << name_ << ": \"" << attr.name
-                << "\" : Type::MAT3 unsupported as vertex attribute." << std::endl;
+                << "\" : Type::float3x3_t unsupported as vertex attribute." << std::endl;
       BLI_assert(0);
     }
     if (attr.index >= 16 || attr.index < 0) {
@@ -406,7 +406,7 @@ void ShaderCreateInfo::validate_vertex_attributes(const ShaderCreateInfo *other_
       BLI_assert(0);
     }
     uint32_t attr_new = 0;
-    if (attr.type == Type::MAT4) {
+    if (attr.type == Type::float4x4_t) {
       for (int i = 0; i < 4; i++) {
         attr_new |= 1 << (attr.index + i);
       }
@@ -472,21 +472,10 @@ void gpu_shader_create_info_init()
 /* Declare, register and construct the infos. */
 #include "gpu_shader_create_info_list.hh"
 
-  /* WORKAROUND: Replace draw_mesh info with the legacy one for systems that have problems with UBO
-   * indexing. */
-  if (GPU_type_matches_ex(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD,
-                          GPU_OS_ANY,
-                          GPU_DRIVER_ANY,
-                          GPU_BACKEND_OPENGL) ||
-      GPU_crappy_amd_driver())
-  {
-    draw_modelmat = draw_modelmat_legacy;
-  }
-
   /* WORKAROUND: Replace the use of gpu_BaseInstance by an instance attribute. */
   if (GPU_shader_draw_parameters_support() == false) {
-    draw_resource_id_new = draw_resource_id_fallback;
-    draw_resource_with_custom_id_new = draw_resource_with_custom_id_fallback;
+    draw_resource_id = draw_resource_id_fallback;
+    draw_resource_with_custom_id = draw_resource_with_custom_id_fallback;
   }
 
   if (GPU_stencil_clasify_buffer_workaround()) {

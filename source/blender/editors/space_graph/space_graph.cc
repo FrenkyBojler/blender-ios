@@ -17,6 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -140,7 +141,7 @@ static void graph_init(wmWindowManager *wm, ScrArea *area)
 {
   SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
 
-  /* init dopesheet data if non-existent (i.e. for old files) */
+  /* Init dope-sheet if non-existent (i.e. for old files). */
   if (sipo->ads == nullptr) {
     wmWindow *win = WM_window_find_by_area(wm, area);
     sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
@@ -213,20 +214,24 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   bAnimContext ac;
   View2D *v2d = &region->v2d;
 
+  const int min_height = UI_ANIM_MINY;
+
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
 
   UI_view2d_view_ortho(v2d);
 
   /* grid */
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
-  UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
-  UI_view2d_draw_lines_y__values(v2d);
+  if (region->winy > min_height) {
+    UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+    UI_view2d_draw_lines_y__values(v2d);
+  }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
   /* start and end frame (in F-Curve mode only) */
-  if (sipo->mode != SIPO_MODE_DRIVERS) {
+  if (sipo->mode != SIPO_MODE_DRIVERS && region->winy > min_height) {
     ANIM_draw_framerange(scene, v2d);
   }
 
@@ -325,6 +330,7 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   const SpaceGraph *sipo = CTX_wm_space_graph(C);
+  const bool minimized = (region->winy < UI_ANIM_MINY);
 
   const Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
@@ -332,10 +338,10 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
   /* Driver Editor's X axis is not time. */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     /* scrubbing region */
-    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME);
+    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME, !minimized);
   }
 
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     /* scrollers */
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     /* FIXME: args for scrollers depend on the type of data being shown. */
@@ -539,14 +545,14 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
     }
   }
 
-  /* All dopesheet filter settings, etc. affect the drawing of this editor,
+  /* All dope-sheet filter settings, etc. affect the drawing of this editor,
    * also same applies for all animation-related data-types that may appear here,
    * so just whitelist the entire structs for updates
    */
   {
     wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
-        &RNA_DopeSheet, /* dopesheet filters */
+        &RNA_DopeSheet, /* dope-sheet filters */
 
         &RNA_ActionGroup, /* channel groups */
         &RNA_FCurve,      /* F-Curve */
@@ -866,7 +872,6 @@ static int graph_space_subtype_get(ScrArea *area)
 static void graph_space_subtype_set(ScrArea *area, int value)
 {
   SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
-  sgraph->mode_prev = sgraph->mode;
   sgraph->mode = value;
 }
 
@@ -875,12 +880,6 @@ static void graph_space_subtype_item_extend(bContext * /*C*/,
                                             int *totitem)
 {
   RNA_enum_items_add(item, totitem, rna_enum_space_graph_mode_items);
-}
-
-static int graph_space_subtype_prev_get(ScrArea *area)
-{
-  SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
-  return sgraph->mode_prev;
 }
 
 static blender::StringRefNull graph_space_name_get(const ScrArea *area)
@@ -945,7 +944,6 @@ void ED_spacetype_ipo()
   st->space_subtype_item_extend = graph_space_subtype_item_extend;
   st->space_subtype_get = graph_space_subtype_get;
   st->space_subtype_set = graph_space_subtype_set;
-  st->space_subtype_prev_get = graph_space_subtype_prev_get;
   st->space_name_get = graph_space_name_get;
   st->space_icon_get = graph_space_icon_get;
   st->blend_read_data = graph_space_blend_read_data;

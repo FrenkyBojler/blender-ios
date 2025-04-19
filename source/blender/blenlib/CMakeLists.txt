@@ -15,7 +15,6 @@ set(INC_SYS
   ../../../extern/wcwidth
   ../../../extern/json/include
 
-  ${EIGEN3_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   ${ZSTD_INCLUDE_DIRS}
 )
@@ -58,6 +57,7 @@ set(SRC
   intern/convexhull_2d.cc
   intern/cpp_type.cc
   intern/cpp_types.cc
+  intern/csv_parse.cc
   intern/delaunay_2d.cc
   intern/dot_export.cc
   intern/easing.cc
@@ -158,7 +158,6 @@ set(SRC
   intern/timecode.cc
   intern/timeit.cc
   intern/uuid.cc
-  intern/uvproject.cc
   intern/vector.cc
   intern/virtual_array.cc
   intern/voxel.cc
@@ -215,6 +214,7 @@ set(SRC
   BLI_cpp_type_make.hh
   BLI_cpp_types.hh
   BLI_cpp_types_make.hh
+  BLI_csv_parse.hh
   BLI_delaunay_2d.hh
   BLI_devirtualize_parameters.hh
   BLI_dial_2d.h
@@ -396,7 +396,6 @@ set(SRC
   BLI_utildefines_variadic.h
   BLI_utility_mixins.hh
   BLI_uuid.h
-  BLI_uvproject.h
   BLI_vector.hh
   BLI_vector_list.hh
   BLI_vector_set.hh
@@ -422,6 +421,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE extern_fmtlib
   PUBLIC bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::eigen
   ${ZLIB_LIBRARIES}
   ${ZSTD_LIBRARIES}
 )
@@ -458,9 +458,6 @@ if(WITH_FFTW3)
     ${FFTW3_LIBRARIES}
   )
   add_definitions(-DWITH_FFTW3)
-  if(WITH_FFTW3_THREADS_F_SUPPORT)
-    add_definitions(-DWITH_FFTW3_THREADS_F_SUPPORT)
-  endif()
 endif()
 
 if(WIN32)
@@ -469,9 +466,11 @@ if(WIN32)
     add_definitions(-DWITH_BLENDER_THUMBNAILER)
   endif()
   list(APPEND INC
+    ../../../intern/uriconvert
     ../../../intern/utfconv
   )
   list(APPEND LIB
+    bf_intern_uriconvert
     bf_intern_utfconv
     dxgi
   )
@@ -527,6 +526,7 @@ if(WITH_GTESTS)
     tests/BLI_color_test.cc
     tests/BLI_convexhull_2d_test.cc
     tests/BLI_cpp_type_test.cc
+    tests/BLI_csv_parse_test.cc
     tests/BLI_delaunay_2d_test.cc
     tests/BLI_disjoint_set_test.cc
     tests/BLI_expr_pylike_eval_test.cc

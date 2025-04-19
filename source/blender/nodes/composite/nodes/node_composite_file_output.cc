@@ -9,6 +9,8 @@
 #include <cstring>
 
 #include "BLI_assert.h"
+#include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -54,18 +56,14 @@
 /* **************** OUTPUT FILE ******************** */
 
 /* find unique path */
-static bool unique_path_unique_check(void *arg, const char *name)
+static bool unique_path_unique_check(ListBase *lb,
+                                     bNodeSocket *sock,
+                                     const blender::StringRef name)
 {
-  struct Args {
-    ListBase *lb;
-    bNodeSocket *sock;
-  };
-  Args *data = (Args *)arg;
-
-  LISTBASE_FOREACH (bNodeSocket *, sock, data->lb) {
-    if (sock != data->sock) {
-      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
-      if (STREQ(sockdata->path, name)) {
+  LISTBASE_FOREACH (bNodeSocket *, sock_iter, lb) {
+    if (sock_iter != sock) {
+      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock_iter->storage;
+      if (sockdata->path == name) {
         return true;
       }
     }
@@ -77,37 +75,30 @@ void ntreeCompositOutputFileUniquePath(ListBase *list,
                                        const char defname[],
                                        char delim)
 {
-  NodeImageMultiFileSocket *sockdata;
-  struct {
-    ListBase *lb;
-    bNodeSocket *sock;
-  } data;
-  data.lb = list;
-  data.sock = sock;
-
   /* See if we are given an empty string */
   if (ELEM(nullptr, sock, defname)) {
     return;
   }
-
-  sockdata = (NodeImageMultiFileSocket *)sock->storage;
+  NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
   BLI_uniquename_cb(
-      unique_path_unique_check, &data, defname, delim, sockdata->path, sizeof(sockdata->path));
+      [&](const blender::StringRef check_name) {
+        return unique_path_unique_check(list, sock, check_name);
+      },
+      defname,
+      delim,
+      sockdata->path,
+      sizeof(sockdata->path));
 }
 
 /* find unique EXR layer */
-static bool unique_layer_unique_check(void *arg, const char *name)
+static bool unique_layer_unique_check(ListBase *lb,
+                                      bNodeSocket *sock,
+                                      const blender::StringRef name)
 {
-  struct Args {
-    ListBase *lb;
-    bNodeSocket *sock;
-  };
-  Args *data = (Args *)arg;
-
-  LISTBASE_FOREACH (bNodeSocket *, sock, data->lb) {
-    if (sock != data->sock) {
-      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
-      if (STREQ(sockdata->layer, name)) {
+  LISTBASE_FOREACH (bNodeSocket *, sock_iter, lb) {
+    if (sock_iter != sock) {
+      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock_iter->storage;
+      if (sockdata->layer == name) {
         return true;
       }
     }
@@ -119,21 +110,19 @@ void ntreeCompositOutputFileUniqueLayer(ListBase *list,
                                         const char defname[],
                                         char delim)
 {
-  struct {
-    ListBase *lb;
-    bNodeSocket *sock;
-  } data;
-  data.lb = list;
-  data.sock = sock;
-
   /* See if we are given an empty string */
   if (ELEM(nullptr, sock, defname)) {
     return;
   }
-
   NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
   BLI_uniquename_cb(
-      unique_layer_unique_check, &data, defname, delim, sockdata->layer, sizeof(sockdata->layer));
+      [&](const blender::StringRef check_name) {
+        return unique_layer_unique_check(list, sock, check_name);
+      },
+      defname,
+      delim,
+      sockdata->layer,
+      sizeof(sockdata->layer));
 }
 
 bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
@@ -143,10 +132,10 @@ bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
 {
   NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
   bNodeSocket *sock = blender::bke::node_add_static_socket(
-      ntree, node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
+      *ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
 
   /* create format data for the input socket */
-  NodeImageMultiFileSocket *sockdata = MEM_cnew<NodeImageMultiFileSocket>(__func__);
+  NodeImageMultiFileSocket *sockdata = MEM_callocN<NodeImageMultiFileSocket>(__func__);
   sock->storage = sockdata;
 
   STRNCPY_UTF8(sockdata->path, name);
@@ -192,7 +181,7 @@ int ntreeCompositOutputFileRemoveActiveSocket(bNodeTree *ntree, bNode *node)
   /* free format data */
   MEM_freeN(sock->storage);
 
-  blender::bke::node_remove_socket(ntree, node, sock);
+  blender::bke::node_remove_socket(*ntree, *node, *sock);
   return 1;
 }
 
@@ -220,7 +209,7 @@ static void init_output_file(const bContext *C, PointerRNA *ptr)
   Scene *scene = CTX_data_scene(C);
   bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
   bNode *node = (bNode *)ptr->data;
-  NodeImageMultiFile *nimf = MEM_cnew<NodeImageMultiFile>(__func__);
+  NodeImageMultiFile *nimf = MEM_callocN<NodeImageMultiFile>(__func__);
   nimf->save_as_render = true;
   ImageFormatData *format = nullptr;
   node->storage = nimf;
@@ -290,11 +279,11 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
    */
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (sock->storage == nullptr) {
-      blender::bke::node_remove_socket(ntree, node, sock);
+      blender::bke::node_remove_socket(*ntree, *node, *sock);
     }
   }
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->outputs) {
-    blender::bke::node_remove_socket(ntree, node, sock);
+    blender::bke::node_remove_socket(*ntree, *node, *sock);
   }
 
   cmp_node_update_default(ntree, node);
@@ -507,12 +496,17 @@ class FileOutputOperation : public NodeOperation {
   FileOutputOperation(Context &context, DNode node) : NodeOperation(context, node)
   {
     for (const bNodeSocket *input : node->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
       /* Inputs for multi-layer files need to be the same size, while they can be different for
        * individual file outputs. */
       descriptor.realization_mode = this->is_multi_layer() ?
                                         InputRealizationMode::OperationDomain :
                                         InputRealizationMode::Transforms;
+      descriptor.skip_type_conversion = true;
     }
   }
 
@@ -533,6 +527,10 @@ class FileOutputOperation : public NodeOperation {
   void execute_single_layer()
   {
     for (const bNodeSocket *input : this->node()->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       const Result &result = get_input(input->identifier);
       /* We only write images, not single values. */
       if (result.is_single_value()) {
@@ -627,6 +625,10 @@ class FileOutputOperation : public NodeOperation {
     file_output.add_view(pass_view);
 
     for (const bNodeSocket *input : this->node()->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       const Result &input_result = get_input(input->identifier);
       const char *pass_name = (static_cast<NodeImageMultiFileSocket *>(input->storage))->layer;
       add_pass_for_result(file_output, input_result, pass_name, pass_view);
@@ -676,20 +678,33 @@ class FileOutputOperation : public NodeOperation {
           file_output.add_pass(pass_name, view_name, "RGBA", buffer);
         }
         break;
-      case ResultType::Vector:
-        if (result.meta_data.is_4d_vector) {
-          file_output.add_pass(pass_name, view_name, "XYZW", buffer);
-        }
-        else {
+      case ResultType::Float3:
+        /* Float3 results might be stored in 4-component textures due to hardware limitations, so
+         * we need to convert the buffer to a 3-component buffer on the host. */
+        if (this->context().use_gpu() && GPU_texture_component_len(GPU_texture_format(result))) {
           file_output.add_pass(pass_name, view_name, "XYZ", float4_to_float3_image(size, buffer));
         }
+        else {
+          file_output.add_pass(pass_name, view_name, "XYZ", buffer);
+        }
+        break;
+      case ResultType::Float4:
+        file_output.add_pass(pass_name, view_name, "XYZW", buffer);
         break;
       case ResultType::Float:
         file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
-      default:
-        /* Other types are internal and needn't be handled by operations. */
-        BLI_assert_unreachable();
+      case ResultType::Float2:
+        file_output.add_pass(pass_name, view_name, "XY", buffer);
+        break;
+      case ResultType::Int2:
+        file_output.add_pass(pass_name, view_name, "XY", buffer);
+        break;
+      case ResultType::Int:
+        file_output.add_pass(pass_name, view_name, "V", buffer);
+        break;
+      case ResultType::Bool:
+        file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
     }
   }
@@ -700,32 +715,35 @@ class FileOutputOperation : public NodeOperation {
   {
     BLI_assert(result.is_single_value());
 
+    const int64_t length = int64_t(size.x) * size.y;
+    const int64_t buffer_size = length * result.channels_count();
+    float *buffer = MEM_malloc_arrayN<float>(buffer_size, "File Output Inflated Buffer.");
+
     switch (result.type()) {
-      case ResultType::Float: {
-        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
-            size_t(size.x) * size.y, sizeof(float), "File Output Inflated Buffer."));
-
-        const float value = result.get_single_value<float>();
-        parallel_for(
-            size, [&](const int2 texel) { buffer[int64_t(texel.y) * size.x + texel.x] = value; });
-        return buffer;
-      }
-      case ResultType::Vector:
+      case ResultType::Float:
+      case ResultType::Float2:
+      case ResultType::Float3:
+      case ResultType::Float4:
       case ResultType::Color: {
-        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
-            size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
-
-        const float4 value = result.type() == ResultType::Color ?
-                                 result.get_single_value<float4>() :
-                                 result.get_single_value<float4>();
-        parallel_for(size, [&](const int2 texel) {
-          copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
-        });
+        const GPointer single_value = result.single_value();
+        single_value.type()->fill_assign_n(single_value.get(), buffer, length);
         return buffer;
       }
-      default:
-        /* Other types are internal and needn't be handled by operations. */
-        break;
+      case ResultType::Int: {
+        const float value = float(result.get_single_value<int32_t>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Int2: {
+        const float2 value = float2(result.get_single_value<int2>());
+        CPPType::get<float2>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Bool: {
+        const float value = float(result.get_single_value<bool>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
     }
 
     BLI_assert_unreachable();
@@ -752,14 +770,27 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Color:
         file_output.add_view(view_name, 4, buffer);
         break;
-      case ResultType::Vector:
-        file_output.add_view(view_name, 3, float4_to_float3_image(size, buffer));
+      case ResultType::Float4:
+        file_output.add_view(view_name, 4, buffer);
+        break;
+      case ResultType::Float3:
+        /* Float3 results might be stored in 4-component textures due to hardware limitations, so
+         * we need to convert the buffer to a 3-component buffer on the host. */
+        if (this->context().use_gpu() && GPU_texture_component_len(GPU_texture_format(result))) {
+          file_output.add_view(view_name, 3, float4_to_float3_image(size, buffer));
+        }
+        else {
+          file_output.add_view(view_name, 3, buffer);
+        }
         break;
       case ResultType::Float:
         file_output.add_view(view_name, 1, buffer);
         break;
-      default:
-        /* Other types are internal and needn't be handled by operations. */
+      case ResultType::Float2:
+      case ResultType::Int2:
+      case ResultType::Int:
+      case ResultType::Bool:
+        /* Not supported. */
         BLI_assert_unreachable();
         break;
     }
@@ -769,8 +800,8 @@ class FileOutputOperation : public NodeOperation {
    * input image is freed. */
   float *float4_to_float3_image(int2 size, float *float4_image)
   {
-    float *float3_image = static_cast<float *>(MEM_malloc_arrayN(
-        size_t(size.x) * size.y, sizeof(float[3]), "File Output Vector Buffer."));
+    float *float3_image = MEM_malloc_arrayN<float>(3 * size_t(size.x) * size_t(size.y),
+                                                   "File Output Vector Buffer.");
 
     parallel_for(size, [&](const int2 texel) {
       for (int i = 0; i < 3; i++) {
@@ -914,9 +945,9 @@ void register_node_type_cmp_output_file()
   ntype.initfunc_api = file_ns::init_output_file;
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_storage(
-      &ntype, "NodeImageMultiFile", file_ns::free_output_file, file_ns::copy_output_file);
+      ntype, "NodeImageMultiFile", file_ns::free_output_file, file_ns::copy_output_file);
   ntype.updatefunc = file_ns::update_output_file;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

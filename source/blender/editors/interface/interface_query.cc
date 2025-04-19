@@ -31,6 +31,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+using blender::StringRef;
+
 /* -------------------------------------------------------------------- */
 /** \name Button (#uiBut) State
  * \{ */
@@ -93,7 +95,8 @@ bool ui_but_is_interactive_ex(const uiBut *but, const bool labeledit, const bool
     return false;
   }
   if ((but->type == UI_BTYPE_TEXT) &&
-      ELEM(but->emboss, UI_EMBOSS_NONE, UI_EMBOSS_NONE_OR_STATUS) && !labeledit)
+      ELEM(but->emboss, blender::ui::EmbossType::None, blender::ui::EmbossType::NoneOrStatus) &&
+      !labeledit)
   {
     return false;
   }
@@ -163,8 +166,8 @@ int ui_but_icon(const uiBut *but)
   const bool is_preview = (but->flag & UI_BUT_ICON_PREVIEW) != 0;
 
   /* While icon is loading, show loading icon at the normal icon size. */
-  if (is_preview && ui_icon_is_preview_deferred_loading(but->icon, true)) {
-    return ICON_TEMP;
+  if (ui_icon_is_preview_deferred_loading(but->icon, is_preview)) {
+    return ICON_PREVIEW_LOADING;
   }
 
   /* Consecutive icons can be toggle between. */
@@ -640,8 +643,11 @@ size_t ui_but_tip_len_only_first_line(const uiBut *but)
   if (but->tip == nullptr) {
     return 0;
   }
-  const char *str_sep = BLI_strchr_or_end(but->tip, '\n');
-  return (str_sep - but->tip);
+  const int64_t str_step = but->tip.find('\n');
+  if (str_step == StringRef::not_found) {
+    return but->tip.size();
+  }
+  return str_step;
 }
 
 /** \} */

@@ -70,20 +70,18 @@ BLOCKLIST_OPTIX = [
 ]
 
 BLOCKLIST_OPTIX_OSL = [
-    # OPTIX OSL doesn't support trace function needed for AO and bevel
-    'bake_bevel.blend',
+    # OptiX OSL does support AO or Bevel
     'ambient_occlusion.*.blend',
+    'bake_bevel.blend',
     'bevel.blend',
+    'principled_bsdf_bevel_emission_137420.blend',
+    # OptiX OSL doesn't support the trace function
     'osl_trace_shader.blend',
     # Bump evaluation is not implemented yet. See 104276
     'compare_bump.blend',
     'both_displacement.blend',
     'bump_with_displacement.blend',
     'ray_portal.blend',
-    # Volumetric textures using the Genereated textures coordinate are different in OptiX OSL. See 129279
-    'texture_coordinate_generated.blend',
-    'principled_absorption.blend',
-    'denoise_volume.blend',
     # The 3D texture doesn't have the right mappings
     'point_density_.*_object.blend',
     # Dicing tests use wireframe node which doesn't appear to be supported with OptiX OSL
@@ -119,7 +117,7 @@ BLOCKLIST_GPU = [
     'denoise_hair.blend',
     'hair_basemesh_intercept.blend',
     'hair_instancer_uv.blend',
-    'hair_length_info.blend',
+    'hair_info.blend',
     'hair_particle_random.blend',
     "hair_transmission.blend",
     'principled_hair_.*.blend',
@@ -258,9 +256,12 @@ def main():
     # OSL tests:
     # Blackbody is slightly different between SVM and OSL.
     # Microfacet hair renders slightly differently, and fails on Windows and Linux with OSL
+    #
+    # both_displacement.blend has slight differences between Linux and other platforms.
 
     test_dir_name = Path(args.testdir).name
-    if (test_dir_name in {'motion_blur', 'integrator'}) or ((args.osl) and (test_dir_name in {'shader', 'hair'})):
+    if (test_dir_name in {'motion_blur', 'integrator', "displacement"}) or \
+       ((args.osl) and (test_dir_name in {'shader', 'hair'})):
         report.set_fail_threshold(0.032)
 
     # Layer mixing is different between SVM and OSL, so a few tests have
