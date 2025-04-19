@@ -227,7 +227,7 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
                                                    eBrushFalloffShape(brush.falloff_shape),
                                                    use_original,
                                                    ss.cache->location_symm,
-                                                   ss.cache->radius_squared,
+                                                   ss.cache->radius_squared * 2,
                                                    ss.cache->view_normal_symm,
                                                    memory);
 
@@ -250,17 +250,7 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
 
   plane_center = plane_center + (plane_normal * ss.cache->scale * displace);
 
-  /* Unsure mathematically why a extra factor of 2 vs sqrt(3) is needed here... */
-  const float radius_squared = math::square(ss.cache->radius * 2);
-  const IndexMask plane_mask = bke::pbvh::search_nodes(
-      pbvh, memory, [&](const bke::pbvh::Node &node) {
-        if (node_fully_masked_or_hidden(node)) {
-          return false;
-        }
-        return node_in_sphere(node, plane_center, radius_squared, use_original);
-      });
-
-  return {plane_mask, plane_center, plane_normal};
+  return {initial_node_mask, plane_center, plane_normal};
 }
 }  // namespace clay
 
