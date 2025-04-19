@@ -54,7 +54,7 @@ struct LocalData {
 };
 
 /**
- * Transforms positions from object space positions to brush-local space. Splitting the XZ and Z
+ * Transforms positions from object space positions to brush-local space. Splitting the XY and Z
  * components gives slightly better performance.
  */
 static void calc_local_positions(const Span<float3> vert_positions,
@@ -63,11 +63,13 @@ static void calc_local_positions(const Span<float3> vert_positions,
                                  const MutableSpan<float2> xy_positions,
                                  const MutableSpan<float> z_positions)
 {
+  BLI_assert(xy_positions.size() == verts.size());
+  BLI_assert(z_positions.size() == verts.size());
+
   for (const int i : verts.index_range()) {
     const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
 
-    xy_positions[i].x = position.x;
-    xy_positions[i].y = position.y;
+    xy_positions[i] = position.xy();
     z_positions[i] = position.z;
   }
 }
@@ -77,11 +79,13 @@ static void calc_local_positions(const Span<float3> positions,
                                  const MutableSpan<float2> xy_positions,
                                  const MutableSpan<float> z_positions)
 {
+  BLI_assert(xy_positions.size() == positions.size());
+  BLI_assert(z_positions.size() == positions.size());
+
   for (const int i : positions.index_range()) {
     const float3 position = math::transform_point(mat, positions[i]);
 
-    xy_positions[i].x = position.x;
-    xy_positions[i].y = position.y;
+    xy_positions[i] = position.xy();
     z_positions[i] = position.z;
   }
 }
@@ -94,6 +98,8 @@ static void calc_local_positions(const Span<float3> positions,
  */
 static void apply_z_axis_factors(const Span<float> z_positions, const MutableSpan<float> factors)
 {
+  BLI_assert(factors.size() == z_positions.size());
+
   for (const int i : factors.index_range()) {
     const float local_z = z_positions[i];
 
@@ -110,8 +116,9 @@ static void apply_plane_trim_factors(const Brush &brush,
                                      const Span<float> z_positions,
                                      const MutableSpan<float> factors)
 {
-  const bool use_plane_trim = brush.flag & BRUSH_PLANE_TRIM;
+  BLI_assert(factors.size() == z_positions.size());
 
+  const bool use_plane_trim = brush.flag & BRUSH_PLANE_TRIM;
   if (!use_plane_trim) {
     return;
   }
@@ -131,6 +138,8 @@ static void calc_xy_distances(const Brush &brush,
                               const Span<float2> xy_positions,
                               const MutableSpan<float> r_distances)
 {
+  BLI_assert(r_distances.size() == xy_positions.size());
+
   const float roundness = brush.tip_roundness;
   const float roundness_rcp = math::safe_rcp(roundness);
   const float hardness = 1.0f - roundness;
