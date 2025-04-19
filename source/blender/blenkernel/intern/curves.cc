@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include <cmath>
 #include <cstring>
 #include <optional>
 
@@ -174,9 +173,9 @@ Curves *BKE_curves_add(Main *bmain, const char *name)
   return curves;
 }
 
-bool BKE_curves_attribute_required(const Curves * /*curves*/, const char *name)
+bool BKE_curves_attribute_required(const Curves * /*curves*/, const blender::StringRef name)
 {
-  return STREQ(name, ATTR_POSITION);
+  return name == ATTR_POSITION;
 }
 
 Curves *BKE_curves_copy_for_eval(const Curves *curves_src)
@@ -194,7 +193,7 @@ static void curves_evaluate_modifiers(Depsgraph *depsgraph,
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
   if (BKE_object_is_in_editmode(object)) {
-    required_mode = (ModifierMode)(int(required_mode) | eModifierMode_Editmode);
+    required_mode = (ModifierMode)(required_mode | eModifierMode_Editmode);
   }
   ModifierApplyFlag apply_flag = use_render ? MOD_APPLY_RENDER : MOD_APPLY_USECACHE;
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
@@ -238,7 +237,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
     GeometryComponentEditData &edit_component =
         geometry_set.get_component_for_write<GeometryComponentEditData>();
     edit_component.curves_edit_hints_ = std::make_unique<CurvesEditHints>(
-        *static_cast<const Curves *>(DEG_get_original_object(object)->data));
+        *static_cast<const Curves *>(DEG_get_original(object)->data));
   }
   curves_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
@@ -305,7 +304,7 @@ void curves_copy_parameters(const Curves &src, Curves &dst)
 {
   dst.flag = src.flag;
   MEM_SAFE_FREE(dst.mat);
-  dst.mat = static_cast<Material **>(MEM_malloc_arrayN(src.totcol, sizeof(Material *), __func__));
+  dst.mat = MEM_malloc_arrayN<Material *>(size_t(src.totcol), __func__);
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
   dst.symmetry = src.symmetry;

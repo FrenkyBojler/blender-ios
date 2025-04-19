@@ -6,6 +6,7 @@ set(INC
   .
   algorithms
   cached_resources
+  derived_resources
   utilities
   ../gpu/intern
   ../makesrna
@@ -21,8 +22,10 @@ set(SRC
   COM_compositor.hh
   COM_context.hh
   COM_conversion_operation.hh
+  COM_derived_resources.hh
   COM_domain.hh
   COM_evaluator.hh
+  COM_implicit_input_operation.hh
   COM_input_descriptor.hh
   COM_input_single_value_operation.hh
   COM_meta_data.hh
@@ -32,7 +35,6 @@ set(SRC
   COM_pixel_operation.hh
   COM_profiler.hh
   COM_realize_on_domain_operation.hh
-  COM_reduce_to_single_value_operation.hh
   COM_render_context.hh
   COM_result.hh
   COM_scheduler.hh
@@ -40,7 +42,6 @@ set(SRC
   COM_shader_operation.hh
   COM_simple_operation.hh
   COM_static_cache_manager.hh
-  COM_texture_pool.hh
   COM_utilities.hh
 
   intern/COM_compositor.cc
@@ -49,6 +50,7 @@ set(SRC
   intern/conversion_operation.cc
   intern/domain.cc
   intern/evaluator.cc
+  intern/implicit_input_operation.cc
   intern/input_single_value_operation.cc
   intern/meta_data.cc
   intern/multi_function_procedure_operation.cc
@@ -57,7 +59,6 @@ set(SRC
   intern/pixel_operation.cc
   intern/profiler.cc
   intern/realize_on_domain_operation.cc
-  intern/reduce_to_single_value_operation.cc
   intern/render_context.cc
   intern/result.cc
   intern/scheduler.cc
@@ -65,7 +66,6 @@ set(SRC
   intern/shader_operation.cc
   intern/simple_operation.cc
   intern/static_cache_manager.cc
-  intern/texture_pool.cc
   intern/utilities.cc
 
   algorithms/intern/compute_preview.cc
@@ -111,9 +111,11 @@ set(SRC
   cached_resources/intern/keying_screen.cc
   cached_resources/intern/morphological_distance_feather_weights.cc
   cached_resources/intern/ocio_color_space_conversion_shader.cc
+  cached_resources/intern/pixel_coordinates.cc
   cached_resources/intern/smaa_precomputed_textures.cc
   cached_resources/intern/symmetric_blur_weights.cc
   cached_resources/intern/symmetric_separable_blur_weights.cc
+  cached_resources/intern/texture_coordinates.cc
   cached_resources/intern/van_vliet_gaussian_coefficients.cc
 
   cached_resources/COM_bokeh_kernel.hh
@@ -128,18 +130,29 @@ set(SRC
   cached_resources/COM_keying_screen.hh
   cached_resources/COM_morphological_distance_feather_weights.hh
   cached_resources/COM_ocio_color_space_conversion_shader.hh
+  cached_resources/COM_pixel_coordinates.hh
   cached_resources/COM_smaa_precomputed_textures.hh
   cached_resources/COM_symmetric_blur_weights.hh
   cached_resources/COM_symmetric_separable_blur_weights.hh
+  cached_resources/COM_texture_coordinates.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
 
+  derived_resources/intern/denoised_auxiliary_pass.cc
+
+  derived_resources/COM_denoised_auxiliary_pass.hh
+
+  utilities/intern/gpu_material.cc
+  utilities/intern/oidn.cc
+
   utilities/COM_utilities_diagonals.hh
-  utilities/COM_utilities_type_conversion.hh
+  utilities/COM_utilities_gpu_material.hh
+  utilities/COM_utilities_oidn.hh
 )
 
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blentranslation
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
@@ -218,11 +231,13 @@ set(GLSL_SRC
   shaders/compositor_movie_distortion.glsl
   shaders/compositor_normalize.glsl
   shaders/compositor_parallel_reduction.glsl
+  shaders/compositor_pixel_coordinates.glsl
   shaders/compositor_pixelate.glsl
-  shaders/compositor_plane_deform.glsl
+  shaders/compositor_plane_deform_anisotropic.glsl
   shaders/compositor_plane_deform_mask.glsl
   shaders/compositor_plane_deform_motion_blur.glsl
   shaders/compositor_plane_deform_motion_blur_mask.glsl
+  shaders/compositor_plane_deform.glsl
   shaders/compositor_premultiply_alpha.glsl
   shaders/compositor_projector_lens_distortion.glsl
   shaders/compositor_read_input.glsl
@@ -242,6 +257,7 @@ set(GLSL_SRC
   shaders/compositor_symmetric_blur_variable_size.glsl
   shaders/compositor_symmetric_separable_blur.glsl
   shaders/compositor_symmetric_separable_blur_variable_size.glsl
+  shaders/compositor_texture_coordinates.glsl
   shaders/compositor_tone_map_photoreceptor.glsl
   shaders/compositor_tone_map_simple.glsl
   shaders/compositor_translate_wrapped.glsl
@@ -249,8 +265,10 @@ set(GLSL_SRC
   shaders/compositor_van_vliet_gaussian_blur_sum.glsl
   shaders/compositor_write_output.glsl
   shaders/compositor_z_combine_compute_mask.glsl
-  shaders/compositor_z_combine_from_mask.glsl
-  shaders/compositor_z_combine_simple.glsl
+  shaders/compositor_z_combine_from_mask_depth.glsl
+  shaders/compositor_z_combine_from_mask_image.glsl
+  shaders/compositor_z_combine_simple_depth.glsl
+  shaders/compositor_z_combine_simple_image.glsl
 
   shaders/library/gpu_shader_compositor_alpha_over.glsl
   shaders/library/gpu_shader_compositor_bright_contrast.glsl

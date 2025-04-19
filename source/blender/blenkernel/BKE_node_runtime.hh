@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include <memory>
@@ -47,39 +51,19 @@ struct ReferenceLifetimesInfo;
 
 namespace blender::bke {
 
-struct NodeIDHash {
-  uint64_t operator()(const bNode *node) const
-  {
-    return node->identifier;
-  }
-  uint64_t operator()(const int32_t id) const
-  {
-    return id;
-  }
-};
-
-struct NodeIDEquality {
-  bool operator()(const bNode *a, const bNode *b) const
-  {
-    return a->identifier == b->identifier;
-  }
-  bool operator()(const bNode *a, const int32_t b) const
-  {
-    return a->identifier == b;
-  }
-  bool operator()(const int32_t a, const bNode *b) const
-  {
-    return this->operator()(b, a);
-  }
-};
-
 enum class FieldSocketState : int8_t {
   RequiresSingle,
   CanBeField,
   IsField,
 };
 
-using NodeIDVectorSet = VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality>;
+struct NodeIDGetter {
+  int32_t operator()(const bNode *value) const
+  {
+    return value->identifier;
+  }
+};
+using NodeIDVectorSet = CustomIDVectorSet<bNode *, NodeIDGetter>;
 
 struct NodeLinkError {
   std::string tooltip;
@@ -214,6 +198,12 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    */
   std::unique_ptr<nodes::GeometryNodesEvalDependencies> geometry_nodes_eval_dependencies;
 
+  /**
+   * Node previews for the compositor.
+   * Only available in base node trees (e.g. scene->node_tree).
+   */
+  Map<bNodeInstanceKey, bNodePreview> previews;
+
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> links;
   Vector<bNodeSocket *> sockets;
@@ -284,6 +274,8 @@ class bNodePanelRuntime : NonCopyable, NonMovable {
    * #bNode::runtime::draw_bounds). */
   std::optional<float> header_center_y;
   std::optional<bNodePanelExtent> content_extent;
+  /** Optional socket that is part of the panel header. */
+  bNodeSocket *input_socket = nullptr;
 };
 
 /**
@@ -832,6 +824,11 @@ inline bool bNode::is_group() const
   return ELEM(this->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP);
 }
 
+inline bool bNode::is_custom_group() const
+{
+  return this->type_legacy == NODE_CUSTOM_GROUP;
+}
+
 inline bool bNode::is_group_input() const
 {
   return this->type_legacy == NODE_GROUP_INPUT;
@@ -840,6 +837,11 @@ inline bool bNode::is_group_input() const
 inline bool bNode::is_group_output() const
 {
   return this->type_legacy == NODE_GROUP_OUTPUT;
+}
+
+inline bool bNode::is_undefined() const
+{
+  return this->typeinfo == &blender::bke::NodeTypeUndefined;
 }
 
 inline bool bNode::is_type(const blender::StringRef query_idname) const

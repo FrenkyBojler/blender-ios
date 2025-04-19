@@ -7,14 +7,10 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Main;
 
 /**
- * Called from #do_versions() in `readfile.cc` to convert the old 'IPO/adrcode'
+ * Called from #do_versions() in `readfile.cc` to convert the old `IPO/adrcode`
  * system to the new Layered Action system.
  *
  * Note: this *only* deals with animation data that is *pre-Animato*, and
@@ -37,7 +33,3 @@ struct Main;
 void do_versions_ipos_to_layered_actions(struct Main *bmain);
 
 /* --------------------- xxx stuff ------------------------ */
-
-#ifdef __cplusplus
-};
-#endif

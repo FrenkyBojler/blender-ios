@@ -42,6 +42,8 @@
 /* Margin around the smaller buttons. */
 #define GIZMO_MINI_OFFSET 2.0f
 
+namespace {
+
 enum {
   GZ_INDEX_MOVE = 0,
   GZ_INDEX_ROTATE = 1,
@@ -67,6 +69,22 @@ struct NavigateGizmoInfo {
   uint icon;
   void (*op_prop_fn)(PointerRNA *ptr);
 };
+
+struct NavigateWidgetGroup {
+  wmGizmo *gz_array[GZ_INDEX_TOTAL];
+  /* Store the view state to check for changes. */
+  struct {
+    rcti rect_visible;
+    struct {
+      char is_persp;
+      bool is_camera;
+      char viewlock;
+      char cameralock;
+    } rv3d;
+  } state;
+};
+
+}  // namespace
 
 static void navigate_context_toggle_camera_lock_init(PointerRNA *ptr)
 {
@@ -130,20 +148,6 @@ static NavigateGizmoInfo g_navigate_params[GZ_INDEX_TOTAL] = {
     },
 };
 
-struct NavigateWidgetGroup {
-  wmGizmo *gz_array[GZ_INDEX_TOTAL];
-  /* Store the view state to check for changes. */
-  struct {
-    rcti rect_visible;
-    struct {
-      char is_persp;
-      bool is_camera;
-      char viewlock;
-      char cameralock;
-    } rv3d;
-  } state;
-};
-
 static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
@@ -205,9 +209,14 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     }
 
     wmOperatorType *ot = WM_operatortype_find(info->opname, true);
-    PointerRNA *ptr = WM_gizmo_operator_set(gz, 0, ot, nullptr);
-    if (info->op_prop_fn != nullptr) {
-      info->op_prop_fn(ptr);
+#ifndef WITH_PYTHON
+    if (ot != nullptr)
+#endif
+    {
+      PointerRNA *ptr = WM_gizmo_operator_set(gz, 0, ot, nullptr);
+      if (info->op_prop_fn != nullptr) {
+        info->op_prop_fn(ptr);
+      }
     }
   }
 

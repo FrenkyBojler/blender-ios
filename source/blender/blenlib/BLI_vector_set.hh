@@ -127,7 +127,7 @@ class VectorSet {
 
   /** The max load factor is 1/2 = 50% by default. */
 #define LOAD_FACTOR 1, 2
-  LoadFactor max_load_factor_ = LoadFactor(LOAD_FACTOR);
+  static constexpr LoadFactor max_load_factor_ = LoadFactor(LOAD_FACTOR);
   using SlotArray = Array<Slot, LoadFactor::compute_total_slots(4, LOAD_FACTOR), Allocator>;
 #undef LOAD_FACTOR
 
@@ -300,6 +300,29 @@ class VectorSet {
   }
 
   /**
+   * Similar to #add but reinserts the key if it already exists. Using this only makes sense if the
+   * key contains additional data besides what affects the hash.
+   *
+   * \note This is different from first removing and then adding the key again, because
+   * #add_overwrite does not change the index where the value is stored. Removing an element can
+   * change the order of elements.
+   *
+   * \return True if the key was newly added, false if it was already present and was overwritten.
+   */
+  bool add_overwrite(const Key &key)
+  {
+    return this->add_overwrite_as(key);
+  }
+  bool add_overwrite(Key &&key)
+  {
+    return this->add_overwrite_as(std::move(key));
+  }
+  template<typename ForwardKey> bool add_overwrite_as(ForwardKey &&key)
+  {
+    return this->add_overwrite__impl(std::forward<ForwardKey>(key), hash_(key));
+  }
+
+  /**
    * Convenience function to add many keys to the vector set at once. Duplicates are removed
    * automatically.
    *
@@ -441,6 +464,24 @@ class VectorSet {
     const Key *key_ptr = this->lookup_key_ptr_as(key);
     BLI_assert(key_ptr != nullptr);
     return *key_ptr;
+  }
+
+  /**
+   * Returns the key that compares equal to the given key. If the key is not in the set, the given
+   * default value is returned instead.
+   */
+  Key lookup_key_default(const Key &key, const Key &default_value) const
+  {
+    return this->lookup_key_default_as(key, default_value);
+  }
+  template<typename ForwardKey, typename... ForwardDefault>
+  Key lookup_key_default_as(const ForwardKey &key, ForwardDefault &&...default_key) const
+  {
+    const Key *ptr = this->lookup_key_ptr_as(key);
+    if (ptr == nullptr) {
+      return Key(std::forward<ForwardDefault>(default_key)...);
+    }
+    return *ptr;
   }
 
   /**
@@ -743,7 +784,7 @@ class VectorSet {
 
     VECTOR_SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
-        int64_t index = this->size();
+        const int64_t index = this->size();
         Key *dst = keys_ + index;
         new (dst) Key(std::forward<ForwardKey>(key));
         BLI_assert(hash_(*dst) == hash);
@@ -752,6 +793,31 @@ class VectorSet {
         return true;
       }
       if (slot.contains(key, is_equal_, hash, keys_)) {
+        return false;
+      }
+    }
+    VECTOR_SET_SLOT_PROBING_END();
+  }
+
+  template<typename ForwardKey> bool add_overwrite__impl(ForwardKey &&key, const uint64_t hash)
+  {
+    this->ensure_can_add();
+
+    VECTOR_SET_SLOT_PROBING_BEGIN (hash, slot) {
+      if (slot.is_empty()) {
+        const int64_t index = this->size();
+        Key *dst = keys_ + index;
+        new (dst) Key(std::forward<ForwardKey>(key));
+        BLI_assert(hash_(*dst) == hash);
+        slot.occupy(index, hash);
+        occupied_and_removed_slots_++;
+        return true;
+      }
+      if (slot.contains(key, is_equal_, hash, keys_)) {
+        const int64_t index = slot.index();
+        Key &stored_key = keys_[index];
+        stored_key = std::forward<ForwardKey>(key);
+        BLI_assert(hash_(stored_key) == hash);
         return false;
       }
     }
@@ -869,7 +935,6 @@ class VectorSet {
     keys_[last_element_index].~Key();
     slot.remove();
     removed_slots_++;
-    return;
   }
 
   void update_slot_index(const Key &key, const int64_t old_index, const int64_t new_index)
@@ -931,5 +996,46 @@ template<typename Key,
          typename IsEqual = DefaultEquality<Key>,
          typename Slot = typename DefaultVectorSetSlot<Key>::type>
 using RawVectorSet = VectorSet<Key, ProbingStrategy, Hash, IsEqual, Slot, RawAllocator>;
+
+template<typename T, typename GetIDFn> struct CustomIDHash {
+  using CustomIDType = decltype(GetIDFn{}(std::declval<T>()));
+
+  uint64_t operator()(const T &value) const
+  {
+    return get_default_hash(GetIDFn{}(value));
+  }
+  uint64_t operator()(const CustomIDType &value) const
+  {
+    return get_default_hash(value);
+  }
+};
+
+template<typename T, typename GetIDFn> struct CustomIDEqual {
+  using CustomIDType = decltype(GetIDFn{}(std::declval<T>()));
+
+  bool operator()(const T &a, const T &b) const
+  {
+    return GetIDFn{}(a) == GetIDFn{}(b);
+  }
+  bool operator()(const CustomIDType &a, const T &b) const
+  {
+    return a == GetIDFn{}(b);
+  }
+  bool operator()(const T &a, const CustomIDType &b) const
+  {
+    return GetIDFn{}(a) == b;
+  }
+};
+
+/**
+ * Used for a set where the key itself isn't used for the hash or equality but some part of the
+ * key instead. For example the string identifiers of node types.
+ *
+ * #GetIDFn should have an implementation that returns a hashable and equality comparable type,
+ * i.e. `StringRef operator()(const bNode *value) { return value->idname; }`.
+ */
+template<typename T, typename GetIDFn>
+using CustomIDVectorSet =
+    VectorSet<T, DefaultProbingStrategy, CustomIDHash<T, GetIDFn>, CustomIDEqual<T, GetIDFn>>;
 
 }  // namespace blender

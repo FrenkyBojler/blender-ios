@@ -37,7 +37,7 @@ static const wmKeyMapItem *keymap_item_from_enum_item(const wmKeyMap *keymap,
 static bool keymap_item_can_collapse(const wmKeyMapItem *kmi_a, const wmKeyMapItem *kmi_b)
 {
   return (kmi_a->shift == kmi_b->shift && kmi_a->ctrl == kmi_b->ctrl && kmi_a->alt == kmi_b->alt &&
-          kmi_a->oskey == kmi_b->oskey);
+          kmi_a->oskey == kmi_b->oskey && kmi_a->hyper == kmi_b->hyper);
 }
 
 int uiTemplateStatusBarModalItem(uiLayout *layout,
@@ -77,7 +77,7 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
     }
 
     if (xyz_label) {
-      int icon_mod[4] = {0};
+      int icon_mod[KM_MOD_NUM] = {0};
 #ifdef WITH_HEADLESS
       int icon = 0;
 #else
@@ -91,18 +91,21 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
         }
       }
       uiItemL(layout, "", icon);
+      uiItemS_ex(layout, -0.4f);
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_y, icon_mod);
 #endif
       uiItemL(layout, "", icon);
+      uiItemS_ex(layout, -0.4f);
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_z, icon_mod);
 #endif
       uiItemL(layout, "", icon);
+      uiItemS_ex(layout, -0.18f);
       uiItemL(layout, xyz_label, ICON_NONE);
-      uiItemS_ex(layout, 0.7f);
+      uiItemS_ex(layout, 0.6f);
       return 3;
     }
   }
@@ -118,7 +121,7 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
 {
   bool ok = false;
 
-  int icon_mod[4];
+  int icon_mod[KM_MOD_NUM];
 #ifdef WITH_HEADLESS
   int icon = 0;
 #else
@@ -138,7 +141,7 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
     uiItemL(layout, "", icon);
     if (icon >= ICON_MOUSE_LMB && icon <= ICON_MOUSE_MMB_SCROLL) {
       /* Negative space after narrow mice icons. */
-      uiItemS_ex(layout, -0.5f);
+      uiItemS_ex(layout, -0.68f);
     }
 
     const float offset = ui_event_icon_offset(icon);
@@ -146,15 +149,16 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
       uiItemS_ex(layout, offset);
     }
 
+    uiItemS_ex(layout, 0.2f);
     uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text.c_str()), ICON_NONE);
-    uiItemS_ex(layout, 0.7f);
+    uiItemS_ex(layout, 0.6f);
     ok = true;
   }
   else if (text_fallback) {
     const char *event_text = WM_key_event_string(kmi->type, true);
     uiItemL(layout, event_text, ICON_NONE);
     uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text.c_str()), ICON_NONE);
-    uiItemS_ex(layout, 0.5f);
+    uiItemS_ex(layout, 0.6f);
     ok = true;
   }
   return ok;

@@ -231,13 +231,13 @@ void mesh_calc_edges(Mesh &mesh,
   if (keep_existing_edges || select_new_edges) {
     mesh_with_old_edges = mesh_new_no_attributes(0, 0, 0, 0);
     BLI_assert(mesh_with_old_edges != nullptr);
-    CustomData_free(&mesh_with_old_edges->edge_data, 0);
+    CustomData_free(&mesh_with_old_edges->edge_data);
     CustomData_init_from(
         &mesh.edge_data, &mesh_with_old_edges->edge_data, CD_MASK_MESH.emask, mesh.edges_num);
     mesh_with_old_edges->edges_num = mesh.edges_num;
   }
 
-  CustomData_free(&mesh.edge_data, mesh.edges_num);
+  CustomData_free(&mesh.edge_data);
   CustomData_reset(&mesh.edge_data);
   mesh.edges_num = edge_offsets.total_size();
 
