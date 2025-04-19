@@ -262,6 +262,8 @@ def cmake_get_src(f: str) -> None:
                             pass
                         elif new_file.endswith(".osl"):  # open shading language.
                             pass
+                        elif new_file.endswith(".generic"):
+                            pass
                         elif new_file.endswith(".glsl"):
                             pass
                         elif new_file.endswith(".natvis"):

@@ -12,8 +12,8 @@
 /* Define macro flags for code adaption. */
 #define ADAPT_TO_OSL
 
-/* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
-#include "../../svm/radial_tiling_generic.h"
+/* The rounded polygon calculation functions are defined in radial_tiling_generic.generic. */
+#include "../../svm/radial_tiling_generic.generic"
 
 /* Undefine macro flags used for code adaption. */
 #undef ADAPT_TO_OSL

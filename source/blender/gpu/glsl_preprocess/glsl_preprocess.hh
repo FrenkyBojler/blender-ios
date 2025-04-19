@@ -57,6 +57,9 @@ class Preprocessor {
     if (filename.find(".msl") != std::string::npos) {
       return MSL;
     }
+    if (filename.find(".generic") != std::string::npos) {
+      return GLSL;
+    }
     if (filename.find(".glsl") != std::string::npos) {
       return GLSL;
     }

@@ -9,8 +9,8 @@ CCL_NAMESPACE_BEGIN
 /* Define macro flags for code adaption. */
 #define ADAPT_TO_SVM
 
-/* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
-#include "radial_tiling_generic.h"
+/* The rounded polygon calculation functions are defined in radial_tiling_generic.generic. */
+#include "radial_tiling_generic.generic"
 
 /* Undefine macro flags used for code adaption. */
 #undef ADAPT_TO_SVM

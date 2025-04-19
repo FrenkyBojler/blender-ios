@@ -133,8 +133,8 @@ static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
 /* Define macro flags for code adaption. */
 #define ADAPT_TO_GEOMETRY_NODES
 
-/* The rounded polygon calculation functions are defined in radial_tiling_generic.h. */
-#include "../../../../../intern/cycles/kernel/svm/radial_tiling_generic.h"
+/* The rounded polygon calculation functions are defined in radial_tiling_generic.generic. */
+#include "../../../../../intern/cycles/kernel/svm/radial_tiling_generic.generic"
 
 /* Undefine macro flags used for code adaption. */
 #undef ADAPT_TO_GEOMETRY_NODES
