@@ -21,8 +21,8 @@ bke::GeometrySet join_geometries(Span<bke::GeometrySet> geometries,
                                      &component_types_to_join = std::nullopt);
 
 /* In order to transfer ownership over geometries inside instances without copy this one will
-perform joining with modification of some instance. This will ensure #target-references will not be
-invalidated, but other #begin/end can be deleted if they will not unique. */
+ * perform joining with modification of some instance. This will ensure #target instance-references
+ * will not be invalidated, but other #begin/end can be deleted if they will not unique. */
 void join_instances_into(const bke::AttributeFilter &attribute_filter,
                          Span<const bke::Instances *> other_instances,
                          bke::Instances &target);
