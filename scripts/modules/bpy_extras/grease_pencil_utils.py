@@ -2,6 +2,13 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "GreasePencilStroke",
+    "GreasePencilStrokePoint",
+    "GreasePencilStrokeSlice",
+    "GreasePencilStrokePointSlice",
+)
+
 class AttributeGetterSetter:
     """
     Helper class to get and set attributes at an index for a domain.
@@ -117,9 +124,12 @@ def DefAttributeGetterSetters(attributes_list):
     creates properties on the class with ``getters`` & ``setters``.
     """
     def wrapper(cls):
+        properties = []
         for prop_name, attr_name, type, default, doc in attributes_list:
+            properties.append(prop_name)
             prop = def_prop_for_attribute(attr_name, type, default, doc)
             setattr(cls, prop_name, prop)
+        cls.__all__ = tuple(properties)
         return cls
     return wrapper
 
@@ -194,7 +204,7 @@ class GreasePencilStrokePoint(AttributeGetterSetter):
 
 class GreasePencilStrokePointSlice(SliceHelper):
     """
-    A helper class that represents a slice of GreasePencilStrokePoint's.
+    A helper class that represents a slice of :class:`GreasePencilStrokePoint`.
     """
     __slots__ = ("_drawing", "_curve_index")
 
@@ -316,7 +326,7 @@ class GreasePencilStroke(AttributeGetterSetter):
 
 class GreasePencilStrokeSlice(SliceHelper):
     """
-    A helper class that represents a slice of GreasePencilStroke's.
+    A helper class that represents a slice of :class:`GreasePencilStroke`.
     """
     __slots__ = ("_drawing", "_curve_offsets")
 

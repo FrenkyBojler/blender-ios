@@ -65,22 +65,26 @@ class Context(_StructRNA):
         if isinstance(value, list) and path_rest.startswith("["):
             index_str, div, index_tail = path_rest[1:].partition("]")
             if not div:
-                raise ValueError("Path index is not terminated: {:s}{:s}".format(attr, path_rest))
+                raise ValueError(
+                    "Path index is not terminated: {:s}{:s}".format(attr, path_rest))
             try:
                 index = int(index_str)
             except ValueError:
-                raise ValueError("Path index is invalid: {:s}[{:s}]".format(attr, index_str))
+                raise ValueError(
+                    "Path index is invalid: {:s}[{:s}]".format(attr, index_str))
             if 0 <= index < len(value):
                 path_rest = index_tail
                 value = value[index]
             else:
-                raise IndexError("Path index out of range: {:s}[{:s}]".format(attr, index_str))
+                raise IndexError(
+                    "Path index out of range: {:s}[{:s}]".format(attr, index_str))
 
         # Resolve the rest of the path if necessary.
         if path_rest:
             path_resolve_fn = getattr(value, "path_resolve", None)
             if path_resolve_fn is None:
-                raise ValueError("Path {:s} resolves to a non RNA value".format(attr))
+                raise ValueError(
+                    "Path {:s} resolves to a non RNA value".format(attr))
             return path_resolve_fn(path_rest, coerce)
 
         return value
@@ -659,7 +663,8 @@ class Mesh(_types.ID):
         self.edges.foreach_set("vertices", tuple(chain.from_iterable(edges)))
 
         vertex_indices = tuple(chain.from_iterable(faces))
-        loop_starts = tuple(islice(chain([0], accumulate(face_lengths)), faces_len))
+        loop_starts = tuple(
+            islice(chain([0], accumulate(face_lengths)), faces_len))
 
         self.polygons.foreach_set("loop_start", loop_starts)
         self.polygons.foreach_set("vertices", vertex_indices)
@@ -725,7 +730,8 @@ class Mesh(_types.ID):
         Render and display faces uniform, using face normals,
         setting the "sharp_face" attribute true for every face
         """
-        sharp_faces = _name_convention_attribute_ensure(self.attributes, "sharp_face", 'FACE', 'BOOLEAN')
+        sharp_faces = _name_convention_attribute_ensure(
+            self.attributes, "sharp_face", 'FACE', 'BOOLEAN')
         for value in sharp_faces.data:
             value.value = True
 
@@ -923,7 +929,8 @@ class Gizmo(_StructRNA):
         if dims not in {2, 3}:
             raise ValueError("Expected 2D or 3D vertex")
         fmt = GPUVertFormat()
-        pos_id = fmt.attr_add(id="pos", comp_type='F32', len=dims, fetch_mode='FLOAT')
+        pos_id = fmt.attr_add(id="pos", comp_type='F32',
+                              len=dims, fetch_mode='FLOAT')
         vbo = GPUVertBuf(len=len(verts), format=fmt)
         vbo.attr_fill(id=pos_id, data=verts)
         batch = GPUBatch(type=type, buf=vbo)
@@ -1023,7 +1030,8 @@ class _GenericUI:
                 # Support filtering out by owner
                 workspace = context.workspace
                 if workspace.use_filter_by_owner:
-                    owner_names = {owner_id.name for owner_id in workspace.owner_ids}
+                    owner_names = {
+                        owner_id.name for owner_id in workspace.owner_ids}
                 else:
                     owner_names = None
 
@@ -1168,7 +1176,8 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
         # Perform a "natural sort", so 20 comes after 3 (for example).
         files.sort(
             key=lambda file_path:
-            tuple(int(t) if t.isdigit() else t for t in re.split(r"(\d+)", file_path[0].lower())),
+            tuple(int(t) if t.isdigit() else t for t in re.split(
+                r"(\d+)", file_path[0].lower())),
         )
 
         col = layout.column(align=True)
@@ -1177,7 +1186,8 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
             # Intentionally pass the full path to 'display_name' callback,
             # since the callback may want to use part a directory in the name.
             row = col.row(align=True)
-            name = display_name(filepath) if display_name else bpy.path.display_name(f)
+            name = display_name(
+                filepath) if display_name else bpy.path.display_name(f)
             props = row.operator(
                 operator,
                 text=iface_(name),
@@ -1231,7 +1241,8 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
         ext_valid = getattr(self, "preset_extensions", {".py", ".xml"})
         props_default = getattr(self, "preset_operator_defaults", None)
         add_operator = getattr(self, "preset_add_operator", None)
-        add_operator_props = getattr(self, "preset_add_operator_properties", None)
+        add_operator_props = getattr(
+            self, "preset_add_operator_properties", None)
         self.path_menu(
             bpy.utils.preset_paths(self.preset_subdir),
             self.preset_operator,
@@ -1239,7 +1250,8 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
             filter_ext=lambda ext: ext.lower() in ext_valid,
             add_operator=add_operator,
             add_operator_props=add_operator_props,
-            display_name=lambda name: bpy.path.display_name(name, title_case=False)
+            display_name=lambda name: bpy.path.display_name(
+                name, title_case=False)
         )
 
     @classmethod
@@ -1375,7 +1387,8 @@ class HydraRenderEngine(RenderEngine):
 
         engine_type = 'PREVIEW' if self.is_preview else 'FINAL'
         if not self.engine_ptr:
-            self.engine_ptr = _bpy_hydra.engine_create(self, engine_type, self.bl_delegate_id)
+            self.engine_ptr = _bpy_hydra.engine_create(
+                self, engine_type, self.bl_delegate_id)
         if not self.engine_ptr:
             return
 
@@ -1395,7 +1408,8 @@ class HydraRenderEngine(RenderEngine):
     def view_update(self, context, depsgraph):
         import _bpy_hydra
         if not self.engine_ptr:
-            self.engine_ptr = _bpy_hydra.engine_create(self, 'VIEWPORT', self.bl_delegate_id)
+            self.engine_ptr = _bpy_hydra.engine_create(
+                self, 'VIEWPORT', self.bl_delegate_id)
         if not self.engine_ptr:
             return
 
@@ -1430,7 +1444,9 @@ class GreasePencilDrawing(_StructRNA):
             When point/curves count of a drawing is changed, the slice returned by this
             call prior to the change is no longer valid. You need to get the new stroke
             slice via `drawing.strokes[n]`.
+
+        :rtype: :class:`bpy_extras.grease_pencil_utils.GreasePencilStrokeSlice`
         """
-        from _bpy_internal.grease_pencil.stroke import GreasePencilStrokeSlice
+        from bpy_extras.grease_pencil_utils import GreasePencilStrokeSlice
         num_strokes = self.attributes.domain_size('CURVE')
         return GreasePencilStrokeSlice(self, 0, num_strokes)
