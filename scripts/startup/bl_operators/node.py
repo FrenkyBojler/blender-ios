@@ -440,6 +440,11 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
         item = interface.active
 
         if item:
+            if item.item_type == 'PANEL':
+                child = item.interface_items
+                if child and child[0].is_panel_toggle:
+                    panel_toggle = item.interface_items[0]
+                    interface.remove(panel_toggle)
             interface.remove(item)
             interface.active_index = min(interface.active_index, len(interface.items_tree) - 1)
 
@@ -463,7 +468,7 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         active_item = interface.active
         if not active_item:
             return False
-        
+
         if type(active_item) is not bpy.types.NodeTreeInterfaceSocketBool or active_item.in_out != 'INPUT':
             cls.poll_message_set("Only boolean input sockets are supported")
             return False
