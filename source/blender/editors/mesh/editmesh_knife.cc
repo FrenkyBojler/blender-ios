@@ -1791,10 +1791,36 @@ static void knife_join_edge(KnifeEdge *newkfe, KnifeEdge *kfe)
 /** \name Cut/Hit Utils
  * \{ */
 
+static void knife_view3d_ray_get(KnifeTool_OpData *kcd,
+                                 const float2 &mval,
+                                 float3 &r_ray_orig,
+                                 float3 &r_ray_dir)
+{
+  ED_view3d_win_to_ray_clipped(
+      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, r_ray_orig, r_ray_dir, false);
+
+  if (kcd->is_ortho) {
+    /* In ortho view, avoid inaccuracy due to a very distant ray origin.
+     * Therefore, move the ray origin closer to the bounding box. */
+    float3 bb_min, bb_max;
+    float hit_dist;
+    BLI_bvhtree_get_bounding_box(kcd->bvh.tree, bb_min, bb_max);
+    if (!isect_ray_aabb_v3_simple(r_ray_orig, r_ray_dir, bb_min, bb_max, &hit_dist, nullptr)) {
+      /* The ray does not hit the bounding box, use the distance to the closest point. */
+      float3 bb_near, bb_far;
+      aabb_get_near_far_from_plane(r_ray_dir, bb_min, bb_max, bb_near, bb_far);
+      hit_dist = math::dot(r_ray_dir, bb_near - r_ray_orig);
+    }
+    /* Move the ray origin. */
+    r_ray_orig = r_ray_orig + r_ray_dir * (hit_dist - 1.0f);
+  }
+}
+
 static void knife_snap_curr(KnifeTool_OpData *kcd,
                             const float2 &mval,
                             const float3 &ray_orig,
-                            const float3 &ray_dir);
+                            const float3 &ray_dir,
+                            const float3 *fallback);
 
 /* User has just clicked for first time or first time after a restart (E key).
  * Copy the current position data into prev. */
@@ -1802,10 +1828,9 @@ static void knife_start_cut(KnifeTool_OpData *kcd, const float2 &mval)
 {
   float3 ray_orig;
   float3 ray_dir;
-  ED_view3d_win_to_ray_clipped(
-      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, ray_orig, ray_dir, false);
+  knife_view3d_ray_get(kcd, mval, ray_orig, ray_dir);
 
-  knife_snap_curr(kcd, mval, ray_orig, ray_dir);
+  knife_snap_curr(kcd, mval, ray_orig, ray_dir, nullptr);
   kcd->prev = kcd->curr;
   kcd->mdata.is_stored = false;
 }
@@ -3495,13 +3520,7 @@ static bool knife_snap_angle_relative(KnifeTool_OpData *kcd,
   else {
     /* Cut segment was started in a face. */
     float3 prev_ray_orig, prev_ray_dir;
-    ED_view3d_win_to_ray_clipped(kcd->vc.depsgraph,
-                                 kcd->region,
-                                 kcd->vc.v3d,
-                                 kcd->prev.mval,
-                                 prev_ray_orig,
-                                 prev_ray_dir,
-                                 false);
+    knife_view3d_ray_get(kcd, kcd->prev.mval, prev_ray_orig, prev_ray_dir);
 
     /* kcd->prev.face is usually not set. */
     fprev = knife_bvh_raycast(
@@ -3608,7 +3627,8 @@ static void knife_constrain_axis(const KnifeTool_OpData *kcd,
 static void knife_snap_curr(KnifeTool_OpData *kcd,
                             const float2 &mval,
                             const float3 &ray_orig,
-                            const float3 &ray_dir)
+                            const float3 &ray_dir,
+                            const float3 *fallback)
 {
   knife_pos_data_clear(&kcd->curr);
 
@@ -3637,12 +3657,18 @@ static void knife_snap_curr(KnifeTool_OpData *kcd,
     return;
   }
 
+  kcd->curr.mval = mval;
+  if (fallback) {
+    /* If no geometry was found, use the fallback point. */
+    kcd->curr.cage = *fallback;
+    return;
+  }
+
   /* If no hits are found this would normally default to (0, 0, 0) so instead
    * get a point at the mouse ray closest to the previous point.
    * Note that drawing lines in `free-space` isn't properly supported
    * but there's no guarantee (0, 0, 0) has any geometry either - campbell */
 
-  kcd->curr.mval = mval;
   if (!isect_line_plane_v3(
           kcd->curr.cage, ray_orig, ray_orig + ray_dir, kcd->prev.cage, kcd->vc.rv3d->viewinv[2]))
   {
@@ -3666,8 +3692,7 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
   float3 ray_orig;
   float3 ray_dir_constrain;
   float2 mval_constrain = mval;
-  ED_view3d_win_to_ray_clipped(
-      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, ray_orig, ray_dir_constrain, false);
+  knife_view3d_ray_get(kcd, mval, ray_orig, ray_dir_constrain);
 
   knife_pos_data_clear(&kcd->curr);
 
@@ -3701,13 +3726,16 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
     }
   }
 
+  float3 fallback;
   if (is_constrained) {
     /* Update `ray_dir_constrain` and `mval_constrain`. */
     ray_dir_constrain = math::normalize(kcd->curr.cage - ray_orig);
     knife_project_v2(kcd, kcd->curr.cage, mval_constrain);
+    fallback = kcd->curr.cage;
   }
 
-  knife_snap_curr(kcd, mval_constrain, ray_orig, ray_dir_constrain);
+  knife_snap_curr(
+      kcd, mval_constrain, ray_orig, ray_dir_constrain, is_constrained ? &fallback : nullptr);
 }
 
 /**
