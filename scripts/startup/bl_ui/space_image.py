@@ -898,6 +898,11 @@ class IMAGE_HT_header(Header):
 
         layout.separator_spacer()
 
+        # Image zoom controls.
+        sub = layout.row(align=True)
+        sub.prop(sima, "zoom_percentage", text="")
+        sub.menu("IMAGE_MT_view_zoom", icon='DOWNARROW_HLT', text="")
+
         # Gizmo toggle & popover.
         row = layout.row(align=True)
         row.prop(sima, "show_gizmo", icon='GIZMO', text="")

@@ -263,6 +263,11 @@ class CLIP_HT_header(Header):
         else:
             self._draw_masking(context)
 
+        # Image zoom controls.
+        sub = layout.row(align=True)
+        sub.prop(sc, "zoom_percentage", text="")
+        sub.menu("CLIP_MT_view_zoom", icon='DOWNARROW_HLT', text="")
+
         # Gizmo toggle & popover.
         row = layout.row(align=True)
         row.prop(sc, "show_gizmo", icon='GIZMO', text="")

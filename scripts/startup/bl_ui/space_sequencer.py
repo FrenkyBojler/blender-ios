@@ -188,6 +188,11 @@ class SEQUENCER_HT_header(Header):
         layout.separator_spacer()
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
+            # Image zoom controls.
+            sub = layout.row(align=True)
+            sub.prop(st, "zoom_percentage", text="")
+            sub.menu("SEQUENCER_MT_preview_zoom", icon='DOWNARROW_HLT', text="")
+
             layout.prop(st, "display_mode", text="", icon_only=True)
             layout.prop(st, "preview_channels", text="", icon_only=True)
 

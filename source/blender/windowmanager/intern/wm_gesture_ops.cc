@@ -163,6 +163,8 @@ static bool gesture_box_apply(bContext *C, wmOperator *op)
   const wmOperatorStatus retval = op->type->exec(C, op);
   OPERATOR_RETVAL_CHECK(retval);
 
+  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+
   return (retval & OPERATOR_FINISHED) ? true : false;
 }
 

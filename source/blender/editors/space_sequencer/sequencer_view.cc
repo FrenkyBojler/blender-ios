@@ -246,18 +246,15 @@ static wmOperatorStatus sequencer_view_zoom_ratio_exec(bContext *C, wmOperator *
 {
   const RenderData *rd = &CTX_data_scene(C)->r;
   View2D *v2d = UI_view2d_fromcontext(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   float ratio = RNA_float_get(op->ptr, "ratio");
-
-  int winx, winy;
-  BKE_render_resolution(rd, false, &winx, &winy);
-
-  float facx = BLI_rcti_size_x(&v2d->mask) / float(winx);
-  float facy = BLI_rcti_size_y(&v2d->mask) / float(winy);
-
-  BLI_rctf_resize(&v2d->cur, ceilf(winx * facx / ratio + 0.5f), ceilf(winy * facy / ratio + 0.5f));
+  BLI_rctf_resize(&v2d->cur,
+                  float(BLI_rcti_size_x(&v2d->mask)) / ratio,
+                  float(BLI_rcti_size_y(&v2d->mask)) / ratio);
 
   ED_region_tag_redraw(CTX_wm_region(C));
+  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
 
   UI_view2d_curRect_changed(C, v2d);
 
