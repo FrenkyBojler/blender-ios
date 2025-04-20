@@ -602,6 +602,8 @@ static void initialize_group_input(const bNodeTree &tree,
   const bke::bNodeSocketType *typeinfo = io_input.socket_typeinfo();
   const eNodeSocketDatatype socket_data_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
                                                           SOCK_CUSTOM;
+  BLI_assert(typeinfo);
+
   const IDProperty *property = properties.lookup_key_default_as(io_input.identifier, nullptr);
   if (property == nullptr) {
     typeinfo->get_geometry_nodes_cpp_value(io_input.socket_data, r_value);
@@ -619,15 +621,28 @@ static void initialize_group_input(const bNodeTree &tree,
 
   const std::optional<StringRef> attribute_name = input_attribute_name_get(properties, io_input);
   if (attribute_name && bke::allow_procedural_attribute_access(*attribute_name)) {
-    fn::GField attribute_field = bke::AttributeFieldInput::Create(*attribute_name,
-                                                                  *typeinfo->base_cpp_type);
+    /* Find the socket source (runtime interface contains the value set in the modifier panel) */
+    const int item_index = tree.tree_interface.find_item_index(io_input.item);
+    const bNodeTreeInterfaceItem *src_io_item = tree.tree_interface.get_item_at_index(item_index);
+    const bNodeTreeInterfaceSocket *src_io_socket =
+        bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(src_io_item);
+    BLI_assert(src_io_socket);
+
+    /* Fetch the default socket value */
+    BUFFER_FOR_CPP_TYPE_VALUE(*typeinfo->base_cpp_type, socket_value);
+    typeinfo->get_base_cpp_value(src_io_socket->socket_data, socket_value);
+    GPointer default_value(typeinfo->base_cpp_type, socket_value);
+
+    fn::GField attribute_field = bke::AttributeFieldInput::Create(
+        *attribute_name, *typeinfo->base_cpp_type, default_value);
     new (r_value) bke::SocketValueVariant(std::move(attribute_field));
+    typeinfo->base_cpp_type->destruct(socket_value);
   }
   else if (is_layer_selection_field(io_input)) {
     const IDProperty *property_layer_name = properties.lookup_key_as(io_input.identifier);
     StringRef layer_name = IDP_String(property_layer_name);
-    const fn::GField selection_field(
-        std::make_shared<bke::NamedLayerSelectionFieldInput>(layer_name), 0);
+    fn::GField selection_field(std::make_shared<bke::NamedLayerSelectionFieldInput>(layer_name),
+                               0);
     new (r_value) bke::SocketValueVariant(std::move(selection_field));
   }
   else {

@@ -389,7 +389,7 @@ GVArray InstancesFieldInput::get_varray_for_context(const fn::FieldContext &cont
 }
 
 GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &context,
-                                                    const IndexMask & /*mask*/) const
+                                                    const IndexMask & mask) const
 {
   const eCustomDataType data_type = cpp_type_to_custom_data_type(*type_);
   const AttrDomain domain = context.domain();
@@ -420,9 +420,16 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
     return bke::instance_position_varray(*context.instances());
   }
   else if (auto attributes = context.attributes()) {
-    return *attributes->lookup(name_, domain, data_type);
+    GAttributeReader attr = attributes->lookup(name_, domain, data_type);
+    if (attr) {
+      return *attr;
+    }
   }
 
+  /* No attribute with matching name found, returning default. */
+  if (default_value_) {
+    return GVArray::ForSingle(*type_, mask.min_array_size(), default_value_);
+  }
   return {};
 }
 
