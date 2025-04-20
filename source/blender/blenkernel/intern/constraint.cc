@@ -2433,83 +2433,68 @@ static void freezetrans_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
     unit_m4(parentinv);
   }
 
-  /* While running the freeze operator... */
-  if (data->flag & FREEZETRANS_PENDING_FREEZE) {
-    /* Store current transform in the freeze matrix. */
-    copy_m4_m4(data->freezemat, cob->matrix);
-    copy_m4_m4(data->freezeparentmat, parentmat);
+  float freezemat[4][4];
+  copy_m4_m4(freezemat, cob->pchan->bone->arm_mat);
 
-    data->flag &= ~FREEZETRANS_PENDING_FREEZE;
-    data->flag |= FREEZETRANS_IS_FROZEN;
-
-    /* Write the computed matrix back to the master copy if in copy-on-eval evaluation. */
-    bConstraint *orig_con = constraint_find_original_for_update(cob, con);
-
-    if (orig_con != nullptr) {
-      bFreezeTransConstraint *orig_data = static_cast<bFreezeTransConstraint *>(orig_con->data);
-
-      copy_m4_m4(orig_data->freezemat, data->freezemat);
-      copy_m4_m4(orig_data->freezeparentmat, data->freezeparentmat);
-      orig_data->flag &= ~FREEZETRANS_PENDING_FREEZE;
-      orig_data->flag |= FREEZETRANS_IS_FROZEN;
-    }
+  float freezeparentmat[4][4];
+  if (cob->pchan->bone->parent) {
+    copy_m4_m4(freezeparentmat, cob->pchan->bone->parent->arm_mat);
+  }
+  else {
+    unit_m4(freezeparentmat);
   }
 
-  /* If we have stored freeze data, apply to cob. */
-  if (data->flag & FREEZETRANS_IS_FROZEN) {
-    float tarmat[4][4];
+  float tarmat[4][4];
 
-    switch (data->space) {
-      case FREEZETRANS_SPACE_GLOBAL: {
-        /* Use freezemat as it was stored. */
-        copy_m4_m4(tarmat, data->freezemat);
-      } break;
-      case FREEZETRANS_SPACE_PARENT: {
-        /* Compute local transform of cob. */
-        float local_cob[4][4];
-        mul_m4_m4m4(local_cob, parentmat, parentinv);
-        invert_m4(local_cob);
-        mul_m4_m4_post(local_cob, cob->matrix);
+  switch (data->space) {
+    case FREEZETRANS_SPACE_GLOBAL: {
+      /* Use freezemat as-is. */
+      copy_m4_m4(tarmat, freezemat);
+    } break;
+    case FREEZETRANS_SPACE_PARENT: {
+      /* Compute local transform of cob. */
+      float local_cob[4][4];
+      mul_m4_m4m4(local_cob, parentmat, parentinv);
+      invert_m4(local_cob);
+      mul_m4_m4_post(local_cob, cob->matrix);
 
-        /* Apply it to the frozen parent matrix. */
-        float temp[4][4];
-        mul_m4_m4m4(temp, parentinv, local_cob);
-        mul_m4_m4m4(tarmat, data->freezeparentmat, temp);
-      } break;
-      case FREEZETRANS_SPACE_LOCAL: {
-        /* Use current parent matrix, but applied onto the frozen cob. */
-        float invparentmat[4][4];
-        invert_m4_m4(invparentmat, data->freezeparentmat);
-        mul_m4_m4_post(invparentmat, data->freezemat);
-        mul_m4_m4m4(tarmat, parentmat, invparentmat);
-      } break;
+      /* Apply it to the frozen parent matrix. */
+      float temp[4][4];
+      mul_m4_m4m4(temp, parentinv, local_cob);
+      mul_m4_m4m4(tarmat, freezeparentmat, temp);
+    } break;
+    case FREEZETRANS_SPACE_LOCAL: {
+      /* Use current parent matrix, but applied onto the frozen cob. */
+      float invparentmat[4][4];
+      invert_m4_m4(invparentmat, freezeparentmat);
+      mul_m4_m4_post(invparentmat, freezemat);
+      mul_m4_m4m4(tarmat, parentmat, invparentmat);
+    } break;
+  }
+
+  if ((data->flag & FREEZETRANS_SPLIT_CHANNELS) == 0) {
+    /* Replace whole matrix. */
+    copy_m4_m4(cob->matrix, tarmat);
+  }
+  else if ((data->flag & (FREEZETRANS_LOCATION | FREEZETRANS_ROTATION | FREEZETRANS_SCALE)) != 0) {
+    /* Apply split channels. */
+    float loc_o[3], rot_o[3][3], size_o[3];
+    float loc_f[3], rot_f[3][3], size_f[3];
+
+    mat4_to_loc_rot_size(loc_o, rot_o, size_o, cob->matrix);
+    mat4_to_loc_rot_size(loc_f, rot_f, size_f, tarmat);
+
+    if (data->flag & FREEZETRANS_LOCATION) {
+      copy_v3_v3(loc_o, loc_f);
+    }
+    if (data->flag & FREEZETRANS_ROTATION) {
+      copy_m3_m3(rot_o, rot_f);
+    }
+    if (data->flag & FREEZETRANS_SCALE) {
+      copy_v3_v3(size_o, size_f);
     }
 
-    if ((data->flag & FREEZETRANS_SPLIT_CHANNELS) == 0) {
-      /* Replace whole matrix. */
-      copy_m4_m4(cob->matrix, tarmat);
-    }
-    else if ((data->flag & (FREEZETRANS_LOCATION | FREEZETRANS_ROTATION | FREEZETRANS_SCALE)) != 0)
-    {
-      /* Apply split channels. */
-      float loc_o[3], rot_o[3][3], size_o[3];
-      float loc_f[3], rot_f[3][3], size_f[3];
-
-      mat4_to_loc_rot_size(loc_o, rot_o, size_o, cob->matrix);
-      mat4_to_loc_rot_size(loc_f, rot_f, size_f, tarmat);
-
-      if (data->flag & FREEZETRANS_LOCATION) {
-        copy_v3_v3(loc_o, loc_f);
-      }
-      if (data->flag & FREEZETRANS_ROTATION) {
-        copy_m3_m3(rot_o, rot_f);
-      }
-      if (data->flag & FREEZETRANS_SCALE) {
-        copy_v3_v3(size_o, size_f);
-      }
-
-      loc_rot_size_to_mat4(cob->matrix, loc_o, rot_o, size_o);
-    }
+    loc_rot_size_to_mat4(cob->matrix, loc_o, rot_o, size_o);
   }
 }
 

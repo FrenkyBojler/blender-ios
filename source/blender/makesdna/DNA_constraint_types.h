@@ -784,13 +784,11 @@ typedef enum eFreezeTransforms_Space {
 
 /** #bFreezeTransConstraint.flag */
 typedef enum eFreezeTransforms_Flags {
-  FREEZETRANS_PENDING_FREEZE = (1 << 0),
-  FREEZETRANS_IS_FROZEN = (1 << 1),
-  FREEZETRANS_LOCATION = (1 << 2),
-  FREEZETRANS_ROTATION = (1 << 3),
-  FREEZETRANS_SCALE = (1 << 4),
+  FREEZETRANS_LOCATION = (1 << 0),
+  FREEZETRANS_ROTATION = (1 << 1),
+  FREEZETRANS_SCALE = (1 << 2),
   /** Copy each component individually, instead of copying whole matrix. */
-  FREEZETRANS_SPLIT_CHANNELS = (1 << 5),
+  FREEZETRANS_SPLIT_CHANNELS = (1 << 3),
 } eFreezeTransforms_Flags;
 
 /** #bTransLikeConstraint.mix_mode */

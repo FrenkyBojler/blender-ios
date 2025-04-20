@@ -545,17 +545,6 @@ static void rna_Constraint_childof_inverse_matrix_update(Main *bmain,
   rna_Constraint_update(bmain, scene, ptr);
 }
 
-/* Update only needed so this isn't overwritten on first evaluation. */
-static void rna_Constraint_freezetrans_freeze_matrix_update(Main *bmain,
-                                                            Scene *scene,
-                                                            PointerRNA *ptr)
-{
-  bConstraint *con = static_cast<bConstraint *>(ptr->data);
-  bFreezeTransConstraint *data = static_cast<bFreezeTransConstraint *>(con->data);
-  data->flag &= ~FREEZETRANS_PENDING_FREEZE;
-  rna_Constraint_update(bmain, scene, ptr);
-}
-
 static void rna_Constraint_ik_type_set(PointerRNA *ptr, int value)
 {
   bConstraint *con = static_cast<bConstraint *>(ptr->data);
@@ -1846,25 +1835,6 @@ static void rna_def_constraint_freeze_transform(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_FREEZE);
 
   RNA_define_lib_overridable(true);
-
-  prop = RNA_def_property(srna, "freeze_pending", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", FREEZETRANS_PENDING_FREEZE);
-  RNA_def_property_ui_text(
-      prop, "Freeze Pending", "Set to true to request recalculation of the freeze transform");
-  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
-
-  prop = RNA_def_property(srna, "freeze_matrix", PROP_FLOAT, PROP_MATRIX);
-  RNA_def_property_float_sdna(prop, nullptr, "freezemat");
-  RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Freeze Matrix", "Transformation matrix to use as freeze");
-  RNA_def_property_update(
-      prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_freezetrans_freeze_matrix_update");
-
-  prop = RNA_def_property(srna, "is_frozen", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", FREEZETRANS_IS_FROZEN);
-  RNA_def_property_ui_text(prop, "Is Frozen", "Is storing a freeze transformation matrix");
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
