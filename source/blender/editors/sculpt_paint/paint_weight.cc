@@ -14,14 +14,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.h"
-#include "BLI_color.hh"
 #include "BLI_color_mix.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -41,7 +38,6 @@
 #include "BKE_editmesh.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
@@ -64,8 +60,9 @@
 /* For IMB_BlendMode only. */
 #include "IMB_imbuf.hh"
 
-#include "BKE_ccg.hh"
 #include "bmesh.hh"
+
+#include "RNA_define.hh"
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh" /* own include */
@@ -126,7 +123,7 @@ struct WPaintData : public PaintModeData {
   float *precomputed_weight;
   bool precomputed_weight_ready;
 
-  ~WPaintData()
+  ~WPaintData() override
   {
     MEM_SAFE_FREE(defbase_sel);
     MEM_SAFE_FREE(vgroup_validmap);
@@ -1140,6 +1137,7 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
       tls.factors.resize(verts.size());
       const MutableSpan<float> factors = tls.factors;
       fill_factor_from_hide(hide_vert, verts, factors);
+      filter_region_clip_factors(ss, vert_positions, verts, factors);
       if (!select_vert.is_empty()) {
         filter_factors_with_selection(select_vert, verts, factors);
       }
@@ -1258,6 +1256,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
       tls.factors.resize(verts.size());
       const MutableSpan<float> factors = tls.factors;
       fill_factor_from_hide(hide_vert, verts, factors);
+      filter_region_clip_factors(ss, vert_positions, verts, factors);
       if (!select_vert.is_empty()) {
         filter_factors_with_selection(select_vert, verts, factors);
       }
@@ -1318,7 +1317,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
             continue;
           }
           const float final_alpha = factors[i] * brush_strength * brush_alpha_pressure;
-          do_weight_paint_vertex(vp, ob, wpi, vert, final_alpha, float(weight_final));
+          do_weight_paint_vertex(vp, ob, wpi, vert, final_alpha, weight_final);
         }
       }
     });
@@ -1375,6 +1374,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
       tls.factors.resize(verts.size());
       const MutableSpan<float> factors = tls.factors;
       fill_factor_from_hide(hide_vert, verts, factors);
+      filter_region_clip_factors(ss, vert_positions, verts, factors);
       if (!select_vert.is_empty()) {
         filter_factors_with_selection(select_vert, verts, factors);
       }
@@ -1462,6 +1462,7 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
           tls.factors.resize(verts.size());
           const MutableSpan<float> factors = tls.factors;
           fill_factor_from_hide(hide_vert, verts, factors);
+          filter_region_clip_factors(ss, vert_positions, verts, factors);
           if (!select_vert.is_empty()) {
             filter_factors_with_selection(select_vert, verts, factors);
           }
@@ -1603,8 +1604,8 @@ static bool weight_paint_poll_ex(bContext *C, bool check_tool)
       (BKE_paint_brush(&CTX_data_tool_settings(C)->wpaint->paint) != nullptr) &&
       (area = CTX_wm_area(C)) && (area->spacetype == SPACE_VIEW3D))
   {
-    ARegion *region = CTX_wm_region(C);
-    if (ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_HUD)) {
+    const ARegion *region = CTX_wm_region(C);
+    if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_HUD)) {
       if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
         return true;
       }
@@ -1626,7 +1627,7 @@ bool weight_paint_poll_ignore_tool(bContext *C)
 /**
  * \note Keep in sync with #vpaint_mode_toggle_exec
  */
-static int wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   wmMsgBus *mbus = CTX_wm_message_bus(C);
@@ -1758,10 +1759,8 @@ static void wpaint_do_symmetrical_brush_actions(
     return;
   }
 
-  /* symm is a bit combination of XYZ - 1 is mirror
-   * X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
   for (i = 1; i <= symm; i++) {
-    if (symm & i && (symm != 5 || i != 3) && (symm != 6 || !ELEM(i, 3, 5))) {
+    if (is_symmetry_iteration_valid(i, symm)) {
       const ePaintSymmetryFlags symm = ePaintSymmetryFlags(i);
       cache.mirror_symmetry_pass = symm;
       cache.radial_symmetry_pass = 0;
@@ -1786,7 +1785,7 @@ static void wpaint_do_symmetrical_brush_actions(
 }
 
 static void wpaint_stroke_update_step(bContext *C,
-                                      wmOperator * /*op*/,
+                                      wmOperator *op,
                                       PaintStroke *stroke,
                                       PointerRNA *itemptr)
 {
@@ -1819,7 +1818,7 @@ static void wpaint_stroke_update_step(bContext *C,
   vc = &wpd->vc;
   ob = vc->obact;
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
   ED_view3d_init_mats_rv3d(ob, vc->rv3d);
 
   mul_m4_m4m4(mat, vc->rv3d->persmat, ob->object_to_world().ptr());
@@ -1840,7 +1839,7 @@ static void wpaint_stroke_update_step(bContext *C,
   wpi.vgroup_validmap = wpd->vgroup_validmap;
   wpi.vgroup_locked = wpd->vgroup_locked;
   wpi.vgroup_unlocked = wpd->vgroup_unlocked;
-  wpi.do_flip = RNA_boolean_get(itemptr, "pen_flip") || ss.cache->invert;
+  wpi.do_flip = RNA_boolean_get(op->ptr, "pen_flip") || ss.cache->invert;
   wpi.do_multipaint = wpd->do_multipaint;
   wpi.do_auto_normalize = ((ts.auto_normalize != 0) && (wpi.vgroup_validmap != nullptr) &&
                            (wpi.do_multipaint || wpi.vgroup_validmap[wpi.active.index]));
@@ -1868,26 +1867,7 @@ static void wpaint_stroke_update_step(bContext *C,
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   swap_m4m4(wpd->vc.rv3d->persmat, mat);
 
-  rcti r;
-  if (SCULPT_get_redraw_rect(*vc->region, *CTX_wm_region_view3d(C), *ob, r)) {
-    if (ss.cache) {
-      ss.cache->current_r = r;
-    }
-
-    /* previous is not set in the current cache else
-     * the partial rect will always grow */
-    if (ss.cache) {
-      if (!BLI_rcti_is_empty(&ss.cache->previous_r)) {
-        BLI_rcti_union(&r, &ss.cache->previous_r);
-      }
-    }
-
-    r.xmin += vc->region->winrct.xmin - 2;
-    r.xmax += vc->region->winrct.xmin + 2;
-    r.ymin += vc->region->winrct.ymin - 2;
-    r.ymax += vc->region->winrct.ymin + 2;
-  }
-  ED_region_tag_redraw_partial(vc->region, &r, true);
+  ED_region_tag_redraw(vc->region);
 }
 
 static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/)
@@ -1921,10 +1901,8 @@ static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/)
   ob.sculpt->cache = nullptr;
 }
 
-static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int retval;
-
   op->customdata = paint_stroke_new(C,
                                     op,
                                     SCULPT_stroke_get_location,
@@ -1934,19 +1912,21 @@ static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
                                     wpaint_stroke_done,
                                     event->type);
 
-  if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  OPERATOR_RETVAL_CHECK(retval);
+
+  if (retval == OPERATOR_FINISHED) {
     paint_stroke_free(C, op, (PaintStroke *)op->customdata);
     return OPERATOR_FINISHED;
   }
   WM_event_add_modal_handler(C, op);
 
-  OPERATOR_RETVAL_CHECK(retval);
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int wpaint_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wpaint_exec(bContext *C, wmOperator *op)
 {
   op->customdata = paint_stroke_new(C,
                                     op,
@@ -1971,7 +1951,7 @@ static void wpaint_cancel(bContext *C, wmOperator *op)
   paint_stroke_cancel(C, op, (PaintStroke *)op->customdata);
 }
 
-static int wpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, (PaintStroke **)&op->customdata);
 }
@@ -1991,6 +1971,14 @@ void PAINT_OT_weight_paint(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
   paint_stroke_operator_properties(ot);
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "override_location",
+      false,
+      "Override Location",
+      "Override the given `location` array by recalculating object space positions from the "
+      "provided `mouse_event` positions");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */

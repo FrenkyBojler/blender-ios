@@ -16,7 +16,7 @@
 #ifdef __cplusplus
 #  include "BLI_bounds_types.hh"
 #  include "BLI_function_ref.hh"
-#  include "BLI_generic_virtual_array.hh"
+#  include "BLI_index_mask_fwd.hh"
 #  include "BLI_map.hh"
 #  include "BLI_math_vector_types.hh"
 #  include "BLI_memory_counter_fwd.hh"
@@ -259,10 +259,11 @@ typedef struct GreasePencilLayerTreeNode {
    * Indicates the type of struct this element is.
    */
   int8_t type;
+  char _pad[7];
   /**
-   * Color tag.
+   * Channel color for dope-sheet.
    */
-  uint8_t color[3];
+  float color[3];
   /**
    * Flag. Used to set e.g. the selection, visibility, ... status.
    * See `GreasePencilLayerTreeNodeFlag`.
@@ -543,23 +544,31 @@ typedef struct GreasePencil {
 
   /* Adding layers and layer groups. */
   /** Adds a new layer with the given name to the top of root group. */
-  blender::bke::greasepencil::Layer &add_layer(blender::StringRefNull name);
+  blender::bke::greasepencil::Layer &add_layer(blender::StringRef name,
+                                               bool check_name_is_unique = true);
   /** Adds a new layer with the given name to the top of the given group. */
   blender::bke::greasepencil::Layer &add_layer(
-      blender::bke::greasepencil::LayerGroup &parent_group, blender::StringRefNull name);
-  /** Duplicates the given layer to the top of the root group. */
+      blender::bke::greasepencil::LayerGroup &parent_group,
+      blender::StringRef name,
+      bool check_name_is_unique = true);
+  /** Duplicates a layer from the same object to the top of the root group. */
   blender::bke::greasepencil::Layer &duplicate_layer(
       const blender::bke::greasepencil::Layer &duplicate_layer);
-  /** Duplicates the given layer to the top of the given group. */
+  /** Duplicates a layer from the same object to the top of the given group. */
   blender::bke::greasepencil::Layer &duplicate_layer(
       blender::bke::greasepencil::LayerGroup &parent_group,
       const blender::bke::greasepencil::Layer &duplicate_layer);
+  /** Add new layer group into the root group. */
+  blender::bke::greasepencil::LayerGroup &add_layer_group(blender::StringRef name,
+                                                          bool check_name_is_unique = true);
   blender::bke::greasepencil::LayerGroup &add_layer_group(
-      blender::bke::greasepencil::LayerGroup &parent_group, blender::StringRefNull name);
+      blender::bke::greasepencil::LayerGroup &parent_group,
+      blender::StringRef name,
+      bool check_name_is_unique = true);
 
   /**
    *  Adds multiple layers with an empty name.
-   *  Note: Evaluated Grease Pencil geometry is allowed to have layers with the same name.
+   *  NOTE: Evaluated Grease Pencil geometry is allowed to have layers with the same name.
    */
   void add_layers_for_eval(int num_new_layers);
 
@@ -577,17 +586,19 @@ typedef struct GreasePencil {
                       blender::bke::greasepencil::LayerGroup &parent_group);
 
   /* Search functions. */
-  const blender::bke::greasepencil::TreeNode *find_node_by_name(blender::StringRefNull name) const;
-  blender::bke::greasepencil::TreeNode *find_node_by_name(blender::StringRefNull name);
-  blender::IndexMask layer_selection_by_name(const blender::StringRefNull name,
+  const blender::bke::greasepencil::TreeNode *find_node_by_name(blender::StringRef name) const;
+  blender::bke::greasepencil::TreeNode *find_node_by_name(blender::StringRef name);
+  blender::IndexMask layer_selection_by_name(blender::StringRef name,
                                              blender::IndexMaskMemory &memory) const;
 
   void rename_node(Main &bmain,
                    blender::bke::greasepencil::TreeNode &node,
-                   blender::StringRefNull new_name);
+                   blender::StringRef new_name);
 
   void remove_layer(blender::bke::greasepencil::Layer &layer);
   void remove_group(blender::bke::greasepencil::LayerGroup &group, bool keep_children = false);
+
+  std::string unique_layer_name(blender::StringRef name);
 
   /* Frames API functions. */
 
@@ -621,6 +632,10 @@ typedef struct GreasePencil {
    */
   bool remove_frames(blender::bke::greasepencil::Layer &layer, blender::Span<int> frame_numbers);
 
+  void copy_frames_from_layer(blender::bke::greasepencil::Layer &dst_layer,
+                              const GreasePencil &src_grease_pencil,
+                              const blender::bke::greasepencil::Layer &src_layer,
+                              const std::optional<int> frame_select = std::nullopt);
   /**
    * Adds multiple layers each with its own empty drawing. This can be more efficient than adding
    * every layer and drawing one by one.
@@ -703,11 +718,18 @@ typedef struct GreasePencil {
   blender::bke::greasepencil::Drawing *get_eval_drawing(
       const blender::bke::greasepencil::Layer &layer);
 
-  std::optional<blender::Bounds<blender::float3>> bounds_min_max(int frame) const;
-  std::optional<blender::Bounds<blender::float3>> bounds_min_max_eval() const;
+  std::optional<blender::Bounds<blender::float3>> bounds_min_max(int frame,
+                                                                 bool use_radius = true) const;
+  std::optional<blender::Bounds<blender::float3>> bounds_min_max_eval(
+      bool use_radius = true) const;
 
   blender::bke::AttributeAccessor attributes() const;
   blender::bke::MutableAttributeAccessor attributes_for_write();
+
+  /**
+   * Get the largest material index used by the evaluated layers or `nullopt` if they are empty.
+   */
+  std::optional<int> material_index_max_eval() const;
 
   void count_memory(blender::MemoryCounter &memory) const;
 

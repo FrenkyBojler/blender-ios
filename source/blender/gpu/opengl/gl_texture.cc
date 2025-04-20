@@ -328,24 +328,20 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(validate_data_format(format_, data_format));
 
-  if (GLContext::clear_texture_support) {
-    int mip = 0;
-    GLenum gl_format = to_gl_data_format(format_);
-    GLenum gl_type = to_gl(data_format);
-    glClearTexImage(tex_id_, mip, gl_format, gl_type, data);
-  }
-  else {
-    /* Fallback for older GL. */
-    GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  /* Note: do not use glClearTexImage, even if it is available (via
+   * extension or GL 4.4). It causes GL framebuffer binding to be
+   * way slower at least on some drivers (e.g. Win10 / NV RTX 3080,
+   * but also reportedly others), as if glClearTexImage causes
+   * "pixel data" to exist which is then uploaded CPU -> GPU at bind
+   * time. */
 
-    FrameBuffer *fb = this->framebuffer_get();
-    fb->bind(true);
-    fb->clear_attachment(this->attachment_type(0), data_format, data);
+  GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
-    GPU_framebuffer_bind(prev_fb);
-  }
+  FrameBuffer *fb = this->framebuffer_get();
+  fb->bind(true);
+  fb->clear_attachment(this->attachment_type(0), data_format, data);
 
-  has_pixels_ = true;
+  GPU_framebuffer_bind(prev_fb);
 }
 
 void GLTexture::copy_to(Texture *dst_)
@@ -624,10 +620,11 @@ GLuint GLTexture::get_sampler(const GPUSamplerState &sampler_state)
  * Dummy texture to see if the implementation supports the requested size.
  * \{ */
 
-/* NOTE: This only checks if this mipmap is valid / supported.
- * TODO(fclem): make the check cover the whole mipmap chain. */
 bool GLTexture::proxy_check(int mip)
 {
+  /* NOTE: This only checks if this mipmap is valid / supported.
+   * TODO(fclem): make the check cover the whole mipmap chain. */
+
   /* Manual validation first, since some implementation have issues with proxy creation. */
   int max_size = GPU_max_texture_size();
   int max_3d_size = GPU_max_texture_3d_size();
@@ -758,9 +755,10 @@ void GLTexture::check_feedback_loop()
   }
 }
 
-/* TODO(fclem): Legacy. Should be removed at some point. */
 uint GLTexture::gl_bindcode_get() const
 {
+  /* TODO(fclem): Legacy. Should be removed at some point. */
+
   return tex_id_;
 }
 

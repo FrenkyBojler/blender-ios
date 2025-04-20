@@ -616,52 +616,52 @@ VkFormat to_vk_format(const GPUVertCompType type, const uint32_t size, GPUVertFe
 VkFormat to_vk_format(const shader::Type type)
 {
   switch (type) {
-    case shader::Type::FLOAT:
+    case shader::Type::float_t:
       return VK_FORMAT_R32_SFLOAT;
-    case shader::Type::VEC2:
+    case shader::Type::float2_t:
       return VK_FORMAT_R32G32_SFLOAT;
-    case shader::Type::VEC3:
+    case shader::Type::float3_t:
       return VK_FORMAT_R32G32B32_SFLOAT;
-    case shader::Type::VEC4:
+    case shader::Type::float4_t:
       return VK_FORMAT_R32G32B32A32_SFLOAT;
-    case shader::Type::UINT:
+    case shader::Type::uint_t:
       return VK_FORMAT_R32_UINT;
-    case shader::Type::UVEC2:
+    case shader::Type::uint2_t:
       return VK_FORMAT_R32G32_UINT;
-    case shader::Type::UVEC3:
+    case shader::Type::uint3_t:
       return VK_FORMAT_R32G32B32_UINT;
-    case shader::Type::UVEC4:
+    case shader::Type::uint4_t:
       return VK_FORMAT_R32G32B32A32_UINT;
-    case shader::Type::INT:
+    case shader::Type::int_t:
       return VK_FORMAT_R32_SINT;
-    case shader::Type::IVEC2:
+    case shader::Type::int2_t:
       return VK_FORMAT_R32G32_SINT;
-    case shader::Type::IVEC3:
+    case shader::Type::int3_t:
       return VK_FORMAT_R32G32B32_SINT;
-    case shader::Type::IVEC4:
+    case shader::Type::int4_t:
       return VK_FORMAT_R32G32B32A32_SINT;
-    case shader::Type::MAT4:
+    case shader::Type::float4x4_t:
       return VK_FORMAT_R32G32B32A32_SFLOAT;
 
-    case shader::Type::MAT3:
-    case shader::Type::BOOL:
-    case shader::Type::VEC3_101010I2:
-    case shader::Type::UCHAR:
-    case shader::Type::UCHAR2:
-    case shader::Type::UCHAR3:
-    case shader::Type::UCHAR4:
-    case shader::Type::CHAR:
-    case shader::Type::CHAR2:
-    case shader::Type::CHAR3:
-    case shader::Type::CHAR4:
-    case shader::Type::SHORT:
-    case shader::Type::SHORT2:
-    case shader::Type::SHORT3:
-    case shader::Type::SHORT4:
-    case shader::Type::USHORT:
-    case shader::Type::USHORT2:
-    case shader::Type::USHORT3:
-    case shader::Type::USHORT4:
+    case shader::Type::float3x3_t:
+    case shader::Type::bool_t:
+    case shader::Type::float3_10_10_10_2_t:
+    case shader::Type::uchar_t:
+    case shader::Type::uchar2_t:
+    case shader::Type::uchar3_t:
+    case shader::Type::uchar4_t:
+    case shader::Type::char_t:
+    case shader::Type::char2_t:
+    case shader::Type::char3_t:
+    case shader::Type::char4_t:
+    case shader::Type::short_t:
+    case shader::Type::short2_t:
+    case shader::Type::short3_t:
+    case shader::Type::short4_t:
+    case shader::Type::ushort_t:
+    case shader::Type::ushort2_t:
+    case shader::Type::ushort3_t:
+    case shader::Type::ushort4_t:
       break;
   }
 
@@ -806,8 +806,13 @@ VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const voi
 {
   VkClearColorValue result = {{0.0f}};
   switch (format) {
+    /* All float-like formats (i.e. everything except literal int/uint go
+     * into VkClearColorValue float color fields. */
     case GPU_DATA_FLOAT:
-    case GPU_DATA_10_11_11_REV: {
+    case GPU_DATA_HALF_FLOAT:
+    case GPU_DATA_UBYTE:
+    case GPU_DATA_10_11_11_REV:
+    case GPU_DATA_2_10_10_10_REV: {
       const float *float_data = static_cast<const float *>(data);
       copy_color<float>(result.float32, float_data);
       break;
@@ -824,11 +829,7 @@ VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const voi
       copy_color<uint32_t>(result.uint32, uint_data);
       break;
     }
-
-    case GPU_DATA_HALF_FLOAT:
-    case GPU_DATA_UBYTE:
-    case GPU_DATA_UINT_24_8:
-    case GPU_DATA_2_10_10_10_REV: {
+    case GPU_DATA_UINT_24_8: {
       BLI_assert_unreachable();
       break;
     }
@@ -862,7 +863,7 @@ VkPrimitiveTopology to_vk_primitive_topology(const GPUPrimType prim_type)
     case GPU_PRIM_LINE_STRIP:
       return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
     case GPU_PRIM_LINE_LOOP:
-      return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+      return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
     case GPU_PRIM_TRI_STRIP:
       return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
     case GPU_PRIM_TRI_FAN:

@@ -9,7 +9,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "vk_data_conversion.hh"
-#include "vk_memory.hh"
 #include "vk_shader.hh"
 #include "vk_shader_interface.hh"
 #include "vk_staging_buffer.hh"
@@ -56,10 +55,8 @@ void VKVertexBuffer::ensure_buffer_view()
   buffer_view_info.format = to_vk_format(texture_format);
   buffer_view_info.range = buffer_.size_in_bytes();
 
-  VK_ALLOCATION_CALLBACKS;
   const VKDevice &device = VKBackend::get().device;
-  vkCreateBufferView(
-      device.vk_handle(), &buffer_view_info, vk_allocation_callbacks, &vk_buffer_view_);
+  vkCreateBufferView(device.vk_handle(), &buffer_view_info, nullptr, &vk_buffer_view_);
   debug::object_label(vk_buffer_view_, "VertexBufferView");
 }
 
@@ -68,9 +65,26 @@ void VKVertexBuffer::wrap_handle(uint64_t /*handle*/)
   NOT_YET_IMPLEMENTED
 }
 
-void VKVertexBuffer::update_sub(uint /*start*/, uint /*len*/, const void * /*data*/)
+void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, const void *data)
 {
-  NOT_YET_IMPLEMENTED
+  device_format_ensure();
+  if (buffer_.is_mapped() && !vertex_format_converter.needs_conversion()) {
+    buffer_.update_sub_immediately(start_offset, data_size_in_bytes, data);
+  }
+  else {
+    VKContext &context = *VKContext::get();
+    VKStagingBuffer staging_buffer(
+        buffer_, VKStagingBuffer::Direction::HostToDevice, start_offset, data_size_in_bytes);
+    if (vertex_format_converter.needs_conversion()) {
+      vertex_format_converter.convert(staging_buffer.host_buffer_get().mapped_memory_get(),
+                                      data_,
+                                      data_size_in_bytes / vertex_len);
+    }
+    else {
+      memcpy(staging_buffer.host_buffer_get().mapped_memory_get(), data, data_size_in_bytes);
+    }
+    staging_buffer.copy_to_device(context);
+  }
 }
 
 void VKVertexBuffer::read(void *data) const
@@ -110,9 +124,7 @@ void VKVertexBuffer::resize_data()
 void VKVertexBuffer::release_data()
 {
   if (vk_buffer_view_ != VK_NULL_HANDLE) {
-    const VKDevice &device = VKBackend::get().device;
-    VK_ALLOCATION_CALLBACKS;
-    vkDestroyBufferView(device.vk_handle(), vk_buffer_view_, vk_allocation_callbacks);
+    VKDiscardPool::discard_pool_get().discard_buffer_view(vk_buffer_view_);
     vk_buffer_view_ = VK_NULL_HANDLE;
   }
 
@@ -152,7 +164,7 @@ void VKVertexBuffer::upload_data()
 
   if (flag & GPU_VERTBUF_DATA_DIRTY) {
     device_format_ensure();
-    if (buffer_.is_mapped()) {
+    if (buffer_.is_mapped() && !data_uploaded_) {
       upload_data_direct(buffer_);
     }
     else {
@@ -162,6 +174,7 @@ void VKVertexBuffer::upload_data()
     if (usage_ == GPU_USAGE_STATIC) {
       MEM_SAFE_FREE(data_);
     }
+    data_uploaded_ = true;
 
     flag &= ~GPU_VERTBUF_DATA_DIRTY;
     flag |= GPU_VERTBUF_DATA_UPLOADED;
@@ -194,7 +207,11 @@ void VKVertexBuffer::allocate()
                                        VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-  buffer_.create(size_alloc_get(), GPU_USAGE_STATIC, vk_buffer_usage, false);
+  buffer_.create(size_alloc_get(),
+                 vk_buffer_usage,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                 VmaAllocationCreateFlags(0));
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }
 

@@ -14,34 +14,18 @@
 #include "NOD_geo_foreach_geometry_element.hh"
 #include "NOD_node_extra_info.hh"
 #include "NOD_socket_items_ops.hh"
+#include "NOD_socket_items_ui.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "BKE_library.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
 
 namespace blender::nodes::node_geo_foreach_geometry_element_cc {
-
-static void draw_item(uiList * /*ui_list*/,
-                      const bContext *C,
-                      uiLayout *layout,
-                      PointerRNA * /*idataptr*/,
-                      PointerRNA *itemptr,
-                      int /*icon*/,
-                      PointerRNA * /*active_dataptr*/,
-                      const char * /*active_propname*/,
-                      int /*index*/,
-                      int /*flt_flag*/)
-{
-  uiLayout *row = uiLayoutRow(layout, true);
-  float4 color;
-  RNA_float_get_array(itemptr, "color", color);
-  uiTemplateNodeSocket(row, const_cast<bContext *>(C), color);
-  uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
-  uiItemR(row, itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
-}
 
 /** Shared between zone input and output node. */
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_node_ptr)
@@ -60,220 +44,56 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone->output_node) {
     return;
   }
-  const bool is_zone_input_node = current_node->type == GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT;
+  const bool is_zone_input_node = current_node->type_legacy ==
+                                  GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT;
   bNode &output_node = const_cast<bNode &>(*zone->output_node);
-  PointerRNA output_node_ptr = RNA_pointer_create(
+  PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
   auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(output_node.storage);
 
   if (is_zone_input_node) {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "input", false, TIP_("Input Fields"))) {
-      static const uiListType *input_items_list = []() {
-        uiListType *list = MEM_cnew<uiListType>(__func__);
-        STRNCPY(list->idname, "DATA_UL_foreach_geometry_element_input_items");
-        list->draw_item = draw_item;
-        WM_uilisttype_add(list);
-        return list;
-      }();
-      uiLayout *row = uiLayoutRow(panel, false);
-      uiTemplateList(row,
-                     C,
-                     input_items_list->idname,
-                     "",
-                     &output_node_ptr,
-                     "input_items",
-                     &output_node_ptr,
-                     "active_input_index",
-                     nullptr,
-                     3,
-                     5,
-                     UILST_LAYOUT_DEFAULT,
-                     0,
-                     UI_TEMPLATE_LIST_FLAG_NONE);
-      {
-        uiLayout *ops_col = uiLayoutColumn(row, false);
-        {
-          uiLayout *add_remove_col = uiLayoutColumn(ops_col, true);
-          uiItemO(
-              add_remove_col, "", ICON_ADD, "node.foreach_geometry_element_zone_input_item_add");
-          uiItemO(add_remove_col,
-                  "",
-                  ICON_REMOVE,
-                  "node.foreach_geometry_element_zone_input_item_remove");
-        }
-        {
-          uiLayout *up_down_col = uiLayoutColumn(ops_col, true);
-          uiItemEnumO(up_down_col,
-                      "node.foreach_geometry_element_zone_input_item_move",
-                      "",
-                      ICON_TRIA_UP,
-                      "direction",
-                      0);
-          uiItemEnumO(up_down_col,
-                      "node.foreach_geometry_element_zone_input_item_move",
-                      "",
-                      ICON_TRIA_DOWN,
-                      "direction",
-                      1);
-        }
-      }
-
-      if (storage.input_items.active_index >= 0 &&
-          storage.input_items.active_index < storage.input_items.items_num)
-      {
-        NodeForeachGeometryElementInputItem &active_item =
-            storage.input_items.items[storage.input_items.active_index];
-        PointerRNA item_ptr = RNA_pointer_create(
-            output_node_ptr.owner_id,
-            ForeachGeometryElementInputItemsAccessor::item_srna,
-            &active_item);
-        uiLayoutSetPropSep(panel, true);
-        uiLayoutSetPropDecorate(panel, false);
-        uiItemR(panel, &item_ptr, "socket_type", UI_ITEM_NONE, nullptr, ICON_NONE);
-      }
+    if (uiLayout *panel = uiLayoutPanel(C, layout, "input", false, IFACE_("Input Fields"))) {
+      socket_items::ui::draw_items_list_with_operators<ForeachGeometryElementInputItemsAccessor>(
+          C, panel, ntree, output_node);
+      socket_items::ui::draw_active_item_props<ForeachGeometryElementInputItemsAccessor>(
+          ntree, output_node, [&](PointerRNA *item_ptr) {
+            uiLayoutSetPropSep(panel, true);
+            uiLayoutSetPropDecorate(panel, false);
+            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          });
     }
   }
   else {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "main_items", false, TIP_("Main Geometry"))) {
-      static const uiListType *main_items_list = []() {
-        uiListType *list = MEM_cnew<uiListType>(__func__);
-        STRNCPY(list->idname, "DATA_UL_foreach_geometry_element_main_items");
-        list->draw_item = draw_item;
-        WM_uilisttype_add(list);
-        return list;
-      }();
-      uiLayout *row = uiLayoutRow(panel, false);
-      uiTemplateList(row,
-                     C,
-                     main_items_list->idname,
-                     "",
-                     &output_node_ptr,
-                     "main_items",
-                     &output_node_ptr,
-                     "active_main_index",
-                     nullptr,
-                     3,
-                     5,
-                     UILST_LAYOUT_DEFAULT,
-                     0,
-                     UI_TEMPLATE_LIST_FLAG_NONE);
-      {
-        uiLayout *ops_col = uiLayoutColumn(row, false);
-        {
-          uiLayout *add_remove_col = uiLayoutColumn(ops_col, true);
-          uiItemO(
-              add_remove_col, "", ICON_ADD, "node.foreach_geometry_element_zone_main_item_add");
-          uiItemO(add_remove_col,
-                  "",
-                  ICON_REMOVE,
-                  "node.foreach_geometry_element_zone_main_item_remove");
-        }
-        {
-          uiLayout *up_down_col = uiLayoutColumn(ops_col, true);
-          uiItemEnumO(up_down_col,
-                      "node.foreach_geometry_element_zone_main_item_move",
-                      "",
-                      ICON_TRIA_UP,
-                      "direction",
-                      0);
-          uiItemEnumO(up_down_col,
-                      "node.foreach_geometry_element_zone_main_item_move",
-                      "",
-                      ICON_TRIA_DOWN,
-                      "direction",
-                      1);
-        }
-      }
-
-      if (storage.main_items.active_index >= 0 &&
-          storage.main_items.active_index < storage.main_items.items_num)
-      {
-        NodeForeachGeometryElementMainItem &active_item =
-            storage.main_items.items[storage.main_items.active_index];
-        PointerRNA item_ptr = RNA_pointer_create(
-            output_node_ptr.owner_id,
-            ForeachGeometryElementMainItemsAccessor::item_srna,
-            &active_item);
-        uiLayoutSetPropSep(panel, true);
-        uiLayoutSetPropDecorate(panel, false);
-        uiItemR(panel, &item_ptr, "socket_type", UI_ITEM_NONE, nullptr, ICON_NONE);
-      }
+    if (uiLayout *panel = uiLayoutPanel(C, layout, "main_items", false, IFACE_("Main Geometry"))) {
+      socket_items::ui::draw_items_list_with_operators<ForeachGeometryElementMainItemsAccessor>(
+          C, panel, ntree, output_node);
+      socket_items::ui::draw_active_item_props<ForeachGeometryElementMainItemsAccessor>(
+          ntree, output_node, [&](PointerRNA *item_ptr) {
+            uiLayoutSetPropSep(panel, true);
+            uiLayoutSetPropDecorate(panel, false);
+            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          });
     }
     if (uiLayout *panel = uiLayoutPanel(
-            C, layout, "generation_items", false, TIP_("Generated Geometry")))
+            C, layout, "generation_items", false, IFACE_("Generated Geometry")))
     {
-      static const uiListType *generation_items_list = []() {
-        uiListType *list = MEM_cnew<uiListType>(__func__);
-        STRNCPY(list->idname, "DATA_UL_foreach_geometry_element_generation_items");
-        list->draw_item = draw_item;
-        WM_uilisttype_add(list);
-        return list;
-      }();
-      uiLayout *row = uiLayoutRow(panel, false);
-      uiTemplateList(row,
-                     C,
-                     generation_items_list->idname,
-                     "",
-                     &output_node_ptr,
-                     "generation_items",
-                     &output_node_ptr,
-                     "active_generation_index",
-                     nullptr,
-                     3,
-                     5,
-                     UILST_LAYOUT_DEFAULT,
-                     0,
-                     UI_TEMPLATE_LIST_FLAG_NONE);
-      {
-        uiLayout *ops_col = uiLayoutColumn(row, false);
-        {
-          uiLayout *add_remove_col = uiLayoutColumn(ops_col, true);
-          uiItemO(add_remove_col,
-                  "",
-                  ICON_ADD,
-                  "node.foreach_geometry_element_zone_generation_item_add");
-          uiItemO(add_remove_col,
-                  "",
-                  ICON_REMOVE,
-                  "node.foreach_geometry_element_zone_generation_item_remove");
-        }
-        {
-          uiLayout *up_down_col = uiLayoutColumn(ops_col, true);
-          uiItemEnumO(up_down_col,
-                      "node.foreach_geometry_element_zone_generation_item_move",
-                      "",
-                      ICON_TRIA_UP,
-                      "direction",
-                      0);
-          uiItemEnumO(up_down_col,
-                      "node.foreach_geometry_element_zone_generation_item_move",
-                      "",
-                      ICON_TRIA_DOWN,
-                      "direction",
-                      1);
-        }
-      }
-
-      if (storage.generation_items.active_index >= 0 &&
-          storage.generation_items.active_index < storage.generation_items.items_num)
-      {
-        NodeForeachGeometryElementGenerationItem &active_item =
-            storage.generation_items.items[storage.generation_items.active_index];
-        PointerRNA item_ptr = RNA_pointer_create(
-            output_node_ptr.owner_id,
-            ForeachGeometryElementGenerationItemsAccessor::item_srna,
-            &active_item);
-        uiLayoutSetPropSep(panel, true);
-        uiLayoutSetPropDecorate(panel, false);
-        uiItemR(panel, &item_ptr, "socket_type", UI_ITEM_NONE, nullptr, ICON_NONE);
-        if (active_item.socket_type != SOCK_GEOMETRY) {
-          uiItemR(panel, &item_ptr, "domain", UI_ITEM_NONE, nullptr, ICON_NONE);
-        }
-      }
+      socket_items::ui::draw_items_list_with_operators<
+          ForeachGeometryElementGenerationItemsAccessor>(C, panel, ntree, output_node);
+      socket_items::ui::draw_active_item_props<ForeachGeometryElementGenerationItemsAccessor>(
+          ntree, output_node, [&](PointerRNA *item_ptr) {
+            NodeForeachGeometryElementGenerationItem &active_item =
+                storage.generation_items.items[storage.generation_items.active_index];
+            uiLayoutSetPropSep(panel, true);
+            uiLayoutSetPropDecorate(panel, false);
+            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            if (active_item.socket_type != SOCK_GEOMETRY) {
+              uiItemR(panel, item_ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            }
+          });
     }
   }
 
-  uiItemR(layout, &output_node_ptr, "inspection_index", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, &output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace input_node {
@@ -287,6 +107,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
 
+  b.add_default_layout();
+
   if (!node || !tree) {
     return;
   }
@@ -299,13 +121,13 @@ static void node_declare(NodeDeclarationBuilder &b)
                                    nullptr;
 
   b.add_output<decl::Int>("Index").description(
-      "Index of the element in the source geometry. Note that the same index can occure more than "
+      "Index of the element in the source geometry. Note that the same index can occur more than "
       "once when iterating over multiple components at once");
 
   b.add_output<decl::Geometry>("Element")
       .description(
-          "Single element geometry for the current iteration. Note that it can be quite "
-          "inefficient to splitup large geometries into many small geometries")
+          "Single-element geometry for the current iteration. Note that it can be quite "
+          "inefficient to split up large geometries into many small geometries")
       .propagate_all()
       .available(output_storage && AttrDomain(output_storage->domain) != AttrDomain::Corner);
 
@@ -324,16 +146,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       const StringRef name = item.name ? item.name : "";
       const std::string identifier =
           ForeachGeometryElementInputItemsAccessor::socket_identifier_for_item(item);
-      auto &input_decl = b.add_input(socket_type, name, identifier)
-                             .socket_name_ptr(&tree->id,
-                                              ForeachGeometryElementInputItemsAccessor::item_srna,
-                                              &item,
-                                              "name")
-                             .description("Field that is evaluated on the iteration domain");
+      b.add_input(socket_type, name, identifier)
+          .socket_name_ptr(
+              &tree->id, ForeachGeometryElementInputItemsAccessor::item_srna, &item, "name")
+          .description("Field that is evaluated on the iteration domain")
+          .field_on_all();
       b.add_output(socket_type, name, identifier)
           .align_with_previous()
           .description("Evaluated field value for the current element");
-      input_decl.supports_field();
     }
   }
 
@@ -348,14 +168,14 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   const NodeGeometryForeachGeometryElementInput &storage = node_storage(node);
   bNode *output_node = tree.node_by_id(storage.output_node_id);
 
-  PointerRNA output_node_ptr = RNA_pointer_create(ptr->owner_id, &RNA_Node, output_node);
+  PointerRNA output_node_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Node, output_node);
   uiItemR(layout, &output_node_ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryForeachGeometryElementInput *data =
-      MEM_cnew<NodeGeometryForeachGeometryElementInput>(__func__);
+      MEM_callocN<NodeGeometryForeachGeometryElementInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -382,10 +202,11 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype,
-                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT,
-                     "For Each Geometry Element Input",
-                     NODE_CLASS_INTERFACE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeForeachGeometryElementInput", GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT);
+  ntype.ui_name = "For Each Geometry Element Input";
+  ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_INPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
@@ -394,11 +215,11 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = nullptr;
   ntype.no_muting = true;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryForeachGeometryElementInput",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -417,8 +238,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "The original input geometry with potentially new attributes that are output by the "
           "zone");
-
-  aal::RelationsInNode &relations = b.get_anonymous_attribute_relations();
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
@@ -445,7 +264,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     auto &panel = b.add_panel("Generated");
 
-    int previous_geometry_index = -1;
+    int previous_output_geometry_index = -1;
+    int previous_input_geometry_index = -1;
     for (const int i : IndexRange(storage.generation_items.items_num)) {
       const NodeForeachGeometryElementGenerationItem &item = storage.generation_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
@@ -463,11 +283,8 @@ static void node_declare(NodeDeclarationBuilder &b)
                                  "name");
       auto &output_decl = panel.add_output(socket_type, name, identifier).align_with_previous();
       if (socket_type == SOCK_GEOMETRY) {
-        previous_geometry_index = output_decl.index();
-        aal::PropagateRelation relation;
-        relation.from_geometry_input = input_decl.index();
-        relation.to_geometry_output = output_decl.index();
-        relations.propagate_relations.append(relation);
+        previous_input_geometry_index = input_decl.index();
+        previous_output_geometry_index = output_decl.index();
 
         input_decl.description(
             "Geometry generated in the current iteration. Will be joined with geometries from all "
@@ -475,10 +292,10 @@ static void node_declare(NodeDeclarationBuilder &b)
         output_decl.description("Result of joining generated geometries from each iteration");
       }
       else {
-        input_decl.supports_field();
-        if (previous_geometry_index > 0) {
+        if (previous_output_geometry_index > 0) {
           input_decl.description("Field that will be stored as attribute on the geometry above");
-          output_decl.field_on({previous_geometry_index});
+          input_decl.field_on({previous_input_geometry_index});
+          output_decl.field_on({previous_output_geometry_index});
         }
         output_decl.description("Attribute on the geometry above");
       }
@@ -491,9 +308,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryForeachGeometryElementOutput *data =
-      MEM_cnew<NodeGeometryForeachGeometryElementOutput>(__func__);
+      MEM_callocN<NodeGeometryForeachGeometryElementOutput>(__func__);
 
-  data->generation_items.items = MEM_cnew_array<NodeForeachGeometryElementGenerationItem>(
+  data->generation_items.items = MEM_calloc_arrayN<NodeForeachGeometryElementGenerationItem>(
       1, __func__);
   NodeForeachGeometryElementGenerationItem &item = data->generation_items.items[0];
   item.name = BLI_strdup(DATA_("Geometry"));
@@ -515,7 +332,8 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryForeachGeometryElementOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_cnew<NodeGeometryForeachGeometryElementOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_dupallocN<NodeGeometryForeachGeometryElementOutput>(__func__,
+                                                                              src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<ForeachGeometryElementInputItemsAccessor>(*src_node, *dst_node);
@@ -534,73 +352,11 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
       ForeachGeometryElementGenerationItemsAccessor>(*ntree, *node, *node, *link);
 }
 
-static void NODE_OT_foreach_geometry_element_zone_input_item_remove(wmOperatorType *ot)
-{
-  socket_items::ops::remove_active_item<ForeachGeometryElementInputItemsAccessor>(
-      ot, "Remove For Each Input Item", __func__, "Remove active for-each input item");
-}
-
-static void NODE_OT_foreach_geometry_element_zone_input_item_add(wmOperatorType *ot)
-{
-  socket_items::ops::add_item<ForeachGeometryElementInputItemsAccessor>(
-      ot, "Add For Each Input Item", __func__, "Add for-each input item");
-}
-
-static void NODE_OT_foreach_geometry_element_zone_input_item_move(wmOperatorType *ot)
-{
-  socket_items::ops::move_active_item<ForeachGeometryElementInputItemsAccessor>(
-      ot, "Move For Each Input Item", __func__, "Move active for-each input item");
-}
-
-static void NODE_OT_foreach_geometry_element_zone_generation_item_remove(wmOperatorType *ot)
-{
-  socket_items::ops::remove_active_item<ForeachGeometryElementGenerationItemsAccessor>(
-      ot, "Remove For Each Generation Item", __func__, "Remove active for-each generation item");
-}
-
-static void NODE_OT_foreach_geometry_element_zone_generation_item_add(wmOperatorType *ot)
-{
-  socket_items::ops::add_item<ForeachGeometryElementGenerationItemsAccessor>(
-      ot, "Add For Each Generation Item", __func__, "Add for-each generation item");
-}
-
-static void NODE_OT_foreach_geometry_element_zone_generation_item_move(wmOperatorType *ot)
-{
-  socket_items::ops::move_active_item<ForeachGeometryElementGenerationItemsAccessor>(
-      ot, "Move For Each Generation Item", __func__, "Move active for-each generation item");
-}
-
-static void NODE_OT_foreach_geometry_element_zone_main_item_remove(wmOperatorType *ot)
-{
-  socket_items::ops::remove_active_item<ForeachGeometryElementMainItemsAccessor>(
-      ot, "Remove For Each Main Item", __func__, "Remove active for-each main item");
-}
-
-static void NODE_OT_foreach_geometry_element_zone_main_item_add(wmOperatorType *ot)
-{
-  socket_items::ops::add_item<ForeachGeometryElementMainItemsAccessor>(
-      ot, "Add For Each Main Item", __func__, "Add for-each main item");
-}
-
-static void NODE_OT_foreach_geometry_element_zone_main_item_move(wmOperatorType *ot)
-{
-  socket_items::ops::move_active_item<ForeachGeometryElementMainItemsAccessor>(
-      ot, "Move For Each Main Item", __func__, "Move active for-each main item");
-}
-
 static void node_operators()
 {
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_input_item_add);
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_input_item_remove);
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_input_item_move);
-
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_generation_item_add);
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_generation_item_remove);
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_generation_item_move);
-
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_main_item_add);
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_main_item_remove);
-  WM_operatortype_append(NODE_OT_foreach_geometry_element_zone_main_item_move);
+  socket_items::ops::make_common_operators<ForeachGeometryElementInputItemsAccessor>();
+  socket_items::ops::make_common_operators<ForeachGeometryElementMainItemsAccessor>();
+  socket_items::ops::make_common_operators<ForeachGeometryElementGenerationItemsAccessor>();
 }
 
 static void node_extra_info(NodeExtraInfoParams &params)
@@ -617,24 +373,74 @@ static void node_extra_info(NodeExtraInfoParams &params)
   }
 }
 
+static std::pair<bNode *, bNode *> add_foreach_zone(LinkSearchOpParams &params)
+{
+  bNode &input_node = params.add_node("GeometryNodeForeachGeometryElementInput");
+  bNode &output_node = params.add_node("GeometryNodeForeachGeometryElementOutput");
+  output_node.location[0] = 300;
+
+  auto &input_storage = *static_cast<NodeGeometryForeachGeometryElementInput *>(
+      input_node.storage);
+  input_storage.output_node_id = output_node.identifier;
+
+  return {&input_node, &output_node};
+}
+
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const bNodeSocket &other_socket = params.other_socket();
+  const eNodeSocketDatatype type = eNodeSocketDatatype(other_socket.type);
+  if (type != SOCK_GEOMETRY) {
+    return;
+  }
+  if (other_socket.in_out == SOCK_OUT) {
+    params.add_item_full_name(IFACE_("For Each Element"), [](LinkSearchOpParams &params) {
+      const auto [input_node, output_node] = add_foreach_zone(params);
+      params.update_and_connect_available_socket(*input_node, "Geometry");
+    });
+  }
+  else {
+    params.add_item_full_name(
+        IFACE_("For Each Element " UI_MENU_ARROW_SEP " Main"), [](LinkSearchOpParams &params) {
+          const auto [input_node, output_node] = add_foreach_zone(params);
+          socket_items::clear<ForeachGeometryElementGenerationItemsAccessor>(*output_node);
+          params.update_and_connect_available_socket(*output_node, "Geometry");
+        });
+
+    params.add_item_full_name(IFACE_("For Each Element " UI_MENU_ARROW_SEP " Generated"),
+                              [](LinkSearchOpParams &params) {
+                                const auto [input_node, output_node] = add_foreach_zone(params);
+                                params.node_tree.ensure_topology_cache();
+                                bke::node_add_link(params.node_tree,
+                                                   *output_node,
+                                                   output_node->output_socket(2),
+                                                   params.node,
+                                                   params.socket);
+                              });
+  }
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype,
-                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
-                     "For Each Geometry Element Output",
-                     NODE_CLASS_INTERFACE);
+                     "GeometryNodeForeachGeometryElementOutput",
+                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT);
+  ntype.ui_name = "For Each Geometry Element Output";
+  ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_OUTPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = input_node::node_label;
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.get_extra_info = node_extra_info;
   ntype.no_muting = true;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryForeachGeometryElementOutput", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(&ntype);
+      ntype, "NodeGeometryForeachGeometryElementOutput", node_free_storage, node_copy_storage);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -647,104 +453,56 @@ namespace blender::nodes {
 StructRNA *ForeachGeometryElementInputItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementInputItem;
 int ForeachGeometryElementInputItemsAccessor::node_type = GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
+int ForeachGeometryElementInputItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
+    NodeForeachGeometryElementInputItem);
 
-void ForeachGeometryElementInputItemsAccessor::blend_write(BlendWriter *writer, const bNode &node)
+void ForeachGeometryElementInputItemsAccessor::blend_write_item(BlendWriter *writer,
+                                                                const ItemT &item)
 {
-  const auto &storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
-      node.storage);
-  BLO_write_struct_array(writer,
-                         NodeForeachGeometryElementInputItem,
-                         storage.input_items.items_num,
-                         storage.input_items.items);
-  for (const NodeForeachGeometryElementInputItem &item :
-       Span(storage.input_items.items, storage.input_items.items_num))
-  {
-    BLO_write_string(writer, item.name);
-  }
+  BLO_write_string(writer, item.name);
 }
 
-void ForeachGeometryElementInputItemsAccessor::blend_read_data(BlendDataReader *reader,
-                                                               bNode &node)
+void ForeachGeometryElementInputItemsAccessor::blend_read_data_item(BlendDataReader *reader,
+                                                                    ItemT &item)
 {
-  auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(node.storage);
-  BLO_read_struct_array(reader,
-                        NodeForeachGeometryElementInputItem,
-                        storage.input_items.items_num,
-                        &storage.input_items.items);
-  for (const NodeForeachGeometryElementInputItem &item :
-       Span(storage.input_items.items, storage.input_items.items_num))
-  {
-    BLO_read_string(reader, &item.name);
-  }
+  BLO_read_string(reader, &item.name);
 }
 
 StructRNA *ForeachGeometryElementMainItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementMainItem;
 int ForeachGeometryElementMainItemsAccessor::node_type = GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
+int ForeachGeometryElementMainItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
+    NodeForeachGeometryElementMainItem);
 
-void ForeachGeometryElementMainItemsAccessor::blend_write(BlendWriter *writer, const bNode &node)
+void ForeachGeometryElementMainItemsAccessor::blend_write_item(BlendWriter *writer,
+                                                               const ItemT &item)
 {
-  const auto &storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
-      node.storage);
-  BLO_write_struct_array(writer,
-                         NodeForeachGeometryElementMainItem,
-                         storage.main_items.items_num,
-                         storage.main_items.items);
-  for (const NodeForeachGeometryElementMainItem &item :
-       Span(storage.main_items.items, storage.main_items.items_num))
-  {
-    BLO_write_string(writer, item.name);
-  }
+  BLO_write_string(writer, item.name);
 }
 
-void ForeachGeometryElementMainItemsAccessor::blend_read_data(BlendDataReader *reader, bNode &node)
+void ForeachGeometryElementMainItemsAccessor::blend_read_data_item(BlendDataReader *reader,
+                                                                   ItemT &item)
 {
-  auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(node.storage);
-  BLO_read_struct_array(reader,
-                        NodeForeachGeometryElementMainItem,
-                        storage.main_items.items_num,
-                        &storage.main_items.items);
-  for (const NodeForeachGeometryElementMainItem &item :
-       Span(storage.main_items.items, storage.main_items.items_num))
-  {
-    BLO_read_string(reader, &item.name);
-  }
+  BLO_read_string(reader, &item.name);
 }
 
 StructRNA *ForeachGeometryElementGenerationItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementGenerationItem;
 int ForeachGeometryElementGenerationItemsAccessor::node_type =
     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
+int ForeachGeometryElementGenerationItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
+    NodeForeachGeometryElementGenerationItem);
 
-void ForeachGeometryElementGenerationItemsAccessor::blend_write(BlendWriter *writer,
-                                                                const bNode &node)
+void ForeachGeometryElementGenerationItemsAccessor::blend_write_item(BlendWriter *writer,
+                                                                     const ItemT &item)
 {
-  const auto &storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
-      node.storage);
-  BLO_write_struct_array(writer,
-                         NodeForeachGeometryElementGenerationItem,
-                         storage.generation_items.items_num,
-                         storage.generation_items.items);
-  for (const NodeForeachGeometryElementGenerationItem &item :
-       Span(storage.generation_items.items, storage.generation_items.items_num))
-  {
-    BLO_write_string(writer, item.name);
-  }
+  BLO_write_string(writer, item.name);
 }
 
-void ForeachGeometryElementGenerationItemsAccessor::blend_read_data(BlendDataReader *reader,
-                                                                    bNode &node)
+void ForeachGeometryElementGenerationItemsAccessor::blend_read_data_item(BlendDataReader *reader,
+                                                                         ItemT &item)
 {
-  auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(node.storage);
-  BLO_read_struct_array(reader,
-                        NodeForeachGeometryElementGenerationItem,
-                        storage.generation_items.items_num,
-                        &storage.generation_items.items);
-  for (const NodeForeachGeometryElementGenerationItem &item :
-       Span(storage.generation_items.items, storage.generation_items.items_num))
-  {
-    BLO_read_string(reader, &item.name);
-  }
+  BLO_read_string(reader, &item.name);
 }
 
 }  // namespace blender::nodes

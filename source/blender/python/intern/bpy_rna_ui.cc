@@ -28,7 +28,7 @@ PyDoc_STRVAR(
 static PyObject *bpy_rna_uilayout_introspect(PyObject *self)
 {
   BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
-  uiLayout *layout = static_cast<uiLayout *>(pyrna->ptr.data);
+  uiLayout *layout = static_cast<uiLayout *>(pyrna->ptr->data);
 
   const char *expr = UI_layout_introspect(layout);
   PyObject *main_mod = PyC_MainModule_Backup();
@@ -40,9 +40,14 @@ static PyObject *bpy_rna_uilayout_introspect(PyObject *self)
   return result;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 PyMethodDef BPY_rna_uilayout_introspect_method_def = {
@@ -52,6 +57,10 @@ PyMethodDef BPY_rna_uilayout_introspect_method_def = {
     bpy_rna_uilayout_introspect_doc,
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif

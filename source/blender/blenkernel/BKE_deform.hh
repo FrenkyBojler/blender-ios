@@ -92,6 +92,7 @@ int *BKE_object_defgroup_flip_map_single(const Object *ob,
 int BKE_object_defgroup_flip_index(const Object *ob, int index, bool use_default);
 int BKE_object_defgroup_name_index(const Object *ob, blender::StringRef name);
 void BKE_object_defgroup_unique_name(bDeformGroup *dg, Object *ob);
+void BKE_object_defgroup_set_name(bDeformGroup *dg, Object *ob, const char *new_name);
 
 MDeformWeight *BKE_defvert_find_index(const MDeformVert *dv, int defgroup);
 /**
@@ -135,7 +136,10 @@ float BKE_defvert_find_weight(const MDeformVert *dvert, int defgroup);
  *
  * This is a bit confusing, just saves some checks from the caller.
  */
-float BKE_defvert_array_find_weight_safe(const MDeformVert *dvert, int index, int defgroup);
+float BKE_defvert_array_find_weight_safe(const MDeformVert *dvert,
+                                         int index,
+                                         int defgroup,
+                                         bool invert);
 
 /**
  * \return The total weight in all groups marked in the selection mask.
