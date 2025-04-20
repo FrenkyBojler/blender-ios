@@ -618,13 +618,21 @@ if(TEST_SRC_DIR_EXISTS)
   foreach(render_test ${_svg_render_tests})
     add_render_test(
       io_curve_svg_${render_test}
-      ${CMAKE_CURRENT_LIST_DIR}/bl_io_curve_svg_test.py
+      ${CMAKE_CURRENT_LIST_DIR}/io_curve_svg_test.py
       --testdir "${TEST_SRC_DIR}/io_tests/svg/${render_test}"
       --outdir "${TEST_OUT_DIR}/io_curve_svg"
     )
   endforeach()
 
   unset(_svg_render_tests)
+
+  add_blender_test(
+    io_curve_svg_utils
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_curve_svg_utils_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/svg"
+  )
+
 endif()
 
 # ------------------------------------------------------------------------------

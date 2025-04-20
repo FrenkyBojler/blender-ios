@@ -2,15 +2,18 @@
 # SPDX-FileCopyrightText: 2019-2022 Blender Foundation
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
-
-# XXX Not really nice, but that hack is needed to allow execution of that test
-#     from both automated CTest and by directly running the file manually.
-if __name__ == '__main__':
-    from svg_util import (parse_array_of_floats, read_float, parse_coord,)
-else:
-    from .svg_util import (parse_array_of_floats, read_float, parse_coord,)
+import pathlib
+import sys
 import unittest
 
+
+sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
+
+from bl_operators.io.io_curve_svg.svg_util import (
+    parse_array_of_floats, read_float, parse_coord,
+)
+
+args = None
 
 class ParseArrayOfFloatsTest(unittest.TestCase):
     def test_empty(self):
@@ -162,5 +165,21 @@ class ParseCoordTest(unittest.TestCase):
         self.assertEqual(parse_coord("1.2%", 200), 2.4)
 
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+def main():
+    global args
+    import argparse
+
+    if '--' in sys.argv:
+        argv = [sys.argv[0]] + sys.argv[sys.argv.index('--') + 1:]
+    else:
+        argv = sys.argv
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--testdir', required=True, type=pathlib.Path)
+    args, remaining = parser.parse_known_args(argv)
+
+    unittest.main(argv=remaining)
+
+
+if __name__ == "__main__":
+    main()
