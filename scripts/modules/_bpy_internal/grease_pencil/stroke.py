@@ -125,7 +125,7 @@ def DefAttributeGetterSetters(attributes_list):
 
 class GreasePencilStrokePointHandle:
     """
-    Encapsulate one Bézier handle’s position, type & selection.
+    Encapsulate one Bézier handle's position, type & selection.
     """
     __slots__ = ("_point", "_name")
 
