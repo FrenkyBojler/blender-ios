@@ -2912,15 +2912,10 @@ class VIEW3D_MT_object_context_menu(Menu):
         selected_objects_len = len(context.selected_objects)
 
         # If nothing is selected
-        # (disabled for now until it can be made more useful).
-        '''
         if selected_objects_len == 0:
-
             layout.menu("VIEW3D_MT_add", text="Add", text_ctxt=i18n_contexts.operator_default)
-            layout.operator("view3d.pastebuffer", text="Paste Objects", icon='PASTEDOWN')
-
-            return
-        '''
+            
+            layout.separator()
 
         # If something is selected
 
