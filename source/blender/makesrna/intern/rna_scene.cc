@@ -5078,8 +5078,7 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
 
   prop = RNA_def_property(srna, "use_grease_pencil", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "layflag", SCE_LAY_GREASE_PENCIL);
-  RNA_def_property_ui_text(
-      prop, "Grease Pencil", "Render Grease Pencil in this layer, if enabled in the scene");
+  RNA_def_property_ui_text(prop, "Grease Pencil", "Render Grease Pencil on this layer");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
   }
