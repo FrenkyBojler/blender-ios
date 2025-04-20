@@ -418,7 +418,7 @@ def attr_nodes_menu_func(self, context):
 
 def multipleimages_menu_func(self, context):
     col = self.layout.column(align=True)
-    col.operator("node.add_file", text="Multiple Images")
+    col.operator("node.add_image", text="Multiple Images")
     col.operator(operators.NWAddSequence.bl_idname, text="Image Sequence")
     col.separator()
 
