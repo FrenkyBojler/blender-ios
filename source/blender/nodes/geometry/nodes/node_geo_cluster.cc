@@ -695,8 +695,8 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeCluster");
-  ntype.ui_name = "Mesh Clusters";
-  ntype.ui_description = "Create compact, connected triangle clusters for efficient culling";
+  ntype.ui_name = "Faces Clusters";
+  ntype.ui_description = "Create compact, connected triangle clusters from faces";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
