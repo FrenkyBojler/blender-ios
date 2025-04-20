@@ -157,10 +157,13 @@ static void find_socket_log_contexts(const Main &bmain,
         if (snode.edittree == nullptr) {
           continue;
         }
+        if (snode.geometry_nodes_type != SNODE_GEOMETRY_TOOL) {
+          continue;
+        }
         bke::ComputeContextCache compute_context_cache;
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
             geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(
-                snode, compute_context_cache, &compute_context_cache.for_operator(nullptr));
+                snode, compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_socket_log_contexts.add(hash);
         }
@@ -561,8 +564,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 
   const bNodeTree *node_tree = nullptr;
   if (depsgraphs.extra) {
-    node_tree = reinterpret_cast<const bNodeTree *>(
-        DEG_get_evaluated_id(depsgraphs.extra, const_cast<ID *>(&node_tree_orig->id)));
+    node_tree = DEG_get_evaluated(depsgraphs.extra, node_tree_orig);
   }
   else {
     node_tree = node_tree_orig;
