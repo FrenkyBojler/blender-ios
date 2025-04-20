@@ -42,6 +42,8 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
+#include "SEQ_relations.hh"
+
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
 #include "ED_paint.hh"
@@ -131,6 +133,8 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool
       }
     }
   }
+
+  // blender::seq::relations_invalidate_scene_strips(bmain, update_ctx->scene);
 
   recursive_check = false;
 }
@@ -305,6 +309,13 @@ static void scene_changed(Main *bmain, Scene *scene)
   }
 }
 
+static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bmain, ID *id)
+{
+  if (GS(id->name) != ID_SCE) {
+    blender::seq::relations_invalidate_scene_strips(bmain, update_ctx->scene);
+  }
+}
+
 void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
 {
   /* this can be called from render or baking thread when a python script makes
@@ -313,6 +324,11 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
   if (!BLI_thread_is_main()) {
     return;
   }
+
+  if (id->recalc & ID_RECALC_ALL) {
+    printf("%s: %s %s\n", __func__, id->name, DEG_stringify_recalc_flags(id->recalc).c_str());
+  }
+
   Main *bmain = update_ctx->bmain;
   /* Internal ID update handlers. */
   switch (GS(id->name)) {
@@ -340,6 +356,8 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
     default:
       break;
   }
+
+  update_sequencer(update_ctx, bmain, id);
 }
 
 /** \} */

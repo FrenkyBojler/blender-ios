@@ -1477,13 +1477,14 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
     }
 
     /* opengl offscreen render */
-    depsgraph = BKE_scene_ensure_depsgraph(context->bmain, scene, view_layer);
+    depsgraph = DEG_graph_new(context->bmain, scene, view_layer, DAG_EVAL_VIEWPORT);
     BKE_scene_graph_update_for_newframe(depsgraph);
     Object *camera_eval = DEG_get_evaluated_object(depsgraph, camera);
+    Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
     ibuf = view3d_fn(
         /* set for OpenGL render (nullptr when scrubbing) */
         depsgraph,
-        scene,
+        scene_eval,
         &context->scene->display.shading,
         eDrawType(context->scene->r.seq_prev_type),
         camera_eval,

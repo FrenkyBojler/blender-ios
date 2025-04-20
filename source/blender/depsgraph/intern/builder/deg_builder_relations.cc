@@ -843,9 +843,6 @@ void DepsgraphRelationBuilder::build_object(Object *object)
   const ComponentKey object_from_layer_entry_key(&object->id, NodeType::OBJECT_FROM_LAYER);
   const ComponentKey visibility_key(&object->id, NodeType::VISIBILITY);
   add_relation(object_from_layer_entry_key, visibility_key, "Object Visibility");
-
-  OperationKey seq_cache_key(&scene_->id, NodeType::SEQUENCER, OperationCode::SEQUENCES_CACHE);
-  add_relation(init_transform_key, seq_cache_key, "Transform Init -> Seq Cache");
 }
 
 /* NOTE: Implies that the object has base in the current view layer. */
@@ -1305,9 +1302,6 @@ void DepsgraphRelationBuilder::build_object_shading(Object *object)
 
   const OperationKey shading_key(&object->id, NodeType::SHADING, OperationCode::SHADING);
   add_relation(shading_key, shading_done_key, "Shading -> Done");
-
-  OperationKey seq_cache_key(&scene_->id, NodeType::SEQUENCER, OperationCode::SEQUENCES_CACHE);
-  add_relation(shading_key, seq_cache_key, "Transform Init -> Seq Cache");
 
   /* Hook up shading component to the instance, so that if the object is instanced by a visible
    * object the shading component is ensured to be evaluated.
@@ -2218,8 +2212,6 @@ void DepsgraphRelationBuilder::build_parameters(ID *id)
   OperationKey parameters_exit_key(id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EXIT);
   add_relation(parameters_entry_key, parameters_eval_key, "Entry -> Eval");
   add_relation(parameters_eval_key, parameters_exit_key, "Entry -> Exit");
-  OperationKey seq_cache_key(&scene_->id, NodeType::SEQUENCER, OperationCode::SEQUENCES_CACHE);
-  add_relation(parameters_entry_key, seq_cache_key, "Transform Init -> Seq Cache");
 }
 
 void DepsgraphRelationBuilder::build_dimensions(Object *object)
@@ -2322,7 +2314,6 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
       add_relation(object_transform_simulation_init_key,
                    rb_simulate_key,
                    "Object Transform -> Rigidbody Sim Eval");
-
       /* Geometry must be known to create the rigid body. RBO_MESH_BASE
        * uses the non-evaluated mesh, so then the evaluation is
        * unnecessary. */
@@ -2996,10 +2987,6 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
                  "Preprocess -> Output",
                  RELATION_FLAG_NO_FLUSH);
   }
-
-  OperationKey seq_cache_key(&scene_->id, NodeType::SEQUENCER, OperationCode::SEQUENCES_CACHE);
-  add_relation(ntree_output_key, seq_cache_key, "Transform Init -> Seq Cache");
-
   /* nodetree's nodes... */
   for (bNode *bnode : ntree->all_nodes()) {
     build_idproperties(bnode->prop);

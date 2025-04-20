@@ -195,8 +195,6 @@ const char *operationCodeAsString(OperationCode opcode)
     /* Sequencer. */
     case OperationCode::SEQUENCES_EVAL:
       return "SEQUENCES_EVAL";
-    case OperationCode::SEQUENCES_CACHE:
-      return "SEQUENCES_CACHE";
     /* instancing. */
     case OperationCode::INSTANCER:
       return "INSTANCER";
