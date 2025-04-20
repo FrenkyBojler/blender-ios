@@ -379,14 +379,14 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
 
   static const constexpr int begin = -1;
   Array<std::atomic<int>> lists_ends(groups_num);
-  threading::parallel_for(lists_ends.index_range(), 4098, [&](const IndexRange range) {
+  threading::parallel_for(lists_ends.index_range(), 4096, [&](const IndexRange range) {
     for (auto &value : lists_ends.as_mutable_span().slice(range)) {
       value.store(begin, std::memory_order_relaxed);
     }
   });
 
   Array<int> group_lists(group_indices.size());
-  threading::parallel_for(group_indices.index_range(), 4098, [&](const IndexRange range) {
+  threading::parallel_for(group_indices.index_range(), 4096, [&](const IndexRange range) {
     for (const int64_t i : range) {
       const int group_index = group_indices[i];
       const int previous_index = lists_ends[group_index].exchange(int(i));
@@ -394,8 +394,10 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
     }
   });
 
+  BLI_assert(!lists_ends.as_span().contains(begin));
+
   r_offsets.reinitialize(groups_num + 1);
-  threading::parallel_for(lists_ends.index_range(), 4098, [&](const IndexRange range) {
+  threading::parallel_for(lists_ends.index_range(), 4096, [&](const IndexRange range) {
     for (const int64_t group_i : range) {
       int count = 0;
       for (int index = lists_ends[group_i].load(std::memory_order_relaxed); index != begin;
@@ -410,19 +412,28 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
   r_indices.reinitialize(group_indices.size());
   const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(r_offsets);
 
-  threading::parallel_for(lists_ends.index_range(), 4098, [&](const IndexRange range) {
-    for (const int64_t group_i : range) {
-      MutableSpan<int> dst_results = r_indices.as_mutable_span().slice(offsets[group_i]);
-      int next_index = lists_ends[group_i].load(std::memory_order_relaxed);
-      dst_results.first() = next_index;
-      for (int &result_value : dst_results.drop_front(1)) {
-        next_index = group_lists[next_index];
-        result_value = next_index;
-      }
-    }
-  });
+  threading::parallel_for(
+      lists_ends.index_range(),
+      4096,
+      [&](const IndexRange range) {
+        for (const int64_t group_i : range) {
+          const IndexRange group_range = offsets[group_i];
+          BLI_assert(!group_range.is_empty());
+          MutableSpan<int> dst_results = r_indices.as_mutable_span().slice(group_range);
+          int next_index = lists_ends[group_i].load(std::memory_order_relaxed);
+          dst_results.first() = next_index;
+          for (const int64_t i : IndexRange(1, dst_results.size() - 1)) {
+            next_index = group_lists[next_index];
+            BLI_assert(next_index != begin);
+            dst_results[i] = next_index;
+          }
 
-  sort_small_groups(r_offsets.as_span(), 4098, r_indices);
+          std::sort(dst_results.begin(), dst_results.end());
+        }
+      },
+      threading::accumulated_task_sizes(
+          [&](const IndexRange range) { return offsets[range].size(); }));
+
   return {OffsetIndices<int>(r_offsets), r_indices};
 }
 
