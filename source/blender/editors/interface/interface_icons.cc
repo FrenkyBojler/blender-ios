@@ -1762,9 +1762,9 @@ static void icon_draw_size(float x,
 
     if (decoration && decoration->icon.has_value()) {
       BLF_draw_svg_icon(uint(decoration->icon->icon_id),
-                        x + (float(draw_size) * 0.35f / aspect),
-                        y + (float(draw_size) * 0.35f / aspect),
-                        float(draw_size) * 0.75f / aspect,
+                        x + (float(draw_size) * decoration->icon->offset_x / aspect),
+                        y + (float(draw_size) * decoration->icon->offset_y / aspect),
+                        float(draw_size) * decoration->icon->size / aspect,
                         decoration->icon->color[3] != 0.0f ? decoration->icon->color : nullptr,
                         outline_intensity,
                         true);
@@ -1782,12 +1782,12 @@ static void icon_draw_size(float x,
       const bool is_light = srgb_to_grayscale_byte(text_color) > 96;
       const float zoom_factor = w / UI_ICON_SIZE;
       uiFontStyle fstyle_small = *UI_FSTYLE_WIDGET;
-      fstyle_small.points *= zoom_factor * 0.8f;
+      fstyle_small.points *= zoom_factor * decoration->text->size;
       fstyle_small.shadow = short(is_light ? FontShadowType::Outline : FontShadowType::None);
       fstyle_small.shadx = 0;
       fstyle_small.shady = 0;
       rcti text_rect = {int(x), int(x + UI_UNIT_X * zoom_factor), int(y), int(y)};
-      uiFontStyleDraw_Params params = {UI_STYLE_TEXT_RIGHT, 0};
+      uiFontStyleDraw_Params params = {eFontStyle_Align(decoration->text->align_h), 0};
       UI_fontstyle_draw(&fstyle_small,
                         &text_rect,
                         decoration->text->text.c_str(),

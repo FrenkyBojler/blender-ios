@@ -24,11 +24,16 @@ struct bContext;
 struct IconDecorationText {
   std::string text;
   uchar color[4] = {0};
+  float size = 0.8f; /* 1 = regular font size. */
+  int align_h = 2;   /* eFontStyle_Align::UI_STYLE_TEXT_RIGHT */
 };
 
 struct IconDecorationIcon {
   int icon_id;
   float color[4] = {0};
+  float size = 0.75f; /* 1 = regular icon size. */
+  float offset_x = 0.35f;
+  float offset_y = 0.35f;
 };
 
 struct IconDecorationProgress {
