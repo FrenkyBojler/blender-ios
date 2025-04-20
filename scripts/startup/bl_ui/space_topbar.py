@@ -375,6 +375,9 @@ class TOPBAR_MT_file_import(Menu):
 
         if bpy.app.build_options.io_fbx:
             self.layout.operator("wm.fbx_import", text="FBX (.fbx) (experimental)")
+        
+        self.layout.operator("import_curve.svg",
+                             text="Scalable Vector Graphics (.svg)")
 
 
 class TOPBAR_MT_file_export(Menu):

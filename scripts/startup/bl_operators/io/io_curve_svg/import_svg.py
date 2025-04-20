@@ -11,8 +11,8 @@ import bpy
 from mathutils import Vector, Matrix
 from bpy.app.translations import pgettext_tip as tip_
 
-from . import svg_colors
-from .svg_util import (units,
+from bl_operators.io.io_curve_svg import svg_colors
+from bl_operators.io.io_curve_svg.svg_util import (units,
                        srgb_to_linearrgb,
                        check_points_equal,
                        parse_array_of_floats,
