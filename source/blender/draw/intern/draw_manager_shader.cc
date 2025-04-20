@@ -29,8 +29,6 @@
 extern "C" char datatoc_gpu_shader_depth_only_frag_glsl[];
 extern "C" char datatoc_common_fullscreen_vert_glsl[];
 
-#define USE_DEFERRED_COMPILATION 1
-
 using namespace blender;
 
 /* -------------------------------------------------------------------- */
@@ -339,7 +337,7 @@ GPUMaterial *DRW_shader_from_world(World *wo,
                                    GPUCodegenCallbackFn callback,
                                    void *thunk)
 {
-  Scene *scene = (Scene *)DEG_get_original_id(&drw_get().scene->id);
+  Scene *scene = DEG_get_original(drw_get().scene);
   GPUMaterial *mat = GPU_material_from_nodetree(scene,
                                                 nullptr,
                                                 ntree,
@@ -372,7 +370,7 @@ GPUMaterial *DRW_shader_from_material(Material *ma,
                                       void *thunk,
                                       GPUMaterialPassReplacementCallbackFn pass_replacement_cb)
 {
-  Scene *scene = (Scene *)DEG_get_original_id(&drw_get().scene->id);
+  Scene *scene = DEG_get_original(drw_get().scene);
   GPUMaterial *mat = GPU_material_from_nodetree(scene,
                                                 ma,
                                                 ntree,

@@ -214,20 +214,24 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   bAnimContext ac;
   View2D *v2d = &region->v2d;
 
+  const int min_height = UI_ANIM_MINY;
+
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
 
   UI_view2d_view_ortho(v2d);
 
   /* grid */
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
-  UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
-  UI_view2d_draw_lines_y__values(v2d);
+  if (region->winy > min_height) {
+    UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+    UI_view2d_draw_lines_y__values(v2d);
+  }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
   /* start and end frame (in F-Curve mode only) */
-  if (sipo->mode != SIPO_MODE_DRIVERS) {
+  if (sipo->mode != SIPO_MODE_DRIVERS && region->winy > min_height) {
     ANIM_draw_framerange(scene, v2d);
   }
 
@@ -326,6 +330,7 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   const SpaceGraph *sipo = CTX_wm_space_graph(C);
+  const bool minimized = (region->winy < UI_ANIM_MINY);
 
   const Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
@@ -333,10 +338,10 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
   /* Driver Editor's X axis is not time. */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     /* scrubbing region */
-    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME);
+    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME, !minimized);
   }
 
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     /* scrollers */
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     /* FIXME: args for scrollers depend on the type of data being shown. */

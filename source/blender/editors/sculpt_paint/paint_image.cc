@@ -44,6 +44,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "NOD_texture.h"
@@ -584,6 +585,9 @@ static wmOperatorStatus grab_clone_modal(bContext *C, wmOperator *op, const wmEv
 
       grab_clone_apply(C, op);
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -737,6 +741,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
     if (data->sample_palette) {
       BKE_brush_color_set(scene, paint, brush, data->initcolor);
       RNA_boolean_set(op->ptr, "palette", true);
+      WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
     }
     WM_cursor_modal_restore(CTX_wm_window(C));
     MEM_delete(data);
@@ -766,10 +771,14 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
         if (!data->sample_palette) {
           data->sample_palette = true;
           sample_color_update_header(data, C);
+          BKE_report(op->reports, RPT_INFO, "Sampling color for pallette");
         }
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
