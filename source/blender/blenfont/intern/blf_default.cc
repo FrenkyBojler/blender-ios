@@ -12,9 +12,7 @@
 
 #include "BLI_assert.h"
 
-#include "BLF_api.h"
-
-#include "blf_internal.h"
+#include "BLF_api.hh"
 
 /* call BLF_default_set first! */
 #define ASSERT_DEFAULT_SET BLI_assert(global_font_default != -1)
@@ -31,7 +29,7 @@ void BLF_default_size(float size)
 
 void BLF_default_set(int fontid)
 {
-  if ((fontid == -1) || blf_font_id_is_valid(fontid)) {
+  if ((fontid == -1) || BLF_is_loaded_id(fontid)) {
     global_font_default = fontid;
   }
 }

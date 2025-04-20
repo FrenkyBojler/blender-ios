@@ -8,17 +8,9 @@
 
 #pragma once
 
-#include "BKE_customdata.hh"
-#include "BLI_compiler_compat.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Depsgraph;
 struct Object;
 struct ReportList;
-struct Scene;
 struct SpaceTransform;
 
 /* Warning, those def are stored in files (TransferData modifier), *DO NOT* modify those values. */
@@ -156,7 +148,7 @@ bool BKE_object_data_transfer_mesh(struct Depsgraph *depsgraph,
                                    int map_vert_mode,
                                    int map_edge_mode,
                                    int map_loop_mode,
-                                   int map_poly_mode,
+                                   int map_face_mode,
                                    struct SpaceTransform *space_transform,
                                    bool auto_transform,
                                    float max_distance,
@@ -178,7 +170,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                  int map_vert_mode,
                                  int map_edge_mode,
                                  int map_loop_mode,
-                                 int map_poly_mode,
+                                 int map_face_mode,
                                  struct SpaceTransform *space_transform,
                                  bool auto_transform,
                                  float max_distance,
@@ -191,7 +183,3 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                  const char *vgroup_name,
                                  bool invert_vgroup,
                                  struct ReportList *reports);
-
-#ifdef __cplusplus
-}
-#endif

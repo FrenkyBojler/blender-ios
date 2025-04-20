@@ -15,7 +15,7 @@
 
 #include "gl_shader_interface.hh"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 using namespace blender::gpu::shader;
 namespace blender::gpu {
@@ -157,35 +157,35 @@ static Type gpu_type_from_gl_type(int gl_type)
 {
   switch (gl_type) {
     case GL_FLOAT:
-      return Type::FLOAT;
+      return Type::float_t;
     case GL_FLOAT_VEC2:
-      return Type::VEC2;
+      return Type::float2_t;
     case GL_FLOAT_VEC3:
-      return Type::VEC3;
+      return Type::float3_t;
     case GL_FLOAT_VEC4:
-      return Type::VEC4;
+      return Type::float4_t;
     case GL_FLOAT_MAT3:
-      return Type::MAT3;
+      return Type::float3x3_t;
     case GL_FLOAT_MAT4:
-      return Type::MAT4;
+      return Type::float4x4_t;
     case GL_UNSIGNED_INT:
-      return Type::UINT;
+      return Type::uint_t;
     case GL_UNSIGNED_INT_VEC2:
-      return Type::UVEC2;
+      return Type::uint2_t;
     case GL_UNSIGNED_INT_VEC3:
-      return Type::UVEC3;
+      return Type::uint3_t;
     case GL_UNSIGNED_INT_VEC4:
-      return Type::UVEC4;
+      return Type::uint4_t;
     case GL_INT:
-      return Type::INT;
+      return Type::int_t;
     case GL_INT_VEC2:
-      return Type::IVEC2;
+      return Type::int2_t;
     case GL_INT_VEC3:
-      return Type::IVEC3;
+      return Type::int3_t;
     case GL_INT_VEC4:
-      return Type::IVEC4;
+      return Type::int4_t;
     case GL_BOOL:
-      return Type::BOOL;
+      return Type::bool_t;
     case GL_FLOAT_MAT2:
     case GL_FLOAT_MAT2x3:
     case GL_FLOAT_MAT2x4:
@@ -196,7 +196,7 @@ static Type gpu_type_from_gl_type(int gl_type)
     default:
       BLI_assert(0);
   }
-  return Type::FLOAT;
+  return Type::float_t;
 }
 
 GLShaderInterface::GLShaderInterface(GLuint program)
@@ -390,12 +390,11 @@ GLShaderInterface::GLShaderInterface(GLuint program, const shader::ShaderCreateI
 
   attr_len_ = info.vertex_inputs_.size();
   uniform_len_ = info.push_constants_.size();
+  constant_len_ = info.specialization_constants_.size();
   ubo_len_ = 0;
   ssbo_len_ = 0;
 
-  Vector<ShaderCreateInfo::Resource> all_resources;
-  all_resources.extend(info.pass_resources_);
-  all_resources.extend(info.batch_resources_);
+  Vector<ShaderCreateInfo::Resource> all_resources = info.resources_get_all_();
 
   for (ShaderCreateInfo::Resource &res : all_resources) {
     switch (res.bind_type) {
@@ -430,7 +429,7 @@ GLShaderInterface::GLShaderInterface(GLuint program, const shader::ShaderCreateI
 
   BLI_assert_msg(ubo_len_ <= 16, "enabled_ubo_mask_ is uint16_t");
 
-  int input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_;
+  int input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
   inputs_ = (ShaderInput *)MEM_callocN(sizeof(ShaderInput) * input_tot_len, __func__);
   ShaderInput *input = inputs_;
 
@@ -526,6 +525,23 @@ GLShaderInterface::GLShaderInterface(GLuint program, const shader::ShaderCreateI
       enabled_ssbo_mask_ |= (1 << input->binding);
       input++;
     }
+  }
+
+  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+    if (res.bind_type == ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER) {
+      ssbo_attr_mask_ |= (1 << res.slot);
+    }
+    else {
+      BLI_assert_msg(0, "Resource type is not supported for Geometry frequency");
+    }
+  }
+
+  /* Constants */
+  int constant_id = 0;
+  for (const SpecializationConstant &constant : info.specialization_constants_) {
+    copy_input_name(input, constant.name, name_buffer_, name_buffer_offset);
+    input->location = constant_id++;
+    input++;
   }
 
   this->sort_inputs();

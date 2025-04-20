@@ -8,26 +8,24 @@
 
 #include "oiio/openimageio_support.hh"
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf_types.hh"
 
 OIIO_NAMESPACE_USING
 using namespace blender::imbuf;
-
-extern "C" {
 
 bool imb_is_a_tga(const uchar *mem, size_t size)
 {
   return imb_oiio_check(mem, size, "tga");
 }
 
-ImBuf *imb_load_tga(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_tga(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
   config.attribute("oiio:UnassociatedAlpha", 1);
 
   ReadContext ctx{mem, size, "tga", IMB_FTYPE_TGA, flags};
-  return imb_oiio_read(ctx, config, colorspace, spec);
+  return imb_oiio_read(ctx, config, r_colorspace, spec);
 }
 
 bool imb_save_tga(ImBuf *ibuf, const char *filepath, int flags)
@@ -41,5 +39,4 @@ bool imb_save_tga(ImBuf *ibuf, const char *filepath, int flags)
   file_spec.attribute("compression", (ibuf->foptions.flag & RAWTGA) ? "none" : "rle");
 
   return imb_oiio_write(ctx, filepath, file_spec);
-}
 }

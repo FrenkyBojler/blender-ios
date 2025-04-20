@@ -46,7 +46,7 @@ class DTreeContext {
   const bNode *parent_node_;
   /* The current node tree. */
   const bNodeTree *btree_;
-  /* The instance key of the parent node. NODE_INSTANCE_KEY_BASE for root contexts. */
+  /* The instance key of the parent node. bke::NODE_INSTANCE_KEY_BASE for root contexts. */
   bNodeInstanceKey instance_key_;
   /* All the children contexts of this context. */
   Map<const bNode *, DTreeContext *> children_;
@@ -58,7 +58,7 @@ class DTreeContext {
   const bNodeTree &btree() const;
   const DTreeContext *parent_context() const;
   const bNode *parent_node() const;
-  const bNodeInstanceKey instance_key() const;
+  bNodeInstanceKey instance_key() const;
   const DTreeContext *child_context(const bNode &node) const;
   const DerivedNodeTree &derived_tree() const;
   bool is_root() const;
@@ -79,7 +79,7 @@ class DNode {
 
   const DTreeContext *context() const;
   const bNode *bnode() const;
-  const bNodeInstanceKey instance_key() const;
+  bNodeInstanceKey instance_key() const;
   const bNode *operator->() const;
   const bNode &operator*() const;
 
@@ -253,7 +253,7 @@ inline const bNode *DTreeContext::parent_node() const
   return parent_node_;
 }
 
-inline const bNodeInstanceKey DTreeContext::instance_key() const
+inline bNodeInstanceKey DTreeContext::instance_key() const
 {
   return instance_key_;
 }
@@ -313,7 +313,7 @@ inline const bNode &DNode::operator*() const
 
 inline uint64_t DNode::hash() const
 {
-  return get_default_hash_2(context_, bnode_);
+  return get_default_hash(context_, bnode_);
 }
 
 inline DInputSocket DNode::input(int index) const
@@ -387,7 +387,7 @@ inline const bNodeSocket &DSocket::operator*() const
 
 inline uint64_t DSocket::hash() const
 {
-  return get_default_hash_2(context_, bsocket_);
+  return get_default_hash(context_, bsocket_);
 }
 
 inline DNode DSocket::node() const

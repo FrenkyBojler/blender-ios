@@ -10,6 +10,8 @@
 
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.h"
+
 namespace blender::deg {
 
 void DepsgraphRelationBuilder::build_scene_render(Scene *scene, ViewLayer *view_layer)
@@ -46,7 +48,7 @@ void DepsgraphRelationBuilder::build_scene_camera(Scene *scene)
 
 void DepsgraphRelationBuilder::build_scene_parameters(Scene *scene)
 {
-  if (built_map_.checkIsBuiltAndTag(scene, BuilderMap::TAG_PARAMETERS)) {
+  if (built_map_.check_is_built_and_tag(scene, BuilderMap::TAG_PARAMETERS)) {
     return;
   }
 
@@ -56,7 +58,7 @@ void DepsgraphRelationBuilder::build_scene_parameters(Scene *scene)
   build_parameters(&scene->id);
   OperationKey parameters_eval_key(
       &scene->id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EXIT);
-  OperationKey scene_eval_key(&scene->id, NodeType::PARAMETERS, OperationCode::SCENE_EVAL);
+  ComponentKey scene_eval_key(&scene->id, NodeType::SCENE);
   add_relation(parameters_eval_key, scene_eval_key, "Parameters -> Scene Eval");
 
   LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
@@ -66,7 +68,7 @@ void DepsgraphRelationBuilder::build_scene_parameters(Scene *scene)
 
 void DepsgraphRelationBuilder::build_scene_compositor(Scene *scene)
 {
-  if (built_map_.checkIsBuiltAndTag(scene, BuilderMap::TAG_SCENE_COMPOSITOR)) {
+  if (built_map_.check_is_built_and_tag(scene, BuilderMap::TAG_SCENE_COMPOSITOR)) {
     return;
   }
   if (scene->nodetree == nullptr) {

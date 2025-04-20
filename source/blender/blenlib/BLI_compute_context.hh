@@ -34,9 +34,6 @@
  *   run on different threads.
  */
 
-#include "BLI_array.hh"
-#include "BLI_linear_allocator.hh"
-#include "BLI_stack.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_struct_equality_utils.hh"
 
@@ -47,7 +44,6 @@ namespace blender {
  * have enough bits to make collisions practically impossible.
  */
 struct ComputeContextHash {
-  static constexpr int64_t HashSizeInBytes = 16;
   uint64_t v1 = 0;
   uint64_t v2 = 0;
 
@@ -62,8 +58,6 @@ struct ComputeContextHash {
 
   friend std::ostream &operator<<(std::ostream &stream, const ComputeContextHash &hash);
 };
-
-static_assert(sizeof(ComputeContextHash) == ComputeContextHash::HashSizeInBytes);
 
 /**
  * Identifies the context in which a computation happens. This context can be used to identify
@@ -125,49 +119,6 @@ class ComputeContext {
   virtual void print_current_in_line(std::ostream &stream) const = 0;
 
   friend std::ostream &operator<<(std::ostream &stream, const ComputeContext &compute_context);
-};
-
-/**
- * Utility class to build a context stack in one place. This is typically used to get the hash that
- * corresponds to a specific nested compute context, in order to look up corresponding logged
- * values.
- */
-class ComputeContextBuilder {
- private:
-  LinearAllocator<> allocator_;
-  Stack<destruct_ptr<ComputeContext>> contexts_;
-
- public:
-  bool is_empty() const
-  {
-    return contexts_.is_empty();
-  }
-
-  const ComputeContext *current() const
-  {
-    if (contexts_.is_empty()) {
-      return nullptr;
-    }
-    return contexts_.peek().get();
-  }
-
-  const ComputeContextHash hash() const
-  {
-    BLI_assert(!contexts_.is_empty());
-    return this->current()->hash();
-  }
-
-  template<typename T, typename... Args> void push(Args &&...args)
-  {
-    const ComputeContext *current = this->current();
-    destruct_ptr<T> context = allocator_.construct<T>(current, std::forward<Args>(args)...);
-    contexts_.push(std::move(context));
-  }
-
-  void pop()
-  {
-    contexts_.pop();
-  }
 };
 
 }  // namespace blender

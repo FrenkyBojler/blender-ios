@@ -2,27 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "draw_cache.hh"
+#include "draw_common_c.hh"
+
 #include "workbench_private.hh"
 
 #include "BKE_volume.hh"
 #include "BKE_volume_render.hh"
+#include "BLI_math_geom.h"
 #include "BLI_rand.h"
 #include "DNA_fluid_types.h"
 #include "DNA_modifier_types.h"
 
 namespace blender::workbench {
-
-VolumePass::~VolumePass()
-{
-  GPUShader **sh_p = &shaders_[0][0][0][0];
-  const int n = ARRAY_SIZE(shaders_);
-  for (int i = 0; i < n; i++, sh_p++) {
-    GPUShader *sh = *sh_p;
-    if (sh) {
-      GPU_shader_free(sh);
-    }
-  }
-}
 
 void VolumePass::sync(SceneResources &resources)
 {
@@ -43,14 +35,14 @@ void VolumePass::object_sync_volume(Manager &manager,
 {
   Object *ob = ob_ref.object;
   /* Create 3D textures. */
-  Volume *volume = static_cast<Volume *>(ob->data);
-  BKE_volume_load(volume, G.main);
-  const VolumeGrid *volume_grid = BKE_volume_grid_active_get_for_read(volume);
+  Volume &volume = DRW_object_get_data_for_drawing<Volume>(*ob);
+  BKE_volume_load(&volume, G.main);
+  const bke::VolumeGridData *volume_grid = BKE_volume_grid_active_get_for_read(&volume);
   if (volume_grid == nullptr) {
     return;
   }
 
-  DRWVolumeGrid *grid = DRW_volume_batch_cache_get_grid(volume, volume_grid);
+  DRWVolumeGrid *grid = DRW_volume_batch_cache_get_grid(&volume, volume_grid);
   if (grid == nullptr) {
     return;
   }
@@ -59,12 +51,14 @@ void VolumePass::object_sync_volume(Manager &manager,
 
   PassMain::Sub &sub_ps = ps_.sub("Volume Object SubPass");
 
-  const bool use_slice = (volume->display.axis_slice_method == AXIS_SLICE_SINGLE);
+  const bool use_slice = (volume.display.axis_slice_method == AXIS_SLICE_SINGLE);
 
-  sub_ps.shader_set(get_shader(use_slice, false, volume->display.interpolation_method, false));
+  sub_ps.shader_set(
+      ShaderCache::get().volume_get(false, volume.display.interpolation_method, false, use_slice));
+  sub_ps.push_constant("do_depth_test", scene_state.shading.type >= OB_SOLID);
 
-  const float density_scale = volume->display.density *
-                              BKE_volume_density_scale(volume, ob->object_to_world);
+  const float density_scale = volume.display.density *
+                              BKE_volume_density_scale(&volume, ob->object_to_world().ptr());
 
   sub_ps.bind_texture("depthBuffer", &resources.depth_tx);
   sub_ps.bind_texture("stencil_tx", &stencil_tx_);
@@ -78,17 +72,18 @@ void VolumePass::object_sync_volume(Manager &manager,
 
   if (use_slice) {
     draw_slice_ps(
-        manager, sub_ps, ob_ref, volume->display.slice_axis, volume->display.slice_depth);
+        manager, resources, sub_ps, ob_ref, volume.display.slice_axis, volume.display.slice_depth);
   }
   else {
-    float4x4 texture_to_world = float4x4(ob->object_to_world) * float4x4(grid->texture_to_object);
+    float4x4 texture_to_world = ob->object_to_world() * float4x4(grid->texture_to_object);
     float3 world_size = math::to_scale(texture_to_world);
 
     int3 resolution;
     GPU_texture_get_mipmap_size(grid->texture, 0, resolution);
     float3 slice_count = float3(resolution) * 5.0f;
 
-    draw_volume_ps(manager, sub_ps, ob_ref, scene_state.sample, slice_count, world_size);
+    draw_volume_ps(
+        manager, resources, sub_ps, ob_ref, scene_state.sample, slice_count, world_size);
   }
 }
 
@@ -127,7 +122,9 @@ void VolumePass::object_sync_modifier(Manager &manager,
 
   const bool use_slice = settings.axis_slice_method == AXIS_SLICE_SINGLE;
 
-  sub_ps.shader_set(get_shader(use_slice, settings.use_coba, settings.interp_method, true));
+  sub_ps.shader_set(
+      ShaderCache::get().volume_get(true, settings.interp_method, settings.use_coba, use_slice));
+  sub_ps.push_constant("do_depth_test", scene_state.shading.type >= OB_SOLID);
 
   if (settings.use_coba) {
     const bool show_flags = settings.coba_field == FLUID_DOMAIN_FIELD_FLAGS;
@@ -175,7 +172,7 @@ void VolumePass::object_sync_modifier(Manager &manager,
   sub_ps.bind_texture("stencil_tx", &stencil_tx_);
 
   if (use_slice) {
-    draw_slice_ps(manager, sub_ps, ob_ref, settings.slice_axis, settings.slice_depth);
+    draw_slice_ps(manager, resources, sub_ps, ob_ref, settings.slice_axis, settings.slice_depth);
   }
   else {
     float3 world_size;
@@ -183,7 +180,8 @@ void VolumePass::object_sync_modifier(Manager &manager,
 
     float3 slice_count = float3(settings.res) * std::max(0.001f, settings.slice_per_voxel);
 
-    draw_volume_ps(manager, sub_ps, ob_ref, scene_state.sample, slice_count, world_size);
+    draw_volume_ps(
+        manager, resources, sub_ps, ob_ref, scene_state.sample, slice_count, world_size);
   }
 }
 
@@ -200,38 +198,14 @@ void VolumePass::draw(Manager &manager, View &view, SceneResources &resources)
   manager.submit(ps_, view);
 }
 
-GPUShader *VolumePass::get_shader(bool slice, bool coba, int interpolation, bool smoke)
+void VolumePass::draw_slice_ps(Manager &manager,
+                               SceneResources &resources,
+                               PassMain::Sub &ps,
+                               ObjectRef &ob_ref,
+                               int slice_axis_enum,
+                               float slice_depth)
 {
-  GPUShader *&shader = shaders_[slice][coba][interpolation][smoke];
-
-  if (shader == nullptr) {
-    std::string create_info_name = "workbench_volume";
-    create_info_name += (smoke) ? "_smoke" : "_object";
-    switch (interpolation) {
-      case VOLUME_DISPLAY_INTERP_LINEAR:
-        create_info_name += "_linear";
-        break;
-      case VOLUME_DISPLAY_INTERP_CUBIC:
-        create_info_name += "_cubic";
-        break;
-      case VOLUME_DISPLAY_INTERP_CLOSEST:
-        create_info_name += "_closest";
-        break;
-      default:
-        BLI_assert_unreachable();
-    }
-    create_info_name += (coba) ? "_coba" : "_no_coba";
-    create_info_name += (slice) ? "_slice" : "_no_slice";
-    shader = GPU_shader_create_from_info_name(create_info_name.c_str());
-  }
-  return shader;
-}
-
-void VolumePass::draw_slice_ps(
-    Manager &manager, PassMain::Sub &ps, ObjectRef &ob_ref, int slice_axis_enum, float slice_depth)
-{
-  float4x4 view_mat_inv;
-  DRW_view_viewmat_get(nullptr, view_mat_inv.ptr(), true);
+  float4x4 view_mat_inv = blender::draw::View::default_get().viewinv();
 
   const int axis = (slice_axis_enum == SLICE_AXIS_AUTO) ?
                        axis_dominant_v3_single(view_mat_inv[2]) :
@@ -242,15 +216,16 @@ void VolumePass::draw_slice_ps(
   /* 0.05f to achieve somewhat the same opacity as the full view. */
   float step_length = std::max(1e-16f, dimensions[axis] * 0.05f);
 
-  ps.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA_PREMUL);
+  ps.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA_PREMUL | DRW_STATE_CULL_FRONT);
   ps.push_constant("slicePosition", slice_depth);
   ps.push_constant("sliceAxis", axis);
   ps.push_constant("stepLength", step_length);
 
-  ps.draw(DRW_cache_quad_get(), manager.resource_handle(ob_ref));
+  ps.draw(resources.volume_cube_batch, manager.resource_handle(ob_ref));
 }
 
 void VolumePass::draw_volume_ps(Manager &manager,
+                                SceneResources &resources,
                                 PassMain::Sub &ps,
                                 ObjectRef &ob_ref,
                                 int taa_sample,
@@ -268,7 +243,7 @@ void VolumePass::draw_volume_ps(Manager &manager,
   ps.push_constant("stepLength", step_length);
   ps.push_constant("noiseOfs", float(noise_offset));
 
-  ps.draw(DRW_cache_cube_get(), manager.resource_handle(ob_ref));
+  ps.draw(resources.volume_cube_batch, manager.resource_handle(ob_ref));
 }
 
 }  // namespace blender::workbench

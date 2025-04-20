@@ -6,12 +6,12 @@
  * \ingroup spinfo
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -23,8 +23,6 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
-
-#include "RNA_access.hh"
 
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
@@ -46,20 +44,20 @@ static SpaceLink *info_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   sinfo->rpt_mask = INFO_RPT_OP;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for info"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sinfo->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for info"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sinfo->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
 
   /* keep in sync with console */
-  region->v2d.scroll |= V2D_SCROLL_RIGHT;
+  region->v2d.scroll |= V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   region->v2d.align |= V2D_ALIGN_NO_NEG_X | V2D_ALIGN_NO_NEG_Y; /* align bottom left */
   region->v2d.keepofs |= V2D_LOCKOFS_X;
   region->v2d.keepzoom = (V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y | V2D_LIMITZOOM | V2D_KEEPASPECT);
@@ -95,14 +93,11 @@ static void info_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  /* force it on init, for old files, until it becomes config */
-  region->v2d.scroll = (V2D_SCROLL_RIGHT);
-
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Info", SPACE_INFO, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void info_textview_update_rect(const bContext *C, ARegion *region)
@@ -256,7 +251,7 @@ static void info_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 void ED_spacetype_info()
 {
-  SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(SpaceType), "spacetype info"));
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_INFO;
@@ -294,5 +289,5 @@ void ED_spacetype_info()
 
   BLI_addhead(&st->regiontypes, art);
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }

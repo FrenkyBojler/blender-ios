@@ -6,12 +6,12 @@
  * \ingroup spstatusbar
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -19,13 +19,10 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
-#include "RNA_access.hh"
-
 #include "UI_interface.hh"
 
 #include "BLO_read_write.hh"
 
-#include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
 
@@ -40,7 +37,7 @@ static SpaceLink *statusbar_create(const ScrArea * /*area*/, const Scene * /*sce
   sstatusbar->spacetype = SPACE_STATUSBAR;
 
   /* header region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(*region), "header for statusbar"));
+  region = BKE_area_region_new();
   BLI_addtail(&sstatusbar->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = RGN_ALIGN_NONE;
@@ -132,7 +129,7 @@ static void statusbar_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 void ED_spacetype_statusbar()
 {
-  SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(*st), "spacetype statusbar"));
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_STATUSBAR;
@@ -159,5 +156,5 @@ void ED_spacetype_statusbar()
   art->message_subscribe = statusbar_header_region_message_subscribe;
   BLI_addhead(&st->regiontypes, art);
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }

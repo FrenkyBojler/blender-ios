@@ -25,10 +25,10 @@
 
 #include "BKE_customdata.hh"
 
-#include "bmesh.h"
-#include "bmesh_decimate.h" /* own include */
+#include "bmesh.hh"
+#include "bmesh_decimate.hh" /* own include */
 
-#include "../intern/bmesh_structure.h"
+#include "../intern/bmesh_structure.hh"
 
 #define USE_SYMMETRY
 #ifdef USE_SYMMETRY
@@ -242,29 +242,29 @@ static void bm_decim_build_edge_cost_single(BMEdge *e,
     goto clear;
   }
 
-  /* check we can collapse, some edges we better not touch */
+  /* Check we can collapse, some edges we better not touch. */
   if (BM_edge_is_boundary(e)) {
     if (e->l->f->len == 3) {
-      /* pass */
+      /* Pass. */
     }
     else {
-      /* only collapse tri's */
+      /* Only collapse triangles. */
       goto clear;
     }
   }
   else if (BM_edge_is_manifold(e)) {
     if ((e->l->f->len == 3) && (e->l->radial_next->f->len == 3)) {
-      /* pass */
+      /* Pass. */
     }
     else {
-      /* only collapse tri's */
+      /* Only collapse triangles. */
       goto clear;
     }
   }
   else {
     goto clear;
   }
-  /* end sanity check */
+  /* End sanity check. */
 
   {
     double optimize_co[3];
@@ -368,7 +368,7 @@ struct KD_Symmetry_Data {
 
 static bool bm_edge_symmetry_check_cb(void *user_data,
                                       int index,
-                                      const float[3] /*co*/,
+                                      const float /*co*/[3],
                                       float /*dist_sq*/)
 {
   KD_Symmetry_Data *sym_data = static_cast<KD_Symmetry_Data *>(user_data);
@@ -662,8 +662,14 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
     BMLoop *l_a, *l_b;
     e = edges_tri[i];
     if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+      BMFace *f_double;
+
       BMFace *f_array[2] = {l_a->f, l_b->f};
-      BM_faces_join(bm, f_array, 2, false);
+      BM_faces_join(bm, f_array, 2, false, &f_double);
+      /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+      BLI_assert_msg(f_double == nullptr,
+                     "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
       if (e->l == nullptr) {
         BM_edge_kill(bm, e);
       }
@@ -687,7 +693,7 @@ static void bm_edge_collapse_loop_customdata(
 {
   /* Disable seam check - the seam check would have to be done per layer,
    * its not really that important. */
-  //#define USE_SEAM
+  // #define USE_SEAM
   /* these don't need to be updated, since they will get removed when the edge collapses */
   BMLoop *l_clear, *l_other;
   const bool is_manifold = BM_edge_is_manifold(l->e);
@@ -789,7 +795,7 @@ static void bm_edge_collapse_loop_customdata(
     }
   }
 
-  //#undef USE_SEAM
+  // #undef USE_SEAM
 }
 #endif /* USE_CUSTOMDATA */
 

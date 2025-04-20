@@ -9,17 +9,13 @@
 #pragma once
 
 #include "BKE_context.hh"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BLI_linklist.h"
 #include "BlenderTypes.h"
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 static const BC_global_forward_axis BC_DEFAULT_FORWARD = BC_GLOBAL_FORWARD_Y;
 static const BC_global_up_axis BC_DEFAULT_UP = BC_GLOBAL_UP_Z;
@@ -33,7 +29,7 @@ bool bc_is_base_node(LinkNode *export_set, Object *ob, const Scene *scene, ViewL
  * Returns the highest selected ancestor
  * returns NULL if no ancestor is selected
  * IMPORTANT: This function expects that all exported objects have set:
- * `ob->id.tag & LIB_TAG_DOIT`
+ * `ob->id.tag & ID_TAG_DOIT`
  */
 Object *bc_get_highest_exported_ancestor_or_self(LinkNode *export_set,
                                                  Object *ob,
@@ -42,9 +38,6 @@ Object *bc_get_highest_exported_ancestor_or_self(LinkNode *export_set,
 int bc_is_marked(Object *ob);
 void bc_remove_mark(Object *ob);
 void bc_set_mark(Object *ob);
-
-#ifdef __cplusplus
-}
 
 class BlenderContext {
  private:
@@ -64,4 +57,3 @@ class BlenderContext {
   ViewLayer *get_view_layer();
   Main *get_main();
 };
-#endif

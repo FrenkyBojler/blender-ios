@@ -14,8 +14,8 @@
 
 #include "BKE_customdata.hh"
 
-#include "bmesh.h"
-#include "intern/bmesh_walkers_private.h"
+#include "bmesh.hh"
+#include "intern/bmesh_walkers_private.hh"
 
 /* Pop into stack memory (common operation). */
 #define BMW_state_remove_r(walker, owalk) \
@@ -965,7 +965,7 @@ static void bmw_EdgeLoopWalker_begin(BMWalker *walker, void *data)
 
   /* Rewind. */
   while ((owalk_pt = static_cast<BMwEdgeLoopWalker *>(BMW_current_state(walker)))) {
-    owalk = *((BMwEdgeLoopWalker *)owalk_pt);
+    owalk = *(owalk_pt);
     BMW_walk(walker);
   }
 
@@ -1078,7 +1078,8 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
 
     if (l != nullptr) {
       if (l != e->l && bmw_mask_check_edge(walker, l->e) &&
-          !BLI_gset_haskey(walker->visit_set, l->e)) {
+          !BLI_gset_haskey(walker->visit_set, l->e))
+      {
         lwalk = static_cast<BMwEdgeLoopWalker *>(BMW_state_add(walker));
         lwalk->cur = l->e;
         lwalk->lastv = v;
@@ -1129,7 +1130,8 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
 
     if (l != nullptr) {
       if (l != e->l && bmw_mask_check_edge(walker, l->e) &&
-          !BLI_gset_haskey(walker->visit_set, l->e)) {
+          !BLI_gset_haskey(walker->visit_set, l->e))
+      {
         lwalk = static_cast<BMwEdgeLoopWalker *>(BMW_state_add(walker));
         lwalk->cur = l->e;
         lwalk->lastv = v;
@@ -1220,7 +1222,7 @@ static void bmw_FaceLoopWalker_begin(BMWalker *walker, void *data)
 
   /* Rewind. */
   while ((owalk_pt = static_cast<BMwFaceLoopWalker *>(BMW_current_state(walker)))) {
-    owalk = *((BMwFaceLoopWalker *)owalk_pt);
+    owalk = *(owalk_pt);
     BMW_walk(walker);
   }
 
@@ -1321,7 +1323,7 @@ static void bmw_EdgeringWalker_begin(BMWalker *walker, void *data)
 
   /* Rewind. */
   while ((owalk_pt = static_cast<BMwEdgeringWalker *>(BMW_current_state(walker)))) {
-    owalk = *((BMwEdgeringWalker *)owalk_pt);
+    owalk = *(owalk_pt);
     BMW_walk(walker);
   }
 

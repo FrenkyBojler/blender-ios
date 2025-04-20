@@ -8,12 +8,6 @@
  * \ingroup bke
  * \brief display list (or rather multi purpose list) stuff.
  */
-#include "BKE_customdata.hh"
-#include "DNA_customdata_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /** #DispList.type */
 enum {
@@ -94,7 +88,3 @@ float BKE_displist_calc_taper(struct Depsgraph *depsgraph,
                               int tot);
 
 void BKE_displist_minmax(const struct ListBase *dispbase, float min[3], float max[3]);
-
-#ifdef __cplusplus
-}
-#endif

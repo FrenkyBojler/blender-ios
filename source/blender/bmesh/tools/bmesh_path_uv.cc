@@ -15,12 +15,10 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
-#include "DNA_meshdata_types.h"
-
-#include "bmesh.h"
-#include "bmesh_path_uv.h" /* own include */
-#include "intern/bmesh_query.h"
-#include "intern/bmesh_query_uv.h"
+#include "bmesh.hh"
+#include "bmesh_path_uv.hh" /* own include */
+#include "intern/bmesh_query.hh"
+#include "intern/bmesh_query_uv.hh"
 
 #define COST_INIT_MAX FLT_MAX
 
@@ -249,6 +247,9 @@ static void edgetag_add_adjacent_uv(HeapSimple *heap,
       BMEdge *e_b;
       BMIter eiter;
       BM_ITER_ELEM (e_b, &eiter, l_a_verts[i]->v, BM_EDGES_OF_VERT) {
+        if (e_b->l == nullptr) {
+          continue;
+        }
         BMLoop *l_first, *l_b;
         l_first = l_b = e_b->l;
         do {

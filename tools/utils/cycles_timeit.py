@@ -3,6 +3,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "main",
+)
+
 import argparse
 import re
 import shutil
@@ -136,7 +140,6 @@ def benchmarkFile(blender, blendfile, stats):
     # Configure command for the current file.
     command = (blender,
                "--background",
-               "-noaudio",
                "--factory-startup",
                blendfile,
                "--engine", "CYCLES",

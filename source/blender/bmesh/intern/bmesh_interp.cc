@@ -18,15 +18,16 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
-#include "BLI_string.h"
 #include "BLI_task.h"
 
 #include "BKE_attribute.h"
 #include "BKE_customdata.hh"
 #include "BKE_multires.hh"
 
-#include "bmesh.h"
-#include "intern/bmesh_private.h"
+#include "bmesh.hh"
+#include "intern/bmesh_private.hh"
+
+using blender::StringRef;
 
 /* edge and vertex share, currently there's no need to have different logic */
 static void bm_data_interp_from_elem(CustomData *data_layer,
@@ -42,9 +43,7 @@ static void bm_data_interp_from_elem(CustomData *data_layer,
         /* do nothing */
       }
       else {
-        CustomData_bmesh_free_block_data(data_layer, ele_dst->head.data);
-        CustomData_bmesh_copy_data(
-            data_layer, data_layer, ele_src_1->head.data, &ele_dst->head.data);
+        CustomData_bmesh_copy_block(*data_layer, ele_src_1->head.data, &ele_dst->head.data);
       }
     }
     else if (fac >= 1.0f) {
@@ -52,9 +51,7 @@ static void bm_data_interp_from_elem(CustomData *data_layer,
         /* do nothing */
       }
       else {
-        CustomData_bmesh_free_block_data(data_layer, ele_dst->head.data);
-        CustomData_bmesh_copy_data(
-            data_layer, data_layer, ele_src_2->head.data, &ele_dst->head.data);
+        CustomData_bmesh_copy_block(*data_layer, ele_src_2->head.data, &ele_dst->head.data);
       }
     }
     else {
@@ -152,10 +149,6 @@ void BM_face_interp_from_face_ex(BMesh *bm,
 
   float *w = static_cast<float *>(BLI_array_alloca(w, f_src->len));
   float co[2];
-
-  if (f_src != f_dst) {
-    BM_elem_attrs_copy(bm, bm, f_src, f_dst);
-  }
 
   /* interpolate */
   l_iter = l_first = BM_FACE_FIRST_LOOP(f_dst);
@@ -291,7 +284,7 @@ static bool quad_co(const float v1[3],
 
 static void mdisp_axis_from_quad(const float v1[3],
                                  const float v2[3],
-                                 float[3] /*v3[3]*/,
+                                 float /*v3*/[3],
                                  const float v4[3],
                                  float r_axis_x[3],
                                  float r_axis_y[3])
@@ -772,6 +765,8 @@ void BM_vert_interp_from_face(BMesh *bm, BMVert *v_dst, const BMFace *f_src)
 
 static void update_data_blocks(BMesh *bm, CustomData *olddata, CustomData *data)
 {
+  const BMCustomDataCopyMap cd_map = CustomData_bmesh_copy_map_calc(*olddata, *data);
+
   BMIter iter;
   BLI_mempool *oldpool = olddata->pool;
   void *block;
@@ -783,8 +778,7 @@ static void update_data_blocks(BMesh *bm, CustomData *olddata, CustomData *data)
 
     BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
       block = nullptr;
-      CustomData_bmesh_set_default(data, &block);
-      CustomData_bmesh_copy_data(olddata, data, eve->head.data, &block);
+      CustomData_bmesh_copy_block(*data, cd_map, eve->head.data, &block);
       CustomData_bmesh_free_block(olddata, &eve->head.data);
       eve->head.data = block;
     }
@@ -796,8 +790,7 @@ static void update_data_blocks(BMesh *bm, CustomData *olddata, CustomData *data)
 
     BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
       block = nullptr;
-      CustomData_bmesh_set_default(data, &block);
-      CustomData_bmesh_copy_data(olddata, data, eed->head.data, &block);
+      CustomData_bmesh_copy_block(*data, cd_map, eed->head.data, &block);
       CustomData_bmesh_free_block(olddata, &eed->head.data);
       eed->head.data = block;
     }
@@ -811,8 +804,7 @@ static void update_data_blocks(BMesh *bm, CustomData *olddata, CustomData *data)
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         block = nullptr;
-        CustomData_bmesh_set_default(data, &block);
-        CustomData_bmesh_copy_data(olddata, data, l->head.data, &block);
+        CustomData_bmesh_copy_block(*data, cd_map, l->head.data, &block);
         CustomData_bmesh_free_block(olddata, &l->head.data);
         l->head.data = block;
       }
@@ -825,8 +817,7 @@ static void update_data_blocks(BMesh *bm, CustomData *olddata, CustomData *data)
 
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
       block = nullptr;
-      CustomData_bmesh_set_default(data, &block);
-      CustomData_bmesh_copy_data(olddata, data, efa->head.data, &block);
+      CustomData_bmesh_copy_block(*data, cd_map, efa->head.data, &block);
       CustomData_bmesh_free_block(olddata, &efa->head.data);
       efa->head.data = block;
     }
@@ -861,7 +852,7 @@ void BM_data_layer_add(BMesh *bm, CustomData *data, int type)
   }
 }
 
-void BM_data_layer_add_named(BMesh *bm, CustomData *data, int type, const char *name)
+void BM_data_layer_add_named(BMesh *bm, CustomData *data, int type, const StringRef name)
 {
   CustomData olddata = *data;
   olddata.layers = (olddata.layers) ?
@@ -878,14 +869,14 @@ void BM_data_layer_add_named(BMesh *bm, CustomData *data, int type, const char *
   }
 }
 
-void BM_data_layer_ensure_named(BMesh *bm, CustomData *data, int type, const char *name)
+void BM_data_layer_ensure_named(BMesh *bm, CustomData *data, int type, const StringRef name)
 {
   if (CustomData_get_named_layer_index(data, eCustomDataType(type), name) == -1) {
     BM_data_layer_add_named(bm, data, type, name);
   }
 }
 
-void BM_uv_map_ensure_select_and_pin_attrs(BMesh *bm)
+void BM_uv_map_attr_select_and_pin_ensure(BMesh *bm)
 {
   const int nr_uv_layers = CustomData_number_of_layers(&bm->ldata, CD_PROP_FLOAT2);
   for (int l = 0; l < nr_uv_layers; l++) {
@@ -912,25 +903,39 @@ void BM_uv_map_ensure_select_and_pin_attrs(BMesh *bm)
   }
 }
 
-void BM_uv_map_ensure_vert_select_attr(BMesh *bm, const char *uv_map_name)
+void BM_uv_map_attr_vert_select_ensure(BMesh *bm, const StringRef uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_vert_select_name_get(uv_map_name, name));
 }
 
-void BM_uv_map_ensure_edge_select_attr(BMesh *bm, const char *uv_map_name)
+void BM_uv_map_attr_edge_select_ensure(BMesh *bm, const StringRef uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_edge_select_name_get(uv_map_name, name));
 }
 
-void BM_uv_map_ensure_pin_attr(BMesh *bm, const char *uv_map_name)
+void BM_uv_map_attr_pin_ensure(BMesh *bm, const StringRef uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_pin_name_get(uv_map_name, name));
+}
+
+bool BM_uv_map_attr_vert_select_exists(const BMesh *bm, const StringRef uv_map_name)
+{
+  char name[MAX_CUSTOMDATA_LAYER_NAME];
+  return (CustomData_get_named_layer_index(
+              &bm->ldata, CD_PROP_BOOL, BKE_uv_map_vert_select_name_get(uv_map_name, name)) != -1);
+}
+
+bool BM_uv_map_attr_pin_exists(const BMesh *bm, const StringRef uv_map_name)
+{
+  char name[MAX_CUSTOMDATA_LAYER_NAME];
+  return (CustomData_get_named_layer_index(
+              &bm->ldata, CD_PROP_BOOL, BKE_uv_map_pin_name_get(uv_map_name, name)) != -1);
 }
 
 void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
@@ -942,7 +947,7 @@ void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
   /* The pool is now owned by `olddata` and must not be shared. */
   data->pool = nullptr;
 
-  const bool had_layer = CustomData_free_layer_active(data, eCustomDataType(type), 0);
+  const bool had_layer = CustomData_free_layer_active(data, eCustomDataType(type));
   /* Assert because its expensive to realloc - better not do if layer isn't present. */
   BLI_assert(had_layer != false);
   UNUSED_VARS_NDEBUG(had_layer);
@@ -953,7 +958,7 @@ void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
   }
 }
 
-bool BM_data_layer_free_named(BMesh *bm, CustomData *data, const char *name)
+bool BM_data_layer_free_named(BMesh *bm, CustomData *data, StringRef name)
 {
   CustomData olddata = *data;
   olddata.layers = (olddata.layers) ?
@@ -962,7 +967,7 @@ bool BM_data_layer_free_named(BMesh *bm, CustomData *data, const char *name)
   /* The pool is now owned by `olddata` and must not be shared. */
   data->pool = nullptr;
 
-  const bool had_layer = CustomData_free_layer_named(data, name, 0);
+  const bool had_layer = CustomData_free_layer_named(data, name);
 
   if (had_layer) {
     update_data_blocks(bm, &olddata, data);
@@ -989,10 +994,7 @@ void BM_data_layer_free_n(BMesh *bm, CustomData *data, int type, int n)
   data->pool = nullptr;
 
   const bool had_layer = CustomData_free_layer(
-      data,
-      eCustomDataType(type),
-      0,
-      CustomData_get_layer_index_n(data, eCustomDataType(type), n));
+      data, eCustomDataType(type), CustomData_get_layer_index_n(data, eCustomDataType(type), n));
   /* Assert because its expensive to realloc - better not do if layer isn't present. */
   BLI_assert(had_layer != false);
   UNUSED_VARS_NDEBUG(had_layer);

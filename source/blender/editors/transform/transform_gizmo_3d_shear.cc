@@ -10,11 +10,12 @@
  * Used for 3D View
  */
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "ED_gizmo_library.hh"
 #include "ED_gizmo_utils.hh"
@@ -25,9 +26,11 @@
 
 #include "RNA_access.hh"
 
-/* local module include */
+/* Local module include. */
 #include "transform.hh"
 #include "transform_gizmo.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform Shear Gizmo
@@ -123,7 +126,7 @@ static void WIDGETGROUP_xform_shear_refresh(const bContext *C, wmGizmoGroup *gzg
   TransformCalcParams calc_params{};
   calc_params.use_local_axis = false;
   calc_params.orientation_index = orient_index + 1;
-  if (ED_transform_calc_gizmo_stats(C, &calc_params, &tbounds, rv3d) == 0) {
+  if (calc_gizmo_stats(C, &calc_params, &tbounds, rv3d) == 0) {
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 2; j++) {
         wmGizmo *gz = xgzgroup->gizmo[i][j];
@@ -262,3 +265,5 @@ void VIEW3D_GGT_xform_shear(wmGizmoGroupType *gzgt)
 }
 
 /** \} */
+
+}  // namespace blender::ed::transform

@@ -2,13 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "BLI_array.hh"
 #include "BLI_color.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_span.hh"
-#include "BLI_generic_virtual_array.hh"
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_color.hh"
 #include "BLI_math_quaternion.hh"
@@ -16,7 +19,11 @@
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
 
-#include "BKE_customdata.hh"
+#include "BKE_attribute.hh"
+
+namespace blender {
+class GVArray;
+}
 
 namespace blender::bke::attribute_math {
 
@@ -33,9 +40,11 @@ inline void convert_to_static_type(const CPPType &cpp_type, const Func &func)
                               int2,
                               bool,
                               int8_t,
+                              short2,
                               ColorGeometry4f,
                               ColorGeometry4b,
-                              math::Quaternion>([&](auto type_tag) {
+                              math::Quaternion,
+                              float4x4>([&](auto type_tag) {
     using T = typename decltype(type_tag)::type;
     if constexpr (std::is_same_v<T, void>) {
       /* It's expected that the given cpp type is one of the supported ones. */
@@ -75,6 +84,11 @@ template<> inline int8_t mix2(const float factor, const int8_t &a, const int8_t 
 template<> inline int mix2(const float factor, const int &a, const int &b)
 {
   return int(std::round((1.0f - factor) * a + factor * b));
+}
+
+template<> inline short2 mix2(const float factor, const short2 &a, const short2 &b)
+{
+  return math::interpolate(a, b, factor);
 }
 
 template<> inline int2 mix2(const float factor, const int2 &a, const int2 &b)
@@ -133,6 +147,12 @@ template<> inline bool mix3(const float3 &weights, const bool &v0, const bool &v
 template<> inline int mix3(const float3 &weights, const int &v0, const int &v1, const int &v2)
 {
   return int(std::round(weights.x * v0 + weights.y * v1 + weights.z * v2));
+}
+
+template<>
+inline short2 mix3(const float3 &weights, const short2 &v0, const short2 &v1, const short2 &v2)
+{
+  return short2(weights.x * float2(v0) + weights.y * float2(v1) + weights.z * float2(v2));
 }
 
 template<> inline int2 mix3(const float3 &weights, const int2 &v0, const int2 &v1, const int2 &v2)
@@ -211,6 +231,14 @@ template<>
 inline int mix4(const float4 &weights, const int &v0, const int &v1, const int &v2, const int &v3)
 {
   return int(std::round(weights.x * v0 + weights.y * v1 + weights.z * v2 + weights.w * v3));
+}
+
+template<>
+inline short2 mix4(
+    const float4 &weights, const short2 &v0, const short2 &v1, const short2 &v2, const short2 &v3)
+{
+  return short2(weights.x * float2(v0) + weights.y * float2(v1) + weights.z * float2(v2) +
+                weights.w * float2(v3));
 }
 
 template<>
@@ -517,6 +545,26 @@ class ColorGeometry4bMixer {
   void finalize(const IndexMask &mask);
 };
 
+class float4x4Mixer {
+ private:
+  MutableSpan<float4x4> buffer_;
+  Array<float> total_weights_;
+  Array<float3> location_buffer_;
+  Array<float3> expmap_buffer_;
+  Array<float3> scale_buffer_;
+
+ public:
+  float4x4Mixer(MutableSpan<float4x4> buffer);
+  /**
+   * \param mask: Only initialize these indices. Other indices in the buffer will be invalid.
+   */
+  float4x4Mixer(MutableSpan<float4x4> buffer, const IndexMask &mask);
+  void set(int64_t index, const float4x4 &value, float weight = 1.0f);
+  void mix_in(int64_t index, const float4x4 &value, float weight = 1.0f);
+  void finalize();
+  void finalize(const IndexMask &mask);
+};
+
 template<typename T> struct DefaultMixerStruct {
   /* Use void by default. This can be checked for in `if constexpr` statements. */
   using type = void;
@@ -538,6 +586,9 @@ template<> struct DefaultMixerStruct<ColorGeometry4f> {
 template<> struct DefaultMixerStruct<ColorGeometry4b> {
   using type = ColorGeometry4bMixer;
 };
+template<> struct DefaultMixerStruct<float4x4> {
+  using type = float4x4Mixer;
+};
 template<> struct DefaultMixerStruct<int> {
   static double int_to_double(const int &value)
   {
@@ -550,6 +601,17 @@ template<> struct DefaultMixerStruct<int> {
   /* Store interpolated ints in a double temporarily, so that weights are handled correctly. It
    * uses double instead of float so that it is accurate for all 32 bit integers. */
   using type = SimpleMixerWithAccumulationType<int, double, int_to_double, double_to_int>;
+};
+template<> struct DefaultMixerStruct<short2> {
+  static float2 int_to_float(const short2 &value)
+  {
+    return float2(value);
+  }
+  static short2 float_to_int(const float2 &value)
+  {
+    return short2(math::round(value));
+  }
+  using type = SimpleMixerWithAccumulationType<short2, float2, int_to_float, float_to_int>;
 };
 template<> struct DefaultMixerStruct<int2> {
   static double2 int_to_double(const int2 &value)
@@ -644,6 +706,11 @@ void gather_to_groups(OffsetIndices<int> dst_offsets,
                       const IndexMask &src_selection,
                       GSpan src,
                       GMutableSpan dst);
+
+void gather_ranges_to_groups(Span<IndexRange> src_ranges,
+                             OffsetIndices<int> dst_offsets,
+                             GSpan src,
+                             GMutableSpan dst);
 
 /** \} */
 

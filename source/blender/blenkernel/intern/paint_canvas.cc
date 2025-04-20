@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_compiler_compat.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "DNA_material_types.h"
@@ -10,11 +10,11 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_customdata.hh"
-#include "BKE_image.h"
-#include "BKE_material.h"
+#include "BKE_image.hh"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf_types.hh"
 
 #include <sstream>
 
@@ -83,7 +83,7 @@ int BKE_paint_canvas_uvmap_layer_index_get(const PaintModeSettings *settings, Ob
       }
 
       const Mesh *mesh = static_cast<Mesh *>(ob->data);
-      return CustomData_get_active_layer_index(&mesh->loop_data, CD_PROP_FLOAT2);
+      return CustomData_get_active_layer_index(&mesh->corner_data, CD_PROP_FLOAT2);
     }
     case PAINT_CANVAS_SOURCE_MATERIAL: {
       /* Use uv map of the canvas. */
@@ -101,7 +101,7 @@ int BKE_paint_canvas_uvmap_layer_index_get(const PaintModeSettings *settings, Ob
       }
 
       const Mesh *mesh = static_cast<Mesh *>(ob->data);
-      return CustomData_get_named_layer_index(&mesh->loop_data, CD_PROP_FLOAT2, slot->uvname);
+      return CustomData_get_named_layer_index(&mesh->corner_data, CD_PROP_FLOAT2, slot->uvname);
     }
   }
   return -1;

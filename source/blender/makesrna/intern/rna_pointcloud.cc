@@ -11,19 +11,18 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
-#include "DNA_pointcloud_types.h"
-
-#include "BLI_math_base.h"
-#include "BLI_string.h"
+#include "BKE_attribute.h"
 
 #ifdef RNA_RUNTIME
+
+#  include <fmt/format.h>
 
 #  include "BLI_math_vector.h"
 
 #  include "BKE_customdata.hh"
-#  include "BKE_pointcloud.h"
+#  include "BKE_pointcloud.hh"
 
 #  include "DEG_depsgraph.hh"
 
@@ -70,6 +69,7 @@ static void rna_PointCloud_points_begin(CollectionPropertyIterator *iter, Pointe
 {
   PointCloud *pointcloud = rna_pointcloud(ptr);
   rna_iterator_array_begin(iter,
+                           ptr,
                            get_pointcloud_positions(pointcloud),
                            sizeof(float[3]),
                            pointcloud->totpoint,
@@ -77,15 +77,14 @@ static void rna_PointCloud_points_begin(CollectionPropertyIterator *iter, Pointe
                            nullptr);
 }
 
-int rna_PointCloud_points_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
+bool rna_PointCloud_points_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
 {
   PointCloud *pointcloud = rna_pointcloud(ptr);
   if (index < 0 || index >= pointcloud->totpoint) {
     return false;
   }
-  r_ptr->owner_id = &pointcloud->id;
-  r_ptr->type = &RNA_Point;
-  r_ptr->data = &get_pointcloud_positions(pointcloud)[index];
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_Point, &get_pointcloud_positions(pointcloud)[index], *r_ptr);
   return true;
 }
 
@@ -121,9 +120,9 @@ static void rna_Point_radius_set(PointerRNA *ptr, float value)
   radii[rna_Point_index_get_const(ptr)] = value;
 }
 
-static char *rna_Point_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_Point_path(const PointerRNA *ptr)
 {
-  return BLI_sprintfN("points[%d]", rna_Point_index_get_const(ptr));
+  return fmt::format("points[{}]", rna_Point_index_get_const(ptr));
 }
 
 static void rna_PointCloud_update_data(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -205,7 +204,7 @@ static void rna_def_pointcloud(BlenderRNA *brna)
                                     nullptr,
                                     "rna_IDMaterials_assign_int");
 
-  rna_def_attributes_common(srna);
+  rna_def_attributes_common(srna, AttributeOwnerType::PointCloud);
 
   /* common */
   rna_def_animdata_common(srna);

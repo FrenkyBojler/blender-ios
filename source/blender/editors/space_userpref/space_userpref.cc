@@ -6,13 +6,12 @@
  * \ingroup spuserpref
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -23,7 +22,6 @@
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
 
-#include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
@@ -41,7 +39,7 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   spref->spacetype = SPACE_USERPREF;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for userpref"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&spref->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
@@ -49,7 +47,7 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   region->alignment = RGN_ALIGN_BOTTOM;
 
   /* navigation region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "navigation region for userpref"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&spref->regionbase, region);
   region->regiontype = RGN_TYPE_NAV_BAR;
@@ -61,7 +59,7 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   }
 
   /* execution region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "execution region for userpref"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&spref->regionbase, region);
   region->regiontype = RGN_TYPE_EXECUTE;
@@ -69,7 +67,7 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   region->flag |= RGN_FLAG_DYNAMIC_SIZE | RGN_FLAG_NO_USER_RESIZE;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for userpref"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&spref->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -126,7 +124,8 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
     BLI_str_tolower_ascii(id_lower, strlen(id_lower));
   }
 
-  ED_region_panels_layout_ex(C, region, &region->type->paneltypes, contexts, nullptr);
+  ED_region_panels_layout_ex(
+      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
 }
 
 static void userpref_operatortypes() {}
@@ -160,7 +159,7 @@ static void userpref_navigation_region_draw(const bContext *C, ARegion *region)
 static bool userpref_execute_region_poll(const RegionPollParams *params)
 {
   const ARegion *region_header = BKE_area_find_region_type(params->area, RGN_TYPE_HEADER);
-  return !region_header->visible;
+  return !region_header->runtime->visible;
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -185,7 +184,7 @@ static void userpref_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 void ED_spacetype_userpref()
 {
-  SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(SpaceType), "spacetype userpref"));
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_USERPREF;
@@ -245,5 +244,5 @@ void ED_spacetype_userpref()
 
   BLI_addhead(&st->regiontypes, art);
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }

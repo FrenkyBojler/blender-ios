@@ -13,7 +13,7 @@
  * A typical example is a field that computes a displacement vector for every vertex on a mesh
  * based on its position.
  *
- * Fields can be build, composed and evaluated at run-time. They are stored in a directed tree
+ * Fields can be built, composed and evaluated at run-time. They are stored in a directed tree
  * graph data structure, whereby each node is a #FieldNode and edges are dependencies. A #FieldNode
  * has an arbitrary number of inputs and at least one output and a #Field references a specific
  * output of a #FieldNode. The inputs of a #FieldNode are other fields.
@@ -33,8 +33,6 @@
  * Whenever possible, multiple fields should be evaluated together to avoid duplicate work when
  * they share common sub-fields and a common context.
  */
-
-#include <iostream>
 
 #include "BLI_function_ref.hh"
 #include "BLI_generic_virtual_array.hh"
@@ -126,7 +124,7 @@ template<typename NodePtr> class GFieldBase {
 
   uint64_t hash() const
   {
-    return get_default_hash_2(*node_, node_output_index_);
+    return get_default_hash(*node_, node_output_index_);
   }
 
   const CPPType &cpp_type() const
@@ -179,8 +177,7 @@ class GFieldRef : public GFieldBase<const FieldNode *> {
 
 namespace detail {
 /* Utility class to make #is_field_v work. */
-struct TypedFieldBase {
-};
+struct TypedFieldBase {};
 }  // namespace detail
 
 /**
@@ -235,7 +232,7 @@ class FieldOperation : public FieldNode {
  public:
   FieldOperation(std::shared_ptr<const mf::MultiFunction> function, Vector<GField> inputs = {});
   FieldOperation(const mf::MultiFunction &function, Vector<GField> inputs = {});
-  ~FieldOperation();
+  ~FieldOperation() override;
 
   Span<GField> inputs() const;
   const mf::MultiFunction &multi_function() const;
@@ -276,7 +273,7 @@ class FieldInput : public FieldNode {
 
  public:
   FieldInput(const CPPType &type, std::string debug_name = "");
-  ~FieldInput();
+  ~FieldInput() override;
 
   /**
    * Get the value of this specific input based on the given context. The returned virtual array,
@@ -301,7 +298,7 @@ class FieldConstant : public FieldNode {
 
  public:
   FieldConstant(const CPPType &type, const void *value);
-  ~FieldConstant();
+  ~FieldConstant() override;
 
   const CPPType &output_cpp_type(int output_index) const override;
   const CPPType &type() const;
@@ -337,7 +334,6 @@ class FieldContext {
  * Utility class that makes it easier to evaluate fields.
  */
 class FieldEvaluator : NonMovable, NonCopyable {
- private:
   struct OutputPointerInfo {
     void *dst = nullptr;
     /* When a destination virtual array is provided for an input, this is
@@ -460,7 +456,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
     return this->get_evaluated(field_index).typed<T>();
   }
 
-  IndexMask get_evaluated_selection_as_mask();
+  IndexMask get_evaluated_selection_as_mask() const;
 
   /**
    * Retrieve the output of an evaluated boolean field and convert it to a mask, which can be used

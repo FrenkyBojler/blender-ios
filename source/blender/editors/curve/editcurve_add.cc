@@ -6,21 +6,21 @@
  * \ingroup edcurve
  */
 
-#include "DNA_anim_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -34,7 +34,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
 
 static const float nurbcircle[8][2] = {
     {0.0, -1.0},
@@ -56,9 +56,9 @@ static const char *get_curve_defname(int type)
   if ((type & CU_TYPE) == CU_BEZIER) {
     switch (stype) {
       case CU_PRIM_CURVE:
-        return CTX_DATA_(BLT_I18NCONTEXT_ID_CURVE_LEGACY, "BezierCurve");
+        return CTX_DATA_(BLT_I18NCONTEXT_ID_CURVE_LEGACY, "BézierCurve");
       case CU_PRIM_CIRCLE:
-        return CTX_DATA_(BLT_I18NCONTEXT_ID_CURVE_LEGACY, "BezierCircle");
+        return CTX_DATA_(BLT_I18NCONTEXT_ID_CURVE_LEGACY, "BézierCircle");
       case CU_PRIM_PATH:
         return CTX_DATA_(BLT_I18NCONTEXT_ID_CURVE_LEGACY, "CurvePath");
       default:
@@ -493,7 +493,7 @@ Nurb *ED_curve_add_nurbs_primitive(
   return nu;
 }
 
-static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
+static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -510,18 +510,16 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 
   WM_operator_view3d_unit_defaults(C, op);
 
-  if (!ED_object_add_generic_get_opts(
-          C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr))
-  {
-    return OPERATOR_CANCELLED;
-  }
+  blender::ed::object::add_generic_get_opts(
+      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
   if (!isSurf) { /* adding curve */
     if (obedit == nullptr || obedit->type != OB_CURVES_LEGACY) {
       const char *name = get_curve_defname(type);
       Curve *cu;
 
-      obedit = ED_object_add_type(C, OB_CURVES_LEGACY, name, loc, rot, true, local_view_bits);
+      obedit = blender::ed::object::add_type(
+          C, OB_CURVES_LEGACY, name, loc, rot, true, local_view_bits);
       newob = true;
 
       cu = (Curve *)obedit->data;
@@ -537,7 +535,7 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
   else { /* adding surface */
     if (obedit == nullptr || obedit->type != OB_SURF) {
       const char *name = get_surf_defname(type);
-      obedit = ED_object_add_type(C, OB_SURF, name, loc, rot, true, local_view_bits);
+      obedit = blender::ed::object::add_type(C, OB_SURF, name, loc, rot, true, local_view_bits);
       newob = true;
     }
     else {
@@ -548,7 +546,7 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
   float radius = RNA_float_get(op->ptr, "radius");
   float scale[3];
   copy_v3_fl(scale, radius);
-  ED_object_new_primitive_matrix(C, obedit, loc, rot, scale, mat);
+  blender::ed::object::new_primitive_matrix(C, obedit, loc, rot, scale, mat);
 
   nu = ED_curve_add_nurbs_primitive(C, obedit, mat, type, newob);
   editnurb = object_editcurve_get(obedit);
@@ -556,7 +554,7 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 
   /* userdef */
   if (newob && !enter_editmode) {
-    ED_object_editmode_exit_ex(bmain, scene, obedit, EM_FREEDATA);
+    blender::ed::object::editmode_exit_ex(bmain, scene, obedit, blender::ed::object::EM_FREEDATA);
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
@@ -564,19 +562,19 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
   return OPERATOR_FINISHED;
 }
 
-static int curve_prim_add(bContext *C, wmOperator *op, int type)
+static wmOperatorStatus curve_prim_add(bContext *C, wmOperator *op, int type)
 {
   return curvesurf_prim_add(C, op, type, 0);
 }
 
-static int surf_prim_add(bContext *C, wmOperator *op, int type)
+static wmOperatorStatus surf_prim_add(bContext *C, wmOperator *op, int type)
 {
   return curvesurf_prim_add(C, op, type, 1);
 }
 
 /* ******************** Curves ******************* */
 
-static int add_primitive_bezier_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_bezier_exec(bContext *C, wmOperator *op)
 {
   return curve_prim_add(C, op, CU_BEZIER | CU_PRIM_CURVE);
 }
@@ -584,8 +582,8 @@ static int add_primitive_bezier_exec(bContext *C, wmOperator *op)
 void CURVE_OT_primitive_bezier_curve_add(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Add Bezier";
-  ot->description = "Construct a Bezier Curve";
+  ot->name = "Add Bézier";
+  ot->description = "Construct a Bézier Curve";
   ot->idname = "CURVE_OT_primitive_bezier_curve_add";
 
   /* api callbacks */
@@ -595,11 +593,11 @@ void CURVE_OT_primitive_bezier_curve_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_bezier_circle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_bezier_circle_exec(bContext *C, wmOperator *op)
 {
   return curve_prim_add(C, op, CU_BEZIER | CU_PRIM_CIRCLE);
 }
@@ -607,8 +605,8 @@ static int add_primitive_bezier_circle_exec(bContext *C, wmOperator *op)
 void CURVE_OT_primitive_bezier_circle_add(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Add Bezier Circle";
-  ot->description = "Construct a Bezier Circle";
+  ot->name = "Add Bézier Circle";
+  ot->description = "Construct a Bézier Circle";
   ot->idname = "CURVE_OT_primitive_bezier_circle_add";
 
   /* api callbacks */
@@ -618,11 +616,11 @@ void CURVE_OT_primitive_bezier_circle_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_nurbs_curve_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_curve_exec(bContext *C, wmOperator *op)
 {
   return curve_prim_add(C, op, CU_NURBS | CU_PRIM_CURVE);
 }
@@ -641,11 +639,11 @@ void CURVE_OT_primitive_nurbs_curve_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_nurbs_circle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_circle_exec(bContext *C, wmOperator *op)
 {
   return curve_prim_add(C, op, CU_NURBS | CU_PRIM_CIRCLE);
 }
@@ -664,11 +662,11 @@ void CURVE_OT_primitive_nurbs_circle_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_curve_path_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_curve_path_exec(bContext *C, wmOperator *op)
 {
   return curve_prim_add(C, op, CU_NURBS | CU_PRIM_PATH);
 }
@@ -687,12 +685,12 @@ void CURVE_OT_primitive_nurbs_path_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
 /* **************** NURBS surfaces ********************** */
-static int add_primitive_nurbs_surface_curve_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_curve_exec(bContext *C, wmOperator *op)
 {
   return surf_prim_add(C, op, CU_PRIM_CURVE | CU_NURBS);
 }
@@ -711,11 +709,11 @@ void SURFACE_OT_primitive_nurbs_surface_curve_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_nurbs_surface_circle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_circle_exec(bContext *C, wmOperator *op)
 {
   return surf_prim_add(C, op, CU_PRIM_CIRCLE | CU_NURBS);
 }
@@ -734,11 +732,11 @@ void SURFACE_OT_primitive_nurbs_surface_circle_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_nurbs_surface_surface_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_surface_exec(bContext *C, wmOperator *op)
 {
   return surf_prim_add(C, op, CU_PRIM_PATCH | CU_NURBS);
 }
@@ -757,11 +755,11 @@ void SURFACE_OT_primitive_nurbs_surface_surface_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_nurbs_surface_cylinder_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_cylinder_exec(bContext *C, wmOperator *op)
 {
   return surf_prim_add(C, op, CU_PRIM_TUBE | CU_NURBS);
 }
@@ -780,11 +778,11 @@ void SURFACE_OT_primitive_nurbs_surface_cylinder_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_nurbs_surface_sphere_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_sphere_exec(bContext *C, wmOperator *op)
 {
   return surf_prim_add(C, op, CU_PRIM_SPHERE | CU_NURBS);
 }
@@ -803,11 +801,11 @@ void SURFACE_OT_primitive_nurbs_surface_sphere_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }
 
-static int add_primitive_nurbs_surface_torus_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_torus_exec(bContext *C, wmOperator *op)
 {
   return surf_prim_add(C, op, CU_PRIM_DONUT | CU_NURBS);
 }
@@ -826,6 +824,6 @@ void SURFACE_OT_primitive_nurbs_surface_torus_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_unit_props_radius(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_unit_props_radius(ot);
+  blender::ed::object::add_generic_props(ot, true);
 }

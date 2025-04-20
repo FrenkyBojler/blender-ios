@@ -18,18 +18,20 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_time.h" /* Smooth-view. */
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_lib_id.hh"
+#include "BKE_report.hh"
+#include "BKE_screen.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -37,25 +39,23 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 #include "ED_transform_snap_object_context.hh"
+#include "ED_undo.hh"
 
-#include "PIL_time.h" /* Smooth-view. */
-
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_immediate.h"
+#include "GPU_immediate.hh"
 
-#include "DEG_depsgraph.hh"
-
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 #include "view3d_navigate.hh"
 
-#include "BLI_strict_flags.h"
+#include <fmt/format.h>
+
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 #ifdef WITH_INPUT_NDOF
-//#  define NDOF_WALK_DEBUG
+// #  define NDOF_WALK_DEBUG
 /* NOTE(@ideasman42): Is this needed for NDOF? commented so redraw doesn't thrash. */
-//#  define NDOF_WALK_DRAW_TOOMUCH
+// #  define NDOF_WALK_DRAW_TOOMUCH
 #endif
 
 #define USE_TABLET_SUPPORT
@@ -110,7 +110,7 @@ enum eWalkDirectionFlag {
   WALK_BIT_GLOBAL_UP = 1 << 6,
   WALK_BIT_GLOBAL_DOWN = 1 << 7,
 };
-ENUM_OPERATORS(eWalkDirectionFlag, WALK_BIT_LOCAL_DOWN)
+ENUM_OPERATORS(eWalkDirectionFlag, WALK_BIT_GLOBAL_DOWN)
 
 enum eWalkTeleportState {
   WALK_TELEPORT_STATE_OFF = 0,
@@ -159,9 +159,9 @@ void walk_modal_keymap(wmKeyConfig *keyconf)
       {WALK_MODAL_DIR_FORWARD_STOP, "FORWARD_STOP", 0, "Stop Move Forward", ""},
       {WALK_MODAL_DIR_BACKWARD_STOP, "BACKWARD_STOP", 0, "Stop Move Backward", ""},
       {WALK_MODAL_DIR_LEFT_STOP, "LEFT_STOP", 0, "Stop Move Left", ""},
-      {WALK_MODAL_DIR_RIGHT_STOP, "RIGHT_STOP", 0, "Stop Mode Right", ""},
+      {WALK_MODAL_DIR_RIGHT_STOP, "RIGHT_STOP", 0, "Stop Move Right", ""},
       {WALK_MODAL_DIR_UP_STOP, "UP_STOP", 0, "Stop Move Global Up", ""},
-      {WALK_MODAL_DIR_DOWN_STOP, "DOWN_STOP", 0, "Stop Mode Global Down", ""},
+      {WALK_MODAL_DIR_DOWN_STOP, "DOWN_STOP", 0, "Stop Move Global Down", ""},
       {WALK_MODAL_DIR_LOCAL_UP_STOP, "LOCAL_UP_STOP", 0, "Stop Move Local Up", ""},
       {WALK_MODAL_DIR_LOCAL_DOWN_STOP, "LOCAL_DOWN_STOP", 0, "Stop Move Local Down", ""},
 
@@ -329,7 +329,7 @@ struct WalkInfo {
   /** Nicer dynamics. */
   float zlock_momentum;
 
-  SnapObjectContext *snap_context;
+  blender::ed::transform::SnapObjectContext *snap_context;
 
   View3DCameraControl *v3d_camera_control;
 };
@@ -359,7 +359,7 @@ static void drawWalkPixel(const bContext * /*C*/, ARegion *region, void *arg)
 
   if (ED_view3d_cameracontrol_object_get(walk->v3d_camera_control)) {
     ED_view3d_calc_camera_border(
-        walk->scene, walk->depsgraph, region, walk->v3d, walk->rv3d, &viewborder, false);
+        walk->scene, walk->depsgraph, region, walk->v3d, walk->rv3d, false, &viewborder);
     xoff = int(viewborder.xmin + BLI_rctf_size_x(&viewborder) * 0.5f);
     yoff = int(viewborder.ymin + BLI_rctf_size_y(&viewborder) * 0.5f);
   }
@@ -436,20 +436,20 @@ static bool walk_floor_distance_get(RegionView3D *rv3d,
   mul_v3_v3fl(dvec_tmp, dvec, walk->grid);
   add_v3_v3(ray_start, dvec_tmp);
 
-  SnapObjectParams snap_params = {};
+  blender::ed::transform::SnapObjectParams snap_params = {};
   snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
   /* Avoid having to convert the edit-mesh to a regular mesh. */
-  snap_params.edit_mode_type = SNAP_GEOM_EDIT;
+  snap_params.edit_mode_type = blender::ed::transform::SNAP_GEOM_EDIT;
 
-  const bool ret = ED_transform_snap_object_project_ray(walk->snap_context,
-                                                        walk->depsgraph,
-                                                        walk->v3d,
-                                                        &snap_params,
-                                                        ray_start,
-                                                        ray_normal,
-                                                        r_distance,
-                                                        location_dummy,
-                                                        normal_dummy);
+  const bool ret = blender::ed::transform::snap_object_project_ray(walk->snap_context,
+                                                                   walk->depsgraph,
+                                                                   walk->v3d,
+                                                                   &snap_params,
+                                                                   ray_start,
+                                                                   ray_normal,
+                                                                   r_distance,
+                                                                   location_dummy,
+                                                                   normal_dummy);
 
   /* Artificially scale the distance to the scene size. */
   *r_distance /= walk->grid;
@@ -478,18 +478,18 @@ static bool walk_ray_cast(RegionView3D *rv3d,
 
   normalize_v3(ray_normal);
 
-  SnapObjectParams snap_params = {};
+  blender::ed::transform::SnapObjectParams snap_params = {};
   snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
 
-  const bool ret = ED_transform_snap_object_project_ray(walk->snap_context,
-                                                        walk->depsgraph,
-                                                        walk->v3d,
-                                                        &snap_params,
-                                                        ray_start,
-                                                        ray_normal,
-                                                        nullptr,
-                                                        r_location,
-                                                        r_normal);
+  const bool ret = blender::ed::transform::snap_object_project_ray(walk->snap_context,
+                                                                   walk->depsgraph,
+                                                                   walk->v3d,
+                                                                   &snap_params,
+                                                                   ray_start,
+                                                                   ray_normal,
+                                                                   nullptr,
+                                                                   r_location,
+                                                                   r_normal);
 
   /* Dot is positive if both rays are facing the same direction. */
   if (dot_v3v3(ray_normal, r_normal) > 0) {
@@ -624,14 +624,14 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
   walk->need_rotation_keyframe = false;
   walk->need_translation_keyframe = false;
 
-  walk->time_lastdraw = PIL_check_seconds_timer();
+  walk->time_lastdraw = BLI_time_now_seconds();
 
   walk->draw_handle_pixel = ED_region_draw_cb_activate(
-      walk->region->type, drawWalkPixel, walk, REGION_DRAW_POST_PIXEL);
+      walk->region->runtime->type, drawWalkPixel, walk, REGION_DRAW_POST_PIXEL);
 
   walk->rv3d->rflag |= RV3D_NAVIGATING;
 
-  walk->snap_context = ED_transform_snap_object_context_create(walk->scene, 0);
+  walk->snap_context = blender::ed::transform::snap_object_context_create(walk->scene, 0);
 
   walk->v3d_camera_control = ED_view3d_cameracontrol_acquire(
       walk->depsgraph, walk->scene, walk->v3d, walk->rv3d);
@@ -644,7 +644,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
   return true;
 }
 
-static int walkEnd(bContext *C, WalkInfo *walk)
+static wmOperatorStatus walkEnd(bContext *C, WalkInfo *walk)
 {
   wmWindow *win;
   RegionView3D *rv3d;
@@ -672,11 +672,13 @@ static int walkEnd(bContext *C, WalkInfo *walk)
   win = CTX_wm_window(C);
   rv3d = walk->rv3d;
 
+  ED_workspace_status_text(C, nullptr);
+
   WM_event_timer_remove(CTX_wm_manager(C), win, walk->timer);
 
-  ED_region_draw_cb_exit(walk->region->type, walk->draw_handle_pixel);
+  ED_region_draw_cb_exit(walk->region->runtime->type, walk->draw_handle_pixel);
 
-  ED_transform_snap_object_context_destroy(walk->snap_context);
+  blender::ed::transform::snap_object_context_destroy(walk->snap_context);
 
   ED_view3d_cameracontrol_release(walk->v3d_camera_control, walk->state == WALK_CANCEL);
 
@@ -765,7 +767,7 @@ static void walkEvent(WalkInfo *walk, const wmEvent *event)
         }
 
         /* Update the time else the view will jump when 2D mouse/timer resume. */
-        walk->time_lastdraw = PIL_check_seconds_timer();
+        walk->time_lastdraw = BLI_time_now_seconds();
 
         break;
       }
@@ -886,7 +888,7 @@ static void walkEvent(WalkInfo *walk, const wmEvent *event)
           float t;
 
           /* Delta time. */
-          t = float(PIL_check_seconds_timer() - walk->teleport.initial_time);
+          t = float(BLI_time_now_seconds() - walk->teleport.initial_time);
 
           /* Reduce the velocity, if JUMP wasn't hold for long enough. */
           t = min_ff(t, JUMP_TIME_MAX);
@@ -911,7 +913,7 @@ static void walkEvent(WalkInfo *walk, const wmEvent *event)
           walk->gravity_state = WALK_GRAVITY_STATE_JUMP;
           walk->speed_jump = JUMP_SPEED_MAX;
 
-          walk->teleport.initial_time = PIL_check_seconds_timer();
+          walk->teleport.initial_time = BLI_time_now_seconds();
           copy_v3_v3(walk->teleport.origin, walk->rv3d->viewinv[3]);
 
           /* Using previous vector because WASD keys are not called when SPACE is. */
@@ -939,7 +941,7 @@ static void walkEvent(WalkInfo *walk, const wmEvent *event)
             teleport->navigation_mode = walk->navigation_mode;
           }
           teleport->state = WALK_TELEPORT_STATE_ON;
-          teleport->initial_time = PIL_check_seconds_timer();
+          teleport->initial_time = BLI_time_now_seconds();
           teleport->duration = U.walk_navigation.teleport_time;
 
           walk_navigation_mode_set(walk, WALK_MODE_FREE);
@@ -1088,7 +1090,7 @@ static int walkApply(bContext *C, WalkInfo *walk, bool is_confirm)
 #ifdef NDOF_WALK_DRAW_TOOMUCH
       walk->redraw = true;
 #endif
-      time_current = PIL_check_seconds_timer();
+      time_current = BLI_time_now_seconds();
       time_redraw = float(time_current - walk->time_lastdraw);
 
       /* Clamp redraw time to avoid jitter in roll correction. */
@@ -1331,7 +1333,7 @@ static int walkApply(bContext *C, WalkInfo *walk, bool is_confirm)
         }
         else {
           /* Hijack the teleport variables. */
-          walk->teleport.initial_time = PIL_check_seconds_timer();
+          walk->teleport.initial_time = BLI_time_now_seconds();
           walk->gravity_state = WALK_GRAVITY_STATE_ON;
           walk->teleport.duration = 0.0f;
 
@@ -1344,7 +1346,7 @@ static int walkApply(bContext *C, WalkInfo *walk, bool is_confirm)
       if (ELEM(walk->gravity_state, WALK_GRAVITY_STATE_ON, WALK_GRAVITY_STATE_JUMP)) {
         float ray_distance, difference = -100.0f;
         /* Delta time. */
-        const float t = float(PIL_check_seconds_timer() - walk->teleport.initial_time);
+        const float t = float(BLI_time_now_seconds() - walk->teleport.initial_time);
 
         /* Keep moving if we were moving. */
         copy_v2_v2(dvec, walk->teleport.direction);
@@ -1387,7 +1389,7 @@ static int walkApply(bContext *C, WalkInfo *walk, bool is_confirm)
         float cur_loc[3];
 
         /* Linear interpolation. */
-        t = float(PIL_check_seconds_timer() - walk->teleport.initial_time);
+        t = float(BLI_time_now_seconds() - walk->teleport.initial_time);
         t /= walk->teleport.duration;
 
         /* Clamp so we don't go past our limit. */
@@ -1418,7 +1420,7 @@ static int walkApply(bContext *C, WalkInfo *walk, bool is_confirm)
     }
     else {
       /* We're not redrawing but we need to update the time else the view will jump. */
-      walk->time_lastdraw = PIL_check_seconds_timer();
+      walk->time_lastdraw = BLI_time_now_seconds();
     }
     /* End drawing. */
     copy_v3_v3(walk->dvec_prev, dvec);
@@ -1466,14 +1468,73 @@ static void walkApply_ndof(bContext *C, WalkInfo *walk, bool is_confirm)
 /** \name Walk Operator
  * \{ */
 
-static int walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static void walk_draw_status(bContext *C, wmOperator *op)
+{
+  WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
+
+  WorkspaceStatus status(C);
+
+  status.opmodal(IFACE_("Confirm"), op->type, WALK_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op->type, WALK_MODAL_CANCEL);
+
+  status.opmodal(
+      "", op->type, WALK_MODAL_DIR_FORWARD, walk->active_directions & WALK_BIT_LOCAL_FORWARD);
+  status.opmodal("", op->type, WALK_MODAL_DIR_LEFT, walk->active_directions & WALK_BIT_LOCAL_LEFT);
+  status.opmodal(
+      "", op->type, WALK_MODAL_DIR_BACKWARD, walk->active_directions & WALK_BIT_LOCAL_BACKWARD);
+  status.opmodal(
+      "", op->type, WALK_MODAL_DIR_RIGHT, walk->active_directions & WALK_BIT_LOCAL_RIGHT);
+  status.item(IFACE_("Move"), ICON_NONE);
+
+  status.opmodal("", op->type, WALK_MODAL_DIR_UP, walk->active_directions & WALK_BIT_GLOBAL_UP);
+  status.opmodal(
+      "", op->type, WALK_MODAL_DIR_DOWN, walk->active_directions & WALK_BIT_GLOBAL_DOWN);
+  status.item(IFACE_("Up/Down"), ICON_NONE);
+
+  status.opmodal(
+      "", op->type, WALK_MODAL_DIR_LOCAL_UP, walk->active_directions & WALK_BIT_LOCAL_UP);
+  status.opmodal(
+      "", op->type, WALK_MODAL_DIR_LOCAL_DOWN, walk->active_directions & WALK_BIT_LOCAL_DOWN);
+  status.item(IFACE_("Local Up/Down"), ICON_NONE);
+
+  status.opmodal(
+      IFACE_("Jump"), op->type, WALK_MODAL_JUMP, walk->gravity_state == WALK_GRAVITY_STATE_JUMP);
+
+  status.opmodal(IFACE_("Teleport"),
+                 op->type,
+                 WALK_MODAL_TELEPORT,
+                 walk->teleport.state == WALK_TELEPORT_STATE_ON);
+
+  status.opmodal(IFACE_("Fast"), op->type, WALK_MODAL_FAST_ENABLE, walk->is_fast);
+  status.opmodal(IFACE_("Slow"), op->type, WALK_MODAL_SLOW_ENABLE, walk->is_slow);
+
+  status.opmodal(IFACE_("Gravity"),
+                 op->type,
+                 WALK_MODAL_GRAVITY_TOGGLE,
+                 walk->navigation_mode == WALK_MODE_GRAVITY);
+
+  status.opmodal("", op->type, WALK_MODAL_ACCELERATE);
+  status.opmodal("", op->type, WALK_MODAL_DECELERATE);
+  status.item(fmt::format("{} ({:.2f})", IFACE_("Acceleration"), g_walk.base_speed), ICON_NONE);
+
+  status.opmodal("", op->type, WALK_MODAL_INCREASE_JUMP);
+  status.opmodal("", op->type, WALK_MODAL_DECREASE_JUMP);
+  status.item(fmt::format("{} ({:.2f})", IFACE_("Jump Height"), g_walk.jump_height), ICON_NONE);
+
+  status.opmodal(IFACE_("Z Axis Correction"),
+                 op->type,
+                 WALK_MODAL_AXIS_LOCK_Z,
+                 walk->zlock != WALK_AXISLOCK_STATE_OFF);
+}
+
+static wmOperatorStatus walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
   }
 
-  WalkInfo *walk = MEM_cnew<WalkInfo>("NavigationWalkOperation");
+  WalkInfo *walk = MEM_callocN<WalkInfo>("NavigationWalkOperation");
 
   op->customdata = walk;
 
@@ -1483,6 +1544,8 @@ static int walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   walkEvent(walk, event);
+
+  walk_draw_status(C, op);
 
   WM_event_add_modal_handler(C, op);
 
@@ -1498,7 +1561,7 @@ static void walk_cancel(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-static int walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bool do_draw = false;
   WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
@@ -1510,6 +1573,8 @@ static int walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   walkEvent(walk, event);
 
+  walk_draw_status(C, op);
+
 #ifdef WITH_INPUT_NDOF
   if (walk->ndof) { /* 3D mouse overrules [2D mouse + timer]. */
     if (event->type == NDOF_MOTION) {
@@ -1518,20 +1583,24 @@ static int walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
   }
   else
 #endif /* WITH_INPUT_NDOF */
-      if (event->type == TIMER && event->customdata == walk->timer)
-  {
-    walkApply(C, walk, false);
-  }
+    if (event->type == TIMER && event->customdata == walk->timer) {
+      walkApply(C, walk, false);
+    }
 
   do_draw |= walk->redraw;
 
-  const int exit_code = walkEnd(C, walk);
+  const wmOperatorStatus exit_code = walkEnd(C, walk);
 
   if (exit_code != OPERATOR_RUNNING_MODAL) {
     do_draw = true;
   }
   if (exit_code == OPERATOR_FINISHED) {
-    ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
+    const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
+    /* If generic 'locked camera' code did not push an undo, but there is a valid 'walking
+     * object', an undo push is still needed, since that object transform was modified. */
+    if (!is_undo_pushed && walk_object && ED_undo_is_memfile_compatible(C)) {
+      ED_undo_push(C, op->type->name);
+    }
   }
 
   if (do_draw) {

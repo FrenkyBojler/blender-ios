@@ -33,32 +33,48 @@
 #include "BLI_compute_context.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_generic_pointer.hh"
-#include "BLI_multi_value_map.hh"
+#include "BLI_linear_allocator_chunked_list.hh"
 
-#include "BKE_attribute.h"
+#include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_node.hh"
 #include "BKE_node_tree_zones.hh"
-#include "BKE_viewer_path.hh"
+#include "BKE_volume_grid_fwd.hh"
+
+#include "NOD_geometry_nodes_closure_location.hh"
+#include "NOD_socket_interface_key.hh"
 
 #include "FN_field.hh"
 
 #include "DNA_node_types.h"
 
 struct SpaceNode;
+struct NodesModifierData;
 
 namespace blender::nodes::geo_eval_log {
 
 using fn::GField;
 
+/** These values are also written to .blend files, so don't change them lightly. */
 enum class NodeWarningType {
-  Error,
-  Warning,
-  Info,
+  Error = 0,
+  Warning = 1,
+  Info = 2,
 };
+
+int node_warning_type_icon(NodeWarningType type);
+int node_warning_type_severity(NodeWarningType type);
 
 struct NodeWarning {
   NodeWarningType type;
   std::string message;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->type, this->message);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(NodeWarning, type, message)
 };
 
 enum class NamedAttributeUsage {
@@ -94,7 +110,7 @@ class GenericValueLog : public ValueLog {
 
   GenericValueLog(const GMutablePointer value) : value(value) {}
 
-  ~GenericValueLog();
+  ~GenericValueLog() override;
 };
 
 /**
@@ -109,10 +125,16 @@ class FieldInfoLog : public ValueLog {
   FieldInfoLog(const GField &field);
 };
 
+struct StringLog : public ValueLog {
+  StringRef value;
+  bool truncated;
+  StringLog(StringRef string, LinearAllocator<> &allocator);
+};
+
 struct GeometryAttributeInfo {
   std::string name;
   /** Can be empty when #name does not actually exist on a geometry yet. */
-  std::optional<eAttrDomain> domain;
+  std::optional<bke::AttrDomain> domain;
   std::optional<eCustomDataType> data_type;
 };
 
@@ -122,6 +144,7 @@ struct GeometryAttributeInfo {
  */
 class GeometryInfoLog : public ValueLog {
  public:
+  std::string name;
   Vector<GeometryAttributeInfo> attributes;
   Vector<bke::GeometryComponent::Type> component_types;
 
@@ -137,13 +160,21 @@ class GeometryInfoLog : public ValueLog {
   };
   struct GreasePencilInfo {
     int layers_num;
+    Vector<std::string> layer_names;
   };
   struct InstancesInfo {
     int instances_num;
   };
   struct EditDataInfo {
-    bool has_deformed_positions;
-    bool has_deform_matrices;
+    bool has_deformed_positions = false;
+    bool has_deform_matrices = false;
+    int gizmo_transforms_num = 0;
+  };
+  struct VolumeInfo {
+    int grids_num;
+  };
+  struct GridInfo {
+    bool is_empty;
   };
 
   std::optional<MeshInfo> mesh_info;
@@ -152,8 +183,51 @@ class GeometryInfoLog : public ValueLog {
   std::optional<GreasePencilInfo> grease_pencil_info;
   std::optional<InstancesInfo> instances_info;
   std::optional<EditDataInfo> edit_data_info;
+  std::optional<VolumeInfo> volume_info;
+  std::optional<GridInfo> grid_info;
 
   GeometryInfoLog(const bke::GeometrySet &geometry_set);
+  GeometryInfoLog(const bke::GVolumeGrid &grid);
+};
+
+class BundleValueLog : public ValueLog {
+ public:
+  struct Item {
+    SocketInterfaceKey key;
+    const bke::bNodeSocketType *type;
+  };
+
+  Vector<Item> items;
+
+  BundleValueLog(Vector<Item> items);
+};
+
+class ClosureValueLog : public ValueLog {
+ public:
+  struct Item {
+    SocketInterfaceKey key;
+    const bke::bNodeSocketType *type;
+  };
+
+  /**
+   * Similar to #ClosureSourceLocation but does not keep pointer references to potentially
+   * temporary data.
+   */
+  struct Source {
+    uint32_t orig_node_tree_session_uid;
+    int closure_output_node_id;
+    ComputeContextHash compute_context_hash;
+  };
+
+  Vector<Item> inputs;
+  Vector<Item> outputs;
+  std::optional<Source> source;
+  std::shared_ptr<ClosureEvalLog> eval_log;
+
+  ClosureValueLog(Vector<Item> inputs,
+                  Vector<Item> outputs,
+                  const std::optional<ClosureSourceLocation> &source_location,
+                  std::shared_ptr<ClosureEvalLog> eval_log);
 };
 
 /**
@@ -175,8 +249,15 @@ using TimePoint = Clock::time_point;
 class GeoTreeLogger {
  public:
   std::optional<ComputeContextHash> parent_hash;
-  std::optional<int32_t> group_node_id;
+  std::optional<int32_t> parent_node_id;
   Vector<ComputeContextHash> children_hashes;
+  /**
+   * The #ID.session_uid of the tree that this logger is for. It's an optional value because under
+   * some circumstances it's not possible to know this exactly currently (e.g. for closures).
+   */
+  std::optional<uint32_t> tree_orig_session_uid;
+  /** The time spend in the compute context that this logger corresponds to. */
+  std::chrono::nanoseconds execution_time{};
 
   LinearAllocator<> *allocator = nullptr;
 
@@ -207,14 +288,19 @@ class GeoTreeLogger {
     int32_t node_id;
     StringRefNull message;
   };
+  struct EvaluatedGizmoNode {
+    int32_t node_id;
+  };
 
-  Vector<WarningWithNode> node_warnings;
-  Vector<SocketValueLog> input_socket_values;
-  Vector<SocketValueLog> output_socket_values;
-  Vector<NodeExecutionTime> node_execution_times;
-  Vector<ViewerNodeLogWithNode, 0> viewer_node_logs;
-  Vector<AttributeUsageWithNode, 0> used_named_attributes;
-  Vector<DebugMessage, 0> debug_messages;
+  linear_allocator::ChunkedList<WarningWithNode> node_warnings;
+  linear_allocator::ChunkedList<SocketValueLog, 16> input_socket_values;
+  linear_allocator::ChunkedList<SocketValueLog, 16> output_socket_values;
+  linear_allocator::ChunkedList<NodeExecutionTime, 16> node_execution_times;
+  linear_allocator::ChunkedList<ViewerNodeLogWithNode> viewer_node_logs;
+  linear_allocator::ChunkedList<AttributeUsageWithNode> used_named_attributes;
+  linear_allocator::ChunkedList<DebugMessage> debug_messages;
+  /** Keeps track of which gizmo nodes have been tracked by this evaluation. */
+  linear_allocator::ChunkedList<EvaluatedGizmoNode> evaluated_gizmo_nodes;
 
   GeoTreeLogger();
   ~GeoTreeLogger();
@@ -234,12 +320,9 @@ class GeoTreeLogger {
 class GeoNodeLog {
  public:
   /** Warnings generated for that node. */
-  Vector<NodeWarning> warnings;
-  /**
-   * Time spent in this node. For node groups this is the sum of the run times of the nodes
-   * inside.
-   */
-  std::chrono::nanoseconds run_time{0};
+  VectorSet<NodeWarning> warnings;
+  /** Time spent in this node. */
+  std::chrono::nanoseconds execution_time{0};
   /** Maps from socket indices to their values. */
   Map<int, ValueLog *> input_values_;
   Map<int, ValueLog *> output_values_;
@@ -267,33 +350,84 @@ class GeoTreeLog {
   Vector<GeoTreeLogger *> tree_loggers_;
   VectorSet<ComputeContextHash> children_hashes_;
   bool reduced_node_warnings_ = false;
-  bool reduced_node_run_times_ = false;
+  bool reduced_execution_times_ = false;
   bool reduced_socket_values_ = false;
   bool reduced_viewer_node_logs_ = false;
   bool reduced_existing_attributes_ = false;
   bool reduced_used_named_attributes_ = false;
   bool reduced_debug_messages_ = false;
+  bool reduced_evaluated_gizmo_nodes_ = false;
+  bool reduced_layer_names_ = false;
 
  public:
   Map<int32_t, GeoNodeLog> nodes;
   Map<int32_t, ViewerNodeLog *, 0> viewer_node_logs;
-  Vector<NodeWarning> all_warnings;
-  std::chrono::nanoseconds run_time_sum{0};
+  VectorSet<NodeWarning> all_warnings;
+  std::chrono::nanoseconds execution_time{0};
   Vector<const GeometryAttributeInfo *> existing_attributes;
   Map<StringRefNull, NamedAttributeUsage> used_named_attributes;
+  Set<int> evaluated_gizmo_nodes;
+  Vector<std::string> all_layer_names;
 
   GeoTreeLog(GeoModifierLog *modifier_log, Vector<GeoTreeLogger *> tree_loggers);
   ~GeoTreeLog();
 
-  void ensure_node_warnings();
-  void ensure_node_run_time();
+  /**
+   * Propagate node warnings. This needs access to the node group pointers, because propagation
+   * settings are stored on the nodes. However, the log can only store weak pointers (in the form
+   * of e.g. session ids) to original data to avoid dangling pointers.
+   */
+  void ensure_node_warnings(const NodesModifierData &nmd);
+  void ensure_node_warnings(const Main &bmain);
+  void ensure_node_warnings(const Map<uint32_t, const bNodeTree *> &orig_tree_by_session_uid);
+
+  void ensure_execution_times();
   void ensure_socket_values();
   void ensure_viewer_node_logs();
   void ensure_existing_attributes();
   void ensure_used_named_attributes();
   void ensure_debug_messages();
+  void ensure_evaluated_gizmo_nodes();
+  void ensure_layer_names();
 
   ValueLog *find_socket_value_log(const bNodeSocket &query_socket);
+  [[nodiscard]] bool try_convert_primitive_socket_value(const GenericValueLog &value_log,
+                                                        const CPPType &dst_type,
+                                                        void *dst);
+
+  template<typename T>
+  std::optional<T> find_primitive_socket_value(const bNodeSocket &query_socket)
+  {
+    if (auto *value_log = dynamic_cast<GenericValueLog *>(
+            this->find_socket_value_log(query_socket)))
+    {
+      T value;
+      if (this->try_convert_primitive_socket_value(*value_log, CPPType::get<T>(), &value)) {
+        return value;
+      }
+    }
+    return std::nullopt;
+  }
+};
+
+class ContextualGeoTreeLogs {
+ private:
+  Map<const bke::bNodeTreeZone *, GeoTreeLog *> tree_logs_by_zone_;
+
+ public:
+  ContextualGeoTreeLogs(Map<const bke::bNodeTreeZone *, GeoTreeLog *> tree_logs_by_zone = {});
+
+  /**
+   * Get a tree log for the given zone/node/socket if available.
+   */
+  GeoTreeLog *get_main_tree_log(const bke::bNodeTreeZone *zone) const;
+  GeoTreeLog *get_main_tree_log(const bNode &node) const;
+  GeoTreeLog *get_main_tree_log(const bNodeSocket &socket) const;
+
+  /**
+   * Runs a callback for each tree log that may be returned above.
+   */
+  void foreach_tree_log(FunctionRef<void(GeoTreeLog &)> callback) const;
 };
 
 /**
@@ -339,10 +473,10 @@ class GeoModifierLog {
    * Utility accessor to logged data.
    */
   static Map<const bke::bNodeTreeZone *, ComputeContextHash>
-  get_context_hash_by_zone_for_node_editor(const SpaceNode &snode, StringRefNull modifier_name);
+  get_context_hash_by_zone_for_node_editor(const SpaceNode &snode,
+                                           bke::ComputeContextCache &compute_context_cache);
 
-  static Map<const bke::bNodeTreeZone *, GeoTreeLog *> get_tree_log_by_zone_for_node_editor(
-      const SpaceNode &snode);
+  static ContextualGeoTreeLogs get_contextual_tree_logs(const SpaceNode &snode);
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
 };
 

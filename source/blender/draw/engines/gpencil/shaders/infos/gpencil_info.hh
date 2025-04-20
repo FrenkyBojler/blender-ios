@@ -2,92 +2,84 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#ifdef GPU_SHADER
+#  pragma once
+
+#  include "gpu_glsl_cpp_stubs.hh"
+
+#  define GP_LIGHT
+
+#  include "gpencil_shader_shared.hh"
+
+#  include "draw_object_infos_info.hh"
+#  include "draw_view_info.hh"
+#  include "gpu_shader_fullscreen_info.hh"
+
+#  define SMAA_GLSL_3
+#  define SMAA_STAGE 1
+#  define SMAA_PRESET_HIGH
+#  define SMAA_NO_DISCARD
+#  define SMAA_RT_METRICS viewportMetrics
+#  define SMAA_LUMA_WEIGHT float4(1.0f, 1.0f, 1.0f, 1.0f)
+#endif
+
 #include "gpu_shader_create_info.hh"
 
-#include "gpencil_defines.h"
+#include "gpencil_defines.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name GPencil Object rendering
  * \{ */
 
-GPU_SHADER_INTERFACE_INFO(gpencil_geometry_iface, "gp_interp")
-    .smooth(Type::VEC4, "color_mul")
-    .smooth(Type::VEC4, "color_add")
-    .smooth(Type::VEC3, "pos")
-    .smooth(Type::VEC2, "uv");
-GPU_SHADER_INTERFACE_INFO(gpencil_geometry_flat_iface, "gp_interp_flat")
-    .flat(Type::VEC2, "aspect")
-    .flat(Type::VEC4, "sspos")
-    .flat(Type::UINT, "mat_flag")
-    .flat(Type::FLOAT, "depth");
-GPU_SHADER_INTERFACE_INFO(gpencil_geometry_noperspective_iface, "gp_interp_noperspective")
-    .no_perspective(Type::VEC2, "thickness")
-    .no_perspective(Type::FLOAT, "hardness");
+GPU_SHADER_NAMED_INTERFACE_INFO(gpencil_geometry_iface, gp_interp)
+SMOOTH(float4, color_mul)
+SMOOTH(float4, color_add)
+SMOOTH(float3, pos)
+SMOOTH(float2, uv)
+GPU_SHADER_NAMED_INTERFACE_END(gp_interp)
+GPU_SHADER_NAMED_INTERFACE_INFO(gpencil_geometry_flat_iface, gp_interp_flat)
+FLAT(float2, aspect)
+FLAT(float4, sspos)
+FLAT(uint, mat_flag)
+FLAT(float, depth)
+GPU_SHADER_NAMED_INTERFACE_END(gp_interp_flat)
+GPU_SHADER_NAMED_INTERFACE_INFO(gpencil_geometry_noperspective_iface, gp_interp_noperspective)
+NO_PERSPECTIVE(float2, thickness)
+NO_PERSPECTIVE(float, hardness)
+GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 
 GPU_SHADER_CREATE_INFO(gpencil_geometry)
-    .do_static_compilation(true)
-    .define("GP_LIGHT")
-    .typedef_source("gpencil_defines.h")
-    .sampler(2, ImageType::FLOAT_2D, "gpFillTexture")
-    .sampler(3, ImageType::FLOAT_2D, "gpStrokeTexture")
-    .sampler(4, ImageType::DEPTH_2D, "gpSceneDepthTexture")
-    .sampler(5, ImageType::FLOAT_2D, "gpMaskTexture")
-    .uniform_buf(4, "gpMaterial", "gp_materials[GPENCIL_MATERIAL_BUFFER_LEN]", Frequency::BATCH)
-    .uniform_buf(3, "gpLight", "gp_lights[GPENCIL_LIGHT_BUFFER_LEN]", Frequency::BATCH)
-    .push_constant(Type::VEC2, "viewportSize")
-    /* Per Object */
-    .push_constant(Type::VEC3, "gpNormal")
-    .push_constant(Type::BOOL, "gpStrokeOrder3d")
-    .push_constant(Type::INT, "gpMaterialOffset")
-    /* Per Layer */
-    .push_constant(Type::FLOAT, "gpVertexColorOpacity")
-    .push_constant(Type::VEC4, "gpLayerTint")
-    .push_constant(Type::FLOAT, "gpLayerOpacity")
-    .push_constant(Type::FLOAT, "gpStrokeIndexOffset")
-    .fragment_out(0, Type::VEC4, "fragColor")
-    .fragment_out(1, Type::VEC4, "revealColor")
-    .vertex_out(gpencil_geometry_iface)
-    .vertex_out(gpencil_geometry_flat_iface)
-    .vertex_out(gpencil_geometry_noperspective_iface)
-    .vertex_source("gpencil_vert.glsl")
-    .fragment_source("gpencil_frag.glsl")
-    .depth_write(DepthWrite::ANY)
-    .additional_info("draw_gpencil");
-
-GPU_SHADER_CREATE_INFO(gpencil_geometry_next)
-    .do_static_compilation(true)
-    .define("GP_LIGHT")
-    .typedef_source("gpencil_defines.h")
-    .sampler(GPENCIL_SCENE_DEPTH_TEX_SLOT, ImageType::DEPTH_2D, "gpSceneDepthTexture")
-    .sampler(GPENCIL_MASK_TEX_SLOT, ImageType::FLOAT_2D, "gpMaskTexture")
-    .sampler(GPENCIL_FILL_TEX_SLOT, ImageType::FLOAT_2D, "gpFillTexture")
-    .sampler(GPENCIL_STROKE_TEX_SLOT, ImageType::FLOAT_2D, "gpStrokeTexture")
-    .storage_buf(GPENCIL_OBJECT_SLOT, Qualifier::READ, "gpObject", "gp_object[]")
-    .storage_buf(GPENCIL_LAYER_SLOT, Qualifier::READ, "gpLayer", "gp_layer[]")
-    .storage_buf(GPENCIL_MATERIAL_SLOT, Qualifier::READ, "gpMaterial", "gp_materials[]")
-    .storage_buf(GPENCIL_LIGHT_SLOT, Qualifier::READ, "gpLight", "gp_lights[]")
-    .uniform_buf(GPENCIL_SCENE_SLOT, "gpScene", "gp_scene")
-    /* Per Scene */
-    .define("viewportSize", "gp_scene.render_size")
-    /* Per Object */
-    .define("gpNormal", "gp_object[resource_id].normal")
-    .define("gpStrokeOrder3d", "gp_object[resource_id].stroke_order3d")
-    .define("gpMaterialOffset", "gp_object[resource_id].material_offset")
-    /* Per Layer */
-    .define("layer_id", "gp_object[resource_id].layer_offset") /* TODO */
-    .define("gpVertexColorOpacity", "gp_layer[layer_id].vertex_color_opacity")
-    .define("gpLayerTint", "gp_layer[layer_id].tint")
-    .define("gpLayerOpacity", "gp_layer[layer_id].opacity")
-    .define("gpStrokeIndexOffset", "gp_layer[layer_id].stroke_index_offset")
-    .fragment_out(0, Type::VEC4, "fragColor")
-    .fragment_out(1, Type::VEC4, "revealColor")
-    .vertex_out(gpencil_geometry_iface)
-    .vertex_out(gpencil_geometry_flat_iface)
-    .vertex_out(gpencil_geometry_noperspective_iface)
-    .vertex_source("grease_pencil_vert.glsl")
-    .fragment_source("grease_pencil_frag.glsl")
-    .additional_info("draw_gpencil_new")
-    .depth_write(DepthWrite::ANY);
+DO_STATIC_COMPILATION()
+DEFINE("GP_LIGHT")
+TYPEDEF_SOURCE("gpencil_defines.hh")
+SAMPLER(2, FLOAT_2D, gpFillTexture)
+SAMPLER(3, FLOAT_2D, gpStrokeTexture)
+SAMPLER(4, DEPTH_2D, gpSceneDepthTexture)
+SAMPLER(5, FLOAT_2D, gpMaskTexture)
+UNIFORM_BUF_FREQ(4, gpMaterial, gp_materials[GPENCIL_MATERIAL_BUFFER_LEN], BATCH)
+UNIFORM_BUF_FREQ(3, gpLight, gp_lights[GPENCIL_LIGHT_BUFFER_LEN], BATCH)
+PUSH_CONSTANT(float2, viewportSize)
+/* Per Object */
+PUSH_CONSTANT(float3, gpNormal)
+PUSH_CONSTANT(bool, gpStrokeOrder3d)
+PUSH_CONSTANT(int, gpMaterialOffset)
+/* Per Layer */
+PUSH_CONSTANT(float, gpVertexColorOpacity)
+PUSH_CONSTANT(float4, gpLayerTint)
+PUSH_CONSTANT(float, gpLayerOpacity)
+PUSH_CONSTANT(float, gpStrokeIndexOffset)
+FRAGMENT_OUT(0, float4, fragColor)
+FRAGMENT_OUT(1, float4, revealColor)
+VERTEX_OUT(gpencil_geometry_iface)
+VERTEX_OUT(gpencil_geometry_flat_iface)
+VERTEX_OUT(gpencil_geometry_noperspective_iface)
+VERTEX_SOURCE("gpencil_vert.glsl")
+FRAGMENT_SOURCE("gpencil_frag.glsl")
+DEPTH_WRITE(DepthWrite::ANY)
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_modelmat)
+ADDITIONAL_INFO(draw_gpencil)
+GPU_SHADER_CREATE_END()
 
 /** \} */
 
@@ -96,45 +88,38 @@ GPU_SHADER_CREATE_INFO(gpencil_geometry_next)
  * \{ */
 
 GPU_SHADER_CREATE_INFO(gpencil_layer_blend)
-    .do_static_compilation(true)
-    .sampler(0, ImageType::FLOAT_2D, "colorBuf")
-    .sampler(1, ImageType::FLOAT_2D, "revealBuf")
-    .sampler(2, ImageType::FLOAT_2D, "maskBuf")
-    .push_constant(Type::INT, "blendMode")
-    .push_constant(Type::FLOAT, "blendOpacity")
-    /* Reminder: This is considered SRC color in blend equations.
-     * Same operation on all buffers. */
-    .fragment_out(0, Type::VEC4, "fragColor")
-    .fragment_out(1, Type::VEC4, "fragRevealage")
-    .fragment_source("gpencil_layer_blend_frag.glsl")
-    .additional_info("draw_fullscreen");
+DO_STATIC_COMPILATION()
+SAMPLER(0, FLOAT_2D, colorBuf)
+SAMPLER(1, FLOAT_2D, revealBuf)
+SAMPLER(2, FLOAT_2D, maskBuf)
+PUSH_CONSTANT(int, blendMode)
+PUSH_CONSTANT(float, blendOpacity)
+/* Reminder: This is considered SRC color in blend equations.
+ * Same operation on all buffers. */
+FRAGMENT_OUT(0, float4, fragColor)
+FRAGMENT_OUT(1, float4, fragRevealage)
+FRAGMENT_SOURCE("gpencil_layer_blend_frag.glsl")
+ADDITIONAL_INFO(gpu_fullscreen)
+GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_mask_invert)
-    .do_static_compilation(true)
-    .fragment_out(0, Type::VEC4, "fragColor")
-    .fragment_out(1, Type::VEC4, "fragRevealage")
-    .fragment_source("gpencil_mask_invert_frag.glsl")
-    .additional_info("draw_fullscreen");
+DO_STATIC_COMPILATION()
+FRAGMENT_OUT(0, float4, fragColor)
+FRAGMENT_OUT(1, float4, fragRevealage)
+FRAGMENT_SOURCE("gpencil_mask_invert_frag.glsl")
+ADDITIONAL_INFO(gpu_fullscreen)
+GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_depth_merge)
-    .do_static_compilation(true)
-    .push_constant(Type::VEC4, "gpModelMatrix", 4)
-    .push_constant(Type::BOOL, "strokeOrder3d")
-    .sampler(0, ImageType::DEPTH_2D, "depthBuf")
-    .vertex_source("gpencil_depth_merge_vert.glsl")
-    .fragment_source("gpencil_depth_merge_frag.glsl")
-    .depth_write(DepthWrite::ANY)
-    .additional_info("draw_view");
-
-GPU_SHADER_CREATE_INFO(grease_pencil_depth_merge)
-    .do_static_compilation(true)
-    .define("strokeOrder3d", "false")
-    .sampler(0, ImageType::DEPTH_2D, "depthBuf")
-    .vertex_in(0, Type::VEC3, "pos")
-    .vertex_source("grease_pencil_depth_merge_vert.glsl")
-    .fragment_source("gpencil_depth_merge_frag.glsl")
-    .depth_write(DepthWrite::ANY)
-    .additional_info("draw_modelmat_new", "draw_view");
+DO_STATIC_COMPILATION()
+PUSH_CONSTANT(float4x4, gpModelMatrix)
+PUSH_CONSTANT(bool, strokeOrder3d)
+SAMPLER(0, DEPTH_2D, depthBuf)
+VERTEX_SOURCE("gpencil_depth_merge_vert.glsl")
+FRAGMENT_SOURCE("gpencil_depth_merge_frag.glsl")
+DEPTH_WRITE(DepthWrite::ANY)
+ADDITIONAL_INFO(draw_view)
+GPU_SHADER_CREATE_END()
 
 /** \} */
 
@@ -142,53 +127,68 @@ GPU_SHADER_CREATE_INFO(grease_pencil_depth_merge)
 /** \name Anti-Aliasing
  * \{ */
 
-GPU_SHADER_INTERFACE_INFO(gpencil_antialiasing_iface, "")
-    .smooth(Type::VEC2, "uvs")
-    .smooth(Type::VEC2, "pixcoord")
-    .smooth(Type::VEC4, "offset[3]");
+GPU_SHADER_INTERFACE_INFO(gpencil_antialiasing_iface)
+SMOOTH(float2, uvs)
+SMOOTH(float2, pixcoord)
+SMOOTH(float4, offset[3])
+GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_antialiasing)
-    .define("SMAA_GLSL_3")
-    .define("SMAA_RT_METRICS", "viewportMetrics")
-    .define("SMAA_PRESET_HIGH")
-    .define("SMAA_LUMA_WEIGHT", "float4(lumaWeight, lumaWeight, lumaWeight, 0.0)")
-    .define("SMAA_NO_DISCARD")
-    .vertex_out(gpencil_antialiasing_iface)
-    .push_constant(Type::VEC4, "viewportMetrics")
-    .push_constant(Type::FLOAT, "lumaWeight")
-    .vertex_source("gpencil_antialiasing_vert.glsl")
-    .fragment_source("gpencil_antialiasing_frag.glsl");
+DEFINE("SMAA_GLSL_3")
+DEFINE_VALUE("SMAA_RT_METRICS", "viewportMetrics")
+DEFINE("SMAA_PRESET_HIGH")
+DEFINE_VALUE("SMAA_LUMA_WEIGHT", "float4(lumaWeight, lumaWeight, lumaWeight, 0.0f)")
+DEFINE("SMAA_NO_DISCARD")
+VERTEX_OUT(gpencil_antialiasing_iface)
+PUSH_CONSTANT(float4, viewportMetrics)
+PUSH_CONSTANT(float, lumaWeight)
+VERTEX_SOURCE("gpencil_antialiasing_vert.glsl")
+FRAGMENT_SOURCE("gpencil_antialiasing_frag.glsl")
+GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_antialiasing_stage_0)
-    .define("SMAA_STAGE", "0")
-    .sampler(0, ImageType::FLOAT_2D, "colorTex")
-    .sampler(1, ImageType::FLOAT_2D, "revealTex")
-    .fragment_out(0, Type::VEC2, "out_edges")
-    .additional_info("gpencil_antialiasing")
-    .do_static_compilation(true);
+DEFINE_VALUE("SMAA_STAGE", "0")
+SAMPLER(0, FLOAT_2D, colorTex)
+SAMPLER(1, FLOAT_2D, revealTex)
+FRAGMENT_OUT(0, float2, out_edges)
+ADDITIONAL_INFO(gpencil_antialiasing)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_antialiasing_stage_1)
-    .define("SMAA_STAGE", "1")
-    .sampler(0, ImageType::FLOAT_2D, "edgesTex")
-    .sampler(1, ImageType::FLOAT_2D, "areaTex")
-    .sampler(2, ImageType::FLOAT_2D, "searchTex")
-    .fragment_out(0, Type::VEC4, "out_weights")
-    .additional_info("gpencil_antialiasing")
-    .do_static_compilation(true);
+DEFINE_VALUE("SMAA_STAGE", "1")
+SAMPLER(0, FLOAT_2D, edgesTex)
+SAMPLER(1, FLOAT_2D, areaTex)
+SAMPLER(2, FLOAT_2D, searchTex)
+FRAGMENT_OUT(0, float4, out_weights)
+ADDITIONAL_INFO(gpencil_antialiasing)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_antialiasing_stage_2)
-    .define("SMAA_STAGE", "2")
-    .sampler(0, ImageType::FLOAT_2D, "colorTex")
-    .sampler(1, ImageType::FLOAT_2D, "revealTex")
-    .sampler(2, ImageType::FLOAT_2D, "blendTex")
-    .push_constant(Type::FLOAT, "mixFactor")
-    .push_constant(Type::FLOAT, "taaAccumulatedWeight")
-    .push_constant(Type::BOOL, "doAntiAliasing")
-    .push_constant(Type::BOOL, "onlyAlpha")
-    /* Reminder: Blending func is `fragRevealage * DST + fragColor`. */
-    .fragment_out(0, Type::VEC4, "out_color", DualBlend::SRC_0)
-    .fragment_out(0, Type::VEC4, "out_reveal", DualBlend::SRC_1)
-    .additional_info("gpencil_antialiasing")
-    .do_static_compilation(true);
+DEFINE_VALUE("SMAA_STAGE", "2")
+SAMPLER(0, FLOAT_2D, colorTex)
+SAMPLER(1, FLOAT_2D, revealTex)
+SAMPLER(2, FLOAT_2D, blendTex)
+PUSH_CONSTANT(float, mixFactor)
+PUSH_CONSTANT(float, taaAccumulatedWeight)
+PUSH_CONSTANT(bool, doAntiAliasing)
+PUSH_CONSTANT(bool, onlyAlpha)
+/* Reminder: Blending func is `fragRevealage * DST + fragColor`. */
+FRAGMENT_OUT_DUAL(0, float4, out_color, SRC_0)
+FRAGMENT_OUT_DUAL(0, float4, out_reveal, SRC_1)
+ADDITIONAL_INFO(gpencil_antialiasing)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(gpencil_antialiasing_accumulation)
+IMAGE(0, GPENCIL_RENDER_FORMAT, READ, FLOAT_2D, src_img)
+IMAGE(1, GPENCIL_ACCUM_FORMAT, READ_WRITE, FLOAT_2D, dst_img)
+PUSH_CONSTANT(float, weight_src)
+PUSH_CONSTANT(float, weight_dst)
+FRAGMENT_SOURCE("gpencil_antialiasing_accumulation_frag.glsl")
+ADDITIONAL_INFO(gpu_fullscreen)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
 
 /** \} */

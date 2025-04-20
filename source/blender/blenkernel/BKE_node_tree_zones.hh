@@ -8,8 +8,11 @@
  * \ingroup bke
  */
 
+#include <iosfwd>
+
 #include "DNA_node_types.h"
 
+#include "BLI_map.hh"
 #include "BLI_vector.hh"
 
 namespace blender::bke {
@@ -33,16 +36,24 @@ class bNodeTreeZone {
   Vector<bNodeTreeZone *> child_zones;
   /** Direct children nodes excluding nodes that belong to child zones. */
   Vector<const bNode *> child_nodes;
-  /** Links that enter the zone through the zone border. */
+  /**
+   * Links that enter the zone through the zone border and carry information. This excludes muted
+   * and unavailable links as well as links that are dangling because they are only connected to a
+   * reroute.
+   */
   Vector<const bNodeLink *> border_links;
 
   bool contains_node_recursively(const bNode &node) const;
   bool contains_zone_recursively(const bNodeTreeZone &other_zone) const;
+
+  friend std::ostream &operator<<(std::ostream &stream, const bNodeTreeZone &zone);
 };
 
 class bNodeTreeZones {
  public:
-  Vector<std::unique_ptr<bNodeTreeZone>> zones;
+  Vector<std::unique_ptr<bNodeTreeZone>> zones_ptrs;
+  /** Same as #zones_ptrs, but usually easier to iterate over. */
+  Vector<bNodeTreeZone *> zones;
   Vector<bNodeTreeZone *> root_zones;
   Vector<const bNode *> nodes_outside_zones;
   /**
@@ -64,10 +75,25 @@ class bNodeTreeZones {
   const bNodeTreeZone *get_zone_by_node(const int32_t node_id) const;
 
   /**
-   * Get a sorted list of zones that the node is in. First comes the root zone and last the most
-   * nested zone. For nodes that are at the root level, the returned list is empty.
+   * Check if a link from the first zone to a socket in the second zone is allowed. Either zone
+   * input may also be null which represents the root tree outside of any zone. Generally, a link
+   * can only go into zones, but not out of zones.
    */
-  Vector<const bNodeTreeZone *> get_zone_stack_for_node(const int32_t node_id) const;
+  bool link_between_zones_is_allowed(const bNodeTreeZone *from_zone,
+                                     const bNodeTreeZone *to_zone) const;
+
+  /**
+   * Get the ordered list of zones that a link going from an outer to an inner zone has to enter.
+   */
+  Vector<const bNodeTreeZone *> get_zones_to_enter(const bNodeTreeZone *outer_zone,
+                                                   const bNodeTreeZone *inner_zone) const;
+
+  /**
+   * Same as #get_zones_to_enter but starts at the top level of the node tree.
+   */
+  Vector<const bNodeTreeZone *> get_zones_to_enter_from_root(const bNodeTreeZone *zone) const;
+
+  friend std::ostream &operator<<(std::ostream &stream, const bNodeTreeZones &zones);
 };
 
 const bNodeTreeZones *get_tree_zones(const bNodeTree &tree);

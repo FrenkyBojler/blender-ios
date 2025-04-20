@@ -17,20 +17,23 @@ namespace blender::nodes::node_geo_set_shade_smooth_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<decl::Geometry>("Geometry").supported_type(GeometryComponent::Type::Mesh);
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Bool>("Shade Smooth").default_value(true).field_on_all();
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = ATTR_DOMAIN_FACE;
+  node->custom1 = int16_t(AttrDomain::Face);
 }
 
 /**
@@ -40,18 +43,16 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
  */
 static bool try_removing_sharp_attribute(Mesh &mesh,
                                          const StringRef name,
-                                         const Field<bool> &selection_field,
-                                         const Field<bool> &sharp_field)
+                                         const Field<bool> &selection,
+                                         const Field<bool> &sharpness)
 {
-  if (selection_field.node().depends_on_input() || sharp_field.node().depends_on_input()) {
+  if (selection.node().depends_on_input() || sharpness.node().depends_on_input()) {
     return false;
   }
-  const bool selection = fn::evaluate_constant_field(selection_field);
-  if (!selection) {
+  if (!fn::evaluate_constant_field(selection)) {
     return true;
   }
-  const bool sharp = fn::evaluate_constant_field(sharp_field);
-  if (sharp) {
+  if (fn::evaluate_constant_field(sharpness)) {
     return false;
   }
   mesh.attributes_for_write().remove(name);
@@ -59,44 +60,39 @@ static bool try_removing_sharp_attribute(Mesh &mesh,
 }
 
 static void set_sharp(Mesh &mesh,
-                      const eAttrDomain domain,
+                      const AttrDomain domain,
                       const StringRef name,
-                      const Field<bool> &selection_field,
-                      const Field<bool> &sharp_field)
+                      const Field<bool> &selection,
+                      const Field<bool> &sharpness)
 {
   const int domain_size = mesh.attributes().domain_size(domain);
-  if (mesh.attributes().domain_size(domain) == 0) {
+  if (domain_size == 0) {
     return;
   }
-  if (try_removing_sharp_attribute(mesh, name, selection_field, sharp_field)) {
+  if (try_removing_sharp_attribute(mesh, name, selection, sharpness)) {
     return;
   }
-
-  MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  AttributeWriter<bool> sharp = attributes.lookup_or_add_for_write<bool>(name, domain);
-
-  const bke::MeshFieldContext field_context{mesh, domain};
-  fn::FieldEvaluator evaluator{field_context, domain_size};
-  evaluator.set_selection(selection_field);
-  evaluator.add_with_destination(sharp_field, sharp.varray);
-  evaluator.evaluate();
-
-  sharp.finish();
+  bke::try_capture_field_on_geometry(mesh.attributes_for_write(),
+                                     bke::MeshFieldContext(mesh, domain),
+                                     name,
+                                     domain,
+                                     selection,
+                                     sharpness);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const eAttrDomain domain = eAttrDomain(params.node().custom1);
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  Field<bool> smooth_field = params.extract_input<Field<bool>>("Shade Smooth");
+  const AttrDomain domain = AttrDomain(params.node().custom1);
+  const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
+  const Field<bool> smooth_field = params.extract_input<Field<bool>>("Shade Smooth");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
       set_sharp(*mesh,
                 domain,
-                domain == ATTR_DOMAIN_FACE ? "sharp_face" : "sharp_edge",
-                selection_field,
+                domain == AttrDomain::Face ? "sharp_face" : "sharp_edge",
+                selection,
                 fn::invert_boolean_field(smooth_field));
     }
   });
@@ -115,14 +111,20 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_SHADE_SMOOTH, "Set Shade Smooth", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSetShadeSmooth", GEO_NODE_SET_SHADE_SMOOTH);
+  ntype.ui_name = "Set Shade Smooth";
+  ntype.ui_description =
+      "Control the smoothness of mesh normals around each face by changing the \"shade smooth\" "
+      "attribute";
+  ntype.enum_name_legacy = "SET_SHADE_SMOOTH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

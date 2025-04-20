@@ -21,9 +21,9 @@
 
 #include "BKE_customdata.hh"
 
-#include "bmesh.h"
-#include "intern/bmesh_operators_private.h"
-#include "intern/bmesh_private.h"
+#include "bmesh.hh"
+#include "intern/bmesh_operators_private.hh"
+#include "intern/bmesh_private.hh"
 
 using blender::Vector;
 
@@ -65,10 +65,10 @@ static void bmo_subd_init_shape_info(BMesh *bm, SubDParams *params)
   params->shape_info.totlayer = CustomData_number_of_layers(&bm->vdata, CD_SHAPEKEY);
 }
 
-typedef void (*subd_pattern_fill_fp)(BMesh *bm,
-                                     BMFace *face,
-                                     BMVert **verts,
-                                     const SubDParams *params);
+using subd_pattern_fill_fp = void (*)(BMesh *bm,
+                                      BMFace *face,
+                                      BMVert **verts,
+                                      const SubDParams *params);
 
 /*
  * NOTE: this is a pattern-based edge subdivider.
@@ -1310,7 +1310,6 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
       bm, op, op->slots_out, "geom.out", BM_ALL_NOLOOP, ELE_INNER | ELE_SPLIT | SUBD_SPLIT);
 }
 
-/* editmesh-emulating function */
 void BM_mesh_esubdivide(BMesh *bm,
                         const char edge_hflag,
                         const float smooth,

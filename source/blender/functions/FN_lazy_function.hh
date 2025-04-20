@@ -42,14 +42,12 @@
 
 #include "BLI_cpp_type.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_vector.hh"
 
-#include <atomic>
-#include <thread>
-
-#ifdef DEBUG
+#ifndef NDEBUG
+#  include <atomic>
+#  include <thread>
 #  define FN_LAZY_FUNCTION_DEBUG_THREADS
 #endif
 
@@ -141,7 +139,6 @@ class Params {
   std::atomic<bool> allow_multi_threading_;
 #endif
 
- public:
   Params(const LazyFunction &fn, bool allow_multi_threading_initially);
 
   /**
@@ -196,11 +193,6 @@ class Params {
   template<typename T> T *try_get_input_data_ptr(int index) const;
   template<typename T> T *try_get_input_data_ptr_or_request(int index);
   template<typename T> void set_output(int index, T &&value);
-
-  /**
-   * Utility to initialize all outputs that haven't been set yet.
-   */
-  void set_default_remaining_outputs();
 
   /**
    * Returns true when the lazy-function is now allowed to use multi-threading when interacting

@@ -4,15 +4,14 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_threads.h"
-#include "BLI_timeit.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -40,7 +39,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryImageTexture *tex = MEM_cnew<NodeGeometryImageTexture>(__func__);
+  NodeGeometryImageTexture *tex = MEM_callocN<NodeGeometryImageTexture>(__func__);
   tex->interpolation = SHD_INTERP_LINEAR;
   tex->extension = SHD_IMAGE_EXTENSION_REPEAT;
   node->storage = tex;
@@ -83,7 +82,7 @@ class ImageFieldsFunction : public mf::MultiFunction {
     if (image_buffer_->float_buffer.data == nullptr) {
       BLI_thread_lock(LOCK_IMAGE);
       if (!image_buffer_->float_buffer.data) {
-        IMB_float_from_rect(image_buffer_);
+        IMB_float_from_byte(image_buffer_);
       }
       BLI_thread_unlock(LOCK_IMAGE);
     }
@@ -127,7 +126,7 @@ class ImageFieldsFunction : public mf::MultiFunction {
     if (px < 0 || py < 0 || px >= ibuf.x || py >= ibuf.y) {
       return float4(0.0f, 0.0f, 0.0f, 0.0f);
     }
-    return ((const float4 *)ibuf.float_buffer.data)[px + py * ibuf.x];
+    return ((const float4 *)ibuf.float_buffer.data)[size_t(px) + size_t(py) * size_t(ibuf.x)];
   }
 
   static float frac(const float x, int *ix)
@@ -418,18 +417,22 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_IMAGE_TEXTURE, "Image Texture", NODE_CLASS_TEXTURE);
+  geo_node_type_base(&ntype, "GeometryNodeImageTexture", GEO_NODE_IMAGE_TEXTURE);
+  ntype.ui_name = "Image Texture";
+  ntype.ui_description = "Sample values from an image texture";
+  ntype.enum_name_legacy = "IMAGE_TEXTURE";
+  ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  node_type_storage(
-      &ntype, "NodeGeometryImageTexture", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
+  blender::bke::node_type_storage(
+      ntype, "NodeGeometryImageTexture", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
   ntype.geometry_node_execute = node_geo_exec;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

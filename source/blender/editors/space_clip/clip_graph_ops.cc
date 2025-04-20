@@ -6,6 +6,8 @@
  * \ingroup spclip
  */
 
+#include <algorithm>
+
 #include "DNA_scene_types.h"
 
 #include "BLI_math_geom.h"
@@ -13,10 +15,14 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_context.hh"
 #include "BKE_tracking.h"
 
 #include "DEG_depsgraph.hh"
+
+#include "UI_interface_icons.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -30,11 +36,11 @@
 
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 /******************** common graph-editing utilities ********************/
 
-static bool ED_space_clip_graph_poll(bContext *C)
+static bool space_clip_graph_poll(bContext *C)
 {
   if (ED_space_clip_tracking_poll(C)) {
     SpaceClip *sc = CTX_wm_space_clip(C);
@@ -47,7 +53,7 @@ static bool ED_space_clip_graph_poll(bContext *C)
 
 static bool clip_graph_knots_poll(bContext *C)
 {
-  if (ED_space_clip_graph_poll(C)) {
+  if (space_clip_graph_poll(C)) {
     SpaceClip *sc = CTX_wm_space_clip(C);
 
     return (sc->flag & (SC_SHOW_GRAPH_TRACKS_MOTION | SC_SHOW_GRAPH_TRACKS_ERROR)) != 0;
@@ -270,7 +276,7 @@ static bool mouse_select_curve(bContext *C, const float co[2], bool extend)
   return false;
 }
 
-static int mouse_select(bContext *C, float co[2], bool extend)
+static wmOperatorStatus mouse_select(bContext *C, float co[2], bool extend)
 {
   bool sel = false;
 
@@ -289,7 +295,7 @@ static int mouse_select(bContext *C, float co[2], bool extend)
   return OPERATOR_FINISHED;
 }
 
-static int select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 {
   float co[2];
   bool extend = RNA_boolean_get(op->ptr, "extend");
@@ -299,7 +305,7 @@ static int select_exec(bContext *C, wmOperator *op)
   return mouse_select(C, co, extend);
 }
 
-static int select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   float co[2];
@@ -388,7 +394,7 @@ static void box_select_cb(void *userdata,
   }
 }
 
-static int box_select_graph_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus box_select_graph_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -445,7 +451,7 @@ void CLIP_OT_graph_select_box(wmOperatorType *ot)
 
 /********************** select all operator *********************/
 
-static int graph_select_all_markers_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_select_all_markers_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -510,7 +516,7 @@ void CLIP_OT_graph_select_all_markers(wmOperatorType *ot)
 
 /******************** delete curve operator ********************/
 
-static int delete_curve_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_curve_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -526,6 +532,20 @@ static int delete_curve_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus delete_curve_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Delete track corresponding to the selected curve?"),
+                                  nullptr,
+                                  IFACE_("Delete"),
+                                  ALERT_ICON_NONE,
+                                  false);
+  }
+  return delete_curve_exec(C, op);
+}
+
 void CLIP_OT_graph_delete_curve(wmOperatorType *ot)
 {
   /* identifiers */
@@ -534,7 +554,7 @@ void CLIP_OT_graph_delete_curve(wmOperatorType *ot)
   ot->idname = "CLIP_OT_graph_delete_curve";
 
   /* api callbacks */
-  ot->invoke = WM_operator_confirm_or_exec;
+  ot->invoke = delete_curve_invoke;
   ot->exec = delete_curve_exec;
   ot->poll = clip_graph_knots_poll;
 
@@ -545,7 +565,7 @@ void CLIP_OT_graph_delete_curve(wmOperatorType *ot)
 
 /******************** delete knot operator ********************/
 
-static int delete_knot_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_knot_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -600,16 +620,11 @@ static void view_all_cb(void *userdata,
 {
   ViewAllUserData *data = (ViewAllUserData *)userdata;
 
-  if (val < data->min) {
-    data->min = val;
-  }
-
-  if (val > data->max) {
-    data->max = val;
-  }
+  data->min = std::min(val, data->min);
+  data->max = std::max(val, data->max);
 }
 
-static int view_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view_all_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -665,7 +680,7 @@ void CLIP_OT_graph_view_all(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = view_all_exec;
-  ot->poll = ED_space_clip_graph_poll;
+  ot->poll = space_clip_graph_poll;
 }
 
 /******************** jump to current frame operator ********************/
@@ -680,7 +695,7 @@ void ED_clip_graph_center_current_frame(Scene *scene, ARegion *region)
   v2d->cur.xmax = float(scene->r.cfra) + extra;
 }
 
-static int center_current_frame_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus center_current_frame_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -701,12 +716,12 @@ void CLIP_OT_graph_center_current_frame(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = center_current_frame_exec;
-  ot->poll = ED_space_clip_graph_poll;
+  ot->poll = space_clip_graph_poll;
 }
 
 /********************** disable markers operator *********************/
 
-static int graph_disable_markers_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_disable_markers_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -757,7 +772,7 @@ void CLIP_OT_graph_disable_markers(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = graph_disable_markers_exec;
-  ot->poll = ED_space_clip_graph_poll;
+  ot->poll = space_clip_graph_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

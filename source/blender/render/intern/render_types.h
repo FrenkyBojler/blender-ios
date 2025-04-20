@@ -23,9 +23,14 @@
 
 #include "tile_highlight.h"
 
+namespace blender::compositor {
+class RenderContext;
+class Profiler;
+enum class OutputTypes : uint8_t;
+}  // namespace blender::compositor
+
 struct bNodeTree;
 struct Depsgraph;
-struct GSet;
 struct Main;
 struct Object;
 struct RenderEngine;
@@ -41,12 +46,13 @@ struct BaseRender {
    * highlight. */
   virtual blender::render::TilesHighlight *get_tile_highlight() = 0;
 
-  /* GPU/realtime compositor. */
   virtual void compositor_execute(const Scene &scene,
                                   const RenderData &render_data,
                                   const bNodeTree &node_tree,
-                                  const bool use_file_output,
-                                  const char *view_name) = 0;
+                                  const char *view_name,
+                                  blender::compositor::RenderContext *render_context,
+                                  blender::compositor::Profiler *profiler,
+                                  blender::compositor::OutputTypes needed_outputs) = 0;
   virtual void compositor_free() = 0;
 
   virtual void display_init(RenderResult *render_result) = 0;
@@ -96,8 +102,10 @@ struct ViewRender : public BaseRender {
   void compositor_execute(const Scene & /*scene*/,
                           const RenderData & /*render_data*/,
                           const bNodeTree & /*node_tree*/,
-                          const bool /*use_file_output*/,
-                          const char * /*view_name*/) override
+                          const char * /*view_name*/,
+                          blender::compositor::RenderContext * /*render_context*/,
+                          blender::compositor::Profiler * /*profiler*/,
+                          blender::compositor::OutputTypes /*needed_outputs*/) override
   {
   }
   void compositor_free() override {}
@@ -125,12 +133,12 @@ struct ViewRender : public BaseRender {
   }
 };
 
-/* Controls state of render, everything that's read-only during render stage */
+/** Controls state of render, everything that's read-only during render stage. */
 struct Render : public BaseRender {
   /* NOTE: Currently unused, provision for the future.
    * Add these now to allow the guarded memory allocator to catch C-specific function calls. */
   Render() = default;
-  virtual ~Render();
+  ~Render() override;
 
   blender::render::TilesHighlight *get_tile_highlight() override
   {
@@ -140,8 +148,10 @@ struct Render : public BaseRender {
   void compositor_execute(const Scene &scene,
                           const RenderData &render_data,
                           const bNodeTree &node_tree,
-                          const bool use_file_output,
-                          const char *view_name) override;
+                          const char *view_name,
+                          blender::compositor::RenderContext *render_context,
+                          blender::compositor::Profiler *profiler,
+                          blender::compositor::OutputTypes needed_outputs) override;
   void compositor_free() override;
 
   void display_init(RenderResult *render_result) override;
@@ -203,11 +213,10 @@ struct Render : public BaseRender {
   struct Depsgraph *pipeline_depsgraph = nullptr;
   Scene *pipeline_scene_eval = nullptr;
 
-  /* Realtime GPU Compositor.
-   * NOTE: Use bare pointer instead of smart pointer because the RealtimeCompositor is a fully
-   * opaque type. */
-  blender::render::RealtimeCompositor *gpu_compositor = nullptr;
-  std::mutex gpu_compositor_mutex;
+  /* Compositor.
+   * NOTE: Use bare pointer instead of smart pointer because the it is a fully opaque type. */
+  blender::render::Compositor *compositor = nullptr;
+  std::mutex compositor_mutex;
 
   /* Callbacks for the corresponding base class method implementation. */
   void (*display_init_cb)(void *handle, RenderResult *rr) = nullptr;
@@ -240,7 +249,7 @@ struct Render : public BaseRender {
    */
   struct ReportList *reports = nullptr;
 
-  void **movie_ctx_arr = nullptr;
+  blender::Vector<MovieWriter *> movie_writers;
   char viewname[MAX_NAME] = "";
 
   /* TODO: replace by a whole draw manager. */
@@ -251,4 +260,10 @@ struct Render : public BaseRender {
 /* **************** defines ********************* */
 
 /** #R.flag */
-#define R_ANIMATION 1
+#define R_ANIMATION 1 << 0
+/* Indicates that the render pipeline should not write its render result. This happens for instance
+ * when the render pipeline uses the compositor, but the compositor node tree does not have an
+ * output composite node or a render layer input, and consequently no render result. In that case,
+ * the output will be written from the File Output nodes, since the render pipeline will early fail
+ * if neither a File Output nor a Composite node exist in the scene. */
+#define R_SKIP_WRITE 1 << 1

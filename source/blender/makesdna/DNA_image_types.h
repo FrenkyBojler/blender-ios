@@ -13,14 +13,16 @@
 #include "DNA_defs.h"
 
 struct GPUTexture;
+struct MovieReader;
 struct MovieCache;
 struct PackedFile;
 struct RenderResult;
 struct Scene;
-struct anim;
 
-/* ImageUser is in Texture, in Nodes, Background Image, Image Window, .... */
-/* should be used in conjunction with an ID * to Image. */
+/**
+ * ImageUser is in Texture, in Nodes, Background Image, Image Window, ...
+ * should be used in conjunction with an ID * to Image.
+ */
 typedef struct ImageUser {
   /** To retrieve render result. */
   struct Scene *scene;
@@ -47,7 +49,7 @@ typedef struct ImageUser {
 
 typedef struct ImageAnim {
   struct ImageAnim *next, *prev;
-  struct anim *anim;
+  struct MovieReader *anim;
 } ImageAnim;
 
 typedef struct ImageView {
@@ -118,7 +120,7 @@ typedef enum eGPUTextureTarget {
   TEXTARGET_COUNT,
 } eGPUTextureTarget;
 
-/* Defined in BKE_image.h. */
+/* Defined in BKE_image.hh. */
 struct PartialUpdateRegister;
 struct PartialUpdateUser;
 
@@ -132,10 +134,19 @@ typedef struct Image_Runtime {
   /** \brief Partial update user for GPUTextures stored inside the Image. */
   struct PartialUpdateUser *partial_update_user;
 
+  void *_pad;
+
+  /* The image's current update count. See deg::set_id_update_count for more information. */
+  uint64_t update_count;
+
+  /* Compositor viewer might be translated, and that translation will be stored in this runtime
+   * vector by the compositor so that the editor draw code can draw the image translated. */
+  float backdrop_offset[2];
 } Image_Runtime;
 
 typedef struct Image {
   ID id;
+  struct AnimData *adt;
 
   /** File path, 1024 = FILE_MAX. */
   char filepath[1024];
@@ -194,9 +205,6 @@ typedef struct Image {
   /** For viewer node stereoscopy. */
   char eye;
   char views_format;
-
-  /** Offset caused by translation. Used in compositor backdrop for viewer nodes in image space. */
-  int offset_x, offset_y;
 
   /* ImageTile list for UDIMs. */
   int active_tile_index;
@@ -285,3 +293,9 @@ enum {
   IMA_ALPHA_CHANNEL_PACKED = 2,
   IMA_ALPHA_IGNORE = 3,
 };
+
+/* Image gpu runtime defaults */
+#define IMAGE_GPU_FRAME_NONE INT_MAX
+#define IMAGE_GPU_PASS_NONE SHRT_MAX
+#define IMAGE_GPU_LAYER_NONE SHRT_MAX
+#define IMAGE_GPU_VIEW_NONE SHRT_MAX

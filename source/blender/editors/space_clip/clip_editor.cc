@@ -29,20 +29,17 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_mask.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "ED_clip.hh"
-#include "ED_mask.hh"
-#include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
 #include "WM_api.hh"
@@ -50,9 +47,7 @@
 
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
-
-#include "PIL_time.h"
+#include "clip_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Operator Poll Functions
@@ -143,58 +138,61 @@ bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext *C)
 /** \name Common Editing Functions
  * \{ */
 
-void ED_space_clip_get_size(const SpaceClip *sc, int *width, int *height)
+void ED_space_clip_get_size(const SpaceClip *sc, int *r_width, int *r_height)
 {
   if (sc->clip) {
-    BKE_movieclip_get_size(sc->clip, &sc->user, width, height);
+    BKE_movieclip_get_size(sc->clip, &sc->user, r_width, r_height);
   }
   else {
-    *width = *height = IMG_SIZE_FALLBACK;
+    *r_width = *r_height = IMG_SIZE_FALLBACK;
   }
 }
 
-void ED_space_clip_get_size_fl(const SpaceClip *sc, float size[2])
+void ED_space_clip_get_size_fl(const SpaceClip *sc, float r_size[2])
 {
   int size_i[2];
   ED_space_clip_get_size(sc, &size_i[0], &size_i[1]);
-  size[0] = size_i[0];
-  size[1] = size_i[1];
+  r_size[0] = size_i[0];
+  r_size[1] = size_i[1];
 }
 
-void ED_space_clip_get_zoom(const SpaceClip *sc, const ARegion *region, float *zoomx, float *zoomy)
+void ED_space_clip_get_zoom(const SpaceClip *sc,
+                            const ARegion *region,
+                            float *r_zoomx,
+                            float *r_zoomy)
 {
   int width, height;
 
   ED_space_clip_get_size(sc, &width, &height);
 
-  *zoomx = float(BLI_rcti_size_x(&region->winrct) + 1) /
-           (BLI_rctf_size_x(&region->v2d.cur) * width);
-  *zoomy = float(BLI_rcti_size_y(&region->winrct) + 1) /
-           (BLI_rctf_size_y(&region->v2d.cur) * height);
+  *r_zoomx = float(BLI_rcti_size_x(&region->winrct) + 1) /
+             (BLI_rctf_size_x(&region->v2d.cur) * width);
+  *r_zoomy = float(BLI_rcti_size_y(&region->winrct) + 1) /
+             (BLI_rctf_size_y(&region->v2d.cur) * height);
 }
 
-void ED_space_clip_get_aspect(const SpaceClip *sc, float *aspx, float *aspy)
+void ED_space_clip_get_aspect(const SpaceClip *sc, float *r_aspx, float *r_aspy)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
   if (clip) {
-    BKE_movieclip_get_aspect(clip, aspx, aspy);
+    BKE_movieclip_get_aspect(clip, r_aspx, r_aspy);
   }
   else {
-    *aspx = *aspy = 1.0f;
+    *r_aspx = *r_aspy = 1.0f;
   }
 
-  if (*aspx < *aspy) {
-    *aspy = *aspy / *aspx;
-    *aspx = 1.0f;
+  if (*r_aspx < *r_aspy) {
+    *r_aspy = *r_aspy / *r_aspx;
+    *r_aspx = 1.0f;
   }
   else {
-    *aspx = *aspx / *aspy;
-    *aspy = 1.0f;
+    *r_aspx = *r_aspx / *r_aspy;
+    *r_aspy = 1.0f;
   }
 }
 
-void ED_space_clip_get_aspect_dimension_aware(const SpaceClip *sc, float *aspx, float *aspy)
+void ED_space_clip_get_aspect_dimension_aware(const SpaceClip *sc, float *r_aspx, float *r_aspy)
 {
   int w, h;
 
@@ -206,25 +204,25 @@ void ED_space_clip_get_aspect_dimension_aware(const SpaceClip *sc, float *aspx, 
    */
 
   if (!sc->clip) {
-    *aspx = 1.0f;
-    *aspy = 1.0f;
+    *r_aspx = 1.0f;
+    *r_aspy = 1.0f;
 
     return;
   }
 
-  ED_space_clip_get_aspect(sc, aspx, aspy);
+  ED_space_clip_get_aspect(sc, r_aspx, r_aspy);
   BKE_movieclip_get_size(sc->clip, &sc->user, &w, &h);
 
-  *aspx *= float(w);
-  *aspy *= float(h);
+  *r_aspx *= float(w);
+  *r_aspy *= float(h);
 
-  if (*aspx < *aspy) {
-    *aspy = *aspy / *aspx;
-    *aspx = 1.0f;
+  if (*r_aspx < *r_aspy) {
+    *r_aspy = *r_aspy / *r_aspx;
+    *r_aspx = 1.0f;
   }
   else {
-    *aspx = *aspx / *aspy;
-    *aspy = 1.0f;
+    *r_aspx = *r_aspx / *r_aspy;
+    *r_aspy = 1.0f;
   }
 }
 
@@ -264,7 +262,7 @@ ImBuf *ED_space_clip_get_stable_buffer(const SpaceClip *sc,
     ImBuf *ibuf;
 
     ibuf = BKE_movieclip_get_stable_ibuf(
-        sc->clip, &sc->user, loc, scale, angle, sc->postproc_flag);
+        sc->clip, &sc->user, sc->postproc_flag, loc, scale, angle);
 
     if (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data)) {
       return ibuf;
@@ -510,14 +508,16 @@ void ED_clip_point_stable_pos(
 
   if (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
-    MovieTracking *tracking = &clip->tracking;
-    float aspy = 1.0f / tracking->camera.pixel_aspect;
-    float tmp[2] = {*xr * width, *yr * height * aspy};
+    if (clip != nullptr) {
+      MovieTracking *tracking = &clip->tracking;
+      float aspy = 1.0f / tracking->camera.pixel_aspect;
+      float tmp[2] = {*xr * width, *yr * height * aspy};
 
-    BKE_tracking_distort_v2(tracking, width, height, tmp, tmp);
+      BKE_tracking_distort_v2(tracking, width, height, tmp, tmp);
 
-    *xr = tmp[0] / width;
-    *yr = tmp[1] / (height * aspy);
+      *xr = tmp[0] / width;
+      *yr = tmp[1] / (height * aspy);
+    }
   }
 }
 
@@ -717,7 +717,7 @@ static uchar *prefetch_read_file_to_memory(
     return nullptr;
   }
 
-  uchar *mem = MEM_cnew_array<uchar>(size, "movieclip prefetch memory file");
+  uchar *mem = MEM_calloc_arrayN<uchar>(size, "movieclip prefetch memory file");
   if (mem == nullptr) {
     close(file);
     return nullptr;
@@ -847,7 +847,7 @@ static void prefetch_task_func(TaskPool *__restrict pool, void *task_data)
   while ((mem = prefetch_thread_next_frame(queue, clip, &size, &current_frame))) {
     ImBuf *ibuf;
     MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
-    int flag = IB_rect | IB_multilayer | IB_alphamode_detect | IB_metadata;
+    int flag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
     int result;
     char *colorspace_name = nullptr;
     const bool use_proxy = (clip->flag & MCLIP_USE_PROXY) &&
@@ -862,7 +862,7 @@ static void prefetch_task_func(TaskPool *__restrict pool, void *task_data)
       colorspace_name = clip->colorspace_settings.name;
     }
 
-    ibuf = IMB_ibImageFromMemory(mem, size, flag, colorspace_name, "prefetch frame");
+    ibuf = IMB_load_image_from_memory(mem, size, flag, "prefetch frame", nullptr, colorspace_name);
     if (ibuf == nullptr) {
       continue;
     }
@@ -1126,7 +1126,7 @@ void clip_start_prefetch_job(const bContext *C)
                        WM_JOB_TYPE_CLIP_PREFETCH);
 
   /* create new job */
-  pj = MEM_cnew<PrefetchJob>("prefetch job");
+  pj = MEM_callocN<PrefetchJob>("prefetch job");
   pj->clip = ED_space_clip_get_clip(sc);
   pj->start_frame = prefetch_get_start_frame(C);
   pj->current_frame = sc->user.framenr;
@@ -1137,7 +1137,7 @@ void clip_start_prefetch_job(const bContext *C)
   /* Create a local copy of the clip, so that video file (clip->anim) access can happen without
    * acquiring the lock which will interfere with the main thread. */
   if (pj->clip->source == MCLIP_SRC_MOVIE) {
-    BKE_id_copy_ex(nullptr, (ID *)&pj->clip->id, (ID **)&pj->clip_local, LIB_ID_COPY_LOCALIZE);
+    BKE_id_copy_ex(nullptr, (&pj->clip->id), (ID **)&pj->clip_local, LIB_ID_COPY_LOCALIZE);
   }
 
   WM_jobs_customdata_set(wm_job, pj, prefetch_freejob);

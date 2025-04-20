@@ -2,11 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "MEM_guardedalloc.h"
-
 #include "ocio_impl.h"
 
-static IOCIOImpl *impl = NULL;
+static IOCIOImpl *impl = nullptr;
 
 void OCIO_init()
 {
@@ -20,7 +18,7 @@ void OCIO_init()
 void OCIO_exit()
 {
   delete impl;
-  impl = NULL;
+  impl = nullptr;
 }
 
 OCIO_ConstConfigRcPtr *OCIO_getCurrentConfig()
@@ -75,6 +73,11 @@ OCIO_ConstColorSpaceRcPtr *OCIO_configGetColorSpace(OCIO_ConstConfigRcPtr *confi
 int OCIO_configGetIndexForColorSpace(OCIO_ConstConfigRcPtr *config, const char *name)
 {
   return impl->configGetIndexForColorSpace(config, name);
+}
+
+const char *OCIO_getColorSpaceFromFilepath(OCIO_ConstConfigRcPtr *config, const char *filepath)
+{
+  return impl->getColorSpaceFromFilepath(config, filepath);
 }
 
 const char *OCIO_configGetDefaultDisplay(OCIO_ConstConfigRcPtr *config)
@@ -257,10 +260,22 @@ OCIO_ConstProcessorRcPtr *OCIO_createDisplayProcessor(OCIO_ConstConfigRcPtr *con
                                                       const char *look,
                                                       const float scale,
                                                       const float exponent,
+                                                      const float temperature,
+                                                      const float tint,
+                                                      const bool use_white_balance,
                                                       const bool inverse)
 {
-  return impl->createDisplayProcessor(
-      config, input, view, display, look, scale, exponent, inverse);
+  return impl->createDisplayProcessor(config,
+                                      input,
+                                      view,
+                                      display,
+                                      look,
+                                      scale,
+                                      exponent,
+                                      temperature,
+                                      tint,
+                                      use_white_balance,
+                                      inverse);
 }
 
 OCIO_PackedImageDesc *OCIO_createOCIO_PackedImageDesc(float *data,
@@ -294,9 +309,12 @@ bool OCIO_gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                                const float scale,
                                const float exponent,
                                const float dither,
+                               const float temperature,
+                               const float tint,
                                const bool use_predivide,
                                const bool use_overlay,
-                               const bool use_hdr)
+                               const bool use_hdr,
+                               const bool use_white_balance)
 {
   return impl->gpuDisplayShaderBind(config,
                                     input,
@@ -307,9 +325,12 @@ bool OCIO_gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                                     scale,
                                     exponent,
                                     dither,
+                                    temperature,
+                                    tint,
                                     use_predivide,
                                     use_overlay,
-                                    use_hdr);
+                                    use_hdr,
+                                    use_white_balance);
 }
 
 void OCIO_gpuDisplayShaderUnbind()

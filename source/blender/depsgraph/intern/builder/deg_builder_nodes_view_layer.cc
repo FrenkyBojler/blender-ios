@@ -10,25 +10,19 @@
 
 #include "intern/builder/deg_builder_nodes.h"
 
-#include <cstdio>
 #include <cstdlib>
-
-#include "MEM_guardedalloc.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_collection_types.h"
 #include "DNA_freestyle_types.h"
 #include "DNA_layer_types.h"
-#include "DNA_linestyle_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_layer.h"
-#include "BKE_main.h"
+#include "BLI_listbase.h"
+
+#include "BKE_layer.hh"
+#include "BKE_main.hh"
 #include "BKE_node.hh"
 
 #include "DEG_depsgraph.hh"
@@ -36,7 +30,6 @@
 
 #include "intern/builder/deg_builder.h"
 #include "intern/depsgraph.hh"
-#include "intern/depsgraph_type.hh"
 #include "intern/node/deg_node.hh"
 #include "intern/node/deg_node_component.hh"
 #include "intern/node/deg_node_operation.hh"
@@ -73,7 +66,7 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
                                             ViewLayer *view_layer,
                                             eDepsNode_LinkedState_Type linked_state)
 {
-  /* NOTE: Pass view layer index of 0 since after scene CoW there is
+  /* NOTE: Pass view layer index of 0 since after scene evaluated copy there is
    * only one view layer in there. */
   view_layer_index_ = 0;
   /* Scene ID block. */
@@ -87,10 +80,10 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
   /* Setup currently building context. */
   scene_ = scene;
   view_layer_ = view_layer;
-  /* Get pointer to a CoW version of scene ID. */
+  /* Get pointer to an evaluated version of scene ID. */
   Scene *scene_cow = get_cow_datablock(scene);
   /* Scene objects. */
-  /* NOTE: Base is used for function bindings as-is, so need to pass CoW base,
+  /* NOTE: Base is used for function bindings as-is, so need to pass evaluated base,
    * but object is expected to be an original one. Hence we go into some
    * tricks here iterating over the view layer. */
   int base_index = 0;
@@ -142,6 +135,10 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
   /* Material override. */
   if (view_layer->mat_override != nullptr) {
     build_material(view_layer->mat_override);
+  }
+  /* World override */
+  if (view_layer->world_override != nullptr) {
+    build_world(view_layer->world_override);
   }
   /* Freestyle linesets. */
   LISTBASE_FOREACH (FreestyleLineSet *, fls, &view_layer->freestyle_config.linesets) {

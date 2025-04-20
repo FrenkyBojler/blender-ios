@@ -25,9 +25,9 @@
 #include "ED_mask.hh"
 #include "ED_screen.hh"
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
-static int mask_parent_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_parent_clear_exec(bContext *C, wmOperator * /*op*/)
 {
   Mask *mask = CTX_data_edit_mask(C);
 
@@ -69,7 +69,7 @@ void MASK_OT_parent_clear(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int mask_parent_set_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_parent_set_exec(bContext *C, wmOperator * /*op*/)
 {
   Mask *mask = CTX_data_edit_mask(C);
 
