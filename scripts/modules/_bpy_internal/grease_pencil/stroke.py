@@ -147,15 +147,13 @@ class GreasePencilStrokePointHandle:
 
     @property
     def type(self):
-        return self._point._get_attribute(
-            f"{self._name}_type", 'INT', 0
-        )
+        key = 'handle_type_left' if self._name == 'handle_left' else 'handle_type_right'
+        return self._point._get_attribute(key, 'INT', 0)
 
     @type.setter
     def type(self, value):
-        self._point._set_attribute(
-            f"{self._name}_type", 'INT', value, 0
-        )
+        key = 'handle_type_left' if self._name == 'handle_left' else 'handle_type_right'
+        self._point._set_attribute(key, 'INT', value, 0)
 
     @property
     def select(self):
