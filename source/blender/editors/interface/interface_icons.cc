@@ -1739,20 +1739,6 @@ static void icon_draw_size(float x,
 
     color[3] *= alpha;
 
-    if (decoration && decoration->background.has_value()) {
-      rctf rect = {x, x + w, y, y + h};
-      BLI_rctf_pad(&rect, decoration->background->padding, decoration->background->padding);
-      const float radius = (float(h) / 2.0f) + decoration->background->padding;
-      UI_draw_roundbox_corner_set(UI_CNR_ALL);
-      UI_draw_roundbox_4fv_ex(&rect,
-                              decoration->background->inner_color,
-                              nullptr,
-                              1.0f,
-                              decoration->background->outline_color,
-                              decoration->background->outline_width * U.pixelsize,
-                              radius);
-    }
-
     if (di->type == ICON_TYPE_SVG_COLOR) {
       BLF_draw_svg_icon(uint(icon_id),
                         x,
@@ -1774,23 +1760,21 @@ static void icon_draw_size(float x,
                         nullptr);
     }
 
-    if (decoration && decoration->icon_overlay.has_value()) {
-      BLF_draw_svg_icon(uint(decoration->icon_overlay->icon_id),
+    if (decoration && decoration->icon.has_value()) {
+      BLF_draw_svg_icon(uint(decoration->icon->icon_id),
                         x + (float(draw_size) * 0.35f / aspect),
                         y + (float(draw_size) * 0.35f / aspect),
                         float(draw_size) * 0.75f / aspect,
-                        decoration->icon_overlay->icon_color[3] != 0.0f ?
-                            decoration->icon_overlay->icon_color :
-                            nullptr,
+                        decoration->icon->color[3] != 0.0f ? decoration->icon->color : nullptr,
                         outline_intensity,
                         true);
     }
 
-    if (decoration && decoration->text[0] != '\0') {
+    if (decoration && decoration->text.has_value()) {
       /* Handle the little numbers on top of the icon. */
       uchar text_color[4];
-      if (decoration->text_color[3]) {
-        copy_v4_v4_uchar(text_color, decoration->text_color);
+      if (decoration->text->color[3]) {
+        copy_v4_v4_uchar(text_color, decoration->text->color);
       }
       else {
         UI_GetThemeColor4ubv(TH_TEXT, text_color);
@@ -1806,27 +1790,28 @@ static void icon_draw_size(float x,
       uiFontStyleDraw_Params params = {UI_STYLE_TEXT_RIGHT, 0};
       UI_fontstyle_draw(&fstyle_small,
                         &text_rect,
-                        decoration->text,
-                        sizeof(decoration->text),
+                        decoration->text->text.c_str(),
+                        sizeof(decoration->text->text.size()),
                         text_color,
                         &params);
     }
 
-    if (decoration && decoration->ring.has_value()) {
+    if (decoration && decoration->progress.has_value()) {
       rctf rect = {x, x + w, y, y + h};
-      BLI_rctf_pad(&rect, decoration->ring->padding, decoration->ring->padding);
-      const float ring_width = 1.0f - ((decoration->ring->ring_width * U.pixelsize) / float(h));
+      BLI_rctf_pad(&rect, decoration->progress->padding, decoration->progress->padding);
+      const float ring_width = 1.0f -
+                               ((decoration->progress->ring_width * U.pixelsize) / float(h));
       const float outer_rad = (rect.ymax - rect.ymin) / 2.0f;
       const float inner_rad = outer_rad * ring_width;
       const float x = rect.xmin + outer_rad;
       const float y = rect.ymin + outer_rad;
       const float start = 0.0f;
-      const float end = decoration->ring->progress * 360.0f;
+      const float end = decoration->progress->progress * 360.0f;
 
       GPUVertFormat *format = immVertexFormat();
       const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-      immUniformColor3fvAlpha(decoration->ring->ring_color, 1.0f / UI_PIXEL_AA_JITTER * 2);
+      immUniformColor3fvAlpha(decoration->progress->ring_color, 1.0f / UI_PIXEL_AA_JITTER * 2);
 
       GPU_blend(GPU_BLEND_ALPHA);
 
@@ -2281,17 +2266,6 @@ ImBuf *UI_svg_icon_bitmap(uint icon_id, float size, bool multicolor)
   }
 
   return ibuf;
-}
-
-void UI_icon_text_overlay_init_from_count(IconDecoration *decoration,
-                                          const int icon_indicator_number)
-{
-  /* The icon indicator is used as an aggregator, no need to show if it is 1. */
-  if (icon_indicator_number < 2) {
-    decoration->text[0] = '\0';
-    return;
-  }
-  BLI_str_format_integer_unit(decoration->text, icon_indicator_number);
 }
 
 /* ********** Alert Icons ********** */

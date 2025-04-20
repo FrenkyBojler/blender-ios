@@ -65,7 +65,7 @@ void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path)
     }
     uiBut *but = uiItemL_ex(
         sub_row, context_path[i].name.c_str(), context_path[i].icon, false, false);
-    UI_but_icon_indicator_number_set(but, context_path[i].icon_indicator_number);
+    UI_but_icon_decoration_number_set(but, context_path[i].icon_indicator_number);
   }
 }
 

@@ -153,7 +153,7 @@ int uiTemplateRecentFiles(uiLayout *layout, int rows)
     UI_but_func_tooltip_custom_set(
         but, uiTemplateRecentFiles_tooltip_func, BLI_strdup(recent->filepath), MEM_freeN);
     if (!BLI_exists(recent->filepath)) {
-      but->icon_decoration.icon_overlay.emplace().icon_id = ICON_ERROR_OVERLAY;
+      but->icon_decoration.icon.emplace().icon_id = ICON_ERROR_OVERLAY;
     }
   }
 

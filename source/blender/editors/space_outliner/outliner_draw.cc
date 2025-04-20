@@ -1875,9 +1875,9 @@ static void outliner_draw_userbuts(uiBlock *block,
       if (!real_users && !has_fake_user) {
         uchar overlay_color[4];
         UI_GetThemeColor4ubv(TH_REDALERT, overlay_color);
-        UI_but_icon_indicator_color_set(bt, overlay_color);
+        UI_but_icon_decoration_text_color_set(bt, overlay_color);
       }
-      UI_but_icon_indicator_set(bt, overlay);
+      UI_but_icon_decoration_text_set(bt, overlay);
     }
   });
 }
@@ -2933,7 +2933,11 @@ static bool tselem_draw_icon(uiBlock *block,
 
   const bool is_collection = outliner_is_collection_tree_element(te);
   IconDecoration decoration;
-  UI_icon_text_overlay_init_from_count(&decoration, num_elements);
+  if (num_elements > 1) {
+    char buffer[5];
+    BLI_str_format_integer_unit(buffer, num_elements);
+    decoration.text.emplace().text = buffer;
+  }
 
   /* Collection colors and icons covered by restrict buttons. */
   if (!is_clickable || x >= xmax || is_collection) {

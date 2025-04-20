@@ -1808,9 +1808,10 @@ int UI_search_items_find_index(const uiSearchItems *items, const char *name);
  * Adds a hint to the button which draws right aligned, grayed out and never clipped.
  */
 void UI_but_hint_drawstr_set(uiBut *but, const char *string);
-void UI_but_icon_indicator_number_set(uiBut *but, const int indicator_number);
-void UI_but_icon_indicator_set(uiBut *but, const char *string);
-void UI_but_icon_indicator_color_set(uiBut *but, const uchar color[4]);
+
+void UI_but_icon_decoration_number_set(uiBut *but, const int indicator_number);
+void UI_but_icon_decoration_text_set(uiBut *but, const char *string);
+void UI_but_icon_decoration_text_color_set(uiBut *but, const uchar color[4]);
 
 void UI_but_node_link_set(uiBut *but, bNodeSocket *socket, const float draw_color[4]);
 

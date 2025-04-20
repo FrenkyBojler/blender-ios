@@ -3527,8 +3527,8 @@ static void node_draw_basis(const bContext &C,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
                     (void *)"NODE_OT_group_edit");
-    if (node.id) {
-      UI_but_icon_indicator_number_set(but, ID_REAL_USERS(node.id));
+    if (node.id && (ID_REAL_USERS(node.id) > 1)) {
+      UI_but_icon_decoration_number_set(but, ID_REAL_USERS(node.id));
     }
     UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
