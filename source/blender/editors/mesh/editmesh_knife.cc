@@ -3690,9 +3690,9 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
 {
   /* Mouse and ray with snapping applied. */
   float3 ray_orig;
-  float3 ray_dir_constrain;
+  float3 ray_dir;
   float2 mval_constrain = mval;
-  knife_view3d_ray_get(kcd, mval, ray_orig, ray_dir_constrain);
+  knife_view3d_ray_get(kcd, mval, ray_orig, ray_dir);
 
   knife_pos_data_clear(&kcd->curr);
 
@@ -3705,14 +3705,13 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
     if (kcd->angle_snapping) {
       if (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_SCREEN) {
         kcd->is_angle_snapping = knife_snap_angle_screen(
-            kcd, ray_orig, ray_dir_constrain, kcd->curr.cage, kcd->angle);
+            kcd, ray_orig, ray_dir, kcd->curr.cage, kcd->angle);
       }
       else if (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) {
         kcd->is_angle_snapping = knife_snap_angle_relative(
-            kcd, ray_orig, ray_dir_constrain, kcd->curr.cage, kcd->angle);
+            kcd, ray_orig, ray_dir, kcd->curr.cage, kcd->angle);
         if (kcd->is_angle_snapping) {
-          kcd->snap_ref_edges_count = knife_calculate_snap_ref_edges(
-              kcd, ray_orig, ray_dir_constrain);
+          kcd->snap_ref_edges_count = knife_calculate_snap_ref_edges(kcd, ray_orig, ray_dir);
         }
       }
     }
@@ -3721,21 +3720,25 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
       is_constrained = true;
     }
     else if (kcd->axis_constrained) {
-      knife_constrain_axis(kcd, ray_orig, ray_dir_constrain, kcd->curr.cage);
+      knife_constrain_axis(kcd, ray_orig, ray_dir, kcd->curr.cage);
       is_constrained = true;
     }
   }
 
   float3 fallback;
   if (is_constrained) {
-    /* Update `ray_dir_constrain` and `mval_constrain`. */
-    ray_dir_constrain = math::normalize(kcd->curr.cage - ray_orig);
+    /* Update ray and `mval_constrain`. */
+    if (kcd->is_ortho) {
+      isect_line_plane_v3(ray_orig, kcd->curr.cage, kcd->curr.cage + ray_dir, ray_orig, ray_dir);
+    }
+    else {
+      ray_dir = math::normalize(kcd->curr.cage - ray_orig);
+    }
     knife_project_v2(kcd, kcd->curr.cage, mval_constrain);
     fallback = kcd->curr.cage;
   }
 
-  knife_snap_curr(
-      kcd, mval_constrain, ray_orig, ray_dir_constrain, is_constrained ? &fallback : nullptr);
+  knife_snap_curr(kcd, mval_constrain, ray_orig, ray_dir, is_constrained ? &fallback : nullptr);
 }
 
 /**
