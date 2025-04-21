@@ -1099,17 +1099,9 @@ int curve_fit_cubic_to_points_refit_db(
 	const uint knots_len = points_len;
 	struct Knot *knots = malloc(sizeof(struct Knot) * knots_len);
 
-#ifndef USE_CORNER_DETECT
-	(void)r_corner_index_array;
-	(void)r_corner_index_len;
-#endif
-
-(void)corners;
-(void)corners_len;
-
 	const bool is_cyclic = (calc_flag & CURVE_FIT_CALC_CYCLIC) != 0 && (points_len > 2);
 #ifdef USE_CORNER_DETECT
-	const bool use_corner = (corner_angle < M_PI);
+	const bool detect_corners = (corners == NULL) && (corner_angle < M_PI);
 #else
 	(void)corner_angle;
 #endif
@@ -1142,6 +1134,18 @@ int curve_fit_cubic_to_points_refit_db(
 			knots[i].tan[1] = t_step; t_step += dims;
 		}
 		assert(t_step == &tangents[knots_len * 2 * dims]);
+		if (corners != NULL) {
+			*r_corner_index_len = 0;
+			for (uint i = 0; i < corners_len; i++) {
+				uint c_index = corners[i];
+				if (is_cyclic == false && (c_index == 0 || c_index == knots_len - 1)) {
+					continue;
+				}
+				knots[c_index].can_remove = false;
+				knots[c_index].is_corner = true;
+				(*r_corner_index_len)++;
+			}
+		}
 	}
 
 	if (is_cyclic) {
@@ -1309,7 +1313,7 @@ int curve_fit_cubic_to_points_refit_db(
 	        SQUARE(error_threshold), dims);
 
 #ifdef USE_CORNER_DETECT
-	if (use_corner) {
+	if (detect_corners) {
 
 #ifndef NDEBUG
 		for (uint i = 0; i < knots_len; i++) {
@@ -1334,8 +1338,11 @@ int curve_fit_cubic_to_points_refit_db(
 #endif  /* USE_KNOT_REFIT */
 
 
+if (corners != NULL
 #ifdef USE_CORNER_DETECT
-	if (use_corner) {
+		|| detect_corners
+#endif  /* USE_CORNER_DETECT */
+	) {
 		if (is_cyclic == false) {
 			*r_corner_index_len += 2;
 		}
@@ -1343,6 +1350,7 @@ int curve_fit_cubic_to_points_refit_db(
 		uint *corner_index_array = malloc(sizeof(uint) * (*r_corner_index_len));
 		uint k_index = 0, c_index = 0;
 		uint i = 0;
+		uint end = is_cyclic ? knots_len : knots_len - 1;
 
 		if (is_cyclic == false) {
 			corner_index_array[c_index++] = k_index;
@@ -1350,7 +1358,7 @@ int curve_fit_cubic_to_points_refit_db(
 			i++;
 		}
 
-		for (; i < knots_len; i++) {
+		for (; i < end; i++) {
 			if (knots[i].is_removed == false) {
 				if (knots[i].is_corner == true) {
 					corner_index_array[c_index++] = k_index;
@@ -1367,7 +1375,10 @@ int curve_fit_cubic_to_points_refit_db(
 		assert(c_index == *r_corner_index_len);
 		*r_corner_index_array = corner_index_array;
 	}
-#endif  /* USE_CORNER_DETECT */
+	else {
+		*r_corner_index_array = NULL;
+		*r_corner_index_len = 0;
+	}
 
 #ifdef USE_LENGTH_CACHE
 	free(points_length_cache);
