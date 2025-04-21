@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from __future__ import annotations
+
 """Shared code for dealing with an asset library index.
 
 Basically this is shared code between the index generator and index downloader.

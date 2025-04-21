@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from __future__ import annotations
+
 try:
     # Introduced in Python 3.12:
     from itertools import batched  # type: ignore

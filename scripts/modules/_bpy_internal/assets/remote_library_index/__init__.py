@@ -18,6 +18,7 @@
 # Run `make generate_datamodels` from Blender's top source directory to
 # regenerate the Python code based on the YAML contents.
 
+from __future__ import annotations
 
 import bpy
 

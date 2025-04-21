@@ -8,6 +8,8 @@ It would be better if there was an RNA API for this, but for now this is faster
 to implement.
 """
 
+from __future__ import annotations
+
 from pathlib import Path, PurePosixPath
 
 import pydantic
