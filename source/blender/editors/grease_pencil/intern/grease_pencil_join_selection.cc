@@ -136,17 +136,24 @@ void reverse_points_of(bke::CurvesGeometry &dst_curves, const IndexRange points_
   auto swap_handle_positions = [&](MutableSpan<float3> handles_left,
                                    MutableSpan<float3> handles_right,
                                    MutableSpan<int8_t> types_left,
-                                   MutableSpan<int8_t> types_right) {
+                                   MutableSpan<int8_t> types_right,
+                                   MutableSpan<bool> selection_left,
+                                   MutableSpan<bool> selection_right) {
     threading::parallel_for(handles_left.index_range(), 8192, [&](const IndexRange range) {
       for (const int point : range) {
         std::swap(handles_left[point], handles_right[point]);
         std::swap(types_left[point], types_right[point]);
+        std::swap(selection_left[point], selection_right[point]);
       }
     });
   };
 
   /* Also needs to swap left/right bezier handles if handle attributes exist. */
   if (!dst_curves.handle_positions_left().is_empty()) {
+    const MutableSpan<bool> selection_left =
+        attributes.lookup_for_write_span<bool>(".selection_handle_left").span;
+    const MutableSpan<bool> selection_right =
+        attributes.lookup_for_write_span<bool>(".selection_handle_right").span;
     MutableSpan<float3> handles_left = dst_curves.handle_positions_left_for_write().slice(
         points_to_reverse);
     MutableSpan<float3> handles_right = dst_curves.handle_positions_right_for_write().slice(
@@ -155,7 +162,8 @@ void reverse_points_of(bke::CurvesGeometry &dst_curves, const IndexRange points_
         points_to_reverse);
     MutableSpan<int8_t> types_right = dst_curves.handle_types_right_for_write().slice(
         points_to_reverse);
-    swap_handle_positions(handles_left, handles_right, types_left, types_right);
+    swap_handle_positions(
+        handles_left, handles_right, types_left, types_right, selection_left, selection_right);
   }
 }
 
