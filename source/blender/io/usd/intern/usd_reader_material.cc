@@ -657,7 +657,7 @@ bool USDMaterialReader::set_node_input(const pxr::UsdShadeInput &usd_input,
 
   bNodeSocket *sock = blender::bke::node_find_socket(*dest_node, SOCK_IN, dest_socket_name);
   if (!sock) {
-    CLOG_ERROR(&LOG, "Couldn't get destination node socket %s", dest_socket_name);
+    CLOG_ERROR(&LOG, "Couldn't get destination node socket %s", dest_socket_name.c_str());
     return false;
   }
 
@@ -705,7 +705,7 @@ bool USDMaterialReader::set_node_input(const pxr::UsdShadeInput &usd_input,
       CLOG_WARN(&LOG,
                 "Unexpected type %s for destination node socket %s",
                 sock->idname,
-                dest_socket_name);
+                dest_socket_name.c_str());
       break;
   }
 
