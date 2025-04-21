@@ -36,7 +36,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
 
     downloader = Downloader(
         metadata_cache_location=base_path / "_local-meta-cache",
-        chunk_size=10,
+        chunk_size=8192,
     )
 
     bg_downloader = BackgroundDownloader(downloader)
