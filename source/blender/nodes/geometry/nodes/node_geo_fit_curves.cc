@@ -24,7 +24,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
 
-  b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Geometry>("Poly Curves", "Curves")
+      .supported_type(GeometryComponent::Type::Curve);
   b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
 
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
@@ -48,13 +49,14 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 }
 
 static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
+                                      const IndexMask &poly_curves,
                                       const Field<bool> &selection_field,
                                       const Field<float> &threshold_field,
                                       const GeometryNodeFitCurvesMode mode,
                                       const AttributeFilter &attribute_filter)
 {
   const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Curve};
-  fn::FieldEvaluator evaluator{field_context, src_curves.curves_num()};
+  fn::FieldEvaluator evaluator{field_context, &poly_curves};
   evaluator.add(selection_field);
   evaluator.add(threshold_field);
   evaluator.evaluate();
@@ -93,8 +95,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (const Curves *curves_id = geometry_set.get_curves()) {
       const bke::CurvesGeometry &src_curves = curves_id->geometry.wrap();
+      if (!src_curves.has_curve_with_type(CURVE_TYPE_POLY)) {
+        params.error_message_add(NodeWarningType::Warning, "Input curves have no poly curves");
+        return;
+      }
+      IndexMaskMemory memory;
+      const IndexMask poly_curves = src_curves.indices_for_curve_type(CURVE_TYPE_POLY, memory);
       bke::CurvesGeometry dst_curves = fit_curves(
-          src_curves, selection_field, threshold_field, mode, attribute_filter);
+          src_curves, poly_curves, selection_field, threshold_field, mode, attribute_filter);
       Curves *dst_curves_id = bke::curves_new_nomain(std::move(dst_curves));
       bke::curves_copy_parameters(*curves_id, *dst_curves_id);
       geometry_set.replace_curves(dst_curves_id);
