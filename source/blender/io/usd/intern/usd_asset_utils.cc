@@ -9,6 +9,8 @@
 #include <pxr/usd/ar/packageUtils.h>
 #include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/ar/writableAsset.h>
+#include <pxr/usd/usd/common.h>
+#include <pxr/usd/usd/stage.h>
 
 #include "BKE_appdir.hh"
 #include "BKE_idprop.hh"
@@ -501,7 +503,7 @@ void ensure_usd_source_path_prop(const std::string &path, ID *id)
     return;
   }
 
-  const char *prop_name = "usd_source_path";
+  const StringRef prop_name = "usd_source_path";
 
   if (IDP_GetPropertyFromGroup(idgroup, prop_name)) {
     return;
@@ -529,7 +531,7 @@ std::string get_usd_source_path(ID *id)
     return "";
   }
 
-  const char *prop_name = "usd_source_path";
+  const StringRef prop_name = "usd_source_path";
   const IDProperty *prop = IDP_GetPropertyFromGroup(idgroup, prop_name);
   if (!prop) {
     return "";

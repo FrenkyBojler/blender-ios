@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'eceb81b21fa3')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-10 09:31+0000\n"
-"PO-Revision-Date: 2025-03-03 11:30+0000\n"
+"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"PO-Revision-Date: 2025-04-14 08:41+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
 "Language: sr@latin\n"
@@ -2643,30 +2643,6 @@ msgid "Use Relative Offset"
 msgstr "Koristi relativno rastojanje"
 
 
-msgid "Python Constraint"
-msgstr "Python ograničenje"
-
-
-msgid "Script Error"
-msgstr "Greška u skripti"
-
-
-msgid "Number of Targets"
-msgstr "Broj meta"
-
-
-msgid "Target Objects"
-msgstr "Objekti meta"
-
-
-msgid "Script"
-msgstr "Skripta"
-
-
-msgid "Use Targets"
-msgstr "Koristi mete"
-
-
 msgid "Face Cull"
 msgstr "Odabir stranica"
 
@@ -3888,6 +3864,10 @@ msgid "Realtime"
 msgstr "U realnom vremenu"
 
 
+msgid "Profile"
+msgstr "Profil"
+
+
 msgid "Container"
 msgstr "Kontejner"
 
@@ -4804,12 +4784,24 @@ msgid "Grease Pencil Frame"
 msgstr "Skicirani kadar"
 
 
-msgid "Grease Pencil Layer"
-msgstr "Sloj skice"
-
-
 msgid "Regular"
 msgstr "Normalno"
+
+
+msgid "Reverse"
+msgstr "Obrnuto"
+
+
+msgid "Repeat"
+msgstr "Ponovi"
+
+
+msgid "Frame Start"
+msgstr "Početni kadar"
+
+
+msgid "Grease Pencil Layer"
+msgstr "Sloj skice"
 
 
 msgid "Local Matrix"
@@ -4826,18 +4818,6 @@ msgstr "Roditeljska kost"
 
 msgid "Translation"
 msgstr "Prelaz"
-
-
-msgid "Reverse"
-msgstr "Obrnuto"
-
-
-msgid "Repeat"
-msgstr "Ponovi"
-
-
-msgid "Frame Start"
-msgstr "Početni kadar"
 
 
 msgid "Red"
@@ -5424,10 +5404,6 @@ msgstr "Dubina iskošavanje"
 
 msgid "Round"
 msgstr "Zakrivreno"
-
-
-msgid "Profile"
-msgstr "Profil"
 
 
 msgid "Bevel Object"
@@ -6298,6 +6274,10 @@ msgid "Matte"
 msgstr "Mat"
 
 
+msgid "Script"
+msgstr "Skripta"
+
+
 msgid "Shader"
 msgstr "Senčenja"
 
@@ -6904,10 +6884,6 @@ msgstr "Slot materijala"
 
 msgid "Material slot used for rendering particles"
 msgstr "Slot materijala korišćen za renderovanje čestica"
-
-
-msgid "Dummy"
-msgstr "Lutka"
 
 
 msgid "Particle"
@@ -8605,16 +8581,12 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Show/Hide"
-msgstr "Prikaži/sakrij"
+msgid "Mirror"
+msgstr "Ogledalo"
 
 
 msgid "Snap"
 msgstr "Lepljenje"
-
-
-msgid "Mirror"
-msgstr "Ogledalo"
 
 
 msgid "UV Mapping"
@@ -8663,6 +8635,10 @@ msgstr "Staza"
 
 msgid "Quick Effects"
 msgstr "Brzi efekti"
+
+
+msgid "Show/Hide"
+msgstr "Prikaži/sakrij"
 
 
 msgid "Hooks"
@@ -10687,10 +10663,6 @@ msgid "Rounding"
 msgstr "Zaobljenje"
 
 
-msgid "Shift of the lens components"
-msgstr "Pomeraj komponenti sočiva"
-
-
 msgid "Box Mask"
 msgstr "Maska kutije"
 
@@ -10813,6 +10785,10 @@ msgstr "Ka"
 
 msgid "Corner Pin"
 msgstr "Zakači ugao"
+
+
+msgid "Interpolation method"
+msgstr "Interpolacija"
 
 
 msgid "X2"
@@ -10987,10 +10963,6 @@ msgid "Simple Star"
 msgstr "Jednostavna zvezda"
 
 
-msgid "Rotate 45"
-msgstr "Okretanje 45"
-
-
 msgid "Hue Correct"
 msgstr "Korekcija tona"
 
@@ -11055,10 +11027,6 @@ msgid "Use Minimum"
 msgstr "Koristi minimum"
 
 
-msgid "Number of motion blur samples"
-msgstr "Postavlja broj dodatnih bljesova"
-
-
 msgid "Size Source"
 msgstr "Izvorna veličina"
 
@@ -11069,10 +11037,6 @@ msgstr "Veličina scene"
 
 msgid "Fixed/Scene"
 msgstr "Fiksno/Scena"
-
-
-msgid "Use feather information from the mask"
-msgstr "Koristi informacije umekšavanja sa maske"
 
 
 msgid "Motion Blur"
@@ -11109,6 +11073,10 @@ msgstr "Tačkasto"
 
 msgid "Pixel Size"
 msgstr "Veličina piksela"
+
+
+msgid "Number of motion blur samples"
+msgstr "Postavlja broj dodatnih bljesova"
 
 
 msgid "Alpha Convert"
@@ -11203,16 +11171,8 @@ msgid "Max Speed"
 msgstr "Maks. brzina"
 
 
-msgid "Maximum speed, or zero for none"
-msgstr "Maksimalna brzina ili nula za ništa"
-
-
 msgid "Min Speed"
 msgstr "Min. brzina"
-
-
-msgid "Minimum speed for a pixel to be blurred (used to separate background from foreground)"
-msgstr "Minimalna brzina piksela da bi bio zamućen (koristi se za razdvajanje prednjegi i zadnjeg plana)"
 
 
 msgid "Viewer"
@@ -11297,6 +11257,14 @@ msgstr "Informacije o objektu"
 
 msgid "Z Up"
 msgstr "Gore po Z"
+
+
+msgid "Tangent Space"
+msgstr "Ciljni prostor"
+
+
+msgid "Unknown"
+msgstr "Nepoznato"
 
 
 msgid "Selection"
@@ -11409,10 +11377,6 @@ msgstr "Mešanje senčenja"
 
 msgid "Space of the input normal"
 msgstr "Prostor ulazne normale"
-
-
-msgid "Tangent Space"
-msgstr "Ciljni prostor"
 
 
 msgid "Tangent space normal mapping"
@@ -13624,6 +13588,10 @@ msgid "Duplicate Curve"
 msgstr "Dupliraj krivu"
 
 
+msgid "Dummy"
+msgstr "Lutka"
+
+
 msgid "Resize"
 msgstr "Uvećanje"
 
@@ -15042,10 +15010,6 @@ msgid "Axis Threshold"
 msgstr "Prag osa"
 
 
-msgid "Interpolation method"
-msgstr "Interpolacija"
-
-
 msgid "Smoothness factor"
 msgstr "Faktor umekšavanja"
 
@@ -15994,11 +15958,6 @@ msgstr "Pređi u režim doterivanja"
 msgctxt "Operator"
 msgid "Exit Tweak Mode"
 msgstr "Napusti režim doterivanja"
-
-
-msgctxt "Operator"
-msgid "Add File Node"
-msgstr "Dodaj čvor datoteke"
 
 
 msgctxt "Operator"
@@ -18549,15 +18508,6 @@ msgstr "film"
 
 
 msgctxt "Operator"
-msgid "Refresh PyConstraints"
-msgstr "Osveži PyConstraints"
-
-
-msgid "Refresh all pyconstraints"
-msgstr "Osvežava sve pyconstraints"
-
-
-msgctxt "Operator"
 msgid "Reload"
 msgstr "Ponovo učitaj"
 
@@ -19821,12 +19771,12 @@ msgid "Restrict"
 msgstr "Ograniči"
 
 
-msgid "Motion Tracking"
-msgstr "Praćenje pokreta"
-
-
 msgid "Transform Orientations"
 msgstr "Transformacija orijentacija"
+
+
+msgid "Motion Tracking"
+msgstr "Praćenje pokreta"
 
 
 msgid "Bone Constraints"
@@ -23616,10 +23566,6 @@ msgid "Rotation"
 msgstr "Okretanje"
 
 
-msgid "Unknown"
-msgstr "Nepoznato"
-
-
 msgid "Frame Numbers"
 msgstr "Bojevi kadrova"
 
@@ -23673,10 +23619,6 @@ msgstr "Render U"
 
 msgid "Bold & Italic"
 msgstr "Podebljano i nakošeno"
-
-
-msgid "Endpoint"
-msgstr "Krajnja tačka"
 
 
 msgctxt "Operator"
@@ -23761,6 +23703,10 @@ msgstr "Oblik niti"
 
 msgid "Random Order"
 msgstr "Nasumični redosled"
+
+
+msgid "Endpoint"
+msgstr "Krajnja tačka"
 
 
 msgid "Settings used for fluid"
@@ -24808,6 +24754,10 @@ msgstr "Nema dovoljno slobodne memorije"
 msgctxt "Brush"
 msgid "Surface"
 msgstr "Površ"
+
+
+msgid "True Normal"
+msgstr "Stvarna normala"
 
 
 msgid "Slot %d"
@@ -26118,6 +26068,10 @@ msgid "Glare"
 msgstr "Bljesak"
 
 
+msgid "Use feather information from the mask"
+msgstr "Koristi informacije umekšavanja sa maske"
+
+
 msgid "Val"
 msgstr "Vr."
 
@@ -26168,10 +26122,6 @@ msgstr "Udaljenost pogleda"
 
 msgid "Transparency"
 msgstr "Providnost"
-
-
-msgid "True Normal"
-msgstr "Stvarna normala"
 
 
 msgid "Parametric"
@@ -26371,10 +26321,6 @@ msgstr "Zbirka poza"
 
 msgid "Import-Export"
 msgstr "Uvoz-izvoz"
-
-
-msgid "English (English)"
-msgstr "Engleski (English)"
 
 
 msgid "Japanese (日本語)"

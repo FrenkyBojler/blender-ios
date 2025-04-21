@@ -525,7 +525,9 @@ static void view3d_smoothview_apply_from_timer(bContext *C, View3D *v3d, ARegion
   ED_region_tag_redraw(region);
 }
 
-static int view3d_smoothview_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus view3d_smoothview_invoke(bContext *C,
+                                                 wmOperator * /*op*/,
+                                                 const wmEvent *event)
 {
   View3D *v3d = CTX_wm_view3d(C);
   ARegion *region = CTX_wm_region(C);
@@ -614,6 +616,11 @@ void VIEW3D_OT_smoothview(wmOperatorType *ot)
 
   /* Flags. */
   ot->flag = OPTYPE_INTERNAL;
+}
+
+void view3d_smooth_free(RegionView3D *rv3d)
+{
+  MEM_SAFE_FREE(rv3d->sms);
 }
 
 /** \} */

@@ -546,10 +546,9 @@ static void do_multires_bake(MultiresBakeRender *bkr,
       const Span<float3> corner_normals = temp_mesh->corner_normals();
       BKE_mesh_calc_loop_tangent_ex(positions,
                                     faces,
-                                    dm->getCornerVertArray(dm),
-                                    corner_tris.data(),
-                                    tri_faces.data(),
-                                    corner_tris.size(),
+                                    Span(dm->getCornerVertArray(dm), faces.total_size()),
+                                    corner_tris,
+                                    tri_faces,
                                     sharp_faces ? Span(sharp_faces, faces.size()) : Span<bool>(),
                                     &dm->loopData,
                                     true,
@@ -817,7 +816,7 @@ static void *init_heights_data(MultiresBakeRender *bkr, ImBuf *ibuf)
   BakeImBufuserData *userdata = static_cast<BakeImBufuserData *>(ibuf->userdata);
 
   if (userdata->displacement_buffer == nullptr) {
-    userdata->displacement_buffer = MEM_calloc_arrayN<float>(ibuf->x * ibuf->y,
+    userdata->displacement_buffer = MEM_calloc_arrayN<float>(IMB_get_pixel_count(ibuf),
                                                              "MultiresBake heights");
   }
 
@@ -1142,7 +1141,7 @@ static void create_ao_raytree(MultiresBakeRender *bkr, MAOBakeData *ao_data)
 
   raytree = ao_data->raytree = RE_rayobject_create(
       bkr->raytrace_structure, faces_num, bkr->octree_resolution);
-  face = ao_data->rayfaces = MEM_calloc_arrayN<RayFace>(size_t(faces_num),
+  face = ao_data->rayfaces = MEM_calloc_arrayN<RayFace>(faces_num,
                                                         "ObjectRen faces");
 
   for (i = 0; i < grids_num; i++) {
@@ -1185,9 +1184,9 @@ static void *init_ao_data(MultiresBakeRender *bkr, ImBuf * /*ibuf*/)
   create_ao_raytree(bkr, ao_data);
 
   /* initialize permutation tables */
-  ao_data->permutation_table_1 = MEM_calloc_arrayN<ushort>(size_t(bkr->number_of_rays), "multires AO baker perm1");
-  ao_data->permutation_table_2 = MEM_calloc_arrayN<ushort>(size_t(bkr->number_of_rays), "multires AO baker perm2");
-  temp_permutation_table = MEM_calloc_arrayN<ushort>(size_t(bkr->number_of_rays), "multires AO baker temp perm");
+  ao_data->permutation_table_1 = MEM_calloc_arrayN<ushort>(bkr->number_of_rays, "multires AO baker perm1");
+  ao_data->permutation_table_2 = MEM_calloc_arrayN<ushort>(bkr->number_of_rays, "multires AO baker perm2");
+  temp_permutation_table = MEM_calloc_arrayN<ushort>(bkr->number_of_rays, "multires AO baker temp perm");
 
   build_permutation_table(
       ao_data->permutation_table_1, temp_permutation_table, bkr->number_of_rays, 1);
@@ -1418,14 +1417,14 @@ static void bake_ibuf_normalize_displacement(ImBuf *ibuf,
                                              float displacement_min,
                                              float displacement_max)
 {
-  int i;
   const float *current_displacement = displacement;
   const char *current_mask = mask;
   float max_distance;
 
   max_distance = max_ff(fabsf(displacement_min), fabsf(displacement_max));
 
-  for (i = 0; i < ibuf->x * ibuf->y; i++) {
+  const size_t ibuf_pixel_count = IMB_get_pixel_count(ibuf);
+  for (size_t i = 0; i < ibuf_pixel_count; i++) {
     if (*current_mask == FILTER_MASK_USED) {
       float normalized_displacement;
 
@@ -1507,7 +1506,7 @@ static void bake_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 
       if (ibuf->x > 0 && ibuf->y > 0) {
         BakeImBufuserData *userdata = MEM_callocN<BakeImBufuserData>("MultiresBake userdata");
-        userdata->mask_buffer = MEM_calloc_arrayN<char>(ibuf->y * ibuf->x,
+        userdata->mask_buffer = MEM_calloc_arrayN<char>(size_t(ibuf->y) * size_t(ibuf->x),
                                                         "MultiresBake imbuf mask");
         ibuf->userdata = userdata;
 

@@ -106,7 +106,7 @@ static bool object_remesh_poll(bContext *C)
   return ED_operator_object_active_editable_mesh(C);
 }
 
-static int voxel_remesh_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
@@ -128,7 +128,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   Mesh *new_mesh = BKE_mesh_remesh_voxel(
-      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue);
+      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue, op->reports);
 
   if (!new_mesh) {
     BKE_report(op->reports, RPT_ERROR, "Voxel remesher failed to create mesh");
@@ -351,7 +351,7 @@ static void voxel_size_edit_cancel(bContext *C, wmOperator *op)
 
   ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
 
-  MEM_freeN(op->customdata);
+  MEM_freeN(cd);
 
   ED_workspace_status_text(C, nullptr);
 }
@@ -366,7 +366,7 @@ static void voxel_size_edit_update_header(wmOperator *op, bContext *C)
   status.item_bool(IFACE_("Precision Mode"), cd->slow_mode, ICON_EVENT_SHIFT);
 }
 
-static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op->customdata);
@@ -389,7 +389,7 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
   {
     ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
     mesh->remesh_voxel_size = cd->voxel_size;
-    MEM_freeN(op->customdata);
+    MEM_freeN(cd);
     ED_region_tag_redraw(region);
     ED_workspace_status_text(C, nullptr);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
@@ -432,7 +432,7 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   Object *active_object = CTX_data_active_object(C);
@@ -684,7 +684,7 @@ static bool mesh_is_manifold_consistent(Mesh *mesh)
   const Span<int> corner_edges = mesh->corner_edges();
 
   bool is_manifold_consistent = true;
-  char *edge_faces = (char *)MEM_callocN(mesh->edges_num * sizeof(char), "remesh_manifold_check");
+  char *edge_faces = MEM_calloc_arrayN<char>(mesh->edges_num, "remesh_manifold_check");
   int *edge_vert = (int *)MEM_malloc_arrayN(
       mesh->edges_num, sizeof(uint), "remesh_consistent_check");
 
@@ -949,7 +949,7 @@ static void quadriflow_end_job(void *customdata)
   }
 }
 
-static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
 {
   QuadriFlowJob *job = (QuadriFlowJob *)MEM_mallocN(sizeof(QuadriFlowJob), "QuadriFlowJob");
 
@@ -1112,7 +1112,7 @@ static const EnumPropertyItem mode_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int quadriflow_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus quadriflow_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(
       C, op, event, IFACE_("QuadriFlow Remesh the Selected Mesh"), IFACE_("Remesh"));

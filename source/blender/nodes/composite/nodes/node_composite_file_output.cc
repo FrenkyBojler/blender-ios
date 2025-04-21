@@ -9,6 +9,8 @@
 #include <cstring>
 
 #include "BLI_assert.h"
+#include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -54,18 +56,14 @@
 /* **************** OUTPUT FILE ******************** */
 
 /* find unique path */
-static bool unique_path_unique_check(void *arg, const char *name)
+static bool unique_path_unique_check(ListBase *lb,
+                                     bNodeSocket *sock,
+                                     const blender::StringRef name)
 {
-  struct Args {
-    ListBase *lb;
-    bNodeSocket *sock;
-  };
-  Args *data = (Args *)arg;
-
-  LISTBASE_FOREACH (bNodeSocket *, sock, data->lb) {
-    if (sock != data->sock) {
-      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
-      if (STREQ(sockdata->path, name)) {
+  LISTBASE_FOREACH (bNodeSocket *, sock_iter, lb) {
+    if (sock_iter != sock) {
+      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock_iter->storage;
+      if (sockdata->path == name) {
         return true;
       }
     }
@@ -77,37 +75,30 @@ void ntreeCompositOutputFileUniquePath(ListBase *list,
                                        const char defname[],
                                        char delim)
 {
-  NodeImageMultiFileSocket *sockdata;
-  struct {
-    ListBase *lb;
-    bNodeSocket *sock;
-  } data;
-  data.lb = list;
-  data.sock = sock;
-
   /* See if we are given an empty string */
   if (ELEM(nullptr, sock, defname)) {
     return;
   }
-
-  sockdata = (NodeImageMultiFileSocket *)sock->storage;
+  NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
   BLI_uniquename_cb(
-      unique_path_unique_check, &data, defname, delim, sockdata->path, sizeof(sockdata->path));
+      [&](const blender::StringRef check_name) {
+        return unique_path_unique_check(list, sock, check_name);
+      },
+      defname,
+      delim,
+      sockdata->path,
+      sizeof(sockdata->path));
 }
 
 /* find unique EXR layer */
-static bool unique_layer_unique_check(void *arg, const char *name)
+static bool unique_layer_unique_check(ListBase *lb,
+                                      bNodeSocket *sock,
+                                      const blender::StringRef name)
 {
-  struct Args {
-    ListBase *lb;
-    bNodeSocket *sock;
-  };
-  Args *data = (Args *)arg;
-
-  LISTBASE_FOREACH (bNodeSocket *, sock, data->lb) {
-    if (sock != data->sock) {
-      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
-      if (STREQ(sockdata->layer, name)) {
+  LISTBASE_FOREACH (bNodeSocket *, sock_iter, lb) {
+    if (sock_iter != sock) {
+      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock_iter->storage;
+      if (sockdata->layer == name) {
         return true;
       }
     }
@@ -119,21 +110,19 @@ void ntreeCompositOutputFileUniqueLayer(ListBase *list,
                                         const char defname[],
                                         char delim)
 {
-  struct {
-    ListBase *lb;
-    bNodeSocket *sock;
-  } data;
-  data.lb = list;
-  data.sock = sock;
-
   /* See if we are given an empty string */
   if (ELEM(nullptr, sock, defname)) {
     return;
   }
-
   NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
   BLI_uniquename_cb(
-      unique_layer_unique_check, &data, defname, delim, sockdata->layer, sizeof(sockdata->layer));
+      [&](const blender::StringRef check_name) {
+        return unique_layer_unique_check(list, sock, check_name);
+      },
+      defname,
+      delim,
+      sockdata->layer,
+      sizeof(sockdata->layer));
 }
 
 bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
@@ -190,7 +179,7 @@ int ntreeCompositOutputFileRemoveActiveSocket(bNodeTree *ntree, bNode *node)
   }
 
   /* free format data */
-  MEM_freeN(sock->storage);
+  MEM_freeN(reinterpret_cast<NodeImageMultiFileSocket *>(sock->storage));
 
   blender::bke::node_remove_socket(*ntree, *node, *sock);
   return 1;
@@ -252,12 +241,12 @@ static void free_output_file(bNode *node)
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
     BKE_image_format_free(&sockdata->format);
-    MEM_freeN(sock->storage);
+    MEM_freeN(sockdata);
   }
 
   NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
   BKE_image_format_free(&nimf->format);
-  MEM_freeN(node->storage);
+  MEM_freeN(nimf);
 }
 
 static void copy_output_file(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNode *src_node)
@@ -507,6 +496,10 @@ class FileOutputOperation : public NodeOperation {
   FileOutputOperation(Context &context, DNode node) : NodeOperation(context, node)
   {
     for (const bNodeSocket *input : node->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
       /* Inputs for multi-layer files need to be the same size, while they can be different for
        * individual file outputs. */
@@ -534,6 +527,10 @@ class FileOutputOperation : public NodeOperation {
   void execute_single_layer()
   {
     for (const bNodeSocket *input : this->node()->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       const Result &result = get_input(input->identifier);
       /* We only write images, not single values. */
       if (result.is_single_value()) {
@@ -628,6 +625,10 @@ class FileOutputOperation : public NodeOperation {
     file_output.add_view(pass_view);
 
     for (const bNodeSocket *input : this->node()->input_sockets()) {
+      if (!input->is_available()) {
+        continue;
+      }
+
       const Result &input_result = get_input(input->identifier);
       const char *pass_name = (static_cast<NodeImageMultiFileSocket *>(input->storage))->layer;
       add_pass_for_result(file_output, input_result, pass_name, pass_view);
@@ -694,10 +695,16 @@ class FileOutputOperation : public NodeOperation {
         file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
       case ResultType::Float2:
+        file_output.add_pass(pass_name, view_name, "XY", buffer);
+        break;
       case ResultType::Int2:
+        file_output.add_pass(pass_name, view_name, "XY", buffer);
+        break;
       case ResultType::Int:
-        /* Not supported. */
-        BLI_assert_unreachable();
+        file_output.add_pass(pass_name, view_name, "V", buffer);
+        break;
+      case ResultType::Bool:
+        file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
     }
   }
@@ -708,51 +715,35 @@ class FileOutputOperation : public NodeOperation {
   {
     BLI_assert(result.is_single_value());
 
+    const int64_t length = int64_t(size.x) * size.y;
+    const int64_t buffer_size = length * result.channels_count();
+    float *buffer = MEM_malloc_arrayN<float>(buffer_size, "File Output Inflated Buffer.");
+
     switch (result.type()) {
-      case ResultType::Float: {
-        float *buffer = MEM_malloc_arrayN<float>(size_t(size.x) * size_t(size.y),
-                                                 "File Output Inflated Buffer.");
-
-        const float value = result.get_single_value<float>();
-        parallel_for(
-            size, [&](const int2 texel) { buffer[int64_t(texel.y) * size.x + texel.x] = value; });
-        return buffer;
-      }
-      case ResultType::Color: {
-        float *buffer = MEM_malloc_arrayN<float>(4 * size_t(size.x) * size_t(size.y),
-                                                 "File Output Inflated Buffer.");
-
-        const float4 value = result.get_single_value<float4>();
-        parallel_for(size, [&](const int2 texel) {
-          copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
-        });
-        return buffer;
-      }
-      case ResultType::Float4: {
-        float *buffer = MEM_malloc_arrayN<float>(4 * size_t(size.x) * size_t(size.y),
-                                                 "File Output Inflated Buffer.");
-
-        const float4 value = result.get_single_value<float4>();
-        parallel_for(size, [&](const int2 texel) {
-          copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
-        });
-        return buffer;
-      }
-      case ResultType::Float3: {
-        float *buffer = MEM_malloc_arrayN<float>(3 * size_t(size.x) * size_t(size.y),
-                                                 "File Output Inflated Buffer.");
-
-        const float3 value = result.get_single_value<float3>();
-        parallel_for(size, [&](const int2 texel) {
-          copy_v3_v3(buffer + ((int64_t(texel.y) * size.x + texel.x) * 3), value);
-        });
-        return buffer;
-      }
-      case ResultType::Int:
-      case ResultType::Int2:
+      case ResultType::Float:
       case ResultType::Float2:
-        /* Not supported. */
-        break;
+      case ResultType::Float3:
+      case ResultType::Float4:
+      case ResultType::Color: {
+        const GPointer single_value = result.single_value();
+        single_value.type()->fill_assign_n(single_value.get(), buffer, length);
+        return buffer;
+      }
+      case ResultType::Int: {
+        const float value = float(result.get_single_value<int32_t>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Int2: {
+        const float2 value = float2(result.get_single_value<int2>());
+        CPPType::get<float2>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Bool: {
+        const float value = float(result.get_single_value<bool>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
     }
 
     BLI_assert_unreachable();
@@ -798,6 +789,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float2:
       case ResultType::Int2:
       case ResultType::Int:
+      case ResultType::Bool:
         /* Not supported. */
         BLI_assert_unreachable();
         break;

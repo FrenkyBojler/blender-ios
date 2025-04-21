@@ -43,6 +43,7 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 
+#include "SEQ_channels.hh"
 #include "SEQ_offscreen.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
@@ -441,7 +442,7 @@ static void sequencer_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 #endif
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->defaultconf, "Video Sequence Editor", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* Own keymap. */
@@ -662,7 +663,9 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   int wmcursor = WM_CURSOR_DEFAULT;
 
   const bToolRef *tref = area->runtime.tool;
-  if (tref == nullptr || !STRPREFIX(tref->idname, "builtin.select")) {
+  if (tref == nullptr ||
+      !(STRPREFIX(tref->idname, "builtin.select") || STREQ(tref->idname, "builtin.blade")))
+  {
     WM_cursor_set(win, wmcursor);
     return;
   }
@@ -693,6 +696,17 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   const Scene *scene = win->scene;
   const Editing *ed = seq::editing_get(scene);
+
+  if (STREQ(tref->idname, "builtin.blade")) {
+    int mval[2] = {int(mouse_co_region[0]), int(mouse_co_region[1])};
+    Strip *strip = strip_under_mouse_get(scene, v2d, mval);
+    ListBase *channels = seq::channels_displayed_get(ed);
+    if (strip != nullptr) {
+      wmcursor = seq::transform_is_locked(channels, strip) ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
+    }
+    WM_cursor_set(win, wmcursor);
+    return;
+  }
 
   if (ed == nullptr) {
     WM_cursor_set(win, wmcursor);
@@ -750,7 +764,7 @@ static void sequencer_tools_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->defaultconf, "Video Sequence Editor", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -792,10 +806,10 @@ static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *region)
 #endif
 
   /* Own keymap. */
-  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerPreview", SPACE_SEQ, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->defaultconf, "Preview", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->defaultconf, "Video Sequence Editor", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* Do this instead of adding V2D and frames `ED_KEYMAP_*` flags to `art->keymapflag`, since text
@@ -1052,7 +1066,7 @@ static void sequencer_buttons_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "SequencerCommon", SPACE_SEQ, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->defaultconf, "Video Sequence Editor", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   UI_panel_category_active_set_default(region, "Strip");
