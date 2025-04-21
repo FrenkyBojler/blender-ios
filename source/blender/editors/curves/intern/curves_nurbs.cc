@@ -126,19 +126,15 @@ bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
   const int knots_num = bke::curves::nurbs::knots_num(curve_points.size(), order, cyclic);
 
   Array<float> knots_buffer;
-
-  const KnotsMode knots_mode = KnotsMode(curves.nurbs_knots_modes()[curve]);
   knots_buffer.reinitialize(knots_num);
-  if (knots_mode == NURBS_KNOT_MODE_CUSTOM) {
-    const OffsetIndices custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-    const Span<float> custom_knots = curves.nurbs_custom_knots();
-    bke::curves::nurbs::copy_custom_knots(
-        order, cyclic, custom_knots.slice(custom_knots_by_curve[curve]), knots_buffer);
-  }
-  else {
-    bke::curves::nurbs::calculate_knots(
-        curve_points.size(), knots_mode, order, cyclic, knots_buffer.as_mutable_span());
-  }
+  bke::curves::nurbs::load_curve_knots(KnotsMode(curves.nurbs_knots_modes()[curve]),
+                                       curve_points.size(),
+                                       order,
+                                       cyclic,
+                                       curves.nurbs_custom_knots_by_curve()[curve],
+                                       curves.nurbs_custom_knots(),
+                                       knots_buffer);
+
   const Span<float> knots = knots_buffer.as_span();
 
   int knot_span;
@@ -150,6 +146,7 @@ bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
   /* Create new curves object and update point offsets. */
   const int new_points_added = repeat;
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
+  bke::curves::copy_custom_knots(curves, new_curves);
   new_curves.resize(curves.points_num() + new_points_added, curves.curves_num());
   new_curves.nurbs_knots_modes_for_write()[curve] = NURBS_KNOT_MODE_CUSTOM;
   MutableSpan<int> new_offsets = new_curves.offsets_for_write();

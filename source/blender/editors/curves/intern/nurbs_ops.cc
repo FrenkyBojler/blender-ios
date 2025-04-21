@@ -73,16 +73,13 @@ struct InsertKnotOpData {
 
     const KnotsMode knots_mode = KnotsMode(curves.nurbs_knots_modes()[curve]);
     knots_buffer.reinitialize(knots_num);
-    if (knots_mode == NURBS_KNOT_MODE_CUSTOM) {
-      const OffsetIndices custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-      const Span<float> custom_knots = curves.nurbs_custom_knots();
-      bke::curves::nurbs::copy_custom_knots(
-          order, cyclic, custom_knots.slice(custom_knots_by_curve[curve]), knots_buffer);
-    }
-    else {
-      bke::curves::nurbs::calculate_knots(
-          curve_points.size(), knots_mode, order, cyclic, knots_buffer.as_mutable_span());
-    }
+    bke::curves::nurbs::load_curve_knots(knots_mode,
+                                         curve_points.size(),
+                                         order,
+                                         cyclic,
+                                         curves.nurbs_custom_knots_by_curve()[curve],
+                                         curves.nurbs_custom_knots(),
+                                         knots_buffer);
     knots = knots_buffer.as_span();
     knot_range = float2(knots[order - 1], knots.last(order - 1));
   }

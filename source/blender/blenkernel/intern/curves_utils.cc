@@ -41,7 +41,11 @@ CurvesGeometry copy_only_curve_domain(const CurvesGeometry &src_curves)
   CustomData_init_from(
       &src_curves.curve_data, &dst_curves.curve_data, CD_MASK_ALL, src_curves.curves_num());
   dst_curves.runtime->type_counts = src_curves.runtime->type_counts;
+  return dst_curves;
+}
 
+void copy_custom_knots(const CurvesGeometry &src_curves, CurvesGeometry &dst_curves)
+{
   BLI_assert(dst_curves.runtime->custom_knots_sharing_info == nullptr);
   dst_curves.custom_knots = src_curves.custom_knots;
   dst_curves.custom_knot_num = src_curves.custom_knot_num;
@@ -49,8 +53,6 @@ CurvesGeometry copy_only_curve_domain(const CurvesGeometry &src_curves)
   if (src_curves.runtime->custom_knots_sharing_info) {
     src_curves.runtime->custom_knots_sharing_info->add_user();
   }
-
-  return dst_curves;
 }
 
 IndexMask indices_for_type(const VArray<int8_t> &types,

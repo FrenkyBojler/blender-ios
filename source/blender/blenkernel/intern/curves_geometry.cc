@@ -764,15 +764,13 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
         }
         const int knots_num = curves::nurbs::knots_num(points.size(), order, is_cyclic);
         knots.reinitialize(knots_num);
-        /* Some curves edit tools might not support custom knots, for example GP extrude.
-         * These tools create empty `custom_knots` with mode NURBS_KNOT_MODE_CUSTOM. */
-        if (mode == NURBS_KNOT_MODE_CUSTOM && !custom_knots.is_empty()) {
-          bke::curves::nurbs::copy_custom_knots(
-              order, is_cyclic, custom_knots.slice(custom_knots_by_curve[curve_index]), knots);
-        }
-        else {
-          curves::nurbs::calculate_knots(points.size(), mode, order, is_cyclic, knots);
-        }
+        curves::nurbs::load_curve_knots(mode,
+                                        points.size(),
+                                        order,
+                                        is_cyclic,
+                                        custom_knots_by_curve[curve_index],
+                                        custom_knots,
+                                        knots);
         curves::nurbs::calculate_basis_cache(
             points.size(), evaluated_points.size(), order, is_cyclic, knots, r_data[curve_index]);
       }
