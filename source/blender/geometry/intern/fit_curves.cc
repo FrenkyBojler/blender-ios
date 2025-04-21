@@ -167,11 +167,12 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
           {"position", "handle_type_left", "handle_type_right", "handle_left", "handle_right"}),
       old_to_new_map,
       curves.attributes_for_write());
-  bke::copy_attributes(src_curves.attributes(),
-                       bke::AttrDomain::Curve,
-                       bke::AttrDomain::Curve,
-                       bke::attribute_filter_with_skip_ref(attribute_filter, {"curve_type"}),
-                       curves.attributes_for_write());
+  bke::gather_attributes(src_curves.attributes(),
+                         bke::AttrDomain::Curve,
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_with_skip_ref(attribute_filter, {"curve_type"}),
+                         curve_selection,
+                         curves.attributes_for_write());
   return curves;
 }
 
