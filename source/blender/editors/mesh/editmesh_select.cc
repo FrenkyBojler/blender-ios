@@ -5354,8 +5354,7 @@ static int loop_find_region(BMLoop *l, int flag, GSet *visit_face_set, BMFace **
     }
   }
 
-  BMFace **region_alloc = static_cast<BMFace **>(
-      MEM_malloc_arrayN(region.size(), sizeof(BMFace *), __func__));
+  BMFace **region_alloc = MEM_malloc_arrayN<BMFace *>(region.size(), __func__);
   memcpy(region_alloc, region.data(), region.as_span().size_in_bytes());
   *region_out = region_alloc;
   return region.size();

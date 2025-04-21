@@ -2087,10 +2087,8 @@ bool ed_editnurb_extrude_flag(EditNurb *editnurb, const uint8_t flag)
   const NurbDim max = editnurb_find_max_points_num(editnurb);
   /* One point induces at most one interval. Except single point case, it can give + 1.
    * Another +1 is for first element of the first interval. */
-  int *const intvls_u = static_cast<int *>(
-      MEM_malloc_arrayN(max.pntsu + 2, sizeof(int), "extrudeNurb0"));
-  int *const intvls_v = static_cast<int *>(
-      MEM_malloc_arrayN(max.pntsv + 2, sizeof(int), "extrudeNurb1"));
+  int *const intvls_u = MEM_malloc_arrayN<int>(max.pntsu + 2, "extrudeNurb0");
+  int *const intvls_v = MEM_malloc_arrayN<int>(max.pntsv + 2, "extrudeNurb1");
   bool ok = false;
 
   LISTBASE_FOREACH (Nurb *, nu, &editnurb->nurbs) {
@@ -2128,8 +2126,7 @@ bool ed_editnurb_extrude_flag(EditNurb *editnurb, const uint8_t flag)
 
     const int new_pntsu = nu->pntsu + intvl_cnt_u - 1;
     const int new_pntsv = nu->pntsv + intvl_cnt_v - 1;
-    BPoint *const new_bp = (BPoint *)MEM_malloc_arrayN(
-        new_pntsu * new_pntsv, sizeof(BPoint), "extrudeNurb2");
+    BPoint *const new_bp = MEM_malloc_arrayN<BPoint>(new_pntsu * new_pntsv, "extrudeNurb2");
     BPoint *new_bp_v = new_bp;
 
     bool selected_v = is_first_sel_v;
