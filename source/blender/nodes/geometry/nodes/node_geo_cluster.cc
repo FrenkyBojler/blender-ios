@@ -686,13 +686,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   
   /* Exposer l'attribut Color comme un field pour la sortie */
   params.set_output("Cluster Colors", bke::AttributeFieldInput::Create<ColorGeometry4f>("Color"));
-  
-  /* Ajouter un message dans l'interface utilisateur */
-  params.error_message_add(
-      NodeWarningType::Info,
-      std::to_string(total_faces) + " faces in " + std::to_string(cluster_count) + 
-      " clusters compacts et connexes");
-}
+  }
 
 static void node_register()
 {
