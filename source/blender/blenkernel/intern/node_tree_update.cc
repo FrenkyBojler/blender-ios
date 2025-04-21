@@ -60,9 +60,8 @@ enum eNodeTreeChangedFlag {
   NTREE_CHANGED_REMOVED_NODE = (1 << 5),
   NTREE_CHANGED_REMOVED_SOCKET = (1 << 6),
   NTREE_CHANGED_SOCKET_PROPERTY = (1 << 7),
-  NTREE_CHANGED_SOCKET_LINK = (1 << 8),
-  NTREE_CHANGED_INTERNAL_LINK = (1 << 9),
-  NTREE_CHANGED_PARENT = (1 << 10),
+  NTREE_CHANGED_INTERNAL_LINK = (1 << 8),
+  NTREE_CHANGED_PARENT = (1 << 9),
   NTREE_CHANGED_ALL = -1,
 };
 
@@ -1883,14 +1882,12 @@ void BKE_ntree_update_tag_link_removed(bNodeTree *ntree)
 
 void BKE_ntree_update_tag_link_added(bNodeTree *ntree, bNodeLink *link)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_LINK);
-  add_socket_tag(ntree, link->tosock, NTREE_CHANGED_SOCKET_LINK);
+  add_socket_tag(ntree, link->tosock, NTREE_CHANGED_LINK);
 }
 
 void BKE_ntree_update_tag_link_mute(bNodeTree *ntree, bNodeLink *link)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_LINK);
-  add_socket_tag(ntree, link->tosock, NTREE_CHANGED_SOCKET_LINK);
+  add_socket_tag(ntree, link->tosock, NTREE_CHANGED_LINK);
 }
 
 void BKE_ntree_update_tag_active_output_changed(bNodeTree *ntree)
