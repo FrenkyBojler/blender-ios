@@ -43,6 +43,7 @@ struct InsertKnotOpData {
 
   float knot_to_insert;
   int knot_span;
+  int repeat;
 
   IndexRange points_to_replace;
   Array<float3> preview_positions_buffer;
@@ -52,49 +53,45 @@ struct InsertKnotOpData {
 
   float2 knot_range;
 
-  InsertKnotOpData(ARegion *region, ViewContext vc, Curves *curves_id, const int curve);
-  InsertKnotOpData(const InsertKnotOpData &data);
+  InsertKnotOpData(
+      ARegion *region, ViewContext vc, Curves *curves_id, const int curve, const int repeat)
+      : region(region),
+        vc(vc),
+        curves_id(curves_id),
+        curves(curves_id->geometry.wrap()),
+        curve(curve),
+        order(curves.nurbs_orders()[curve]),
+        curve_points(curves.points_by_curve()[curve]),
+        positions(curves.positions().slice(curve_points)),
+        repeat(repeat),
+        points_to_replace(0),
+        preview_positions_buffer(2 * (order - 1) - 1),
+        point_weights(preview_positions_buffer.size() * order)
+  {
+    const bool cyclic = curves.cyclic()[curve];
+    const int knots_num = bke::curves::nurbs::knots_num(curve_points.size(), order, cyclic);
+
+    const KnotsMode knots_mode = KnotsMode(curves.nurbs_knots_modes()[curve]);
+    knots_buffer.reinitialize(knots_num);
+    if (knots_mode == NURBS_KNOT_MODE_CUSTOM) {
+      const OffsetIndices custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+      const Span<float> custom_knots = curves.nurbs_custom_knots();
+      bke::curves::nurbs::copy_custom_knots(
+          order, cyclic, custom_knots.slice(custom_knots_by_curve[curve]), knots_buffer);
+    }
+    else {
+      bke::curves::nurbs::calculate_knots(
+          curve_points.size(), knots_mode, order, cyclic, knots_buffer.as_mutable_span());
+    }
+    knots = knots_buffer.as_span();
+    knot_range = float2(knots[order - 1], knots.last(order - 1));
+  }
+
+  InsertKnotOpData(const InsertKnotOpData &data)
+      : InsertKnotOpData(data.region, data.vc, data.curves_id, data.curve, data.repeat)
+  {
+  }
 };
-
-InsertKnotOpData::InsertKnotOpData(ARegion *region,
-                                   ViewContext vc,
-                                   Curves *curves_id,
-                                   const int curve)
-    : region(region),
-      vc(vc),
-      curves_id(curves_id),
-      curves(curves_id->geometry.wrap()),
-      curve(curve),
-      order(curves.nurbs_orders()[curve]),
-      curve_points(curves.points_by_curve()[curve]),
-      positions(curves.positions().slice(curve_points)),
-      points_to_replace(0),
-      preview_positions_buffer(2 * (order - 1) - 1),
-      point_weights(preview_positions_buffer.size() * order)
-{
-  const bool cyclic = curves.cyclic()[curve];
-  const int knots_num = bke::curves::nurbs::knots_num(curve_points.size(), order, cyclic);
-
-  const KnotsMode knots_mode = KnotsMode(curves.nurbs_knots_modes()[curve]);
-  knots_buffer.reinitialize(knots_num);
-  if (knots_mode == NURBS_KNOT_MODE_CUSTOM) {
-    const OffsetIndices custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-    const Span<float> custom_knots = curves.nurbs_custom_knots();
-    bke::curves::nurbs::copy_custom_knots(
-        order, cyclic, custom_knots.slice(custom_knots_by_curve[curve]), knots_buffer);
-  }
-  else {
-    bke::curves::nurbs::calculate_knots(
-        curve_points.size(), knots_mode, order, cyclic, knots_buffer.as_mutable_span());
-  }
-  knots = knots_buffer.as_span();
-  knot_range = float2(knots[order - 1], knots.last(order - 1));
-}
-
-InsertKnotOpData::InsertKnotOpData(const InsertKnotOpData &data)
-    : InsertKnotOpData(data.region, data.vc, data.curves_id, data.curve)
-{
-}
 
 static float event_to_knot(const InsertKnotOpData &ikcd, const wmEvent &event)
 {
@@ -187,27 +184,32 @@ static wmOperatorStatus insert_knot_invoke(bContext *C, wmOperator *op, const wm
     return OPERATOR_CANCELLED;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  InsertKnotOpData &ikcd = *MEM_new<InsertKnotOpData>(__func__,
-                                                      CTX_wm_region(C),
-                                                      ED_view3d_viewcontext_init(C, depsgraph),
-                                                      active_curves_id,
-                                                      curve);
-  ikcd.draw_handle = ED_region_draw_cb_activate(
-      ikcd.region->runtime->type, modified_lattice_draw, &ikcd, REGION_DRAW_POST_VIEW);
+  ARegion *region = CTX_wm_region(C);
+  const bool is_interactive = (region != nullptr) && (event != nullptr);
+  if (is_interactive) {
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    InsertKnotOpData &ikcd = *MEM_new<InsertKnotOpData>(
+        __func__, region, ED_view3d_viewcontext_init(C, depsgraph), active_curves_id, curve, 1);
+    ikcd.draw_handle = ED_region_draw_cb_activate(
+        ikcd.region->runtime->type, modified_lattice_draw, &ikcd, REGION_DRAW_POST_VIEW);
+    ikcd.knot_to_insert = event_to_knot(ikcd, *event);
 
-  ikcd.knot_to_insert = RNA_float_get(op->ptr, "knot");
-
-  op->customdata = &ikcd;
-  op->flag |= OP_IS_MODAL_CURSOR_REGION;
-  WM_event_add_modal_handler(C, op);
-  return OPERATOR_RUNNING_MODAL;
+    op->customdata = &ikcd;
+    op->flag |= OP_IS_MODAL_CURSOR_REGION;
+    WM_event_add_modal_handler(C, op);
+    return OPERATOR_RUNNING_MODAL;
+  }
+  else {
+    const float knot = RNA_float_get(op->ptr, "knot");
+    const int repeat = RNA_int_get(op->ptr, "repeat");
+    curves = ed::curves::nurbs::insert_knot(curves, curve, knot, repeat);
+    return OPERATOR_FINISHED;
+  }
 }
 
 static wmOperatorStatus insert_knot_exec(bContext *C, wmOperator *op)
 {
-  RNA_float_set(op->ptr, "knot", 0.5);
-  return OPERATOR_FINISHED;
+  return insert_knot_invoke(C, op, nullptr);
 }
 
 static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
@@ -246,7 +248,8 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
 
         DEG_id_tag_update(&(ikcd.curves_id->id), ID_RECALC_GEOMETRY);
         WM_event_add_notifier(C, NC_GEOM, ikcd.curves_id);
-        RNA_float_set(op->ptr, "knot", 0.5);
+        RNA_float_set(op->ptr, "knot", ikcd.knot_to_insert);
+        RNA_int_set(op->ptr, "repeat", ikcd.repeat);
         insert_knot_exit(C, op);
         return retVal;
       }
@@ -255,7 +258,7 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
       insert_knot_exit(C, op);
       return OPERATOR_CANCELLED;
     case MOUSEMOVE: {
-      const int repeat = 1;
+      const int repeat = ikcd.repeat;
       int knot_multiplicity;
       ikcd.knot_to_insert = event_to_knot(ikcd, *event);
 
@@ -322,6 +325,8 @@ void CURVES_OT_nurbs_insert_knot(wmOperatorType *ot)
   PropertyRNA *prop;
   prop = RNA_def_float(
       ot->srna, "knot", 0.0f, -100.0f, 100.0f, "Knot", "Knot value to insert", -100.0f, 100.0f);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(ot->srna, "repeat", 1, 1, 64, "Number of Repeats", "", 1, 64);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
