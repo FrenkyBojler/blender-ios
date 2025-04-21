@@ -3249,7 +3249,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
                                          omd->foam_fade,
                                          omd->resolution);
 
-  och->time = static_cast<float *>(MEM_mallocN(och->duration * sizeof(float), "foam bake time"));
+  och->time = MEM_malloc_arrayN<float>(och->duration, "foam bake time");
 
   int cfra = scene->r.cfra;
 

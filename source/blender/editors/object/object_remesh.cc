@@ -951,7 +951,7 @@ static void quadriflow_end_job(void *customdata)
 
 static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
 {
-  QuadriFlowJob *job = (QuadriFlowJob *)MEM_mallocN(sizeof(QuadriFlowJob), "QuadriFlowJob");
+  QuadriFlowJob *job = MEM_mallocN<QuadriFlowJob>("QuadriFlowJob");
 
   job->op = op;
   job->owner = CTX_data_active_object(C);
