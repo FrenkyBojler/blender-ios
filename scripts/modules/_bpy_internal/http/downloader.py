@@ -29,174 +29,6 @@ _http_session.mount("https://", _http_adapter)
 _http_session.mount("http://", _http_adapter)
 
 
-class DownloadReporter(Protocol):
-    """This protocol can be used to receive reporting from Downloader."""
-
-    def download_starts(self, http_req_descr: RequestDescription) -> None: ...
-
-    def already_downloaded(
-        self,
-        http_req_descr: RequestDescription,
-        local_file: Path,
-    ) -> None:
-        """The previous download to this file is still fresh."""
-
-    def download_error(
-        self,
-        http_req_descr: RequestDescription,
-        error: Exception,
-    ) -> None: ...
-
-    def download_progress(
-        self,
-        http_req_descr: RequestDescription,
-        content_length_bytes: int,
-        downloaded_bytes: int,
-    ) -> None: ...
-
-    def download_finished(
-        self,
-        http_req_descr: RequestDescription,
-        local_file: Path,
-    ) -> None:
-        """The URL was downloaded to the given file."""
-
-
-class _DummyReporter(DownloadReporter):
-    """Dummy CachingDownloadReporter.
-
-    Does not do anything. This is mostly used to avoid None checks in the
-    Downloader.
-    """
-
-    def download_starts(self, http_req_descr: RequestDescription) -> None:
-        pass
-
-    def already_downloaded(
-        self,
-        http_req_descr: RequestDescription,
-        local_file: Path,
-    ) -> None:
-        pass
-
-    def download_error(
-        self,
-        http_req_descr: RequestDescription,
-        error: Exception,
-    ) -> None:
-        pass
-
-    def download_progress(
-        self,
-        http_req_descr: RequestDescription,
-        content_length_bytes: int,
-        downloaded_bytes: int,
-    ) -> None:
-        pass
-
-    def download_finished(
-        self,
-        http_req_descr: RequestDescription,
-        local_file: Path,
-    ) -> None:
-        pass
-
-
-class ThreadBridgingReporter(DownloadReporter):
-    """DownloadReporter that can bridge threads.
-
-    Bridging two threads T1 and T2 requires two reporters and the downloader itself:
-
-    - Create a CachingDownloadReporter that should get called on T1.
-    - Create this ThreadBridgingReporter, passing it the above reporter.
-    - Create the Downloader, and put in the thread-bridging reporter.
-    - Start the Downloader in T2.
-    - Call ThreadBridgingReporter.update() from T1.
-
-    See `BackgroundDownloader` for a concrete use.
-    """
-
-    FunctionCall: TypeAlias = tuple[str, tuple[Any, ...]]
-    """Tuple of the function name and the positional arguments."""
-
-    _queue: queue.Queue[FunctionCall]
-    """Queue of function calls."""
-
-    _reporters: list[DownloadReporter]
-
-    _logger: logging.Logger
-
-    def __init__(self) -> None:
-        self._reporters = []
-        self._queue = queue.Queue()
-        self._logger = logger.getChild(self.__class__.__name__)
-
-    def add_reporter(self, reporter: DownloadReporter) -> None:
-        self._reporters.append(reporter)
-
-    def update(self, *, limit_num_calls: int = 100) -> bool:
-        """Handle queued function calls on the thread that calls this function.
-
-        Only a finite number of queued calls is processed, to avoid blocking the
-        calling thread completely.
-
-        Returns whether there are still function calls left to process.
-        """
-
-        for _ in range(limit_num_calls):
-            try:
-                # Wait 1ms for any calls to arrive. This slows down this thread
-                # a little bit, to give other threads a chance to run.
-                queued_call = self._queue.get(block=True, timeout=0.001)
-            except queue.Empty:
-                # Not having anything to do is fine.
-                return False
-
-            function_name, function_arguments = queued_call
-            for reporter in self._reporters:
-                function = getattr(reporter, function_name)
-                function(*function_arguments)
-
-        return not self._queue.empty()
-
-    def download_starts(self, http_req_descr: RequestDescription) -> None:
-        self._queue_call('download_starts', http_req_descr)
-
-    def already_downloaded(
-        self,
-        http_req_descr: RequestDescription,
-        local_file: Path,
-    ) -> None:
-        self._queue_call('already_downloaded', http_req_descr, local_file)
-
-    def download_error(
-        self,
-        http_req_descr: RequestDescription,
-        error: Exception,
-    ) -> None:
-        self._queue_call('download_error', http_req_descr, error)
-
-    def download_progress(
-        self,
-        http_req_descr: RequestDescription,
-        content_length_bytes: int,
-        downloaded_bytes: int,
-    ) -> None:
-        self._queue_call('download_progress', http_req_descr, content_length_bytes, downloaded_bytes)
-
-    def download_finished(
-        self,
-        http_req_descr: RequestDescription,
-        local_file: Path,
-    ) -> None:
-        self._queue_call('download_finished', http_req_descr, local_file)
-
-    def _queue_call(self, function_name: str, *function_args: Any) -> None:
-        """Put a function call in the queue."""
-        self._logger.debug(f"{function_name}{function_args}")
-        self._queue.put((function_name, function_args))
-
-
 class Downloader:
     """Caching file downloader.
 
@@ -220,8 +52,7 @@ class Downloader:
     chunk_size: int = 8192
     """Download this many bytes before saving to disk and reporting progress."""
 
-    _reporter: DownloadReporter = _DummyReporter()
-
+    _reporter: DownloadReporter
     _cancel_download_event: threading.Event
 
     def __init__(
@@ -243,6 +74,7 @@ class Downloader:
         self.metadata_cache_location = metadata_cache_location
         self.http_session = http_session
         self.chunk_size = chunk_size
+        self._reporter = _DummyReporter()
         self._cancel_download_event = threading.Event()
 
     def download_to_file(
@@ -712,6 +544,174 @@ class BackgroundDownloader:
 
         logger.debug("download done, calling %s", callback.__name__)
         callback(http_req_descr, local_file)
+
+
+class DownloadReporter(Protocol):
+    """This protocol can be used to receive reporting from Downloader."""
+
+    def download_starts(self, http_req_descr: RequestDescription) -> None: ...
+
+    def already_downloaded(
+        self,
+        http_req_descr: RequestDescription,
+        local_file: Path,
+    ) -> None:
+        """The previous download to this file is still fresh."""
+
+    def download_error(
+        self,
+        http_req_descr: RequestDescription,
+        error: Exception,
+    ) -> None: ...
+
+    def download_progress(
+        self,
+        http_req_descr: RequestDescription,
+        content_length_bytes: int,
+        downloaded_bytes: int,
+    ) -> None: ...
+
+    def download_finished(
+        self,
+        http_req_descr: RequestDescription,
+        local_file: Path,
+    ) -> None:
+        """The URL was downloaded to the given file."""
+
+
+class _DummyReporter(DownloadReporter):
+    """Dummy CachingDownloadReporter.
+
+    Does not do anything. This is mostly used to avoid None checks in the
+    Downloader.
+    """
+
+    def download_starts(self, http_req_descr: RequestDescription) -> None:
+        pass
+
+    def already_downloaded(
+        self,
+        http_req_descr: RequestDescription,
+        local_file: Path,
+    ) -> None:
+        pass
+
+    def download_error(
+        self,
+        http_req_descr: RequestDescription,
+        error: Exception,
+    ) -> None:
+        pass
+
+    def download_progress(
+        self,
+        http_req_descr: RequestDescription,
+        content_length_bytes: int,
+        downloaded_bytes: int,
+    ) -> None:
+        pass
+
+    def download_finished(
+        self,
+        http_req_descr: RequestDescription,
+        local_file: Path,
+    ) -> None:
+        pass
+
+
+class ThreadBridgingReporter(DownloadReporter):
+    """DownloadReporter that can bridge threads.
+
+    Bridging two threads T1 and T2 requires two reporters and the downloader itself:
+
+    - Create a CachingDownloadReporter that should get called on T1.
+    - Create this ThreadBridgingReporter, passing it the above reporter.
+    - Create the Downloader, and put in the thread-bridging reporter.
+    - Start the Downloader in T2.
+    - Call ThreadBridgingReporter.update() from T1.
+
+    See `BackgroundDownloader` for a concrete use.
+    """
+
+    FunctionCall: TypeAlias = tuple[str, tuple[Any, ...]]
+    """Tuple of the function name and the positional arguments."""
+
+    _queue: queue.Queue[FunctionCall]
+    """Queue of function calls."""
+
+    _reporters: list[DownloadReporter]
+
+    _logger: logging.Logger
+
+    def __init__(self) -> None:
+        self._reporters = []
+        self._queue = queue.Queue()
+        self._logger = logger.getChild(self.__class__.__name__)
+
+    def add_reporter(self, reporter: DownloadReporter) -> None:
+        self._reporters.append(reporter)
+
+    def update(self, *, limit_num_calls: int = 100) -> bool:
+        """Handle queued function calls on the thread that calls this function.
+
+        Only a finite number of queued calls is processed, to avoid blocking the
+        calling thread completely.
+
+        Returns whether there are still function calls left to process.
+        """
+
+        for _ in range(limit_num_calls):
+            try:
+                # Wait 1ms for any calls to arrive. This slows down this thread
+                # a little bit, to give other threads a chance to run.
+                queued_call = self._queue.get(block=True, timeout=0.001)
+            except queue.Empty:
+                # Not having anything to do is fine.
+                return False
+
+            function_name, function_arguments = queued_call
+            for reporter in self._reporters:
+                function = getattr(reporter, function_name)
+                function(*function_arguments)
+
+        return not self._queue.empty()
+
+    def download_starts(self, http_req_descr: RequestDescription) -> None:
+        self._queue_call('download_starts', http_req_descr)
+
+    def already_downloaded(
+        self,
+        http_req_descr: RequestDescription,
+        local_file: Path,
+    ) -> None:
+        self._queue_call('already_downloaded', http_req_descr, local_file)
+
+    def download_error(
+        self,
+        http_req_descr: RequestDescription,
+        error: Exception,
+    ) -> None:
+        self._queue_call('download_error', http_req_descr, error)
+
+    def download_progress(
+        self,
+        http_req_descr: RequestDescription,
+        content_length_bytes: int,
+        downloaded_bytes: int,
+    ) -> None:
+        self._queue_call('download_progress', http_req_descr, content_length_bytes, downloaded_bytes)
+
+    def download_finished(
+        self,
+        http_req_descr: RequestDescription,
+        local_file: Path,
+    ) -> None:
+        self._queue_call('download_finished', http_req_descr, local_file)
+
+    def _queue_call(self, function_name: str, *function_args: Any) -> None:
+        """Put a function call in the queue."""
+        self._logger.debug(f"{function_name}{function_args}")
+        self._queue.put((function_name, function_args))
 
 
 class HTTPMetadata(pydantic.BaseModel):
