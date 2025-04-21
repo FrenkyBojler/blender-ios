@@ -14,11 +14,11 @@ class Contact(BaseModel):
         extra="allow",
     )
     name: str
-    url: str
+    url: Optional[str] = None
     email: Optional[str] = None
 
 
-class AssetIDType(Enum):
+class AssetIDTypeV1(Enum):
     brush = "brush"
     action = "action"
     collection = "collection"
@@ -28,7 +28,7 @@ class AssetIDType(Enum):
     world = "world"
 
 
-class AssetMetadata(BaseModel):
+class AssetMetadataV1(BaseModel):
     model_config = ConfigDict(
         extra="allow",
     )
@@ -45,7 +45,7 @@ class AssetMetadata(BaseModel):
     copyright: Optional[str] = None
 
 
-class Catalog(BaseModel):
+class CatalogV1(BaseModel):
     model_config = ConfigDict(
         extra="allow",
     )
@@ -58,17 +58,18 @@ class AssetLibraryMeta(BaseModel):
     model_config = ConfigDict(
         extra="allow",
     )
-    api_version: Annotated[
-        Optional[int],
+    api_versions: Annotated[
+        list[int],
         Field(
-            description="API version of this asset library. This is reflected in the URLs of all OpenAPI operations except the one to get this metadata."
+            description="API versions of this asset library. This is reflected in the URLs of all OpenAPI operations except the one to get this metadata.\nA single asset library can expose multiple versions, in order to be backward-compatible with older versions of Blender.\n",
+            min_length=1,
         ),
-    ] = None
+    ]
     name: Annotated[str, Field(description="Name of this asset library.")]
-    contact: Optional[Contact] = None
+    contact: Contact
 
 
-class AssetLibraryIndex(BaseModel):
+class AssetLibraryIndexV1(BaseModel):
     model_config = ConfigDict(
         extra="allow",
     )
@@ -91,15 +92,15 @@ class AssetLibraryIndex(BaseModel):
             description="URLs of the individual asset index pages. When relative, these are taken as relative to the main server URL (i.e. the root of all paths defined in this OpenAPI spec).\n"
         ),
     ] = None
-    catalogs: Optional[list[Catalog]] = None
+    catalogs: Optional[list[CatalogV1]] = None
 
 
-class Asset(BaseModel):
+class AssetV1(BaseModel):
     model_config = ConfigDict(
         extra="allow",
     )
     name: Annotated[str, Field(description="Name of the Blender data-block.")]
-    id_type: AssetIDType
+    id_type: AssetIDTypeV1
     blender_version_min: Annotated[
         Optional[str],
         Field(
@@ -125,10 +126,10 @@ class Asset(BaseModel):
             description="URL where a blend file containing this asset can be downloaded. If the URL is relative, it is to be interpreted as relative to the library's root URL.\n"
         ),
     ] = None
-    meta: Optional[AssetMetadata] = None
+    meta: Optional[AssetMetadataV1] = None
 
 
-class AssetLibraryIndexPage(BaseModel):
+class AssetLibraryIndexPageV1(BaseModel):
     model_config = ConfigDict(
         extra="allow",
     )
@@ -138,4 +139,4 @@ class AssetLibraryIndexPage(BaseModel):
             description="Number of assets in this page. This is declared separately, so that a partial JSON parser has this information before the entire file is downloaded and parsed.\n"
         ),
     ]
-    assets: list[Asset]
+    assets: list[AssetV1]

@@ -74,7 +74,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
             bg_downloader,
             index_remote_url,
             index_local_path,
-            api_models.AssetLibraryIndex,
+            api_models.AssetLibraryIndexV1,
         )
         if asset_index.page_urls is None:
             asset_index.page_urls = []
@@ -94,7 +94,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
                 bg_downloader,
                 remote_url,
                 local_path,
-                api_models.AssetLibraryIndexPage,
+                api_models.AssetLibraryIndexPageV1,
             )
 
             logger.info("    Page              : #%d", page_index)

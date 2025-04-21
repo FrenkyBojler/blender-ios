@@ -27,7 +27,7 @@ class AssetCatalog(pydantic.BaseModel):
     simple_name: str
 
 
-def parse_catalogs(library_path: Path) -> list[api_models.Catalog]:
+def parse_catalogs(library_path: Path) -> list[api_models.CatalogV1]:
     """Parse all asset catalog files in the asset library.
 
     Returns a collection of all asset catalogs in the library, as a mapping from
@@ -46,12 +46,12 @@ def parse_catalogs(library_path: Path) -> list[api_models.Catalog]:
 
     # Group catalogs by their path, to make the returned list compatible with
     # the API model.
-    asset_cats_by_path: dict[PurePosixPath, api_models.Catalog] = {}
+    asset_cats_by_path: dict[PurePosixPath, api_models.CatalogV1] = {}
     for cat in catalogs_by_uuid.values():
         try:
             api_catalog = asset_cats_by_path[cat.path]
         except KeyError:
-            asset_cats_by_path[cat.path] = api_models.Catalog(
+            asset_cats_by_path[cat.path] = api_models.CatalogV1(
                 path=cat.path.as_posix(),
                 uuids=[cat.uuid],
                 simple_name=cat.simple_name,

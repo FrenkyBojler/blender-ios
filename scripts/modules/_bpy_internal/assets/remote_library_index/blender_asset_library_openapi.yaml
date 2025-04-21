@@ -54,7 +54,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AssetLibraryIndex"
+                $ref: "#/components/schemas/AssetLibraryIndexV1"
 
   /_v1/assets-{page}.json:
     summary: >
@@ -76,7 +76,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AssetLibraryIndexPage"
+                $ref: "#/components/schemas/AssetLibraryIndexPageV1"
 
 tags:
   - name: meta
@@ -92,15 +92,24 @@ components:
       type: object
       description: "Meta-data of this asset library."
       properties:
-        "api_version":
-          type: integer
-          description: "API version of this asset library. This is reflected in the URLs of all OpenAPI operations except the one to get this metadata."
+        "api_versions":
+          type: array
+          items:
+            type: integer
+          minItems: 1
+          description: >
+            API versions of this asset library. This is reflected in the URLs of
+            all OpenAPI operations except the one to get this metadata.
+
+            A single asset library can expose multiple versions, in order to be
+            backward-compatible with older versions of Blender.
         "name":
           type: string
           description: Name of this asset library.
         "contact": { $ref: "#/components/schemas/Contact" }
-      required: [name, version]
+      required: [api_versions, name, contact]
       example:
+        api_versions: [1]
         name: Blender Essentials
         contact:
           name: Blender
@@ -113,11 +122,11 @@ components:
         "name": { type: string }
         "url": { type: string }
         "email": { type: string }
-      required: [name, url]
+      required: [name]
 
     ## Index
 
-    AssetLibraryIndex:
+    AssetLibraryIndexV1:
       type: object
       description: The available assets at this library.
       properties:
@@ -144,10 +153,10 @@ components:
             defined in this OpenAPI spec).
         "catalogs":
           type: array
-          items: { $ref: "#/components/schemas/Catalog" }
+          items: { $ref: "#/components/schemas/CatalogV1" }
       required: [schema_version, asset_size_bytes, assets]
 
-    AssetLibraryIndexPage:
+    AssetLibraryIndexPageV1:
       type: object
       description: Any number of assets.
       properties:
@@ -159,10 +168,10 @@ components:
             downloaded and parsed.
         "assets":
           type: array
-          items: { $ref: "#/components/schemas/Asset" }
+          items: { $ref: "#/components/schemas/AssetV1" }
       required: [asset_count, assets]
 
-    Asset:
+    AssetV1:
       type: object
       description: >
         Representation of a single asset. Assets are always Blender data-blocks
@@ -174,7 +183,7 @@ components:
         "name":
           type: string
           description: Name of the Blender data-block.
-        "id_type": { $ref: "#/components/schemas/AssetIDType" }
+        "id_type": { $ref: "#/components/schemas/AssetIDTypeV1" }
         "blender_version_min":
           type: string
           description: >
@@ -202,7 +211,7 @@ components:
             URL where a blend file containing this asset can be downloaded.
             If the URL is relative, it is to be interpreted as relative to the
             library's root URL.
-        "meta": { $ref: "#/components/schemas/AssetMetadata" }
+        "meta": { $ref: "#/components/schemas/AssetMetadataV1" }
       required:
         - "name"
         - "id_type"
@@ -210,7 +219,7 @@ components:
         - "archive_size_in_bytes"
         - "archive_hash"
 
-    AssetIDType:
+    AssetIDTypeV1:
       type: string
       description: Type of the Blender data-block.
       enum:
@@ -223,7 +232,7 @@ components:
         - "world"
         # TODO: add more.
 
-    AssetMetadata:
+    AssetMetadataV1:
       type: object
       description: >
         Metadata of an asset, as defined by Blender's `AssetMeta` DNA struct.
@@ -244,7 +253,7 @@ components:
         "license": { type: string }
         "copyright": { type: string }
 
-    Catalog:
+    CatalogV1:
       type: object
       description: An asset catalog, which can be represented by one or more UUIDs.
       properties:

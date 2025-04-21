@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import pydantic
 
@@ -19,7 +19,7 @@ from . import blender_asset_library_openapi as api_models
 SCHEMA_VERSION = "1.0.0"
 
 DEFAULT_METADATA = api_models.AssetLibraryMeta(
-    api_version=index_common.API_VERSION,
+    api_versions=[index_common.API_VERSION],
     name="Your Asset Library",
     contact=api_models.Contact(
         name="Your Name",
@@ -58,7 +58,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
 
     # Find the assets in the blend files.
     logger.info("Parsing the files...")
-    assets: list[api_models.Asset] = []
+    assets: list[api_models.AssetV1] = []
     for i, filepath in enumerate(filepaths[:limit]):
         logger.info(f"* {i + 1}/{limit}: {filepath.relative_to(arguments.repository)}")
         assets_in_file = asset_finder.list_assets(filepath, arguments.repository)
@@ -71,7 +71,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
 
 def _write_json_files(
     arguments: CLIArguments,
-    asset_index_pages: list[api_models.AssetLibraryIndexPage],
+    asset_index_pages: list[api_models.AssetLibraryIndexPageV1],
 ) -> None:
     outdir_root = arguments.repository
     outdir_versioned = outdir_root / index_common.API_VERSIONED_SUBDIR
@@ -119,7 +119,7 @@ def _write_json_files(
                            for page in asset_index_pages
                            for asset in page.assets)
     asset_cats = asset_catalogs.parse_catalogs(arguments.repository)
-    index = api_models.AssetLibraryIndex(
+    index = api_models.AssetLibraryIndexV1(
         schema_version=SCHEMA_VERSION,
         asset_size_bytes=asset_size_bytes,
         asset_count=total_asset_count,

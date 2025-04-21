@@ -36,7 +36,7 @@ class BlendfileInfo(pydantic.BaseModel):
     filepath_to_url: Callable[[Path], str]
 
 
-def list_assets(blendfile: Path, asset_library_root: Path) -> list[api_models.Asset]:
+def list_assets(blendfile: Path, asset_library_root: Path) -> list[api_models.AssetV1]:
     # Start by erasing everything from memory.
     bpy.ops.wm.read_homefile(use_factory_startup=True, use_empty=True, load_ui=False)
 
@@ -72,7 +72,7 @@ def list_assets(blendfile: Path, asset_library_root: Path) -> list[api_models.As
             shutil.rmtree(thumbnail_dir)
 
     # Collect the asset data.
-    assets: list[api_models.Asset] = []
+    assets: list[api_models.AssetV1] = []
     for attr in dir(data_to):
         datablocks = getattr(data_from, attr)
         datablocks_assets = _find_assets(
@@ -94,7 +94,7 @@ def _find_assets(
     blendfile_info: BlendfileInfo,
     thumbnail_dir: Path,
     should_write_thumbnails: bool,
-) -> list[api_models.Asset]:
+) -> list[api_models.AssetV1]:
 
     assets = []
     for datablock in datablocks:
@@ -111,7 +111,7 @@ def _find_assets(
         else:
             thumbnail_url = ""
 
-        asset = api_models.Asset(
+        asset = api_models.AssetV1(
             name=datablock.name,
             id_type=datablock.id_type.lower(),
             blender_version_min=".".join(map(str, bpy.data.version)),
@@ -124,7 +124,7 @@ def _find_assets(
         # Only set the fields that have a value. That way we can detect whether
         # none of them are set, and prevent the empty metadata from being
         # included.
-        meta = api_models.AssetMetadata()
+        meta = api_models.AssetMetadataV1()
         if asset_data.catalog_id:
             meta.catalog_id = asset_data.catalog_id
         if asset_data.tags:

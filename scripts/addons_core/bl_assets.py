@@ -115,7 +115,9 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
         if self._bg_downloader.is_shutdown_complete:
             logger.info("downloader done")
-            self.report({'INFO'}, "DummyDownloader Done")
+            # Don't call `self.report()` now with a generic "downloading done"
+            # message, because that'll overrule any previous calls to report
+            # errors/warnings.
             self.cancel(context)
             return {'FINISHED'}
 
@@ -140,7 +142,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         metadata = api_models.AssetLibraryMeta.model_validate_json(json_data)
 
         # Show what we downloaded.
-        logger.info("    API version       : %d", metadata.api_version)
+        logger.info("    API versions      : %d", metadata.api_versions)
         logger.info("    Asset Library Name: %s", metadata.name)
         if metadata.contact:
             logger.info(
@@ -149,6 +151,17 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
                 metadata.contact.url,
                 metadata.contact.email,
             )
+
+        if index_common.API_VERSION not in metadata.api_versions:
+            # Abort, the API version for this Blender is not supported by the library.
+            msg = "This asset library supports API versions {}, but this Blender uses version {}".format(
+                metadata.api_versions,
+                index_common.API_VERSION)
+            self.report({'ERROR'}, msg)
+            logger.error(msg)
+
+            self._bg_downloader.shutdown()
+            return
 
         # Download the asset index.
         relative_path = index_common.api_versioned(index_common.ASSET_INDEX_JSON_FILENAME)
@@ -163,7 +176,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
                               local_file: Path,
                               ) -> None:
         json_data = local_file.read_bytes()
-        asset_index = api_models.AssetLibraryIndex.model_validate_json(json_data)
+        asset_index = api_models.AssetLibraryIndexV1.model_validate_json(json_data)
 
         page_urls = asset_index.page_urls or []
 
@@ -232,7 +245,6 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         http_req_descr: RequestDescription,
         local_file: Path,
     ) -> None:
-        self.report({'INFO'}, "Download unnecessary, file already downloaded: {}".format(http_req_descr.url))
         logger.info("Download unnecessary, file already downloaded: %s", http_req_descr.url)
 
     def download_error(
