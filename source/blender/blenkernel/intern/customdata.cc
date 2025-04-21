@@ -5142,6 +5142,10 @@ void CustomData_blend_write_prepare(CustomData &data,
         attribute_dna.domain = int8_t(domain);
         attribute_dna.storage_type = int8_t(AttrStorageType::Array);
 
+        /* Do not increase the user count; #AttributeArrayDNA does not act as an owner of the
+         * attribute data, since it's only used temporarily for writing files. Changing the user
+         * count would be okay too, but it's unnecessary because none of this data should be
+         * modified while it's being written anyway. */
         auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();
         array_dna.data = layer.data;
         array_dna.sharing_info = layer.sharing_info;

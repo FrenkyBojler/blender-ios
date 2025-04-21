@@ -14,7 +14,7 @@ namespace blender::bke {
 
 /**
  * Prepare an #AttributeStorage struct embedded in another struct to be written. This is necessary
- * because the #AttributeStorage implementation doesn't use the DNA structs at runtime-- they are
+ * because the #AttributeStorage implementation doesn't use the DNA structs at runtime, they are
  * created just for the writing process. Creating them mutates the struct, which must be done
  * before writing the struct that embeds it.
  */

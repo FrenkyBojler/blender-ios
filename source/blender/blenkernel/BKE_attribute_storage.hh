@@ -26,6 +26,10 @@ enum class AttrStorageType : int8_t;
 /** Data and metadata for a single geometry attribute. */
 class Attribute {
  public:
+  /**
+   * Data for an attribute stored as a full contiguous array with a data type exactly matching the
+   * attribute's type.
+   */
   struct ArrayData {
     /* NOTE: Since the shared data pointed to by `sharing_info` knows how to free itself, it often
      * stores the size and type itself. It may be possible to make use of that fact to avoid
@@ -34,7 +38,10 @@ class Attribute {
     int64_t size;
     ImplicitSharingPtr<> sharing_info;
   };
+  /** Data for an attribute stored as a single value for the entire domain. */
   struct SingleData {
+    /* NOTE: For simplicity and to avoid a bit of redundancy, the domain size isn't stored here.
+     * It's not necessary to manage a single value. */
     void *value;
     ImplicitSharingPtr<> sharing_info;
   };
@@ -44,7 +51,7 @@ class Attribute {
  private:
   /**
    * Because it's used as the custom ID for the attributes vector set, the name cannot be changed
-   * without adding and removing the attribute.
+   * without removing and adding the attribute.
    */
   std::string name_;
   AttrDomain domain_;
@@ -86,6 +93,8 @@ class Attribute {
   /**
    * The same as #data(), but if the attribute data is shared initially, it will be unshared and
    * made mutable.
+   *
+   * \warning Does not yet support attributes stored as a single value (#AttrStorageType::Single).
    */
   DataVariant &data_for_write();
 };
@@ -115,22 +124,56 @@ class AttributeStorage : public ::AttributeStorage {
   AttributeStorage &operator=(AttributeStorage &&other);
   ~AttributeStorage();
 
+  /**
+   * Iterate over all attributes, with the order defined by the order of insertion. It is not safe
+   * to add or remove attributes while iterating.
+   */
   void foreach(FunctionRef<void(Attribute &)> fn);
   void foreach(FunctionRef<void(const Attribute &)> fn) const;
+
+  /**
+   * Try to find the attribute with a givin name. The non-const overload does not make the
+   * attribute data itself mutable.
+   */
   Attribute *lookup(StringRef name);
   const Attribute *lookup(StringRef name) const;
+
+  /**
+   * Attempt to remove the attribute with the given name, returning `true` if successful. Should
+   * not be called while iterating over attributes.
+   */
   bool remove(StringRef name);
+
+  /**
+   * Add an attribute stored as an array with the given name, which must not already be used by an
+   * existing attribute or this will invoke undefined behavior. The array referenced by the `data`
+   * argument must match the size of the domain and the data type.
+   */
   Attribute &add(std::string name,
                  bke::AttrDomain domain,
                  bke::AttrType data_type,
                  Attribute::ArrayData data);
+
+  /** Return a possibly changed version of the input name that is unique within existing names. */
   std::string unique_name_calc(StringRef name);
 
+  /**
+   * Read data owned by the #AttributeStorage struct. This works by converting the DNA-specific
+   * types stored in the files to the runtime data structures.
+   */
   void blend_read(BlendDataReader &reader);
+  /**
+   * Temporary data used to write a #AttributeStorage struct embedded in another struct. See
+   * #attribute_storage_blend_write_prepare for more information.
+   */
   struct BlendWriteData {
     ResourceScope scope;
     Vector<AttributeDNA, 16> attributes;
   };
+  /**
+   * Write the prepared data and the data stored in the DNA fields in
+   * the #AttributeStorage struct.
+   */
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 
  private:

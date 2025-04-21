@@ -91,6 +91,7 @@ Attribute::DataVariant &Attribute::data_for_write()
         create_sharing_info_for_array(data->data, data->size, cpp_type));
   }
   else if (std::get_if<Attribute::SingleData>(&data_)) {
+    /* Not yet implemented because #SingleData isn't used at runtime yet. */
     BLI_assert_unreachable();
   }
   return data_;

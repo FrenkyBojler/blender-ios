@@ -22,6 +22,9 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
 {
   switch (data_type) {
     case CD_AUTO_FROM_NAME:
+      /* This type is not used for actual #CustomData layers. */
+      BLI_assert_unreachable();
+      return std::nullopt;
     case CD_MVERT:
     case CD_MSTICKY:
     case CD_MEDGE:
@@ -30,15 +33,18 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_MLOOPUV:
     case CD_MPOLY:
     case CD_MLOOP:
-    case CD_SHAPE_KEYINDEX:
-    case CD_SHAPEKEY:
     case CD_BWEIGHT:
     case CD_CREASE:
-    case CD_BM_ELEM_PYPTR:
     case CD_PAINT_MASK:
     case CD_CUSTOMLOOPNORMAL:
     case CD_SCULPT_FACE_SETS:
     case CD_NUMTYPES:
+      /* These types are only used for versioning old files. */
+      return std::nullopt;
+    /* These types are only used for #BMesh. */
+    case CD_SHAPEKEY:
+    case CD_SHAPE_KEYINDEX:
+    case CD_BM_ELEM_PYPTR:
       return std::nullopt;
     case CD_MDEFORMVERT:
     case CD_MFACE:
@@ -58,6 +64,8 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_FREESTYLE_FACE:
     case CD_MLOOPTANGENT:
     case CD_TESSLOOPNORMAL:
+      /* These types are not generic. They will either be moved to some generic data type or
+       * #AttributeStorage will be extended to be able to support a similar format.*/
       return std::nullopt;
     case CD_PROP_FLOAT:
       return AttrType::Float;

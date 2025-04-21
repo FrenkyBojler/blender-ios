@@ -735,6 +735,8 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap,
  *
  * \param data: The custom-data to tweak for .blend file writing (modified in place).
  * \param layers_to_write: A reduced set of layers to be written to file.
+ * \param write_data: #AttributeStorage data to write, to support the option for writing the new
+ * format even when it isn't used at runtime.
  *
  * \warning This function invalidates the custom data struct by changing the layer counts and the
  * #layers pointer, and by invalidating the type map. It expects to work on a shallow copy of
