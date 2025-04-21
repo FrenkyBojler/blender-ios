@@ -8,7 +8,7 @@
 /* Algorithm from the book Video Demystified. Chapter 7. Chroma Keying. */
 void node_composite_chroma_matte(float4 color,
                                  float4 key,
-                                 float mimimum,
+                                 float minimum,
                                  float maximum,
                                  float falloff,
                                  out float4 result,
