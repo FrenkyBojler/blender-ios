@@ -20,20 +20,21 @@ namespace blender::nodes::node_geo_fit_curves_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
+
   b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
+  b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
+
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
 
-  b.add_input<decl::Float>("Threshold")
+  b.add_input<decl::Float>("Error")
       .default_value(0.01f)
       .min(0.0f)
-      .max(1.0f)
+      .subtype(PROP_DISTANCE)
       .supports_field()
-      .description(
-          "Error threshold that defines how well the spline matches the input positions. Lower "
-          "values result in a closer fit while larger values result in a smoother but less "
-          "accurate fit");
-
-  b.add_output<decl::Geometry>("Curves").propagate_all();
+      .description("The error distance that the resulting points are allowed to be within");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -43,7 +44,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = GEO_NODE_CURVE_FIT_REFIT;
+  node->custom1 = GEO_NODE_CURVE_FIT_SPLIT;
 }
 
 static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
@@ -84,7 +85,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const Field<float> threshold_field = params.extract_input<Field<float>>("Threshold");
+  const Field<float> threshold_field = params.extract_input<Field<float>>("Error");
   const GeometryNodeFitCurvesMode mode = static_cast<GeometryNodeFitCurvesMode>(
       params.node().custom1);
 
@@ -107,8 +108,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_FIT_REFIT, "REFIT", 0, "Refit", ""},
-      {GEO_NODE_CURVE_FIT_SPLIT, "SPLIT", 0, "Split", ""},
+      {GEO_NODE_CURVE_FIT_SPLIT,
+       "SPLIT",
+       0,
+       "Split",
+       "Uses a least squares solver to find the control points (faster, but less accurate)"},
+      {GEO_NODE_CURVE_FIT_REFIT,
+       "REFIT",
+       0,
+       "Refit",
+       "Iteratively removes knots with the least error starting with a dense curve (slower, more "
+       "accurate fit)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

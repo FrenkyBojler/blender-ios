@@ -35,17 +35,6 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
     const bool use_cyclic = cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
 
-    Bounds<float3> bounds = *bounds::min_max(curve_positions);
-    const float3 center = bounds.center();
-    const float diagonal_distance = math::distance(bounds.min, bounds.max);
-
-    Array<float3> normalized_positions(curve_positions.size());
-    threading::parallel_for(curve_positions.index_range(), 4096, [&](const IndexRange range) {
-      for (const int i : range) {
-        normalized_positions[i] = (curve_positions[i] - center) / diagonal_distance;
-      }
-    });
-
     const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | (use_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0;
 
     float *r_cubic_array;
@@ -56,8 +45,8 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
 
     int error = 1;
     if (method == FitMethod::Split) {
-      error = curve_fit_cubic_to_points_fl(normalized_positions.as_span().cast<float>().data(),
-                                           normalized_positions.size(),
+      error = curve_fit_cubic_to_points_fl(curve_positions.cast<float>().data(),
+                                           curve_positions.size(),
                                            3,
                                            epsilon,
                                            flag,
@@ -70,20 +59,19 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
                                            &r_corner_index_array_len);
     }
     else if (method == FitMethod::Refit) {
-      error = curve_fit_cubic_to_points_refit_fl(
-          normalized_positions.as_span().cast<float>().data(),
-          normalized_positions.size(),
-          3,
-          epsilon,
-          flag,
-          nullptr,
-          0,
-          M_PI,
-          &r_cubic_array,
-          &r_cubic_array_len,
-          &r_orig_index_map,
-          &r_corner_index_array,
-          &r_corner_index_array_len);
+      error = curve_fit_cubic_to_points_refit_fl(curve_positions.cast<float>().data(),
+                                                 curve_positions.size(),
+                                                 3,
+                                                 epsilon,
+                                                 flag,
+                                                 nullptr,
+                                                 0,
+                                                 M_PI,
+                                                 &r_cubic_array,
+                                                 &r_cubic_array_len,
+                                                 &r_orig_index_map,
+                                                 &r_corner_index_array,
+                                                 &r_corner_index_array_len);
     }
 
     if (error) {
@@ -114,9 +102,9 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
     threading::parallel_for(IndexRange(dst_points_num), 4096, [&](const IndexRange range) {
       for (const int point_i : range) {
         const int index = point_i * 3;
-        left_handles[point_i] = (cubic_array_span[index] * diagonal_distance) + center;
-        control_points[point_i] = (cubic_array_span[index + 1] * diagonal_distance) + center;
-        right_handles[point_i] = (cubic_array_span[index + 2] * diagonal_distance) + center;
+        left_handles[point_i] = cubic_array_span[index];
+        control_points[point_i] = cubic_array_span[index + 1];
+        right_handles[point_i] = cubic_array_span[index + 2];
       }
     });
 
@@ -130,12 +118,10 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
   dst_curves.offsets_for_write().copy_from(points_by_curve.data());
 
   dst_curves.curve_types_for_write().copy_from(type_per_curve);
-  dst_curves.update_curve_types();
-
-  cyclic.materialize_to_uninitialized(dst_curves.cyclic_for_write());
 
   dst_curves.handle_types_left_for_write().fill(BEZIER_HANDLE_ALIGN);
   dst_curves.handle_types_right_for_write().fill(BEZIER_HANDLE_ALIGN);
+  dst_curves.update_curve_types();
 
   r_old_to_new_map.reinitialize(dst_curves.points_num());
 
@@ -172,16 +158,19 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
                                                     method,
                                                     old_to_new_map);
 
-  bke::gather_attributes(src_curves.attributes(),
-                         bke::AttrDomain::Point,
-                         bke::AttrDomain::Point,
-                         attribute_filter,
-                         old_to_new_map,
-                         curves.attributes_for_write());
+  bke::gather_attributes(
+      src_curves.attributes(),
+      bke::AttrDomain::Point,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_with_skip_ref(
+          attribute_filter,
+          {"position", "handle_type_left", "handle_type_right", "handle_left", "handle_right"}),
+      old_to_new_map,
+      curves.attributes_for_write());
   bke::copy_attributes(src_curves.attributes(),
                        bke::AttrDomain::Curve,
                        bke::AttrDomain::Curve,
-                       attribute_filter,
+                       bke::attribute_filter_with_skip_ref(attribute_filter, {"curve_type"}),
                        curves.attributes_for_write());
   return curves;
 }
