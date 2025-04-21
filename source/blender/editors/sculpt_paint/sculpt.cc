@@ -7170,7 +7170,7 @@ void calc_brush_cube_distances(const Brush &brush,
                                const Span<T> positions,
                                const MutableSpan<float> r_distances)
 {
-  BLI_assert(r_distances.size() == xy_positions.size());
+  BLI_assert(r_distances.size() == positions.size());
 
   const float roundness = brush.tip_roundness;
   const float roundness_rcp = math::safe_rcp(roundness);
