@@ -4851,8 +4851,8 @@ bool WM_event_handler_region_v2d_mask_poll(const wmWindow * /*win*/,
   return event_or_prev_in_rect(event, &rect);
 }
 
-bool WM_event_handler_region_marker_poll(const wmWindow * /*win*/,
-                                         const ScrArea * /*area*/,
+bool WM_event_handler_region_marker_poll(const wmWindow * win,
+                                         const ScrArea * area,
                                          const ARegion *region,
                                          const wmEvent *event)
 {
@@ -4860,6 +4860,12 @@ bool WM_event_handler_region_marker_poll(const wmWindow * /*win*/,
   rect.ymax = rect.ymin + UI_MARKER_MARGIN_Y;
   /* TODO: investigate returning `event_or_prev_in_rect(event, &rect)` here.
    * The difference is subtle but correct so dragging away from the region works. */
+  const ListBase *markers = ED_scene_markers_get(WM_window_get_active_scene(win),
+                                                 const_cast<ScrArea *>(area));
+  if (BLI_listbase_is_empty(markers)) {
+    return false;
+  }
+
   return BLI_rcti_isect_pt_v(&rect, event->xy);
 }
 
