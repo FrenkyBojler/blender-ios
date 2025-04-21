@@ -7198,12 +7198,12 @@ void calc_brush_cube_distances(const Brush &brush,
     r_distances[i] = 0.0f;
   }
 }
-template void calc_brush_cube_distances<float2>(const Brush &,
-                                                const Span<float2>,
-                                                MutableSpan<float>);
-template void calc_brush_cube_distances<float3>(const Brush &,
-                                                const Span<float3>,
-                                                MutableSpan<float>);
+template void calc_brush_cube_distances<float2>(const Brush &brush,
+                                                const Span<float2> positions,
+                                                MutableSpan<float> r_distances);
+template void calc_brush_cube_distances<float3>(const Brush &brush,
+                                                const Span<float3> positions,
+                                                MutableSpan<float> r_distances);
 
 void apply_hardness_to_distances(const float radius,
                                  const float hardness,
