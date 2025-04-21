@@ -300,8 +300,8 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
       }
     }
 
-    MEM_freeN(const_cast<char *>(dna_attr.name));
-    MEM_freeN(dna_attr.data);
+    MEM_SAFE_FREE(dna_attr.name);
+    MEM_SAFE_FREE(dna_attr.data);
 
     this->runtime->attributes.add_new(std::move(attribute));
   }
