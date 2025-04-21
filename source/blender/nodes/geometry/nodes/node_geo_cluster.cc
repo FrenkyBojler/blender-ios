@@ -649,6 +649,10 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (cluster_id >= 0 && cluster_id < cluster_count) {
           face_color_attribute.span[face_idx] = cluster_colors[cluster_id];
         }
+        else {
+          /* Pour les faces qui n'ont pas de cluster_id valide, utiliser une couleur par défaut */
+          face_color_attribute.span[face_idx] = ColorGeometry4f(0.5f, 0.5f, 0.5f, 1.0f);
+        }
       }
       
       face_cluster_reader.finish();
@@ -678,7 +682,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Mesh", std::move(geometry_set));
   
   /* Exposer l'attribut de cluster_id comme un field pour la sortie */
-  params.set_output("Cluster ID", bke::AttributeFieldInput::Create<int>("cluster_id"));
+  params.set_output("Cluster ID", bke::AttributeFieldInput::Create<int>("face_cluster_id"));
   
   /* Exposer l'attribut Color comme un field pour la sortie */
   params.set_output("Cluster Colors", bke::AttributeFieldInput::Create<ColorGeometry4f>("Color"));
