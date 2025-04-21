@@ -131,14 +131,13 @@ template<typename MaskT, typename... Args, typename... ParamTags, size_t... I, t
 #if (defined(__GNUC__) && !defined(__clang__))
 [[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
 #endif
-inline void
-execute_array(TypeSequence<ParamTags...> /*param_tags*/,
-              std::index_sequence<I...> /*indices*/,
-              ElementFn element_fn,
-              MaskT mask,
-              /* Use restrict to tell the compiler that pointer inputs do not alias
-               * each other. This is important for some compiler optimizations. */
-              Args &&__restrict... args)
+inline void execute_array(TypeSequence<ParamTags...> /*param_tags*/,
+                          std::index_sequence<I...> /*indices*/,
+                          ElementFn element_fn,
+                          MaskT mask,
+                          /* Use restrict to tell the compiler that pointer inputs do not alias
+                           * each other. This is important for some compiler optimizations. */
+                          Args &&__restrict... args)
 {
   if constexpr (std::is_same_v<std::decay_t<MaskT>, IndexRange>) {
     /* Having this explicit loop is necessary for MSVC to be able to vectorize this. */
@@ -174,11 +173,10 @@ template<typename... ParamTags, typename ElementFn, typename... Chunks>
 #if (defined(__GNUC__) && !defined(__clang__))
 [[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
 #endif
-inline void
-execute_materialized_impl(TypeSequence<ParamTags...> /*param_tags*/,
-                          const ElementFn element_fn,
-                          const int64_t size,
-                          Chunks &&__restrict... chunks)
+inline void execute_materialized_impl(TypeSequence<ParamTags...> /*param_tags*/,
+                                      const ElementFn element_fn,
+                                      const int64_t size,
+                                      Chunks &&__restrict... chunks)
 {
   for (int64_t i = 0; i < size; i++) {
     element_fn(chunks[i]...);
@@ -703,6 +701,24 @@ inline auto SI3_SO2(const char *name,
 {
   return detail::build_multi_function_with_n_inputs_two_outputs<Out1, Out2>(
       name, element_fn, exec_preset, TypeSequence<In1, In2, In3>());
+}
+
+/** Build multi-function with 5 single-input and 2 single-output parameter. */
+template<typename In1,
+         typename In2,
+         typename In3,
+         typename In4,
+         typename In5,
+         typename Out1,
+         typename Out2,
+         typename ElementFn,
+         typename ExecPreset = exec_presets::Materialized>
+inline auto SI5_SO2(const char *name,
+                    const ElementFn element_fn,
+                    const ExecPreset exec_preset = exec_presets::Materialized())
+{
+  return detail::build_multi_function_with_n_inputs_two_outputs<Out1, Out2>(
+      name, element_fn, exec_preset, TypeSequence<In1, In2, In3, In4, In5>());
 }
 
 /** Build multi-function with 1 single-input and 3 single output parameter. */
