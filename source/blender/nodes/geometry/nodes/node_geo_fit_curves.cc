@@ -30,6 +30,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
 
+  b.add_input<decl::Bool>("Corners").default_value(false).field_on_all().hide_value();
+
   b.add_input<decl::Float>("Error")
       .default_value(0.01f)
       .min(0.0f)
@@ -51,15 +53,24 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
                                       const IndexMask &poly_curves,
                                       const Field<bool> &selection_field,
+                                      const Field<bool> &corners_field,
                                       const Field<float> &threshold_field,
                                       const GeometryNodeFitCurvesMode mode,
                                       const AttributeFilter &attribute_filter)
 {
-  const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Curve};
-  fn::FieldEvaluator evaluator{field_context, &poly_curves};
-  evaluator.add(selection_field);
-  evaluator.add(threshold_field);
-  evaluator.evaluate();
+  const bke::CurvesFieldContext curve_field_context{src_curves, AttrDomain::Curve};
+  fn::FieldEvaluator curve_evaluator{curve_field_context, &poly_curves};
+  curve_evaluator.set_selection(selection_field);
+  curve_evaluator.add(threshold_field);
+  curve_evaluator.evaluate();
+
+  IndexMaskMemory memory;
+  const IndexMask poly_points = IndexMask::from_ranges(
+      src_curves.points_by_curve(), poly_curves, memory);
+  const bke::CurvesFieldContext point_field_context{src_curves, AttrDomain::Point};
+  fn::FieldEvaluator point_evaluator{point_field_context, &poly_points};
+  point_evaluator.add(corners_field);
+  point_evaluator.evaluate();
 
   geometry::FitMethod method;
   switch (mode) {
@@ -74,8 +85,9 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   }
 
   bke::CurvesGeometry curves = geometry::fit_curves(src_curves,
-                                                    evaluator.get_evaluated_as_mask(0),
-                                                    evaluator.get_evaluated<float>(1),
+                                                    curve_evaluator.get_evaluated_selection_as_mask(),
+                                                    curve_evaluator.get_evaluated<float>(0),
+                                                    point_evaluator.get_evaluated<bool>(0),
                                                     method,
                                                     attribute_filter);
 
@@ -87,6 +99,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  const Field<bool> corners_field = params.extract_input<Field<bool>>("Corners");
   const Field<float> threshold_field = params.extract_input<Field<float>>("Error");
   const GeometryNodeFitCurvesMode mode = static_cast<GeometryNodeFitCurvesMode>(
       params.node().custom1);
@@ -101,8 +114,13 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
       IndexMaskMemory memory;
       const IndexMask poly_curves = src_curves.indices_for_curve_type(CURVE_TYPE_POLY, memory);
-      bke::CurvesGeometry dst_curves = fit_curves(
-          src_curves, poly_curves, selection_field, threshold_field, mode, attribute_filter);
+      bke::CurvesGeometry dst_curves = fit_curves(src_curves,
+                                                  poly_curves,
+                                                  selection_field,
+                                                  corners_field,
+                                                  threshold_field,
+                                                  mode,
+                                                  attribute_filter);
       Curves *dst_curves_id = bke::curves_new_nomain(std::move(dst_curves));
       bke::curves_copy_parameters(*curves_id, *dst_curves_id);
       geometry_set.replace_curves(dst_curves_id);
