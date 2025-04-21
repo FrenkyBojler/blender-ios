@@ -4862,6 +4862,40 @@ bool WM_event_handler_region_marker_poll(const wmWindow * win,
    * The difference is subtle but correct so dragging away from the region works. */
   const ListBase *markers = ED_scene_markers_get(WM_window_get_active_scene(win),
                                                  const_cast<ScrArea *>(area));
+
+  switch (area->spacetype) {
+    case SPACE_ACTION: {
+      const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
+      if ((saction->flag & SACTION_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_GRAPH: {
+      const SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+      if ((sgraph->flag & SIPO_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_NLA: {
+      const SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
+      if ((snla->flag & SNLA_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_SEQ: {
+      const SpaceSeq *seq = static_cast<SpaceSeq *>(area->spacedata.first);
+      if ((seq->flag & SEQ_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
   if (BLI_listbase_is_empty(markers)) {
     return false;
   }
