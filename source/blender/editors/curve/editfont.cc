@@ -2098,6 +2098,9 @@ static wmOperatorStatus font_selection_set_modal(bContext *C,
     case MOUSEMOVE:
       font_cursor_set_apply(C, event);
       break;
+    default: {
+      break;
+    }
   }
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2504,6 +2507,7 @@ static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent *
   else {
     STRNCPY(filepath, U.fontdir);
     BLI_path_slash_ensure(filepath, sizeof(filepath));
+    /* The file selector will expand the blend-file relative prefix. */
   }
   RNA_property_string_set(op->ptr, prop_filepath, filepath);
 
