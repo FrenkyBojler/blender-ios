@@ -178,9 +178,7 @@ Attribute &AttributeStorage::add(std::string name,
                                  const AttrType data_type,
                                  Attribute::ArrayData data)
 {
-  Attribute &attribute = this->add_without_data(name, domain, data_type);
-  attribute.data_ = std::move(data);
-  return attribute;
+  return this->add(name, domain, data_type, std::move(data));
 }
 
 std::string AttributeStorage::unique_name_calc(const StringRef name)
@@ -189,9 +187,10 @@ std::string AttributeStorage::unique_name_calc(const StringRef name)
       [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
 }
 
-Attribute &AttributeStorage::add_without_data(std::string name,
-                                              const AttrDomain domain,
-                                              const AttrType data_type)
+Attribute &AttributeStorage::add(std::string name,
+                                 const AttrDomain domain,
+                                 const AttrType data_type,
+                                 Attribute::DataVariant &&data)
 {
   BLI_assert(!this->lookup(name));
   std::unique_ptr<Attribute> ptr = std::make_unique<Attribute>();
@@ -199,6 +198,7 @@ Attribute &AttributeStorage::add_without_data(std::string name,
   attribute.name_ = std::move(name);
   attribute.domain_ = domain;
   attribute.type_ = data_type;
+  attribute.data_ = std::move(data);
   this->runtime->attributes.add_new(std::move(ptr));
   return attribute;
 }

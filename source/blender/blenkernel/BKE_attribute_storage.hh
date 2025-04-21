@@ -177,7 +177,10 @@ class AttributeStorage : public ::AttributeStorage {
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 
  private:
-  Attribute &add_without_data(std::string name, bke::AttrDomain domain, bke::AttrType data_type);
+  Attribute &add(std::string name,
+                 bke::AttrDomain domain,
+                 bke::AttrType data_type,
+                 Attribute::DataVariant &&data);
 };
 
 inline StringRefNull Attribute::name() const
