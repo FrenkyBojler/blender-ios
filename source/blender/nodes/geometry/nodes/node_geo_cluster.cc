@@ -114,7 +114,7 @@ struct ClusterInfo {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
-  b.add_input<decl::Int>("Max Faces Per Cluster").default_value(50).min(1).max(10000);
+  b.add_input<decl::Int>("Faces Per Cluster").default_value(64).min(1).max(10000);
   b.add_input<decl::Float>("Compactness").default_value(0.8f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
   b.add_input<decl::Bool>("Random Colors").default_value(true);
   b.add_output<decl::Geometry>("Mesh").propagate_all();
@@ -543,7 +543,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   /* Get inputs from sockets. */
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
-  const int faces_per_cluster = std::max(1, params.extract_input<int>("Max Faces Per Cluster"));
+  const int faces_per_cluster = std::max(1, params.extract_input<int>("Faces Per Cluster"));
   const float compactness = params.extract_input<float>("Compactness");
   const bool random_colors = params.extract_input<bool>("Random Colors");
 
@@ -658,30 +658,18 @@ static void node_geo_exec(GeoNodeExecParams params)
       bke::SpanAttributeWriter<ColorGeometry4f> vert_color_attribute =
           attributes.lookup_or_add_for_write_span<ColorGeometry4f>("VertexColor", bke::AttrDomain::Point);
       
-      /* Pour les vertices, utiliser l'attribute face_cluster_id pour assurer la cohérence des couleurs */
-      Array<int> vertex_to_face(positions.size(), -1);
+      /* Assign vertex colors based on their cluster */
+      bke::SpanAttributeWriter<int> vertex_cluster_reader = 
+          attributes.lookup_or_add_for_write_span<int>("cluster_id", bke::AttrDomain::Point);
       
-      /* Assigner à chaque vertex une face qui le contient */
-      for (const int face_idx : faces.index_range()) {
-        const Span<int> face_verts = corner_verts.slice(faces[face_idx]);
-        for (const int vert : face_verts) {
-          if (vert < vertex_to_face.size()) {
-            vertex_to_face[vert] = face_idx;
-          }
+      for (int i = 0; i < vertex_cluster_reader.span.size(); i++) {
+        int cluster_id = vertex_cluster_reader.span[i];
+        if (cluster_id >= 0 && cluster_id < cluster_count) {
+          vert_color_attribute.span[i] = cluster_colors[cluster_id];
         }
       }
       
-      /* Assigner les couleurs des vertices basées sur la face assignée */
-      for (int i = 0; i < vertex_to_face.size(); i++) {
-        int face_idx = vertex_to_face[i];
-        if (face_idx >= 0) {
-          int cluster_id = face_cluster_reader.span[face_idx];
-          if (cluster_id >= 0 && cluster_id < cluster_count) {
-            vert_color_attribute.span[i] = cluster_colors[cluster_id];
-          }
-        }
-      }
-      
+      vertex_cluster_reader.finish();
       vert_color_attribute.finish();
     }
   }
@@ -690,7 +678,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Mesh", std::move(geometry_set));
   
   /* Exposer l'attribut de cluster_id comme un field pour la sortie */
-  params.set_output("Cluster ID", bke::AttributeFieldInput::Create<int>("face_cluster_id"));
+  params.set_output("Cluster ID", bke::AttributeFieldInput::Create<int>("cluster_id"));
   
   /* Exposer l'attribut Color comme un field pour la sortie */
   params.set_output("Cluster Colors", bke::AttributeFieldInput::Create<ColorGeometry4f>("Color"));
