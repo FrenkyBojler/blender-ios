@@ -90,6 +90,9 @@ TEST(attribute_storage, MultipleShared)
   storage.add("more", AttrDomain::Face, AttrType::Float, data);
   storage.add("data", AttrDomain::Edge, AttrType::Float, data);
 
+  /* The same data is shared among 4 attributes. */
+  EXPECT_EQ(sharing_info->strong_users(), 4);
+
   {
     const auto &data = std::get<Attribute::ArrayData>(storage.lookup("more")->data_for_write());
     const float *data_ptr = static_cast<const float *>(data.data);
