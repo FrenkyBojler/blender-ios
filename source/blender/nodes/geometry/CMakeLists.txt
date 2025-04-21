@@ -8,19 +8,10 @@ set(INC
   include
   ../intern
   ../../editors/include
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../functions
-  ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
   ../../modifiers
-  ../../render
-  ../../windowmanager
   ../../io/common
+  ../../io/csv
   ../../io/ply
   ../../io/stl
   ../../io/wavefront_obj
@@ -40,7 +31,10 @@ set(SRC
   nodes/node_geo_blur_attribute.cc
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
+  nodes/node_geo_camera_info.cc
+  nodes/node_geo_closure.cc
   nodes/node_geo_collection_info.cc
+  nodes/node_geo_combine_bundle.cc
   nodes/node_geo_common.cc
   nodes/node_geo_convex_hull.cc
   nodes/node_geo_curve_endpoint_selection.cc
@@ -81,9 +75,13 @@ set(SRC
   nodes/node_geo_edge_split.cc
   nodes/node_geo_edges_to_face_groups.cc
   nodes/node_geo_evaluate_at_index.cc
+  nodes/node_geo_evaluate_closure.cc
   nodes/node_geo_evaluate_on_domain.cc
   nodes/node_geo_extrude_mesh.cc
   nodes/node_geo_fit_curves.cc
+  nodes/node_geo_field_average.cc
+  nodes/node_geo_field_min_and_max.cc
+  nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
@@ -96,18 +94,22 @@ set(SRC
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
   nodes/node_geo_image_texture.cc
+  nodes/node_geo_import_csv.cc
   nodes/node_geo_import_obj.cc
   nodes/node_geo_import_ply.cc
   nodes/node_geo_import_stl.cc
+  nodes/node_geo_import_text.cc
   nodes/node_geo_index_of_nearest.cc
   nodes/node_geo_index_switch.cc
   nodes/node_geo_input_active_camera.cc
+  nodes/node_geo_input_collection.cc
   nodes/node_geo_input_curve_handles.cc
   nodes/node_geo_input_curve_tilt.cc
   nodes/node_geo_input_edge_smooth.cc
   nodes/node_geo_input_face_smooth.cc
   nodes/node_geo_input_id.cc
   nodes/node_geo_input_index.cc
+  nodes/node_geo_input_instance_bounds.cc
   nodes/node_geo_input_instance_rotation.cc
   nodes/node_geo_input_instance_scale.cc
   nodes/node_geo_input_instance_transform.cc
@@ -124,6 +126,7 @@ set(SRC
   nodes/node_geo_input_named_attribute.cc
   nodes/node_geo_input_named_layer_selection.cc
   nodes/node_geo_input_normal.cc
+  nodes/node_geo_input_object.cc
   nodes/node_geo_input_position.cc
   nodes/node_geo_input_radius.cc
   nodes/node_geo_input_scene_time.cc
@@ -141,6 +144,7 @@ set(SRC
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
   nodes/node_geo_merge_by_distance.cc
+  nodes/node_geo_merge_layers.cc
   nodes/node_geo_mesh_face_group_boundaries.cc
   nodes/node_geo_mesh_primitive_circle.cc
   nodes/node_geo_mesh_primitive_cone.cc
@@ -188,6 +192,7 @@ set(SRC
   nodes/node_geo_scale_instances.cc
   nodes/node_geo_sdf_grid_boolean.cc
   nodes/node_geo_self_object.cc
+  nodes/node_geo_separate_bundle.cc
   nodes/node_geo_separate_components.cc
   nodes/node_geo_separate_geometry.cc
   nodes/node_geo_set_curve_handles.cc
@@ -195,10 +200,13 @@ set(SRC
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_name.cc
+  nodes/node_geo_set_grease_pencil_color.cc
+  nodes/node_geo_set_grease_pencil_depth_mode.cc
   nodes/node_geo_set_id.cc
   nodes/node_geo_set_instance_transform.cc
   nodes/node_geo_set_material.cc
   nodes/node_geo_set_material_index.cc
+  nodes/node_geo_set_mesh_normal.cc
   nodes/node_geo_set_point_radius.cc
   nodes/node_geo_set_position.cc
   nodes/node_geo_set_shade_smooth.cc
@@ -232,6 +240,7 @@ set(SRC
 
   include/NOD_geo_bake.hh
   include/NOD_geo_capture_attribute.hh
+  include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh
   include/NOD_geo_repeat.hh
@@ -244,18 +253,34 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
-  bf_geometry
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
+
+if(WITH_IO_CSV)
+  list(APPEND LIB
+    PRIVATE bf_io_common
+    PRIVATE bf_io_csv
+  )
+  add_definitions(-DWITH_IO_CSV)
+endif()
 
 if(WITH_IO_STL)
   list(APPEND LIB
@@ -301,7 +326,7 @@ if(WITH_TBB)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_OPENSUBDIV)

@@ -12,7 +12,7 @@ cmake_policy(SET CMP0005 NEW)
 # So syntax problems are errors
 cmake_policy(SET CMP0010 NEW)
 
-# Input directories must have CMakeLists.txt
+# Input directories must have `CMakeLists.txt`.
 cmake_policy(SET CMP0014 NEW)
 
 cmake_minimum_required(VERSION 3.5)
@@ -108,7 +108,7 @@ suffix_relpaths(SRC_NEW "${SRC}" "../../string/")
 include_directories(${INC_NEW})
 add_library(string_lib ${SRC_NEW})
 
-# numaapi (for 'bli_lib')
+# `numaapi` (for 'bli_lib').
 include(${CMAKE_SOURCE_DIR}/../../numaapi/CMakeLists.txt)
 suffix_relpaths(INC_NEW "${INC}" "../../numaapi/")
 suffix_relpaths(SRC_NEW "${SRC}" "../../numaapi/")
@@ -179,7 +179,7 @@ add_library(bli_lib
   "../../../source/blender/blenlib/intern/task.c"
   "../../../source/blender/blenlib/intern/threads.c"
   "../../../source/blender/blenlib/intern/time.c"
-  "../../../source/blender/blenlib/intern/path_util.c"
+  "../../../source/blender/blenlib/intern/path_utils.cc"
   "../../../source/blender/blenlib/intern/BLI_dynstr.c"
   "../../../source/blender/blenlib/intern/BLI_ghash.c"
   "../../../source/blender/blenlib/intern/BLI_ghash_utils.cc"

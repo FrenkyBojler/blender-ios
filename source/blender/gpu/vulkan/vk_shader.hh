@@ -59,10 +59,10 @@ class VKShader : public Shader {
 
   void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) override;
 
-  void vertex_shader_from_glsl(MutableSpan<const char *> sources) override;
-  void geometry_shader_from_glsl(MutableSpan<const char *> sources) override;
-  void fragment_shader_from_glsl(MutableSpan<const char *> sources) override;
-  void compute_shader_from_glsl(MutableSpan<const char *> sources) override;
+  void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
+  void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
+  void fragment_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
+  void compute_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
   bool finalize(const shader::ShaderCreateInfo *info = nullptr) override;
   bool finalize_post();
 
@@ -76,11 +76,6 @@ class VKShader : public Shader {
   bool is_ready() const;
   void warm_cache(int limit) override;
 
-  void transform_feedback_names_set(Span<const char *> name_list,
-                                    eGPUShaderTFBType geom_type) override;
-  bool transform_feedback_enable(VertBuf *) override;
-  void transform_feedback_disable() override;
-
   void bind() override;
   void unbind() override;
 
@@ -93,19 +88,6 @@ class VKShader : public Shader {
   std::string geometry_interface_declare(const shader::ShaderCreateInfo &info) const override;
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
-
-  /* Unused: SSBO vertex fetch draw parameters. */
-  bool get_uses_ssbo_vertex_fetch() const override
-  {
-    return false;
-  }
-  int get_ssbo_vertex_fetch_output_num_verts() const override
-  {
-    return 0;
-  }
-
-  /* DEPRECATED: Kept only because of BGL API. */
-  int program_handle_get() const override;
 
   VkPipeline ensure_and_get_compute_pipeline();
   VkPipeline ensure_and_get_graphics_pipeline(GPUPrimType primitive,
@@ -131,9 +113,7 @@ class VKShader : public Shader {
   }
 
  private:
-  Vector<uint32_t> compile_glsl_to_spirv(Span<const char *> sources, shaderc_shader_kind kind);
-  void build_shader_module(Span<uint32_t> spirv_module, VKShaderModule &r_shader_module);
-  void build_shader_module(MutableSpan<const char *> sources,
+  void build_shader_module(MutableSpan<StringRefNull> sources,
                            shaderc_shader_kind stage,
                            VKShaderModule &r_shader_module);
   bool finalize_shader_module(VKShaderModule &shader_module, const char *stage_name);
@@ -146,7 +126,7 @@ class VKShader : public Shader {
    * and layered rendering, necessitate a geometry shader to work on older hardware.
    */
   std::string workaround_geometry_shader_source_create(const shader::ShaderCreateInfo &info);
-  bool do_geometry_shader_injection(const shader::ShaderCreateInfo *info);
+  bool do_geometry_shader_injection(const shader::ShaderCreateInfo *info) const;
 };
 
 static inline VKShader &unwrap(Shader &shader)

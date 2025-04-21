@@ -6,7 +6,9 @@
  * \ingroup edtransform
  */
 
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_string.h"
 
 #include "BKE_editmesh.hh"
@@ -15,13 +17,12 @@
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "ED_mesh.hh"
 #include "ED_screen.hh"
-
-#include "WM_api.hh"
 
 #include "RNA_access.hh"
 
@@ -36,7 +37,7 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Edge Slide)
@@ -92,6 +93,7 @@ struct EdgeSlideParams {
 
   bool use_even;
   bool flipped;
+  bool update_status_bar;
 };
 
 /**
@@ -251,7 +253,7 @@ static void calcEdgeSlide_mval_range(TransInfo *t,
   BMBVHTree *bmbvh = nullptr;
   Array<float3> bmbvh_coord_storage;
   if (use_occlude_geometry) {
-    Scene *scene_eval = (Scene *)DEG_get_evaluated_id(t->depsgraph, &t->scene->id);
+    Scene *scene_eval = DEG_get_evaluated(t->depsgraph, t->scene);
     Object *obedit_eval = DEG_get_evaluated_object(t->depsgraph, tc->obedit);
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
 
@@ -410,11 +412,14 @@ static eRedrawFlag handleEventEdgeSlide(TransInfo *t, const wmEvent *event)
   EdgeSlideParams *slp = static_cast<EdgeSlideParams *>(t->custom.mode.data);
 
   if (slp) {
+    bool is_event_handled = t->redraw && (event->type != MOUSEMOVE);
+    slp->update_status_bar |= is_event_handled;
     switch (event->type) {
       case EVT_EKEY:
         if (event->val == KM_PRESS) {
           slp->use_even = !slp->use_even;
           calcEdgeSlideCustomPoints(t);
+          slp->update_status_bar = true;
           return TREDRAW_HARD;
         }
         break;
@@ -422,6 +427,7 @@ static eRedrawFlag handleEventEdgeSlide(TransInfo *t, const wmEvent *event)
         if (event->val == KM_PRESS) {
           slp->flipped = !slp->flipped;
           calcEdgeSlideCustomPoints(t);
+          slp->update_status_bar = true;
           return TREDRAW_HARD;
         }
         break;
@@ -430,6 +436,7 @@ static eRedrawFlag handleEventEdgeSlide(TransInfo *t, const wmEvent *event)
         if (event->val == KM_PRESS) {
           t->flag ^= T_ALT_TRANSFORM;
           calcEdgeSlideCustomPoints(t);
+          slp->update_status_bar = true;
           return TREDRAW_HARD;
         }
         break;
@@ -469,7 +476,7 @@ static void drawEdgeSlide(TransInfo *t)
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   TransDataEdgeSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
-  const float3 &curr_sv_co_orig = curr_sv->v_co_orig();
+  const float3 curr_sv_co_orig = curr_sv->v_co_orig();
 
   if (slp->use_even == true) {
     /* Even mode. */
@@ -546,7 +553,7 @@ static void drawEdgeSlide(TransInfo *t)
       mul_v3_fl(a, 100.0f);
       negate_v3_v3(b, a);
 
-      const float3 &sv_co_orig = sv.v_co_orig();
+      const float3 sv_co_orig = sv.v_co_orig();
       add_v3_v3(a, sv_co_orig);
       add_v3_v3(b, sv_co_orig);
 
@@ -618,8 +625,7 @@ static void edge_slide_snap_apply(TransInfo *t, float *value)
   }
   else {
     /* Could be pre-calculated. */
-    t_mid = line_point_factor_v3(
-        blender::float3{0.0f, 0.0f, 0.0f}, sv->dir_side[0], sv->dir_side[1]);
+    t_mid = line_point_factor_v3(float3{0.0f, 0.0f, 0.0f}, sv->dir_side[0], sv->dir_side[1]);
 
     float t_snap = line_point_factor_v3(snap_point, co_dest[0], co_dest[1]);
     side_index = t_snap >= t_mid;
@@ -789,7 +795,7 @@ static void applyEdgeSlide(TransInfo *t)
   ofs += BLI_strncpy_rlen(str + ofs, RPT_("Edge Slide: "), sizeof(str) - ofs);
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
-    outputNumInput(&(t->num), c, &t->scene->unit);
+    outputNumInput(&(t->num), c, t->scene->unit);
     ofs += BLI_strncpy_rlen(str + ofs, &c[0], sizeof(str) - ofs);
   }
   else {
@@ -809,20 +815,24 @@ static void applyEdgeSlide(TransInfo *t)
     return;
   }
 
-  WorkspaceStatus status(t->context);
-  status.opmodal(IFACE_("Confirm"), op->type, TFM_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Cancel"), op->type, TFM_MODAL_CONFIRM);
-  status.opmodal(IFACE_("Snap"), op->type, TFM_MODAL_SNAP_TOGGLE, is_snap);
-  status.opmodal(IFACE_("Snap Invert"), op->type, TFM_MODAL_SNAP_INV_ON, is_snap_invert);
-  status.opmodal(IFACE_("Set Snap Base"), op->type, TFM_MODAL_EDIT_SNAP_SOURCE_ON);
-  status.opmodal(IFACE_("Move"), op->type, TFM_MODAL_TRANSLATE);
-  status.opmodal(IFACE_("Rotate"), op->type, TFM_MODAL_ROTATE);
-  status.opmodal(IFACE_("Resize"), op->type, TFM_MODAL_RESIZE);
-  status.opmodal(IFACE_("Precision Mode"), op->type, TFM_MODAL_PRECISION, is_precision);
-  status.item_bool(IFACE_("Clamp"), is_clamp, ICON_EVENT_C, ICON_EVENT_ALT);
-  status.item_bool(IFACE_("Even"), use_even, ICON_EVENT_E);
-  if (use_even) {
-    status.item_bool(IFACE_("Flipped"), flipped, ICON_EVENT_F);
+  if (slp->update_status_bar) {
+    slp->update_status_bar = false;
+
+    WorkspaceStatus status(t->context);
+    status.opmodal(IFACE_("Confirm"), op->type, TFM_MODAL_CONFIRM);
+    status.opmodal(IFACE_("Cancel"), op->type, TFM_MODAL_CANCEL);
+    status.opmodal(IFACE_("Snap"), op->type, TFM_MODAL_SNAP_TOGGLE, is_snap);
+    status.opmodal(IFACE_("Snap Invert"), op->type, TFM_MODAL_SNAP_INV_ON, is_snap_invert);
+    status.opmodal(IFACE_("Set Snap Base"), op->type, TFM_MODAL_EDIT_SNAP_SOURCE_ON);
+    status.opmodal(IFACE_("Move"), op->type, TFM_MODAL_TRANSLATE);
+    status.opmodal(IFACE_("Rotate"), op->type, TFM_MODAL_ROTATE);
+    status.opmodal(IFACE_("Resize"), op->type, TFM_MODAL_RESIZE);
+    status.opmodal(IFACE_("Precision Mode"), op->type, TFM_MODAL_PRECISION, is_precision);
+    status.item_bool(IFACE_("Clamp"), is_clamp, ICON_EVENT_C, ICON_EVENT_ALT);
+    status.item_bool(IFACE_("Even"), use_even, ICON_EVENT_E);
+    if (use_even) {
+      status.item_bool(IFACE_("Flipped"), flipped, ICON_EVENT_F);
+    }
   }
 }
 
@@ -883,6 +893,7 @@ static void initEdgeSlide_ex(TransInfo *t,
       slp->flipped = !flipped;
     }
     slp->perc = 0.0f;
+    slp->update_status_bar = true;
 
     if (!use_clamp) {
       t->flag |= T_ALT_TRANSFORM;
@@ -980,3 +991,5 @@ TransModeInfo TransMode_edgeslide = {
     /*snap_apply_fn*/ edge_slide_snap_apply,
     /*draw_fn*/ drawEdgeSlide,
 };
+
+}  // namespace blender::ed::transform

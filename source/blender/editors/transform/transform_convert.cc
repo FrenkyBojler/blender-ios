@@ -17,7 +17,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_math_vector.hh"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -48,7 +47,7 @@
 /* Own include. */
 #include "transform_convert.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 bool transform_mode_use_local_origins(const TransInfo *t)
 {
@@ -716,10 +715,9 @@ static void init_proportional_edit(TransInfo *t)
   if (!(ELEM(t->data_type,
              &TransConvertType_Action,
              &TransConvertType_Curve,
-             &TransConvertType_Curves,
+             &curves::TransConvertType_Curves,
              &TransConvertType_Graph,
-             &TransConvertType_GPencil,
-             &TransConvertType_GreasePencil,
+             &greasepencil::TransConvertType_GreasePencil,
              &TransConvertType_Lattice,
              &TransConvertType_Mask,
              &TransConvertType_MBall,
@@ -729,7 +727,8 @@ static void init_proportional_edit(TransInfo *t)
              &TransConvertType_MeshUV,
              &TransConvertType_MeshVertCData,
              &TransConvertType_Node,
-             &TransConvertType_Object) ||
+             &TransConvertType_Object,
+             &pointcloud::TransConvertType_PointCloud) ||
         ELEM(t->data_type, &TransConvertType_Particle)))
   {
     /* Disable proportional editing. */
@@ -764,7 +763,7 @@ static void init_proportional_edit(TransInfo *t)
     else if (t->data_type == &TransConvertType_MeshUV && t->flag & T_PROP_CONNECTED) {
       /* Already calculated by uv_set_connectivity_distance. */
     }
-    else if (ELEM(t->data_type, &TransConvertType_Curve, &TransConvertType_Curves)) {
+    else if (ELEM(t->data_type, &TransConvertType_Curve, &curves::TransConvertType_Curves)) {
       BLI_assert(t->obedit_type == OB_CURVES_LEGACY || t->obedit_type == OB_CURVES);
       set_prop_dist(t, false);
     }
@@ -788,9 +787,9 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
             &TransConvertType_Pose,
             &TransConvertType_EditArmature,
             &TransConvertType_Curve,
-            &TransConvertType_Curves,
-            &TransConvertType_GPencil,
-            &TransConvertType_GreasePencil,
+            &curves::TransConvertType_Curves,
+            &greasepencil::TransConvertType_GreasePencil,
+            &pointcloud::TransConvertType_PointCloud,
             &TransConvertType_Lattice,
             &TransConvertType_MBall,
             &TransConvertType_Mesh,
@@ -806,8 +805,8 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
   const eObjectMode object_mode = eObjectMode(obact ? obact->mode : OB_MODE_OBJECT);
   const short object_type = obact ? obact->type : -1;
 
-  if ((object_mode & OB_MODE_EDIT) || (t->data_type == &TransConvertType_GPencil) ||
-      (t->data_type == &TransConvertType_GreasePencil) ||
+  if ((object_mode & OB_MODE_EDIT) ||
+      (t->data_type == &greasepencil::TransConvertType_GreasePencil) ||
       ((object_mode & OB_MODE_POSE) && (object_type == OB_ARMATURE)))
   {
     if (t->data_container) {
@@ -851,10 +850,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
         tc->poseobj = objects[i];
         tc->use_local_mat = true;
       }
-      else if (t->data_type == &TransConvertType_GPencil) {
-        tc->use_local_mat = true;
-      }
-      else if (t->data_type == &TransConvertType_GreasePencil) {
+      else if (t->data_type == &greasepencil::TransConvertType_GreasePencil) {
         tc->use_local_mat = true;
       }
 
@@ -904,10 +900,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
   }
   if (t->options & CTX_GPENCIL_STROKES) {
     if (t->obedit_type == OB_GREASE_PENCIL) {
-      return &TransConvertType_GreasePencil;
-    }
-    else if (t->obedit_type == OB_GPENCIL_LEGACY) {
-      return &TransConvertType_GPencil;
+      return &greasepencil::TransConvertType_GreasePencil;
     }
     return nullptr;
   }
@@ -935,7 +928,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     if (t->options & CTX_SEQUENCER_IMAGE) {
       return &TransConvertType_SequencerImage;
     }
-    if (sequencer_retiming_mode_is_active(t->context)) {
+    if (vse::sequencer_retiming_mode_is_active(t->context)) {
       return &TransConvertType_SequencerRetiming;
     }
     return &TransConvertType_Sequencer;
@@ -981,7 +974,10 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
       return &TransConvertType_EditArmature;
     }
     if (t->obedit_type == OB_CURVES) {
-      return &TransConvertType_Curves;
+      return &curves::TransConvertType_Curves;
+    }
+    if (t->obedit_type == OB_POINTCLOUD) {
+      return &pointcloud::TransConvertType_PointCloud;
     }
     return nullptr;
   }
@@ -1187,7 +1183,7 @@ void animrecord_check_state(TransInfo *t, ID *id)
    * - We're not only keying for available channels.
    * - The option to add new actions for each round is not enabled.
    */
-  if (blender::animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTAVAILABLE) == 0 &&
+  if (animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTAVAILABLE) == 0 &&
       (scene->toolsettings->keying_flag & AUTOKEY_FLAG_LAYERED_RECORD))
   {
     /* If playback has just looped around,
@@ -1204,14 +1200,17 @@ void animrecord_check_state(TransInfo *t, ID *id)
         if (frame_range[1] > frame_range[0] + 2.0f) {
           /* TODO: call BKE_nla_action_pushdown() instead?  */
 
-          /* Add a new NLA strip to the track, which references the active action + slot.*/
-          NlaStrip *strip = BKE_nlastack_add_strip(
-              {*id, *adt}, adt->action, ID_IS_OVERRIDE_LIBRARY(id));
+          /* Add a new NLA strip to the track, which references the active action + slot. */
+          NlaStrip *strip = BKE_nlastack_add_strip({*id, *adt}, ID_IS_OVERRIDE_LIBRARY(id));
           BLI_assert(strip);
           animrig::nla::assign_action_slot_handle(*strip, adt->slot_handle, *id);
 
           /* Clear reference to action now that we've pushed it onto the stack. */
-          animrig::unassign_action(*id);
+          const bool unassign_ok = animrig::unassign_action(*id);
+          BLI_assert_msg(
+              unassign_ok,
+              "Expecting un-assigning an action to always work when pushing down an NLA strip");
+          UNUSED_VARS_NDEBUG(unassign_ok);
 
           /* Adjust blending + extend so that they will behave correctly. */
           strip->extendmode = NLASTRIP_EXTEND_NOTHING;
@@ -1277,3 +1276,5 @@ void recalc_data(TransInfo *t)
 }
 
 /** \} */
+
+}  // namespace blender::ed::transform

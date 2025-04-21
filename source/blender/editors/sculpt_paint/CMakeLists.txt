@@ -8,21 +8,8 @@ set(INC
   ../asset
   ../include
   ../uvedit
-  ../../asset_system
-  ../../blenkernel
   ../../blenlib
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../draw
-  ../../functions
-  ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../nodes
-  ../../render
-  ../../windowmanager
   ../../../../intern/eigen
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -126,7 +113,9 @@ set(SRC
   grease_pencil_trace_util.hh
   grease_pencil_weight_paint.hh
   mesh_brush_common.hh
+  paint_hide.hh
   paint_intern.hh
+  paint_mask.hh
   sculpt_automask.hh
   sculpt_boundary.hh
   sculpt_cloth.hh
@@ -156,8 +145,6 @@ set(SRC
   brushes/draw_vector_displacement.cc
   brushes/elastic_deform.cc
   brushes/enhance_details.cc
-  brushes/fill.cc
-  brushes/flatten.cc
   brushes/grab.cc
   brushes/inflate.cc
   brushes/layer.cc
@@ -166,9 +153,10 @@ set(SRC
   brushes/multires_displacement_eraser.cc
   brushes/multires_displacement_smear.cc
   brushes/pinch.cc
+  brushes/plane.cc
+  brushes/plane_legacy.cc
   brushes/relax.cc
   brushes/rotate.cc
-  brushes/scrape.cc
   brushes/smooth.cc
   brushes/smooth_mask.cc
   brushes/snake_hook.cc
@@ -176,19 +164,31 @@ set(SRC
   brushes/thumb.cc
   brushes/topology_slide.cc
 
-  brushes/types.hh
+  brushes/brushes.hh
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::asset_system
+  PRIVATE bf::blenkernel
   PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_POTRACE)
@@ -207,6 +207,8 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    mesh_brush_common_tests.cc
+    paint_test.cc
     sculpt_detail_test.cc
   )
   set(TEST_INC

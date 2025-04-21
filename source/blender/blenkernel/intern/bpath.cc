@@ -29,13 +29,15 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.hh"
 
 #include "BKE_idtype.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
@@ -45,7 +47,7 @@
 #include "CLG_log.h"
 
 #ifndef _MSC_VER
-#  include "BLI_strict_flags.h" /* Keep last. */
+#  include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 #endif
 
 static CLG_LogRef LOG = {"bke.bpath"};
@@ -218,13 +220,33 @@ bool BKE_bpath_foreach_path_allocated_process(BPathForeachPathData *bpath_data, 
 static bool check_missing_files_foreach_path_cb(BPathForeachPathData *bpath_data,
                                                 char * /*path_dst*/,
                                                 size_t /*path_dst_maxncpy*/,
-
                                                 const char *path_src)
 {
   ReportList *reports = (ReportList *)bpath_data->user_data;
 
   if (!BLI_exists(path_src)) {
-    BKE_reportf(reports, RPT_WARNING, "Path '%s' not found", path_src);
+    ID *owner_id = bpath_data->owner_id;
+    if (owner_id) {
+      if (ID_IS_LINKED(owner_id)) {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "Path '%s' not found, from linked data-block '%s' (from library '%s')",
+                    path_src,
+                    owner_id->name,
+                    owner_id->lib->runtime->filepath_abs);
+      }
+      else {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "Path '%s' not found, from local data-block '%s'",
+                    path_src,
+                    owner_id->name);
+      }
+    }
+    else {
+      BKE_reportf(
+          reports, RPT_WARNING, "Path '%s' not found (no known owner data-block)", path_src);
+    }
   }
 
   return false;
@@ -668,7 +690,7 @@ static bool bpath_list_restore(BPathForeachPathData *bpath_data,
 
 void *BKE_bpath_list_backup(Main *bmain, const eBPathForeachFlag flag)
 {
-  ListBase *path_list = static_cast<ListBase *>(MEM_callocN(sizeof(ListBase), __func__));
+  ListBase *path_list = MEM_callocN<ListBase>(__func__);
 
   BPathForeachPathData path_data{};
   path_data.bmain = bmain;

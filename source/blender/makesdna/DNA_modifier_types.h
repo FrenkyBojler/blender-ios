@@ -20,11 +20,17 @@
 
 namespace blender {
 struct NodesModifierRuntime;
+namespace bke {
+struct BVHTreeFromMesh;
 }
+}  // namespace blender
 using NodesModifierRuntimeHandle = blender::NodesModifierRuntime;
+using BVHTreeFromMeshHandle = blender::bke::BVHTreeFromMesh;
 #else
 typedef struct NodesModifierRuntimeHandle NodesModifierRuntimeHandle;
+typedef struct BVHTreeFromMeshHandle BVHTreeFromMeshHandle;
 #endif
+struct LineartModifierRuntime;
 
 /* WARNING ALERT! TYPEDEF VALUES ARE WRITTEN IN FILES! SO DO NOT CHANGE!
  * (ONLY ADD NEW ITEMS AT THE END)
@@ -955,7 +961,7 @@ typedef struct SurfaceModifierData_Runtime {
   struct Mesh *mesh;
 
   /** Bounding volume hierarchy of the mesh faces. */
-  struct BVHTreeFromMesh *bvhtree;
+  BVHTreeFromMeshHandle *bvhtree;
 
   int cfra_prev, verts_num;
 
@@ -2102,6 +2108,12 @@ enum {
   MOD_MESHCACHE_PLAY_EVAL = 1,
 };
 
+enum {
+  MOD_MESHCACHE_FLIP_AXIS_X = 1 << 0,
+  MOD_MESHCACHE_FLIP_AXIS_Y = 1 << 1,
+  MOD_MESHCACHE_FLIP_AXIS_Z = 1 << 2,
+};
+
 typedef struct LaplacianDeformModifierData {
   ModifierData modifier;
   /** #MAX_VGROUP_NAME. */
@@ -2495,6 +2507,15 @@ typedef enum NodesModifierBakeMode {
   NODES_MODIFIER_BAKE_MODE_ANIMATION = 0,
   NODES_MODIFIER_BAKE_MODE_STILL = 1,
 } NodesModifierBakeMode;
+
+typedef enum GeometryNodesModifierPanel {
+  NODES_MODIFIER_PANEL_OUTPUT_ATTRIBUTES = 0,
+  NODES_MODIFIER_PANEL_MANAGE = 1,
+  NODES_MODIFIER_PANEL_BAKE = 2,
+  NODES_MODIFIER_PANEL_NAMED_ATTRIBUTES = 3,
+  NODES_MODIFIER_PANEL_BAKE_DATA_BLOCKS = 4,
+  NODES_MODIFIER_PANEL_WARNINGS = 5,
+} GeometryNodesModifierPanel;
 
 typedef struct NodesModifierData {
   ModifierData modifier;
@@ -3210,6 +3231,9 @@ typedef struct GreasePencilLineartModifierData {
 
   /* Keep a pointer to the render buffer so we can call destroy from #ModifierData. */
   struct LineartData *la_data_ptr;
+
+  /* Points to a `LineartModifierRuntime`, which includes the object dependency list. */
+  struct LineartModifierRuntime *runtime;
 } GreasePencilLineartModifierData;
 
 typedef struct GreasePencilArmatureModifierData {

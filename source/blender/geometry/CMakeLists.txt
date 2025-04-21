@@ -3,11 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
-  ../blenkernel
-  ../blentranslation
-  ../bmesh
-  ../functions
+  PUBLIC .
   ../makesrna
   ../../../intern/eigen
   ../../../extern/curve_fit_nd
@@ -19,6 +15,7 @@ set(INC_SYS
 set(SRC
   intern/add_curves_on_mesh.cc
   intern/curve_constraints.cc
+  intern/curves_remove_and_split.cc
   intern/extend_curves.cc
   intern/extract_elements.cc
   intern/fillet_curves.cc
@@ -26,6 +23,7 @@ set(SRC
   intern/interpolate_curves.cc
   intern/join_geometries.cc
   intern/merge_curves.cc
+  intern/merge_layers.cc
   intern/mesh_boolean.cc
   intern/mesh_copy_selection.cc
   intern/mesh_merge_by_distance.cc
@@ -38,6 +36,7 @@ set(SRC
   intern/mesh_split_edges.cc
   intern/mesh_to_curve_convert.cc
   intern/mesh_to_volume.cc
+  intern/mesh_triangulate.cc
   intern/mix_geometries.cc
   intern/point_merge_by_distance.cc
   intern/points_to_volume.cc
@@ -59,6 +58,7 @@ set(SRC
 
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
+  GEO_curves_remove_and_split.hh
   GEO_extend_curves.hh
   GEO_extract_elements.hh
   GEO_fillet_curves.hh
@@ -66,6 +66,7 @@ set(SRC
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh
   GEO_merge_curves.hh
+  GEO_merge_layers.hh
   GEO_mesh_boolean.hh
   GEO_mesh_copy_selection.hh
   GEO_mesh_merge_by_distance.hh
@@ -78,6 +79,7 @@ set(SRC
   GEO_mesh_split_edges.hh
   GEO_mesh_to_curve.hh
   GEO_mesh_to_volume.hh
+  GEO_mesh_triangulate.hh
   GEO_mix_geometries.hh
   GEO_point_merge_by_distance.hh
   GEO_points_to_volume.hh
@@ -99,9 +101,13 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   extern_curve_fit_nd
@@ -141,6 +147,7 @@ if(WITH_GMP)
 endif()
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::geometry ALIAS bf_geometry)
 
 if(WITH_GTESTS)
   set(TEST_INC

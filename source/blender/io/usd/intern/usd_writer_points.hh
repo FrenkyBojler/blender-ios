@@ -11,7 +11,7 @@ struct Main;
 struct PointCloud;
 
 namespace blender::bke {
-struct AttributeMetaData;
+class AttributeIter;
 }  // namespace blender::bke
 
 namespace blender::io::usd {
@@ -23,12 +23,10 @@ class USDPointsWriter final : public USDAbstractWriter {
   ~USDPointsWriter() final = default;
 
  protected:
-  virtual void do_write(HierarchyContext &context) override;
+  void do_write(HierarchyContext &context) override;
 
  private:
-  void write_generic_data(const PointCloud *points,
-                          const StringRef attribute_id,
-                          const bke::AttributeMetaData &meta_data,
+  void write_generic_data(const bke::AttributeIter &attr,
                           const pxr::UsdGeomPoints &usd_points,
                           pxr::UsdTimeCode timecode);
 
@@ -39,8 +37,6 @@ class USDPointsWriter final : public USDAbstractWriter {
   void write_velocities(const PointCloud *points,
                         const pxr::UsdGeomPoints &usd_points,
                         pxr::UsdTimeCode timecode);
-
-  void set_extents(const pxr::UsdPrim &prim, pxr::UsdTimeCode timecode);
 };
 
 }  // namespace blender::io::usd
