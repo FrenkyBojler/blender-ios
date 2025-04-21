@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_bounds.hh"
-#include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
 #include "GEO_fit_curves.hh"
@@ -17,8 +16,8 @@ namespace blender::geometry {
 bke::CurvesGeometry fit_curves(const Span<float3> positions,
                                const OffsetIndices<int> src_offsets,
                                const IndexMask &curve_selection,
-                               const VArray<bool> &cyclic,
                                const VArray<float> &thresholds,
+                               const VArray<bool> &cyclic,
                                const FitMethod method,
                                Array<int> &r_old_to_new_map)
 {
@@ -156,6 +155,35 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
   });
 
   return dst_curves;
+}
+
+bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
+                               const IndexMask &curve_selection,
+                               const VArray<float> &thresholds,
+                               const FitMethod method,
+                               const bke::AttributeFilter &attribute_filter)
+{
+  Array<int> old_to_new_map;
+  bke::CurvesGeometry curves = geometry::fit_curves(src_curves.positions(),
+                                                    src_curves.points_by_curve(),
+                                                    curve_selection,
+                                                    thresholds,
+                                                    src_curves.cyclic(),
+                                                    method,
+                                                    old_to_new_map);
+
+  bke::gather_attributes(src_curves.attributes(),
+                         bke::AttrDomain::Point,
+                         bke::AttrDomain::Point,
+                         attribute_filter,
+                         old_to_new_map,
+                         curves.attributes_for_write());
+  bke::copy_attributes(src_curves.attributes(),
+                       bke::AttrDomain::Curve,
+                       bke::AttrDomain::Curve,
+                       attribute_filter,
+                       curves.attributes_for_write());
+  return curves;
 }
 
 }  // namespace blender::geometry

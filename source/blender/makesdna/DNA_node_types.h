@@ -2267,11 +2267,6 @@ typedef struct NodeGeometryTransformGizmo {
   uint32_t flag;
 } NodeGeometryTransformGizmo;
 
-typedef struct NodeGeometryFitCurves {
-  /** #GeometryNodeFitCurvesMode. */
-  uint8_t mode;
-} NodeGeometryFitCurves;
-
 typedef enum NodeGeometryTransformGizmoFlag {
   GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_X = 1 << 0,
   GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_Y = 1 << 1,

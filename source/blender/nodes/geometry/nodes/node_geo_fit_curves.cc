@@ -6,6 +6,9 @@
 #include "BKE_curves.hh"
 
 #include "GEO_fit_curves.hh"
+#include "GEO_randomize.hh"
+
+#include "UI_interface.hh"
 
 #include "NOD_rna_define.hh"
 
@@ -14,8 +17,6 @@
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_fit_curves_cc {
-
-NODE_STORAGE_FUNCS(NodeGeometryFitCurves)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -42,10 +43,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryFitCurves *data = MEM_cnew<NodeGeometryFitCurves>(__func__);
-
-  data->mode = GEO_NODE_CURVE_FIT_REFIT;
-  node->storage = data;
+  node->custom1 = GEO_NODE_CURVE_FIT_REFIT;
 }
 
 static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
@@ -72,21 +70,11 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
       BLI_assert_unreachable();
   }
 
-  Array<int> old_to_new_map;
-  bke::CurvesGeometry curves = geometry::fit_curves(src_curves.positions(),
-                                                    src_curves.points_by_curve(),
+  bke::CurvesGeometry curves = geometry::fit_curves(src_curves,
                                                     evaluator.get_evaluated_as_mask(0),
-                                                    src_curves.cyclic(),
                                                     evaluator.get_evaluated<float>(1),
                                                     method,
-                                                    old_to_new_map);
-
-  bke::gather_attributes(src_curves.attributes(),
-                         AttrDomain::Point,
-                         AttrDomain::Point,
-                         attribute_filter,
-                         old_to_new_map,
-                         curves.attributes_for_write());
+                                                    attribute_filter);
 
   geometry::debug_randomize_curve_order(&curves);
   return curves;
@@ -94,11 +82,11 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const NodeGeometryFitCurves &storage = node_storage(params.node());
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<float> threshold_field = params.extract_input<Field<float>>("Threshold");
-  const GeometryNodeFitCurvesMode mode = (GeometryNodeFitCurvesMode)storage.mode;
+  const GeometryNodeFitCurvesMode mode = static_cast<GeometryNodeFitCurvesMode>(
+      params.node().custom1);
 
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
@@ -125,21 +113,22 @@ static void node_rna(StructRNA *srna)
   };
 
   RNA_def_node_enum(
-      srna, "mode", "Mode", "Curve fitting mode", mode_items, NOD_storage_enum_accessors(mode));
+      srna, "mode", "Mode", "Curve fitting mode", mode_items, NOD_inline_enum_accessors(custom1));
 }
 
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_FIT_CURVES, "Fit Curves", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeFitCurves");
+  ntype.ui_name = "Fit Curves";
+  ntype.ui_description = "Fit the points of the input curves to bézier curves";
   ntype.declare = node_declare;
-  ntype.draw_buttons = node_layout;
-  blender::bke::node_type_storage(
-      &ntype, "NodeGeometryFitCurves", node_free_standard_storage, node_copy_standard_storage);
-  ntype.initfunc = node_init;
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  ntype.initfunc = node_init;
+  ntype.draw_buttons = node_layout;
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
