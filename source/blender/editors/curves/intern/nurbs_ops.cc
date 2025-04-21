@@ -14,6 +14,8 @@
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "UI_resources.hh"
 #include "WM_api.hh"
 
@@ -194,25 +196,18 @@ static wmOperatorStatus insert_knot_invoke(bContext *C, wmOperator *op, const wm
   ikcd.draw_handle = ED_region_draw_cb_activate(
       ikcd.region->runtime->type, modified_lattice_draw, &ikcd, REGION_DRAW_POST_VIEW);
 
+  ikcd.knot_to_insert = RNA_float_get(op->ptr, "knot");
+
   op->customdata = &ikcd;
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static Array<float> fill_weights_for_knot_span(const int order,
-                                               const Span<float> all_weights,
-                                               const IndexRange curve_points,
-                                               const int knot_span)
+static wmOperatorStatus insert_knot_exec(bContext *C, wmOperator *op)
 {
-  Array<float> weights(order, 1.0f);
-  if (!all_weights.is_empty()) {
-    const Span<float> curve_weights = all_weights.slice(curve_points);
-    for (const int i : IndexRange(order)) {
-      weights[i] = curve_weights[(knot_span - order + 1 + i) % curve_points.size()];
-    }
-  }
-  return weights;
+  RNA_float_set(op->ptr, "knot", 0.5);
+  return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
@@ -220,118 +215,8 @@ static wmOperatorStatus insert_knot_apply(InsertKnotOpData &ikcd)
   if (ikcd.preview_positions.is_empty()) {
     return OPERATOR_CANCELLED;
   }
-  const int new_points_added = ikcd.preview_positions.size() - ikcd.points_to_replace.size();
-  CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(ikcd.curves);
-  new_curves.resize(ikcd.curves.points_num() + new_points_added, ikcd.curves.curves_num());
-  new_curves.nurbs_knots_modes_for_write()[ikcd.curve] = NURBS_KNOT_MODE_CUSTOM;
-  MutableSpan<int> offsets = new_curves.offsets_for_write();
-  offsets.copy_from(ikcd.curves.offsets());
-  for (const int i : new_curves.curves_range().drop_front(ikcd.curve)) {
-    offsets[i + 1] += new_points_added;
-  }
 
-  new_curves.nurbs_custom_knots_update_size();
-  /* Shift knots of curves stored after curve being modified. */
-  const OffsetIndices<int> new_knots_by_curve = new_curves.nurbs_custom_knots_by_curve();
-  const IndexRange curve_knots = new_knots_by_curve[ikcd.curve];
-  const IndexRange tail = IndexRange::from_begin_end(curve_knots.one_after_last(),
-                                                     new_knots_by_curve.total_size());
-  MutableSpan<float> new_knots_all = new_curves.nurbs_custom_knots_for_write();
-  new_knots_all.slice(tail).copy_from(ikcd.curves.nurbs_custom_knots().take_back(tail.size()));
-
-  const IndexRange curve_points = ikcd.curve_points;
-  const IndexRange new_curve_points = IndexRange::from_begin_size(
-      curve_points.first(), curve_points.size() + new_points_added);
-  const Span<float> knots = ikcd.knots;
-  MutableSpan<float> new_knots = new_knots_all.slice(curve_knots);
-
-  BLI_assert(ikcd.knot_span < curve_points.size() + ikcd.order - 1);
-
-  const int span = ikcd.knot_span;
-  const float knot_to_insert = ikcd.knot_to_insert;
-  const bool loop_to_front = span >= curve_points.size();
-  const int first_stable_knot = loop_to_front ? (span % curve_points.size()) + 1 : 0;
-  const IndexRange stable_knots = IndexRange::from_begin_end_inclusive(first_stable_knot, span);
-  new_knots.slice(stable_knots).copy_from(knots.slice(stable_knots));
-  new_knots.slice(IndexRange::from_begin_size(span + 1, new_points_added)).fill(knot_to_insert);
-  MutableSpan<float> after_insertion = new_knots.drop_front(stable_knots.one_after_last() +
-                                                            new_points_added);
-  after_insertion.copy_from(knots.slice(span + 1, after_insertion.size()));
-
-  /* For cyclic curves only, when new knots are inserted in front and somewhere after
-   * knots[curve_points.size()]. */
-  for (const int k : IndexRange::from_begin_end(0, first_stable_knot)) {
-    new_knots[first_stable_knot - 1 - k] = new_knots[first_stable_knot] +
-                                           new_knots[span + new_points_added - k] -
-                                           knots[span + 1];
-  }
-
-  const bke::AttributeAccessor src_attributes = ikcd.curves.attributes();
-  bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
-
-  const IndexRange points_before = IndexRange::from_begin_end(
-      0,
-      std::min(curve_points.one_after_last(),
-               curve_points.first() + ikcd.points_to_replace.start()));
-  const IndexRange points_after = IndexRange::from_begin_end(
-      std::min(curve_points.one_after_last(),
-               curve_points.first() + ikcd.points_to_replace.last()),
-      ikcd.curves.points_num());
-
-  Array<bool> is_altered(new_curve_points.size());
-  const IndexRange altered_points_range = IndexRange::from_begin_size(
-      ikcd.points_to_replace.first(), ikcd.points_to_replace.size() + new_points_added);
-  for (const int i : altered_points_range) {
-    is_altered[i % new_curve_points.size()] = true;
-  }
-  IndexMaskMemory memory;
-  const IndexMask altered_points = IndexMask::from_bools(
-      IndexRange(new_curve_points.size()), is_altered, memory);
-  const int8_t order = ikcd.order;
-  const Array<float> weights = fill_weights_for_knot_span(
-      ikcd.order, ikcd.curves.nurbs_weights(), ikcd.curve_points, ikcd.knot_span);
-
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes,
-           dst_attributes,
-           ATTR_DOMAIN_MASK_POINT,
-           bke::attribute_filter_from_skip_ref(
-               ed::curves::get_curves_selection_attribute_names(ikcd.curves))))
-  {
-    GSpan points_before_span = attribute.src.slice(points_before);
-    GSpan points_after_span = attribute.src.slice(points_after);
-    attribute.dst.span.slice(points_before).copy_from(points_before_span);
-    attribute.dst.span.slice(points_after.shift(new_points_added)).copy_from(points_after_span);
-
-    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
-        Span<T> src_points = attribute.src.typed<T>().slice(curve_points);
-        bke::attribute_math::DefaultMixer<T> mixer{
-            attribute.dst.span.typed<T>().slice(new_curve_points), altered_points};
-
-        for (const int j : altered_points_range.index_range()) {
-          const int altered_point = (altered_points_range[j]) % new_curve_points.size();
-          Span<float> point_weights = ikcd.point_weights.as_span().slice(j * order, order);
-          for (const int i : point_weights.index_range()) {
-            const int src_i = (ikcd.knot_span - ikcd.order + 1 + i) % curve_points.size();
-            mixer.mix_in(altered_point, src_points[src_i], weights[i] * point_weights[i]);
-          }
-        };
-        mixer.finalize(altered_points);
-      }
-    });
-    attribute.dst.finish();
-  }
-  OffsetIndices<int> new_points_by_curve = new_curves.points_by_curve();
-  foreach_selection_attribute_writer(
-      new_curves, bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
-        for (const int curve : new_curves.curves_range()) {
-          fill_selection_false(selection.span.slice(new_points_by_curve[curve]));
-        }
-        fill_selection_true(selection.span.slice(new_points_by_curve[ikcd.curve]), altered_points);
-      });
-  ikcd.curves = new_curves;
+  ikcd.curves = ed::curves::nurbs::insert_knot(ikcd.curves, ikcd.curve, ikcd.knot_to_insert, 1);
   return OPERATOR_FINISHED;
 }
 
@@ -357,11 +242,11 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
     case LEFTMOUSE: /* confirm */
       if (event->val == KM_PRESS) {
         wmOperatorStatus retVal = insert_knot_apply(ikcd);
-        ED_region_tag_redraw(ikcd.region);
         ikcd.curves.tag_topology_changed();
 
         DEG_id_tag_update(&(ikcd.curves_id->id), ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(C, NC_GEOM | ND_DATA, ikcd.curves_id);
+        WM_event_add_notifier(C, NC_GEOM, ikcd.curves_id);
+        RNA_float_set(op->ptr, "knot", 0.5);
         insert_knot_exit(C, op);
         return retVal;
       }
@@ -374,10 +259,10 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
       int knot_multiplicity;
       ikcd.knot_to_insert = event_to_knot(ikcd, *event);
 
-      bke::curves::nurbs::find_span_mult(
+      ed::curves::nurbs::find_span_mult(
           ikcd.knot_to_insert, ikcd.knots, ikcd.order, ikcd.knot_span, knot_multiplicity);
       if (knot_multiplicity + repeat <= ikcd.order - 1) {
-        ikcd.points_to_replace = bke::curves::nurbs::calc_knot_insertion_weights(
+        ikcd.points_to_replace = ed::curves::nurbs::calc_knot_insertion_weights(
             ikcd.knots,
             ikcd.order,
             ikcd.knot_to_insert,
@@ -388,7 +273,7 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
         ikcd.preview_positions = ikcd.preview_positions_buffer.as_mutable_span().slice(
             0, ikcd.points_to_replace.size() + repeat);
 
-        const Array<float> weights = fill_weights_for_knot_span(
+        const Array<float> weights = make_weights_for_knot_span(
             ikcd.order, ikcd.curves.nurbs_weights(), ikcd.curve_points, ikcd.knot_span);
 
         MutableSpan<float3> preview_positions = ikcd.preview_positions;
@@ -427,11 +312,17 @@ void CURVES_OT_nurbs_insert_knot(wmOperatorType *ot)
   ot->description = "Select NURBS curve and insert new knot";
 
   ot->invoke = nurbs::insert_knot_invoke;
+  ot->exec = nurbs::insert_knot_exec;
   ot->modal = nurbs::insert_knot_modal;
   ot->cancel = nurbs::insert_knot_exit;
   ot->poll = editable_curves_in_edit_mode_poll;
 
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *prop;
+  prop = RNA_def_float(
+      ot->srna, "knot", 0.0f, -100.0f, 100.0f, "Knot", "Knot value to insert", -100.0f, 100.0f);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 }  // namespace blender::ed::curves

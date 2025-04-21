@@ -462,6 +462,29 @@ void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_ma
 
 wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
 
+namespace nurbs {
+
+void find_span_mult(float knot, Span<float> knots, int order, int &r_span, int &r_mult);
+
+IndexRange calc_knot_insertion_weights(Span<float> knots,
+                                       int8_t order,
+                                       float knot,
+                                       int k,
+                                       int mult,
+                                       int repeat,
+                                       MutableSpan<float> insertion_weights);
+
+Array<float> make_weights_for_knot_span(int order,
+                                        Span<float> all_weights,
+                                        IndexRange curve_points,
+                                        int knot_span);
+
+bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
+                                int curve,
+                                float knot,
+                                int repeat);
+}  // namespace nurbs
+
 /** \} */
 
 }  // namespace blender::ed::curves

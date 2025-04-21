@@ -910,16 +910,6 @@ void interpolate_to_evaluated(const BasisCache &basis_cache,
                               GSpan src,
                               GMutableSpan dst);
 
-void find_span_mult(float knot, Span<float> knots, int order, int &r_span, int &r_mult);
-
-IndexRange calc_knot_insertion_weights(Span<float> knots,
-                                       int8_t order,
-                                       float knot,
-                                       int k,
-                                       int mult,
-                                       int repeat,
-                                       MutableSpan<float> insertion_weights);
-
 }  // namespace nurbs
 
 /** \} */

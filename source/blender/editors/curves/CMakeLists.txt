@@ -21,10 +21,11 @@ set(SRC
   intern/curves_edit.cc
   intern/curves_extrude.cc
   intern/curves_masks.cc
+  intern/curves_nurbs.cc
   intern/curves_ops.cc
   intern/curves_selection.cc
   intern/curves_undo.cc
-  intern/nurbs.cc
+  intern/nurbs_ops.cc
   intern/join.cc
   intern/select_linked_pick.cc
   intern/separate.cc
