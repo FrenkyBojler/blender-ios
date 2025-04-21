@@ -114,7 +114,7 @@ struct ClusterInfo {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
-  b.add_input<decl::Int>("Faces Per Cluster").default_value(64).min(1).max(50000);
+  b.add_input<decl::Int>("Max Faces Per Cluster").default_value(64).min(1).max(50000);
   b.add_input<decl::Float>("Compactness").default_value(0.8f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
   b.add_input<decl::Bool>("Random Colors").default_value(true);
   b.add_output<decl::Geometry>("Mesh").propagate_all();
@@ -543,7 +543,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   /* Get inputs from sockets. */
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
-  const int faces_per_cluster = std::max(1, params.extract_input<int>("Faces Per Cluster"));
+  const int faces_per_cluster = std::max(1, params.extract_input<int>("Max Faces Per Cluster"));
   const float compactness = params.extract_input<float>("Compactness");
   const bool random_colors = params.extract_input<bool>("Random Colors");
 
