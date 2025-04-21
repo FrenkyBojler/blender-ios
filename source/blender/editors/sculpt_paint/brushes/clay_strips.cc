@@ -130,43 +130,6 @@ static void apply_plane_trim_factors(const Brush &brush,
   }
 }
 
-/**
- * Calculates the distances in the xy local plane of the brush.
- * Similar to #calc_brush_cube_distances.
- */
-static void calc_xy_distances(const Brush &brush,
-                              const Span<float2> xy_positions,
-                              const MutableSpan<float> r_distances)
-{
-  BLI_assert(r_distances.size() == xy_positions.size());
-
-  const float roundness = brush.tip_roundness;
-  const float roundness_rcp = math::safe_rcp(roundness);
-  const float hardness = 1.0f - roundness;
-
-  for (const int i : xy_positions.index_range()) {
-    const float2 local = math::abs(xy_positions[i]);
-
-    if (local.x > 1.0f || local.y > 1.0f) {
-      r_distances[i] = std::numeric_limits<float>::max();
-      continue;
-    }
-    if (std::min(local.x, local.y) > hardness) {
-      /* Corner, distance to the center of the corner circle. */
-      r_distances[i] = math::distance(float2(hardness), local) * roundness_rcp;
-      continue;
-    }
-    if (std::max(local.x, local.y) > hardness) {
-      /* Side, distance to the square XY axis. */
-      r_distances[i] = (std::max(local.x, local.y) - hardness) * roundness_rcp;
-      continue;
-    }
-
-    /* Inside the square, constant distance. */
-    r_distances[i] = 0.0f;
-  }
-}
-
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
@@ -203,7 +166,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_xy_distances(brush, xy_positions, distances);
+  calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -255,7 +218,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_xy_distances(brush, xy_positions, distances);
+  calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -306,7 +269,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_xy_distances(brush, xy_positions, distances);
+  calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
