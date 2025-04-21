@@ -1243,9 +1243,8 @@ if(APPLE)
 endif()
 
 if(APPLE)
-  # Can elaborate that this is a no-op on Apple Silicon and XCode < 15.0.
-  option(WITH_PREFER_LINKER_LEGACY_X64 "Prefer using legacy linker. Only on x64 platform. Minutes slower, but emits less warnings." OFF)
-  mark_as_advanced(WITH_PREFER_LINKER_LEGACY_X64)
+  option(WITH_LEGACY_MACOS_X64_LINKER "Use legacy macOS linker. Only on x64 platform. Minutes slower, but emits fewer warnings." OFF)
+  mark_as_advanced(WITH_LEGACY_MACOS_X64_LINKER)
 endif()
 
 # -----------------------------------------------------------------------------
