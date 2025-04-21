@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assert.h"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_vector_set.hh"
@@ -71,6 +72,18 @@ static ImplicitSharingInfo *create_sharing_info_for_array(void *data,
                                                           const CPPType &type)
 {
   return MEM_new<ArrayDataImplicitSharing>(__func__, data, size, type);
+}
+
+AttrStorageType Attribute::storage_type() const
+{
+  if (std::get_if<Attribute::ArrayData>(&data_)) {
+    return AttrStorageType::Array;
+  }
+  if (std::get_if<Attribute::SingleData>(&data_)) {
+    return AttrStorageType::Single;
+  }
+  BLI_assert_unreachable();
+  return AttrStorageType::Array;
 }
 
 Attribute::DataVariant &Attribute::data_for_write()

@@ -56,7 +56,6 @@ class Attribute {
   std::string name_;
   AttrDomain domain_;
   AttrType type_;
-  AttrStorageType storage_type_;
 
   DataVariant data_;
 
@@ -191,11 +190,6 @@ inline StringRefNull Attribute::name() const
 inline AttrDomain Attribute::domain() const
 {
   return domain_;
-}
-
-inline AttrStorageType Attribute::storage_type() const
-{
-  return storage_type_;
 }
 
 inline AttrType Attribute::data_type() const
