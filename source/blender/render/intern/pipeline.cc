@@ -179,6 +179,7 @@ static bool prepare_viewlayer_nothing(void * /*arg*/,
 {
   return true;
 }
+static void rendered_viewlayer_nothing(void * /*arg*/, const ViewLayer * /*vl*/) {}
 static void stats_nothing(void * /*arg*/, RenderStats * /*rs*/) {}
 static void float_nothing(void * /*arg*/, float /*val*/) {}
 static bool default_break(void * /*arg*/)
@@ -586,6 +587,7 @@ void RE_InitRenderCB(Render *re)
   re->display_update_cb = result_rcti_nothing;
   re->current_scene_update_cb = current_scene_nothing;
   re->prepare_viewlayer_cb = prepare_viewlayer_nothing;
+  re->rendered_viewlayer_cb = rendered_viewlayer_nothing;
   re->progress_cb = float_nothing;
   re->test_break_cb = default_break;
   if (G.background) {
@@ -987,6 +989,14 @@ void RE_prepare_viewlayer_cb(Render *re,
 {
   re->prepare_viewlayer_cb = f;
   re->prepare_vl_handle = handle;
+}
+
+void RE_rendered_viewlayer_cb(Render *re,
+                              void *handle,
+                              void (*f)(void *handle, const ViewLayer *vl))
+{
+  re->rendered_viewlayer_cb = f;
+  re->rendered_vl_handle = handle;
 }
 
 /** \} */

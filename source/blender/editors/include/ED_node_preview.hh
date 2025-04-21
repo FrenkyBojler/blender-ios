@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BKE_node_runtime.hh"
 #include "BLI_map.hh"
 
 #include "RE_pipeline.h"
@@ -21,26 +22,49 @@ struct wmWindowManager;
 struct Render;
 
 namespace blender::ed::space_node {
+using bke::DirtyState;
+struct ShaderNodesPreviewJob;
 
+/**
+ * All properties of the previews present in this structure should always be corresponding to all
+ * the previews cached in the `previews_map`. The size/dirtystate properties should be modified
+ * only when all previews are corresponding to those properties. It may result in some more
+ * refreshes, but it is the only way to make sure that the system always detect when a preview is
+ * outdated.
+ */
 struct NestedTreePreviews {
   Render *previews_render = nullptr;
-  /** Use this map to keep track of the latest #ImBuf used (after freeing the render-result). */
-  blender::Map<int32_t, ImBuf *> previews_map;
+  /** Use this map to keep track of the latest #ImBuf used (after freeing the renderresult). */
+  blender::Map<const int32_t, std::pair<ImBuf *, DirtyState>> previews_map;
   int preview_size;
-  bool rendering = false;
-  bool restart_needed = false;
-  ePreviewType cached_preview_type = MA_FLAT;
-  ePreviewType rendering_preview_type = MA_FLAT;
-  uint32_t cached_previews_refresh_state = -1;
-  uint32_t rendering_previews_refresh_state = -1;
+  ShaderNodesPreviewJob *running_job = nullptr;
+
+  ePreviewType preview_type = MA_FLAT;
+  /**
+   * Dirty state of the bNodeTreePath vector. It is the sum of the tree_dirty_state of all the
+   * nodetrees plus the sum of all the dirty_state of the group nodes.
+   * If this state is dirty, it means that at least some nodes are dirty.
+   */
+  DirtyState treepath_dirtystate;
+  /**
+   * Dirty state of the current nodetree. If this flag is dirty, it means that all nodes are
+   * dirty.
+   */
+  DirtyState whole_tree_dirtystate;
+  /**
+   * Dirty state of the nodetree viewed, it is used to know if at least one node needs to be
+   * re-rendered.
+   */
+  DirtyState any_node_dirtystate;
+
   NestedTreePreviews(const int size) : preview_size(size) {}
   ~NestedTreePreviews()
   {
     if (this->previews_render) {
       RE_FreeRender(this->previews_render);
     }
-    for (ImBuf *ibuf : this->previews_map.values()) {
-      IMB_freeImBuf(ibuf);
+    for (std::pair<ImBuf *, DirtyState> &cache : this->previews_map.values()) {
+      IMB_freeImBuf(cache.first);
     }
   }
 };

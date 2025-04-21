@@ -430,6 +430,9 @@ void RE_test_break_cb(struct Render *re, void *handle, bool (*f)(void *handle));
 void RE_prepare_viewlayer_cb(struct Render *re,
                              void *handle,
                              bool (*f)(void *handle, ViewLayer *vl, struct Depsgraph *depsgraph));
+void RE_rendered_viewlayer_cb(struct Render *re,
+                              void *handle,
+                              void (*f)(void *handle, const ViewLayer *vl));
 void RE_current_scene_update_cb(struct Render *re,
                                 void *handle,
                                 void (*f)(void *handle, struct Scene *scene));

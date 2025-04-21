@@ -85,6 +85,37 @@ struct LoggedZoneGraphs {
  * tree and should be stored elsewhere. Evaluating a node tree should be possible without changing
  * it.
  */
+class DirtyState {
+ private:
+  uint32_t counter = 0;
+
+ public:
+  bool operator==(const DirtyState &other) const
+  {
+    return this->counter == other.counter;
+  }
+
+  bool operator!=(const DirtyState &other) const
+  {
+    return !(*this == other);
+  }
+
+  void operator=(const DirtyState &other)
+  {
+    this->counter = other.counter;
+  }
+
+  void merge(const DirtyState &other)
+  {
+    this->counter += other.counter;
+  }
+
+  void make_dirty()
+  {
+    counter++;
+  }
+};
+
 class bNodeTreeRuntime : NonCopyable, NonMovable {
  public:
   /**
@@ -106,13 +137,22 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   uint8_t runtime_flag = 0;
 
   /**
-   * Contains a number increased for each node-tree update.
-   * Store a state variable in the #NestedTreePreviews structure to compare if they differ.
+   * The result at each point of the node tree might have changed.
+   * No need to check `any_node_dirtystate` if this one has changed.
+   * This DirtyState is only used for shader node previews, and some modifications might be needed
+   * to adapt for other cases.
    */
-  uint32_t previews_refresh_state = 0;
+  DirtyState whole_tree_dirtystate;
 
   /** Allows logging zone graphs purely for debugging purposes. */
   std::unique_ptr<LoggedZoneGraphs> logged_zone_graphs;
+
+  /**
+   * A node has changed. It can be topology/socket/preview modification.
+   * This DirtyState is only used for shader node previews, and some modifications might be needed
+   * to adapt for other cases.
+   */
+  DirtyState any_node_dirtystate;
 
   /**
    * Storage of nodes based on their identifier. Also used as a contiguous array of nodes to
@@ -316,6 +356,15 @@ class bNodeRuntime : NonCopyable, NonMovable {
 
   /** Calculated bounding box of node in the view space of the node editor (including UI scale). */
   rctf draw_bounds{};
+
+  /**
+   * The function behind this node has changed.
+   * This dirty state might not be changed if the whole nodetree is dirty, so a check of the dirty
+   * state of the nodetree should also be done.
+   * This DirtyState is only used for shader node previews, and some modifications might be needed
+   * to adapt for other cases.
+   */
+  DirtyState dirtystate;
 
   /** Used at runtime when going through the tree. Initialize before use. */
   short tmp_flag = 0;
