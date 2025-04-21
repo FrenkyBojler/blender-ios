@@ -40,6 +40,8 @@ enum class ItemInternalFlag : uint8_t;
 enum class EmbossType : uint8_t;
 }  // namespace blender::ui
 
+enum class LayoutSuppressFlag : uint8_t;
+
 /**
  * NOTE: `uiItem` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -88,6 +90,8 @@ struct uiLayout : uiItem {
   float units[2];
   /** Is copied to uiButs created in this layout. */
   float search_weight;
+
+  LayoutSuppressFlag suppress_flag;
 };
 
 enum {
@@ -253,6 +257,16 @@ float uiLayoutGetSearchWeight(uiLayout *layout);
 
 int uiLayoutListItemPaddingWidth();
 void uiLayoutListItemAddPadding(uiLayout *layout);
+
+/** Support suppressing checks typically performed to communicate issues to users. */
+enum class LayoutSuppressFlag : uint8_t {
+  PathSupportsBlendFileRelative = 1 << 0,
+};
+ENUM_OPERATORS(LayoutSuppressFlag, LayoutSuppressFlag::PathSupportsBlendFileRelative)
+
+LayoutSuppressFlag uiLayoutSuppressFlagGet(const uiLayout *layout);
+void uiLayoutSuppressFlagSet(uiLayout *layout, LayoutSuppressFlag flag);
+void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag);
 
 /* Layout create functions. */
 
