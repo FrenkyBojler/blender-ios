@@ -539,11 +539,14 @@ static bool draw_subdiv_topology_info_cb(const bke::subdiv::ForeachContext *fore
       *cache->edges_draw_flag, get_origindex_format(), GPU_USAGE_DYNAMIC);
   GPU_vertbuf_data_alloc(*cache->edges_draw_flag, cache->num_subdiv_loops);
 
-  cache->subdiv_loop_subdiv_vert_index = MEM_malloc_arrayN<int>(cache->num_subdiv_loops, "subdiv_loop_subdiv_vert_index");
+  cache->subdiv_loop_subdiv_vert_index = MEM_malloc_arrayN<int>(cache->num_subdiv_loops,
+                                                                "subdiv_loop_subdiv_vert_index");
 
-  cache->subdiv_loop_subdiv_edge_index = MEM_malloc_arrayN<int>(cache->num_subdiv_loops, "subdiv_loop_subdiv_edge_index");
+  cache->subdiv_loop_subdiv_edge_index = MEM_malloc_arrayN<int>(cache->num_subdiv_loops,
+                                                                "subdiv_loop_subdiv_edge_index");
 
-  cache->subdiv_loop_face_index = MEM_malloc_arrayN<int>(cache->num_subdiv_loops, "subdiv_loop_face_index");
+  cache->subdiv_loop_face_index = MEM_malloc_arrayN<int>(cache->num_subdiv_loops,
+                                                         "subdiv_loop_face_index");
 
   /* Initialize context pointers and temporary buffers. */
   ctx->patch_coords = cache->patch_coords->data<CompressedPatchCoord>().data();
@@ -561,14 +564,16 @@ static bool draw_subdiv_topology_info_cb(const bke::subdiv::ForeachContext *fore
       CustomData_get_layer(&ctx->coarse_mesh->edge_data, CD_ORIGINDEX));
 
   if (cache->num_subdiv_verts) {
-    ctx->vert_origindex_map = MEM_malloc_arrayN<int>(cache->num_subdiv_verts, "subdiv_vert_origindex_map");
+    ctx->vert_origindex_map = MEM_malloc_arrayN<int>(cache->num_subdiv_verts,
+                                                     "subdiv_vert_origindex_map");
     for (int i = 0; i < num_verts; i++) {
       ctx->vert_origindex_map[i] = -1;
     }
   }
 
   if (cache->num_subdiv_edges) {
-    ctx->edge_origindex_map = MEM_malloc_arrayN<int>(cache->num_subdiv_edges, "subdiv_edge_origindex_map");
+    ctx->edge_origindex_map = MEM_malloc_arrayN<int>(cache->num_subdiv_edges,
+                                                     "subdiv_edge_origindex_map");
     for (int i = 0; i < num_edges; i++) {
       ctx->edge_origindex_map[i] = -1;
     }

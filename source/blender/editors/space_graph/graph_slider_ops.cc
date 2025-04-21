@@ -15,7 +15,6 @@
 #include <cfloat>
 #include <cstring>
 
-#include "DNA_curve_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -23,6 +22,7 @@
 
 #include "DEG_depsgraph.hh"
 #include "DNA_anim_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 
 #include "RNA_access.hh"

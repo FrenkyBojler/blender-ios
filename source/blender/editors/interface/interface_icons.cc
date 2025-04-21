@@ -54,7 +54,6 @@
 
 #include "interface_intern.hh"
 
-#include <cstdint>
 #include <fmt/format.h>
 
 struct IconImage {

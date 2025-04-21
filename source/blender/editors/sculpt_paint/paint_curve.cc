@@ -200,7 +200,8 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
 
   ED_paintcurve_undo_push_begin(op->type->name);
 
-  PaintCurvePoint *pcp = MEM_malloc_arrayN<PaintCurvePoint>((pc->tot_points + 1), "PaintCurvePoint");
+  PaintCurvePoint *pcp = MEM_malloc_arrayN<PaintCurvePoint>((pc->tot_points + 1),
+                                                            "PaintCurvePoint");
   int add_index = pc->add_index;
 
   if (pc->points) {
