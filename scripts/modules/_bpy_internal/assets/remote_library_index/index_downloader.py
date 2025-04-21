@@ -55,7 +55,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
         )
 
         # Show what we downloaded.
-        logger.info("    API version       : %d", metadata.api_version)
+        logger.info("    API version       : %d", metadata.api_versions)
         logger.info("    Asset Library Name: %s", metadata.name)
         if metadata.contact:
             logger.info(

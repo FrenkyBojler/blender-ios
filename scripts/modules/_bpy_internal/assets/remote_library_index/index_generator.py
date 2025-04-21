@@ -149,7 +149,7 @@ def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:
 
     # Update the metadata to declare the API version for which we're going to
     # write the data.
-    metadata.api_version = index_common.API_VERSION
+    metadata.api_versions = [index_common.API_VERSION]
 
     return metadata
 
