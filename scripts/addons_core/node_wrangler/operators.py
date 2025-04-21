@@ -2176,7 +2176,6 @@ class NWAddSequence(Operator, NWBase, ImportHelper):
         return {'FINISHED'}
 
 
-
 class NWSaveViewer(bpy.types.Operator, ExportHelper):
     """Save the current viewer node to an image file"""
     bl_idname = "node.nw_save_viewer"
