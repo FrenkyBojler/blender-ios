@@ -150,10 +150,14 @@ void reverse_points_of(bke::CurvesGeometry &dst_curves, const IndexRange points_
 
   /* Also needs to swap left/right bezier handles if handle attributes exist. */
   if (!dst_curves.handle_positions_left().is_empty()) {
-    const MutableSpan<bool> selection_left =
-        attributes.lookup_for_write_span<bool>(".selection_handle_left").span;
-    const MutableSpan<bool> selection_right =
-        attributes.lookup_for_write_span<bool>(".selection_handle_right").span;
+    const MutableSpan<bool> selection_left = attributes
+                                                 .lookup_for_write_span<bool>(
+                                                     ".selection_handle_left")
+                                                 .span.slice(points_to_reverse);
+    const MutableSpan<bool> selection_right = attributes
+                                                  .lookup_for_write_span<bool>(
+                                                      ".selection_handle_right")
+                                                  .span.slice(points_to_reverse);
     MutableSpan<float3> handles_left = dst_curves.handle_positions_left_for_write().slice(
         points_to_reverse);
     MutableSpan<float3> handles_right = dst_curves.handle_positions_right_for_write().slice(
