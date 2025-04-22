@@ -19,6 +19,7 @@
 #include "BLI_index_range.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_rand.hh"
+#include "BLI_resource_scope.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -110,7 +111,8 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   /* Only for forward compatibility. */
   curves->attributes_active_index_legacy = curves->geometry.attributes_active_index;
 
-  blender::bke::CurvesGeometry::BlendWriteData write_data;
+  blender::ResourceScope scope;
+  blender::bke::CurvesGeometry::BlendWriteData write_data(scope);
   curves->geometry.wrap().blend_write_prepare(write_data);
 
   /* Write LibData */

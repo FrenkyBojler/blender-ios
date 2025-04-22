@@ -8,7 +8,6 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing_ptr.hh"
-#include "BLI_resource_scope.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -16,6 +15,9 @@
 
 struct BlendDataReader;
 struct BlendWriter;
+namespace blender {
+class ResourceScope;
+}
 
 namespace blender::bke {
 
@@ -166,7 +168,7 @@ class AttributeStorage : public ::AttributeStorage {
    * #attribute_storage_blend_write_prepare for more information.
    */
   struct BlendWriteData {
-    ResourceScope scope;
+    ResourceScope &scope;
     Vector<AttributeDNA, 16> attributes;
   };
   /**

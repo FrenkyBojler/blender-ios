@@ -47,6 +47,7 @@
 #include "BLI_memarena.h"
 #include "BLI_memory_utils.hh"
 #include "BLI_polyfill_2d.h"
+#include "BLI_resource_scope.hh"
 #include "BLI_span.hh"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
@@ -86,7 +87,9 @@ static const char *ATTR_POSITION = "position";
 
 /* Forward declarations. */
 static void read_drawing_array(GreasePencil &grease_pencil, BlendDataReader *reader);
-static void write_drawing_array(GreasePencil &grease_pencil, BlendWriter *writer);
+static void write_drawing_array(GreasePencil &grease_pencil,
+                                blender::ResourceScope &scope,
+                                BlendWriter *writer);
 static void free_drawing_array(GreasePencil &grease_pencil);
 
 static void read_layer_tree(GreasePencil &grease_pencil, BlendDataReader *reader);
@@ -265,8 +268,10 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   using namespace blender::bke;
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
 
+  blender::ResourceScope scope;
+
   blender::Vector<CustomDataLayer, 16> layers_data_layers;
-  blender::bke::AttributeStorage::BlendWriteData attribute_data;
+  blender::bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(grease_pencil->attribute_storage.wrap(),
                                         {{AttrDomain::Layer, &layers_data_layers}},
                                         attribute_data);
@@ -291,7 +296,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   grease_pencil->attribute_storage.wrap().blend_write(*writer, attribute_data);
 
   /* Write drawings. */
-  write_drawing_array(*grease_pencil, writer);
+  write_drawing_array(*grease_pencil, scope, writer);
   /* Write layer tree. */
   write_layer_tree(*grease_pencil, writer);
 
@@ -510,7 +515,7 @@ static void update_triangle_cache(const Span<float3> positions,
       }
       MutableSpan<int3> r_tris = triangles.slice(triangle_offsets[curve_i]);
 
-      float(*projverts)[2] = static_cast<float(*)[2]>(
+      float (*projverts)[2] = static_cast<float (*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(points.size())));
 
       float3x3 axis_mat;
@@ -521,7 +526,7 @@ static void update_triangle_cache(const Span<float3> positions,
       }
 
       BLI_polyfill_calc_arena(
-          projverts, points.size(), 0, reinterpret_cast<uint32_t(*)[3]>(r_tris.data()), pf_arena);
+          projverts, points.size(), 0, reinterpret_cast<uint32_t (*)[3]>(r_tris.data()), pf_arena);
       BLI_memarena_clear(pf_arena);
     }
   });
@@ -4226,7 +4231,9 @@ static void read_drawing_array(GreasePencil &grease_pencil, BlendDataReader *rea
   }
 }
 
-static void write_drawing_array(GreasePencil &grease_pencil, BlendWriter *writer)
+static void write_drawing_array(GreasePencil &grease_pencil,
+                                blender::ResourceScope &scope,
+                                BlendWriter *writer)
 {
   using namespace blender;
   BLO_write_pointer_array(writer, grease_pencil.drawing_array_num, grease_pencil.drawing_array);
@@ -4237,7 +4244,7 @@ static void write_drawing_array(GreasePencil &grease_pencil, BlendWriter *writer
         GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
         bke::CurvesGeometry &curves = drawing->wrap().strokes_for_write();
 
-        bke::CurvesGeometry::BlendWriteData write_data;
+        bke::CurvesGeometry::BlendWriteData write_data(scope);
         curves.blend_write_prepare(write_data);
 
         BLO_write_struct(writer, GreasePencilDrawing, drawing);

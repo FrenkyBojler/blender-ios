@@ -4,6 +4,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_implicit_sharing.hh"
+#include "BLI_resource_scope.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_vector_set.hh"
 

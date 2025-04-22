@@ -29,6 +29,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_memory_counter.hh"
+#include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
@@ -337,11 +338,12 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
   const bool is_undo = BLO_write_is_undo(writer);
 
+  ResourceScope scope;
   Vector<CustomDataLayer, 16> vert_layers;
   Vector<CustomDataLayer, 16> edge_layers;
   Vector<CustomDataLayer, 16> loop_layers;
   Vector<CustomDataLayer, 16> face_layers;
-  bke::AttributeStorage::BlendWriteData attribute_data;
+  bke::AttributeStorage::BlendWriteData attribute_data{scope};
 
   /* Cache only - don't write. */
   mesh->mface = nullptr;

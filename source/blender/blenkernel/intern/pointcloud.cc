@@ -18,6 +18,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_index_range.hh"
 #include "BLI_rand.h"
+#include "BLI_resource_scope.hh"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -128,8 +129,9 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   using namespace blender::bke;
   PointCloud *pointcloud = (PointCloud *)id;
 
+  ResourceScope scope;
   Vector<CustomDataLayer, 16> point_layers;
-  bke::AttributeStorage::BlendWriteData attribute_data;
+  bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(
       pointcloud->attribute_storage.wrap(), {{AttrDomain::Point, &point_layers}}, attribute_data);
   CustomData_blend_write_prepare(
