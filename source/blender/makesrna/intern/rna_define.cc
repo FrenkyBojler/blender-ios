@@ -1214,7 +1214,10 @@ void RNA_def_struct_idprops_func(StructRNA *srna, const char *idproperties)
 #ifdef RNA_RUNTIME
 PointerRNA rna_struct_system_properties_get(PointerRNA *ptr)
 {
-  IDProperty *system_idprops_root = RNA_struct_system_idprops(ptr, false);
+  /* NOTE: Creating the IDProps root group if it does not exist here, such that
+   * `my_data.bl_system_properties['prop'] = True` can work without requiring something like a call
+   * to a `my_data.bl_system_properties_ensure()` first. */
+  IDProperty *system_idprops_root = RNA_struct_system_idprops(ptr, true);
 
   return RNA_pointer_create_with_parent(*ptr, &RNA_PropertyGroup, system_idprops_root);
 }
@@ -1237,6 +1240,10 @@ void RNA_def_struct_system_idprops_func(StructRNA *srna,
       PropertyRNA *prop = RNA_def_pointer(srna, "bl_system_properties", "PropertyGroup", "", "");
       RNA_def_property_pointer_funcs(
           prop, "rna_struct_system_properties_get", nullptr, nullptr, nullptr);
+      /* These IDProperties should never be used directly, but only accessed through their RNA
+       * property wrappers. As such, they should never be used when comparing two different RNA
+       * data. */
+      RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
     }
   }
 }

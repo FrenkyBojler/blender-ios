@@ -2705,7 +2705,12 @@ static void rna_def_idproperty_wrap_ptr(BlenderRNA *brna)
   StructRNA *srna;
 
   srna = RNA_def_struct(brna, "IDPropertyWrapPtr", nullptr);
+  /* For property groups, both 'user-defined' and system-defined properties are the same.
+   * The user-defined access is kept to allow 'dict-type' subscripting in python. */
   RNA_def_struct_idprops_func(srna, "rna_IDPropertyWrapPtr_idprops");
+  /* No need to expose `bl_system_properties` here, they are the same as the 'user properties'
+   * defined above. */
+  RNA_def_struct_system_idprops_func(srna, "rna_IDPropertyWrapPtr_idprops", false);
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
 }
 

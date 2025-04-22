@@ -132,7 +132,7 @@ def make_lib():
 
     # nodes
     bpy.data.scenes["Scene"].use_nodes = True
-    bpy.data.scenes["Scene"].node_tree.nodes['Render Layers']["prop"] =\
+    bpy.data.scenes["Scene"].node_tree.nodes['Render Layers'].bl_system_properties["prop"] =\
         bpy.data.objects['Camera']
 
     # rename scene and save
@@ -187,9 +187,9 @@ def check_linked_scene_copying():
     # check node's props
     # must point to own scene camera
     expect_false_or_abort(
-        intern_sce.node_tree.nodes['Render Layers']["prop"] and
-        not (intern_sce.node_tree.nodes['Render Layers']["prop"] ==
-             extern_sce.node_tree.nodes['Render Layers']["prop"]))
+        intern_sce.node_tree.nodes['Render Layers'].bl_system_properties["prop"] and
+        not (intern_sce.node_tree.nodes['Render Layers'].bl_system_properties["prop"] ==
+             extern_sce.node_tree.nodes['Render Layers'].bl_system_properties["prop"]))
 
 
 def check_scene_copying():
@@ -209,8 +209,8 @@ def check_scene_copying():
     # check node's props
     # must point to own scene camera
     expect_false_or_abort(
-        not (first_sce.node_tree.nodes['Render Layers']["prop"] ==
-             second_sce.node_tree.nodes['Render Layers']["prop"]))
+        not (first_sce.node_tree.nodes['Render Layers'].bl_system_properties["prop"] ==
+             second_sce.node_tree.nodes['Render Layers'].bl_system_properties["prop"]))
 
 
 # count users
