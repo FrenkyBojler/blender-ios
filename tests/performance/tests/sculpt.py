@@ -6,6 +6,17 @@ import api
 import enum
 import pathlib
 
+class BrushSize(enum.Enum):
+    SMALL = .01
+    MEDIUM = .2
+    LARGE = 1
+
+
+class MeshSize(enum.IntEnum):
+    SMALL = 50
+    MEDIUM = 500
+    LARGE = 3200
+
 
 class SculptMode(enum.IntEnum):
     MESH = 1
@@ -40,7 +51,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def prepare_sculpt_scene(context: any, mode: SculptMode):
+def prepare_sculpt_scene(context: any, mode: SculptMode, mesh_size: MeshSize):
     """
     Prepare a clean state of the scene suitable for benchmarking
 
@@ -68,7 +79,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode):
     group_output_node = group.nodes.new('NodeGroupOutput')
 
     if mode == SculptMode.MESH:
-        size = 1500
+        size = mesh_size.value
     elif mode == SculptMode.MULTIRES:
         size = 150
     elif mode == SculptMode.DYNTOPO:
@@ -102,7 +113,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode):
         bpy.ops.sculpt.dynamic_topology_toggle()
 
 
-def prepare_brush(context: any, brush_type: BrushType):
+def prepare_brush(context: any, brush_type: BrushType, brush_size: BrushSize):
     """Activates and sets common brush settings"""
     import bpy
     bpy.ops.brush.asset_activate(
@@ -112,6 +123,8 @@ def prepare_brush(context: any, brush_type: BrushType):
 
     # Reduce the brush strength to avoid deforming the mesh too much and influencing multiple strokes
     context.tool_settings.sculpt.brush.strength = 0.1
+
+    bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.unprojected_radius = brush_size.value
 
 
 def generate_stroke(context):
@@ -165,8 +178,8 @@ def _run_brush_test(args: dict):
     # Create an undo stack explicitly. This isn't created by default in background mode.
     bpy.ops.ed.undo_push()
 
-    prepare_sculpt_scene(context, args['mode'])
-    prepare_brush(context, args['brush_type'])
+    prepare_sculpt_scene(context, args['mode'], args['mesh_size'])
+    prepare_brush(context, args['brush_type'], args['brush_size'])
 
     context_override = context.copy()
     set_view3d_context_override(context_override)
@@ -200,7 +213,7 @@ def _run_bvh_test(args: dict):
     # Create an undo stack explicitly. This isn't created by default in background mode.
     bpy.ops.ed.undo_push()
 
-    prepare_sculpt_scene(context, args['mode'])
+    prepare_sculpt_scene(context, args['mode'], args['mesh_size'])
 
     context_override = context.copy()
     set_view3d_context_override(context_override)
@@ -224,13 +237,16 @@ def _run_bvh_test(args: dict):
 
 
 class SculptBrushTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
+    def __init__(self, filepath: pathlib.Path, mode: SculptMode, mesh_size: MeshSize, brush_type: BrushType, brush_size: BrushSize):
         self.filepath = filepath
         self.mode = mode
+        self.mesh_size = mesh_size
         self.brush_type = brush_type
+        self.brush_size = brush_size
 
     def name(self):
-        return "{}_{}".format(self.mode.name.lower(), self.brush_type.name.lower())
+        mesh_size = self.mesh_size * self.mesh_size
+        return "{}_{}_{}_{}".format(self.mode.name.lower(), mesh_size, self.brush_type.name.lower(), self.brush_size.name)
 
     def category(self):
         return "sculpt"
@@ -238,7 +254,9 @@ class SculptBrushTest(api.Test):
     def run(self, env, _device_id):
         args = {
             'mode': self.mode,
+            'mesh_size': self.mesh_size,
             'brush_type': self.brush_type,
+            'brush_size': self.brush_size,
         }
 
         result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
@@ -247,12 +265,14 @@ class SculptBrushTest(api.Test):
 
 
 class SculptRebuildBVHTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, mode: SculptMode):
+    def __init__(self, filepath: pathlib.Path, mode: SculptMode, mesh_size: MeshSize):
         self.filepath = filepath
         self.mode = mode
+        self.mesh_size = mesh_size
 
     def name(self):
-        return "{}_rebuild_bvh".format(self.mode.name.lower())
+        mesh_size = self.mesh_size * self.mesh_size
+        return "{}_{}_rebuild_bvh".format(self.mode.name.lower(), mesh_size)
 
     def category(self):
         return "sculpt"
@@ -260,6 +280,7 @@ class SculptRebuildBVHTest(api.Test):
     def run(self, env, _device_id):
         args = {
             'mode': self.mode,
+            'mesh_size': self.mesh_size,
         }
 
         result, _ = env.run_in_blender(_run_bvh_test, args, [self.filepath])
@@ -271,6 +292,9 @@ def generate(env):
     filepaths = env.find_blend_files('sculpt/*')
     # For now, we only expect there to ever be a single file to use as the basis for generating other brush tests
     assert len(filepaths) == 1
-    brush_tests = [SculptBrushTest(filepaths[0], mode, brush_type) for mode in SculptMode for brush_type in BrushType]
-    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode) for mode in SculptMode]
+
+    modes_to_test = [SculptMode.MESH]
+
+    brush_tests = [SculptBrushTest(filepaths[0], mode, mesh_size, brush_type, brush_size) for mode in modes_to_test for brush_type in BrushType for brush_size in BrushSize for mesh_size in MeshSize]
+    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode, mesh_size) for mode in modes_to_test for mesh_size in MeshSize]
     return brush_tests + bvh_tests
