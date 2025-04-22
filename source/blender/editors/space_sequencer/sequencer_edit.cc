@@ -940,11 +940,12 @@ static wmOperatorStatus sequencer_unmute_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
   ARegion *region = CTX_wm_region(C);
-  bool is_preview = (region->regiontype == RGN_TYPE_PREVIEW) && sequencer_view_preview_only_poll(C);
+  const bool is_preview = (region->regiontype == RGN_TYPE_PREVIEW) &&
+                          sequencer_view_preview_only_poll(C);
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
-    if(is_preview){
-      if(seq::time_strip_intersects_frame(scene,strip,scene->r.cfra) &&
-         strip->type != STRIP_TYPE_SOUND_RAM)
+    if (is_preview) {
+      if (seq::time_strip_intersects_frame(scene, strip, scene->r.cfra) &&
+          strip->type != STRIP_TYPE_SOUND_RAM)
       {
         strip->flag &= ~SEQ_MUTE;
         seq::relations_invalidate_dependent(scene, strip);

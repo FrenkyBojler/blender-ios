@@ -940,6 +940,7 @@ class SEQUENCER_MT_strip_text(Menu):
         layout.operator("sequencer.text_select_all")
         layout.operator("sequencer.text_deselect_all")
 
+
 class SEQUENCER_MT_strip_show_hide(Menu):
     bl_label = "Show/Hide"
 
