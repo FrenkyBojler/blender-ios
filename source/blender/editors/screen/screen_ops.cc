@@ -3352,21 +3352,21 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
 
   ListBase anim_data = blender::ed::graph::get_editable_fcurves(ac);
 
-  const bool use_nla_mapping = true;
-
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale->key_data);
     if (!fcu->bezt) {
       continue;
     }
 
+    const bool use_nla_mapping = true;
     fcurve_to_keylist(ale->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, use_nla_mapping);
   }
 
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void keylist_generic_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
+/* This is used for all editors where a more specific function isn't implemented. */
+static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
 {
   bDopeSheet ads = {nullptr};
   Scene *scene = CTX_data_scene(&C);
@@ -3426,7 +3426,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
       break;
 
     default:
-      keylist_generic_for_keyframe_jump(*C, *keylist);
+      keylist_fallback_for_keyframe_jump(*C, *keylist);
       break;
   }
 
