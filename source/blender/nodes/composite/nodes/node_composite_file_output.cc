@@ -873,7 +873,7 @@ class FileOutputOperation : public NodeOperation {
    */
   bool get_single_layer_image_base_path(const char *base_name, char *r_base_path)
   {
-    const TemplateVariableMap variables = BKE_build_blender_variables(
+    const TemplateVariableMap variables = BKE_build_template_variables(
         BKE_main_blendfile_path_from_global(), &context().get_render_data());
 
     /* Do template expansion on the node's base path. */
@@ -954,7 +954,7 @@ class FileOutputOperation : public NodeOperation {
     const RenderData &render_data = context().get_render_data();
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
     const char *relbase = BKE_main_blendfile_path_from_global();
-    const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &render_data);
+    const TemplateVariableMap variables = BKE_build_template_variables(relbase, &render_data);
     blender::Vector<TemplateError> errors = BKE_image_path_from_imtype(
         r_image_path,
         base_path,

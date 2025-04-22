@@ -92,8 +92,8 @@ std::optional<double> TemplateVariableMap::get_float(blender::StringRef name) co
 
 /* -------------------------------------------------------------------- */
 
-TemplateVariableMap BKE_build_blender_variables(const char *blend_file_path,
-                                                const RenderData *render_data)
+TemplateVariableMap BKE_build_template_variables(const char *blend_file_path,
+                                                 const RenderData *render_data)
 {
   TemplateVariableMap variables;
 

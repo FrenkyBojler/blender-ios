@@ -23,17 +23,15 @@
 #include "DNA_scene_types.h"
 
 /**
- * A store for the values of variables, addressed by variable name, for use in
- * template substitution.
+ * Variables (names and associated values) for use in template substitution.
  *
- * Note that this is not intended to be a persistent store for variables, but
- * rather a transient one for collecting the values of variables that are
- * relevant/available in a given templating context.
+ * Note that this is not intended to be a persistent store, but rather a
+ * transient one for collecting data that is relevant/available in a given
+ * templating context.
  *
- * There are currently three types of variables: string, integer, and float.
- * There can only be a single variable with a given name across all variable
- * types. For example, you can't have both a string *and* integer variable both
- * with the name "bob".
+ * There are currently three supported variable types: string, integer, and
+ * float. Names must be unique across all types: you can't have a string *and*
+ * integer both with the name "bob".
  */
 class TemplateVariableMap {
   blender::Map<std::string, std::string> strings;
@@ -113,7 +111,7 @@ class TemplateVariableMap {
 };
 
 /**
- * Build a variable map based on available information.
+ * Build a template variable map based on available information.
  *
  * All parameters are allowed to be null, in which case the variables derived
  * from those parameters will simply not be included.
@@ -138,8 +136,8 @@ class TemplateVariableMap {
  *
  * \see BLI_path_abs()
  */
-TemplateVariableMap BKE_build_blender_variables(const char *blend_file_path,
-                                                const RenderData *render_data);
+TemplateVariableMap BKE_build_template_variables(const char *blend_file_path,
+                                                 const RenderData *render_data);
 
 enum class TemplateErrorType {
   UNESCAPED_CURLY_BRACE,
@@ -173,11 +171,11 @@ blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef p
  * This mutates the path in-place. The path must be a null-terminated string
  * with a total allocation size of at least `FILE_MAX` bytes.
  *
- * The syntax for variable expressions is `{variable_name}` or
+ * The syntax for template expressions is `{variable_name}` or
  * {variable_name:format_spec}`. The format specification syntax currently only
- * applies to numerical variables (integer or float), and uses hash symbols (#)
- * to indicate the number of digits to print the number with. It can be in any
- * of the following forms:
+ * applies to numerical values (integer or float), and uses hash symbols (#) to
+ * indicate the number of digits to print the number with. It can be in any of
+ * the following forms:
  *
  * - `####`: format as an integer with at least 4 digits, padding with zeros as
  *   needed.

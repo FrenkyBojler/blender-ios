@@ -2095,7 +2095,7 @@ void RE_RenderFrame(Render *re,
       else {
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
+        const TemplateVariableMap variables = BKE_build_template_variables(relbase, &scene->r);
         const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath_override,
             rd.pic,
@@ -2326,7 +2326,7 @@ static bool do_write_image_or_movie(
       }
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &scene->r);
+        const TemplateVariableMap variables = BKE_build_template_variables(relbase, &scene->r);
         const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath,
             scene->r.pic,
@@ -2529,7 +2529,7 @@ void RE_RenderAnim(Render *re,
     if (is_movie == false && do_write_file) {
       if (rd.mode & (R_NO_OVERWRITE | R_TOUCH)) {
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap variables = BKE_build_blender_variables(relbase, &rd);
+        const TemplateVariableMap variables = BKE_build_template_variables(relbase, &rd);
         const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath,
             rd.pic,
