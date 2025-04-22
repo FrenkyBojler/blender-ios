@@ -127,7 +127,7 @@ def prepare_brush(context: any, brush_type: BrushType, brush_size: BrushSize):
     bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.unprojected_radius = brush_size.value
 
 
-def generate_stroke(context):
+def generate_stroke(context: any, brush_size: BrushSize):
     """
     Generate stroke for the bpy.ops.sculpt.brush_stroke operator
 
@@ -153,7 +153,13 @@ def generate_stroke(context):
     if version[0] <= 4 and version[1] <= 3:
         template["pen_flip"] = False
 
+    # Approximate spacing changes for different brush sizes...
     num_steps = 100
+    if brush_size == BrushSize.SMALL:
+        num_steps = 2000
+    elif brush_size == BrushSize.LARGE:
+        num_steps = 20
+
     start = Vector((context['area'].width, context['area'].height))
     end = Vector((0, 0))
     delta = (end - start) / (num_steps - 1)
@@ -172,7 +178,7 @@ def _run_brush_test(args: dict):
     import time
     context = bpy.context
 
-    timeout = 5
+    timeout = 10
     total_time_start = time.time()
 
     # Create an undo stack explicitly. This isn't created by default in background mode.
@@ -184,14 +190,14 @@ def _run_brush_test(args: dict):
     context_override = context.copy()
     set_view3d_context_override(context_override)
 
-    min_measurements = 5
+    min_measurements = 10
     max_measurements = 100
 
     measurements = []
     while True:
         with context.temp_override(**context_override):
             start = time.time()
-            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
+            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override, args['brush_size']), override_location=True)
             measurements.append(time.time() - start)
 
         if len(measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
@@ -294,7 +300,8 @@ def generate(env):
     assert len(filepaths) == 1
 
     modes_to_test = [SculptMode.MESH]
+    sizes_to_test = [MeshSize.LARGE]
 
-    brush_tests = [SculptBrushTest(filepaths[0], mode, mesh_size, brush_type, brush_size) for mode in modes_to_test for brush_type in BrushType for brush_size in BrushSize for mesh_size in MeshSize]
-    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode, mesh_size) for mode in modes_to_test for mesh_size in MeshSize]
+    brush_tests = [SculptBrushTest(filepaths[0], mode, mesh_size, brush_type, brush_size) for mode in modes_to_test for brush_type in BrushType for brush_size in BrushSize for mesh_size in sizes_to_test]
+    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode, mesh_size) for mode in modes_to_test for mesh_size in sizes_to_test]
     return brush_tests + bvh_tests
