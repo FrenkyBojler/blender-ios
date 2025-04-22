@@ -1749,6 +1749,7 @@ typedef struct ToolSettings {
   short snap_flag_node;
   short snap_flag_seq;
   short snap_flag_anim;
+  short snap_flag_driver;
   short snap_flag_playhead;
   short snap_uv_flag;
   /** Default snap source, #eSnapSourceOP. */

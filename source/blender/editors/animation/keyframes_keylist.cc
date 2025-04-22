@@ -485,8 +485,7 @@ static eKeyframeExtremeDrawOpts bezt_extreme_type(const BezTripleChain *chain)
 /* New node callback used for building ActKeyColumns from BezTripleChain */
 static ActKeyColumn *nalloc_ak_bezt(void *data)
 {
-  ActKeyColumn *ak = static_cast<ActKeyColumn *>(
-      MEM_callocN(sizeof(ActKeyColumn), "ActKeyColumn"));
+  ActKeyColumn *ak = MEM_callocN<ActKeyColumn>("ActKeyColumn");
   const BezTripleChain *chain = static_cast<const BezTripleChain *>(data);
   const BezTriple *bezt = chain->cur;
 
@@ -543,8 +542,7 @@ static void nupdate_ak_bezt(ActKeyColumn *ak, void *data)
 /* New node callback used for building ActKeyColumns from GPencil frames */
 static ActKeyColumn *nalloc_ak_cel(void *data)
 {
-  ActKeyColumn *ak = static_cast<ActKeyColumn *>(
-      MEM_callocN(sizeof(ActKeyColumn), "ActKeyColumnCel"));
+  ActKeyColumn *ak = MEM_callocN<ActKeyColumn>("ActKeyColumnCel");
   GreasePencilCel &cel = *static_cast<GreasePencilCel *>(data);
 
   /* Store settings based on state of BezTriple */
@@ -585,9 +583,8 @@ static void nupdate_ak_cel(ActKeyColumn *ak, void *data)
 /* New node callback used for building ActKeyColumns from GPencil frames. */
 static ActKeyColumn *nalloc_ak_gpframe(void *data)
 {
-  ActKeyColumn *ak = static_cast<ActKeyColumn *>(
-      MEM_callocN(sizeof(ActKeyColumn), "ActKeyColumnGPF"));
-  const bGPDframe *gpf = static_cast<bGPDframe *>(data);
+  ActKeyColumn *ak = MEM_callocN<ActKeyColumn>("ActKeyColumnGPF");
+  const bGPDframe *gpf = (bGPDframe *)data;
 
   /* store settings based on state of BezTriple */
   ak->cfra = gpf->framenum;
@@ -628,9 +625,8 @@ static void nupdate_ak_gpframe(ActKeyColumn *ak, void *data)
 /* New node callback used for building ActKeyColumns from GPencil frames */
 static ActKeyColumn *nalloc_ak_masklayshape(void *data)
 {
-  ActKeyColumn *ak = static_cast<ActKeyColumn *>(
-      MEM_callocN(sizeof(ActKeyColumn), "ActKeyColumnGPF"));
-  const MaskLayerShape *masklay_shape = static_cast<const MaskLayerShape *>(data);
+  ActKeyColumn *ak = MEM_callocN<ActKeyColumn>("ActKeyColumnGPF");
+  const MaskLayerShape *masklay_shape = (const MaskLayerShape *)data;
 
   /* Store settings based on state of BezTriple. */
   ak->cfra = masklay_shape->frame;
