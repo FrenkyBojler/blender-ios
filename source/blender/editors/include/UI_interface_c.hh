@@ -1849,10 +1849,11 @@ enum uiTooltipStyle {
 
 enum uiTooltipColorID {
   UI_TIP_LC_MAIN = 0, /* Color of primary text. */
-  UI_TIP_LC_VALUE,    /* Color for the value of buttons (also shortcuts). */
+  UI_TIP_LC_VALUE,    /* Color for the value of buttons. */
   UI_TIP_LC_ACTIVE,   /* Color of titles of active enum values. */
   UI_TIP_LC_NORMAL,   /* Color of regular text. */
   UI_TIP_LC_PYTHON,   /* Color of python snippets. */
+  UI_TIP_LC_SHORTCUT, /* Color of shortcut - when at top-right. */
   UI_TIP_LC_ALERT,    /* Warning text color, eg: why operator can't run. */
   UI_TIP_LC_MAX
 };

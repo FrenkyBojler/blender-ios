@@ -183,6 +183,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   float *normal_color = tip_colors[UI_TIP_LC_NORMAL];
   float *python_color = tip_colors[UI_TIP_LC_PYTHON];
   float *alert_color = tip_colors[UI_TIP_LC_ALERT];
+  float *shortcut_color = tip_colors[UI_TIP_LC_SHORTCUT];
 
   float background_color[3];
 
@@ -201,6 +202,10 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   /* `value_color` mixes with some background for less strength. */
   copy_v3_v3(value_color, main_color);
   color_blend_f3_f3(value_color, background_color, 0.2f);
+
+  /* `shortcut_color` mixes with more background for less strength. */
+  copy_v3_v3(shortcut_color, main_color);
+  color_blend_f3_f3(shortcut_color, background_color, 0.5f);
 
   /* `python_color` mixes with more background to be even dimmer. */
   copy_v3_v3(python_color, main_color);
@@ -986,7 +991,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   /* Property context-toggle shortcut. */
   if (!prop_keymap.empty()) {
     UI_tooltip_text_field_add(
-        *data, prop_keymap, {}, UI_TIP_STYLE_SHORTCUT, UI_TIP_LC_VALUE, true);
+        *data, prop_keymap, {}, UI_TIP_STYLE_SHORTCUT, UI_TIP_LC_SHORTCUT, true);
   }
 
   if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
