@@ -125,7 +125,9 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   return result_batches;
 }
 
-static bool bmesh_color_attribute_exists(const BMesh &bm, const bke::AttributeMetaData &meta_data, const char *name)
+static bool bmesh_color_attribute_exists(const BMesh &bm,
+                                         const bke::AttributeMetaData &meta_data,
+                                         const char *name)
 {
   const CustomData *cdata = nullptr;
   switch (meta_data.domain) {
@@ -162,11 +164,13 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
   const bke::AttributeAccessor attributes = mesh->attributes();
   const SculptSession &ss = *ob->sculpt;
 
-  /* If Dyntopo is enabled, the source of truth for an attribute existing or not is the BMesh, not the Mesh. */
+  /* If Dyntopo is enabled, the source of truth for an attribute existing or not is the BMesh, not
+   * the Mesh. */
   if (features & SCULPT_BATCH_VERTEX_COLOR) {
     if (const char *name = mesh->active_color_attribute) {
       if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
-              name)) {
+              name))
+      {
         if (ss.bm) {
           if (bmesh_color_attribute_exists(*ss.bm, *meta_data, name)) {
             attrs.append(pbvh::GenericRequest{name, meta_data->data_type, meta_data->domain});
