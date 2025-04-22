@@ -1088,7 +1088,7 @@ bool USDMaterialReader::follow_connection(const pxr::UsdShadeInput &usd_input,
       if (type_offset >= 0) {
         StringRef output_type = shader_id_name.drop_prefix(type_offset + 1);
         convert_usd_primvar_reader_generic(
-            source_shader, output_type, dest_node, dest_socket_name, ntree, column + 1, r_ctx);
+            source_shader, output_type, dest_node, dest_socket_name, ntree, column + 1, ctx);
       }
     }
   }
@@ -1431,29 +1431,22 @@ void USDMaterialReader::convert_usd_primvar_reader_generic(const pxr::UsdShadeSh
                                                            const StringRefNull dest_socket_name,
                                                            bNodeTree *ntree,
                                                            const int column,
-                                                           NodePlacementContext *r_ctx) const
+                                                           NodePlacementContext &ctx) const
 {
-  if (!usd_shader || !dest_node || !ntree || !r_ctx) {
+  if (!usd_shader || !dest_node || !ntree) {
     return;
   }
 
-  bNode *attribute = get_cached_node(r_ctx->node_cache, usd_shader);
+  bNode *attribute = ctx.get_cached_node(usd_shader);
 
   if (attribute == nullptr) {
-    float locx = 0.0f;
-    float locy = 0.0f;
-    compute_node_loc(column, &locx, &locy, r_ctx);
+    const float2 loc = ctx.compute_node_loc(column);
 
     /* Create the attribute node. */
-    attribute = add_node(nullptr, ntree, SH_NODE_ATTRIBUTE, locx, locy);
-    if (!attribute) {
-      CLOG_ERROR(
-          &LOG, "Couldn't create SH_NODE_ATTRIBUTE for node input %s", dest_socket_name.c_str());
-      return;
-    }
+    attribute = add_node(ntree, SH_NODE_ATTRIBUTE, loc);
 
     /* Cache newly created node. */
-    cache_node(r_ctx->node_cache, usd_shader, attribute);
+    ctx.cache_node(usd_shader, attribute);
 
     /* Set the attribute name. */
     pxr::UsdShadeInput varname_input = usd_shader.GetInput(usdtokens::varname);
