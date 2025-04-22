@@ -70,6 +70,8 @@ CCL_NAMESPACE_BEGIN
 // NOLINTEND
 
 /* Kernel Features */
+/* NOTE: Keep kernel features as defines as they are used by the preprocessor to do compile time
+ * optimization while using adaptive kernel compilation. */
 
 /* Shader nodes. */
 #define KERNEL_FEATURE_NODE_BSDF (1U << 0U)
