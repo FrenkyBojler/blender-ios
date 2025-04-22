@@ -993,9 +993,9 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
   animrig::Slot *slot = action.slot_for_handle(slot_handle);
   if (!slot) {
     /* In the Dope Sheet mode of the Dope Sheet, an _Action_ channel actually shows the _Slot_ keys
-     * in its summary line. That Action channel is there, even when there is no slot assigned. So
-     * this function needs to be able to handle the "no slot" case as valid. It just doesn't
-     * produce any keys.
+     * in its summary line. When there are animated NLA control curves, that Action channel is also
+     * shown, even when there is no slot assigned. So this function needs to be able to handle the
+     * "no slot" case as valid. It just doesn't produce any keys.
      *
      * Also see `build_channel_keylist()` in `keyframes_draw.cc`. */
     return;
