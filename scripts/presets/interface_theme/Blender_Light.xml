@@ -198,7 +198,7 @@
         </wcol_menu>
         <wcol_pulldown>
           <ThemeWidgetColors
-            outline="#4d4d4dff"
+            outline="#3d3d3d00"
             inner="#b3b3b3cc"
             inner_sel="#5680c2e6"
             item="#727272ff"
