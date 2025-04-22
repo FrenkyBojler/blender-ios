@@ -163,7 +163,8 @@ enum class FormatSpecifierType {
 };
 
 /**
- * Specifies how a variable should be formatted into a string.
+ * Specifies how a variable should be formatted into a string, or indicates a
+ * parse error.
  */
 struct FormatSpecifier {
   FormatSpecifierType type = FormatSpecifierType::NONE;
@@ -175,7 +176,7 @@ struct FormatSpecifier {
 };
 
 enum class TokenType {
-  /* "{variable_name}" or "{variable_name:format_spec}". */
+  /* Either "{variable_name}" or "{variable_name:format_spec}". */
   VARIABLE_EXPRESSION,
 
   /* "{{", which is an escaped "{". */
@@ -192,7 +193,7 @@ enum class TokenType {
 };
 
 /**
- * A token that was parsed and should be substituted in the string.
+ * A token that was parsed and should be substituted in the string, or an error.
  */
 struct Token {
   TokenType type = TokenType::VARIABLE_EXPRESSION;
@@ -222,7 +223,7 @@ struct Token {
  * Note: if `format` is not valid for integers, the resulting string will be
  * empty.
  *
- * \return length of the produced string.
+ * \return length of the produced string. Zero indicates an error.
  */
 static int format_int_to_string(const FormatSpecifier &format,
                                 const int64_t integer_value,
@@ -294,7 +295,7 @@ static int format_int_to_string(const FormatSpecifier &format,
  * Note: if `format` is not valid for floating point numbers, the resulting
  * string will be empty.
  *
- * \return length of the produced string.
+ * \return length of the produced string. Zero indicates an error
  */
 static int format_float_to_string(const FormatSpecifier &format,
                                   const double float_value,
@@ -365,6 +366,13 @@ static int format_float_to_string(const FormatSpecifier &format,
   return output_length;
 }
 
+/**
+ * Parse the "format specifier" part of a variable expression.
+ *
+ * The format specifier is e.g. the "##.###" in "{name:##.###}". The specifier
+ * string should be passed alone (just the "##.###"), without the rest of the
+ * variable expression.
+ */
 static FormatSpecifier parse_format_specifier(blender::StringRef format_specifier)
 {
   FormatSpecifier format = {};
@@ -414,7 +422,7 @@ static FormatSpecifier parse_format_specifier(blender::StringRef format_specifie
 }
 
 /**
- * Finds and parses the next valid token in `path` starting from index
+ * Find and parse the next valid token in `path` starting from index
  * `from_char`.
  *
  * \param path The path string to parse.
@@ -536,8 +544,8 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
   return token;
 }
 
-/* Parse the given template and return a list of tokens found, in the same order
- * as they appear in the template. */
+/* Parse the given template and return the list of tokens found, in the same
+ * order as they appear in the template. */
 static blender::Vector<Token> parse_template(blender::StringRef path)
 {
   blender::Vector<Token> tokens;
