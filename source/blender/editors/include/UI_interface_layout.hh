@@ -73,10 +73,10 @@ struct uiLayout : uiItem {
   uiLayout *child_items_layout;
 
   int x, y, w, h;
-  float scale[2];
-  short space;
-  bool align;
-  bool active;
+  float scale_[2];
+  short space_;
+  bool align_;
+  bool active_;
   bool active_default_;
   bool activate_init_;
   bool enabled_;
