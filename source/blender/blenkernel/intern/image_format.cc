@@ -598,27 +598,26 @@ int BKE_image_path_ext_from_imtype_ensure(char *filepath,
   return do_ensure_image_extension(filepath, filepath_maxncpy, imtype, nullptr);
 }
 
-static blender::Vector<TemplateError> do_makepicstring(char filepath[FILE_MAX],
-                                                       const char *base,
-                                                       const char *relbase,
-                                                       const TemplateVariableMap *variables,
-                                                       int frame,
-                                                       const char imtype,
-                                                       const ImageFormatData *im_format,
-                                                       const bool use_ext,
-                                                       const bool use_frames,
-                                                       const char *suffix)
+static blender::Vector<TemplateError> do_makepicstring(
+    char filepath[FILE_MAX],
+    const char *base,
+    const char *relbase,
+    const TemplateVariableMap *template_variables,
+    int frame,
+    const char imtype,
+    const ImageFormatData *im_format,
+    const bool use_ext,
+    const bool use_frames,
+    const char *suffix)
 {
-  blender::Vector<TemplateError> variable_errors;
-
   if (filepath == nullptr) {
     return {};
   }
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
 
-  if (variables) {
-    const blender::Vector<TemplateError> variable_errors = BKE_path_apply_template(filepath,
-                                                                                   *variables);
+  if (template_variables) {
+    const blender::Vector<TemplateError> variable_errors = BKE_path_apply_template(
+        filepath, *template_variables);
     if (!variable_errors.is_empty()) {
       return variable_errors;
     }
@@ -641,20 +640,21 @@ static blender::Vector<TemplateError> do_makepicstring(char filepath[FILE_MAX],
   return {};
 }
 
-blender::Vector<TemplateError> BKE_image_path_from_imformat(char *filepath,
-                                                            const char *base,
-                                                            const char *relbase,
-                                                            const TemplateVariableMap *variables,
-                                                            int frame,
-                                                            const ImageFormatData *im_format,
-                                                            const bool use_ext,
-                                                            const bool use_frames,
-                                                            const char *suffix)
+blender::Vector<TemplateError> BKE_image_path_from_imformat(
+    char *filepath,
+    const char *base,
+    const char *relbase,
+    const TemplateVariableMap *template_variables,
+    int frame,
+    const ImageFormatData *im_format,
+    const bool use_ext,
+    const bool use_frames,
+    const char *suffix)
 {
   return do_makepicstring(filepath,
                           base,
                           relbase,
-                          variables,
+                          template_variables,
                           frame,
                           im_format->imtype,
                           im_format,
@@ -663,18 +663,27 @@ blender::Vector<TemplateError> BKE_image_path_from_imformat(char *filepath,
                           suffix);
 }
 
-blender::Vector<TemplateError> BKE_image_path_from_imtype(char *filepath,
-                                                          const char *base,
-                                                          const char *relbase,
-                                                          const TemplateVariableMap *variables,
-                                                          int frame,
-                                                          const char imtype,
-                                                          const bool use_ext,
-                                                          const bool use_frames,
-                                                          const char *suffix)
+blender::Vector<TemplateError> BKE_image_path_from_imtype(
+    char *filepath,
+    const char *base,
+    const char *relbase,
+    const TemplateVariableMap *template_variables,
+    int frame,
+    const char imtype,
+    const bool use_ext,
+    const bool use_frames,
+    const char *suffix)
 {
-  return do_makepicstring(
-      filepath, base, relbase, variables, frame, imtype, nullptr, use_ext, use_frames, suffix);
+  return do_makepicstring(filepath,
+                          base,
+                          relbase,
+                          template_variables,
+                          frame,
+                          imtype,
+                          nullptr,
+                          use_ext,
+                          use_frames,
+                          suffix);
 }
 
 /* ImBuf Conversion */

@@ -599,8 +599,8 @@ blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef p
   return errors;
 }
 
-blender::Vector<TemplateError> BKE_path_apply_template(char path[FILE_MAX],
-                                                       const TemplateVariableMap &variables)
+blender::Vector<TemplateError> BKE_path_apply_template(
+    char path[FILE_MAX], const TemplateVariableMap &template_variables)
 {
   const blender::Vector<Token> tokens = parse_template(path);
 
@@ -654,7 +654,7 @@ blender::Vector<TemplateError> BKE_path_apply_template(char path[FILE_MAX],
 
       /* Expand variable expression into the variable's value. */
       case TokenType::VARIABLE_EXPRESSION: {
-        if (std::optional<blender::StringRefNull> string_value = variables.get_string(
+        if (std::optional<blender::StringRefNull> string_value = template_variables.get_string(
                 token.variable_name))
         {
           /* String variable found, but we only process it if there's no format
@@ -668,13 +668,16 @@ blender::Vector<TemplateError> BKE_path_apply_template(char path[FILE_MAX],
           break;
         }
 
-        if (std::optional<int64_t> integer_value = variables.get_integer(token.variable_name)) {
+        if (std::optional<int64_t> integer_value = template_variables.get_integer(
+                token.variable_name))
+        {
           /* Integer variable found. */
           format_int_to_string(token.format, *integer_value, replacement_string);
           break;
         }
 
-        if (std::optional<double> float_value = variables.get_float(token.variable_name)) {
+        if (std::optional<double> float_value = template_variables.get_float(token.variable_name))
+        {
           /* Float variable found. */
           format_float_to_string(token.format, *float_value, replacement_string);
           break;

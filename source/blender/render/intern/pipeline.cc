@@ -2095,12 +2095,13 @@ void RE_RenderFrame(Render *re,
       else {
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap variables = BKE_build_template_variables(relbase, &scene->r);
+        const TemplateVariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                    &scene->r);
         const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath_override,
             rd.pic,
             relbase,
-            &variables,
+            &template_variables,
             scene->r.cfra,
             &rd.im_format,
             (rd.scemode & R_EXTENSION) != 0,
@@ -2326,12 +2327,13 @@ static bool do_write_image_or_movie(
       }
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap variables = BKE_build_template_variables(relbase, &scene->r);
+        const TemplateVariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                    &scene->r);
         const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath,
             scene->r.pic,
             relbase,
-            &variables,
+            &template_variables,
             scene->r.cfra,
             &scene->r.im_format,
             (scene->r.scemode & R_EXTENSION) != 0,
@@ -2529,12 +2531,12 @@ void RE_RenderAnim(Render *re,
     if (is_movie == false && do_write_file) {
       if (rd.mode & (R_NO_OVERWRITE | R_TOUCH)) {
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap variables = BKE_build_template_variables(relbase, &rd);
+        const TemplateVariableMap template_variables = BKE_build_template_variables(relbase, &rd);
         const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
             filepath,
             rd.pic,
             BKE_main_blendfile_path(bmain),
-            &variables,
+            &template_variables,
             scene->r.cfra,
             &rd.im_format,
             (rd.scemode & R_EXTENSION) != 0,

@@ -201,8 +201,8 @@ blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef p
  * \return On success, an empty vector. If there are errors, a vector of all
  * errors encountered.
  */
-blender::Vector<TemplateError> BKE_path_apply_template(char path[FILE_MAX],
-                                                       const TemplateVariableMap &variables);
+blender::Vector<TemplateError> BKE_path_apply_template(
+    char path[FILE_MAX], const TemplateVariableMap &template_variables);
 /**
  * Produces a human-readable error message for the given template error.
  */
