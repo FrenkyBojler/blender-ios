@@ -635,7 +635,22 @@ void DepsgraphRelationBuilder::build_idproperties(IDProperty *id_property)
 void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_collection,
                                                 Collection *collection)
 {
-  const ComponentKey collection_hierarchy_key{&collection->id, NodeType::HIERARCHY};
+  /* Make sure the hierarchy relations for the collection are built (this function can be called
+   * twice for the same collection). */
+  if (!built_map_.check_is_built_and_tag(collection,
+                                         BuilderMap::TAG_COLLECTION_CHILDREN_HIERARCHY))
+  {
+    const ComponentKey collection_hierarchy_key{&collection->id, NodeType::HIERARCHY};
+    Node *collection_hierarchy_node = this->find_node(collection_hierarchy_key);
+    LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
+      Object *object = cob->ob;
+      const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
+      Node *object_hierarchy_node = this->find_node(object_hierarchy_key);
+      this->add_operation_relation(collection_hierarchy_node->get_exit_operation(),
+                                   object_hierarchy_node->get_entry_operation(),
+                                   "Collection -> Object hierarchy");
+    }
+  }
 
   if (from_layer_collection != nullptr) {
     /* If we came from layer collection we don't go deeper, view layer builder takes care of going
@@ -644,33 +659,6 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
      * NOTE: Do early output before tagging build as done, so possible subsequent builds from
      * outside of the layer collection properly recurses into all the nested objects and
      * collections. */
-
-    if (!built_map_.check_is_built_and_tag(collection,
-                                           BuilderMap::TAG_COLLECTION_CHILDREN_HIERARCHY))
-    {
-      LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
-        Object *object = cob->ob;
-
-        /* Ensure that the hierarchy relations always exists, even for the layer collection.
-         *
-         * Note that the view layer builder can skip bases if they are constantly excluded from the
-         * collections. */
-        const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
-        if (has_node(object_hierarchy_key)) {
-          if constexpr (false) {
-            /* The use of `built_map_` makes sure that we don't end up with duplicate relations.
-             * This runtime check is disabled even in debug builds since it changes the
-             * computational complexity from linear to quadratic. */
-            BLI_assert(!graph_->check_nodes_connected(find_node(collection_hierarchy_key),
-                                                      find_node(object_hierarchy_key),
-                                                      "Collection -> Object hierarchy"));
-          }
-          add_relation(
-              collection_hierarchy_key, object_hierarchy_key, "Collection -> Object hierarchy");
-        }
-      }
-    }
-
     return;
   }
 
@@ -690,9 +678,6 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
     Object *object = cob->ob;
 
     build_object(object);
-
-    const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
-    add_relation(collection_hierarchy_key, object_hierarchy_key, "Collection -> Object hierarchy");
 
     const OperationKey object_instance_geometry_key{
         &object->id, NodeType::INSTANCING, OperationCode::INSTANCE_GEOMETRY};
