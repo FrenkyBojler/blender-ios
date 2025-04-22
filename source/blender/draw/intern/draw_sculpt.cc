@@ -125,25 +125,25 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   return result_batches;
 }
 
-static bool bmesh_color_attribute_exists(const BMesh &bm,
-                                         const bke::AttributeMetaData &meta_data,
-                                         const char *name)
+static const CustomData *get_cdata(const BMesh &bm, const bke::AttrDomain domain)
 {
-  const CustomData *cdata = nullptr;
-  switch (meta_data.domain) {
+  switch (domain) {
     case bke::AttrDomain::Point:
-      cdata = &bm.vdata;
-      break;
+      return &bm.vdata;
     case bke::AttrDomain::Corner:
-      cdata = &bm.ldata;
-      break;
+      return &bm.ldata;
     case bke::AttrDomain::Face:
-      cdata = &bm.pdata;
-      break;
+      return &bm.pdata;
     default:
-      break;
+      return nullptr;
   }
+}
 
+static bool bmesh_attribute_exists(const BMesh &bm,
+                                   const bke::AttributeMetaData &meta_data,
+                                   const StringRef &name)
+{
+  const CustomData *cdata = get_cdata(bm, meta_data.domain);
   return cdata && CustomData_get_offset_named(cdata, meta_data.data_type, name) != -1;
 }
 
@@ -172,7 +172,7 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
               name))
       {
         if (ss.bm) {
-          if (bmesh_color_attribute_exists(*ss.bm, *meta_data, name)) {
+          if (bmesh_attribute_exists(*ss.bm, *meta_data, name)) {
             attrs.append(pbvh::GenericRequest{name, meta_data->data_type, meta_data->domain});
           }
         }
