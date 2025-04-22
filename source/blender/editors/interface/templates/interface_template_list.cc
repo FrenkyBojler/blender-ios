@@ -163,8 +163,7 @@ uiListNameFilter::uiListNameFilter(uiList &list)
       filter_ = storage_.filter_buff;
     }
     else {
-      filter_ = storage_.filter_dyn = static_cast<char *>(
-          MEM_mallocN((slen + 3) * sizeof(char), "filter_dyn"));
+      filter_ = storage_.filter_dyn = MEM_malloc_arrayN<char>((slen + 3), "filter_dyn");
     }
     BLI_strncpy_ensure_pad(filter_, filter_raw, '*', slen + 3);
   }
@@ -228,12 +227,11 @@ void UI_list_filter_and_sort_items(uiList *ui_list,
     int order_idx = 0, i = 0;
 
     if (order_by_name) {
-      names = static_cast<StringCmp *>(MEM_callocN(sizeof(StringCmp) * len, "StringCmp"));
+      names = MEM_calloc_arrayN<StringCmp>(len, "StringCmp");
     }
 
     if (item_filter_fn) {
-      dyn_data->items_filter_flags = static_cast<int *>(
-          MEM_callocN(sizeof(int) * len, "items_filter_flags"));
+      dyn_data->items_filter_flags = MEM_calloc_arrayN<int>(len, "items_filter_flags");
       dyn_data->items_shown = 0;
     }
 
@@ -295,8 +293,7 @@ void UI_list_filter_and_sort_items(uiList *ui_list,
        */
       qsort(names, order_idx, sizeof(StringCmp), cmpstringp);
 
-      dyn_data->items_filter_neworder = static_cast<int *>(
-          MEM_mallocN(sizeof(int) * order_idx, "items_filter_neworder"));
+      dyn_data->items_filter_neworder = MEM_malloc_arrayN<int>(order_idx, "items_filter_neworder");
       for (new_idx = 0; new_idx < order_idx; new_idx++) {
         dyn_data->items_filter_neworder[names[new_idx].org_idx] = new_idx;
       }
@@ -352,11 +349,11 @@ static void uilist_free_dyn_data(uiList *ui_list)
 
   if (dyn_data->custom_activate_opptr) {
     WM_operator_properties_free(dyn_data->custom_activate_opptr);
-    MEM_freeN(dyn_data->custom_activate_opptr);
+    MEM_delete(dyn_data->custom_activate_opptr);
   }
   if (dyn_data->custom_drag_opptr) {
     WM_operator_properties_free(dyn_data->custom_drag_opptr);
-    MEM_freeN(dyn_data->custom_drag_opptr);
+    MEM_delete(dyn_data->custom_drag_opptr);
   }
 
   MEM_SAFE_FREE(dyn_data->items_filter_flags);
@@ -370,7 +367,7 @@ static void uilist_free_dyn_data(uiList *ui_list)
  *
  * \return false if the input data isn't valid. Will also raise an RNA warning in that case.
  */
-static bool ui_template_list_data_retrieve(const char *listtype_name,
+static bool ui_template_list_data_retrieve(const StringRef listtype_name,
                                            const char *list_id,
                                            PointerRNA *dataptr,
                                            const StringRefNull propname,
@@ -383,7 +380,7 @@ static bool ui_template_list_data_retrieve(const char *listtype_name,
   *r_input_data = {};
 
   /* Forbid default UI_UL_DEFAULT_CLASS_NAME list class without a custom list_id! */
-  if (STREQ(UI_UL_DEFAULT_CLASS_NAME, listtype_name) && !(list_id && list_id[0])) {
+  if ((UI_UL_DEFAULT_CLASS_NAME == listtype_name) && !(list_id && list_id[0])) {
     RNA_warning("template_list using default '%s' UIList class must provide a custom list_id",
                 UI_UL_DEFAULT_CLASS_NAME);
     return false;
@@ -429,7 +426,7 @@ static bool ui_template_list_data_retrieve(const char *listtype_name,
 
   /* Find the uiList type. */
   if (!(*r_list_type = WM_uilisttype_find(listtype_name, false))) {
-    RNA_warning("List type %s not found", listtype_name);
+    RNA_warning("List type %s not found", std::string(listtype_name).c_str());
     return false;
   }
 
@@ -639,11 +636,11 @@ static void *uilist_item_use_dynamic_tooltip(PointerRNA *itemptr, const char *pr
   return nullptr;
 }
 
-static std::string uilist_item_tooltip_func(bContext * /*C*/, void *argN, const char *tip)
+static std::string uilist_item_tooltip_func(bContext * /*C*/, void *argN, const StringRef tip)
 {
   char *dyn_tooltip = static_cast<char *>(argN);
   std::string tooltip_string = dyn_tooltip;
-  if (tip && tip[0]) {
+  if (!tip.is_empty()) {
     tooltip_string += '\n';
     tooltip_string += tip;
   }
@@ -675,7 +672,7 @@ static uiList *ui_list_ensure(const bContext *C,
       BLI_findstring(&region->ui_lists, full_list_id, offsetof(uiList, list_id)));
 
   if (!ui_list) {
-    ui_list = static_cast<uiList *>(MEM_callocN(sizeof(uiList), "uiList"));
+    ui_list = MEM_callocN<uiList>("uiList");
     STRNCPY(ui_list->list_id, full_list_id);
     BLI_addtail(&region->ui_lists, ui_list);
     ui_list->list_grip = -UI_LIST_AUTO_SIZE_THRESHOLD; /* Force auto size by default. */
@@ -688,8 +685,7 @@ static uiList *ui_list_ensure(const bContext *C,
   }
 
   if (!ui_list->dyn_data) {
-    ui_list->dyn_data = static_cast<uiListDyn *>(
-        MEM_callocN(sizeof(uiListDyn), "uiList.dyn_data"));
+    ui_list->dyn_data = MEM_callocN<uiListDyn>("uiList.dyn_data");
   }
   uiListDyn *dyn_data = ui_list->dyn_data;
   /* Note that this isn't a `uiListType` callback, it's stored in the runtime list data. Otherwise
@@ -941,7 +937,7 @@ static void ui_template_list_layout_draw(const bContext *C,
                                0,
                                0,
                                org_i,
-                               nullptr);
+                               std::nullopt);
           UI_but_drawflag_enable(but, UI_BUT_NO_TOOLTIP);
 
           sub = uiLayoutRow(overlap, false);
@@ -1041,7 +1037,7 @@ static void ui_template_list_layout_draw(const bContext *C,
                                0,
                                0,
                                org_i,
-                               nullptr);
+                               std::nullopt);
           UI_but_drawflag_enable(but, UI_BUT_NO_TOOLTIP);
 
           col = uiLayoutColumn(overlap, false);
@@ -1113,7 +1109,7 @@ static void ui_template_list_layout_draw(const bContext *C,
 
     row = uiLayoutRow(glob, true);
     uiBlock *subblock = uiLayoutGetBlock(row);
-    UI_block_emboss_set(subblock, UI_EMBOSS_NONE);
+    UI_block_emboss_set(subblock, blender::ui::EmbossType::None);
 
     if (ui_list->filter_flag & UILST_FLT_SHOW) {
       but = uiDefIconButBitI(subblock,
@@ -1147,7 +1143,7 @@ static void ui_template_list_layout_draw(const bContext *C,
         UI_but_func_set(but, [ui_list](bContext &C) { uilist_resize_update(&C, ui_list); });
       }
 
-      UI_block_emboss_set(subblock, UI_EMBOSS);
+      UI_block_emboss_set(subblock, blender::ui::EmbossType::Emboss);
 
       col = uiLayoutColumn(glob, false);
       subblock = uiLayoutGetBlock(col);
@@ -1198,7 +1194,7 @@ static void ui_template_list_layout_draw(const bContext *C,
         UI_but_func_set(but, [ui_list](bContext &C) { uilist_resize_update(&C, ui_list); });
       }
 
-      UI_block_emboss_set(subblock, UI_EMBOSS);
+      UI_block_emboss_set(subblock, blender::ui::EmbossType::Emboss);
     }
   }
 }

@@ -10,8 +10,6 @@
 
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -27,7 +25,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_asset_types.h"
 #include "DNA_defaults.h"
 #include "DNA_userdef_types.h"
 
@@ -295,7 +292,7 @@ bool BKE_preferences_extension_repo_module_is_valid(const bUserExtensionRepo *re
   if (module_len == 0) {
     return false;
   }
-  if (module_len != BLI_strnlen(repo->module, sizeof(repo->module))) {
+  if (module_len != STRNLEN(repo->module)) {
     return false;
   }
   return true;

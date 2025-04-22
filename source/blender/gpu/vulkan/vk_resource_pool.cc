@@ -24,7 +24,6 @@ void VKResourcePool::deinit(VKDevice &device)
 
 void VKResourcePool::reset()
 {
-  descriptor_pools.reset();
   immediate.reset();
 }
 
@@ -36,6 +35,7 @@ void VKDiscardPool::deinit(VKDevice &device)
 void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
 {
   std::scoped_lock mutex(mutex_);
+  src_pool.buffer_views_.update_timeline(timeline);
   src_pool.buffers_.update_timeline(timeline);
   src_pool.image_views_.update_timeline(timeline);
   src_pool.images_.update_timeline(timeline);
@@ -43,6 +43,8 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   src_pool.pipeline_layouts_.update_timeline(timeline);
   src_pool.framebuffers_.update_timeline(timeline);
   src_pool.render_passes_.update_timeline(timeline);
+  src_pool.descriptor_pools_.update_timeline(timeline);
+  buffer_views_.extend(std::move(src_pool.buffer_views_));
   buffers_.extend(std::move(src_pool.buffers_));
   image_views_.extend(std::move(src_pool.image_views_));
   images_.extend(std::move(src_pool.images_));
@@ -50,6 +52,7 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   pipeline_layouts_.extend(std::move(src_pool.pipeline_layouts_));
   framebuffers_.extend(std::move(src_pool.framebuffers_));
   render_passes_.extend(std::move(src_pool.render_passes_));
+  descriptor_pools_.extend(std::move(src_pool.descriptor_pools_));
 }
 
 void VKDiscardPool::discard_image(VkImage vk_image, VmaAllocation vma_allocation)
@@ -68,6 +71,12 @@ void VKDiscardPool::discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocat
 {
   std::scoped_lock mutex(mutex_);
   buffers_.append_timeline(timeline_, std::pair(vk_buffer, vma_allocation));
+}
+
+void VKDiscardPool::discard_buffer_view(VkBufferView vk_buffer_view)
+{
+  std::scoped_lock mutex(mutex_);
+  buffer_views_.append_timeline(timeline_, vk_buffer_view);
 }
 
 void VKDiscardPool::discard_shader_module(VkShaderModule vk_shader_module)
@@ -93,6 +102,12 @@ void VKDiscardPool::discard_render_pass(VkRenderPass vk_render_pass)
   render_passes_.append_timeline(timeline_, vk_render_pass);
 }
 
+void VKDiscardPool::discard_descriptor_pool(VkDescriptorPool vk_descriptor_pool)
+{
+  std::scoped_lock mutex(mutex_);
+  descriptor_pools_.append_timeline(timeline_, vk_descriptor_pool);
+}
+
 void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
 {
   std::scoped_lock mutex(mutex_);
@@ -106,6 +121,10 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
     device.resources.remove_image(image_allocation.first);
     vmaDestroyImage(device.mem_allocator_get(), image_allocation.first, image_allocation.second);
   });
+  buffer_views_.remove_old(current_timeline, [&](VkBufferView vk_buffer_view) {
+    vkDestroyBufferView(device.vk_handle(), vk_buffer_view, nullptr);
+  });
+
   buffers_.remove_old(current_timeline, [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {
     device.resources.remove_buffer(buffer_allocation.first);
     vmaDestroyBuffer(
@@ -126,6 +145,12 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
 
   render_passes_.remove_old(current_timeline, [&](VkRenderPass vk_render_pass) {
     vkDestroyRenderPass(device.vk_handle(), vk_render_pass, nullptr);
+  });
+
+  // TODO: Introduce reuse_old as the allocations can all be reused by resetting the pool.
+  descriptor_pools_.remove_old(current_timeline, [&](VkDescriptorPool vk_descriptor_pool) {
+    vkResetDescriptorPool(device.vk_handle(), vk_descriptor_pool, 0);
+    vkDestroyDescriptorPool(device.vk_handle(), vk_descriptor_pool, nullptr);
   });
 }
 

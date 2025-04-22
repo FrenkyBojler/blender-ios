@@ -379,12 +379,12 @@ static void meshdeformModifier_do(ModifierData *md,
     BKE_modifier_set_error(ob, md, "Vertices changed from %d to %d", mmd->verts_num, verts_num);
     return;
   }
-  else if (mmd->cage_verts_num != cage_verts_num) {
+  if (mmd->cage_verts_num != cage_verts_num) {
     BKE_modifier_set_error(
         ob, md, "Cage vertices changed from %d to %d", mmd->cage_verts_num, cage_verts_num);
     return;
   }
-  else if (mmd->bindcagecos == nullptr) {
+  if (mmd->bindcagecos == nullptr) {
     BKE_modifier_set_error(ob, md, "Bind data missing");
     return;
   }
@@ -464,9 +464,8 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
   }
 
   /* allocate bind influences */
-  mmd->bindinfluences = static_cast<MDefInfluence *>(
-      MEM_calloc_arrayN(mmd->influences_num, sizeof(MDefInfluence), __func__));
-  mmd->bindoffsets = static_cast<int *>(MEM_calloc_arrayN((verts_num + 1), sizeof(int), __func__));
+  mmd->bindinfluences = MEM_calloc_arrayN<MDefInfluence>(mmd->influences_num, __func__);
+  mmd->bindoffsets = MEM_calloc_arrayN<int>(size_t(verts_num) + 1, __func__);
 
   /* write influences */
   influences_num = 0;

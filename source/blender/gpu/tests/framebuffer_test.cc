@@ -4,9 +4,14 @@
 
 #include "testing/testing.h"
 
+#include "GPU_batch.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_shader.hh"
+#include "GPU_state.hh"
+#include "GPU_vertex_buffer.hh"
+#include "GPU_vertex_format.hh"
+
 #include "gpu_testing.hh"
 
 #include "BLI_math_vector.hh"
@@ -278,7 +283,7 @@ static void test_framebuffer_multi_viewport()
   create_info.vertex_source("gpu_framebuffer_layer_viewport_test.glsl");
   create_info.fragment_source("gpu_framebuffer_layer_viewport_test.glsl");
   create_info.builtins(BuiltinBits::VIEWPORT_INDEX | BuiltinBits::LAYER);
-  create_info.fragment_out(0, Type::IVEC2, "out_value");
+  create_info.fragment_out(0, Type::int2_t, "out_value");
 
   GPUShader *shader = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
@@ -347,7 +352,7 @@ static void test_framebuffer_subpass_input()
   create_info_write.define("WRITE");
   create_info_write.vertex_source("gpu_framebuffer_subpass_input_test.glsl");
   create_info_write.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
-  create_info_write.fragment_out(0, Type::INT, "out_value", DualBlend::NONE, 0);
+  create_info_write.fragment_out(0, Type::int_t, "out_value", DualBlend::NONE, 0);
 
   GPUShader *shader_write = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_write));
@@ -356,8 +361,8 @@ static void test_framebuffer_subpass_input()
   create_info_read.define("READ");
   create_info_read.vertex_source("gpu_framebuffer_subpass_input_test.glsl");
   create_info_read.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
-  create_info_read.subpass_in(0, Type::INT, "in_value", 0);
-  create_info_read.fragment_out(1, Type::INT, "out_value");
+  create_info_read.subpass_in(0, Type::int_t, ImageType::INT_2D, "in_value", 0);
+  create_info_read.fragment_out(1, Type::int_t, "out_value");
 
   GPUShader *shader_read = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_read));

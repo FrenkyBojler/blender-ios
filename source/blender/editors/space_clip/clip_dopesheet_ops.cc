@@ -6,10 +6,8 @@
  * \ingroup spclip
  */
 
-#include "DNA_scene_types.h"
-
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_tracking.h"
@@ -55,7 +53,7 @@ static bool dopesheet_select_channel_poll(bContext *C)
   return false;
 }
 
-static int dopesheet_select_channel_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus dopesheet_select_channel_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -101,7 +99,9 @@ static int dopesheet_select_channel_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int dopesheet_select_channel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus dopesheet_select_channel_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   float location[2];
@@ -148,7 +148,7 @@ void CLIP_OT_dopesheet_select_channel(wmOperatorType *ot)
 
 /********************** View All operator *********************/
 
-static int dopesheet_view_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus dopesheet_view_all_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);

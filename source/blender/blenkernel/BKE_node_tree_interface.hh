@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "DNA_node_tree_interface_types.h"
@@ -53,11 +57,11 @@ template<typename T> static bool item_is_type(const bNodeTreeInterfaceItem &item
   bool match = false;
   switch (item.item_type) {
     case NODE_INTERFACE_SOCKET: {
-      match |= std::is_same<T, bNodeTreeInterfaceSocket>::value;
+      match |= std::is_same_v<T, bNodeTreeInterfaceSocket>;
       break;
     }
     case NODE_INTERFACE_PANEL: {
-      match |= std::is_same<T, bNodeTreeInterfacePanel>::value;
+      match |= std::is_same_v<T, bNodeTreeInterfacePanel>;
       break;
     }
   }
@@ -175,6 +179,8 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketTexture", "NodeTreeInterfaceSocketTexture", SOCK_TEXTURE, PROP_NONE},
     {"NodeSocketMaterial", "NodeTreeInterfaceSocketMaterial", SOCK_MATERIAL, PROP_NONE},
     {"NodeSocketMenu", "NodeTreeInterfaceSocketMenu", SOCK_MENU, PROP_NONE},
+    {"NodeSocketBundle", "NodeTreeInterfaceSocketBundle", SOCK_BUNDLE, PROP_NONE},
+    {"NodeSocketClosure", "NodeTreeInterfaceSocketClosure", SOCK_CLOSURE, PROP_NONE},
 };
 
 template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype type, const Fn &fn)
@@ -224,6 +230,8 @@ template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype 
     case SOCK_SHADER:
     case SOCK_MATRIX:
     case SOCK_GEOMETRY:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
       return true;
   }
   return false;
@@ -288,8 +296,8 @@ template<typename T> const T &get_socket_data_as(const bNodeTreeInterfaceSocket 
 bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
                                                          const bNode &from_node,
                                                          const bNodeSocket &from_sock,
-                                                         const StringRef socket_type,
-                                                         const StringRef name);
+                                                         StringRef socket_type,
+                                                         StringRef name);
 
 inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
                                                                 const bNode &from_node,

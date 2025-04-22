@@ -1,17 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-27 10:58+0000\n"
-"PO-Revision-Date: 2019-12-08 17:40+0700\n"
-"Last-Translator: gongpha <gongpha@gmail.com>\n"
-"Language-Team: Thai Translation Team <gongpha@gmail.com>\n"
+"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"PO-Revision-Date: 2025-04-14 08:42+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
 "Language: th\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 2.2.4"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Name"
@@ -168,26 +169,6 @@ msgstr "ขยาย"
 
 msgid "Action Groups"
 msgstr "กลุ่มการกระทำ"
-
-
-msgid "Mix Mode"
-msgstr "โหมดผสม"
-
-
-msgid "Replace"
-msgstr "แทนที่"
-
-
-msgid "Add"
-msgstr "เพิ่ม"
-
-
-msgid "Subtract"
-msgstr "ลบ"
-
-
-msgid "Multiply"
-msgstr "คูณ"
 
 
 msgctxt "ID"
@@ -379,6 +360,22 @@ msgstr "ล่าง"
 
 msgid "Action"
 msgstr "กระทำ"
+
+
+msgid "Replace"
+msgstr "แทนที่"
+
+
+msgid "Add"
+msgstr "เพิ่ม"
+
+
+msgid "Subtract"
+msgstr "ลบ"
+
+
+msgid "Multiply"
+msgstr "คูณ"
 
 
 msgid "End Frame"
@@ -790,6 +787,10 @@ msgid "Armature"
 msgstr "โครงร่าง"
 
 
+msgid "Mix Mode"
+msgstr "โหมดผสม"
+
+
 msgid "Rotation X"
 msgstr "หมุน X"
 
@@ -1186,16 +1187,16 @@ msgid "Tools"
 msgstr "เครื่องมือ"
 
 
-msgid "Translation"
-msgstr "แปลภาษา"
-
-
 msgid "Reverse"
 msgstr "ย้อนกลับ"
 
 
 msgid "Repeat"
 msgstr "ทำซ้ำ"
+
+
+msgid "Translation"
+msgstr "แปลภาษา"
 
 
 msgid "Red Green Blue"
@@ -1864,28 +1865,12 @@ msgid "Mask"
 msgstr "หน้ากาก"
 
 
-msgid "Names"
-msgstr "ชื่อ"
-
-
-msgid "Pivot Point"
-msgstr "จุดหมุน"
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
 
 
 msgid "Snap"
 msgstr "ยึดติด"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "แก้ไข"
-
-
-msgid "Mask Edit"
-msgstr "การแก้ไขหน้ากาก"
-
-
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
 
 
 msgid "Local View"
@@ -1936,6 +1921,10 @@ msgid "Hooks"
 msgstr "ตะขอ"
 
 
+msgid "Names"
+msgstr "ชื่อ"
+
+
 msgid "Face Data"
 msgstr "ข้อมูลด้าน"
 
@@ -1946,6 +1935,18 @@ msgstr "ผสาน"
 
 msgid "Text"
 msgstr "ช้อความ"
+
+
+msgid "Pivot Point"
+msgstr "จุดหมุน"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "แก้ไข"
+
+
+msgid "Mask Edit"
+msgstr "การแก้ไขหน้ากาก"
 
 
 msgid "Zoom"
@@ -2270,10 +2271,6 @@ msgstr "เส้นโค้ง RGB"
 
 msgid "High quality"
 msgstr "คุณภาพสูง"
-
-
-msgid "Rotate 45"
-msgstr "หมุน 45"
 
 
 msgid "Red Channel"
@@ -3604,6 +3601,14 @@ msgid "Pivot around active object"
 msgstr "หมุนรอบ ๆ วัตถุที่กำลังถูกใช้งาน"
 
 
+msgid "Shader Editor"
+msgstr "ตัวแก้ไขเชดเดอร์"
+
+
+msgid "Texture Node Editor"
+msgstr "ตัวแก้ไขโนดพื้นผิว"
+
+
 msgid "Data API"
 msgstr "API ข้อมูล"
 
@@ -4792,6 +4797,10 @@ msgid "Key %d"
 msgstr "คีย์ %d"
 
 
+msgid "Cancel"
+msgstr "ยกเลิก"
+
+
 msgctxt "Curve"
 msgid "CurvePath"
 msgstr "เส้นทางโค้ง"
@@ -4800,10 +4809,6 @@ msgstr "เส้นทางโค้ง"
 msgctxt "Curve"
 msgid "Surface"
 msgstr "พื้นผิว"
-
-
-msgid "Cancel"
-msgstr "ยกเลิก"
 
 
 msgid "%s: %s"
@@ -5039,14 +5044,6 @@ msgid "Blender Render"
 msgstr "ตัวเรนเดอร์ของ Blender"
 
 
-msgid "ON"
-msgstr "เปิด"
-
-
-msgid "OFF"
-msgstr "ปิด"
-
-
 msgid "%d x %d"
 msgstr "%d x %d"
 
@@ -5252,16 +5249,8 @@ msgid "Old"
 msgstr "เก่า"
 
 
-msgid "Shader Editor"
-msgstr "ตัวแก้ไขเชดเดอร์"
-
-
 msgid "View Distance"
 msgstr "ระยะมุมมอง"
-
-
-msgid "Texture Node Editor"
-msgstr "ตัวแก้ไขโนดพื้นผิว"
 
 
 msgid "%s: incorrect dimensions for partial copy '%s'"
@@ -5284,16 +5273,20 @@ msgid "Bksp"
 msgstr "ปุ่มย้อนถอยหลัง"
 
 
+msgid "ON"
+msgstr "เปิด"
+
+
+msgid "OFF"
+msgstr "ปิด"
+
+
 msgid "%s '%s' not found"
 msgstr "ไม่พบ %s '%s'"
 
 
 msgid "Import-Export"
 msgstr "นำเข้า-ส่งออก"
-
-
-msgid "English (English)"
-msgstr "ภาษาอังกฤษ (English)"
 
 
 msgid "Japanese (日本語)"

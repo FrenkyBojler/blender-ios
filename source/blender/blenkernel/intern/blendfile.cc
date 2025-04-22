@@ -18,11 +18,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
-#include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_workspace_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_function_ref.hh"
@@ -54,6 +52,7 @@
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_idmap.hh"
 #include "BKE_main_namemap.hh"
@@ -234,19 +233,25 @@ struct ReuseOldBMainData {
   Main *new_bmain;
   Main *old_bmain;
 
-  /** Data generated and used by calling WM code to handle keeping WM and UI IDs as best as
+  /**
+   * Data generated and used by calling WM code to handle keeping WM and UI IDs as best as
    * possible across file reading.
    *
-   * \note May be null in undo (memfile) case. */
+   * \note May be null in undo (memfile) case.
+   */
   BlendFileReadWMSetupData *wm_setup_data;
 
-  /** Storage for all remapping rules (old_id -> new_id) required by the preservation of old IDs
-   * into the new Main. */
+  /**
+   * Storage for all remapping rules (old_id -> new_id) required by the preservation of old IDs
+   * into the new Main.
+   */
   id::IDRemapper *remapper;
   bool is_libraries_remapped;
 
-  /** Used to find matching IDs by name/lib in new main, to remap ID usages of data ported over
-   * from old main. */
+  /**
+   * Used to find matching IDs by name/lib in new main, to remap ID usages of data ported over
+   * from old main.
+   */
   IDNameLib_Map *id_map;
 };
 
@@ -277,7 +282,7 @@ static id::IDRemapper &reuse_bmain_data_remapper_ensure(ReuseOldBMainData *reuse
   LISTBASE_FOREACH (Library *, old_lib_iter, &old_bmain->libraries) {
     /* In case newly opened `new_bmain` is a library of the `old_bmain`, remap it to null, since a
      * file should never ever have linked data from itself. */
-    if (STREQ(old_lib_iter->runtime.filepath_abs, new_bmain->filepath)) {
+    if (STREQ(old_lib_iter->runtime->filepath_abs, new_bmain->filepath)) {
       remapper.add(&old_lib_iter->id, nullptr);
       continue;
     }
@@ -287,7 +292,7 @@ static id::IDRemapper &reuse_bmain_data_remapper_ensure(ReuseOldBMainData *reuse
      *  - This code is only executed once for every file reading (not on undos).
      */
     LISTBASE_FOREACH (Library *, new_lib_iter, &new_bmain->libraries) {
-      if (!STREQ(old_lib_iter->runtime.filepath_abs, new_lib_iter->runtime.filepath_abs)) {
+      if (!STREQ(old_lib_iter->runtime->filepath_abs, new_lib_iter->runtime->filepath_abs)) {
         continue;
       }
 
@@ -320,6 +325,12 @@ static bool reuse_bmain_move_id(ReuseOldBMainData *reuse_data,
                                 const bool reuse_existing)
 {
   id::IDRemapper &remapper = reuse_bmain_data_remapper_ensure(reuse_data);
+  /* Nothing to move for embedded ID. */
+  if (id->flag & ID_FLAG_EMBEDDED_DATA) {
+    remapper.add(id, id);
+    return true;
+  }
+
   Main *new_bmain = reuse_data->new_bmain;
   Main *old_bmain = reuse_data->old_bmain;
   ListBase *new_lb = which_libbase(new_bmain, GS(id->name));
@@ -348,12 +359,31 @@ static bool reuse_bmain_move_id(ReuseOldBMainData *reuse_data,
 
   /* Move from one list to another, and ensure name is valid. */
   BLI_remlink_safe(old_lb, id);
-  BKE_main_namemap_remove_name(old_bmain, id, id->name + 2);
+
+  /* In case the ID is linked and its library ID is re-used from the old Main, it is not possible
+   * to handle name_map (and ensure name uniqueness).
+   * This is because IDs are moved one by one from old Main's lists to new ones, while the re-used
+   * library's name_map would be built only from IDs in the new list, leading to incomplete/invalid
+   * states.
+   * Currently, such name uniqueness checks should not be needed, as no new name would be expected
+   * in the re-used library. Should this prove to be wrong at some point, the name check will have
+   * to happen at the end of #reuse_editable_asset_bmain_data_for_blendfile, in a separate loop
+   * over Main IDs.
+   */
+  const bool handle_name_map_updates = !ID_IS_LINKED(id) || id->lib != lib;
+  if (handle_name_map_updates) {
+    BKE_main_namemap_remove_id(*old_bmain, *id);
+  }
 
   id->lib = lib;
   BLI_addtail(new_lb, id);
-  BKE_id_new_name_validate(
-      *new_bmain, *new_lb, *id, nullptr, IDNewNameMode::RenameExistingNever, true);
+  if (handle_name_map_updates) {
+    BKE_id_new_name_validate(
+        *new_bmain, *new_lb, *id, nullptr, IDNewNameMode::RenameExistingNever, true);
+  }
+  else {
+    id_sort_by_name(new_lb, id, nullptr);
+  }
   BKE_lib_libblock_session_uid_renew(id);
 
   /* Remap to itself, to avoid re-processing this ID again. */
@@ -375,6 +405,10 @@ static Library *reuse_bmain_data_dependencies_new_library_get(ReuseOldBMainData 
        * There should be no filepath conflicts, as #reuse_bmain_data_remapper_ensure has
        * already remapped existing libraries with matching filepath. */
       reuse_bmain_move_id(reuse_data, &old_lib->id, nullptr, false);
+      /* Clear the name_map of the library, as not all of its IDs are guaranteed reused. The name
+       * map cannot be used/kept in valid state while some IDs are moved from old to new main. See
+       * also #reuse_bmain_move_id code. */
+      BKE_main_namemap_destroy(&old_lib->runtime->name_map);
       return old_lib;
     }
     case ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE: {
@@ -383,8 +417,8 @@ static Library *reuse_bmain_data_dependencies_new_library_get(ReuseOldBMainData 
     }
     case ID_REMAP_RESULT_SOURCE_REMAPPED: {
       /* Already in new bmain, only transfer flags. */
-      new_lib->runtime.tag |= old_lib->runtime.tag &
-                              (LIBRARY_ASSET_EDITABLE | LIBRARY_ASSET_FILE_WRITABLE);
+      new_lib->runtime->tag |= old_lib->runtime->tag &
+                               (LIBRARY_ASSET_EDITABLE | LIBRARY_ASSET_FILE_WRITABLE);
       return new_lib;
     }
     case ID_REMAP_RESULT_SOURCE_UNASSIGNED: {
@@ -452,7 +486,7 @@ static bool reuse_editable_asset_needed(ReuseOldBMainData *reuse_data)
 {
   Main *old_bmain = reuse_data->old_bmain;
   LISTBASE_FOREACH (Library *, lib, &old_bmain->libraries) {
-    if (lib->runtime.tag & LIBRARY_ASSET_EDITABLE) {
+    if (lib->runtime->tag & LIBRARY_ASSET_EDITABLE) {
       return true;
     }
   }
@@ -485,7 +519,7 @@ static void reuse_editable_asset_bmain_data_for_blendfile(ReuseOldBMainData *reu
 
   FOREACH_MAIN_LISTBASE_ID_BEGIN (old_lb, old_id_iter) {
     /* Keep any datablocks from libraries marked as LIBRARY_ASSET_EDITABLE. */
-    if (!(ID_IS_LINKED(old_id_iter) && old_id_iter->lib->runtime.tag & LIBRARY_ASSET_EDITABLE)) {
+    if (!(ID_IS_LINKED(old_id_iter) && old_id_iter->lib->runtime->tag & LIBRARY_ASSET_EDITABLE)) {
       continue;
     }
 
@@ -565,8 +599,8 @@ static void swap_old_bmain_data_for_blendfile(ReuseOldBMainData *reuse_data, con
 
   /* TODO: Could add per-IDType control over name-maps clearing, if this becomes a performances
    * concern. */
-  BKE_main_namemap_clear(old_bmain);
-  BKE_main_namemap_clear(new_bmain);
+  BKE_main_namemap_clear(*old_bmain);
+  BKE_main_namemap_clear(*new_bmain);
 
   /* Original 'new' IDs have been moved into the old listbase and will be discarded (deleted).
    * Original 'old' IDs have been moved into the new listbase and are being reused (kept).
@@ -925,9 +959,11 @@ static void setup_app_data(bContext *C,
     mode = LOAD_UI;
   }
 
-  /* Free all render results, without this stale data gets displayed after loading files */
+  /* Free all render results and interactive compositor renders, without this stale data gets
+   * displayed after loading files */
   if (mode != LOAD_UNDO) {
     RE_FreeAllRenderResults();
+    RE_FreeInteractiveCompositorRenders();
   }
 
   /* Only make file-paths compatible when loading for real (not undo). */
@@ -935,7 +971,7 @@ static void setup_app_data(bContext *C,
     clean_paths(bfd->main);
   }
 
-  BLI_assert(BKE_main_namemap_validate(bfd->main));
+  BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
   /* Temporary data to handle swapping around IDs between old and new mains,
    * and accumulate the required remapping accordingly. */
@@ -1042,7 +1078,7 @@ static void setup_app_data(bContext *C,
     }
   }
 
-  BLI_assert(BKE_main_namemap_validate(bfd->main));
+  BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
   /* Apply remapping of ID pointers caused by re-using part of the data from the 'old' main into
    * the new one. */
@@ -1081,7 +1117,7 @@ static void setup_app_data(bContext *C,
     wm_data_consistency_ensure(CTX_wm_manager(C), curscene, cur_view_layer);
   }
 
-  BLI_assert(BKE_main_namemap_validate(bfd->main));
+  BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
   if (mode != LOAD_UI) {
     if (win) {
@@ -1108,7 +1144,7 @@ static void setup_app_data(bContext *C,
   }
   CTX_data_scene_set(C, curscene);
 
-  BLI_assert(BKE_main_namemap_validate(bfd->main));
+  BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
   /* This frees the `old_bmain`. */
   BKE_blender_globals_main_replace(bfd->main);
@@ -1116,7 +1152,7 @@ static void setup_app_data(bContext *C,
   bfd->main = nullptr;
   CTX_data_main_set(C, bmain);
 
-  BLI_assert(BKE_main_namemap_validate(bmain));
+  BLI_assert(BKE_main_namemap_validate(*bmain));
 
   /* These context data should remain valid if old UI is being re-used. */
   if (mode == LOAD_UI) {
@@ -1172,6 +1208,9 @@ static void setup_app_data(bContext *C,
     STRNCPY(bmain->filepath, bfd->filepath);
   }
 
+  /* Set the loaded .blend file path for crash recovery. */
+  STRNCPY(G.filepath_last_blend, bmain->filepath);
+
   /* Base-flags, groups, make depsgraph, etc. */
   /* first handle case if other windows have different scenes visible. */
   if (mode == LOAD_UI) {
@@ -1203,13 +1242,14 @@ static void setup_app_data(bContext *C,
    * and safer to fully redo reference-counting. This is a relatively cheap process anyway. */
   BKE_main_id_refcount_recompute(bmain, false);
 
-  BLI_assert(BKE_main_namemap_validate(bmain));
+  BLI_assert(BKE_main_namemap_validate(*bmain));
 
   if (mode != LOAD_UNDO && liboverride::is_auto_resync_enabled()) {
     reports->duration.lib_overrides_resync = BLI_time_now_seconds();
 
     BKE_lib_override_library_main_resync(
         bmain,
+        nullptr,
         curscene,
         bfd->cur_view_layer ? bfd->cur_view_layer : BKE_view_layer_default_view(curscene),
         reports);
@@ -1234,9 +1274,9 @@ static void setup_app_data(bContext *C,
                          RPT_("LIB: %s: '%s' missing from '%s', parent '%s'"),
                          BKE_idtype_idcode_to_name(GS(id_iter->name)),
                          id_iter->name + 2,
-                         id_iter->lib->runtime.filepath_abs,
-                         id_iter->lib->runtime.parent ?
-                             id_iter->lib->runtime.parent->runtime.filepath_abs :
+                         id_iter->lib->runtime->filepath_abs,
+                         id_iter->lib->runtime->parent ?
+                             id_iter->lib->runtime->parent->runtime->filepath_abs :
                              "<direct>");
       }
     }
@@ -1459,7 +1499,7 @@ UserDef *BKE_blendfile_userdef_read_from_memory(const void *file_buf,
 
 UserDef *BKE_blendfile_userdef_from_defaults()
 {
-  UserDef *userdef = static_cast<UserDef *>(MEM_callocN(sizeof(UserDef), __func__));
+  UserDef *userdef = MEM_callocN<UserDef>(__func__);
   *userdef = blender::dna::shallow_copy(U_default);
 
   /* Add-ons. */
@@ -1483,7 +1523,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
   /* Theme. */
   {
-    bTheme *btheme = static_cast<bTheme *>(MEM_mallocN(sizeof(*btheme), __func__));
+    bTheme *btheme = MEM_mallocN<bTheme>(__func__);
     memcpy(btheme, &U_theme_default, sizeof(*btheme));
 
     BLI_addtail(&userdef->themes, btheme);
@@ -1546,7 +1586,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
 bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
 {
-  Main *mainb = MEM_cnew<Main>("empty main");
+  Main *mainb = MEM_callocN<Main>("empty main");
   bool ok = false;
 
   BlendFileWriteParams params{};
@@ -1585,11 +1625,11 @@ bool BKE_blendfile_userdef_write_app_template(const char *filepath, ReportList *
 bool BKE_blendfile_userdef_write_all(ReportList *reports)
 {
   char filepath[FILE_MAX];
-  std::optional<std::string> cfgdir;
   bool ok = true;
   const bool use_template_userpref = BKE_appdir_app_template_has_userpref(U.app_template);
+  std::optional<std::string> cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, nullptr);
 
-  if ((cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, nullptr))) {
+  if (cfgdir) {
     bool ok_write;
     BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
     if (!G.quiet) {
@@ -1621,7 +1661,8 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
   }
 
   if (use_template_userpref) {
-    if ((cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, U.app_template))) {
+    cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, U.app_template);
+    if (cfgdir) {
       /* Also save app-template preferences. */
       BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
 
@@ -1676,7 +1717,7 @@ WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepat
   }
 
   if (bfd) {
-    workspace_config = MEM_cnew<WorkspaceConfigFileData>(__func__);
+    workspace_config = MEM_callocN<WorkspaceConfigFileData>(__func__);
     workspace_config->main = bfd->main;
 
     /* Only 2.80+ files have actual workspaces, don't try to use screens
@@ -1848,7 +1889,7 @@ Library *PartialWriteContext::ensure_library(ID *ctx_id)
   if (!ID_IS_LINKED(ctx_id)) {
     return nullptr;
   }
-  blender::StringRefNull lib_path = ctx_id->lib->runtime.filepath_abs;
+  blender::StringRefNull lib_path = ctx_id->lib->runtime->filepath_abs;
   Library *ctx_lib = this->libraries_map_.lookup_default(lib_path, nullptr);
   if (!ctx_lib) {
     ctx_lib = reinterpret_cast<Library *>(id_add_copy(&ctx_id->lib->id, true));
@@ -2037,7 +2078,7 @@ ID *PartialWriteContext::id_create(const short id_type,
 {
   Library *ctx_library = nullptr;
   if (library) {
-    ctx_library = this->ensure_library(library->runtime.filepath_abs);
+    ctx_library = this->ensure_library(library->runtime->filepath_abs);
   }
   ID *ctx_id = static_cast<ID *>(
       BKE_id_new_in_lib(&this->bmain, ctx_library, id_type, id_name.c_str()));
@@ -2167,7 +2208,7 @@ bool PartialWriteContext::write(const char *write_filepath,
    * library local, and delete it (and all of its potentially remaining linked data). */
   blender::Vector<Library *> make_local_libs;
   LISTBASE_FOREACH (Library *, library, &this->bmain.libraries) {
-    if (STREQ(write_filepath, library->runtime.filepath_abs)) {
+    if (STREQ(write_filepath, library->runtime->filepath_abs)) {
       make_local_libs.append(library);
     }
   }

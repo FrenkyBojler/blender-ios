@@ -56,7 +56,12 @@ Testing Targets
 Static Source Code Checking
    Not associated with building Blender.
 
-   * check_cppcheck:        Run blender source through cppcheck (C & C++).
+   * check_cppcheck:
+     Run blender source through cppcheck (C & C++).
+
+     To write log files into a user defined location append 'OUTPUT_DIR',
+     e.g. 'OUTPUT_DIR=/example/path'
+
    * check_clang_array:     Run blender source through clang array checking script (C & C++).
    * check_struct_comments: Check struct member comments are correct (C & C++).
    * check_deprecated:      Check if there is any deprecated code to remove.
@@ -137,10 +142,18 @@ Environment Variables
 Documentation Targets
    Not associated with building Blender.
 
-   * doc_py:        Generate sphinx python api docs.
-   * doc_doxy:      Generate doxygen C/C++ docs.
-   * doc_dna:       Generate blender file format reference.
-   * doc_man:       Generate manpage.
+   * doc_py:
+     Generate sphinx Python API docs.
+
+     Set the environment variable BLENDER_DOC_OFFLINE=1
+     to prevent download data at build time.
+
+   * doc_doxy:
+     Generate doxygen C/C++ docs.
+   * doc_dna:
+     Generate blender file format reference.
+   * doc_man:
+     Generate manpage.
 
 Information
 
@@ -150,9 +163,10 @@ Information
 endef
 # HELP_TEXT (end)
 
-# This makefile is not meant for Windows
+# This makefile is not meant for Windows,
+# Note that a TAB indent prevents the message from showing, no indentation is intended.
 ifeq ($(OS),Windows_NT)
-	$(error On Windows, use "cmd //c make.bat" instead of "make")
+$(error On Windows, use "cmd //c make.bat" instead of "make")
 endif
 
 # System Vars
@@ -474,9 +488,10 @@ project_eclipse: .FORCE
 
 check_cppcheck: .FORCE
 	@$(CMAKE_CONFIG)
-	@cd "$(BUILD_DIR)" ; \
 	$(PYTHON) \
-	    "$(BLENDER_DIR)/tools/check_source/static_check_cppcheck.py"
+	    "$(BLENDER_DIR)/tools/check_source/static_check_cppcheck.py" \
+	    --build-dir=$(BUILD_DIR) \
+	    --output-dir=$(OUTPUT_DIR)
 
 check_struct_comments: .FORCE
 	@$(CMAKE_CONFIG)
@@ -502,9 +517,12 @@ check_spelling_py: .FORCE
 	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
 	    --cache-file=$(CHECK_SPELLING_CACHE) \
 	    --match=".*\.(py)$$" \
+	    "$(BLENDER_DIR)/release" \
 	    "$(BLENDER_DIR)/scripts" \
 	    "$(BLENDER_DIR)/source" \
-	    "$(BLENDER_DIR)/tools"
+	    "$(BLENDER_DIR)/tools" \
+	    "$(BLENDER_DIR)/doc" \
+	    "$(BLENDER_DIR)/build_files"
 
 check_spelling_c: .FORCE
 	@PYTHONIOENCODING=utf_8 $(PYTHON) \
@@ -569,6 +587,8 @@ source_archive_complete: .FORCE
 	    -DCMAKE_BUILD_TYPE_INIT:STRING=$(BUILD_TYPE) -DPACKAGE_USE_UPSTREAM_SOURCES=OFF
 # This assumes CMake is still using a default `PACKAGE_DIR` variable:
 	@$(PYTHON) ./build_files/utils/make_source_archive.py --include-packages "$(BUILD_DIR)/source_archive/packages"
+# We assume that the tests will not change for minor releases so only package them for major versions
+	@$(PYTHON) ./build_files/utils/make_source_archive.py --package-test-data
 
 icons_geom: .FORCE
 	@BLENDER_BIN=$(BLENDER_BIN) \

@@ -31,10 +31,12 @@ class MultiDevice : public Device {
   device_ptr unique_key = 1;
   vector<vector<SubDevice *>> peer_islands;
 
-  MultiDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless)
-      : Device(info, stats, profiler, headless)
+  MultiDevice(const DeviceInfo &info_, Stats &stats, Profiler &profiler, bool headless)
+      : Device(info_, stats, profiler, headless)
   {
-    for (const DeviceInfo &subinfo : info.multi_devices) {
+    verify_hardware_raytracing();
+
+    for (const DeviceInfo &subinfo : this->info.multi_devices) {
       /* Always add CPU devices at the back since GPU devices can change
        * host memory pointers, which CPU uses as device pointer. */
       SubDevice *sub;
@@ -74,6 +76,34 @@ class MultiDevice : public Device {
           peer_sub.peer_island_index = sub.peer_island_index;
           peer_islands[sub.peer_island_index].push_back(&peer_sub);
         }
+      }
+    }
+  }
+
+  void verify_hardware_raytracing()
+  {
+    /* Determine if we can use hardware ray-tracing. It is only supported if all selected
+     * GPU devices support it. Both the backends and scene update code do not support mixed
+     * BVH2 and hardware raytracing. The CPU device will ignore this setting. */
+    bool have_disabled_hardware_rt = false;
+    bool have_enabled_hardware_rt = false;
+
+    for (const DeviceInfo &subinfo : info.multi_devices) {
+      if (subinfo.type != DEVICE_CPU) {
+        if (subinfo.use_hardware_raytracing) {
+          have_enabled_hardware_rt = true;
+        }
+        else {
+          have_disabled_hardware_rt = true;
+        }
+      }
+    }
+
+    info.use_hardware_raytracing = have_enabled_hardware_rt && !have_disabled_hardware_rt;
+
+    for (DeviceInfo &subinfo : info.multi_devices) {
+      if (subinfo.type != DEVICE_CPU) {
+        subinfo.use_hardware_raytracing = info.use_hardware_raytracing;
       }
     }
   }
@@ -313,6 +343,29 @@ class MultiDevice : public Device {
     return find_matching_mem_device(key, sub)->ptr_map[key];
   }
 
+  void *host_alloc(const MemoryType type, const size_t size) override
+  {
+    for (SubDevice &sub : devices) {
+      if (sub.device->info.type != DEVICE_CPU) {
+        return sub.device->host_alloc(type, size);
+      }
+    }
+
+    return Device::host_alloc(type, size);
+  }
+
+  void host_free(const MemoryType type, void *host_pointer, const size_t size) override
+  {
+    for (SubDevice &sub : devices) {
+      if (sub.device->info.type != DEVICE_CPU) {
+        sub.device->host_free(type, host_pointer, size);
+        return;
+      }
+    }
+
+    Device::host_free(type, host_pointer, size);
+  }
+
   void mem_alloc(device_memory &mem) override
   {
     device_ptr key = unique_key++;
@@ -340,7 +393,6 @@ class MultiDevice : public Device {
     device_ptr key = (existing_key) ? existing_key : unique_key++;
     size_t existing_size = mem.device_size;
 
-    /* The tile buffers are allocated on each device (see below), so copy to all of them */
     for (const vector<SubDevice *> &island : peer_islands) {
       SubDevice *owner_sub = find_suitable_mem_device(existing_key, island);
       mem.device = owner_sub->device.get();
@@ -363,6 +415,56 @@ class MultiDevice : public Device {
     mem.device = this;
     mem.device_pointer = key;
     stats.mem_alloc(mem.device_size - existing_size);
+  }
+
+  void mem_move_to_host(device_memory &mem) override
+  {
+    assert(mem.type == MEM_GLOBAL || mem.type == MEM_TEXTURE);
+
+    device_ptr existing_key = mem.device_pointer;
+    device_ptr key = (existing_key) ? existing_key : unique_key++;
+    size_t existing_size = mem.device_size;
+
+    for (const vector<SubDevice *> &island : peer_islands) {
+      SubDevice *owner_sub = find_suitable_mem_device(existing_key, island);
+      mem.device = owner_sub->device.get();
+      mem.device_pointer = (existing_key) ? owner_sub->ptr_map[existing_key] : 0;
+      mem.device_size = existing_size;
+
+      if (!owner_sub->device->is_shared(
+              mem.shared_pointer, mem.device_pointer, owner_sub->device.get()))
+      {
+        owner_sub->device->mem_move_to_host(mem);
+        owner_sub->ptr_map[key] = mem.device_pointer;
+
+        /* Need to create texture objects and update pointer in kernel globals on all devices */
+        for (SubDevice *island_sub : island) {
+          if (island_sub != owner_sub) {
+            island_sub->device->mem_move_to_host(mem);
+          }
+        }
+      }
+    }
+
+    mem.device = this;
+    mem.device_pointer = key;
+    stats.mem_alloc(mem.device_size - existing_size);
+  }
+
+  bool is_shared(const void *shared_pointer, const device_ptr key, Device *sub_device) override
+  {
+    if (key == 0) {
+      return false;
+    }
+
+    for (const SubDevice &sub : devices) {
+      if (sub.device.get() == sub_device) {
+        return sub_device->is_shared(shared_pointer, sub.ptr_map.at(key), sub_device);
+      }
+    }
+
+    assert(!"is_shared failed to find matching device");
+    return false;
   }
 
   void mem_copy_from(
