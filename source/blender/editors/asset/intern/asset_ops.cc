@@ -1003,17 +1003,12 @@ static inline void sort_points(int2 &p1, int2 &p2)
 static inline void square_points(int2 &p1, int2 &p2)
 {
   int2 delta = p2 - p1;
-  if (delta.x == 0 || delta.y == 0) {
-    /* Avoids divide by 0 issues. */
-    p2.x = p1.x;
-    p2.y = p1.y;
-    return;
-  }
+
   if (std::abs(delta.x) < std::abs(delta.y)) {
-    delta.x = (delta.x / std::abs(delta.x)) * std::abs(delta.y);
+    delta.x = std::copysignf(std::abs(delta.y), delta.x);
   }
   else if (std::abs(delta.y) < std::abs(delta.x)) {
-    delta.y = (delta.y / std::abs(delta.y)) * std::abs(delta.x);
+    delta.y = std::copysign(std::abs(delta.x), delta.y);
   }
   p2.x = p1.x + delta.x;
   p2.y = p1.y + delta.y;
