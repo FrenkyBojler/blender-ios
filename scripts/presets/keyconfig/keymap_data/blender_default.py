@@ -4764,6 +4764,7 @@ def _template_uv_select(*, type, value, select_passthrough, legacy):
 
     return items
 
+
 def _template_mask_select(*, type, value, select_passthrough, legacy):
 
     # See: `use_tweak_select_passthrough` doc-string.

@@ -3249,14 +3249,14 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
 
     # Private tool lists for convenient reuse in `_tools`.
 
-    _tools_uv_transform = (
+    _tools_transform = (
         _defs_image_uv_transform.translate,
         _defs_image_uv_transform.rotate,
         _defs_image_uv_transform.scale,
         _defs_image_uv_transform.transform,
     )
 
-    _tools_uv_select = (
+    _tools_select = (
         (
             _defs_image_uv_select.select,
             _defs_image_uv_select.box,
@@ -3308,10 +3308,10 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
         ],
         'UV': [
-            *_tools_uv_select,
+            *_tools_select,
             _defs_image_generic.cursor,
             None,
-            *_tools_uv_transform,
+            *_tools_transform,
             None,
             *_tools_annotate,
             None,
