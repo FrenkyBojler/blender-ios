@@ -272,6 +272,8 @@ typedef struct BoneCollection {
 
   /** Custom properties. */
   struct IDProperty *prop;
+  /** Custom system IDProperties. */
+  struct IDProperty *system_properties;
 
 #ifdef __cplusplus
   /**

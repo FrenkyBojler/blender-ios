@@ -1880,6 +1880,7 @@ void DepsgraphNodeBuilder::build_armature_bone_collections(
 {
   for (BoneCollection *bcoll : collections) {
     build_idproperties(bcoll->prop);
+    build_idproperties(bcoll->system_properties);
   }
 }
 

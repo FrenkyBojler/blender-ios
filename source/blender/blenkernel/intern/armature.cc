@@ -108,6 +108,9 @@ static void copy_bone_collection(bArmature *armature_dst,
   if (bcoll_dst->prop) {
     bcoll_dst->prop = IDP_CopyProperty_ex(bcoll_dst->prop, lib_id_flag);
   }
+  if (bcoll_dst->system_properties) {
+    bcoll_dst->system_properties = IDP_CopyProperty_ex(bcoll_dst->system_properties, lib_id_flag);
+  }
 
   /* Bone references. */
   BLI_duplicatelist(&bcoll_dst->bones, &bcoll_dst->bones);
@@ -245,6 +248,11 @@ static void armature_foreach_id_bone_collection(BoneCollection *bcoll, LibraryFo
       data, IDP_foreach_property(bcoll->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
         BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
       }));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data,
+      IDP_foreach_property(bcoll->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+        BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+      }));
 }
 
 static void armature_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -298,6 +306,9 @@ static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll)
    * of library blocks that implement this. */
   if (bcoll->prop) {
     IDP_BlendWrite(writer, bcoll->prop);
+  }
+  if (bcoll->system_properties) {
+    IDP_BlendWrite(writer, bcoll->system_properties);
   }
 
   BLO_write_struct_list(writer, BoneCollectionMember, &bcoll->bones);
@@ -376,6 +387,8 @@ static void direct_link_bone_collection(BlendDataReader *reader, BoneCollection 
 {
   BLO_read_struct(reader, IDProperty, &bcoll->prop);
   IDP_BlendDataRead(reader, &bcoll->prop);
+  BLO_read_struct(reader, IDProperty, &bcoll->system_properties);
+  IDP_BlendDataRead(reader, &bcoll->system_properties);
 
   BLO_read_struct_list(reader, BoneCollectionMember, &bcoll->bones);
   LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {

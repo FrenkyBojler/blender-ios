@@ -640,6 +640,12 @@ void version_system_idprops_generate(Main *bmain)
       idprops_process(pchan->prop, &pchan->system_properties);
     }
   }
+
+  LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
+    for (BoneCollection *bcoll : armature->collections_span()) {
+      idprops_process(bcoll->prop, &bcoll->system_properties);
+    }
+  }
 }
 
 void version_forward_compat_system_idprops(Main *bmain)
@@ -683,6 +689,12 @@ void version_forward_compat_system_idprops(Main *bmain)
     }
     LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
       idprops_process(&pchan->prop, pchan->system_properties);
+    }
+  }
+
+  LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
+    for (BoneCollection *bcoll : armature->collections_span()) {
+      idprops_process(&bcoll->prop, bcoll->system_properties);
     }
   }
 }
