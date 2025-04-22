@@ -1101,15 +1101,6 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
   const eCustomDataType data_type = attr.type;
   const CustomData &custom_data = *get_cdata(bm, domain);
   const int offset = CustomData_get_offset_named(&custom_data, data_type, attr.name);
-  if (offset == -1) {
-    ensure_vbos_allocated_bmesh(object,
-                                attribute_format(orig_mesh_data, "Dummy", CD_PROP_FLOAT3),
-                                node_mask,
-                                vbos);
-    node_mask.foreach_index(GrainSize(1),
-                       [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
-    return;
-  }
   ensure_vbos_allocated_bmesh(
       object, attribute_format(orig_mesh_data, attr.name, data_type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
