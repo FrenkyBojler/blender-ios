@@ -182,16 +182,16 @@ bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
   const bke::AttributeAccessor src_attributes = curves.attributes();
   bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
 
+  const IndexRange points_to_replace_global = points_to_replace.shift(curve_points.first());
   const IndexRange points_before = IndexRange::from_begin_end(
-      0,
-      std::min(curve_points.one_after_last(), curve_points.first() + points_to_replace.start()));
+      0, std::min(curve_points.one_after_last(), points_to_replace_global.start()));
   const IndexRange points_after = IndexRange::from_begin_end(
-      std::min(curve_points.one_after_last(), curve_points.first() + points_to_replace.last()),
+      std::min(curve_points.one_after_last(), points_to_replace_global.one_after_last()),
       curves.points_num());
 
   Array<bool> is_altered(new_curve_points.size());
   const IndexRange altered_points_range = IndexRange::from_begin_size(
-      points_to_replace.first(), points_to_replace.size() + new_points_added);
+      points_to_replace.start(), points_to_replace.size() + new_points_added);
   for (const int i : altered_points_range) {
     is_altered[i % new_curve_points.size()] = true;
   }
