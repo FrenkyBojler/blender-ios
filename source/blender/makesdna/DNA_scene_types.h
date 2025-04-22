@@ -1795,7 +1795,7 @@ typedef struct ToolSettings {
 
   char workspace_tool_type;
 
-  char _pad5[1];
+  char _pad5[7];
 
   /**
    * XXX: these `sculpt_paint_*` fields are deprecated, use the
