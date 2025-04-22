@@ -83,6 +83,7 @@ void step_bounding_sphere(float3 vs_near_plane,
   sphere_radius = sqrt(sphere_radius);
 }
 
+/* Warning: Only works for valid, finite, positive floats. */
 float nextafter(float value)
 {
   return uintBitsToFloat(floatBitsToUint(value) + 1);
