@@ -3733,7 +3733,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "playhead_snap_distance");
   RNA_def_property_int_default(prop, 20);
   RNA_def_property_ui_range(prop, 1, 100, 1, 1);
-  RNA_def_property_ui_text(prop, "Snapping Distance", "Maximum distance for snapping in pixels");
+  RNA_def_property_ui_text(prop, "Snap Distance", "Maximum distance for snapping in pixels");
 
   /* image editor uses its own set of snap modes */
   prop = RNA_def_property(srna, "snap_uv_element", PROP_ENUM, PROP_NONE);

@@ -1250,13 +1250,12 @@ class PlayheadSnappingPanel:
     def draw(self, context):
         tool_settings = context.tool_settings
         layout = self.layout
-        layout.use_property_split = True
-        col = layout.column(align=True)
+        col = layout.column()
 
         col.prop(tool_settings, "use_snap_playhead")
         col.prop(tool_settings, "playhead_snap_distance")
         col.separator()
-
+        col.label(text="Snap Target")
         col.prop(tool_settings, "snap_playhead_element", expand=True)
         col.separator()
 
