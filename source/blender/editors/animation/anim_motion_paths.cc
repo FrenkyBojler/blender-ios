@@ -288,7 +288,7 @@ static int motionpath_get_next_next_keyframe(MPathTarget *mpt,
 
 static bool motionpath_check_can_use_keyframe_range(MPathTarget * /*mpt*/,
                                                     AnimData *adt,
-                                                    blender::Vector<FCurve *> fcurves)
+                                                    blender::Span<FCurve *> fcurves)
 {
   if (adt == nullptr || fcurves.is_empty()) {
     return false;
