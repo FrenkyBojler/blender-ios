@@ -2277,6 +2277,7 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
 {
   DepsgraphNodeBuilder *nb = (DepsgraphNodeBuilder *)user_data;
   nb->build_idproperties(strip->prop);
+  nb->build_idproperties(strip->system_properties);
   if (strip->sound != nullptr) {
     nb->build_sound(strip->sound);
   }

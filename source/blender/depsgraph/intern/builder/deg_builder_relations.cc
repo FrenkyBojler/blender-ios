@@ -3388,6 +3388,7 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
   Seq_build_prop_cb_data *cd = (Seq_build_prop_cb_data *)user_data;
 
   cd->builder->build_idproperties(strip->prop);
+  cd->builder->build_idproperties(strip->system_properties);
   if (strip->sound != nullptr) {
     cd->builder->build_sound(strip->sound);
     ComponentKey sound_key(&strip->sound->id, NodeType::AUDIO);

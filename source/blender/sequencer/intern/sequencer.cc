@@ -212,6 +212,10 @@ static void seq_sequence_free_ex(Scene *scene,
     IDP_FreePropertyContent_ex(strip->prop, do_id_user);
     MEM_freeN(strip->prop);
   }
+  if (strip->system_properties) {
+    IDP_FreePropertyContent_ex(strip->system_properties, do_id_user);
+    MEM_freeN(strip->system_properties);
+  }
 
   /* free modifiers */
   modifier_clear(strip);
@@ -529,6 +533,9 @@ static Strip *strip_dupli(const Scene *scene_src,
   if (strip->prop) {
     seqn->prop = IDP_CopyProperty_ex(strip->prop, flag);
   }
+  if (strip->system_properties) {
+    seqn->system_properties = IDP_CopyProperty_ex(strip->system_properties, flag);
+  }
 
   if (seqn->modifiers.first) {
     BLI_listbase_clear(&seqn->modifiers);
@@ -783,6 +790,9 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
   if (strip->prop) {
     IDP_BlendWrite(writer, strip->prop);
   }
+  if (strip->system_properties) {
+    IDP_BlendWrite(writer, strip->system_properties);
+  }
 
   modifier_blend_write(writer, &strip->modifiers);
 
@@ -871,6 +881,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 
   BLO_read_struct(reader, IDProperty, &strip->prop);
   IDP_BlendDataRead(reader, &strip->prop);
+  BLO_read_struct(reader, IDProperty, &strip->system_properties);
+  IDP_BlendDataRead(reader, &strip->system_properties);
 
   BLO_read_struct(reader, StripData, &strip->data);
   if (strip->data && strip->data->done == 0) {

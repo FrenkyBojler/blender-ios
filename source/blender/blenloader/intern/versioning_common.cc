@@ -12,6 +12,7 @@
 
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -41,6 +42,7 @@
 
 #include "BLT_translation.hh"
 
+#include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
 #include "MEM_guardedalloc.h"
@@ -620,6 +622,14 @@ void version_system_idprops_generate(Main *bmain)
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
       idprops_process(view_layer->id_properties, &view_layer->system_id_properties);
     }
+
+    if (scene->ed != nullptr) {
+      blender::seq::for_each_callback(&scene->ed->seqbase,
+                                      [&idprops_process](Strip *strip) -> bool {
+                                        idprops_process(strip->prop, &strip->system_properties);
+                                        return true;
+                                      });
+    }
   }
 
   LISTBASE_FOREACH (Object *, object, &bmain->objects) {
@@ -652,9 +662,27 @@ void version_forward_compat_system_idprops(Main *bmain)
     idprops_process(&id_iter->properties, id_iter->system_properties);
   }
   FOREACH_MAIN_ID_END;
+
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
       idprops_process(&view_layer->id_properties, view_layer->system_id_properties);
+    }
+
+    if (scene->ed != nullptr) {
+      blender::seq::for_each_callback(&scene->ed->seqbase,
+                                      [&idprops_process](Strip *strip) -> bool {
+                                        idprops_process(&strip->prop, strip->system_properties);
+                                        return true;
+                                      });
+    }
+  }
+
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    if (!object->pose) {
+      continue;
+    }
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
+      idprops_process(&pchan->prop, pchan->system_properties);
     }
   }
 }
