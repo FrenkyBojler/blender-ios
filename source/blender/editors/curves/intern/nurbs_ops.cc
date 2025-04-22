@@ -297,22 +297,24 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
     case LEFTMOUSE: /* confirm */
       if (event->val == KM_PRESS) {
         insert_knot_apply(C, op, ikcd);
+        ED_region_tag_redraw(ikcd.region);
         return OPERATOR_FINISHED;
       }
       break;
     case RIGHTMOUSE:
       insert_knot_exit(C, op);
+      ED_region_tag_redraw(ikcd.region);
       return OPERATOR_CANCELLED;
     case MOUSEMOVE: {
       ikcd.knot_to_insert = event_to_knot(ikcd, *event);
       update_preview_data(ikcd);
+      ED_region_tag_redraw(ikcd.region);
       break;
     }
     default: {
       break;
     }
   }
-  ED_region_tag_redraw(ikcd.region);
   /* keep going until the user confirms */
   return OPERATOR_RUNNING_MODAL;
 }
@@ -334,8 +336,15 @@ void CURVES_OT_nurbs_insert_knot(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   PropertyRNA *prop;
-  prop = RNA_def_float(
-      ot->srna, "knot", 0.0f, -100.0f, 100.0f, "Knot", "Knot value to insert", -100.0f, 100.0f);
+  prop = RNA_def_float(ot->srna,
+                       "knot",
+                       0.0f,
+                       -FLT_MAX,
+                       FLT_MAX,
+                       "Knot",
+                       "Knot value to insert",
+                       -FLT_MAX,
+                       FLT_MAX);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_int(ot->srna, "repeat", 1, 1, 64, "Number of Repeats", "", 1, 64);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
