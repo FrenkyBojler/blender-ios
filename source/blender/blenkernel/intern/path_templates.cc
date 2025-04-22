@@ -608,7 +608,7 @@ blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef p
 }
 
 blender::Vector<TemplateError> BKE_path_apply_template(
-    char path[FILE_MAX], const TemplateVariableMap &template_variables)
+    char *path, int path_max_length, const TemplateVariableMap &template_variables)
 {
   const blender::Vector<Token> tokens = parse_template(path);
 
@@ -625,7 +625,8 @@ blender::Vector<TemplateError> BKE_path_apply_template(
    * 1. So that if there are errors we can leave the original unmodified.
    * 2. So that the contents of the StringRefs in the Token structs don't change
    *    out from under us while we're generating the modified path.*/
-  char path_modified[FILE_MAX] = "";
+  blender::Vector<char> path_buffer(path_max_length);
+  char *path_modified = path_buffer.data();
   strcpy(path_modified, path);
 
   /* Tracks the change in string length due to the modifications as we go. We
@@ -698,12 +699,12 @@ blender::Vector<TemplateError> BKE_path_apply_template(
     }
 
     /* We're off the end of the available space. */
-    if (token.byte_range.start() + length_diff >= FILE_MAX) {
+    if (token.byte_range.start() + length_diff >= path_max_length) {
       break;
     }
 
     BLI_string_replace_range(path_modified,
-                             FILE_MAX,
+                             path_max_length,
                              token.byte_range.start() + length_diff,
                              token.byte_range.one_after_last() + length_diff,
                              replacement_string);

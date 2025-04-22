@@ -617,7 +617,7 @@ static blender::Vector<TemplateError> do_makepicstring(
 
   if (template_variables) {
     const blender::Vector<TemplateError> variable_errors = BKE_path_apply_template(
-        filepath, *template_variables);
+        filepath, FILE_MAX, *template_variables);
     if (!variable_errors.is_empty()) {
       return variable_errors;
     }

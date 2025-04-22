@@ -880,8 +880,8 @@ class FileOutputOperation : public NodeOperation {
     char node_base_path[FILE_MAX] = "";
     BLI_strncpy(node_base_path, get_base_path(), FILE_MAX);
     {
-      blender::Vector<TemplateError> errors = BKE_path_apply_template(node_base_path,
-                                                                      template_variables);
+      blender::Vector<TemplateError> errors = BKE_path_apply_template(
+          node_base_path, FILE_MAX, template_variables);
       if (!errors.is_empty()) {
         r_base_path[0] = '\0';
         return false;
@@ -893,8 +893,8 @@ class FileOutputOperation : public NodeOperation {
       char sub_path[FILE_MAX] = "";
       BLI_strncpy(sub_path, base_name, FILE_MAX);
       {
-        blender::Vector<TemplateError> errors = BKE_path_apply_template(sub_path,
-                                                                        template_variables);
+        blender::Vector<TemplateError> errors = BKE_path_apply_template(
+            sub_path, FILE_MAX, template_variables);
         if (!errors.is_empty()) {
           r_base_path[0] = '\0';
           return false;

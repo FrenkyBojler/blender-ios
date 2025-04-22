@@ -168,8 +168,7 @@ blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef p
 /**
  * Perform variable substitution and escaping on the given path.
  *
- * This mutates the path in-place. The path must be a null-terminated string
- * with a total allocation size of at least `FILE_MAX` bytes.
+ * This mutates the path in-place. `path` must be a null-terminated string.
  *
  * The syntax for template expressions is `{variable_name}` or
  * {variable_name:format_spec}`. The format specification syntax currently only
@@ -198,11 +197,15 @@ blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef p
  * - Format specifications that don't apply to the type of variable they're
  *   paired with.
  *
+ * \param path_max_length The maximum length that template expansion is allowed
+ * to make the template-expanded path (in bytes), including the null terminator.
+ * In general, this should be the size of the underlying allocation of `path`.
+ *
  * \return On success, an empty vector. If there are errors, a vector of all
  * errors encountered.
  */
 blender::Vector<TemplateError> BKE_path_apply_template(
-    char path[FILE_MAX], const TemplateVariableMap &template_variables);
+    char *path, int path_max_length, const TemplateVariableMap &template_variables);
 /**
  * Produces a human-readable error message for the given template error.
  */
