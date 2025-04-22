@@ -2501,6 +2501,19 @@ class _defs_image_mask_transform:
             keymap="Image Editor Tool: Mask, Scale",
         )
 
+    @ToolDef.from_fn
+    def transform():
+        return dict(
+            idname="builtin.transform",
+            label="Transform",
+            description=(
+                "Supports any combination of grab, rotate, and scale at once"
+            ),
+            icon="ops.transform.transform",
+            widget="IMAGE_GGT_gizmo2d",
+            # No keymap default action, only for gizmo!
+        )
+
 
 class _defs_image_mask_select:
 
@@ -3269,6 +3282,7 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
         _defs_image_mask_transform.translate,
         _defs_image_mask_transform.rotate,
         _defs_image_mask_transform.scale,
+        _defs_image_mask_transform.transform,
     )
 
     _tools_mask_select = (

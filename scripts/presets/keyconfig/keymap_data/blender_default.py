@@ -7052,6 +7052,16 @@ def km_image_editor_tool_mask_scale(params):
         ]},
     )
 
+def km_image_editor_tool_mask_transform(params):
+    return (
+        "Image Editor Tool: Mask, Transform",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
+             {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
 
 def km_image_editor_tool_mask_primitive_square(params):
     return (
@@ -8660,6 +8670,7 @@ def generate_keymaps(params=None):
         km_image_editor_tool_mask_move(params),
         km_image_editor_tool_mask_rotate(params),
         km_image_editor_tool_mask_scale(params),
+        km_image_editor_tool_mask_transform(params),
         km_image_editor_tool_mask_primitive_circle(params),
         km_image_editor_tool_mask_primitive_square(params),
         *(km_node_editor_tool_select(params, fallback=fallback) for fallback in (False, True)),
