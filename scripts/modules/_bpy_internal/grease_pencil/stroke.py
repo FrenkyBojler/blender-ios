@@ -187,26 +187,7 @@ class GreasePencilStrokePointHandle:
     ("rotation", "rotation", 'FLOAT', 0.0,
      "The rotation for this point. Used to rotate textures."),
     ("delta_time", "delta_time", 'FLOAT', 0.0,
-<<<<<<< HEAD
      "The time delta in seconds since the start of the stroke."),
-<<<<<<< HEAD
-=======
-    ("handle_left", "handle_left", 'FLOAT_VECTOR', (0.0, 0.0, 0.0),
-     "The location of the left bézier handle."),
-    ("handle_right", "handle_right", 'FLOAT_VECTOR', (0.0, 0.0, 0.0),
-     "The location of the right bézier handle."),
-    ("handle_left_type", "handle_left_type", 'INT', 0,
-     "The type of the left bézier handle."),
-    ("handle_right_type", "handle_right_type", 'INT', 0,
-     "The type of the right bézier handle."),
->>>>>>> 02418226a38 (Add Bézier handle position and type attributes to GreasePencilStrokePoint API)
-    ("select_handle_left", ".selection_handle_left", 'BOOLEAN', True,
-     "The selection state of the left bézier handle."),
-    ("select_handle_right", ".selection_handle_right", 'BOOLEAN', True,
-     "The selection state of the right bézier handle."),
-=======
-     "The time delta in seconds since the start of the stroke.")
->>>>>>> 698febd26f3 (Create GreasePencilStrokePointHandle class for getting and setting GreasePencilStrokePoint bézier handle attributes)
 ])
 class GreasePencilStrokePoint(AttributeGetterSetter):
     """
