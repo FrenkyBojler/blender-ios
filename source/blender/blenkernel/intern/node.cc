@@ -698,6 +698,11 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       property = input->default_value_typed<bNodeSocketValueInt>()->value;
     };
 
+    auto write_input_to_property_short = [&](const char *identifier, short &property) {
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+      property = input->default_value_typed<bNodeSocketValueInt>()->value;
+    };
+
     auto write_input_to_property_int16 = [&](const char *identifier, int16_t &property) {
       const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
       property = int16_t(input->default_value_typed<bNodeSocketValueInt>()->value);
@@ -756,6 +761,105 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     if (node->type_legacy == CMP_NODE_ZCOMBINE) {
       write_input_to_property_bool_int16_flag("Use Alpha", node->custom1, 1 << 0);
       write_input_to_property_bool_int16_flag("Anti-Alias", node->custom2, 1 << 0, true);
+    }
+
+    if (node->type_legacy == CMP_NODE_TONEMAP) {
+      NodeTonemap *storage = static_cast<NodeTonemap *>(node->storage);
+      write_input_to_property_float("Key", storage->key);
+      write_input_to_property_float("Balance", storage->offset);
+      write_input_to_property_float("Gamma", storage->gamma);
+      write_input_to_property_float("Intensity", storage->f);
+      write_input_to_property_float("Contrast", storage->m);
+      write_input_to_property_float("Light Adaptation", storage->a);
+      write_input_to_property_float("Chromatic Adaptation", storage->c);
+    }
+
+    if (node->type_legacy == CMP_NODE_DILATEERODE) {
+      write_input_to_property_int16("Size", node->custom2);
+      write_input_to_property_float("Falloff Size", node->custom3);
+    }
+
+    if (node->type_legacy == CMP_NODE_INPAINT) {
+      write_input_to_property_int16("Size", node->custom2);
+    }
+
+    if (node->type_legacy == CMP_NODE_PIXELATE) {
+      write_input_to_property_int16("Size", node->custom1);
+    }
+
+    if (node->type_legacy == CMP_NODE_KUWAHARA) {
+      NodeKuwaharaData *storage = static_cast<NodeKuwaharaData *>(node->storage);
+      write_input_to_property_bool_char("High Precision", storage->high_precision);
+      write_input_to_property_int("Uniformity", storage->uniformity);
+      write_input_to_property_float("Sharpness", storage->sharpness);
+      write_input_to_property_float("Eccentricity", storage->eccentricity);
+    }
+
+    if (node->type_legacy == CMP_NODE_DESPECKLE) {
+      write_input_to_property_float("Color Threshold", node->custom3);
+      write_input_to_property_float("Neighbor Threshold", node->custom4);
+    }
+
+    if (node->type_legacy == CMP_NODE_DENOISE) {
+      NodeDenoise *storage = static_cast<NodeDenoise *>(node->storage);
+      write_input_to_property_bool_char("HDR", storage->hdr);
+    }
+
+    if (node->type_legacy == CMP_NODE_ANTIALIASING) {
+      NodeAntiAliasingData *storage = static_cast<NodeAntiAliasingData *>(node->storage);
+      write_input_to_property_float("Threshold", storage->threshold);
+      write_input_to_property_float("Corner Rounding", storage->corner_rounding);
+
+      /* Contrast limit was previously divided by 10. */
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Contrast Limit");
+      storage->contrast_limit = input->default_value_typed<bNodeSocketValueFloat>()->value / 10.0f;
+    }
+
+    if (node->type_legacy == CMP_NODE_VECBLUR) {
+      NodeBlurData *storage = static_cast<NodeBlurData *>(node->storage);
+      write_input_to_property_short("Samples", storage->samples);
+
+      /* Shutter was previously divided by 2. */
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Shutter");
+      storage->fac = input->default_value_typed<bNodeSocketValueFloat>()->value / 2.0f;
+    }
+
+    if (node->type_legacy == CMP_NODE_CHANNEL_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Minimum", storage->t2);
+      write_input_to_property_float("Maximum", storage->t1);
+    }
+
+    if (node->type_legacy == CMP_NODE_CHROMA_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Minimum", storage->t2);
+      write_input_to_property_float("Maximum", storage->t1);
+      write_input_to_property_float("Falloff", storage->fstrength);
+    }
+
+    if (node->type_legacy == CMP_NODE_COLOR_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Hue", storage->t1);
+      write_input_to_property_float("Saturation", storage->t2);
+      write_input_to_property_float("Value", storage->t3);
+    }
+
+    if (node->type_legacy == CMP_NODE_DIFF_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Tolerance", storage->t1);
+      write_input_to_property_float("Falloff", storage->t2);
+    }
+
+    if (node->type_legacy == CMP_NODE_DIST_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Tolerance", storage->t1);
+      write_input_to_property_float("Falloff", storage->t2);
+    }
+
+    if (node->type_legacy == CMP_NODE_LUMA_MATTE) {
+      NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
+      write_input_to_property_float("Minimum", storage->t2);
+      write_input_to_property_float("Maximum", storage->t1);
     }
   }
 }

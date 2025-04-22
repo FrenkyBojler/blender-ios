@@ -111,7 +111,7 @@ struct UndoMesh {
    */
   UndoMesh *local_next, *local_prev;
 
-  Mesh mesh;
+  Mesh *mesh;
   int selectmode;
   char uv_selectmode;
 
@@ -385,7 +385,7 @@ static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
  */
 static void um_arraystore_compact_ex(UndoMesh *um, const UndoMesh *um_ref, bool create)
 {
-  Mesh *mesh = &um->mesh;
+  Mesh *mesh = um->mesh;
 
   /* Compacting can be time consuming, run in parallel.
    *
@@ -463,8 +463,8 @@ static void um_arraystore_compact_ex(UndoMesh *um, const UndoMesh *um_ref, bool 
           KeyBlock *keyblock = static_cast<KeyBlock *>(mesh->key->block.first);
           for (int i = 0; i < mesh->key->totkey; i++, keyblock = keyblock->next) {
             if (create) {
-              BArrayState *state_reference = (um_ref && um_ref->mesh.key &&
-                                              (i < um_ref->mesh.key->totkey)) ?
+              BArrayState *state_reference = (um_ref && um_ref->mesh->key &&
+                                              (i < um_ref->mesh->key->totkey)) ?
                                                  um_ref->store.keyblocks[i] :
                                                  nullptr;
               um->store.keyblocks[i] = BLI_array_store_state_add(
@@ -588,7 +588,7 @@ static void um_arraystore_expand_clear(UndoMesh *um)
 
 static void um_arraystore_expand(UndoMesh *um)
 {
-  Mesh *mesh = &um->mesh;
+  Mesh *mesh = um->mesh;
 
   um_arraystore_cd_expand(um->store.vdata, &mesh->vert_data, mesh->verts_num);
   um_arraystore_cd_expand(um->store.edata, &mesh->edge_data, mesh->edges_num);
@@ -631,7 +631,7 @@ static void um_arraystore_expand(UndoMesh *um)
 
 static void um_arraystore_free(UndoMesh *um)
 {
-  Mesh *mesh = &um->mesh;
+  Mesh *mesh = um->mesh;
 
   um_arraystore_cd_free(um->store.vdata, ARRAY_STORE_INDEX_VERT);
   um_arraystore_cd_free(um->store.edata, ARRAY_STORE_INDEX_EDGE);
@@ -706,8 +706,7 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
 {
   /* Map: `Mesh.id.session_uid` -> `UndoMesh`. */
   GHash *uuid_map = BLI_ghash_ptr_new_ex(__func__, object_len);
-  UndoMesh **um_references = static_cast<UndoMesh **>(
-      MEM_callocN(sizeof(UndoMesh *) * object_len, __func__));
+  UndoMesh **um_references = MEM_calloc_arrayN<UndoMesh *>(object_len, __func__);
   for (int i = 0; i < object_len; i++) {
     const Mesh *mesh = static_cast<const Mesh *>(object[i]->data);
     BLI_ghash_insert(uuid_map, POINTER_FROM_INT(mesh->id.session_uid), &um_references[i]);
@@ -720,8 +719,8 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
   UndoMesh *um_iter = static_cast<UndoMesh *>(um_arraystore.local_links.last);
   while (um_iter && (uuid_map_len != 0)) {
     UndoMesh **um_p;
-    if ((um_p = static_cast<UndoMesh **>(
-             BLI_ghash_popkey(uuid_map, POINTER_FROM_INT(um_iter->mesh.id.session_uid), nullptr))))
+    if ((um_p = static_cast<UndoMesh **>(BLI_ghash_popkey(
+             uuid_map, POINTER_FROM_INT(um_iter->mesh->id.session_uid), nullptr))))
     {
       *um_p = um_iter;
       uuid_map_len--;
@@ -756,26 +755,20 @@ static void *undomesh_from_editmesh(UndoMesh *um, Mesh &mesh, Key *key, UndoMesh
     BLI_task_pool_work_and_wait(um_arraystore.task_pool);
   }
 #endif
+
+  um->mesh = blender::bke::mesh_new_no_attributes(0, 0, 0, 0);
+
   /* make sure shape keys work */
   if (key != nullptr) {
-    um->mesh.key = (Key *)BKE_id_copy_ex(
+    um->mesh->key = (Key *)BKE_id_copy_ex(
         nullptr, &key->id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_NO_ANIMDATA);
   }
   else {
-    um->mesh.key = nullptr;
+    um->mesh->key = nullptr;
   }
 
   /* Uncomment for troubleshooting. */
   // BM_mesh_validate(em->bm);
-
-  /* Copy the ID name characters to the mesh so code that depends on accessing the ID type can work
-   * on it. Necessary to use the attribute API. */
-  STRNCPY(um->mesh.id.name, "MEundomesh_from_editmesh");
-
-  /* Runtime data is necessary for some asserts in other code, and the overhead of creating it for
-   * undo meshes should be low. */
-  BLI_assert(um->mesh.runtime == nullptr);
-  um->mesh.runtime = new blender::bke::MeshRuntime();
 
   CustomData_MeshMasks cd_mask_extra{};
   cd_mask_extra.vmask = CD_MASK_SHAPE_KEYINDEX;
@@ -785,9 +778,9 @@ static void *undomesh_from_editmesh(UndoMesh *um, Mesh &mesh, Key *key, UndoMesh
   params.update_shapekey_indices = false;
   params.cd_mask_extra = cd_mask_extra;
   params.active_shapekey_to_mvert = true;
-  BM_mesh_bm_to_me(nullptr, em->bm, &um->mesh, &params);
-  BKE_defgroup_copy_list(&um->mesh.vertex_group_names, &mesh.vertex_group_names);
-  um->mesh.vertex_group_active_index = mesh.vertex_group_active_index;
+  BM_mesh_bm_to_me(nullptr, em->bm, um->mesh, &params);
+  BKE_defgroup_copy_list(&um->mesh->vertex_group_names, &mesh.vertex_group_names);
+  um->mesh->vertex_group_active_index = mesh.vertex_group_active_index;
 
   um->selectmode = em->selectmode;
   um->shapenr = em->bm->shapenr;
@@ -802,7 +795,7 @@ static void *undomesh_from_editmesh(UndoMesh *um, Mesh &mesh, Key *key, UndoMesh
       um_arraystore.task_pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_LOW);
     }
 
-    UMArrayData *um_data = static_cast<UMArrayData *>(MEM_mallocN(sizeof(*um_data), __func__));
+    UMArrayData *um_data = MEM_mallocN<UMArrayData>(__func__);
     um_data->um = um;
     um_data->um_ref = um_ref;
 
@@ -840,7 +833,7 @@ static void undomesh_to_editmesh(UndoMesh *um, Object *ob, BMEditMesh *em)
 #  endif
 #endif /* USE_ARRAY_STORE */
 
-  const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(&um->mesh);
+  const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(um->mesh);
 
   em->bm->shapenr = um->shapenr;
 
@@ -857,10 +850,10 @@ static void undomesh_to_editmesh(UndoMesh *um, Object *ob, BMEditMesh *em)
   convert_params.calc_face_normal = false;
   convert_params.calc_vert_normal = false;
   convert_params.active_shapekey = um->shapenr;
-  BM_mesh_bm_from_me(bm, &um->mesh, &convert_params);
+  BM_mesh_bm_from_me(bm, um->mesh, &convert_params);
   BLI_freelistN(&mesh.vertex_group_names);
-  BKE_defgroup_copy_list(&mesh.vertex_group_names, &um->mesh.vertex_group_names);
-  mesh.vertex_group_active_index = um->mesh.vertex_group_active_index;
+  BKE_defgroup_copy_list(&mesh.vertex_group_names, &um->mesh->vertex_group_names);
+  mesh.vertex_group_active_index = um->mesh->vertex_group_active_index;
 
   em_tmp = BKE_editmesh_create(bm);
   *em = *em_tmp;
@@ -884,7 +877,7 @@ static void undomesh_to_editmesh(UndoMesh *um, Object *ob, BMEditMesh *em)
 
 static void undomesh_free_data(UndoMesh *um)
 {
-  Mesh *mesh = &um->mesh;
+  Mesh *mesh = um->mesh;
 
 #ifdef USE_ARRAY_STORE
 
@@ -903,11 +896,12 @@ static void undomesh_free_data(UndoMesh *um)
 #endif
 
   if (mesh->key) {
-    BKE_key_free_data(mesh->key);
-    MEM_freeN(mesh->key);
+    BKE_id_free(nullptr, mesh->key);
+    mesh->key = nullptr;
   }
 
-  BKE_mesh_free_data_for_undo(mesh);
+  BKE_id_free(nullptr, mesh);
+  um->mesh = nullptr;
 }
 
 static Object *editmesh_object_from_context(bContext *C)
@@ -963,8 +957,7 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   blender::Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
 
   us->scene_ref.ptr = scene;
-  us->elems = static_cast<MeshUndoStep_Elem *>(
-      MEM_callocN(sizeof(*us->elems) * objects.size(), __func__));
+  us->elems = MEM_calloc_arrayN<MeshUndoStep_Elem>(objects.size(), __func__);
   us->elems_len = objects.size();
 
   UndoMesh **um_references = nullptr;
@@ -988,7 +981,7 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 
 #ifdef USE_ARRAY_STORE
     /** As this is only data storage it is safe to set the session ID here. */
-    elem->data.mesh.id.session_uid = mesh->id.session_uid;
+    elem->data.mesh->id.session_uid = mesh->id.session_uid;
 #endif
   }
 
@@ -1031,6 +1024,8 @@ static void mesh_undosys_step_decode(
     undomesh_to_editmesh(&elem->data, obedit, em);
     em->needs_flush_to_id = 1;
     DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
+    /* The object update tag is necessary to cause modifiers to reevaluate after vertex group
+     * changes. */
     DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
   }
 
