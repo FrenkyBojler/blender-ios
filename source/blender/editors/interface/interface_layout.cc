@@ -259,7 +259,7 @@ static int ui_item_fit(const int item,
 static int ui_layout_vary_direction(uiLayout *layout)
 {
   return ((ELEM(layout->root->type, UI_LAYOUT_HEADER, UI_LAYOUT_PIEMENU) ||
-           (layout->alignment != UI_LAYOUT_ALIGN_EXPAND)) ?
+           (layout->alignment_ != UI_LAYOUT_ALIGN_EXPAND)) ?
               UI_ITEM_VARY_X :
               UI_ITEM_VARY_Y);
 }
@@ -269,7 +269,7 @@ static bool ui_layout_variable_size(uiLayout *layout)
   /* Note that this code is probably a bit flaky, we'd probably want to know whether it's
    * variable in X and/or Y, etc. But for now it mimics previous one,
    * with addition of variable flag set for children of grid-flow layouts. */
-  return ui_layout_vary_direction(layout) == UI_ITEM_VARY_X || layout->variable_size;
+  return ui_layout_vary_direction(layout) == UI_ITEM_VARY_X || layout->variable_size_;
 }
 
 /**
@@ -320,7 +320,7 @@ static int ui_text_icon_width_ex(uiLayout *layout,
       return unit_x * (1.0f + pad_factor.icon_only);
     }
 
-    if (layout->alignment != UI_LAYOUT_ALIGN_EXPAND) {
+    if (layout->alignment_ != UI_LAYOUT_ALIGN_EXPAND) {
       layout->flag |= uiItemInternalFlag::FixedSize;
     }
 
@@ -1280,11 +1280,11 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
     UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
   }
 
-  if (layout->redalert) {
+  if (layout->redalert_) {
     UI_but_flag_enable(but, UI_BUT_REDALERT);
   }
 
-  if (layout->active_default) {
+  if (layout->active_default_) {
     UI_but_flag_enable(but, UI_BUT_ACTIVE_DEFAULT);
   }
 
@@ -2027,7 +2027,7 @@ static void ui_layout_heading_label_add(uiLayout *layout,
                                         bool right_align,
                                         bool respect_prop_split)
 {
-  const int prev_alignment = layout->alignment;
+  const int prev_alignment = layout->alignment_;
 
   if (right_align) {
     uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
@@ -2043,7 +2043,7 @@ static void ui_layout_heading_label_add(uiLayout *layout,
    * for other items in this layout. For now just clear it. */
   heading_layout->heading[0] = '\0';
 
-  layout->alignment = prev_alignment;
+  layout->alignment_ = prev_alignment;
 }
 
 /**
@@ -2409,11 +2409,11 @@ void uiItemFullR(uiLayout *layout,
     }
     but = ui_but_add_search(but, ptr, prop, nullptr, nullptr, results_are_suggestions);
 
-    if (layout->redalert) {
+    if (layout->redalert_) {
       UI_but_flag_enable(but, UI_BUT_REDALERT);
     }
 
-    if (layout->activate_init) {
+    if (layout->activate_init_) {
       UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
     }
   }
@@ -2446,11 +2446,11 @@ void uiItemFullR(uiLayout *layout,
       but->type = UI_BTYPE_TOGGLE;
     }
 
-    if (layout->redalert) {
+    if (layout->redalert_) {
       UI_but_flag_enable(but, UI_BUT_REDALERT);
     }
 
-    if (layout->activate_init) {
+    if (layout->activate_init_) {
       UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
     }
   }
@@ -3304,7 +3304,7 @@ static uiBut *uiItemL_(uiLayout *layout, const StringRef name, int icon)
     but->flag |= UI_BUT_LIST_ITEM;
   }
 
-  if (layout->redalert) {
+  if (layout->redalert_) {
     UI_but_flag_enable(but, UI_BUT_REDALERT);
   }
 
@@ -3341,7 +3341,7 @@ uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout)
   uiLayout *layout_split = uiLayoutSplit(layout_row, UI_ITEM_PROP_SEP_DIVIDE, true);
 
   split_wrapper.label_column = uiLayoutColumn(layout_split, true);
-  split_wrapper.label_column->alignment = UI_LAYOUT_ALIGN_RIGHT;
+  split_wrapper.label_column->alignment_ = UI_LAYOUT_ALIGN_RIGHT;
   split_wrapper.property_row = ui_item_prop_split_layout_hack(parent_layout, layout_split);
   split_wrapper.decorate_column = uiLayoutGetPropDecorate(parent_layout) ?
                                       uiLayoutColumn(layout_row, true) :
@@ -3827,7 +3827,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 
       if (w - lastw > 0) {
         neww = ui_item_fit(
-            itemw, x, totw, w - lastw, is_item_last, litem->alignment, &extra_pixel);
+            itemw, x, totw, w - lastw, is_item_last, litem->alignment_, &extra_pixel);
       }
       else {
         neww = 0; /* no space left, all will need clamping to minimum size */
@@ -3838,10 +3838,10 @@ static void ui_litem_layout_row(uiLayout *litem)
       bool min_flag = bool(item->flag & uiItemInternalFlag::FixedSize);
       /* ignore min flag for rows with right or center alignment */
       if (item->type != uiItemType::Button &&
-          ELEM((static_cast<uiLayout *>(item))->alignment,
+          ELEM((static_cast<uiLayout *>(item))->alignment_,
                UI_LAYOUT_ALIGN_RIGHT,
                UI_LAYOUT_ALIGN_CENTER) &&
-          litem->alignment == UI_LAYOUT_ALIGN_EXPAND &&
+          litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND &&
           bool(litem->flag & uiItemInternalFlag::FixedSize))
       {
         min_flag = false;
@@ -3886,25 +3886,25 @@ static void ui_litem_layout_row(uiLayout *litem)
         minw = itemw;
       }
       itemw = ui_item_fit(
-          minw, fixedx, fixedw, min_ii(w, fixedw), is_item_last, litem->alignment, &extra_pixel);
+          minw, fixedx, fixedw, min_ii(w, fixedw), is_item_last, litem->alignment_, &extra_pixel);
       fixedx += itemw;
     }
     else {
       /* free size item */
       itemw = ui_item_fit(
-          itemw, freex, freew, w - fixedw, is_item_last, litem->alignment, &extra_pixel);
+          itemw, freex, freew, w - fixedw, is_item_last, litem->alignment_, &extra_pixel);
       freex += itemw;
       last_free_item_idx = item_idx;
     }
 
     /* align right/center */
     offset = 0;
-    if (litem->alignment == UI_LAYOUT_ALIGN_RIGHT) {
+    if (litem->alignment_ == UI_LAYOUT_ALIGN_RIGHT) {
       if (freew + fixedw > 0 && freew + fixedw < w) {
         offset = w - (fixedw + freew);
       }
     }
-    else if (litem->alignment == UI_LAYOUT_ALIGN_CENTER) {
+    else if (litem->alignment_ == UI_LAYOUT_ALIGN_CENTER) {
       if (freew + fixedw > 0 && freew + fixedw < w) {
         offset = (w - (fixedw + freew)) / 2;
       }
@@ -3921,7 +3921,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 
   /* add extra pixel */
   int extra_pixel_move = litem->w - (x - litem->x);
-  if (extra_pixel_move > 0 && litem->alignment == UI_LAYOUT_ALIGN_EXPAND &&
+  if (extra_pixel_move > 0 && litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND &&
       last_free_item_idx >= 0 && item_last &&
       bool(item_last->flag & uiItemInternalFlag::AutoFixedSize))
   {
@@ -4108,7 +4108,7 @@ static void ui_litem_layout_radial(uiLayout *litem)
       if (ui_item_is_radial_drawable(bitem)) {
         bitem->but->emboss = blender::ui::EmbossType::PieMenu;
         bitem->but->drawflag |= UI_BUT_ICON_LEFT;
-      } 
+      }
 
       if (ELEM(bitem->but->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE)) {
         use_dir = false;
@@ -4375,7 +4375,7 @@ static void ui_litem_layout_column_flow(uiLayout *litem)
   for (uiItem *item : litem->items) {
     ui_item_size(item, &itemw, &itemh);
 
-    itemw = (litem->alignment == UI_LAYOUT_ALIGN_EXPAND) ? w : min_ii(w, itemw);
+    itemw = (litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND) ? w : min_ii(w, itemw);
 
     y -= itemh;
     emy -= itemh;
@@ -4745,8 +4745,8 @@ static void ui_litem_layout_grid_flow(uiLayout *litem)
     const int w = widths[col];
     const int h = heights[row];
 
-    item_w = (litem->alignment == UI_LAYOUT_ALIGN_EXPAND) ? w : min_ii(w, item_w);
-    item_h = (litem->alignment == UI_LAYOUT_ALIGN_EXPAND) ? h : min_ii(h, item_h);
+    item_w = (litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND) ? w : min_ii(w, item_w);
+    item_h = (litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND) ? h : min_ii(h, item_h);
 
     ui_item_position(item, cos_x[col], cos_y[row], item_w, item_h);
     i++;
@@ -4929,11 +4929,11 @@ static void ui_litem_init_from_parent(uiLayout *litem, uiLayout *layout, int ali
   litem->root = layout->root;
   litem->align = align;
   /* Children of grid-flow layout shall never have "ideal big size" returned as estimated size. */
-  litem->variable_size = layout->variable_size || layout->type == uiItemType::LayoutGridFlow;
+  litem->variable_size_ = layout->variable_size_ || layout->type == uiItemType::LayoutGridFlow;
   litem->active = true;
-  litem->enabled = true;
+  litem->enabled_ = true;
   litem->context = layout->context;
-  litem->redalert = layout->redalert;
+  litem->redalert_ = layout->redalert_;
   litem->w = layout->w;
   litem->emboss_ = layout->emboss_;
   litem->flag = (layout->flag & (uiItemInternalFlag::PropSep | uiItemInternalFlag::PropDecorate |
@@ -5276,32 +5276,32 @@ void uiLayoutSetActive(uiLayout *layout, bool active)
 
 void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default)
 {
-  layout->active_default = active_default;
+  layout->active_default_ = active_default;
 }
 
 void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init)
 {
-  layout->activate_init = activate_init;
+  layout->activate_init_ = activate_init;
 }
 
 void uiLayoutSetEnabled(uiLayout *layout, bool enabled)
 {
-  layout->enabled = enabled;
+  layout->enabled_ = enabled;
 }
 
 void uiLayoutSetRedAlert(uiLayout *layout, bool redalert)
 {
-  layout->redalert = redalert;
+  layout->redalert_ = redalert;
 }
 
 void uiLayoutSetKeepAspect(uiLayout *layout, bool keepaspect)
 {
-  layout->keepaspect = keepaspect;
+  layout->keepaspect_ = keepaspect;
 }
 
 void uiLayoutSetAlignment(uiLayout *layout, char alignment)
 {
-  layout->alignment = alignment;
+  layout->alignment_ = alignment;
 }
 
 void uiLayoutSetScaleX(uiLayout *layout, float scale)
@@ -5371,32 +5371,32 @@ bool uiLayoutGetActive(uiLayout *layout)
 
 bool uiLayoutGetActiveDefault(uiLayout *layout)
 {
-  return layout->active_default;
+  return layout->active_default_;
 }
 
 bool uiLayoutGetActivateInit(uiLayout *layout)
 {
-  return layout->activate_init;
+  return layout->activate_init_;
 }
 
 bool uiLayoutGetEnabled(uiLayout *layout)
 {
-  return layout->enabled;
+  return layout->enabled_;
 }
 
 bool uiLayoutGetRedAlert(uiLayout *layout)
 {
-  return layout->redalert;
+  return layout->redalert_;
 }
 
 bool uiLayoutGetKeepAspect(uiLayout *layout)
 {
-  return layout->keepaspect;
+  return layout->keepaspect_;
 }
 
 int uiLayoutGetAlignment(uiLayout *layout)
 {
-  return layout->alignment;
+  return layout->alignment_;
 }
 
 int uiLayoutGetWidth(uiLayout *layout)
@@ -5783,7 +5783,7 @@ static void ui_item_layout(uiItem *item)
     if (!litem->active) {
       ui_item_flag(litem, UI_BUT_INACTIVE);
     }
-    if (!litem->enabled) {
+    if (!litem->enabled_) {
       ui_item_flag(litem, UI_BUT_DISABLED);
     }
 
@@ -5920,7 +5920,7 @@ uiLayout *UI_block_layout(uiBlock *block,
   layout->root = root;
   layout->space = style->templatespace;
   layout->active = true;
-  layout->enabled = true;
+  layout->enabled_ = true;
   layout->context = nullptr;
   layout->emboss_ = blender::ui::EmbossType::Undefined;
 

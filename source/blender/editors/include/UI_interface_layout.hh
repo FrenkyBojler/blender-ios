@@ -77,13 +77,13 @@ struct uiLayout : uiItem {
   short space;
   bool align;
   bool active;
-  bool active_default;
-  bool activate_init;
-  bool enabled;
-  bool redalert;
-  bool keepaspect;
+  bool active_default_;
+  bool activate_init_;
+  bool enabled_;
+  bool redalert_;
+  bool keepaspect_;
   /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
-  bool variable_size;
+  bool variable_size_;
   char alignment_;
   blender::ui::EmbossType emboss_;
   /** for fixed width or height to avoid UI size changes */
