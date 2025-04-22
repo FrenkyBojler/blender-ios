@@ -16,6 +16,6 @@ namespace blender::ed::graph {
  *
  * The listbase will have to be freed by the caller with ANIM_animdata_freelist;
  */
-void get_editable_fcurves(bAnimContext &ac, ListBase & /* bAnimListElem */ r_anim_data);
+ListBase get_editable_fcurves(bAnimContext &ac);
 
 }  // namespace blender::ed::graph

@@ -2275,8 +2275,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ListBase anim_data = {nullptr, nullptr};
-  blender::ed::graph::get_editable_fcurves(ac, anim_data);
+  ListBase anim_data = blender::ed::graph::get_editable_fcurves(ac);
 
   if (BLI_listbase_is_empty(&anim_data)) {
     return OPERATOR_CANCELLED;
