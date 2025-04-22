@@ -141,7 +141,7 @@ static const CustomData *get_cdata(const BMesh &bm, const bke::AttrDomain domain
 
 static bool bmesh_attribute_exists(const BMesh &bm,
                                    const bke::AttributeMetaData &meta_data,
-                                   const StringRef &name)
+                                   StringRef name)
 {
   const CustomData *cdata = get_cdata(bm, meta_data.domain);
   return cdata && CustomData_get_offset_named(cdata, meta_data.data_type, name) != -1;
