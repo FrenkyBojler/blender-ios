@@ -41,6 +41,7 @@
 #include "ED_markers.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
+#include "ED_space_graph.hh"
 #include "ED_time_scrub_ui.hh"
 
 #include "DEG_depsgraph.hh"
@@ -160,7 +161,7 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
     }
 
     case SPACE_GRAPH:
-      // blender::ed::graph::get_editable_fcurves(C, anim_data);
+      anim_data = blender::ed::graph::get_editable_fcurves(ac);
       break;
 
     default:
