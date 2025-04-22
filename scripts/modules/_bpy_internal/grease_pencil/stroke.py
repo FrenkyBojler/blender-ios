@@ -2,6 +2,13 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from enum import Enum
+
+class BezierHandle(Enum):
+    LEFT  = 1
+    RIGHT = 2
+
+
 class AttributeGetterSetter:
     """
     Helper class to get and set attributes at an index for a domain.
@@ -125,48 +132,50 @@ def DefAttributeGetterSetters(attributes_list):
 
 class GreasePencilStrokePointHandle:
     """
-    Encapsulate one Bézier handle's position, type & selection.
+    A helper class to get access to Bézier handle data.
     """
-    __slots__ = ("_point", "_name")
+    __slots__ = ("_point", "_handle")
 
-    def __init__(self, gp_point, name):
-        self._point = gp_point
-        self._name = name
+    def __init__(self, point, handle: BezierHandle):
+        self._point  = point
+        self._handle = handle
 
     @property
     def position(self):
+        # build “handle_left” or “handle_right” from the enum
+        attr = f"handle_{self._handle.name.lower()}"
         return self._point._get_attribute(
-            self._name, 'FLOAT_VECTOR', (0.0, 0.0, 0.0)
+            attr, 'FLOAT_VECTOR', (0.0, 0.0, 0.0)
         )
 
     @position.setter
     def position(self, value):
+        attr = f"handle_{self._handle.name.lower()}"
         self._point._set_attribute(
-            self._name, 'FLOAT_VECTOR', value, (0.0, 0.0, 0.0)
+            attr, 'FLOAT_VECTOR', value, (0.0, 0.0, 0.0)
         )
 
     @property
     def type(self):
-        key = 'handle_type_left' if self._name == 'handle_left' else 'handle_type_right'
+        # LEFT → handle_type_left, RIGHT → handle_type_right
+        key = f"handle_type_{self._handle.name.lower()}"
         return self._point._get_attribute(key, 'INT', 0)
 
     @type.setter
     def type(self, value):
-        key = 'handle_type_left' if self._name == 'handle_left' else 'handle_type_right'
+        key = f"handle_type_{self._handle.name.lower()}"
         self._point._set_attribute(key, 'INT', value, 0)
 
     @property
     def select(self):
-        return self._point._get_attribute(
-            f".selection_{self._name}", 'BOOLEAN', True
-        )
+        # “.selection_handle_left” or “.selection_handle_right”
+        key = f".selection_handle_{self._handle.name.lower()}"
+        return self._point._get_attribute(key, 'BOOLEAN', True)
 
     @select.setter
     def select(self, value):
-        self._point._set_attribute(
-            f".selection_{self._name}", 'BOOLEAN', value, True
-        )
-
+        key = f".selection_handle_{self._handle.name.lower()}"
+        self._point._set_attribute(key, 'BOOLEAN', value, True)
 
 # Define the list of attributes that should be exposed as read/write properties on the class.
 @DefAttributeGetterSetters([
@@ -253,12 +262,29 @@ class GreasePencilStrokePoint(AttributeGetterSetter):
             attribute.data[self._point_index].value = value
 
     @property
+    def curve_type(self):
+        """
+        Return the parent stroke's curve_type
+        """
+        return self._drawing.strokes[self._curve_index].curve_type
+
+    @property
     def handle_left(self):
-        return GreasePencilStrokePointHandle(self, "handle_left")
+        """
+        Return the left Bézier handle proxy, or None if this point's stroke isn't Bézier.
+        """
+        if self.curve_type == 2:
+            return GreasePencilStrokePointHandle(self, BezierHandle.LEFT)
+        return None
 
     @property
     def handle_right(self):
-        return GreasePencilStrokePointHandle(self, "handle_right")
+        """
+        Return the right Bézier handle proxy, or None if this point's stroke isn't Bézier.
+        """
+        if self.curve_type == 2:
+            return GreasePencilStrokePointHandle(self, BezierHandle.RIGHT)
+        return None
 
 class GreasePencilStrokePointSlice(SliceHelper):
     """
