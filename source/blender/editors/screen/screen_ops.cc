@@ -66,6 +66,7 @@
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
 #include "ED_sequencer.hh"
+#include "ED_space_graph.hh"
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
@@ -3349,14 +3350,8 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
     return;
   }
 
-  ListBase anim_data = {nullptr, nullptr};
-  eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE |
-                              ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
-  if (U.animation_flag & USER_ANIM_ONLY_SHOW_SELECTED_CURVE_KEYS) {
-    filter |= ANIMFILTER_SEL;
-  }
+  ListBase anim_data = blender::ed::graph::get_editable_fcurves(ac);
 
-  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
   const bool use_nla_mapping = true;
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
