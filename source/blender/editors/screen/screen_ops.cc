@@ -3339,6 +3339,7 @@ static void keylist_from_dopesheet(bContext &C, AnimKeylist &keylist)
   if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return;
   }
+  BLI_assert(ac.area->spacetype == SPACE_ACTION);
   summary_to_keylist(&ac, &keylist, 0, {-FLT_MAX, FLT_MAX});
 }
 
