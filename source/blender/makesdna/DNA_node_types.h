@@ -1164,9 +1164,9 @@ typedef struct NodeKuwaharaData {
 } NodeKuwaharaData;
 
 typedef struct NodeAntiAliasingData {
-  float threshold;
-  float contrast_limit;
-  float corner_rounding;
+  float threshold DNA_DEPRECATED;
+  float contrast_limit DNA_DEPRECATED;
+  float corner_rounding DNA_DEPRECATED;
 } NodeAntiAliasingData;
 
 /** \note Only for do-version code. */
@@ -1311,9 +1311,12 @@ typedef struct NodeColorBalance {
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
-  short limchan, unspill;
-  float limscale;
-  float uspillr, uspillg, uspillb;
+  short limchan;
+  short unspill DNA_DEPRECATED;
+  float limscale DNA_DEPRECATED;
+  float uspillr DNA_DEPRECATED;
+  float uspillg DNA_DEPRECATED;
+  float uspillb DNA_DEPRECATED;
 } NodeColorspill;
 
 typedef struct NodeConvertColorSpace {
@@ -1486,7 +1489,7 @@ typedef struct TexNodeOutput {
 
 typedef struct NodeKeyingScreenData {
   char tracking_object[64];
-  float smoothness;
+  float smoothness DNA_DEPRECATED;
 } NodeKeyingScreenData;
 
 typedef struct NodeKeyingData {
