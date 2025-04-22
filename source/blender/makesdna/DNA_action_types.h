@@ -284,8 +284,20 @@ typedef struct bPoseChannel {
 
   struct bPoseChannel *next, *prev;
 
-  /** User-Defined Properties on this PoseChannel. */
+  /**
+   * User-defined custom properties storage on this PoseChannel. Typically Accessed through the
+   * 'dict' syntax from Python.
+   */
   IDProperty *prop;
+
+  /**
+   * System-defined custom properties storage. Used to store data dynamically defined either by
+   * Blender itself (e.g. the GeoNode modifier), or some python script, extension etc.
+   *
+   * Typically accessed through RNA paths (`C.object.my_dynamic_float_property = 33.3`), when
+   * wrapped/defined by RNA.
+   */
+  IDProperty *system_properties;
 
   /** Constraints that act on this PoseChannel. */
   ListBase constraints;
@@ -421,6 +433,8 @@ typedef struct bPoseChannel {
   struct bPoseChannel *orig_pchan;
 
   BoneColor color; /* MUST be named the same as in Bone and EditBone structs. */
+
+  void *_pad2;
 
   /** Runtime data (keep last). */
   struct bPoseChannel_Runtime runtime;

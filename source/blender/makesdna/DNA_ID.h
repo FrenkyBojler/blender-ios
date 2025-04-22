@@ -443,7 +443,8 @@ typedef struct ID {
   unsigned int session_uid;
 
   /**
-   * User-defined custom properties storage. Accessed through the 'dict' syntax from Python.
+   * User-defined custom properties storage. Typically Accessed through the 'dict' syntax from
+   * Python.
    */
   IDProperty *properties;
 

@@ -621,6 +621,15 @@ void version_system_idprops_generate(Main *bmain)
       idprops_process(view_layer->id_properties, &view_layer->system_id_properties);
     }
   }
+
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    if (!object->pose) {
+      continue;
+    }
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
+      idprops_process(pchan->prop, &pchan->system_properties);
+    }
+  }
 }
 
 void version_forward_compat_system_idprops(Main *bmain)
