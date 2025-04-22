@@ -708,7 +708,6 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
       sima->overlay.flag & SI_OVERLAY_DRAW_TEXT_INFO)
   {
 
-    const char render_size_name[MAX_NAME] = "Render Size";
     int render_size_x, render_size_y;
     BKE_render_resolution(&scene->r, true, &render_size_x, &render_size_y);
 
@@ -717,16 +716,11 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     int xoffset = rect->xmin + (0.5f * U.widget_unit);
     int yoffset = rect->ymax - (0.7f * U.widget_unit);
 
-    ED_region_image_overlay_text_draw(
-        render_size_name, xoffset, yoffset, 1, render_size_x, render_size_y);
-
-    const char viewer_size_name[MAX_NAME] = "Image Size";
-
     int viewer_size_x, viewer_size_y;
     ED_space_image_get_size(sima, &viewer_size_x, &viewer_size_y);
 
-    ED_region_image_overlay_text_draw(
-        viewer_size_name, xoffset, yoffset, 2, viewer_size_x, viewer_size_y);
+    ED_region_image_overlay_info_text_draw(
+        render_size_x, render_size_y, viewer_size_x, viewer_size_y, xoffset, yoffset);
   }
 
   /* sample line */
