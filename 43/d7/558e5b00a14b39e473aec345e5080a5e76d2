@@ -4,3 +4,4 @@ Referenced by issue #134636, VSE - Fade In and Out not working
 Referenced by issue #136887, Name Filter/Search in Dope Sheet and Timeline editors do not hide channels properly
 Referenced by issue #137610, Motion Paths don't auto-update
 Referenced by pull request #137653, Fix #137610: Motion Paths don't auto-update
+Referenced by commit b40760caf8f807916f89d150612731aace55bb3e, Fix #137610: Motion Paths don't auto-update
