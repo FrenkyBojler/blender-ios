@@ -1013,7 +1013,7 @@ static void PE_update_mirror_cache(Object *ob, ParticleSystem *psys)
 
   /* lookup particles and set in mirror cache */
   if (!edit->mirror_cache) {
-    edit->mirror_cache = static_cast<int *>(MEM_callocN(sizeof(int) * totpart, "PE mirror cache"));
+    edit->mirror_cache = MEM_calloc_arrayN<int>(totpart, "PE mirror cache");
   }
 
   LOOP_PARTICLES
@@ -2352,7 +2352,7 @@ bool PE_box_select(bContext *C, const rcti *rect, const int sel_op)
 static void pe_select_cache_free_generic_userdata(void *data)
 {
   PE_data_free(static_cast<PEData *>(data));
-  MEM_freeN(data);
+  MEM_freeN(static_cast<PEData *>(data));
 }
 
 static void pe_select_cache_init_with_generic_userdata(bContext *C, wmGenericUserData *wm_userdata)
@@ -2807,8 +2807,7 @@ static void rekey_particle(PEData *data, int pa_index)
   if (point->keys) {
     MEM_freeN(point->keys);
   }
-  ekey = point->keys = static_cast<PTCacheEditKey *>(
-      MEM_callocN(pa->totkey * sizeof(PTCacheEditKey), "Hair re-key edit keys"));
+  ekey = point->keys = MEM_calloc_arrayN<PTCacheEditKey>(pa->totkey, "Hair re-key edit keys");
 
   for (k = 0, key = pa->hair; k < pa->totkey; k++, key++, ekey++) {
     ekey->co = key->co;
@@ -4204,7 +4203,7 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
 
   totface = mesh->totface_legacy;
   mface = (const MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE);
-  blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
+  blender::Span<blender::float3> positions = mesh->vert_positions();
 
   /* lets intersect the faces */
   for (i = 0; i < totface; i++, mface++) {
@@ -4731,7 +4730,7 @@ static int brush_edit_init(bContext *C, wmOperator *op)
   PE_minmax(depsgraph, scene, view_layer, min, max);
   mid_v3_v3v3(min, min, max);
 
-  bedit = static_cast<BrushEdit *>(MEM_callocN(sizeof(BrushEdit), "BrushEdit"));
+  bedit = MEM_callocN<BrushEdit>("BrushEdit");
   bedit->first = 1;
   op->customdata = bedit;
 
@@ -5130,7 +5129,7 @@ static void point_inside_bvh_cb(void *userdata,
 {
   PointInsideBVH *data = static_cast<PointInsideBVH *>(userdata);
 
-  data->bvhdata->raycast_callback(&data->bvhdata, index, ray, hit);
+  data->bvhdata->raycast_callback(data->bvhdata, index, ray, hit);
 
   if (hit->index != -1) {
     ++data->num_hits;
@@ -5204,7 +5203,7 @@ static void shape_cut(PEData *data, int pa_index)
                            0.0f,
                            &hit,
                            data->shape_bvh->raycast_callback,
-                           &data->shape_bvh);
+                           data->shape_bvh);
       if (hit.index >= 0) {
         if (hit.dist < len_shape) {
           cut_time = ((hit.dist / len_shape) + float(k)) / float(totkeys);
@@ -5356,9 +5355,8 @@ void PE_create_particle_edit(
 
     totpoint = psys ? psys->totpart : int(((PTCacheMem *)cache->mem_cache.first)->totpoint);
 
-    edit = static_cast<PTCacheEdit *>(MEM_callocN(sizeof(PTCacheEdit), "PE_create_particle_edit"));
-    edit->points = static_cast<PTCacheEditPoint *>(
-        MEM_callocN(totpoint * sizeof(PTCacheEditPoint), "PTCacheEditPoints"));
+    edit = MEM_callocN<PTCacheEdit>("PE_create_particle_edit");
+    edit->points = MEM_calloc_arrayN<PTCacheEditPoint>(totpoint, "PTCacheEditPoints");
     edit->totpoint = totpoint;
 
     if (psys && !cache) {
@@ -5376,8 +5374,7 @@ void PE_create_particle_edit(
       pa = psys->particles;
       LOOP_POINTS {
         point->totkey = pa->totkey;
-        point->keys = static_cast<PTCacheEditKey *>(
-            MEM_callocN(point->totkey * sizeof(PTCacheEditKey), "ParticleEditKeys"));
+        point->keys = MEM_calloc_arrayN<PTCacheEditKey>(point->totkey, "ParticleEditKeys");
         point->flag |= PEP_EDIT_RECALC;
 
         hkey = pa->hair;
@@ -5415,8 +5412,7 @@ void PE_create_particle_edit(
           }
 
           if (!point->totkey) {
-            key = point->keys = static_cast<PTCacheEditKey *>(
-                MEM_callocN(totframe * sizeof(PTCacheEditKey), "ParticleEditKeys"));
+            key = point->keys = MEM_calloc_arrayN<PTCacheEditKey>(totframe, "ParticleEditKeys");
             point->flag |= PEP_EDIT_RECALC;
           }
           else {

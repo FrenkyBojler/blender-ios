@@ -6,10 +6,10 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "workbench_shader_shared.h"
+#  include "workbench_shader_shared.hh"
 
-#  include "draw_fullscreen_info.hh"
 #  include "draw_view_info.hh"
+#  include "gpu_shader_fullscreen_info.hh"
 
 #  define PREPARE
 #  define DOWNSAMPLE
@@ -37,7 +37,7 @@ PUSH_CONSTANT(float2, invertedViewportSize)
 PUSH_CONSTANT(float2, nearFar)
 PUSH_CONSTANT(float3, dofParams)
 PUSH_CONSTANT(float, noiseOffset)
-ADDITIONAL_INFO(draw_fullscreen)
+ADDITIONAL_INFO(gpu_fullscreen)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
 
@@ -66,7 +66,7 @@ DEFINE_VALUE("NUM_SAMPLES", "49")
 SAMPLER(0, FLOAT_2D, inputCocTex)
 SAMPLER(3, FLOAT_2D, halfResColorTex)
 SAMPLER(5, FLOAT_2D, noiseTex)
-UNIFORM_BUF(1, vec4, samples[49])
+UNIFORM_BUF(1, float4, samples[49])
 FRAGMENT_OUT(0, float4, blurColor)
 FRAGMENT_SOURCE("workbench_effect_dof_blur1_frag.glsl")
 ADDITIONAL_INFO(workbench_effect_dof)
