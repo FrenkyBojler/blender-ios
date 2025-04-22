@@ -13,20 +13,8 @@ from typing import Protocol, TypeAlias, Any, Callable
 
 import pydantic
 import requests
-import requests.adapters
-import urllib3.util.retry
 
 logger = logging.getLogger(__name__)
-
-
-_http_retries = urllib3.util.retry.Retry(
-    total=8,  # Times,
-    backoff_factor=0.05,
-)
-_http_adapter = requests.adapters.HTTPAdapter(max_retries=_http_retries)
-_http_session = requests.session()
-_http_session.mount("https://", _http_adapter)
-_http_session.mount("http://", _http_adapter)
 
 
 class Downloader:
@@ -59,7 +47,7 @@ class Downloader:
             self,
             metadata_cache_location: Path,
             *,
-            http_session: requests.Session = _http_session,
+            http_session: requests.Session | None = None,
             chunk_size: int = 8192,
     ) -> None:
         """Create a Downloader.
@@ -68,11 +56,14 @@ class Downloader:
             like the last-modified timestamp, etag, and content length.
         :param http_session: Requests Session object to manage retries,
             timeouts, TCP/IP connection pooling, cookies, and authentication.
+            If None, uses some sensible defaults.
         :param chunk_size: Number of bytes to download at once. This determines
             how granular download progress is reported.
         """
+        from .. import http
+
         self.metadata_cache_location = metadata_cache_location
-        self.http_session = http_session
+        self.http_session = http_session or http.session()
         self.chunk_size = chunk_size
         self._reporter = _DummyReporter()
         self._cancel_download_event = threading.Event()

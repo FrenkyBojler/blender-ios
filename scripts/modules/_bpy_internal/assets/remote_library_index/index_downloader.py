@@ -38,6 +38,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
         metadata_cache_location=base_path / "_local-meta-cache",
         chunk_size=8192,
     )
+    downloader.http_session.headers.update({'Accept': 'application/json'})
 
     bg_downloader = BackgroundDownloader(downloader)
     bg_downloader.start()

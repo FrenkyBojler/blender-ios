@@ -26,6 +26,7 @@ import bpy
 from _bpy_internal.assets.remote_library_index import index_common
 from _bpy_internal.assets.remote_library_index import blender_asset_library_openapi as api_models
 from _bpy_internal.http.downloader import RequestDescription, Downloader, BackgroundDownloader, DownloadCancelled
+from _bpy_internal import http
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +61,13 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         self._num_asset_pages_pending = 0
         self._operator_context = None
 
+        http_session = http.session()
+        http_session.headers.update({'Accept': 'application/json'})
+
         downloader = Downloader(
             metadata_cache_location=self._local_path / "_local-meta-cache",
             chunk_size=1024 * 16,
+            http_session=http_session,
         )
 
         self._bg_downloader = BackgroundDownloader(downloader)
