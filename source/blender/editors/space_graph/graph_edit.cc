@@ -56,6 +56,7 @@
 #include "ED_keyframing.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
+#include "ED_space_graph.hh"
 #include "ED_transform.hh"
 
 #include "WM_api.hh"
@@ -1816,7 +1817,7 @@ static ListBase /*tEulerFilter*/ euler_filter_group_channels(
 
     /* Check if this is an appropriate F-Curve:
      * - Only rotation curves.
-     * - For pchan curves, make sure we're only using the euler curves.
+     * - For pose-channel curves, make sure we're only using the euler curves.
      */
     if (strstr(fcu->rna_path, "rotation_euler") == nullptr) {
       continue;
@@ -1846,7 +1847,7 @@ static ListBase /*tEulerFilter*/ euler_filter_group_channels(
     }
 
     /* Just add to a new block. */
-    euf = static_cast<tEulerFilter *>(MEM_callocN(sizeof(tEulerFilter), "tEulerFilter"));
+    euf = MEM_callocN<tEulerFilter>("tEulerFilter");
     BLI_addtail(&euler_groups, euf);
     ++*r_num_groups;
 

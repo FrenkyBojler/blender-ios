@@ -351,6 +351,7 @@ static bool property_search_for_context(const bContext *C, ARegion *region, Spac
     return false;
   }
 
+  buttons_context_compute(C, sbuts);
   return ED_region_property_search(
       C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
@@ -1078,7 +1079,7 @@ void ED_spacetype_buttons()
   st->blend_write = buttons_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype buttons region"));
+  art = MEM_callocN<ARegionType>("spacetype buttons region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = buttons_main_region_init;
   art->layout = buttons_main_region_layout;
@@ -1108,7 +1109,7 @@ void ED_spacetype_buttons()
   }
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype buttons region"));
+  art = MEM_callocN<ARegionType>("spacetype buttons region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1119,8 +1120,7 @@ void ED_spacetype_buttons()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: navigation bar */
-  art = static_cast<ARegionType *>(
-      MEM_callocN(sizeof(ARegionType), "spacetype nav buttons region"));
+  art = MEM_callocN<ARegionType>("spacetype nav buttons region");
   art->regionid = RGN_TYPE_NAV_BAR;
   art->prefsizex = AREAMINX;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES | ED_KEYMAP_NAVBAR;
