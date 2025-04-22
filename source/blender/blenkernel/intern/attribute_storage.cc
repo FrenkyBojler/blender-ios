@@ -217,67 +217,117 @@ Attribute &AttributeStorage::add(std::string name,
 }
 
 static void read_array_data(BlendDataReader &reader,
-                            const AttrType data_type,
+                            const int8_t dna_attr_type,
                             const int64_t size,
                             void **data)
 {
-  switch (data_type) {
-    case AttrType::Bool:
+  switch (dna_attr_type) {
+    case int8_t(AttrType::Bool):
       static_assert(sizeof(bool) == sizeof(int8_t));
       BLO_read_int8_array(&reader, size, reinterpret_cast<int8_t **>(data));
-      break;
-    case AttrType::Int8:
+      return;
+    case int8_t(AttrType::Int8):
       BLO_read_int8_array(&reader, size, reinterpret_cast<int8_t **>(data));
-      break;
-    case AttrType::Int16_2D:
+      return;
+    case int8_t(AttrType::Int16_2D):
       BLO_read_int16_array(&reader, size * 2, reinterpret_cast<int16_t **>(data));
-      break;
-    case AttrType::Int32:
+      return;
+    case int8_t(AttrType::Int32):
       BLO_read_int32_array(&reader, size, reinterpret_cast<int32_t **>(data));
-      break;
-    case AttrType::Int32_2D:
+      return;
+    case int8_t(AttrType::Int32_2D):
       BLO_read_int32_array(&reader, size * 2, reinterpret_cast<int32_t **>(data));
-      break;
-    case AttrType::Float:
+      return;
+    case int8_t(AttrType::Float):
       BLO_read_float_array(&reader, size, reinterpret_cast<float **>(data));
-      break;
-    case AttrType::Float2:
+      return;
+    case int8_t(AttrType::Float2):
       BLO_read_float_array(&reader, size * 2, reinterpret_cast<float **>(data));
-      break;
-    case AttrType::Float3:
+      return;
+    case int8_t(AttrType::Float3):
       BLO_read_float3_array(&reader, size, reinterpret_cast<float **>(data));
-      break;
-    case AttrType::Float4x4:
+      return;
+    case int8_t(AttrType::Float4x4):
       BLO_read_float_array(&reader, size * 16, reinterpret_cast<float **>(data));
-      break;
-    case AttrType::ColorByte:
+      return;
+    case int8_t(AttrType::ColorByte):
       BLO_read_uint8_array(&reader, size * 4, reinterpret_cast<uint8_t **>(data));
-      break;
-    case AttrType::ColorFloat:
+      return;
+    case int8_t(AttrType::ColorFloat):
       BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
-      break;
-    case AttrType::Quaternion:
+      return;
+    case int8_t(AttrType::Quaternion):
       BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
-      break;
-    case AttrType::String:
+      return;
+    case int8_t(AttrType::String):
       BLO_read_struct_array(
           &reader, MStringProperty, size, reinterpret_cast<MStringProperty **>(data));
-      break;
+    default:
+      *data = nullptr;
+      return;
   }
 }
 
 static void read_shared_array(BlendDataReader &reader,
-                              const AttrType data_type,
+                              const int8_t dna_attr_type,
                               const int64_t size,
                               void **data,
                               const ImplicitSharingInfo **sharing_info)
 {
   const char *func = __func__;
   *sharing_info = BLO_read_shared(&reader, &data, [&]() -> const ImplicitSharingInfo * {
-    read_array_data(reader, data_type, size, data);
-    const CPPType &cpp_type = attribute_type_to_cpp_type(data_type);
+    read_array_data(reader, dna_attr_type, size, data);
+    if (*data == nullptr) {
+      return nullptr;
+    }
+    const CPPType &cpp_type = attribute_type_to_cpp_type(AttrType(dna_attr_type));
     return MEM_new<ArrayDataImplicitSharing>(func, *data, size, cpp_type);
   });
+}
+
+static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &reader,
+                                                            const int8_t dna_storage_type,
+                                                            const int8_t dna_attr_type,
+                                                            AttributeDNA &dna_attr)
+{
+  switch (dna_storage_type) {
+    case int8_t(AttrStorageType::Array): {
+      BLO_read_struct(&reader, AttributeArrayDNA, &dna_attr.data);
+      auto &data = *static_cast<AttributeArrayDNA *>(dna_attr.data);
+      read_shared_array(reader, dna_attr_type, data.size, &data.data, &data.sharing_info);
+      if (!data.data) {
+        return std::nullopt;
+      }
+      return Attribute::ArrayData{data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
+    }
+    case int8_t(AttrStorageType::Single): {
+      BLO_read_struct(&reader, AttributeSingleDNA, &dna_attr.data);
+      auto &data = *static_cast<AttributeSingleDNA *>(dna_attr.data);
+      read_shared_array(reader, dna_attr_type, 1, &data.data, &data.sharing_info);
+      if (!data.data) {
+        return std::nullopt;
+      }
+      return Attribute::SingleData{data.data, ImplicitSharingPtr<>(data.sharing_info)};
+    }
+    default:
+      return std::nullopt;
+  }
+}
+
+static std::optional<AttrDomain> read_attr_domain(const int8_t dna_domain)
+{
+  switch (dna_domain) {
+    case int8_t(AttrDomain::Point):
+    case int8_t(AttrDomain::Edge):
+    case int8_t(AttrDomain::Face):
+    case int8_t(AttrDomain::Corner):
+    case int8_t(AttrDomain::Curve):
+    case int8_t(AttrDomain::Instance):
+    case int8_t(AttrDomain::Layer):
+      return AttrDomain(dna_domain);
+    default:
+      return std::nullopt;
+  }
 }
 
 void AttributeStorage::blend_read(BlendDataReader &reader)
@@ -290,29 +340,22 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
     AttributeDNA &dna_attr = this->dna_attributes[i];
     BLO_read_string(&reader, &dna_attr.name);
 
+    const std::optional<AttrDomain> domain = read_attr_domain(dna_attr.domain);
+    if (!domain) {
+      continue;
+    }
+
+    std::optional<Attribute::DataVariant> data = read_attr_data(
+        reader, dna_attr.storage_type, dna_attr.data_type, dna_attr);
+    if (!data) {
+      continue;
+    }
+
     std::unique_ptr<Attribute> attribute = std::make_unique<Attribute>();
     attribute->name_ = dna_attr.name;
-    attribute->domain_ = AttrDomain(dna_attr.domain);
+    attribute->domain_ = *domain;
     attribute->type_ = AttrType(dna_attr.data_type);
-
-    switch (AttrStorageType(dna_attr.storage_type)) {
-      case AttrStorageType::Array: {
-        BLO_read_struct(&reader, AttributeArrayDNA, &dna_attr.data);
-        auto &data = *static_cast<AttributeArrayDNA *>(dna_attr.data);
-        read_shared_array(reader, attribute->type_, data.size, &data.data, &data.sharing_info);
-        attribute->data_ = Attribute::ArrayData{
-            data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
-        break;
-      }
-      case AttrStorageType::Single: {
-        BLO_read_struct(&reader, AttributeSingleDNA, &dna_attr.data);
-        auto &data = *static_cast<AttributeSingleDNA *>(dna_attr.data);
-        read_shared_array(reader, attribute->type_, 1, &data.data, &data.sharing_info);
-        attribute->data_ = Attribute::SingleData{data.data,
-                                                 ImplicitSharingPtr<>(data.sharing_info)};
-        break;
-      }
-    }
+    attribute->data_ = std::move(*data);
 
     MEM_SAFE_FREE(dna_attr.name);
     MEM_SAFE_FREE(dna_attr.data);
