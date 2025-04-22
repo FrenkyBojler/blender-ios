@@ -1,3 +1,4 @@
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by issue #123370, Identical Custom Pose Bone Shape causes selection issues
 Referenced by pull request #137651, Fix #137647: Remove warning about macOS not supporting custom wire widths
+Referenced by commit 6faef7b149dd718dd69610b5beec9110cad0d86a, Fix #137647: Remove warning about macOS not supporting custom wire widths
