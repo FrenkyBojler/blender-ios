@@ -464,8 +464,16 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
 
 namespace nurbs {
 
+/**
+ * Finds current knot's multiplicity and index of span to insert into.
+ */
 void find_span_mult(float knot, Span<float> knots, int order, int &r_span, int &r_mult);
 
+/**
+ * Calculates knot insertion point weights later used to transform all point attributes to make
+ * actual insertion.
+ * Also used to preview insertion.
+ */
 IndexRange calc_knot_insertion_weights(Span<float> knots,
                                        int8_t order,
                                        float knot,
@@ -473,12 +481,21 @@ IndexRange calc_knot_insertion_weights(Span<float> knots,
                                        int mult,
                                        int repeat,
                                        MutableSpan<float> insertion_weights);
-
+/**
+ * Creates an array of NURBS weights affecting points when inserting knot into given span.
+ * Purpose to create virtual weights of 1.0 when attribute ATTR_NURBS_WEIGHT doesn't exist.
+ */
 Array<float> make_weights_for_knot_span(int order,
                                         Span<float> all_weights,
                                         IndexRange curve_points,
                                         int knot_span);
-
+/**
+ * Inserts knot into given curve.
+ * \param knot_span: Index of span (interval between two knots) to insert knot.
+ * \param knot_multiplicity: Knot's multiplicity before insertion.
+ * \param repeat: Times to repeat the knot.
+ * \param knots: Curve knots preloaded with `load_curve_knots`.
+ */
 bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
                                 int curve,
                                 float knot,
