@@ -767,8 +767,8 @@ short transform_orientation_matrix_get(bContext *C,
     Strip *strip = seq::select_active_get(scene);
     if (strip && strip->data->transform && orient_index == V3D_ORIENT_LOCAL) {
       const float2 mirror = seq::image_transform_mirror_factor_get(strip);
-      axis_angle_to_mat3_single(r_spacemtx, 'Z', strip->data->transform->rotation * mirror[0] *
-                                mirror[1]);
+      axis_angle_to_mat3_single(
+          r_spacemtx, 'Z', strip->data->transform->rotation * mirror[0] * mirror[1]);
       return orient_index;
     }
   }
