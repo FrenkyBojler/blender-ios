@@ -1241,7 +1241,7 @@ def _keymap_from_item(context, item):
 
 class PlayheadSnappingPanel:
     bl_region_type = 'HEADER'
-    bl_label = "Playhead Snapping"
+    bl_label = "Playhead"
 
     @classmethod
     def poll(cls, context):

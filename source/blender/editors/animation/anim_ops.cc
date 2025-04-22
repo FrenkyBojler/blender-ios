@@ -241,18 +241,18 @@ static void seq_frame_snap_update_best(const int position,
 
 static float get_sequencer_strip_snap_target(blender::Span<Strip *> strips,
                                              const Scene *scene,
-                                             const float current_frame)
+                                             const float timeline_frame)
 {
   int best_frame = 0;
   int best_distance = MAXFRAME;
 
   for (Strip *strip : strips) {
     seq_frame_snap_update_best(blender::seq::time_left_handle_frame_get(scene, strip),
-                               current_frame,
+                               timeline_frame,
                                &best_frame,
                                &best_distance);
     seq_frame_snap_update_best(blender::seq::time_right_handle_frame_get(scene, strip),
-                               current_frame,
+                               timeline_frame,
                                &best_frame,
                                &best_distance);
   }
@@ -264,7 +264,7 @@ static float get_sequencer_strip_snap_target(blender::Span<Strip *> strips,
   return best_frame;
 }
 
-static float get_nla_strip_snap_target(bContext *C, const int frame)
+static float get_nla_strip_snap_target(bContext *C, const int timeline_frame)
 {
 
   bAnimContext ac;
@@ -287,12 +287,12 @@ static float get_nla_strip_snap_target(bContext *C, const int frame)
     }
     NlaTrack *track = static_cast<NlaTrack *>(ale->data);
     LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-      if (abs(strip->start - frame) < best_distance) {
-        best_distance = abs(strip->start - frame);
+      if (abs(strip->start - timeline_frame) < best_distance) {
+        best_distance = abs(strip->start - timeline_frame);
         best_frame = strip->start;
       }
-      if (abs(strip->end - frame) < best_distance) {
-        best_distance = abs(strip->end - frame);
+      if (abs(strip->end - timeline_frame) < best_distance) {
+        best_distance = abs(strip->end - timeline_frame);
         best_frame = strip->end;
       }
     }
@@ -338,7 +338,7 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(Scene *scene, const floa
   return targets;
 }
 
-static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const int timeline_frame)
+static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const float timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
@@ -372,7 +372,7 @@ static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const int t
 
 static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
                                                            ChangeFrameData &op_data,
-                                                           const int timeline_frame)
+                                                           const float timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
@@ -406,7 +406,7 @@ static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
 
 static blender::Vector<SnapTarget> graph_get_snap_targets(bContext *C,
                                                           ChangeFrameData &op_data,
-                                                          const int timeline_frame)
+                                                          const float timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
