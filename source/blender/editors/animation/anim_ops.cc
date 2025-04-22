@@ -130,7 +130,7 @@ static bool change_frame_poll(bContext *C)
 
 /* Returns the playhead snap threshold in frames. Of course that depends on the zoom level of the
  * editor. */
-static int get_snap_threshold(const ToolSettings *tool_settings, const ARegion *region)
+static float get_snap_threshold(const ToolSettings *tool_settings, const ARegion *region)
 {
   const int snap_threshold = tool_settings->playhead_snap_distance;
   return UI_view2d_region_to_view_x(&region->v2d, snap_threshold) -
@@ -201,7 +201,7 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
 
 static float get_keyframe_snap_target(bContext *C,
                                       ChangeFrameData &op_data,
-                                      const int timeline_frame)
+                                      const float timeline_frame)
 {
   ensure_change_frame_keylist(C, op_data);
   const ActKeyColumn *closest_column = ED_keylist_find_closest(op_data.keylist, timeline_frame);
