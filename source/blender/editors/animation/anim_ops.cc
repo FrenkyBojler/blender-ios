@@ -213,6 +213,11 @@ static float get_keyframe_snap_target(bContext *C,
 
 static int get_marker_snap_target(Scene *scene, const float frame)
 {
+  if (BLI_listbase_is_empty(&scene->markers)) {
+    /* This check needs to be here because `ED_markers_find_nearest_marker_time` returns the
+     * current frame if there are no markers. */
+    return FLT_MAX;
+  }
   return ED_markers_find_nearest_marker_time(&scene->markers, frame);
 }
 
