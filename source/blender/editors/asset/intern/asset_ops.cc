@@ -1071,6 +1071,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
 
+  /* Squaring has to happen before sorting so the area is squared from the point where
+   * dragging started. */
   if (RNA_boolean_get(op->ptr, "force_square")) {
     square_points(p1, p2);
   }
@@ -1162,12 +1164,8 @@ static void screenshot_preview_exit(bContext *C, wmOperator *op)
 static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOperatorData *data)
 {
   RNA_boolean_set(op->ptr, "force_square", data->force_square);
-  /* Only set the rna values mouse move threshold has been crossed. This allows to just click to
-   * confirm an existing rect by using the existing RNA values. */
-  if (data->crossed_threshold) {
-    RNA_int_set_array(op->ptr, "p1", data->p1);
-    RNA_int_set_array(op->ptr, "p2", data->p2);
-  }
+  RNA_int_set_array(op->ptr, "p1", data->p1);
+  RNA_int_set_array(op->ptr, "p2", data->p2);
 }
 
 static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1251,6 +1249,8 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
       if (!data->crossed_threshold) {
         const int2 delta = data->drag_end - data->drag_start;
         if (std::abs(delta.x) > DRAG_THRESHOLD && std::abs(delta.y) > DRAG_THRESHOLD) {
+          /* Only set the points once the threshold has been crossed. This allows to just
+           * click to confirm using a potentially existing screenshot rect. */
           data->crossed_threshold = true;
           data->p1 = data->drag_start;
         }
