@@ -161,6 +161,43 @@ static void modified_lattice_draw(const bContext * /*C*/, ARegion * /*region*/, 
   GPU_blend(GPU_BLEND_NONE);
 }
 
+static void update_preview_data(InsertKnotOpData &ikcd)
+{
+  int knot_multiplicity;
+  ed::curves::nurbs::find_span_mult(
+      ikcd.knot_to_insert, ikcd.knots, ikcd.order, ikcd.knot_span, knot_multiplicity);
+  const int repeat = clamp_i(ikcd.repeat, 1, ikcd.order - knot_multiplicity - 1);
+  if (repeat == 0) {
+    ikcd.points_to_replace = IndexRange(0);
+    ikcd.preview_positions = {};
+    return;
+  }
+  ikcd.points_to_replace = ed::curves::nurbs::calc_knot_insertion_weights(ikcd.knots,
+                                                                          ikcd.order,
+                                                                          ikcd.knot_to_insert,
+                                                                          ikcd.knot_span,
+                                                                          knot_multiplicity,
+                                                                          repeat,
+                                                                          ikcd.point_weights);
+  ikcd.preview_positions = ikcd.preview_positions_buffer.as_mutable_span().slice(
+      0, ikcd.points_to_replace.size() + repeat);
+
+  const Array<float> weights = make_weights_for_knot_span(
+      ikcd.order, ikcd.curves.nurbs_weights(), ikcd.curve_points, ikcd.knot_span);
+
+  MutableSpan<float3> preview_positions = ikcd.preview_positions;
+  for (const int altered_point : preview_positions.index_range()) {
+    float4 position = float4(0.0f);
+    for (const int i : IndexRange(ikcd.order)) {
+      const float point_weight = ikcd.point_weights[altered_point * ikcd.order + i];
+      const int src = (ikcd.knot_span - ikcd.order + 1 + i) % ikcd.curve_points.size();
+      const float4 src_position = float4(ikcd.positions[src] * weights[i], weights[i]);
+      position += src_position * point_weight;
+    }
+    preview_positions[altered_point] = position.xyz() / position.w;
+  }
+}
+
 static void insert_knot_exit(bContext * /*C*/, wmOperator *op)
 {
   InsertKnotOpData &ikcd = *static_cast<InsertKnotOpData *>(op->customdata);
@@ -234,6 +271,7 @@ static wmOperatorStatus insert_knot_invoke(bContext *C, wmOperator *op, const wm
   const bool is_interactive = (region != nullptr) && (event != nullptr);
   if (is_interactive) {
     ikcd.knot_to_insert = event_to_knot(ikcd, *event);
+    update_preview_data(ikcd);
     op->flag |= OP_IS_MODAL_CURSOR_REGION;
     WM_event_add_modal_handler(C, op);
     return OPERATOR_RUNNING_MODAL;
@@ -266,41 +304,8 @@ static wmOperatorStatus insert_knot_modal(bContext *C, wmOperator *op, const wmE
       insert_knot_exit(C, op);
       return OPERATOR_CANCELLED;
     case MOUSEMOVE: {
-      int knot_multiplicity;
       ikcd.knot_to_insert = event_to_knot(ikcd, *event);
-
-      ed::curves::nurbs::find_span_mult(
-          ikcd.knot_to_insert, ikcd.knots, ikcd.order, ikcd.knot_span, knot_multiplicity);
-      const int repeat = clamp_i(ikcd.repeat, 1, ikcd.order - knot_multiplicity - 1);
-      if (repeat == 0) {
-        ikcd.points_to_replace = IndexRange(0);
-        ikcd.preview_positions = {};
-        break;
-      }
-      ikcd.points_to_replace = ed::curves::nurbs::calc_knot_insertion_weights(ikcd.knots,
-                                                                              ikcd.order,
-                                                                              ikcd.knot_to_insert,
-                                                                              ikcd.knot_span,
-                                                                              knot_multiplicity,
-                                                                              repeat,
-                                                                              ikcd.point_weights);
-      ikcd.preview_positions = ikcd.preview_positions_buffer.as_mutable_span().slice(
-          0, ikcd.points_to_replace.size() + repeat);
-
-      const Array<float> weights = make_weights_for_knot_span(
-          ikcd.order, ikcd.curves.nurbs_weights(), ikcd.curve_points, ikcd.knot_span);
-
-      MutableSpan<float3> preview_positions = ikcd.preview_positions;
-      for (const int altered_point : preview_positions.index_range()) {
-        float4 position = float4(0.0f);
-        for (const int i : IndexRange(ikcd.order)) {
-          const float point_weight = ikcd.point_weights[altered_point * ikcd.order + i];
-          const int src = (ikcd.knot_span - ikcd.order + 1 + i) % ikcd.curve_points.size();
-          const float4 src_position = float4(ikcd.positions[src] * weights[i], weights[i]);
-          position += src_position * point_weight;
-        }
-        preview_positions[altered_point] = position.xyz() / position.w;
-      }
+      update_preview_data(ikcd);
       break;
     }
     default: {
