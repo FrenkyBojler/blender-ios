@@ -173,8 +173,8 @@ static void image_buffer_rect_update(RenderJob *rj,
   Scene *scene = rj->scene;
   const float *rectf = nullptr;
   int linear_stride, linear_offset_x, linear_offset_y;
-  ColorManagedViewSettings *view_settings;
-  ColorManagedDisplaySettings *display_settings;
+  const ColorManagedViewSettings *view_settings;
+  const ColorManagedDisplaySettings *display_settings;
 
   if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) {
     /* The whole image buffer is to be color managed again anyway. */
@@ -525,7 +525,7 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
   if (rr) {
     /* malloc OK here, stats_draw is not in tile threads */
     if (rr->text == nullptr) {
-      rr->text = static_cast<char *>(MEM_callocN(IMA_MAX_RENDER_TEXT_SIZE, "rendertext"));
+      rr->text = MEM_calloc_arrayN<char>(IMA_MAX_RENDER_TEXT_SIZE, "rendertext");
     }
 
     make_renderinfo_string(rs, rj->scene, rj->v3d_override, rr->error, rr->text);

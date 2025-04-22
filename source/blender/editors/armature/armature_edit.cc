@@ -615,7 +615,7 @@ static void chains_find_tips(ListBase *edbo, ListBase *list)
     }
 
     /* add current bone to a new chain */
-    ld = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), "BoneChain"));
+    ld = MEM_callocN<LinkData>("BoneChain");
     ld->data = curBone;
     BLI_addtail(list, ld);
   }
@@ -663,7 +663,7 @@ static void fill_add_joint(EditBone *ebo, short eb_tail, ListBase *points)
 
   /* allocate a new point if no existing point was related */
   if (found == 0) {
-    ebp = static_cast<EditBonePoint *>(MEM_callocN(sizeof(EditBonePoint), "EditBonePoint"));
+    ebp = MEM_callocN<EditBonePoint>("EditBonePoint");
 
     if (eb_tail) {
       copy_v3_v3(ebp->vec, ebo->tail);
@@ -736,7 +736,7 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
         obedit = ob_iter;
       }
     }
-    FOREACH_OBJECT_IN_MODE_END;
+    FOREACH_OBJECT_IN_EDIT_MODE_END;
   }
   BLI_assert(obedit != nullptr);
 

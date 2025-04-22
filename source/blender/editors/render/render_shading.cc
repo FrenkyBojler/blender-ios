@@ -622,7 +622,7 @@ static wmOperatorStatus material_slot_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  slot_remap = static_cast<uint *>(MEM_mallocN(sizeof(uint) * ob->totcol, __func__));
+  slot_remap = MEM_malloc_arrayN<uint>(ob->totcol, __func__);
 
   range_vn_u(slot_remap, ob->totcol, 0);
 
@@ -1501,6 +1501,9 @@ static wmOperatorStatus lightprobe_cache_bake_modal(bContext *C,
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
   return OPERATOR_PASS_THROUGH;
 }
@@ -2944,7 +2947,7 @@ static void paste_mtex_copybuf(ID *id)
 
   if (mtex) {
     if (*mtex == nullptr) {
-      *mtex = static_cast<MTex *>(MEM_callocN(sizeof(MTex), "mtex copy"));
+      *mtex = MEM_callocN<MTex>("mtex copy");
     }
     else if ((*mtex)->tex) {
       id_us_min(&(*mtex)->tex->id);

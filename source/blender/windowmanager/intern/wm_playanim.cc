@@ -125,7 +125,7 @@ static bool buffer_from_filepath(const char *filepath,
   if (UNLIKELY(size == size_t(-1))) {
     *r_error_message = BLI_sprintfN("failure '%s' to access size", strerror(errno));
   }
-  else if (r_mem && UNLIKELY(!(mem = static_cast<uchar *>(MEM_mallocN(size, __func__))))) {
+  else if (r_mem && UNLIKELY(!(mem = MEM_malloc_arrayN<uchar>(size, __func__)))) {
     *r_error_message = BLI_sprintfN("error allocating buffer %" PRIu64 " size", uint64_t(size));
   }
   else if (r_mem && UNLIKELY((size_read = BLI_read(file, mem, size)) != size)) {
@@ -465,11 +465,12 @@ static ImBuf *ibuf_from_picture(PlayAnimPict *pic)
   }
   else if (pic->mem) {
     /* Use correct color-space here. */
-    ibuf = IMB_ibImageFromMemory(pic->mem, pic->size, pic->IB_flags, nullptr, pic->filepath);
+    ibuf = IMB_load_image_from_memory(
+        pic->mem, pic->size, pic->IB_flags, pic->filepath, pic->filepath);
   }
   else {
     /* Use correct color-space here. */
-    ibuf = IMB_loadiffname(pic->filepath, pic->IB_flags, nullptr);
+    ibuf = IMB_load_image_from_filepath(pic->filepath, pic->IB_flags);
   }
 
   return ibuf;
@@ -915,7 +916,7 @@ static void build_pict_list_from_image_sequence(ListBase &picsbase,
   g_playanim.total_time = 1.0;
 
   for (int pic = 0; pic < totframes; pic++) {
-    if (!IMB_ispic(filepath)) {
+    if (!IMB_test_image(filepath)) {
       break;
     }
 
@@ -1820,14 +1821,14 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
       anim = nullptr;
     }
   }
-  else if (!IMB_ispic(filepath)) {
+  else if (!IMB_test_image(filepath)) {
     printf("%s: '%s' not an image file\n", __func__, filepath);
     exit(EXIT_FAILURE);
   }
 
   if (ibuf == nullptr) {
     /* OCIO_TODO: support different input color space. */
-    ibuf = IMB_loadiffname(filepath, IB_byte_data, nullptr);
+    ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
   }
 
   if (ibuf == nullptr) {
@@ -2105,9 +2106,9 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
       MEM_freeN(ps.picture->mem);
     }
     if (ps.picture->error_message) {
-      MEM_freeN(static_cast<void *>(ps.picture->error_message));
+      MEM_freeN(ps.picture->error_message);
     }
-    MEM_freeN(const_cast<char *>(ps.picture->filepath));
+    MEM_freeN(ps.picture->filepath);
     MEM_freeN(ps.picture);
   }
 

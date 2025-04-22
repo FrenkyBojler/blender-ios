@@ -152,6 +152,9 @@ static const struct {
     {KM_OSKEY,
      {GHOST_kKeyLeftOS, GHOST_kKeyRightOS},
      {GHOST_kModifierKeyLeftOS, GHOST_kModifierKeyRightOS}},
+    {KM_HYPER,
+     {GHOST_kKeyLeftHyper, GHOST_kKeyRightHyper},
+     {GHOST_kModifierKeyLeftHyper, GHOST_kModifierKeyRightHyper}},
 };
 
 enum ModSide {
@@ -875,8 +878,15 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
       GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
     }
 #endif
-    /* Until screens get drawn, make it nice gray. */
-    GPU_clear_color(0.25f, 0.25f, 0.25f, 1.0f);
+
+    /* Get the window background color from the current theme. Using the top-bar header
+     * background theme color to match with the colored title-bar decoration style. */
+    float window_bg_color[3];
+    UI_SetTheme(SPACE_TOPBAR, RGN_TYPE_HEADER);
+    UI_GetThemeColor3fv(TH_BACK, window_bg_color);
+
+    /* Until screens get drawn, draw a default background using the window theme color. */
+    GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     /* Needed here, because it's used before it reads #UserDef. */
     WM_window_set_dpi(win);
@@ -884,7 +894,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     wm_window_swap_buffers(win);
 
     /* Clear double buffer to avoids flickering of new windows on certain drivers, see #97600. */
-    GPU_clear_color(0.25f, 0.25f, 0.25f, 1.0f);
+    GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     GPU_render_end();
   }
@@ -1548,7 +1558,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       win->active = 1;
 
       /* Zero the `keymodifier`, it hangs on hotkeys that open windows otherwise. */
-      win->eventstate->keymodifier = 0;
+      win->eventstate->keymodifier = EVENT_NONE;
 
       win->addmousemove = 1; /* Enables highlighted buttons. */
 
@@ -1876,7 +1886,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
       event.type = wt->event_type;
       event.val = KM_NOTHING;
-      event.keymodifier = 0;
+      event.keymodifier = EVENT_NONE;
       event.flag = eWM_EventFlag(0);
       event.custom = EVT_DATA_TIMER;
       event.customdata = wt;
@@ -2075,9 +2085,10 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
 
 static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, void * /*arg1*/)
 {
-  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   const char *title = RPT_("Python script uses OpenGL for drawing");
   const char *message1 = RPT_("This may lead to unexpected behavior");
@@ -2175,9 +2186,10 @@ void wm_test_opengl_deprecation_warning(bContext *C)
 
 static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, void * /*arg1*/)
 {
-  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
 
@@ -2271,6 +2283,9 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   if (ghost_flag & GHOST_kCapabilityWindowDecorationStyles) {
     flag |= WM_CAPABILITY_WINDOW_DECORATION_STYLES;
   }
+  if (ghost_flag & GHOST_kCapabilityKeyboardHyperKey) {
+    flag |= WM_CAPABILITY_KEYBOARD_HYPER_KEY;
+  }
 
   return flag;
 }
@@ -2297,7 +2312,7 @@ void WM_event_timer_sleep(wmWindowManager *wm, wmWindow * /*win*/, wmTimer *time
 
 wmTimer *WM_event_timer_add(wmWindowManager *wm,
                             wmWindow *win,
-                            const int event_type,
+                            const wmEventType event_type,
                             const double time_step)
 {
   BLI_assert(ISTIMER(event_type));

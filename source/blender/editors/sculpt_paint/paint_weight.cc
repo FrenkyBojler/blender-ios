@@ -958,7 +958,7 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
     bool *unlocked = (bool *)MEM_dupallocN(wpd->vgroup_validmap);
 
     if (wpd->lock_flags) {
-      bool *locked = (bool *)MEM_mallocN(sizeof(bool) * wpd->defbase_tot, __func__);
+      bool *locked = MEM_malloc_arrayN<bool>(wpd->defbase_tot, __func__);
       BKE_object_defgroup_split_locked_validmap(
           wpd->defbase_tot, wpd->lock_flags, wpd->vgroup_validmap, locked, unlocked);
       wpd->vgroup_locked = locked;
@@ -969,7 +969,7 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
 
   if (wpd->do_multipaint && ts.auto_normalize) {
     bool *tmpflags;
-    tmpflags = (bool *)MEM_mallocN(sizeof(bool) * defbase_tot, __func__);
+    tmpflags = MEM_malloc_arrayN<bool>(defbase_tot, __func__);
     if (wpd->lock_flags) {
       BLI_array_binary_or(tmpflags, wpd->defbase_sel, wpd->lock_flags, wpd->defbase_tot);
     }
@@ -982,12 +982,12 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
     bool *tmpflags;
 
     tmpflags = wpd->lock_flags ? (bool *)MEM_dupallocN(wpd->lock_flags) :
-                                 (bool *)MEM_callocN(sizeof(bool) * defbase_tot, __func__);
+                                 MEM_calloc_arrayN<bool>(defbase_tot, __func__);
     tmpflags[wpd->active.index] = true;
     wpd->active.lock = tmpflags;
 
     tmpflags = wpd->lock_flags ? (bool *)MEM_dupallocN(wpd->lock_flags) :
-                                 (bool *)MEM_callocN(sizeof(bool) * defbase_tot, __func__);
+                                 MEM_calloc_arrayN<bool>(defbase_tot, __func__);
     tmpflags[(wpd->mirror.index != -1) ? wpd->mirror.index : wpd->active.index] = true;
     wpd->mirror.lock = tmpflags;
   }
@@ -1000,7 +1000,7 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
   /* Brush may have changed after initialization. */
   brush = BKE_paint_brush(&vp.paint);
   if (ELEM(brush->weight_brush_type, WPAINT_BRUSH_TYPE_SMEAR, WPAINT_BRUSH_TYPE_BLUR)) {
-    wpd->precomputed_weight = (float *)MEM_mallocN(sizeof(float) * mesh.verts_num, __func__);
+    wpd->precomputed_weight = MEM_malloc_arrayN<float>(mesh.verts_num, __func__);
   }
 
   if (!ob.sculpt->mode.wpaint.dvert_prev.is_empty()) {
@@ -1759,10 +1759,8 @@ static void wpaint_do_symmetrical_brush_actions(
     return;
   }
 
-  /* symm is a bit combination of XYZ - 1 is mirror
-   * X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
   for (i = 1; i <= symm; i++) {
-    if (symm & i && (symm != 5 || i != 3) && (symm != 6 || !ELEM(i, 3, 5))) {
+    if (is_symmetry_iteration_valid(i, symm)) {
       const ePaintSymmetryFlags symm = ePaintSymmetryFlags(i);
       cache.mirror_symmetry_pass = symm;
       cache.radial_symmetry_pass = 0;
@@ -1869,26 +1867,7 @@ static void wpaint_stroke_update_step(bContext *C,
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   swap_m4m4(wpd->vc.rv3d->persmat, mat);
 
-  rcti r;
-  if (SCULPT_get_redraw_rect(*vc->region, *CTX_wm_region_view3d(C), *ob, r)) {
-    if (ss.cache) {
-      ss.cache->current_r = r;
-    }
-
-    /* previous is not set in the current cache else
-     * the partial rect will always grow */
-    if (ss.cache) {
-      if (!BLI_rcti_is_empty(&ss.cache->previous_r)) {
-        BLI_rcti_union(&r, &ss.cache->previous_r);
-      }
-    }
-
-    r.xmin += vc->region->winrct.xmin - 2;
-    r.xmax += vc->region->winrct.xmin + 2;
-    r.ymin += vc->region->winrct.ymin - 2;
-    r.ymax += vc->region->winrct.ymin + 2;
-  }
-  ED_region_tag_redraw_partial(vc->region, &r, true);
+  ED_region_tag_redraw(vc->region);
 }
 
 static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/)
@@ -1999,7 +1978,7 @@ void PAINT_OT_weight_paint(wmOperatorType *ot)
       "Override Location",
       "Override the given `location` array by recalculating object space positions from the "
       "provided `mouse_event` positions");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */

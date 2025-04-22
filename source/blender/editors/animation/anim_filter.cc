@@ -243,7 +243,7 @@ static bool graphedit_get_context(bAnimContext *ac, SpaceGraph *sipo)
 {
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (sipo->ads == nullptr) {
-    sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
+    sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
     sipo->ads->source = reinterpret_cast<ID *>(ac->scene);
   }
   ac->ads = sipo->ads;
@@ -291,7 +291,7 @@ static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
 {
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (snla->ads == nullptr) {
-    snla->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "NlaEdit DopeSheet"));
+    snla->ads = MEM_callocN<bDopeSheet>("NlaEdit DopeSheet");
   }
   ac->ads = snla->ads;
 
@@ -618,8 +618,7 @@ static bAnimListElem *make_new_animlistelem(
   }
 
   /* Allocate and set generic data. */
-  bAnimListElem *ale = static_cast<bAnimListElem *>(
-      MEM_callocN(sizeof(bAnimListElem), "bAnimListElem"));
+  bAnimListElem *ale = MEM_callocN<bAnimListElem>("bAnimListElem");
 
   ale->data = data;
   ale->type = datatype;
@@ -1396,11 +1395,6 @@ static size_t animfilter_fcurves_span(bAnimContext *ac,
       continue;
     }
 
-    if (filter_mode & ANIMFILTER_TMP_PEEK) {
-      /* Found an animation channel, which is good enough for the 'TMP_PEEK' mode. */
-      return 1;
-    }
-
     bAnimListElem *ale = make_new_animlistelem(
         ac->bmain, fcu, ANIMTYPE_FCURVE, animated_id, fcurve_owner_id);
 
@@ -1409,6 +1403,12 @@ static size_t animfilter_fcurves_span(bAnimContext *ac,
     if (filter_by_name && !ale_name_matches_dopesheet_filter(*ac->ads, *ale)) {
       MEM_freeN(ale);
       continue;
+    }
+
+    if (filter_mode & ANIMFILTER_TMP_PEEK) {
+      /* Found an animation channel, which is good enough for the 'TMP_PEEK' mode. */
+      MEM_freeN(ale);
+      return 1;
     }
 
     /* bAnimListElem::slot_handle is exposed as int32_t and not as slot_handle_t, so better

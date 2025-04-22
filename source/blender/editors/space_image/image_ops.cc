@@ -339,7 +339,7 @@ bool space_image_main_region_poll(bContext *C)
   return false;
 }
 
-/* For IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or editmode */
+/** For #IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or edit-mode. */
 static bool space_image_main_area_not_uv_brush_poll(bContext *C)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
@@ -357,6 +357,8 @@ static bool space_image_main_area_not_uv_brush_poll(bContext *C)
 /** \name View Pan Operator
  * \{ */
 
+namespace {
+
 struct ViewPanData {
   float x, y;
   float xof, yof;
@@ -364,14 +366,15 @@ struct ViewPanData {
   bool own_cursor;
 };
 
+}  // namespace
+
 static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   ViewPanData *vpd;
 
-  op->customdata = vpd = static_cast<ViewPanData *>(
-      MEM_callocN(sizeof(ViewPanData), "ImageViewPanData"));
+  op->customdata = vpd = MEM_callocN<ViewPanData>("ImageViewPanData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = (win->grabcursor == 0);
@@ -402,7 +405,7 @@ static void image_view_pan_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
 static wmOperatorStatus image_view_pan_exec(bContext *C, wmOperator *op)
@@ -504,6 +507,8 @@ void IMAGE_OT_view_pan(wmOperatorType *ot)
 /** \name View Zoom Operator
  * \{ */
 
+namespace {
+
 struct ViewZoomData {
   float origx, origy;
   float zoom;
@@ -520,6 +525,8 @@ struct ViewZoomData {
   ARegion *region;
 };
 
+}  // namespace
+
 static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -527,8 +534,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   ARegion *region = CTX_wm_region(C);
   ViewZoomData *vpd;
 
-  op->customdata = vpd = static_cast<ViewZoomData *>(
-      MEM_callocN(sizeof(ViewZoomData), "ImageViewZoomData"));
+  op->customdata = vpd = MEM_callocN<ViewZoomData>("ImageViewZoomData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = (win->grabcursor == 0);
@@ -573,7 +579,7 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
 static wmOperatorStatus image_view_zoom_exec(bContext *C, wmOperator *op)
@@ -1909,7 +1915,7 @@ static ImageSaveData *image_save_as_init(bContext *C, wmOperator *op)
   ImageUser *iuser = image_user_from_context(C);
   Scene *scene = CTX_data_scene(C);
 
-  ImageSaveData *isd = static_cast<ImageSaveData *>(MEM_callocN(sizeof(*isd), __func__));
+  ImageSaveData *isd = MEM_callocN<ImageSaveData>(__func__);
   isd->image = image;
   isd->iuser = iuser;
 
@@ -1952,7 +1958,7 @@ static void image_save_as_free(wmOperator *op)
     ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
     BKE_image_save_options_free(&isd->opts);
 
-    MEM_freeN(op->customdata);
+    MEM_freeN(isd);
     op->customdata = nullptr;
   }
 }
@@ -2307,7 +2313,7 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
     ibuf = IMB_moviecacheIter_getImBuf(iter);
 
     if (ibuf != nullptr && ibuf->userflags & IB_BITMAPDIRTY) {
-      if (0 == IMB_saveiff(ibuf, ibuf->filepath, IB_byte_data)) {
+      if (0 == IMB_save_image(ibuf, ibuf->filepath, IB_byte_data)) {
         BKE_reportf(op->reports, RPT_ERROR, "Could not write image: %s", strerror(errno));
         break;
       }
@@ -2522,6 +2528,7 @@ static wmOperatorStatus image_reload_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_image_signal(bmain, ima, iuser, IMA_SIGNAL_RELOAD);
   DEG_id_tag_update(&ima->id, 0);
+  DEG_id_tag_update(&ima->id, ID_RECALC_EDITORS | ID_RECALC_SOURCE);
 
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 
@@ -2721,7 +2728,7 @@ static void image_new_cancel(bContext * /*C*/, wmOperator *op)
 void IMAGE_OT_new(wmOperatorType *ot)
 {
   PropertyRNA *prop;
-  static float default_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  static const float default_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
   /* identifiers */
   ot->name = "New Image";
@@ -4040,6 +4047,9 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
         return OPERATOR_FINISHED;
       }
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -4280,7 +4290,7 @@ static void tile_fill_init(PointerRNA *ptr, Image *ima, ImageTile *tile)
 static void def_fill_tile(StructOrFunctionRNA *srna)
 {
   PropertyRNA *prop;
-  static float default_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  static const float default_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
   prop = RNA_def_float_color(
       srna, "color", 4, nullptr, 0.0f, FLT_MAX, "Color", "Default fill color", 0.0f, 1.0f);
   RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);

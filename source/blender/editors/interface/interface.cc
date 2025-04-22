@@ -774,6 +774,10 @@ bool ui_but_rna_equals_ex(const uiBut *but,
 /* NOTE: if `but->poin` is allocated memory for every `uiDefBut*`, things fail. */
 static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
 {
+  if (but->type != oldbut->type) {
+    return false;
+  }
+
   if (but->identity_cmp_func) {
     /* If the buttons have their own identity comparator callbacks (and they match), use this to
      * determine equality. */
@@ -829,7 +833,7 @@ static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
     return false;
   }
 
-  if ((but->type == UI_BTYPE_VIEW_ITEM) && (oldbut->type == UI_BTYPE_VIEW_ITEM)) {
+  if (but->type == UI_BTYPE_VIEW_ITEM) {
     uiButViewItem *but_item = (uiButViewItem *)but;
     uiButViewItem *oldbut_item = (uiButViewItem *)oldbut;
     if (!but_item->view_item || !oldbut_item->view_item ||
@@ -1587,7 +1591,7 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
           opnames_len = 0; /* Do nothing. */
         }
         if (free) {
-          MEM_freeN((void *)item);
+          MEM_freeN(item);
         }
       }
 
@@ -1691,7 +1695,7 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
           continue;
         }
       }
-      else if (but->emboss != UI_EMBOSS_PULLDOWN) {
+      else if (but->emboss != blender::ui::EmbossType::Pulldown) {
         continue;
       }
 
@@ -3062,7 +3066,7 @@ void ui_but_string_get_ex(uiBut *but,
       else {
         BLI_strncpy(str, buf, str_maxncpy);
       }
-      MEM_freeN((void *)buf);
+      MEM_freeN(buf);
     }
   }
   else if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
@@ -3701,7 +3705,7 @@ void UI_block_free(const bContext *C, uiBlock *block)
   block->buttons.clear();
 
   if (block->unit) {
-    MEM_freeN((void *)block->unit);
+    MEM_freeN(block->unit);
   }
 
   if (block->func_argN) {
@@ -3819,7 +3823,7 @@ uiBlock *UI_block_begin(const bContext *C,
                         wmWindow *window,
                         ARegion *region,
                         std::string name,
-                        eUIEmbossType emboss)
+                        blender::ui::EmbossType emboss)
 {
   uiBlock *block = MEM_new<uiBlock>(__func__);
   block->active = true;
@@ -3866,7 +3870,10 @@ uiBlock *UI_block_begin(const bContext *C,
   return block;
 }
 
-uiBlock *UI_block_begin(const bContext *C, ARegion *region, std::string name, eUIEmbossType emboss)
+uiBlock *UI_block_begin(const bContext *C,
+                        ARegion *region,
+                        std::string name,
+                        blender::ui::EmbossType emboss)
 {
   return UI_block_begin(C, CTX_data_scene(C), CTX_wm_window(C), region, std::move(name), emboss);
 }
@@ -3880,12 +3887,12 @@ void ui_block_add_dynamic_listener(uiBlock *block,
   BLI_addtail(&block->dynamic_listeners, listener);
 }
 
-eUIEmbossType UI_block_emboss_get(uiBlock *block)
+blender::ui::EmbossType UI_block_emboss_get(uiBlock *block)
 {
   return block->emboss;
 }
 
-void UI_block_emboss_set(uiBlock *block, eUIEmbossType emboss)
+void UI_block_emboss_set(uiBlock *block, blender::ui::EmbossType emboss)
 {
   block->emboss = emboss;
 }
@@ -4105,6 +4112,7 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
           kmi_dummy.ctrl = (hotkey_but->modifier_key & KM_CTRL) ? KM_MOD_HELD : KM_NOTHING;
           kmi_dummy.alt = (hotkey_but->modifier_key & KM_ALT) ? KM_MOD_HELD : KM_NOTHING;
           kmi_dummy.oskey = (hotkey_but->modifier_key & KM_OSKEY) ? KM_MOD_HELD : KM_NOTHING;
+          kmi_dummy.hyper = (hotkey_but->modifier_key & KM_HYPER) ? KM_MOD_HELD : KM_NOTHING;
 
           but->drawstr = WM_keymap_item_to_string(&kmi_dummy, true).value_or("");
         }
@@ -4699,7 +4707,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   UI_block_layout_set_current(block, layout);
 
   if (free) {
-    MEM_freeN((void *)item_array);
+    MEM_freeN(item_array);
   }
 }
 
@@ -4841,7 +4849,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
     }
 
     if (free) {
-      MEM_freeN((void *)item);
+      MEM_freeN(item);
     }
   }
   else {
@@ -4916,7 +4924,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
   }
 
   if (type == UI_BTYPE_MENU) {
-    if (but->emboss == UI_EMBOSS_PULLDOWN) {
+    if (but->emboss == blender::ui::EmbossType::Pulldown) {
       ui_but_submenu_enable(block, but);
     }
   }
@@ -5127,7 +5135,7 @@ AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy)
   autocpl = MEM_callocN<AutoComplete>(__func__);
   autocpl->maxncpy = maxncpy;
   autocpl->matches = 0;
-  autocpl->truncate = static_cast<char *>(MEM_callocN(sizeof(char) * maxncpy, __func__));
+  autocpl->truncate = MEM_calloc_arrayN<char>(maxncpy, __func__);
   autocpl->startname = startname;
 
   return autocpl;
@@ -6575,7 +6583,7 @@ static void operator_enum_search_update_fn(
     }
 
     if (do_free) {
-      MEM_freeN((void *)all_items);
+      MEM_freeN(all_items);
     }
   }
 }

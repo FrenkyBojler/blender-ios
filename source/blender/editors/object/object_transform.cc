@@ -80,6 +80,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
 #include "object_intern.hh"
 
 namespace blender::ed::object {
@@ -869,7 +872,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       }
 
       /* adjust data */
-      BKE_mesh_transform(mesh, mat, true);
+      bke::mesh_transform(*mesh, float4x4(mat), true);
     }
     else if (ob->type == OB_ARMATURE) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
@@ -974,7 +977,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
        *    sacrifice for having an easy way to do this.
        */
 
-      if ((apply_loc == false) && (apply_rot == false) && (apply_scale == true)) {
+      if (apply_scale) {
         float max_scale = max_fff(fabsf(ob->scale[0]), fabsf(ob->scale[1]), fabsf(ob->scale[2]));
         ob->empty_drawsize *= max_scale;
       }
@@ -1451,7 +1454,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
         }
 
         negate_v3_v3(cent_neg, cent);
-        BKE_mesh_translate(mesh, cent_neg, true);
+        bke::mesh_translate(*mesh, cent_neg, true);
 
         tot_change++;
         mesh->id.tag |= ID_TAG_DOIT;
@@ -2320,6 +2323,25 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
   }
 
   if (is_finished) {
+    Scene *scene = CTX_data_scene(C);
+    /* Perform auto-keying for rotational changes for all objects. */
+    for (XFormAxisItem &item : xfd->object_data) {
+      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
+      const char *rotation_property = "rotation_euler";
+      switch (item.ob->rotmode) {
+        case ROT_MODE_QUAT:
+          rotation_property = "rotation_quaternion";
+          break;
+        case ROT_MODE_AXISANGLE:
+          rotation_property = "rotation_axis_angle";
+          break;
+        default:
+          break;
+      }
+      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+    }
+
     object_transform_axis_target_free_data(op);
     return OPERATOR_FINISHED;
   }

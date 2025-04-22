@@ -189,6 +189,15 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
                                       const bke::pbvh::MeshNode &node,
                                       Vector<float> &r_factors,
                                       Vector<float> &r_distances);
+void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
+                                      const Brush &brush,
+                                      const Object &object,
+                                      const MeshAttributeData &attribute_data,
+                                      Span<float3> vert_positions,
+                                      Span<float3> vert_normals,
+                                      const bke::pbvh::MeshNode &node,
+                                      MutableSpan<float> factors,
+                                      MutableSpan<float> distances);
 void calc_factors_common_grids(const Depsgraph &depsgraph,
                                const Brush &brush,
                                const Object &object,
@@ -314,17 +323,10 @@ void filter_distances_with_radius(float radius, Span<float> distances, MutableSp
  * Calculate distances based on a "square" brush tip falloff and ignore vertices that are too far
  * away.
  */
+template<typename T>
 void calc_brush_cube_distances(const Brush &brush,
-                               const float4x4 &mat,
-                               Span<float3> positions,
-                               Span<int> verts,
-                               MutableSpan<float> r_distances,
-                               MutableSpan<float> factors);
-void calc_brush_cube_distances(const Brush &brush,
-                               const float4x4 &mat,
-                               Span<float3> positions,
-                               MutableSpan<float> r_distances,
-                               MutableSpan<float> factors);
+                               const Span<T> positions,
+                               const MutableSpan<float> r_distances);
 
 /**
  * Scale the distances based on the brush radius and the cached "hardness" setting, which increases
@@ -454,6 +456,15 @@ GroupedSpan<int> calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                               BitSpan boundary_verts,
                                               Span<bool> hide_poly,
                                               Span<int> verts,
+                                              Vector<int> &r_offset_data,
+                                              Vector<int> &r_data);
+GroupedSpan<int> calc_vert_neighbors_interior(OffsetIndices<int> faces,
+                                              Span<int> corner_verts,
+                                              GroupedSpan<int> vert_to_face,
+                                              BitSpan boundary_verts,
+                                              Span<bool> hide_poly,
+                                              Span<int> verts,
+                                              Span<float> factors,
                                               Vector<int> &r_offset_data,
                                               Vector<int> &r_data);
 void calc_vert_neighbors_interior(OffsetIndices<int> faces,

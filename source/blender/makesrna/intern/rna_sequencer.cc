@@ -21,6 +21,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "RNA_types.hh"
 #include "UI_resources.hh"
 #include "rna_internal.hh"
 
@@ -606,6 +607,15 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
     blender::seq::transform_seqbase_shuffle_ex(seqbase, strip, scene, channel_delta);
   }
   blender::seq::relations_invalidate_cache_composite(scene, strip);
+}
+
+static bool rna_Strip_lock_get(PointerRNA *ptr)
+{
+  Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  Editing *ed = blender::seq::editing_get(scene);
+  ListBase *channels = blender::seq::get_channels_by_seq(ed, strip);
+  return blender::seq::transform_is_locked(channels, strip);
 }
 
 static void rna_Strip_use_proxy_set(PointerRNA *ptr, bool value)
@@ -1804,6 +1814,7 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "dirpath");
   RNA_def_property_ui_text(prop, "Directory", "Location to store the proxy files");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripProxy_update");
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
@@ -1813,7 +1824,7 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
                                 "rna_Strip_proxy_filepath_get",
                                 "rna_Strip_proxy_filepath_length",
                                 "rna_Strip_proxy_filepath_set");
-
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripProxy_update");
 
   prop = RNA_def_property(srna, "use_overwrite", PROP_BOOLEAN, PROP_NONE);
@@ -2144,6 +2155,7 @@ static void rna_def_strip(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_LOCK);
+  RNA_def_property_boolean_funcs(prop, "rna_Strip_lock_get", nullptr);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
   RNA_def_property_ui_text(prop, "Lock", "Lock strip so that it cannot be transformed");
@@ -2503,6 +2515,7 @@ static void rna_def_editor(BlenderRNA *brna)
   prop = RNA_def_property(srna, "proxy_dir", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "proxy_dir");
   RNA_def_property_ui_text(prop, "Proxy Directory", "");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
 
   /* cache flags */
@@ -2756,6 +2769,7 @@ static void rna_def_image(BlenderRNA *brna)
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "data->dirpath");
   RNA_def_property_ui_text(prop, "Directory", "");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "elements", PROP_COLLECTION, PROP_NONE);
@@ -2954,6 +2968,7 @@ static void rna_def_movie(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "File", "");
   RNA_def_property_string_funcs(
       prop, "rna_Strip_filepath_get", "rna_Strip_filepath_length", "rna_Strip_filepath_set");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_filepath_update");
 
   func = RNA_def_function(srna, "reload_if_needed", "rna_MovieStrip_reload_if_needed");
@@ -3076,7 +3091,7 @@ static void rna_def_sound(BlenderRNA *brna)
   RNA_def_property_float_funcs(prop, nullptr, nullptr, "rna_Strip_pan_range");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_audio_update");
 
-  prop = RNA_def_property(srna, "sound_offset", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "sound_offset", PROP_FLOAT, PROP_TIME_ABSOLUTE);
   RNA_def_property_float_sdna(prop, nullptr, "sound_offset");
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 3);

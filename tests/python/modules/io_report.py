@@ -28,6 +28,16 @@ def fmtf(f: float) -> str:
     return f"{f:.3f}"
 
 
+def fmtrot(f: float) -> str:
+    str = fmtf(f)
+    # rotation by -PI is the same as by +PI, due to platform
+    # precision differences we might get one or another. Make
+    # sure to emit consistent value.
+    if str == "-3.142":
+        str = "3.142"
+    return str
+
+
 def is_approx_identity(mat: Matrix, tol=0.001):
     identity = Matrix.Identity(4)
     return all(abs(mat[i][j] - identity[i][j]) <= tol for i in range(4) for j in range(4))
@@ -337,9 +347,13 @@ class Report:
             elif isinstance(v, int):
                 desc.write(f" int:{k}={v}")
             elif isinstance(v, float):
-                desc.write(f" fl:{k}={v:.3f}")
+                desc.write(f" fl:{k}={fmtf(v)}")
+            elif len(v) == 2:
+                desc.write(f" f2:{k}=({fmtf(v[0])}, {fmtf(v[1])})")
             elif len(v) == 3:
-                desc.write(f" f3:{k}=({v[0]:.3f}, {v[1]:.3f}, {v[2]:.3f})")
+                desc.write(f" f3:{k}=({fmtf(v[0])}, {fmtf(v[1])}, {fmtf(v[2])})")
+            elif len(v) == 4:
+                desc.write(f" f4:{k}=({fmtf(v[0])}, {fmtf(v[1])}, {fmtf(v[2])}, {fmtf(v[3])})")
             else:
                 desc.write(f" o:{k}={str(v)}")
         if had_any:
@@ -478,7 +492,7 @@ class Report:
                 desc.write(f"\n")
                 desc.write(f"  - pos {fmtf(obj.location[0])}, {fmtf(obj.location[1])}, {fmtf(obj.location[2])}\n")
                 desc.write(
-                    f"  - rot {fmtf(obj.rotation_euler[0])}, {fmtf(obj.rotation_euler[1])}, {fmtf(obj.rotation_euler[2])} ({obj.rotation_mode})\n")
+                    f"  - rot {fmtrot(obj.rotation_euler[0])}, {fmtrot(obj.rotation_euler[1])}, {fmtrot(obj.rotation_euler[2])} ({obj.rotation_mode})\n")
                 desc.write(f"  - scl {obj.scale[0]:.3f}, {obj.scale[1]:.3f}, {obj.scale[2]:.3f}\n")
                 if obj.vertex_groups:
                     desc.write(f"  - {len(obj.vertex_groups)} vertex groups\n")
@@ -641,6 +655,10 @@ class Report:
                         desc.write(f" parent:'{bone.parent.name}'")
                     desc.write(
                         f" h:({fmtf(bone.head[0])}, {fmtf(bone.head[1])}, {fmtf(bone.head[2])}) t:({fmtf(bone.tail[0])}, {fmtf(bone.tail[1])}, {fmtf(bone.tail[2])})")
+                    if bone.use_connect:
+                        desc.write(f" connect")
+                    if not bone.use_deform:
+                        desc.write(f" no-deform")
                     if bone.inherit_scale != 'FULL':
                         desc.write(f" inh_scale:{bone.inherit_scale}")
                     if bone.head_radius > 0.0 or bone.tail_radius > 0.0:
