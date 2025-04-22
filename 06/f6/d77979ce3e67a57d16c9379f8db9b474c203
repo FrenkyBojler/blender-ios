@@ -1,3 +1,4 @@
 Referenced by pull request #135639, Fix #135175: Bounds overlay doesn't include all evaluated geometry
 Referenced by commit 99fa22a01f2192f5ec3249bb3b06ce2c0913ed98, Fix #135175: Bounds overlay doesn't include all evaluated geometry
 Referenced by issue #137794, Incorrect curve dimensions
+Referenced by pull request #137852, Fix #137794: Ignore curve radius for legacy curve object bounds
