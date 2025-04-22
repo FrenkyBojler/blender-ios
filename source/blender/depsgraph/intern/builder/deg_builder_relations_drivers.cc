@@ -240,17 +240,27 @@ void DepsgraphRelationBuilder::build_driver_relations(IDNode *id_node)
   }
 }
 
-bool driver_may_evaluate_in_parallel(const ID &animated_id, const FCurve &driver_fcurve)
+/**
+ * Returns whether the data at the given path may be implicitly shared (also see
+ * #ImplicitSharingInfo). If it is shared, writing to it through RNA will make a local copy that
+ * can be edited without affecting the other users.
+ *
+ * If multi-threaded writing to the path is required, one should trigger making the mutable copy
+ * before multi-threaded writing starts. Otherwise there is a race condition where each thread
+ * tries to make its own copy. The "unsharing" can be triggered by doing a dummy-write to it.
+ */
+bool data_path_maybe_shared(const ID &id, const StringRef data_path)
 {
-  /* Allow threaded writes to pose bones. */
-  if (GS(animated_id.name) == ID_OB) {
-    const Object &ob = *reinterpret_cast<const Object *>(&animated_id);
-    const bool threaded_ok = ob.type == OB_ARMATURE &&
-                             StringRef(driver_fcurve.rna_path).startswith("pose.bones[");
-    return threaded_ok;
+  /* As it is hard to generally detect implicit sharing, this is implemented as
+   * a 'known to not share' list. */
+
+  if (GS(id.name) == ID_OB) {
+    const Object &ob = *reinterpret_cast<const Object *>(&id);
+    const bool is_thread_safe = (ob.type == OB_ARMATURE && data_path.startswith("pose.bones["));
+    return !is_thread_safe;
   }
 
-  return false;
+  return true;
 }
 
 }  // namespace blender::deg

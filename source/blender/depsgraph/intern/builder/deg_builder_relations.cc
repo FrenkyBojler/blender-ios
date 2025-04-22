@@ -1771,9 +1771,7 @@ void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
       add_relation(adt_key, driver_key, "AnimData Before Drivers", RELATION_CHECK_BEFORE_ADD);
     }
 
-    /* Prevent writes to implicitly-shared data, as that would un-share that
-     * data, which is is not a thread-safe operation. */
-    if (!driver_may_evaluate_in_parallel(*id, *fcu)) {
+    if (data_path_maybe_shared(*id, fcu->rna_path)) {
       add_relation(driver_unshare_key,
                    driver_key,
                    "Un-share shared data before drivers",

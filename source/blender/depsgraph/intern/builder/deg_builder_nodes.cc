@@ -1311,23 +1311,24 @@ void DepsgraphNodeBuilder::build_action(bAction *action)
 
 void DepsgraphNodeBuilder::build_animdata_drivers(ID *id, AnimData *adt)
 {
-  bool all_can_multithread = true;
+  bool needs_unshare = false;
 
   /* Drivers. */
   int driver_index;
   LISTBASE_FOREACH_INDEX (FCurve *, fcu, &adt->drivers, driver_index) {
     build_driver(id, fcu, driver_index);
-    all_can_multithread &= driver_may_evaluate_in_parallel(*id, *fcu);
+    needs_unshare |= data_path_maybe_shared(*id, fcu->rna_path);
   }
 
-  if (!all_can_multithread) {
-    /* If not everything can be multi-threaded, an UNSHARE node is needed. */
-    ID *id_cow = get_cow_id(id);
-    ensure_operation_node(
-        id, NodeType::PARAMETERS, OperationCode::DRIVER_UNSHARE, [id_cow](::Depsgraph *depsgraph) {
-          BKE_animsys_eval_driver_unshare(depsgraph, id_cow);
-        });
+  if (!needs_unshare) {
+    return;
   }
+
+  ID *id_cow = get_cow_id(id);
+  ensure_operation_node(
+      id, NodeType::PARAMETERS, OperationCode::DRIVER_UNSHARE, [id_cow](::Depsgraph *depsgraph) {
+        BKE_animsys_eval_driver_unshare(depsgraph, id_cow);
+      });
 }
 
 void DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcurve, int driver_index)

@@ -4188,10 +4188,12 @@ void BKE_animsys_update_driver_array(ID *id)
   }
 }
 
-void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id)
+void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id_eval)
 {
-  AnimData *adt = BKE_animdata_from_id(id);
-  PointerRNA id_ptr = RNA_id_pointer_create(id);
+  BLI_assert(DEG_is_evaluated_id(id_eval));
+
+  AnimData *adt = BKE_animdata_from_id(id_eval);
+  PointerRNA id_ptr = RNA_id_pointer_create(id_eval);
   const bool is_active_depsgraph = DEG_is_active(depsgraph);
 
   LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
