@@ -40,6 +40,7 @@ set(SRC
   nodes/node_geo_curve_endpoint_selection.cc
   nodes/node_geo_curve_fill.cc
   nodes/node_geo_curve_fillet.cc
+  nodes/node_geo_curve_find_corner_selection.cc
   nodes/node_geo_curve_handle_type_selection.cc
   nodes/node_geo_curve_length.cc
   nodes/node_geo_curve_primitive_arc.cc

@@ -6,6 +6,7 @@ set(INC
   PUBLIC .
   ../makesrna
   ../../../intern/eigen
+  ../../../extern/curve_fit_nd
 )
 
 set(INC_SYS
@@ -14,6 +15,7 @@ set(INC_SYS
 set(SRC
   intern/add_curves_on_mesh.cc
   intern/curve_constraints.cc
+  intern/curves_detect_corners.cc
   intern/curves_remove_and_split.cc
   intern/extend_curves.cc
   intern/extract_elements.cc
@@ -56,6 +58,7 @@ set(SRC
 
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
+  GEO_curves_detect_corners.hh
   GEO_curves_remove_and_split.hh
   GEO_extend_curves.hh
   GEO_extract_elements.hh
@@ -107,6 +110,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::curve_fit_nd
 )
 
 if(WITH_UV_SLIM)

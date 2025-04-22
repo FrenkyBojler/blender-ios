@@ -73,6 +73,7 @@ class NODE_MT_geometry_node_GEO_CURVE_READ(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeInputCurveTilt")
         node_add_menu.add_node_type(layout, "GeometryNodeCurveEndpointSelection")
         node_add_menu.add_node_type(layout, "GeometryNodeCurveHandleTypeSelection")
+        node_add_menu.add_node_type(layout, "GeometryNodeCurveFindCornerSelection")
         node_add_menu.add_node_type(layout, "GeometryNodeInputSplineCyclic")
         node_add_menu.add_node_type(layout, "GeometryNodeSplineLength")
         node_add_menu.add_node_type(layout, "GeometryNodeSplineParameter")
