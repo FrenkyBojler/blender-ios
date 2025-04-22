@@ -4152,27 +4152,24 @@ static void widget_pulldownbut(uiWidgetColors *wcol,
   float back[4];
   UI_GetThemeColor4fv(TH_BACK, back);
 
-  if ((state->but_flag & UI_HOVER) || (back[3] < 1.0f)) {
-    uiWidgetBase wtb;
-    const float rad = widget_radius_from_zoom(zoom, wcol);
+  uiWidgetBase wtb;
+  const float rad = widget_radius_from_zoom(zoom, wcol);
 
-    if (state->but_flag & UI_HOVER) {
-      copy_v4_v4_uchar(wcol->inner, wcol->inner_sel);
-      copy_v3_v3_uchar(wcol->text, wcol->text_sel);
-    }
-    else {
-      const float alpha_factor = 1.0f - back[3];
-      wcol->inner[3] *= alpha_factor;
-      wcol->outline[3] *= alpha_factor;
-    }
-
-    widget_init(&wtb);
-
-    /* half rounded */
-    round_box_edges(&wtb, roundboxalign, rect, rad);
-
-    widgetbase_draw(&wtb, wcol);
+  if (state->but_flag & UI_HOVER) {
+    copy_v4_v4_uchar(wcol->inner, wcol->inner_sel);
+    copy_v3_v3_uchar(wcol->text, wcol->text_sel);
   }
+  else {
+    const float alpha_factor = 1.0f - back[3];
+    wcol->inner[3] *= alpha_factor;
+  }
+
+  widget_init(&wtb);
+
+  /* half rounded */
+  round_box_edges(&wtb, roundboxalign, rect, rad);
+
+  widgetbase_draw(&wtb, wcol);
 }
 
 static void widget_menu_itembut(uiWidgetColors *wcol,
