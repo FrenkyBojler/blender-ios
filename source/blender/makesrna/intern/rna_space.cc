@@ -384,14 +384,26 @@ static const EnumPropertyItem display_channels_items[] = {
 };
 
 const EnumPropertyItem rna_enum_shading_type_items[] = {
-    {OB_WIRE, "WIREFRAME", ICON_SHADING_WIRE, "Wireframe", "Display only edges of geometry without surface shading"},
-    {OB_SOLID, "SOLID", ICON_SHADING_SOLID, "Solid", "Display objects with flat lighting and basic surface shading"},
+    {OB_WIRE,
+     "WIREFRAME",
+     ICON_SHADING_WIRE,
+     "Wireframe",
+     "Display only edges of geometry without surface shading"},
+    {OB_SOLID,
+     "SOLID",
+     ICON_SHADING_SOLID,
+     "Solid",
+     "Display objects with flat lighting and basic surface shading"},
     {OB_MATERIAL,
      "MATERIAL",
      ICON_SHADING_TEXTURE,
      "Material Preview",
      "Preview materials using predefined environment lights"},
-    {OB_RENDER, "RENDERED", ICON_SHADING_RENDERED, "Rendered", "Preview the final scene using the active render engine"},
+    {OB_RENDER,
+     "RENDERED",
+     ICON_SHADING_RENDERED,
+     "Rendered",
+     "Preview the final scene using the active render engine"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
