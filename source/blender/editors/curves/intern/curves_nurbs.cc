@@ -69,8 +69,9 @@ IndexRange calc_knot_insertion_weights(const Span<float> knots,
 {
   BLI_assert(repeat > 0);
   BLI_assert(mult + repeat < order);
-  const int altered_point_num = order - mult + repeat - 2;
-  const IndexRange points_to_replace = IndexRange::from_begin_size(knot_span - order + 2,
+  const int degree = order - 1;
+  const int altered_point_num = degree - mult + repeat - 1;
+  const IndexRange points_to_replace = IndexRange::from_begin_size(knot_span - degree + 1,
                                                                    altered_point_num - repeat);
 
   Array<float> point_weights_buffer(order * order, 0.0f);
@@ -80,7 +81,7 @@ IndexRange calc_knot_insertion_weights(const Span<float> knots,
   }
 
   for (const int r : IndexRange::from_begin_size(1, repeat)) {
-    const int leg = knot_span - order + 1 + r;
+    const int leg = knot_span - degree + r;
     for (const int i : IndexRange(order - r - mult)) {
       const float alpha = (knot - knots[leg + i]) / (knots[i + knot_span + 1] - knots[leg + i]);
       const MutableSpan<float> q_i_weights = point_weights.slice(i * order, order);
@@ -91,10 +92,10 @@ IndexRange calc_knot_insertion_weights(const Span<float> knots,
     }
     insertion_weights.slice((r - 1) * order, order).copy_from(point_weights.slice(0, order));
     insertion_weights.slice((altered_point_num - r) * order, order)
-        .copy_from(point_weights.slice((order - 1 - r - mult) * order, order));
+        .copy_from(point_weights.slice((degree - r - mult) * order, order));
   }
 
-  for (const int i : IndexRange::from_begin_size(1, std::max(order - mult - repeat - 2, 0))) {
+  for (const int i : IndexRange::from_begin_size(1, std::max(degree - mult - repeat - 1, 0))) {
     insertion_weights.slice(i * order, order).copy_from(point_weights.slice(i * order, order));
   }
 
