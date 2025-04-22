@@ -375,10 +375,7 @@ static wmOperatorStatus reset_default_button_exec(bContext *C, wmOperator *op)
 
       /* Apply auto keyframe when proprety is successfully reset. */
       Scene *scene = CTX_data_scene(C);
-      const bool use_autokeyframe = blender::animrig::is_autokey_on(scene);
-      if (use_autokeyframe) {
-        blender::animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
-      }
+      blender::animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
 
       return operator_button_property_finish_with_undo(C, &ptr, prop);
     }
