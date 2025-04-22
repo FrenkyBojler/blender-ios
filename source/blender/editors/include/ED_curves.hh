@@ -482,7 +482,10 @@ Array<float> make_weights_for_knot_span(int order,
 bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
                                 int curve,
                                 float knot,
-                                int repeat);
+                                int knot_span,
+                                int knot_multiplicity,
+                                int repeat,
+                                Span<float> knots);
 }  // namespace nurbs
 
 /** \} */

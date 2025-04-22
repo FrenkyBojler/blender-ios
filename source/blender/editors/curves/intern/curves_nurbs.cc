@@ -67,6 +67,7 @@ IndexRange calc_knot_insertion_weights(const Span<float> knots,
                                        const int repeat,
                                        MutableSpan<float> insertion_weights)
 {
+  BLI_assert(repeat > 0);
   BLI_assert(mult + repeat < order);
   const int altered_point_num = order - mult + repeat - 2;
   const IndexRange points_to_replace = IndexRange::from_begin_size(knot_span - order + 2,
@@ -118,29 +119,15 @@ Array<float> make_weights_for_knot_span(const int order,
 bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
                                 const int curve,
                                 const float knot,
-                                const int repeat)
+                                const int knot_span,
+                                const int knot_multiplicity,
+                                const int repeat,
+                                const Span<float> knots)
 {
   const IndexRange curve_points = curves.points_by_curve()[curve];
-  const bool cyclic = curves.cyclic()[curve];
   const int8_t order = curves.nurbs_orders()[curve];
-  const int knots_num = bke::curves::nurbs::knots_num(curve_points.size(), order, cyclic);
-
-  Array<float> knots_buffer;
-  knots_buffer.reinitialize(knots_num);
-  bke::curves::nurbs::load_curve_knots(KnotsMode(curves.nurbs_knots_modes()[curve]),
-                                       curve_points.size(),
-                                       order,
-                                       cyclic,
-                                       curves.nurbs_custom_knots_by_curve()[curve],
-                                       curves.nurbs_custom_knots(),
-                                       knots_buffer);
-
-  const Span<float> knots = knots_buffer.as_span();
-
-  int knot_span;
-  int knot_multiplicity;
-  find_span_mult(knot, knots, order, knot_span, knot_multiplicity);
-
+  BLI_assert(repeat > 0);
+  BLI_assert(knot_multiplicity + repeat < order);
   BLI_assert(order - 1 <= knot_span && knot_span < curve_points.size() + order - 1);
 
   /* Create new curves object and update point offsets. */
