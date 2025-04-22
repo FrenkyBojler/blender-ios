@@ -1,2 +1,3 @@
 Referenced by commit f60f2b769b1, Unbreak building with Python 3.12
 Referenced by commit 6960d05df8aaa84f92f5ca476802c487058f7384, Fix: exception showing touch-pad preferences
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
