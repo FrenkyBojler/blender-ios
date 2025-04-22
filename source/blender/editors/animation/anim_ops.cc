@@ -211,7 +211,7 @@ static float get_keyframe_snap_target(bContext *C,
   return closest_column->cfra;
 }
 
-static int get_marker_snap_target(Scene *scene, const float frame)
+static float get_marker_snap_target(Scene *scene, const float frame)
 {
   if (BLI_listbase_is_empty(&scene->markers)) {
     /* This check needs to be here because `ED_markers_find_nearest_marker_time` returns the
