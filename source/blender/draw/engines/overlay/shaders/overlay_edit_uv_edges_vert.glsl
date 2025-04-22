@@ -111,7 +111,7 @@ void geometry_main(VertOut geom_in[2],
   float half_size = sizeEdge;
   /* Enlarge edge for outline drawing. */
   /* Factor of 3.0 out of nowhere! Seems to fix issues with float imprecision. */
-  half_size += (lineStyle == OVERLAY_UV_LINE_STYLE_OUTLINE) ?
+  half_size += (OVERLAY_UVLineStyle(lineStyle) == OVERLAY_UV_LINE_STYLE_OUTLINE) ?
                    max(sizeEdge * (doSmoothWire ? 1.0f : 3.0f), 1.0f) :
                    0.0f;
   /* Add 1 PX for AA. */
@@ -156,16 +156,16 @@ void geometry_main(VertOut geom_in[2],
 void main()
 {
   /* Line list primitive. */
-  const uint input_primitive_vertex_count = 2u;
+  constexpr uint input_primitive_vertex_count = 2u;
   /* Triangle list primitive. */
-  const uint ouput_primitive_vertex_count = 3u;
-  const uint ouput_primitive_count = 2u;
-  const uint ouput_invocation_count = 1u;
+  constexpr uint ouput_primitive_vertex_count = 3u;
+  constexpr uint ouput_primitive_count = 2u;
+  constexpr uint ouput_invocation_count = 1u;
 
-  const uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                  ouput_primitive_vertex_count;
-  const uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                       ouput_invocation_count;
+  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
+                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
+                                                           ouput_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;

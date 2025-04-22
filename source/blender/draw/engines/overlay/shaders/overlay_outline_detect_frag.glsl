@@ -166,7 +166,7 @@ void diag_dir(bool4 edges1, bool4 edges2, out float2 line_start, out float2 line
 
 void main()
 {
-  uint ref = textureLod(outlineId, uvcoordsvar.xy, 0.0f).r;
+  uint ref = textureLod(outlineId, screen_uv, 0.0f).r;
   uint ref_col = ref;
 
   float2 uvs = gl_FragCoord.xy * sizeViewportInv;
@@ -249,7 +249,7 @@ void main()
   float scene_depth = textureLod(sceneDepth, depth_uv, 0.0f).r;
 
   /* Avoid bad cases of Z-fighting for occlusion only. */
-  const float epsilon = 3.0f / 8388608.0f;
+  constexpr float epsilon = 3.0f / 8388608.0f;
   bool occluded = (ref_depth > scene_depth + epsilon);
 
   /* NOTE: We never set alpha to 1.0 to avoid Anti-aliasing destroying the line. */

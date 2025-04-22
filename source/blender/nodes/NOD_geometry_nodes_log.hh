@@ -160,6 +160,7 @@ class GeometryInfoLog : public ValueLog {
   };
   struct GreasePencilInfo {
     int layers_num;
+    Vector<std::string> layer_names;
   };
   struct InstancesInfo {
     int instances_num;
@@ -208,9 +209,19 @@ class ClosureValueLog : public ValueLog {
     const bke::bNodeSocketType *type;
   };
 
+  /**
+   * Similar to #ClosureSourceLocation but does not keep pointer references to potentially
+   * temporary data.
+   */
+  struct Source {
+    uint32_t orig_node_tree_session_uid;
+    int closure_output_node_id;
+    ComputeContextHash compute_context_hash;
+  };
+
   Vector<Item> inputs;
   Vector<Item> outputs;
-  std::optional<ClosureSourceLocation> source_location;
+  std::optional<Source> source;
   std::shared_ptr<ClosureEvalLog> eval_log;
 
   ClosureValueLog(Vector<Item> inputs,
@@ -346,6 +357,7 @@ class GeoTreeLog {
   bool reduced_used_named_attributes_ = false;
   bool reduced_debug_messages_ = false;
   bool reduced_evaluated_gizmo_nodes_ = false;
+  bool reduced_layer_names_ = false;
 
  public:
   Map<int32_t, GeoNodeLog> nodes;
@@ -355,6 +367,7 @@ class GeoTreeLog {
   Vector<const GeometryAttributeInfo *> existing_attributes;
   Map<StringRefNull, NamedAttributeUsage> used_named_attributes;
   Set<int> evaluated_gizmo_nodes;
+  Vector<std::string> all_layer_names;
 
   GeoTreeLog(GeoModifierLog *modifier_log, Vector<GeoTreeLogger *> tree_loggers);
   ~GeoTreeLog();
@@ -375,6 +388,7 @@ class GeoTreeLog {
   void ensure_used_named_attributes();
   void ensure_debug_messages();
   void ensure_evaluated_gizmo_nodes();
+  void ensure_layer_names();
 
   ValueLog *find_socket_value_log(const bNodeSocket &query_socket);
   [[nodiscard]] bool try_convert_primitive_socket_value(const GenericValueLog &value_log,
@@ -459,11 +473,8 @@ class GeoModifierLog {
    * Utility accessor to logged data.
    */
   static Map<const bke::bNodeTreeZone *, ComputeContextHash>
-  get_context_hash_by_zone_for_node_editor(const SpaceNode &snode, const NodesModifierData &nmd);
-  static Map<const bke::bNodeTreeZone *, ComputeContextHash>
   get_context_hash_by_zone_for_node_editor(const SpaceNode &snode,
-                                           bke::ComputeContextCache &compute_context_cache,
-                                           const ComputeContext *parent_compute_context);
+                                           bke::ComputeContextCache &compute_context_cache);
 
   static ContextualGeoTreeLogs get_contextual_tree_logs(const SpaceNode &snode);
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
