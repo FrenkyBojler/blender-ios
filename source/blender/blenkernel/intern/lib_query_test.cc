@@ -7,6 +7,7 @@
 
 #include "GHOST_Path-api.hh"
 
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -23,6 +24,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.h"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
@@ -50,6 +52,7 @@ class TestData {
       this->C = CTX_create();
       CTX_data_main_set(this->C, bmain);
     }
+    BKE_materials_init();
   }
 
   virtual void teardown()
@@ -64,6 +67,7 @@ class TestData {
       BKE_main_free(this->bmain);
       this->bmain = nullptr;
     }
+    BKE_materials_exit();
   }
 };
 
@@ -73,6 +77,7 @@ class WholeIDTestData : public TestData {
   Object *object = nullptr;
   Object *target = nullptr;
   Mesh *mesh = nullptr;
+  Material *material = nullptr;
 
   void setup() override
   {
@@ -94,18 +99,21 @@ class WholeIDTestData : public TestData {
 
 class IDSubDataTestData : public WholeIDTestData {
  public:
-  bNodeTree *compositor_nodetree = nullptr;
   bNode *node = nullptr;
 
   void setup() override
   {
     WholeIDTestData::setup();
 
-    /* Add a default Compositor nodetree to the scene, and an ID pointer custom property to one of
+    /* Add a material that contains an embedded nodetree and assign a custom property to one of
      * its nodes. */
-    ED_node_composit_default(C, scene);
-    this->compositor_nodetree = scene->nodetree;
-    this->node = static_cast<bNode *>(compositor_nodetree->nodes.first);
+    this->material = BKE_material_add(this->bmain, "Material");
+    ED_node_shader_default(C, &this->material->id);
+
+    BKE_object_material_assign(
+        this->bmain, this->object, this->material, this->object->actcol, BKE_MAT_ASSIGN_OBJECT);
+
+    this->node = static_cast<bNode *>(this->material->nodetree->nodes.first);
 
     this->node->prop = bke::idprop::create_group("Node Custom Properties").release();
     IDP_AddToGroup(this->node->prop,
@@ -272,6 +280,7 @@ TEST(lib_query, libquery_subdata)
   EXPECT_NE(context.test_data.object, nullptr);
   EXPECT_NE(context.test_data.target, nullptr);
   EXPECT_NE(context.test_data.mesh, nullptr);
+  EXPECT_NE(context.test_data.material, nullptr);
 
   /* Reset all ID user-count to 0. */
   ID *id_iter;
@@ -280,7 +289,7 @@ TEST(lib_query, libquery_subdata)
   }
   FOREACH_MAIN_ID_END;
 
-  /* Set an invalid user-count value to all IDs used by one of the scene's compositor nodes. */
+  /* Set an invalid user-count value to all IDs used by one of the material's nodes. */
   auto set_count = [](LibraryIDLinkCallbackData *cb_data) -> int {
     if (*(cb_data->id_pointer)) {
       (*(cb_data->id_pointer))->us = 42;
@@ -292,8 +301,8 @@ TEST(lib_query, libquery_subdata)
   };
 
   BKE_library_foreach_subdata_id(context.test_data.bmain,
-                                 &context.test_data.scene->id,
-                                 &context.test_data.scene->nodetree->id,
+                                 &context.test_data.material->id,
+                                 &context.test_data.material->nodetree->id,
                                  node_foreach_id,
                                  set_count,
                                  nullptr,
@@ -301,7 +310,7 @@ TEST(lib_query, libquery_subdata)
 
   EXPECT_EQ(context.test_data.scene->id.us, 0);
   EXPECT_EQ(context.test_data.object->id.us, 0);
-  /* The scene's compositor input node IDProperty uses the target object. */
+  /* The material's nodetre input node IDProperty uses the target object. */
   EXPECT_EQ(context.test_data.target->id.us, 42);
   EXPECT_EQ(context.test_data.mesh->id.us, 0);
 }
