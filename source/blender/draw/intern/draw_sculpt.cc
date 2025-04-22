@@ -21,6 +21,8 @@
 
 #include "BLI_math_matrix.hh"
 
+#include "bmesh_class.hh"
+
 #include "DRW_pbvh.hh"
 #include "DRW_render.hh"
 
@@ -123,6 +125,26 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   return result_batches;
 }
 
+static bool bmesh_color_attribute_exists(const BMesh &bm, const bke::AttributeMetaData &meta_data, const char *name)
+{
+  const CustomData *cdata = nullptr;
+  switch (meta_data.domain) {
+    case bke::AttrDomain::Point:
+      cdata = &bm.vdata;
+      break;
+    case bke::AttrDomain::Corner:
+      cdata = &bm.ldata;
+      break;
+    case bke::AttrDomain::Face:
+      cdata = &bm.pdata;
+      break;
+    default:
+      break;
+  }
+
+  return cdata && CustomData_get_offset_named(cdata, meta_data.data_type, name) != -1;
+}
+
 Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature features)
 {
   Vector<pbvh::AttributeRequest, 16> attrs;
@@ -138,19 +160,28 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
 
   const Mesh *mesh = BKE_object_get_original_mesh(ob);
   const bke::AttributeAccessor attributes = mesh->attributes();
+  const SculptSession &ss = *ob->sculpt;
 
+  /* If Dyntopo is enabled, the source of truth for an attribute existing or not is the BMesh, not the Mesh. */
   if (features & SCULPT_BATCH_VERTEX_COLOR) {
     if (const char *name = mesh->active_color_attribute) {
       if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
-              name))
-      {
-        attrs.append(pbvh::GenericRequest{name, meta_data->data_type, meta_data->domain});
+              name)) {
+        if (ss.bm) {
+          if (bmesh_color_attribute_exists(*ss.bm, *meta_data, name)) {
+            attrs.append(pbvh::GenericRequest{name, meta_data->data_type, meta_data->domain});
+          }
+        }
+        else {
+          attrs.append(pbvh::GenericRequest{name, meta_data->data_type, meta_data->domain});
+        }
       }
     }
   }
 
   if (features & SCULPT_BATCH_UV) {
-    if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+    const CustomData *corner_data = ss.bm ? &ss.bm->ldata : &mesh->corner_data;
+    if (const char *name = CustomData_get_active_layer_name(corner_data, CD_PROP_FLOAT2)) {
       attrs.append(pbvh::GenericRequest{name, CD_PROP_FLOAT2, bke::AttrDomain::Corner});
     }
   }
