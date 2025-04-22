@@ -1245,9 +1245,9 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
 
   const int w = ui_text_icon_width(layout, *name, icon, false);
 
-  const blender::ui::EmbossType prev_emboss = layout->emboss;
+  const blender::ui::EmbossType prev_emboss = layout->emboss_;
   if (flag & UI_ITEM_R_NO_BG) {
-    layout->emboss = blender::ui::EmbossType::NoneOrStatus;
+    layout->emboss_ = blender::ui::EmbossType::NoneOrStatus;
   }
 
   /* create the button */
@@ -1269,7 +1269,7 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
   BLI_assert(but->optype != nullptr);
 
   if (flag & UI_ITEM_R_NO_BG) {
-    layout->emboss = prev_emboss;
+    layout->emboss_ = prev_emboss;
   }
 
   if (flag & UI_ITEM_O_DEPRESS) {
@@ -2220,9 +2220,9 @@ void uiItemFullR(uiLayout *layout,
   int w, h;
   ui_item_rna_size(layout, name, icon, ptr, prop, index, icon_only, compact, &w, &h);
 
-  const blender::ui::EmbossType prev_emboss = layout->emboss;
+  const blender::ui::EmbossType prev_emboss = layout->emboss_;
   if (no_bg) {
-    layout->emboss = blender::ui::EmbossType::NoneOrStatus;
+    layout->emboss_ = blender::ui::EmbossType::NoneOrStatus;
   }
 
   uiBut *but = nullptr;
@@ -2496,7 +2496,7 @@ void uiItemFullR(uiLayout *layout,
     const bool use_blank_decorator = (flag & UI_ITEM_R_FORCE_BLANK_DECORATE);
     uiLayout *layout_col = uiLayoutColumn(ui_decorate.layout, false);
     layout_col->space = 0;
-    layout_col->emboss = blender::ui::EmbossType::None;
+    layout_col->emboss_ = blender::ui::EmbossType::None;
 
     int i;
     for (i = 0; i < ui_decorate.len && but_decorate; i++) {
@@ -2525,7 +2525,7 @@ void uiItemFullR(uiLayout *layout,
 #endif /* UI_PROP_DECORATE */
 
   if (no_bg) {
-    layout->emboss = prev_emboss;
+    layout->emboss_ = prev_emboss;
   }
 
   /* ensure text isn't added to icon_only buttons */
@@ -3110,7 +3110,7 @@ void uiItemDecoratorR_prop(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop,
   UI_block_layout_set_current(block, layout);
   uiLayout *col = uiLayoutColumn(layout, false);
   col->space = 0;
-  col->emboss = blender::ui::EmbossType::None;
+  col->emboss_ = blender::ui::EmbossType::None;
 
   if (ELEM(nullptr, ptr, prop) || !RNA_property_animateable(ptr, prop)) {
     uiBut *but = uiDefIconBut(block,
@@ -4108,7 +4108,7 @@ static void ui_litem_layout_radial(uiLayout *litem)
       if (ui_item_is_radial_drawable(bitem)) {
         bitem->but->emboss = blender::ui::EmbossType::PieMenu;
         bitem->but->drawflag |= UI_BUT_ICON_LEFT;
-      }
+      } 
 
       if (ELEM(bitem->but->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE)) {
         use_dir = false;
@@ -4935,7 +4935,7 @@ static void ui_litem_init_from_parent(uiLayout *litem, uiLayout *layout, int ali
   litem->context = layout->context;
   litem->redalert = layout->redalert;
   litem->w = layout->w;
-  litem->emboss = layout->emboss;
+  litem->emboss_ = layout->emboss_;
   litem->flag = (layout->flag & (uiItemInternalFlag::PropSep | uiItemInternalFlag::PropDecorate |
                                  uiItemInternalFlag::InsidePropSep));
 
@@ -5316,17 +5316,17 @@ void uiLayoutSetScaleY(uiLayout *layout, float scale)
 
 void uiLayoutSetUnitsX(uiLayout *layout, float unit)
 {
-  layout->units[0] = unit;
+  layout->units_[0] = unit;
 }
 
 void uiLayoutSetUnitsY(uiLayout *layout, float unit)
 {
-  layout->units[1] = unit;
+  layout->units_[1] = unit;
 }
 
 void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss)
 {
-  layout->emboss = emboss;
+  layout->emboss_ = emboss;
 }
 
 bool uiLayoutGetPropSep(uiLayout *layout)
@@ -5351,12 +5351,12 @@ void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep)
 
 void uiLayoutSetSearchWeight(uiLayout *layout, const float weight)
 {
-  layout->search_weight = weight;
+  layout->search_weight_ = weight;
 }
 
 float uiLayoutGetSearchWeight(uiLayout *layout)
 {
-  return layout->search_weight;
+  return layout->search_weight_;
 }
 
 Panel *uiLayoutGetRootPanel(uiLayout *layout)
@@ -5416,20 +5416,20 @@ float uiLayoutGetScaleY(uiLayout *layout)
 
 float uiLayoutGetUnitsX(uiLayout *layout)
 {
-  return layout->units[0];
+  return layout->units_[0];
 }
 
 float uiLayoutGetUnitsY(uiLayout *layout)
 {
-  return layout->units[1];
+  return layout->units_[1];
 }
 
 blender::ui::EmbossType uiLayoutGetEmboss(uiLayout *layout)
 {
-  if (layout->emboss == blender::ui::EmbossType::Undefined) {
+  if (layout->emboss_ == blender::ui::EmbossType::Undefined) {
     return layout->root->block->emboss;
   }
-  return layout->emboss;
+  return layout->emboss_;
 }
 
 int uiLayoutListItemPaddingWidth()
@@ -5452,17 +5452,17 @@ void uiLayoutListItemAddPadding(uiLayout *layout)
 
 LayoutSuppressFlag uiLayoutSuppressFlagGet(const uiLayout *layout)
 {
-  return layout->suppress_flag;
+  return layout->suppress_flag_;
 }
 
 void uiLayoutSuppressFlagSet(uiLayout *layout, LayoutSuppressFlag flag)
 {
-  layout->suppress_flag |= flag;
+  layout->suppress_flag_ |= flag;
 }
 
 void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag)
 {
-  layout->suppress_flag &= ~flag;
+  layout->suppress_flag_ &= ~flag;
 }
 
 /** \} */
@@ -5709,11 +5709,11 @@ static void ui_item_estimate(uiItem *item)
     }
 
     /* Force fixed size. */
-    if (litem->units[0] > 0) {
-      litem->w = UI_UNIT_X * litem->units[0];
+    if (litem->units_[0] > 0) {
+      litem->w = UI_UNIT_X * litem->units_[0];
     }
-    if (litem->units[1] > 0) {
-      litem->h = UI_UNIT_Y * litem->units[1];
+    if (litem->units_[1] > 0) {
+      litem->h = UI_UNIT_Y * litem->units_[1];
     }
   }
 }
@@ -5922,7 +5922,7 @@ uiLayout *UI_block_layout(uiBlock *block,
   layout->active = true;
   layout->enabled = true;
   layout->context = nullptr;
-  layout->emboss = blender::ui::EmbossType::Undefined;
+  layout->emboss_ = blender::ui::EmbossType::Undefined;
 
   if (ELEM(type, UI_LAYOUT_MENU, UI_LAYOUT_PIEMENU)) {
     layout->space = 0;
@@ -5982,15 +5982,15 @@ void ui_layout_add_but(uiLayout *layout, uiBut *but)
     layout->items.append(bitem);
   }
   but->layout = layout;
-  but->search_weight = layout->search_weight;
+  but->search_weight = layout->search_weight_;
 
   if (layout->context) {
     but->context = layout->context;
     layout->context->used = true;
   }
 
-  if (layout->emboss != blender::ui::EmbossType::Undefined) {
-    but->emboss = layout->emboss;
+  if (layout->emboss_ != blender::ui::EmbossType::Undefined) {
+    but->emboss = layout->emboss_;
   }
 
   ui_button_group_add_but(uiLayoutGetBlock(layout), but);

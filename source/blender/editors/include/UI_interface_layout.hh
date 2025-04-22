@@ -84,14 +84,14 @@ struct uiLayout : uiItem {
   bool keepaspect;
   /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
   bool variable_size;
-  char alignment;
-  blender::ui::EmbossType emboss;
+  char alignment_;
+  blender::ui::EmbossType emboss_;
   /** for fixed width or height to avoid UI size changes */
-  float units[2];
+  float units_[2];
   /** Is copied to uiButs created in this layout. */
-  float search_weight;
+  float search_weight_;
 
-  LayoutSuppressFlag suppress_flag;
+  LayoutSuppressFlag suppress_flag_;
 };
 
 enum {
