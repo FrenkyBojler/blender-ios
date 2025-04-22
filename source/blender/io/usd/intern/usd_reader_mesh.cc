@@ -106,7 +106,7 @@ static void assign_materials(Main *bmain,
     return;
   }
 
-  USDMaterialReader mat_reader(params, bmain, settings.reader_mutex);
+  USDMaterialReader mat_reader(params, *bmain, settings.reader_mutex);
 
   for (const auto item : mat_index_map.items()) {
     Material *assigned_mat = nullptr;
