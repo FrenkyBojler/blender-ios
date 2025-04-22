@@ -390,7 +390,7 @@ const EnumPropertyItem rna_enum_shading_type_items[] = {
      "MATERIAL",
      ICON_SHADING_TEXTURE,
      "Material Preview",
-     "Preview materials using the scene lights and environment preview"},
+     "Preview materials using predefined environment lights"},
     {OB_RENDER, "RENDERED", ICON_SHADING_RENDERED, "Rendered", "Preview the final scene using the active render engine"},
     {0, nullptr, 0, nullptr, nullptr},
 };
