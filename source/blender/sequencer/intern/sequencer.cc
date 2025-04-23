@@ -56,6 +56,7 @@
 #include "BLO_read_write.hh"
 
 #include "image_cache.hh"
+#include "intra_frame_cache.hh"
 #include "prefetch.hh"
 #include "sequencer.hh"
 #include "utils.hh"
@@ -305,6 +306,7 @@ void editing_free(Scene *scene, const bool do_id_user)
   strip_lookup_free(ed);
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_destroy(scene);
+  MEM_SAFE_DELETE(ed->runtime.intra_frame_cache);
   channels_free(&ed->channels);
 
   MEM_freeN(ed);

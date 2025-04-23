@@ -22,9 +22,12 @@ struct Strip;
 
 namespace blender::seq {
 
+struct IntraFrameCache;
+
 /* Mutable state while rendering one sequencer frame. */
 struct SeqRenderState {
   LinkNode *scene_parents = nullptr;
+  IntraFrameCache *intra_frame_cache = nullptr;
 };
 
 /* Strip corner coordinates in screen pixel space. Note that they might not be

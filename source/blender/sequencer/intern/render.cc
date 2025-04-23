@@ -69,6 +69,7 @@
 
 #include "effects/effects.hh"
 #include "image_cache.hh"
+#include "intra_frame_cache.hh"
 #include "multiview.hh"
 #include "prefetch.hh"
 #include "proxy.hh"
@@ -719,7 +720,6 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
     ibuf = input_preprocess(context, strip, timeline_frame, ibuf, is_proxy_image);
   }
 
-  seq_cache_put(context, strip, timeline_frame, SEQ_CACHE_STORE_PREPROCESSED, ibuf);
   return ibuf;
 }
 
@@ -1748,9 +1748,11 @@ ImBuf *seq_render_strip(const RenderData *context,
   bool use_preprocess = false;
   bool is_proxy_image = false;
 
-  ibuf = seq_cache_get(context, strip, timeline_frame, SEQ_CACHE_STORE_PREPROCESSED);
-  if (ibuf != nullptr) {
-    return ibuf;
+  if (state->intra_frame_cache != nullptr) {
+    ibuf = state->intra_frame_cache->get(strip);
+    if (ibuf != nullptr) {
+      return ibuf;
+    }
   }
 
   /* Proxies are not stored in cache. */
@@ -1766,6 +1768,9 @@ ImBuf *seq_render_strip(const RenderData *context,
     use_preprocess = seq_input_have_to_preprocess(context, strip, timeline_frame);
     ibuf = seq_render_preprocess_ibuf(
         context, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
+    if (state->intra_frame_cache != nullptr) {
+      state->intra_frame_cache->put(strip, ibuf);
+    }
   }
 
   if (ibuf == nullptr) {
@@ -1861,8 +1866,9 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
   for (i = strips.size() - 1; i >= 0; i--) {
     Strip *strip = strips[i];
 
-    out = seq_cache_get(context, strip, timeline_frame, SEQ_CACHE_STORE_COMPOSITE);
-
+    if (state->intra_frame_cache != nullptr) {
+      out = state->intra_frame_cache->get(strip);
+    }
     if (out) {
       break;
     }
@@ -1929,7 +1935,9 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
           out = seq_render_strip_stack_apply_effect(context, strip, timeline_frame, ibuf1, ibuf2);
           IMB_metadata_copy(out, ibuf2);
 
-          seq_cache_put(context, strips[i], timeline_frame, SEQ_CACHE_STORE_COMPOSITE, out);
+          if (state->intra_frame_cache != nullptr) {
+            state->intra_frame_cache->put(strip, out);
+          }
 
           IMB_freeImBuf(ibuf1);
           IMB_freeImBuf(ibuf2);
@@ -1960,7 +1968,9 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
       IMB_freeImBuf(ibuf2);
     }
 
-    seq_cache_put(context, strips[i], timeline_frame, SEQ_CACHE_STORE_COMPOSITE, out);
+    if (state->intra_frame_cache != nullptr) {
+      state->intra_frame_cache->put(strip, out);
+    }
   }
 
   return out;
@@ -1989,6 +1999,19 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   }
 
   SeqRenderState state;
+  seq::IntraFrameCache intra_frame_cache;
+  state.intra_frame_cache = &intra_frame_cache;
+  if (!context->is_proxy_render && !context->is_prefetch_render) {
+    if (ed->runtime.intra_frame_cache == nullptr) {
+      ed->runtime.intra_frame_cache = MEM_new<seq::IntraFrameCache>(__func__);
+    }
+    state.intra_frame_cache = ed->runtime.intra_frame_cache;
+    if (state.intra_frame_cache->timeline_frame_ != timeline_frame) {
+      state.intra_frame_cache->clear();
+      state.intra_frame_cache->timeline_frame_ = timeline_frame;
+    }
+  }
+
   ImBuf *out = nullptr;
 
   Vector<Strip *> strips = seq_get_shown_sequences(
