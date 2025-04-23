@@ -35,6 +35,7 @@
 
 namespace blender::ed::transform {
 
+namespace {
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
@@ -50,6 +51,7 @@ struct TransDataSeq {
   float active_seq_orig_rotation;
   float2 orig_mirror;
 };
+}  // namespace
 
 static void store_transform_properties(const Scene *scene,
                                        Strip *strip,
