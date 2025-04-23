@@ -99,14 +99,12 @@ class MaterialTestData : public TestData {
   bNodeTree *material_nodetree = nullptr;
   MaterialTestData()
   {
-    material = BKE_material_add(bmain, "Material");
+    /* Use a unique material name for each test case. */
+    const char *test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    this->material = BKE_material_add(bmain, test_name);
+    id_us_min(&this->material->id);
     ED_node_shader_default(C, &material->id);
     material_nodetree = material->nodetree;
-  }
-
-  ~MaterialTestData()
-  {
-    BKE_id_free(bmain, &material->id);
   }
 };
 
