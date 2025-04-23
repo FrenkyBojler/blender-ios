@@ -4146,7 +4146,11 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
     BLI_assert(prop != nullptr);
     RNA_property_enum_name(C, op->ptr, prop, target, &target_type_name);
     if (incompatible_count == selected_editable_bases.size()) {
-      BKE_report(op->reports, RPT_INFO, "Object conversion: All objects failed to convert");
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s \"%s\"",
+                  RPT_("None of the objects are compatible of conversion to"),
+                  IFACE_(target_type_name));
     }
     else {
       BKE_reportf(op->reports,
