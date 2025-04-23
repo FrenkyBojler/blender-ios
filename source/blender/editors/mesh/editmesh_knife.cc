@@ -1791,31 +1791,6 @@ static void knife_join_edge(KnifeEdge *newkfe, KnifeEdge *kfe)
 /** \name Cut/Hit Utils
  * \{ */
 
-static void knife_view3d_ray_get(KnifeTool_OpData *kcd,
-                                 const float2 &mval,
-                                 float3 &r_ray_orig,
-                                 float3 &r_ray_dir)
-{
-  ED_view3d_win_to_ray_clipped(
-      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, r_ray_orig, r_ray_dir, false);
-
-  if (kcd->is_ortho) {
-    /* In ortho view, avoid inaccuracy due to a very distant ray origin.
-     * Therefore, move the ray origin closer to the bounding box. */
-    float3 bb_min, bb_max;
-    float hit_dist;
-    BLI_bvhtree_get_bounding_box(kcd->bvh.tree, bb_min, bb_max);
-    if (!isect_ray_aabb_v3_simple(r_ray_orig, r_ray_dir, bb_min, bb_max, &hit_dist, nullptr)) {
-      /* The ray does not hit the bounding box, use the distance to the closest point. */
-      float3 bb_near, bb_far;
-      aabb_get_near_far_from_plane(r_ray_dir, bb_min, bb_max, bb_near, bb_far);
-      hit_dist = math::dot(r_ray_dir, bb_near - r_ray_orig);
-    }
-    /* Move the ray origin. */
-    r_ray_orig = r_ray_orig + r_ray_dir * (hit_dist - 1.0f);
-  }
-}
-
 static void knife_snap_curr(KnifeTool_OpData *kcd,
                             const float2 &mval,
                             const float3 &ray_orig,
@@ -1828,7 +1803,8 @@ static void knife_start_cut(KnifeTool_OpData *kcd, const float2 &mval)
 {
   float3 ray_orig;
   float3 ray_dir;
-  knife_view3d_ray_get(kcd, mval, ray_orig, ray_dir);
+  ED_view3d_win_to_ray_clipped(
+      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, ray_orig, ray_dir, false);
 
   knife_snap_curr(kcd, mval, ray_orig, ray_dir, nullptr);
   kcd->prev = kcd->curr;
@@ -3520,7 +3496,13 @@ static bool knife_snap_angle_relative(KnifeTool_OpData *kcd,
   else {
     /* Cut segment was started in a face. */
     float3 prev_ray_orig, prev_ray_dir;
-    knife_view3d_ray_get(kcd, kcd->prev.mval, prev_ray_orig, prev_ray_dir);
+    ED_view3d_win_to_ray_clipped(kcd->vc.depsgraph,
+                                 kcd->region,
+                                 kcd->vc.v3d,
+                                 kcd->prev.mval,
+                                 prev_ray_orig,
+                                 prev_ray_dir,
+                                 false);
 
     /* kcd->prev.face is usually not set. */
     fprev = knife_bvh_raycast(
@@ -3692,7 +3674,8 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
   float3 ray_orig;
   float3 ray_dir;
   float2 mval_constrain = mval;
-  knife_view3d_ray_get(kcd, mval, ray_orig, ray_dir);
+  ED_view3d_win_to_ray_clipped(
+      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, ray_orig, ray_dir, false);
 
   knife_pos_data_clear(&kcd->curr);
 
