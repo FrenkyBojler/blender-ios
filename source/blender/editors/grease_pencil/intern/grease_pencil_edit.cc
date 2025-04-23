@@ -20,6 +20,7 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
@@ -76,6 +77,10 @@
 
 #include "UI_resources.hh"
 #include <limits>
+
+extern "C" {
+#include "curve_fit_nd.h"
+}
 
 namespace blender::ed::greasepencil {
 
@@ -4160,6 +4165,175 @@ static void GREASE_PENCIL_OT_stroke_split(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Convert Curve Type Operator
+ * \{ */
+
+static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOperator *op)
+{
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
+  const float threshold = RNA_float_get(op->ptr, "threshold");
+
+  bool changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    IndexMaskMemory memory;
+    const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (strokes.is_empty()) {
+      return;
+    }
+
+    const VArray<bool> cyclic = curves.cyclic();
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const Span<float3> all_positions = curves.positions();
+
+    Vector<float3> curve_positions;
+    Vector<int> orig_index;
+
+    Array<int> point_offsets(curves.curves_num() + 1);
+    int point_num = 0;
+
+    for (const int curve_i : curves.curves_range()) {
+      const IndexRange points = points_by_curve[curve_i];
+      const Span<float3> positions = all_positions.slice(points);
+
+      const IndexMask corner_mask = IndexRange(0, 0);
+
+      uint calc_flag = CURVE_FIT_CALC_HIGH_QUALIY;
+
+      if ((positions.size() > 2) && cyclic[curve_i]) {
+        calc_flag |= CURVE_FIT_CALC_CYCLIC;
+      }
+
+      Array<int32_t> indices(corner_mask.size());
+      corner_mask.to_indices(indices.as_mutable_span());
+      uint *indicies_ptr = corner_mask.is_empty() ? nullptr :
+                                                    reinterpret_cast<uint *>(indices.data());
+
+      float *r_cubic_array;
+      uint r_cubic_array_len;
+      uint *r_cubic_orig_index;
+      int error = curve_fit_cubic_to_points_fl(*positions.data(),
+                                               positions.size(),
+                                               3,
+                                               threshold,
+                                               calc_flag,
+                                               indicies_ptr,
+                                               indices.size(),
+                                               &r_cubic_array,
+                                               &r_cubic_array_len,
+                                               &r_cubic_orig_index,
+                                               nullptr,
+                                               nullptr);
+
+      if (error != 0) {
+        /* Some error occurred. Return. */
+        return;
+      }
+
+      if (r_cubic_array == nullptr) {
+        return;
+      }
+
+      Span<float3> r_cubic_array_span(reinterpret_cast<float3 *>(r_cubic_array),
+                                      r_cubic_array_len * 3);
+      curve_positions.extend(r_cubic_array_span);
+
+      Span<uint> r_cubic_orig_index_span(reinterpret_cast<uint *>(r_cubic_orig_index),
+                                         r_cubic_array_len);
+
+      orig_index.reserve(r_cubic_array_len);
+      for (const int j : r_cubic_orig_index_span.index_range()) {
+        orig_index.append(points[int(r_cubic_orig_index_span[j])]);
+      }
+
+      point_offsets[curve_i] = point_num;
+      point_num += r_cubic_array_len;
+
+      /* Free the c-style array. */
+      free(r_cubic_array);
+      free(r_cubic_orig_index);
+    }
+
+    point_offsets.last() = point_num;
+
+    bke::CurvesGeometry dst_curves(point_offsets.last(), point_offsets.size() - 1);
+
+    MutableSpan<int> dst_offsets = dst_curves.offsets_for_write();
+
+    dst_offsets.copy_from(point_offsets);
+
+    const bke::AttributeAccessor src_attributes = curves.attributes();
+    bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+
+    copy_attributes(
+        src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
+
+    dst_curves.fill_curve_types(dst_type);
+
+    MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
+    MutableSpan<float3> handle_positions_l = dst_curves.handle_positions_left_for_write();
+    MutableSpan<float3> handle_positions_r = dst_curves.handle_positions_right_for_write();
+    MutableSpan<int8_t> handle_types_l = dst_curves.handle_types_left_for_write();
+    MutableSpan<int8_t> handle_types_r = dst_curves.handle_types_right_for_write();
+
+    for (const int i : IndexRange(point_offsets.last())) {
+      handle_positions_l[i] = curve_positions[i * 3 + 0];
+      dst_positions[i] = curve_positions[i * 3 + 1];
+      handle_positions_r[i] = curve_positions[i * 3 + 2];
+      handle_types_l[i] = BEZIER_HANDLE_ALIGN;
+      handle_types_r[i] = BEZIER_HANDLE_ALIGN;
+    }
+
+    gather_attributes(
+        src_attributes,
+        bke::AttrDomain::Point,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref({".position", ".handle_left", ".handle_right"}),
+        orig_index,
+        dst_attributes);
+
+    curves = dst_curves;
+
+    info.drawing.tag_topology_changed();
+
+    changed = true;
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
+{
+  ot->name = "Convert Curve Type";
+  ot->idname = "GREASE_PENCIL_OT_convert_curve_type";
+  ot->description = "Convert type of selected curves";
+
+  ot->invoke = WM_menu_invoke;
+  ot->exec = grease_pencil_convert_curve_type_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  ot->prop = RNA_def_enum(
+      ot->srna, "type", rna_enum_curves_type_items, CURVE_TYPE_POLY, "Type", "Curve type");
+
+  RNA_def_float(ot->srna, "threshold", 0.02f, 0.0f, 100.0f, "Threshold", "", 0.0f, 100.0f);
+}
+
+/** \} */
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
@@ -4200,6 +4374,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_reset_uvs);
   WM_operatortype_append(GREASE_PENCIL_OT_texture_gradient);
   WM_operatortype_append(GREASE_PENCIL_OT_stroke_split);
+  WM_operatortype_append(GREASE_PENCIL_OT_convert_curve_type);
 }
 
 /* -------------------------------------------------------------------- */
