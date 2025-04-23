@@ -509,8 +509,8 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
     view_layer_dst->id_properties = IDP_CopyProperty_ex(view_layer_dst->id_properties, flag);
   }
   if (view_layer_dst->system_properties != nullptr) {
-    view_layer_dst->system_properties = IDP_CopyProperty_ex(
-        view_layer_dst->system_properties, flag);
+    view_layer_dst->system_properties = IDP_CopyProperty_ex(view_layer_dst->system_properties,
+                                                            flag);
   }
   BKE_freestyle_config_copy(
       &view_layer_dst->freestyle_config, &view_layer_src->freestyle_config, flag);
