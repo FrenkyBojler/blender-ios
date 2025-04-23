@@ -4068,6 +4068,9 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
     if (newob) {
       BKE_object_materials_sync_length(bmain, newob, static_cast<ID *>(newob->data));
     }
+    else {
+      failed_count++;
+    }
 
     /* tag obdata if it was been changed */
 
@@ -4138,17 +4141,21 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   }
 
   if (failed_count != 0) {
+    const char *target_type_name = "";
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target");
+    BLI_assert(prop != 0);
+    RNA_property_enum_name(C, op->ptr, prop, target, &target_type_name);
     if (failed_count == selected_editable_bases.size()) {
-      BKE_report(op->reports, RPT_ERROR, "Object conversion: All objects failed to convert");
+      BKE_report(op->reports, RPT_INFO, "Object conversion: All objects failed to convert");
     }
     else {
-      static char message[128];
-      sprintf(message,
-              "%s %d %s",
-              RPT_("Object conversion:"),
-              failed_count,
-              RPT_("object(s) failed to convert"));
-      BKE_report(op->reports, RPT_WARNING, "Object conversion: Some objects failed to convert");
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s %d %s \"%s\"",
+                  RPT_("The selection included"),
+                  failed_count,
+                  RPT_("object(s) types which don't support conversion to"),
+                  IFACE_(target_type_name));
     }
   }
 
