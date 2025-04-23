@@ -33,6 +33,8 @@ typedef struct Light {
   /* Color and energy. */
   float r, g, b;
   float energy;
+  float exposure;
+  float _pad3;
 
   /* Point light. */
   float radius;
