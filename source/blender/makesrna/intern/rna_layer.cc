@@ -131,7 +131,7 @@ static IDProperty **rna_ViewLayer_idprops(PointerRNA *ptr)
 static IDProperty **rna_ViewLayer_system_idprops(PointerRNA *ptr)
 {
   ViewLayer *view_layer = (ViewLayer *)ptr->data;
-  return &view_layer->system_id_properties;
+  return &view_layer->system_properties;
 }
 
 static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, bContext *C)

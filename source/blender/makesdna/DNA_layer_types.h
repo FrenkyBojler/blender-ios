@@ -175,7 +175,7 @@ typedef struct ViewLayer {
   /** Equivalent to datablocks user-defined ID properties. */
   struct IDProperty *id_properties;
   /** Equivalent to datablocks system-defined ID properties. */
-  struct IDProperty *system_id_properties;
+  struct IDProperty *system_properties;
 
   struct FreestyleConfig freestyle_config;
   struct ViewLayerEEVEE eevee;

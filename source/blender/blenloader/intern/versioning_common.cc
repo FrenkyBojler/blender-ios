@@ -476,7 +476,7 @@ IDProperty *version_cycles_properties_from_ID(ID *id)
 
 IDProperty *version_cycles_properties_from_view_layer(ViewLayer *view_layer)
 {
-  IDProperty *idprop = view_layer->system_id_properties;
+  IDProperty *idprop = view_layer->system_properties;
   return (idprop) ? IDP_GetPropertyTypeFromGroup(idprop, "cycles", IDP_GROUP) : nullptr;
 }
 
@@ -620,7 +620,7 @@ void version_system_idprops_generate(Main *bmain)
 
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-      idprops_process(view_layer->id_properties, &view_layer->system_id_properties);
+      idprops_process(view_layer->id_properties, &view_layer->system_properties);
     }
 
     if (scene->ed != nullptr) {
@@ -647,60 +647,6 @@ void version_system_idprops_generate(Main *bmain)
     }
     LISTBASE_FOREACH (Bone *, bone, &armature->bonebase) {
       idprops_process(bone->prop, &bone->system_properties);
-    }
-  }
-}
-
-void version_forward_compat_system_idprops(Main *bmain)
-{
-  auto idprops_process = [](IDProperty **idprops, IDProperty *system_idprops) -> void {
-    if (system_idprops) {
-      /* Other ID pointers have not yet been relinked, do not try to access them for refcounting.
-       */
-      if (*idprops) {
-        IDP_MergeGroup_ex(*idprops, system_idprops, true, LIB_ID_CREATE_NO_USER_REFCOUNT);
-      }
-      else {
-        *idprops = IDP_CopyProperty_ex(system_idprops, LIB_ID_CREATE_NO_USER_REFCOUNT);
-      }
-    }
-  };
-
-  ID *id_iter;
-  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
-    idprops_process(&id_iter->properties, id_iter->system_properties);
-  }
-  FOREACH_MAIN_ID_END;
-
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-      idprops_process(&view_layer->id_properties, view_layer->system_id_properties);
-    }
-
-    if (scene->ed != nullptr) {
-      blender::seq::for_each_callback(&scene->ed->seqbase,
-                                      [&idprops_process](Strip *strip) -> bool {
-                                        idprops_process(&strip->prop, strip->system_properties);
-                                        return true;
-                                      });
-    }
-  }
-
-  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-    if (!object->pose) {
-      continue;
-    }
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
-      idprops_process(&pchan->prop, pchan->system_properties);
-    }
-  }
-
-  LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
-    for (BoneCollection *bcoll : armature->collections_span()) {
-      idprops_process(&bcoll->prop, bcoll->system_properties);
-    }
-    LISTBASE_FOREACH (Bone *, bone, &armature->bonebase) {
-      idprops_process(&bone->prop, bone->system_properties);
     }
   }
 }

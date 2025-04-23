@@ -887,7 +887,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data,
         IDP_foreach_property(
-            view_layer->system_id_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+            view_layer->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
               BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
             }));
 
