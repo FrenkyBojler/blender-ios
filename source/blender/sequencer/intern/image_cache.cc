@@ -810,51 +810,6 @@ void seq_cache_put(
   }
 }
 
-void cache_iterate(
-    Scene *scene,
-    void *userdata,
-    bool callback_init(void *userdata, size_t item_count),
-    bool callback_iter(void *userdata, Strip *strip, int timeline_frame, int cache_type))
-{
-  SeqCache *cache = seq_cache_get_from_scene(scene);
-  if (!cache) {
-    return;
-  }
-
-  seq_cache_lock(scene);
-  bool interrupt = callback_init(userdata, BLI_ghash_len(cache->hash));
-
-  GHashIterator gh_iter;
-  BLI_ghashIterator_init(&gh_iter, cache->hash);
-
-  while (!BLI_ghashIterator_done(&gh_iter) && !interrupt) {
-    SeqCacheKey *key = static_cast<SeqCacheKey *>(BLI_ghashIterator_getKey(&gh_iter));
-    BLI_ghashIterator_step(&gh_iter);
-    BLI_assert(key->cache_owner == cache);
-    int timeline_frame;
-    if (key->type & SEQ_CACHE_STORE_FINAL_OUT) {
-      timeline_frame = seq_cache_key_timeline_frame_get(key);
-    }
-    else {
-      /* This is not a final cache image. The cached frame is relative to where the strip is
-       * currently and where it was when it was cached. We can't use the timeline_frame, we need to
-       * derive the timeline frame from key->frame_index.
-       *
-       * NOTE This will not work for RAW caches if they have retiming, strobing, or different
-       * playback rate than the scene. Because it would take quite a bit of effort to properly
-       * convert RAW frames like that to a timeline frame, we skip doing this as visualizing these
-       * are a developer option that not many people will see.
-       */
-      timeline_frame = key->frame_index + time_start_frame_get(key->strip);
-    }
-
-    interrupt = callback_iter(userdata, key->strip, timeline_frame, key->type);
-  }
-
-  cache->last_key = nullptr;
-  seq_cache_unlock(scene);
-}
-
 bool seq_cache_is_full()
 {
   return seq_cache_get_mem_total() < MEM_get_memory_in_use();

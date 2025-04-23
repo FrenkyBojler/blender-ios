@@ -25,8 +25,7 @@ static std::mutex source_image_cache_mutex;
 
 struct SourceImageCache {
   struct FrameEntry {
-    int frame_index = 0;  /* Frame index (for movies) or image index (for image sequences). */
-    int stream_index = 0; /* Stream index (only for multi-stream movies). */
+    int frame_index = 0; /* Frame index (for movies) or image index (for image sequences). */
     ImBuf *image = nullptr;
     int64_t used_at = 0;
   };
@@ -116,13 +115,13 @@ ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, flo
     int64_t cur_time = cache->logical_time_;
     SourceImageCache::StripEntry *val = cache->map_.lookup_ptr(strip);
     if (val == nullptr) {
-      /* Nothing in cache for this path yet. */
+      /* Nothing in cache for this strip yet. */
       return nullptr;
     }
-    /* Search entries of this file for the frame we want. */
+    /* Search entries for the frame we want. */
     //@TODO: should this be a map instead of vector?
     for (SourceImageCache::FrameEntry &frame : val->frames) {
-      if (frame.frame_index == frame_index && frame.stream_index == strip->streamindex) {
+      if (frame.frame_index == frame_index) {
         frame.used_at = math::max(frame.used_at, cur_time);
         res = frame.image;
         break;
@@ -172,7 +171,7 @@ void source_image_cache_put(const RenderData *context,
 
   bool had_existing = false;
   for (SourceImageCache::FrameEntry &frame : val->frames) {
-    if (frame.frame_index == frame_index && frame.stream_index == strip->streamindex) {
+    if (frame.frame_index == frame_index) {
       frame.used_at = math::max(frame.used_at, cur_time);
       IMB_freeImBuf(frame.image);
       frame.image = image;
@@ -181,7 +180,7 @@ void source_image_cache_put(const RenderData *context,
     }
   }
   if (!had_existing) {
-    val->frames.append({frame_index, strip->streamindex, image, cur_time});
+    val->frames.append({frame_index, image, cur_time});
   }
 }
 
@@ -256,6 +255,30 @@ void source_image_cache_destroy(Scene *scene)
     BLI_assert(cache == scene->ed->runtime.source_image_cache);
     MEM_delete(scene->ed->runtime.source_image_cache);
     scene->ed->runtime.source_image_cache = nullptr;
+  }
+}
+
+void source_image_cache_iterate(Scene *scene,
+                                void *userdata,
+                                void callback_iter(void *userdata,
+                                                   const Strip *strip,
+                                                   int timeline_frame))
+{
+  std::scoped_lock lock(source_image_cache_mutex);
+  SourceImageCache *cache = query_source_image_cache(scene);
+  if (cache == nullptr) {
+    return;
+  }
+
+  for (const auto &[key, value] : cache->map_.items()) {
+
+    for (const SourceImageCache::FrameEntry &frame : value.frames) {
+      /* We have frame index of source media, try to guesstimate the timeline frame.
+       * Note that this will be not correct when retiming, different playback rate, strobing
+       * etc. are used. */
+      int timeline_frame = frame.frame_index + time_start_frame_get(key);
+      callback_iter(userdata, key, timeline_frame);
+    }
   }
 }
 

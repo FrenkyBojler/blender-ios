@@ -47,6 +47,7 @@
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
+#include "intern/final_image_cache.hh"   //@TODO
 #include "intern/source_image_cache.hh"  //@TODO
 
 #include "ANIM_action_legacy.hh"
@@ -1222,6 +1223,7 @@ static wmOperatorStatus sequencer_refresh_all_exec(bContext *C, wmOperator * /*o
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_clear(scene);
   blender::seq::source_image_cache_clear(scene);
+  blender::seq::final_image_cache_clear(scene);
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 

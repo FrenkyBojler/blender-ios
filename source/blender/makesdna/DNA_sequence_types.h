@@ -29,6 +29,7 @@ struct bSound;
 
 #ifdef __cplusplus
 namespace blender::seq {
+struct FinalImageCache;
 struct IntraFrameCache;
 struct MediaPresence;
 struct ThumbnailCache;
@@ -38,6 +39,7 @@ struct SourceImageCache;
 struct StripLookup;
 struct SeqCache;
 }  // namespace blender::seq
+using FinalImageCache = blender::seq::FinalImageCache;
 using IntraFrameCache = blender::seq::IntraFrameCache;
 using MediaPresence = blender::seq::MediaPresence;
 using ThumbnailCache = blender::seq::ThumbnailCache;
@@ -47,6 +49,7 @@ using SourceImageCache = blender::seq::SourceImageCache;
 using StripLookup = blender::seq::StripLookup;
 using SeqCache = blender::seq::SeqCache;
 #else
+typedef struct FinalImageCache FinalImageCache;
 typedef struct IntraFrameCache IntraFrameCache;
 typedef struct MediaPresence MediaPresence;
 typedef struct ThumbnailCache ThumbnailCache;
@@ -341,7 +344,7 @@ typedef struct EditingRuntime {
   ThumbnailCache *thumbnail_cache;
   IntraFrameCache *intra_frame_cache;
   SourceImageCache *source_image_cache;
-  void *_pad0;
+  FinalImageCache *final_image_cache;
 } EditingRuntime;
 
 typedef struct Editing {

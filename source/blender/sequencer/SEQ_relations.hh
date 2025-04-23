@@ -58,11 +58,16 @@ void relations_check_uids_unique_and_report(const Scene *scene);
 void relations_session_uid_generate(Strip *sequence);
 
 void cache_cleanup(Scene *scene);
-void cache_iterate(
-    Scene *scene,
-    void *userdata,
-    bool callback_init(void *userdata, size_t item_count),
-    bool callback_iter(void *userdata, Strip *strip, int timeline_frame, int cache_type));
+
+void source_image_cache_iterate(Scene *scene,
+                                void *userdata,
+                                void callback_iter(void *userdata,
+                                                   const Strip *strip,
+                                                   int timeline_frame));
+void final_image_cache_iterate(Scene *scene,
+                               void *userdata,
+                               void callback_iter(void *userdata, int timeline_frame));
+
 bool exists_in_seqbase(const Strip *strip, const ListBase *seqbase);
 
 }  // namespace blender::seq

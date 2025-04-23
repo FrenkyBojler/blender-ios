@@ -68,6 +68,7 @@
 #include "SEQ_utils.hh"
 
 #include "effects/effects.hh"
+#include "final_image_cache.hh"
 #include "image_cache.hh"
 #include "intra_frame_cache.hh"
 #include "multiview.hh"
@@ -2012,16 +2013,12 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     }
   }
 
-  ImBuf *out = nullptr;
+  ImBuf *out = final_image_cache_get(context, timeline_frame);
 
   Vector<Strip *> strips = seq_get_shown_sequences(
       scene, channels, seqbasep, timeline_frame, chanshown);
 
-  if (!strips.is_empty()) {
-    out = seq_cache_get(context, strips.last(), timeline_frame, SEQ_CACHE_STORE_FINAL_OUT);
-  }
-
-  seq_cache_free_temp_cache(context->scene, context->task_id, timeline_frame);
+  seq_cache_free_temp_cache(context->scene, context->task_id, timeline_frame);  // @TODO remove
   /* Make sure we only keep the `anim` data for strips that are in view. */
   relations_free_all_anim_ibufs(context->scene, timeline_frame);
 
@@ -2029,13 +2026,9 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     BLI_mutex_lock(&seq_render_mutex);
     out = seq_render_strip_stack(context, &state, channels, seqbasep, timeline_frame, chanshown);
 
-    if (context->is_prefetch_render) {
-      seq_cache_put(context, strips.last(), timeline_frame, SEQ_CACHE_STORE_FINAL_OUT, out);
-    }
-    else {
-      seq_cache_put_if_possible(
-          context, strips.last(), timeline_frame, SEQ_CACHE_STORE_FINAL_OUT, out);
-    }
+    // @TODO: there was seq_cache_put when doing context->is_prefetch_render,
+    // and seq_cache_put_if_possible otherwise previously. Do we need that logic?
+    final_image_cache_put(context, timeline_frame, out);
     BLI_mutex_unlock(&seq_render_mutex);
   }
 
