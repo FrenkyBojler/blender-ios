@@ -123,11 +123,11 @@ class Manager {
    * Create a unique resource handle for the given object.
    * Returns the existing handle if it exists.
    */
+  /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
   ResourceHandleRange unique_handle(const ObjectRef &ref);
   /**
    * Create a new resource handle for the given object.
    */
-  /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
   ResourceHandleRange resource_handle(const ObjectRef &ref, float inflate_bounds = 0.0f);
   /**
    * Create a new resource handle for the given object, but optionally override model matrix and
