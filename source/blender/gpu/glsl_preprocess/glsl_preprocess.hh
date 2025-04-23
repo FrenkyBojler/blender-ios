@@ -42,6 +42,30 @@ class Preprocessor {
   std::stringstream gpu_functions_;
 
  public:
+  enum SourceLanguage {
+    UNKNOWN = 0,
+    CPP,
+    MSL,
+    GLSL,
+    /* Same as GLSL but enable partial C++ feature support like template, references,
+     * include system, etc ... */
+    BLENDER_GLSL,
+  };
+
+  static SourceLanguage language_from_filename(const std::string &filename)
+  {
+    if (filename.find(".msl") != std::string::npos) {
+      return MSL;
+    }
+    if (filename.find(".glsl") != std::string::npos) {
+      return GLSL;
+    }
+    if (filename.find(".hh") != std::string::npos) {
+      return CPP;
+    }
+    return UNKNOWN;
+  }
+
   /* Compile-time hashing function which converts string to a 64bit hash. */
   constexpr static uint64_t hash(const char *name)
   {
@@ -60,41 +84,45 @@ class Preprocessor {
   }
 
   /* Takes a whole source file and output processed source. */
-  std::string process(std::string str,
+  std::string process(SourceLanguage language,
+                      std::string str,
                       const std::string &filename,
-                      bool do_linting,
                       bool do_parse_function,
-                      bool do_string_mutation,
-                      bool do_include_parsing,
                       bool do_small_type_linting,
                       report_callback report_error)
   {
+    if (language == UNKNOWN) {
+      report_error(std::smatch(), "Unknown file type");
+      return "";
+    }
     str = remove_comments(str, report_error);
     threadgroup_variables_parsing(str);
     parse_builtins(str);
-    if (do_parse_function) {
-      parse_library_functions(str);
-    }
-    if (do_include_parsing) {
-      include_parse(str);
-    }
-    str = preprocessor_directive_mutation(str);
-    if (do_string_mutation) {
-      static_strings_parsing(str);
-      str = static_strings_mutation(str);
-      str = printf_processing(str, report_error);
-      quote_linting(str, report_error);
-    }
-    if (do_linting) {
+    if (language == BLENDER_GLSL || language == CPP) {
+      if (do_parse_function) {
+        parse_library_functions(str);
+      }
+      if (language == BLENDER_GLSL) {
+        include_parse(str);
+      }
+      str = preprocessor_directive_mutation(str);
+      if (language == BLENDER_GLSL) {
+        str = assert_processing(str, filename);
+        static_strings_parsing(str);
+        str = static_strings_mutation(str);
+        str = printf_processing(str, report_error);
+        quote_linting(str, report_error);
+      }
       global_scope_constant_linting(str, report_error);
       matrix_constructor_linting(str, report_error);
       array_constructor_linting(str, report_error);
+      if (do_small_type_linting) {
+        small_type_linting(str, report_error);
+      }
+      str = remove_quotes(str);
+      str = enum_macro_injection(str);
+      str = argument_reference_mutation(str);
     }
-    if (do_small_type_linting) {
-      small_type_linting(str, report_error);
-    }
-    str = remove_quotes(str);
-    str = enum_macro_injection(str);
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
     return line_directive_prefix(filename) + str + threadgroup_variables_suffix() +
@@ -106,7 +134,7 @@ class Preprocessor {
   std::string process(const std::string &str)
   {
     auto no_err_report = [](std::smatch, const char *) {};
-    return process(str, "", false, false, false, false, false, no_err_report);
+    return process(GLSL, str, "", false, false, no_err_report);
   }
 
  private:
@@ -189,6 +217,10 @@ class Preprocessor {
         /* Skip GLSL-C++ stubs. They are only for IDE linting. */
         return;
       }
+      if (dependency_name.find("info.hh") != std::string::npos) {
+        /* Skip info files. They are only for IDE linting. */
+        return;
+      }
       dependencies_.emplace_back(dependency_name);
     });
   }
@@ -260,6 +292,9 @@ class Preprocessor {
         "gl_WorkGroupID|"
         "gl_WorkGroupSize|"
         "drw_debug_|"
+#ifdef WITH_GPU_SHADER_ASSERT
+        "assert|"
+#endif
         "printf"
         ")");
     regex_global_search(
@@ -272,7 +307,7 @@ class Preprocessor {
       return "";
     }
 
-    const bool skip_drw_debug = filename.find("common_debug_draw_lib.glsl") != std::string::npos ||
+    const bool skip_drw_debug = filename.find("draw_debug_draw_lib.glsl") != std::string::npos ||
                                 filename.find("draw_debug_draw_display_vert.glsl") !=
                                     std::string::npos;
 
@@ -341,6 +376,22 @@ class Preprocessor {
       out_str = std::regex_replace(out_str, regex, "; }");
     }
     return out_str;
+  }
+
+  std::string assert_processing(const std::string &str, const std::string &filepath)
+  {
+    std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
+    /* Example: `assert(i < 0)` > `if (!(i < 0)) { printf(...); }` */
+    std::regex regex(R"(\bassert\(([^;]*)\))");
+    std::string replacement;
+#ifdef WITH_GPU_SHADER_ASSERT
+    replacement = "if (!($1)) { printf(\"Assertion failed: ($1), file " + filename +
+                  ", line %d, thread (%u,%u,%u).\\n\", __LINE__, GPU_THREAD.x, GPU_THREAD.y, "
+                  "GPU_THREAD.z); }";
+#else
+    (void)filename;
+#endif
+    return std::regex_replace(str, regex, replacement);
   }
 
   void static_strings_parsing(const std::string &str)
@@ -432,6 +483,18 @@ class Preprocessor {
     return str;
   }
 
+  /* To be run before `argument_decorator_macro_injection()`. */
+  std::string argument_reference_mutation(const std::string &str)
+  {
+    /* Remove parenthesis first. */
+    /* Example: `float (&var)[2]` > `float &var[2]` */
+    std::regex regex_parenthesis(R"((\w+ )\(&(\w+)\))");
+    std::string out = std::regex_replace(str, regex_parenthesis, "$1&$2");
+    /* Example: `const float &var[2]` > `inout float var[2]` */
+    std::regex regex(R"((?:const)?(\s*)(\w+)\s+\&(\w+)(\[\d*\])?)");
+    return std::regex_replace(out, regex, "$1 inout $2 $3$4");
+  }
+
   std::string argument_decorator_macro_injection(const std::string &str)
   {
     /* Example: `out float var[2]` > `out float _out_sta var _out_end[2]` */
@@ -462,7 +525,7 @@ class Preprocessor {
 
   /* Assume formatted source with our code style. Cannot be applied to python shaders. */
   template<typename ReportErrorF>
-  void global_scope_constant_linting(std::string str, const ReportErrorF &report_error)
+  void global_scope_constant_linting(const std::string &str, const ReportErrorF &report_error)
   {
     /* Example: `const uint global_var = 1u;`. Matches if not indented (i.e. inside a scope). */
     std::regex regex(R"(const \w+ \w+ =)");
@@ -541,7 +604,7 @@ class Preprocessor {
     /**
      * Example replacement:
      *
-     * `
+     * \code{.cc}
      * // Source
      * shared float bar[10];                                    // Source declaration.
      * shared float foo;                                        // Source declaration.
@@ -574,7 +637,7 @@ class Preprocessor {
      *
      * }                                                        // Added at runtime by backend.
      * // End of Backend Output
-     * `
+     * \endcode
      */
     std::stringstream args, assign, declare, pass;
 
@@ -644,6 +707,7 @@ enum Builtin : uint64_t {
   WorkGroupSize = Preprocessor::hash("gl_WorkGroupSize"),
   drw_debug = Preprocessor::hash("drw_debug_"),
   printf = Preprocessor::hash("printf"),
+  assert = Preprocessor::hash("assert"),
 };
 
 enum Qualifier : uint64_t {
@@ -653,12 +717,12 @@ enum Qualifier : uint64_t {
 };
 
 enum Type : uint64_t {
-  vec1 = Preprocessor::hash("float"),
-  vec2 = Preprocessor::hash("vec2"),
-  vec3 = Preprocessor::hash("vec3"),
-  vec4 = Preprocessor::hash("vec4"),
-  mat3 = Preprocessor::hash("mat3"),
-  mat4 = Preprocessor::hash("mat4"),
+  float1 = Preprocessor::hash("float"),
+  float2 = Preprocessor::hash("float2"),
+  float3 = Preprocessor::hash("float3"),
+  float4 = Preprocessor::hash("float4"),
+  float3x3 = Preprocessor::hash("float3x3"),
+  float4x4 = Preprocessor::hash("float4x4"),
   sampler1DArray = Preprocessor::hash("sampler1DArray"),
   sampler2DArray = Preprocessor::hash("sampler2DArray"),
   sampler2D = Preprocessor::hash("sampler2D"),

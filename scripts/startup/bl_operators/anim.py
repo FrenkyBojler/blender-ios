@@ -223,7 +223,10 @@ class NLA_OT_bake(Operator):
     )
     clear_constraints: BoolProperty(
         name="Clear Constraints",
-        description="Remove all constraints from keyed object/bones, and do 'visual' keying",
+        description=(
+            "Remove all constraints from keyed object/bones. "
+            "To get a correct bake with this setting Visual Keying should be enabled"
+        ),
         default=False,
     )
     clear_parents: BoolProperty(
@@ -392,7 +395,7 @@ class UpdateAnimatedTransformConstraint(Operator):
         to_paths = {"to_max_x", "to_max_y", "to_max_z", "to_min_x", "to_min_y", "to_min_z"}
         paths = from_paths | to_paths
 
-        def update_cb(base, class_name, old_path, fcurve, options):
+        def update_cb(base, _class_name, old_path, fcurve, options):
             # print(options)
 
             def handle_deg2rad(fcurve):
@@ -467,7 +470,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
 
     bone_type: EnumProperty(
         name="Type",
-        items=_bone_type_enum)
+        items=_bone_type_enum,
+    )
 
     @classmethod
     def poll(cls, context):
@@ -528,7 +532,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
                 "Bone colors were synced; "
                 "for {:d} bones this will not be visible due to pose bone color overrides".format(
                     num_pose_color_overrides,
-                ))
+                ),
+            )
 
         return {'FINISHED'}
 
@@ -674,6 +679,10 @@ class ANIM_OT_slot_new_for_id(Operator):
     Note that _which_ ID should get this slot must be set in the 'animated_id' context pointer, using:
 
     >>> layout.context_pointer_set("animated_id", animated_id)
+
+    When the ID already has a slot assigned, the newly-created slot will be
+    named after it (ensuring uniqueness with a numerical suffix) and any
+    animation data of the assigned slot will be duplicated for the new slot.
     """
     bl_idname = "anim.slot_new_for_id"
     bl_label = "New Slot"
@@ -698,10 +707,14 @@ class ANIM_OT_slot_new_for_id(Operator):
 
     def execute(self, context):
         animated_id = context.animated_id
+        adt = animated_id.animation_data
 
-        action = animated_id.animation_data.action
-        slot = action.slots.new(for_id=animated_id)
-        animated_id.animation_data.action_slot = slot
+        if adt.action_slot:
+            slot = adt.action_slot.duplicate()
+        else:
+            slot = adt.action.slots.new(animated_id.id_type, animated_id.name)
+
+        adt.action_slot = slot
         return {'FINISHED'}
 
 
@@ -734,7 +747,7 @@ class ANIM_OT_slot_unassign_from_id(Operator):
         return {'FINISHED'}
 
 
-class generic_slot_unassign_mixin():
+class generic_slot_unassign_mixin:
     context_property_name = ""
     """Which context attribute to use to get the to-be-manipulated data-block."""
 

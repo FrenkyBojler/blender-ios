@@ -54,11 +54,18 @@ __intersection__local_tri_single_hit(
                extended_limits)]] PrimitiveIntersectionResult
 __intersection__local_tri_single_hit_mblur(
     ray_data MetalKernelContext::MetalRTIntersectionLocalPayload_single_hit &payload [[payload]],
+#  if defined(__METALRT_MOTION__)
+    uint object [[instance_id]],
+#  endif
     uint primitive_id [[primitive_id]])
 {
   PrimitiveIntersectionResult result;
   result.continue_search = true;
+#  if defined(__METALRT_MOTION__)
+  result.accept = (payload.self_prim != primitive_id) && (payload.self_object == object);
+#  else
   result.accept = (payload.self_prim != primitive_id);
+#  endif
   return result;
 }
 
@@ -156,9 +163,21 @@ __intersection__local_tri(ray_data MetalKernelContext::MetalRTIntersectionLocalP
 __intersection__local_tri_mblur(
     ray_data MetalKernelContext::MetalRTIntersectionLocalPayload &payload [[payload]],
     uint primitive_id [[primitive_id]],
+#  if defined(__METALRT_MOTION__)
+    uint object [[instance_id]],
+#  endif
     float2 barycentrics [[barycentric_coord]],
     float ray_tmax [[distance]])
 {
+#  if defined(__METALRT_MOTION__)
+  if (payload.self_object != object) {
+    PrimitiveIntersectionResult result;
+    result.continue_search = true;
+    result.accept = false;
+    return result;
+  }
+#  endif
+
   return metalrt_local_hit<PrimitiveIntersectionResult, METALRT_HIT_TRIANGLE>(
       payload, primitive_id, barycentrics, ray_tmax);
 }
@@ -172,7 +191,7 @@ bool metalrt_shadow_all_hit(
     const float2 barycentrics,
     const float ray_tmax,
     const float t = 0.0f,
-    ccl_private const Ray *ray = NULL)
+    const ccl_private Ray *ray = nullptr)
 {
 #  ifdef __SHADOW_RECORD_ALL__
   float u = barycentrics.x;
@@ -194,7 +213,7 @@ bool metalrt_shadow_all_hit(
 
     if (type & PRIMITIVE_CURVE_RIBBON) {
       MetalKernelContext context(launch_params_metal);
-      if (!context.curve_ribbon_accept(NULL, u, t, ray, object, prim, type)) {
+      if (!context.curve_ribbon_accept(nullptr, u, t, ray, object, prim, type)) {
         /* continue search */
         return true;
       }
@@ -214,6 +233,8 @@ bool metalrt_shadow_all_hit(
   }
 
   MetalKernelContext context(launch_params_metal);
+  const IntegratorShadowState state = payload.state;
+  short num_hits = payload.num_hits;
 
   if (context.intersection_skip_self_shadow(payload.self, object, prim)) {
     /* continue search */
@@ -227,6 +248,10 @@ bool metalrt_shadow_all_hit(
   }
 #    endif
 
+  if (context.intersection_skip_shadow_already_recoded(nullptr, state, object, prim, num_hits)) {
+    return true;
+  }
+
 #    ifndef __TRANSPARENT_SHADOWS__
   /* No transparent shadows support compiled in, make opaque. */
   payload.result = true;
@@ -234,12 +259,11 @@ bool metalrt_shadow_all_hit(
   return false;
 #    else
   short max_hits = payload.max_hits;
-  short num_hits = payload.num_hits;
   short num_recorded_hits = payload.num_recorded_hits;
 
   /* If no transparent shadows, all light is blocked and we can stop immediately. */
   if (num_hits >= max_hits ||
-      !(context.intersection_get_shader_flags(NULL, prim, type) & SD_HAS_TRANSPARENT_SHADOW))
+      !(context.intersection_get_shader_flags(nullptr, prim, type) & SD_HAS_TRANSPARENT_SHADOW))
   {
     payload.result = true;
     /* terminate ray */
@@ -269,8 +293,6 @@ bool metalrt_shadow_all_hit(
   payload.num_recorded_hits += 1;
 
   uint record_index = num_recorded_hits;
-
-  const IntegratorShadowState state = payload.state;
 
   const uint max_record_hits = min(uint(max_hits), INTEGRATOR_SHADOW_ISECT_SIZE);
   if (record_index >= max_record_hits) {
@@ -371,7 +393,7 @@ inline TReturnType metalrt_visibility_test(
     uint prim,
     const float u,
     const float t = 0.0f,
-    ccl_private const Ray *ray = NULL)
+    const ccl_private Ray *ray = nullptr)
 {
   TReturnType result;
 
@@ -390,7 +412,7 @@ inline TReturnType metalrt_visibility_test(
 
     if (type & PRIMITIVE_CURVE_RIBBON) {
       MetalKernelContext context(launch_params_metal);
-      if (!context.curve_ribbon_accept(NULL, u, t, ray, object, prim, type)) {
+      if (!context.curve_ribbon_accept(nullptr, u, t, ray, object, prim, type)) {
         result.accept = false;
         result.continue_search = true;
         return result;
@@ -417,7 +439,7 @@ inline TReturnType metalrt_visibility_test_shadow(
     uint prim,
     const float u,
     const float t = 0.0f,
-    ccl_private const Ray *ray = NULL)
+    const ccl_private Ray *ray = nullptr)
 {
   TReturnType result;
 
@@ -436,7 +458,7 @@ inline TReturnType metalrt_visibility_test_shadow(
 
     if (type & PRIMITIVE_CURVE_RIBBON) {
       MetalKernelContext context(launch_params_metal);
-      if (!context.curve_ribbon_accept(NULL, u, t, ray, object, prim, type)) {
+      if (!context.curve_ribbon_accept(nullptr, u, t, ray, object, prim, type)) {
         result.accept = false;
         result.continue_search = true;
         return result;
@@ -637,7 +659,7 @@ ccl_device_inline void metalrt_intersection_point_shadow_all(
 
   MetalKernelContext context(launch_params_metal);
   if (context.point_intersect(
-          NULL, &isect, ray_P, ray_D, ray_tmin, isect.t, object, prim, time, type))
+          nullptr, &isect, ray_P, ray_D, ray_tmin, isect.t, object, prim, time, type))
   {
     result.continue_search = metalrt_shadow_all_hit<METALRT_HIT_BOUNDING_BOX>(
         launch_params_metal, payload, object, prim, float2(isect.u, isect.v), ray_tmax);
@@ -684,7 +706,7 @@ __intersection__point(constant KernelParamsMetal &launch_params_metal [[buffer(1
 
   MetalKernelContext context(launch_params_metal);
   if (context.point_intersect(
-          NULL, &isect, ray_origin, ray_direction, ray_tmin, isect.t, object, prim, time, type))
+          nullptr, &isect, ray_origin, ray_direction, ray_tmin, isect.t, object, prim, time, type))
   {
     result = metalrt_visibility_test<BoundingBoxIntersectionResult, METALRT_HIT_BOUNDING_BOX>(
         launch_params_metal, payload, object, prim, isect.u);
@@ -735,7 +757,7 @@ __intersection__point_shadow(constant KernelParamsMetal &launch_params_metal [[b
 
   MetalKernelContext context(launch_params_metal);
   if (context.point_intersect(
-          NULL, &isect, ray_origin, ray_direction, ray_tmin, isect.t, object, prim, time, type))
+          nullptr, &isect, ray_origin, ray_direction, ray_tmin, isect.t, object, prim, time, type))
   {
     result =
         metalrt_visibility_test_shadow<BoundingBoxIntersectionResult, METALRT_HIT_BOUNDING_BOX>(

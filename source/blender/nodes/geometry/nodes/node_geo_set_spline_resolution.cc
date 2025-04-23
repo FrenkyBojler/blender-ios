@@ -11,11 +11,13 @@ namespace blender::nodes::node_geo_set_spline_resolution_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Geometry")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Int>("Resolution").min(1).default_value(12).field_on_all();
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
 }
 
 static void set_curve_resolution(bke::CurvesGeometry &curves,
@@ -73,11 +75,15 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SET_SPLINE_RESOLUTION, "Set Spline Resolution", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSetSplineResolution", GEO_NODE_SET_SPLINE_RESOLUTION);
+  ntype.ui_name = "Set Spline Resolution";
+  ntype.ui_description =
+      "Control how many evaluated points should be generated on every curve segment";
+  ntype.enum_name_legacy = "SET_SPLINE_RESOLUTION";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

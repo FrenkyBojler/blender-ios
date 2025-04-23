@@ -98,6 +98,12 @@ class VKDescriptorSetTracker {
    */
   void update_descriptor_set(VKContext &context,
                              render_graph::VKResourceAccessInfo &resource_access_info);
+
+  /**
+   * Upload all descriptor sets to the device.
+   *
+   * NOTE: Caller should discard the associated descriptor pools. (VKDescriptorPools::discard)
+   */
   void upload_descriptor_sets();
 
  private:
@@ -119,6 +125,10 @@ class VKDescriptorSetTracker {
   void bind_uniform_buffer_resource(const VKStateManager &state_manager,
                                     const VKResourceBinding &resource_binding,
                                     render_graph::VKResourceAccessInfo &access_info);
+  void bind_input_attachment_resource(const VKDevice &device,
+                                      const VKStateManager &state_manager,
+                                      const VKResourceBinding &resource_binding,
+                                      render_graph::VKResourceAccessInfo &access_info);
   void bind_push_constants(VKPushConstants &push_constants,
 
                            render_graph::VKResourceAccessInfo &access_info);
@@ -126,6 +136,7 @@ class VKDescriptorSetTracker {
   void bind_texel_buffer(VkBufferView vk_buffer_view, VKDescriptorSet::Location location);
   void bind_buffer(VkDescriptorType vk_descriptor_type,
                    VkBuffer vk_buffer,
+                   VkDeviceSize buffer_offset,
                    VkDeviceSize size_in_bytes,
                    VKDescriptorSet::Location location);
   void bind_image(VkDescriptorType vk_descriptor_type,

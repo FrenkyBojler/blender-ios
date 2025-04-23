@@ -19,13 +19,11 @@
 /* Extended file attribute used by OneDrive to mark placeholder files. */
 static const char *ONEDRIVE_RECALLONOPEN_ATTRIBUTE = "com.microsoft.OneDrive.RecallOnOpen";
 
-/**
- * \param r_targetpath: Buffer for the target path an alias points to.
- * \return Whether the file at the input path is an alias.
- */
-/* False alarm by clang-tidy: #getFileSystemRepresentation changes the return value argument. */
-/* NOLINTNEXTLINE: readability-non-const-parameter. */
-bool BLI_file_alias_target(const char *filepath, char r_targetpath[FILE_MAXDIR])
+bool BLI_file_alias_target(const char *filepath,
+                           /* False alarm by clang-tidy: #getFileSystemRepresentation
+                            * changes the return value argument. */
+                           /* NOLINTNEXTLINE: readability-non-const-parameter. */
+                           char r_targetpath[FILE_MAXDIR])
 {
   /* clang-format off */
   @autoreleasepool {
@@ -129,9 +127,9 @@ eFileAttributes BLI_file_attributes(const char *path)
   /* clang-format off */
   @autoreleasepool {
     /* clang-format on */
-    NSURL *fileURL = [[NSURL alloc] initFileURLWithFileSystemRepresentation:path
-                                                                isDirectory:NO
-                                                              relativeToURL:nil];
+    NSURL *fileURL = [[[NSURL alloc] initFileURLWithFileSystemRepresentation:path
+                                                                 isDirectory:NO
+                                                               relativeToURL:nil] autorelease];
 
     /* Querying NSURLIsReadableKey and NSURLIsWritableKey keys for OneDrive placeholder files
      * triggers their unwanted download. */

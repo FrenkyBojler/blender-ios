@@ -91,10 +91,10 @@ bool MTLCommandBufferManager::submit(bool wait)
   /* Skip submission if command buffer is empty. */
   if (empty_ || active_command_buffer_ == nil) {
     if (wait) {
-      /* Wait for any previously submitted work on this context to complete. */
-      while (context_.main_command_buffer.get_active_command_buffer_count()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      }
+      /* Wait for any previously submitted work on this context to complete.
+       * (The wait function will yield so may need reworking if this hits a
+       * performance critical path which is sensitive to CPU<->GPU latency) */
+      wait_until_active_command_buffers_complete();
     }
     return false;
   }
@@ -229,7 +229,7 @@ MTLFrameBuffer *MTLCommandBufferManager::get_active_framebuffer()
 
 /* Encoder and Pass management. */
 /* End currently active MTLCommandEncoder. */
-bool MTLCommandBufferManager::end_active_command_encoder()
+bool MTLCommandBufferManager::end_active_command_encoder(bool retain_framebuffers)
 {
 
   /* End active encoder if one is active. */
@@ -247,8 +247,10 @@ bool MTLCommandBufferManager::end_active_command_encoder()
         active_command_encoder_type_ = MTL_NO_COMMAND_ENCODER;
 
         /* Reset associated frame-buffer flag. */
-        active_frame_buffer_ = nullptr;
-        active_pass_descriptor_ = nullptr;
+        if (!retain_framebuffers) {
+          active_frame_buffer_ = nullptr;
+          active_pass_descriptor_ = nullptr;
+        }
         return true;
       }
 
@@ -489,10 +491,8 @@ bool MTLCommandBufferManager::do_break_submission()
     return ((current_draw_call_count_ > 30000) || (vertex_submitted_count_ > 100000000) ||
             (encoder_count_ > 25));
   }
-  else {
-    /* Apple Silicon is less efficient if splitting submissions. */
-    return false;
-  }
+  /* Apple Silicon is less efficient if splitting submissions. */
+  return false;
 }
 
 /** \} */
@@ -516,7 +516,7 @@ void MTLCommandBufferManager::push_debug_group(const char *name, int /*index*/)
       end_active_command_encoder();
     }
 
-    debug_group_stack.push_back(std::string(name));
+    debug_group_stack.emplace_back(name);
   }
 }
 
@@ -540,12 +540,12 @@ void MTLCommandBufferManager::pop_debug_group()
 #endif
 
     /* If we have pending debug groups, first pop the last pending one. */
-    if (debug_group_stack.size() > 0) {
+    if (!debug_group_stack.empty()) {
       debug_group_stack.pop_back();
     }
     else {
       /* Otherwise, close last active pushed group. */
-      if (debug_group_pushed_stack.size() > 0) {
+      if (!debug_group_pushed_stack.empty()) {
         debug_group_pushed_stack.pop_back();
 
         if (debug_group_pushed_stack.size() < uint(METAL_DEBUG_CAPTURE_MAX_NESTED_GROUPS)) {
@@ -595,10 +595,8 @@ bool MTLCommandBufferManager::insert_memory_barrier(eGPUBarrier barrier_bits,
       end_active_command_encoder();
       return true;
     }
-    else {
-      /* Skip all barriers for compute and blit passes as Metal will resolve these dependencies. */
-      return false;
-    }
+    /* Skip all barriers for compute and blit passes as Metal will resolve these dependencies. */
+    return false;
   }
 
   /* Resolve scope. */

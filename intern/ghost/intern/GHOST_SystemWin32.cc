@@ -285,7 +285,6 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
       state,
       gpuSettings.context_type,
       ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
-      false,
       (GHOST_WindowWin32 *)parentWindow,
       ((gpuSettings.flags & GHOST_gpuDebugContext) != 0),
       is_dialog,
@@ -583,10 +582,14 @@ GHOST_TSuccess GHOST_SystemWin32::getButtons(GHOST_Buttons &buttons) const
 
 GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
 {
-  return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
-                               ~(
-                                   /* WIN32 has no support for a primary selection clipboard. */
-                                   GHOST_kCapabilityPrimaryClipboard));
+  return GHOST_TCapabilityFlag(
+      GHOST_CAPABILITY_FLAG_ALL &
+      ~(
+          /* WIN32 has no support for a primary selection clipboard. */
+          GHOST_kCapabilityPrimaryClipboard |
+          /* WIN32 doesn't define a Hyper modifier key,
+           * it's possible another modifier could be optionally used in it's place. */
+          GHOST_kCapabilityKeyboardHyperKey));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()
@@ -614,11 +617,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
       ::LoadIcon(nullptr, IDI_APPLICATION);
     }
     wc.hCursor = ::LoadCursor(0, IDC_ARROW);
-    wc.hbrBackground =
-#ifdef INW32_COMPISITING
-        (HBRUSH)CreateSolidBrush
-#endif
-        (0x00000000);
+    wc.hbrBackground = (HBRUSH)GetStockObject(DKGRAY_BRUSH);
     wc.lpszMenuName = 0;
     wc.lpszClassName = L"GHOST_WindowClass";
 
@@ -1258,6 +1257,19 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
   GHOST_TKey key = system->hardKey(raw, &key_down);
   GHOST_EventKey *event;
 
+  /* Scan code (device-dependent identifier for the key on the keyboard) for the Alt key.
+   * https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#scan-codes */
+  constexpr USHORT ALTGR_MAKE_CODE = 0x38;
+
+  /* If the keyboard layout includes AltGr and the virtual key is Control, yet the
+   * scan-code is actually for Right Alt (ALTGR_MAKE_CODE scan code with E0 prefix).
+   * Ignore these, so treating AltGR as regular Alt. #68256 */
+  if (system->m_hasAltGr && vk == VK_CONTROL && raw.data.keyboard.MakeCode == ALTGR_MAKE_CODE &&
+      (raw.data.keyboard.Flags & RI_KEY_E0))
+  {
+    return nullptr;
+  }
+
   /* NOTE(@ideasman42): key repeat in WIN32 also applies to modifier-keys.
    * Check for this case and filter out modifier-repeat.
    * Typically keyboard events are *not* filtered as part of GHOST's event handling.
@@ -1283,12 +1295,16 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     const BOOL has_state = GetKeyboardState((PBYTE)state);
     const bool ctrl_pressed = has_state && state[VK_CONTROL] & 0x80;
     const bool alt_pressed = has_state && state[VK_MENU] & 0x80;
+    const bool win_pressed = has_state && (state[VK_LWIN] | state[VK_RWIN]) & 0x80;
 
     /* We can be here with !key_down if processing dead keys (diacritics). See #103119. */
 
     /* No text with control key pressed (Alt can be used to insert special characters though!). */
     if (ctrl_pressed && !alt_pressed) {
       /* Pass. */
+    }
+    else if (win_pressed) {
+      /* Pass. No text if either Win key is pressed. #79702. */
     }
     /* Don't call #ToUnicodeEx on dead keys as it clears the buffer and so won't allow diacritical
      * composition. XXX: we are not checking return of MapVirtualKeyW for high bit set, which is
@@ -1363,6 +1379,9 @@ GHOST_Event *GHOST_SystemWin32::processWindowEvent(GHOST_TEventType type,
 
   if (type == GHOST_kEventWindowActivate) {
     system->getWindowManager()->setActiveWindow(window);
+  }
+  else if (type == GHOST_kEventWindowDeactivate) {
+    system->getWindowManager()->setWindowInactive(window);
   }
 
   return new GHOST_Event(getMessageTime(system), type, window);
@@ -2221,6 +2240,18 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
           /* An application sends the WM_ERASEBKGND message when the window background must be
            * erased (for example, when a window is resized). The message is sent to prepare an
            * invalidated portion of a window for painting. */
+          {
+            HBRUSH bgBrush = (HBRUSH)GetClassLongPtr(hwnd, GCLP_HBRBACKGROUND);
+            if (bgBrush) {
+              RECT rect;
+              GetClientRect(hwnd, &rect);
+              FillRect((HDC)(wParam), &rect, bgBrush);
+              /* Clear the background brush after the initial fill as we don't
+               * need or want any default Windows fill behavior on redraw. */
+              SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR) nullptr);
+            }
+            break;
+          }
         case WM_NCPAINT:
           /* An application sends the WM_NCPAINT message to a window
            * when its frame must be painted. */
@@ -2354,8 +2385,7 @@ char *GHOST_SystemWin32::getClipboard(bool /*selection*/) const
 
     len = strlen(buffer);
     char *temp_buff = (char *)malloc(len + 1);
-    strncpy(temp_buff, buffer, len);
-    temp_buff[len] = '\0';
+    memcpy(temp_buff, buffer, len + 1);
 
     /* Buffer mustn't be accessed after CloseClipboard
      * it would like accessing free-d memory */
@@ -2401,7 +2431,70 @@ GHOST_TSuccess GHOST_SystemWin32::hasClipboardImage(void) const
     return GHOST_kSuccess;
   }
 
-  return GHOST_kFailure;
+  /* This could be a file path to an image file. */
+  GHOST_TSuccess result = GHOST_kFailure;
+  if (IsClipboardFormatAvailable(CF_HDROP)) {
+    if (OpenClipboard(nullptr)) {
+      if (HANDLE hGlobal = GetClipboardData(CF_HDROP)) {
+        if (HDROP hDrop = static_cast<HDROP>(GlobalLock(hGlobal))) {
+          UINT fileCount = DragQueryFile(hDrop, 0xffffffff, nullptr, 0);
+          if (fileCount == 1) {
+            WCHAR lpszFile[MAX_PATH] = {0};
+            DragQueryFileW(hDrop, 0, lpszFile, MAX_PATH);
+            char *filepath = alloc_utf_8_from_16(lpszFile, 0);
+            ImBuf *ibuf = IMB_load_image_from_filepath(filepath,
+                                                       IB_byte_data | IB_multilayer | IB_test);
+            free(filepath);
+            if (ibuf) {
+              IMB_freeImBuf(ibuf);
+              result = GHOST_kSuccess;
+            }
+          }
+          GlobalUnlock(hGlobal);
+        }
+      }
+      CloseClipboard();
+    }
+  }
+  return result;
+}
+
+static uint *getClipboardImageFilepath(int *r_width, int *r_height)
+{
+  char *filepath = nullptr;
+
+  if (OpenClipboard(nullptr)) {
+    if (HANDLE hGlobal = GetClipboardData(CF_HDROP)) {
+      if (HDROP hDrop = static_cast<HDROP>(GlobalLock(hGlobal))) {
+        UINT fileCount = DragQueryFile(hDrop, 0xffffffff, nullptr, 0);
+        if (fileCount == 1) {
+          WCHAR lpszFile[MAX_PATH] = {0};
+          DragQueryFileW(hDrop, 0, lpszFile, MAX_PATH);
+          filepath = alloc_utf_8_from_16(lpszFile, 0);
+        }
+        GlobalUnlock(hGlobal);
+      }
+    }
+    CloseClipboard();
+  }
+
+  if (filepath) {
+    ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer);
+    free(filepath);
+    if (ibuf) {
+      *r_width = ibuf->x;
+      *r_height = ibuf->y;
+      const uint64_t byte_count = static_cast<uint64_t>(ibuf->x) * ibuf->y * 4;
+      uint *rgba = static_cast<uint *>(malloc(byte_count));
+      if (rgba) {
+        memcpy(rgba, ibuf->byte_buffer.data, byte_count);
+      }
+      IMB_freeImBuf(ibuf);
+      return rgba;
+    }
+  }
+
+  return nullptr;
 }
 
 static uint *getClipboardImageDibV5(int *r_width, int *r_height)
@@ -2504,8 +2597,8 @@ static uint *getClipboardImageImBuf(int *r_width, int *r_height, UINT format)
 
   uint *rgba = nullptr;
 
-  ImBuf *ibuf = IMB_ibImageFromMemory(
-      (uchar *)pMem, GlobalSize(hGlobal), IB_rect, nullptr, "<clipboard>");
+  ImBuf *ibuf = IMB_load_image_from_memory(
+      (uchar *)pMem, GlobalSize(hGlobal), IB_byte_data, "<clipboard>");
 
   if (ibuf) {
     *r_width = ibuf->x;
@@ -2522,6 +2615,10 @@ static uint *getClipboardImageImBuf(int *r_width, int *r_height, UINT format)
 
 uint *GHOST_SystemWin32::getClipboardImage(int *r_width, int *r_height) const
 {
+  if (IsClipboardFormatAvailable(CF_HDROP)) {
+    return getClipboardImageFilepath(r_width, r_height);
+  }
+
   if (!OpenClipboard(nullptr)) {
     return nullptr;
   }
@@ -2612,7 +2709,7 @@ static bool putClipboardImagePNG(uint *rgba, int width, int height)
   ImBuf *ibuf = IMB_allocFromBuffer(reinterpret_cast<uint8_t *>(rgba), nullptr, width, height, 32);
   ibuf->ftype = IMB_FTYPE_PNG;
   ibuf->foptions.quality = 15;
-  if (!IMB_saveiff(ibuf, "<memory>", IB_rect | IB_mem)) {
+  if (!IMB_save_image(ibuf, "<memory>", IB_byte_data | IB_mem)) {
     IMB_freeImBuf(ibuf);
     return false;
   }

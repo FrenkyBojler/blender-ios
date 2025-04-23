@@ -63,7 +63,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_customdata.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
@@ -319,18 +319,18 @@ static void barycentric_differentials_from_position(const float co[3],
 /**
  * This function populates pixel_array and returns TRUE if things are correct
  */
-static bool cast_ray_highpoly(BVHTreeFromMesh *treeData,
+static bool cast_ray_highpoly(blender::bke::BVHTreeFromMesh *treeData,
                               TriTessFace *triangle_low,
                               TriTessFace *triangles[],
                               BakePixel *pixel_array_low,
                               BakePixel *pixel_array,
                               const float mat_low[4][4],
                               BakeHighPolyData *highpoly,
+                              const int highpoly_num,
                               blender::MutableSpan<BVHTreeRayHit> hits,
                               const float co[3],
                               const float dir[3],
                               const int pixel_id,
-                              const int tot_highpoly,
                               const float max_ray_distance)
 {
   int hit_mesh = -1;
@@ -340,7 +340,7 @@ static bool cast_ray_highpoly(BVHTreeFromMesh *treeData,
     hit_distance_squared = FLT_MAX;
   }
 
-  for (int i = 0; i < tot_highpoly; i++) {
+  for (int i = 0; i < highpoly_num; i++) {
     float co_high[3], dir_high[3];
 
     hits[i].index = -1;
@@ -469,7 +469,7 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
 
   blender::int3 *corner_tris = static_cast<blender::int3 *>(
       MEM_mallocN(sizeof(*corner_tris) * tottri, __func__));
-  triangles = static_cast<TriTessFace *>(MEM_callocN(sizeof(TriTessFace) * tottri, __func__));
+  triangles = MEM_calloc_arrayN<TriTessFace>(tottri, __func__);
 
   const bool calculate_normal = BKE_mesh_face_normals_are_dirty(mesh);
   blender::Span<blender::float3> precomputed_normals;
@@ -544,7 +544,7 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
                                           BakePixel pixel_array_from[],
                                           BakePixel pixel_array_to[],
                                           BakeHighPolyData highpoly[],
-                                          const int tot_highpoly,
+                                          const int highpoly_num,
                                           const size_t pixels_num,
                                           const bool is_custom_cage,
                                           const float cage_extrusion,
@@ -567,12 +567,11 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
   TriTessFace **tris_high;
 
   /* Assume all low-poly tessfaces can be quads. */
-  tris_high = MEM_cnew_array<TriTessFace *>(tot_highpoly, "MVerts Highpoly Mesh Array");
+  tris_high = MEM_calloc_arrayN<TriTessFace *>(highpoly_num, "MVerts Highpoly Mesh Array");
 
   /* Assume all high-poly tessfaces are triangles. */
-  me_highpoly = static_cast<Mesh **>(
-      MEM_mallocN(sizeof(Mesh *) * tot_highpoly, "Highpoly Derived Meshes"));
-  Array<BVHTreeFromMesh> treeData(tot_highpoly);
+  me_highpoly = MEM_malloc_arrayN<Mesh *>(highpoly_num, "Highpoly Derived Meshes");
+  Array<blender::bke::BVHTreeFromMesh> treeData(highpoly_num);
 
   if (!is_cage) {
     me_eval_low = BKE_mesh_copy_for_eval(*me_low);
@@ -588,15 +587,13 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
 
   invert_m4_m4(imat_low, mat_low);
 
-  for (int i = 0; i < tot_highpoly; i++) {
+  for (int i = 0; i < highpoly_num; i++) {
     tris_high[i] = mesh_calc_tri_tessface(highpoly[i].mesh, false, nullptr);
 
     me_highpoly[i] = highpoly[i].mesh;
 
     if (BKE_mesh_runtime_corner_tris_len(me_highpoly[i]) != 0) {
-      /* Create a BVH-tree for each `highpoly` object. */
-      BKE_bvhtree_from_mesh_get(&treeData[i], me_highpoly[i], BVHTREE_FROM_CORNER_TRIS, 2);
-
+      treeData[i] = me_highpoly[i]->bvh_corner_tris();
       if (treeData[i].tree == nullptr) {
         printf("Baking: out of memory while creating BHVTree for object \"%s\"\n",
                highpoly[i].ob->id.name + 2);
@@ -607,7 +604,7 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
   }
 
   threading::parallel_for(IndexRange(pixels_num), 1024, [&](const IndexRange range) {
-    Array<BVHTreeRayHit> hits(tot_highpoly);
+    Array<BVHTreeRayHit> hits(highpoly_num);
     for (const IndexRange::Iterator::value_type i : range) {
       int primitive_id = pixel_array_from[i].primitive_id;
 
@@ -647,11 +644,11 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
                              pixel_array_to,
                              mat_low,
                              highpoly,
+                             highpoly_num,
                              hits,
                              co,
                              dir,
                              i,
-                             tot_highpoly,
                              max_ray_distance))
       {
         /* if it fails mask out the original pixel array */
@@ -662,9 +659,7 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
 
   /* garbage collection */
 cleanup:
-  for (int i = 0; i < tot_highpoly; i++) {
-    free_bvhtree_from_mesh(&treeData[i]);
-
+  for (int i = 0; i < highpoly_num; i++) {
     if (tris_high[i]) {
       MEM_freeN(tris_high[i]);
     }
@@ -735,7 +730,7 @@ void RE_bake_pixels_populate(Mesh *mesh,
 
   BakeDataZSpan bd;
   bd.pixel_array = pixel_array;
-  bd.zspan = MEM_cnew_array<ZSpan>(targets->images_num, "bake zspan");
+  bd.zspan = MEM_calloc_arrayN<ZSpan>(targets->images_num, "bake zspan");
 
   /* initialize all pixel arrays so we know which ones are 'blank' */
   for (int i = 0; i < pixels_num; i++) {
@@ -748,8 +743,7 @@ void RE_bake_pixels_populate(Mesh *mesh,
   }
 
   const int tottri = poly_to_tri_count(mesh->faces_num, mesh->corners_num);
-  blender::int3 *corner_tris = static_cast<blender::int3 *>(
-      MEM_mallocN(sizeof(*corner_tris) * tottri, __func__));
+  blender::int3 *corner_tris = MEM_malloc_arrayN<blender::int3>(size_t(tottri), __func__);
 
   blender::bke::mesh::corner_tris_calc(
       mesh->vert_positions(), mesh->faces(), mesh->corner_verts(), {corner_tris, tottri});
