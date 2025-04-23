@@ -2794,7 +2794,6 @@ struct SculptRaycastData {
   int hit_count;
   bool original;
   bool back_hit;
-  bool use_back_depth;
   Span<blender::float3> vert_positions;
   blender::OffsetIndices<int> faces;
   Span<int> corner_verts;
@@ -4795,7 +4794,6 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   srd.hit = false;
   srd.back_hit = false;
   srd.back_depth = back_depth;
-  srd.use_back_depth = use_back_depth;
   if (pbvh->type() == bke::pbvh::Type::Mesh) {
     const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
     srd.vert_positions = bke::pbvh::vert_positions_eval(*depsgraph, ob);
