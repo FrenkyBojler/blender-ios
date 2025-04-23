@@ -4010,7 +4010,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   }
 
   bool mball_converted = false;
-  int failed_count = 0;
+  int incompatible_count = 0;
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
@@ -4059,7 +4059,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_pointcloud(*base, target_type, info, &new_base);
           break;
         default:
-          failed_count++;
+          incompatible_count++;
           continue;
       }
     }
@@ -4069,7 +4069,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
       BKE_object_materials_sync_length(bmain, newob, static_cast<ID *>(newob->data));
     }
     else {
-      failed_count++;
+      incompatible_count++;
     }
 
     /* tag obdata if it was been changed */
@@ -4140,12 +4140,12 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
     }
   }
 
-  if (failed_count != 0) {
+  if (incompatible_count != 0) {
     const char *target_type_name = "";
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target");
     BLI_assert(prop != 0);
     RNA_property_enum_name(C, op->ptr, prop, target, &target_type_name);
-    if (failed_count == selected_editable_bases.size()) {
+    if (incompatible_count == selected_editable_bases.size()) {
       BKE_report(op->reports, RPT_INFO, "Object conversion: All objects failed to convert");
     }
     else {
@@ -4153,7 +4153,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
                   RPT_INFO,
                   "%s %d %s \"%s\"",
                   RPT_("The selection included"),
-                  failed_count,
+                  incompatible_count,
                   RPT_("object(s) types which don't support conversion to"),
                   IFACE_(target_type_name));
     }
