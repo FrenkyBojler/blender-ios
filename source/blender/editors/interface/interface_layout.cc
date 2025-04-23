@@ -1898,7 +1898,8 @@ void uiItemO(uiLayout *layout,
              int icon,
              const StringRefNull opname)
 {
-  uiItemFullO(layout, opname, name, icon, nullptr, layout->root_->opcontext, UI_ITEM_NONE, nullptr);
+  uiItemFullO(
+      layout, opname, name, icon, nullptr, layout->root_->opcontext, UI_ITEM_NONE, nullptr);
 }
 
 /* RNA property items */
