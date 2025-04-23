@@ -37,7 +37,7 @@ class PointClouds : Overlay {
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
   }
 
-  void edit_object_sync(Manager &manager,
+  void edit_object_sync(Manager & /*manager*/,
                         const ObjectRef &ob_ref,
                         Resources &res,
                         const State & /*state*/) final
@@ -46,11 +46,8 @@ class PointClouds : Overlay {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
-    {
-      gpu::Batch *geom = DRW_cache_pointcloud_vert_overlay_get(ob_ref.object);
-      ps_.draw(geom, res_handle, res.select_id(ob_ref).get());
-    }
+    gpu::Batch *geom = DRW_cache_pointcloud_vert_overlay_get(ob_ref.object);
+    ps_.draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
   }
 
   void pre_draw(Manager &manager, View &view) final

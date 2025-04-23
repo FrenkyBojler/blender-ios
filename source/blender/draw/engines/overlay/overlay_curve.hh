@@ -173,7 +173,7 @@ class Curves : Overlay {
     }
   }
 
-  void edit_object_sync(Manager &manager,
+  void edit_object_sync(Manager & /*manager*/,
                         const ObjectRef &ob_ref,
                         Resources & /*res*/,
                         const State & /*state*/) final
@@ -188,51 +188,49 @@ class Curves : Overlay {
 
     if (show_points) {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_points(&curves);
-      edit_curves_points_->draw(geom, manager.unique_handle(ob_ref));
+      edit_curves_points_->draw(geom, ob_ref.handle);
     }
     {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_curves_handles(&curves);
-      edit_curves_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, manager.unique_handle(ob_ref));
+      edit_curves_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, ob_ref.handle);
     }
     {
       gpu::Batch *geom = DRW_curves_batch_cache_get_edit_curves_lines(&curves);
-      edit_curves_lines_->draw(geom, manager.unique_handle(ob_ref));
+      edit_curves_lines_->draw(geom, ob_ref.handle);
     }
   }
 
   /* Used for legacy curves. */
-  void edit_object_sync_legacy(Manager &manager, const ObjectRef &ob_ref, Resources & /*res*/)
+  void edit_object_sync_legacy(Manager & /*manager*/, const ObjectRef &ob_ref, Resources & /*res*/)
   {
     if (!enabled_) {
       return;
     }
-
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
     Object *ob = ob_ref.object;
     ::Curve &curve = DRW_object_get_data_for_drawing<::Curve>(*ob);
 
     if (ob->type == OB_CURVES_LEGACY) {
       gpu::Batch *geom = DRW_cache_curve_edge_wire_get(ob);
-      edit_legacy_curve_wires_->draw(geom, res_handle);
+      edit_legacy_curve_wires_->draw(geom, ob_ref.handle);
     }
     if (edit_legacy_curve_normals_ && (curve.flag & CU_3D)) {
       gpu::Batch *geom = DRW_cache_curve_edge_normal_get(ob);
-      edit_legacy_curve_normals_->draw_expand(geom, GPU_PRIM_LINES, 2, 1, res_handle);
+      edit_legacy_curve_normals_->draw_expand(geom, GPU_PRIM_LINES, 2, 1, ob_ref.handle);
     }
     {
       gpu::Batch *geom = DRW_cache_curve_edge_overlay_get(ob);
       if (ob->type == OB_CURVES_LEGACY) {
-        edit_legacy_curve_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, res_handle);
+        edit_legacy_curve_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, ob_ref.handle);
       }
       else {
-        edit_legacy_surface_xray_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, res_handle);
-        edit_legacy_surface_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, res_handle);
+        edit_legacy_surface_xray_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, ob_ref.handle);
+        edit_legacy_surface_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, ob_ref.handle);
       }
     }
     {
       gpu::Batch *geom = DRW_cache_curve_vert_overlay_get(ob);
-      edit_legacy_curve_points_->draw(geom, res_handle);
+      edit_legacy_curve_points_->draw(geom, ob_ref.handle);
     }
   }
 

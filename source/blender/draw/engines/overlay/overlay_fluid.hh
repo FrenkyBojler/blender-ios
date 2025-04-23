@@ -76,7 +76,7 @@ class Fluids : Overlay {
     cube_buf_.clear();
   }
 
-  void object_sync(Manager &manager,
+  void object_sync(Manager & /*manager*/,
                    const ObjectRef &ob_ref,
                    Resources &res,
                    const State &state) final
@@ -110,7 +110,6 @@ class Fluids : Overlay {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
     select::ID sel_id = res.select_id(ob_ref);
 
     /* Small cube showing voxel size. */
@@ -178,7 +177,7 @@ class Fluids : Overlay {
         sub.push_constant("drawMACZ", (fds->vector_draw_mac_components & VECTOR_DRAW_MAC_Z));
       }
       sub.push_constant("in_select_id", int(sel_id.get()));
-      sub.draw_procedural(GPU_PRIM_LINES, 1, total_lines * 2, -1, res_handle);
+      sub.draw_procedural(GPU_PRIM_LINES, 1, total_lines * 2, -1, ob_ref.handle);
     }
 
     /* Show gridlines only for slices with no interpolation. */
@@ -229,7 +228,7 @@ class Fluids : Overlay {
       BLI_assert(slice_axis != -1);
       int lines_per_voxel = 4;
       int total_lines = lines_per_voxel * math::reduce_mul(int3(fds->res)) / fds->res[slice_axis];
-      sub.draw_procedural(GPU_PRIM_LINES, 1, total_lines * 2, -1, res_handle);
+      sub.draw_procedural(GPU_PRIM_LINES, 1, total_lines * 2, -1, ob_ref.handle);
     }
   }
 

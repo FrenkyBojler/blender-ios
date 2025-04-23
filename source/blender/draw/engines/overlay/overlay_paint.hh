@@ -156,7 +156,7 @@ class Paints : Overlay {
     }
   }
 
-  void object_sync(Manager &manager,
+  void object_sync(Manager & /*manager*/,
                    const ObjectRef &ob_ref,
                    Resources & /*res*/,
                    const State &state) final
@@ -198,10 +198,10 @@ class Paints : Overlay {
       case CTX_MODE_PAINT_WEIGHT: {
         gpu::Batch *geom = DRW_cache_mesh_surface_weights_get(ob_ref.object);
         if (masked_transparency_support_ && ob_ref.object->dt >= OB_SOLID) {
-          weight_masked_transparency_ps_->draw(geom, manager.unique_handle(ob_ref));
+          weight_masked_transparency_ps_->draw(geom, ob_ref.handle);
         }
         else {
-          weight_opaque_ps_->draw(geom, manager.unique_handle(ob_ref));
+          weight_opaque_ps_->draw(geom, ob_ref.handle);
         }
         break;
       }
@@ -212,7 +212,7 @@ class Paints : Overlay {
       case CTX_MODE_PAINT_TEXTURE: {
         if (show_paint_mask_) {
           gpu::Batch *geom = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object);
-          paint_mask_ps_.draw(geom, manager.unique_handle(ob_ref));
+          paint_mask_ps_.draw(geom, ob_ref.handle);
         }
         break;
       }
@@ -235,15 +235,15 @@ class Paints : Overlay {
       if ((use_face_selection || show_wires_) && !in_texture_paint_mode) {
         gpu::Batch *geom = DRW_cache_mesh_surface_edges_get(ob_ref.object);
         paint_region_edge_ps_->push_constant("useSelect", use_face_selection);
-        paint_region_edge_ps_->draw(geom, manager.unique_handle(ob_ref));
+        paint_region_edge_ps_->draw(geom, ob_ref.handle);
       }
       if (use_face_selection) {
         gpu::Batch *geom = DRW_cache_mesh_surface_get(ob_ref.object);
-        paint_region_face_ps_->draw(geom, manager.unique_handle(ob_ref));
+        paint_region_face_ps_->draw(geom, ob_ref.handle);
       }
       if (use_vert_selection && !in_texture_paint_mode) {
         gpu::Batch *geom = DRW_cache_mesh_all_verts_get(ob_ref.object);
-        paint_region_vert_ps_->draw(geom, manager.unique_handle(ob_ref));
+        paint_region_vert_ps_->draw(geom, ob_ref.handle);
       }
     }
   }

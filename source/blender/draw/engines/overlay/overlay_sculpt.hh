@@ -120,7 +120,7 @@ class Sculpts : Overlay {
     }
   }
 
-  void curves_sync(Manager &manager, const ObjectRef &ob_ref, const State &state)
+  void curves_sync(Manager & /*manager*/, const ObjectRef &ob_ref, const State &state)
   {
     ::Curves &curves = DRW_object_get_data_for_drawing<::Curves>(*ob_ref.object);
 
@@ -134,24 +134,20 @@ class Sculpts : Overlay {
         /* Evaluate curves and their attributes if necessary. */
         gpu::Batch *geometry = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object);
         if (*select_attr_buf) {
-          ResourceHandle handle = manager.unique_handle(ob_ref);
-
           curves_ps_->push_constant("is_point_domain", is_point_domain);
           curves_ps_->bind_texture("selection_tx", *select_attr_buf);
-          curves_ps_->draw(geometry, handle);
+          curves_ps_->draw(geometry, ob_ref.handle);
         }
       }
     }
 
     if (show_curves_cage_) {
-      ResourceHandle handle = manager.unique_handle(ob_ref);
-
       blender::gpu::Batch *geometry = DRW_curves_batch_cache_get_sculpt_curves_cage(&curves);
-      sculpt_curve_cage_.draw(geometry, handle);
+      sculpt_curve_cage_.draw(geometry, ob_ref.handle);
     }
   }
 
-  void mesh_sync(Manager &manager, const ObjectRef &ob_ref, const State &state)
+  void mesh_sync(Manager & /*manager*/, const ObjectRef &ob_ref, const State &state)
   {
     if (!show_face_set_ && !show_mask_) {
       /* Nothing to display. */
@@ -210,23 +206,19 @@ class Sculpts : Overlay {
 
     const bool use_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d);
     if (use_pbvh) {
-      ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
-
       SculptBatchFeature sculpt_batch_features_ = (show_face_set_ ? SCULPT_BATCH_FACE_SET :
                                                                     SCULPT_BATCH_DEFAULT) |
                                                   (show_mask_ ? SCULPT_BATCH_MASK :
                                                                 SCULPT_BATCH_DEFAULT);
 
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, sculpt_batch_features_)) {
-        mesh_ps_->draw(batch.batch, handle);
+        mesh_ps_->draw(batch.batch, ob_ref.handle);
       }
     }
     else {
-      ResourceHandle handle = manager.unique_handle(ob_ref);
-
       Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob_ref.object);
       gpu::Batch *sculpt_overlays = DRW_mesh_batch_cache_get_sculpt_overlays(mesh);
-      mesh_ps_->draw(sculpt_overlays, handle);
+      mesh_ps_->draw(sculpt_overlays, ob_ref.handle);
     }
   }
 

@@ -674,7 +674,7 @@ ResourceHandle ObjectRef::construct_handle()
   if (use_sculpt_pbvh) {
     return DRW_manager_get()->resource_handle_for_sculpt(*this);
   }
-  else if (this->object->type == OB_CURVES) {
+  else if (ELEM(this->object->type, OB_CURVES, OB_CURVES_LEGACY)) {
     /* Skip frustum culling. */
     return DRW_manager_get()->resource_handle(this->object->object_to_world());
   }

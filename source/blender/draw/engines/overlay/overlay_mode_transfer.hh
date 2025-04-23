@@ -60,7 +60,7 @@ class ModeTransfer : Overlay {
     any_animated_ = false;
   }
 
-  void object_sync(Manager &manager,
+  void object_sync(Manager & /*manager*/,
                    const ObjectRef &ob_ref,
                    Resources & /*res*/,
                    const State &state) final
@@ -87,16 +87,14 @@ class ModeTransfer : Overlay {
     const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d) &&
                                  !state.is_image_render;
     if (use_sculpt_pbvh) {
-      ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
-
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
-        ps_.draw(batch.batch, handle);
+        ps_.draw(batch.batch, ob_ref.handle);
       }
     }
     else {
       gpu::Batch *geom = DRW_cache_object_surface_get((Object *)ob_ref.object);
       if (geom) {
-        ps_.draw(geom, manager.unique_handle(ob_ref));
+        ps_.draw(geom, ob_ref.handle);
       }
     }
 

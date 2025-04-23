@@ -79,7 +79,7 @@ class AttributeViewer : Overlay {
               instances.attributes()->lookup_meta_data(".viewer"))
       {
         if (attribute_type_supports_viewer_overlay(meta_data->data_type)) {
-          populate_for_instance(ob_ref, *dupli_object, state, manager);
+          populate_for_instance(ob_ref, *dupli_object, state);
           return;
         }
       }
@@ -109,8 +109,7 @@ class AttributeViewer : Overlay {
  private:
   void populate_for_instance(const ObjectRef &ob_ref,
                              const DupliObject &dupli_object,
-                             const State &state,
-                             Manager &manager)
+                             const State &state)
   {
     Object &object = *ob_ref.object;
     const bke::GeometrySet &base_geometry = *dupli_object.preview_base_geometry;
@@ -125,35 +124,31 @@ class AttributeViewer : Overlay {
     color.a *= state.overlay.viewer_attribute_opacity;
     switch (object.type) {
       case OB_MESH: {
-        ResourceHandle res_handle = manager.unique_handle(ob_ref);
-
         {
           gpu::Batch *batch = DRW_cache_mesh_surface_get(&object);
           auto &sub = *instance_sub_;
           sub.push_constant("ucolor", float4(color));
-          sub.draw(batch, res_handle);
+          sub.draw(batch, ob_ref.handle);
         }
         if (gpu::Batch *batch = DRW_cache_mesh_loose_edges_get(&object)) {
           auto &sub = *instance_sub_;
           sub.push_constant("ucolor", float4(color));
-          sub.draw(batch, res_handle);
+          sub.draw(batch, ob_ref.handle);
         }
-
         break;
       }
       case OB_POINTCLOUD: {
         auto &sub = *pointcloud_sub_;
         gpu::Batch *batch = pointcloud_sub_pass_setup(sub, &object, nullptr);
         sub.push_constant("ucolor", float4(color));
-        sub.draw(batch, manager.unique_handle(ob_ref));
+        sub.draw(batch, ob_ref.handle);
         break;
       }
       case OB_CURVES_LEGACY: {
         gpu::Batch *batch = DRW_cache_curve_edge_wire_get(&object);
         auto &sub = *instance_sub_;
         sub.push_constant("ucolor", float4(color));
-        ResourceHandle res_handle = manager.resource_handle(object.object_to_world());
-        sub.draw(batch, res_handle);
+        sub.draw(batch, ob_ref.handle);
         break;
       }
       case OB_CURVES: {
@@ -184,7 +179,7 @@ class AttributeViewer : Overlay {
             gpu::Batch *batch = DRW_cache_mesh_surface_viewer_attribute_get(&object);
             auto &sub = *mesh_sub_;
             sub.push_constant("opacity", opacity);
-            sub.draw(batch, manager.unique_handle(ob_ref));
+            sub.draw(batch, ob_ref.handle);
           }
         }
         break;
@@ -202,7 +197,7 @@ class AttributeViewer : Overlay {
               gpu::Batch *batch = pointcloud_sub_pass_setup(sub, &object, nullptr);
               sub.push_constant("opacity", opacity);
               sub.bind_texture("attribute_tx", vertbuf);
-              sub.draw(batch, manager.unique_handle(ob_ref));
+              sub.draw(batch, ob_ref.handle);
             }
           }
         }
@@ -241,7 +236,7 @@ class AttributeViewer : Overlay {
             sub.push_constant("opacity", opacity);
             sub.push_constant("is_point_domain", is_point_domain);
             sub.bind_texture("color_tx", *texture);
-            sub.draw(batch, manager.unique_handle(ob_ref));
+            sub.draw(batch, ob_ref.handle);
           }
         }
         break;

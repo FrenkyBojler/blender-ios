@@ -56,7 +56,7 @@ class Lattices : Overlay {
     lattice_ps_ = create_sub_pass("lattice", res.shaders->extra_wire_object.get(), false);
   }
 
-  void edit_object_sync(Manager &manager,
+  void edit_object_sync(Manager & /*manager*/,
                         const ObjectRef &ob_ref,
                         Resources &res,
                         const State & /*state*/) final
@@ -65,14 +65,13 @@ class Lattices : Overlay {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
     {
       gpu::Batch *geom = DRW_cache_lattice_wire_get(ob_ref.object, true);
-      edit_lattice_wire_ps_->draw(geom, res_handle, res.select_id(ob_ref).get());
+      edit_lattice_wire_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
     }
     {
       gpu::Batch *geom = DRW_cache_lattice_vert_overlay_get(ob_ref.object);
-      edit_lattice_point_ps_->draw(geom, res_handle, res.select_id(ob_ref).get());
+      edit_lattice_point_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
     }
   }
 

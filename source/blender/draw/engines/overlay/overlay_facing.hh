@@ -56,7 +56,7 @@ class Facing : Overlay {
     ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
   }
 
-  void object_sync(Manager &manager,
+  void object_sync(Manager & /*manager*/,
                    const ObjectRef &ob_ref,
                    Resources & /*res*/,
                    const State &state) final
@@ -75,16 +75,14 @@ class Facing : Overlay {
                                  !state.is_image_render;
 
     if (use_sculpt_pbvh) {
-      ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
-
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
-        ps_.draw(batch.batch, handle);
+        ps_.draw(batch.batch, ob_ref.handle);
       }
     }
     else {
       blender::gpu::Batch *geom = DRW_cache_object_surface_get(ob_ref.object);
       if (geom) {
-        ps_.draw(geom, manager.unique_handle(ob_ref));
+        ps_.draw(geom, ob_ref.handle);
       }
     }
   }

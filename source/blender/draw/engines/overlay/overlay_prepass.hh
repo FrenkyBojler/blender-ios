@@ -166,10 +166,8 @@ class Prepass : Overlay {
     }
   }
 
-  void sculpt_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res)
+  void sculpt_sync(Manager & /*manager*/, const ObjectRef &ob_ref, Resources &res)
   {
-    ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
-
     for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
       select::ID select_id = use_material_slot_selection_ ?
                                  res.select_id(ob_ref, (batch.material_slot + 1) << 16) :
@@ -177,10 +175,10 @@ class Prepass : Overlay {
 
       if (res.is_selection()) {
         /* Conservative shader needs expanded draw-call. */
-        mesh_ps_->draw_expand(batch.batch, GPU_PRIM_TRIS, 1, 1, handle, select_id.get());
+        mesh_ps_->draw_expand(batch.batch, GPU_PRIM_TRIS, 1, 1, ob_ref.handle, select_id.get());
       }
       else {
-        mesh_ps_->draw(batch.batch, handle, select_id.get());
+        mesh_ps_->draw(batch.batch, ob_ref.handle, select_id.get());
       }
     }
   }
@@ -228,7 +226,7 @@ class Prepass : Overlay {
           {
             /* Avoid losing flat objects when in ortho views (see #56549) */
             mesh_flat_ps_->draw(DRW_cache_mesh_all_edges_get(ob_ref.object),
-                                manager.unique_handle(ob_ref),
+                                ob_ref.handle,
                                 res.select_id(ob_ref).get());
           }
         }
@@ -265,7 +263,7 @@ class Prepass : Overlay {
                                          *grease_pencil_ps_,
                                          state.scene,
                                          ob_ref.object,
-                                         manager.unique_handle(ob_ref),
+                                         ob_ref.handle,
                                          res.select_id(ob_ref));
         return;
       default:
@@ -276,8 +274,6 @@ class Prepass : Overlay {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
-
     for (int material_id : geom_list.index_range()) {
       select::ID select_id = use_material_slot_selection_ ?
                                  res.select_id(ob_ref, (material_id + 1) << 16) :
@@ -286,10 +282,10 @@ class Prepass : Overlay {
       if (res.is_selection() && (pass == mesh_ps_)) {
         /* Conservative shader needs expanded draw-call. */
         pass->draw_expand(
-            geom_list[material_id], GPU_PRIM_TRIS, 1, 1, res_handle, select_id.get());
+            geom_list[material_id], GPU_PRIM_TRIS, 1, 1, ob_ref.handle, select_id.get());
       }
       else {
-        pass->draw(geom_list[material_id], res_handle, select_id.get());
+        pass->draw(geom_list[material_id], ob_ref.handle, select_id.get());
       }
     }
   }

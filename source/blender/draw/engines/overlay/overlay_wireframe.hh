@@ -111,7 +111,7 @@ class Wireframe : Overlay {
     }
   }
 
-  void object_sync_ex(Manager &manager,
+  void object_sync_ex(Manager & /*manager*/,
                       const ObjectRef &ob_ref,
                       Resources &res,
                       const State &state,
@@ -134,20 +134,17 @@ class Wireframe : Overlay {
     switch (ob_ref.object->type) {
       case OB_CURVES_LEGACY: {
         gpu::Batch *geom = DRW_cache_curve_edge_wire_get(ob_ref.object);
-        coloring.curves_ps_->draw(
-            geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+        coloring.curves_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
         break;
       }
       case OB_FONT: {
         gpu::Batch *geom = DRW_cache_text_edge_wire_get(ob_ref.object);
-        coloring.curves_ps_->draw(
-            geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+        coloring.curves_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
         break;
       }
       case OB_SURF: {
         gpu::Batch *geom = DRW_cache_surf_edge_wire_get(ob_ref.object);
-        coloring.curves_ps_->draw(
-            geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+        coloring.curves_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
         break;
       }
       case OB_CURVES:
@@ -157,8 +154,7 @@ class Wireframe : Overlay {
         if (show_surface_wire) {
           gpu::Batch *geom = DRW_cache_grease_pencil_face_wireframe_get(state.scene,
                                                                         ob_ref.object);
-          coloring.curves_ps_->draw(
-              geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+          coloring.curves_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
         }
         break;
       }
@@ -177,10 +173,8 @@ class Wireframe : Overlay {
 
         if (show_surface_wire) {
           if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
-            ResourceHandle handle = manager.unique_handle(ob_ref);
-
             for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_WIREFRAME)) {
-              coloring.mesh_all_edges_ps_->draw(batch.batch, handle);
+              coloring.mesh_all_edges_ps_->draw(batch.batch, ob_ref.handle);
             }
           }
           else if (!in_edit_mode || bypass_mode_check) {
@@ -189,7 +183,7 @@ class Wireframe : Overlay {
              * unpleasant aliasing. */
             gpu::Batch *geom = DRW_cache_mesh_face_wireframe_get(ob_ref.object);
             (all_edges ? coloring.mesh_all_edges_ps_ : coloring.mesh_ps_)
-                ->draw(geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+                ->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
           }
         }
 
@@ -199,12 +193,10 @@ class Wireframe : Overlay {
           gpu::Batch *geom;
           if ((mesh.edges_num == 0) && (mesh.verts_num > 0)) {
             geom = DRW_cache_mesh_all_verts_get(ob_ref.object);
-            coloring.pointcloud_ps_->draw(
-                geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+            coloring.pointcloud_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
           }
           else if ((geom = DRW_cache_mesh_loose_edges_get(ob_ref.object))) {
-            coloring.mesh_all_edges_ps_->draw(
-                geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+            coloring.mesh_all_edges_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
           }
         }
         break;
@@ -212,8 +204,7 @@ class Wireframe : Overlay {
       case OB_POINTCLOUD: {
         if (show_surface_wire) {
           gpu::Batch *geom = DRW_pointcloud_batch_cache_get_dots(ob_ref.object);
-          coloring.pointcloud_ps_->draw(
-              geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+          coloring.pointcloud_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
         }
         break;
       }
@@ -226,12 +217,10 @@ class Wireframe : Overlay {
           if (DRW_object_get_data_for_drawing<Volume>(*ob_ref.object).display.wireframe_type ==
               VOLUME_WIREFRAME_POINTS)
           {
-            coloring.pointcloud_ps_->draw(
-                geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+            coloring.pointcloud_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
           }
           else {
-            coloring.mesh_ps_->draw(
-                geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
+            coloring.mesh_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
           }
         }
         break;
