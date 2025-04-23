@@ -40,7 +40,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build_files/cmake/platform")
 
 # Avoid having an empty `CMAKE_BUILD_TYPE`.
 if(NOT DEFINED CMAKE_BUILD_TYPE_INIT)
-  set(CMAKE_BUILD_TYPE_INIT "Debug")
+  set(CMAKE_BUILD_TYPE_INIT "Release")
   # Internal logic caches this variable, avoid showing it by default
   # since it's easy to accidentally set instead of the build type.
 endif()
