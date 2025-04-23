@@ -253,7 +253,7 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
 
   BLI_assert(lines.size() <= max_line_count);
 
-  /* Draw so that overal text is centered vertically. */
+  /* Draw so that overall text is centered vertically. */
   yofs = (max_height + lines.size() * line_height) / 2.0f - BLF_ascender(fs->uifont_id) -
          /* Not sure substracting the descender is always wanted, gives best results where this is
           * currently used. */
