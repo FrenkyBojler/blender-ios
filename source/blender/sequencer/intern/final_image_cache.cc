@@ -45,20 +45,6 @@ struct FinalImageCache {
     map_.clear();
     logical_time_ = 0;
   }
-
-  /*
-  void remove_entry(const Strip *strip)
-  {
-    StripEntry *entry = map_.lookup_ptr(strip);
-    if (entry == nullptr) {
-      return;
-    }
-    for (const auto &frame : entry->frames) {
-      IMB_freeImBuf(frame.image);
-    }
-    map_.remove_contained(strip);
-  }
-   */
 };
 
 static FinalImageCache *ensure_final_image_cache(Scene *scene)
@@ -90,6 +76,10 @@ static Scene *scene_from_context(const RenderData *context)
 
 ImBuf *final_image_cache_get(const RenderData *context, float timeline_frame)
 {
+  if (context->skip_cache || context->is_proxy_render) {
+    return nullptr;
+  }
+
   Scene *scene = scene_from_context(context);
   const int key = int(math::round(timeline_frame));
 
@@ -118,7 +108,7 @@ ImBuf *final_image_cache_get(const RenderData *context, float timeline_frame)
 
 void final_image_cache_put(const RenderData *context, float timeline_frame, ImBuf *image)
 {
-  if (image == nullptr) {
+  if (context->skip_cache || context->is_proxy_render || image == nullptr) {
     return;
   }
 
@@ -164,11 +154,6 @@ void final_image_cache_invalidate_frame_range(Scene *scene,
   }
 }
 
-void final_image_cache_maintain_capacity(Scene *scene)
-{
-  //@TODO
-}
-
 void final_image_cache_clear(Scene *scene)
 {
   std::scoped_lock lock(final_image_cache_mutex);
@@ -198,9 +183,62 @@ void final_image_cache_iterate(Scene *scene,
   if (cache == nullptr) {
     return;
   }
-  for (auto it = cache->map_.items().begin(); it != cache->map_.items().end(); it++) {
-    const int key = (*it).key;
-    callback_iter(userdata, key);
+  for (int frame : cache->map_.keys()) {
+    callback_iter(userdata, frame);
+  }
+}
+
+size_t final_image_cache_calc_memory_size(Scene *scene)
+{
+  std::scoped_lock lock(final_image_cache_mutex);
+  FinalImageCache *cache = query_final_image_cache(scene);
+  if (cache == nullptr) {
+    return 0;
+  }
+  size_t size = 0;
+  for (const FinalImageCache::FrameEntry &frame : cache->map_.values()) {
+    size += IMB_get_size_in_memory(frame.image);
+  }
+  return size;
+}
+
+bool final_image_cache_evict(Scene *scene)
+{
+  std::scoped_lock lock(final_image_cache_mutex);
+  FinalImageCache *cache = query_final_image_cache(scene);
+  if (cache == nullptr) {
+    return false;
+  }
+
+  /* Find which entry was the least recently used. */
+  //@TODO: better strategy?
+  int oldest_key = -1;
+  FinalImageCache::FrameEntry *oldest_item = nullptr;
+  int64_t oldest_time = cache->logical_time_;
+  for (const auto &item : cache->map_.items()) {
+    if (item.value.used_at < oldest_time) {
+      oldest_key = item.key;
+      oldest_item = &item.value;
+      oldest_time = item.value.used_at;
+    }
+  }
+
+  /* Remove if we found one. */
+  if (oldest_item != nullptr) {
+    IMB_freeImBuf(oldest_item->image);
+    cache->map_.remove(oldest_key);
+    return true;
+  }
+
+  return false;
+}
+
+void final_image_cache_tick(Scene *scene)
+{
+  std::scoped_lock lock(final_image_cache_mutex);
+  FinalImageCache *cache = query_final_image_cache(scene);
+  if (cache != nullptr) {
+    cache->logical_time_++;
   }
 }
 

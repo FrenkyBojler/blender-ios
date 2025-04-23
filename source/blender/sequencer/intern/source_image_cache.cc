@@ -32,7 +32,6 @@ struct SourceImageCache {
 
   struct StripEntry {
     Vector<FrameEntry> frames;
-    int64_t used_at = 0;
   };
 
   Map<const Strip *, StripEntry> map_;
@@ -97,6 +96,10 @@ static Scene *scene_from_context(const RenderData *context, const Strip *&strip)
 
 ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, float timeline_frame)
 {
+  if (context->skip_cache || context->is_proxy_render || strip == nullptr) {
+    return nullptr;
+  }
+
   Scene *scene = scene_from_context(context, strip);
   timeline_frame = math::round(timeline_frame);
   int frame_index = give_frame_index(scene, strip, timeline_frame);
@@ -140,7 +143,7 @@ void source_image_cache_put(const RenderData *context,
                             float timeline_frame,
                             ImBuf *image)
 {
-  if (strip == nullptr || image == nullptr) {
+  if (context->skip_cache || context->is_proxy_render || strip == nullptr || image == nullptr) {
     return;
   }
 
@@ -162,9 +165,7 @@ void source_image_cache_put(const RenderData *context,
 
   if (val == nullptr) {
     /* Nothing in cache for this strip yet. */
-    SourceImageCache::StripEntry value;
-    value.used_at = cur_time;
-    cache->map_.add_new(strip, value);
+    cache->map_.add_new(strip, {});
     val = cache->map_.lookup_ptr(strip);
   }
   BLI_assert_msg(val != nullptr, "Source image cache value should never be null here");
@@ -191,51 +192,6 @@ void source_image_cache_invalidate_strip(Scene *scene, const Strip *strip)
   if (cache != nullptr) {
     cache->remove_entry(strip);
   }
-}
-
-void source_image_cache_maintain_capacity(Scene *scene)
-{
-#if 0
-  std::scoped_lock lock(source_image_cache_mutex);
-  SourceImageCache *cache = query_source_image_cache(scene);
-  if (cache != nullptr) {
-    cache->logical_time_++;
-
-    /* Count total number of images, and track which one is the least recently used file. */
-    int64_t entries = 0;
-    std::string oldest_file;
-    /* Do not remove images for files used within last 10 updates. */
-    int64_t oldest_time = cache->logical_time_ - 10;
-    int64_t oldest_entries = 0;
-    for (const auto &item : cache->map_.items()) {
-      entries += item.value.frames.size();
-      if (item.value.used_at < oldest_time) {
-        oldest_file = item.key;
-        oldest_time = item.value.used_at;
-        oldest_entries = item.value.frames.size();
-      }
-    }
-
-    /* If we're beyond capacity and have a long-unused file, remove that. */
-    if (entries > MAX_THUMBNAILS && !oldest_file.empty()) {
-      cache->remove_entry(oldest_file);
-      entries -= oldest_entries;
-    }
-
-    /* If we're still beyond capacity, remove individual long-unused (but not within
-     * last 100 updates) individual frames. */
-    if (entries > MAX_THUMBNAILS) {
-      for (const auto &item : cache->map_.items()) {
-        for (int64_t i = 0; i < item.value.frames.size(); i++) {
-          if (item.value.frames[i].used_at < cache->logical_time_ - 100) {
-            IMB_freeImBuf(item.value.frames[i].thumb);
-            item.value.frames.remove_and_reorder(i);
-          }
-        }
-      }
-    }
-  }
-#endif
 }
 
 void source_image_cache_clear(Scene *scene)
@@ -271,7 +227,6 @@ void source_image_cache_iterate(Scene *scene,
   }
 
   for (const auto &[key, value] : cache->map_.items()) {
-
     for (const SourceImageCache::FrameEntry &frame : value.frames) {
       /* We have frame index of source media, try to guesstimate the timeline frame.
        * Note that this will be not correct when retiming, different playback rate, strobing
@@ -279,6 +234,64 @@ void source_image_cache_iterate(Scene *scene,
       int timeline_frame = frame.frame_index + time_start_frame_get(key);
       callback_iter(userdata, key, timeline_frame);
     }
+  }
+}
+
+size_t source_image_cache_calc_memory_size(Scene *scene)
+{
+  std::scoped_lock lock(source_image_cache_mutex);
+  SourceImageCache *cache = query_source_image_cache(scene);
+  if (cache == nullptr) {
+    return 0;
+  }
+  size_t size = 0;
+  for (const SourceImageCache::StripEntry &entry : cache->map_.values()) {
+    for (const SourceImageCache::FrameEntry &frame : entry.frames) {
+      size += IMB_get_size_in_memory(frame.image);
+    }
+  }
+  return size;
+}
+
+bool source_image_cache_evict(Scene *scene)
+{
+  std::scoped_lock lock(source_image_cache_mutex);
+  SourceImageCache *cache = query_source_image_cache(scene);
+  if (cache == nullptr) {
+    return false;
+  }
+
+  /* Find which entry was the least recently used. */
+  SourceImageCache::StripEntry *oldest_strip = nullptr;
+  int64_t oldest_index = -1;
+  int64_t oldest_time = cache->logical_time_;
+  for (const auto &item : cache->map_.items()) {
+    for (int64_t i = 0; i < item.value.frames.size(); i++) {
+      if (item.value.frames[i].used_at < oldest_time) {
+        oldest_strip = &item.value;
+        oldest_index = i;
+        oldest_time = item.value.frames[i].used_at;
+      }
+    }
+  }
+
+  /* Remove if we found one. */
+  if (oldest_strip != nullptr) {
+    BLI_assert(oldest_index >= 0 && oldest_index < oldest_strip->frames.size());
+    IMB_freeImBuf(oldest_strip->frames[oldest_index].image);
+    oldest_strip->frames.remove_and_reorder(oldest_index);
+    return true;
+  }
+
+  return false;
+}
+
+void source_image_cache_tick(Scene *scene)
+{
+  std::scoped_lock lock(source_image_cache_mutex);
+  SourceImageCache *cache = query_source_image_cache(scene);
+  if (cache != nullptr) {
+    cache->logical_time_++;
   }
 }
 
