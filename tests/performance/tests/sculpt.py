@@ -6,6 +6,7 @@ import api
 import enum
 import pathlib
 
+
 class BrushSize(enum.Enum):
     SMALL = .01
     MEDIUM = .2
@@ -197,7 +198,11 @@ def _run_brush_test(args: dict):
     while True:
         with context.temp_override(**context_override):
             start = time.time()
-            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override, args['brush_size']), override_location=True)
+            bpy.ops.sculpt.brush_stroke(
+                stroke=generate_stroke(
+                    context_override,
+                    args['brush_size']),
+                override_location=True)
             measurements.append(time.time() - start)
 
         if len(measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
@@ -243,7 +248,13 @@ def _run_bvh_test(args: dict):
 
 
 class SculptBrushTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, mode: SculptMode, mesh_size: MeshSize, brush_type: BrushType, brush_size: BrushSize):
+    def __init__(
+            self,
+            filepath: pathlib.Path,
+            mode: SculptMode,
+            mesh_size: MeshSize,
+            brush_type: BrushType,
+            brush_size: BrushSize):
         self.filepath = filepath
         self.mode = mode
         self.mesh_size = mesh_size
@@ -252,7 +263,11 @@ class SculptBrushTest(api.Test):
 
     def name(self):
         mesh_size = self.mesh_size * self.mesh_size
-        return "{}_{}_{}_{}".format(self.mode.name.lower(), mesh_size, self.brush_type.name.lower(), self.brush_size.name)
+        return "{}_{}_{}_{}".format(
+            self.mode.name.lower(),
+            mesh_size,
+            self.brush_type.name.lower(),
+            self.brush_size.name)
 
     def category(self):
         return "sculpt"
@@ -302,6 +317,13 @@ def generate(env):
     modes_to_test = [SculptMode.MESH]
     sizes_to_test = [MeshSize.LARGE]
 
-    brush_tests = [SculptBrushTest(filepaths[0], mode, mesh_size, brush_type, brush_size) for mode in modes_to_test for brush_type in BrushType for brush_size in BrushSize for mesh_size in sizes_to_test]
-    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode, mesh_size) for mode in modes_to_test for mesh_size in sizes_to_test]
+    brush_tests = [
+        SculptBrushTest(
+            filepaths[0],
+            mode,
+            mesh_size,
+            brush_type,
+            brush_size) for mode in modes_to_test for brush_type in BrushType for brush_size in BrushSize for mesh_size in sizes_to_test]
+    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode, mesh_size)
+                 for mode in modes_to_test for mesh_size in sizes_to_test]
     return brush_tests + bvh_tests
