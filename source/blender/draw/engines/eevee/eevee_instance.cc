@@ -382,7 +382,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
         sync.sync_volume(ob, ob_handle, ob_ref);
         break;
       case OB_CURVES:
-        sync.sync_curves(ob, ob_handle, ob_ref);
+        sync.sync_curves(ob, ob_handle, ob_ref, ob_ref.handle);
         break;
       case OB_LIGHTPROBE:
         light_probes.sync_probe(ob, ob_handle);
