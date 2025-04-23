@@ -8362,6 +8362,12 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     version_sequencer_update_overdrop(bmain);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 3)) {
+    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+      light->normalize = true;
+    }
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 4)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {

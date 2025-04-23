@@ -65,7 +65,7 @@ void Light::sync(ShadowModule &shadows,
   if (assign_if_different(this->type, new_type)) {
     shadow_discard_safe(shadows);
   }
-
+  this->normalize = la->normalize;
   this->color = float3(&la->r) * la->energy;
 
   float3 scale;
@@ -255,6 +255,10 @@ void Light::shape_parameters_set(const ::Light *la,
 float Light::shape_radiance_get()
 {
   using namespace blender::math;
+
+  if (!this->normalize) {
+    return 1.0f;
+  }
 
   /* Make illumination power constant. */
   switch (this->type) {

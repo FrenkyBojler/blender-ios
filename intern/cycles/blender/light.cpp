@@ -74,6 +74,10 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
     }
   }
 
+  /* normalize */
+  const bool normalize = b_light.normalize();
+  light->set_normalize(normalize);
+
   /* strength */
   const float3 strength = get_float3(b_light.color()) * BL::PointLight(b_light).energy();
   light->set_strength(strength);

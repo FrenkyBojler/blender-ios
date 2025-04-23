@@ -89,7 +89,7 @@ void LightData::init()
   data_[pxr::HdLightTokens->color] = pxr::GfVec3f(light->r, light->g, light->b);
   data_[pxr::HdLightTokens->diffuse] = light->diff_fac;
   data_[pxr::HdLightTokens->specular] = light->spec_fac;
-  data_[pxr::HdLightTokens->normalize] = true;
+  data_[pxr::HdLightTokens->normalize] = bool(light->normalize);
 
   prim_type_ = prim_type(light);
 
