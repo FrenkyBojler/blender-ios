@@ -1312,13 +1312,13 @@ void create_bezier_circle(Main &bmain,
   Drawing &drawing = *gpd.insert_frame(layer_lines, frame_number);
 
   /* -------------------------------------------------------------- */
-  /*  Material – single solid-black stroke                          */
+  /*  Material - single solid-black stroke                          */
   /* -------------------------------------------------------------- */
   const int material_index = add_material_from_template(bmain, object, gp_stroke_material_black);
   object.actcol = material_index + 1;
 
   /* -------------------------------------------------------------- */
-  /*  Geometry – 4-anchor Bézier circle in XZ plane                 */
+  /*  Geometry - 4-anchor Bézier circle in XZ plane                 */
   /* -------------------------------------------------------------- */
   constexpr int anchors = 4;
   constexpr float k = 0.552284749831f; /* handle “magic” constant */
