@@ -8508,7 +8508,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
             LISTBASE_FOREACH (ARegion *, region, regionbase) {
               if (region->regiontype == RGN_TYPE_WINDOW) {
                 region->v2d.keepzoom |= V2D_KEEPZOOM;
-                region->v2d.keepofs |= V2D_KEEPOFS_Y;
+                region->v2d.keepofs |= V2D_KEEPOFS_X | V2D_KEEPOFS_Y;
               }
             }
           }
