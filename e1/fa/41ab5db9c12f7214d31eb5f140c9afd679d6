@@ -1,1 +1,2 @@
 Referenced by issue #126628, Rigid Body collision shapes bounds cant be turned off in viewport overlays
+Referenced by pull request #136523, Fix #126628: Only display rigid body collision shape when Extras overlay enabled.
