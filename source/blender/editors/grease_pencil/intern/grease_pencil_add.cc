@@ -1332,8 +1332,8 @@ void create_bezier_circle(Main &bmain,
   MutableSpan<float3> pos = curves.positions_for_write();
   pos[0] = float3(0.0f, 0.0f, radius);  /* top    (+Z) */
   pos[1] = float3(radius, 0.0f, 0.0f);  /* right  (+X) */
-  pos[2] = float3(0.0f, 0.0f, -radius); /* bottom (−Z) */
-  pos[3] = float3(-radius, 0.0f, 0.0f); /* left   (−X) */
+  pos[2] = float3(0.0f, 0.0f, -radius); /* bottom (-Z) */
+  pos[3] = float3(-radius, 0.0f, 0.0f); /* left   (-X) */
 
   /* Handle positions */
   MutableSpan<float3> hdl_l = curves.handle_positions_left_for_write();
