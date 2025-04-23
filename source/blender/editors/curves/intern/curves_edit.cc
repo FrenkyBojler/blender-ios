@@ -49,7 +49,8 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
                                          Vector<bool> &r_new_cyclic,
                                          Vector<IndexRange> &r_src_ranges,
                                          Vector<int> &r_dst_offsets,
-                                         Vector<int> &r_dst_to_src_curve)
+                                         Vector<int> &r_dst_to_src_curve,
+                                         bool can_be_cyclic = true)
 {
   const bool merge_loop = cyclic && selected_points.first().size() < points.size() &&
                           selected_points.first().first() == points.first() &&
@@ -72,8 +73,8 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
   }
   const int curves_added = selected_points.size() - merge_loop;
   r_dst_to_src_curve.append_n_times(curve, curves_added);
-  r_new_cyclic.append_n_times(cyclic && selected_points.first().size() == points.size(),
-                              curves_added);
+  r_new_cyclic.append_n_times(
+      can_be_cyclic && cyclic && selected_points.first().size() == points.size(), curves_added);
 }
 
 static void append_point_knots(const Span<IndexRange> src_ranges,
@@ -423,7 +424,6 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
       points_to_split,
       points_by_curve,
       [&](const int curve, const IndexRange points, const Span<IndexRange> selected_curve_points) {
-        const int points_start = new_offsets.last();
         curve_offsets_from_selection(selected_curve_points,
                                      points,
                                      curve,
@@ -433,7 +433,6 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
                                      src_ranges,
                                      dst_offsets,
                                      curve_map);
-        const int split_points_num = new_offsets.last() - points_start;
         /* Invert ranges to get non selected points. */
         invert_ranges(points, selected_curve_points, unselected_curve_points);
         /* Extended every range to left and right by one point. Any resulting intersection is
@@ -441,16 +440,19 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
         extend_range_by_1_within_bounds(
             points, cyclic[curve], unselected_curve_points, curve_points_to_preserve);
         const int size_before = curve_map.size();
+        const bool can_be_cyclic = !unselected_curve_points.is_empty() &&
+                                   (unselected_curve_points.first().first() == points.first() ||
+                                    unselected_curve_points.last().last() == points.last());
         curve_offsets_from_selection(curve_points_to_preserve,
                                      points,
                                      curve,
-                                     cyclic[curve] &&
-                                         (split_points_num <= curve_points_to_preserve.size()),
+                                     cyclic[curve],
                                      new_offsets,
                                      new_cyclic,
                                      src_ranges,
                                      dst_offsets,
-                                     curve_map);
+                                     curve_map,
+                                     can_be_cyclic);
         deselect.append(IndexRange::from_begin_end(size_before, curve_map.size()));
       },
       [&](const IndexRange curves, const IndexRange points) {

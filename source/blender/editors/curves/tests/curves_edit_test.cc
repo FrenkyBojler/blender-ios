@@ -248,4 +248,72 @@ TEST(curves_editors, SplitPointsTwoTouchCyclic)
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
 }
 
+TEST(curves_editors, SplitEverySecondCyclic)
+{
+  /* Split every second point in cyclic curve. Expected result all selected points
+   * as separate curves and original curve. */
+  const Vector<Vector<float3>> positions = {{{0, -1, 0},
+                                             {-1, -1, 0},
+                                             {-1, 0, 0},
+                                             {-1, 1, 0},
+                                             {0, 1, 0},
+                                             {1, 1, 0},
+                                             {1, 0, 0},
+                                             {1, -1, 0}}};
+
+  bke::CurvesGeometry curves = create_curves(positions, 4, {0});
+  IndexMaskMemory memory;
+  const IndexMask mask = IndexMask::from_indices(Array<int>{0, 2, 4, 6}.as_span(), memory);
+
+  bke::CurvesGeometry new_curves = split_points(curves, mask);
+
+  const Vector<Vector<float3>> expected_positions = {{{0, -1, 0}},
+                                                     {{-1, 0, 0}},
+                                                     {{0, 1, 0}},
+                                                     {{1, 0, 0}},
+                                                     {{0, -1, 0},
+                                                      {-1, -1, 0},
+                                                      {-1, 0, 0},
+                                                      {-1, 1, 0},
+                                                      {0, 1, 0},
+                                                      {1, 1, 0},
+                                                      {1, 0, 0},
+                                                      {1, -1, 0}}};
+
+  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+}
+
+TEST(curves_editors, SplitAllSelectedButFirstCyclic)
+{
+  /* Split all except first points in cyclic curve. Expected result two curves. One from selected
+   * points another from first, second and last. Both not cyclic. */
+  const Vector<Vector<float3>> positions = {{{0, -1, 0},
+                                             {-1, -1, 0},
+                                             {-1, 0, 0},
+                                             {-1, 1, 0},
+                                             {0, 1, 0},
+                                             {1, 1, 0},
+                                             {1, 0, 0},
+                                             {1, -1, 0}}};
+
+  bke::CurvesGeometry curves = create_curves(positions, 4, {0});
+  IndexMaskMemory memory;
+  const IndexMask mask = IndexMask::from_indices(Array<int>{1, 2, 3, 4, 5, 6, 7}.as_span(),
+                                                 memory);
+
+  bke::CurvesGeometry new_curves = split_points(curves, mask);
+
+  const Vector<Vector<float3>> expected_positions = {
+      {{-1, -1, 0}, {-1, 0, 0}, {-1, 1, 0}, {0, 1, 0}, {1, 1, 0}, {1, 0, 0}, {1, -1, 0}},
+      {{1, -1, 0}, {0, -1, 0}, {-1, -1, 0}},
+  };
+
+  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  EXPECT_FALSE(new_curves.cyclic()[0]);
+  EXPECT_FALSE(new_curves.cyclic()[1]);
+}
+
 }  // namespace blender::ed::curves::tests
