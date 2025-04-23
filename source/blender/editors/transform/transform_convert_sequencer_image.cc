@@ -69,11 +69,15 @@ static void store_transform_properties(const Scene *scene,
   td->extra = static_cast<void *>(tdseq);
 }
 
-static TransData *SeqToTransData(
-    const Scene *scene, Strip *strip, TransData *td, TransData2D *td2d, int vert_index)
+static TransData *SeqToTransData(const Scene *scene,
+                                 Strip *strip,
+                                 TransData *td,
+                                 TransData2D *td2d,
+                                 int vert_index)
 {
   const StripTransform *transform = strip->data->transform;
   const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
+  const float2 mirror = seq::image_transform_mirror_factor_get(strip);
   float2 vertex = {origin[0], origin[1]};
 
   /* Add control vertex, so rotation and scale can be calculated.
@@ -100,7 +104,7 @@ static TransData *SeqToTransData(
   unit_m3(td->mtx);
   unit_m3(td->smtx);
 
-  axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
+  axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation * mirror[0] * mirror[1]);
   normalize_m3(td->axismtx);
 
   /* Store properties only once per vertex "triad". */
@@ -155,10 +159,9 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
   tc->custom.type.free_cb = freeSeqData;
 
   tc->data_len = strips.size() * 3; /* 3 vertices per sequence are needed. */
-  TransData *td = tc->data = static_cast<TransData *>(
-      MEM_callocN(tc->data_len * sizeof(TransData), "TransSeq TransData"));
-  TransData2D *td2d = tc->data_2d = static_cast<TransData2D *>(
-      MEM_callocN(tc->data_len * sizeof(TransData2D), "TransSeq TransData2D"));
+  TransData *td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransSeq TransData");
+  TransData2D *td2d = tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len,
+                                                                   "TransSeq TransData2D");
 
   for (Strip *strip : strips) {
     /* One `Sequence` needs 3 `TransData` entries - center point placed in image origin, then 2
