@@ -566,9 +566,9 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
   return tgp_ob;
 }
 
-void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
+void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
 {
-  Object *ob = ob_ref.object;
+  Object *ob = ob_ref.object();
 
   /* object must be visible */
   if (!(DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF)) {
@@ -576,9 +576,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (ob->data && (ob->type == OB_GREASE_PENCIL) && (ob->dt >= OB_SOLID)) {
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
-
-    tObject *tgp_ob = object_sync_do(ob, res_handle);
+    tObject *tgp_ob = object_sync_do(ob, ob_ref.handle());
     vfx_sync(ob, tgp_ob);
   }
 

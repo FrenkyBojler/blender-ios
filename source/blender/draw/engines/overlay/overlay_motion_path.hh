@@ -61,7 +61,7 @@ class MotionPath : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources & /*res*/,
                    const State &state) final
   {
@@ -69,7 +69,7 @@ class MotionPath : Overlay {
       return;
     }
 
-    const Object *object = ob_ref.object;
+    const Object *object = ob_ref.object();
 
     if (object->type == OB_ARMATURE) {
       if (Armatures::is_pose_mode(object, state)) {

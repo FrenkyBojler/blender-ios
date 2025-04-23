@@ -329,7 +329,7 @@ class Instance : public DrawEngine {
            ((v3d->shading.type == OB_MATERIAL) && (v3d->overlay.flag & V3D_OVERLAY_LOOK_DEV));
   }
 
-  int get_recalc_flags(const ObjectRef &ob_ref)
+  int get_recalc_flags(ObjectRef &ob_ref)
   {
     auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
       int flags = 0;
@@ -342,9 +342,9 @@ class Instance : public DrawEngine {
       return flags;
     };
 
-    int flags = get_flags(*ob_ref.object->runtime);
-    if (ob_ref.dupli_parent) {
-      flags |= get_flags(*ob_ref.dupli_parent->runtime);
+    int flags = get_flags(*ob_ref.object()->runtime);
+    if (ob_ref.dupli_parent()) {
+      flags |= get_flags(*ob_ref.dupli_parent()->runtime);
     }
 
     return flags;

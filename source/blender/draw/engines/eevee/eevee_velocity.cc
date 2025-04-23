@@ -62,7 +62,7 @@ void VelocityModule::init()
 /* Similar to Instance::object_sync, but only syncs velocity. */
 static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
 {
-  Object *ob = ob_ref.object;
+  Object *ob = ob_ref.object();
 
   const bool is_velocity_type = ELEM(ob->type, OB_CURVES, OB_MESH, OB_POINTCLOUD);
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
@@ -83,7 +83,7 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
           inst.velocity.step_object_sync(
               hair_handle.object_key, ob_ref, hair_handle.recalc, &md, &particle_sys);
         };
-    foreach_hair_particle_handle(ob_ref.object, ob_handle, sync_hair);
+    foreach_hair_particle_handle(ob_ref.object(), ob_handle, sync_hair);
   };
 
   if (object_is_visible) {
@@ -121,12 +121,12 @@ void VelocityModule::step_camera_sync()
 }
 
 bool VelocityModule::step_object_sync(ObjectKey &object_key,
-                                      const ObjectRef &object_ref,
+                                      ObjectRef &object_ref,
                                       int /*IDRecalcFlag*/ recalc,
                                       ModifierData *modifier_data /*=nullptr*/,
                                       ParticleSystem *particle_sys /*=nullptr*/)
 {
-  Object *ob = object_ref.object;
+  Object *ob = object_ref.object();
   bool has_motion = object_has_velocity(ob) || (recalc & ID_RECALC_TRANSFORM);
   /* NOTE: Fragile. This will only work with 1 frame of lag since we can't record every geometry
    * just in case there might be an update the next frame. */
@@ -145,7 +145,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
   VelocityObjectData &vel = velocity_map.lookup_or_add_default(object_key);
   vel.obj.ofs[step_] = object_steps_usage[step_]++;
   /* TODO(ResourceHandleRange) */
-  vel.obj.resource_id = object_ref.handle.handle_first.resource_index();
+  vel.obj.resource_id = object_ref.handle().handle_first.resource_index();
   /* While VelocityObjectData is unique for each object/instance, multiple VelocityObjectDatas can
    * point to the same offset in VelocityGeometryData, since geometry is stored local space. */
   vel.id = particle_sys ? uint64_t(particle_sys) : uint64_t(ob->data);

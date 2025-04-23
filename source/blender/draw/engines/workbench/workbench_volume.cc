@@ -32,7 +32,7 @@ void VolumePass::object_sync_volume(SceneResources &resources,
                                     ObjectRef &ob_ref,
                                     float3 color)
 {
-  Object *ob = ob_ref.object;
+  Object *ob = ob_ref.object();
   /* Create 3D textures. */
   Volume &volume = DRW_object_get_data_for_drawing<Volume>(*ob);
   BKE_volume_load(&volume, G.main);
@@ -90,7 +90,7 @@ void VolumePass::object_sync_modifier(SceneResources &resources,
                                       ObjectRef &ob_ref,
                                       FluidModifierData *modifier)
 {
-  Object *ob = ob_ref.object;
+  Object *ob = ob_ref.object();
   FluidDomainSettings &settings = *modifier->domain;
 
   if (!settings.fluid) {
@@ -205,7 +205,7 @@ void VolumePass::draw_slice_ps(SceneResources &resources,
                        slice_axis_enum - 1;
 
   float3 dimensions;
-  BKE_object_dimensions_get(ob_ref.object, dimensions);
+  BKE_object_dimensions_get(ob_ref.object(), dimensions);
   /* 0.05f to achieve somewhat the same opacity as the full view. */
   float step_length = std::max(1e-16f, dimensions[axis] * 0.05f);
 
@@ -214,7 +214,7 @@ void VolumePass::draw_slice_ps(SceneResources &resources,
   ps.push_constant("sliceAxis", axis);
   ps.push_constant("stepLength", step_length);
 
-  ps.draw(resources.volume_cube_batch, ob_ref.handle);
+  ps.draw(resources.volume_cube_batch, ob_ref.handle());
 }
 
 void VolumePass::draw_volume_ps(SceneResources &resources,
@@ -235,7 +235,7 @@ void VolumePass::draw_volume_ps(SceneResources &resources,
   ps.push_constant("stepLength", step_length);
   ps.push_constant("noiseOfs", float(noise_offset));
 
-  ps.draw(resources.volume_cube_batch, ob_ref.handle);
+  ps.draw(resources.volume_cube_batch, ob_ref.handle());
 }
 
 }  // namespace blender::workbench

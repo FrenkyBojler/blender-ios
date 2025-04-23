@@ -807,14 +807,14 @@ struct Resources : public select::SelectMap {
     this->color_render_alloc_tx.release();
   }
 
-  ThemeColorID object_wire_theme_id(const ObjectRef &ob_ref, const State &state) const
+  ThemeColorID object_wire_theme_id(ObjectRef &ob_ref, const State &state) const
   {
     const bool is_edit = (state.object_mode & OB_MODE_EDIT) &&
-                         (ob_ref.object->mode & OB_MODE_EDIT);
-    const bool active = ((ob_ref.dupli_parent != nullptr) ?
-                             (state.object_active == ob_ref.dupli_parent) :
-                             (state.object_active == ob_ref.object));
-    const bool is_selected = ((ob_ref.object->base_flag & BASE_SELECTED) != 0);
+                         (ob_ref.object()->mode & OB_MODE_EDIT);
+    const bool active = ((ob_ref.dupli_parent() != nullptr) ?
+                             (state.object_active == ob_ref.dupli_parent()) :
+                             (state.object_active == ob_ref.object()));
+    const bool is_selected = ((ob_ref.object()->base_flag & BASE_SELECTED) != 0);
 
     /* Object in edit mode. */
     if (is_edit) {
@@ -825,11 +825,11 @@ struct Resources : public select::SelectMap {
       return TH_TRANSFORM;
     }
     /* Sets the 'theme_id' or fallback to wire */
-    if ((ob_ref.object->base_flag & BASE_SELECTED) != 0) {
+    if ((ob_ref.object()->base_flag & BASE_SELECTED) != 0) {
       return (active) ? TH_ACTIVE : TH_SELECT;
     }
 
-    switch (ob_ref.object->type) {
+    switch (ob_ref.object()->type) {
       case OB_LAMP:
         return TH_LIGHT;
       case OB_SPEAKER:
@@ -845,9 +845,9 @@ struct Resources : public select::SelectMap {
     }
   }
 
-  const float4 &object_wire_color(const ObjectRef &ob_ref, ThemeColorID theme_id) const
+  const float4 &object_wire_color(ObjectRef &ob_ref, ThemeColorID theme_id) const
   {
-    if (UNLIKELY(ob_ref.object->base_flag & BASE_FROM_SET)) {
+    if (UNLIKELY(ob_ref.object()->base_flag & BASE_FROM_SET)) {
       return theme_settings.color_wire;
     }
     switch (theme_id) {
@@ -872,7 +872,7 @@ struct Resources : public select::SelectMap {
     }
   }
 
-  const float4 &object_wire_color(const ObjectRef &ob_ref, const State &state) const
+  const float4 &object_wire_color(ObjectRef &ob_ref, const State &state) const
   {
     ThemeColorID theme_id = object_wire_theme_id(ob_ref, state);
     return object_wire_color(ob_ref, theme_id);
@@ -885,7 +885,7 @@ struct Resources : public select::SelectMap {
     return color;
   }
 
-  float4 object_background_blend_color(const ObjectRef &ob_ref, const State &state) const
+  float4 object_background_blend_color(ObjectRef &ob_ref, const State &state) const
   {
     ThemeColorID theme_id = object_wire_theme_id(ob_ref, state);
     return background_blend_color(theme_id);
@@ -1142,9 +1142,9 @@ static inline bool is_from_dupli_or_set(const Object *ob)
 
 /* Consider instance any object form a set or a dupli system.
  * This hides some overlay to avoid making the viewport unreadable. */
-static inline bool is_from_dupli_or_set(const ObjectRef &ob_ref)
+static inline bool is_from_dupli_or_set(ObjectRef &ob_ref)
 {
-  return is_from_dupli_or_set(ob_ref.object);
+  return is_from_dupli_or_set(ob_ref.object());
 }
 
 }  // namespace blender::draw::overlay

@@ -157,7 +157,7 @@ class Paints : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources & /*res*/,
                    const State &state) final
   {
@@ -165,26 +165,26 @@ class Paints : Overlay {
       return;
     }
 
-    if (ob_ref.object->type != OB_MESH) {
+    if (ob_ref.object()->type != OB_MESH) {
       /* Only meshes are supported for now. */
       return;
     }
 
     switch (state.ctx_mode) {
       case CTX_MODE_PAINT_WEIGHT:
-        if (ob_ref.object->mode != OB_MODE_WEIGHT_PAINT) {
+        if (ob_ref.object()->mode != OB_MODE_WEIGHT_PAINT) {
           /* Not matching context mode. */
           return;
         }
         break;
       case CTX_MODE_PAINT_VERTEX:
-        if (ob_ref.object->mode != OB_MODE_VERTEX_PAINT) {
+        if (ob_ref.object()->mode != OB_MODE_VERTEX_PAINT) {
           /* Not matching context mode. */
           return;
         }
         break;
       case CTX_MODE_PAINT_TEXTURE:
-        if (ob_ref.object->mode != OB_MODE_TEXTURE_PAINT) {
+        if (ob_ref.object()->mode != OB_MODE_TEXTURE_PAINT) {
           /* Not matching context mode. */
           return;
         }
@@ -196,12 +196,12 @@ class Paints : Overlay {
 
     switch (state.ctx_mode) {
       case CTX_MODE_PAINT_WEIGHT: {
-        gpu::Batch *geom = DRW_cache_mesh_surface_weights_get(ob_ref.object);
-        if (masked_transparency_support_ && ob_ref.object->dt >= OB_SOLID) {
-          weight_masked_transparency_ps_->draw(geom, ob_ref.handle);
+        gpu::Batch *geom = DRW_cache_mesh_surface_weights_get(ob_ref.object());
+        if (masked_transparency_support_ && ob_ref.object()->dt >= OB_SOLID) {
+          weight_masked_transparency_ps_->draw(geom, ob_ref.handle());
         }
         else {
-          weight_opaque_ps_->draw(geom, ob_ref.handle);
+          weight_opaque_ps_->draw(geom, ob_ref.handle());
         }
         break;
       }
@@ -211,8 +211,8 @@ class Paints : Overlay {
       }
       case CTX_MODE_PAINT_TEXTURE: {
         if (show_paint_mask_) {
-          gpu::Batch *geom = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object);
-          paint_mask_ps_.draw(geom, ob_ref.handle);
+          gpu::Batch *geom = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object());
+          paint_mask_ps_.draw(geom, ob_ref.handle());
         }
         break;
       }
@@ -225,7 +225,7 @@ class Paints : Overlay {
     {
       /* NOTE(fclem): Why do we need original mesh here, only to get the flag? */
       const Mesh &mesh_orig = DRW_object_get_data_for_drawing<Mesh>(
-          *DEG_get_original(ob_ref.object));
+          *DEG_get_original(ob_ref.object()));
       const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
       const bool use_vert_selection = (mesh_orig.editflag & ME_EDIT_PAINT_VERT_SEL);
       /* Texture paint mode only draws the face selection without wires or vertices as we don't
@@ -233,17 +233,17 @@ class Paints : Overlay {
       const bool in_texture_paint_mode = state.ctx_mode == CTX_MODE_PAINT_TEXTURE;
 
       if ((use_face_selection || show_wires_) && !in_texture_paint_mode) {
-        gpu::Batch *geom = DRW_cache_mesh_surface_edges_get(ob_ref.object);
+        gpu::Batch *geom = DRW_cache_mesh_surface_edges_get(ob_ref.object());
         paint_region_edge_ps_->push_constant("useSelect", use_face_selection);
-        paint_region_edge_ps_->draw(geom, ob_ref.handle);
+        paint_region_edge_ps_->draw(geom, ob_ref.handle());
       }
       if (use_face_selection) {
-        gpu::Batch *geom = DRW_cache_mesh_surface_get(ob_ref.object);
-        paint_region_face_ps_->draw(geom, ob_ref.handle);
+        gpu::Batch *geom = DRW_cache_mesh_surface_get(ob_ref.object());
+        paint_region_face_ps_->draw(geom, ob_ref.handle());
       }
       if (use_vert_selection && !in_texture_paint_mode) {
-        gpu::Batch *geom = DRW_cache_mesh_all_verts_get(ob_ref.object);
-        paint_region_vert_ps_->draw(geom, ob_ref.handle);
+        gpu::Batch *geom = DRW_cache_mesh_all_verts_get(ob_ref.object());
+        paint_region_vert_ps_->draw(geom, ob_ref.handle());
       }
     }
   }

@@ -120,20 +120,14 @@ class Manager {
   ~Manager();
 
   /**
-   * Create a unique resource handle for the given object.
-   * Returns the existing handle if it exists.
-   */
-  /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
-  ResourceHandleRange unique_handle(const ObjectRef &ref);
-  /**
    * Create a new resource handle for the given object.
    */
-  ResourceHandleRange resource_handle(const ObjectRef &ref, float inflate_bounds = 0.0f);
+  ResourceHandleRange resource_handle(ObjectRef &ref, float inflate_bounds = 0.0f);
   /**
    * Create a new resource handle for the given object, but optionally override model matrix and
    * bounds.
    */
-  ResourceHandle resource_handle(const ObjectRef &ref,
+  ResourceHandle resource_handle(ObjectRef &ref,
                                  const float4x4 *model_matrix,
                                  const float3 *bounds_center,
                                  const float3 *bounds_half_extent);
@@ -154,14 +148,12 @@ class Manager {
    * Get resource id for particle system. The draw-calls for this resource won't be culled. The
    * associated object info will contain the info from its parent object.
    */
-  ResourceHandle resource_handle_for_psys(const ObjectRef &ref, const float4x4 &model_matrix);
+  ResourceHandle resource_handle_for_psys(ObjectRef &ref, const float4x4 &model_matrix);
 
-  ResourceHandleRange resource_handle_for_sculpt(const ObjectRef &ref);
+  ResourceHandleRange resource_handle_for_sculpt(ObjectRef &ref);
 
   /** Update the bounds of an already created handle. */
-  void update_handle_bounds(ResourceHandle handle,
-                            const ObjectRef &ref,
-                            float inflate_bounds = 0.0f);
+  void update_handle_bounds(ResourceHandle handle, ObjectRef &ref, float inflate_bounds = 0.0f);
   /** Update the bounds of an already created handle. */
   void update_handle_bounds(ResourceHandle handle,
                             const float3 &bounds_center,
@@ -172,10 +164,10 @@ class Manager {
    * IMPORTANT: Should be called only **once** per object.
    */
   void extract_object_attributes(ResourceHandle handle,
-                                 const ObjectRef &ref,
+                                 ObjectRef &ref,
                                  const GPUMaterial *material);
   void extract_object_attributes(ResourceHandle handle,
-                                 const ObjectRef &ref,
+                                 ObjectRef &ref,
                                  Span<GPUMaterial *> materials);
 
   /**
@@ -308,44 +300,37 @@ class Manager {
   uint64_t fingerprint_get();
 };
 
-inline ResourceHandleRange Manager::unique_handle(const ObjectRef &ref)
+inline ResourceHandleRange Manager::resource_handle(ObjectRef &ref, float inflate_bounds)
 {
-  if (ref.handle.handle_first.raw == 0) {
-    /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
-    const_cast<ObjectRef &>(ref).handle = resource_handle(ref);
-  }
-  return ref.handle;
-}
-
-inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float inflate_bounds)
-{
-  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
-  matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object);
-  bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object, inflate_bounds);
+  bool is_active_object = (ref.dupli_object() ? ref.dupli_parent() : ref.object()) ==
+                          object_active;
+  matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object());
+  bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object(), inflate_bounds);
   infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
-  return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
+  return ResourceHandle(resource_len_++, (ref.object()->transflag & OB_NEG_SCALE) != 0);
 }
 
-inline ResourceHandle Manager::resource_handle(const ObjectRef &ref,
+inline ResourceHandle Manager::resource_handle(ObjectRef &ref,
                                                const float4x4 *model_matrix,
                                                const float3 *bounds_center,
                                                const float3 *bounds_half_extent)
 {
-  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
+  bool is_active_object = (ref.dupli_object() ? ref.dupli_parent() : ref.object()) ==
+                          object_active;
   if (model_matrix) {
     matrix_buf.current().get_or_resize(resource_len_).sync(*model_matrix);
   }
   else {
-    matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object);
+    matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object());
   }
   if (bounds_center && bounds_half_extent) {
     bounds_buf.current().get_or_resize(resource_len_).sync(*bounds_center, *bounds_half_extent);
   }
   else {
-    bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object);
+    bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object());
   }
   infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
-  return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
+  return ResourceHandle(resource_len_++, (ref.object()->transflag & OB_NEG_SCALE) != 0);
 }
 
 inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix)
@@ -366,21 +351,22 @@ inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix,
   return ResourceHandle(resource_len_++, false);
 }
 
-inline ResourceHandle Manager::resource_handle_for_psys(const ObjectRef &ref,
+inline ResourceHandle Manager::resource_handle_for_psys(ObjectRef &ref,
                                                         const float4x4 &model_matrix)
 {
-  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
+  bool is_active_object = (ref.dupli_object() ? ref.dupli_parent() : ref.object()) ==
+                          object_active;
   matrix_buf.current().get_or_resize(resource_len_).sync(model_matrix);
   bounds_buf.current().get_or_resize(resource_len_).sync();
   infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
-  return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
+  return ResourceHandle(resource_len_++, (ref.object()->transflag & OB_NEG_SCALE) != 0);
 }
 
 inline void Manager::update_handle_bounds(ResourceHandle handle,
-                                          const ObjectRef &ref,
+                                          ObjectRef &ref,
                                           float inflate_bounds)
 {
-  bounds_buf.current()[handle.resource_index()].sync(*ref.object, inflate_bounds);
+  bounds_buf.current()[handle.resource_index()].sync(*ref.object(), inflate_bounds);
 }
 
 inline void Manager::update_handle_bounds(ResourceHandle handle,
@@ -391,7 +377,7 @@ inline void Manager::update_handle_bounds(ResourceHandle handle,
 }
 
 inline void Manager::extract_object_attributes(ResourceHandle handle,
-                                               const ObjectRef &ref,
+                                               ObjectRef &ref,
                                                const GPUMaterial *material)
 {
   ObjectInfos &infos = infos_buf.current().get_or_resize(handle.resource_index());
@@ -411,7 +397,7 @@ inline void Manager::extract_object_attributes(ResourceHandle handle,
 }
 
 inline void Manager::extract_object_attributes(ResourceHandle handle,
-                                               const ObjectRef &ref,
+                                               ObjectRef &ref,
                                                Span<GPUMaterial *> materials)
 {
   ObjectInfos &infos = infos_buf.current().get_or_resize(handle.resource_index());

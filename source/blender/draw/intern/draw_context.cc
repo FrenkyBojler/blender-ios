@@ -576,13 +576,13 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
   if (ob_ref.is_dupli() == false) {
     return;
   }
-  if (last_key_ == ob_ref.dupli_object) {
+  if (last_key_ == ob_ref.dupli_object()) {
     /* Same data as previous iteration. No need to perform the check again. */
     return;
   }
 
-  last_key_.ob = ob_ref.dupli_object->ob;
-  last_key_.ob_data = ob_ref.dupli_object->ob_data;
+  last_key_.ob = ob_ref.dupli_object()->ob;
+  last_key_.ob_data = ob_ref.dupli_object()->ob_data;
 
   if (dupli_set_ == nullptr) {
     dupli_set_ = MEM_new<blender::Set<DupliKey>>("DupliCacheManager::dupli_set_");
@@ -596,7 +596,7 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
      * object (e.g. Text evaluated as Mesh, Geometry node instance etc...).
      * In this case, key.ob is not going to have the same data type as ob_ref.object nor the same
      * data at all. */
-    drw_batch_cache_validate(ob_ref.object);
+    drw_batch_cache_validate(ob_ref.object());
   }
 }
 
@@ -651,32 +651,32 @@ namespace blender::draw {
 
 ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
 {
-  this->dupli_parent = iter_data.dupli_parent;
-  this->dupli_object = iter_data.dupli_object_current;
-  this->object = ob;
-  /*TODO: Defer creation ?*/
-  this->handle = construct_handle();
+  this->dupli_parent_ = iter_data.dupli_parent;
+  this->dupli_object_ = iter_data.dupli_object_current;
+  this->object_ = ob;
+  /* Creation is deferred until the first request. */
+  this->handle_ = ResourceHandleRange({0}, 0);
 }
 
 ObjectRef::ObjectRef(Object *ob)
 {
-  this->dupli_parent = nullptr;
-  this->dupli_object = nullptr;
-  this->object = ob;
-  /*TODO: Defer creation ?*/
-  this->handle = construct_handle();
+  this->dupli_parent_ = nullptr;
+  this->dupli_object_ = nullptr;
+  this->object_ = ob;
+  /* Creation is deferred until the first request. */
+  this->handle_ = ResourceHandleRange({0}, 0);
 }
 
 ResourceHandle ObjectRef::construct_handle()
 {
   const bool use_sculpt_pbvh = !drw_get().is_image_render() &&
-                               BKE_sculptsession_use_pbvh_draw(this->object, drw_get().rv3d);
+                               BKE_sculptsession_use_pbvh_draw(this->object_, drw_get().rv3d);
   if (use_sculpt_pbvh) {
     return DRW_manager_get()->resource_handle_for_sculpt(*this);
   }
-  else if (ELEM(this->object->type, OB_CURVES, OB_CURVES_LEGACY)) {
+  else if (ELEM(this->object_->type, OB_CURVES, OB_CURVES_LEGACY)) {
     /* Skip frustum culling. */
-    return DRW_manager_get()->resource_handle(this->object->object_to_world());
+    return DRW_manager_get()->resource_handle(this->object_->object_to_world());
   }
   else {
     return DRW_manager_get()->resource_handle(*this);
@@ -736,7 +736,7 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref, Extraction
 {
   /* Validation for dupli objects happen elsewhere. */
   if (ref.is_dupli() == false) {
-    drw_batch_cache_validate(ref.object);
+    drw_batch_cache_validate(ref.object());
   }
 
   DRWContext &ctx = drw_get();
@@ -746,7 +746,7 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref, Extraction
   /* TODO: in the future it would be nice to generate once for all viewports.
    * But we need threaded DRW manager first. */
   if (ref.is_dupli() == false) {
-    drw_batch_cache_generate_requested(ref.object, *extraction.graph);
+    drw_batch_cache_generate_requested(ref.object(), *extraction.graph);
   }
 }
 

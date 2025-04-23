@@ -31,7 +31,7 @@ class Names : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources &res,
                    const State &state) final
   {
@@ -39,7 +39,7 @@ class Names : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object;
+    Object *ob = ob_ref.object();
 
     if (is_from_dupli_or_set(ob)) {
       return;

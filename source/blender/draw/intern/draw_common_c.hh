@@ -30,7 +30,7 @@ class Manager;
 struct CurvesModule;
 struct PointCloudModule;
 struct VolumeModule;
-struct ObjectRef;
+class ObjectRef;
 }  // namespace blender::draw
 
 /* draw_hair.cc */

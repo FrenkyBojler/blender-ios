@@ -61,7 +61,7 @@ class ModeTransfer : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources & /*res*/,
                    const State &state) final
   {
@@ -69,14 +69,14 @@ class ModeTransfer : Overlay {
       return;
     }
 
-    const bool renderable = DRW_object_is_renderable(ob_ref.object);
-    const bool draw_surface = (ob_ref.object->dt >= OB_WIRE) &&
-                              (renderable || (ob_ref.object->dt == OB_WIRE));
+    const bool renderable = DRW_object_is_renderable(ob_ref.object());
+    const bool draw_surface = (ob_ref.object()->dt >= OB_WIRE) &&
+                              (renderable || (ob_ref.object()->dt == OB_WIRE));
     if (!draw_surface) {
       return;
     }
 
-    const float time = current_time_ - ob_ref.object->runtime->overlay_mode_transfer_start_time;
+    const float time = current_time_ - ob_ref.object()->runtime->overlay_mode_transfer_start_time;
     const float alpha = alpha_from_time_get(time);
     if (alpha == 0.0f) {
       return;
@@ -84,17 +84,17 @@ class ModeTransfer : Overlay {
 
     ps_.push_constant("ucolor", float4(flash_color_.xyz() * alpha, alpha));
 
-    const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d) &&
+    const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object(), state.rv3d) &&
                                  !state.is_image_render;
     if (use_sculpt_pbvh) {
-      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
-        ps_.draw(batch.batch, ob_ref.handle);
+      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object(), SCULPT_BATCH_DEFAULT)) {
+        ps_.draw(batch.batch, ob_ref.handle());
       }
     }
     else {
-      gpu::Batch *geom = DRW_cache_object_surface_get((Object *)ob_ref.object);
+      gpu::Batch *geom = DRW_cache_object_surface_get((Object *)ob_ref.object());
       if (geom) {
-        ps_.draw(geom, ob_ref.handle);
+        ps_.draw(geom, ob_ref.handle());
       }
     }
 

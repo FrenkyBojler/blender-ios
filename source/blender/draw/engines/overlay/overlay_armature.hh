@@ -474,7 +474,7 @@ class Armatures : Overlay {
   struct DrawContext {
     /* Current armature object */
     Object *ob = nullptr;
-    const ObjectRef *ob_ref = nullptr;
+    ObjectRef *ob_ref = nullptr;
 
     /* Note: can be mutated inside `draw_armature_pose()`. */
     eArmatureDrawMode draw_mode = ARM_DRAW_MODE_OBJECT;
@@ -503,15 +503,15 @@ class Armatures : Overlay {
     DrawContext() = default;
   };
 
-  DrawContext create_draw_context(const ObjectRef &ob_ref,
+  DrawContext create_draw_context(ObjectRef &ob_ref,
                                   Resources &res,
                                   const State &state,
                                   eArmatureDrawMode draw_mode)
   {
-    bArmature &arm = DRW_object_get_data_for_drawing<bArmature>(*ob_ref.object);
+    bArmature &arm = DRW_object_get_data_for_drawing<bArmature>(*ob_ref.object());
 
     DrawContext ctx;
-    ctx.ob = ob_ref.object;
+    ctx.ob = ob_ref.object();
     ctx.ob_ref = &ob_ref;
     ctx.res = &res;
     ctx.dt = state.dt;
@@ -539,7 +539,7 @@ class Armatures : Overlay {
   }
 
   void edit_object_sync(Manager & /*manager*/,
-                        const ObjectRef &ob_ref,
+                        ObjectRef &ob_ref,
                         Resources &res,
                         const State &state) final
   {
@@ -552,16 +552,16 @@ class Armatures : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources &res,
                    const State &state) final
   {
-    if (!enabled_ || ob_ref.object->dt == OB_BOUNDBOX) {
+    if (!enabled_ || ob_ref.object()->dt == OB_BOUNDBOX) {
       return;
     }
 
-    eArmatureDrawMode draw_mode = is_pose_mode(ob_ref.object, state) ? ARM_DRAW_MODE_POSE :
-                                                                       ARM_DRAW_MODE_OBJECT;
+    eArmatureDrawMode draw_mode = is_pose_mode(ob_ref.object(), state) ? ARM_DRAW_MODE_POSE :
+                                                                         ARM_DRAW_MODE_OBJECT;
 
     DrawContext ctx = create_draw_context(ob_ref, res, state, draw_mode);
     draw_armature_pose(&ctx);

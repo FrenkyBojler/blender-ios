@@ -38,7 +38,7 @@ class Origins : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources &res,
                    const State &state) final
   {
@@ -51,7 +51,7 @@ class Origins : Overlay {
       return;
     }
 
-    const Object *ob = ob_ref.object;
+    const Object *ob = ob_ref.object();
     const bool is_library = ID_REAL_USERS(&ob->id) > 1 || ID_IS_LINKED(ob);
     BKE_view_layer_synced_ensure(state.scene, (ViewLayer *)state.view_layer);
     const float4 location = float4(ob->object_to_world().location(), 0.0f);

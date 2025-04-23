@@ -94,7 +94,7 @@ class EditText : Overlay {
   }
 
   void edit_object_sync(Manager &manager,
-                        const ObjectRef &ob_ref,
+                        ObjectRef &ob_ref,
                         Resources &res,
                         const State & /*state*/) final
   {
@@ -102,10 +102,10 @@ class EditText : Overlay {
       return;
     }
 
-    const Curve &cu = DRW_object_get_data_for_drawing<Curve>(*ob_ref.object);
-    add_select(manager, cu, ob_ref.object->object_to_world());
-    add_cursor(manager, cu, ob_ref.object->object_to_world());
-    add_boxes(res, cu, ob_ref.object->object_to_world());
+    const Curve &cu = DRW_object_get_data_for_drawing<Curve>(*ob_ref.object());
+    add_select(manager, cu, ob_ref.object()->object_to_world());
+    add_cursor(manager, cu, ob_ref.object()->object_to_world());
+    add_boxes(res, cu, ob_ref.object()->object_to_world());
   }
 
   void end_sync(Resources &res, const State &state) final

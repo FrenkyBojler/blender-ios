@@ -36,11 +36,11 @@ class Metaballs : Overlay {
   }
 
   void edit_object_sync(Manager & /*manager*/,
-                        const ObjectRef &ob_ref,
+                        ObjectRef &ob_ref,
                         Resources &res,
                         const State & /*state*/) final
   {
-    const Object *ob = ob_ref.object;
+    const Object *ob = ob_ref.object();
     const MetaBall &mb = DRW_object_get_data_for_drawing<MetaBall>(*ob);
 
     const float *color;
@@ -68,11 +68,11 @@ class Metaballs : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources &res,
                    const State &state) final
   {
-    const Object *ob = ob_ref.object;
+    const Object *ob = ob_ref.object();
     const MetaBall *mb = &DRW_object_get_data_for_drawing<MetaBall>(*ob);
 
     const float4 &color = res.object_wire_color(ob_ref, state);

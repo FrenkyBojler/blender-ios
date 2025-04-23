@@ -125,7 +125,7 @@ class VelocityModule {
 
   /* Gather motion data. Returns true if the object **can** have motion. */
   bool step_object_sync(ObjectKey &object_key,
-                        const ObjectRef &object_ref,
+                        ObjectRef &object_ref,
                         int recalc,
                         ModifierData *modifier_data = nullptr,
                         ParticleSystem *particle_sys = nullptr);

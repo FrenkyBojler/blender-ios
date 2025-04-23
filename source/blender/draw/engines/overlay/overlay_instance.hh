@@ -127,21 +127,21 @@ class Instance : public DrawEngine {
   void draw(Manager &manager) final;
 
  private:
-  bool object_is_selected(const ObjectRef &ob_ref);
+  bool object_is_selected(ObjectRef &ob_ref);
   bool object_is_edit_mode(const Object *object);
   bool object_is_paint_mode(const Object *object);
-  bool object_is_particle_edit_mode(const ObjectRef &ob_ref);
+  bool object_is_particle_edit_mode(ObjectRef &ob_ref);
   /* Checks for both curve sculpt and regular sculpt mode. */
-  bool object_is_sculpt_mode(const ObjectRef &ob_ref);
+  bool object_is_sculpt_mode(ObjectRef &ob_ref);
   /* Checks only for sculpt mode. */
   bool object_is_sculpt_mode(const Object *object);
   /* Any mode that requires to view the object without distraction. */
-  bool object_is_edit_paint_mode(const ObjectRef &ob_ref,
+  bool object_is_edit_paint_mode(ObjectRef &ob_ref,
                                  bool in_edit_mode,
                                  bool in_paint_mode,
                                  bool in_sculpt_mode);
   bool object_is_in_front(const Object *object, const State &state);
-  bool object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode);
+  bool object_needs_prepass(ObjectRef &ob_ref, bool in_paint_mode);
 
   /* Returns true if the object is rendered transparent by the render engine.
    * Overlays should not rely on the correct depth being available (and do a depth pre-pass). */

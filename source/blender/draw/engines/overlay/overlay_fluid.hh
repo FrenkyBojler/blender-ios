@@ -77,11 +77,11 @@ class Fluids : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources &res,
                    const State &state) final
   {
-    Object *ob = ob_ref.object;
+    Object *ob = ob_ref.object();
 
     /* Do not show for dupli objects as the fluid is baked for the original object. */
     if (is_from_dupli_or_set(ob)) {
@@ -177,7 +177,7 @@ class Fluids : Overlay {
         sub.push_constant("drawMACZ", (fds->vector_draw_mac_components & VECTOR_DRAW_MAC_Z));
       }
       sub.push_constant("in_select_id", int(sel_id.get()));
-      sub.draw_procedural(GPU_PRIM_LINES, 1, total_lines * 2, -1, ob_ref.handle);
+      sub.draw_procedural(GPU_PRIM_LINES, 1, total_lines * 2, -1, ob_ref.handle());
     }
 
     /* Show gridlines only for slices with no interpolation. */
@@ -228,7 +228,7 @@ class Fluids : Overlay {
       BLI_assert(slice_axis != -1);
       int lines_per_voxel = 4;
       int total_lines = lines_per_voxel * math::reduce_mul(int3(fds->res)) / fds->res[slice_axis];
-      sub.draw_procedural(GPU_PRIM_LINES, 1, total_lines * 2, -1, ob_ref.handle);
+      sub.draw_procedural(GPU_PRIM_LINES, 1, total_lines * 2, -1, ob_ref.handle());
     }
   }
 

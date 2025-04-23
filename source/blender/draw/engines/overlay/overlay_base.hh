@@ -61,7 +61,7 @@ struct Overlay {
    * instancing data).
    */
   virtual void object_sync(Manager & /*manager*/,
-                           const ObjectRef & /*ob_ref*/,
+                           ObjectRef & /*ob_ref*/,
                            Resources & /*res*/,
                            const State & /*state*/){};
 
@@ -72,7 +72,7 @@ struct Overlay {
    * instancing data).
    */
   virtual void edit_object_sync(Manager & /*manager*/,
-                                const ObjectRef & /*ob_ref*/,
+                                ObjectRef & /*ob_ref*/,
                                 Resources & /*res*/,
                                 const State & /*state*/){};
 

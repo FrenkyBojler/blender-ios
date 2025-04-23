@@ -110,10 +110,7 @@ class Empties : Overlay {
     call_buffers.image_buf.clear();
   }
 
-  void object_sync(Manager &manager,
-                   const ObjectRef &ob_ref,
-                   Resources &res,
-                   const State &state) final
+  void object_sync(Manager &manager, ObjectRef &ob_ref, Resources &res, const State &state) final
   {
     if (!enabled_) {
       return;
@@ -121,14 +118,14 @@ class Empties : Overlay {
 
     const float4 color = res.object_wire_color(ob_ref, state);
     const select::ID select_id = res.select_id(ob_ref);
-    if (ob_ref.object->empty_drawtype == OB_EMPTY_IMAGE) {
+    if (ob_ref.object()->empty_drawtype == OB_EMPTY_IMAGE) {
       image_sync(ob_ref, select_id, manager, res, state, call_buffers_.image_buf);
       return;
     }
     object_sync(select_id,
-                ob_ref.object->object_to_world(),
-                ob_ref.object->empty_drawsize,
-                ob_ref.object->empty_drawtype,
+                ob_ref.object()->object_to_world(),
+                ob_ref.object()->empty_drawsize,
+                ob_ref.object()->empty_drawtype,
                 color,
                 call_buffers_);
   }
@@ -257,22 +254,22 @@ class Empties : Overlay {
   }
 
  private:
-  void image_sync(const ObjectRef &ob_ref,
+  void image_sync(ObjectRef &ob_ref,
                   select::ID select_id,
                   Manager &manager,
                   Resources &res,
                   const State &state,
                   EmptyInstanceBuf &empty_image_buf)
   {
-    Object *ob = ob_ref.object;
+    Object *ob = ob_ref.object();
     GPUTexture *tex = nullptr;
-    ::Image *ima = static_cast<::Image *>(ob_ref.object->data);
+    ::Image *ima = static_cast<::Image *>(ob_ref.object()->data);
     float4x4 mat;
 
     const bool show_frame = BKE_object_empty_image_frame_is_visible_in_view3d(ob, state.rv3d);
     const bool show_image = show_frame &&
                             BKE_object_empty_image_data_is_visible_in_view3d(ob, state.rv3d);
-    const bool use_alpha_blend = (ob_ref.object->empty_image_flag &
+    const bool use_alpha_blend = (ob_ref.object()->empty_image_flag &
                                   OB_EMPTY_IMAGE_USE_ALPHA_BLEND) != 0;
     const bool use_alpha_premult = ima && (ima->alpha_mode == IMA_ALPHA_PREMUL);
 

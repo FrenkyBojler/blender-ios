@@ -61,11 +61,11 @@ class AttributeViewer : Overlay {
   }
 
   void object_sync(Manager &manager,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources & /*res*/,
                    const State &state) final
   {
-    const DupliObject *dupli_object = ob_ref.dupli_object;
+    const DupliObject *dupli_object = ob_ref.dupli_object();
     const bool is_preview = dupli_object != nullptr &&
                             dupli_object->preview_base_geometry != nullptr;
     if (!enabled_ || !is_preview) {
@@ -107,11 +107,11 @@ class AttributeViewer : Overlay {
   }
 
  private:
-  void populate_for_instance(const ObjectRef &ob_ref,
+  void populate_for_instance(ObjectRef &ob_ref,
                              const DupliObject &dupli_object,
                              const State &state)
   {
-    Object &object = *ob_ref.object;
+    Object &object = *ob_ref.object();
     const bke::GeometrySet &base_geometry = *dupli_object.preview_base_geometry;
     const bke::InstancesComponent &instances =
         *base_geometry.get_component<bke::InstancesComponent>();
@@ -128,12 +128,12 @@ class AttributeViewer : Overlay {
           gpu::Batch *batch = DRW_cache_mesh_surface_get(&object);
           auto &sub = *instance_sub_;
           sub.push_constant("ucolor", float4(color));
-          sub.draw(batch, ob_ref.handle);
+          sub.draw(batch, ob_ref.handle());
         }
         if (gpu::Batch *batch = DRW_cache_mesh_loose_edges_get(&object)) {
           auto &sub = *instance_sub_;
           sub.push_constant("ucolor", float4(color));
-          sub.draw(batch, ob_ref.handle);
+          sub.draw(batch, ob_ref.handle());
         }
         break;
       }
@@ -141,14 +141,14 @@ class AttributeViewer : Overlay {
         auto &sub = *pointcloud_sub_;
         gpu::Batch *batch = pointcloud_sub_pass_setup(sub, &object, nullptr);
         sub.push_constant("ucolor", float4(color));
-        sub.draw(batch, ob_ref.handle);
+        sub.draw(batch, ob_ref.handle());
         break;
       }
       case OB_CURVES_LEGACY: {
         gpu::Batch *batch = DRW_cache_curve_edge_wire_get(&object);
         auto &sub = *instance_sub_;
         sub.push_constant("ucolor", float4(color));
-        sub.draw(batch, ob_ref.handle);
+        sub.draw(batch, ob_ref.handle());
         break;
       }
       case OB_CURVES: {
@@ -165,10 +165,10 @@ class AttributeViewer : Overlay {
            (CD_MASK_PROP_ALL & ~(CD_MASK_PROP_QUATERNION | CD_MASK_PROP_FLOAT4X4));
   }
 
-  void populate_for_geometry(const ObjectRef &ob_ref, const State &state, Manager &manager)
+  void populate_for_geometry(ObjectRef &ob_ref, const State &state, Manager &manager)
   {
     const float opacity = state.overlay.viewer_attribute_opacity;
-    Object &object = *ob_ref.object;
+    Object &object = *ob_ref.object();
     switch (object.type) {
       case OB_MESH: {
         Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
@@ -179,7 +179,7 @@ class AttributeViewer : Overlay {
             gpu::Batch *batch = DRW_cache_mesh_surface_viewer_attribute_get(&object);
             auto &sub = *mesh_sub_;
             sub.push_constant("opacity", opacity);
-            sub.draw(batch, ob_ref.handle);
+            sub.draw(batch, ob_ref.handle());
           }
         }
         break;
@@ -197,7 +197,7 @@ class AttributeViewer : Overlay {
               gpu::Batch *batch = pointcloud_sub_pass_setup(sub, &object, nullptr);
               sub.push_constant("opacity", opacity);
               sub.bind_texture("attribute_tx", vertbuf);
-              sub.draw(batch, ob_ref.handle);
+              sub.draw(batch, ob_ref.handle());
             }
           }
         }
@@ -232,11 +232,11 @@ class AttributeViewer : Overlay {
             gpu::VertBuf **texture = DRW_curves_texture_for_evaluated_attribute(
                 &curves_id, ".viewer", &is_point_domain);
             auto &sub = *curves_sub_;
-            gpu::Batch *batch = curves_sub_pass_setup(sub, state.scene, ob_ref.object);
+            gpu::Batch *batch = curves_sub_pass_setup(sub, state.scene, ob_ref.object());
             sub.push_constant("opacity", opacity);
             sub.push_constant("is_point_domain", is_point_domain);
             sub.bind_texture("color_tx", *texture);
-            sub.draw(batch, ob_ref.handle);
+            sub.draw(batch, ob_ref.handle());
           }
         }
         break;

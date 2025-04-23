@@ -49,7 +49,7 @@ class Relations : Overlay {
   }
 
   void object_sync(Manager & /*manager*/,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources &res,
                    const State &state) final
   {
@@ -62,7 +62,7 @@ class Relations : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object;
+    Object *ob = ob_ref.object();
     const float4 &relation_color = res.theme_settings.color_wire;
     const float4 &constraint_color = res.theme_settings.color_grid_axis_z; /* ? */
 

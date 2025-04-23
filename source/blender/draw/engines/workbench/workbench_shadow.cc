@@ -384,7 +384,7 @@ void ShadowPass::object_sync(SceneState &scene_state, ObjectRef &ob_ref, const b
     return;
   }
 
-  Object *ob = ob_ref.object;
+  Object *ob = ob_ref.object();
   bool is_manifold;
   blender::gpu::Batch *geom_shadow = DRW_cache_object_edge_detection_get(ob, &is_manifold);
   if (geom_shadow == nullptr) {
@@ -413,15 +413,15 @@ void ShadowPass::object_sync(SceneState &scene_state, ObjectRef &ob_ref, const b
 
   if (!force_fail_pass) {
     PassMain::Sub &ps = *get_pass_ptr(PASS, is_manifold);
-    ps.draw_expand(geom_shadow, prim, tri_len, 1, ob_ref.handle);
+    ps.draw_expand(geom_shadow, prim, tri_len, 1, ob_ref.handle());
   }
 
   blender::gpu::Batch *geom_faces = DRW_cache_object_surface_get(ob);
   /* Caps. */
-  get_pass_ptr(fail_type, is_manifold, true)->draw_expand(geom_faces, prim, 2, 1, ob_ref.handle);
+  get_pass_ptr(fail_type, is_manifold, true)->draw_expand(geom_faces, prim, 2, 1, ob_ref.handle());
   /* Sides extrusion. */
   get_pass_ptr(fail_type, is_manifold, false)
-      ->draw_expand(geom_shadow, prim, tri_len, 1, ob_ref.handle);
+      ->draw_expand(geom_shadow, prim, tri_len, 1, ob_ref.handle());
 }
 
 void ShadowPass::draw(Manager &manager,

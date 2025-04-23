@@ -127,9 +127,9 @@ class Instance : public DrawEngine {
   {
     switch (color_type) {
       case V3D_SHADING_OBJECT_COLOR:
-        return Material(*ob_ref.object);
+        return Material(*ob_ref.object());
       case V3D_SHADING_RANDOM_COLOR:
-        return Material(*ob_ref.object, true);
+        return Material(*ob_ref.object(), true);
       case V3D_SHADING_SINGLE_COLOR:
         return scene_state_.material_override;
       case V3D_SHADING_VERTEX_COLOR:
@@ -137,7 +137,7 @@ class Instance : public DrawEngine {
       case V3D_SHADING_TEXTURE_COLOR:
         ATTR_FALLTHROUGH;
       case V3D_SHADING_MATERIAL_COLOR:
-        if (::Material *_mat = BKE_object_material_get_eval(ob_ref.object, slot + 1)) {
+        if (::Material *_mat = BKE_object_material_get_eval(ob_ref.object(), slot + 1)) {
           return Material(*_mat);
         }
         ATTR_FALLTHROUGH;
@@ -152,7 +152,7 @@ class Instance : public DrawEngine {
       return;
     }
 
-    Object *ob = ob_ref.object;
+    Object *ob = ob_ref.object();
     if (!DRW_object_is_renderable(ob)) {
       return;
     }
@@ -214,7 +214,7 @@ class Instance : public DrawEngine {
 
         if (draw_as == PART_DRAW_PATH) {
           /* Skip frustum culling. */
-          ResourceHandle hair_handle = manager.resource_handle(ob_ref.object->object_to_world());
+          ResourceHandle hair_handle = manager.resource_handle(ob_ref.object()->object_to_world());
           this->hair_sync(ob_ref, hair_handle, object_state, psys, md);
         }
       }
@@ -224,7 +224,7 @@ class Instance : public DrawEngine {
   template<typename F>
   void draw_to_mesh_pass(ObjectRef &ob_ref, bool is_transparent, F draw_callback)
   {
-    const bool in_front = (ob_ref.object->dtx & OB_DRAW_IN_FRONT) != 0;
+    const bool in_front = (ob_ref.object()->dtx & OB_DRAW_IN_FRONT) != 0;
 
     if (scene_state_.xray_mode || is_transparent) {
       if (in_front) {
@@ -261,7 +261,7 @@ class Instance : public DrawEngine {
 
     this->draw_to_mesh_pass(ob_ref, material.is_transparent(), [&](MeshPass &mesh_pass) {
       mesh_pass.get_subpass(eGeometryType::MESH, texture)
-          .draw(batch, ob_ref.handle, material_index);
+          .draw(batch, ob_ref.handle(), material_index);
     });
   }
 
@@ -270,15 +270,15 @@ class Instance : public DrawEngine {
     bool has_transparent_material = false;
 
     if (object_state.use_per_material_batches) {
-      const int material_count = BKE_object_material_used_with_fallback_eval(*ob_ref.object);
+      const int material_count = BKE_object_material_used_with_fallback_eval(*ob_ref.object());
 
       Span<gpu::Batch *> batches;
       if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-        batches = DRW_cache_mesh_surface_texpaint_get(ob_ref.object);
+        batches = DRW_cache_mesh_surface_texpaint_get(ob_ref.object());
       }
       else {
         batches = DRW_cache_object_surface_material_get(
-            ob_ref.object, this->get_dummy_gpu_materials(material_count));
+            ob_ref.object(), this->get_dummy_gpu_materials(material_count));
       }
 
       if (!batches.is_empty()) {
@@ -293,7 +293,7 @@ class Instance : public DrawEngine {
 
           MaterialTexture texture;
           if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-            texture = MaterialTexture(ob_ref.object, material_slot);
+            texture = MaterialTexture(ob_ref.object(), material_slot);
           }
 
           this->draw_mesh(ob_ref, mat, batches[i], &texture, object_state.show_missing_texture);
@@ -303,18 +303,18 @@ class Instance : public DrawEngine {
     else {
       gpu::Batch *batch;
       if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-        batch = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object);
+        batch = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object());
       }
       else if (object_state.color_type == V3D_SHADING_VERTEX_COLOR) {
-        if (ob_ref.object->mode & OB_MODE_VERTEX_PAINT) {
-          batch = DRW_cache_mesh_surface_vertpaint_get(ob_ref.object);
+        if (ob_ref.object()->mode & OB_MODE_VERTEX_PAINT) {
+          batch = DRW_cache_mesh_surface_vertpaint_get(ob_ref.object());
         }
         else {
-          batch = DRW_cache_mesh_surface_sculptcolors_get(ob_ref.object);
+          batch = DRW_cache_mesh_surface_sculptcolors_get(ob_ref.object());
         }
       }
       else {
-        batch = DRW_cache_object_surface_get(ob_ref.object);
+        batch = DRW_cache_object_surface_get(ob_ref.object());
       }
 
       if (batch) {
@@ -341,7 +341,7 @@ class Instance : public DrawEngine {
     }
 
     if (object_state.use_per_material_batches) {
-      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, features)) {
+      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object(), features)) {
         Material mat = this->get_material(ob_ref, object_state.color_type, batch.material_slot);
         if (SCULPT_DEBUG_DRAW) {
           mat.base_color = batch.debug_color();
@@ -349,7 +349,7 @@ class Instance : public DrawEngine {
 
         MaterialTexture texture;
         if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-          texture = MaterialTexture(ob_ref.object, batch.material_slot);
+          texture = MaterialTexture(ob_ref.object(), batch.material_slot);
         }
 
         this->draw_mesh(ob_ref, mat, batch.batch, &texture, object_state.show_missing_texture);
@@ -357,7 +357,7 @@ class Instance : public DrawEngine {
     }
     else {
       Material mat = this->get_material(ob_ref, object_state.color_type);
-      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, features)) {
+      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object(), features)) {
         if (SCULPT_DEBUG_DRAW) {
           mat.base_color = batch.debug_color();
         }
@@ -376,8 +376,8 @@ class Instance : public DrawEngine {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::POINTCLOUD).sub("Point Cloud SubPass");
-      gpu::Batch *batch = pointcloud_sub_pass_setup(pass, ob_ref.object);
-      pass.draw(batch, ob_ref.handle, material_index);
+      gpu::Batch *batch = pointcloud_sub_pass_setup(pass, ob_ref.object());
+      pass.draw(batch, ob_ref.handle(), material_index);
     });
   }
 
@@ -390,7 +390,7 @@ class Instance : public DrawEngine {
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;
     if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-      texture = MaterialTexture(ob_ref.object, psys->part->omat - 1);
+      texture = MaterialTexture(ob_ref.object(), psys->part->omat - 1);
     }
     resources_.material_buf.append(mat);
     int material_index = resources_.material_buf.size() - 1;
@@ -398,7 +398,7 @@ class Instance : public DrawEngine {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::CURVES, &texture).sub("Hair SubPass");
-      pass.push_constant("emitter_object_id", int(ob_ref.handle.handle_first.raw));
+      pass.push_constant("emitter_object_id", int(ob_ref.handle().handle_first.raw));
       gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref, psys, md);
       pass.draw(batch, hair_handle, material_index);
     });
@@ -412,8 +412,8 @@ class Instance : public DrawEngine {
 
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass = mesh_pass.get_subpass(eGeometryType::CURVES).sub("Curves SubPass");
-      gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object);
-      pass.draw(batch, ob_ref.handle, material_index);
+      gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object());
+      pass.draw(batch, ob_ref.handle(), material_index);
     });
   }
 

@@ -102,7 +102,7 @@ class Sculpts : Overlay {
   }
 
   void object_sync(Manager &manager,
-                   const ObjectRef &ob_ref,
+                   ObjectRef &ob_ref,
                    Resources & /*res*/,
                    const State &state) final
   {
@@ -110,7 +110,7 @@ class Sculpts : Overlay {
       return;
     }
 
-    switch (ob_ref.object->type) {
+    switch (ob_ref.object()->type) {
       case OB_MESH:
         mesh_sync(manager, ob_ref, state);
         break;
@@ -120,9 +120,9 @@ class Sculpts : Overlay {
     }
   }
 
-  void curves_sync(Manager & /*manager*/, const ObjectRef &ob_ref, const State &state)
+  void curves_sync(Manager & /*manager*/, ObjectRef &ob_ref, const State &state)
   {
-    ::Curves &curves = DRW_object_get_data_for_drawing<::Curves>(*ob_ref.object);
+    ::Curves &curves = DRW_object_get_data_for_drawing<::Curves>(*ob_ref.object());
 
     /* As an optimization, draw nothing if everything is selected. */
     if (show_mask_ && !everything_selected(curves)) {
@@ -132,34 +132,34 @@ class Sculpts : Overlay {
           &curves, ".selection", &is_point_domain);
       if (select_attr_buf) {
         /* Evaluate curves and their attributes if necessary. */
-        gpu::Batch *geometry = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object);
+        gpu::Batch *geometry = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object());
         if (*select_attr_buf) {
           curves_ps_->push_constant("is_point_domain", is_point_domain);
           curves_ps_->bind_texture("selection_tx", *select_attr_buf);
-          curves_ps_->draw(geometry, ob_ref.handle);
+          curves_ps_->draw(geometry, ob_ref.handle());
         }
       }
     }
 
     if (show_curves_cage_) {
       blender::gpu::Batch *geometry = DRW_curves_batch_cache_get_sculpt_curves_cage(&curves);
-      sculpt_curve_cage_.draw(geometry, ob_ref.handle);
+      sculpt_curve_cage_.draw(geometry, ob_ref.handle());
     }
   }
 
-  void mesh_sync(Manager & /*manager*/, const ObjectRef &ob_ref, const State &state)
+  void mesh_sync(Manager & /*manager*/, ObjectRef &ob_ref, const State &state)
   {
     if (!show_face_set_ && !show_mask_) {
       /* Nothing to display. */
       return;
     }
 
-    const SculptSession *sculpt_session = ob_ref.object->sculpt;
+    const SculptSession *sculpt_session = ob_ref.object()->sculpt;
     if (sculpt_session == nullptr) {
       return;
     }
 
-    bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob_ref.object);
+    bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob_ref.object());
     if (!pbvh) {
       /* It is possible to have SculptSession without pbvh::Tree. This happens, for example, when
        * toggling object mode to sculpt then to edit mode. */
@@ -169,7 +169,7 @@ class Sculpts : Overlay {
     /* Using the original object/geometry is necessary because we skip depsgraph updates in sculpt
      * mode to improve performance. This means the evaluated mesh doesn't have the latest face set,
      * visibility, and mask data. */
-    Object *object_orig = DEG_get_original(ob_ref.object);
+    Object *object_orig = DEG_get_original(ob_ref.object());
     if (!object_orig) {
       BLI_assert_unreachable();
       return;
@@ -204,21 +204,21 @@ class Sculpts : Overlay {
       }
     }
 
-    const bool use_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d);
+    const bool use_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object(), state.rv3d);
     if (use_pbvh) {
       SculptBatchFeature sculpt_batch_features_ = (show_face_set_ ? SCULPT_BATCH_FACE_SET :
                                                                     SCULPT_BATCH_DEFAULT) |
                                                   (show_mask_ ? SCULPT_BATCH_MASK :
                                                                 SCULPT_BATCH_DEFAULT);
 
-      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, sculpt_batch_features_)) {
-        mesh_ps_->draw(batch.batch, ob_ref.handle);
+      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object(), sculpt_batch_features_)) {
+        mesh_ps_->draw(batch.batch, ob_ref.handle());
       }
     }
     else {
-      Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob_ref.object);
+      Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob_ref.object());
       gpu::Batch *sculpt_overlays = DRW_mesh_batch_cache_get_sculpt_overlays(mesh);
-      mesh_ps_->draw(sculpt_overlays, ob_ref.handle);
+      mesh_ps_->draw(sculpt_overlays, ob_ref.handle());
     }
   }
 

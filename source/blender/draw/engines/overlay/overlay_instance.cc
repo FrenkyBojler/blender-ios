@@ -468,16 +468,16 @@ void Instance::begin_sync()
 
 void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
 {
-  const bool in_object_mode = ob_ref.object->mode == OB_MODE_OBJECT;
-  const bool in_edit_mode = ob_ref.object->mode == OB_MODE_EDIT;
-  const bool in_paint_mode = object_is_paint_mode(ob_ref.object);
+  const bool in_object_mode = ob_ref.object()->mode == OB_MODE_OBJECT;
+  const bool in_edit_mode = ob_ref.object()->mode == OB_MODE_EDIT;
+  const bool in_paint_mode = object_is_paint_mode(ob_ref.object());
   const bool in_sculpt_mode = object_is_sculpt_mode(ob_ref);
   const bool in_particle_edit_mode = object_is_particle_edit_mode(ob_ref);
   const bool in_edit_paint_mode = object_is_edit_paint_mode(
       ob_ref, in_edit_mode, in_paint_mode, in_sculpt_mode);
   const bool needs_prepass = object_needs_prepass(ob_ref, in_paint_mode);
 
-  OverlayLayer &layer = object_is_in_front(ob_ref.object, state) ? infront : regular;
+  OverlayLayer &layer = object_is_in_front(ob_ref.object(), state) ? infront : regular;
 
   layer.mode_transfer.object_sync(manager, ob_ref, resources, state);
 
@@ -491,7 +491,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
 
   /* For 2D UV overlays. */
   if (!state.hide_overlays && state.is_space_image()) {
-    switch (ob_ref.object->type) {
+    switch (ob_ref.object()->type) {
       case OB_MESH:
         if (in_edit_paint_mode) {
           /* TODO(fclem): Find a better place / condition. */
@@ -506,7 +506,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (in_paint_mode && !state.hide_overlays) {
-    switch (ob_ref.object->type) {
+    switch (ob_ref.object()->type) {
       case OB_MESH:
         /* TODO(fclem): Make it part of a #Meshes. */
         layer.paints.object_sync(manager, ob_ref, resources, state);
@@ -520,7 +520,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (in_sculpt_mode) {
-    switch (ob_ref.object->type) {
+    switch (ob_ref.object()->type) {
       case OB_MESH:
       case OB_CURVES:
         /* TODO(fclem): Make it part of a #Meshes. */
@@ -535,7 +535,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (in_edit_mode && !state.hide_overlays) {
-    switch (ob_ref.object->type) {
+    switch (ob_ref.object()->type) {
       case OB_MESH:
         layer.meshes.edit_object_sync(manager, ob_ref, resources, state);
         break;
@@ -573,7 +573,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (!state.hide_overlays) {
-    switch (ob_ref.object->type) {
+    switch (ob_ref.object()->type) {
       case OB_EMPTY:
         layer.empties.object_sync(manager, ob_ref, resources, state);
         break;
@@ -944,9 +944,9 @@ void Instance::draw_v3d(Manager &manager, View &view)
   }
 }
 
-bool Instance::object_is_selected(const ObjectRef &ob_ref)
+bool Instance::object_is_selected(ObjectRef &ob_ref)
 {
-  return (ob_ref.object->base_flag & BASE_SELECTED);
+  return (ob_ref.object()->base_flag & BASE_SELECTED);
 }
 
 bool Instance::object_is_paint_mode(const Object *object)
@@ -955,29 +955,30 @@ bool Instance::object_is_paint_mode(const Object *object)
          (state.object_mode & (OB_MODE_ALL_PAINT | OB_MODE_ALL_PAINT_GPENCIL));
 }
 
-bool Instance::object_is_sculpt_mode(const ObjectRef &ob_ref)
+bool Instance::object_is_sculpt_mode(ObjectRef &ob_ref)
 {
   if (state.object_mode == OB_MODE_SCULPT_CURVES) {
     const Object *active_object = state.object_active;
-    const bool is_active_object = ob_ref.object == active_object;
+    const bool is_active_object = ob_ref.object() == active_object;
 
-    bool is_geonode_preview = ob_ref.dupli_object && ob_ref.dupli_object->preview_base_geometry;
-    bool is_active_dupli_parent = ob_ref.dupli_parent == active_object;
+    bool is_geonode_preview = ob_ref.dupli_object() &&
+                              ob_ref.dupli_object()->preview_base_geometry;
+    bool is_active_dupli_parent = ob_ref.dupli_parent() == active_object;
     return is_active_object || (is_active_dupli_parent && is_geonode_preview);
   }
 
   if (state.object_mode == OB_MODE_SCULPT) {
     const Object *active_object = state.object_active;
-    const bool is_active_object = ob_ref.object == active_object;
+    const bool is_active_object = ob_ref.object() == active_object;
     return is_active_object;
   }
 
   return false;
 }
 
-bool Instance::object_is_particle_edit_mode(const ObjectRef &ob_ref)
+bool Instance::object_is_particle_edit_mode(ObjectRef &ob_ref)
 {
-  return (ob_ref.object->mode == OB_MODE_PARTICLE_EDIT) && (state.ctx_mode == CTX_MODE_PARTICLE);
+  return (ob_ref.object()->mode == OB_MODE_PARTICLE_EDIT) && (state.ctx_mode == CTX_MODE_PARTICLE);
 }
 
 bool Instance::object_is_sculpt_mode(const Object *object)
@@ -988,17 +989,17 @@ bool Instance::object_is_sculpt_mode(const Object *object)
   return false;
 }
 
-bool Instance::object_is_edit_paint_mode(const ObjectRef &ob_ref,
+bool Instance::object_is_edit_paint_mode(ObjectRef &ob_ref,
                                          bool in_edit_mode,
                                          bool in_paint_mode,
                                          bool in_sculpt_mode)
 {
   bool in_edit_paint_mode = in_edit_mode || in_paint_mode || in_sculpt_mode;
-  if (ob_ref.object->base_flag & BASE_FROM_DUPLI) {
+  if (ob_ref.object()->base_flag & BASE_FROM_DUPLI) {
     /* Disable outlines for objects instanced by an object in sculpt, paint or edit mode. */
-    in_edit_paint_mode |= ob_ref.dupli_parent && (object_is_edit_mode(ob_ref.dupli_parent) ||
-                                                  object_is_sculpt_mode(ob_ref.dupli_parent) ||
-                                                  object_is_paint_mode(ob_ref.dupli_parent));
+    in_edit_paint_mode |= ob_ref.dupli_parent() && (object_is_edit_mode(ob_ref.dupli_parent()) ||
+                                                    object_is_sculpt_mode(ob_ref.dupli_parent()) ||
+                                                    object_is_paint_mode(ob_ref.dupli_parent()));
   }
   return in_edit_paint_mode;
 }
@@ -1047,7 +1048,7 @@ bool Instance::object_is_in_front(const Object *object, const State &state)
   }
 }
 
-bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
+bool Instance::object_needs_prepass(ObjectRef &ob_ref, bool in_paint_mode)
 {
   if (resources.is_selection() && state.is_wireframe_mode && !state.is_solid()) {
     /* Selection in wireframe mode only use wires unless xray opacity is 1. */
@@ -1062,14 +1063,14 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 
   if (in_paint_mode) {
     /* Allow paint overlays to draw with depth equal test. */
-    if (object_is_rendered_transparent(ob_ref.object, state)) {
+    if (object_is_rendered_transparent(ob_ref.object(), state)) {
       return true;
     }
   }
 
   if (!state.xray_enabled) {
     /* Force depth prepass if depth buffer form render engine is not available. */
-    if (!state.is_render_depth_available && (ob_ref.object->dt >= OB_SOLID)) {
+    if (!state.is_render_depth_available && (ob_ref.object()->dt >= OB_SOLID)) {
       return true;
     }
   }

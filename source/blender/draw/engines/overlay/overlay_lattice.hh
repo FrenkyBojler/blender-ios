@@ -57,7 +57,7 @@ class Lattices : Overlay {
   }
 
   void edit_object_sync(Manager & /*manager*/,
-                        const ObjectRef &ob_ref,
+                        ObjectRef &ob_ref,
                         Resources &res,
                         const State & /*state*/) final
   {
@@ -66,32 +66,29 @@ class Lattices : Overlay {
     }
 
     {
-      gpu::Batch *geom = DRW_cache_lattice_wire_get(ob_ref.object, true);
-      edit_lattice_wire_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
+      gpu::Batch *geom = DRW_cache_lattice_wire_get(ob_ref.object(), true);
+      edit_lattice_wire_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
     }
     {
-      gpu::Batch *geom = DRW_cache_lattice_vert_overlay_get(ob_ref.object);
-      edit_lattice_point_ps_->draw(geom, ob_ref.handle, res.select_id(ob_ref).get());
+      gpu::Batch *geom = DRW_cache_lattice_vert_overlay_get(ob_ref.object());
+      edit_lattice_point_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
     }
   }
 
-  void object_sync(Manager &manager,
-                   const ObjectRef &ob_ref,
-                   Resources &res,
-                   const State &state) final
+  void object_sync(Manager &manager, ObjectRef &ob_ref, Resources &res, const State &state) final
   {
     if (!enabled_) {
       return;
     }
 
-    if (!state.show_extras() || (ob_ref.object->dt == OB_BOUNDBOX)) {
+    if (!state.show_extras() || (ob_ref.object()->dt == OB_BOUNDBOX)) {
       return;
     }
 
-    gpu::Batch *geom = DRW_cache_lattice_wire_get(ob_ref.object, false);
+    gpu::Batch *geom = DRW_cache_lattice_wire_get(ob_ref.object(), false);
     if (geom) {
       const float4 &color = res.object_wire_color(ob_ref, state);
-      float4x4 draw_mat(ob_ref.object->object_to_world().ptr());
+      float4x4 draw_mat(ob_ref.object()->object_to_world().ptr());
       for (int i : IndexRange(3)) {
         draw_mat[i][3] = color[i];
       }
