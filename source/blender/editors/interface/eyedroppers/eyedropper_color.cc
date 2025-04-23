@@ -229,7 +229,7 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
     return false;
   }
 
-  const int render_layer_name_len = BLI_strnlen(render_layer->name, sizeof(render_layer->name));
+  const int render_layer_name_len = STRNLEN(render_layer->name);
   if (strncmp(prefix, render_layer->name, render_layer_name_len) != 0) {
     return false;
   }
@@ -499,7 +499,7 @@ bool eyedropper_color_sample_fl(bContext *C,
   }
 
   /* Outside the Blender window if we support it. */
-  if ((WM_capabilities_flag() & WM_CAPABILITY_DESKTOP_SAMPLE)) {
+  if (WM_capabilities_flag() & WM_CAPABILITY_DESKTOP_SAMPLE) {
     if (WM_desktop_cursor_sample_read(r_col)) {
       IMB_colormanagement_srgb_to_scene_linear_v3(r_col, r_col);
       return true;
@@ -594,7 +594,7 @@ static void eyedropper_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Eyedropper *eye = (Eyedropper *)op->customdata;
 
@@ -650,7 +650,7 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* Modal Operator init */
-static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* init */
   if (eyedropper_init(C, op)) {
@@ -668,7 +668,7 @@ static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*even
 }
 
 /* Repeat operator */
-static int eyedropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (eyedropper_init(C, op)) {

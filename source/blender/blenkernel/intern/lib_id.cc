@@ -28,6 +28,7 @@
 #include "DNA_node_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_ghash.h"
@@ -55,6 +56,7 @@
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
@@ -178,8 +180,8 @@ static void lib_id_library_local_paths(Main *bmain, Library *lib_to, Library *li
 {
   BLI_assert(lib_to || lib_from);
   const char *bpath_user_data[2] = {
-      lib_to ? lib_to->runtime.filepath_abs : BKE_main_blendfile_path(bmain),
-      lib_from ? lib_from->runtime.filepath_abs : BKE_main_blendfile_path(bmain)};
+      lib_to ? lib_to->runtime->filepath_abs : BKE_main_blendfile_path(bmain),
+      lib_from ? lib_from->runtime->filepath_abs : BKE_main_blendfile_path(bmain)};
 
   BPathForeachPathData path_data{};
   path_data.bmain = bmain;
@@ -209,7 +211,7 @@ void BKE_lib_id_clear_library_data(Main *bmain, ID *id, const int flags)
                               (id->flag & ID_FLAG_EMBEDDED_DATA) == 0;
 
   if (id_in_mainlist) {
-    BKE_main_namemap_remove_name(bmain, id, BKE_id_name(*id));
+    BKE_main_namemap_remove_id(*bmain, *id);
   }
 
   lib_id_library_local_paths(bmain, nullptr, id->lib, id);
@@ -288,7 +290,7 @@ void id_lib_extern(ID *id)
       id->tag &= ~ID_TAG_INDIRECT;
       id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
       id->tag |= ID_TAG_EXTERN;
-      id->lib->runtime.parent = nullptr;
+      id->lib->runtime->parent = nullptr;
     }
   }
 }
@@ -313,7 +315,7 @@ void id_us_ensure_real(ID *id)
         CLOG_ERROR(&LOG,
                    "ID user count error: %s (from '%s')",
                    id->name,
-                   id->lib ? id->lib->runtime.filepath_abs : "[Main]");
+                   id->lib ? id->lib->runtime->filepath_abs : "[Main]");
       }
       id->us = limit + 1;
       id->tag |= ID_TAG_EXTRAUSER_SET;
@@ -368,7 +370,7 @@ void id_us_min(ID *id)
         CLOG_ERROR(&LOG,
                    "ID user decrement error: %s (from '%s'): %d <= %d",
                    id->name,
-                   id->lib ? id->lib->runtime.filepath_abs : "[Main]",
+                   id->lib ? id->lib->runtime->filepath_abs : "[Main]",
                    id->us,
                    limit);
       }
@@ -812,7 +814,7 @@ static int foreach_assign_id_to_orig_callback(LibraryIDLinkCallbackData *cb_data
 
   if (*id_p) {
     ID *id = *id_p;
-    *id_p = DEG_get_original_id(id);
+    *id_p = DEG_get_original(id);
 
     /* If the ID changes increase the user count.
      *
@@ -872,7 +874,7 @@ void BKE_id_move_to_same_lib(Main &bmain, ID &id, const ID &owner_id)
     return;
   }
 
-  BKE_main_namemap_remove_name(&bmain, &id, BKE_id_name(id));
+  BKE_main_namemap_remove_id(bmain, id);
 
   id.lib = owner_id.lib;
   id.tag |= ID_TAG_INDIRECT;
@@ -1148,7 +1150,7 @@ void BKE_libblock_management_main_remove(Main *bmain, void *idv)
   ListBase *lb = which_libbase(bmain, GS(id->name));
   BKE_main_lock(bmain);
   BLI_remlink(lb, id);
-  BKE_main_namemap_remove_name(bmain, id, BKE_id_name(*id));
+  BKE_main_namemap_remove_id(*bmain, *id);
   id->tag |= ID_TAG_NO_MAIN;
   bmain->is_memfile_undo_written = false;
   BKE_main_unlock(bmain);
@@ -1204,10 +1206,8 @@ void BKE_main_id_tag_idcode(Main *mainvar, const short type, const int tag, cons
 
 void BKE_main_id_tag_all(Main *mainvar, const int tag, const bool value)
 {
-  ListBase *lbarray[INDEX_ID_MAX];
-  int a;
-
-  a = set_listbasepointers(mainvar, lbarray);
+  MainListsArray lbarray = BKE_main_lists_get(*mainvar);
+  int a = lbarray.size();
   while (a--) {
     BKE_main_id_tag_listbase(lbarray[a], tag, value);
   }
@@ -1231,9 +1231,8 @@ void BKE_main_id_flag_listbase(ListBase *lb, const int flag, const bool value)
 
 void BKE_main_id_flag_all(Main *bmain, const int flag, const bool value)
 {
-  ListBase *lbarray[INDEX_ID_MAX];
-  int a;
-  a = set_listbasepointers(bmain, lbarray);
+  MainListsArray lbarray = BKE_main_lists_get(*bmain);
+  int a = lbarray.size();
   while (a--) {
     BKE_main_id_flag_listbase(lbarray[a], flag, value);
   }
@@ -1252,7 +1251,7 @@ void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBase *lb)
   }
 
   /* Fill an array because renaming sorts. */
-  ID **id_array = static_cast<ID **>(MEM_mallocN(sizeof(*id_array) * lb_len, __func__));
+  ID **id_array = MEM_malloc_arrayN<ID *>(size_t(lb_len), __func__);
   GSet *gset = BLI_gset_str_new_ex(__func__, lb_len);
   int i = 0;
   LISTBASE_FOREACH (ID *, id, lb) {
@@ -1314,12 +1313,12 @@ size_t BKE_libblock_get_alloc_info(short type, const char **r_name)
   return id_type->struct_size;
 }
 
-void *BKE_libblock_alloc_notest(short type)
+ID *BKE_libblock_alloc_notest(short type)
 {
   const char *name;
   size_t size = BKE_libblock_get_alloc_info(type, &name);
   if (size != 0) {
-    return MEM_callocN(size, name);
+    return static_cast<ID *>(MEM_callocN(size, name));
   }
   BLI_assert_msg(0, "Request to allocate unknown data type");
   return nullptr;
@@ -1335,7 +1334,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || bmain != nullptr);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
-  ID *id = static_cast<ID *>(BKE_libblock_alloc_notest(type));
+  ID *id = BKE_libblock_alloc_notest(type);
 
   if (id) {
     if ((flag & LIB_ID_CREATE_NO_MAIN) != 0) {
@@ -1396,7 +1395,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
 
       /* This assert avoids having to keep name_map consistency when changing the library of an ID,
        * if this check is not true anymore it will have to be done here too. */
-      BLI_assert(bmain->curlib == nullptr || bmain->curlib->runtime.name_map == nullptr);
+      BLI_assert(bmain->curlib == nullptr || bmain->curlib->runtime->name_map == nullptr);
 
       /* TODO: to be removed from here! */
       if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0) {
@@ -1678,7 +1677,7 @@ ID *BKE_libblock_find_name(Main *bmain,
   ID *id = static_cast<ID *>(BLI_findstring(lb, name, offsetof(ID, name) + 2));
   if (lib) {
     while (id && id->lib != *lib) {
-      id = static_cast<ID *>(BLI_listbase_findafter_string_ptr(
+      id = static_cast<ID *>(BLI_listbase_findafter_string(
           reinterpret_cast<Link *>(id), name, offsetof(ID, name) + 2));
     }
   }
@@ -1694,6 +1693,18 @@ ID *BKE_libblock_find_session_uid(Main *bmain, const short type, const uint32_t 
       return id;
     }
   }
+  return nullptr;
+}
+
+ID *BKE_libblock_find_session_uid(Main *bmain, const uint32_t session_uid)
+{
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    if (id_iter->session_uid == session_uid) {
+      return id_iter;
+    }
+  }
+  FOREACH_MAIN_ID_END;
   return nullptr;
 }
 
@@ -1739,7 +1750,7 @@ ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
     if (id->lib == nullptr && lib_filepath_abs == nullptr) {
       return id;
     }
-    if (id->lib && lib_filepath_abs && STREQ(id->lib->runtime.filepath_abs, lib_filepath_abs)) {
+    if (id->lib && lib_filepath_abs && STREQ(id->lib->runtime->filepath_abs, lib_filepath_abs)) {
       return id;
     }
   }
@@ -1899,7 +1910,7 @@ IDNewNameResult BKE_id_new_name_validate(Main &bmain,
     STRNCPY(orig_name, name);
   }
 
-  const bool had_name_collision = BKE_main_namemap_get_name(&bmain, &id, name, false);
+  const bool had_name_collision = BKE_main_namemap_get_unique_name(bmain, id, name);
 
   if (had_name_collision &&
       ELEM(mode, IDNewNameMode::RenameExistingAlways, IDNewNameMode::RenameExistingSameRoot))
@@ -2100,7 +2111,7 @@ void BKE_library_make_local(Main *bmain,
    * once this function is finished.  This allows to avoid any unneeded duplication of IDs, and
    * hence all time lost afterwards to remove orphaned linked data-blocks. */
 
-  ListBase *lbarray[INDEX_ID_MAX];
+  MainListsArray lbarray = BKE_main_lists_get(*bmain);
 
   LinkNode *todo_ids = nullptr;
   LinkNode *copied_ids = nullptr;
@@ -2120,7 +2131,7 @@ void BKE_library_make_local(Main *bmain,
 #endif
 
   /* Step 1: Detect data-blocks to make local. */
-  for (int a = set_listbasepointers(bmain, lbarray); a--;) {
+  for (int a = lbarray.size(); a--;) {
     ID *id = static_cast<ID *>(lbarray[a]->first);
 
     /* Do not explicitly make local non-linkable IDs (shape-keys, in fact),
@@ -2336,7 +2347,7 @@ IDNewNameResult BKE_libblock_rename(Main &bmain,
   if (STREQ(BKE_id_name(id), name.c_str())) {
     return {IDNewNameResult::Action::UNCHANGED, nullptr};
   }
-  BKE_main_namemap_remove_name(&bmain, &id, BKE_id_name(id));
+  BKE_main_namemap_remove_id(bmain, id);
   ListBase &lb = *which_libbase(&bmain, GS(id.name));
   IDNewNameResult result = BKE_id_new_name_validate(bmain, lb, id, name.c_str(), mode, true);
   if (!ELEM(result.action,
@@ -2619,3 +2630,15 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
     }
   }
 }
+
+struct SomeTypeWithIDMember {
+  int id;
+};
+
+static_assert(blender::dna::is_ID_v<ID>);
+static_assert(blender::dna::is_ID_v<Object>);
+static_assert(!blender::dna::is_ID_v<int>);
+static_assert(!blender::dna::is_ID_v<ID *>);
+static_assert(!blender::dna::is_ID_v<const ID>);
+static_assert(!blender::dna::is_ID_v<ListBase>);
+static_assert(!blender::dna::is_ID_v<SomeTypeWithIDMember>);

@@ -37,7 +37,12 @@ if(WIN32)
 
   add_library(BlendThumb SHARED ${SRC} ${SRC_WIN32})
 
-  target_link_libraries(BlendThumb bf_blenlib dbghelp.lib Version.lib)
+  target_link_libraries(BlendThumb bf_blenlib dbghelp.lib Version.lib Comctl32.lib)
+  # `blenlib` drags in a whole bunch of dependencies on shared libraries, none of which are used
+  # by `blenthumb`, but will cause load issues since the debug linker will not eliminate them.
+  # Link with /OPT:ref to force elimination of those unused dependencies this is already
+  # enabled by default on the release mode flags.
+  set_target_properties(BlendThumb PROPERTIES LINK_FLAGS "/OPT:ref")
   set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt")
   set_target_properties(BlendThumb PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
 
@@ -45,8 +50,8 @@ elseif(APPLE)
   # -----------------------------------------------------------------------------
   # Build `blender-thumbnailer.appex` app extension.
   set(SRC_APPEX
-    src/thumbnail_provider.mm
     src/thumbnail_provider.h
+    src/thumbnail_provider.mm
   )
 
   add_executable(blender-thumbnailer MACOSX_BUNDLE ${SRC} ${SRC_APPEX})
@@ -71,8 +76,9 @@ elseif(APPLE)
   # Command taken from XCode build process.
   add_custom_command(
     TARGET blender-thumbnailer POST_BUILD
-    COMMAND codesign --deep --force --sign - --entitlements "${CMAKE_SOURCE_DIR}/release/darwin/thumbnailer_entitlements.plist"
-    --timestamp=none $<TARGET_BUNDLE_DIR:blender-thumbnailer>
+    COMMAND codesign --deep --force --sign -
+      --entitlements "${CMAKE_SOURCE_DIR}/release/darwin/thumbnailer_entitlements.plist"
+      --timestamp=none $<TARGET_BUNDLE_DIR:blender-thumbnailer>
   )
 elseif(UNIX)
   # -----------------------------------------------------------------------------

@@ -11,6 +11,7 @@
 #include "GPU_context.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
+#include "GPU_texture_pool.hh"
 
 #include "gpu_texture_private.hh"
 
@@ -131,7 +132,7 @@ static void test_texture_1d_array_upload()
   GPU_render_begin();
 
   int total_size = LAYERS * SIZE * 4;
-  float *data_in = (float *)MEM_callocN(sizeof(float) * total_size, __func__);
+  float *data_in = MEM_calloc_arrayN<float>(total_size, __func__);
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   GPUTexture *tex = GPU_texture_create_1d_array(
@@ -139,7 +140,7 @@ static void test_texture_1d_array_upload()
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
-  void *data_out = GPU_texture_read(tex, GPU_DATA_FLOAT, 0);
+  float *data_out = static_cast<float *>(GPU_texture_read(tex, GPU_DATA_FLOAT, 0));
   GPU_texture_free(tex);
 
   EXPECT_EQ(memcmp(data_in, data_out, sizeof(float) * total_size), 0);
@@ -183,7 +184,7 @@ static void test_texture_2d_array_upload()
   GPU_render_begin();
 
   int total_size = LAYERS * SIZE * SIZE * 4;
-  float *data_in = (float *)MEM_callocN(sizeof(float) * total_size, __func__);
+  float *data_in = MEM_calloc_arrayN<float>(total_size, __func__);
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   GPUTexture *tex = GPU_texture_create_2d_array(
@@ -191,7 +192,7 @@ static void test_texture_2d_array_upload()
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
-  void *data_out = GPU_texture_read(tex, GPU_DATA_FLOAT, 0);
+  float *data_out = static_cast<float *>(GPU_texture_read(tex, GPU_DATA_FLOAT, 0));
   GPU_texture_free(tex);
 
   EXPECT_EQ(memcmp(data_in, data_out, sizeof(float) * total_size), 0);
@@ -307,7 +308,7 @@ GPU_TEST(texture_copy)
 
 template<typename DataType> static DataType *generate_test_data(size_t data_len)
 {
-  DataType *data = static_cast<DataType *>(MEM_mallocN(data_len * sizeof(DataType), __func__));
+  DataType *data = MEM_malloc_arrayN<DataType>(data_len, __func__);
   for (int i : IndexRange(data_len)) {
     if (std::is_same<DataType, float>()) {
       data[i] = (DataType)(i % 8) / 8.0f;
@@ -1045,8 +1046,7 @@ static void test_texture_update_sub_no_unpack_row_length()
   GPU_texture_clear(texture, GPU_DATA_FLOAT, &clear_color);
 
   const float4 texture_color(0.0f, 1.0f, 0.0f, 1.0f);
-  float4 *texture_data = static_cast<float4 *>(
-      MEM_mallocN(sub_size.x * sub_size.y * sizeof(float4), __func__));
+  float4 *texture_data = MEM_malloc_arrayN<float4>(sub_size.x * sub_size.y, __func__);
   for (int i = 0; i < sub_size.x * sub_size.y; i++) {
     texture_data[i] = texture_color;
   }
@@ -1101,8 +1101,7 @@ static void test_texture_update_sub_unpack_row_length()
 
   const float4 texture_color(0.0f, 1.0f, 0.0f, 1.0f);
   const float4 texture_color_off(1.0f, 0.0f, 0.0f, 1.0f);
-  float4 *texture_data = static_cast<float4 *>(
-      MEM_mallocN(size.x * size.y * sizeof(float4), __func__));
+  float4 *texture_data = MEM_malloc_arrayN<float4>(size.x * size.y, __func__);
   for (int x = 0; x < size.x; x++) {
     for (int y = 0; y < size.y; y++) {
       int index = x + y * size.x;
@@ -1152,6 +1151,55 @@ static void test_texture_update_sub_unpack_row_length()
   GPU_texture_free(texture);
 }
 GPU_TEST(texture_update_sub_unpack_row_length);
+
+static void test_texture_pool()
+{
+  const int2 size1(10);
+  const int2 size2(20);
+  const int2 size3(30);
+
+  TexturePool &pool = TexturePool::get();
+
+  eGPUTextureFormat format1 = GPU_RGBA8;
+  eGPUTextureFormat format2 = GPU_RGBA16F;
+  eGPUTextureFormat format3 = GPU_RGBA32F;
+
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
+
+  auto test_acquire =
+      [&](int2 size, eGPUTextureFormat format, eGPUTextureUsage usage) -> GPUTexture * {
+    GPUTexture *tex = pool.acquire_texture(size.x, size.y, format, usage);
+    EXPECT_EQ(GPU_texture_format(tex), format);
+    EXPECT_EQ(GPU_texture_width(tex), size.x);
+    EXPECT_EQ(GPU_texture_height(tex), size.y);
+    return tex;
+  };
+
+  /* Tests multiple acquire. */
+  GPUTexture *tex1 = test_acquire(size1, format1, usage);
+  GPUTexture *tex2 = test_acquire(size2, format1, usage);
+  GPUTexture *tex3 = test_acquire(size3, format2, usage);
+  GPUTexture *tex4 = test_acquire(size3, format3, usage);
+
+  pool.release_texture(tex1);
+
+  /* Tests texture recycling. */
+  /* Note we don't test if the same texture is reused as this is implementation dependent. */
+  tex1 = test_acquire(size1, format1, usage);
+
+  pool.release_texture(tex1);
+
+  /* Tests missing release assert. */
+  EXPECT_BLI_ASSERT(pool.reset(), "Missing texture release");
+
+  pool.release_texture(tex2);
+  pool.release_texture(tex3);
+  pool.release_texture(tex4);
+
+  /* Expects no assert. */
+  pool.reset();
+}
+GPU_TEST(texture_pool);
 
 /* \} */
 

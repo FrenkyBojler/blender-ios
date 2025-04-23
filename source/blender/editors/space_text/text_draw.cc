@@ -12,6 +12,7 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -600,8 +601,7 @@ struct DrawCache {
 
 static void space_text_drawcache_init(SpaceText *st)
 {
-  DrawCache *drawcache = static_cast<DrawCache *>(
-      MEM_callocN(sizeof(DrawCache), "text draw cache"));
+  DrawCache *drawcache = MEM_callocN<DrawCache>("text draw cache");
 
   drawcache->winx = -1;
   drawcache->nlines = BLI_listbase_count(&st->text->lines);

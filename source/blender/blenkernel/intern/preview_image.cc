@@ -73,7 +73,7 @@ static PreviewImage *previewimg_deferred_create(const char *filepath, ThumbSourc
 
 PreviewImage *BKE_previewimg_create()
 {
-  PreviewImage *prv = static_cast<PreviewImage *>(MEM_callocN(sizeof(PreviewImage), __func__));
+  PreviewImage *prv = MEM_callocN<PreviewImage>(__func__);
 
   for (int i = 0; i < NUM_ICON_SIZES; i++) {
     prv->flag[i] |= PRV_CHANGED;
@@ -151,7 +151,7 @@ PreviewImage *BKE_previewimg_copy(const PreviewImage *prv)
     return nullptr;
   }
 
-  PreviewImage *prv_img = static_cast<PreviewImage *>(MEM_mallocN(sizeof(PreviewImage), __func__));
+  PreviewImage *prv_img = MEM_mallocN<PreviewImage>(__func__);
   *prv_img = blender::dna::shallow_copy(*prv);
   prv_img->runtime = MEM_new<blender::bke::PreviewImageRuntime>(__func__, *prv->runtime);
 
@@ -446,7 +446,7 @@ ImBuf *BKE_previewimg_to_imbuf(const PreviewImage *prv, const int size)
 
   if (w > 0 && h > 0 && rect) {
     /* first allocate imbuf for copying preview into it */
-    ima = IMB_allocImBuf(w, h, 32, IB_rect);
+    ima = IMB_allocImBuf(w, h, 32, IB_byte_data);
     memcpy(ima->byte_buffer.data, rect, w * h * sizeof(uint8_t) * 4);
   }
 

@@ -35,6 +35,7 @@
 #include "BLI_fnmatch.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_stack.h"
@@ -60,6 +61,7 @@
 
 #include "DNA_asset_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 
 #include "ED_fileselect.hh"
 
@@ -304,6 +306,9 @@ enum {
   FL_NEED_SORTING = 1 << 4,
   FL_NEED_FILTERING = 1 << 5,
   FL_SORT_INVERT = 1 << 6,
+  /** Trigger a call to #AS_asset_library_load() to update asset catalogs (won't reload the actual
+   * assets) */
+  FL_RELOAD_ASSET_LIBRARY = 1 << 7,
 };
 
 /** #FileList.tags */
@@ -1113,7 +1118,7 @@ void filelist_setlibrary(FileList *filelist, const AssetLibraryReference *asset_
   }
 
   if (!filelist->asset_library_ref) {
-    filelist->asset_library_ref = MEM_cnew<AssetLibraryReference>("filelist asset library");
+    filelist->asset_library_ref = MEM_callocN<AssetLibraryReference>("filelist asset library");
     *filelist->asset_library_ref = *asset_library_ref;
 
     filelist->flags |= FL_FORCE_RESET;
@@ -1498,7 +1503,9 @@ static int filelist_intern_free_main_files(FileList *filelist)
     removed_counter++;
   }
 
-  MEM_SAFE_FREE(filelist_intern->filtered);
+  if (removed_counter > 0) {
+    MEM_SAFE_FREE(filelist_intern->filtered);
+  }
   return removed_counter;
 }
 
@@ -1677,7 +1684,7 @@ static bool filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
   }
 
   FileListInternEntry *intern_entry = filelist->filelist_intern.filtered[index];
-  PreviewImage *preview_in_memory = intern_entry->local_data.preview_image;
+  const PreviewImage *preview_in_memory = intern_entry->local_data.preview_image;
   if (preview_in_memory && !BKE_previewimg_is_finished(preview_in_memory, ICON_SIZE_PREVIEW)) {
     /* Nothing to set yet. Wait for next call. */
     return false;
@@ -1686,7 +1693,7 @@ static bool filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
   filelist_cache_preview_ensure_running(cache);
   entry->flags |= FILE_ENTRY_PREVIEW_LOADING;
 
-  FileListEntryPreview *preview = MEM_cnew<FileListEntryPreview>(__func__);
+  FileListEntryPreview *preview = MEM_callocN<FileListEntryPreview>(__func__);
   preview->index = index;
   preview->flags = entry->typeflag;
   preview->icon_id = 0;
@@ -1710,7 +1717,7 @@ static bool filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
     }
     // printf("%s: %d - %s\n", __func__, preview->index, preview->filepath);
 
-    FileListEntryPreviewTaskData *preview_taskdata = MEM_cnew<FileListEntryPreviewTaskData>(
+    FileListEntryPreviewTaskData *preview_taskdata = MEM_callocN<FileListEntryPreviewTaskData>(
         __func__);
     preview_taskdata->preview = preview;
     BLI_task_pool_push(cache->previews_pool,
@@ -1734,8 +1741,7 @@ static void filelist_cache_init(FileListEntryCache *cache, size_t cache_size)
       MEM_mallocN(sizeof(*cache->block_entries) * cache_size, __func__));
 
   cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, cache_size);
-  cache->misc_entries_indices = static_cast<int *>(
-      MEM_mallocN(sizeof(*cache->misc_entries_indices) * cache_size, __func__));
+  cache->misc_entries_indices = MEM_malloc_arrayN<int>(cache_size, __func__);
   copy_vn_i(cache->misc_entries_indices, cache_size, -1);
   cache->misc_cursor = 0;
 
@@ -1803,7 +1809,7 @@ static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
 
 FileList *filelist_new(short type)
 {
-  FileList *p = MEM_cnew<FileList>(__func__);
+  FileList *p = MEM_callocN<FileList>(__func__);
 
   filelist_cache_init(&p->filelist_cache, FILELIST_ENTRYCACHESIZE_DEFAULT);
 
@@ -1911,14 +1917,20 @@ static void filelist_clear_main_files(FileList *filelist,
   if (!filelist || !(filelist->tags & FILELIST_TAGS_USES_MAIN_DATA)) {
     return;
   }
+  if (filelist->filelist.entries_num == FILEDIR_NBR_ENTRIES_UNSET) {
+    return;
+  }
+  const int removed_files = filelist_intern_free_main_files(filelist);
+  /* File list contains no main files to clear. */
+  if (removed_files == 0) {
+    return;
+  }
 
   filelist_tag_needs_filtering(filelist);
 
   if (do_cache) {
     filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
   }
-
-  const int removed_files = filelist_intern_free_main_files(filelist);
 
   filelist->filelist.entries_num -= removed_files;
   filelist->filelist.entries_filtered_num = FILEDIR_NBR_ENTRIES_UNSET;
@@ -1973,6 +1985,8 @@ void filelist_free(FileList *filelist)
   memset(&filelist->filter_data, 0, sizeof(filelist->filter_data));
 
   filelist->flags &= ~(FL_NEED_SORTING | FL_NEED_FILTERING);
+
+  MEM_freeN(filelist);
 }
 
 blender::asset_system::AssetLibrary *filelist_asset_library(FileList *filelist)
@@ -2096,6 +2110,11 @@ void filelist_tag_force_reset_mainfiles(FileList *filelist)
   filelist->flags |= FL_FORCE_RESET_MAIN_FILES;
 }
 
+void filelist_tag_reload_asset_library(FileList *filelist)
+{
+  filelist->flags |= FL_RELOAD_ASSET_LIBRARY;
+}
+
 bool filelist_is_ready(const FileList *filelist)
 {
   return (filelist->flags & FL_IS_READY) != 0;
@@ -2127,7 +2146,7 @@ static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int in
   FileListEntryCache *cache = &filelist->filelist_cache;
   FileDirEntry *ret;
 
-  ret = MEM_cnew<FileDirEntry>(__func__);
+  ret = MEM_callocN<FileDirEntry>(__func__);
 
   ret->size = uint64_t(entry->st.st_size);
   ret->time = int64_t(entry->st.st_mtime);
@@ -3044,6 +3063,9 @@ struct FileListReadJob {
   /** Set to request a partial read that only adds files representing #Main data (IDs). Used when
    * #Main may have received changes of interest (e.g. asset removed or renamed). */
   bool only_main_data;
+  /** Trigger a call to #AS_asset_library_load() to update asset catalogs (won't reload the actual
+   * assets) */
+  bool reload_asset_library;
 
   /** Shallow copy of #filelist for thread-safe access.
    *
@@ -3129,7 +3151,7 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
 
       /* Is this a file that points to another file? */
       if (entry->attributes & FILE_ATTR_ALIAS) {
-        entry->redirection_path = MEM_cnew_array<char>(FILE_MAXDIR, __func__);
+        entry->redirection_path = MEM_calloc_arrayN<char>(FILE_MAXDIR, __func__);
         if (BLI_file_alias_target(full_path, entry->redirection_path)) {
           if (BLI_is_dir(entry->redirection_path)) {
             entry->typeflag = FILE_TYPE_DIR;
@@ -3871,7 +3893,7 @@ static void filelist_readjob_load_asset_library_data(FileListReadJob *job_params
   if (job_params->filelist->asset_library_ref == nullptr) {
     return;
   }
-  if (tmp_filelist->asset_library != nullptr) {
+  if (tmp_filelist->asset_library != nullptr && job_params->reload_asset_library == false) {
     /* Asset library itself is already loaded. Load assets into this. */
     job_params->load_asset_library = tmp_filelist->asset_library;
     return;
@@ -4194,7 +4216,6 @@ static void filelist_readjob_free(void *flrjv)
 
     filelist_freelib(flrj->tmp_filelist);
     filelist_free(flrj->tmp_filelist);
-    MEM_freeN(flrj->tmp_filelist);
   }
 
   BLI_mutex_end(&flrj->lock);
@@ -4217,7 +4238,10 @@ static void assetlibrary_readjob_startjob(void *flrjv, wmJobWorkerStatus *worker
   filelist_readjob_startjob(flrjv, worker_status);
 }
 
-void filelist_readjob_start(FileList *filelist, const int space_notifier, const bContext *C)
+static void filelist_readjob_start_ex(FileList *filelist,
+                                      const int space_notifier,
+                                      const bContext *C,
+                                      const bool force_blocking_read)
 {
   Main *bmain = CTX_data_main(C);
   wmJob *wm_job;
@@ -4228,15 +4252,21 @@ void filelist_readjob_start(FileList *filelist, const int space_notifier, const 
   }
 
   /* prepare job data */
-  flrj = MEM_cnew<FileListReadJob>(__func__);
+  flrj = MEM_callocN<FileListReadJob>(__func__);
   flrj->filelist = filelist;
   flrj->current_main = bmain;
   STRNCPY(flrj->main_filepath, BKE_main_blendfile_path(bmain));
-  if ((filelist->flags & FL_FORCE_RESET_MAIN_FILES) && !(filelist->flags & FL_FORCE_RESET)) {
+  if ((filelist->flags & FL_FORCE_RESET_MAIN_FILES) && !(filelist->flags & FL_FORCE_RESET) &&
+      (filelist->filelist.entries_num != FILEDIR_NBR_ENTRIES_UNSET))
+  {
     flrj->only_main_data = true;
   }
+  if (filelist->flags & FL_RELOAD_ASSET_LIBRARY) {
+    flrj->reload_asset_library = true;
+  }
 
-  filelist->flags &= ~(FL_FORCE_RESET | FL_FORCE_RESET_MAIN_FILES | FL_IS_READY);
+  filelist->flags &= ~(FL_FORCE_RESET | FL_FORCE_RESET_MAIN_FILES | FL_RELOAD_ASSET_LIBRARY |
+                       FL_IS_READY);
   filelist->flags |= FL_IS_PENDING;
 
   /* Init even for single threaded execution. Called functions use it. */
@@ -4248,7 +4278,7 @@ void filelist_readjob_start(FileList *filelist, const int space_notifier, const 
    * main data changed may need access to the ID files (see #93691). */
   const bool no_threads = (filelist->tags & FILELIST_TAGS_NO_THREADS) || flrj->only_main_data;
 
-  if (no_threads) {
+  if (force_blocking_read || no_threads) {
     /* Single threaded execution. Just directly call the callbacks. */
     wmJobWorkerStatus worker_status = {};
     filelist_readjob_startjob(flrj, &worker_status);
@@ -4277,6 +4307,16 @@ void filelist_readjob_start(FileList *filelist, const int space_notifier, const 
 
   /* start the job */
   WM_jobs_start(CTX_wm_manager(C), wm_job);
+}
+
+void filelist_readjob_start(FileList *filelist, const int space_notifier, const bContext *C)
+{
+  filelist_readjob_start_ex(filelist, space_notifier, C, false);
+}
+
+void filelist_readjob_blocking_run(FileList *filelist, int space_notifier, const bContext *C)
+{
+  filelist_readjob_start_ex(filelist, space_notifier, C, true);
 }
 
 void filelist_readjob_stop(FileList *filelist, wmWindowManager *wm)

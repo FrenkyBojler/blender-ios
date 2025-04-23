@@ -34,7 +34,7 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Vert Slide)
@@ -569,7 +569,7 @@ static void initVertSlide_ex(TransInfo *t, bool use_even, bool flipped, bool use
   t->mode = TFM_VERT_SLIDE;
 
   {
-    VertSlideParams *slp = static_cast<VertSlideParams *>(MEM_callocN(sizeof(*slp), __func__));
+    VertSlideParams *slp = MEM_callocN<VertSlideParams>(__func__);
     slp->use_even = use_even;
     slp->flipped = flipped;
     slp->perc = 0.0f;
@@ -657,3 +657,5 @@ TransModeInfo TransMode_vertslide = {
     /*snap_apply_fn*/ vert_slide_snap_apply,
     /*draw_fn*/ drawVertSlide,
 };
+
+}  // namespace blender::ed::transform

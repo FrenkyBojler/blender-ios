@@ -24,12 +24,15 @@
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
 #include <pxr/usd/usdGeom/capsule.h>
+#include <pxr/usd/usdGeom/capsule_1.h>
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
+#include <pxr/usd/usdGeom/cylinder_1.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/nurbsCurves.h>
+#include <pxr/usd/usdGeom/plane.h>
 #include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/scope.h>
@@ -220,9 +223,10 @@ bool USDStageReader::valid() const
 
 bool USDStageReader::is_primitive_prim(const pxr::UsdPrim &prim) const
 {
-  return (prim.IsA<pxr::UsdGeomCapsule>() || prim.IsA<pxr::UsdGeomCylinder>() ||
+  return (prim.IsA<pxr::UsdGeomCapsule>() || prim.IsA<pxr::UsdGeomCapsule_1>() ||
+          prim.IsA<pxr::UsdGeomCylinder>() || prim.IsA<pxr::UsdGeomCylinder_1>() ||
           prim.IsA<pxr::UsdGeomCone>() || prim.IsA<pxr::UsdGeomCube>() ||
-          prim.IsA<pxr::UsdGeomSphere>());
+          prim.IsA<pxr::UsdGeomSphere>() || prim.IsA<pxr::UsdGeomPlane>());
 }
 
 USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim)
@@ -612,7 +616,7 @@ void USDStageReader::import_all_materials(Main *bmain)
     build_material_map(bmain, settings_.mat_name_to_mat);
   }
 
-  USDMaterialReader mtl_reader(params_, bmain);
+  USDMaterialReader mtl_reader(params_, *bmain);
   for (const pxr::SdfPath &mtl_path : material_paths_) {
     pxr::UsdPrim prim = stage_->GetPrimAtPath(mtl_path);
 
@@ -703,7 +707,7 @@ void USDStageReader::call_material_import_hooks(Main *bmain) const
                 "Preview Surface material",
                 usd_mtl.GetPath().GetAsString().c_str());
 
-      USDMaterialReader mat_reader(this->params_, bmain);
+      USDMaterialReader mat_reader(this->params_, *bmain);
       mat_reader.import_usd_preview(item.value, usd_mtl);
     }
   }
@@ -784,7 +788,7 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
       continue;
     }
 
-    for (USDPrimReader *reader : item.value) {
+    for (const USDPrimReader *reader : item.value) {
       Object *ob = reader->object();
 
       if (!ob) {

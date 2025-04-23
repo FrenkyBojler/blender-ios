@@ -26,6 +26,7 @@
 
 #include "BLI_array_utils.h"
 #include "BLI_bitmap_draw_2d.h"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -36,6 +37,7 @@
 
 #include "BKE_camera.h"
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -807,7 +809,7 @@ bool ED_view3d_camera_lock_undo_grouped_push(const char *str,
 
 static void view3d_boxview_clip(ScrArea *area)
 {
-  BoundBox *bb = static_cast<BoundBox *>(MEM_callocN(sizeof(BoundBox), "clipbb"));
+  BoundBox *bb = MEM_callocN<BoundBox>("clipbb");
   float clip[6][4];
   float x1 = 0.0f, y1 = 0.0f, z1 = 0.0f, ofs[3] = {0.0f, 0.0f, 0.0f};
 

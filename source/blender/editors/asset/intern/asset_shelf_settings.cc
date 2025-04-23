@@ -11,6 +11,7 @@
 #include "AS_asset_catalog_path.hh"
 
 #include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLO_read_write.hh"
 
@@ -26,10 +27,7 @@
 using namespace blender;
 using namespace blender::ed::asset;
 
-AssetShelfSettings::AssetShelfSettings()
-{
-  memset(this, 0, sizeof(*this));
-}
+AssetShelfSettings::AssetShelfSettings() = default;
 
 AssetShelfSettings::AssetShelfSettings(const AssetShelfSettings &other)
 {

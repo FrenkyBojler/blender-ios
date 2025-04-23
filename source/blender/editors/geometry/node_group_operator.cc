@@ -6,6 +6,7 @@
  * \ingroup edcurves
  */
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -19,6 +20,7 @@
 #include "WM_api.hh"
 
 #include "BKE_asset.hh"
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -35,6 +37,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -154,11 +157,13 @@ static void find_socket_log_contexts(const Main &bmain,
         if (snode.edittree == nullptr) {
           continue;
         }
-        ComputeContextBuilder compute_context_builder;
-        compute_context_builder.push<bke::OperatorComputeContext>();
+        if (snode.geometry_nodes_type != SNODE_GEOMETRY_TOOL) {
+          continue;
+        }
+        bke::ComputeContextCache compute_context_cache;
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
             geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(
-                snode, compute_context_builder);
+                snode, compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_socket_log_contexts.add(hash);
         }
@@ -168,13 +173,53 @@ static void find_socket_log_contexts(const Main &bmain,
 }
 
 /**
+ * This class adds a user to shared mesh data, requiring modifications of the mesh to reallocate
+ * the data and its sharing info. This allows tracking which data is modified without having to
+ * explicitly compare it.
+ */
+class MeshState {
+  VectorSet<const ImplicitSharingInfo *> sharing_infos_;
+
+ public:
+  MeshState(const Mesh &mesh)
+  {
+    if (mesh.runtime->face_offsets_sharing_info) {
+      this->freeze_shared_state(*mesh.runtime->face_offsets_sharing_info);
+    }
+    mesh.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+      const bke::GAttributeReader attribute = iter.get();
+      if (attribute.varray.size() == 0) {
+        return;
+      }
+      this->freeze_shared_state(*attribute.sharing_info);
+    });
+  }
+
+  void freeze_shared_state(const ImplicitSharingInfo &sharing_info)
+  {
+    if (sharing_infos_.add(&sharing_info)) {
+      sharing_info.add_user();
+    }
+  }
+
+  ~MeshState()
+  {
+    for (const ImplicitSharingInfo *sharing_info : sharing_infos_) {
+      sharing_info->remove_user_and_delete_if_last();
+    }
+  }
+};
+
+/**
  * Geometry nodes currently requires working on "evaluated" data-blocks (rather than "original"
  * data-blocks that are part of a #Main data-base). This could change in the future, but for now,
  * we need to create evaluated copies of geometry before passing it to geometry nodes. Implicit
  * sharing lets us avoid copying attribute data though.
  */
-static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
-                                                        nodes::GeoNodesOperatorData &operator_data)
+static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
+                                                        Object &object,
+                                                        nodes::GeoNodesOperatorData &operator_data,
+                                                        Vector<MeshState> &orig_mesh_states)
 {
   switch (object.type) {
     case OB_CURVES: {
@@ -198,15 +243,28 @@ static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
         BKE_id_free(nullptr, mesh_copy);
         return bke::GeometrySet::from_mesh(final_copy);
       }
-      return bke::GeometrySet::from_mesh(BKE_mesh_copy_for_eval(*mesh));
+      if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(object)) {
+        /* Currently many sculpt mode operations do not tag normals dirty (see use of
+         * #Mesh::tag_positions_changed_no_normals()), so access within geometry nodes cannot
+         * know that normals are out of date and recalculate them. Update them here instead. */
+        bke::pbvh::update_normals(depsgraph, object, *pbvh);
+      }
+      Mesh *mesh_copy = BKE_mesh_copy_for_eval(*mesh);
+      orig_mesh_states.append_as(*mesh_copy);
+      return bke::GeometrySet::from_mesh(mesh_copy);
     }
     default:
       return {};
   }
 }
 
-static void store_result_geometry(
-    const wmOperator &op, Main &bmain, Scene &scene, Object &object, bke::GeometrySet geometry)
+static void store_result_geometry(const wmOperator &op,
+                                  const Depsgraph &depsgraph,
+                                  Main &bmain,
+                                  Scene &scene,
+                                  Object &object,
+                                  const RegionView3D *rv3d,
+                                  bke::GeometrySet geometry)
 {
   geometry.ensure_owns_direct_data();
   switch (object.type) {
@@ -223,6 +281,7 @@ static void store_result_geometry(
 
       curves.geometry.wrap() = std::move(new_curves->geometry.wrap());
       BKE_object_material_from_eval_data(&bmain, &object, &new_curves->id);
+      DEG_id_tag_update(&curves.id, ID_RECALC_GEOMETRY);
       break;
     }
     case OB_POINTCLOUD: {
@@ -230,7 +289,7 @@ static void store_result_geometry(
       PointCloud *new_points =
           geometry.get_component_for_write<bke::PointCloudComponent>().release();
       if (!new_points) {
-        CustomData_free(&points.pdata, points.totpoint);
+        CustomData_free(&points.pdata);
         points.totpoint = 0;
         break;
       }
@@ -240,6 +299,7 @@ static void store_result_geometry(
 
       BKE_object_material_from_eval_data(&bmain, &object, &new_points->id);
       BKE_pointcloud_nomain_to_pointcloud(new_points, &points);
+      DEG_id_tag_update(&points.id, ID_RECALC_GEOMETRY);
       break;
     }
     case OB_MESH: {
@@ -247,36 +307,32 @@ static void store_result_geometry(
 
       const bool has_shape_keys = mesh.key != nullptr;
 
-      if (object.mode == OB_MODE_SCULPT) {
-        sculpt_paint::undo::geometry_begin(scene, object, &op);
-      }
-
       Mesh *new_mesh = geometry.get_component_for_write<bke::MeshComponent>().release();
-      if (!new_mesh) {
-        BKE_mesh_clear_geometry(&mesh);
-      }
-      else {
+      if (new_mesh) {
         /* Anonymous attributes shouldn't be available on the applied geometry. */
         new_mesh->attributes_for_write().remove_anonymous();
-
         BKE_object_material_from_eval_data(&bmain, &object, &new_mesh->id);
-        if (object.mode == OB_MODE_EDIT) {
-          EDBM_mesh_make_from_mesh(&object, new_mesh, scene.toolsettings->selectmode, true);
-          BKE_editmesh_looptris_and_normals_calc(mesh.runtime->edit_mesh.get());
-          BKE_id_free(nullptr, new_mesh);
-        }
-        else {
-          BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-        }
+      }
+      else {
+        new_mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+      }
+
+      if (object.mode == OB_MODE_SCULPT) {
+        sculpt_paint::store_mesh_from_eval(op, scene, depsgraph, rv3d, object, new_mesh);
+      }
+      else if (object.mode == OB_MODE_EDIT) {
+        EDBM_mesh_make_from_mesh(&object, new_mesh, scene.toolsettings->selectmode, true);
+        BKE_editmesh_looptris_and_normals_calc(mesh.runtime->edit_mesh.get());
+        BKE_id_free(nullptr, new_mesh);
+        DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
+      }
+      else {
+        BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
+        DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
       }
 
       if (has_shape_keys && !mesh.key) {
         BKE_report(op.reports, RPT_WARNING, "Mesh shape key data removed");
-      }
-
-      if (object.mode == OB_MODE_SCULPT) {
-        sculpt_paint::undo::geometry_end(object);
-        BKE_sculptsession_free_pbvh(object);
       }
       break;
     }
@@ -328,6 +384,8 @@ static std::optional<ID_Type> socket_type_to_id_type(const eNodeSocketDatatype s
     case SOCK_ROTATION:
     case SOCK_MENU:
     case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
       return std::nullopt;
     case SOCK_OBJECT:
       return ID_OB;
@@ -465,7 +523,7 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
   return objects;
 }
 
-static int run_node_group_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -506,8 +564,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
 
   const bNodeTree *node_tree = nullptr;
   if (depsgraphs.extra) {
-    node_tree = reinterpret_cast<const bNodeTree *>(
-        DEG_get_evaluated_id(depsgraphs.extra, const_cast<ID *>(&node_tree_orig->id)));
+    node_tree = DEG_get_evaluated(depsgraphs.extra, node_tree_orig);
   }
   else {
     node_tree = node_tree_orig;
@@ -538,6 +595,10 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
   eval_log.node_group_name = node_tree->id.name + 2;
   find_socket_log_contexts(*bmain, socket_log_contexts);
 
+  /* May be null if operator called from outside 3D view context. */
+  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Vector<MeshState> orig_mesh_states;
+
   for (Object *object : objects) {
     nodes::GeoNodesOperatorData operator_eval_data{};
     operator_eval_data.mode = mode;
@@ -563,19 +624,23 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
       call_data.socket_log_contexts = &socket_log_contexts;
     }
 
-    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(*object, operator_eval_data);
+    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
+        *depsgraph_active, *object, operator_eval_data, orig_mesh_states);
 
     bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
-        *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
+        *node_tree,
+        nodes::build_properties_vector_set(properties),
+        compute_context,
+        call_data,
+        std::move(geometry_orig));
 
-    store_result_geometry(*op, *bmain, *scene, *object, std::move(new_geometry));
-
-    DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
+    store_result_geometry(
+        *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
-  tree_log.ensure_node_warnings(node_tree);
+  tree_log.ensure_node_warnings(*bmain);
   for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
     if (warning.type == geo_log::NodeWarningType::Info) {
       BKE_report(op->reports, RPT_INFO, warning.message.c_str());
@@ -631,7 +696,7 @@ static void store_input_node_values_rna_props(const bContext &C,
   RNA_boolean_set(op.ptr, "viewport_is_perspective", rv3d ? bool(rv3d->is_persp) : true);
 }
 
-static int run_node_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus run_node_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const bNodeTree *node_tree = get_node_group(*C, *op->ptr, op->reports);
   if (!node_tree) {
@@ -711,7 +776,7 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
 
 static void draw_property_for_socket(const bNodeTree &node_tree,
                                      uiLayout *layout,
-                                     IDProperty *op_properties,
+                                     const nodes::PropertiesVectorSet &properties_set,
                                      PointerRNA *bmain_ptr,
                                      PointerRNA *op_ptr,
                                      const bNodeTreeInterfaceSocket &socket,
@@ -722,11 +787,11 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
 
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = IDP_GetPropertyFromGroup(op_properties, socket.identifier);
+  const IDProperty *property = properties_set.lookup_key_default_as(socket.identifier, nullptr);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
-  if (property == nullptr || !nodes::id_property_type_matches_socket(socket, *property, true)) {
+  if (!property || !nodes::id_property_type_matches_socket(socket, *property, true)) {
     return;
   }
 
@@ -786,18 +851,20 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   if (!node_tree) {
     return;
   }
+  const nodes::PropertiesVectorSet properties_set = nodes::build_properties_vector_set(
+      op->properties);
 
   node_tree->ensure_interface_cache();
 
   Array<bool> input_usages(node_tree->interface_inputs().size());
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      *node_tree, op->properties, input_usages);
+      *node_tree, properties_set, input_usages);
 
   int input_index = 0;
   for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {
     draw_property_for_socket(*node_tree,
                              layout,
-                             op->properties,
+                             properties_set,
                              &bmain_ptr,
                              op->ptr,
                              *io_socket,
@@ -991,9 +1058,9 @@ static GeometryNodeAssetTraitFlag asset_flag_for_context(const ObjectType type,
     case OB_POINTCLOUD: {
       switch (mode) {
         case OB_MODE_OBJECT:
-          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_OBJECT | GEO_NODE_ASSET_POINT_CLOUD);
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_OBJECT | GEO_NODE_ASSET_POINTCLOUD);
         case OB_MODE_EDIT:
-          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_EDIT | GEO_NODE_ASSET_POINT_CLOUD);
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_EDIT | GEO_NODE_ASSET_POINTCLOUD);
         default:
           break;
       }
@@ -1214,7 +1281,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     PointerRNA props_ptr;
     uiItemFullO_ptr(layout,
                     ot,
-                    IFACE_(asset->get_name().c_str()),
+                    IFACE_(asset->get_name()),
                     ICON_NONE,
                     nullptr,
                     WM_OP_INVOKE_REGION_WIN,
@@ -1294,7 +1361,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     PointerRNA props_ptr;
     uiItemFullO_ptr(layout,
                     ot,
-                    IFACE_(asset->get_name().c_str()),
+                    IFACE_(asset->get_name()),
                     ICON_NONE,
                     nullptr,
                     WM_OP_INVOKE_REGION_WIN,
@@ -1346,6 +1413,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 MenuType node_group_operator_assets_menu_unassigned()
 {
   MenuType type{};
+  STRNCPY(type.label, "Unassigned Node Tools");
   STRNCPY(type.idname, "GEO_MT_node_operator_unassigned");
   type.poll = asset_menu_poll;
   type.draw = catalog_assets_draw_unassigned;

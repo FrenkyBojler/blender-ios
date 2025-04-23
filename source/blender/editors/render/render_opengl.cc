@@ -15,6 +15,7 @@
 
 #include "BLI_bitmap.h"
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
@@ -180,7 +181,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
     rv = static_cast<RenderView *>(rr->views.first);
 
     if (rv == nullptr) {
-      rv = MEM_cnew<RenderView>("new opengl render view");
+      rv = MEM_callocN<RenderView>("new opengl render view");
       BLI_addtail(&rr->views, rv);
     }
 
@@ -228,7 +229,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
           BLI_findstring(&rr->views, srv->name, offsetof(SceneRenderView, name)));
 
       if (rv == nullptr) {
-        rv = MEM_cnew<RenderView>("new opengl render view");
+        rv = MEM_callocN<RenderView>("new opengl render view");
         STRNCPY(rv->name, srv->name);
         BLI_addtail(&rr->views, rv);
       }
@@ -277,14 +278,14 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
        * it actually makes sense to keep float buffer instead.
        */
       if (ibuf_result->float_buffer.data != nullptr) {
-        IMB_rect_from_float(ibuf_result);
-        imb_freerectfloatImBuf(ibuf_result);
+        IMB_byte_from_float(ibuf_result);
+        IMB_free_float_pixels(ibuf_result);
       }
       BLI_assert((sizex == ibuf->x) && (sizey == ibuf->y));
     }
     else if (gpd) {
       /* If there are no strips, Grease Pencil still needs a buffer to draw on */
-      ibuf_result = IMB_allocImBuf(sizex, sizey, 32, IB_rect);
+      ibuf_result = IMB_allocImBuf(sizex, sizey, 32, IB_byte_data);
     }
 
     if (gpd) {
@@ -340,7 +341,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
                                                  region,
                                                  sizex,
                                                  sizey,
-                                                 IB_rectfloat,
+                                                 IB_float_data,
                                                  alpha_mode,
                                                  viewname,
                                                  true,
@@ -361,7 +362,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
                                                         scene->camera,
                                                         sizex,
                                                         sizey,
-                                                        IB_rectfloat,
+                                                        IB_float_data,
                                                         V3D_OFSDRAW_SHOW_ANNOTATION,
                                                         alpha_mode,
                                                         viewname,
@@ -461,24 +462,24 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
   if (oglrender->is_sequencer) {
     Scene *scene = oglrender->scene;
 
-    SeqRenderData context;
+    blender::seq::RenderData context;
     SpaceSeq *sseq = oglrender->sseq;
     int chanshown = sseq ? sseq->chanshown : 0;
 
-    SEQ_render_new_render_data(oglrender->bmain,
-                               oglrender->depsgraph,
-                               scene,
-                               oglrender->sizex,
-                               oglrender->sizey,
-                               SEQ_RENDER_SIZE_SCENE,
-                               false,
-                               &context);
+    blender::seq::render_new_render_data(oglrender->bmain,
+                                         oglrender->depsgraph,
+                                         scene,
+                                         oglrender->sizex,
+                                         oglrender->sizey,
+                                         SEQ_RENDER_SIZE_SCENE,
+                                         false,
+                                         &context);
 
     for (view_id = 0; view_id < oglrender->views_len; view_id++) {
       context.view_id = view_id;
       context.gpu_offscreen = oglrender->ofs;
       context.gpu_viewport = oglrender->viewport;
-      oglrender->seq_data.ibufs_arr[view_id] = SEQ_render_give_ibuf(
+      oglrender->seq_data.ibufs_arr[view_id] = blender::seq::render_give_ibuf(
           &context, scene->r.cfra, chanshown);
     }
   }
@@ -693,6 +694,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   WorkSpace *workspace = CTX_wm_workspace(C);
 
   Scene *scene = CTX_data_scene(C);
+  ScrArea *prev_area = CTX_wm_area(C);
+  ARegion *prev_region = CTX_wm_region(C);
   GPUOffScreen *ofs;
   OGLRender *oglrender;
   int sizex, sizey;
@@ -716,6 +719,12 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     return false;
   }
 
+  if (!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
+    BKE_report(
+        op->reports, RPT_ERROR, "Cannot write a single file with an animation format selected");
+    return false;
+  }
+
   if (is_sequencer) {
     is_view_context = false;
   }
@@ -730,12 +739,6 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
       BKE_report(op->reports, RPT_ERROR, "Scene has no camera");
       return false;
     }
-  }
-
-  if (!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-    BKE_report(
-        op->reports, RPT_ERROR, "Cannot write a single file with an animation format selected");
-    return false;
   }
 
   /* stop all running jobs, except screen one. currently previews frustrate Render */
@@ -756,6 +759,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 
   if (!ofs) {
     BKE_reportf(op->reports, RPT_ERROR, "Failed to create OpenGL off-screen buffer, %s", err_out);
+    CTX_wm_area_set(C, prev_area);
+    CTX_wm_region_set(C, prev_region);
     return false;
   }
 
@@ -802,9 +807,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     oglrender->rv3d = static_cast<RegionView3D *>(oglrender->region->regiondata);
 
     /* MUST be cleared on exit */
-    memset(&oglrender->scene->customdata_mask_modal,
-           0,
-           sizeof(oglrender->scene->customdata_mask_modal));
+    oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
     ED_view3d_datamask(oglrender->scene,
                        oglrender->view_layer,
                        oglrender->v3d,
@@ -849,6 +852,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
       oglrender->task_pool = BLI_task_pool_create(oglrender, TASK_PRIORITY_HIGH);
     }
   }
+
+  CTX_wm_area_set(C, prev_area);
+  CTX_wm_region_set(C, prev_region);
 
   return true;
 }
@@ -905,14 +911,15 @@ static void screen_opengl_render_end(OGLRender *oglrender)
 
   MEM_SAFE_FREE(oglrender->seq_data.ibufs_arr);
 
-  memset(&oglrender->scene->customdata_mask_modal,
-         0,
-         sizeof(oglrender->scene->customdata_mask_modal));
+  oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
 
   if (oglrender->wm_job) { /* exec will not have a job */
     Depsgraph *depsgraph = oglrender->depsgraph;
     oglrender->scene->r.cfra = oglrender->cfrao;
     BKE_scene_graph_update_for_newframe(depsgraph);
+  }
+  else if (oglrender->win) {
+    WM_cursor_modal_restore(oglrender->win);
   }
 
   WM_main_add_notifier(NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
@@ -963,7 +970,6 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
                                             PRVRANGEON != 0,
                                             suffix);
       if (writer == nullptr) {
-        BKE_report(oglrender->reports, RPT_ERROR, "Movie format unsupported");
         screen_opengl_render_end(oglrender);
         MEM_delete(oglrender);
         return false;
@@ -1079,7 +1085,7 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
     return false;
   }
   Scene *scene = oglrender->scene;
-  WriteTaskData *task_data = MEM_cnew<WriteTaskData>("write task data");
+  WriteTaskData *task_data = MEM_callocN<WriteTaskData>("write task data");
   task_data->rr = rr;
   memcpy(&task_data->tmp_scene, scene, sizeof(task_data->tmp_scene));
   {
@@ -1134,6 +1140,12 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
     }
   }
 
+  if (!oglrender->wm_job && oglrender->win) {
+    /* When doing blocking animation render without a job from a Python script, show time cursor so
+     * Blender doesn't appear frozen. */
+    WM_cursor_time(oglrender->win, scene->r.cfra);
+  }
+
   BKE_scene_graph_update_for_newframe(depsgraph);
 
   if (view_context) {
@@ -1180,7 +1192,9 @@ finally: /* Step the frame and bail early if needed */
   return true;
 }
 
-static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_opengl_render_modal(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
 
@@ -1245,7 +1259,9 @@ static void opengl_render_freejob(void *customdata)
   screen_opengl_render_end(oglrender);
 }
 
-static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   const bool anim = RNA_boolean_get(op->ptr, "animation");
 
@@ -1289,7 +1305,7 @@ static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEven
 }
 
 /* executes blocking render */
-static int screen_opengl_render_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
 {
   if (!screen_opengl_render_init(C, op)) {
     return OPERATOR_CANCELLED;

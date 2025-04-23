@@ -29,6 +29,10 @@
 #include "transform.hh"
 #include "transform_convert.hh"
 
+namespace blender::ed::transform {
+
+namespace {
+
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
@@ -36,7 +40,12 @@ struct TransDataSeq {
   float orig_translation[2];
   float orig_scale[2];
   float orig_rotation;
+  int orig_flag;
+  float active_seq_orig_rotation;
+  float2 orig_mirror;
 };
+
+}  // namespace
 
 static TransData *SeqToTransData(const Scene *scene,
                                  Strip *strip,
@@ -46,8 +55,9 @@ static TransData *SeqToTransData(const Scene *scene,
                                  int vert_index)
 {
   const StripTransform *transform = strip->data->transform;
-  float origin[2];
-  SEQ_image_transform_origin_offset_pixelspace_get(scene, strip, origin);
+  const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
+  const float2 mirror = seq::image_transform_mirror_factor_get(strip);
+  Editing *ed = seq::editing_get(scene);
   float vertex[2] = {origin[0], origin[1]};
 
   /* Add control vertex, so rotation and scale can be calculated.
@@ -74,7 +84,7 @@ static TransData *SeqToTransData(const Scene *scene,
   unit_m3(td->mtx);
   unit_m3(td->smtx);
 
-  axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
+  axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation * mirror[0] * mirror[1]);
   normalize_m3(td->axismtx);
 
   tdseq->strip = strip;
@@ -84,6 +94,9 @@ static TransData *SeqToTransData(const Scene *scene,
   tdseq->orig_scale[0] = transform->scale_x;
   tdseq->orig_scale[1] = transform->scale_y;
   tdseq->orig_rotation = transform->rotation;
+  tdseq->orig_flag = strip->flag;
+  tdseq->orig_mirror = mirror;
+  tdseq->active_seq_orig_rotation = ed->act_seq->data->transform->rotation;
 
   td->extra = (void *)tdseq;
   td->ext = nullptr;
@@ -103,7 +116,7 @@ static void freeSeqData(TransInfo * /*t*/,
 
 static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
 {
-  Editing *ed = SEQ_editing_get(t->scene);
+  Editing *ed = seq::editing_get(t->scene);
   const SpaceSeq *sseq = static_cast<const SpaceSeq *>(t->area->spacedata.first);
   const ARegion *region = t->region;
 
@@ -117,10 +130,9 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
     return;
   }
 
-  ListBase *seqbase = SEQ_active_seqbase_get(ed);
-  ListBase *channels = SEQ_channels_displayed_get(ed);
-  blender::VectorSet strips = SEQ_query_rendered_strips(
-      t->scene, channels, seqbase, t->scene->r.cfra, 0);
+  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *channels = seq::channels_displayed_get(ed);
+  VectorSet strips = seq::query_rendered_strips(t->scene, channels, seqbase, t->scene->r.cfra, 0);
   strips.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 0; });
 
   if (strips.is_empty()) {
@@ -131,12 +143,10 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
   tc->custom.type.free_cb = freeSeqData;
 
   tc->data_len = strips.size() * 3; /* 3 vertices per sequence are needed. */
-  TransData *td = tc->data = static_cast<TransData *>(
-      MEM_callocN(tc->data_len * sizeof(TransData), "TransSeq TransData"));
-  TransData2D *td2d = tc->data_2d = static_cast<TransData2D *>(
-      MEM_callocN(tc->data_len * sizeof(TransData2D), "TransSeq TransData2D"));
-  TransDataSeq *tdseq = static_cast<TransDataSeq *>(
-      MEM_callocN(tc->data_len * sizeof(TransDataSeq), "TransSeq TransDataSeq"));
+  TransData *td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransSeq TransData");
+  TransData2D *td2d = tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len,
+                                                                   "TransSeq TransData2D");
+  TransDataSeq *tdseq = MEM_calloc_arrayN<TransDataSeq>(tc->data_len, "TransSeq TransDataSeq");
 
   for (Strip *strip : strips) {
     /* One `Sequence` needs 3 `TransData` entries - center point placed in image origin, then 2
@@ -161,29 +171,28 @@ static bool autokeyframe_sequencer_image(bContext *C,
   const bool do_loc = tmode == TFM_TRANSLATION || around_cursor;
   const bool do_rot = tmode == TFM_ROTATION;
   const bool do_scale = tmode == TFM_RESIZE;
-  const bool only_when_keyed = blender::animrig::is_keying_flag(scene,
-                                                                AUTOKEY_FLAG_INSERTAVAILABLE);
+  const bool only_when_keyed = animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTAVAILABLE);
 
   bool changed = false;
   if (do_rot) {
     prop = RNA_struct_find_property(&ptr, "rotation");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_loc) {
     prop = RNA_struct_find_property(&ptr, "offset_x");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "offset_y");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_scale) {
     prop = RNA_struct_find_property(&ptr, "scale_x");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "scale_y");
-    changed |= blender::animrig::autokeyframe_property(
+    changed |= animrig::autokeyframe_property(
         C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
 
@@ -195,6 +204,7 @@ static void recalcData_sequencer_image(TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
+  Editing *ed = seq::editing_get(t->scene);
   int i;
 
   for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i++, td++, td2d++) {
@@ -220,14 +230,12 @@ static void recalcData_sequencer_image(TransInfo *t)
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
     StripTransform *transform = strip->data->transform;
-    float mirror[2];
-    SEQ_image_transform_mirror_factor_get(strip, mirror);
 
     /* Calculate translation. */
     float translation[2];
     copy_v2_v2(translation, tdseq->orig_origin_position);
     sub_v2_v2(translation, origin);
-    mul_v2_v2(translation, mirror);
+    mul_v2_v2(translation, tdseq->orig_mirror);
     translation[0] *= t->scene->r.yasp / t->scene->r.xasp;
 
     /* Round resulting position to integer pixels. Resulting strip
@@ -244,15 +252,41 @@ static void recalcData_sequencer_image(TransInfo *t)
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
-      transform->rotation = tdseq->orig_rotation - t->values_final[0];
+      transform->rotation = tdseq->orig_rotation -
+                            (t->values_final[0] * tdseq->orig_mirror[0] * tdseq->orig_mirror[1]);
     }
 
-    if ((t->animtimer) && blender::animrig::is_autokey_on(t->scene)) {
+    if (t->mode == TFM_MIRROR) {
+
+      transform->xofs *= t->values_final[0];
+      transform->yofs *= t->values_final[1];
+
+      if (t->orient_curr == O_SET) {
+        if (strip == ed->act_seq) {
+          transform->rotation = -tdseq->orig_rotation;
+        }
+        else {
+          transform->rotation = tdseq->orig_rotation + (2 * -tdseq->active_seq_orig_rotation);
+        }
+      }
+      else {
+        strip->flag = tdseq->orig_flag;
+        if (t->values_final[0] == -1) {
+          strip->flag ^= SEQ_FLIPX;
+        }
+        if (t->values_final[1] == -1) {
+          strip->flag ^= SEQ_FLIPY;
+        }
+        transform->rotation = tdseq->orig_rotation;
+      }
+    }
+
+    if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {
       animrecord_check_state(t, &t->scene->id);
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
 
-    SEQ_relations_invalidate_cache_preprocessed(t->scene, strip);
+    seq::relations_invalidate_cache_preprocessed(t->scene, strip);
   }
 }
 
@@ -272,10 +306,16 @@ static void special_aftertrans_update__sequencer_image(bContext * /*C*/, TransIn
       if (t->mode == TFM_ROTATION) {
         transform->rotation = tdseq->orig_rotation;
       }
+      if (t->mode == TFM_MIRROR) {
+        transform->xofs = tdseq->orig_translation[0];
+        transform->yofs = tdseq->orig_translation[1];
+        transform->rotation = tdseq->orig_rotation;
+        strip->flag = tdseq->orig_flag;
+      }
       continue;
     }
 
-    if (blender::animrig::is_autokey_on(t->scene)) {
+    if (animrig::is_autokey_on(t->scene)) {
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
   }
@@ -287,3 +327,5 @@ TransConvertTypeInfo TransConvertType_SequencerImage = {
     /*recalc_data*/ recalcData_sequencer_image,
     /*special_aftertrans_update*/ special_aftertrans_update__sequencer_image,
 };
+
+}  // namespace blender::ed::transform

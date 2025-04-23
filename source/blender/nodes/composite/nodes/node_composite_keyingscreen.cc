@@ -38,6 +38,13 @@ NODE_STORAGE_FUNCS(NodeKeyingScreenData)
 
 static void cmp_node_keyingscreen_declare(NodeDeclarationBuilder &b)
 {
+  b.add_input<decl::Float>("Smoothness")
+      .default_value(0.0f)
+      .subtype(PROP_FACTOR)
+      .min(0.0f)
+      .max(1.0f)
+      .description("Specifies the smoothness of the keying screen");
+
   b.add_output<decl::Color>("Screen").translation_context(BLT_I18NCONTEXT_ID_SCREEN);
 }
 
@@ -45,8 +52,7 @@ static void node_composit_init_keyingscreen(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  NodeKeyingScreenData *data = MEM_cnew<NodeKeyingScreenData>(__func__);
-  data->smoothness = 0.0f;
+  NodeKeyingScreenData *data = MEM_callocN<NodeKeyingScreenData>(__func__);
   node->storage = data;
 
   const Scene *scene = CTX_data_scene(C);
@@ -76,8 +82,6 @@ static void node_composit_buts_keyingscreen(uiLayout *layout, bContext *C, Point
     col = uiLayoutColumn(layout, true);
     uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
   }
-
-  uiItemR(layout, ptr, "smoothness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -146,7 +150,10 @@ class KeyingScreenOperation : public NodeOperation {
    * instability for low smoothness values, so we empirically choose 0.15 as a lower limit. */
   float get_smoothness()
   {
-    return math::interpolate(0.15f, 1.0f, node_storage(bnode()).smoothness);
+    return math::interpolate(
+        0.15f,
+        1.0f,
+        math::clamp(this->get_input("Smoothness").get_single_value_default(0.0f), 0.0f, 1.0f));
   }
 
   MovieClip *get_movie_clip()
@@ -177,8 +184,8 @@ void register_node_type_cmp_keyingscreen()
   ntype.draw_buttons = file_ns::node_composit_buts_keyingscreen;
   ntype.initfunc_api = file_ns::node_composit_init_keyingscreen;
   blender::bke::node_type_storage(
-      &ntype, "NodeKeyingScreenData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeKeyingScreenData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

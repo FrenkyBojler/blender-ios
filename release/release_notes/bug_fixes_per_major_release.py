@@ -27,13 +27,10 @@ some missing commits), but it's significantly better than nothing.
   - --previous-version (-pv)
   - --current-release-tag (-ct)
   - --previous-release-tag (-pt)
-  - --backport-tasks (-bpt) (Optional but highly recommended)
-- Here is an example if you wish to collect the list for Blender 4.4 during
-the Beta and onwards stage of development:
-  - `python bug_fixes_per_major_release.py -cv 4.4 -pv 4.3 -ct blender-v4.4-release -pt v4.3.2 -bpt 109399 124452 130221`
+  - --backport-tasks (-bpt) (Optional, but recommended)
 - Here is an example if you wish to collect the list for Blender 4.5 during
 the Alpha stage of development.
-  - `python bug_fixes_per_major_release.py -cv 4.5 -pv 4.4 -ct main -pt blender-v4.4-release -bpt 109399 124452`
+  - `python bug_fixes_per_major_release.py -cv 4.5 -pv 4.4 -ct main -pt blender-v4.4-release -bpt 109399 124452 135860`
 - Wait for the script to finish (This can take upwards of 20 minutes).
 - Follow the guide printed to terminal.
 
@@ -185,6 +182,10 @@ NEEDS_MANUAL_SORTING = "MANUALLY SORT"
 FIXED_OLD_ISSUE = "FIXED OLD"
 FIXED_PR = "FIXED PR"
 REVERT = "REVERT"
+IGNORED = "IGNORED"
+
+SORTED_CLASSIFICATIONS = [FIXED_NEW_ISSUE, FIXED_OLD_ISSUE, IGNORED]
+VALID_CLASSIFICATIONS = [FIXED_NEW_ISSUE, NEEDS_MANUAL_SORTING, FIXED_OLD_ISSUE, FIXED_PR, REVERT, IGNORED]
 
 OLDER_VERION = "OLDER"
 NEWER_VERION = "NEWER"
@@ -273,7 +274,7 @@ class CommitInfo:
         "backport_list",
         "classification",
         "fixed_reports",
-        "fixed_reports",
+        "commit_message",
         "has_been_overwritten",
         "is_revert",
         "module",
@@ -294,8 +295,9 @@ class CommitInfo:
     def set_defaults(self) -> None:
         self.is_revert = 'revert' in self.commit_title.lower()
 
-        self.fixed_reports: list[str] = []
-        self.check_full_commit_message_for_fixed_reports()
+        self.commit_message = subprocess.run(
+            ['git', 'show', '-s', '--format=%B', self.hash], capture_output=True).stdout.decode('utf-8')
+        self.fixed_reports = self.check_full_commit_message_for_fixed_reports()
 
         # Setup some "useful" empty defaults.
         self.backport_list: list[str] = []
@@ -307,14 +309,14 @@ class CommitInfo:
         self.needs_update = True
         self.has_been_overwritten = False
 
-    def check_full_commit_message_for_fixed_reports(self) -> None:
-        command = ['git', 'show', '-s', '--format=%B', self.hash]
-        command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
-
-        # Find every instance of #NUMBER. These are the report that the commit claims to fix.
-        match = re.findall(r'#(\d+)', command_output)
+    def check_full_commit_message_for_fixed_reports(self) -> list[str]:
+        # Find every instance of `SPACE#NUMBER`. These are the report that the commit claims to fix.
+        # We are looking for the `SPACE` part because otherwise commits that fix issues in other repositories,
+        # E.g. Fix `blender/blender-manual#NUMBER`, will be picked out for processing.
+        match = re.findall(r'\s#+(\d+)', self.commit_message)
         if match:
-            self.fixed_reports = match
+            return match
+        return []
 
     def get_backports(self, dict_of_backports: dict[str, list[str]]) -> None:
         # Figures out if the commit was back-ported, and to what version(s).
@@ -329,13 +331,13 @@ class CommitInfo:
             # If the fix was back-ported to a old release, then it fixed a old issue.
             self.classification = FIXED_OLD_ISSUE
 
-    def override_report_info(self, new_classification: str, new_title: str, new_module: str) -> None:
-        if new_classification in (FIXED_NEW_ISSUE, FIXED_OLD_ISSUE):
+    def override_report_info(self, new_classification: str, new_title: str, new_module: str) -> bool:
+        if new_classification in SORTED_CLASSIFICATIONS:
             # Clear classifications are more important then any other. So always override in this case.
             self.classification = new_classification
             self.report_title = new_title
             self.module = new_module
-            return
+            return True
 
         if new_classification in (NEEDS_MANUAL_SORTING, FIXED_PR):
             if (self.classification == UNKNOWN) or ((new_classification ==
@@ -346,7 +348,8 @@ class CommitInfo:
                 self.classification = new_classification
                 self.report_title = new_title
                 self.module = new_module
-            return
+
+        return False
 
     def get_module(self, labels: list[dict[Any, Any]]) -> str:
         # Figures out what module the report that was fixed belongs too.
@@ -373,8 +376,6 @@ class CommitInfo:
             self.report_title = self.commit_title
             return
 
-        sorted_classes = (FIXED_NEW_ISSUE, FIXED_OLD_ISSUE)
-
         for report_number in self.fixed_reports:
             report_information = url_json_get(
                 f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
@@ -392,11 +393,9 @@ class CommitInfo:
                     current_version=current_version,
                     previous_version=previous_version,
                 )
-                self.override_report_info(classification, report_title, module)
-
-            if self.classification in sorted_classes:
-                # The commit has been sorted. No need to process more reports.
-                break
+                if self.override_report_info(classification, report_title, module):
+                    # The commit has been sorted. No need to process more reports.
+                    break
 
     def generate_release_note_ready_string(self) -> str:
         # Breakup report_title based on words, and remove `:` if it's at the end of the first word.
@@ -423,6 +422,7 @@ class CommitInfo:
     def prepare_for_cache(self) -> tuple[str, dict[str, Any]]:
         return self.hash, {
             'is_revert': self.is_revert,
+            'commit_message': self.commit_message,
             'fixed_reports': self.fixed_reports,
             'backport_list': self.backport_list,
             'module': self.module,
@@ -432,6 +432,7 @@ class CommitInfo:
 
     def read_from_cache(self, cache_data: dict[str, Any]) -> None:
         self.is_revert = cache_data['is_revert']
+        self.commit_message = cache_data['commit_message']
         self.fixed_reports = cache_data['fixed_reports']
         self.backport_list = cache_data['backport_list']
         self.module = cache_data['module']
@@ -542,7 +543,10 @@ def version_extraction(report_body: str) -> tuple[list[str], list[str]]:
             broken_lines += f'{line}\n'
         if lower_line.startswith('work'):
             # Use `work` to be able to detect both "worked" and "working".
-            if not example_in_line:
+            if (not example_in_line) and not ("brok" in lower_line):
+                # Don't add the line to the working_lines if it contains the letters `brok`.
+                # because it means the user probably wrote something like "Worked: It was also broken in X.X"
+                # which lead to incorrect information.
                 working_lines += f'{line}\n'
 
     return get_version_numbers(broken_lines, working_lines)
@@ -578,6 +582,8 @@ def classify_based_on_report(
         current_version: str,
         previous_version: str,
 ) -> str:
+    if "skip_for_bug_fix_release_notes" in report_body.lower():
+        return IGNORED
     # Get a list of broken and working versions of Blender according to the report that was fixed.
     broken_versions, working_versions = version_extraction(report_body)
 
@@ -702,25 +708,67 @@ def classify_commits(
     print("\n\n\n")
 
 
+def sort_reverts(list_of_commits: list[CommitInfo]) -> None:
+    number_of_revert_commits = 0
+    for commit in list_of_commits:
+        if commit.classification == REVERT:
+            number_of_revert_commits += 1
+
+    if number_of_revert_commits == 0:
+        # Early out since there are no revert commits to sort
+        return
+
+    while True:
+        sort = input(f"Would you like to sort ({number_of_revert_commits}) reverts? (Y/N) ")
+
+        if sort.lower() == "n":
+            return
+        if sort.lower() == "y":
+            break
+
+    for revert_commit in list_of_commits:
+        if revert_commit.classification == REVERT:
+            # Add some space between each commit message.
+            print("\n" * 10)
+
+            print({revert_commit.commit_message})
+            reverted_commit_list = input(
+                f"Which commit hash(s) did this commit fix? Provide a comma separated list for multiple commits. Leave blank if you do not know: ")
+
+            reverted_commit_hashs: list[str] = []
+            for hash in reverted_commit_list.split(","):
+                # Split the comma separated list and remove any extra white spaces from it.
+                hash = hash.strip()
+                if len(hash) != 0:
+                    reverted_commit_hashs.append(hash)
+
+            if len(reverted_commit_hashs) == 0:
+                # A commit hash wasn't provided.
+                continue
+
+            # This is just to shift the commit into a list we don't share in the release notes.
+            # An alternative classification is `IGNORED` but then the information won't be saved to the cache.
+            revert_commit.classification = FIXED_NEW_ISSUE
+
+            for hash in reverted_commit_hashs:
+                for commit in list_of_commits:
+                    if commit.hash.startswith(hash):
+                        # This is just to shift the commit out of the list of `FIXED_OLD_ISSUE`.
+                        commit.classification = FIXED_NEW_ISSUE
+
+
 # ---
 
 def prepare_for_print(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, list[CommitInfo]]]:
     # This function takes in a list of commits, and sorts them based on their classification and module.
 
     dict_of_sorted_commits: dict[str, dict[str, list[CommitInfo]]] = {}
-    valid_classifications = [
-        FIXED_OLD_ISSUE,
-        NEEDS_MANUAL_SORTING,
-        REVERT,
-        FIXED_PR,
-        FIXED_NEW_ISSUE,
-    ]
-    for item in valid_classifications:
+    for item in VALID_CLASSIFICATIONS:
         dict_of_sorted_commits[item] = {}
 
     for commit in list_of_commits:
         commit_classification = commit.classification
-        if commit_classification in valid_classifications:
+        if commit_classification in VALID_CLASSIFICATIONS:
             commit_module = commit.module
             try:
                 # Try to append to a list. If it fails (The list doesn't exist), create the list.
@@ -728,7 +776,7 @@ def prepare_for_print(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, 
             except KeyError:
                 dict_of_sorted_commits[commit_classification][commit_module] = [commit]
 
-    for item in valid_classifications:
+    for item in VALID_CLASSIFICATIONS:
         # Sort modules alphabetically
         dict_of_sorted_commits[item] = dict(sorted(dict_of_sorted_commits[item].items()))
 
@@ -779,6 +827,8 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
         "Commits that need a override (launch this script with -o) as they claim to fix a PR:",
         dict_of_sorted_commits[FIXED_PR])
 
+    print_list_of_commits("Ignored commits:", dict_of_sorted_commits[IGNORED])
+
     # Currently disabled as this information isn't particularly useful.
     # print_list_of_commits(dict_of_sorted_commits[FIXED_NEW_ISSUE])
 
@@ -789,6 +839,8 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
         - Add a module label if it's missing one.
       - Rerun this script.
     - Repeat the previous steps until there are no commits that need manual sorting.
+    - If it is too difficult to track down the broken or working field for a report, then you can add
+    `<!-- skip_for_bug_fix_release_notes -->` to the report body and the script will ignore it on subsequent runs.
     - This should be done by the triaging module through out the release cycle, so the list should be quite small.
 
     - Go through the "Revert commits" section and if needed,
@@ -824,7 +876,7 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
     # on commits that are already sorted (and they're not interested in).
     data_to_cache = {}
     for commit in list_of_commits:
-        if (commit.classification != NEEDS_MANUAL_SORTING) and not (commit.has_been_overwritten):
+        if (commit.classification not in (NEEDS_MANUAL_SORTING, IGNORED)) and not (commit.has_been_overwritten):
             commit_hash, data = commit.prepare_for_cache()
             data_to_cache[commit_hash] = data
 
@@ -1018,6 +1070,8 @@ def main() -> int:
         current_version=args.current_version,
         previous_version=args.previous_version,
     )
+
+    sort_reverts(list_of_commits)
 
     if args.cache:
         cached_commits_store(list_of_commits)
