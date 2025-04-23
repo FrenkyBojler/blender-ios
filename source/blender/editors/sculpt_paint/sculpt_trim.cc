@@ -574,7 +574,6 @@ static void apply_trim(gesture::GestureData &gesture_data)
   geometry::boolean::BooleanError error = geometry::boolean::BooleanError::NoError;
   Mesh *result = geometry::boolean::mesh_boolean({&sculpt_mesh, &trim_mesh},
                                                  {float4x4::identity(), float4x4::identity()},
-                                                 float4x4::identity(),
                                                  {Array<short>(), Array<short>()},
                                                  op_params,
                                                  trim_operation->solver_mode,
