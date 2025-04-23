@@ -4851,16 +4851,11 @@ bool WM_event_handler_region_v2d_mask_poll(const wmWindow * /*win*/,
   return event_or_prev_in_rect(event, &rect);
 }
 
-bool WM_event_handler_region_marker_poll(const wmWindow * win,
-                                         const ScrArea * area,
+bool WM_event_handler_region_marker_poll(const wmWindow *win,
+                                         const ScrArea *area,
                                          const ARegion *region,
                                          const wmEvent *event)
 {
-  rcti rect = region->winrct;
-  rect.ymax = rect.ymin + UI_MARKER_MARGIN_Y;
-  /* TODO: investigate returning `event_or_prev_in_rect(event, &rect)` here.
-   * The difference is subtle but correct so dragging away from the region works. */
-
   switch (area->spacetype) {
     case SPACE_ACTION: {
       const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
@@ -4900,6 +4895,10 @@ bool WM_event_handler_region_marker_poll(const wmWindow * win,
     return false;
   }
 
+  rcti rect = region->winrct;
+  rect.ymax = rect.ymin + UI_MARKER_MARGIN_Y;
+  /* TODO: investigate returning `event_or_prev_in_rect(event, &rect)` here.
+   * The difference is subtle but correct so dragging away from the region works. */
   return BLI_rcti_isect_pt_v(&rect, event->xy);
 }
 
