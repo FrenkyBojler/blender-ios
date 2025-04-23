@@ -280,8 +280,7 @@ typedef struct Strip {
 
   char alpha_mode;
   char _pad2[2];
-
-  int cache_flag;
+  int _pad9;
 
   /* is sfra needed anymore? - it looks like its only used in one place */
   /** Starting frame according to the timeline of the scene. */
@@ -865,8 +864,7 @@ enum {
   SEQ_CACHE_ALL_TYPES = SEQ_CACHE_STORE_RAW | SEQ_CACHE_STORE_PREPROCESSED |
                         SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT,
 
-  SEQ_CACHE_OVERRIDE = (1 << 4),
-
+  SEQ_CACHE_UNUSED_4 = (1 << 4), /* Was SEQ_CACHE_OVERRIDE */
   SEQ_CACHE_UNUSED_5 = (1 << 5),
   SEQ_CACHE_UNUSED_6 = (1 << 6),
   SEQ_CACHE_UNUSED_7 = (1 << 7),

@@ -2305,31 +2305,6 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Modifiers", "Modifiers affecting this strip");
   rna_def_sequence_modifiers(brna, prop);
 
-  prop = RNA_def_property(srna, "use_cache_raw", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_STORE_RAW);
-  RNA_def_property_ui_text(prop,
-                           "Cache Raw",
-                           "Cache raw images read from disk, for faster tweaking of strip "
-                           "parameters at the cost of memory usage");
-
-  prop = RNA_def_property(srna, "use_cache_preprocessed", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_STORE_PREPROCESSED);
-  RNA_def_property_ui_text(
-      prop,
-      "Cache Preprocessed",
-      "Cache preprocessed images, for faster tweaking of effects at the cost of memory usage");
-
-  prop = RNA_def_property(srna, "use_cache_composite", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_STORE_COMPOSITE);
-  RNA_def_property_ui_text(prop,
-                           "Cache Composite",
-                           "Cache intermediate composited images, for faster tweaking of stacked "
-                           "strips at the cost of memory usage");
-
-  prop = RNA_def_property(srna, "override_cache_settings", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_OVERRIDE);
-  RNA_def_property_ui_text(prop, "Override Cache Settings", "Override global cache settings");
-
   prop = RNA_def_property(srna, "show_retiming_keys", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_SHOW_RETIMING);
   RNA_def_property_ui_text(prop, "Show Retiming Keys", "Show retiming keys, so they can be moved");
@@ -2526,20 +2501,6 @@ static void rna_def_editor(BlenderRNA *brna)
                            "Cache Raw",
                            "Cache raw images read from disk, for faster tweaking of strip "
                            "parameters at the cost of memory usage");
-
-  prop = RNA_def_property(srna, "use_cache_preprocessed", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_STORE_PREPROCESSED);
-  RNA_def_property_ui_text(
-      prop,
-      "Cache Preprocessed",
-      "Cache preprocessed images, for faster tweaking of effects at the cost of memory usage");
-
-  prop = RNA_def_property(srna, "use_cache_composite", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_STORE_COMPOSITE);
-  RNA_def_property_ui_text(prop,
-                           "Cache Composite",
-                           "Cache intermediate composited images, for faster tweaking of stacked "
-                           "strips at the cost of memory usage");
 
   prop = RNA_def_property(srna, "use_cache_final", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_STORE_FINAL_OUT);

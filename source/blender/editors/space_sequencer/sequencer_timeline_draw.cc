@@ -1698,8 +1698,6 @@ static bool draw_cache_view_iter_fn(void *userdata,
    */
   const uchar4 col_final{108, 108, 210, 255};
   const uchar4 col_raw{255, 25, 5, 100};
-  const uchar4 col_preproc{25, 25, 191, 100};
-  const uchar4 col_composite{255, 153, 0, 100};
 
   uchar4 col{0, 0, 0, 0};
 
@@ -1721,19 +1719,6 @@ static bool draw_cache_view_iter_fn(void *userdata,
     if ((cache_type & SEQ_CACHE_STORE_RAW) && (drawdata->cache_flag & SEQ_CACHE_SHOW_RAW)) {
       stripe_bot = strip->machine + STRIP_OFSBOTTOM + drawdata->stripe_ofs_y;
       col = col_raw;
-    }
-    else if ((cache_type & SEQ_CACHE_STORE_PREPROCESSED) &&
-             (drawdata->cache_flag & SEQ_CACHE_SHOW_PREPROCESSED))
-    {
-      stripe_bot = strip->machine + STRIP_OFSBOTTOM + drawdata->stripe_ht +
-                   drawdata->stripe_ofs_y * 2;
-      col = col_preproc;
-    }
-    else if ((cache_type & SEQ_CACHE_STORE_COMPOSITE) &&
-             (drawdata->cache_flag & SEQ_CACHE_SHOW_COMPOSITE))
-    {
-      stripe_bot = strip->machine + STRIP_OFSTOP - drawdata->stripe_ofs_y - drawdata->stripe_ht;
-      col = col_composite;
     }
     else {
       return false;
@@ -1771,8 +1756,6 @@ static void draw_cache_background(const bContext *C, CacheDrawData *draw_data)
    */
   const uchar4 bg_final{78, 78, 145, 255};
   const uchar4 bg_raw{255, 25, 5, 25};
-  const uchar4 bg_preproc{25, 25, 191, 25};
-  const uchar4 bg_composite{255, 153, 0, 25};
 
   float stripe_bot;
   bool dev_ui = (U.flag & USER_DEVELOPER_UI);
@@ -1797,18 +1780,6 @@ static void draw_cache_background(const bContext *C, CacheDrawData *draw_data)
     stripe_bot = strip->machine + STRIP_OFSBOTTOM + draw_data->stripe_ofs_y;
     if (sseq->cache_overlay.flag & SEQ_CACHE_SHOW_RAW) {
       draw_cache_stripe(scene, strip, *draw_data->quads, stripe_bot, draw_data->stripe_ht, bg_raw);
-    }
-
-    if (sseq->cache_overlay.flag & SEQ_CACHE_SHOW_PREPROCESSED) {
-      stripe_bot += draw_data->stripe_ht + draw_data->stripe_ofs_y;
-      draw_cache_stripe(
-          scene, strip, *draw_data->quads, stripe_bot, draw_data->stripe_ht, bg_preproc);
-    }
-
-    if (sseq->cache_overlay.flag & SEQ_CACHE_SHOW_COMPOSITE) {
-      stripe_bot = strip->machine + STRIP_OFSTOP - draw_data->stripe_ofs_y - draw_data->stripe_ht;
-      draw_cache_stripe(
-          scene, strip, *draw_data->quads, stripe_bot, draw_data->stripe_ht, bg_composite);
     }
   }
 }

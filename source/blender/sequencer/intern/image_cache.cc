@@ -194,22 +194,6 @@ static void seq_cache_valfree(void *val)
   BLI_mempool_free(item->cache_owner->items_pool, item);
 }
 
-static int get_stored_types_flag(Scene *scene, SeqCacheKey *key)
-{
-  int flag;
-  if (key->strip->cache_flag & SEQ_CACHE_OVERRIDE) {
-    flag = key->strip->cache_flag;
-  }
-  else {
-    flag = scene->ed->cache_flag;
-  }
-
-  /* SEQ_CACHE_STORE_FINAL_OUT can not be overridden by strip cache */
-  flag |= (scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT);
-
-  return flag;
-}
-
 static void seq_cache_put_ex(Scene *scene, SeqCacheKey *key, ImBuf *ibuf)
 {
   SeqCache *cache = seq_cache_get_from_scene(scene);
@@ -218,7 +202,7 @@ static void seq_cache_put_ex(Scene *scene, SeqCacheKey *key, ImBuf *ibuf)
   item->cache_owner = cache;
   item->ibuf = ibuf;
 
-  const int stored_types_flag = get_stored_types_flag(scene, key);
+  const int stored_types_flag = scene->ed->cache_flag;
 
   /* Item stored for later use. */
   if (stored_types_flag & key->type) {
