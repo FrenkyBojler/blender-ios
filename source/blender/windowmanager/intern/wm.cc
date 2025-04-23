@@ -620,6 +620,17 @@ void WM_main(bContext *C)
    * This ensures we don't run operators before the depsgraph has been evaluated. */
   wm_event_do_refresh_wm_and_depsgraph(C);
 
+  std::chrono::steady_clock::time_point first = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
+  long long updates_since_sample = 0;
+  int samples = 0;
+
+  int below_60 = 0;
+  int below_30 = 0;
+  int below_10 = 0;
+
+  double average = 0.0f;
+
   while (true) {
 
     /* Get events from ghost, handle window events, add to window queues. */
@@ -633,5 +644,36 @@ void WM_main(bContext *C)
 
     /* Execute cached changes draw. */
     wm_draw_update(C);
+
+    updates_since_sample++;
+    std::chrono::steady_clock::time_point current = std::chrono::steady_clock::now();
+    auto last_duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - last);
+    auto total_duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - first);
+    if (last_duration > std::chrono::milliseconds(50)) {
+      samples++;
+      double last_fps = updates_since_sample / (last_duration.count() / double(1000));
+
+      average = average + (last_fps - average) / samples;
+      printf("FPS: last: %f avg: %f (sub 60: %d sub 30: %d, sub 10: %d) (Total Runtime: %lld)\n",
+             last_fps,
+             average,
+             below_60,
+             below_30,
+             below_10,
+             total_duration.count());
+
+      if (last_fps < 60.0f) {
+        below_60++;
+      }
+      if (last_fps < 30.0f) {
+        below_30++;
+      }
+      if (last_fps < 10.0f) {
+        below_10++;
+      }
+
+      last = current;
+      updates_since_sample = 0;
+    }
   }
 }

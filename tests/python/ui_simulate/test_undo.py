@@ -69,18 +69,18 @@ def _window_size_in_pixels(window):
     return size
 
 
-def _cursor_motion_data_x(window):
+def _cursor_motion_data_x(window, y_offset):
     size = _window_size_in_pixels(window)
     return [
-        (x, size[1] // 2) for x in
+        (x, (size[1] // 2) + y_offset) for x in
         range(int(size[0] * 0.2), int(size[0] * 0.8), 80)
     ]
 
 
-def _cursor_motion_data_y(window):
+def _cursor_motion_data_y(window, x_offset):
     size = _window_size_in_pixels(window)
     return [
-        (size[0] // 2, y) for y in
+        ((size[0] // 2) + x_offset, y) for y in
         range(int(size[1] * 0.2), int(size[1] * 0.8), 80)
     ]
 
@@ -348,6 +348,39 @@ def view3d_simple():
     t.assertEqual(len(window.view_layer.objects), 0)
     yield e.ctrl.shift.z(12)            # Redo until end.
     t.assertEqual(len(window.view_layer.objects.active.data.polygons), 16)
+
+
+def view3d_sculpt_performance():
+    e, t = _test_vars(window := _test_window())
+    yield e.shift.f5()                  # 3D Viewport.
+    yield e.ctrl.alt.space()            # Full-screen.
+
+    # yield e.shift.space().text("Clay Strip").ret()
+    yield e.shift.space().text("Smooth").ret()
+    yield e.f().text("100").ret()        # Adjust size
+
+    print("Horizontal Strokes")
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, -600))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, -400))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, -200))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, 0))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, 200))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, 400))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, 600))
+    print("Vertical Strokes")
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, -600))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, -400))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, -200))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 0))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 200))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 400))
+    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 600))
+
+    print("Undo Vertical")
+    yield e.ctrl.z(7)
+
+    print("Undo Horizontal")
+    yield e.ctrl.z(7)
 
 
 def view3d_sculpt_with_memfile_step():
