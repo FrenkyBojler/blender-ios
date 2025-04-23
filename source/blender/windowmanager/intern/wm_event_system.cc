@@ -4860,8 +4860,6 @@ bool WM_event_handler_region_marker_poll(const wmWindow * win,
   rect.ymax = rect.ymin + UI_MARKER_MARGIN_Y;
   /* TODO: investigate returning `event_or_prev_in_rect(event, &rect)` here.
    * The difference is subtle but correct so dragging away from the region works. */
-  const ListBase *markers = ED_scene_markers_get(WM_window_get_active_scene(win),
-                                                 const_cast<ScrArea *>(area));
 
   switch (area->spacetype) {
     case SPACE_ACTION: {
@@ -4896,6 +4894,8 @@ bool WM_event_handler_region_marker_poll(const wmWindow * win,
       break;
   }
 
+  const ListBase *markers = ED_scene_markers_get(WM_window_get_active_scene(win),
+                                                 const_cast<ScrArea *>(area));
   if (BLI_listbase_is_empty(markers)) {
     return false;
   }
