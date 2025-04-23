@@ -4010,7 +4010,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   }
 
   bool mball_converted = false;
-  bool some_failed = false;
+  int failed_count = 0;
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
@@ -4059,7 +4059,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_pointcloud(*base, target_type, info, &new_base);
           break;
         default:
-          some_failed = true;
+          failed_count++;
           continue;
       }
     }
@@ -4137,8 +4137,19 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
     }
   }
 
-  if (some_failed) {
-    WM_report(RPT_WARNING, "Object conversion: Some objects failed to convert");
+  if (failed_count != 0) {
+    if (failed_count == selected_editable_bases.size()) {
+      BKE_report(op->reports, RPT_ERROR, "Object conversion: All objects failed to convert");
+    }
+    else {
+      static char message[128];
+      sprintf(message,
+              "%s %d %s",
+              RPT_("Object conversion:"),
+              failed_count,
+              RPT_("object(s) failed to convert"));
+      BKE_report(op->reports, RPT_WARNING, "Object conversion: Some objects failed to convert");
+    }
   }
 
   DEG_relations_tag_update(bmain);
