@@ -61,6 +61,9 @@ typedef struct Bone {
   struct Bone *next, *prev;
   /** User-Defined Properties on this Bone. */
   IDProperty *prop;
+  /** System-Defined Properties storage. */
+  IDProperty *system_properties;
+  void *_pad0;
   /** Parent (IK parent if appropriate flag is set). */
   struct Bone *parent;
   /** Children. */

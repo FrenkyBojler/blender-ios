@@ -38,6 +38,8 @@ struct EditBone {
   EditBone *next, *prev;
   /** User-Defined Properties on this Bone */
   IDProperty *prop;
+  /** System-Defined Properties storage. */
+  IDProperty *system_properties;
   /**
    * Edit-bones have a one-way link  (i.e. children refer
    * to parents.  This is converted to a two-way link for

@@ -1871,6 +1871,7 @@ void DepsgraphNodeBuilder::build_armature_bones(ListBase *bones)
 {
   LISTBASE_FOREACH (Bone *, bone, bones) {
     build_idproperties(bone->prop);
+    build_idproperties(bone->system_properties);
     build_armature_bones(&bone->childbase);
   }
 }

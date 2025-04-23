@@ -1046,6 +1046,9 @@ static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, O
   if (src_bone->prop) {
     dst_bone->prop = IDP_CopyProperty(src_bone->prop);
   }
+  if (src_bone->system_properties) {
+    dst_bone->system_properties = IDP_CopyProperty(src_bone->system_properties);
+  }
 
   /* Lets duplicate the list of constraints that the
    * current bone has.
@@ -1896,6 +1899,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
 
       newbone->flag |= BONE_CONNECTED;
       newbone->prop = nullptr;
+      newbone->system_properties = nullptr;
 
       /* correct parent bones */
       LISTBASE_FOREACH (EditBone *, tbone, arm->edbo) {

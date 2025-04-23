@@ -645,6 +645,9 @@ void version_system_idprops_generate(Main *bmain)
     for (BoneCollection *bcoll : armature->collections_span()) {
       idprops_process(bcoll->prop, &bcoll->system_properties);
     }
+    LISTBASE_FOREACH (Bone *, bone, &armature->bonebase) {
+      idprops_process(bone->prop, &bone->system_properties);
+    }
   }
 }
 
@@ -695,6 +698,9 @@ void version_forward_compat_system_idprops(Main *bmain)
   LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
     for (BoneCollection *bcoll : armature->collections_span()) {
       idprops_process(&bcoll->prop, bcoll->system_properties);
+    }
+    LISTBASE_FOREACH (Bone *, bone, &armature->bonebase) {
+      idprops_process(&bone->prop, bone->system_properties);
     }
   }
 }
