@@ -163,22 +163,17 @@ class Instance : public DrawEngine {
                                    OB_VISIBLE_SELF) &&
                                   (ob->dt >= OB_SOLID || draw_ctx->is_scene_render());
 
+    FluidModifierData *fluid_modifier = nullptr;
     if (!(ob->base_flag & BASE_FROM_DUPLI)) {
       ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Fluid);
       if (md && BKE_modifier_is_enabled(scene_state_.scene, md, eModifierMode_Realtime)) {
-        FluidModifierData *fmd = (FluidModifierData *)md;
-        if (fmd->domain) {
-          volume_ps_.object_sync_modifier(manager, resources_, scene_state_, ob_ref, md);
-
-          if (fmd->domain->type == FLUID_DOMAIN_TYPE_GAS) {
-            /* Do not draw solid in this case. */
-            is_object_data_visible = false;
-          }
+        fluid_modifier = reinterpret_cast<FluidModifierData *>(md);
+        if (fluid_modifier->domain && fluid_modifier->domain->type == FLUID_DOMAIN_TYPE_GAS) {
+          /* Do not draw solid in this case. */
+          is_object_data_visible = false;
         }
       }
     }
-
-    ResourceHandle emitter_handle(0);
 
     if (is_object_data_visible) {
       if (object_state.sculpt_pbvh) {
@@ -186,30 +181,38 @@ class Instance : public DrawEngine {
             *bke::object::pbvh_get(*ob_ref.object));
         const float3 center = math::midpoint(bounds.min, bounds.max);
         const float3 half_extent = bounds.max - center;
-        ResourceHandle handle = manager.resource_handle(ob_ref, nullptr, &center, &half_extent);
-        this->sculpt_sync(ob_ref, handle, object_state);
-        emitter_handle = handle;
+        ob_ref.handle = manager.resource_handle(ob_ref, nullptr, &center, &half_extent);
+        this->sculpt_sync(ob_ref, object_state);
       }
       else if (ob->type == OB_MESH) {
-        ResourceHandle handle = manager.resource_handle(ob_ref);
-        this->mesh_sync(ob_ref, handle, object_state);
-        emitter_handle = handle;
+        ob_ref.handle = manager.resource_handle(ob_ref);
+        this->mesh_sync(ob_ref, object_state);
       }
       else if (ob->type == OB_POINTCLOUD) {
-        this->pointcloud_sync(manager, ob_ref, object_state);
+        ob_ref.handle = manager.resource_handle(ob_ref);
+        this->pointcloud_sync(ob_ref, object_state);
       }
       else if (ob->type == OB_CURVES) {
-        this->curves_sync(manager, ob_ref, object_state);
+        /* Skip frustum culling. */
+        ob_ref.handle = manager.resource_handle(ob_ref.object->object_to_world());
+        this->curves_sync(ob_ref, object_state);
       }
       else if (ob->type == OB_VOLUME) {
         if (scene_state_.shading.type != OB_WIRE) {
-          volume_ps_.object_sync_volume(manager,
-                                        resources_,
+          ob_ref.handle = manager.resource_handle(ob_ref);
+          volume_ps_.object_sync_volume(resources_,
                                         scene_state_,
                                         ob_ref,
                                         get_material(ob_ref, object_state.color_type).base_color);
         }
       }
+    }
+
+    if (fluid_modifier && fluid_modifier->domain) {
+      if (!is_object_data_visible) {
+        ob_ref.handle = manager.resource_handle(ob_ref);
+      }
+      volume_ps_.object_sync_modifier(resources_, scene_state_, ob_ref, fluid_modifier);
     }
 
     if (ob->type == OB_MESH && ob->modifiers.first != nullptr) {
@@ -225,7 +228,9 @@ class Instance : public DrawEngine {
         const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
 
         if (draw_as == PART_DRAW_PATH) {
-          this->hair_sync(manager, ob_ref, emitter_handle, object_state, psys, md);
+          /* Skip frustum culling. */
+          ResourceHandle hair_handle = manager.resource_handle(ob_ref.object->object_to_world());
+          this->hair_sync(ob_ref, hair_handle, object_state, psys, md);
         }
       }
     }
@@ -259,7 +264,6 @@ class Instance : public DrawEngine {
   void draw_mesh(ObjectRef &ob_ref,
                  Material &material,
                  gpu::Batch *batch,
-                 ResourceHandle handle,
                  const MaterialTexture *texture = nullptr,
                  bool show_missing_texture = false)
   {
@@ -271,11 +275,12 @@ class Instance : public DrawEngine {
     }
 
     this->draw_to_mesh_pass(ob_ref, material.is_transparent(), [&](MeshPass &mesh_pass) {
-      mesh_pass.get_subpass(eGeometryType::MESH, texture).draw(batch, handle, material_index);
+      mesh_pass.get_subpass(eGeometryType::MESH, texture)
+          .draw(batch, ob_ref.handle, material_index);
     });
   }
 
-  void mesh_sync(ObjectRef &ob_ref, ResourceHandle handle, const ObjectState &object_state)
+  void mesh_sync(ObjectRef &ob_ref, const ObjectState &object_state)
   {
     bool has_transparent_material = false;
 
@@ -306,8 +311,7 @@ class Instance : public DrawEngine {
             texture = MaterialTexture(ob_ref.object, material_slot);
           }
 
-          this->draw_mesh(
-              ob_ref, mat, batches[i], handle, &texture, object_state.show_missing_texture);
+          this->draw_mesh(ob_ref, mat, batches[i], &texture, object_state.show_missing_texture);
         }
       }
     }
@@ -332,16 +336,16 @@ class Instance : public DrawEngine {
         Material mat = this->get_material(ob_ref, object_state.color_type);
         has_transparent_material = has_transparent_material || mat.is_transparent();
 
-        this->draw_mesh(ob_ref, mat, batch, handle, &object_state.image_paint_override);
+        this->draw_mesh(ob_ref, mat, batch, &object_state.image_paint_override);
       }
     }
 
     if (object_state.draw_shadow) {
-      shadow_ps_.object_sync(scene_state_, ob_ref, handle, has_transparent_material);
+      shadow_ps_.object_sync(scene_state_, ob_ref, has_transparent_material);
     }
   }
 
-  void sculpt_sync(ObjectRef &ob_ref, ResourceHandle handle, const ObjectState &object_state)
+  void sculpt_sync(ObjectRef &ob_ref, const ObjectState &object_state)
   {
     SculptBatchFeature features = SCULPT_BATCH_DEFAULT;
     if (object_state.color_type == V3D_SHADING_VERTEX_COLOR) {
@@ -363,8 +367,7 @@ class Instance : public DrawEngine {
           texture = MaterialTexture(ob_ref.object, batch.material_slot);
         }
 
-        this->draw_mesh(
-            ob_ref, mat, batch.batch, handle, &texture, object_state.show_missing_texture);
+        this->draw_mesh(ob_ref, mat, batch.batch, &texture, object_state.show_missing_texture);
       }
     }
     else {
@@ -374,15 +377,13 @@ class Instance : public DrawEngine {
           mat.base_color = batch.debug_color();
         }
 
-        this->draw_mesh(ob_ref, mat, batch.batch, handle, &object_state.image_paint_override);
+        this->draw_mesh(ob_ref, mat, batch.batch, &object_state.image_paint_override);
       }
     }
   }
 
-  void pointcloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
+  void pointcloud_sync(ObjectRef &ob_ref, const ObjectState &object_state)
   {
-    ResourceHandle handle = manager.resource_handle(ob_ref);
-
     Material mat = this->get_material(ob_ref, object_state.color_type);
     resources_.material_buf.append(mat);
     int material_index = resources_.material_buf.size() - 1;
@@ -391,20 +392,16 @@ class Instance : public DrawEngine {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::POINTCLOUD).sub("Point Cloud SubPass");
       gpu::Batch *batch = pointcloud_sub_pass_setup(pass, ob_ref.object);
-      pass.draw(batch, handle, material_index);
+      pass.draw(batch, ob_ref.handle, material_index);
     });
   }
 
-  void hair_sync(Manager &manager,
-                 ObjectRef &ob_ref,
-                 ResourceHandle emitter_handle,
+  void hair_sync(ObjectRef &ob_ref,
+                 ResourceHandle hair_handle,
                  const ObjectState &object_state,
                  ParticleSystem *psys,
                  ModifierData *md)
   {
-    /* Skip frustum culling. */
-    ResourceHandle handle = manager.resource_handle(ob_ref.object->object_to_world());
-
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;
     if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
@@ -416,17 +413,14 @@ class Instance : public DrawEngine {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::CURVES, &texture).sub("Hair SubPass");
-      pass.push_constant("emitter_object_id", int(emitter_handle.raw));
+      pass.push_constant("emitter_object_id", int(ob_ref.handle.handle_first.raw));
       gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref, psys, md);
-      pass.draw(batch, handle, material_index);
+      pass.draw(batch, hair_handle, material_index);
     });
   }
 
-  void curves_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
+  void curves_sync(ObjectRef &ob_ref, const ObjectState &object_state)
   {
-    /* Skip frustum culling. */
-    ResourceHandle handle = manager.resource_handle(ob_ref.object->object_to_world());
-
     Material mat = this->get_material(ob_ref, object_state.color_type);
     resources_.material_buf.append(mat);
     int material_index = resources_.material_buf.size() - 1;
@@ -434,7 +428,7 @@ class Instance : public DrawEngine {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass = mesh_pass.get_subpass(eGeometryType::CURVES).sub("Curves SubPass");
       gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object);
-      pass.draw(batch, handle, material_index);
+      pass.draw(batch, ob_ref.handle, material_index);
     });
   }
 

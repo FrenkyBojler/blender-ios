@@ -436,10 +436,7 @@ class ShadowPass {
   void init(const SceneState &scene_state, SceneResources &resources);
   void update();
   void sync();
-  void object_sync(SceneState &scene_state,
-                   ObjectRef &ob_ref,
-                   ResourceHandle handle,
-                   const bool has_transp_mat);
+  void object_sync(SceneState &scene_state, ObjectRef &ob_ref, const bool has_transp_mat);
   void draw(Manager &manager,
             View &view,
             SceneResources &resources,
@@ -465,30 +462,26 @@ class VolumePass {
  public:
   void sync(SceneResources &resources);
 
-  void object_sync_volume(Manager &manager,
-                          SceneResources &resources,
+  void object_sync_volume(SceneResources &resources,
                           const SceneState &scene_state,
                           ObjectRef &ob_ref,
                           float3 color);
 
-  void object_sync_modifier(Manager &manager,
-                            SceneResources &resources,
+  void object_sync_modifier(SceneResources &resources,
                             const SceneState &scene_state,
                             ObjectRef &ob_ref,
-                            ModifierData *md);
+                            struct FluidModifierData *modifier);
 
   void draw(Manager &manager, View &view, SceneResources &resources);
 
  private:
-  void draw_slice_ps(Manager &manager,
-                     SceneResources &resources,
+  void draw_slice_ps(SceneResources &resources,
                      PassMain::Sub &ps,
                      ObjectRef &ob_ref,
                      int slice_axis_enum,
                      float slice_depth);
 
-  void draw_volume_ps(Manager &manager,
-                      SceneResources &resources,
+  void draw_volume_ps(SceneResources &resources,
                       PassMain::Sub &ps,
                       ObjectRef &ob_ref,
                       int taa_sample,

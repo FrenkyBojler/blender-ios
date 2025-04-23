@@ -27,8 +27,7 @@ void VolumePass::sync(SceneResources &resources)
   dummy_coba_tx_.ensure_1d(GPU_RGBA8, 1, GPU_TEXTURE_USAGE_SHADER_READ, float4(0));
 }
 
-void VolumePass::object_sync_volume(Manager &manager,
-                                    SceneResources &resources,
+void VolumePass::object_sync_volume(SceneResources &resources,
                                     const SceneState &scene_state,
                                     ObjectRef &ob_ref,
                                     float3 color)
@@ -72,7 +71,7 @@ void VolumePass::object_sync_volume(Manager &manager,
 
   if (use_slice) {
     draw_slice_ps(
-        manager, resources, sub_ps, ob_ref, volume.display.slice_axis, volume.display.slice_depth);
+        resources, sub_ps, ob_ref, volume.display.slice_axis, volume.display.slice_depth);
   }
   else {
     float4x4 texture_to_world = ob->object_to_world() * float4x4(grid->texture_to_object);
@@ -82,20 +81,16 @@ void VolumePass::object_sync_volume(Manager &manager,
     GPU_texture_get_mipmap_size(grid->texture, 0, resolution);
     float3 slice_count = float3(resolution) * 5.0f;
 
-    draw_volume_ps(
-        manager, resources, sub_ps, ob_ref, scene_state.sample, slice_count, world_size);
+    draw_volume_ps(resources, sub_ps, ob_ref, scene_state.sample, slice_count, world_size);
   }
 }
 
-void VolumePass::object_sync_modifier(Manager &manager,
-                                      SceneResources &resources,
+void VolumePass::object_sync_modifier(SceneResources &resources,
                                       const SceneState &scene_state,
                                       ObjectRef &ob_ref,
-                                      ModifierData *md)
+                                      FluidModifierData *modifier)
 {
   Object *ob = ob_ref.object;
-
-  FluidModifierData *modifier = reinterpret_cast<FluidModifierData *>(md);
   FluidDomainSettings &settings = *modifier->domain;
 
   if (!settings.fluid) {
@@ -172,7 +167,7 @@ void VolumePass::object_sync_modifier(Manager &manager,
   sub_ps.bind_texture("stencil_tx", &stencil_tx_);
 
   if (use_slice) {
-    draw_slice_ps(manager, resources, sub_ps, ob_ref, settings.slice_axis, settings.slice_depth);
+    draw_slice_ps(resources, sub_ps, ob_ref, settings.slice_axis, settings.slice_depth);
   }
   else {
     float3 world_size;
@@ -180,8 +175,7 @@ void VolumePass::object_sync_modifier(Manager &manager,
 
     float3 slice_count = float3(settings.res) * std::max(0.001f, settings.slice_per_voxel);
 
-    draw_volume_ps(
-        manager, resources, sub_ps, ob_ref, scene_state.sample, slice_count, world_size);
+    draw_volume_ps(resources, sub_ps, ob_ref, scene_state.sample, slice_count, world_size);
   }
 }
 
@@ -198,8 +192,7 @@ void VolumePass::draw(Manager &manager, View &view, SceneResources &resources)
   manager.submit(ps_, view);
 }
 
-void VolumePass::draw_slice_ps(Manager &manager,
-                               SceneResources &resources,
+void VolumePass::draw_slice_ps(SceneResources &resources,
                                PassMain::Sub &ps,
                                ObjectRef &ob_ref,
                                int slice_axis_enum,
@@ -221,11 +214,10 @@ void VolumePass::draw_slice_ps(Manager &manager,
   ps.push_constant("sliceAxis", axis);
   ps.push_constant("stepLength", step_length);
 
-  ps.draw(resources.volume_cube_batch, manager.resource_handle(ob_ref));
+  ps.draw(resources.volume_cube_batch, ob_ref.handle);
 }
 
-void VolumePass::draw_volume_ps(Manager &manager,
-                                SceneResources &resources,
+void VolumePass::draw_volume_ps(SceneResources &resources,
                                 PassMain::Sub &ps,
                                 ObjectRef &ob_ref,
                                 int taa_sample,
@@ -243,7 +235,7 @@ void VolumePass::draw_volume_ps(Manager &manager,
   ps.push_constant("stepLength", step_length);
   ps.push_constant("noiseOfs", float(noise_offset));
 
-  ps.draw(resources.volume_cube_batch, manager.resource_handle(ob_ref));
+  ps.draw(resources.volume_cube_batch, ob_ref.handle);
 }
 
 }  // namespace blender::workbench

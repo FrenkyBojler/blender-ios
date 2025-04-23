@@ -378,10 +378,7 @@ void ShadowPass::sync()
   }
 }
 
-void ShadowPass::object_sync(SceneState &scene_state,
-                             ObjectRef &ob_ref,
-                             ResourceHandle handle,
-                             const bool has_transp_mat)
+void ShadowPass::object_sync(SceneState &scene_state, ObjectRef &ob_ref, const bool has_transp_mat)
 {
   if (!enabled_) {
     return;
@@ -416,14 +413,15 @@ void ShadowPass::object_sync(SceneState &scene_state,
 
   if (!force_fail_pass) {
     PassMain::Sub &ps = *get_pass_ptr(PASS, is_manifold);
-    ps.draw_expand(geom_shadow, prim, tri_len, 1, handle);
+    ps.draw_expand(geom_shadow, prim, tri_len, 1, ob_ref.handle);
   }
 
   blender::gpu::Batch *geom_faces = DRW_cache_object_surface_get(ob);
   /* Caps. */
-  get_pass_ptr(fail_type, is_manifold, true)->draw_expand(geom_faces, prim, 2, 1, handle);
+  get_pass_ptr(fail_type, is_manifold, true)->draw_expand(geom_faces, prim, 2, 1, ob_ref.handle);
   /* Sides extrusion. */
-  get_pass_ptr(fail_type, is_manifold, false)->draw_expand(geom_shadow, prim, tri_len, 1, handle);
+  get_pass_ptr(fail_type, is_manifold, false)
+      ->draw_expand(geom_shadow, prim, tri_len, 1, ob_ref.handle);
 }
 
 void ShadowPass::draw(Manager &manager,
