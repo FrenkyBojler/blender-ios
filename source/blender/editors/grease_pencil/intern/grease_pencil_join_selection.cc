@@ -112,6 +112,7 @@ template<typename T> void reverse_point_data(const IndexRange point_range, Mutab
 template<typename T>
 void swap_handle_attributes(MutableSpan<T> handles_left, MutableSpan<T> handles_right)
 {
+  BLI_assert(handles_left.size() == handles_right.size());
   threading::parallel_for(handles_left.index_range(), 8192, [&](const IndexRange range) {
     for (const int point : range) {
       std::swap(handles_left[point], handles_right[point]);
@@ -149,29 +150,26 @@ void reverse_points_of(bke::CurvesGeometry &dst_curves, const IndexRange points_
         points_to_reverse);
     MutableSpan<float3> handles_right = dst_curves.handle_positions_right_for_write().slice(
         points_to_reverse);
-    BLI_assert(handles_left.size() == handles_right.size());
     swap_handle_attributes<float3>(handles_left, handles_right);
   }
   if (attributes.contains(".selection_handle_left") &&
       attributes.contains(".selection_handle_right"))
   {
-    const MutableSpan<bool> selection_left = attributes
-                                                 .lookup_for_write_span<bool>(
-                                                     ".selection_handle_left")
-                                                 .span.slice(points_to_reverse);
-    const MutableSpan<bool> selection_right = attributes
-                                                  .lookup_for_write_span<bool>(
-                                                      ".selection_handle_right")
-                                                  .span.slice(points_to_reverse);
-    BLI_assert(selection_left.size() == selection_right.size());
+    bke::SpanAttributeWriter<bool> writer_left = attributes.lookup_for_write_span<bool>(
+        ".selection_handle_left");
+    bke::SpanAttributeWriter<bool> writer_right = attributes.lookup_for_write_span<bool>(
+        ".selection_handle_right");
+    const MutableSpan<bool> selection_left = writer_left.span.slice(points_to_reverse);
+    const MutableSpan<bool> selection_right = writer_right.span.slice(points_to_reverse);
     swap_handle_attributes<bool>(selection_left, selection_right);
+    writer_left.finish();
+    writer_right.finish();
   }
   if (attributes.contains("handle_type_left") && attributes.contains("handle_type_right")) {
     MutableSpan<int8_t> types_left = dst_curves.handle_types_left_for_write().slice(
         points_to_reverse);
     MutableSpan<int8_t> types_right = dst_curves.handle_types_right_for_write().slice(
         points_to_reverse);
-    BLI_assert(types_left.size() == types_right.size());
     swap_handle_attributes<int8_t>(types_left, types_right);
   }
 }
