@@ -1311,9 +1311,12 @@ typedef struct NodeColorBalance {
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
-  short limchan, unspill;
-  float limscale;
-  float uspillr, uspillg, uspillb;
+  short limchan;
+  short unspill DNA_DEPRECATED;
+  float limscale DNA_DEPRECATED;
+  float uspillr DNA_DEPRECATED;
+  float uspillg DNA_DEPRECATED;
+  float uspillb DNA_DEPRECATED;
 } NodeColorspill;
 
 typedef struct NodeConvertColorSpace {
@@ -1486,20 +1489,22 @@ typedef struct TexNodeOutput {
 
 typedef struct NodeKeyingScreenData {
   char tracking_object[64];
-  float smoothness;
+  float smoothness DNA_DEPRECATED;
 } NodeKeyingScreenData;
 
 typedef struct NodeKeyingData {
-  float screen_balance;
-  float despill_factor;
-  float despill_balance;
-  int edge_kernel_radius;
-  float edge_kernel_tolerance;
-  float clip_black, clip_white;
-  int dilate_distance;
-  int feather_distance;
+  float screen_balance DNA_DEPRECATED;
+  float despill_factor DNA_DEPRECATED;
+  float despill_balance DNA_DEPRECATED;
+  int edge_kernel_radius DNA_DEPRECATED;
+  float edge_kernel_tolerance DNA_DEPRECATED;
+  float clip_black DNA_DEPRECATED;
+  float clip_white DNA_DEPRECATED;
+  int dilate_distance DNA_DEPRECATED;
+  int feather_distance DNA_DEPRECATED;
   int feather_falloff;
-  int blur_pre, blur_post;
+  int blur_pre DNA_DEPRECATED;
+  int blur_post DNA_DEPRECATED;
 } NodeKeyingData;
 
 typedef struct NodeTrackPosData {
