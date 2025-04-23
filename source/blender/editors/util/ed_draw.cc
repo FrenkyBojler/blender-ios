@@ -1033,11 +1033,10 @@ void ED_region_image_render_region_draw(
 
   /* Darken the area outside the frame. */
   if (passepartout_alpha > 0) {
-    /* Using numeric_limity::max() instead of numeric_limits::inifinity(), because infinity causes
-     * issues when evaluating the vertex shader as it contains multiplications with infinity, which
-     * evaluate to NaNs, and therefore cause comparisons to fail.  */
-    constexpr float inf = std::numeric_limits<float>::max();
-    immUniformColor4f(0, 0, 0, passepartout_alpha);
+    /* Using a sufficiently large number instead of numeric_limits::infinity(), to avoid comparison
+     * issues and different behavior around large numbers on different platforms. */
+    constexpr float inf = 10e5;
+    immUniformColor4f(0.0f, 0.0f, 0.0f, passepartout_alpha);
     immRectf(pos, -inf, y2, inf, inf);
     immRectf(pos, -inf, y1, inf, -inf);
     immRectf(pos, -inf, y1, x1, y2);
