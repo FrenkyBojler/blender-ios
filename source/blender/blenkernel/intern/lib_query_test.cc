@@ -33,8 +33,6 @@
 
 #include "ED_node.hh"
 
-using namespace blender::bke::id;
-
 namespace blender::bke::tests {
 
 class TestData {
