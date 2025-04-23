@@ -244,10 +244,6 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
   const int line_height = BLF_height_max(fs->uifont_id);
   const int max_line_count = max_height / line_height;
 
-  /* Draw from bound-box top. */
-  yofs = max_height - line_height - BLF_descender(fs->uifont_id);
-  yofs = std::max(0, yofs);
-
   BLF_clipping(fs->uifont_id, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
   BLF_color4ubv(fs->uifont_id, col);
 
@@ -256,6 +252,13 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
       fs, str, str_buf, sizeof(str_buf), max_width, max_line_count);
 
   BLI_assert(lines.size() <= max_line_count);
+
+  /* Draw so that overal text is centered vertically. */
+  yofs = (max_height + lines.size() * line_height) / 2.0f - BLF_ascender(fs->uifont_id) -
+         /* Not sure substracting the descender is always wanted, gives best results where this is
+          * currently used. */
+         BLF_descender(fs->uifont_id) / 2.0f;
+  yofs = std::max(0, yofs);
 
   ResultBLF line_result = {0, 0};
   /* Draw each line with the given alignment. */
