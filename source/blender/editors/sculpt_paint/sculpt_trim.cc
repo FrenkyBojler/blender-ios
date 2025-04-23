@@ -126,7 +126,7 @@ static const EnumPropertyItem solver_items[] = {
 
 struct TrimOperation {
   gesture::Operation op;
-  wmOperator *wm_op;
+  ReportList *reports;
 
   /* Operation-generated geometry. */
   Mesh *mesh;
@@ -581,23 +581,21 @@ static void apply_trim(gesture::GestureData &gesture_data)
                                                  nullptr,
                                                  &error);
   if (error == geometry::boolean::BooleanError::NonManifold) {
-    BKE_report(trim_operation->wm_op->reports, RPT_ERROR, "Solver requires a manifold mesh");
+    BKE_report(trim_operation->reports, RPT_ERROR, "Solver requires a manifold mesh");
     return;
   }
   if (error == geometry::boolean::BooleanError::ResultTooBig) {
-    BKE_report(trim_operation->wm_op->reports,
-               RPT_ERROR,
-               "Boolean result is too big for solver to handle");
+    BKE_report(
+        trim_operation->reports, RPT_ERROR, "Boolean result is too big for solver to handle");
     return;
   }
   if (error == geometry::boolean::BooleanError::SolverNotAvailable) {
-    BKE_report(trim_operation->wm_op->reports,
-               RPT_ERROR,
-               "Boolean solver not available (compiled without it)");
+    BKE_report(
+        trim_operation->reports, RPT_ERROR, "Boolean solver not available (compiled without it)");
     return;
   }
   if (error == geometry::boolean::BooleanError::UnknownError) {
-    BKE_report(trim_operation->wm_op->reports, RPT_ERROR, "Unknown boolean error");
+    BKE_report(trim_operation->reports, RPT_ERROR, "Unknown boolean error");
     return;
   }
 
@@ -643,7 +641,7 @@ static void gesture_end(bContext & /*C*/, gesture::GestureData &gesture_data)
 static void init_operation(gesture::GestureData &gesture_data, wmOperator &op)
 {
   TrimOperation *trim_operation = (TrimOperation *)gesture_data.operation;
-  trim_operation->wm_op = &op;
+  trim_operation->reports = op.reports;
   trim_operation->op.begin = gesture_begin;
   trim_operation->op.apply_for_symmetry_pass = gesture_apply_for_symmetry_pass;
   trim_operation->op.end = gesture_end;
