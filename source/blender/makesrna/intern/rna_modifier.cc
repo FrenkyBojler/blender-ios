@@ -3524,18 +3524,18 @@ static void rna_def_modifier_boolean(BlenderRNA *brna)
       {eBooleanModifierSolver_Float,
        "FAST",
        0,
-       "Fast",
-       "Simple solver for the best performance, without support for overlapping geometry"},
+       "Float",
+       "Simple solver with good performance, without support for overlapping geometry"},
       {eBooleanModifierSolver_Mesh_Arr,
        "EXACT",
        0,
        "Exact",
-       "Advanced solver for the best result"},
+       "Slower solver with the best results for coplanar faces"},
       {eBooleanModifierSolver_Manifold,
        "MANIFOLD",
        0,
        "Manifold",
-       "Fast solver that works only on manifold meshes but gives better results"},
+       "Fastest solver that works only on manifold meshes but gives better results"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6400,16 +6400,16 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem geometry_items[] = {
-    {MOD_OCEAN_GEOM_GENERATE,
-     "GENERATE",
-     0,
-     "Generate",
-     "Generate ocean surface geometry at the specified resolution"},
-    {MOD_OCEAN_GEOM_DISPLACE,
-     "DISPLACE",
-     0,
-     "Displace",
-     "Displace existing geometry according to simulation"},
+      {MOD_OCEAN_GEOM_GENERATE,
+       "GENERATE",
+       0,
+       "Generate",
+       "Generate ocean surface geometry at the specified resolution"},
+      {MOD_OCEAN_GEOM_DISPLACE,
+       "DISPLACE",
+       0,
+       "Displace",
+       "Displace existing geometry according to simulation"},
 #  if 0
     {MOD_OCEAN_GEOM_SIM_ONLY,
      "SIM_ONLY",
@@ -6417,7 +6417,7 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
      "Sim Only",
      "Leaves geometry unchanged, but still runs simulation (to be used from texture)"},
 #  endif
-    {0, nullptr, 0, nullptr, nullptr},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem spectrum_items[] = {
@@ -7194,11 +7194,11 @@ static void rna_def_modifier_datatransfer(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem DT_layer_vert_items[] = {
-    {DT_TYPE_MDEFORMVERT,
-     "VGROUP_WEIGHTS",
-     0,
-     "Vertex Groups",
-     "Transfer active or all vertex groups"},
+      {DT_TYPE_MDEFORMVERT,
+       "VGROUP_WEIGHTS",
+       0,
+       "Vertex Groups",
+       "Transfer active or all vertex groups"},
 #  if 0 /* TODO */
     {DT_TYPE_SHAPEKEY, "SHAPEKEYS", 0, "Shapekey(s)", "Transfer active or all shape keys"},
 #  endif
@@ -7207,13 +7207,13 @@ static void rna_def_modifier_datatransfer(BlenderRNA *brna)
 #  if 0
     {DT_TYPE_SKIN, "SKIN", 0, "Skin Weight", "Transfer skin weights"},
 #  endif
-    {DT_TYPE_BWEIGHT_VERT, "BEVEL_WEIGHT_VERT", 0, "Bevel Weight", "Transfer bevel weights"},
-    {DT_TYPE_MPROPCOL_VERT | DT_TYPE_MLOOPCOL_VERT,
-     "COLOR_VERTEX",
-     0,
-     "Colors",
-     "Transfer color attributes"},
-    {0, nullptr, 0, nullptr, nullptr},
+      {DT_TYPE_BWEIGHT_VERT, "BEVEL_WEIGHT_VERT", 0, "Bevel Weight", "Transfer bevel weights"},
+      {DT_TYPE_MPROPCOL_VERT | DT_TYPE_MLOOPCOL_VERT,
+       "COLOR_VERTEX",
+       0,
+       "Colors",
+       "Transfer color attributes"},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem DT_layer_edge_items[] = {
