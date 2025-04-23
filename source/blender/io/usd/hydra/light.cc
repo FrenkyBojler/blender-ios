@@ -10,6 +10,8 @@
 
 #include "DNA_light_types.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "BLI_math_rotation.h"
 
 #include "hydra_scene_delegate.hh"
@@ -84,9 +86,28 @@ void LightData::init()
     intensity = light->energy / M_PI;
   }
 
+  pxr::GfVec3f color(light->r, light->g, light->b);
+  pxr::GfVec3f fake_color(1.0f, 1.0f, 1.0f);  // This color is used to multiply Temperature by 1 To enable Only Temperature
+
+  switch (light->color_mode) {
+    case LA_COLOR:
+      data_[pxr::HdLightTokens->enableColorTemperature] = false;
+      data_[pxr::HdLightTokens->color] = color;
+      break;
+    case LA_TEMPERATURE:
+      data_[pxr::HdLightTokens->enableColorTemperature] = true;
+      data_[pxr::HdLightTokens->color] = fake_color;  // We multiply the Temperature by 1
+      data_[pxr::HdLightTokens->colorTemperature] = light->temperature;
+      break;
+    case LA_BOTH:
+      data_[pxr::HdLightTokens->enableColorTemperature] = true;
+      data_[pxr::HdLightTokens->color] = color;
+      data_[pxr::HdLightTokens->colorTemperature] = light->temperature;
+      break;
+  }
+
   data_[pxr::HdLightTokens->intensity] = intensity;
   data_[pxr::HdLightTokens->exposure] = 0.0f;
-  data_[pxr::HdLightTokens->color] = pxr::GfVec3f(light->r, light->g, light->b);
   data_[pxr::HdLightTokens->diffuse] = light->diff_fac;
   data_[pxr::HdLightTokens->specular] = light->spec_fac;
   data_[pxr::HdLightTokens->normalize] = true;

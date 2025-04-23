@@ -89,8 +89,23 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
             layout.row().prop(light, "type")
 
         col = layout.column()
-        col.prop(light, "color")
+        col.prop(light, "color_mode")
+
+        if light.color_mode == "COLOR":
+            col.prop(light, "color")
+        elif light.color_mode == "TEMPERATURE":
+            row = layout.row(align=True)
+            row.prop(light, "temperature", text="Temperature")
+            row.prop(light, "temperature_color", text="")
+        else:
+            col.prop(light, "color")
+            row = layout.row(align=True)
+            row.prop(light, "temperature", text="Temperature")
+            row.prop(light, "temperature_color", text="")
+
+        col = layout.column()
         col.prop(light, "energy")
+        col.separator()
 
         col.separator()
 

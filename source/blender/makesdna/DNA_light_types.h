@@ -84,6 +84,12 @@ typedef struct Light {
   struct Ipo *ipo DNA_DEPRECATED; /* Old animation system. */
   float energy_deprecated DNA_DEPRECATED;
   float _pad2;
+
+  /* Temperature color. */
+  float temperature;
+  short use_temperature;
+  short color_mode;
+
 } Light;
 
 /* **************** LIGHT ********************* */
@@ -105,6 +111,13 @@ enum {
   LA_SPOT = 2,
   // LA_HEMI = 3, /* Deprecated. */
   LA_AREA = 4,
+};
+
+/** #Light::color_mode */
+enum {
+  LA_COLOR = 0,
+  LA_TEMPERATURE = 1,
+  LA_BOTH = 2,
 };
 
 /** #Light::mode */

@@ -92,6 +92,13 @@ FBX_LIGHT_TYPES = {
     'HEMI': 1,   # Directional.
     'AREA': 3,   # Area.
 }
+
+FBX_LIGHT_COLOR_MODE = {
+    'COLOR': 0,  # Color.
+    'TEMPERATURE': 1,    # Temperature.
+    'BOTH': 2,   # Both.
+}
+
 FBX_LIGHT_DECAY_TYPES = {
     'CONSTANT': 0,                   # None.
     'INVERSE_LINEAR': 1,             # Linear.

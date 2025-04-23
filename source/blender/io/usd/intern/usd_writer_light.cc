@@ -14,6 +14,8 @@
 #include "BLI_assert.h"
 #include "BLI_math_rotation.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "DNA_light_types.h"
 
 namespace blender::io::usd {
@@ -138,16 +140,53 @@ void USDLightWriter::do_write(HierarchyContext &context)
     intensity = light->energy / M_PI;
   }
 
+  pxr::GfVec3f color(light->r, light->g, light->b);
+  pxr::GfVec3f fake_color(1.0f, 1.0f, 1.0f);  // This color is used to multiply Temperature by 1 To enable Only Temperature
+
   set_attribute(usd_light_api.CreateIntensityAttr(pxr::VtValue(), true),
                 intensity,
                 timecode,
                 usd_value_writer_);
   set_attribute(
       usd_light_api.CreateExposureAttr(pxr::VtValue(), true), 0.0f, timecode, usd_value_writer_);
-  set_attribute(usd_light_api.CreateColorAttr(pxr::VtValue(), true),
-                pxr::GfVec3f(light->r, light->g, light->b),
-                timecode,
-                usd_value_writer_);
+
+  switch (light->color_mode) {
+    case LA_COLOR:
+      set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
+                    false,
+                    timecode,
+                    usd_value_writer_);
+      set_attribute(
+          usd_light_api.CreateColorAttr(pxr::VtValue(), true), color, timecode, usd_value_writer_);
+      break;
+    case LA_TEMPERATURE:
+      set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
+                    true,
+                    timecode,
+                    usd_value_writer_);
+      set_attribute(usd_light_api.CreateColorAttr(pxr::VtValue(), true),
+                    fake_color,
+                    timecode,
+                    usd_value_writer_);
+      set_attribute(usd_light_api.CreateColorTemperatureAttr(pxr::VtValue(), true),
+                    light->temperature,
+                    timecode,
+                    usd_value_writer_);
+      break;
+    case LA_BOTH:
+      set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
+                    true,
+                    timecode,
+                    usd_value_writer_);
+      set_attribute(
+          usd_light_api.CreateColorAttr(pxr::VtValue(), true), color, timecode, usd_value_writer_);
+      set_attribute(usd_light_api.CreateColorTemperatureAttr(pxr::VtValue(), true),
+                    light->temperature,
+                    timecode,
+                    usd_value_writer_);
+      break;
+  }
+
   set_attribute(usd_light_api.CreateDiffuseAttr(pxr::VtValue(), true),
                 light->diff_fac,
                 timecode,

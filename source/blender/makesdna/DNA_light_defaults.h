@@ -19,6 +19,9 @@
     .r = 1.0f, \
     .g = 1.0f, \
     .b = 1.0f, \
+    .color_mode = LA_COLOR, \
+    .use_temperature = 0, \
+    .temperature = 6500.0f, \
     .energy = 10.0f, \
     .energy_deprecated = 10.0f, \
     .spotsize = DEG2RADF(45.0f), \
