@@ -1,2 +1,3 @@
 Referenced by issue #131751, Crash when closing area from header menu using ASAN or Page Heap (`heap-use-after-free`)
 Referenced by issue #128406, Space Editor's Windows ain't perfectly round (regression)
+Referenced by issue #137855, UI: Some buttons are black when Blender has a secondary window and animation is playing
