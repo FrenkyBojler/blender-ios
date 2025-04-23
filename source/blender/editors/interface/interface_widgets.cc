@@ -1714,7 +1714,7 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
 
   /* Clip the middle of the middle line. */
   {
-    lines[middle_index].copy_utf8_truncated(clipped_str_buf, max_len_clipped_str_buf);
+    BLI_strncpy(clipped_str_buf, lines[middle_index].data(), max_len_clipped_str_buf);
     UI_text_clip_middle_ex(fstyle,
                            clipped_str_buf,
                            max_line_width,
@@ -1728,14 +1728,14 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
   /* All remaining lines should be completely filled, including the last one. So fill lines
    * backwards, and append them to #clipped_lines in the correct order afterwards. */
   if ((middle_index + 1) < max_lines) {
-    const char *last_segment = lines[middle_index + 1].data();
-    size_t remaining_len = strlen(last_segment);
+    const char *remaining = lines[middle_index + 1].data();
+    size_t remaining_len = strlen(remaining);
     std::list<StringRef> last_lines;
     for (int i = 0; i < max_lines - (middle_index + 1) && remaining_len; i++) {
       size_t offset = BLF_width_to_rstrlen(
-          fstyle->uifont_id, last_segment, remaining_len, max_line_width, nullptr);
+          fstyle->uifont_id, remaining, remaining_len, max_line_width, nullptr);
       size_t line_len = remaining_len - offset;
-      last_lines.emplace_front(last_segment + offset, int64_t(line_len));
+      last_lines.emplace_front(remaining + offset, int64_t(line_len));
       remaining_len = offset;
     }
 
