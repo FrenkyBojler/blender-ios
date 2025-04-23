@@ -437,8 +437,14 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
   }
   winx = std::max<float>(winx, 1);
   winy = std::max<float>(winy, 1);
+  if (v2d->oldwinx == 0) {
+    v2d->oldwinx = winx;
+  }
+  if (v2d->oldwiny == 0) {
+    v2d->oldwiny = winy;
+  }
 
-  /* V2D_LIMITZOOM indicates that zoom level should be preserved when the window size changes */
+  /* V2D_KEEPZOOM indicates that zoom level should be preserved when the window size changes. */
   if (resize && (v2d->keepzoom & V2D_KEEPZOOM)) {
     float zoom, oldzoom;
 
@@ -581,11 +587,11 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
         height = width * winRatio;
       }
     }
-
-    /* store region size for next time */
-    v2d->oldwinx = short(winx);
-    v2d->oldwiny = short(winy);
   }
+
+  /* Store region size for next time. */
+  v2d->oldwinx = short(winx);
+  v2d->oldwiny = short(winy);
 
   /* Step 2: apply new sizes to cur rect,
    * but need to take into account alignment settings here... */
@@ -2092,7 +2098,7 @@ void UI_view2d_text_cache_add(
 
     v2s->col.pack = *((const int *)col);
 
-    memset(&v2s->rect, 0, sizeof(v2s->rect));
+    v2s->rect = rcti{};
 
     v2s->mval[0] = mval[0];
     v2s->mval[1] = mval[1];

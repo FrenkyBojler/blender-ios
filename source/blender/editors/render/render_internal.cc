@@ -523,9 +523,9 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
   rr = RE_AcquireResultRead(rj->re);
 
   if (rr) {
-    /* malloc OK here, stats_draw is not in tile threads */
+    /* `malloc` is OK here, `stats_draw` is not in tile threads. */
     if (rr->text == nullptr) {
-      rr->text = static_cast<char *>(MEM_callocN(IMA_MAX_RENDER_TEXT_SIZE, "rendertext"));
+      rr->text = MEM_calloc_arrayN<char>(IMA_MAX_RENDER_TEXT_SIZE, "rendertext");
     }
 
     make_renderinfo_string(rs, rj->scene, rj->v3d_override, rr->error, rr->text);
