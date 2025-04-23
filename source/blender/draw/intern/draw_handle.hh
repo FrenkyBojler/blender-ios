@@ -87,7 +87,6 @@ struct ObjectRef {
   /** Unique handle per object ref. */
   ResourceHandleRange handle;
 
-  ObjectRef() = default;
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
   ObjectRef(Object *ob);
 
@@ -96,6 +95,9 @@ struct ObjectRef {
   {
     return dupli_object != nullptr;
   }
+
+ private:
+  ResourceHandle construct_handle();
 };
 
 };  // namespace blender::draw

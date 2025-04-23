@@ -654,8 +654,8 @@ ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
   this->dupli_parent = iter_data.dupli_parent;
   this->dupli_object = iter_data.dupli_object_current;
   this->object = ob;
-  /* Set by the first draw-call. */
-  this->handle = ResourceHandle(0);
+  /*TODO: Defer creation ?*/
+  this->handle = construct_handle();
 }
 
 ObjectRef::ObjectRef(Object *ob)
@@ -663,8 +663,24 @@ ObjectRef::ObjectRef(Object *ob)
   this->dupli_parent = nullptr;
   this->dupli_object = nullptr;
   this->object = ob;
-  /* Set by the first draw-call. */
-  this->handle = ResourceHandle(0);
+  /*TODO: Defer creation ?*/
+  this->handle = construct_handle();
+}
+
+ResourceHandle ObjectRef::construct_handle()
+{
+  const bool use_sculpt_pbvh = !drw_get().is_image_render() &&
+                               BKE_sculptsession_use_pbvh_draw(this->object, drw_get().rv3d);
+  if (use_sculpt_pbvh) {
+    return DRW_manager_get()->resource_handle_for_sculpt(*this);
+  }
+  else if (this->object->type == OB_CURVES) {
+    /* Skip frustum culling. */
+    return DRW_manager_get()->resource_handle(this->object->object_to_world());
+  }
+  else {
+    return DRW_manager_get()->resource_handle(*this);
+  }
 }
 
 }  // namespace blender::draw

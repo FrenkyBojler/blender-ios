@@ -163,56 +163,41 @@ class Instance : public DrawEngine {
                                    OB_VISIBLE_SELF) &&
                                   (ob->dt >= OB_SOLID || draw_ctx->is_scene_render());
 
-    FluidModifierData *fluid_modifier = nullptr;
     if (!(ob->base_flag & BASE_FROM_DUPLI)) {
       ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Fluid);
       if (md && BKE_modifier_is_enabled(scene_state_.scene, md, eModifierMode_Realtime)) {
-        fluid_modifier = reinterpret_cast<FluidModifierData *>(md);
-        if (fluid_modifier->domain && fluid_modifier->domain->type == FLUID_DOMAIN_TYPE_GAS) {
-          /* Do not draw solid in this case. */
-          is_object_data_visible = false;
+        FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
+        if (fmd->domain) {
+          volume_ps_.object_sync_modifier(resources_, scene_state_, ob_ref, fmd);
+          if (fmd->domain && fmd->domain->type == FLUID_DOMAIN_TYPE_GAS) {
+            /* Do not draw solid in this case. */
+            is_object_data_visible = false;
+          }
         }
       }
     }
 
     if (is_object_data_visible) {
       if (object_state.sculpt_pbvh) {
-        const Bounds<float3> bounds = bke::pbvh::bounds_get(
-            *bke::object::pbvh_get(*ob_ref.object));
-        const float3 center = math::midpoint(bounds.min, bounds.max);
-        const float3 half_extent = bounds.max - center;
-        ob_ref.handle = manager.resource_handle(ob_ref, nullptr, &center, &half_extent);
         this->sculpt_sync(ob_ref, object_state);
       }
       else if (ob->type == OB_MESH) {
-        ob_ref.handle = manager.resource_handle(ob_ref);
         this->mesh_sync(ob_ref, object_state);
       }
       else if (ob->type == OB_POINTCLOUD) {
-        ob_ref.handle = manager.resource_handle(ob_ref);
         this->pointcloud_sync(ob_ref, object_state);
       }
       else if (ob->type == OB_CURVES) {
-        /* Skip frustum culling. */
-        ob_ref.handle = manager.resource_handle(ob_ref.object->object_to_world());
         this->curves_sync(ob_ref, object_state);
       }
       else if (ob->type == OB_VOLUME) {
         if (scene_state_.shading.type != OB_WIRE) {
-          ob_ref.handle = manager.resource_handle(ob_ref);
           volume_ps_.object_sync_volume(resources_,
                                         scene_state_,
                                         ob_ref,
                                         get_material(ob_ref, object_state.color_type).base_color);
         }
       }
-    }
-
-    if (fluid_modifier && fluid_modifier->domain) {
-      if (!is_object_data_visible) {
-        ob_ref.handle = manager.resource_handle(ob_ref);
-      }
-      volume_ps_.object_sync_modifier(resources_, scene_state_, ob_ref, fluid_modifier);
     }
 
     if (ob->type == OB_MESH && ob->modifiers.first != nullptr) {
