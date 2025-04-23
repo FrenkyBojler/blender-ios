@@ -3207,6 +3207,8 @@ def km_sequencer_preview(params):
 
         # Transform Actions.
         *_template_items_transform_actions(params, use_mirror=True),
+        ("transform.translate", {"type": 'PERIOD', "ctrl": True, "value": 'PRESS'},
+         {"properties": [("translate_origins", True)]}),
 
         # Edit.
         ("sequencer.strip_transform_clear", {"type": 'G', "alt": True, "value": 'PRESS'},
@@ -5959,7 +5961,6 @@ def km_transform_modal_map(params):
         ("AUTOCONSTRAINPLANE", {"type": 'MIDDLEMOUSE', "value": 'ANY', "shift": True, **alt_without_navigaton}, None),
         ("PRECISION", {"type": 'LEFT_SHIFT', "value": 'ANY', "any": True}, None),
         ("PRECISION", {"type": 'RIGHT_SHIFT', "value": 'ANY', "any": True}, None),
-        ("ORIGIN", {"type": 'O', "value": 'PRESS'}, None),
     ])
 
     if params.use_alt_navigation:
