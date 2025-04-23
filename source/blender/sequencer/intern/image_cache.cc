@@ -637,9 +637,9 @@ void seq_cache_cleanup_sequence(Scene *scene,
     range_end = min_ii(range_end, range_end_seq);
   }
 
-  int invalidate_composite = invalidate_types & SEQ_CACHE_STORE_FINAL_OUT;
-  int invalidate_source = invalidate_types & (SEQ_CACHE_STORE_RAW | SEQ_CACHE_STORE_PREPROCESSED |
-                                              SEQ_CACHE_STORE_COMPOSITE);
+  int invalidate_composite = invalidate_types &
+                             SEQ_CACHE_STORE_FINAL_OUT;  //@TODO: confusing naming?
+  int invalidate_source = invalidate_types & SEQ_CACHE_STORE_RAW;
 
   GHashIterator gh_iter;
   BLI_ghashIterator_init(&gh_iter, cache->hash);

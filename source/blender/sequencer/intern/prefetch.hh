@@ -28,6 +28,6 @@ RenderData *seq_prefetch_get_original_context(const RenderData *context);
 /**
  * For cache context swapping.
  */
-Strip *seq_prefetch_get_original_sequence(Strip *strip, Scene *scene);
+Strip *seq_prefetch_get_original_sequence(const Strip *strip, Scene *scene);
 
 }  // namespace blender::seq

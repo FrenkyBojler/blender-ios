@@ -34,6 +34,7 @@ struct MediaPresence;
 struct ThumbnailCache;
 struct TextVarsRuntime;
 struct PrefetchJob;
+struct SourceImageCache;
 struct StripLookup;
 struct SeqCache;
 }  // namespace blender::seq
@@ -42,6 +43,7 @@ using MediaPresence = blender::seq::MediaPresence;
 using ThumbnailCache = blender::seq::ThumbnailCache;
 using TextVarsRuntime = blender::seq::TextVarsRuntime;
 using PrefetchJob = blender::seq::PrefetchJob;
+using SourceImageCache = blender::seq::SourceImageCache;
 using StripLookup = blender::seq::StripLookup;
 using SeqCache = blender::seq::SeqCache;
 #else
@@ -50,6 +52,7 @@ typedef struct MediaPresence MediaPresence;
 typedef struct ThumbnailCache ThumbnailCache;
 typedef struct TextVarsRuntime TextVarsRuntime;
 typedef struct PrefetchJob PrefetchJob;
+typedef struct SourceImageCache SourceImageCache;
 typedef struct StripLookup StripLookup;
 typedef struct SeqCache SeqCache;
 #endif
@@ -337,6 +340,8 @@ typedef struct EditingRuntime {
   MediaPresence *media_presence;
   ThumbnailCache *thumbnail_cache;
   IntraFrameCache *intra_frame_cache;
+  SourceImageCache *source_image_cache;
+  void *_pad0;
 } EditingRuntime;
 
 typedef struct Editing {
@@ -847,25 +852,14 @@ enum {
   SEQUENCE_MASK_TIME_ABSOLUTE = 1,
 };
 
-/**
- * #Strip.cache_flag
- * - #SEQ_CACHE_STORE_RAW
- * - #SEQ_CACHE_STORE_PREPROCESSED
- * - #SEQ_CACHE_STORE_COMPOSITE
- * - #FINAL_OUT is ignored
- *
- * #Editing.cache_flag
- * all entries
- */
 enum {
   SEQ_CACHE_STORE_RAW = (1 << 0),
-  SEQ_CACHE_STORE_PREPROCESSED = (1 << 1),
-  SEQ_CACHE_STORE_COMPOSITE = (1 << 2),
+  SEQ_CACHE_UNUSED_1 = (1 << 1), /* Was SEQ_CACHE_STORE_PREPROCESSED */
+  SEQ_CACHE_UNUSED_2 = (1 << 2), /* Was SEQ_CACHE_STORE_COMPOSITE */
   SEQ_CACHE_STORE_FINAL_OUT = (1 << 3),
 
   /* For lookup purposes */
-  SEQ_CACHE_ALL_TYPES = SEQ_CACHE_STORE_RAW | SEQ_CACHE_STORE_PREPROCESSED |
-                        SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT,
+  SEQ_CACHE_ALL_TYPES = SEQ_CACHE_STORE_RAW | SEQ_CACHE_STORE_FINAL_OUT,
 
   SEQ_CACHE_UNUSED_4 = (1 << 4), /* Was SEQ_CACHE_OVERRIDE */
   SEQ_CACHE_UNUSED_5 = (1 << 5),

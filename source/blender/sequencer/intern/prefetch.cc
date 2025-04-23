@@ -124,7 +124,7 @@ static bool seq_prefetch_job_is_waiting(Scene *scene)
   return pfjob->waiting;
 }
 
-static Strip *sequencer_prefetch_get_original_sequence(Strip *strip, ListBase *seqbase)
+static Strip *sequencer_prefetch_get_original_sequence(const Strip *strip, ListBase *seqbase)
 {
   LISTBASE_FOREACH (Strip *, seq_orig, seqbase) {
     if (STREQ(strip->name, seq_orig->name)) {
@@ -142,7 +142,7 @@ static Strip *sequencer_prefetch_get_original_sequence(Strip *strip, ListBase *s
   return nullptr;
 }
 
-Strip *seq_prefetch_get_original_sequence(Strip *strip, Scene *scene)
+Strip *seq_prefetch_get_original_sequence(const Strip *strip, Scene *scene)
 {
   Editing *ed = scene->ed;
   return sequencer_prefetch_get_original_sequence(strip, &ed->seqbase);
@@ -357,23 +357,17 @@ static bool seq_prefetch_seq_has_disk_cache(PrefetchJob *pfjob,
   RenderData *ctx = &pfjob->context_cpy;
   float cfra = seq_prefetch_cfra(pfjob);
 
-  ImBuf *ibuf = seq_cache_get(ctx, strip, cfra, SEQ_CACHE_STORE_PREPROCESSED);
-  if (ibuf != nullptr) {
-    IMB_freeImBuf(ibuf);
-    return true;
-  }
-
-  ibuf = seq_cache_get(ctx, strip, cfra, SEQ_CACHE_STORE_RAW);
-  if (ibuf != nullptr) {
-    IMB_freeImBuf(ibuf);
-    return true;
-  }
+  // ImBuf *ibuf = seq_cache_get(ctx, strip, cfra, SEQ_CACHE_STORE_RAW); //@TODO: what does this
+  // do? if (ibuf != nullptr) {
+  //   IMB_freeImBuf(ibuf);
+  //   return true;
+  // }
 
   if (!can_have_final_image) {
     return false;
   }
 
-  ibuf = seq_cache_get(ctx, strip, cfra, SEQ_CACHE_STORE_FINAL_OUT);
+  ImBuf *ibuf = seq_cache_get(ctx, strip, cfra, SEQ_CACHE_STORE_FINAL_OUT);
   if (ibuf != nullptr) {
     IMB_freeImBuf(ibuf);
     return true;
@@ -576,7 +570,7 @@ void seq_prefetch_start(const RenderData *context, float timeline_frame)
      * cache storage enabled, has strips to render, not rendering, not doing modal transform -
      * important, see D7820. */
     if ((ed->cache_flag & SEQ_CACHE_PREFETCH_ENABLE) && !running && !scrubbing && !playing &&
-        ed->cache_flag & SEQ_CACHE_ALL_TYPES && has_strips && !G.is_rendering && !G.moving)
+        (ed->cache_flag & SEQ_CACHE_ALL_TYPES) && has_strips && !G.is_rendering && !G.moving)
     {
       seq_prefetch_start_ex(context, timeline_frame);
     }

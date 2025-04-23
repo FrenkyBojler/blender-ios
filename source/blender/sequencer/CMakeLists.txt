@@ -75,6 +75,8 @@ set(SRC
   intern/render.hh
   intern/sequencer.cc
   intern/sequencer.hh
+  intern/source_image_cache.cc
+  intern/source_image_cache.hh
   intern/sound.cc
   intern/strip_add.cc
   intern/strip_connect.cc

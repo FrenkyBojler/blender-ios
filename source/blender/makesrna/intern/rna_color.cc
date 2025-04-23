@@ -69,6 +69,7 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 #  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_thumbnail_cache.hh"
+#  include "intern/source_image_cache.hh"  //@TODO
 
 struct SeqCurveMappingUpdateData {
   Scene *scene;
@@ -705,6 +706,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
         /* Scene colorspace was changed. */
         blender::seq::cache_cleanup(scene);
         blender::seq::thumbnail_cache_clear(scene);
+        blender::seq::source_image_cache_clear(scene);
       }
       else {
         /* Strip colorspace was likely changed. */

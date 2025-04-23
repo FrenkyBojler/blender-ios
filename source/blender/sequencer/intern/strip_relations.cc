@@ -34,6 +34,7 @@
 #include "image_cache.hh"
 #include "intra_frame_cache.hh"
 #include "sequencer.hh"
+#include "source_image_cache.hh"
 #include "utils.hh"
 
 namespace blender::seq {
@@ -86,11 +87,11 @@ static void sequence_do_invalidate_dependent(Scene *scene, Strip *strip, ListBas
       /* Effect must be invalidated completely if they depend on invalidated strip. */
       if ((cur->type & STRIP_TYPE_EFFECT) != 0) {
         seq_cache_cleanup_sequence(scene, cur, strip, SEQ_CACHE_ALL_TYPES, false);
+        seq::source_image_cache_invalidate_strip(scene, cur);
       }
       else {
         /* In case of alpha over for example only invalidate composite image */
-        seq_cache_cleanup_sequence(
-            scene, cur, strip, SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT, false);
+        seq_cache_cleanup_sequence(scene, cur, strip, SEQ_CACHE_STORE_FINAL_OUT, false);
       }
     }
 
@@ -145,17 +146,14 @@ void relations_invalidate_cache_in_range(Scene *scene,
 void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 {
   sequence_invalidate_cache(scene, strip, true, SEQ_CACHE_ALL_TYPES);
+  seq::source_image_cache_invalidate_strip(scene, strip);
   strip_relations_find_and_invalidate_metas(scene, strip);
   seq::invalidate_intra_frame_cache(scene, strip);
 }
 
 void relations_invalidate_cache_preprocessed(Scene *scene, Strip *strip)
 {
-  sequence_invalidate_cache(scene,
-                            strip,
-                            true,
-                            SEQ_CACHE_STORE_PREPROCESSED | SEQ_CACHE_STORE_COMPOSITE |
-                                SEQ_CACHE_STORE_FINAL_OUT);
+  sequence_invalidate_cache(scene, strip, true, SEQ_CACHE_STORE_FINAL_OUT);
   strip_relations_find_and_invalidate_metas(scene, strip);
   seq::invalidate_intra_frame_cache(scene, strip);
 }
@@ -166,8 +164,7 @@ void relations_invalidate_cache_composite(Scene *scene, Strip *strip)
     return;
   }
 
-  sequence_invalidate_cache(
-      scene, strip, true, SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT);
+  sequence_invalidate_cache(scene, strip, true, SEQ_CACHE_STORE_FINAL_OUT);
   strip_relations_find_and_invalidate_metas(scene, strip);
   seq::invalidate_intra_frame_cache(scene, strip);
 }
@@ -178,8 +175,7 @@ void relations_invalidate_dependent(Scene *scene, Strip *strip)
     return;
   }
 
-  sequence_invalidate_cache(
-      scene, strip, false, SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT);
+  sequence_invalidate_cache(scene, strip, false, SEQ_CACHE_STORE_FINAL_OUT);
   strip_relations_find_and_invalidate_metas(scene, strip);
   seq::invalidate_intra_frame_cache(scene, strip);
 }

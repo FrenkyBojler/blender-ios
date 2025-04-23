@@ -74,6 +74,7 @@
 #include "prefetch.hh"
 #include "proxy.hh"
 #include "render.hh"
+#include "source_image_cache.hh"
 #include "utils.hh"
 
 #include <algorithm>
@@ -713,7 +714,7 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
   const bool is_effect_with_inputs = (strip->type & STRIP_TYPE_EFFECT) != 0 &&
                                      effect_get_num_inputs(strip->type) != 0;
   if (!is_proxy_image && !is_effect_with_inputs) {
-    seq_cache_put(context, strip, timeline_frame, SEQ_CACHE_STORE_RAW, ibuf);
+    seq::source_image_cache_put(context, strip, timeline_frame, ibuf);
   }
 
   if (use_preprocess) {
@@ -1568,8 +1569,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
       }
 
       if (view_id != context->view_id) {
-        seq_cache_put(
-            &localcontext, strip, timeline_frame, SEQ_CACHE_STORE_RAW, ibufs_arr[view_id]);
+        seq::source_image_cache_put(&localcontext, strip, timeline_frame, ibufs_arr[view_id]);
       }
 
       RE_ReleaseResultImage(re);
@@ -1757,7 +1757,7 @@ ImBuf *seq_render_strip(const RenderData *context,
 
   /* Proxies are not stored in cache. */
   if (!can_use_proxy(context, strip, rendersize_to_proxysize(context->preview_render_size))) {
-    ibuf = seq_cache_get(context, strip, timeline_frame, SEQ_CACHE_STORE_RAW);
+    ibuf = seq::source_image_cache_get(context, strip, timeline_frame);
   }
 
   if (ibuf == nullptr) {
@@ -1901,7 +1901,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
 
       /* Check whether the raw (before preprocessing, which can add alpha) strip content
        * was opaque. */
-      ImBuf *ibuf_raw = seq_cache_get(context, strip, timeline_frame, SEQ_CACHE_STORE_RAW);
+      ImBuf *ibuf_raw = seq::source_image_cache_get(context, strip, timeline_frame);
       if (ibuf_raw != nullptr) {
         if (ibuf_raw->planes != R_IMF_PLANES_RGBA) {
           opaques.add_occluder(context, strip, i);

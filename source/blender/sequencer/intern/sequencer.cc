@@ -59,6 +59,7 @@
 #include "intra_frame_cache.hh"
 #include "prefetch.hh"
 #include "sequencer.hh"
+#include "source_image_cache.hh"
 #include "utils.hh"
 
 namespace blender::seq {
@@ -307,6 +308,7 @@ void editing_free(Scene *scene, const bool do_id_user)
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_destroy(scene);
   MEM_SAFE_DELETE(ed->runtime.intra_frame_cache);
+  blender::seq::source_image_cache_destroy(scene);
   channels_free(&ed->channels);
 
   MEM_freeN(ed);
