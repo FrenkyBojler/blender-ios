@@ -4143,7 +4143,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   if (incompatible_count != 0) {
     const char *target_type_name = "";
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target");
-    BLI_assert(prop != 0);
+    BLI_assert(prop != nullptr);
     RNA_property_enum_name(C, op->ptr, prop, target, &target_type_name);
     if (incompatible_count == selected_editable_bases.size()) {
       BKE_report(op->reports, RPT_INFO, "Object conversion: All objects failed to convert");
