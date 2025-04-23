@@ -31,12 +31,12 @@
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_movieclip_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
-#include "DNA_object_force_types.h"
 
 #include "DNA_defs.h"
 #include "DNA_genfile.h"
@@ -8855,12 +8855,12 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 47)) {
-        LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-          if (ob->soft) {
-            ob->soft->fuzzyness = max_ii(1, ob->soft->fuzzyness);
-          }
-        }
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->soft) {
+        ob->soft->fuzzyness = max_ii(1, ob->soft->fuzzyness);
       }
+    }
+  }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
