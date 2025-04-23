@@ -973,7 +973,7 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
                                       sizeof(float[2]));
       }
 
-      float (*v)[2] = (float (*)[2])data;
+      float(*v)[2] = (float(*)[2])data;
 
       immUniformColor4f(0.0f, 0.0f, 0.0f, 0.5f);
       GPU_line_width(3.0f);
@@ -1420,8 +1420,8 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   if (!ups.stroke_active) {
     pcontext.is_cursor_over_mesh = SCULPT_cursor_geometry_info_update(
         C, &gi, mval_fl, (pcontext.brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE), false);
-    copy_v3_v3(pcontext.location, gi.location);
-    copy_v3_v3(pcontext.normal, gi.normal);
+    pcontext.location = gi.location;
+    pcontext.normal = gi.normal;
   }
   else {
     pcontext.is_cursor_over_mesh = ups.last_hit;
