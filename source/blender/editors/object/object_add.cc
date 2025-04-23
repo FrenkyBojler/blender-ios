@@ -1404,6 +1404,10 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
       ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "LineArt");
       break;
     }
+    case GP_BEZIER_CIRCLE: {
+      ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "Bézier Circle");
+      break;
+    }
     default: {
       break;
     }
@@ -1434,6 +1438,21 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
       new_primitive_matrix(C, object, loc, rot, scale, mat.ptr());
 
       greasepencil::create_suzanne(*bmain, *object, mat, scene->r.cfra);
+      break;
+    }
+    case GP_BEZIER_CIRCLE:
+    {
+      const float  radius    = RNA_float_get(op->ptr, "radius");
+      const float3 scale(radius);
+    
+      float4x4 mat;
+      new_primitive_matrix(C, object, loc, rot, scale, mat.ptr());
+    
+      greasepencil::create_bezier_circle(*bmain,
+                                         *object,
+                                         mat,
+                                         scene->r.cfra,
+                                         radius);
       break;
     }
     case GREASE_PENCIL_LINEART_OBJECT:

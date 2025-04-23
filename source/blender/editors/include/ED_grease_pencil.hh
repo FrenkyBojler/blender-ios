@@ -435,6 +435,7 @@ IndexMask retrieve_editable_and_selected_elements(Object &object,
 void create_blank(Main &bmain, Object &object, int frame_number);
 void create_stroke(Main &bmain, Object &object, const float4x4 &matrix, int frame_number);
 void create_suzanne(Main &bmain, Object &object, const float4x4 &matrix, int frame_number);
+void create_bezier_circle(Main &bmain, Object &object, const float4x4 &matrix, int frame_number, float radius);
 
 /**
  * An implementation of the Ramer-Douglas-Peucker algorithm.

@@ -128,6 +128,7 @@ const EnumPropertyItem rna_enum_object_gpencil_type_items[] = {
     {GP_EMPTY, "EMPTY", ICON_EMPTY_AXIS, "Blank", "Create an empty Grease Pencil object"},
     {GP_STROKE, "STROKE", ICON_STROKE, "Stroke", "Create a simple stroke with basic colors"},
     {GP_MONKEY, "MONKEY", ICON_MONKEY, "Monkey", "Construct a Suzanne Grease Pencil object"},
+    {GP_BEZIER_CIRCLE, "BEZIER_CIRCLE", ICON_CURVE_BEZCIRCLE, "Bézier Circle","Create a Bézier circle Grease Pencil object"},
     RNA_ENUM_ITEM_SEPR,
     {GREASE_PENCIL_LINEART_SCENE,
      "LINEART_SCENE",

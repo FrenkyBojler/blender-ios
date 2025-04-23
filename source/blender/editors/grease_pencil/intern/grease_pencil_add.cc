@@ -18,6 +18,11 @@
 
 #include "ED_grease_pencil.hh"
 
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
+
 namespace blender::ed::greasepencil {
 
 struct ColorTemplate {
@@ -1281,4 +1286,89 @@ void create_suzanne(Main &bmain, Object &object, const float4x4 &matrix, const i
   drawing_fills.tag_topology_changed();
 }
 
+/* -------------------------------------------------------------------- */
+/*  Bézier Circle (Grease-Pencil)                                       */
+/* -------------------------------------------------------------------- */
+void create_bezier_circle(Main &bmain,
+                          Object &object,
+                          const blender::float4x4 &matrix,
+                          int frame_number,
+                          float radius)
+{
+    using namespace blender;
+    using namespace blender::bke;
+    using namespace blender::bke::greasepencil;
+
+  /* -------------------------------------------------------------- */
+  /*  Layers                                                        */
+  /* -------------------------------------------------------------- */
+  GreasePencil &gpd = *static_cast<GreasePencil *>(object.data);
+
+  Layer &layer_color = gpd.add_layer(DATA_("Color")); /* blank */
+  Layer &layer_lines = gpd.add_layer(DATA_("Lines"));
+  gpd.set_active_layer(&layer_lines);
+
+  gpd.insert_frame(layer_color, frame_number); /* empty frame */
+  Drawing &drawing = *gpd.insert_frame(layer_lines, frame_number);
+
+  /* -------------------------------------------------------------- */
+  /*  Material – single solid-black stroke                          */
+  /* -------------------------------------------------------------- */
+  const int material_index = add_material_from_template(bmain, object, gp_stroke_material_black);
+  object.actcol = material_index + 1;
+
+  /* -------------------------------------------------------------- */
+  /*  Geometry – 4-anchor Bézier circle in XZ plane                 */
+  /* -------------------------------------------------------------- */
+  constexpr int anchors = 4;
+  constexpr float k = 0.552284749831f; /* handle “magic” constant */
+
+  CurvesGeometry curves(anchors, 1);
+  curves.offsets_for_write().last() = anchors;
+  curves.cyclic_for_write().first() = true;
+  curves.fill_curve_types(CURVE_TYPE_BEZIER);
+
+  /* Anchor positions (XZ-plane) */
+  MutableSpan<float3> pos = curves.positions_for_write();
+  pos[0] = float3(0.0f, 0.0f, radius);  /* top    (+Z) */
+  pos[1] = float3(radius, 0.0f, 0.0f);  /* right  (+X) */
+  pos[2] = float3(0.0f, 0.0f, -radius); /* bottom (−Z) */
+  pos[3] = float3(-radius, 0.0f, 0.0f); /* left   (−X) */
+
+  /* Handle positions */
+  MutableSpan<float3> hdl_l = curves.handle_positions_left_for_write();
+  MutableSpan<float3> hdl_r = curves.handle_positions_right_for_write();
+
+  hdl_r[0] = pos[0] + float3(k * radius, 0.0f, 0.0f);
+  hdl_l[0] = pos[0] + float3(-k * radius, 0.0f, 0.0f);
+
+  hdl_r[1] = pos[1] + float3(0.0f, 0.0f, -k * radius);
+  hdl_l[1] = pos[1] + float3(0.0f, 0.0f, k * radius);
+
+  hdl_r[2] = pos[2] + float3(-k * radius, 0.0f, 0.0f);
+  hdl_l[2] = pos[2] + float3(k * radius, 0.0f, 0.0f);
+
+  hdl_r[3] = pos[3] + float3(0.0f, 0.0f, k * radius);
+  hdl_l[3] = pos[3] + float3(0.0f, 0.0f, -k * radius);
+
+  /* Transform into object space */
+  for (int i = 0; i < anchors; ++i) {
+    pos[i] = math::transform_point(matrix, pos[i]);
+    hdl_l[i] = math::transform_point(matrix, hdl_l[i]);
+    hdl_r[i] = math::transform_point(matrix, hdl_r[i]);
+  }
+
+  /* Assign material to the curve */
+  {
+    MutableAttributeAccessor attr = curves.attributes_for_write();
+    SpanAttributeWriter<int> mats = attr.lookup_or_add_for_write_span<int>("material_index",
+                                                                           AttrDomain::Curve);
+    mats.span.fill(material_index);
+    mats.finish();
+  }
+
+  drawing.strokes_for_write() = std::move(curves);
+  drawing.radii_for_write().fill(0.05f);
+  drawing.tag_topology_changed();
+}
 }  // namespace blender::ed::greasepencil

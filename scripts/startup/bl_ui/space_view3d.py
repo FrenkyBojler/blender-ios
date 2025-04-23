@@ -2616,6 +2616,7 @@ class VIEW3D_MT_grease_pencil_add(Menu):
         layout.operator("object.grease_pencil_add", text="Blank", icon='EMPTY_AXIS').type = 'EMPTY'
         layout.operator("object.grease_pencil_add", text="Stroke", icon='STROKE').type = 'STROKE'
         layout.operator("object.grease_pencil_add", text="Monkey", icon='MONKEY').type = 'MONKEY'
+        layout.operator("object.grease_pencil_add", text="Bézier Circle", icon='CURVE_BEZCIRCLE').type = 'BEZIER_CIRCLE'
         layout.separator()
         layout.operator("object.grease_pencil_add", text="Scene Line Art", icon='SCENE_DATA').type = 'LINEART_SCENE'
         layout.operator(
