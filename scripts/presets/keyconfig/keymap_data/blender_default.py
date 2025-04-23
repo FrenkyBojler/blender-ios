@@ -7052,6 +7052,7 @@ def km_image_editor_tool_mask_scale(params):
         ]},
     )
 
+
 def km_image_editor_tool_mask_transform(params):
     return (
         "Image Editor Tool: Mask, Transform",
