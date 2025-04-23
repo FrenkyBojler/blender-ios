@@ -422,6 +422,12 @@ static IDProperty **rna_BoneCollection_idprops(PointerRNA *ptr)
   return &bcoll->prop;
 }
 
+static IDProperty **rna_BoneCollection_system_idprops(PointerRNA *ptr)
+{
+  BoneCollection *bcoll = static_cast<BoneCollection *>(ptr->data);
+  return &bcoll->system_properties;
+}
+
 static void rna_BoneCollectionMemberships_clear(Bone *bone)
 {
   ANIM_armature_bonecoll_unassign_all(bone);
@@ -2341,6 +2347,7 @@ static void rna_def_bonecollection(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "BoneCollection", "Bone collection in an Armature data-block");
   RNA_def_struct_path_func(srna, "rna_BoneCollection_path");
   RNA_def_struct_idprops_func(srna, "rna_BoneCollection_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_BoneCollection_system_idprops", true);
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "name");
