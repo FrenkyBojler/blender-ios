@@ -36,6 +36,7 @@
 #include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
+#include "DNA_object_force_types.h"
 
 #include "DNA_defs.h"
 #include "DNA_genfile.h"
@@ -8832,6 +8833,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 46)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->soft) {
+        ob->soft->fuzzyness = max_ii(1, ob->soft->fuzzyness);
+      }
+    }
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
