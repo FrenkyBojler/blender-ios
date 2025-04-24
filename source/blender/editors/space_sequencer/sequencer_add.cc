@@ -794,7 +794,11 @@ static void sequencer_add_init(bContext * /*C*/, wmOperator *op)
 
 static void sequencer_add_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_SAFE_FREE(op->customdata);
+  if (op->customdata) {
+    SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
+    MEM_freeN(sad);
+    op->customdata = nullptr;
+  }
 }
 
 static bool sequencer_add_draw_check_fn(PointerRNA * /*ptr*/,
@@ -1038,17 +1042,17 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "View transform was automatically converted from %s to %s",
-                vt_old,
-                scene->view_settings.view_transform);
+                "View transform set to %s (converted from %s)",
+                scene->view_settings.view_transform,
+                vt_old);
   }
 
   if (fps_old != scene->r.frs_sec / scene->r.frs_sec_base) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "Scene frame rate was automatically converted from %.4g to %.4g",
-                fps_old,
-                scene->r.frs_sec / scene->r.frs_sec_base);
+                "Scene frame rate set to %.4g (converted from %.4g)",
+                scene->r.frs_sec / scene->r.frs_sec_base,
+                fps_old);
   }
 
   if (movie_strips.is_empty()) {
@@ -1222,13 +1226,12 @@ static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *
   }
   else {
     if (!sequencer_add_sound_single_strip(C, op, &load_data)) {
+      sequencer_add_cancel(C, op);
       return OPERATOR_CANCELLED;
     }
   }
 
-  if (op->customdata) {
-    MEM_freeN(op->customdata);
-  }
+  sequencer_add_cancel(C, op);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -1417,9 +1420,9 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "View transform was automatically converted from %s to %s",
-                vt_old,
-                scene->view_settings.view_transform);
+                "View transform set to %s (converted from %s)",
+                scene->view_settings.view_transform,
+                vt_old);
   }
 
   sequencer_add_image_strip_load_files(op, scene, strip, &load_data, minframe, numdigits);
@@ -1510,22 +1513,26 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_ensure(scene);
-  const char *error_msg;
 
   seq::LoadData load_data;
   load_data_init_from_operator(&load_data, C, op);
   load_data.effect.type = RNA_enum_get(op->ptr, "type");
   const int num_inputs = seq::effect_get_num_inputs(load_data.effect.type);
 
-  Strip *seq1, *seq2;
-  if (!strip_effect_get_new_inputs(scene, false, num_inputs, &seq1, &seq2, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  VectorSet<Strip *> inputs = strip_effect_get_new_inputs(scene);
+  StringRef error_msg = effect_inputs_validate(inputs, num_inputs);
+
+  if (!error_msg.is_empty()) {
+    BKE_report(op->reports, RPT_ERROR, error_msg.data());
     return OPERATOR_CANCELLED;
   }
 
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
     deselect_all_strips(scene);
   }
+
+  Strip *seq1 = inputs.size() > 0 ? inputs[0] : nullptr;
+  Strip *seq2 = inputs.size() == 2 ? inputs[1] : nullptr;
 
   load_data.effect.seq1 = seq1;
   load_data.effect.seq2 = seq2;

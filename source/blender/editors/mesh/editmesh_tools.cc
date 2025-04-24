@@ -553,7 +553,7 @@ void MESH_OT_delete(wmOperatorType *ot)
                           MESH_DELETE_VERT,
                           "Type",
                           "Method used for deleting mesh data");
-  RNA_def_property_flag(ot->prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(ot->prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -1092,7 +1092,7 @@ void MESH_OT_mark_seam(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   prop = RNA_def_boolean(ot->srna, "clear", false, "Clear", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   WM_operatortype_props_advanced_begin(ot);
 }
@@ -1164,7 +1164,7 @@ void MESH_OT_mark_sharp(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   prop = RNA_def_boolean(ot->srna, "clear", false, "Clear", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
       ot->srna,
       "use_verts",
@@ -1196,7 +1196,7 @@ static bool edbm_connect_vert_pair(BMEditMesh *em, Mesh *mesh, wmOperator *op)
     return false;
   }
 
-  BMVert **verts = static_cast<BMVert **>(MEM_mallocN(sizeof(*verts) * verts_len, __func__));
+  BMVert **verts = MEM_malloc_arrayN<BMVert *>(verts_len, __func__);
   {
     BMIter iter;
     BMVert *v;
@@ -3962,7 +3962,7 @@ void MESH_OT_blend_from_shape(wmOperatorType *ot)
   prop = RNA_def_enum(
       ot->srna, "shape", rna_enum_dummy_NULL_items, 0, "Shape", "Shape key to use for blending");
   RNA_def_enum_funcs(prop, shape_itemf);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_ENUM_NO_TRANSLATE | PROP_NEVER_UNLINK));
+  RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE | PROP_NEVER_UNLINK);
   RNA_def_float(ot->srna, "blend", 1.0f, -1e3f, 1e3f, "Blend", "Blending factor", -2.0f, 2.0f);
   RNA_def_boolean(ot->srna, "add", true, "Add", "Add rather than blend between shapes");
 }
@@ -4231,8 +4231,8 @@ static void mesh_separate_material_assign_mat_nr(Main *bmain, Object *ob, const 
     }
 
     BKE_id_material_clear(bmain, obdata);
-    BKE_object_material_resize(bmain, ob, 1, true);
     BKE_id_material_resize(bmain, obdata, 1, true);
+    BKE_objects_materials_sync_length_all(bmain, obdata);
 
     ob->mat[0] = ma_ob;
     id_us_plus((ID *)ma_ob);
@@ -4242,8 +4242,6 @@ static void mesh_separate_material_assign_mat_nr(Main *bmain, Object *ob, const 
   }
   else {
     BKE_id_material_clear(bmain, obdata);
-    BKE_object_material_resize(bmain, ob, 0, true);
-    BKE_id_material_resize(bmain, obdata, 0, true);
   }
 }
 
@@ -4654,7 +4652,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
   }
   const int verts_len = BM_edgeloop_length_get(el_store);
   const int edges_len = verts_len - (BM_edgeloop_is_closed(el_store) ? 0 : 1);
-  BMEdge **edges = static_cast<BMEdge **>(MEM_mallocN(sizeof(*edges) * edges_len, __func__));
+  BMEdge **edges = MEM_malloc_arrayN<BMEdge *>(edges_len, __func__);
   BM_edgeloop_edges_get(el_store, edges);
   for (int i = 0; i < edges_len; i++) {
     BM_elem_flag_enable(edges[i], BM_ELEM_TAG);
@@ -4717,8 +4715,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
        *
        * NOTE: we may have already checked 'edbm_fill_grid_vert_tag_angle()' on each
        * vert, but advantage of de-duplicating is minimal. */
-      SortPtrByFloat *ele_sort = static_cast<SortPtrByFloat *>(
-          MEM_mallocN(sizeof(*ele_sort) * verts_len, __func__));
+      SortPtrByFloat *ele_sort = MEM_malloc_arrayN<SortPtrByFloat>(verts_len, __func__);
       LinkData *v_link;
       for (v_link = static_cast<LinkData *>(verts->first), i = 0; v_link;
            v_link = v_link->next, i++)
@@ -4729,7 +4726,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
         ele_sort[i].data = v_link;
 
         /* Do not allow the best corner or the diagonally opposite corner to be detected.*/
-        if (i == 0 || i == verts_len / 2) {
+        if (ELEM(i, 0, verts_len / 2)) {
           ele_sort[i].sort_value = 0;
         }
       }
@@ -5627,7 +5624,7 @@ static wmOperatorStatus edbm_decimate_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    float *vweights = static_cast<float *>(MEM_mallocN(sizeof(*vweights) * bm->totvert, __func__));
+    float *vweights = MEM_malloc_arrayN<float>(bm->totvert, __func__);
     {
       const int cd_dvert_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
       const int defbase_act = BKE_object_defgroup_active_index_get(obedit) - 1;
@@ -6493,9 +6490,8 @@ static void sort_bmelem_flag(bContext *C,
     mul_m4_m4m4(mat, rv3d->viewmat, ob->object_to_world().ptr());
 
     if (totelem[0]) {
-      pb = pblock[0] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[0], __func__));
-      sb = sblock[0] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[0], __func__));
+      pb = pblock[0] = MEM_calloc_arrayN<char>(totelem[0], __func__);
+      sb = sblock[0] = MEM_calloc_arrayN<BMElemSort>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6513,9 +6509,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[1]) {
-      pb = pblock[1] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[1], __func__));
-      sb = sblock[1] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[1], __func__));
+      pb = pblock[1] = MEM_calloc_arrayN<char>(totelem[1], __func__);
+      sb = sblock[1] = MEM_calloc_arrayN<BMElemSort>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6534,9 +6529,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[2]) {
-      pb = pblock[2] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[2], __func__));
-      sb = sblock[2] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[2], __func__));
+      pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
+      sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6566,9 +6560,8 @@ static void sort_bmelem_flag(bContext *C,
     mul_m4_v3(mat, cur);
 
     if (totelem[0]) {
-      pb = pblock[0] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[0], __func__));
-      sb = sblock[0] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[0], __func__));
+      pb = pblock[0] = MEM_calloc_arrayN<char>(totelem[0], __func__);
+      sb = sblock[0] = MEM_calloc_arrayN<BMElemSort>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6583,9 +6576,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[1]) {
-      pb = pblock[1] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[1], __func__));
-      sb = sblock[1] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[1], __func__));
+      pb = pblock[1] = MEM_calloc_arrayN<char>(totelem[1], __func__);
+      sb = sblock[1] = MEM_calloc_arrayN<BMElemSort>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6603,9 +6595,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[2]) {
-      pb = pblock[2] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[2], __func__));
-      sb = sblock[2] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[2], __func__));
+      pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
+      sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6625,9 +6616,8 @@ static void sort_bmelem_flag(bContext *C,
 
   /* Faces only! */
   else if (action == SRT_MATERIAL && totelem[2]) {
-    pb = pblock[2] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[2], __func__));
-    sb = sblock[2] = static_cast<BMElemSort *>(
-        MEM_callocN(sizeof(BMElemSort) * totelem[2], __func__));
+    pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
+    sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
 
     BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
       if (BM_elem_flag_test(fa, flag)) {
@@ -6651,8 +6641,8 @@ static void sort_bmelem_flag(bContext *C,
     uint *tbuf[3] = {nullptr, nullptr, nullptr}, *tb;
 
     if (totelem[0]) {
-      tb = tbuf[0] = static_cast<uint *>(MEM_callocN(sizeof(int) * totelem[0], __func__));
-      mp = map[0] = static_cast<uint *>(MEM_callocN(sizeof(int) * totelem[0], __func__));
+      tb = tbuf[0] = MEM_calloc_arrayN<uint>(totelem[0], __func__);
+      mp = map[0] = MEM_calloc_arrayN<uint>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6666,8 +6656,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[1]) {
-      tb = tbuf[1] = static_cast<uint *>(MEM_callocN(sizeof(int) * totelem[1], __func__));
-      mp = map[1] = static_cast<uint *>(MEM_callocN(sizeof(int) * totelem[1], __func__));
+      tb = tbuf[1] = MEM_calloc_arrayN<uint>(totelem[1], __func__);
+      mp = map[1] = MEM_calloc_arrayN<uint>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6681,8 +6671,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[2]) {
-      tb = tbuf[2] = static_cast<uint *>(MEM_callocN(sizeof(int) * totelem[2], __func__));
-      mp = map[2] = static_cast<uint *>(MEM_callocN(sizeof(int) * totelem[2], __func__));
+      tb = tbuf[2] = MEM_calloc_arrayN<uint>(totelem[2], __func__);
+      mp = map[2] = MEM_calloc_arrayN<uint>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6732,9 +6722,8 @@ static void sort_bmelem_flag(bContext *C,
       /* Re-init random generator for each element type, to get consistent random when
        * enabling/disabling an element type. */
       RNG *rng = BLI_rng_new_srandom(seed);
-      pb = pblock[0] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[0], __func__));
-      sb = sblock[0] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[0], __func__));
+      pb = pblock[0] = MEM_calloc_arrayN<char>(totelem[0], __func__);
+      sb = sblock[0] = MEM_calloc_arrayN<BMElemSort>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6752,9 +6741,8 @@ static void sort_bmelem_flag(bContext *C,
 
     if (totelem[1]) {
       RNG *rng = BLI_rng_new_srandom(seed);
-      pb = pblock[1] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[1], __func__));
-      sb = sblock[1] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[1], __func__));
+      pb = pblock[1] = MEM_calloc_arrayN<char>(totelem[1], __func__);
+      sb = sblock[1] = MEM_calloc_arrayN<BMElemSort>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6772,9 +6760,8 @@ static void sort_bmelem_flag(bContext *C,
 
     if (totelem[2]) {
       RNG *rng = BLI_rng_new_srandom(seed);
-      pb = pblock[2] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[2], __func__));
-      sb = sblock[2] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[2], __func__));
+      pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
+      sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6793,9 +6780,8 @@ static void sort_bmelem_flag(bContext *C,
 
   else if (action == SRT_REVERSE) {
     if (totelem[0]) {
-      pb = pblock[0] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[0], __func__));
-      sb = sblock[0] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[0], __func__));
+      pb = pblock[0] = MEM_calloc_arrayN<char>(totelem[0], __func__);
+      sb = sblock[0] = MEM_calloc_arrayN<BMElemSort>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6810,9 +6796,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[1]) {
-      pb = pblock[1] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[1], __func__));
-      sb = sblock[1] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[1], __func__));
+      pb = pblock[1] = MEM_calloc_arrayN<char>(totelem[1], __func__);
+      sb = sblock[1] = MEM_calloc_arrayN<BMElemSort>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6827,9 +6812,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[2]) {
-      pb = pblock[2] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[2], __func__));
-      sb = sblock[2] = static_cast<BMElemSort *>(
-          MEM_callocN(sizeof(BMElemSort) * totelem[2], __func__));
+      pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
+      sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6874,7 +6858,7 @@ static void sort_bmelem_flag(bContext *C,
 
       qsort(sb, aff, sizeof(BMElemSort), bmelemsort_comp);
 
-      mp = map[j] = static_cast<uint *>(MEM_mallocN(sizeof(int) * tot, __func__));
+      mp = map[j] = MEM_malloc_arrayN<uint>(tot, __func__);
       p_blk = pb + tot - 1;
       s_blk = sb + aff - 1;
       for (i = tot; i--; p_blk--) {
@@ -7802,7 +7786,7 @@ static wmOperatorStatus mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
     totobjects++;
 
     /* Only allocate memory after checking whether to skip object. */
-    int *index = static_cast<int *>(MEM_mallocN(bm->totvert * sizeof(*index), __func__));
+    int *index = MEM_malloc_arrayN<int>(bm->totvert, __func__);
 
     /* Vertex iter. */
     BMIter iter;
@@ -8017,7 +8001,7 @@ void MESH_OT_mark_freestyle_edge(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   prop = RNA_def_boolean(ot->srna, "clear", false, "Clear", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -8095,7 +8079,7 @@ void MESH_OT_mark_freestyle_face(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   prop = RNA_def_boolean(ot->srna, "clear", false, "Clear", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -9700,7 +9684,7 @@ static wmOperatorStatus edbm_mod_weighted_strength_exec(bContext *C, wmOperator 
     }
     else {
       BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-        int *strength = static_cast<int *>(BM_ELEM_CD_GET_VOID_P(f, cd_prop_int_offset));
+        const int *strength = static_cast<int *>(BM_ELEM_CD_GET_VOID_P(f, cd_prop_int_offset));
         if (*strength == face_strength) {
           BM_face_select_set(bm, f, true);
           BM_select_history_store(bm, f);

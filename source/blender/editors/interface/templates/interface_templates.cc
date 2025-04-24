@@ -40,7 +40,7 @@ int template_search_textbut_width(PointerRNA *ptr, PropertyRNA *name_prop)
   const int estimated_width = UI_fontstyle_string_width(fstyle, name) + margin;
 
   if (name != str) {
-    MEM_freeN((void *)name);
+    MEM_freeN(name);
   }
 
   /* Clamp to some min/max width. */
@@ -53,9 +53,6 @@ int template_search_textbut_height()
   return TEMPLATE_SEARCH_TEXTBUT_HEIGHT;
 }
 
-/**
- * Add a block button for the search menu for templateID and templateSearch.
- */
 void template_add_button_search_menu(const bContext *C,
                                      uiLayout *layout,
                                      uiBlock *block,
@@ -172,7 +169,7 @@ uiBlock *template_common_search_menu(const bContext *C,
   /* clear initial search string, then all items show */
   search[0] = 0;
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 

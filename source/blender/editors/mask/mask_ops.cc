@@ -267,7 +267,7 @@ static bool spline_under_mouse_get(const bContext *C,
   *r_mask_spline = nullptr;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   int width, height;
   ED_mask_get_size(area, &width, &height);
@@ -906,6 +906,9 @@ static wmOperatorStatus slide_point_modal(bContext *C, wmOperator *op, const wmE
 
       free_slide_point_data(data); /* keep this last! */
       return OPERATOR_CANCELLED;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1305,6 +1308,9 @@ static wmOperatorStatus slide_spline_curvature_modal(bContext *C,
 
       free_slide_spline_curvature_data(slide_data); /* keep this last! */
       return OPERATOR_CANCELLED;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;

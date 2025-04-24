@@ -255,6 +255,9 @@ static wmOperatorStatus snode_bg_viewmove_modal(bContext *C, wmOperator *op, con
       op->customdata = nullptr;
 
       return OPERATOR_CANCELLED;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -303,7 +306,8 @@ static wmOperatorStatus snode_bg_viewmove_invoke(bContext *C, wmOperator *op, co
 
 static void snode_bg_viewmove_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  NodeViewMove *nvm = (NodeViewMove *)op->customdata;
+  MEM_freeN(nvm);
   op->customdata = nullptr;
 }
 
@@ -687,6 +691,9 @@ static wmOperatorStatus sample_modal(bContext *C, wmOperator *op, const wmEvent 
     case MOUSEMOVE:
       sample_apply(C, op, event);
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;

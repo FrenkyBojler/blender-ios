@@ -9,7 +9,7 @@ This script generates a graphic of Blender's code layout:
 ./blender.bin -b --factory-startup --python ./tools/utils_doc/code_layout_diagram.py
 """
 # This is an update to the historic: https://download.blender.org/ftp/ideasman42/pics/code_layout_historic.jpg
-# Originally located ar: `www.blender.org/bf/codelayout.jpg` (now broken).
+# Originally located at: `www.blender.org/bf/codelayout.jpg` (now broken).
 
 __all__ = (
     "main",
@@ -392,7 +392,7 @@ def _function_id() -> str:
     '''
     Create a string naming the function n frames up on the stack.
     '''
-    import sys
+    # pylint: disable-next=protected-access
     co = sys._getframe(1).f_code
     return '{:s}:{:d}:'.format(co.co_name, co.co_firstlineno)
 
@@ -851,7 +851,7 @@ def draw_legend(scene, *, step_y, legend_data, text):
     )
 
     # Draw text.
-    box_dir, box_dir_ob = draw_text_left(
+    box_dir, _box_dir_ob = draw_text_left(
         scene,
         # First get the bounds.
         location=(x_left + 0.25, step_y - 0.175),
@@ -1010,10 +1010,10 @@ def validate_sections():
         if "{platform}" in source_code_base:
             source_code_base = source_code_base.replace("{platform}", this_platform)
 
-        dirs_fs = set([
+        dirs_fs = {
             e.name for e in os.scandir(os.path.join(ROOT_DIR, source_code_base))
             if e.is_dir()
-        ])
+        }
 
         for section in sections:
             for dir_docs, _ in section.source_code_dirs:
@@ -1091,7 +1091,7 @@ def main():
     scene = bpy.context.scene
     scene.render.engine = 'BLENDER_EEVEE_NEXT'
 
-    # Without this, the whites are grey.
+    # Without this, the whites are gray.
     scene.view_settings.view_transform = "Standard"
 
     sub_section_gap_y = 0.1

@@ -288,8 +288,16 @@ void MESH_OT_intersect(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem isect_intersect_solver_items[] = {
-      {ISECT_SOLVER_FAST, "FAST", 0, "Fast", "Faster solver, some limitations"},
-      {ISECT_SOLVER_EXACT, "EXACT", 0, "Exact", "Exact solver, slower, handles more cases"},
+      {ISECT_SOLVER_FAST,
+       "FAST",
+       0,
+       "Float",
+       "Simple solver with good performance, without support for overlapping geometry"},
+      {ISECT_SOLVER_EXACT,
+       "EXACT",
+       0,
+       "Exact",
+       "Slower solver with the best results for coplanar faces"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -652,7 +660,12 @@ static void bm_face_split_by_edges_island_connect(
       BMFace *f_pair[2];
       if (BM_edge_face_pair(edge_arr[i], &f_pair[0], &f_pair[1])) {
         if (BM_face_share_vert_count(f_pair[0], f_pair[1]) == 2) {
-          BMFace *f_new = BM_faces_join(bm, f_pair, 2, true);
+          BMFace *f_double;
+          BMFace *f_new = BM_faces_join(bm, f_pair, 2, true, &f_double);
+          /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+          BLI_assert_msg(f_double == nullptr,
+                         "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
           if (f_new) {
             BM_face_select_set(bm, f_new, true);
           }
