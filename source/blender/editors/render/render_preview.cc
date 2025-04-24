@@ -1020,8 +1020,8 @@ static void action_preview_render(IconPreview *preview, IconPreviewSize *preview
 
   Depsgraph *depsgraph = preview->depsgraph;
   /* Not all code paths that lead to this function actually provide a depsgraph.
-   * The "Refresh Asset Preview" button (ED_OT_lib_id_generate_preview) does,
-   * but WM_OT_previews_ensure does not. */
+   * The "Refresh Asset Preview" button (#ED_OT_lib_id_generate_preview) does,
+   * but #WM_OT_previews_ensure does not. */
   BLI_assert(depsgraph != nullptr);
   BLI_assert(preview->scene == DEG_get_input_scene(depsgraph));
 
@@ -1106,8 +1106,7 @@ static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene *sce, Rend
   RenderView *rv = (RenderView *)rr->views.first;
   ImBuf *rv_ibuf = RE_RenderViewEnsureImBuf(rr, rv);
   IMB_assign_float_buffer(rv_ibuf,
-                          static_cast<float *>(MEM_callocN(sizeof(float[4]) * width * height,
-                                                           "texture render result")),
+                          MEM_calloc_arrayN<float>(4 * width * height, "texture render result"),
                           IB_TAKE_OWNERSHIP);
   RE_ReleaseResult(re);
 
@@ -2168,6 +2167,14 @@ void ED_preview_kill_jobs(wmWindowManager *wm, Main * /*bmain*/)
     /* This is called to stop all preview jobs before scene data changes, to
      * avoid invalid memory access. */
     WM_jobs_kill_type(wm, nullptr, WM_JOB_TYPE_RENDER_PREVIEW);
+  }
+}
+
+void ED_preview_kill_jobs_for_id(wmWindowManager *wm, const ID *id)
+{
+  const PreviewImage *preview = BKE_previewimg_id_get(id);
+  if (wm && preview) {
+    WM_jobs_kill_type(wm, preview, WM_JOB_TYPE_RENDER_PREVIEW);
   }
 }
 
