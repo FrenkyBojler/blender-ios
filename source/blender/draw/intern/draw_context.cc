@@ -680,13 +680,8 @@ ResourceHandle ObjectRef::construct_handle()
   if (use_sculpt_pbvh) {
     return this->manager->resource_handle_for_sculpt(*this);
   }
-  else if (ELEM(this->object_->type, OB_CURVES, OB_CURVES_LEGACY)) {
-    /* Skip frustum culling. */
-    return this->manager->resource_handle(this->object_->object_to_world());
-  }
-  else {
-    return this->manager->resource_handle(*this);
-  }
+
+  return this->manager->resource_handle(*this);
 }
 
 }  // namespace blender::draw
