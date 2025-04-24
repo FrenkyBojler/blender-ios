@@ -265,14 +265,14 @@ static void calculate_depth(gesture::GestureData &gesture_data,
                     trim_operation->initial_location);
         break;
       case LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_VOLUME:
-        float center_co[3];
+        blender::float3 center_co;
         mid_v3_v3v3(center_co, trim_operation->initial_location, trim_operation->back_location);
         mul_v3_m4v3(world_space_gesture_initial_location, object_to_world.ptr(), center_co);
         break;
     }
 
     float mid_point_depth;
-    if (trim_operation->orientation == OrientationType::View || trim_operation->back_hit) {
+    if (trim_operation->orientation == OrientationType::View) {
       mid_point_depth = trim_operation->initial_hit ?
                             dist_signed_to_plane_v3(world_space_gesture_initial_location,
                                                     shape_plane) :
@@ -830,14 +830,13 @@ static void initialize_cursor_info(bContext &C,
   const float mval_fl[2] = {float(mval[0]), float(mval[1])};
 
   TrimOperation *trim_operation = (TrimOperation *)gesture_data.operation;
-  trim_operation->initial_hit = SCULPT_cursor_geometry_info_update(&C, &sgi, mval_fl, false, true);
+  trim_operation->initial_hit = SCULPT_cursor_geometry_info_update(&C, &sgi, mval_fl, false);
   if (trim_operation->initial_hit) {
     copy_v3_v3(trim_operation->initial_location, sgi.location);
     copy_v3_v3(trim_operation->initial_normal, sgi.normal);
   }
-  if (sgi.back_location) {
-    trim_operation->back_hit = true;
-    copy_v3_v3(trim_operation->back_location, sgi.back_location);
+  if (sgi.back_location.has_value()) {
+    copy_v3_v3(trim_operation->back_location, sgi.back_location.value());
   }
 }
 

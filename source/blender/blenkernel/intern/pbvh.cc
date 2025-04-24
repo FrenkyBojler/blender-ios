@@ -1626,37 +1626,6 @@ void raycast(Tree &pbvh,
   search_callback_occluded(
       pbvh, [&](Node &node) { return ray_aabb_intersect(node, rcd); }, hit_fn);
 }
-static bool ray_update_depth_and_hit_count(const float depth_test,
-                                           float *r_depth,
-                                           float *r_back_depth,
-                                           bool *r_back_hit)
-{
-  /* If this is the first hit, we need to handle it. */
-  if (abs(*r_depth - *r_back_depth) < FLT_EPSILON) {
-    if (depth_test < *r_depth) {
-      *r_back_depth = FLT_MAX;
-      *r_depth = depth_test;
-      *r_back_hit = false;
-      return true;
-    }
-  }
-  /*This is hit which we can use for back*/
-  else if (depth_test < *r_depth) {
-    *r_back_depth = *r_depth;
-    *r_depth = depth_test;
-    *r_back_hit = true;
-    return true;
-  }
-  else if (depth_test > *r_depth && depth_test < *r_back_depth) {
-    /* This is a hit between front and back, so it's a new back hit */
-    *r_back_depth = depth_test;
-    *r_back_hit = true;
-    return false;
-  }
-
-  return false;
-}
-
 bool ray_face_intersection_quad(const float3 &ray_start,
                                 const IsectRayPrecalc *isect_precalc,
                                 const float3 &t0,
@@ -1818,6 +1787,7 @@ bool node_raycast_mesh(const MeshNode &node,
                        const float3 &ray_normal,
                        IsectRayPrecalc *isect_precalc,
                        float *depth,
+                       std::optional<float>& back_depth,
                        int &r_active_vertex,
                        int &r_active_face_index,
                        float3 &r_face_normal)
@@ -1825,6 +1795,7 @@ bool node_raycast_mesh(const MeshNode &node,
   const Span<int> face_indices = node.faces();
 
   bool hit = false;
+  back_depth = std::nullopt;
   if (node_positions.is_empty()) {
     for (const int i : face_indices.index_range()) {
       const int face_i = face_indices[i];
@@ -1839,6 +1810,7 @@ bool node_raycast_mesh(const MeshNode &node,
                                                vert_positions[corner_verts[tri[2]]]}};
         if (ray_face_intersection_tri(ray_start, isect_precalc, co[0], co[1], co[2], depth)) {
           hit = true;
+          back_depth = back_depth ? fmaxf(back_depth.value(), *depth) : *depth;
           calc_mesh_intersect_data(corner_verts,
                                    corner_tris,
                                    ray_start,
@@ -1870,6 +1842,7 @@ bool node_raycast_mesh(const MeshNode &node,
              node_positions[vert_map.index_of(corner_verts[tri[2]])]}};
         if (ray_face_intersection_tri(ray_start, isect_precalc, co[0], co[1], co[2], depth)) {
           hit = true;
+          back_depth = back_depth ? fmaxf(back_depth.value(), *depth) : *depth;
           calc_mesh_intersect_data(corner_verts,
                                    corner_tris,
                                    ray_start,

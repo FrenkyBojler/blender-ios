@@ -2026,7 +2026,7 @@ static std::optional<int> target_vert_update_and_get(bContext *C, Object &ob, co
 {
   SculptSession &ss = *ob.sculpt;
   SculptCursorGeometryInfo sgi;
-  if (SCULPT_cursor_geometry_info_update(C, &sgi, mval, false, false)) {
+  if (SCULPT_cursor_geometry_info_update(C, &sgi, mval, false)) {
     return ss.active_vert_index();
   }
   return std::nullopt;

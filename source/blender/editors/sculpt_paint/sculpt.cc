@@ -2790,10 +2790,8 @@ struct SculptRaycastData {
   const float *ray_normal;
   bool hit;
   float depth;
-  float back_depth;
-  int hit_count;
+  std::optional<float> back_depth;
   bool original;
-  bool back_hit;
   Span<blender::float3> vert_positions;
   blender::OffsetIndices<int> faces;
   Span<int> corner_verts;
@@ -4598,6 +4596,7 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                                          srd.ray_normal,
                                          &srd.isect_precalc,
                                          &srd.depth,
+                                         srd.back_depth,
                                          mesh_active_vert,
                                          srd.active_face_grid_index,
                                          srd.face_normal);
@@ -4639,6 +4638,12 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
       }
       break;
     }
+  }
+
+  if (srd.back_depth.has_value() &&
+      fabsf(*srd.back_depth - srd.depth) < FLT_EPSILON)
+  {
+    srd.back_depth = std::nullopt;
   }
 
   if (hit) {
@@ -4752,15 +4757,14 @@ float SCULPT_raycast_init(ViewContext *vc,
 bool SCULPT_cursor_geometry_info_update(bContext *C,
                                         SculptCursorGeometryInfo *out,
                                         const float mval[2],
-                                        bool use_sampled_normal,
-                                        bool use_back_depth)
+                                        bool use_sampled_normal)
 {
   using namespace blender;
   using namespace blender::ed::sculpt_paint;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   const Brush &brush = *BKE_paint_brush_for_read(BKE_paint_get_active_from_context(C));
-  float ray_start[3], ray_end[3], ray_normal[3], depth, back_depth, mat[3][3];
+  float ray_start[3], ray_end[3], ray_normal[3], depth, mat[3][3];
   float viewDir[3] = {0.0f, 0.0f, 1.0f};
   bool original = false;
 
@@ -4785,15 +4789,12 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   /* bke::pbvh::Tree raycast to get active vertex and face normal. */
   depth = SCULPT_raycast_init(&vc, mval, ray_start, ray_end, ray_normal, original);
   SCULPT_stroke_modifiers_check(C, ob, brush);
-  back_depth = depth;
 
   SculptRaycastData srd{};
   srd.original = original;
   srd.object = &ob;
   srd.ss = ob.sculpt;
   srd.hit = false;
-  srd.back_hit = false;
-  srd.back_depth = back_depth;
   if (pbvh->type() == bke::pbvh::Type::Mesh) {
     const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
     srd.vert_positions = bke::pbvh::vert_positions_eval(*depsgraph, ob);
@@ -4851,15 +4852,10 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   mul_v3_fl(out->location, srd.depth);
   add_v3_v3(out->location, ray_start);
 
-  if (use_back_depth) {
-    copy_v3_v3(out->back_location, ray_normal);
-    if (srd.back_hit) {
-      mul_v3_fl(out->back_location, srd.back_depth);
-    }
-    else {
-      mul_v3_fl(out->back_location, srd.depth);
-    }
-    add_v3_v3(out->back_location, ray_start);
+  if (srd.back_depth.has_value()) {
+    copy_v3_v3(out->back_location.value(), ray_normal);
+    mul_v3_fl(out->back_location.value(), srd.back_depth.value());
+    add_v3_v3(out->back_location.value(), ray_start);
   }
 
   /* Option to return the face normal directly for performance o accuracy reasons. */
@@ -5582,7 +5578,7 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
     sculpt_update_cache_invariants(C, sd, ss, op, mval);
 
     SculptCursorGeometryInfo sgi;
-    SCULPT_cursor_geometry_info_update(C, &sgi, mval, false, false);
+    SCULPT_cursor_geometry_info_update(C, &sgi, mval, false);
 
     stroke_undo_begin(C, op);
 

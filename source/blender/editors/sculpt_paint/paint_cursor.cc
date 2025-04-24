@@ -1419,7 +1419,7 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   pcontext.prev_active_vert_index = ss.active_vert_index();
   if (!ups.stroke_active) {
     pcontext.is_cursor_over_mesh = SCULPT_cursor_geometry_info_update(
-        C, &gi, mval_fl, (pcontext.brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE), false);
+        C, &gi, mval_fl, (pcontext.brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE));
     pcontext.location = gi.location;
     pcontext.normal = gi.normal;
   }
