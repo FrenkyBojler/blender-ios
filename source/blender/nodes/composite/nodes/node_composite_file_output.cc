@@ -541,7 +541,9 @@ class FileOutputOperation : public NodeOperation {
       const auto &socket = *static_cast<NodeImageMultiFileSocket *>(input->storage);
 
       if (!get_single_layer_image_base_path(socket.path, base_path)) {
-        fprintf(stderr, "Invalid path template in File Output node. Skipping writing file.\n");
+        /* TODO: propagate this error to the render pipeline and UI. */
+        BKE_report(
+            null, RPT_ERROR, "Invalid path template in File Output node. Skipping writing file.");
         continue;
       }
 
@@ -621,7 +623,9 @@ class FileOutputOperation : public NodeOperation {
     char image_path[FILE_MAX];
     const char *write_view = store_views_in_single_file ? "" : view;
     if (!get_multi_layer_exr_image_path(get_base_path(), write_view, true, image_path)) {
-      fprintf(stderr, "Invalid path template in File Output node. Skipping writing file.\n");
+      /* TODO: propagate this error to the render pipeline and UI. */
+      BKE_report(
+          null, RPT_ERROR, "Invalid path template in File Output node. Skipping writing file.");
       return;
     }
 
