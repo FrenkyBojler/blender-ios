@@ -355,9 +355,7 @@ def view3d_sculpt_performance():
     yield e.shift.f5()                  # 3D Viewport.
     yield e.ctrl.alt.space()            # Full-screen.
 
-    # yield e.shift.space().text("Clay Strip").ret()
-    yield e.shift.space().text("Smooth").ret()
-    yield e.f().text("100").ret()        # Adjust size
+    yield e.f().text("50").ret()        # Adjust size
 
     print("Horizontal Strokes")
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, -600))
@@ -375,13 +373,6 @@ def view3d_sculpt_performance():
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 200))
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 400))
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 600))
-
-    print("Undo Vertical")
-    yield e.ctrl.z(7)
-
-    print("Undo Horizontal")
-    yield e.ctrl.z(7)
-
 
 def view3d_sculpt_with_memfile_step():
     e, t = _test_vars(window := _test_window())
