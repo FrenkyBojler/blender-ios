@@ -26,16 +26,70 @@ struct VertCornerInfo {
   int corner_prev;
 };
 
-struct VertEdgeInfo {
-  Vector<int> corners;
-  bool connection;
+struct EdgeOneCorner {
+  int corner;
+  bool winding_torwards_vert;
 };
 
-static void add_corner_to_edge()
+struct EdgeTwoCorners {
+  int corner1;
+  int corner2;
+};
+
+struct EdgeSharp {};
+
+using VertEdgeInfo = std::variant<std::monostate, EdgeOneCorner, EdgeTwoCorners, EdgeSharp>;
+
+static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
+                                       const Span<bool> sharp_edges,
+                                       const int corner,
+                                       const int other_corner,
+                                       const bool winding_torwards_vert,
+                                       const VertEdgeInfo &info)
 {
-  // Edge is not a connection if it's a sharp edge
-  // Edge is not a connection if winding is reversed compared to previously added face
-  // Edge is not a connection if it's used by more than two faces
+  if (std::holds_alternative<EdgeSharp>(info)) {
+    return EdgeSharp{};
+  }
+  if (std::holds_alternative<std::monostate>(info)) {
+    if (!sharp_edges.is_empty()) {
+      /* The first time we encounter the edge, we check if it is marked sharp. In that case corner
+       * fans shouldn't propagate past it. To find the edge we need to check if the current corner
+       * references the edge connected to `other_corner` or if `other_corner` uses the edge. */
+      if (sharp_edges[corner_edges[winding_torwards_vert ? other_corner : corner]]) {
+        return EdgeSharp{};
+      }
+    }
+    return EdgeOneCorner{corner, winding_torwards_vert};
+  }
+  if (const EdgeOneCorner *info_one_edge = std::get_if<EdgeOneCorner>(&info)) {
+    /* If the edge ends up being used by faces, we still have to check if the winding direction
+     * changes. Though it's an undesireable situation for the mesh to be in, we shouldn't propogate
+     * smooth normals across edges facing opposite directions.*/
+    if (info_one_edge->winding_torwards_vert && winding_torwards_vert) {
+      return EdgeSharp{};
+    }
+    return EdgeTwoCorners{info_one_edge->corner, other_corner};
+  }
+  if (std::holds_alternative<EdgeTwoCorners>(info)) {
+    /* The edge is already used by two corners. Adding a third would make it non-manifold,
+     * which means it should be considered sharp for the purposes of normal computation. */
+    return EdgeSharp{};
+  }
+  BLI_assert_unreachable();
+  return EdgeSharp{};
+}
+
+static void add_corner_to_edge(const Span<int> corner_verts,
+                               const Span<int> corner_edges,
+                               const Span<bool> sharp_edges,
+                               const int corner,
+                               const int other_corner,
+                               const bool winding_torwards_vert,
+                               Map<int, VertEdgeInfo, 16> &vert_edge_infos)
+{
+  VertEdgeInfo &info = vert_edge_infos.lookup_or_add_default(corner_verts[other_corner]);
+  info = add_corner_to_edge(
+      corner_edges, sharp_edges, corner, other_corner, winding_torwards_vert, info);
 }
 
 void normals_calc_corners(const Span<float3> vert_positions,
@@ -50,11 +104,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           CornerNormalSpaceArray *r_lnors_spacearr,
                           MutableSpan<float3> r_corner_normals)
 {
-  // for vert : verts:
-  //     corners = get_corners(faces, vert_to_face_map)
-  //     sort_corners(corners)
-  //     calc
-
   threading::parallel_for(vert_positions.index_range(), 512, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
     Map<int, VertEdgeInfo, 16> vert_edge_infos;
@@ -72,21 +121,28 @@ void normals_calc_corners(const Span<float3> vert_positions,
         corner_infos[i].corner = face_find_corner_from_vert(faces[face], corner_verts, vert);
         corner_infos[i].corner_prev = face_corner_prev(faces[face], corner_infos[i].corner);
         corner_infos[i].corner_next = face_corner_next(faces[face], corner_infos[i].corner);
-
-        const int other_vert_prev = corner_verts[corner_infos[i].corner_prev];
-        const int other_vert_next = corner_verts[corner_infos[i].corner_next];
-        // vert_edge_infos.
-
-        VertEdgeInfo &prev_edge = vert_edge_infos.lookup_or_add_default(other_vert_prev);
-        prev_edge.corners.append(corner_infos[i].corner);
-        prev_edge.connection = true;  // TODO
-
-        VertEdgeInfo &next_edge = vert_edge_infos.lookup_or_add_default(other_vert_next);
-        next_edge.corners.append(corner_infos[i].corner);
-        next_edge.connection = true;  // TODO
       }
 
-      // sort corners by topological connectivity
+      for (const int i : vert_faces.index_range()) {
+        const int face = vert_faces[i];
+        if (!sharp_faces.is_empty() && sharp_faces[face]) {
+          continue;
+        }
+        add_corner_to_edge(corner_verts,
+                           corner_edges,
+                           sharp_edges,
+                           corner_infos[i].corner,
+                           corner_infos[i].corner_prev,
+                           true,
+                           vert_edge_infos);
+        add_corner_to_edge(corner_verts,
+                           corner_edges,
+                           sharp_edges,
+                           corner_infos[i].corner,
+                           corner_infos[i].corner_next,
+                           false,
+                           vert_edge_infos);
+      }
     }
   });
 }
