@@ -52,6 +52,9 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
                                          Vector<int> &r_dst_to_src_curve,
                                          bool can_be_cyclic = true)
 {
+  if (selected_points.is_empty()) {
+    return;
+  }
   const bool merge_loop = cyclic && selected_points.first().size() < points.size() &&
                           selected_points.first().first() == points.first() &&
                           selected_points.last().last() == points.last();
