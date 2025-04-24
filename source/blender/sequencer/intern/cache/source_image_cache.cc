@@ -19,6 +19,8 @@
 #include "prefetch.hh"
 #include "source_image_cache.hh"
 
+#include <mutex>
+
 namespace blender::seq {
 
 static std::mutex source_image_cache_mutex;
