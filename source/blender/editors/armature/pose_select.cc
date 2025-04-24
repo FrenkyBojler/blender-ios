@@ -822,6 +822,10 @@ enum class SelectRelatedMode {
   SAME_COLLECTION = 0,
   SAME_COLOR,
   SAME_KEYINGSET,
+  CHILDREN,
+  IMMEDIATE_CHILDREN,
+  PARENT,
+  SIBLINGS,
 };
 
 static bool pose_select_same_color(bContext *C, const bool extend)
@@ -938,6 +942,129 @@ static bool pose_select_same_collection(bContext *C, const bool extend)
   return changed_any_selection;
 }
 
+/* Useful to get the selection before modifying it. */
+static blender::Set<bPoseChannel *> get_selected_pose_bones(Object *pose_object)
+{
+  blender::Set<bPoseChannel *> selected_pose_bones;
+  bArmature *arm = static_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
+  LISTBASE_FOREACH (bPoseChannel *, pchan, &pose_object->pose->chanbase) {
+    if (PBONE_SELECTED(arm, pchan->bone)) {
+      selected_pose_bones.add(pchan);
+    }
+  }
+  return selected_pose_bones;
+}
+
+static bool pose_bone_is_below_one_of(bPoseChannel &bone,
+                                      const blender::Set<bPoseChannel *> &potential_parents)
+{
+  bPoseChannel *bone_iter = &bone;
+  while (bone_iter) {
+    if (potential_parents.contains(bone_iter)) {
+      return true;
+    }
+    bone_iter = bone_iter->parent;
+  }
+  return false;
+}
+
+/* Selects children of currently selected bones in all objects in pose mode. If `all` is true, a
+ * bone will be selected if any bone in it's parent hierarchy is selected. If false, only bones
+ * whose direct parent is selected are changed. */
+static bool pose_select_children(bContext *C, const bool all)
+{
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+
+  bool changed_any_selection = false;
+
+  for (Object *pose_object : objects) {
+    bArmature *arm = static_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
+    if (!arm) {
+      /* This may never be hit because we are explicitly asking for pose objects before. */
+      continue;
+    }
+    blender::Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &pose_object->pose->chanbase) {
+      if (!PBONE_SELECTABLE(arm, pchan->bone)) {
+        continue;
+      }
+      if (all) {
+        if (pose_bone_is_below_one_of(*pchan, selected_pose_bones)) {
+          pose_do_bone_select(pchan, SEL_SELECT);
+          changed_any_selection = true;
+        }
+      }
+      else {
+        if (selected_pose_bones.contains(pchan->parent)) {
+          pose_do_bone_select(pchan, SEL_SELECT);
+          changed_any_selection = true;
+        }
+      }
+    }
+    ED_pose_bone_select_tag_update(pose_object);
+  }
+
+  return changed_any_selection;
+}
+
+static bool pose_select_parents(bContext *C)
+{
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+
+  bool changed_any_selection = false;
+  for (Object *pose_object : objects) {
+    bArmature *arm = static_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
+    if (!arm) {
+      continue;
+    }
+    blender::Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
+    for (bPoseChannel *pchan : selected_pose_bones) {
+      if (!PBONE_SELECTABLE(arm, pchan->parent->bone)) {
+        continue;
+      }
+      pose_do_bone_select(pchan->parent, SEL_SELECT);
+      changed_any_selection = true;
+    }
+    ED_pose_bone_select_tag_update(pose_object);
+  }
+  return changed_any_selection;
+}
+
+static bool pose_select_siblings(bContext *C)
+{
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+
+  bool changed_any_selection = false;
+  for (Object *pose_object : objects) {
+    bArmature *arm = static_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
+    if (!arm) {
+      continue;
+    }
+    blender::Set<bPoseChannel *> parents_of_selected;
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &pose_object->pose->chanbase) {
+      if (PBONE_SELECTED(arm, pchan->bone)) {
+        parents_of_selected.add(pchan->parent);
+      }
+    }
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &pose_object->pose->chanbase) {
+      if (!PBONE_SELECTABLE(arm, pchan->bone)) {
+        continue;
+      }
+      /* Checking if the bone is already selected so `changed_any_selection` stays true to its
+       * word. */
+      if (parents_of_selected.contains(pchan->parent) && !PBONE_SELECTED(arm, pchan->bone)) {
+        pose_do_bone_select(pchan, SEL_SELECT);
+        changed_any_selection = true;
+      }
+    }
+    ED_pose_bone_select_tag_update(pose_object);
+  }
+  return changed_any_selection;
+}
+
 static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool extend)
 {
   using namespace blender::animrig;
@@ -1047,6 +1174,22 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
       changed = pose_select_same_keyingset(C, op->reports, extend);
       break;
 
+    case SelectRelatedMode::CHILDREN:
+      changed = pose_select_children(C, true);
+      break;
+
+    case SelectRelatedMode::IMMEDIATE_CHILDREN:
+      changed = pose_select_children(C, false);
+      break;
+
+    case SelectRelatedMode::PARENT:
+      changed = pose_select_parents(C);
+      break;
+
+    case SelectRelatedMode::SIBLINGS:
+      changed = pose_select_siblings(C);
+      break;
+
     default:
       printf("pose_select_grouped() - Unknown selection type %d\n", int(mode));
       break;
@@ -1075,6 +1218,26 @@ void POSE_OT_select_grouped(wmOperatorType *ot)
        0,
        "Keying Set",
        "All bones affected by active Keying Set"},
+      {int(SelectRelatedMode::CHILDREN),
+       "CHILDREN",
+       0,
+       "Children",
+       "Select all children of currently selected bones"},
+      {int(SelectRelatedMode::IMMEDIATE_CHILDREN),
+       "CHILDREN_IMMEDIATE",
+       0,
+       "Immediate Children",
+       "Select direct children of currently selected bones"},
+      {int(SelectRelatedMode::PARENT),
+       "PARENT",
+       0,
+       "Parents",
+       "Select the parents of currently selected bones"},
+      {int(SelectRelatedMode::SIBLINGS),
+       "SIBILINGS",
+       0,
+       "Siblings",
+       "Select all bones that have the same parent as currently selected bones"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
