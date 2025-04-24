@@ -281,22 +281,14 @@ void BKE_gpencil_material_attr_init(Material *ma)
   }
 }
 
-static void nodetree_mark_previews_dirty_reccursive(bNodeTree *tree)
-{
-  if (tree == nullptr) {
-    return;
-  }
-  tree->runtime->whole_tree_dirtystate.make_dirty();
-  for (bNode *node : tree->runtime->group_nodes) {
-    bNodeTree *nested_tree = reinterpret_cast<bNodeTree *>(node->id);
-    nodetree_mark_previews_dirty_reccursive(nested_tree);
-  }
-}
-
 void BKE_material_make_node_previews_dirty(Material *ma)
 {
   if (ma && ma->nodetree) {
-    nodetree_mark_previews_dirty_reccursive(ma->nodetree);
+    /**
+     * Counting the update only for the top tree, as all the nested trees will get updated when
+     * checking the `tree_path` updates in `get_treepath_update_counter`.
+     */
+    ma->nodetree->runtime->whole_tree_updatecounter.count_update();
   }
 }
 

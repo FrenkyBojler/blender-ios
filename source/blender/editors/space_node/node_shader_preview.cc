@@ -68,8 +68,8 @@ using NodeSocketPair = std::pair<bNode *, bNodeSocket *>;
  * `NestedTreePreviews` instances must contain only really cached data.
  * We differenciate those two structures, because we want to be sure that the previews cached are
  * corresponding to the cached properties, and while the render is not completed (it could be
- * stopped midway), the cached properties (size, dirtystate) should be outdated with the user side
- * properties.
+ * stopped midway), the cached properties (size, updatecounter) should be outdated with the user
+ * side properties.
  */
 struct ShaderNodesPreviewJob {
   NestedTreePreviews *tree_previews;
@@ -93,9 +93,9 @@ struct ShaderNodesPreviewJob {
    */
   ePreviewType preview_type;
   int preview_size;
-  DirtyState treepath_dirtystate;
-  DirtyState whole_tree_dirtystate;
-  DirtyState any_node_dirtystate;
+  UpdateCounter treepath_updatecounter;
+  UpdateCounter whole_tree_updatecounter;
+  UpdateCounter any_node_updatecounter;
 
   Material *mat_copy;
   bNode *mat_output_copy;
@@ -339,7 +339,7 @@ ImBuf *node_preview_acquire_ibuf(bNodeTree &ntree,
 
   RenderResult *rr = RE_AcquireResultRead(tree_previews.previews_render);
   ImBuf *&image_cached =
-      tree_previews.previews_map.lookup_or_add(node.identifier, {nullptr, DirtyState()}).first;
+      tree_previews.previews_map.lookup_or_add(node.identifier, {nullptr, UpdateCounter()}).first;
   if (rr == nullptr) {
     return image_cached;
   }
@@ -384,7 +384,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
                                         const char *route_name)
 {
   NodeTreeUpdateExtraParams params = {nullptr};
-  params.avoid_making_previews_dirty = true;
+  params.disable_update_counting = true;
   bNode *nested_node_iter = &nested_node;
   bNodeSocket *nested_socket_iter = &nested_socket;
 
@@ -467,7 +467,7 @@ static void connect_node_to_surface_output(const Span<bNodeTreePath *> treepath,
                               *out_surface_socket,
                               nodesocket.first->name);
   NodeTreeUpdateExtraParams params = {nullptr};
-  params.avoid_making_previews_dirty = true;
+  params.disable_update_counting = true;
   BKE_ntree_update_after_single_tree_change(*G.pr_main, *main_nt, params);
 }
 
@@ -522,7 +522,7 @@ static void connect_nodes_to_aovs(const Span<bNodeTreePath *> treepath,
         treepath, *node_preview, *socket_preview, *aov_node, *aov_socket, nodesocket.first->name);
   }
   NodeTreeUpdateExtraParams params = {nullptr};
-  params.avoid_making_previews_dirty = true;
+  params.disable_update_counting = true;
   BKE_ntree_update_after_single_tree_change(*G.pr_main, *main_nt, params);
 }
 
@@ -574,14 +574,19 @@ static bool prepare_viewlayer_update(void *pvl_data, ViewLayer *vl, Depsgraph *d
   return true;
 }
 
+/**
+ * Callback used to propagate the `updatecounter` of each node rendered by the viewlayer (multiple
+ * AOV nodes or unique Shader node) This ensures we wait until the preview is rendered to mark the
+ * preview cache updatecounter as corresponding to the updatecounter that initiated the job.
+ */
 static void rendered_viewlayer_update(void *pvl_data, const ViewLayer *vl)
 {
   ShaderNodesPreviewJob *job_data = static_cast<ShaderNodesPreviewJob *>(pvl_data);
   if (STREQ(vl->name, "View Layer")) {
     for (NodeSocketPair nodesocket_iter : job_data->AOV_nodes) {
-      std::pair<ImBuf *, DirtyState> &cache = job_data->tree_previews->previews_map.lookup(
+      std::pair<ImBuf *, UpdateCounter> &cache = job_data->tree_previews->previews_map.lookup(
           nodesocket_iter.first->identifier);
-      cache.second = nodesocket_iter.first->runtime->dirtystate;
+      cache.second = nodesocket_iter.first->runtime->updatecounter;
     }
     return;
   }
@@ -594,9 +599,9 @@ static void rendered_viewlayer_update(void *pvl_data, const ViewLayer *vl)
   if (single_node_rendered == nullptr) {
     return;
   }
-  std::pair<ImBuf *, DirtyState> &cache = job_data->tree_previews->previews_map.lookup(
+  std::pair<ImBuf *, UpdateCounter> &cache = job_data->tree_previews->previews_map.lookup(
       single_node_rendered->identifier);
-  cache.second = single_node_rendered->runtime->dirtystate;
+  cache.second = single_node_rendered->runtime->updatecounter;
 }
 
 /* Called by renderer, refresh the UI. */
@@ -606,7 +611,7 @@ static void all_nodes_preview_update(void *npv, RenderResult *rr, rcti * /*rect*
   *job_data->do_update = true;
   if (bNode *node = job_data->rendering_node) {
     ImBuf *&image_cached = job_data->tree_previews->previews_map
-                               .lookup_or_add(node->identifier, {nullptr, DirtyState()})
+                               .lookup_or_add(node->identifier, {nullptr, UpdateCounter()})
                                .first;
     ImBuf *image_latest = get_image_from_viewlayer_and_pass(*rr, node->name, nullptr);
     if (image_latest == nullptr) {
@@ -624,7 +629,7 @@ static void all_nodes_preview_update(void *npv, RenderResult *rr, rcti * /*rect*
     for (NodeSocketPair nodesocket_iter : job_data->AOV_nodes) {
       ImBuf *&image_cached = job_data->tree_previews->previews_map
                                  .lookup_or_add(nodesocket_iter.first->identifier,
-                                                {nullptr, DirtyState()})
+                                                {nullptr, UpdateCounter()})
                                  .first;
       ImBuf *image_latest = get_image_from_viewlayer_and_pass(
           *rr, nullptr, nodesocket_iter.first->name);
@@ -713,23 +718,23 @@ static void preview_render(ShaderNodesPreviewJob &job_data)
 /** \name Preview job management
  * \{ */
 
-static DirtyState get_treepath_dirty_state(const ListBase *treepath)
+static UpdateCounter get_treepath_update_counter(const ListBase *treepath)
 {
-  DirtyState treepath_dirty_state =
-      static_cast<bNodeTreePath *>(treepath->first)->nodetree->runtime->whole_tree_dirtystate;
+  UpdateCounter treepath_update_counter =
+      static_cast<bNodeTreePath *>(treepath->first)->nodetree->runtime->whole_tree_updatecounter;
   for (bNodeTreePath *path_iter = static_cast<bNodeTreePath *>(treepath->first)->next; path_iter;
        path_iter = path_iter->next)
   {
-    treepath_dirty_state.merge(path_iter->nodetree->runtime->whole_tree_dirtystate);
+    treepath_update_counter.merge(path_iter->nodetree->runtime->whole_tree_updatecounter);
     bNode *group_node = nullptr;
     LISTBASE_FOREACH (bNode *, node, &path_iter->prev->nodetree->nodes) {
       if (STREQ(node->name, path_iter->node_name)) {
         group_node = node;
       }
     }
-    treepath_dirty_state.merge(group_node->runtime->dirtystate);
+    treepath_update_counter.merge(group_node->runtime->updatecounter);
   }
-  return treepath_dirty_state;
+  return treepath_update_counter;
 }
 
 static bool update_needed(const ListBase *treepath,
@@ -738,27 +743,27 @@ static bool update_needed(const ListBase *treepath,
                           const ePreviewType preview_type)
 {
   bNodeTree *nodetree = static_cast<bNodeTreePath *>(treepath->last)->nodetree;
-  DirtyState *compare_whole_tree_dirtystate = nullptr;
-  DirtyState *compare_any_node_dirtystate = nullptr;
-  DirtyState *compare_treepath_dirtystate = nullptr;
+  UpdateCounter *compare_whole_tree_updatecounter = nullptr;
+  UpdateCounter *compare_any_node_updatecounter = nullptr;
+  UpdateCounter *compare_treepath_updatecounter = nullptr;
   int *compare_preview_size = nullptr;
   ePreviewType *compare_preview_type = nullptr;
   if (tree_previews->running_job) {
-    compare_whole_tree_dirtystate = &tree_previews->running_job->whole_tree_dirtystate;
-    compare_any_node_dirtystate = &tree_previews->running_job->any_node_dirtystate;
-    compare_treepath_dirtystate = &tree_previews->running_job->treepath_dirtystate;
+    compare_whole_tree_updatecounter = &tree_previews->running_job->whole_tree_updatecounter;
+    compare_any_node_updatecounter = &tree_previews->running_job->any_node_updatecounter;
+    compare_treepath_updatecounter = &tree_previews->running_job->treepath_updatecounter;
     compare_preview_size = &tree_previews->running_job->preview_size;
     compare_preview_type = &tree_previews->running_job->preview_type;
   }
   else {
-    compare_whole_tree_dirtystate = &tree_previews->whole_tree_dirtystate;
-    compare_any_node_dirtystate = &tree_previews->any_node_dirtystate;
-    compare_treepath_dirtystate = &tree_previews->treepath_dirtystate;
+    compare_whole_tree_updatecounter = &tree_previews->whole_tree_updatecounter;
+    compare_any_node_updatecounter = &tree_previews->any_node_updatecounter;
+    compare_treepath_updatecounter = &tree_previews->treepath_updatecounter;
     compare_preview_size = &tree_previews->preview_size;
     compare_preview_type = &tree_previews->preview_type;
   }
   if (U.node_preview_res != *compare_preview_size ||
-      nodetree->runtime->whole_tree_dirtystate != *compare_whole_tree_dirtystate ||
+      nodetree->runtime->whole_tree_updatecounter != *compare_whole_tree_updatecounter ||
       preview_type != *compare_preview_type)
   {
     /* Force whole tree redraw. */
@@ -766,14 +771,15 @@ static bool update_needed(const ListBase *treepath,
     return true;
   }
 
-  DirtyState treepath_dirty_state = get_treepath_dirty_state(treepath);
-  if (treepath_dirty_state != *compare_treepath_dirtystate) {
+  UpdateCounter treepath_update_counter = get_treepath_update_counter(treepath);
+  if (treepath_update_counter != *compare_treepath_updatecounter) {
     /* If the path is dirty, then we may need to redraw all the nodetree (excepted if we know which
      * nodes are dirty). */
-    partial_tree_refresh = false;
-    return nodetree->runtime->any_node_dirtystate != *compare_any_node_dirtystate;
+    partial_tree_refresh = nodetree->runtime->any_node_updatecounter !=
+                           *compare_any_node_updatecounter;
+    return true;
   }
-  if (nodetree->runtime->any_node_dirtystate != *compare_any_node_dirtystate) {
+  if (nodetree->runtime->any_node_updatecounter != *compare_any_node_updatecounter) {
     /* If we know that only some node are dirty, then enable partial redraw. */
     partial_tree_refresh = true;
     return true;
@@ -825,11 +831,11 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
       continue;
     }
 
-    std::pair<ImBuf *, DirtyState> &cache = job_data->tree_previews->previews_map.lookup_or_add(
-        node->identifier, {nullptr, DirtyState()});
+    std::pair<ImBuf *, UpdateCounter> &cache = job_data->tree_previews->previews_map.lookup_or_add(
+        node->identifier, {nullptr, UpdateCounter()});
     if (job_data->partial_tree_refresh) {
       /* Check if the node preview is outdated or inexistent. */
-      if (node->runtime->dirtystate == cache.second && cache.first != nullptr) {
+      if (node->runtime->updatecounter == cache.second && cache.first != nullptr) {
         continue;
       }
     }
@@ -853,9 +859,9 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
      * in the cached structure `NestedTreePreviews`.
      */
     NestedTreePreviews &tree_previews = *job_data->tree_previews;
-    tree_previews.treepath_dirtystate = job_data->treepath_dirtystate;
-    tree_previews.any_node_dirtystate = job_data->any_node_dirtystate;
-    tree_previews.whole_tree_dirtystate = job_data->whole_tree_dirtystate;
+    tree_previews.treepath_updatecounter = job_data->treepath_updatecounter;
+    tree_previews.any_node_updatecounter = job_data->any_node_updatecounter;
+    tree_previews.whole_tree_updatecounter = job_data->whole_tree_updatecounter;
     tree_previews.preview_size = job_data->preview_size;
     tree_previews.preview_type = job_data->preview_type;
   }
@@ -922,10 +928,10 @@ static void ensure_nodetree_previews(const bContext &C,
   job_data->partial_tree_refresh = partial_tree_refresh;
   job_data->preview_size = U.node_preview_res;
 
-  DirtyState treepath_dirty_state = get_treepath_dirty_state(&treepath);
-  job_data->treepath_dirtystate = treepath_dirty_state;
-  job_data->any_node_dirtystate = displayed_nodetree->runtime->any_node_dirtystate;
-  job_data->whole_tree_dirtystate = displayed_nodetree->runtime->whole_tree_dirtystate;
+  UpdateCounter treepath_update_counter = get_treepath_update_counter(&treepath);
+  job_data->treepath_updatecounter = treepath_update_counter;
+  job_data->any_node_updatecounter = displayed_nodetree->runtime->any_node_updatecounter;
+  job_data->whole_tree_updatecounter = displayed_nodetree->runtime->whole_tree_updatecounter;
 
   /* Update the treepath copied to fit the structure of the nodetree copied. */
   bNodeTreePath *root_path = MEM_callocN<bNodeTreePath>(__func__);

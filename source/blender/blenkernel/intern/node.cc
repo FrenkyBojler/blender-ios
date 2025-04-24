@@ -153,8 +153,8 @@ static void ntree_copy_data(Main * /*bmain*/,
   ntree_dst->runtime = MEM_new<bNodeTreeRuntime>(__func__);
   bNodeTreeRuntime &dst_runtime = *ntree_dst->runtime;
 
-  dst_runtime.any_node_dirtystate = ntree_src->runtime->any_node_dirtystate;
-  dst_runtime.whole_tree_dirtystate = ntree_src->runtime->whole_tree_dirtystate;
+  dst_runtime.any_node_updatecounter = ntree_src->runtime->any_node_updatecounter;
+  dst_runtime.whole_tree_updatecounter = ntree_src->runtime->whole_tree_updatecounter;
 
   Map<const bNodeSocket *, bNodeSocket *> socket_map;
 
@@ -2989,7 +2989,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
     node_dst->prop = IDP_CopyProperty_ex(node_src.prop, flag);
   }
 
-  node_dst->runtime->dirtystate = node_src.runtime->dirtystate;
+  node_dst->runtime->updatecounter = node_src.runtime->updatecounter;
 
   node_dst->panel_states_array = static_cast<bNodePanelState *>(
       MEM_dupallocN(node_src.panel_states_array));

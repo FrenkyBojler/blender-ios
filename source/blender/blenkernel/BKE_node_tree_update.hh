@@ -75,7 +75,7 @@ struct NodeTreeUpdateExtraParams {
    */
   std::function<void(bNodeTree &, ID &owner)> tree_output_changed_fn;
 
-  bool avoid_making_previews_dirty = false;
+  bool disable_update_counting = false;
 };
 
 /**

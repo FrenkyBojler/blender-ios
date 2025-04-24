@@ -80,42 +80,47 @@ struct LoggedZoneGraphs {
 };
 
 /**
+ * UpdateCounter is to be used inside an structure that is updated and which other functions are
+ * called asynchronously on change. It allows the structure to be modified and to know at any
+ * moment if the counter has evolved from the last time it was checked.
+ */
+class UpdateCounter {
+ private:
+  uint32_t updateCount = 0;
+
+ public:
+  bool operator==(const UpdateCounter &other) const
+  {
+    return this->updateCount == other.updateCount;
+  }
+
+  bool operator!=(const UpdateCounter &other) const
+  {
+    return !(*this == other);
+  }
+
+  void operator=(const UpdateCounter &other)
+  {
+    this->updateCount = other.updateCount;
+  }
+
+  void merge(const UpdateCounter &other)
+  {
+    this->updateCount += other.updateCount;
+  }
+
+  void count_update()
+  {
+    updateCount++;
+  }
+};
+
+/**
  * Runtime data for #bNodeTree from the perspective of execution instructions (rather than runtime
  * data from evaluation of the node tree). Evaluation data is not the responsibility of the node
  * tree and should be stored elsewhere. Evaluating a node tree should be possible without changing
  * it.
  */
-class DirtyState {
- private:
-  uint32_t counter = 0;
-
- public:
-  bool operator==(const DirtyState &other) const
-  {
-    return this->counter == other.counter;
-  }
-
-  bool operator!=(const DirtyState &other) const
-  {
-    return !(*this == other);
-  }
-
-  void operator=(const DirtyState &other)
-  {
-    this->counter = other.counter;
-  }
-
-  void merge(const DirtyState &other)
-  {
-    this->counter += other.counter;
-  }
-
-  void make_dirty()
-  {
-    counter++;
-  }
-};
-
 class bNodeTreeRuntime : NonCopyable, NonMovable {
  public:
   /**
@@ -137,22 +142,18 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   uint8_t runtime_flag = 0;
 
   /**
-   * The result at each point of the node tree might have changed.
-   * No need to check `any_node_dirtystate` if this one has changed.
-   * This DirtyState is only used for shader node previews, and some modifications might be needed
-   * to adapt for other cases.
+   * Tracks updates to the node tree for shader node previews, by incrementing a counter
+   * on every update. Modifications migth be needed to adapt for other cases.
+
+   * `whole_tree_updatecounter` is changed when the previews of the whole tree needs to be updated
+   * `any_node_updatecounter` is changed when at least one node preview needs to be updated (to
+   avoid checking all nodes every times)
    */
-  DirtyState whole_tree_dirtystate;
+  UpdateCounter whole_tree_updatecounter;
+  UpdateCounter any_node_updatecounter;
 
   /** Allows logging zone graphs purely for debugging purposes. */
   std::unique_ptr<LoggedZoneGraphs> logged_zone_graphs;
-
-  /**
-   * A node has changed. It can be topology/socket/preview modification.
-   * This DirtyState is only used for shader node previews, and some modifications might be needed
-   * to adapt for other cases.
-   */
-  DirtyState any_node_dirtystate;
 
   /**
    * Storage of nodes based on their identifier. Also used as a contiguous array of nodes to
@@ -358,13 +359,13 @@ class bNodeRuntime : NonCopyable, NonMovable {
   rctf draw_bounds{};
 
   /**
-   * The function behind this node has changed.
-   * This dirty state might not be changed if the whole nodetree is dirty, so a check of the dirty
-   * state of the nodetree should also be done.
-   * This DirtyState is only used for shader node previews, and some modifications might be needed
-   * to adapt for other cases.
+   * This tracks updates when this node's output has changed (for node previewing).
+   * This dirty state might not be changed if the whole nodetree needs preview redraw, so a check
+   * of the update counter of the nodetree should also be done. (see `get_treepath_update_counter`)
+   * This UpdateCounter is only used for shader node previews, and some modifications might be
+   * needed to adapt for other cases.
    */
-  DirtyState dirtystate;
+  UpdateCounter updatecounter;
 
   /** Used at runtime when going through the tree. Initialize before use. */
   short tmp_flag = 0;

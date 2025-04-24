@@ -536,7 +536,7 @@ class NodeTreeMainUpdater {
     if (ntree.tree_interface.is_changed()) {
       result.interface_changed = true;
     }
-    this->update_nodetree_previews_dirty_state(ntree);
+    this->update_nodetree_previews_update_counter(ntree);
 
 #ifndef NDEBUG
     /* Check the uniqueness of node identifiers. */
@@ -797,16 +797,16 @@ class NodeTreeMainUpdater {
 
   void shader_node_previews_mark_dirty()
   {
-    if (params_.avoid_making_previews_dirty) {
+    if (params_.disable_update_counting) {
       return;
     }
     for (const bNodeTree *ntree : update_result_by_tree_.keys()) {
-      ntree->runtime->any_node_dirtystate.make_dirty();
+      ntree->runtime->any_node_updatecounter.count_update();
       LISTBASE_FOREACH (bNode *, node_iter, &ntree->nodes) {
         if (node_iter->runtime->outputs.size() > 0 &&
             node_iter->runtime->outputs[0]->type == SOCK_SHADER)
         {
-          node_iter->runtime->dirtystate.make_dirty();
+          node_iter->runtime->updatecounter.count_update();
         }
       }
     }
@@ -814,11 +814,11 @@ class NodeTreeMainUpdater {
 
   void nodes_preview_mark_dirty(bNodeTree &ntree, Stack<bNode *> nodes_to_visit)
   {
-    if (ntree.type != NTREE_SHADER || params_.avoid_making_previews_dirty) {
+    if (ntree.type != NTREE_SHADER || params_.disable_update_counting) {
       /* Those preview dirty states are only used for shader previews. */
       return;
     }
-    ntree.runtime->any_node_dirtystate.make_dirty();
+    ntree.runtime->any_node_updatecounter.count_update();
 
     /* Avoid visiting the same node twice. */
     Array<bool> nodes_visited(ntree.all_nodes().size(), false);
@@ -829,7 +829,7 @@ class NodeTreeMainUpdater {
         continue;
       }
       nodes_visited[node_iter->runtime->index_in_tree] = true;
-      node_iter->runtime->dirtystate.make_dirty();
+      node_iter->runtime->updatecounter.count_update();
 
       LISTBASE_FOREACH (bNodeSocket *, socket_iter, &node_iter->outputs) {
         for (bNodeSocket *propagation_socket : socket_iter->runtime->directly_linked_sockets) {
@@ -848,9 +848,9 @@ class NodeTreeMainUpdater {
     }
   }
 
-  void update_nodetree_previews_dirty_state(bNodeTree &ntree)
+  void update_nodetree_previews_update_counter(bNodeTree &ntree)
   {
-    if (ntree.type != NTREE_SHADER || params_.avoid_making_previews_dirty) {
+    if (ntree.type != NTREE_SHADER || params_.disable_update_counting) {
       /* Those preview dirty states are only used for shader previews. */
       return;
     }
