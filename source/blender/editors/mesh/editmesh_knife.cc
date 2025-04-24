@@ -3712,7 +3712,12 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
   if (is_constrained) {
     /* Update ray and `mval_constrain`. */
     if (kcd->is_ortho) {
-      isect_line_plane_v3(ray_orig, kcd->curr.cage, kcd->curr.cage + ray_dir, ray_orig, ray_dir);
+      float3 l1 = kcd->curr.cage - ray_dir;
+      if (!isect_line_plane_v3(ray_orig, l1, kcd->curr.cage, ray_orig, ray_dir)) {
+        /* Should never fail! */
+        ray_orig = l1;
+        BLI_assert_unreachable();
+      }
     }
     else {
       ray_dir = math::normalize(kcd->curr.cage - ray_orig);
