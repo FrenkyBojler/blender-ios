@@ -1262,6 +1262,24 @@ static void rna_SequenceEditor_overlay_frame_set(PointerRNA *ptr, int value)
   }
 }
 
+static int rna_SequenceEditor_get_cache_raw_size(PointerRNA *ptr)
+{
+  Scene *scene = (Scene *)ptr->owner_id;
+  if (scene == nullptr) {
+    return 0;
+  }
+  return int(blender::seq::source_image_cache_calc_memory_size(scene) / 1024 / 1024);
+}
+
+static int rna_SequenceEditor_get_cache_final_size(PointerRNA *ptr)
+{
+  Scene *scene = (Scene *)ptr->owner_id;
+  if (scene == nullptr) {
+    return 0;
+  }
+  return int(blender::seq::final_image_cache_calc_memory_size(scene) / 1024 / 1024);
+}
+
 static void rna_SequenceEditor_display_stack(ID *id, Editing *ed, ReportList *reports, Strip *seqm)
 {
   /* Check for non-meta sequence */
@@ -2513,6 +2531,17 @@ static void rna_def_editor(BlenderRNA *brna)
       "Prefetch Frames",
       "Render frames ahead of current frame in the background for faster playback");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "cache_raw_size", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_int_funcs(prop, "rna_SequenceEditor_get_cache_raw_size", nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Raw Cache Size", "Size of raw source images cache in megabytes");
+
+  prop = RNA_def_property(srna, "cache_final_size", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_int_funcs(prop, "rna_SequenceEditor_get_cache_final_size", nullptr, nullptr);
+  RNA_def_property_ui_text(
+      prop, "Final Cache Size", "Size of final rendered images cache in megabytes");
 
   /* functions */
 

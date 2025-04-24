@@ -79,6 +79,9 @@ void final_image_cache_iterate(Scene *scene,
                                void *userdata,
                                void callback_iter(void *userdata, int timeline_frame));
 
+size_t source_image_cache_calc_memory_size(const Scene *scene);
+size_t final_image_cache_calc_memory_size(const Scene *scene);
+
 bool exists_in_seqbase(const Strip *strip, const ListBase *seqbase);
 
 }  // namespace blender::seq

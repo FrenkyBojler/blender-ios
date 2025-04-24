@@ -25,7 +25,6 @@ void final_image_cache_invalidate_frame_range(Scene *scene,
 void final_image_cache_clear(Scene *scene);
 void final_image_cache_destroy(Scene *scene);
 
-size_t final_image_cache_calc_memory_size(const Scene *scene);
 bool final_image_cache_evict(Scene *scene);
 void final_image_cache_tick(Scene *scene);
 
