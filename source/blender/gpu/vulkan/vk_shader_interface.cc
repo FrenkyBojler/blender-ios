@@ -306,7 +306,7 @@ void VKShaderInterface::descriptor_set_location_update(
         break;
 
       case shader::ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
-        if (bool(resource->storagebuf.qualifiers & shader::Qualifier::READ) == true) {
+        if (bool(resource->storagebuf.qualifiers & shader::Qualifier::read) == true) {
           vk_access_flags |= VK_ACCESS_SHADER_READ_BIT;
         }
         if (bool(resource->storagebuf.qualifiers & shader::Qualifier::write) == true) {
@@ -315,7 +315,7 @@ void VKShaderInterface::descriptor_set_location_update(
         break;
 
       case shader::ShaderCreateInfo::Resource::BindType::IMAGE:
-        if (bool(resource->image.qualifiers & shader::Qualifier::READ) == true) {
+        if (bool(resource->image.qualifiers & shader::Qualifier::read) == true) {
           vk_access_flags |= VK_ACCESS_SHADER_READ_BIT;
         }
         if (bool(resource->image.qualifiers & shader::Qualifier::write) == true) {

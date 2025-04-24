@@ -454,10 +454,10 @@ static void print_image_type(std::ostream &os,
 
 static std::ostream &print_qualifier(std::ostream &os, const Qualifier &qualifiers)
 {
-  if (bool(qualifiers & Qualifier::NO_RESTRICT) == false) {
+  if (bool(qualifiers & Qualifier::no_restrict) == false) {
     os << "restrict ";
   }
-  if (bool(qualifiers & Qualifier::READ) == false) {
+  if (bool(qualifiers & Qualifier::read) == false) {
     os << "writeonly ";
   }
   if (bool(qualifiers & Qualifier::write) == false) {
