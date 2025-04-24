@@ -49,15 +49,15 @@ MieParameters phase_mie_fitted_parameters(float Diameter)
 }
 
 shader node_volume_coefficients(string phase = "Henyey-Greenstein",
-                          vector AbsorptionCoefficients = vector(1.0, 1.0, 1.0),
-                          vector ScatterCoefficients = vector(1.0, 1.0, 1.0),
-                          float Anisotropy = 0.0,
-                          float IOR = 1.33,
-                          float Backscatter = 0.1,
-                          float Alpha = 0.5,
-                          float Diameter = 20.0,
-                          vector EmissionCoefficients = vector(0.0, 0.0, 0.0),
-                          output closure color Volume = 0)
+                                vector AbsorptionCoefficients = vector(1.0, 1.0, 1.0),
+                                vector ScatterCoefficients = vector(1.0, 1.0, 1.0),
+                                float Anisotropy = 0.0,
+                                float IOR = 1.33,
+                                float Backscatter = 0.1,
+                                float Alpha = 0.5,
+                                float Diameter = 20.0,
+                                vector EmissionCoefficients = vector(0.0, 0.0, 0.0),
+                                output closure color Volume = 0)
 {
   closure color scatter = 0;
   if (phase == "Fournier-Forand") {
