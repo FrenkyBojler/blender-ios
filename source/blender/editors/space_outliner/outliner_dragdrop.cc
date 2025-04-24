@@ -44,8 +44,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ANIM_action.hh"
-
 #include "outliner_intern.hh"
 
 namespace blender::ed::outliner {
@@ -669,69 +667,6 @@ void OUTLINER_OT_material_drop(wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = material_drop_invoke;
-
-  ot->poll = ED_operator_region_outliner_active;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Action Drop Operator
- * \{ */
-
-static bAction *outliner_action_drop_find(bContext *C, const wmEvent *event)
-{
-  TreeElement *te = outliner_drop_find(C, event);
-  TreeStoreElem *tselem = (te) ? TREESTORE(te) : nullptr;
-
-  if (te && (te->idcode == ID_AC) && (tselem->type == TSE_ACTION)) {
-    return (bAction *)te->directdata;
-  }
-  return nullptr;
-}
-
-static bool action_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
-{
-  /* Ensure item under cursor is valid drop target */
-  bAction *dna_action = (bAction *)WM_drag_get_local_ID(drag, ID_AC);
-  if (dna_action == nullptr) {
-    return false;
-  }
-  blender::animrig::Action &action = dna_action->wrap();
-  if (!action.is_action_layered()) {
-    return false;
-  }
-  return (dna_action && (outliner_action_drop_find(C, event) != nullptr));
-}
-
-static int action_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
-{
-  bAction *dna_action_target = outliner_action_drop_find(C, event);
-  bAction *dna_action_source = (bAction *)WM_drag_get_local_ID_from_event(event, ID_AC);
-  BLI_assert(dna_action_source != nullptr);
-  BLI_assert(dna_action_target != nullptr);
-
-  const bool success = blender::animrig::merge_actions(dna_action_source->wrap(),
-                                                       dna_action_target->wrap());
-
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, CTX_data_scene(C));
-  WM_event_add_notifier(C, NC_ANIMATION | ND_SPACE_OUTLINER, nullptr);
-
-  return success ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
-}
-
-void OUTLINER_OT_action_drop(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Drop Action to merge";
-  ot->description = "Drag action to action in the Outliner";
-  ot->idname = "OUTLINER_OT_action_drop";
-
-  /* api callbacks */
-  ot->invoke = action_drop_invoke;
 
   ot->poll = ED_operator_region_outliner_active;
 
@@ -1644,7 +1579,6 @@ void outliner_dropboxes()
   WM_dropbox_add(lb, "OUTLINER_OT_parent_clear", parent_clear_poll, nullptr, nullptr, nullptr);
   WM_dropbox_add(lb, "OUTLINER_OT_scene_drop", scene_drop_poll, nullptr, nullptr, nullptr);
   WM_dropbox_add(lb, "OUTLINER_OT_material_drop", material_drop_poll, nullptr, nullptr, nullptr);
-  WM_dropbox_add(lb, "OUTLINER_OT_action_drop", action_drop_poll, nullptr, nullptr, nullptr);
   WM_dropbox_add(lb,
                  "OUTLINER_OT_datastack_drop",
                  datastack_drop_poll,

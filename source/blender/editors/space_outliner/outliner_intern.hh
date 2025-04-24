@@ -473,7 +473,6 @@ void OUTLINER_OT_scene_drop(wmOperatorType *ot);
 void OUTLINER_OT_material_drop(wmOperatorType *ot);
 void OUTLINER_OT_datastack_drop(wmOperatorType *ot);
 void OUTLINER_OT_collection_drop(wmOperatorType *ot);
-void OUTLINER_OT_action_drop(wmOperatorType *ot);
 
 /* ...................................................... */
 
