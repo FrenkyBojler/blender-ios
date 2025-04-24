@@ -32,48 +32,28 @@
 
 using blender::StringRef;
 
-struct ListTypePointerHash {
-  uint64_t operator()(const uiListType *value) const
-  {
-    return get_default_hash(StringRef(value->idname));
-  }
-  uint64_t operator()(const StringRef name) const
-  {
-    return get_default_hash(name);
-  }
-};
-
-struct ListTypePointerNameEqual {
-  bool operator()(const uiListType *a, const uiListType *b) const
-  {
-    return STREQ(a->idname, b->idname);
-  }
-  bool operator()(const StringRef idname, const uiListType *a) const
-  {
-    return a->idname == idname;
-  }
-};
-
 static auto &get_list_type_map()
 {
-  static blender::VectorSet<uiListType *,
-                            blender::DefaultProbingStrategy,
-                            ListTypePointerHash,
-                            ListTypePointerNameEqual>
-      map;
+  struct IDNameGetter {
+    StringRef operator()(const uiListType *value) const
+    {
+      return StringRef(value->idname);
+    }
+  };
+  static blender::CustomIDVectorSet<uiListType *, IDNameGetter> map;
   return map;
 }
 
-uiListType *WM_uilisttype_find(const char *idname, bool quiet)
+uiListType *WM_uilisttype_find(const StringRef idname, bool quiet)
 {
-  if (idname[0]) {
-    if (uiListType *const *ult = get_list_type_map().lookup_key_ptr_as(StringRef(idname))) {
+  if (!idname.is_empty()) {
+    if (uiListType *const *ult = get_list_type_map().lookup_key_ptr_as(idname)) {
       return *ult;
     }
   }
 
   if (!quiet) {
-    printf("search for unknown uilisttype %s\n", idname);
+    printf("search for unknown uilisttype %s\n", std::string(idname).c_str());
   }
 
   return nullptr;

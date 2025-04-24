@@ -261,6 +261,11 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
 
   const char *const kernel_ext = "genco";
   std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math";
+  if (hipNeedPreciseMath(arch)) {
+    options.append(
+        " -fhip-fp32-correctly-rounded-divide-sqrt -fno-gpu-approx-transcendentals "
+        "-fgpu-flush-denormals-to-zero -ffp-contract=off");
+  }
 
 #  ifndef NDEBUG
   options.append(" -save-temps");
@@ -498,7 +503,7 @@ void HIPDevice::free_device(void *device_pointer)
   hip_assert(hipFree((hipDeviceptr_t)device_pointer));
 }
 
-bool HIPDevice::alloc_host(void *&shared_pointer, const size_t size)
+bool HIPDevice::shared_alloc(void *&shared_pointer, const size_t size)
 {
   HIPContextScope scope(this);
 
@@ -508,14 +513,14 @@ bool HIPDevice::alloc_host(void *&shared_pointer, const size_t size)
   return mem_alloc_result == hipSuccess;
 }
 
-void HIPDevice::free_host(void *shared_pointer)
+void HIPDevice::shared_free(void *shared_pointer)
 {
   HIPContextScope scope(this);
 
   hipHostFree(shared_pointer);
 }
 
-void *HIPDevice::transform_host_to_device_pointer(const void *shared_pointer)
+void *HIPDevice::shared_to_device_pointer(const void *shared_pointer)
 {
   HIPContextScope scope(this);
   void *device_pointer = nullptr;
@@ -608,7 +613,7 @@ void HIPDevice::mem_zero(device_memory &mem)
     return;
   }
 
-  if (!(mem.is_host_mapped(this) && mem.host_pointer == mem.shared_pointer)) {
+  if (!(mem.is_shared(this) && mem.host_pointer == mem.shared_pointer)) {
     const HIPContextScope scope(this);
     hip_assert(hipMemsetD8((hipDeviceptr_t)mem.device_pointer, 0, mem.memory_size()));
   }

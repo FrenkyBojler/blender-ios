@@ -16,9 +16,10 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "IO_string_utils.hh"
+
 #include "obj_export_mtl.hh"
 #include "obj_import_file_reader.hh"
-#include "obj_import_string_utils.hh"
 
 #include <algorithm>
 #include <charconv>
@@ -419,7 +420,7 @@ static void geom_new_object(const char *p,
 {
   r_state_shaded_smooth = false;
   r_state_group_name = "";
-  /* Reset object-local material index that's used in face infos.
+  /* Reset object-local material index that's used in face information.
    * NOTE: do not reset the material name; that has to carry over
    * into the next object if needed. */
   r_state_material_index = -1;

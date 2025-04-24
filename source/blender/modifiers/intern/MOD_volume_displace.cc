@@ -26,8 +26,6 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "MOD_ui_common.hh"
 
 #include "RE_texture.h"
@@ -226,11 +224,11 @@ struct DisplaceGridOp {
 
     /* Run the operator. This is multi-threaded. It is important that the operator is not shared
      * between the threads, because it contains a non-thread-safe accessor for the old grid. */
-    openvdb::tools::foreach (temp_grid->beginValueOn(),
-                             displace_op,
-                             true,
-                             /* Disable sharing of the operator. */
-                             false);
+    openvdb::tools::foreach(temp_grid->beginValueOn(),
+                            displace_op,
+                            true,
+                            /* Disable sharing of the operator. */
+                            false);
 
     /* It is likely that we produced too many active cells. Those are removed here, to avoid
      * slowing down subsequent operations. */

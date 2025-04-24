@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-27 10:58+0000\n"
-"PO-Revision-Date: 2024-10-16 00:56+0000\n"
+"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"PO-Revision-Date: 2025-04-14 08:20+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
 "Language: fi\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.7.2"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Shader AOV"
@@ -65,10 +65,6 @@ msgstr "F-Käyrät"
 
 msgid "Action F-Curves"
 msgstr "Toiminta F-käyrät"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Toiminta F-käyrä -kokoelma"
 
 
 msgid "Action Group"
@@ -245,30 +241,6 @@ msgstr "Toimintaryhmät"
 
 msgid "Collection of action groups"
 msgstr "Toimintaryhmäkokoelma"
-
-
-msgid "Mix Mode"
-msgstr "Sekoitustila"
-
-
-msgid "Replace"
-msgstr "Korvaa"
-
-
-msgid "Offset"
-msgstr "Siirros"
-
-
-msgid "Add"
-msgstr "Lisää"
-
-
-msgid "Subtract"
-msgstr "Vähennä"
-
-
-msgid "Multiply"
-msgstr "Kerro"
 
 
 msgid "Action Pose Markers"
@@ -566,8 +538,24 @@ msgid "Active Action for this data-block"
 msgstr "Aktiiviset toiminnot tälle data-palikalle"
 
 
+msgid "Replace"
+msgstr "Korvaa"
+
+
 msgid "Combine"
 msgstr "Yhdistä"
+
+
+msgid "Add"
+msgstr "Lisää"
+
+
+msgid "Subtract"
+msgstr "Vähennä"
+
+
+msgid "Multiply"
+msgstr "Kerro"
 
 
 msgid "Nothing"
@@ -3189,6 +3177,10 @@ msgid "Override Background Image"
 msgstr "Ohita taustakuva"
 
 
+msgid "Offset"
+msgstr "Siirros"
+
+
 msgid "Rotation"
 msgstr "Kierto"
 
@@ -3648,6 +3640,10 @@ msgstr "Maksimi"
 
 msgid "Minimum"
 msgstr "Minimi"
+
+
+msgid "Mix Mode"
+msgstr "Sekoitustila"
 
 
 msgid "Target object"
@@ -4136,26 +4132,6 @@ msgstr "-Y -kierto"
 
 msgid "-Z Rotation"
 msgstr "-Z -kierto"
-
-
-msgid "Script Error"
-msgstr "Koodivirhe"
-
-
-msgid "Number of Targets"
-msgstr "Kohteiden määrä"
-
-
-msgid "Target Objects"
-msgstr "Kohdeobjektit"
-
-
-msgid "Script"
-msgstr "Koodi"
-
-
-msgid "Use Targets"
-msgstr "Käytä kohteita"
 
 
 msgid "Front"
@@ -5161,6 +5137,10 @@ msgid "Realtime"
 msgstr "Reaaliaikainen"
 
 
+msgid "Profile"
+msgstr "Profiili"
+
+
 msgid "MPEG-4"
 msgstr "MPEG-4"
 
@@ -5866,20 +5846,16 @@ msgid "Material Index"
 msgstr "Materiaali-indeksi"
 
 
-msgid "Use Masks"
-msgstr "Käytä maskeja"
-
-
-msgid "Group name"
-msgstr "Ryhmän nimi"
-
-
 msgid "Invert mask"
 msgstr "Käännä maski"
 
 
 msgid "Repeat"
 msgstr "Toista"
+
+
+msgid "Use Masks"
+msgstr "Käytä maskeja"
 
 
 msgid "Active Grease Pencil layer"
@@ -6270,10 +6246,6 @@ msgid "Round"
 msgstr "Pyöreä"
 
 
-msgid "Profile"
-msgstr "Profiili"
-
-
 msgid "Fill Mode"
 msgstr "Täyttötila"
 
@@ -6642,6 +6614,10 @@ msgstr "Päivitä"
 
 msgid "Attribute"
 msgstr "Attribuutti"
+
+
+msgid "Script"
+msgstr "Koodi"
 
 
 msgid "Shader"
@@ -7340,14 +7316,6 @@ msgid "Mask"
 msgstr "Maski"
 
 
-msgid "Names"
-msgstr "Nimet"
-
-
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
-
-
 msgid "UV Mapping"
 msgstr "UV-kartoittaminen"
 
@@ -7388,12 +7356,20 @@ msgid "Track"
 msgstr "Raide"
 
 
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
+
+
 msgid "Hooks"
 msgstr "Koukut"
 
 
 msgid "Random Mask"
 msgstr "Satunnainen maski"
+
+
+msgid "Names"
+msgstr "Nimet"
 
 
 msgid "Mesh Select Mode"
@@ -9141,6 +9117,22 @@ msgid "Store Named Grid"
 msgstr "Säilytä nimetty ruudukko"
 
 
+msgid "64-bit integer"
+msgstr "64-bittinen kokonaisluku"
+
+
+msgid "3D float vector"
+msgstr "3D-liukulukuvektori"
+
+
+msgid "3D integer vector"
+msgstr "3D-vektori, joka on kokonaisluku"
+
+
+msgid "Unknown"
+msgstr "Tuntematon"
+
+
 msgid "Join Strings"
 msgstr "Yhdistä merkkijonot"
 
@@ -10691,6 +10683,18 @@ msgid "Texture Type"
 msgstr "Tekstuurin tyyppi"
 
 
+msgid "Geometry Node Editor"
+msgstr "Geometrianoodieditori"
+
+
+msgid "Shader Editor"
+msgstr "Varjostineditori"
+
+
+msgid "Texture Node Editor"
+msgstr "Tekstuurinoodieditori"
+
+
 msgid "Blender File"
 msgstr "Blender-tiedosto"
 
@@ -11895,10 +11899,6 @@ msgid "Integer"
 msgstr "Kokonaisluku"
 
 
-msgid "64-bit integer"
-msgstr "64-bittinen kokonaisluku"
-
-
 msgctxt "Volume"
 msgid "Mask"
 msgstr "Maski"
@@ -11909,17 +11909,9 @@ msgid "Float Vector"
 msgstr "Liukulukuvektori"
 
 
-msgid "3D float vector"
-msgstr "3D-liukulukuvektori"
-
-
 msgctxt "Volume"
 msgid "Integer Vector"
 msgstr "Kokonaislukuvektori"
-
-
-msgid "3D integer vector"
-msgstr "3D-vektori, joka on kokonaisluku"
 
 
 msgctxt "Volume"
@@ -12764,10 +12756,6 @@ msgid "Rotation"
 msgstr "Kierto"
 
 
-msgid "Unknown"
-msgstr "Tuntematon"
-
-
 msgid "Mix Vector"
 msgstr "Sekoita Vektori"
 
@@ -12840,10 +12828,6 @@ msgstr "K0"
 
 msgid "Offset X"
 msgstr "X-siirros"
-
-
-msgid "Endpoint"
-msgstr "Päätepiste"
 
 
 msgctxt "Operator"
@@ -13042,6 +13026,10 @@ msgstr "Objektin Skaala"
 
 msgid "Randomize Size"
 msgstr "Satunnaista Koko"
+
+
+msgid "Endpoint"
+msgstr "Päätepiste"
 
 
 msgid "Randomize Axis"
@@ -13947,6 +13935,10 @@ msgid "Surface"
 msgstr "Pinta"
 
 
+msgid "True Normal"
+msgstr "Todellinen normaali"
+
+
 msgid "AOV"
 msgstr "AOV"
 
@@ -13971,12 +13963,12 @@ msgid "VFX"
 msgstr "VFX"
 
 
-msgid "UV/Image"
-msgstr "UV/kuva"
-
-
 msgid "Workbench"
 msgstr "Työtila"
+
+
+msgid "Create"
+msgstr "Luo"
 
 
 msgid "y = (Ax + B)"
@@ -13995,8 +13987,8 @@ msgid "Separated bones"
 msgstr "Erotetut luut"
 
 
-msgid "Create"
-msgstr "Luo"
+msgid "Cancel"
+msgstr "Peruuta"
 
 
 msgid "No pose to copy"
@@ -14035,10 +14027,6 @@ msgstr "Pupillit"
 
 msgid "Nothing selected"
 msgstr "Mitään ei ole valittu"
-
-
-msgid "Cancel"
-msgstr "Peruuta"
 
 
 msgctxt "Operator"
@@ -14148,10 +14136,6 @@ msgstr "Poista pikakomento"
 
 msgid "OS"
 msgstr "OS"
-
-
-msgid "Home"
-msgstr "Koti"
 
 
 msgid "Esc"
@@ -14826,14 +14810,6 @@ msgid "Missing surface mesh"
 msgstr "Pinnan muoto puuttuu"
 
 
-msgid "ON"
-msgstr "Päällä"
-
-
-msgid "OFF"
-msgstr "Pois päältä"
-
-
 msgid "Trace"
 msgstr "Jäljitä"
 
@@ -15008,6 +14984,10 @@ msgstr "Tiedostonimi"
 
 msgid "Date Modified"
 msgstr "Päiväämäärää muunnettu"
+
+
+msgid "Home"
+msgstr "Koti"
 
 
 msgid "Desktop"
@@ -16201,10 +16181,6 @@ msgid "Decimals"
 msgstr "Desimaalit"
 
 
-msgid "Geometry Node Editor"
-msgstr "Geometrianoodieditori"
-
-
 msgid "Leading"
 msgstr "Edeltävä"
 
@@ -16768,10 +16744,6 @@ msgid "Remainder"
 msgstr "Jakojäännös"
 
 
-msgid "Shader Editor"
-msgstr "Varjostineditori"
-
-
 msgid "Not a shader node tree"
 msgstr "Ei ole varjostinnoodipuu"
 
@@ -16859,10 +16831,6 @@ msgstr "Katso Z-syvyyttä"
 
 msgid "View Distance"
 msgstr "Katso etäisyys"
-
-
-msgid "True Normal"
-msgstr "Todellinen normaali"
 
 
 msgid "Incoming"
@@ -16975,10 +16943,6 @@ msgstr "Lämpötila-attribuutti"
 
 msgid "Patterns"
 msgstr "Kuviot"
-
-
-msgid "Texture Node Editor"
-msgstr "Tekstuurinoodieditori"
 
 
 msgid "Not a texture node tree"
@@ -17190,6 +17154,14 @@ msgstr "Bksp"
 
 msgid "dbl-"
 msgstr "dbl-"
+
+
+msgid "ON"
+msgstr "Päällä"
+
+
+msgid "OFF"
+msgstr "Pois päältä"
 
 
 msgid "unsupported format"
@@ -17857,10 +17829,6 @@ msgstr "mikrofoni"
 
 msgid "network"
 msgstr "verkko"
-
-
-msgid "English (English)"
-msgstr "Englanti (English)"
 
 
 msgid "Japanese (日本語)"

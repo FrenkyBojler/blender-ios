@@ -19,6 +19,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
 
 #include "DNA_brush_types.h"
@@ -97,7 +98,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
   /* Set of locked vertex groups (object level). */
   Set<std::string> object_locked_defgroups;
 
-  ~WeightPaintOperation() override {}
+  ~WeightPaintOperation() override = default;
 
   /* Apply a weight to a point under the brush. */
   void apply_weight_to_point(const BrushPoint &point,

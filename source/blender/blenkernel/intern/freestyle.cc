@@ -23,9 +23,9 @@
 #include "BKE_linestyle.h"
 
 /* Function declarations. */
-static FreestyleLineSet *alloc_lineset(void);
+static FreestyleLineSet *alloc_lineset();
 static void copy_lineset(FreestyleLineSet *new_lineset, FreestyleLineSet *lineset, const int flag);
-static FreestyleModuleConfig *alloc_module(void);
+static FreestyleModuleConfig *alloc_module();
 static void copy_module(FreestyleModuleConfig *new_module, FreestyleModuleConfig *module);
 
 void BKE_freestyle_config_init(FreestyleConfig *config)
@@ -110,8 +110,7 @@ static void copy_lineset(FreestyleLineSet *new_lineset, FreestyleLineSet *linese
 
 static FreestyleModuleConfig *alloc_module()
 {
-  return (FreestyleModuleConfig *)MEM_callocN(sizeof(FreestyleModuleConfig),
-                                              "style module configuration");
+  return MEM_callocN<FreestyleModuleConfig>("style module configuration");
 }
 
 FreestyleModuleConfig *BKE_freestyle_module_add(FreestyleConfig *config)
@@ -158,7 +157,7 @@ void BKE_freestyle_lineset_unique_name(FreestyleConfig *config, FreestyleLineSet
 
 static FreestyleLineSet *alloc_lineset()
 {
-  return (FreestyleLineSet *)MEM_callocN(sizeof(FreestyleLineSet), "Freestyle line set");
+  return MEM_callocN<FreestyleLineSet>("Freestyle line set");
 }
 
 FreestyleLineSet *BKE_freestyle_lineset_add(Main *bmain, FreestyleConfig *config, const char *name)

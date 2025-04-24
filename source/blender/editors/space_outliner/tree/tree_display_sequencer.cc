@@ -8,7 +8,6 @@
 
 #include <cstring>
 
-#include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_utildefines.h"
 
@@ -33,7 +32,7 @@ ListBase TreeDisplaySequencer::build_tree(const TreeSourceData &source_data)
 {
   ListBase tree = {nullptr};
 
-  Editing *ed = SEQ_editing_get(source_data.scene);
+  Editing *ed = seq::editing_get(source_data.scene);
   if (ed == nullptr) {
     return tree;
   }
