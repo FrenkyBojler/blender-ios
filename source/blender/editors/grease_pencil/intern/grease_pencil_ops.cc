@@ -42,7 +42,6 @@ bool active_grease_pencil_poll(bContext *C)
   if (object == nullptr || object->type != OB_GREASE_PENCIL) {
     return false;
   }
-
   return true;
 }
 
