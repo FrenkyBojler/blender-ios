@@ -561,7 +561,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     GPU_blend(GPU_BLEND_NONE);
   }
 
-  memset(&region->runtime->drawrct, 0, sizeof(region->runtime->drawrct));
+  region->runtime->drawrct = rcti{};
 
   UI_blocklist_free_inactive(C, region);
 
@@ -645,7 +645,7 @@ void ED_region_tag_redraw(ARegion *region)
     region->runtime->do_draw &= ~(RGN_DRAW_PARTIAL | RGN_DRAW_NO_REBUILD |
                                   RGN_DRAW_EDITOR_OVERLAYS);
     region->runtime->do_draw |= RGN_DRAW;
-    memset(&region->runtime->drawrct, 0, sizeof(region->runtime->drawrct));
+    region->runtime->drawrct = rcti{};
   }
 }
 
@@ -661,7 +661,7 @@ void ED_region_tag_redraw_no_rebuild(ARegion *region)
   if (region && !(region->runtime->do_draw & (RGN_DRAWING | RGN_DRAW))) {
     region->runtime->do_draw &= ~(RGN_DRAW_PARTIAL | RGN_DRAW_EDITOR_OVERLAYS);
     region->runtime->do_draw |= RGN_DRAW_NO_REBUILD;
-    memset(&region->runtime->drawrct, 0, sizeof(region->runtime->drawrct));
+    region->runtime->drawrct = rcti{};
   }
 }
 
@@ -829,7 +829,7 @@ void ED_area_status_text(ScrArea *area, const char *str)
   if (ar) {
     if (str) {
       if (ar->runtime->headerstr == nullptr) {
-        ar->runtime->headerstr = static_cast<char *>(MEM_mallocN(UI_MAX_DRAW_STR, "headerprint"));
+        ar->runtime->headerstr = MEM_malloc_arrayN<char>(UI_MAX_DRAW_STR, "headerprint");
       }
       BLI_strncpy(ar->runtime->headerstr, str, UI_MAX_DRAW_STR);
       BLI_str_rstrip(ar->runtime->headerstr);
@@ -1047,7 +1047,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
 #endif
 
     /* set area action zones */
-    AZone *az = (AZone *)MEM_callocN(sizeof(AZone), "actionzone");
+    AZone *az = MEM_callocN<AZone>("actionzone");
     BLI_addtail(&(area->actionzones), az);
     az->type = AZONE_AREA;
     az->x1 = coords[i][0];
@@ -1064,7 +1064,7 @@ static void fullscreen_azone_init(ScrArea *area, ARegion *region)
     return;
   }
 
-  AZone *az = (AZone *)MEM_callocN(sizeof(AZone), "fullscreen action zone");
+  AZone *az = MEM_callocN<AZone>("fullscreen action zone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_FULLSCREEN;
   az->region = region;
@@ -1107,43 +1107,41 @@ static bool region_background_is_transparent(const ScrArea *area, const ARegion 
 
 static void region_azone_edge(const ScrArea *area, AZone *az, const ARegion *region)
 {
-  const int azonepad_edge = (0.1f * U.widget_unit);
+  const bool is_header = RGN_TYPE_IS_HEADER_ANY(region->regiontype);
+  const bool transparent = !is_header && region->overlap &&
+                           region_background_is_transparent(area, region);
 
-  /* If there is no visible region background, users typically expect the #AZone to be closer to
-   * the content, so move it a bit. */
-  const int overlap_padding =
-      /* Header-like regions are usually thin and there's not much padding around them,
-       * applying an offset would make the edge overlap buttons. */
-      (!RGN_TYPE_IS_HEADER_ANY(region->regiontype) &&
-       /* Is the region background transparent? */
-       region->overlap && region_background_is_transparent(area, region)) ?
-          /* Note that this is an arbitrary amount that matches nicely with numbers elsewhere. */
-          int(0.4f * U.widget_unit) :
-          0;
+  /* Only scale the padding inside the region, not outside. */
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
+
+  /* Different padding inside and outside the region. */
+  const int pad_out = (is_header ? 2.0f : 3.0f) * UI_SCALE_FAC;
+  const int pad_in = (is_header ? 1.0f : (transparent ? 8.0f : 4.0f)) * UI_SCALE_FAC / aspect;
 
   switch (az->edge) {
     case AE_TOP_TO_BOTTOMRIGHT:
       az->x1 = region->winrct.xmin;
-      az->y1 = region->winrct.ymax - azonepad_edge - overlap_padding;
+      az->y1 = region->winrct.ymax + pad_out;
       az->x2 = region->winrct.xmax;
-      az->y2 = region->winrct.ymax + azonepad_edge - overlap_padding;
+      az->y2 = region->winrct.ymax - pad_in;
       break;
     case AE_BOTTOM_TO_TOPLEFT:
       az->x1 = region->winrct.xmin;
-      az->y1 = region->winrct.ymin + azonepad_edge + overlap_padding;
+      az->y1 = region->winrct.ymin + pad_out;
       az->x2 = region->winrct.xmax;
-      az->y2 = region->winrct.ymin - azonepad_edge + overlap_padding;
+      az->y2 = region->winrct.ymin - pad_in;
       break;
     case AE_LEFT_TO_TOPRIGHT:
-      az->x1 = region->winrct.xmin - azonepad_edge + overlap_padding;
+      az->x1 = region->winrct.xmin - pad_out;
       az->y1 = region->winrct.ymin;
-      az->x2 = region->winrct.xmin + azonepad_edge + overlap_padding;
+      az->x2 = region->winrct.xmin + pad_in;
       az->y2 = region->winrct.ymax;
       break;
     case AE_RIGHT_TO_TOPLEFT:
-      az->x1 = region->winrct.xmax + azonepad_edge - overlap_padding;
+      az->x1 = region->winrct.xmax - pad_in;
       az->y1 = region->winrct.ymin;
-      az->x2 = region->winrct.xmax - azonepad_edge - overlap_padding;
+      az->x2 = region->winrct.xmax + pad_out;
       az->y2 = region->winrct.ymax;
       break;
   }
@@ -1233,7 +1231,7 @@ static void region_azone_edge_init(ScrArea *area,
     return;
   }
 
-  AZone *az = (AZone *)MEM_callocN(sizeof(AZone), "actionzone");
+  AZone *az = MEM_callocN<AZone>("actionzone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_REGION;
   az->region = region;
@@ -1251,7 +1249,7 @@ static void region_azone_scrollbar_init(ScrArea *area,
                                         ARegion *region,
                                         AZScrollDirection direction)
 {
-  AZone *az = static_cast<AZone *>(MEM_callocN(sizeof(*az), __func__));
+  AZone *az = MEM_callocN<AZone>(__func__);
 
   BLI_addtail(&area->actionzones, az);
   az->type = AZONE_REGION_SCROLL;
@@ -1800,7 +1798,7 @@ static void region_rect_recursive(
   }
 
   /* Clear, initialize on demand. */
-  memset(&region->runtime->visible_rect, 0, sizeof(region->runtime->visible_rect));
+  region->runtime->visible_rect = rcti{};
 }
 
 static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *window_rect)
@@ -1829,7 +1827,7 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
     if (area->totrct.ymax < (window_rect->ymax - 1)) {
       area->totrct.ymax -= px;
     }
-    else if (!BLI_listbase_is_single(&screen->areabase)) {
+    else if (!BLI_listbase_is_single(&screen->areabase) || screen->state == SCREENMAXIMIZED) {
       /* Small gap below Top Bar. */
       area->totrct.ymax -= U.pixelsize;
     }
@@ -2166,7 +2164,7 @@ static void area_offscreen_init(ScrArea *area)
 
 ScrArea *ED_area_offscreen_create(wmWindow *win, eSpace_Type space_type)
 {
-  ScrArea *area = static_cast<ScrArea *>(MEM_callocN(sizeof(ScrArea), __func__));
+  ScrArea *area = MEM_callocN<ScrArea>(__func__);
   area->spacetype = space_type;
 
   screen_area_spacelink_add(WM_window_get_active_scene(win), area, space_type);
@@ -2591,7 +2589,7 @@ static void region_align_info_to_area(
 
 void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
 {
-  ScrArea *tmp = static_cast<ScrArea *>(MEM_callocN(sizeof(ScrArea), __func__));
+  ScrArea *tmp = MEM_callocN<ScrArea>(__func__);
   wmWindow *win = CTX_wm_window(C);
 
   ED_area_exit(C, sa1);
@@ -3368,12 +3366,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     mask.xmax -= round_fl_to_int(UI_view2d_scale_get_x(&region->v2d) *
                                  UI_PANEL_CATEGORY_MARGIN_WIDTH);
   }
-  bool use_full_hide = false;
-  if (region->overlap) {
-    /* Don't always show scrollbars for transparent regions as it's distracting. */
-    use_full_hide = true;
-  }
-  UI_view2d_scrollers_draw_ex(v2d, use_mask ? &mask : nullptr, use_full_hide);
+  UI_view2d_scrollers_draw(v2d, use_mask ? &mask : nullptr);
 }
 
 void ED_region_panels_ex(const bContext *C,

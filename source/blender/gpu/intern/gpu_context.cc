@@ -33,17 +33,19 @@
 #include "gpu_private.hh"
 #include "gpu_shader_private.hh"
 
+#ifdef WITH_VULKAN_BACKEND
+#  include "vk_backend.hh"
+#endif
 #ifdef WITH_OPENGL_BACKEND
 #  include "gl_backend.hh"
 #  include "gl_context.hh"
-#endif
-#ifdef WITH_VULKAN_BACKEND
-#  include "vk_backend.hh"
 #endif
 #ifdef WITH_METAL_BACKEND
 #  include "mtl_backend.hh"
 #endif
 #include "dummy_backend.hh"
+
+#include "draw_debug.hh"
 
 #include <mutex>
 
@@ -194,6 +196,9 @@ GPUContext *GPU_context_create(void *ghost_window, void *ghost_context)
   Context *ctx = GPUBackend::get()->context_alloc(ghost_window, ghost_context);
 
   GPU_context_active_set(wrap(ctx));
+
+  blender::draw::DebugDraw::get().acquire();
+
   return wrap(ctx);
 }
 
@@ -201,6 +206,8 @@ void GPU_context_discard(GPUContext *ctx_)
 {
   Context *ctx = unwrap(ctx_);
   BLI_assert(active_ctx == ctx);
+
+  blender::draw::DebugDraw::get().release();
 
   GPUBackend *backend = GPUBackend::get();
   /* Flush any remaining printf while making sure we are inside render boundaries. */
@@ -564,6 +571,7 @@ GPUSecondaryContext::GPUSecondaryContext()
   GHOST_TSuccess success = GHOST_ReleaseGPUContext(
       reinterpret_cast<GHOST_ContextHandle>(ghost_context_));
   BLI_assert(success);
+  UNUSED_VARS_NDEBUG(success);
 
   /* Restore the main thread contexts.
    * (required as the above context creation also makes it active). */

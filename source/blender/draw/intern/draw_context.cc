@@ -390,7 +390,7 @@ template<> Mesh &DRW_object_get_data_for_drawing(const Object &object)
 
 DRWData *DRW_viewport_data_create()
 {
-  DRWData *drw_data = static_cast<DRWData *>(MEM_callocN(sizeof(DRWData), "DRWData"));
+  DRWData *drw_data = MEM_callocN<DRWData>("DRWData");
 
   drw_data->default_view = new blender::draw::View("DrawDefaultView");
 
@@ -654,7 +654,7 @@ ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
   this->dupli_parent = iter_data.dupli_parent;
   this->dupli_object = iter_data.dupli_object_current;
   this->object = ob;
-  /* Set by the first drawcall. */
+  /* Set by the first draw-call. */
   this->handle = ResourceHandle(0);
 }
 
@@ -663,7 +663,7 @@ ObjectRef::ObjectRef(Object *ob)
   this->dupli_parent = nullptr;
   this->dupli_object = nullptr;
   this->object = ob;
-  /* Set by the first drawcall. */
+  /* Set by the first draw-call. */
   this->handle = ResourceHandle(0);
 }
 
@@ -755,7 +755,7 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.init(); });
 
-  view_data_active->manager->begin_sync();
+  view_data_active->manager->begin_sync(this->obact);
 
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
     /* TODO(fclem): Remove. Only there for overlay engine. */
@@ -978,8 +978,6 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
       GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
     }
 
-    drw_debug_draw();
-
     GPU_depth_test(GPU_DEPTH_NONE);
     /* Apply state for callbacks. */
     GPU_apply_state();
@@ -1194,7 +1192,6 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 
   draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
   draw_ctx.engines_data_validate();
-  drw_debug_init();
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     /* Only iterate over objects for internal engines or when overlays are enabled */
     if (do_populate_loop) {
@@ -1249,7 +1246,6 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 
   draw_ctx.enable_engines();
   draw_ctx.engines_data_validate();
-  drw_debug_init();
   draw_ctx.engines_init_and_sync([&](DupliCacheManager & /*duplis*/, ExtractionGraph &extraction) {
     /* Only iterate over objects when overlay uses object data. */
     if (do_populate_loop) {
@@ -1340,6 +1336,8 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   DRWContext draw_ctx(mode, depsgraph, render_viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = draw_background;
+  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
+  draw_ctx.data->modules_init();
 
   drw_draw_render_loop_3d(draw_ctx, engine_type);
 
@@ -1703,7 +1701,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, object_type, object_mode, ob_iter) {
         /* Depsgraph usually does this, but we use a different iterator.
          * So we have to do it manually. */
-        ob_iter->runtime->select_id = DEG_get_original_object(ob_iter)->runtime->select_id;
+        ob_iter->runtime->select_id = DEG_get_original(ob_iter)->runtime->select_id;
 
         blender::draw::ObjectRef ob_ref(ob_iter);
         drw_engines_cache_populate(ob_ref, extraction);
