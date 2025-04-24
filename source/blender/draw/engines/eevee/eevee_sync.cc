@@ -95,7 +95,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, ObjectRef &ob_re
   }
 
   bool has_motion = inst_.velocity.step_object_sync(
-      ob_handle.object_key, ob_ref, ob_handle.recalc);
+      ob_handle.object_key, ob_ref, ob_handle.recalc, ob_ref.handle());
 
   MaterialArray &material_array = inst_.materials.material_array_get(ob, has_motion);
 
@@ -259,7 +259,7 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, ObjectRef 
   const int material_slot = POINTCLOUD_MATERIAL_NR;
 
   bool has_motion = inst_.velocity.step_object_sync(
-      ob_handle.object_key, ob_ref, ob_handle.recalc);
+      ob_handle.object_key, ob_ref, ob_handle.recalc, ob_ref.handle());
 
   Material &material = inst_.materials.material_get(
       ob, has_motion, material_slot - 1, MAT_GEOM_POINTCLOUD);
@@ -399,7 +399,7 @@ void SyncModule::sync_curves(Object *ob,
   }
 
   bool has_motion = inst_.velocity.step_object_sync(
-      ob_handle.object_key, ob_ref, ob_handle.recalc, modifier_data, particle_sys);
+      ob_handle.object_key, ob_ref, ob_handle.recalc, res_handle, modifier_data, particle_sys);
   Material &material = inst_.materials.material_get(ob, has_motion, mat_nr - 1, MAT_GEOM_CURVES);
 
   auto drawcall_add = [&](MaterialPass &matpass) {

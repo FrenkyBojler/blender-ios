@@ -75,19 +75,23 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
     return;
   }
 
+  /* NOTE: Dummy resource handle since this won't be used for drawing. */
+  ResourceHandle resource_handle(0);
   ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
-    auto sync_hair =
-        [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          inst.velocity.step_object_sync(
-              hair_handle.object_key, ob_ref, hair_handle.recalc, &md, &particle_sys);
-        };
+    auto sync_hair = [&](ObjectHandle hair_handle,
+                         ModifierData &md,
+                         ParticleSystem &particle_sys) {
+      inst.velocity.step_object_sync(
+          hair_handle.object_key, ob_ref, hair_handle.recalc, resource_handle, &md, &particle_sys);
+    };
     foreach_hair_particle_handle(ob_ref.object(), ob_handle, sync_hair);
   };
 
   if (object_is_visible) {
-    inst.velocity.step_object_sync(ob_handle.object_key, ob_ref, ob_handle.recalc);
+    inst.velocity.step_object_sync(
+        ob_handle.object_key, ob_ref, ob_handle.recalc, resource_handle);
   }
 }
 
@@ -123,6 +127,7 @@ void VelocityModule::step_camera_sync()
 bool VelocityModule::step_object_sync(ObjectKey &object_key,
                                       ObjectRef &object_ref,
                                       int /*IDRecalcFlag*/ recalc,
+                                      ResourceHandle resource_handle,
                                       ModifierData *modifier_data /*=nullptr*/,
                                       ParticleSystem *particle_sys /*=nullptr*/)
 {
@@ -144,8 +149,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
    * We live with that until we have a correct way of identifying new objects. */
   VelocityObjectData &vel = velocity_map.lookup_or_add_default(object_key);
   vel.obj.ofs[step_] = object_steps_usage[step_]++;
-  /* TODO(ResourceHandleRange) */
-  vel.obj.resource_id = object_ref.handle().handle_first.resource_index();
+  vel.obj.resource_id = resource_handle.resource_index();
   /* While VelocityObjectData is unique for each object/instance, multiple VelocityObjectDatas can
    * point to the same offset in VelocityGeometryData, since geometry is stored local space. */
   vel.id = particle_sys ? uint64_t(particle_sys) : uint64_t(ob->data);

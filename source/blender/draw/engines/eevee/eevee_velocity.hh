@@ -127,6 +127,7 @@ class VelocityModule {
   bool step_object_sync(ObjectKey &object_key,
                         ObjectRef &object_ref,
                         int recalc,
+                        ResourceHandle resource_handle,
                         ModifierData *modifier_data = nullptr,
                         ParticleSystem *particle_sys = nullptr);
 
