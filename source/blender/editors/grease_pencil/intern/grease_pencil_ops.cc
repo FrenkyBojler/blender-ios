@@ -43,10 +43,6 @@ bool active_grease_pencil_poll(bContext *C)
     return false;
   }
 
-  const GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
-  if (ID_IS_LINKED(grease_pencil)) {
-    return false;
-  }
   return true;
 }
 
@@ -69,6 +65,12 @@ bool editable_grease_pencil_poll(bContext *C)
   if (!ED_operator_object_active_editable_ex(C, object)) {
     return false;
   }
+
+  const GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+  if (ID_IS_LINKED(grease_pencil)) {
+    return false;
+  }
+
   return true;
 }
 
