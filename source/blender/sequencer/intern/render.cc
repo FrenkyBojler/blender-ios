@@ -69,7 +69,6 @@
 
 #include "effects/effects.hh"
 #include "final_image_cache.hh"
-#include "image_cache.hh"
 #include "intra_frame_cache.hh"
 #include "multiview.hh"
 #include "prefetch.hh"
@@ -2051,7 +2050,6 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   Vector<Strip *> strips = seq_get_shown_sequences(
       scene, channels, seqbasep, timeline_frame, chanshown);
 
-  seq_cache_free_temp_cache(context->scene, context->task_id, timeline_frame);  // @TODO remove
   /* Make sure we only keep the `anim` data for strips that are in view. */
   relations_free_all_anim_ibufs(context->scene, timeline_frame);
 

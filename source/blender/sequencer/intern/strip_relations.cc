@@ -32,7 +32,6 @@
 
 #include "effects/effects.hh"
 #include "final_image_cache.hh"
-#include "image_cache.hh"
 #include "intra_frame_cache.hh"
 #include "sequencer.hh"
 #include "source_image_cache.hh"
@@ -45,38 +44,6 @@ bool relation_is_effect_of_strip(const Strip *effect, const Strip *input)
   return ELEM(input, effect->seq1, effect->seq2);
 }
 
-/* check whether sequence cur depends on seq */
-static bool strip_relations_check_depend(const Scene *scene, Strip *strip, Strip *cur)
-{
-  if (relation_is_effect_of_strip(cur, strip)) {
-    return true;
-  }
-
-  /* sequences are not intersecting in time, assume no dependency exists between them */
-  if (time_right_handle_frame_get(scene, cur) < time_left_handle_frame_get(scene, strip) ||
-      time_left_handle_frame_get(scene, cur) > time_right_handle_frame_get(scene, strip))
-  {
-    return false;
-  }
-
-  /* checking sequence is below reference one, not dependent on it */
-  if (cur->machine < strip->machine) {
-    return false;
-  }
-
-  /* sequence is not blending with lower machines, no dependency here occurs
-   * check for non-effects only since effect could use lower machines as input
-   */
-  if ((cur->type & STRIP_TYPE_EFFECT) == 0 &&
-      ((cur->blend_mode == SEQ_BLEND_REPLACE) ||
-       (cur->blend_mode == STRIP_TYPE_CROSS && cur->blend_opacity == 100.0f)))
-  {
-    return false;
-  }
-
-  return true;
-}
-
 static void invalidate_final_cache_strip_range(Scene *scene, const Strip *strip)
 {
   const int strip_left = time_left_handle_frame_get(scene, strip);
@@ -84,27 +51,7 @@ static void invalidate_final_cache_strip_range(Scene *scene, const Strip *strip)
   final_image_cache_invalidate_frame_range(scene, strip_left, strip_right);
 }
 
-static void sequence_invalidate_cache(Scene *scene,
-                                      Strip *strip,
-                                      bool invalidate_self,
-                                      int invalidate_types)
-{
-  if (invalidate_self) {
-    seq_cache_cleanup_sequence(scene, strip, strip, invalidate_types, false);
-  }
-
-  if (strip->effectdata && strip->type == STRIP_TYPE_SPEED) {
-    strip_effect_speed_rebuild_map(scene, strip);
-  }
-
-  blender::seq::media_presence_invalidate_strip(scene, strip);
-  invalidate_final_cache_strip_range(scene, strip);
-  DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  prefetch_stop(scene);
-}
-
-/* Find meta-strips that contain invalidated_seq and invalidate them. */
-static void strip_relations_find_and_invalidate_metas(Scene *scene, Strip *strip)
+static void invalidate_raw_cache_of_parent_meta(Scene *scene, Strip *strip)
 {
   Strip *meta = lookup_meta_by_strip(editing_get(scene), strip);
   if (meta == nullptr) {
@@ -114,53 +61,39 @@ static void strip_relations_find_and_invalidate_metas(Scene *scene, Strip *strip
   relations_invalidate_cache_raw(scene, meta);
 }
 
-void relations_invalidate_cache_in_range(Scene *scene,
-                                         Strip *strip,
-                                         Strip *range_mask,
-                                         int invalidate_types)
-{
-  seq_cache_cleanup_sequence(scene, strip, range_mask, invalidate_types, true);
-  strip_relations_find_and_invalidate_metas(scene, strip);
-  invalidate_intra_frame_cache(scene, strip);
-}
-
 void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 {
-  // sequence_invalidate_cache(scene, strip, true, SEQ_CACHE_ALL_TYPES);
-  invalidate_final_cache_strip_range(scene, strip);
   source_image_cache_invalidate_strip(scene, strip);
-  strip_relations_find_and_invalidate_metas(scene, strip);
+  invalidate_final_cache_strip_range(scene, strip);
   invalidate_intra_frame_cache(scene, strip);
+  invalidate_raw_cache_of_parent_meta(scene, strip);
 }
 
 void relations_invalidate_cache_preprocessed(Scene *scene, Strip *strip)
 {
-  // sequence_invalidate_cache(scene, strip, true, SEQ_CACHE_STORE_FINAL_OUT);
   invalidate_final_cache_strip_range(scene, strip);
-  strip_relations_find_and_invalidate_metas(scene, strip);
   invalidate_intra_frame_cache(scene, strip);
+  invalidate_raw_cache_of_parent_meta(scene, strip);
 }
 
-void relations_invalidate_cache_composite(Scene *scene, Strip *strip)
+void relations_invalidate_cache(Scene *scene, Strip *strip)
 {
   if (strip->type == STRIP_TYPE_SOUND_RAM) {
     return;
   }
 
-  sequence_invalidate_cache(scene, strip, true, SEQ_CACHE_STORE_FINAL_OUT);
-  strip_relations_find_and_invalidate_metas(scene, strip);
-  invalidate_intra_frame_cache(scene, strip);
-}
-
-void relations_invalidate_dependent(Scene *scene, Strip *strip)
-{
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
-    return;
+  if (strip->effectdata && strip->type == STRIP_TYPE_SPEED) {
+    strip_effect_speed_rebuild_map(scene, strip);
   }
 
-  sequence_invalidate_cache(scene, strip, false, SEQ_CACHE_STORE_FINAL_OUT);
-  strip_relations_find_and_invalidate_metas(scene, strip);
+  media_presence_invalidate_strip(scene, strip);
+
+  invalidate_final_cache_strip_range(scene, strip);
   invalidate_intra_frame_cache(scene, strip);
+  invalidate_raw_cache_of_parent_meta(scene, strip);
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+  prefetch_stop(scene);
 }
 
 static void invalidate_scene_strips(Scene *scene, Scene *scene_target, ListBase *seqbase)

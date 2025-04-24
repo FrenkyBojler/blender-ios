@@ -56,7 +56,6 @@
 #include "BLO_read_write.hh"
 
 #include "final_image_cache.hh"
-#include "image_cache.hh"
 #include "intra_frame_cache.hh"
 #include "prefetch.hh"
 #include "sequencer.hh"
@@ -297,7 +296,6 @@ void editing_free(Scene *scene, const bool do_id_user)
   }
 
   seq_prefetch_free(scene);
-  seq_cache_destruct(scene);
 
   /* handle cache freeing above */
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, &ed->seqbase) {

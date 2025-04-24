@@ -44,9 +44,9 @@
 #include "SEQ_sequencer.hh"
 
 #include "final_image_cache.hh"
-#include "image_cache.hh"
 #include "prefetch.hh"
 #include "render.hh"
+#include "source_image_cache.hh"
 
 namespace blender::seq {
 
@@ -355,27 +355,23 @@ void seq_prefetch_free(Scene *scene)
   MEM_delete(pfjob);
 }
 
-static bool seq_prefetch_seq_has_disk_cache(PrefetchJob *pfjob,
-                                            Strip *strip,
-                                            bool can_have_final_image)
+static bool strip_is_cached(PrefetchJob *pfjob, Strip *strip, bool can_have_final_image)
 {
   RenderData *ctx = &pfjob->context_cpy;
   float cfra = seq_prefetch_cfra(pfjob);
 
-  // ImBuf *ibuf = seq_cache_get(ctx, strip, cfra, SEQ_CACHE_STORE_RAW); //@TODO: what does this
-  // do? if (ibuf != nullptr) {
-  //   IMB_freeImBuf(ibuf);
-  //   return true;
-  // }
-
-  if (!can_have_final_image) {
-    return false;
-  }
-
-  ImBuf *ibuf = seq_cache_get(ctx, strip, cfra, SEQ_CACHE_STORE_FINAL_OUT);
+  ImBuf *ibuf = source_image_cache_get(ctx, strip, cfra);
   if (ibuf != nullptr) {
     IMB_freeImBuf(ibuf);
     return true;
+  }
+
+  if (can_have_final_image) {
+    ibuf = final_image_cache_get(pfjob->context.scene, cfra);
+    if (ibuf != nullptr) {
+      IMB_freeImBuf(ibuf);
+      return true;
+    }
   }
 
   return false;
@@ -400,9 +396,9 @@ static bool seq_prefetch_scene_strip_is_rendered(PrefetchJob *pfjob,
       return true;
     }
 
-    /* Disable prefetching 3D scene strips, but check for disk cache. */
+    /* A scene strip would be rendered, if it has no cached image for it. */
     if (strip->type == STRIP_TYPE_SCENE && (strip->flag & SEQ_SCENE_STRIPS) == 0 &&
-        !seq_prefetch_seq_has_disk_cache(pfjob, strip, !is_recursive_check))
+        !strip_is_cached(pfjob, strip, !is_recursive_check))
     {
       return true;
     }
@@ -492,7 +488,6 @@ static void *seq_prefetch_frames(void *job)
     }
 
     ImBuf *ibuf = render_give_ibuf(&pfjob->context_cpy, seq_prefetch_cfra(pfjob), 0);
-    seq_cache_free_temp_cache(pfjob->scene, pfjob->context.task_id, seq_prefetch_cfra(pfjob));
     IMB_freeImBuf(ibuf);
 
     /* Suspend thread if there is nothing to be prefetched. */
@@ -512,7 +507,6 @@ static void *seq_prefetch_frames(void *job)
     pfjob->num_frames_prefetched++;
   }
 
-  seq_cache_free_temp_cache(pfjob->scene, pfjob->context.task_id, seq_prefetch_cfra(pfjob));
   pfjob->running = false;
   pfjob->scene_eval->ed->prefetch_job = nullptr;
 

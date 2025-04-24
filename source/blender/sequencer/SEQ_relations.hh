@@ -35,14 +35,20 @@ bool relations_render_loop_check(Strip *strip_main, Strip *strip);
 void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render);
 void relations_invalidate_cache_raw(Scene *scene, Strip *strip);
 void relations_invalidate_cache_preprocessed(Scene *scene, Strip *strip);
-void relations_invalidate_cache_composite(Scene *scene, Strip *strip);
-void relations_invalidate_dependent(Scene *scene, Strip *strip);
+
+/**
+ * Invalidates various caches related to a given strip:
+ * - Final cached frames over the length of the strip,
+ * - Intra-frame caches of the current frame,
+ * - Source/raw caches of the meta strip that contains this strip, if any,
+ * - Media presence cache of the strip,
+ * - Rebuilds speed index map if this is a speed effect strip,
+ * - Tags DEG for strip recalculation,
+ * - Stops prefetching job, if any.
+ */
+void relations_invalidate_cache(Scene *scene, Strip *strip);
 void relations_invalidate_scene_strips(Main *bmain, Scene *scene_target);
 void relations_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_target);
-void relations_invalidate_cache_in_range(Scene *scene,
-                                         Strip *strip,
-                                         Strip *range_mask,
-                                         int invalidate_types);
 /**
  * Release FFmpeg handles of strips that are not currently displayed to minimize memory usage.
  */

@@ -188,7 +188,7 @@ static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmai
   if (ed) {
     Strip *strip = (Strip *)ptr->data;
 
-    blender::seq::relations_invalidate_cache_composite(scene, strip);
+    blender::seq::relations_invalidate_cache(scene, strip);
   }
 }
 
@@ -463,7 +463,7 @@ static void rna_Strip_start_frame_final_set(PointerRNA *ptr, int value)
 
   blender::seq::time_left_handle_frame_set(scene, strip, value);
   do_sequence_frame_change_update(scene, strip);
-  blender::seq::relations_invalidate_cache_composite(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 static void rna_Strip_end_frame_final_set(PointerRNA *ptr, int value)
@@ -473,7 +473,7 @@ static void rna_Strip_end_frame_final_set(PointerRNA *ptr, int value)
 
   blender::seq::time_right_handle_frame_set(scene, strip, value);
   do_sequence_frame_change_update(scene, strip);
-  blender::seq::relations_invalidate_cache_composite(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 static void rna_Strip_start_frame_set(PointerRNA *ptr, float value)
@@ -483,7 +483,7 @@ static void rna_Strip_start_frame_set(PointerRNA *ptr, float value)
 
   blender::seq::transform_translate_sequence(scene, strip, value - strip->start);
   do_sequence_frame_change_update(scene, strip);
-  blender::seq::relations_invalidate_cache_composite(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 static void rna_Strip_frame_offset_start_set(PointerRNA *ptr, float value)
@@ -491,7 +491,7 @@ static void rna_Strip_frame_offset_start_set(PointerRNA *ptr, float value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::relations_invalidate_cache_composite(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
   strip->startofs = value;
 }
 
@@ -500,7 +500,7 @@ static void rna_Strip_frame_offset_end_set(PointerRNA *ptr, float value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::relations_invalidate_cache_composite(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
   strip->endofs = value;
 }
 
@@ -568,7 +568,7 @@ static void rna_Strip_frame_length_set(PointerRNA *ptr, int value)
   blender::seq::time_right_handle_frame_set(
       scene, strip, blender::seq::time_left_handle_frame_get(scene, strip) + value);
   do_sequence_frame_change_update(scene, strip);
-  blender::seq::relations_invalidate_cache_composite(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 static int rna_Strip_frame_length_get(PointerRNA *ptr)
@@ -606,7 +606,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
   if (blender::seq::transform_test_overlap(scene, seqbase, strip)) {
     blender::seq::transform_seqbase_shuffle_ex(seqbase, strip, scene, channel_delta);
   }
-  blender::seq::relations_invalidate_cache_composite(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 static bool rna_Strip_lock_get(PointerRNA *ptr)
@@ -1561,7 +1561,7 @@ static void rna_SequenceTimelineChannel_mute_update(Main *bmain,
   }
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    blender::seq::relations_invalidate_cache_composite(scene, strip);
+    blender::seq::relations_invalidate_cache(scene, strip);
   }
 
   rna_Strip_sound_update(bmain, active_scene, ptr);

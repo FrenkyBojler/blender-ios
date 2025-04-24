@@ -387,7 +387,7 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
         }
       }
 
-      seq::relations_invalidate_cache_composite(scene, strip);
+      seq::relations_invalidate_cache(scene, strip);
     }
   }
 
@@ -896,13 +896,13 @@ static wmOperatorStatus sequencer_mute_exec(bContext *C, wmOperator *op)
     if (!RNA_boolean_get(op->ptr, "unselected")) {
       if (strip->flag & SELECT) {
         strip->flag |= SEQ_MUTE;
-        seq::relations_invalidate_dependent(scene, strip);
+        seq::relations_invalidate_cache(scene, strip);
       }
     }
     else {
       if ((strip->flag & SELECT) == 0) {
         strip->flag |= SEQ_MUTE;
-        seq::relations_invalidate_dependent(scene, strip);
+        seq::relations_invalidate_cache(scene, strip);
       }
     }
   }
@@ -950,19 +950,19 @@ static wmOperatorStatus sequencer_unmute_exec(bContext *C, wmOperator *op)
           strip->type != STRIP_TYPE_SOUND_RAM)
       {
         strip->flag &= ~SEQ_MUTE;
-        seq::relations_invalidate_dependent(scene, strip);
+        seq::relations_invalidate_cache(scene, strip);
       }
     }
     else if (!RNA_boolean_get(op->ptr, "unselected")) {
       if (strip->flag & SELECT) {
         strip->flag &= ~SEQ_MUTE;
-        seq::relations_invalidate_dependent(scene, strip);
+        seq::relations_invalidate_cache(scene, strip);
       }
     }
     else {
       if ((strip->flag & SELECT) == 0) {
         strip->flag &= ~SEQ_MUTE;
-        seq::relations_invalidate_dependent(scene, strip);
+        seq::relations_invalidate_cache(scene, strip);
       }
     }
   }
