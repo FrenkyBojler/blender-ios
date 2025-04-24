@@ -542,8 +542,9 @@ class FileOutputOperation : public NodeOperation {
 
       if (!get_single_layer_image_base_path(socket.path, base_path)) {
         /* TODO: propagate this error to the render pipeline and UI. */
-        BKE_report(
-            null, RPT_ERROR, "Invalid path template in File Output node. Skipping writing file.");
+        BKE_report(nullptr,
+                   RPT_ERROR,
+                   "Invalid path template in File Output node. Skipping writing file.");
         continue;
       }
 
@@ -625,7 +626,7 @@ class FileOutputOperation : public NodeOperation {
     if (!get_multi_layer_exr_image_path(get_base_path(), write_view, true, image_path)) {
       /* TODO: propagate this error to the render pipeline and UI. */
       BKE_report(
-          null, RPT_ERROR, "Invalid path template in File Output node. Skipping writing file.");
+          nullptr, RPT_ERROR, "Invalid path template in File Output node. Skipping writing file.");
       return;
     }
 
