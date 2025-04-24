@@ -130,6 +130,7 @@ class ConditionalDownloader:
         req = requests.Request(http_req_descr.http_method, http_req_descr.url)
         prepped: requests.PreparedRequest = self.http_session.prepare_request(req)
         if meta:
+            # TODO: only set these fields if they have a non-empty value:
             prepped.headers["If-Modified-Since"] = meta.last_modified
             prepped.headers["If-None-Match"] = meta.etag
 
@@ -347,6 +348,7 @@ class BackgroundDownloader:
 
         self._num_pending_downloads += 1
 
+        # TODO: move the HTTP method to an optional argument?
         http_req_descr = RequestDescription(http_method='GET', url=remote_url)
         if on_download_done:
             self._on_downloaded_callbacks[http_req_descr] = on_download_done
@@ -651,7 +653,7 @@ class ThreadBridgingReporter(DownloadReporter):
             try:
                 # Wait 1ms for any calls to arrive. This slows down this thread
                 # a little bit, to give other threads a chance to run.
-                queued_call = self._queue.get(block=True, timeout=0.001)
+                queued_call = self._queue.get(timeout=0.001)
             except queue.Empty:
                 # Not having anything to do is fine.
                 return False
