@@ -129,10 +129,6 @@ static void node_buts_mix_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *pt
 static void node_buts_time(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiTemplateCurveMapping(layout, ptr, "curve", 's', false, false, false, false);
-
-  uiLayout *col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "frame_start", DEFAULT_FLAGS, IFACE_("Start"), ICON_NONE);
-  uiItemR(col, ptr, "frame_end", DEFAULT_FLAGS, IFACE_("End"), ICON_NONE);
 }
 
 static void node_buts_colorramp(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -595,96 +591,6 @@ static void node_composit_buts_combsep_color(uiLayout *layout, bContext * /*C*/,
   }
 }
 
-static void node_composit_backdrop_boxmask(
-    SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y)
-{
-  NodeBoxMask *boxmask = (NodeBoxMask *)node->storage;
-  const float backdropWidth = backdrop->x;
-  const float backdropHeight = backdrop->y;
-  const float aspect = backdropWidth / backdropHeight;
-  const float rad = -boxmask->rotation;
-  const float cosine = cosf(rad);
-  const float sine = sinf(rad);
-  const float halveBoxWidth = backdropWidth * (boxmask->width / 2.0f);
-  const float halveBoxHeight = backdropHeight * (boxmask->height / 2.0f) * aspect;
-
-  float cx, cy, x1, x2, x3, x4;
-  float y1, y2, y3, y4;
-
-  cx = x + snode->zoom * backdropWidth * boxmask->x;
-  cy = y + snode->zoom * backdropHeight * boxmask->y;
-
-  x1 = cx - (cosine * halveBoxWidth + sine * halveBoxHeight) * snode->zoom;
-  x2 = cx - (cosine * -halveBoxWidth + sine * halveBoxHeight) * snode->zoom;
-  x3 = cx - (cosine * -halveBoxWidth + sine * -halveBoxHeight) * snode->zoom;
-  x4 = cx - (cosine * halveBoxWidth + sine * -halveBoxHeight) * snode->zoom;
-  y1 = cy - (-sine * halveBoxWidth + cosine * halveBoxHeight) * snode->zoom;
-  y2 = cy - (-sine * -halveBoxWidth + cosine * halveBoxHeight) * snode->zoom;
-  y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
-  y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
-
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-  immUniformColor3f(1.0f, 1.0f, 1.0f);
-
-  immBegin(GPU_PRIM_LINE_LOOP, 4);
-  immVertex2f(pos, x1, y1);
-  immVertex2f(pos, x2, y2);
-  immVertex2f(pos, x3, y3);
-  immVertex2f(pos, x4, y4);
-  immEnd();
-
-  immUnbindProgram();
-}
-
-static void node_composit_backdrop_ellipsemask(
-    SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y)
-{
-  NodeEllipseMask *ellipsemask = (NodeEllipseMask *)node->storage;
-  const float backdropWidth = backdrop->x;
-  const float backdropHeight = backdrop->y;
-  const float aspect = backdropWidth / backdropHeight;
-  const float rad = -ellipsemask->rotation;
-  const float cosine = cosf(rad);
-  const float sine = sinf(rad);
-  const float halveBoxWidth = backdropWidth * (ellipsemask->width / 2.0f);
-  const float halveBoxHeight = backdropHeight * (ellipsemask->height / 2.0f) * aspect;
-
-  float cx, cy, x1, x2, x3, x4;
-  float y1, y2, y3, y4;
-
-  cx = x + snode->zoom * backdropWidth * ellipsemask->x;
-  cy = y + snode->zoom * backdropHeight * ellipsemask->y;
-
-  x1 = cx - (cosine * halveBoxWidth + sine * halveBoxHeight) * snode->zoom;
-  x2 = cx - (cosine * -halveBoxWidth + sine * halveBoxHeight) * snode->zoom;
-  x3 = cx - (cosine * -halveBoxWidth + sine * -halveBoxHeight) * snode->zoom;
-  x4 = cx - (cosine * halveBoxWidth + sine * -halveBoxHeight) * snode->zoom;
-  y1 = cy - (-sine * halveBoxWidth + cosine * halveBoxHeight) * snode->zoom;
-  y2 = cy - (-sine * -halveBoxWidth + cosine * halveBoxHeight) * snode->zoom;
-  y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
-  y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
-
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-  immUniformColor3f(1.0f, 1.0f, 1.0f);
-
-  immBegin(GPU_PRIM_LINE_LOOP, 4);
-  immVertex2f(pos, x1, y1);
-  immVertex2f(pos, x2, y2);
-  immVertex2f(pos, x3, y3);
-  immVertex2f(pos, x4, y4);
-  immEnd();
-
-  immUnbindProgram();
-}
-
 static void node_composit_buts_cryptomatte_legacy(uiLayout *layout,
                                                   bContext * /*C*/,
                                                   PointerRNA *ptr)
@@ -787,12 +693,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
     case CMP_NODE_COMBYCCA_LEGACY:
     case CMP_NODE_SEPYCCA_LEGACY:
       ntype->draw_buttons = node_composit_buts_ycc;
-      break;
-    case CMP_NODE_MASK_BOX:
-      ntype->draw_backdrop = node_composit_backdrop_boxmask;
-      break;
-    case CMP_NODE_MASK_ELLIPSE:
-      ntype->draw_backdrop = node_composit_backdrop_ellipsemask;
       break;
     case CMP_NODE_CRYPTOMATTE:
       ntype->draw_buttons = node_composit_buts_cryptomatte;
@@ -1247,6 +1147,22 @@ static bool socket_needs_attribute_search(bNode &node, bNodeSocket &socket)
   return node_decl->inputs[socket_index]->is_attribute_name;
 }
 
+static bool socket_needs_layer_search(const bNode &node, const bNodeSocket &socket)
+{
+  const nodes::NodeDeclaration *node_decl = node.declaration();
+  if (node_decl == nullptr) {
+    return false;
+  }
+  if (node_decl->skip_updating_sockets) {
+    return false;
+  }
+  if (socket.in_out == SOCK_OUT) {
+    return false;
+  }
+  const int socket_index = BLI_findindex(&node.inputs, &socket);
+  return node_decl->inputs[socket_index]->is_layer_name;
+}
+
 static void draw_gizmo_pin_icon(uiLayout *layout, PointerRNA *socket_ptr)
 {
   uiItemR(layout, socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
@@ -1416,6 +1332,16 @@ static void std_node_socket_draw(
           uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
           uiItemL(row, text, ICON_NONE);
           node_geometry_add_attribute_search_button(*C, *node, *ptr, *row);
+        }
+      }
+      else if (socket_needs_layer_search(*node, *sock)) {
+        if (text.is_empty()) {
+          node_geometry_add_layer_search_button(*C, *node, *ptr, *layout, label);
+        }
+        else {
+          uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
+          uiItemL(row, text, ICON_NONE);
+          node_geometry_add_layer_search_button(*C, *node, *ptr, *row);
         }
       }
       else {

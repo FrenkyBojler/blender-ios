@@ -98,6 +98,7 @@ static bool is_AMD_between_20_11_and_22(const char *version)
 
   char *after_third = nullptr;
   long third = std::strtol(after_second, &after_third, 10);
+  UNUSED_VARS(third);
   if (after_third == after_second) {
     return false;
   }
@@ -675,8 +676,6 @@ void GLBackend::capabilities_init()
   glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &ssbo_alignment);
   GCaps.storage_buffer_alignment = size_t(ssbo_alignment);
 
-  GCaps.texture_view_support = epoxy_gl_version() >= 43 ||
-                               epoxy_has_gl_extension("GL_ARB_texture_view");
   GCaps.stencil_export_support = epoxy_has_gl_extension("GL_ARB_shader_stencil_export");
 
   /* GL specific capabilities. */
