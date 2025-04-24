@@ -9229,7 +9229,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 50)) {
     /* Version render output paths (both primary on scene as well as those in
-     * the File Output compositor node) to escape curely braces. */
+     * the File Output compositor node) to escape curly braces. */
     {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         escape_curly_braces(scene->r.pic, FILE_MAX);
