@@ -1,1 +1,2 @@
 Referenced by pull request #137883, Refactor: add "filepath" property to CollectionExport to avoid hacks
+Referenced by issue #137939, Collection Exporter properties no longer respond to Undo
