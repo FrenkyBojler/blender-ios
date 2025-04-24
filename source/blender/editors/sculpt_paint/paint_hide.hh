@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_span.hh"
+#include "BLI_index_mask_fwd.hh"
 
 struct bContext;
 struct Depsgraph;
@@ -20,8 +20,8 @@ class Node;
 
 namespace blender::ed::sculpt_paint::hide {
 void sync_all_from_faces(Object &object);
-void mesh_show_all(const Depsgraph &depsgraph, Object &object, Span<bke::pbvh::Node *> nodes);
-void grids_show_all(Depsgraph &depsgraph, Object &object, Span<bke::pbvh::Node *> nodes);
+void mesh_show_all(const Depsgraph &depsgraph, Object &object, const IndexMask &node_mask);
+void grids_show_all(Depsgraph &depsgraph, Object &object, const IndexMask &node_mask);
 void tag_update_visibility(const bContext &C);
 
 void PAINT_OT_hide_show_masked(wmOperatorType *ot);

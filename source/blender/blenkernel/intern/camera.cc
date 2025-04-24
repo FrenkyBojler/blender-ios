@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include <cstddef>
 #include <cstdlib>
 #include <optional>
 
@@ -29,7 +28,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_camera.h"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
@@ -260,7 +259,7 @@ IDTypeInfo IDType_ID_CA = {
 /** \name Camera Usage
  * \{ */
 
-void *BKE_camera_add(Main *bmain, const char *name)
+Camera *BKE_camera_add(Main *bmain, const char *name)
 {
   Camera *cam;
 
@@ -1213,8 +1212,7 @@ void BKE_camera_multiview_params(const RenderData *rd,
 
 CameraBGImage *BKE_camera_background_image_new(Camera *cam)
 {
-  CameraBGImage *bgpic = static_cast<CameraBGImage *>(
-      MEM_callocN(sizeof(CameraBGImage), "Background Image"));
+  CameraBGImage *bgpic = MEM_callocN<CameraBGImage>("Background Image");
 
   bgpic->scale = 1.0f;
   bgpic->alpha = 0.5f;

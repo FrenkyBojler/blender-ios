@@ -11,9 +11,7 @@
 #include <array>
 
 #include "BLI_array.hh"
-#include "BLI_math_matrix.hh"
-#include "BLI_math_vector.hh"
-#include "BLI_vector.hh"
+#include "BLI_index_mask.hh"
 
 #include "ED_view3d.hh"
 
@@ -76,7 +74,8 @@ struct Cache {
   Array<float3> limit_surface_co;
 
   /* unmasked nodes */
-  Vector<bke::pbvh::Node *> nodes;
+  IndexMaskMemory node_mask_memory;
+  IndexMask node_mask;
 
   /* Cloth filter. */
   std::unique_ptr<cloth::SimulationData> cloth_sim;

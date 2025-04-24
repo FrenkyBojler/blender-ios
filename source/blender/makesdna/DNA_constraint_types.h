@@ -13,7 +13,6 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
-struct Action;
 struct Ipo;
 struct Text;
 
@@ -47,7 +46,7 @@ typedef struct bConstraint {
 
   /** Object to use as target for Custom Space of owner. */
   struct Object *space_object;
-  /** Subtarget for Custom Space of owner - pchan or vgroup name, MAX_ID_NAME-2. */
+  /** Sub-target for Custom Space of owner - pose-channel or vertex-group name, MAX_ID_NAME-2. */
   char space_subtarget[64];
 
   /** Constraint name, MAX_NAME. */
@@ -81,7 +80,7 @@ typedef struct bConstraintTarget {
 
   /** Object to use as target. */
   struct Object *tar;
-  /** Subtarget - pchan or vgroup name, MAX_ID_NAME-2. */
+  /** Sub-target - pose-channel or vertex-group name, MAX_ID_NAME-2. */
   char subtarget[64];
 
   /** Matrix used during constraint solving - should be cleared before each use. */
@@ -119,33 +118,6 @@ typedef enum eConstraintObType {
   /** string is vertex-group name - is not available until curves get vgroups */
   /* CONSTRAINT_OBTYPE_CV = 4, */ /* UNUSED */
 } eConstraintObType;
-
-/* Python Script Constraint */
-typedef struct bPythonConstraint {
-  /** Text-buffer (containing script) to execute. */
-  struct Text *text;
-  /** 'id-properties' used to store custom properties for constraint. */
-  IDProperty *prop;
-
-  /** General settings/state indicators accessed by bitmapping. */
-  int flag;
-  /** Number of targets - usually only 1-3 are needed. */
-  int tarnum;
-
-  /** A list of targets that this constraint has (bConstraintTarget-s). */
-  ListBase targets;
-
-  /**
-   * Target from previous implementation
-   * (version-patch sets this to NULL on file-load).
-   */
-  struct Object *tar;
-  /**
-   * Subtarget from previous implementation
-   * (version-patch sets this to "" on file-load), MAX_ID_NAME-2.
-   */
-  char subtarget[64];
-} bPythonConstraint;
 
 /* Inverse-Kinematics (IK) constraint
  * This constraint supports a variety of mode determine by the type field
@@ -323,15 +295,22 @@ typedef struct bActionConstraint {
   short type;
   /** Was used in versions prior to the Constraints recode. */
   short local;
+  /** 'Start' frame in the Action. */
   int start;
+  /** 'End' frame in the Action. */
   int end;
+  /** 'Start' value of the target property. Note that this may be larger than `max`. */
   float min;
+  /** 'End' value of the target property. Note that this may be smaller than `min`. */
   float max;
   int flag;
   char mix_mode;
   char _pad[3];
   float eval_time; /* Only used when flag ACTCON_USE_EVAL_TIME is set. */
   struct bAction *act;
+  int32_t action_slot_handle;
+  char last_slot_identifier[66]; /* MAX_ID_NAME */
+  char _pad1[2];
   /** MAX_ID_NAME-2. */
   char subtarget[64];
 } bActionConstraint;
@@ -632,7 +611,7 @@ typedef enum eBConstraint_Types {
   CONSTRAINT_TYPE_ROTLIKE = 8,
   CONSTRAINT_TYPE_LOCLIKE = 9,
   CONSTRAINT_TYPE_SIZELIKE = 10,
-  CONSTRAINT_TYPE_PYTHON = 11,
+  /* CONSTRAINT_TYPE_DEPRECATED = 11, */
   CONSTRAINT_TYPE_ACTION = 12,
   CONSTRAINT_TYPE_LOCKTRACK = 13,
   CONSTRAINT_TYPE_DISTLIMIT = 14,
@@ -982,52 +961,52 @@ typedef enum eKinematic_Flags {
   CONSTRAINT_IK_TARGETAXIS = (1 << 14),
 } eKinematic_Flags;
 
-/* bSplineIKConstraint->flag */
+/** #bSplineIKConstraint::flag */
 typedef enum eSplineIK_Flags {
-  /* chain has been attached to spline */
+  /** Chain has been attached to spline. */
   CONSTRAINT_SPLINEIK_BOUND = (1 << 0),
-  /* root of chain is not influenced by the constraint */
+  /** Root of chain is not influenced by the constraint. */
   CONSTRAINT_SPLINEIK_NO_ROOT = (1 << 1),
 #ifdef DNA_DEPRECATED_ALLOW
-  /* bones in the chain should not scale to fit the curve */
+  /** Bones in the chain should not scale to fit the curve. */
   CONSTRAINT_SPLINEIK_SCALE_LIMITED = (1 << 2),
 #endif
-  /* evenly distribute the bones along the path regardless of length */
+  /** Evenly distribute the bones along the path regardless of length. */
   CONSTRAINT_SPLINEIK_EVENSPLITS = (1 << 3),
-  /* don't adjust the x and z scaling of the bones by the curve radius */
+  /** Don't adjust the X and Z scaling of the bones by the curve radius. */
   CONSTRAINT_SPLINEIK_NO_CURVERAD = (1 << 4),
 
-  /* for "volumetric" xz scale mode, limit the minimum or maximum scale values */
+  /** For "volumetric" XZ scale mode, limit the minimum or maximum scale values. */
   CONSTRAINT_SPLINEIK_USE_BULGE_MIN = (1 << 5),
   CONSTRAINT_SPLINEIK_USE_BULGE_MAX = (1 << 6),
 
-  /* apply volume preservation over original scaling of the bone */
+  /** Apply volume preservation over original scaling of the bone. */
   CONSTRAINT_SPLINEIK_USE_ORIGINAL_SCALE = (1 << 7),
 } eSplineIK_Flags;
 
-/* bSplineIKConstraint->xzScaleMode */
+/** #bSplineIKConstraint::xzScaleMode */
 typedef enum eSplineIK_XZScaleModes {
-  /* no x/z scaling */
+  /** No X/Z scaling. */
   CONSTRAINT_SPLINEIK_XZS_NONE = 0,
-  /* bones in the chain should take their x/z scales from the original scaling */
+  /** Bones in the chain should take their X/Z scales from the original scaling. */
   CONSTRAINT_SPLINEIK_XZS_ORIGINAL = 1,
-  /* x/z scales are the inverse of the y-scale */
+  /** X/Z scales are the inverse of the Y-scale. */
   CONSTRAINT_SPLINEIK_XZS_INVERSE = 2,
-  /* x/z scales are computed using a volume preserving technique (from Stretch To constraint) */
+  /** X/Z scales are computed using a volume preserving technique (from Stretch To constraint). */
   CONSTRAINT_SPLINEIK_XZS_VOLUMETRIC = 3,
 } eSplineIK_XZScaleModes;
 
-/* bSplineIKConstraint->yScaleMode */
+/** #bSplineIKConstraint::yScaleMode */
 typedef enum eSplineIK_YScaleModes {
-  /* no y scaling */
+  /** No Y scaling. */
   CONSTRAINT_SPLINEIK_YS_NONE = 0,
-  /* bones in the chain should be scaled to fit the length of the curve */
+  /** Bones in the chain should be scaled to fit the length of the curve. */
   CONSTRAINT_SPLINEIK_YS_FIT_CURVE = 1,
-  /* bones in the chain should take their y scales from the original scaling */
+  /** Bones in the chain should take their y scales from the original scaling. */
   CONSTRAINT_SPLINEIK_YS_ORIGINAL = 2,
 } eSplineIK_YScaleModes;
 
-/* bArmatureConstraint -> flag */
+/** #bArmatureConstraint::flag */
 typedef enum eArmature_Flags {
   /** use dual quaternion blending */
   CONSTRAINT_ARMATURE_QUATERNION = (1 << 0),
@@ -1089,12 +1068,6 @@ typedef enum eDistLimit_Modes {
   LIMITDIST_OUTSIDE = 1,
   LIMITDIST_ONSURFACE = 2,
 } eDistLimit_Modes;
-
-/* python constraint -> flag */
-typedef enum ePyConstraint_Flags {
-  PYCON_USETARGETS = (1 << 0),
-  PYCON_SCRIPTERROR = (1 << 1),
-} ePyConstraint_Flags;
 
 /* ChildOf Constraint -> flag */
 typedef enum eChildOf_Flags {

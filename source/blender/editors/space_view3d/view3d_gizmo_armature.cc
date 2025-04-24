@@ -10,7 +10,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
@@ -138,8 +138,7 @@ static void WIDGETGROUP_armature_spline_setup(const bContext *C, wmGizmoGroup *g
 
   const wmGizmoType *gzt_move = WM_gizmotype_find("GIZMO_GT_move_3d", true);
 
-  BoneSplineWidgetGroup *bspline_group = static_cast<BoneSplineWidgetGroup *>(
-      MEM_callocN(sizeof(BoneSplineWidgetGroup), __func__));
+  BoneSplineWidgetGroup *bspline_group = MEM_callocN<BoneSplineWidgetGroup>(__func__);
   gzgroup->customdata = bspline_group;
 
   /* Handles */

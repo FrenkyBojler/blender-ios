@@ -121,7 +121,6 @@ void OBJECT_OT_armature_add(wmOperatorType *ot);
 void OBJECT_OT_empty_add(wmOperatorType *ot);
 void OBJECT_OT_lightprobe_add(wmOperatorType *ot);
 void OBJECT_OT_empty_image_add(wmOperatorType *ot);
-void OBJECT_OT_gpencil_add(wmOperatorType *ot);
 void OBJECT_OT_grease_pencil_add(wmOperatorType *ot);
 void OBJECT_OT_light_add(wmOperatorType *ot);
 void OBJECT_OT_effector_add(wmOperatorType *ot);
@@ -313,6 +312,7 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot);
 /* `object_shapekey.cc` */
 
 void OBJECT_OT_shape_key_add(wmOperatorType *ot);
+void OBJECT_OT_shape_key_copy(wmOperatorType *ot);
 void OBJECT_OT_shape_key_remove(wmOperatorType *ot);
 void OBJECT_OT_shape_key_clear(wmOperatorType *ot);
 void OBJECT_OT_shape_key_retime(wmOperatorType *ot);
@@ -342,6 +342,8 @@ void OBJECT_OT_simulation_nodes_cache_bake(wmOperatorType *ot);
 void OBJECT_OT_simulation_nodes_cache_delete(wmOperatorType *ot);
 void OBJECT_OT_geometry_node_bake_single(wmOperatorType *ot);
 void OBJECT_OT_geometry_node_bake_delete_single(wmOperatorType *ot);
+void OBJECT_OT_geometry_node_bake_pack_single(wmOperatorType *ot);
+void OBJECT_OT_geometry_node_bake_unpack_single(wmOperatorType *ot);
 
 }  // namespace bake_simulation
 
@@ -369,5 +371,8 @@ void collection_exporter_register();
 
 Vector<PointerRNA> modifier_get_edit_objects(const bContext &C, const wmOperator &op);
 void modifier_register_use_selected_objects_prop(wmOperatorType *ot);
+
+/* object_visual_geometry_to_objects.cc */
+void OBJECT_OT_visual_geometry_to_objects(wmOperatorType *ot);
 
 }  // namespace blender::ed::object

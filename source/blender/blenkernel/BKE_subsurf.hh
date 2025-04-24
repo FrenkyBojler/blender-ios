@@ -23,9 +23,10 @@ struct CCGSubSurf;
 struct CCGVert;
 struct DerivedMesh;
 struct Mesh;
-struct MeshElemMap;
 struct MultiresModifierData;
 struct Object;
+struct Scene;
+
 namespace blender::bke::pbvh {
 class Tree;
 }
@@ -111,7 +112,6 @@ struct CCGDerivedMesh {
     float (*orco)[3];
 
     Object *ob;
-    MultiresModifiedFlags modified_flags;
   } multires;
 
   blender::VectorSet<blender::OrderedEdge> *ehash;

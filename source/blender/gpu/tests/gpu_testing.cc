@@ -7,10 +7,12 @@
 #include "CLG_log.h"
 
 #include "BLI_math_color.h"
+#include "BLI_threads.h"
 
 #include "GPU_context.hh"
 #include "GPU_debug.hh"
 #include "GPU_init_exit.hh"
+
 #include "gpu_testing.hh"
 
 #include "GHOST_C-api.h"
@@ -23,11 +25,13 @@ void GPUTest::SetUp()
   G.debug |= g_debug_flags_;
 
   CLG_init();
+  BLI_threadapi_init();
   GPU_backend_type_selection_set(gpu_backend_type);
   GHOST_GPUSettings gpuSettings = {};
   gpuSettings.context_type = draw_context_type;
   gpuSettings.flags = GHOST_gpuDebugContext;
   ghost_system = GHOST_CreateSystem();
+  GPU_backend_ghost_system_set(ghost_system);
   ghost_context = GHOST_CreateGPUContext(ghost_system, gpuSettings);
   GHOST_ActivateGPUContext(ghost_context);
   context = GPU_context_create(nullptr, ghost_context);
