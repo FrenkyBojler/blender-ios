@@ -160,7 +160,7 @@ static PanelType *fmodifier_panel_register(ARegionType *region_type,
                                            PanelTypePollFn poll,
                                            const char *id_prefix)
 {
-  PanelType *panel_type = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), __func__));
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   /* Intentionally leave the label field blank. The header is filled with buttons. */
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
@@ -198,7 +198,7 @@ static PanelType *fmodifier_subpanel_register(ARegionType *region_type,
                                               PanelTypePollFn poll,
                                               PanelType *parent)
 {
-  PanelType *panel_type = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), __func__));
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
   SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);
@@ -319,7 +319,7 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
   /* Right align. */
   sub = uiLayoutRow(layout, true);
   uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
-  uiLayoutSetEmboss(sub, UI_EMBOSS_NONE);
+  uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
 
   /* 'Mute' button. */
   uiItemR(sub, ptr, "mute", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);

@@ -1324,15 +1324,12 @@ OceanCache *BKE_ocean_init_cache(const char *bakepath,
   och->resolution_x = resolution * resolution;
   och->resolution_y = resolution * resolution;
 
-  och->ibufs_disp = MEM_calloc_arrayN<ImBuf *>(size_t(och->duration),
-                                               "displacement imbuf pointer array");
-  och->ibufs_foam = MEM_calloc_arrayN<ImBuf *>(size_t(och->duration), "foam imbuf pointer array");
-  och->ibufs_spray = MEM_calloc_arrayN<ImBuf *>(size_t(och->duration),
-                                                "spray imbuf pointer array");
-  och->ibufs_spray_inverse = MEM_calloc_arrayN<ImBuf *>(size_t(och->duration),
+  och->ibufs_disp = MEM_calloc_arrayN<ImBuf *>(och->duration, "displacement imbuf pointer array");
+  och->ibufs_foam = MEM_calloc_arrayN<ImBuf *>(och->duration, "foam imbuf pointer array");
+  och->ibufs_spray = MEM_calloc_arrayN<ImBuf *>(och->duration, "spray imbuf pointer array");
+  och->ibufs_spray_inverse = MEM_calloc_arrayN<ImBuf *>(och->duration,
                                                         "spray_inverse imbuf pointer array");
-  och->ibufs_norm = MEM_calloc_arrayN<ImBuf *>(size_t(och->duration),
-                                               "normal imbuf pointer array");
+  och->ibufs_norm = MEM_calloc_arrayN<ImBuf *>(och->duration, "normal imbuf pointer array");
 
   och->time = nullptr;
 
@@ -1357,19 +1354,19 @@ void BKE_ocean_simulate_cache(OceanCache *och, int frame)
    * files were saved with default settings too. */
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_DISPLACE);
-  och->ibufs_disp[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_disp[f] = IMB_load_image_from_filepath(filepath, 0);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_FOAM);
-  och->ibufs_foam[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_foam[f] = IMB_load_image_from_filepath(filepath, 0);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_SPRAY);
-  och->ibufs_spray[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_spray[f] = IMB_load_image_from_filepath(filepath, 0);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_SPRAY_INVERSE);
-  och->ibufs_spray_inverse[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_spray_inverse[f] = IMB_load_image_from_filepath(filepath, 0);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_NORMAL);
-  och->ibufs_norm[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_norm[f] = IMB_load_image_from_filepath(filepath, 0);
 }
 
 void BKE_ocean_bake(Ocean *o,

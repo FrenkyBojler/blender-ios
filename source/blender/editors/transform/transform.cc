@@ -1369,6 +1369,9 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
           t->redraw |= TREDRAW_HARD;
         }
         break;
+      default: {
+        break;
+      }
     }
 
     /* Confirm transform if launch key is released after mouse move. */
@@ -1395,7 +1398,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
      * the region twice doesn't add any overhead. */
     WM_window_status_area_tag_redraw(CTX_wm_window(t->context));
 
-    if (t->helpline != HLP_ERROR && t->helpline != HLP_ERROR_DASH) {
+    if (!ELEM(t->helpline, HLP_ERROR, HLP_ERROR_DASH)) {
       ED_workspace_status_text(t->context, nullptr);
     }
   }
@@ -1408,7 +1411,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
 
 bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
 {
-  TransInfo *t = static_cast<TransInfo *>(MEM_callocN(sizeof(TransInfo), "TransInfo data"));
+  TransInfo *t = MEM_callocN<TransInfo>("TransInfo data");
   bool success;
 
   t->context = C;

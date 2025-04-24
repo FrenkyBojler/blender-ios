@@ -128,7 +128,7 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   Mesh *new_mesh = BKE_mesh_remesh_voxel(
-      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue);
+      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue, op->reports);
 
   if (!new_mesh) {
     BKE_report(op->reports, RPT_ERROR, "Voxel remesher failed to create mesh");
@@ -351,7 +351,7 @@ static void voxel_size_edit_cancel(bContext *C, wmOperator *op)
 
   ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
 
-  MEM_freeN(op->customdata);
+  MEM_freeN(cd);
 
   ED_workspace_status_text(C, nullptr);
 }
@@ -389,7 +389,7 @@ static wmOperatorStatus voxel_size_edit_modal(bContext *C, wmOperator *op, const
   {
     ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
     mesh->remesh_voxel_size = cd->voxel_size;
-    MEM_freeN(op->customdata);
+    MEM_freeN(cd);
     ED_region_tag_redraw(region);
     ED_workspace_status_text(C, nullptr);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
@@ -684,7 +684,7 @@ static bool mesh_is_manifold_consistent(Mesh *mesh)
   const Span<int> corner_edges = mesh->corner_edges();
 
   bool is_manifold_consistent = true;
-  char *edge_faces = (char *)MEM_callocN(mesh->edges_num * sizeof(char), "remesh_manifold_check");
+  char *edge_faces = MEM_calloc_arrayN<char>(mesh->edges_num, "remesh_manifold_check");
   int *edge_vert = (int *)MEM_malloc_arrayN(
       mesh->edges_num, sizeof(uint), "remesh_consistent_check");
 

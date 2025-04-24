@@ -24,7 +24,7 @@
  * Inverting the brush inverts the ray direction.
  */
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
@@ -48,7 +48,7 @@
 
 #include "bmesh.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 inline namespace scene_project_cc {
 
@@ -285,16 +285,17 @@ static float3 calc_normal(const Brush &brush, const StrokeCache &cache)
   return normal;
 }
 
-static void calc_normal2(const Brush& brush, const StrokeCache& cache, const MutableSpan<float3> normals)
+static void calc_normal2(const Brush &brush,
+                         const StrokeCache &cache,
+                         const MutableSpan<float3> normals)
 {
   switch (brush.project_direction_type) {
-  case BRUSH_PROJECT_DIRECTION_VIEW_NORMAL:
-    for (const int i : normals.index_range()) {
-
-    }
-    break;
-  case BRUSH_PROJECT_DIRECTION_PLANE_NORMAL:
-    break;
+    case BRUSH_PROJECT_DIRECTION_VIEW_NORMAL:
+      for (const int i : normals.index_range()) {
+      }
+      break;
+    case BRUSH_PROJECT_DIRECTION_PLANE_NORMAL:
+      break;
   }
 }
 
@@ -512,4 +513,5 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
   pbvh.tag_positions_changed(node_mask);
   pbvh.flush_bounds_to_parents();
 }
-}  // namespace blender::ed::sculpt_paint
+
+}  // namespace blender::ed::sculpt_paint::brushes

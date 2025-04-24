@@ -864,13 +864,14 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
   }
 
   if (prefix[0] == '\0') {
-    ibuf = IMB_loadiffname(filepath, flag, strip->data->colorspace_settings.name);
+    ibuf = IMB_load_image_from_filepath(filepath, flag, strip->data->colorspace_settings.name);
   }
   else {
     char filepath_view[FILE_MAX];
     BKE_scene_multiview_view_prefix_get(context->scene, filepath, prefix, &ext);
     seq_multiview_name(context->scene, view_id, prefix, ext, filepath_view, FILE_MAX);
-    ibuf = IMB_loadiffname(filepath_view, flag, strip->data->colorspace_settings.name);
+    ibuf = IMB_load_image_from_filepath(
+        filepath_view, flag, strip->data->colorspace_settings.name);
   }
 
   if (ibuf == nullptr) {
@@ -958,8 +959,7 @@ static ImBuf *seq_render_image_strip(const RenderData *context,
 
   if (is_multiview_render) {
     int totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
-    ImBuf **ibufs_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews),
-                                                   "Sequence Image Views Imbufs");
+    ImBuf **ibufs_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
 
     for (int view_id = 0; view_id < totfiles; view_id++) {
       ibufs_arr[view_id] = seq_render_image_strip_view(
@@ -1114,7 +1114,7 @@ static ImBuf *seq_render_movie_strip(const RenderData *context,
   if (is_multiview_render) {
     ImBuf **ibuf_arr;
     int totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
-    ibuf_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews), "Sequence Image Views Imbufs");
+    ibuf_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
     int ibuf_view_id;
 
     for (ibuf_view_id = 0, sanim = static_cast<StripAnim *>(strip->anims.first); sanim;
@@ -1518,7 +1518,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
       goto finally;
     }
 
-    ibufs_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews), "Sequence Image Views Imbufs");
+    ibufs_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
 
     if (re == nullptr) {
       re = RE_NewSceneRender(scene);
