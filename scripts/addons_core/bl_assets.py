@@ -143,7 +143,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         metadata = api_models.AssetLibraryMeta.model_validate_json(json_data)
 
         # Show what we downloaded.
-        logger.info("    API versions      : %d", metadata.api_versions)
+        logger.info("    API versions      : %s", metadata.api_versions)
         logger.info("    Asset Library Name: %s", metadata.name)
         if metadata.contact:
             logger.info(
