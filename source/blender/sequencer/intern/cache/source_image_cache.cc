@@ -7,12 +7,14 @@
  */
 
 #include "BLI_map.hh"
+#include "BLI_vector.hh"
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
 #include "IMB_imbuf.hh"
 
+#include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_time.hh"
 
@@ -27,13 +29,13 @@ static std::mutex source_image_cache_mutex;
 
 struct SourceImageCache {
   struct FrameEntry {
-    int frame_index = 0; /* Frame index (for movies) or image index (for image sequences). */
     ImBuf *image = nullptr;
     int64_t used_at = 0;
   };
 
   struct StripEntry {
-    Vector<FrameEntry> frames;
+    /* Map key is source media frame index (i.e. movie frame). */
+    Map<int, FrameEntry> frames;
   };
 
   Map<const Strip *, StripEntry> map_;
@@ -47,7 +49,7 @@ struct SourceImageCache {
   void clear()
   {
     for (const auto &item : map_.items()) {
-      for (const auto &frame : item.value.frames) {
+      for (const auto &frame : item.value.frames.values()) {
         IMB_freeImBuf(frame.image);
       }
     }
@@ -61,7 +63,7 @@ struct SourceImageCache {
     if (entry == nullptr) {
       return;
     }
-    for (const auto &frame : entry->frames) {
+    for (const auto &frame : entry->frames.values()) {
       IMB_freeImBuf(frame.image);
     }
     map_.remove_contained(strip);
@@ -124,13 +126,10 @@ ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, flo
       return nullptr;
     }
     /* Search entries for the frame we want. */
-    //@TODO: should this be a map instead of vector?
-    for (SourceImageCache::FrameEntry &frame : val->frames) {
-      if (frame.frame_index == frame_index) {
-        frame.used_at = math::max(frame.used_at, cur_time);
-        res = frame.image;
-        break;
-      }
+    SourceImageCache::FrameEntry *frame = val->frames.lookup_ptr(frame_index);
+    if (frame != nullptr) {
+      frame->used_at = math::max(frame->used_at, cur_time);
+      res = frame->image;
     }
   }
 
@@ -172,19 +171,12 @@ void source_image_cache_put(const RenderData *context,
   }
   BLI_assert_msg(val != nullptr, "Source image cache value should never be null here");
 
-  bool had_existing = false;
-  for (SourceImageCache::FrameEntry &frame : val->frames) {
-    if (frame.frame_index == frame_index) {
-      frame.used_at = math::max(frame.used_at, cur_time);
-      IMB_freeImBuf(frame.image);
-      frame.image = image;
-      had_existing = true;
-      break;
-    }
+  SourceImageCache::FrameEntry &frame = val->frames.lookup_or_add_default(frame_index);
+  if (frame.image != nullptr) {
+    IMB_freeImBuf(frame.image);
   }
-  if (!had_existing) {
-    val->frames.append({frame_index, image, cur_time});
-  }
+  frame.used_at = math::max(frame.used_at, cur_time);
+  frame.image = image;
 }
 
 void source_image_cache_invalidate_strip(Scene *scene, const Strip *strip)
@@ -229,11 +221,11 @@ void source_image_cache_iterate(Scene *scene,
   }
 
   for (const auto &[key, value] : cache->map_.items()) {
-    for (const SourceImageCache::FrameEntry &frame : value.frames) {
+    for (int frame : value.frames.keys()) {
       /* We have frame index of source media, try to guesstimate the timeline frame.
        * Note that this will be not correct when retiming, different playback rate, strobing
        * etc. are used. */
-      int timeline_frame = frame.frame_index + time_start_frame_get(key);
+      int timeline_frame = frame + time_start_frame_get(key);
       callback_iter(userdata, key, timeline_frame);
     }
   }
@@ -248,7 +240,7 @@ size_t source_image_cache_calc_memory_size(const Scene *scene)
   }
   size_t size = 0;
   for (const SourceImageCache::StripEntry &entry : cache->map_.values()) {
-    for (const SourceImageCache::FrameEntry &frame : entry.frames) {
+    for (const SourceImageCache::FrameEntry &frame : entry.frames.values()) {
       size += IMB_get_size_in_memory(frame.image);
     }
   }
@@ -265,23 +257,22 @@ bool source_image_cache_evict(Scene *scene)
 
   /* Find which entry was the least recently used. */
   SourceImageCache::StripEntry *oldest_strip = nullptr;
-  int64_t oldest_index = -1;
+  int oldest_key = -1;
   int64_t oldest_time = cache->logical_time_;
   for (const auto &item : cache->map_.items()) {
-    for (int64_t i = 0; i < item.value.frames.size(); i++) {
-      if (item.value.frames[i].used_at < oldest_time) {
+    for (const auto &frame : item.value.frames.items()) {
+      if (frame.value.used_at < oldest_time) {
         oldest_strip = &item.value;
-        oldest_index = i;
-        oldest_time = item.value.frames[i].used_at;
+        oldest_key = frame.key;
+        oldest_time = frame.value.used_at;
       }
     }
   }
 
   /* Remove if we found one. */
   if (oldest_strip != nullptr) {
-    BLI_assert(oldest_index >= 0 && oldest_index < oldest_strip->frames.size());
-    IMB_freeImBuf(oldest_strip->frames[oldest_index].image);
-    oldest_strip->frames.remove_and_reorder(oldest_index);
+    IMB_freeImBuf(oldest_strip->frames.lookup(oldest_key).image);
+    oldest_strip->frames.remove(oldest_key);
     return true;
   }
 

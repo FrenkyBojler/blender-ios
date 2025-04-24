@@ -40,7 +40,6 @@ void invalidate_intra_frame_cache(Scene *scene, const Strip *strip)
 void IntraFrameCache::invalidate(const Strip *strip)
 {
   /* Invalidate this strip, and all strips that are above it. */
-  //@TODO: should also consider inputs below? via query_strip_effect_chain etc
   for (auto it = this->cache_.items().begin(); it != this->cache_.items().end(); it++) {
     const Strip *key = (*it).key;
     if (key == strip || key->machine >= strip->machine) {

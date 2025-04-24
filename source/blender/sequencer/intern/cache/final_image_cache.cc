@@ -13,6 +13,7 @@
 
 #include "IMB_imbuf.hh"
 
+#include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_time.hh"
 
