@@ -61,14 +61,10 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         self._num_asset_pages_pending = 0
         self._operator_context = None
 
-        http_session = http.session()
-        http_session.headers.update({'Accept': 'application/json'})
-
         downloader = Downloader(
             metadata_cache_location=self._local_path / "_local-meta-cache",
-            chunk_size=1024 * 16,
-            http_session=http_session,
         )
+        downloader.http_session.headers.update({'Accept': 'application/json'})
 
         self._bg_downloader = BackgroundDownloader(downloader)
         self._bg_downloader.add_reporter(self)
