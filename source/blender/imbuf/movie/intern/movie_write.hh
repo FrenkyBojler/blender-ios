@@ -56,12 +56,15 @@ struct MovieWriter {
   int ffmpeg_preset = 0; /* see eFFMpegPreset */
   int ffmpeg_profile = 0;
 
+  AVBufferRef *hw_device_ctx = nullptr;
+
   AVFormatContext *outfile = nullptr;
   AVCodecContext *video_codec = nullptr;
   AVCodecContext *audio_codec = nullptr;
   AVStream *video_stream = nullptr;
   AVStream *audio_stream = nullptr;
-  AVFrame *current_frame = nullptr; /* Image frame in output pixel format. */
+  AVFrame *current_sw_frame = nullptr; /* Image frame in output pixel format. */  // XXX: Update?
+  AVFrame *current_hw_frame = nullptr;                                            // XXX: Docu
   int video_time = 0;
 
   /* Image frame in Blender's own pixel format, may need conversion to the output pixel format. */

@@ -84,7 +84,8 @@ ${temp_LIBDIR}/theora/lib/pkgconfig:\
 ${temp_LIBDIR}/openjpeg/lib/pkgconfig:\
 ${temp_LIBDIR}/opus/lib/pkgconfig:\
 ${temp_LIBDIR}/aom/lib/pkgconfig:\
-${temp_LIBDIR}/x265/lib/pkgconfig:"
+${temp_LIBDIR}/x265/lib/pkgconfig:\
+${temp_LIBDIR}/ffnvcodec/lib/pkgconfig:"
   )
 endif()
 
@@ -138,12 +139,16 @@ endif()
 if(APPLE)
   set(FFMPEG_EXTRA_FLAGS
     ${FFMPEG_EXTRA_FLAGS}
+    --enable-videotoolbox
+    --disable-nvenc
     --target-os=darwin
     --x86asmexe=${LIBDIR}/nasm/bin/nasm
   )
 elseif(UNIX)
   set(FFMPEG_EXTRA_FLAGS
     ${FFMPEG_EXTRA_FLAGS}
+    --disable-videotoolbox
+    --enable-nvenc
     --x86asmexe=${LIBDIR}/nasm/bin/nasm
   )
 endif()
@@ -198,12 +203,10 @@ ExternalProject_Add(external_ffmpeg
       --disable-indev=qtkit
       --disable-sdl2
       --disable-gnutls
-      --disable-videotoolbox
       --disable-libxcb
       --disable-xlib
       --disable-audiotoolbox
       --disable-cuvid
-      --disable-nvenc
       --disable-indev=jack
       --disable-indev=alsa
       --disable-outdev=alsa
@@ -257,6 +260,12 @@ if(UNIX)
     external_ffmpeg
     external_nasm
     external_openjpeg
+  )
+endif()
+if(UNIX AND NOT APPLE)
+  add_dependencies(
+    external_ffmpeg
+    external_ffnvcodec
   )
 endif()
 

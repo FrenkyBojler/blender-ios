@@ -579,6 +579,18 @@ set(FFMPEG_HOMEPAGE https://ffmpeg.org/)
 set(FFMPEG_LICENSE SPDX:LGPL-2.1-or-later)
 set(FFMPEG_COPYRIGHT "The FFmpeg contributors https://github.com/FFmpeg/FFmpeg/blob/master/CREDITS")
 
+set(FFNVCODEC_VERSION n12.1.14.0)
+set(FFNVCODEC_URI https://github.com/FFmpeg/nv-codec-headers/archive/${FFNVCODEC_VERSION}.tar.gz)
+set(FFNVCODEC_HASH 2fefaa227d2a3b4170797796425a59d1dd2ed5fd231db9b4244468ba327acd0b)
+set(FFNVCODEC_HASH_TYPE SHA256)
+set(FFNVCODEC_FILE nv-codec-headers-${FFNVCODEC_VERSION}.tar.bz2)
+# XXX
+#set(FFNVCODEC_CPE "cpe:2.3:a:ffmpeg:ffmpeg:${FFMPEG_VERSION}:*:*:*:*:*:*:*")
+set(FFNVCODEC_NAME ffnvcodec)
+#set(FFNVCODEC_HOMEPAGE https://ffmpeg.org/)
+#set(FFNVCODEC_LICENSE SPDX:LGPL-2.1-or-later)
+#set(FFNVCODEC_COPYRIGHT "The FFmpeg contributors https://github.com/FFmpeg/FFmpeg/blob/master/CREDITS")
+
 set(FFTW_VERSION 3.3.10)
 set(FFTW_NAME FFTW)
 set(FFTW_URI http://www.fftw.org/fftw-${FFTW_VERSION}.tar.gz)

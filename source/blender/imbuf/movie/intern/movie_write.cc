@@ -21,6 +21,7 @@
 
 #  include "MEM_guardedalloc.h"
 
+#  include "BLI_build_config.h"
 #  include "BLI_endian_defines.h"
 #  include "BLI_fileops.h"
 #  include "BLI_math_base.h"
@@ -59,7 +60,7 @@ static void ffmpeg_filepath_get(MovieWriter *context,
                                 bool preview,
                                 const char *suffix);
 
-static AVFrame *alloc_frame(AVPixelFormat pix_fmt, int width, int height)
+static AVFrame *alloc_sw_frame(AVPixelFormat pix_fmt, const int width, const int height)
 {
   AVFrame *f = av_frame_alloc();
   if (f == nullptr) {
@@ -73,6 +74,33 @@ static AVFrame *alloc_frame(AVPixelFormat pix_fmt, int width, int height)
     av_frame_free(&f);
     return nullptr;
   }
+  return f;
+}
+
+static AVFrame *alloc_hw_frame(AVBufferRef *hw_frames_ctx,
+                               AVPixelFormat pix_fmt,
+                               const int width,
+                               const int height)
+{
+  AVFrame *f = av_frame_alloc();
+  if (f == nullptr) {
+    return nullptr;
+  }
+  f->format = pix_fmt;
+  f->width = width;
+  f->height = height;
+
+  if (const int err = av_hwframe_get_buffer(hw_frames_ctx, f, 0); err < 0) {
+    // fprintf(stderr, "Error code: %s.\n", av_err2str(err));
+    av_frame_free(&f);
+    return nullptr;
+  }
+
+  if (!f->hw_frames_ctx) {
+    av_frame_free(&f);
+    return nullptr;
+  }
+
   return f;
 }
 
@@ -210,37 +238,37 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
   }
 
   AVCodecParameters *codec = context->video_stream->codecpar;
-  int height = codec->height;
-  AVFrame *rgb_frame;
+  const int height = codec->height;
 
+  AVFrame *rgb_sw_frame;
   if (context->img_convert_frame != nullptr) {
     /* Pixel format conversion is needed. */
-    rgb_frame = context->img_convert_frame;
+    rgb_sw_frame = context->img_convert_frame;
   }
   else {
     /* The output pixel format is Blender's internal pixel format. */
-    rgb_frame = context->current_frame;
+    rgb_sw_frame = context->current_sw_frame;
   }
 
   /* Ensure frame is writable. Some video codecs might have made previous frame
    * shared (i.e. not writable). */
-  av_frame_make_writable(rgb_frame);
+  av_frame_make_writable(rgb_sw_frame);
 
-  const size_t linesize_dst = rgb_frame->linesize[0];
+  const size_t linesize_dst = rgb_sw_frame->linesize[0];
   if (use_float) {
     /* Float image: need to split up the image into a planar format,
      * because `libswscale` does not support RGBA->YUV conversions from
      * packed float formats. */
-    BLI_assert_msg(rgb_frame->linesize[1] == linesize_dst &&
-                       rgb_frame->linesize[2] == linesize_dst &&
-                       rgb_frame->linesize[3] == linesize_dst,
+    BLI_assert_msg(rgb_sw_frame->linesize[1] == linesize_dst &&
+                       rgb_sw_frame->linesize[2] == linesize_dst &&
+                       rgb_sw_frame->linesize[3] == linesize_dst,
                    "ffmpeg frame should be 4 same size planes for a floating point image case");
     for (int y = 0; y < height; y++) {
       size_t dst_offset = linesize_dst * (height - y - 1);
-      float *dst_g = reinterpret_cast<float *>(rgb_frame->data[0] + dst_offset);
-      float *dst_b = reinterpret_cast<float *>(rgb_frame->data[1] + dst_offset);
-      float *dst_r = reinterpret_cast<float *>(rgb_frame->data[2] + dst_offset);
-      float *dst_a = reinterpret_cast<float *>(rgb_frame->data[3] + dst_offset);
+      float *dst_g = reinterpret_cast<float *>(rgb_sw_frame->data[0] + dst_offset);
+      float *dst_b = reinterpret_cast<float *>(rgb_sw_frame->data[1] + dst_offset);
+      float *dst_r = reinterpret_cast<float *>(rgb_sw_frame->data[2] + dst_offset);
+      float *dst_a = reinterpret_cast<float *>(rgb_sw_frame->data[3] + dst_offset);
       const float *src = pixels_fl + image->x * y * 4;
       for (int x = 0; x < image->x; x++) {
         *dst_r++ = src[0];
@@ -254,9 +282,9 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
   else {
     /* Byte image: flip the image vertically, possibly with endian
      * conversion. */
-    const size_t linesize_src = rgb_frame->width * 4;
+    const size_t linesize_src = rgb_sw_frame->width * 4;
     for (int y = 0; y < height; y++) {
-      uint8_t *target = rgb_frame->data[0] + linesize_dst * (height - y - 1);
+      uint8_t *target = rgb_sw_frame->data[0] + linesize_dst * (height - y - 1);
       const uint8_t *src = pixels + linesize_src * y;
 
 #  if ENDIAN_ORDER == L_ENDIAN
@@ -283,11 +311,26 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
   if (context->img_convert_frame != nullptr) {
     BLI_assert(context->img_convert_ctx != nullptr);
     /* Ensure the frame we are scaling to is writable as well. */
-    av_frame_make_writable(context->current_frame);
-    ffmpeg_sws_scale_frame(context->img_convert_ctx, context->current_frame, rgb_frame);
+    av_frame_make_writable(context->current_sw_frame);
+    ffmpeg_sws_scale_frame(context->img_convert_ctx, context->current_sw_frame, rgb_sw_frame);
   }
 
-  return context->current_frame;
+  /* Transfer data to the encoding device if needed. */
+  if (context->current_hw_frame) {
+    if (const int err = av_hwframe_transfer_data(
+            context->current_hw_frame, context->current_sw_frame, 0);
+        err < 0)
+    {
+      //fprintf(stderr,
+      //        "Error while transferring frame data to surface."
+      //        "Error code: %s.\n",
+      //        av_err2str(err));
+      return nullptr;
+    }
+    return context->current_hw_frame;
+  }
+
+  return context->current_sw_frame;
 }
 
 static AVRational calc_time_base(uint den, double num, int codec_id)
@@ -636,6 +679,42 @@ static void set_quality_rate_options(const MovieWriter *context,
   }
 }
 
+static int set_hwframe_ctx(AVCodecContext *ctx, AVBufferRef *hw_device_ctx)
+{
+  AVBufferRef *hw_frames_ref;
+  AVHWFramesContext *frames_ctx = NULL;
+  int err = 0;
+
+  if (!(hw_frames_ref = av_hwframe_ctx_alloc(hw_device_ctx))) {
+    fprintf(stderr, "Failed to create VAAPI frame context.\n");
+    return -1;
+  }
+  frames_ctx = (AVHWFramesContext *)(hw_frames_ref->data);
+#  if OS_MAC
+  frames_ctx->format = AV_PIX_FMT_VIDEOTOOLBOX;
+#  else
+  frames_ctx->format = AV_PIX_FMT_CUDA;
+#  endif
+  frames_ctx->sw_format = AV_PIX_FMT_NV12;
+  frames_ctx->width = ctx->width;
+  frames_ctx->height = ctx->height;
+  frames_ctx->initial_pool_size = 20;
+  if ((err = av_hwframe_ctx_init(hw_frames_ref)) < 0) {
+    //fprintf(stderr,
+    //        "Failed to initialize VAAPI frame context."
+    //        "Error code: %s\n",
+    //        av_err2str(err));
+    av_buffer_unref(&hw_frames_ref);
+    return err;
+  }
+  ctx->hw_frames_ctx = av_buffer_ref(hw_frames_ref);
+  if (!ctx->hw_frames_ctx)
+    err = AVERROR(ENOMEM);
+
+  av_buffer_unref(&hw_frames_ref);
+  return err;
+}
+
 static AVStream *alloc_video_stream(MovieWriter *context,
                                     RenderData *rd,
                                     AVCodecID codec_id,
@@ -645,6 +724,8 @@ static AVStream *alloc_video_stream(MovieWriter *context,
                                     char *error,
                                     int error_size)
 {
+  const bool use_hw_encoding = true;  // XXX
+
   AVStream *st;
   const AVCodec *codec;
   AVDictionary *opts = nullptr;
@@ -666,6 +747,50 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
   else if (codec_id == AV_CODEC_ID_PRORES) {
     codec = get_prores_encoder(rd, rectx, recty);
+  }
+  else if (codec_id == AV_CODEC_ID_H264 && use_hw_encoding) {
+#  if OS_MAC
+    const AVHWDeviceType device_type = AV_HWDEVICE_TYPE_VIDEOTOOLBOX;
+#  else
+    const AVHWDeviceType device_type = AV_HWDEVICE_TYPE_CUDA;
+#  endif
+    if (const int err = av_hwdevice_ctx_create(
+            &context->hw_device_ctx, device_type, nullptr, nullptr, 0);
+        err < 0)
+    {
+      char b[1024];
+      fprintf(stderr, "Failed to create a VideoToolbox device. Error code: %s\n", av_make_error_string(b, sizeof(b), err));
+      // XXX: cleanup.
+      return nullptr;
+    }
+
+#  if OS_MAC
+    codec = avcodec_find_encoder_by_name("h264_videotoolbox");
+#  else
+    codec = avcodec_find_encoder_by_name("h264_nvenc");
+#  endif
+  }
+  else if (codec_id == AV_CODEC_ID_H265 && use_hw_encoding) {
+#  if OS_MAC
+    const AVHWDeviceType device_type = AV_HWDEVICE_TYPE_VIDEOTOOLBOX;
+#  else
+    const AVHWDeviceType device_type = AV_HWDEVICE_TYPE_CUDA;
+#  endif
+
+    if (const int err = av_hwdevice_ctx_create(
+            &context->hw_device_ctx, device_type, nullptr, nullptr, 0);
+        err < 0)
+    {
+      //fprintf(stderr, "Failed to create a VideoToolbox device. Error code: %s\n", av_err2str(err));
+      // XXX: cleanup.
+      return nullptr;
+    }
+
+#  if OS_MAC
+    codec = avcodec_find_encoder_by_name("hevc_videotoolbox");
+#  else
+    codec = avcodec_find_encoder_by_name("hevc_nvenc");
+#  endif
   }
   else {
     codec = avcodec_find_encoder(codec_id);
@@ -854,6 +979,19 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       fprintf(stderr, "ffmpeg: invalid profile %d\n", context->ffmpeg_profile);
     }
   }
+  if (ELEM(codec_id, AV_CODEC_ID_H264, AV_CODEC_ID_H265) && use_hw_encoding) {
+    // BLI_assert(c->pix_fmt == AV_PIX_FMT_VIDEOTOOLBOX);
+#if !OS_MAC
+    c->pix_fmt = AV_PIX_FMT_CUDA;
+#endif
+
+    /* set hw_frames_ctx for encoder's AVCodecContext */
+    if (const int err = set_hwframe_ctx(c, context->hw_device_ctx); err < 0) {
+      fprintf(stderr, "Failed to set hwframe context.\n");
+      // XXX: cleanup.
+      return nullptr;
+    }
+  }
 
   if (of->oformat->flags & AVFMT_GLOBALHEADER) {
     FF_DEBUG_PRINT("ffmpeg: using global video header\n");
@@ -904,10 +1042,21 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
   av_dict_free(&opts);
 
-  /* FFMPEG expects its data in the output pixel format. */
-  context->current_frame = alloc_frame(c->pix_fmt, c->width, c->height);
+  /* Allocate frame on the device when hardware encoding is used. */
+  if (use_hw_encoding) {
+    context->current_sw_frame = alloc_sw_frame(AV_PIX_FMT_NV12, c->width, c->height);
+    BLI_assert(context->current_sw_frame);
 
-  if (c->pix_fmt == AV_PIX_FMT_RGBA) {
+    context->current_hw_frame = alloc_hw_frame(c->hw_frames_ctx, c->pix_fmt, c->width, c->height);
+    BLI_assert(context->current_hw_frame);
+  }
+  else {
+    /* FFMPEG expects its data in the output pixel format. */
+    context->current_sw_frame = alloc_sw_frame(c->pix_fmt, c->width, c->height);
+    BLI_assert(context->current_sw_frame);
+  }
+
+  if (context->current_sw_frame->format == AV_PIX_FMT_RGBA) {
     /* Output pixel format is the same we use internally, no conversion necessary. */
     context->img_convert_frame = nullptr;
     context->img_convert_ctx = nullptr;
@@ -915,9 +1064,19 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   else {
     /* Output pixel format is different, allocate frame for conversion. */
     AVPixelFormat src_format = is_10_bpp || is_12_bpp ? AV_PIX_FMT_GBRAPF32LE : AV_PIX_FMT_RGBA;
-    context->img_convert_frame = alloc_frame(src_format, c->width, c->height);
-    context->img_convert_ctx = ffmpeg_sws_get_context(
-        c->width, c->height, src_format, c->width, c->height, c->pix_fmt, SWS_BICUBIC);
+    context->img_convert_frame = alloc_sw_frame(src_format, c->width, c->height);
+    context->img_convert_ctx = ffmpeg_sws_get_context(c->width,
+                                                      c->height,
+                                                      src_format,
+                                                      c->width,
+                                                      c->height,
+                                                      context->current_sw_frame->format,
+                                                      SWS_BICUBIC);
+
+    if (!context->img_convert_ctx) {
+      // XXX: free resources
+      return nullptr;
+    }
 
     /* Setup BT.709 coefficients for RGB->YUV conversion, if needed. */
     if (set_bt709) {
@@ -1404,8 +1563,11 @@ static void end_ffmpeg_impl(MovieWriter *context, bool is_autosplit)
   context->video_stream = nullptr;
   context->audio_stream = nullptr;
 
-  av_frame_free(&context->current_frame);
+  av_frame_free(&context->current_sw_frame);
+  av_frame_free(&context->current_hw_frame);
   av_frame_free(&context->img_convert_frame);
+
+  av_buffer_unref(&context->hw_device_ctx);
 
   if (context->outfile != nullptr && context->outfile->oformat) {
     if (!(context->outfile->oformat->flags & AVFMT_NOFILE)) {
