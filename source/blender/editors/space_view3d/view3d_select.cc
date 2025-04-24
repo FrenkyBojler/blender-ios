@@ -1360,7 +1360,7 @@ static bool view3d_lasso_select(bContext *C,
     }
     else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT)) {
       changed_multi |= PE_lasso_select(C,
-                                       reinterpret_cast<const int(*)[2]>(mcoords.data()),
+                                       reinterpret_cast<const int (*)[2]>(mcoords.data()),
                                        mcoords.size(),
                                        sel_op) != OPERATOR_CANCELLED;
     }
@@ -4243,6 +4243,12 @@ static int gpu_bone_select_buffer_cmp(const void *sel_a_p, const void *sel_b_p)
   return 0;
 }
 
+static void object_select_tag_updates(bContext &C, Scene &scene)
+{
+  DEG_id_tag_update(&scene.id, ID_RECALC_SELECT);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, &scene);
+}
+
 static bool do_object_box_select(bContext *C,
                                  const ViewContext *vc,
                                  const rcti *rect,
@@ -4267,8 +4273,8 @@ static bool do_object_box_select(bContext *C,
   ListBase *object_bases = BKE_view_layer_object_bases_get(vc->view_layer);
   if ((hits == -1) && !SEL_OP_USE_OUTSIDE(sel_op)) {
     if (changed) {
-      DEG_id_tag_update(&vc->scene->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);
+      object_select_tag_updates(*C, *vc->scene);
+      return true;
     }
   }
 
@@ -4313,8 +4319,7 @@ static bool do_object_box_select(bContext *C,
   }
 
   if (changed) {
-    DEG_id_tag_update(&vc->scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);
+    object_select_tag_updates(*C, *vc->scene);
   }
   return changed;
 }
