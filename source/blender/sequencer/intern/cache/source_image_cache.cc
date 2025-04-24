@@ -220,13 +220,17 @@ void source_image_cache_iterate(Scene *scene,
     return;
   }
 
+  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+
   for (const auto &[key, value] : cache->map_.items()) {
     for (int frame : value.frames.keys()) {
       /* We have frame index of source media, try to guesstimate the timeline frame.
-       * Note that this will be not correct when retiming, different playback rate, strobing
-       * etc. are used. */
-      int timeline_frame = frame + time_start_frame_get(key);
-      callback_iter(userdata, key, timeline_frame);
+       * Note that this will be not correct when retiming, strobing etc. are used.
+       * However, factor in playback rate difference. */
+      float frame_fl = frame / time_media_playback_rate_factor_get(key, scene_fps);
+      float timeline_frame = frame_fl + time_start_frame_get(key);
+
+      callback_iter(userdata, key, int(timeline_frame));
     }
   }
 }
