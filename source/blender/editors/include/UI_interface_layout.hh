@@ -48,8 +48,8 @@ enum class LayoutSuppressFlag : uint8_t;
  * Meanwhile keep using `uiLayout*` functions to read/write this properties.
  */
 struct uiItem {
-  blender::ui::ItemType type;
-  blender::ui::ItemInternalFlag flag;
+  blender::ui::ItemType type_;
+  blender::ui::ItemInternalFlag flag_;
 
   uiItem() = default;
   uiItem(const uiItem &) = default;
@@ -62,36 +62,36 @@ struct uiItem {
  */
 struct uiLayout : uiItem {
   // protected:
-  uiLayoutRoot *root;
-  bContextStore *context;
-  uiLayout *parent;
-  blender::Vector<uiItem *> items;
+  uiLayoutRoot *root_;
+  bContextStore *context_;
+  uiLayout *parent_;
+  blender::Vector<uiItem *> items_;
 
-  char heading[UI_MAX_NAME_STR];
+  char heading_[UI_MAX_NAME_STR];
 
   /** Sub layout to add child items, if not the layout itself. */
-  uiLayout *child_items_layout;
+  uiLayout *child_items_layout_;
 
-  int x, y, w, h;
-  float scale[2];
-  short space;
-  bool align;
-  bool active;
-  bool active_default;
-  bool activate_init;
-  bool enabled;
-  bool redalert;
-  bool keepaspect;
+  int x_, y_, w_, h_;
+  float scale_[2];
+  short space_;
+  bool align_;
+  bool active_;
+  bool active_default_;
+  bool activate_init_;
+  bool enabled_;
+  bool redalert_;
+  bool keepaspect_;
   /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
-  bool variable_size;
-  char alignment;
-  blender::ui::EmbossType emboss;
+  bool variable_size_;
+  char alignment_;
+  blender::ui::EmbossType emboss_;
   /** for fixed width or height to avoid UI size changes */
-  float units[2];
+  float units_[2];
   /** Is copied to uiButs created in this layout. */
-  float search_weight;
+  float search_weight_;
 
-  LayoutSuppressFlag suppress_flag;
+  LayoutSuppressFlag suppress_flag_;
 };
 
 enum {
