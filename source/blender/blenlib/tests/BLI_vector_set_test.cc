@@ -324,6 +324,7 @@ TEST(vector_set, ExtractVector)
   Vector<int> vec = set.extract_vector();
   EXPECT_EQ(vec.size(), 5);
   EXPECT_EQ(vec.data(), data_ptr);
+  EXPECT_TRUE(set.is_empty());
 }
 
 TEST(vector_set, ExtractVectorInline)
@@ -335,6 +336,7 @@ TEST(vector_set, ExtractVectorInline)
   Vector<int> vec = set.extract_vector();
   EXPECT_EQ(vec.size(), 5);
   EXPECT_EQ(vec[2], 7);
+  EXPECT_TRUE(set.is_empty());
 }
 
 TEST(vector_set, ExtractVectorEmpty)
