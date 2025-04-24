@@ -2155,6 +2155,7 @@ void BKE_material_defaults_free_gpu()
 void BKE_materials_init()
 {
   for (int i = 0; default_materials[i]; i++) {
+    memset(&default_materials[i]->id, 0, sizeof(Material));
     material_init_data(&default_materials[i]->id);
   }
 
