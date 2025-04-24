@@ -1581,8 +1581,8 @@ int ui_panel_category_show_active_tab(ARegion *region, const int mval[2])
     return WM_UI_HANDLER_CONTINUE;
   }
   const View2D *v2d = &region->v2d;
-  LISTBASE_FOREACH (PanelCategoryDyn *, pc_dyn, &region->panels_category) {
-    const bool is_active = STREQ(pc_dyn->idname, region->runtime.category);
+  LISTBASE_FOREACH (PanelCategoryDyn *, pc_dyn, &region->runtime->panels_category) {
+    const bool is_active = STREQ(pc_dyn->idname, region->runtime->category);
     if (!is_active) {
       continue;
     }
