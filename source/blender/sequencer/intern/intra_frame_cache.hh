@@ -32,5 +32,6 @@ struct IntraFrameCache {
 };
 
 void invalidate_intra_frame_cache(Scene *scene, const Strip *strip);
+void invalidate_intra_frame_cache(Scene *scene);
 
 }  // namespace blender::seq

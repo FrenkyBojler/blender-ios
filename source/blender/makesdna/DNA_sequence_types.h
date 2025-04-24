@@ -37,7 +37,6 @@ struct TextVarsRuntime;
 struct PrefetchJob;
 struct SourceImageCache;
 struct StripLookup;
-struct SeqCache;
 }  // namespace blender::seq
 using FinalImageCache = blender::seq::FinalImageCache;
 using IntraFrameCache = blender::seq::IntraFrameCache;
@@ -47,7 +46,6 @@ using TextVarsRuntime = blender::seq::TextVarsRuntime;
 using PrefetchJob = blender::seq::PrefetchJob;
 using SourceImageCache = blender::seq::SourceImageCache;
 using StripLookup = blender::seq::StripLookup;
-using SeqCache = blender::seq::SeqCache;
 #else
 typedef struct FinalImageCache FinalImageCache;
 typedef struct IntraFrameCache IntraFrameCache;
@@ -57,7 +55,6 @@ typedef struct TextVarsRuntime TextVarsRuntime;
 typedef struct PrefetchJob PrefetchJob;
 typedef struct SourceImageCache SourceImageCache;
 typedef struct StripLookup StripLookup;
-typedef struct SeqCache SeqCache;
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -373,18 +370,9 @@ typedef struct Editing {
   rctf overlay_frame_rect;
 
   int show_missing_media_flag;
-  int _pad1;
-
-  SeqCache *cache;
-
-  /* Cache control */
-  float recycle_max_cost; /* UNUSED only for versioning. */
   int cache_flag;
 
   PrefetchJob *prefetch_job;
-
-  /* Must be initialized only by seq_cache_create() */
-  int64_t disk_cache_timestamp;
 
   EditingRuntime runtime;
 } Editing;

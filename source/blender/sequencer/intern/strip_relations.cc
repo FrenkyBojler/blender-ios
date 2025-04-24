@@ -27,6 +27,7 @@
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
@@ -42,6 +43,14 @@ namespace blender::seq {
 bool relation_is_effect_of_strip(const Strip *effect, const Strip *input)
 {
   return ELEM(input, effect->seq1, effect->seq2);
+}
+
+void cache_cleanup(Scene *scene)
+{
+  thumbnail_cache_clear(scene);
+  source_image_cache_clear(scene);
+  final_image_cache_clear(scene);
+  invalidate_intra_frame_cache(scene);
 }
 
 static void invalidate_final_cache_strip_range(Scene *scene, const Strip *strip)

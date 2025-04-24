@@ -15,6 +15,17 @@
 
 namespace blender::seq {
 
+void invalidate_intra_frame_cache(Scene *scene)
+{
+  if (scene == nullptr || scene->ed == nullptr) {
+    return;
+  }
+  IntraFrameCache *cache = scene->ed->runtime.intra_frame_cache;
+  if (cache != nullptr) {
+    cache->clear();
+  }
+}
+
 void invalidate_intra_frame_cache(Scene *scene, const Strip *strip)
 {
   if (scene == nullptr || scene->ed == nullptr || strip == nullptr) {

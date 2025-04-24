@@ -59,8 +59,6 @@ set(SRC
   intern/final_image_cache.hh
   intern/intra_frame_cache.cc
   intern/intra_frame_cache.hh
-  intern/image_cache.cc
-  intern/image_cache.hh
   intern/iterator.cc
   intern/media_presence.cc
   intern/modifier.cc

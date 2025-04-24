@@ -1300,7 +1300,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
     ed->act_seq = static_cast<Strip *>(
         BLO_read_get_new_data_address_no_us(reader, ed->act_seq, sizeof(Strip)));
-    ed->cache = nullptr;
     ed->prefetch_job = nullptr;
     ed->runtime.strip_lookup = nullptr;
     ed->runtime.media_presence = nullptr;

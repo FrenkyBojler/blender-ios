@@ -277,7 +277,6 @@ Editing *editing_ensure(Scene *scene)
 
     ed = scene->ed = MEM_callocN<Editing>("addseq");
     ed->seqbasep = &ed->seqbase;
-    ed->cache = nullptr;
     ed->cache_flag = (SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     ed->displayed_channels = &ed->channels;
