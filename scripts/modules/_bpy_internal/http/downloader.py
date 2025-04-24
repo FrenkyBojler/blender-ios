@@ -129,10 +129,7 @@ class ConditionalDownloader:
 
         req = requests.Request(http_req_descr.http_method, http_req_descr.url)
         prepped: requests.PreparedRequest = self.http_session.prepare_request(req)
-        if meta:
-            # TODO: only set these fields if they have a non-empty value:
-            prepped.headers["If-Modified-Since"] = meta.last_modified
-            prepped.headers["If-None-Match"] = meta.etag
+        self._add_conditional_request_headers(prepped, meta)
 
         with self.http_session.send(prepped, stream=True) as stream:
             logger.debug(
@@ -188,6 +185,15 @@ class ConditionalDownloader:
             )
 
         return meta
+
+    def _add_conditional_request_headers(self, prepped: requests.PreparedRequest, meta: HTTPMetadata | None) -> None:
+        if not meta:
+            return
+
+        if meta.last_modified:
+            prepped.headers["If-Modified-Since"] = meta.last_modified
+        if meta.etag:
+            prepped.headers["If-None-Match"] = meta.etag
 
     def _cache_key(self, http_req_descr: RequestDescription) -> str:
         method = http_req_descr.http_method
