@@ -4640,9 +4640,7 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
     }
   }
 
-  if (srd.back_depth.has_value() &&
-      fabsf(*srd.back_depth - srd.depth) < FLT_EPSILON)
-  {
+  if (srd.back_depth.has_value() && fabsf(*srd.back_depth - srd.depth) < FLT_EPSILON) {
     srd.back_depth = std::nullopt;
   }
 

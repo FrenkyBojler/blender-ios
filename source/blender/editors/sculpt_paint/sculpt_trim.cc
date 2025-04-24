@@ -106,18 +106,15 @@ static EnumPropertyItem extrude_modes[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-enum class LocationType {
-  SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE,
-  SCULPT_GESTURE_TRIM_LOCATION_DEPTH_VOLUME,
-};
+enum class LocationType { Surface, Volume };
 
 static EnumPropertyItem location_types[] = {
-    {int(LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE),
+    {int(LocationType::Surface),
      "SURFACE",
      0,
      "Surface",
      "Use the surface of the mesh to calculate the depth of the trimming shape"},
-    {int(LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_VOLUME),
+    {int(LocationType::Volume),
      "VOLUME",
      0,
      "Volume",
@@ -259,12 +256,12 @@ static void calculate_depth(gesture::GestureData &gesture_data,
     float world_space_gesture_initial_location[3];
 
     switch (trim_operation->location_type) {
-      case LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE:
+      case LocationType::Surface:
         mul_v3_m4v3(world_space_gesture_initial_location,
                     object_to_world.ptr(),
                     trim_operation->initial_location);
         break;
-      case LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_VOLUME:
+      case LocationType::Volume:
         blender::float3 center_co;
         mid_v3_v3v3(center_co, trim_operation->initial_location, trim_operation->back_location);
         mul_v3_m4v3(world_space_gesture_initial_location, object_to_world.ptr(), center_co);
@@ -762,11 +759,10 @@ static void operator_properties(wmOperatorType *ot)
                int(ExtrudeMode::Fixed),
                "Extrude Mode",
                nullptr);
-
   RNA_def_enum(ot->srna,
                "trim_location",
                location_types,
-               int(LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE),
+               int(LocationType::Surface),
                "Shape Location",
                nullptr);
 
