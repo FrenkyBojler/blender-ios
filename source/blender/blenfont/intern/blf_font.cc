@@ -1336,8 +1336,7 @@ static void blf_font_wrap_apply(FontBLF *font,
       wrap.last[1] = i_curr;
       clip_bytes = 1;
     }
-    else if (UNLIKELY((int(mode) & int(BLFWrapMode::Path)) && ELEM(codepoint, SEP, ' ', '_', '.')))
-    {
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::Path)) && ELEM(codepoint, SEP, ' ', '_'))) {
       wrap.last[0] = i;
       wrap.last[1] = i;
       clip_bytes = 0;
