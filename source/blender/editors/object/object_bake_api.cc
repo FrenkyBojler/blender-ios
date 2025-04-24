@@ -935,6 +935,7 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
         nullptr);
     BLI_assert_msg(errors.is_empty(),
                    "Path parsing errors should only occur when a variable map is provided.");
+    UNUSED_VARS_NDEBUG(errors);
 
     if (bkr->is_automatic_name) {
       BLI_path_suffix(filepath, FILE_MAX, ob->id.name + 2, "_");

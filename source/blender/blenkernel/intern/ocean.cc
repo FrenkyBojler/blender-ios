@@ -1145,6 +1145,7 @@ static void cache_filepath(
       filepath, cachepath, relbase, nullptr, frame, R_IMF_IMTYPE_OPENEXR, true, true, "");
   BLI_assert_msg(errors.is_empty(),
                  "Path parsing errors should only occur when a variable map is provided.");
+  UNUSED_VARS_NDEBUG(errors);
 }
 
 /* silly functions but useful to inline when the args do a lot of indirections */
