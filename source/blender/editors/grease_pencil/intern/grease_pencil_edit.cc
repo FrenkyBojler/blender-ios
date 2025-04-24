@@ -64,6 +64,7 @@
 #include "ED_view3d.hh"
 
 #include "GEO_curves_remove_and_split.hh"
+#include "GEO_fit_curves.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
 #include "GEO_reorder.hh"
@@ -77,10 +78,6 @@
 
 #include "UI_resources.hh"
 #include <limits>
-
-extern "C" {
-#include "curve_fit_nd.h"
-}
 
 namespace blender::ed::greasepencil {
 
@@ -4189,117 +4186,11 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       return;
     }
 
-    const VArray<bool> cyclic = curves.cyclic();
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-    const Span<float3> all_positions = curves.positions();
+    const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
+    const VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
 
-    Vector<float3> curve_positions;
-    Vector<int> orig_index;
-
-    Array<int> point_offsets(curves.curves_num() + 1);
-    int point_num = 0;
-
-    for (const int curve_i : curves.curves_range()) {
-      const IndexRange points = points_by_curve[curve_i];
-      const Span<float3> positions = all_positions.slice(points);
-
-      const IndexMask corner_mask = IndexRange(0, 0);
-
-      uint calc_flag = CURVE_FIT_CALC_HIGH_QUALIY;
-
-      if ((positions.size() > 2) && cyclic[curve_i]) {
-        calc_flag |= CURVE_FIT_CALC_CYCLIC;
-      }
-
-      Array<int32_t> indices(corner_mask.size());
-      corner_mask.to_indices(indices.as_mutable_span());
-      uint *indicies_ptr = corner_mask.is_empty() ? nullptr :
-                                                    reinterpret_cast<uint *>(indices.data());
-
-      float *r_cubic_array;
-      uint r_cubic_array_len;
-      uint *r_cubic_orig_index;
-      int error = curve_fit_cubic_to_points_fl(*positions.data(),
-                                               positions.size(),
-                                               3,
-                                               threshold,
-                                               calc_flag,
-                                               indicies_ptr,
-                                               indices.size(),
-                                               &r_cubic_array,
-                                               &r_cubic_array_len,
-                                               &r_cubic_orig_index,
-                                               nullptr,
-                                               nullptr);
-
-      if (error != 0) {
-        /* Some error occurred. Return. */
-        return;
-      }
-
-      if (r_cubic_array == nullptr) {
-        return;
-      }
-
-      Span<float3> r_cubic_array_span(reinterpret_cast<float3 *>(r_cubic_array),
-                                      r_cubic_array_len * 3);
-      curve_positions.extend(r_cubic_array_span);
-
-      Span<uint> r_cubic_orig_index_span(reinterpret_cast<uint *>(r_cubic_orig_index),
-                                         r_cubic_array_len);
-
-      orig_index.reserve(r_cubic_array_len);
-      for (const int j : r_cubic_orig_index_span.index_range()) {
-        orig_index.append(points[int(r_cubic_orig_index_span[j])]);
-      }
-
-      point_offsets[curve_i] = point_num;
-      point_num += r_cubic_array_len;
-
-      /* Free the c-style array. */
-      free(r_cubic_array);
-      free(r_cubic_orig_index);
-    }
-
-    point_offsets.last() = point_num;
-
-    bke::CurvesGeometry dst_curves(point_offsets.last(), point_offsets.size() - 1);
-
-    MutableSpan<int> dst_offsets = dst_curves.offsets_for_write();
-
-    dst_offsets.copy_from(point_offsets);
-
-    const bke::AttributeAccessor src_attributes = curves.attributes();
-    bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-
-    copy_attributes(
-        src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
-
-    dst_curves.fill_curve_types(dst_type);
-
-    MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
-    MutableSpan<float3> handle_positions_l = dst_curves.handle_positions_left_for_write();
-    MutableSpan<float3> handle_positions_r = dst_curves.handle_positions_right_for_write();
-    MutableSpan<int8_t> handle_types_l = dst_curves.handle_types_left_for_write();
-    MutableSpan<int8_t> handle_types_r = dst_curves.handle_types_right_for_write();
-
-    for (const int i : IndexRange(point_offsets.last())) {
-      handle_positions_l[i] = curve_positions[i * 3 + 0];
-      dst_positions[i] = curve_positions[i * 3 + 1];
-      handle_positions_r[i] = curve_positions[i * 3 + 2];
-      handle_types_l[i] = BEZIER_HANDLE_ALIGN;
-      handle_types_r[i] = BEZIER_HANDLE_ALIGN;
-    }
-
-    gather_attributes(
-        src_attributes,
-        bke::AttrDomain::Point,
-        bke::AttrDomain::Point,
-        bke::attribute_filter_from_skip_ref({".position", ".handle_left", ".handle_right"}),
-        orig_index,
-        dst_attributes);
-
-    curves = dst_curves;
+    curves = geometry::fit_curves(
+        curves, strokes, thresholds, corners, geometry::FitMethod::Refit, {});
 
     info.drawing.tag_topology_changed();
 
