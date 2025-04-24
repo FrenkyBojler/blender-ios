@@ -296,10 +296,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
         svm_node_closure_volume<type>(kg, sd, stack, closure_weight, node);
       }
       break;
-      SVM_CASE(NODE_COEFFS_VOLUME)
+      SVM_CASE(NODE_VOLUME_COEFFICIENTS)
       IF_KERNEL_NODES_FEATURE(VOLUME)
       {
-        svm_node_coeffs_volume<type>(kg, sd, stack, closure_weight, node, path_flag);
+        svm_node_volume_coefficients<type>(kg, sd, stack, closure_weight, node, path_flag);
       }
       break;
       SVM_CASE(NODE_PRINCIPLED_VOLUME)

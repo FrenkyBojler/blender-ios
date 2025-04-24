@@ -48,7 +48,7 @@ MieParameters phase_mie_fitted_parameters(float Diameter)
           exp(-0.599085 / (d - 0.641583) - 0.665888)};
 }
 
-shader node_coeffs_volume(string phase = "Henyey-Greenstein",
+shader node_volume_coefficients(string phase = "Henyey-Greenstein",
                           vector AbsorptionCoefficients = vector(1.0, 1.0, 1.0),
                           vector ScatterCoefficients = vector(1.0, 1.0, 1.0),
                           float Anisotropy = 0.0,

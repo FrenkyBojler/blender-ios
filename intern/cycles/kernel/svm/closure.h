@@ -1174,12 +1174,12 @@ ccl_device_noinline void svm_node_closure_volume(KernelGlobals kg,
 }
 
 template<ShaderType shader_type>
-ccl_device_noinline void svm_node_coeffs_volume(KernelGlobals kg,
-                                                ccl_private ShaderData *sd,
-                                                ccl_private float *stack,
-                                                Spectrum closure_weight,
-                                                const uint4 node,
-                                                const uint32_t path_flag)
+ccl_device_noinline void svm_node_volume_coefficients(KernelGlobals kg,
+                                                      ccl_private ShaderData *sd,
+                                                      ccl_private float *stack,
+                                                      Spectrum closure_weight,
+                                                      const uint4 node,
+                                                      const uint32_t path_flag)
 {
 #ifdef __VOLUME__
   /* Only sum extinction for volumes, variable is shared with surface transparency. */

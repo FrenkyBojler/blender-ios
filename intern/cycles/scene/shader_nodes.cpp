@@ -3552,20 +3552,20 @@ void ScatterVolumeNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_scatter_volume");
 }
 
-/* Scatter Volume Closure */
+/* Volume Coefficients Closure */
 
-NODE_DEFINE(CoeffsVolumeNode)
+NODE_DEFINE(VolumeCoefficientsNode)
 {
-  NodeType *type = NodeType::add("coeffs_volume", create, NodeType::SHADER);
+  NodeType *type = NodeType::add("volume_coefficients", create, NodeType::SHADER);
 
   SOCKET_IN_VECTOR(scatter_coeffs, "Scatter Coefficients", make_float3(1.0f, 1.0f, 1.0f));
   SOCKET_IN_VECTOR(absorption_coeffs, "Absorption Coefficients", make_float3(1.0f, 1.0f, 1.0f));
-  SOCKET_IN_VECTOR(emission_coeffs, "Emission Coefficients", make_float3(0.0f, 0.0f, 0.0f));
   SOCKET_IN_FLOAT(anisotropy, "Anisotropy", 0.0f);
   SOCKET_IN_FLOAT(IOR, "IOR", 1.33f);
   SOCKET_IN_FLOAT(backscatter, "Backscatter", 0.1f);
   SOCKET_IN_FLOAT(alpha, "Alpha", 0.5f);
   SOCKET_IN_FLOAT(diameter, "Diameter", 20.0f);
+  SOCKET_IN_VECTOR(emission_coeffs, "Emission Coefficients", make_float3(0.0f, 0.0f, 0.0f));
 
   static NodeEnum phase_enum;
   phase_enum.insert("Henyey-Greenstein", CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID);
@@ -3582,12 +3582,12 @@ NODE_DEFINE(CoeffsVolumeNode)
   return type;
 }
 
-CoeffsVolumeNode::CoeffsVolumeNode() : ScatterVolumeNode(get_node_type())
+VolumeCoefficientsNode::VolumeCoefficientsNode() : ScatterVolumeNode(get_node_type())
 {
   closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
 }
 
-void CoeffsVolumeNode::compile(SVMCompiler &compiler)
+void VolumeCoefficientsNode::compile(SVMCompiler &compiler)
 {
   closure = phase;
   ShaderInput *param1 = nullptr;
@@ -3630,7 +3630,7 @@ void CoeffsVolumeNode::compile(SVMCompiler &compiler)
   if (param2 == nullptr) {
     /* More efficient packing if we don't need the second parameter. */
     const uint param1_ofs = (param1) ? compiler.stack_assign_if_linked(param1) : SVM_STACK_INVALID;
-    compiler.add_node(NODE_COEFFS_VOLUME,
+    compiler.add_node(NODE_VOLUME_COEFFICIENTS,
                       compiler.encode_uchar4(closure, 0, param1_ofs, mix_weight_ofs),
                       __float_as_int((param1) ? get_float(param1->socket_type) : 0.0f),
                       compiler.encode_uchar4(compiler.stack_assign(absorption_coeffs_in),
@@ -3641,7 +3641,7 @@ void CoeffsVolumeNode::compile(SVMCompiler &compiler)
   else {
     const uint param1_ofs = (param1) ? compiler.stack_assign(param1) : SVM_STACK_INVALID;
     const uint param2_ofs = (param2) ? compiler.stack_assign(param2) : SVM_STACK_INVALID;
-    compiler.add_node(NODE_COEFFS_VOLUME,
+    compiler.add_node(NODE_VOLUME_COEFFICIENTS,
                       compiler.encode_uchar4(closure, 0, param1_ofs, mix_weight_ofs),
                       param2_ofs,
                       compiler.encode_uchar4(compiler.stack_assign(absorption_coeffs_in),
@@ -3651,10 +3651,10 @@ void CoeffsVolumeNode::compile(SVMCompiler &compiler)
   }
 }
 
-void CoeffsVolumeNode::compile(OSLCompiler &compiler)
+void VolumeCoefficientsNode::compile(OSLCompiler &compiler)
 {
   compiler.parameter(this, "phase");
-  compiler.add(this, "node_coeffs_volume");
+  compiler.add(this, "node_volume_coefficients");
 }
 
 /* Principled Volume Closure */

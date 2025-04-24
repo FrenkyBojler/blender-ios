@@ -747,23 +747,23 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_a(&RNA_ShaderNodeVolumeAbsorption)) {
     node = graph->create_node<AbsorptionVolumeNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVolumeCoeffs)) {
-    BL::ShaderNodeVolumeCoeffs b_coeffs_node(b_node);
-    CoeffsVolumeNode *coeffs = graph->create_node<CoeffsVolumeNode>();
+  else if (b_node.is_a(&RNA_ShaderNodeVolumeCoefficients)) {
+    BL::ShaderNodeVolumeCoefficients b_coeffs_node(b_node);
+    VolumeCoefficientsNode *coeffs = graph->create_node<VolumeCoefficientsNode>();
     switch (b_coeffs_node.phase()) {
-      case BL::ShaderNodeVolumeCoeffs::phase_HENYEY_GREENSTEIN:
+      case BL::ShaderNodeVolumeCoefficients::phase_HENYEY_GREENSTEIN:
         coeffs->set_phase(CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID);
         break;
-      case BL::ShaderNodeVolumeCoeffs::phase_FOURNIER_FORAND:
+      case BL::ShaderNodeVolumeCoefficients::phase_FOURNIER_FORAND:
         coeffs->set_phase(CLOSURE_VOLUME_FOURNIER_FORAND_ID);
         break;
-      case BL::ShaderNodeVolumeCoeffs::phase_DRAINE:
+      case BL::ShaderNodeVolumeCoefficients::phase_DRAINE:
         coeffs->set_phase(CLOSURE_VOLUME_DRAINE_ID);
         break;
-      case BL::ShaderNodeVolumeCoeffs::phase_RAYLEIGH:
+      case BL::ShaderNodeVolumeCoefficients::phase_RAYLEIGH:
         coeffs->set_phase(CLOSURE_VOLUME_RAYLEIGH_ID);
         break;
-      case BL::ShaderNodeVolumeCoeffs::phase_MIE:
+      case BL::ShaderNodeVolumeCoefficients::phase_MIE:
         coeffs->set_phase(CLOSURE_VOLUME_MIE_ID);
         break;
     }

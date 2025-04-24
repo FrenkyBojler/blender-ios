@@ -846,9 +846,9 @@ class ScatterVolumeNode : public VolumeNode {
   NODE_SOCKET_API(ClosureType, phase)
 };
 
-class CoeffsVolumeNode : public ScatterVolumeNode {
+class VolumeCoefficientsNode : public ScatterVolumeNode {
  public:
-  SHADER_NODE_CLASS(CoeffsVolumeNode)
+  SHADER_NODE_CLASS(VolumeCoefficientsNode)
 
   NODE_SOCKET_API(float3, scatter_coeffs)
   NODE_SOCKET_API(float3, absorption_coeffs)
