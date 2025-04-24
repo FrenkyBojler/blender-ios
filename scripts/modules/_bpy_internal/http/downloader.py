@@ -17,15 +17,16 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-class Downloader:
-    """Caching file downloader.
+class ConditionalDownloader:
+    """File downloader supporting HTTP conditional requests.
 
     Request an URL and stream the body of the response to a file on disk.
-    Metadata is saved in a caller-determined location on disk, in a file per
-    requested URL.
+    Metadata is saved in a caller-determined location on disk.
 
-    Caching is performed via the HTTP headers 'ETag'/'If-None-Match' and
-    'Last-Modified'/'If-Modified-Since'.
+    When the file on disk already exists, conditional downloading is performed
+    via the HTTP headers 'ETag'/'If-None-Match' and 'Last-Modified'/
+    'If-Modified-Since'. When the HTTP server indicates the local file is up to
+    date, via a `304 Not Modified` response, the file is not downloaded again.
 
     See `BackgroundDownloader` to download things in a background thread.
     """
@@ -47,7 +48,7 @@ class Downloader:
             self,
             metadata_cache_location: Path,
     ) -> None:
-        """Create a Downloader.
+        """Create a ConditionalDownloader.
 
         :param metadata_cache_location: Location on disk for request metadata,
             like the last-modified timestamp, etag, and content length.
@@ -256,7 +257,7 @@ class Downloader:
         """Add a reporter to receive download progress information.
 
         The reporter's functions are called from the same thread as the calls to
-        this Downloader.
+        this ConditionalDownloader.
         """
         if self.has_reporter():
             raise ValueError(
@@ -280,9 +281,9 @@ class Downloader:
 
 
 class BackgroundDownloader:
-    """Wrapper for a Downloader + reporter.
+    """Wrapper for a ConditionalDownloader + reporters.
 
-    The downloader will run in a separate thread, and the reporter will receive
+    The downloader will run in a separate thread, and the reporters will receive
     updates on the main thread (or whatever thread runs
     BackgroundDownloader.update()).
     """
@@ -307,7 +308,7 @@ class BackgroundDownloader:
     DownloadDoneCallback: TypeAlias = Callable[['RequestDescription', Path], None]
     _on_downloaded_callbacks: dict[RequestDescription, DownloadDoneCallback]
 
-    def __init__(self, downloader: Downloader) -> None:
+    def __init__(self, downloader: ConditionalDownloader) -> None:
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
         self._num_pending_downloads = 0
@@ -531,7 +532,7 @@ class BackgroundDownloader:
 
 
 class DownloadReporter(Protocol):
-    """This protocol can be used to receive reporting from Downloader."""
+    """This protocol can be used to receive reporting from ConditionalDownloader."""
 
     def download_starts(self, http_req_descr: RequestDescription) -> None: ...
 
@@ -567,7 +568,7 @@ class _DummyReporter(DownloadReporter):
     """Dummy CachingDownloadReporter.
 
     Does not do anything. This is mostly used to avoid None checks in the
-    Downloader.
+    ConditionalDownloader.
     """
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
@@ -606,13 +607,15 @@ class _DummyReporter(DownloadReporter):
 class ThreadBridgingReporter(DownloadReporter):
     """DownloadReporter that can bridge threads.
 
-    Bridging two threads T1 and T2 requires two reporters and the downloader itself:
+    Bridging two threads Tm (main) and Tb (background) works as follows:
 
-    - Create a CachingDownloadReporter that should get called on T1.
-    - Create this ThreadBridgingReporter, passing it the above reporter.
-    - Create the Downloader, and put in the thread-bridging reporter.
-    - Start the Downloader in T2.
-    - Call ThreadBridgingReporter.update() from T1.
+    - Create a DownloadReporter that should get called on Tm.
+    - Create this ThreadBridgingReporter, and give it the above reporter.
+    - Create the ConditionalDownloader, and put in the thread-bridging reporter.
+    - Start the ConditionalDownloader in Tb.
+    - Call ThreadBridgingReporter.update() from Tm.
+    - The DownloadReporter you created in the first step will receive updates
+      from Tm.
 
     See `BackgroundDownloader` for a concrete use.
     """
@@ -753,9 +756,9 @@ class ResponseTooLargeError(HTTPRequestDownloadError):
 
 
 class DownloadCancelled(HTTPRequestDownloadError):
-    """Raised when the Downloader.cancel_download() function was called.
+    """Raised when ConditionalDownloader.cancel_download() was called.
 
     This exception is raised in the thread that called
-    Downloader.download_to_file(), and not from the thread doing the
+    ConditionalDownloader.download_to_file(), and NOT from the thread doing the
     cancellation.
     """
