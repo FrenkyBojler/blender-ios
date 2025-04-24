@@ -37,6 +37,12 @@ template<typename T> struct SampleData {
 template<typename T> struct AttributeData {
   std::optional<T> initial_value = std::nullopt;
   Vector<SampleData<T>> samples;
+
+  void reset()
+  {
+    initial_value = std::nullopt;
+    samples.clear();
+  }
 };
 
 template<typename T>
@@ -44,6 +50,8 @@ bool read_attribute_values(const pxr::UsdAttribute &attr,
                            const pxr::UsdTimeCode initial_time,
                            AttributeData<T> &data)
 {
+  data.reset(); /* Clear any prior data. */
+
   T value{};
   if (attr.Get(&value, initial_time)) {
     data.initial_value = value;
