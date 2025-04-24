@@ -872,7 +872,7 @@ enum {
   SEQ_CACHE_UNUSED_9 = (1 << 9),
 
   SEQ_CACHE_PREFETCH_ENABLE = (1 << 10),
-  SEQ_CACHE_DISK_CACHE_ENABLE = (1 << 11),
+  SEQ_CACHE_UNUSED_11 = (1 << 11), /* Was SEQ_CACHE_DISK_CACHE_ENABLE */
 };
 
 /** #Strip.color_tag. */

@@ -31,7 +31,6 @@
 #include "SEQ_render.hh"
 #include "SEQ_time.hh"
 
-#include "disk_cache.hh"
 #include "image_cache.hh"
 #include "prefetch.hh"
 
@@ -70,7 +69,6 @@ struct SeqCache {
   BLI_mempool *keys_pool;
   BLI_mempool *items_pool;
   SeqCacheKey *last_key;
-  SeqDiskCache *disk_cache;
 };
 
 struct SeqCacheItem {
@@ -486,10 +484,6 @@ static void seq_cache_create(Main *bmain, Scene *scene)
     cache->bmain = bmain;
     BLI_mutex_init(&cache->iterator_mutex);
     scene->ed->cache = cache;
-
-    if (scene->ed->disk_cache_timestamp == 0) {
-      scene->ed->disk_cache_timestamp = time(nullptr);
-    }
   }
   BLI_mutex_unlock(&cache_create_lock);
 }
@@ -572,10 +566,6 @@ void seq_cache_destruct(Scene *scene)
   BLI_mempool_destroy(cache->items_pool);
   BLI_mutex_end(&cache->iterator_mutex);
 
-  if (cache->disk_cache != nullptr) {
-    seq_disk_cache_free(cache->disk_cache);
-  }
-
   MEM_freeN(cache);
   scene->ed->cache = nullptr;
 }
@@ -615,10 +605,6 @@ void seq_cache_cleanup_sequence(Scene *scene,
   SeqCache *cache = seq_cache_get_from_scene(scene);
   if (!cache) {
     return;
-  }
-
-  if (seq_disk_cache_is_enabled(cache->bmain) && cache->disk_cache != nullptr) {
-    seq_disk_cache_invalidate(cache->disk_cache, scene, strip, strip_changed, invalidate_types);
   }
 
   seq_cache_lock(scene);
@@ -711,25 +697,6 @@ ImBuf *seq_cache_get(const RenderData *context, Strip *strip, float timeline_fra
     return nullptr;
   }
 
-  /* Try disk cache: */
-  if (seq_disk_cache_is_enabled(context->bmain)) {
-    if (cache->disk_cache == nullptr) {
-      cache->disk_cache = seq_disk_cache_create(context->bmain, context->scene);
-    }
-
-    ibuf = seq_disk_cache_read_file(cache->disk_cache, &key);
-
-    if (ibuf == nullptr) {
-      return nullptr;
-    }
-
-    /* Store read image in RAM. Only recycle item for final type. */
-    if (key.type != SEQ_CACHE_STORE_FINAL_OUT || seq_cache_recycle_item(scene)) {
-      SeqCacheKey *new_key = seq_cache_allocate_key(cache, context, strip, timeline_frame, type);
-      seq_cache_put_ex(scene, new_key, ibuf);
-    }
-  }
-
   return ibuf;
 }
 
@@ -796,17 +763,6 @@ void seq_cache_put(
 
   if (context->for_render) {
     key->is_temp_cache = true;
-  }
-
-  if (!key->is_temp_cache) {
-    if (seq_disk_cache_is_enabled(context->bmain)) {
-      if (cache->disk_cache == nullptr) {
-        seq_disk_cache_create(context->bmain, context->scene);
-      }
-
-      seq_disk_cache_write_file(cache->disk_cache, key, i);
-      seq_disk_cache_enforce_limits(cache->disk_cache);
-    }
   }
 }
 
