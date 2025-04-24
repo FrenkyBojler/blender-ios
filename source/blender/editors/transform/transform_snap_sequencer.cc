@@ -13,10 +13,10 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
-#include "BLI_vector.hh"
-
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
+#include "BLI_vector.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
