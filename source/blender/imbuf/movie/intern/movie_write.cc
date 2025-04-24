@@ -1264,9 +1264,7 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
   const blender::Vector<TemplateError> errors = BKE_path_apply_template(
       filepath, FILE_MAX, BKE_build_template_variables(BKE_main_blendfile_path_from_global(), rd));
   if (!errors.is_empty()) {
-    if (reports) {
-      BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
-    }
+    BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
     return false;
   }
 

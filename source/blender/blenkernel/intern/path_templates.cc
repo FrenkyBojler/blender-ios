@@ -767,12 +767,7 @@ void BKE_report_path_template_errors(ReportList *reports,
                                      blender::StringRef path,
                                      blender::Span<TemplateError> errors)
 {
-  BLI_assert(reports);
   BLI_assert(!errors.is_empty());
-
-  if (!reports) {
-    return;
-  }
 
   std::string error_message;
 

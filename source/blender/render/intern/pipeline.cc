@@ -2111,7 +2111,7 @@ void RE_RenderFrame(Render *re,
         if (errors.is_empty()) {
           do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
         }
-        else if (re->reports) {
+        else {
           BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
         }
       }
@@ -2543,11 +2543,11 @@ void RE_RenderAnim(Render *re,
           nullptr);
 
       /* The filepath cannot be parsed, so we can't save the renders anywhere.
-        * So we just cancel. */
-      if (!errors.is_empty() && re->reports) {
+       * So we just cancel. */
+      if (!errors.is_empty()) {
         BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
         /* We have to set the `is_break` flag here so that final cleanup code
-          * recognizes that the render as failed. */
+         * recognizes that the render has failed. */
         G.is_break = true;
         break;
       }

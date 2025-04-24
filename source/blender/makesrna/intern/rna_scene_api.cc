@@ -131,7 +131,7 @@ static void rna_SceneRender_get_frame_path(RenderData *rd,
         true,
         suffix);
 
-    if (!errors.is_empty() && reports) {
+    if (!errors.is_empty()) {
       BKE_report_path_template_errors(reports, RPT_ERROR, rd->pic, errors);
     }
   }
