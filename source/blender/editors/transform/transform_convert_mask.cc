@@ -452,7 +452,7 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
     BLI_assert(0);
   }
 
-  if (t->scene->nodetree) {
+  if (t->scene->compositing_nodetree) {
     WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
   }
 

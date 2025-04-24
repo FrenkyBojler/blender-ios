@@ -61,7 +61,7 @@ typedef struct SceneRuntimeHandle SceneRuntimeHandle;
 typedef enum eFFMpegPreset {
   FFM_PRESET_NONE = 0,
 
-#ifdef DNA_DEPRECATED_ALLOW
+  // #ifdef DNA_DEPRECATED_ALLOW
   /* Previously used by h.264 to control encoding speed vs. file size. */
   FFM_PRESET_ULTRAFAST = 1, /* DEPRECATED */
   FFM_PRESET_SUPERFAST = 2, /* DEPRECATED */
@@ -72,7 +72,7 @@ typedef enum eFFMpegPreset {
   FFM_PRESET_SLOW = 7,      /* DEPRECATED */
   FFM_PRESET_SLOWER = 8,    /* DEPRECATED */
   FFM_PRESET_VERYSLOW = 9,  /* DEPRECATED */
-#endif
+                            // #endif
 
   /* Used by WEBM/VP9 and h.264 to control encoding speed vs. file size.
    * WEBM/VP9 use these values directly, whereas h.264 map those to
@@ -2078,7 +2078,10 @@ typedef struct Scene {
   char use_nodes;
   char _pad3[1];
 
-  struct bNodeTree *nodetree;
+  struct bNodeTree *nodetree DNA_DEPRECATED;
+  struct bNodeTree *compositing_nodetree;
+
+  void *_pad10;
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed;

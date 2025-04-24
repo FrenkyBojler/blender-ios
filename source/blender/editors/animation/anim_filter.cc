@@ -3406,7 +3406,7 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
 
   /* filter data contained under object first */
   BEGIN_ANIMFILTER_SUBCHANNELS (EXPANDED_SCEC(sce)) {
-    bNodeTree *ntree = sce->nodetree;
+    bNodeTree *ntree = sce->compositing_nodetree;
     World *wo = sce->world;
 
     /* Action, Drivers, or NLA for Scene */

@@ -3912,6 +3912,8 @@ bNodeTree **node_tree_ptr_from_id(ID *id)
     case ID_TE:
       return &reinterpret_cast<Tex *>(id)->nodetree;
     case ID_SCE:
+      /* Needed for backward compatibility. */
+      // todo(habib): silence warning
       return &reinterpret_cast<Scene *>(id)->nodetree;
     case ID_LS:
       return &reinterpret_cast<FreestyleLineStyle *>(id)->nodetree;
@@ -4754,7 +4756,12 @@ bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetre
     ntreeiter->ngroup = reinterpret_cast<bNodeTree *>(node_tree.id.next);
   }
   else if (ntreeiter->scene) {
-    *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->scene->nodetree);
+    if (ntreeiter->scene->nodetree) {
+      *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->scene->nodetree);
+    }
+    else {
+      *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->scene->compositing_nodetree);
+    }
     *r_id = &ntreeiter->scene->id;
     ntreeiter->scene = reinterpret_cast<Scene *>(ntreeiter->scene->id.next);
   }

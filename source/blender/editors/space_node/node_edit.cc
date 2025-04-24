@@ -639,36 +639,6 @@ void ED_node_shader_default(const bContext *C, ID *id)
   }
 }
 
-void ED_node_composit_default(const bContext *C, Scene *sce)
-{
-  /* but lets check it anyway */
-  if (sce->nodetree) {
-    if (G.debug & G_DEBUG) {
-      printf("error in composite initialize\n");
-    }
-    return;
-  }
-
-  sce->nodetree = blender::bke::node_tree_add_tree_embedded(
-      nullptr, &sce->id, "Compositing Nodetree", ntreeType_Composite->idname);
-
-  bNode *out = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_COMPOSITE);
-  out->location[0] = 200.0f;
-  out->location[1] = 200.0f;
-
-  bNode *in = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_R_LAYERS);
-  in->location[0] = -200.0f;
-  in->location[1] = 200.0f;
-  blender::bke::node_set_active(*sce->nodetree, *in);
-
-  /* Links from color to color. */
-  bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
-  bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
-  blender::bke::node_add_link(*sce->nodetree, *in, *fromsock, *out, *tosock);
-
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *sce->nodetree);
-}
-
 void ED_node_texture_default(const bContext *C, Tex *tex)
 {
   if (tex->nodetree) {
@@ -1641,7 +1611,7 @@ wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
    * All the nodes are using same render result, so there is no need to do
    * anything smart about check how exactly scene is used. */
   bNode *node = nullptr;
-  for (bNode *node_iter : sce->nodetree->all_nodes()) {
+  for (bNode *node_iter : sce->compositing_nodetree->all_nodes()) {
     if (node_iter->id == (ID *)sce) {
       node = node_iter;
       break;

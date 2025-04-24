@@ -146,8 +146,8 @@ static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, b
 static void rna_ViewLayer_update_render_passes(ID *id)
 {
   Scene *scene = (Scene *)id;
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
+  if (scene->compositing_nodetree) {
+    ntreeCompositUpdateRLayers(scene->compositing_nodetree);
   }
 
   RenderEngineType *engine_type = RE_engines_find(scene->r.engine);

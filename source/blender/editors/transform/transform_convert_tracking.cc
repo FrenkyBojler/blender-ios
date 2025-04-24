@@ -608,7 +608,7 @@ static void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
       BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
     }
   }
-  if (t->scene->nodetree != nullptr) {
+  if (t->scene->compositing_nodetree != nullptr) {
     /* Tracks can be used for stabilization nodes,
      * flush update for such nodes.
      */

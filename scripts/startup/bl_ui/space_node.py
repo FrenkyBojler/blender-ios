@@ -149,6 +149,11 @@ class NODE_HT_header(Header):
             if snode_id:
                 layout.prop(snode_id, "use_nodes")
 
+            layout.separator_spacer()
+            row = layout.row()
+            row.enabled = not snode.pin
+            row.template_ID(scene, "compositing_node_tree", new="node.new_compositor_node_tree_assign")
+
         elif snode.tree_type == 'GeometryNodeTree':
             layout.prop(snode, "geometry_nodes_type", text="")
             NODE_MT_editor_menus.draw_collapsible(context, layout)

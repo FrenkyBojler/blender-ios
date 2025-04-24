@@ -1969,7 +1969,7 @@ bool DRWContext::is_viewport_compositor_enabled() const
     return false;
   }
 
-  if (!this->scene->nodetree) {
+  if (!this->scene->compositing_nodetree) {
     return false;
   }
 

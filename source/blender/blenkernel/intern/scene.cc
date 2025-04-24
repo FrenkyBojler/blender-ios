@@ -308,22 +308,6 @@ static void scene_copy_data(Main *bmain,
   BLI_duplicatelist(&(scene_dst->r.views), &(scene_src->r.views));
   BKE_keyingsets_copy(&(scene_dst->keyingsets), &(scene_src->keyingsets));
 
-  if (scene_src->nodetree) {
-    BKE_id_copy_in_lib(bmain,
-                       owner_library,
-                       &scene_src->nodetree->id,
-                       &scene_dst->id,
-                       reinterpret_cast<ID **>(&scene_dst->nodetree),
-                       flag_embedded_id_data);
-    /* TODO this should not be needed anymore? Should be handled by generic remapping code in
-     * #BKE_id_copy_in_lib. */
-    BKE_libblock_relink_ex(bmain,
-                           scene_dst->nodetree,
-                           (void *)(&scene_src->id),
-                           &scene_dst->id,
-                           ID_REMAP_SKIP_NEVER_NULL_USAGE | ID_REMAP_SKIP_USER_CLEAR);
-  }
-
   if (scene_src->rigidbody_world) {
     scene_dst->rigidbody_world = BKE_rigidbody_world_copy(scene_src->rigidbody_world,
                                                           flag_subdata);
@@ -399,13 +383,6 @@ static void scene_free_data(ID *id)
   blender::seq::editing_free(scene, do_id_user);
 
   BKE_keyingsets_free(&scene->keyingsets);
-
-  /* is no lib link block, but scene extension */
-  if (scene->nodetree) {
-    blender::bke::node_tree_free_embedded_tree(scene->nodetree);
-    MEM_freeN(scene->nodetree);
-    scene->nodetree = nullptr;
-  }
 
   if (scene->rigidbody_world) {
     /* Prevent rigidbody freeing code to follow other IDs pointers, this should never be allowed
@@ -853,6 +830,8 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->clip, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->gpd, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->r.bake.cage_object, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_nodetree, IDWALK_CB_USER);
+
   if (scene->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
@@ -1014,6 +993,12 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     memset(&sce->cursor, 0, sizeof(sce->cursor));
   }
 
+  if (sce->compositing_nodetree) {
+    /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
+     * writing the scene.*/
+    sce->nodetree = sce->compositing_nodetree;
+  }
+
   /* write LibData */
   BLO_write_id_struct(writer, Scene, id_address, &sce->id);
   BKE_id_blend_write(writer, &sce->id);
@@ -1120,13 +1105,18 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BLO_write_struct(writer, SceneRenderView, srv);
   }
 
-  if (sce->nodetree) {
-    BLO_Write_IDBuffer temp_embedded_id_buffer{sce->nodetree->id, writer};
+  if (sce->compositing_nodetree) {
+    // todo(habib): might need to localize: have two scenes refer to the same node with the same
+    // storage
+    BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_nodetree->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
+    temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
+    temp_nodetree->owner_id = &sce->id;
     /* Set deprecated chunksize for forward compatibility. */
     temp_nodetree->chunksize = 256;
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
+    sce->nodetree = nullptr;
   }
 
   BKE_color_managed_view_settings_blend_write(writer, &sce->view_settings);
