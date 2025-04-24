@@ -689,11 +689,8 @@ class VectorSet {
   VectorT extract_vector()
   {
     const int64_t size = this->size();
+    VectorData<Key, Allocator> data;
     if (this->is_inline()) {
-      if (this->is_empty()) {
-        return {};
-      }
-      VectorData<Key, Allocator> data;
       data.data = this->allocate_keys_array(size);
       data.size = size;
       data.capacity = size;
@@ -704,13 +701,12 @@ class VectorSet {
         this->deallocate_keys_array(data.data);
         throw;
       }
-      return data;
     }
-
-    VectorData<Key, Allocator> data;
-    data.data = keys_;
-    data.size = size;
-    data.capacity = usable_slots_;
+    else {
+      data.data = keys_;
+      data.size = size;
+      data.capacity = usable_slots_;
+    }
 
     /* Reset some values so that the destructor does not free the data that is moved to the
      * #Vector. */
