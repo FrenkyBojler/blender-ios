@@ -192,81 +192,76 @@ class VectorSet {
     }
   }
 
-  VectorSet(const VectorSet &other) : VectorSet(other.as_span()) {}
-  //     : slots_(other.slots_)
-  // {
-  //   if (other.size() > InlineBufferCapacity) {
-  //     keys_ = this->allocate_keys_array(other.usable_slots_);
-  //     usable_slots_ = other.usable_slots_;
-  //   }
-  //   else {
-  //     usable_slots_ = InlineBufferCapacity;
-  //     keys_ = inline_buffer_;
-  //   }
-  //   try {
-  //     uninitialized_copy_n(other.keys_, other.size(), keys_);
-  //   }
-  //   catch (...) {
-  //     if (keys_ != inline_buffer_) {
-  //       this->deallocate_keys_array(keys_);
-  //     }
-  //     throw;
-  //   }
+  VectorSet(const VectorSet &other) : slots_(other.slots_)
+  {
+    if (other.size() <= InlineBufferCapacity) {
+      usable_slots_ = other.size();
+      keys_ = inline_buffer_;
+    }
+    else {
+      keys_ = this->allocate_keys_array(other.usable_slots_);
+      usable_slots_ = other.usable_slots_;
+    }
+    try {
+      uninitialized_copy_n(other.keys_, other.size(), keys_);
+    }
+    catch (...) {
+      if (keys_ != inline_buffer_) {
+        this->deallocate_keys_array(keys_);
+      }
+      throw;
+    }
 
-  //   removed_slots_ = other.removed_slots_;
-  //   occupied_and_removed_slots_ = other.occupied_and_removed_slots_;
-  //   slot_mask_ = other.slot_mask_;
-  //   hash_ = other.hash_;
-  //   is_equal_ = other.is_equal_;
-  // }
+    removed_slots_ = other.removed_slots_;
+    occupied_and_removed_slots_ = other.occupied_and_removed_slots_;
+    slot_mask_ = other.slot_mask_;
+    hash_ = other.hash_;
+    is_equal_ = other.is_equal_;
+  }
 
   template<int64_t OtherInlineBufferCapacity>
   VectorSet(VectorSet<Key, OtherInlineBufferCapacity> &&other) noexcept
-      : VectorSet(other.as_span())
+      : removed_slots_(other.removed_slots_),
+        occupied_and_removed_slots_(other.occupied_and_removed_slots_),
+        slot_mask_(other.slot_mask_),
+        slots_(std::move(other.slots_))
   {
-  }
-  // : removed_slots_(other.removed_slots_),
-  //   occupied_and_removed_slots_(other.occupied_and_removed_slots_),
-  //   slot_mask_(other.slot_mask_),
-  //   slots_(std::move(other.slots_))
-  // {
-  //   if (other.is_inline()) {
-  //     const int64_t size = other.size();
-  //     usable_slots_ = size;
+    if (other.is_inline()) {
+      const int64_t size = other.size();
+      usable_slots_ = size;
 
-  //     /* Optimize the case by copying the full inline buffer. Similar to #Vector move
-  //      * constructor. */
-  //     constexpr bool other_is_same_type = std::is_same_v<VectorSet,
-  //     std::decay_t<decltype(other)>>; constexpr size_t max_full_copy_size = 32; if constexpr
-  //     (other_is_same_type && std::is_trivial_v<Key> &&
-  //                   sizeof(inline_buffer_) <= max_full_copy_size)
-  //     {
-  //       keys_ = inline_buffer_;
-  //       if (size > 0) {
-  //         memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
-  //       }
-  //     }
-  //     else {
-  //       if (OtherInlineBufferCapacity <= InlineBufferCapacity || size <= InlineBufferCapacity) {
-  //         keys_ = inline_buffer_;
-  //       }
-  //       else {
-  //         keys_ = this->allocate_keys_array(size);
-  //       }
-  //       uninitialized_relocate_n(other.keys_, size, keys_);
-  //     }
-  //   }
-  //   else {
-  //     keys_ = other.keys_;
-  //     usable_slots_ = other.usable_slots_;
-  //   }
-  //   other.removed_slots_ = 0;
-  //   other.occupied_and_removed_slots_ = 0;
-  //   other.usable_slots_ = 0;
-  //   other.slot_mask_ = 0;
-  //   other.slots_ = SlotArray(1);
-  //   other.keys_ = other.inline_buffer_;
-  // }
+      constexpr bool other_is_same_type = std::is_same_v<VectorSet, std::decay_t<decltype(other)>>;
+      constexpr size_t max_full_copy_size = 32;
+      if constexpr (other_is_same_type && std::is_trivial_v<Key> &&
+                    sizeof(inline_buffer_) <= max_full_copy_size)
+      {
+        /* Optimize by copying the full inline buffer. Similar to #Vector move constructor. */
+        keys_ = inline_buffer_;
+        if (size > 0) {
+          memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
+        }
+      }
+      else {
+        if (OtherInlineBufferCapacity <= InlineBufferCapacity || size <= InlineBufferCapacity) {
+          keys_ = inline_buffer_;
+        }
+        else {
+          keys_ = this->allocate_keys_array(size);
+        }
+        uninitialized_relocate_n(other.keys_, size, keys_);
+      }
+    }
+    else {
+      keys_ = other.keys_;
+      usable_slots_ = other.usable_slots_;
+    }
+    other.removed_slots_ = 0;
+    other.occupied_and_removed_slots_ = 0;
+    other.usable_slots_ = 0;
+    other.slot_mask_ = 0;
+    other.slots_ = SlotArray(1);
+    other.keys_ = other.inline_buffer_;
+  }
 
   VectorSet &operator=(const VectorSet &other)
   {
