@@ -2529,29 +2529,27 @@ void RE_RenderAnim(Render *re,
 
     /* Touch/NoOverwrite options are only valid for image's */
     if (is_movie == false && do_write_file) {
-      if (rd.mode & (R_NO_OVERWRITE | R_TOUCH)) {
-        const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap template_variables = BKE_build_template_variables(relbase, &rd);
-        const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
-            filepath,
-            rd.pic,
-            BKE_main_blendfile_path(bmain),
-            &template_variables,
-            scene->r.cfra,
-            &rd.im_format,
-            (rd.scemode & R_EXTENSION) != 0,
-            true,
-            nullptr);
+      const char *relbase = BKE_main_blendfile_path(bmain);
+      const TemplateVariableMap template_variables = BKE_build_template_variables(relbase, &rd);
+      const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
+          filepath,
+          rd.pic,
+          BKE_main_blendfile_path(bmain),
+          &template_variables,
+          scene->r.cfra,
+          &rd.im_format,
+          (rd.scemode & R_EXTENSION) != 0,
+          true,
+          nullptr);
 
-        /* The filepath cannot be parsed, so we can't save the renders anywhere.
-         * So we just cancel. */
-        if (!errors.is_empty() && re->reports) {
-          BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
-          /* We have to set the `is_break` flag here so that final cleanup code
-           * recognizes that the render as failed. */
-          G.is_break = true;
-          break;
-        }
+      /* The filepath cannot be parsed, so we can't save the renders anywhere.
+        * So we just cancel. */
+      if (!errors.is_empty() && re->reports) {
+        BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
+        /* We have to set the `is_break` flag here so that final cleanup code
+          * recognizes that the render as failed. */
+        G.is_break = true;
+        break;
       }
 
       if (rd.mode & R_NO_OVERWRITE) {
