@@ -1475,7 +1475,7 @@ void blo_do_versions_userdef(UserDef *userdef)
         nullptr);
   }
 
-  if (!USER_VERSION_ATLEAST(405, 44)) {
+  if (!USER_VERSION_ATLEAST(405, 50)) {
     LISTBASE_FOREACH (wmKeyMap *, keymap, &userdef->user_keymaps) {
       LISTBASE_FOREACH (wmKeyMapDiffItem *, kmdi, &keymap->diff_items) {
         if (kmdi->remove_item) {
