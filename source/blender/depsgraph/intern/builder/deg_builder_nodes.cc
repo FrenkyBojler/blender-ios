@@ -1317,7 +1317,7 @@ void DepsgraphNodeBuilder::build_animdata_drivers(ID *id, AnimData *adt)
   int driver_index;
   LISTBASE_FOREACH_INDEX (FCurve *, fcu, &adt->drivers, driver_index) {
     build_driver(id, fcu, driver_index);
-    needs_unshare |= data_path_maybe_shared(*id, fcu->rna_path);
+    needs_unshare = needs_unshare || data_path_maybe_shared(*id, fcu->rna_path);
   }
 
   if (!needs_unshare) {
