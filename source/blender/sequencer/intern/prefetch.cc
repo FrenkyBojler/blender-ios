@@ -164,11 +164,8 @@ static bool seq_prefetch_is_cache_full(Scene *scene)
   if (!full) {
     return false;
   }
-
-  int pfjob_start = -1, pfjob_end = -1;
-  seq_prefetch_get_time_range(scene, &pfjob_start, &pfjob_end);
-  bool evicted_final = final_image_cache_evict(scene, pfjob_start, pfjob_end);
-  return !evicted_final;
+  bool evicted = final_image_cache_evict(scene);
+  return !evicted;
 }
 
 static float seq_prefetch_cfra(PrefetchJob *pfjob)
@@ -182,10 +179,14 @@ static AnimationEvalContext seq_prefetch_anim_eval_context(PrefetchJob *pfjob)
 
 void seq_prefetch_get_time_range(Scene *scene, int *r_start, int *r_end)
 {
-  PrefetchJob *pfjob = seq_prefetch_job_get(scene);
+  *r_start = -1;
+  *r_end = -1;
 
-  *r_start = pfjob->cfra;
-  *r_end = seq_prefetch_cfra(pfjob);
+  PrefetchJob *pfjob = seq_prefetch_job_get(scene);
+  if (pfjob != nullptr) {
+    *r_start = pfjob->cfra;
+    *r_end = seq_prefetch_cfra(pfjob);
+  }
 }
 
 static void seq_prefetch_free_depsgraph(PrefetchJob *pfjob)

@@ -1673,7 +1673,6 @@ struct CacheDrawData {
   const View2D *v2d;
   float stripe_ofs_y;
   float stripe_ht;
-  int cache_flag;
   SeqQuadsBatch *quads;
 };
 
@@ -1777,16 +1776,15 @@ static void draw_cache_view(const bContext *C)
   userdata.v2d = v2d;
   userdata.stripe_ofs_y = stripe_ofs_y;
   userdata.stripe_ht = stripe_ht;
-  userdata.cache_flag = sseq->cache_overlay.flag;
   userdata.quads = &quads;
 
   GPU_blend(GPU_BLEND_ALPHA);
 
   draw_cache_background(C, &userdata);
-  if (userdata.cache_flag & SEQ_CACHE_SHOW_FINAL_OUT) {
+  if (sseq->cache_overlay.flag & SEQ_CACHE_SHOW_FINAL_OUT) {
     seq::final_image_cache_iterate(scene, &userdata, draw_cache_final_iter_fn);
   }
-  if ((U.flag & USER_DEVELOPER_UI) && (userdata.cache_flag & SEQ_CACHE_SHOW_RAW)) {
+  if ((U.flag & USER_DEVELOPER_UI) && (sseq->cache_overlay.flag & SEQ_CACHE_SHOW_RAW)) {
     seq::source_image_cache_iterate(scene, &userdata, draw_cache_source_iter_fn);
   }
 

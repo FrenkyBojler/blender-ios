@@ -17,6 +17,7 @@
 #include "SEQ_time.hh"
 
 #include "final_image_cache.hh"
+#include "prefetch.hh"
 
 namespace blender::seq {
 
@@ -181,9 +182,7 @@ size_t final_image_cache_calc_memory_size(const Scene *scene)
   return size;
 }
 
-bool final_image_cache_evict(Scene *scene,
-                             int active_prefetch_range_start,
-                             int active_prefetch_range_end)
+bool final_image_cache_evict(Scene *scene)
 {
   std::scoped_lock lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
@@ -191,14 +190,20 @@ bool final_image_cache_evict(Scene *scene,
     return false;
   }
 
-  /* Find which entry was the least recently used. */
-  //@TODO: better strategy?
+  /* Find which entry was the least recently used.
+   *
+   * However, do not try to evict entries from the current prefetch job range -- we need to
+   * be able to fully fill the cache from prefetching, and then actually stop the job when it
+   * is full and no longer can evict anything. */
+  int cur_prefetch_start = -1, cur_prefetch_end = -1;
+  seq_prefetch_get_time_range(scene, &cur_prefetch_start, &cur_prefetch_end);
+
   int oldest_key = -1;
   FinalImageCache::FrameEntry *oldest_item = nullptr;
   int64_t oldest_time = cache->logical_time_;
   for (const auto &item : cache->map_.items()) {
-    if (item.key >= active_prefetch_range_start && item.key <= active_prefetch_range_end) {
-      continue;
+    if (item.key >= cur_prefetch_start && item.key <= cur_prefetch_end) {
+      continue; /* Within active prefetch range, do not try to remove it. */
     }
     if (item.value.used_at < oldest_time) {
       oldest_key = item.key;
@@ -214,6 +219,7 @@ bool final_image_cache_evict(Scene *scene,
     return true;
   }
 
+  /* Did not find anything to remove. */
   return false;
 }
 

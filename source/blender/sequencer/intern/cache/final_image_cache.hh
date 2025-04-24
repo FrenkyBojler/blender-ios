@@ -26,9 +26,7 @@ void final_image_cache_clear(Scene *scene);
 void final_image_cache_destroy(Scene *scene);
 
 size_t final_image_cache_calc_memory_size(const Scene *scene);
-bool final_image_cache_evict(Scene *scene,
-                             int active_prefetch_range_start = -1,
-                             int active_prefetch_range_end = -1);
+bool final_image_cache_evict(Scene *scene);
 void final_image_cache_tick(Scene *scene);
 
 }  // namespace blender::seq

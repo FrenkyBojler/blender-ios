@@ -2059,10 +2059,8 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
 
     while (is_seq_cache_full(cache_scene)) {
       bool evicted_final = final_image_cache_evict(cache_scene);
-      if (evicted_final) {
-        source_image_cache_evict(cache_scene);
-      }
-      else {
+      bool evicted_source = source_image_cache_evict(cache_scene);
+      if (!evicted_final && !evicted_source) {
         break; /* Can't evict no more. */
       }
     }
