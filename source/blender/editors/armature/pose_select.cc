@@ -1048,7 +1048,7 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
       break;
 
     default:
-      printf("pose_select_grouped() - Unknown selection type %d\n", mode);
+      printf("pose_select_grouped() - Unknown selection type %d\n", int(mode));
       break;
   }
 
