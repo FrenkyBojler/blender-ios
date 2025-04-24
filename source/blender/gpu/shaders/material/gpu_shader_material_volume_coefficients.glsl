@@ -5,15 +5,15 @@
 #include "gpu_shader_material_blackbody.glsl"
 
 void node_volume_coefficients(vec3 AbsorptionCoefficients,
-                            vec3 ScatterCoefficients,
-                            float Anisotropy,
-                            float IOR,
-                            float Backscatter,
-                            float Alpha,
-                            float Diameter,
-                            vec3 EmissionCoefficients,
-                         float weight,
-                            out Closure result)
+                              vec3 ScatterCoefficients,
+                              float Anisotropy,
+                              float IOR,
+                              float Backscatter,
+                              float Alpha,
+                              float Diameter,
+                              vec3 EmissionCoefficients,
+                              float weight,
+                              out Closure result)
 {
   ClosureVolumeScatter volume_scatter_data;
   volume_scatter_data.weight = weight;
