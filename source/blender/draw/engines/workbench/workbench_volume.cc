@@ -166,7 +166,7 @@ void VolumePass::object_sync_modifier(Manager &manager,
     sub_ps.bind_texture("shadow_tx", settings.tex_shadow);
   }
 
-  sub_ps.push_constant("density_scale", 10.0f * settings.display_thickness);
+  sub_ps.push_constant("density_fac", 10.0f * settings.display_thickness);
   sub_ps.bind_texture("depth_buffer", &resources.depth_tx);
   sub_ps.bind_texture("stencil_tx", &stencil_tx_);
 
