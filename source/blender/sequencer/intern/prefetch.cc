@@ -43,11 +43,14 @@
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
 
+#include "final_image_cache.hh"
 #include "image_cache.hh"
 #include "prefetch.hh"
 #include "render.hh"
 
 namespace blender::seq {
+
+bool is_seq_cache_full(const Scene *scene);  //@TODO: move to proper place
 
 struct PrefetchJob {
   PrefetchJob *next = nullptr;
@@ -157,13 +160,15 @@ RenderData *seq_prefetch_get_original_context(const RenderData *context)
 
 static bool seq_prefetch_is_cache_full(Scene *scene)
 {
-  PrefetchJob *pfjob = seq_prefetch_job_get(scene);
-
-  if (!seq_cache_is_full()) {
+  bool full = is_seq_cache_full(scene);
+  if (!full) {
     return false;
   }
 
-  return seq_cache_recycle_item(pfjob->scene) == false;
+  int pfjob_start = -1, pfjob_end = -1;
+  seq_prefetch_get_time_range(scene, &pfjob_start, &pfjob_end);
+  bool evicted_final = final_image_cache_evict(scene, pfjob_start, pfjob_end);
+  return !evicted_final;
 }
 
 static float seq_prefetch_cfra(PrefetchJob *pfjob)

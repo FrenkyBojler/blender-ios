@@ -11,13 +11,12 @@
 struct ImBuf;
 struct Strip;
 struct Scene;
-struct RenderData;
 
 namespace blender::seq {
 
-void final_image_cache_put(const RenderData *context, float timeline_frame, ImBuf *image);
+void final_image_cache_put(Scene *scene, float timeline_frame, ImBuf *image);
 
-ImBuf *final_image_cache_get(const RenderData *context, float timeline_frame);
+ImBuf *final_image_cache_get(Scene *scene, float timeline_frame);
 
 void final_image_cache_invalidate_frame_range(Scene *scene,
                                               const float timeline_frame_start,
@@ -26,8 +25,10 @@ void final_image_cache_invalidate_frame_range(Scene *scene,
 void final_image_cache_clear(Scene *scene);
 void final_image_cache_destroy(Scene *scene);
 
-size_t final_image_cache_calc_memory_size(Scene *scene);
-bool final_image_cache_evict(Scene *scene);
+size_t final_image_cache_calc_memory_size(const Scene *scene);
+bool final_image_cache_evict(Scene *scene,
+                             int active_prefetch_range_start = -1,
+                             int active_prefetch_range_end = -1);
 void final_image_cache_tick(Scene *scene);
 
 }  // namespace blender::seq

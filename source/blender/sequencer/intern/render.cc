@@ -698,6 +698,16 @@ static ImBuf *input_preprocess(const RenderData *context,
   return preprocessed_ibuf;
 }
 
+static Scene *cache_scene_from_context(const RenderData *context)  //@TODO: move to proper place
+{
+  Scene *scene = context->scene;
+  if (context->is_prefetch_render) {
+    context = seq_prefetch_get_original_context(context);
+    scene = context->scene;
+  }
+  return scene;
+}
+
 static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
                                          Strip *strip,
                                          ImBuf *ibuf,
@@ -715,7 +725,8 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
   const bool is_effect_with_inputs = (strip->type & STRIP_TYPE_EFFECT) != 0 &&
                                      effect_get_num_inputs(strip->type) != 0;
   if (!is_proxy_image && !is_effect_with_inputs) {
-    if (context->scene->ed->cache_flag & SEQ_CACHE_STORE_RAW) {
+    Scene *cache_scene = cache_scene_from_context(context);
+    if (cache_scene->ed->cache_flag & SEQ_CACHE_STORE_RAW) {
       source_image_cache_put(context, strip, timeline_frame, ibuf);
     }
   }
@@ -1572,7 +1583,8 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
       }
 
       if (view_id != context->view_id) {
-        if (scene->ed->cache_flag & SEQ_CACHE_STORE_RAW) {
+        Scene *cache_scene = cache_scene_from_context(context);
+        if (cache_scene->ed->cache_flag & SEQ_CACHE_STORE_RAW) {
           source_image_cache_put(&localcontext, strip, timeline_frame, ibufs_arr[view_id]);
         }
       }
@@ -1986,6 +1998,12 @@ static size_t get_memory_cache_limit()
   return size_t(U.memcachelimit) * 1024 * 1024;
 }
 
+bool is_seq_cache_full(const Scene *scene)
+{
+  return source_image_cache_calc_memory_size(scene) + final_image_cache_calc_memory_size(scene) >
+         get_memory_cache_limit();
+}
+
 ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int chanshown)
 {
   Scene *scene = context->scene;
@@ -2022,9 +2040,13 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     }
   }
 
-  source_image_cache_tick(scene);
-  final_image_cache_tick(scene);
-  ImBuf *out = final_image_cache_get(context, timeline_frame);
+  Scene *cache_scene = cache_scene_from_context(context);
+  source_image_cache_tick(cache_scene);
+  final_image_cache_tick(cache_scene);
+  ImBuf *out = nullptr;
+  if (!context->skip_cache && !context->is_proxy_render) {
+    out = final_image_cache_get(cache_scene, timeline_frame);
+  }
 
   Vector<Strip *> strips = seq_get_shown_sequences(
       scene, channels, seqbasep, timeline_frame, chanshown);
@@ -2037,20 +2059,20 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     BLI_mutex_lock(&seq_render_mutex);
     out = seq_render_strip_stack(context, &state, channels, seqbasep, timeline_frame, chanshown);
 
-    while (source_image_cache_calc_memory_size(scene) + final_image_cache_calc_memory_size(scene) >
-           get_memory_cache_limit())
-    {
-      bool evicted_source = source_image_cache_evict(scene);
-      bool evicted_final = final_image_cache_evict(scene);
-      if (!evicted_source && !evicted_final) {
+    while (is_seq_cache_full(cache_scene)) {
+      bool evicted_final = final_image_cache_evict(cache_scene);
+      if (evicted_final) {
+        source_image_cache_evict(cache_scene);
+      }
+      else {
         break; /* Can't evict no more. */
       }
     }
 
-    // @TODO: there was seq_cache_put when doing context->is_prefetch_render,
-    // and seq_cache_put_if_possible otherwise previously. Do we need that logic?
-    if (scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT) {
-      final_image_cache_put(context, timeline_frame, out);
+    if (out && (cache_scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT) && !context->skip_cache &&
+        !context->is_proxy_render)
+    {
+      final_image_cache_put(cache_scene, timeline_frame, out);
     }
 
     BLI_mutex_unlock(&seq_render_mutex);

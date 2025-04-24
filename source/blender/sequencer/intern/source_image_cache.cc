@@ -75,7 +75,7 @@ static SourceImageCache *ensure_source_image_cache(Scene *scene)
   return *cache;
 }
 
-static SourceImageCache *query_source_image_cache(Scene *scene)
+static SourceImageCache *query_source_image_cache(const Scene *scene)
 {
   if (scene == nullptr || scene->ed == nullptr) {
     return nullptr;
@@ -237,7 +237,7 @@ void source_image_cache_iterate(Scene *scene,
   }
 }
 
-size_t source_image_cache_calc_memory_size(Scene *scene)
+size_t source_image_cache_calc_memory_size(const Scene *scene)
 {
   std::scoped_lock lock(source_image_cache_mutex);
   SourceImageCache *cache = query_source_image_cache(scene);

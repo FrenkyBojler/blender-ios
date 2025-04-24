@@ -17,7 +17,6 @@
 #include "SEQ_time.hh"
 
 #include "final_image_cache.hh"
-#include "prefetch.hh"
 
 namespace blender::seq {
 
@@ -56,7 +55,7 @@ static FinalImageCache *ensure_final_image_cache(Scene *scene)
   return *cache;
 }
 
-static FinalImageCache *query_final_image_cache(Scene *scene)
+static FinalImageCache *query_final_image_cache(const Scene *scene)
 {
   if (scene == nullptr || scene->ed == nullptr) {
     return nullptr;
@@ -64,23 +63,8 @@ static FinalImageCache *query_final_image_cache(Scene *scene)
   return scene->ed->runtime.final_image_cache;
 }
 
-static Scene *scene_from_context(const RenderData *context)
+ImBuf *final_image_cache_get(Scene *scene, float timeline_frame)
 {
-  Scene *scene = context->scene;
-  if (context->is_prefetch_render) {
-    context = seq_prefetch_get_original_context(context);
-    scene = context->scene;
-  }
-  return scene;
-}
-
-ImBuf *final_image_cache_get(const RenderData *context, float timeline_frame)
-{
-  if (context->skip_cache || context->is_proxy_render) {
-    return nullptr;
-  }
-
-  Scene *scene = scene_from_context(context);
   const int key = int(math::round(timeline_frame));
 
   ImBuf *res = nullptr;
@@ -106,13 +90,8 @@ ImBuf *final_image_cache_get(const RenderData *context, float timeline_frame)
   return res;
 }
 
-void final_image_cache_put(const RenderData *context, float timeline_frame, ImBuf *image)
+void final_image_cache_put(Scene *scene, float timeline_frame, ImBuf *image)
 {
-  if (context->skip_cache || context->is_proxy_render || image == nullptr) {
-    return;
-  }
-
-  Scene *scene = scene_from_context(context);
   const int key = int(math::round(timeline_frame));
 
   IMB_refImBuf(image);
@@ -188,7 +167,7 @@ void final_image_cache_iterate(Scene *scene,
   }
 }
 
-size_t final_image_cache_calc_memory_size(Scene *scene)
+size_t final_image_cache_calc_memory_size(const Scene *scene)
 {
   std::scoped_lock lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
@@ -202,7 +181,9 @@ size_t final_image_cache_calc_memory_size(Scene *scene)
   return size;
 }
 
-bool final_image_cache_evict(Scene *scene)
+bool final_image_cache_evict(Scene *scene,
+                             int active_prefetch_range_start,
+                             int active_prefetch_range_end)
 {
   std::scoped_lock lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
@@ -216,6 +197,9 @@ bool final_image_cache_evict(Scene *scene)
   FinalImageCache::FrameEntry *oldest_item = nullptr;
   int64_t oldest_time = cache->logical_time_;
   for (const auto &item : cache->map_.items()) {
+    if (item.key >= active_prefetch_range_start && item.key <= active_prefetch_range_end) {
+      continue;
+    }
     if (item.value.used_at < oldest_time) {
       oldest_key = item.key;
       oldest_item = &item.value;
