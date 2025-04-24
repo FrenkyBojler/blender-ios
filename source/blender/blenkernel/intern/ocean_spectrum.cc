@@ -7,6 +7,7 @@
  */
 
 #include "BKE_ocean.h"
+#include "BLI_math_base.hh"
 #include "ocean_intern.h"
 
 #include <algorithm>
@@ -46,8 +47,7 @@ static float peak_sharpen(const float omega, const float m_peakomega, const floa
 {
   const float peak_sharpening_sigma = (omega < m_peakomega) ? 0.07 : 0.09;
   const float peak_sharpening = pow(
-      m_gamma, exp(-pow((omega - m_peakomega) / (peak_sharpening_sigma * m_peakomega), 2.0) / 2.0));
-
+      m_gamma, exp(-blender::math::square((omega - m_peakomega) / (peak_sharpening_sigma * m_peakomega)) / 2.0));
   return peak_sharpening;
 }
 
