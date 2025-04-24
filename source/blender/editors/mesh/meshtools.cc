@@ -778,11 +778,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
       KeyBlock *kb = BKE_keyblock_add(active_mesh.key, name);
       BKE_keyblock_convert_from_mesh(deformed_mesh, active_mesh.key, kb);
     }
-    else {
-      KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, name);
-      if (!kb) {
-        continue;
-      }
+    else if (KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, name)) {
       keys_changed++;
       BKE_keyblock_update_from_mesh(deformed_mesh, kb);
     }
