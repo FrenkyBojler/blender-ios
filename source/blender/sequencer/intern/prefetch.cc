@@ -50,8 +50,6 @@
 
 namespace blender::seq {
 
-bool is_seq_cache_full(const Scene *scene);  //@TODO: move to proper place
-
 struct PrefetchJob {
   PrefetchJob *next = nullptr;
   PrefetchJob *prev = nullptr;
@@ -127,7 +125,7 @@ static bool seq_prefetch_job_is_waiting(Scene *scene)
   return pfjob->waiting;
 }
 
-static Strip *sequencer_prefetch_get_original_sequence(const Strip *strip, ListBase *seqbase)
+static Strip *get_original_sequence(const Strip *strip, ListBase *seqbase)
 {
   LISTBASE_FOREACH (Strip *, seq_orig, seqbase) {
     if (STREQ(strip->name, seq_orig->name)) {
@@ -135,7 +133,7 @@ static Strip *sequencer_prefetch_get_original_sequence(const Strip *strip, ListB
     }
 
     if (seq_orig->type == STRIP_TYPE_META) {
-      Strip *match = sequencer_prefetch_get_original_sequence(strip, &seq_orig->seqbase);
+      Strip *match = get_original_sequence(strip, &seq_orig->seqbase);
       if (match != nullptr) {
         return match;
       }
@@ -145,22 +143,43 @@ static Strip *sequencer_prefetch_get_original_sequence(const Strip *strip, ListB
   return nullptr;
 }
 
-Strip *seq_prefetch_get_original_sequence(const Strip *strip, Scene *scene)
+static Strip *get_original_sequence(const Strip *strip, Scene *scene)
 {
   Editing *ed = scene->ed;
-  return sequencer_prefetch_get_original_sequence(strip, &ed->seqbase);
+  return get_original_sequence(strip, &ed->seqbase);
 }
 
-RenderData *seq_prefetch_get_original_context(const RenderData *context)
+static RenderData *get_original_context(const RenderData *context)
 {
   PrefetchJob *pfjob = seq_prefetch_job_get(context->scene);
 
   return &pfjob->context;
 }
 
+Scene *prefetch_get_original_scene(const RenderData *context)
+{
+  Scene *scene = context->scene;
+  if (context->is_prefetch_render) {
+    context = get_original_context(context);
+    scene = context->scene;
+  }
+  return scene;
+}
+
+Scene *prefetch_get_original_scene_and_strip(const RenderData *context, const Strip *&strip)
+{
+  Scene *scene = context->scene;
+  if (context->is_prefetch_render) {
+    context = get_original_context(context);
+    scene = context->scene;
+    strip = get_original_sequence(strip, scene);
+  }
+  return scene;
+}
+
 static bool seq_prefetch_is_cache_full(Scene *scene)
 {
-  bool full = is_seq_cache_full(scene);
+  bool full = is_cache_full(scene);
   if (!full) {
     return false;
   }
@@ -320,7 +339,7 @@ static void seq_prefetch_update_active_seqbase(PrefetchJob *pfjob)
   Editing *ed_eval = editing_get(pfjob->scene_eval);
 
   if (ms_orig != nullptr) {
-    Strip *meta_eval = seq_prefetch_get_original_sequence(ms_orig->parseq, pfjob->scene_eval);
+    Strip *meta_eval = get_original_sequence(ms_orig->parseq, pfjob->scene_eval);
     seqbase_active_set(ed_eval, &meta_eval->seqbase);
   }
   else {

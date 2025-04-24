@@ -87,24 +87,13 @@ static SourceImageCache *query_source_image_cache(const Scene *scene)
   return scene->ed->runtime.source_image_cache;
 }
 
-static Scene *scene_from_context(const RenderData *context, const Strip *&strip)
-{
-  Scene *scene = context->scene;
-  if (context->is_prefetch_render) {
-    context = seq_prefetch_get_original_context(context);
-    scene = context->scene;
-    strip = seq_prefetch_get_original_sequence(strip, scene);
-  }
-  return scene;
-}
-
 ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, float timeline_frame)
 {
   if (context->skip_cache || context->is_proxy_render || strip == nullptr) {
     return nullptr;
   }
 
-  Scene *scene = scene_from_context(context, strip);
+  Scene *scene = prefetch_get_original_scene_and_strip(context, strip);
   timeline_frame = math::round(timeline_frame);
   int frame_index = give_frame_index(scene, strip, timeline_frame);
   if (strip->type == STRIP_TYPE_MOVIE) {
@@ -148,7 +137,7 @@ void source_image_cache_put(const RenderData *context,
     return;
   }
 
-  Scene *scene = scene_from_context(context, strip);
+  Scene *scene = prefetch_get_original_scene_and_strip(context, strip);
   timeline_frame = math::round(timeline_frame);
 
   int frame_index = give_frame_index(scene, strip, timeline_frame);

@@ -53,6 +53,13 @@ void cache_cleanup(Scene *scene)
   invalidate_intra_frame_cache(scene);
 }
 
+bool is_cache_full(const Scene *scene)
+{
+  size_t cache_limit = size_t(U.memcachelimit) * 1024 * 1024;
+  return source_image_cache_calc_memory_size(scene) + final_image_cache_calc_memory_size(scene) >
+         cache_limit;
+}
+
 static void invalidate_final_cache_strip_range(Scene *scene, const Strip *strip)
 {
   const int strip_left = time_left_handle_frame_get(scene, strip);
