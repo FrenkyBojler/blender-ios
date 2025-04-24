@@ -4970,17 +4970,17 @@ static void ui_layout_heading_set(uiLayout *layout, const StringRef heading)
   heading.copy_utf8_truncated(layout->heading_);
 }
 
-uiLayout *uiLayoutRow(uiLayout *layout, bool align)
+uiLayout &uiLayout::row(bool align)
 {
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, align);
+  ui_litem_init_from_parent(litem, this, align);
 
   litem->type_ = uiItemType::LayoutRow;
-  litem->space_ = (align) ? 0 : layout->root_->style->buttonspacex;
+  litem->space_ = (align) ? 0 : this->root_->style->buttonspacex;
 
-  UI_block_layout_set_current(layout->root_->block, litem);
+  UI_block_layout_set_current(this->root_->block, litem);
 
-  return litem;
+  return *litem;
 }
 
 PanelLayout uiLayoutPanelProp(const bContext *C,

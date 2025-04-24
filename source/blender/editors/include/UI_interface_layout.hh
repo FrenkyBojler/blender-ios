@@ -61,6 +61,14 @@ struct uiItem {
  * Meanwhile keep using `uiLayout*` functions to read/write this properties.
  */
 struct uiLayout : uiItem {
+
+ public:
+  /**
+   * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
+   * other in row.
+   */
+  uiLayout &row(bool align);
+
   // protected:
   uiLayoutRoot *root_;
   bContextStore *context_;
@@ -269,8 +277,6 @@ void uiLayoutSuppressFlagSet(uiLayout *layout, LayoutSuppressFlag flag);
 void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag);
 
 /* Layout create functions. */
-
-uiLayout *uiLayoutRow(uiLayout *layout, bool align);
 
 struct PanelLayout {
   uiLayout *header;
