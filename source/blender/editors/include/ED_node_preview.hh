@@ -26,6 +26,29 @@ using bke::UpdateCounter;
 struct ShaderNodesPreviewJob;
 
 /**
+ * Used to know which state is currently being rendered.
+ */
+struct LastUpdate {
+  /**
+   * Update counter of the current nodetree. If the counter differs, it means that all node
+   * previews are outdated.
+   */
+  UpdateCounter whole_tree_updatecounter = UpdateCounter();
+  /**
+   * Update counter of the nodetree viewed, it is used to know if at least one node preview needs
+   * to be re-rendered.
+   */
+  UpdateCounter any_node_updatecounter = UpdateCounter();
+  /**
+   * Update counter of the bNodeTreePath vector. See `get_treepath_update_counter` for more
+   * details. If this counter differs, it means that at least one node have outdated previews.
+   */
+  UpdateCounter treepath_updatecounter = UpdateCounter();
+  ePreviewType preview_type = MA_FLAT;
+  int preview_size = 0;
+};
+
+/**
  * All properties of the previews present in this structure should always be corresponding to all
  * the previews cached in the `previews_map`. The size/updatecounter properties should be modified
  * only when all previews are corresponding to those properties. It may result in some more
@@ -36,28 +59,14 @@ struct NestedTreePreviews {
   Render *previews_render = nullptr;
   /** Use this map to keep track of the latest #ImBuf used (after freeing the renderresult). */
   blender::Map<const int32_t, std::pair<ImBuf *, UpdateCounter>> previews_map;
-  int preview_size;
   ShaderNodesPreviewJob *running_job = nullptr;
 
-  ePreviewType preview_type = MA_FLAT;
-  /**
-   * Dirty state of the bNodeTreePath vector. It is the sum of the tree_update_counter of all the
-   * nodetrees plus the sum of all the update_counter of the group nodes.
-   * If this state is dirty, it means that at least some nodes are dirty.
-   */
-  UpdateCounter treepath_updatecounter;
-  /**
-   * Dirty state of the current nodetree. If this flag is dirty, it means that all nodes are
-   * dirty.
-   */
-  UpdateCounter whole_tree_updatecounter;
-  /**
-   * Dirty state of the nodetree viewed, it is used to know if at least one node needs to be
-   * re-rendered.
-   */
-  UpdateCounter any_node_updatecounter;
+  LastUpdate last_update;
 
-  NestedTreePreviews(const int size) : preview_size(size) {}
+  NestedTreePreviews(const int preview_size)
+  {
+    this->last_update.preview_size = preview_size;
+  }
   ~NestedTreePreviews()
   {
     if (this->previews_render) {

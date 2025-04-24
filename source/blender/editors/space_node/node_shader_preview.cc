@@ -88,14 +88,11 @@ struct ShaderNodesPreviewJob {
   bool partial_tree_refresh;
 
   /**
-   * When the rendering is happening, we compare the user dirty state with those rendering states
-   * Comparing the cached states would be wrong, because they are set at the end of the render.
+   * When the rendering is happening, we compare the user update-counters with the rendering
+   * update-counters Comparing the cached counters would be wrong, because they are set at the end
+   * of the render.
    */
-  ePreviewType preview_type;
-  int preview_size;
-  UpdateCounter treepath_updatecounter;
-  UpdateCounter whole_tree_updatecounter;
-  UpdateCounter any_node_updatecounter;
+  LastUpdate last_update_state;
 
   Material *mat_copy;
   bNode *mat_output_copy;
@@ -650,8 +647,11 @@ static void all_nodes_preview_update(void *npv, RenderResult *rr, rcti * /*rect*
 static void preview_render(ShaderNodesPreviewJob &job_data)
 {
   /* Get the stuff from the builtin preview dbase. */
-  Scene *scene = preview_prepare_scene(
-      job_data.bmain, job_data.scene, G.pr_main, job_data.mat_copy, job_data.preview_type);
+  Scene *scene = preview_prepare_scene(job_data.bmain,
+                                       job_data.scene,
+                                       G.pr_main,
+                                       job_data.mat_copy,
+                                       job_data.last_update_state.preview_type);
   if (scene == nullptr) {
     return;
   }
@@ -671,8 +671,8 @@ static void preview_render(ShaderNodesPreviewJob &job_data)
     ViewLayerAOV *aov = BKE_view_layer_add_aov(AOV_layer);
     STRNCPY(aov->name, nodesocket_iter.first->name);
   }
-  scene->r.xsch = job_data.preview_size;
-  scene->r.ysch = job_data.preview_size;
+  scene->r.xsch = job_data.last_update_state.preview_size;
+  scene->r.ysch = job_data.last_update_state.preview_size;
   scene->r.size = 100;
 
   if (job_data.tree_previews->previews_render == nullptr) {
@@ -720,21 +720,21 @@ static void preview_render(ShaderNodesPreviewJob &job_data)
 
 static UpdateCounter get_treepath_update_counter(const ListBase *treepath)
 {
-  UpdateCounter treepath_update_counter =
+  UpdateCounter treepath_updatecounter =
       static_cast<bNodeTreePath *>(treepath->first)->nodetree->runtime->whole_tree_updatecounter;
   for (bNodeTreePath *path_iter = static_cast<bNodeTreePath *>(treepath->first)->next; path_iter;
        path_iter = path_iter->next)
   {
-    treepath_update_counter.merge(path_iter->nodetree->runtime->whole_tree_updatecounter);
+    treepath_updatecounter.merge(path_iter->nodetree->runtime->whole_tree_updatecounter);
     bNode *group_node = nullptr;
     LISTBASE_FOREACH (bNode *, node, &path_iter->prev->nodetree->nodes) {
       if (STREQ(node->name, path_iter->node_name)) {
         group_node = node;
       }
     }
-    treepath_update_counter.merge(group_node->runtime->updatecounter);
+    treepath_updatecounter.merge(group_node->runtime->updatecounter);
   }
-  return treepath_update_counter;
+  return treepath_updatecounter;
 }
 
 static bool update_needed(const ListBase *treepath,
@@ -743,28 +743,16 @@ static bool update_needed(const ListBase *treepath,
                           const ePreviewType preview_type)
 {
   bNodeTree *nodetree = static_cast<bNodeTreePath *>(treepath->last)->nodetree;
-  UpdateCounter *compare_whole_tree_updatecounter = nullptr;
-  UpdateCounter *compare_any_node_updatecounter = nullptr;
-  UpdateCounter *compare_treepath_updatecounter = nullptr;
-  int *compare_preview_size = nullptr;
-  ePreviewType *compare_preview_type = nullptr;
+  LastUpdate update_reference;
   if (tree_previews->running_job) {
-    compare_whole_tree_updatecounter = &tree_previews->running_job->whole_tree_updatecounter;
-    compare_any_node_updatecounter = &tree_previews->running_job->any_node_updatecounter;
-    compare_treepath_updatecounter = &tree_previews->running_job->treepath_updatecounter;
-    compare_preview_size = &tree_previews->running_job->preview_size;
-    compare_preview_type = &tree_previews->running_job->preview_type;
+    update_reference = tree_previews->running_job->last_update_state;
   }
   else {
-    compare_whole_tree_updatecounter = &tree_previews->whole_tree_updatecounter;
-    compare_any_node_updatecounter = &tree_previews->any_node_updatecounter;
-    compare_treepath_updatecounter = &tree_previews->treepath_updatecounter;
-    compare_preview_size = &tree_previews->preview_size;
-    compare_preview_type = &tree_previews->preview_type;
+    update_reference = tree_previews->last_update;
   }
-  if (U.node_preview_res != *compare_preview_size ||
-      nodetree->runtime->whole_tree_updatecounter != *compare_whole_tree_updatecounter ||
-      preview_type != *compare_preview_type)
+  if (U.node_preview_res != update_reference.preview_size ||
+      nodetree->runtime->whole_tree_updatecounter != update_reference.whole_tree_updatecounter ||
+      preview_type != update_reference.preview_type)
   {
     /* Force whole tree redraw. */
     partial_tree_refresh = false;
@@ -772,15 +760,15 @@ static bool update_needed(const ListBase *treepath,
   }
 
   UpdateCounter treepath_update_counter = get_treepath_update_counter(treepath);
-  if (treepath_update_counter != *compare_treepath_updatecounter) {
-    /* If the path is dirty, then we may need to redraw all the nodetree (excepted if we know which
-     * nodes are dirty). */
+  if (treepath_update_counter != update_reference.treepath_updatecounter) {
+    /* If the path update state differs, then we may need to redraw all the nodetree (excepted if
+     * we know which nodes differs). */
     partial_tree_refresh = nodetree->runtime->any_node_updatecounter !=
-                           *compare_any_node_updatecounter;
+                           update_reference.any_node_updatecounter;
     return true;
   }
-  if (nodetree->runtime->any_node_updatecounter != *compare_any_node_updatecounter) {
-    /* If we know that only some node are dirty, then enable partial redraw. */
+  if (nodetree->runtime->any_node_updatecounter != update_reference.any_node_updatecounter) {
+    /* If we know that only some node update_counter differs, then enable partial refresh. */
     partial_tree_refresh = true;
     return true;
   }
@@ -795,9 +783,9 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
   job_data->stop = &worker_status->stop;
   job_data->do_update = &worker_status->do_update;
   worker_status->do_update = true;
-  bool size_changed = job_data->tree_previews->preview_size != U.node_preview_res;
+  bool size_changed = job_data->tree_previews->last_update.preview_size != U.node_preview_res;
   if (size_changed) {
-    job_data->tree_previews->preview_size = U.node_preview_res;
+    job_data->tree_previews->last_update.preview_size = U.node_preview_res;
   }
 
   for (bNode *node_iter : job_data->mat_copy->nodetree->all_nodes()) {
@@ -850,7 +838,7 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
     }
   }
 
-  if (job_data->preview_size > 0 && render_needed == true) {
+  if (job_data->last_update_state.preview_size > 0 && render_needed == true) {
     preview_render(*job_data);
   }
   if (*job_data->stop == false) {
@@ -859,11 +847,7 @@ static void shader_preview_startjob(void *customdata, wmJobWorkerStatus *worker_
      * in the cached structure `NestedTreePreviews`.
      */
     NestedTreePreviews &tree_previews = *job_data->tree_previews;
-    tree_previews.treepath_updatecounter = job_data->treepath_updatecounter;
-    tree_previews.any_node_updatecounter = job_data->any_node_updatecounter;
-    tree_previews.whole_tree_updatecounter = job_data->whole_tree_updatecounter;
-    tree_previews.preview_size = job_data->preview_size;
-    tree_previews.preview_type = job_data->preview_type;
+    tree_previews.last_update = job_data->last_update_state;
   }
 }
 
@@ -924,14 +908,15 @@ static void ensure_nodetree_previews(const bContext &C,
   job_data->mat_copy = duplicate_material(material);
   job_data->rendering_node = nullptr;
   job_data->rendering_AOVs = false;
-  job_data->preview_type = preview_type;
   job_data->partial_tree_refresh = partial_tree_refresh;
-  job_data->preview_size = U.node_preview_res;
 
-  UpdateCounter treepath_update_counter = get_treepath_update_counter(&treepath);
-  job_data->treepath_updatecounter = treepath_update_counter;
-  job_data->any_node_updatecounter = displayed_nodetree->runtime->any_node_updatecounter;
-  job_data->whole_tree_updatecounter = displayed_nodetree->runtime->whole_tree_updatecounter;
+  LastUpdate update_state;
+  update_state.preview_type = preview_type;
+  update_state.preview_size = U.node_preview_res;
+  update_state.treepath_updatecounter = get_treepath_update_counter(&treepath);
+  update_state.any_node_updatecounter = displayed_nodetree->runtime->any_node_updatecounter;
+  update_state.whole_tree_updatecounter = displayed_nodetree->runtime->whole_tree_updatecounter;
+  job_data->last_update_state = update_state;
 
   /* Update the treepath copied to fit the structure of the nodetree copied. */
   bNodeTreePath *root_path = MEM_callocN<bNodeTreePath>(__func__);

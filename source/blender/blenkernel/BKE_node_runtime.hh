@@ -80,7 +80,7 @@ struct LoggedZoneGraphs {
 };
 
 /**
- * UpdateCounter is to be used inside an structure that is updated and which other functions are
+ * UpdateCounter is to be used inside a structure that is updated and which other functions are
  * called asynchronously on change. It allows the structure to be modified and to know at any
  * moment if the counter has evolved from the last time it was checked.
  */
