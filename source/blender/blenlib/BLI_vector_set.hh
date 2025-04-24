@@ -187,82 +187,86 @@ class VectorSet {
   ~VectorSet()
   {
     destruct_n(keys_, this->size());
-    if (!this->is_inline()) {
+    if (keys_ != inline_buffer_) {
       this->deallocate_keys_array(keys_);
     }
   }
 
-  VectorSet(const VectorSet &other) : slots_(other.slots_)
-  {
-    if (other.size() > InlineBufferCapacity) {
-      keys_ = this->allocate_keys_array(other.usable_slots_);
-      usable_slots_ = other.usable_slots_;
-    }
-    else {
-      usable_slots_ = InlineBufferCapacity;
-      keys_ = inline_buffer_;
-    }
-    try {
-      uninitialized_copy_n(other.keys_, other.size(), keys_);
-    }
-    catch (...) {
-      if (!this->is_inline()) {
-        this->deallocate_keys_array(keys_);
-      }
-      throw;
-    }
+  VectorSet(const VectorSet &other) : VectorSet(other.as_span()) {}
+  //     : slots_(other.slots_)
+  // {
+  //   if (other.size() > InlineBufferCapacity) {
+  //     keys_ = this->allocate_keys_array(other.usable_slots_);
+  //     usable_slots_ = other.usable_slots_;
+  //   }
+  //   else {
+  //     usable_slots_ = InlineBufferCapacity;
+  //     keys_ = inline_buffer_;
+  //   }
+  //   try {
+  //     uninitialized_copy_n(other.keys_, other.size(), keys_);
+  //   }
+  //   catch (...) {
+  //     if (keys_ != inline_buffer_) {
+  //       this->deallocate_keys_array(keys_);
+  //     }
+  //     throw;
+  //   }
 
-    removed_slots_ = other.removed_slots_;
-    occupied_and_removed_slots_ = other.occupied_and_removed_slots_;
-    slot_mask_ = other.slot_mask_;
-    hash_ = other.hash_;
-    is_equal_ = other.is_equal_;
-  }
+  //   removed_slots_ = other.removed_slots_;
+  //   occupied_and_removed_slots_ = other.occupied_and_removed_slots_;
+  //   slot_mask_ = other.slot_mask_;
+  //   hash_ = other.hash_;
+  //   is_equal_ = other.is_equal_;
+  // }
 
   template<int64_t OtherInlineBufferCapacity>
   VectorSet(VectorSet<Key, OtherInlineBufferCapacity> &&other) noexcept
-      : removed_slots_(other.removed_slots_),
-        occupied_and_removed_slots_(other.occupied_and_removed_slots_),
-        slot_mask_(other.slot_mask_),
-        slots_(std::move(other.slots_))
+      : VectorSet(other.as_span())
   {
-    if (other.is_inline()) {
-      const int64_t size = other.size();
-      usable_slots_ = size;
-
-      /* Optimize the case by copying the full inline buffer. Similar to #Vector move
-       * constructor. */
-      constexpr bool other_is_same_type = std::is_same_v<VectorSet, std::decay_t<decltype(other)>>;
-      constexpr size_t max_full_copy_size = 32;
-      if constexpr (other_is_same_type && std::is_trivial_v<Key> &&
-                    sizeof(inline_buffer_) <= max_full_copy_size)
-      {
-        keys_ = inline_buffer_;
-        if (size > 0) {
-          memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
-        }
-      }
-      else {
-        if (OtherInlineBufferCapacity <= InlineBufferCapacity || size <= InlineBufferCapacity) {
-          keys_ = inline_buffer_;
-        }
-        else {
-          keys_ = this->allocate_keys_array(size);
-        }
-        uninitialized_relocate_n(other.keys_, size, keys_);
-      }
-    }
-    else {
-      keys_ = other.keys_;
-      usable_slots_ = other.usable_slots_;
-    }
-    other.removed_slots_ = 0;
-    other.occupied_and_removed_slots_ = 0;
-    other.usable_slots_ = 0;
-    other.slot_mask_ = 0;
-    other.slots_ = SlotArray(1);
-    other.keys_ = other.inline_buffer_;
   }
+  // : removed_slots_(other.removed_slots_),
+  //   occupied_and_removed_slots_(other.occupied_and_removed_slots_),
+  //   slot_mask_(other.slot_mask_),
+  //   slots_(std::move(other.slots_))
+  // {
+  //   if (other.is_inline()) {
+  //     const int64_t size = other.size();
+  //     usable_slots_ = size;
+
+  //     /* Optimize the case by copying the full inline buffer. Similar to #Vector move
+  //      * constructor. */
+  //     constexpr bool other_is_same_type = std::is_same_v<VectorSet,
+  //     std::decay_t<decltype(other)>>; constexpr size_t max_full_copy_size = 32; if constexpr
+  //     (other_is_same_type && std::is_trivial_v<Key> &&
+  //                   sizeof(inline_buffer_) <= max_full_copy_size)
+  //     {
+  //       keys_ = inline_buffer_;
+  //       if (size > 0) {
+  //         memcpy(inline_buffer_, other.inline_buffer_, sizeof(inline_buffer_));
+  //       }
+  //     }
+  //     else {
+  //       if (OtherInlineBufferCapacity <= InlineBufferCapacity || size <= InlineBufferCapacity) {
+  //         keys_ = inline_buffer_;
+  //       }
+  //       else {
+  //         keys_ = this->allocate_keys_array(size);
+  //       }
+  //       uninitialized_relocate_n(other.keys_, size, keys_);
+  //     }
+  //   }
+  //   else {
+  //     keys_ = other.keys_;
+  //     usable_slots_ = other.usable_slots_;
+  //   }
+  //   other.removed_slots_ = 0;
+  //   other.occupied_and_removed_slots_ = 0;
+  //   other.usable_slots_ = 0;
+  //   other.slot_mask_ = 0;
+  //   other.slots_ = SlotArray(1);
+  //   other.keys_ = other.inline_buffer_;
+  // }
 
   VectorSet &operator=(const VectorSet &other)
   {
@@ -732,13 +736,20 @@ class VectorSet {
     if (this->size() == 0) {
       try {
         slots_.reinitialize(total_slots);
-        if (!this->is_inline()) {
+
+        Key *new_keys;
+        if (usable_slots <= InlineBufferCapacity) {
+          new_keys = inline_buffer_;
+        }
+        else {
+          new_keys = this->allocate_keys_array(usable_slots);
+        }
+
+        if (keys_ != inline_buffer_) {
           this->deallocate_keys_array(keys_);
-          keys_ = inline_buffer_;
         }
-        if (usable_slots > InlineBufferCapacity) {
-          keys_ = this->allocate_keys_array(usable_slots);
-        }
+
+        keys_ = new_keys;
       }
       catch (...) {
         this->noexcept_reset();
@@ -767,22 +778,35 @@ class VectorSet {
       throw;
     }
 
-    if (usable_slots > InlineBufferCapacity) {
-      Key *new_keys = this->allocate_keys_array(usable_slots);
+    /* Allocate the new keys array, or use the inline buffer if possible. */
+    Key *new_keys;
+    if (usable_slots <= InlineBufferCapacity) {
+      new_keys = inline_buffer_;
+    }
+    else {
+      new_keys = this->allocate_keys_array(usable_slots);
+    }
+
+    /* Copy the keys to the new array (when the inline buffer isn't used before and after). */
+    if (new_keys != keys_) {
       try {
         uninitialized_relocate_n(keys_, this->size(), new_keys);
       }
       catch (...) {
-        this->deallocate_keys_array(new_keys);
+        if (new_keys != inline_buffer_) {
+          this->deallocate_keys_array(new_keys);
+        }
         this->noexcept_reset();
         throw;
       }
-      if (!this->is_inline()) {
-        this->deallocate_keys_array(keys_);
-      }
-
-      keys_ = new_keys;
     }
+
+    /* Free the old keys array. */
+    if (keys_ != inline_buffer_) {
+      this->deallocate_keys_array(keys_);
+    }
+
+    keys_ = new_keys;
     occupied_and_removed_slots_ -= removed_slots_;
     usable_slots_ = usable_slots;
     removed_slots_ = 0;
