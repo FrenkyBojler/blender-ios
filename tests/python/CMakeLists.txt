@@ -224,7 +224,7 @@ add_blender_test(
 )
 
 # test running operators doesn't segfault under various conditions
-if(WITH_EXPERIMENTAL_TESTS)
+if(WITH_TESTS_EXPERIMENTAL)
   add_blender_test(
     script_run_operators
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_run_operators.py
@@ -1077,14 +1077,14 @@ if(WITH_GPU_RENDER_TESTS AND TEST_SRC_DIR_EXISTS)
   set(render_tests
   )
 
-    if(WITH_EXPERIMENTAL_TESTS)
-      # The viewport tests are flakey and difficult to keep up to date for use
-      # in a CI environment due to constantly changing UI, but may still be helpful
-      # for local development.
-      #
-      # Additionally, they do not currently succeed in an ASAN build. (2025-01-29)
-      list(APPEND render_tests viewport)
-    endif()
+  if(WITH_TESTS_EXPERIMENTAL)
+    # The viewport tests are flakey and difficult to keep up to date for use
+    # in a CI environment due to constantly changing UI, but may still be helpful
+    # for local development.
+    #
+    # Additionally, they do not currently succeed in an ASAN build. (2025-01-29)
+    list(APPEND render_tests viewport)
+  endif()
 
   foreach(render_test ${render_tests})
     add_render_test(
