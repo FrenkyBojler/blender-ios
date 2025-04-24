@@ -2608,7 +2608,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         data.drag_id = tselem->id;
         break;
       case TSE_ACTION_SLOT:
-        data.icon = ICON_ANIM;
+        data.icon = ICON_ACTION_SLOT;
         break;
       case TSE_ANIM_DATA:
         data.icon = ICON_ANIM_DATA; /* XXX */
