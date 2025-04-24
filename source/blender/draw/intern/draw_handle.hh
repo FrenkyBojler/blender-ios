@@ -77,6 +77,8 @@ struct ResourceHandleRange {
   }
 };
 
+class Manager;
+
 /* TODO(fclem): Move to somewhere more appropriated after cleaning up the header dependencies. */
 class ObjectRef {
  private:
@@ -89,6 +91,10 @@ class ObjectRef {
   ResourceHandleRange handle_;
 
  public:
+  /* TODO: Remove. */
+  Manager *manager = nullptr;
+  bool is_image_render = false;
+
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
   ObjectRef(Object *ob);
 

@@ -656,6 +656,9 @@ ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
   this->object_ = ob;
   /* Creation is deferred until the first request. */
   this->handle_ = ResourceHandleRange({0}, 0);
+
+  this->manager = DRW_manager_get();
+  this->is_image_render = drw_get().is_image_render();
 }
 
 ObjectRef::ObjectRef(Object *ob)
@@ -665,21 +668,24 @@ ObjectRef::ObjectRef(Object *ob)
   this->object_ = ob;
   /* Creation is deferred until the first request. */
   this->handle_ = ResourceHandleRange({0}, 0);
+
+  this->manager = DRW_manager_get();
+  this->is_image_render = drw_get().is_image_render();
 }
 
 ResourceHandle ObjectRef::construct_handle()
 {
-  const bool use_sculpt_pbvh = !drw_get().is_image_render() &&
+  const bool use_sculpt_pbvh = !this->is_image_render &&
                                BKE_sculptsession_use_pbvh_draw(this->object_, drw_get().rv3d);
   if (use_sculpt_pbvh) {
-    return DRW_manager_get()->resource_handle_for_sculpt(*this);
+    return this->manager->resource_handle_for_sculpt(*this);
   }
   else if (ELEM(this->object_->type, OB_CURVES, OB_CURVES_LEGACY)) {
     /* Skip frustum culling. */
-    return DRW_manager_get()->resource_handle(this->object_->object_to_world());
+    return this->manager->resource_handle(this->object_->object_to_world());
   }
   else {
-    return DRW_manager_get()->resource_handle(*this);
+    return this->manager->resource_handle(*this);
   }
 }
 
