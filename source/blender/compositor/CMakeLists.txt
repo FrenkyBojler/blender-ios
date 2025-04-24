@@ -25,6 +25,7 @@ set(SRC
   COM_derived_resources.hh
   COM_domain.hh
   COM_evaluator.hh
+  COM_implicit_input_operation.hh
   COM_input_descriptor.hh
   COM_input_single_value_operation.hh
   COM_meta_data.hh
@@ -49,6 +50,7 @@ set(SRC
   intern/conversion_operation.cc
   intern/domain.cc
   intern/evaluator.cc
+  intern/implicit_input_operation.cc
   intern/input_single_value_operation.cc
   intern/meta_data.cc
   intern/multi_function_procedure_operation.cc
@@ -140,9 +142,11 @@ set(SRC
   derived_resources/COM_denoised_auxiliary_pass.hh
 
   utilities/intern/gpu_material.cc
+  utilities/intern/oidn.cc
 
   utilities/COM_utilities_diagonals.hh
   utilities/COM_utilities_gpu_material.hh
+  utilities/COM_utilities_oidn.hh
 )
 
 set(LIB
@@ -229,10 +233,11 @@ set(GLSL_SRC
   shaders/compositor_parallel_reduction.glsl
   shaders/compositor_pixel_coordinates.glsl
   shaders/compositor_pixelate.glsl
-  shaders/compositor_plane_deform.glsl
+  shaders/compositor_plane_deform_anisotropic.glsl
   shaders/compositor_plane_deform_mask.glsl
   shaders/compositor_plane_deform_motion_blur.glsl
   shaders/compositor_plane_deform_motion_blur_mask.glsl
+  shaders/compositor_plane_deform.glsl
   shaders/compositor_premultiply_alpha.glsl
   shaders/compositor_projector_lens_distortion.glsl
   shaders/compositor_read_input.glsl

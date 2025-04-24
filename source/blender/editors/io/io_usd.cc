@@ -222,6 +222,15 @@ struct USDOperatorOptions {
   bool as_background_job;
 };
 
+static void free_operator_customdata(wmOperator *op)
+{
+  if (op->customdata) {
+    USDOperatorOptions *options = static_cast<USDOperatorOptions *>(op->customdata);
+    MEM_freeN(options);
+    op->customdata = nullptr;
+  }
+}
+
 /* Ensure that the prim_path is not set to
  * the absolute root path '/'. */
 static void process_prim_path(char *prim_path)
@@ -244,7 +253,9 @@ static void process_prim_path(char *prim_path)
   }
 }
 
-static int wm_usd_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_usd_export_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   USDOperatorOptions *options = MEM_callocN<USDOperatorOptions>("USDOperatorOptions");
   options->as_background_job = true;
@@ -257,10 +268,11 @@ static int wm_usd_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*e
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int wm_usd_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    free_operator_customdata(op);
     return OPERATOR_CANCELLED;
   }
 
@@ -269,7 +281,7 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
 
   USDOperatorOptions *options = static_cast<USDOperatorOptions *>(op->customdata);
   const bool as_background_job = (options != nullptr && options->as_background_job);
-  MEM_SAFE_FREE(op->customdata);
+  free_operator_customdata(op);
 
   const bool selected_objects_only = RNA_boolean_get(op->ptr, "selected_objects_only");
   const bool visible_objects_only = RNA_boolean_get(op->ptr, "visible_objects_only");
@@ -558,14 +570,6 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
   {
     uiLayout *col = uiLayoutColumn(panel, false);
     uiItemR(col, ptr, "use_instancing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-}
-
-static void free_operator_customdata(wmOperator *op)
-{
-  if (op->customdata) {
-    MEM_freeN(op->customdata);
-    op->customdata = nullptr;
   }
 }
 
@@ -911,7 +915,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
 
 /* ====== USD Import ====== */
 
-static int wm_usd_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_usd_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   USDOperatorOptions *options = MEM_callocN<USDOperatorOptions>("USDOperatorOptions");
   options->as_background_job = true;
@@ -920,10 +924,11 @@ static int wm_usd_import_invoke(bContext *C, wmOperator *op, const wmEvent *even
   return blender::ed::io::filesel_drop_import_invoke(C, op, event);
 }
 
-static int wm_usd_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_usd_import_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    free_operator_customdata(op);
     return OPERATOR_CANCELLED;
   }
 
@@ -932,7 +937,7 @@ static int wm_usd_import_exec(bContext *C, wmOperator *op)
 
   USDOperatorOptions *options = static_cast<USDOperatorOptions *>(op->customdata);
   const bool as_background_job = (options != nullptr && options->as_background_job);
-  MEM_SAFE_FREE(op->customdata);
+  free_operator_customdata(op);
 
   const float scale = RNA_float_get(op->ptr, "scale");
   const float light_intensity_scale = RNA_float_get(op->ptr, "light_intensity_scale");

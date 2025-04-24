@@ -398,7 +398,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
         }
       }
       if (!link && (!rlayer || sock_index >= NUM_LEGACY_SOCKETS)) {
-        MEM_freeN(sock->storage);
+        MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
         blender::bke::node_remove_socket(*ntree, *node, *sock);
       }
       else {
@@ -438,10 +438,10 @@ static void node_composit_free_image(bNode *node)
 {
   /* free extra socket info */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    MEM_freeN(sock->storage);
+    MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
   }
 
-  MEM_freeN(node->storage);
+  MEM_freeN(reinterpret_cast<ImageUser *>(node->storage));
 }
 
 static void node_composit_copy_image(bNodeTree * /*dst_ntree*/,
@@ -469,6 +469,10 @@ class ImageOperation : public NodeOperation {
   void execute() override
   {
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!output->is_available()) {
+        continue;
+      }
+
       compute_output(output->identifier);
     }
   }
@@ -618,7 +622,7 @@ static void node_composit_free_rlayers(bNode *node)
   /* free extra socket info */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
     if (sock->storage) {
-      MEM_freeN(sock->storage);
+      MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
     }
   }
 }
@@ -710,6 +714,10 @@ class RenderLayerOperation : public NodeOperation {
     }
 
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!output->is_available()) {
+        continue;
+      }
+
       if (STR_ELEM(output->identifier, "Image", "Alpha")) {
         continue;
       }
@@ -797,6 +805,7 @@ class RenderLayerOperation : public NodeOperation {
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Float2:
+      case ResultType::Bool:
         /* Not supported. */
         break;
     }

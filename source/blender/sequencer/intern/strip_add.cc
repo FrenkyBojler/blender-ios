@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstring>
 
+#include "BLI_math_base.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_mask_types.h"
@@ -80,7 +81,7 @@ static void strip_add_generic_update(Scene *scene, Strip *strip)
   relations_invalidate_cache_composite(scene, strip);
   strip_lookup_invalidate(scene->ed);
   strip_time_effect_range_set(scene, strip);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
 static void strip_add_set_name(Scene *scene, Strip *strip, LoadData *load_data)
@@ -212,9 +213,9 @@ void add_image_init_alpha_mode(Strip *strip)
 
     /* Initialize input color space. */
     if (strip->type == STRIP_TYPE_IMAGE) {
-      ibuf = IMB_loadiffname(filepath,
-                             IB_test | IB_multilayer | IB_alphamode_detect,
-                             strip->data->colorspace_settings.name);
+      ibuf = IMB_load_image_from_filepath(filepath,
+                                          IB_test | IB_multilayer | IB_alphamode_detect,
+                                          strip->data->colorspace_settings.name);
 
       /* Byte images are default to straight alpha, however sequencer
        * works in premul space, so mark strip to be premultiplied first.
@@ -237,7 +238,7 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_IMAGE);
   strip->len = load_data->image.len;
   StripData *data = strip->data;
-  data->stripdata = MEM_calloc_arrayN<StripElem>(size_t(load_data->image.len), "stripelem");
+  data->stripdata = MEM_calloc_arrayN<StripElem>(load_data->image.len, "stripelem");
 
   if (strip->len == 1) {
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
@@ -256,7 +257,7 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   char file_path[FILE_MAX];
   STRNCPY(file_path, load_data->path);
   BLI_path_abs(file_path, BKE_main_blendfile_path(bmain));
-  ImBuf *ibuf = IMB_loadiffname(
+  ImBuf *ibuf = IMB_load_image_from_filepath(
       file_path, IB_byte_data | IB_multilayer, strip->data->colorspace_settings.name);
   if (ibuf != nullptr) {
     /* Set image resolution. Assume that all images in sequence are same size. This fields are only
@@ -399,7 +400,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   char colorspace[64] = "\0"; /* MAX_COLORSPACE_NAME */
   bool is_multiview_loaded = false;
   const int totfiles = seq_num_files(scene, load_data->views_format, load_data->use_multiview);
-  MovieReader **anim_arr = MEM_calloc_arrayN<MovieReader *>(size_t(totfiles), "Video files");
+  MovieReader **anim_arr = MEM_calloc_arrayN<MovieReader *>(totfiles, "Video files");
   int i;
   int orig_width = 0;
   int orig_height = 0;

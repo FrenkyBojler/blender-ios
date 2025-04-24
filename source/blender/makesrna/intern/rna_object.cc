@@ -2659,7 +2659,7 @@ static void rna_def_object_lineart(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static EnumPropertyItem prop_feature_line_usage_items[] = {
+  static const EnumPropertyItem prop_feature_line_usage_items[] = {
       {OBJECT_LRT_INHERIT, "INHERIT", 0, "Inherit", "Use settings from the parent collection"},
       {OBJECT_LRT_INCLUDE,
        "INCLUDE",
@@ -2954,6 +2954,14 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Parent Bone", "Name of parent bone in case of a bone parenting relation");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
+
+  prop = RNA_def_property(srna, "use_parent_final_indices", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "transflag", OB_PARENT_USE_FINAL_INDICES);
+  RNA_def_property_ui_text(
+      prop,
+      "Use Final Indices",
+      "Use the final evaluated indices rather than the original mesh indices");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
 
   prop = RNA_def_property(srna, "use_camera_lock_parent", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
@@ -3343,7 +3351,7 @@ static void rna_def_object(BlenderRNA *brna)
       "Use alpha blending instead of alpha test (can produce sorting artifacts)");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
 
-  static EnumPropertyItem prop_empty_image_side_items[] = {
+  static const EnumPropertyItem prop_empty_image_side_items[] = {
       {0, "DOUBLE_SIDED", 0, "Both", ""},
       {OB_EMPTY_IMAGE_HIDE_BACK, "FRONT", 0, "Front", ""},
       {OB_EMPTY_IMAGE_HIDE_FRONT, "BACK", 0, "Back", ""},
