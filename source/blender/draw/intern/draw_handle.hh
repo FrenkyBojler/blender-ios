@@ -19,6 +19,7 @@
  * the origin.
  */
 
+#include "BLI_listbase_wrapper.hh"
 #include "draw_shader_shared.hh"
 
 struct Object;
@@ -84,9 +85,12 @@ class ObjectRef {
  private:
   Object *object_;
   /** Duplicated object that corresponds to the current object. */
+  /** TODO: Remove. */
   DupliObject *dupli_object_;
+  ListBaseWrapper<DupliObject> dupli_list_;
   /** Object that created the dupli-list the current object is part of. */
   Object *dupli_parent_;
+
   /** Unique handle per object ref. */
   ResourceHandleRange handle_;
 
@@ -106,6 +110,11 @@ class ObjectRef {
   DupliObject *dupli_object() const
   {
     return dupli_object_;
+  }
+
+  ListBaseWrapper<DupliObject> dupli_list()
+  {
+    return dupli_list_;
   }
 
   Object *dupli_parent() const
@@ -128,7 +137,7 @@ class ObjectRef {
   }
 
  private:
-  ResourceHandle construct_handle();
+  ResourceHandleRange construct_handle();
 };
 
 };  // namespace blender::draw

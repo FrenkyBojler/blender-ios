@@ -649,7 +649,7 @@ void DupliCacheManager::extract_all(ExtractionGraph &extraction)
 
 namespace blender::draw {
 
-ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
+ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob) : dupli_list_(iter_data.dupli_list)
 {
   this->dupli_parent_ = iter_data.dupli_parent;
   this->dupli_object_ = iter_data.dupli_object_current;
@@ -673,7 +673,7 @@ ObjectRef::ObjectRef(Object *ob)
   this->is_image_render = drw_get().is_image_render();
 }
 
-ResourceHandle ObjectRef::construct_handle()
+ResourceHandleRange ObjectRef::construct_handle()
 {
   const bool use_sculpt_pbvh = !this->is_image_render &&
                                BKE_sculptsession_use_pbvh_draw(this->object_, drw_get().rv3d);
@@ -1228,6 +1228,10 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
         blender::draw::ObjectRef ob_ref(data_, ob);
         duplis.try_add(ob_ref);
         drw_engines_cache_populate(ob_ref, extraction);
+        /* WORKAROUND: Force the dupli iteration to stop. */
+        if (data_.dupli_object_current) {
+          data_.dupli_object_next = nullptr;
+        }
       }
       DEG_OBJECT_ITER_END;
     }

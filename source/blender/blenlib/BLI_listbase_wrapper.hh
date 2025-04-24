@@ -22,15 +22,19 @@ namespace blender {
 
 template<typename LB, typename T> class ListBaseWrapperTemplate {
  private:
-  LB *listbase_;
+  LB *listbase_ = nullptr;
 
  public:
-  ListBaseWrapperTemplate(LB *listbase) : listbase_(listbase)
-  {
-    BLI_assert(listbase);
-  }
+  ListBaseWrapperTemplate() = default;
+
+  ListBaseWrapperTemplate(LB *listbase) : listbase_(listbase) {}
 
   ListBaseWrapperTemplate(LB &listbase) : ListBaseWrapperTemplate(&listbase) {}
+
+  bool is_empty() const
+  {
+    return !listbase_;
+  }
 
   class Iterator {
    private:
