@@ -67,14 +67,14 @@
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
+#include "cache/final_image_cache.hh"
+#include "cache/intra_frame_cache.hh"
+#include "cache/source_image_cache.hh"
 #include "effects/effects.hh"
-#include "final_image_cache.hh"
-#include "intra_frame_cache.hh"
 #include "multiview.hh"
 #include "prefetch.hh"
 #include "proxy.hh"
 #include "render.hh"
-#include "source_image_cache.hh"
 #include "utils.hh"
 
 #include <algorithm>

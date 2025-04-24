@@ -31,11 +31,11 @@
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
+#include "cache/final_image_cache.hh"
+#include "cache/intra_frame_cache.hh"
+#include "cache/source_image_cache.hh"
 #include "effects/effects.hh"
-#include "final_image_cache.hh"
-#include "intra_frame_cache.hh"
 #include "sequencer.hh"
-#include "source_image_cache.hh"
 #include "utils.hh"
 
 namespace blender::seq {

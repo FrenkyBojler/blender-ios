@@ -69,8 +69,6 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 #  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_thumbnail_cache.hh"
-#  include "intern/final_image_cache.hh"   //@TODO
-#  include "intern/source_image_cache.hh"  //@TODO
 
 struct SeqCurveMappingUpdateData {
   Scene *scene;

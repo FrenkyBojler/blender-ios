@@ -43,10 +43,10 @@
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
 
-#include "final_image_cache.hh"
+#include "cache/final_image_cache.hh"
+#include "cache/source_image_cache.hh"
 #include "prefetch.hh"
 #include "render.hh"
-#include "source_image_cache.hh"
 
 namespace blender::seq {
 

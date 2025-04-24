@@ -40,6 +40,13 @@ set(SRC
   SEQ_utils.hh
 
   intern/animation.cc
+  intern/cache/final_image_cache.cc
+  intern/cache/final_image_cache.hh
+  intern/cache/intra_frame_cache.cc
+  intern/cache/intra_frame_cache.hh
+  intern/cache/source_image_cache.cc
+  intern/cache/source_image_cache.hh
+  intern/cache/thumbnail_cache.cc
   intern/channels.cc
   intern/effects/effects.cc
   intern/effects/effects.hh
@@ -55,10 +62,6 @@ set(SRC
   intern/effects/vse_effect_text.cc
   intern/effects/vse_effect_transform.cc
   intern/effects/vse_effect_wipe.cc
-  intern/final_image_cache.cc
-  intern/final_image_cache.hh
-  intern/intra_frame_cache.cc
-  intern/intra_frame_cache.hh
   intern/iterator.cc
   intern/media_presence.cc
   intern/modifier.cc
@@ -73,8 +76,6 @@ set(SRC
   intern/render.hh
   intern/sequencer.cc
   intern/sequencer.hh
-  intern/source_image_cache.cc
-  intern/source_image_cache.hh
   intern/sound.cc
   intern/strip_add.cc
   intern/strip_connect.cc
@@ -86,7 +87,6 @@ set(SRC
   intern/strip_time.cc
   intern/strip_time.hh
   intern/strip_transform.cc
-  intern/thumbnail_cache.cc
   intern/utils.cc
   intern/utils.hh
 )
