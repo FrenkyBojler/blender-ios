@@ -174,7 +174,7 @@ static void rna_Strip_invalidate_preprocessed_update(Main * /*bmain*/,
   if (ed) {
     Strip *strip = (Strip *)ptr->data;
 
-    blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+    blender::seq::relations_invalidate_cache(scene, strip);
   }
 }
 
@@ -668,7 +668,7 @@ static void rna_StripTransform_update(Main * /*bmain*/, Scene * /*scene*/, Point
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = sequence_get_by_transform(ed, static_cast<StripTransform *>(ptr->data));
 
-  blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 static bool crop_seq_cmp_fn(Strip *strip, void *arg_pt)
@@ -715,7 +715,7 @@ static void rna_StripCrop_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = sequence_get_by_crop(ed, static_cast<StripCrop *>(ptr->data));
 
-  blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 static void rna_Strip_text_font_set(PointerRNA *ptr,
@@ -1101,7 +1101,7 @@ static void rna_StripProxy_update(Main * /*bmain*/, Scene * /*scene*/, PointerRN
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = sequence_get_by_proxy(ed, static_cast<StripProxy *>(ptr->data));
-  blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 /* do_versions? */
@@ -1205,7 +1205,7 @@ static void rna_StripColorBalance_update(Main * /*bmain*/, Scene * /*scene*/, Po
   Strip *strip = sequence_get_by_colorbalance(
       ed, static_cast<StripColorBalance *>(ptr->data), &smd);
 
-  blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 }
 
 static void rna_SequenceEditor_overlay_lock_set(PointerRNA *ptr, bool value)
@@ -1393,7 +1393,7 @@ static void rna_StripModifier_update(Main *bmain, Scene * /*scene*/, PointerRNA 
     DEG_relations_tag_update(bmain);
   }
   else {
-    blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+    blender::seq::relations_invalidate_cache(scene, strip);
   }
 }
 
@@ -1439,7 +1439,7 @@ static SequenceModifierData *rna_Strip_modifier_new(
 
     smd = blender::seq::modifier_new(strip, name, type);
 
-    blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+    blender::seq::relations_invalidate_cache(scene, strip);
 
     WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 
@@ -1461,7 +1461,7 @@ static void rna_Strip_modifier_remove(Strip *strip,
   }
 
   smd_ptr->invalidate();
-  blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 }
@@ -1472,7 +1472,7 @@ static void rna_Strip_modifier_clear(Strip *strip, bContext *C)
 
   blender::seq::modifier_clear(strip);
 
-  blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
+  blender::seq::relations_invalidate_cache(scene, strip);
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 }

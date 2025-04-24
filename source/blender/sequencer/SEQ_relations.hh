@@ -33,8 +33,6 @@ bool relations_check_scene_recursion(Scene *scene, ReportList *reports);
  */
 bool relations_render_loop_check(Strip *strip_main, Strip *strip);
 void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render);
-void relations_invalidate_cache_raw(Scene *scene, Strip *strip);
-void relations_invalidate_cache_preprocessed(Scene *scene, Strip *strip);
 
 /**
  * Invalidates various caches related to a given strip:
@@ -47,6 +45,13 @@ void relations_invalidate_cache_preprocessed(Scene *scene, Strip *strip);
  * - Stops prefetching job, if any.
  */
 void relations_invalidate_cache(Scene *scene, Strip *strip);
+
+/**
+ * Does everything #relations_invalidate_cache does, plus invalidates cached raw source
+ * images of the strip.
+ */
+void relations_invalidate_cache_raw(Scene *scene, Strip *strip);
+
 void relations_invalidate_scene_strips(Main *bmain, Scene *scene_target);
 void relations_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_target);
 /**

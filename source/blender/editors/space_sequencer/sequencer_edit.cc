@@ -651,7 +651,7 @@ static void slip_strips_delta(wmOperator *op, Scene *scene, SlipData *data, cons
   bool slip_keyframes = RNA_boolean_get(op->ptr, "slip_keyframes");
   for (Strip *strip : data->strips) {
     seq::time_slip_strip(scene, strip, frame_delta, subframe_delta, slip_keyframes);
-    seq::relations_invalidate_cache_preprocessed(scene, strip);
+    seq::relations_invalidate_cache(scene, strip);
   }
 
   RNA_float_set(op->ptr, "offset", new_offset);
@@ -1318,7 +1318,7 @@ static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *
   seq::strip_lookup_invalidate(scene->ed);
   seq::time_left_handle_frame_set(scene, seq1, seq::time_left_handle_frame_get(scene, seq1));
 
-  seq::relations_invalidate_cache_preprocessed(scene, active_strip);
+  seq::relations_invalidate_cache(scene, active_strip);
   seq::offset_animdata(scene, active_strip, (active_strip->start - old_start));
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
@@ -1376,7 +1376,7 @@ static wmOperatorStatus sequencer_swap_inputs_exec(bContext *C, wmOperator *op)
   active_strip->seq1 = active_strip->seq2;
   active_strip->seq2 = strip;
 
-  seq::relations_invalidate_cache_preprocessed(scene, active_strip);
+  seq::relations_invalidate_cache(scene, active_strip);
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -1870,7 +1870,7 @@ static wmOperatorStatus sequencer_offset_clear_exec(bContext *C, wmOperator * /*
   /* Update lengths, etc. */
   strip = static_cast<Strip *>(ed->seqbasep->first);
   while (strip) {
-    seq::relations_invalidate_cache_preprocessed(scene, strip);
+    seq::relations_invalidate_cache(scene, strip);
     strip = strip->next;
   }
 
@@ -2098,7 +2098,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
       scene, active_seqbase, strips_to_move, seq::query_strip_connected_and_effect_chain);
 
   for (Strip *strip : strips_to_move) {
-    seq::relations_invalidate_cache_preprocessed(scene, strip);
+    seq::relations_invalidate_cache(scene, strip);
     BLI_remlink(active_seqbase, strip);
     BLI_addtail(&seqm->seqbase, strip);
     channel_max = max_ii(strip->machine, channel_max);
@@ -2168,7 +2168,7 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   seq::prefetch_stop(scene);
 
   LISTBASE_FOREACH (Strip *, strip, &active_strip->seqbase) {
-    seq::relations_invalidate_cache_preprocessed(scene, strip);
+    seq::relations_invalidate_cache(scene, strip);
   }
 
   /* Remove all selected from meta, and put in main list.
@@ -2303,12 +2303,12 @@ static void swap_sequence(Scene *scene, Strip *seqa, Strip *seqb)
   strip_b_start = (seqb->start - seq::time_left_handle_frame_get(scene, seqb)) +
                   seq::time_left_handle_frame_get(scene, seqa);
   seq::transform_translate_sequence(scene, seqb, strip_b_start - seqb->start);
-  seq::relations_invalidate_cache_preprocessed(scene, seqb);
+  seq::relations_invalidate_cache(scene, seqb);
 
   strip_a_start = (seqa->start - seq::time_left_handle_frame_get(scene, seqa)) +
                   seq::time_right_handle_frame_get(scene, seqb) + gap;
   seq::transform_translate_sequence(scene, seqa, strip_a_start - seqa->start);
-  seq::relations_invalidate_cache_preprocessed(scene, seqa);
+  seq::relations_invalidate_cache(scene, seqa);
 }
 
 static Strip *find_next_prev_sequence(Scene *scene, Strip *test, int lr, int sel)
@@ -2494,7 +2494,7 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
   active_seq->data->transform->scale_x = active_seq->data->transform->scale_y = 1.0f;
   active_seq->data->transform->xofs = active_seq->data->transform->yofs = 0.0f;
 
-  seq::relations_invalidate_cache_preprocessed(scene, active_seq);
+  seq::relations_invalidate_cache(scene, active_seq);
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
@@ -2669,7 +2669,7 @@ static wmOperatorStatus sequencer_change_effect_input_exec(bContext *C, wmOperat
 
   std::swap(*strip_1, *strip_2);
 
-  seq::relations_invalidate_cache_preprocessed(scene, strip);
+  seq::relations_invalidate_cache(scene, strip);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
@@ -2744,7 +2744,7 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
   sh = seq::effect_handle_get(strip);
   sh.init(strip);
 
-  seq::relations_invalidate_cache_preprocessed(scene, strip);
+  seq::relations_invalidate_cache(scene, strip);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
@@ -3339,7 +3339,7 @@ static wmOperatorStatus sequencer_strip_transform_clear_exec(bContext *C, wmOper
           }
           break;
       }
-      seq::relations_invalidate_cache_preprocessed(scene, strip);
+      seq::relations_invalidate_cache(scene, strip);
     }
   }
 
@@ -3403,7 +3403,7 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
                             scene->r.xsch,
                             scene->r.ysch,
                             fit_method);
-      seq::relations_invalidate_cache_preprocessed(scene, strip);
+      seq::relations_invalidate_cache(scene, strip);
     }
   }
 

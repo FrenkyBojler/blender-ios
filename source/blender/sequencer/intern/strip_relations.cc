@@ -73,16 +73,7 @@ static void invalidate_raw_cache_of_parent_meta(Scene *scene, Strip *strip)
 void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 {
   source_image_cache_invalidate_strip(scene, strip);
-  invalidate_final_cache_strip_range(scene, strip);
-  invalidate_intra_frame_cache(scene, strip);
-  invalidate_raw_cache_of_parent_meta(scene, strip);
-}
-
-void relations_invalidate_cache_preprocessed(Scene *scene, Strip *strip)
-{
-  invalidate_final_cache_strip_range(scene, strip);
-  invalidate_intra_frame_cache(scene, strip);
-  invalidate_raw_cache_of_parent_meta(scene, strip);
+  relations_invalidate_cache(scene, strip);
 }
 
 void relations_invalidate_cache(Scene *scene, Strip *strip)

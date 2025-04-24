@@ -286,7 +286,7 @@ static void recalcData_sequencer_image(TransInfo *t)
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
 
-    seq::relations_invalidate_cache_preprocessed(t->scene, strip);
+    seq::relations_invalidate_cache(t->scene, strip);
   }
 }
 
