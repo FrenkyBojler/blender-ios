@@ -17,7 +17,6 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_types.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
@@ -36,6 +35,7 @@
 namespace blender::ed::transform {
 
 namespace {
+
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
@@ -51,6 +51,7 @@ struct TransDataSeq {
   float active_seq_orig_rotation;
   float2 orig_mirror;
 };
+
 }  // namespace
 
 static void store_transform_properties(const Scene *scene,

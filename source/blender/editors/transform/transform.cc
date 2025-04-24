@@ -18,7 +18,6 @@
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
-#include "ED_transform.hh"
 #include "GPU_state.hh"
 
 #include "ED_clip.hh"

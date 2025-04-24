@@ -6,7 +6,6 @@
  * \ingroup edtransform
  */
 
-#include "ED_transform.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curve_types.h"
