@@ -182,7 +182,9 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
 
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
     /* no undo for buttons for operator redo panels */
-    UI_but_flag_disable(but.get(), UI_BUT_UNDO);
+    if (!(layout_flags & UI_TEMPLATE_OP_PROPS_ALLOW_UNDO_PUSH)) {
+      UI_but_flag_disable(but.get(), UI_BUT_UNDO);
+    }
 
     /* Only do this if we're not refreshing an existing UI. */
     if (block->oldblock == nullptr) {
@@ -369,6 +371,13 @@ static void draw_export_properties(bContext *C,
   uiLayoutSetPropDecorate(col, false);
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "filepath");
+
+  /* WARNING: using relative paths for the operator file-path is not exactly correct:
+   * A relative path can be set here but it is never passed to the operator.
+   * The export collection reads & expands this path before passing it to the operator.
+   * Suppress the check here to avoid this showing red-alert with an warning in the tip. */
+  uiLayoutSuppressFlagSet(layout, LayoutSuppressFlag::PathSupportsBlendFileRelative);
+
   std::string placeholder = "//" + filename;
   uiItemFullR(col,
               op->ptr,
@@ -380,8 +389,14 @@ static void draw_export_properties(bContext *C,
               ICON_NONE,
               placeholder.c_str());
 
-  template_operator_property_buts_draw_single(
-      C, op, layout, UI_BUT_LABEL_ALIGN_NONE, UI_TEMPLATE_OP_PROPS_HIDE_PRESETS);
+  template_operator_property_buts_draw_single(C,
+                                              op,
+                                              layout,
+                                              UI_BUT_LABEL_ALIGN_NONE,
+                                              UI_TEMPLATE_OP_PROPS_HIDE_PRESETS |
+                                                  UI_TEMPLATE_OP_PROPS_ALLOW_UNDO_PUSH);
+
+  uiLayoutSuppressFlagClear(layout, LayoutSuppressFlag::PathSupportsBlendFileRelative);
 }
 
 static void draw_exporter_item(uiList * /*ui_list*/,
