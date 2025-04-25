@@ -1356,7 +1356,8 @@ bool UI_context_copy_to_selected_list(bContext *C,
       const char *prop_id = RNA_property_identifier(prop);
       r_lb->remove_if([&](const PointerRNA &link) {
         if ((ptr->type != link.type) &&
-            (RNA_struct_type_find_property(link.type, prop_id) != prop)) {
+            (RNA_struct_type_find_property(link.type, prop_id) != prop))
+        {
           return true;
         }
         return false;
@@ -1765,7 +1766,8 @@ static bool copy_driver_to_selected_button(bContext *C, bool copy_entire_array, 
   bool use_path_from_id;
   blender::Vector<PointerRNA> target_properties;
   if (!UI_context_copy_to_selected_list(
-          C, &ptr, prop, &target_properties, &use_path_from_id, &path)) {
+          C, &ptr, prop, &target_properties, &use_path_from_id, &path))
+  {
     return false;
   }
 
