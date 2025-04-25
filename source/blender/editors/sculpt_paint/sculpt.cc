@@ -3542,6 +3542,7 @@ void SCULPT_cache_calc_brushdata_symm(blender::ed::sculpt_paint::StrokeCache &ca
   cache.last_location_symm = ed::sculpt_paint::symmetry_flip(cache.last_location, symm);
   cache.grab_delta_symm = ed::sculpt_paint::symmetry_flip(cache.grab_delta, symm);
   cache.view_normal_symm = ed::sculpt_paint::symmetry_flip(cache.view_normal, symm);
+  cache.view_origin_symm = ed::sculpt_paint::symmetry_flip(cache.view_origin, symm);
 
   cache.initial_location_symm = ed::sculpt_paint::symmetry_flip(cache.initial_location, symm);
   cache.initial_normal_symm = ed::sculpt_paint::symmetry_flip(cache.initial_normal, symm);
@@ -4130,6 +4131,8 @@ static void sculpt_update_cache_invariants(
   ob.runtime->world_to_object = math::invert(ob.object_to_world());
   cache->view_normal = math::normalize(math::transform_direction(
       float4x4(cache->vc->rv3d->viewinv) * ob.world_to_object(), z_axis));
+  cache->view_origin = math::transform_point(ob.world_to_object(),
+                                             float3(cache->vc->rv3d->viewinv[3]));
 
   cache->supports_gravity = bke::brush::supports_gravity(*brush) && sd.gravity_factor > 0.0f;
   /* Get gravity vector in world space. */
