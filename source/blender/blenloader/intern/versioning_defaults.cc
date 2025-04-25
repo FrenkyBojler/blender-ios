@@ -94,8 +94,8 @@ static void blo_update_defaults_screen(bScreen *screen,
       }
     }
 
-    /* Set default folder. */
     LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+      /* Set default folder. */
       if (sl->spacetype == SPACE_FILE) {
         SpaceFile *sfile = (SpaceFile *)sl;
         if (sfile->params) {
@@ -106,8 +106,15 @@ static void blo_update_defaults_screen(bScreen *screen,
           }
         }
       }
+      /* Update default Z bias for retopology overlay. */
+      if (sl->spacetype == SPACE_VIEW3D) {
+        View3D *v3d = (View3D *)sl;
+        if (v3d->overlay.retopology_offset == 0.2f) {
+          v3d->overlay.retopology_offset = 0.01f;
+        }
+      }
     }
-  }
+    
 
   /* For builtin templates only. */
   if (!blo_is_builtin_template(app_template)) {
