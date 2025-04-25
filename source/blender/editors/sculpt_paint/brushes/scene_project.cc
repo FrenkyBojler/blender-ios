@@ -276,7 +276,7 @@ static void calc_normals(const Brush &brush,
         }
       }
       else {
-        r_normals.fill(-cache.view_normal_symm);
+        r_normals.fill(cache.view_normal_symm);
       }
       break;
     }
