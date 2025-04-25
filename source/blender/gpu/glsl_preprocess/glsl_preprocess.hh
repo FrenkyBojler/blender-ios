@@ -122,10 +122,10 @@ class Preprocessor {
       str = remove_quotes(str);
       str = enum_macro_injection(str);
       str = argument_reference_mutation(str);
+      str = template_macro_replacement(str, filename, report_error);
     }
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
-    str = template_macro_replacement(str, filename, report_error);
     return line_directive_prefix(filename) + str + threadgroup_variables_suffix() +
            "//__blender_metadata_sta\n" + gpu_functions_.str() + static_strings_suffix() +
            gpu_builtins_suffix(filename) + dependency_suffix() + "//__blender_metadata_end\n";
