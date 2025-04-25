@@ -6,23 +6,23 @@
 
 FRAGMENT_SHADER_CREATE_INFO(gpencil_geometry)
 
-#include "common_colormanagement_lib.glsl"
+#include "draw_colormanagement_lib.glsl"
 #include "draw_grease_pencil_lib.glsl"
 
-vec3 gpencil_lighting()
+float3 gpencil_lighting()
 {
-  vec3 light_accum = vec3(0.0f);
+  float3 light_accum = float3(0.0f);
   for (int i = 0; i < GPENCIL_LIGHT_BUFFER_LEN; i++) {
-    if (vec3(gp_lights[i]._color).x == -1.0f) {
+    if (float3(gp_lights[i]._color).x == -1.0f) {
       break;
     }
-    vec3 L = gp_lights[i]._position - gp_interp.pos;
+    float3 L = gp_lights[i]._position - gp_interp.pos;
     float vis = 1.0f;
     gpLightType type = gpLightType(floatBitsToUint(gp_lights[i]._type));
     /* Spot Attenuation. */
     if (type == GP_LIGHT_TYPE_SPOT) {
-      mat3 rot_scale = mat3(gp_lights[i]._right, gp_lights[i]._up, gp_lights[i]._forward);
-      vec3 local_L = rot_scale * L;
+      float3x3 rot_scale = float3x3(gp_lights[i]._right, gp_lights[i]._up, gp_lights[i]._forward);
+      float3 local_L = rot_scale * L;
       local_L /= abs(local_L.z);
       float ellipse = inversesqrt(length_squared(local_L));
       vis *= smoothstep(
@@ -42,7 +42,7 @@ vec3 gpencil_lighting()
     /* Lambertian falloff */
     if (type != GP_LIGHT_TYPE_AMBIENT) {
       L /= sqrt(L_len_sqr);
-      vis *= clamp(dot(gpNormal, L), 0.0f, 1.0f);
+      vis *= clamp(dot(gp_normal, L), 0.0f, 1.0f);
     }
     light_accum += vis * gp_lights[i]._color;
   }
@@ -52,16 +52,16 @@ vec3 gpencil_lighting()
 
 void main()
 {
-  vec4 col;
+  float4 col;
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_USE)) {
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_PREMUL);
-    col = texture_read_as_linearrgb(gpStrokeTexture, premul, gp_interp.uv);
+    col = texture_read_as_linearrgb(gp_stroke_tx, premul, gp_interp.uv);
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_USE)) {
     bool use_clip = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_CLIP);
-    vec2 uvs = (use_clip) ? clamp(gp_interp.uv, 0.0f, 1.0f) : gp_interp.uv;
+    float2 uvs = (use_clip) ? clamp(gp_interp.uv, 0.0f, 1.0f) : gp_interp.uv;
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_PREMUL);
-    col = texture_read_as_linearrgb(gpFillTexture, premul, uvs);
+    col = texture_read_as_linearrgb(gp_fill_tx, premul, uvs);
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_USE)) {
     bool radial = flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_RADIAL);
@@ -70,28 +70,28 @@ void main()
     col = mix(gp_materials[matid].fill_color, gp_materials[matid].fill_mix_color, fac);
   }
   else /* SOLID */ {
-    col = vec4(1.0f);
+    col = float4(1.0f);
   }
   col.rgb *= col.a;
 
   /* Composite all other colors on top of texture color.
    * Everything is pre-multiply by `col.a` to have the stencil effect. */
-  fragColor = col * gp_interp.color_mul + col.a * gp_interp.color_add;
+  frag_color = col * gp_interp.color_mul + col.a * gp_interp.color_add;
 
-  fragColor.rgb *= gpencil_lighting();
+  frag_color.rgb *= gpencil_lighting();
 
-  fragColor *= gpencil_stroke_round_cap_mask(gp_interp_flat.sspos.xy,
-                                             gp_interp_flat.sspos.zw,
-                                             gp_interp_flat.aspect,
-                                             gp_interp_noperspective.thickness.x,
-                                             gp_interp_noperspective.hardness);
+  frag_color *= gpencil_stroke_round_cap_mask(gp_interp_flat.sspos.xy,
+                                              gp_interp_flat.sspos.zw,
+                                              gp_interp_flat.aspect,
+                                              gp_interp_noperspective.thickness.x,
+                                              gp_interp_noperspective.hardness);
 
   /* To avoid aliasing artifacts, we reduce the opacity of small strokes. */
-  fragColor *= smoothstep(0.0f, 1.0f, gp_interp_noperspective.thickness.y);
+  frag_color *= smoothstep(0.0f, 1.0f, gp_interp_noperspective.thickness.y);
 
   /* Holdout materials. */
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_HOLDOUT | GP_FILL_HOLDOUT)) {
-    revealColor = fragColor.aaaa;
+    revealColor = frag_color.aaaa;
   }
   else {
     /* NOT holdout materials.
@@ -99,19 +99,19 @@ void main()
      * Note that we are limited to mono-chromatic alpha blending here
      * because of the blend equation and the limit of 1 color target
      * when using custom color blending. */
-    revealColor = vec4(0.0f, 0.0f, 0.0f, fragColor.a);
+    revealColor = float4(0.0f, 0.0f, 0.0f, frag_color.a);
 
-    if (fragColor.a < 0.001f) {
+    if (frag_color.a < 0.001f) {
       discard;
       return;
     }
   }
 
-  vec2 fb_size = max(vec2(textureSize(gpSceneDepthTexture, 0).xy),
-                     vec2(textureSize(gpMaskTexture, 0).xy));
-  vec2 uvs = gl_FragCoord.xy / fb_size;
+  float2 fb_size = max(float2(textureSize(gp_scene_depth_tx, 0).xy),
+                       float2(textureSize(gp_mask_tx, 0).xy));
+  float2 uvs = gl_FragCoord.xy / fb_size;
   /* Manual depth test */
-  float scene_depth = texture(gpSceneDepthTexture, uvs).r;
+  float scene_depth = texture(gp_scene_depth_tx, uvs).r;
   if (gl_FragCoord.z > scene_depth) {
     discard;
     return;
@@ -119,7 +119,7 @@ void main()
 
   /* FIXME(fclem): Grrr. This is bad for performance but it's the easiest way to not get
    * depth written where the mask obliterate the layer. */
-  float mask = texture(gpMaskTexture, uvs).r;
+  float mask = texture(gp_mask_tx, uvs).r;
   if (mask < 0.001f) {
     discard;
     return;

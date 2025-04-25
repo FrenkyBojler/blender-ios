@@ -17,7 +17,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_deferred)
 FRAGMENT_SHADER_CREATE_INFO(eevee_render_pass_out)
 FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 
-#include "common_hair_lib.glsl"
+#include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_ambient_occlusion_lib.glsl"
 #include "eevee_gbuffer_lib.glsl"
@@ -25,9 +25,9 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_lib.glsl"
 
-vec4 closure_to_rgba(Closure cl)
+float4 closure_to_rgba(Closure cl)
 {
-  vec4 out_color;
+  float4 out_color;
   out_color.rgb = g_emission;
   out_color.a = saturate(1.0f - average(g_transmittance));
 
@@ -73,28 +73,29 @@ void main()
 
   g_emission *= alpha_rcp;
 
-  ivec2 out_texel = ivec2(gl_FragCoord.xy);
+  int2 out_texel = int2(gl_FragCoord.xy);
 
 #ifdef MAT_SUBSURFACE
-  const bool use_sss = true;
+  constexpr bool use_sss = true;
 #else
-  const bool use_sss = false;
+  constexpr bool use_sss = false;
 #endif
 
   ObjectInfos object_infos = drw_infos[drw_resource_id()];
   bool use_light_linking = receiver_light_set_get(object_infos) != 0;
+  bool use_terminator_offset = object_infos.shadow_terminator_normal_offset > 0.0;
 
   /* ----- Render Passes output ----- */
 
 #ifdef MAT_RENDER_PASS_SUPPORT /* Needed because node_tree isn't present in test shaders. */
   /* Some render pass can be written during the gbuffer pass. Light passes are written later. */
   if (imageSize(rp_cryptomatte_img).x > 1) {
-    vec4 cryptomatte_output = vec4(
+    float4 cryptomatte_output = float4(
         cryptomatte_object_buf[drw_resource_id()], node_tree.crypto_hash, 0.0f);
     imageStoreFast(rp_cryptomatte_img, out_texel, cryptomatte_output);
   }
-  output_renderpass_color(uniform_buf.render_pass.position_id, vec4(g_data.P, 1.0f));
-  output_renderpass_color(uniform_buf.render_pass.emission_id, vec4(g_emission, 1.0f));
+  output_renderpass_color(uniform_buf.render_pass.position_id, float4(g_data.P, 1.0f));
+  output_renderpass_color(uniform_buf.render_pass.emission_id, float4(g_emission, 1.0f));
 #endif
 
   /* ----- GBuffer output ----- */
@@ -109,7 +110,7 @@ void main()
 #endif
   gbuf_data.surface_N = g_data.N;
   gbuf_data.thickness = thickness;
-  gbuf_data.use_light_linking = use_light_linking;
+  gbuf_data.use_object_id = use_sss || use_light_linking || use_terminator_offset;
 
   GBufferWriter gbuf = gbuffer_pack(gbuf_data, g_data.Ng);
 
@@ -126,7 +127,7 @@ void main()
     /* NOTE: The image view start at layer GBUF_CLOSURE_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_CLOSURE_FB_LAYER_COUNT`. */
     imageStoreFast(out_gbuf_closure_img,
-                   ivec3(out_texel, layer - GBUF_CLOSURE_FB_LAYER_COUNT),
+                   int3(out_texel, layer - GBUF_CLOSURE_FB_LAYER_COUNT),
                    gbuf.data[layer]);
   }
   for (int layer = GBUF_NORMAL_FB_LAYER_COUNT;
@@ -136,22 +137,22 @@ void main()
     /* NOTE: The image view start at layer GBUF_NORMAL_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_NORMAL_FB_LAYER_COUNT`. */
     imageStoreFast(out_gbuf_normal_img,
-                   ivec3(out_texel, layer - GBUF_NORMAL_FB_LAYER_COUNT),
+                   int3(out_texel, layer - GBUF_NORMAL_FB_LAYER_COUNT),
                    gbuf.N[layer].xyyy);
   }
-  if (use_sss || use_light_linking) {
-    const int layer = GBUF_HEADER_FB_LAYER_COUNT;
+  if (gbuf_data.use_object_id) {
+    constexpr int layer = GBUF_HEADER_FB_LAYER_COUNT;
     /* NOTE: The image view start at layer GBUF_HEADER_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_HEADER_FB_LAYER_COUNT`. */
     imageStoreFast(out_gbuf_header_img,
-                   ivec3(out_texel, layer - GBUF_HEADER_FB_LAYER_COUNT),
-                   uvec4(drw_resource_id()));
+                   int3(out_texel, layer - GBUF_HEADER_FB_LAYER_COUNT),
+                   uint4(drw_resource_id()));
   }
 
   /* ----- Radiance output ----- */
 
   /* Only output emission during the gbuffer pass. */
-  out_radiance = vec4(g_emission, 0.0f);
+  out_radiance = float4(g_emission, 0.0f);
   out_radiance.rgb *= 1.0f - g_holdout;
   out_radiance.a = g_holdout;
 }

@@ -222,6 +222,15 @@ struct USDOperatorOptions {
   bool as_background_job;
 };
 
+static void free_operator_customdata(wmOperator *op)
+{
+  if (op->customdata) {
+    USDOperatorOptions *options = static_cast<USDOperatorOptions *>(op->customdata);
+    MEM_freeN(options);
+    op->customdata = nullptr;
+  }
+}
+
 /* Ensure that the prim_path is not set to
  * the absolute root path '/'. */
 static void process_prim_path(char *prim_path)
@@ -263,6 +272,7 @@ static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    free_operator_customdata(op);
     return OPERATOR_CANCELLED;
   }
 
@@ -271,7 +281,7 @@ static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
 
   USDOperatorOptions *options = static_cast<USDOperatorOptions *>(op->customdata);
   const bool as_background_job = (options != nullptr && options->as_background_job);
-  MEM_SAFE_FREE(op->customdata);
+  free_operator_customdata(op);
 
   const bool selected_objects_only = RNA_boolean_get(op->ptr, "selected_objects_only");
   const bool visible_objects_only = RNA_boolean_get(op->ptr, "visible_objects_only");
@@ -484,7 +494,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
     uiItemR(col, ptr, "export_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "export_lights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiLayout *row = uiLayoutRow(col, true);
+    uiLayout *row = &col->row(true);
     uiItemR(row, ptr, "convert_world_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     const bool export_lights = RNA_boolean_get(ptr, "export_lights");
     uiLayoutSetActive(row, export_lights);
@@ -519,7 +529,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
     uiItemR(col, ptr, "export_shapekeys", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "export_armatures", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiLayout *row = uiLayoutRow(col, true);
+    uiLayout *row = &col->row(true);
     uiItemR(row, ptr, "only_deform_bones", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayoutSetActive(row, RNA_boolean_get(ptr, "export_armatures"));
   }
@@ -560,14 +570,6 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
   {
     uiLayout *col = uiLayoutColumn(panel, false);
     uiItemR(col, ptr, "use_instancing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-}
-
-static void free_operator_customdata(wmOperator *op)
-{
-  if (op->customdata) {
-    MEM_freeN(op->customdata);
-    op->customdata = nullptr;
   }
 }
 
@@ -926,6 +928,7 @@ static wmOperatorStatus wm_usd_import_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    free_operator_customdata(op);
     return OPERATOR_CANCELLED;
   }
 
@@ -934,7 +937,7 @@ static wmOperatorStatus wm_usd_import_exec(bContext *C, wmOperator *op)
 
   USDOperatorOptions *options = static_cast<USDOperatorOptions *>(op->customdata);
   const bool as_background_job = (options != nullptr && options->as_background_job);
-  MEM_SAFE_FREE(op->customdata);
+  free_operator_customdata(op);
 
   const float scale = RNA_float_get(op->ptr, "scale");
   const float light_intensity_scale = RNA_float_get(op->ptr, "light_intensity_scale");
@@ -1120,7 +1123,7 @@ static void wm_usd_import_draw(bContext *C, wmOperator *op)
     uiItemR(col, ptr, "import_curves", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "import_lights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiLayout *row = uiLayoutRow(col, true);
+    uiLayout *row = &col->row(true);
     uiItemR(row, ptr, "create_world_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     const bool import_lights = RNA_boolean_get(ptr, "import_lights");
     uiLayoutSetActive(row, import_lights);
@@ -1167,7 +1170,7 @@ static void wm_usd_import_draw(bContext *C, wmOperator *op)
     uiItemR(col, ptr, "import_usd_preview", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayoutSetEnabled(col, RNA_boolean_get(ptr, "import_materials"));
 
-    uiLayout *row = uiLayoutRow(col, true);
+    uiLayout *row = &col->row(true);
     uiItemR(row, ptr, "set_material_blend", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayoutSetEnabled(row, RNA_boolean_get(ptr, "import_usd_preview"));
     uiItemR(col, ptr, "mtl_name_collision_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1179,10 +1182,10 @@ static void wm_usd_import_draw(bContext *C, wmOperator *op)
     uiItemR(col, ptr, "import_textures_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     bool copy_textures = RNA_enum_get(op->ptr, "import_textures_mode") == USD_TEX_IMPORT_COPY;
 
-    uiLayout *row = uiLayoutRow(col, true);
+    uiLayout *row = &col->row(true);
     uiItemR(row, ptr, "import_textures_dir", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayoutSetEnabled(row, copy_textures);
-    row = uiLayoutRow(col, true);
+    row = &col->row(true);
     uiItemR(row, ptr, "tex_name_collision_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayoutSetEnabled(row, copy_textures);
     uiLayoutSetEnabled(col, RNA_boolean_get(ptr, "import_materials"));

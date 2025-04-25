@@ -123,9 +123,9 @@ static void uilist_draw_filter_default(uiList *ui_list, const bContext * /*C*/, 
 {
   PointerRNA listptr = RNA_pointer_create_discrete(nullptr, &RNA_UIList, ui_list);
 
-  uiLayout *row = uiLayoutRow(layout, false);
+  uiLayout *row = &layout->row(false);
 
-  uiLayout *subrow = uiLayoutRow(row, true);
+  uiLayout *subrow = &row->row(true);
   uiItemR(subrow, &listptr, "filter_name", UI_ITEM_NONE, "", ICON_NONE);
   uiItemR(subrow,
           &listptr,
@@ -135,7 +135,7 @@ static void uilist_draw_filter_default(uiList *ui_list, const bContext * /*C*/, 
           ICON_ARROW_LEFTRIGHT);
 
   if ((ui_list->filter_sort_flag & UILST_FLT_SORT_LOCK) == 0) {
-    subrow = uiLayoutRow(row, true);
+    subrow = &row->row(true);
     uiItemR(subrow,
             &listptr,
             "use_filter_sort_alpha",
@@ -163,8 +163,7 @@ uiListNameFilter::uiListNameFilter(uiList &list)
       filter_ = storage_.filter_buff;
     }
     else {
-      filter_ = storage_.filter_dyn = static_cast<char *>(
-          MEM_mallocN((slen + 3) * sizeof(char), "filter_dyn"));
+      filter_ = storage_.filter_dyn = MEM_malloc_arrayN<char>((slen + 3), "filter_dyn");
     }
     BLI_strncpy_ensure_pad(filter_, filter_raw, '*', slen + 3);
   }
@@ -228,12 +227,11 @@ void UI_list_filter_and_sort_items(uiList *ui_list,
     int order_idx = 0, i = 0;
 
     if (order_by_name) {
-      names = static_cast<StringCmp *>(MEM_callocN(sizeof(StringCmp) * len, "StringCmp"));
+      names = MEM_calloc_arrayN<StringCmp>(len, "StringCmp");
     }
 
     if (item_filter_fn) {
-      dyn_data->items_filter_flags = static_cast<int *>(
-          MEM_callocN(sizeof(int) * len, "items_filter_flags"));
+      dyn_data->items_filter_flags = MEM_calloc_arrayN<int>(len, "items_filter_flags");
       dyn_data->items_shown = 0;
     }
 
@@ -295,8 +293,7 @@ void UI_list_filter_and_sort_items(uiList *ui_list,
        */
       qsort(names, order_idx, sizeof(StringCmp), cmpstringp);
 
-      dyn_data->items_filter_neworder = static_cast<int *>(
-          MEM_mallocN(sizeof(int) * order_idx, "items_filter_neworder"));
+      dyn_data->items_filter_neworder = MEM_malloc_arrayN<int>(order_idx, "items_filter_neworder");
       for (new_idx = 0; new_idx < order_idx; new_idx++) {
         dyn_data->items_filter_neworder[names[new_idx].org_idx] = new_idx;
       }
@@ -675,7 +672,7 @@ static uiList *ui_list_ensure(const bContext *C,
       BLI_findstring(&region->ui_lists, full_list_id, offsetof(uiList, list_id)));
 
   if (!ui_list) {
-    ui_list = static_cast<uiList *>(MEM_callocN(sizeof(uiList), "uiList"));
+    ui_list = MEM_callocN<uiList>("uiList");
     STRNCPY(ui_list->list_id, full_list_id);
     BLI_addtail(&region->ui_lists, ui_list);
     ui_list->list_grip = -UI_LIST_AUTO_SIZE_THRESHOLD; /* Force auto size by default. */
@@ -688,8 +685,7 @@ static uiList *ui_list_ensure(const bContext *C,
   }
 
   if (!ui_list->dyn_data) {
-    ui_list->dyn_data = static_cast<uiListDyn *>(
-        MEM_callocN(sizeof(uiListDyn), "uiList.dyn_data"));
+    ui_list->dyn_data = MEM_callocN<uiListDyn>("uiList.dyn_data");
   }
   uiListDyn *dyn_data = ui_list->dyn_data;
   /* Note that this isn't a `uiListType` callback, it's stored in the runtime list data. Otherwise
@@ -738,7 +734,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       /* layout */
       box = uiLayoutListBox(layout, ui_list, &input_data->active_dataptr, input_data->activeprop);
       glob = uiLayoutColumn(box, true);
-      row = uiLayoutRow(glob, false);
+      row = &glob->row(false);
       col = uiLayoutColumn(row, true);
 
       TemplateListLayoutDrawData adjusted_layout_data = *layout_data;
@@ -764,7 +760,7 @@ static void ui_template_list_layout_draw(const bContext *C,
           UI_block_flag_enable(subblock, UI_BLOCK_LIST_ITEM);
 
           /* list item behind label & other buttons */
-          uiLayoutRow(overlap, false);
+          overlap->row(false);
 
           but = uiDefButR_prop(subblock,
                                UI_BTYPE_LISTROW,
@@ -789,11 +785,11 @@ static void ui_template_list_layout_draw(const bContext *C,
             UI_but_func_tooltip_set(but, uilist_item_tooltip_func, dyntip_data, MEM_freeN);
           }
 
-          uiLayout *item_row = uiLayoutRow(overlap, true);
+          uiLayout *item_row = &overlap->row(true);
 
           uiLayoutListItemAddPadding(item_row);
 
-          sub = uiLayoutRow(item_row, false);
+          sub = &item_row->row(false);
           icon = UI_icon_from_rnaptr(C, itemptr, rnaicon, false);
           if (icon == ICON_DOT) {
             icon = ICON_NONE;
@@ -849,7 +845,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       break;
     }
     case UILST_LAYOUT_COMPACT:
-      row = uiLayoutRow(layout, true);
+      row = &layout->row(true);
 
       if ((input_data->dataptr.data && input_data->prop) && (dyn_data->items_shown > 0) &&
           (items->active_item_idx >= 0) && (items->active_item_idx < dyn_data->items_shown))
@@ -901,7 +897,7 @@ static void ui_template_list_layout_draw(const bContext *C,
     case UILST_LAYOUT_GRID: {
       box = uiLayoutListBox(layout, ui_list, &input_data->active_dataptr, input_data->activeprop);
       glob = uiLayoutColumn(box, true);
-      row = uiLayoutRow(glob, false);
+      row = &glob->row(false);
       col = uiLayoutColumn(row, true);
       subrow = nullptr; /* Quite gcc warning! */
 
@@ -917,7 +913,7 @@ static void ui_template_list_layout_draw(const bContext *C,
 
           /* create button */
           if (!(i % layout_data->columns)) {
-            subrow = uiLayoutRow(col, false);
+            subrow = &col->row(false);
           }
 
           uiBlock *subblock = uiLayoutGetBlock(subrow);
@@ -926,7 +922,7 @@ static void ui_template_list_layout_draw(const bContext *C,
           UI_block_flag_enable(subblock, UI_BLOCK_LIST_ITEM);
 
           /* list item behind label & other buttons */
-          uiLayoutRow(overlap, false);
+          overlap->row(false);
 
           but = uiDefButR_prop(subblock,
                                UI_BTYPE_LISTROW,
@@ -944,7 +940,7 @@ static void ui_template_list_layout_draw(const bContext *C,
                                std::nullopt);
           UI_but_drawflag_enable(but, UI_BUT_NO_TOOLTIP);
 
-          sub = uiLayoutRow(overlap, false);
+          sub = &overlap->row(false);
 
           icon = UI_icon_from_rnaptr(C, itemptr, rnaicon, false);
           layout_data->draw_item(ui_list,
@@ -970,7 +966,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       /* add dummy buttons to fill space */
       for (; i < visual_info.start_idx + visual_info.visual_items; i++) {
         if (!(i % layout_data->columns)) {
-          subrow = uiLayoutRow(col, false);
+          subrow = &col->row(false);
         }
         uiItemL(subrow, "", ICON_NONE);
       }
@@ -1000,7 +996,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       /* For grip button. */
       glob = uiLayoutColumn(box, true);
       /* For scroll-bar. */
-      row = uiLayoutRow(glob, false);
+      row = &glob->row(false);
 
       const bool show_names = (flags & UI_TEMPLATE_LIST_NO_NAMES) == 0;
 
@@ -1111,7 +1107,7 @@ static void ui_template_list_layout_draw(const bContext *C,
     dyn_data->resize = dyn_data->resize_prev +
                        (dyn_data->visual_height - ui_list->list_grip) * UI_UNIT_Y;
 
-    row = uiLayoutRow(glob, true);
+    row = &glob->row(true);
     uiBlock *subblock = uiLayoutGetBlock(row);
     UI_block_emboss_set(subblock, blender::ui::EmbossType::None);
 

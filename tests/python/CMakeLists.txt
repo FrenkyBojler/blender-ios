@@ -4,10 +4,6 @@
 
 # Use '--write-blend=/tmp/test.blend' to view output
 
-# Some tests are interesting but take too long to run
-# and don't give deterministic results
-set(USE_EXPERIMENTAL_TESTS FALSE)
-
 set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/data)
 set(TEST_PYTHON_DIR ${CMAKE_SOURCE_DIR}/tests/python)
 set(TEST_OUT_DIR ${CMAKE_BINARY_DIR}/tests)
@@ -228,7 +224,7 @@ add_blender_test(
 )
 
 # test running operators doesn't segfault under various conditions
-if(USE_EXPERIMENTAL_TESTS)
+if(WITH_TESTS_EXPERIMENTAL)
   add_blender_test(
     script_run_operators
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_run_operators.py
@@ -751,9 +747,6 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     list(FILTER gpu_render_tests EXCLUDE REGEX light_group|shadow_catcher|denoise|guiding|reports)
 
     set(_gpu_render_tests_arguments)
-    if(WITH_GPU_RENDER_TESTS_SILENT)
-      list(APPEND _gpu_render_tests_arguments --fail-silently)
-    endif()
 
     # Eevee Next
     if(WITH_OPENGL_BACKEND)
@@ -1021,6 +1014,7 @@ endif()
 if(TEST_SRC_DIR_EXISTS)
   set(geo_node_tests
     attributes
+    closure
     curve_primitives
     curves
     curves/interpolate_curves
@@ -1083,7 +1077,7 @@ if(WITH_GPU_RENDER_TESTS AND TEST_SRC_DIR_EXISTS)
   set(render_tests
   )
 
-  if(USE_EXPERIMENTAL_TESTS)
+  if(WITH_TESTS_EXPERIMENTAL)
     # The viewport tests are flakey and difficult to keep up to date for use
     # in a CI environment due to constantly changing UI, but may still be helpful
     # for local development.
@@ -1142,6 +1136,7 @@ if(WITH_USD AND TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_usd_import_test.py
     --
     --testdir "${TEST_SRC_DIR}/usd"
+    --outdir "${TEST_OUT_DIR}/io_usd"
   )
 endif()
 
