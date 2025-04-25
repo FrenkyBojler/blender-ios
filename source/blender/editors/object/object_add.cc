@@ -4068,9 +4068,6 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
     if (newob) {
       BKE_object_materials_sync_length(bmain, newob, static_cast<ID *>(newob->data));
     }
-    else {
-      incompatible_count++;
-    }
 
     /* tag obdata if it was been changed */
 
