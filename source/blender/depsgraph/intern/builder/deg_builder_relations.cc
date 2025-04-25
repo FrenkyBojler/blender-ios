@@ -1745,10 +1745,6 @@ void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
 
 void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
 {
-  /* This function is called from both build_object_data() and
-   * build_object_data_geometry_datablock(), and I (Sybren) am not sure why. But
-   * that's why this function uses RELATION_CHECK_BEFORE_ADD. */
-
   AnimData *adt = BKE_animdata_from_id(id);
   if (adt == nullptr || BLI_listbase_is_empty(&adt->drivers)) {
     return;
@@ -1768,14 +1764,11 @@ void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
 
     /* prevent driver from occurring before its own animation... */
     if (adt->action || adt->nla_tracks.first) {
-      add_relation(adt_key, driver_key, "AnimData Before Drivers", RELATION_CHECK_BEFORE_ADD);
+      add_relation(adt_key, driver_key, "AnimData Before Drivers");
     }
 
     if (data_path_maybe_shared(*id, fcu->rna_path)) {
-      add_relation(driver_unshare_key,
-                   driver_key,
-                   "Un-share shared data before drivers",
-                   RELATION_CHECK_BEFORE_ADD);
+      add_relation(driver_unshare_key, driver_key, "Un-share shared data before drivers");
     }
   }
 }
