@@ -48,13 +48,13 @@ static void collect_corner_info(const OffsetIndices<int> faces,
 }
 
 struct EdgeOneCorner {
-  int corner;
+  int local_corner_1;
   bool winding_torwards_vert;
 };
 
 struct EdgeTwoCorners {
-  int corner1;
-  int corner2;
+  int local_corner_1;
+  int local_corner_2;
 };
 
 struct EdgeSharp {};
@@ -63,6 +63,7 @@ using VertEdgeInfo = std::variant<std::monostate, EdgeOneCorner, EdgeTwoCorners,
 
 static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
                                        const Span<bool> sharp_edges,
+                                       const int local_corner,
                                        const int corner,
                                        const int other_corner,
                                        const bool winding_torwards_vert,
@@ -80,7 +81,7 @@ static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
         return EdgeSharp{};
       }
     }
-    return EdgeOneCorner{corner, winding_torwards_vert};
+    return EdgeOneCorner{local_corner, winding_torwards_vert};
   }
   if (const EdgeOneCorner *info_one_edge = std::get_if<EdgeOneCorner>(&info)) {
     /* If the edge ends up being used by faces, we still have to check if the winding direction
@@ -89,7 +90,7 @@ static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
     if (info_one_edge->winding_torwards_vert && winding_torwards_vert) {
       return EdgeSharp{};
     }
-    return EdgeTwoCorners{info_one_edge->corner, other_corner};
+    return EdgeTwoCorners{info_one_edge->local_corner_1, local_corner};
   }
   if (std::holds_alternative<EdgeTwoCorners>(info)) {
     /* The edge is already used by two corners. Adding a third would make it non-manifold,
@@ -117,8 +118,8 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
                                       MutableSpan<VertEdgeInfo> vert_edge_infos)
 {
   vert_edge_infos.fill(std::monostate{});
-  for (const int i : corner_infos.index_range()) {
-    const VertCornerInfo &info = corner_infos[i];
+  for (const int local_corner : corner_infos.index_range()) {
+    const VertCornerInfo &info = corner_infos[local_corner];
     const int face = info.face;
     const int edge_prev = other_vert_edge_indices.index_of(info.vert_prev);
     const int edge_next = other_vert_edge_indices.index_of(info.vert_next);
@@ -129,12 +130,14 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
     }
     vert_edge_infos[edge_prev] = add_corner_to_edge(corner_edges,
                                                     sharp_edges,
+                                                    local_corner,
                                                     info.corner,
                                                     info.corner_prev,
                                                     true,
                                                     vert_edge_infos[edge_prev]);
     vert_edge_infos[edge_next] = add_corner_to_edge(corner_edges,
                                                     sharp_edges,
+                                                    local_corner,
                                                     info.corner,
                                                     info.corner_next,
                                                     false,
@@ -223,6 +226,13 @@ void normals_calc_corners(const Span<float3> vert_positions,
       edge_dirs.resize(vert_faces.size());
       for (const int i : other_vert_edge_indices.index_range()) {
         edge_dirs[i] = math::normalize(vert_positions[other_vert_edge_indices[i]] - vert_position);
+      }
+
+      DisjointSet<int> disjoint_set(vert_faces.size());
+      for (const VertEdgeInfo &edge_info : edge_infos) {
+        if (const EdgeTwoCorners *info_two_corners = std::get_if<EdgeTwoCorners>(&edge_info)) {
+          disjoint_set.join(info_two_corners->local_corner_1, info_two_corners->local_corner_2);
+        }
       }
 
       corner_used.resize(vert_faces.size());
