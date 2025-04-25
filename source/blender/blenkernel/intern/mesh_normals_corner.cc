@@ -104,20 +104,20 @@ static void calc_connecting_edge_info(const Span<int> corner_verts,
   for (const int i : corner_infos.index_range()) {
     const VertCornerInfo &info = corner_infos[i];
     const int face = info.face;
+    VertEdgeInfo &edge_prev = vert_edge_infos.lookup_or_add_default(
+        corner_verts[info.corner_prev]);
+    VertEdgeInfo &edge_next = vert_edge_infos.lookup_or_add_default(
+        corner_verts[info.corner_next]);
     if (!sharp_faces.is_empty() && sharp_faces[face]) {
       /* Sharp faces don't contribute to corner fan connectivity. */
+      edge_prev = EdgeSharp{};
+      edge_next = EdgeSharp{};
       continue;
     }
-    {
-      VertEdgeInfo &edge = vert_edge_infos.lookup_or_add_default(corner_verts[info.corner_prev]);
-      edge = add_corner_to_edge(
-          corner_edges, sharp_edges, info.corner, info.corner_prev, true, edge);
-    }
-    {
-      VertEdgeInfo &edge = vert_edge_infos.lookup_or_add_default(corner_verts[info.corner_next]);
-      edge = add_corner_to_edge(
-          corner_edges, sharp_edges, info.corner, info.corner_next, false, edge);
-    }
+    edge_prev = add_corner_to_edge(
+        corner_edges, sharp_edges, info.corner, info.corner_prev, true, edge_prev);
+    edge_next = add_corner_to_edge(
+        corner_edges, sharp_edges, info.corner, info.corner_next, false, edge_next);
   }
 }
 
@@ -197,7 +197,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
 
       // TODO: Not sure if a nested loop is necssary
       int i = 0;
-      while (corner_used.contains(false)) {
+      while (i != -1) {
         corner_used[i] = true;
 
         const VertCornerInfo &info = corner_infos[i];
@@ -214,10 +214,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
           r_corner_normals[corner] = face_normals[info.face];
           i = corner_used.first_index_of(false);
           continue;
-        }
-
-        if (sharp_faces.is_empty() || !sharp_faces[info.face]) {
-          corner_used[info.face] = true;
         }
 
         float3 normal(0);
