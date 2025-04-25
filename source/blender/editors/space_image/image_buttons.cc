@@ -564,7 +564,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout,
     return;
   }
 
-  &layout->row(true);
+  layout->row(true);
 
   /* layer menu is 1/3 larger than pass */
   wmenu1 = (2 * w) / 5;

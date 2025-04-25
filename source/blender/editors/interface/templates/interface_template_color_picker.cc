@@ -255,7 +255,7 @@ void uiTemplatePalette(uiLayout *layout,
   Palette *palette = static_cast<Palette *>(cptr.data);
 
   uiLayout *col = uiLayoutColumn(layout, true);
-  &col->row(true);
+  col->row(true);
   uiDefIconButO(block,
                 UI_BTYPE_BUT,
                 "PALETTE_OT_color_add",
@@ -309,12 +309,12 @@ void uiTemplatePalette(uiLayout *layout,
   }
 
   col = uiLayoutColumn(layout, true);
-  &col->row(true);
+  col->row(true);
 
   int row_cols = 0, col_id = 0;
   LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
     if (row_cols >= cols_per_row) {
-      &col->row(true);
+      col->row(true);
       row_cols = 0;
     }
 

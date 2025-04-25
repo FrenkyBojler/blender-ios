@@ -533,7 +533,7 @@ void AbstractTreeViewItem::add_rename_button(uiLayout &row)
   uiBlock *block = uiLayoutGetBlock(&row);
   blender::ui::EmbossType previous_emboss = UI_block_emboss_get(block);
 
-  &row.row(false);
+  row.row(false);
   /* Enable emboss for the text button. */
   UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 

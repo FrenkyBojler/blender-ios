@@ -174,7 +174,7 @@ void uiTemplatePreview(uiLayout *layout,
       /* Create RNA Pointer */
       PointerRNA texture_ptr = RNA_id_pointer_create(id);
 
-      &layout->row(true);
+      layout->row(true);
       uiDefButS(block,
                 UI_BTYPE_ROW,
                 B_MATPRV,

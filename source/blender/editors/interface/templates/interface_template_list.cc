@@ -760,7 +760,7 @@ static void ui_template_list_layout_draw(const bContext *C,
           UI_block_flag_enable(subblock, UI_BLOCK_LIST_ITEM);
 
           /* list item behind label & other buttons */
-          &overlap->row(false);
+          overlap->row(false);
 
           but = uiDefButR_prop(subblock,
                                UI_BTYPE_LISTROW,
@@ -922,7 +922,7 @@ static void ui_template_list_layout_draw(const bContext *C,
           UI_block_flag_enable(subblock, UI_BLOCK_LIST_ITEM);
 
           /* list item behind label & other buttons */
-          &overlap->row(false);
+          overlap->row(false);
 
           but = uiDefButR_prop(subblock,
                                UI_BTYPE_LISTROW,

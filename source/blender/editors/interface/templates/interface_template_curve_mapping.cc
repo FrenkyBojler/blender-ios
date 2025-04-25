@@ -600,7 +600,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
     UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
-    &layout->row(true);
+    layout->row(true);
 
     /* Curve handle buttons. */
     bt = uiDefIconBut(block,
@@ -739,7 +739,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
             std::nullopt,
             ICON_NONE);
 
-    &layout->row(false);
+    layout->row(false);
     bt = uiDefBut(block,
                   UI_BTYPE_BUT,
                   0,

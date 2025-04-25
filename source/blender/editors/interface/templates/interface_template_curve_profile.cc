@@ -378,7 +378,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
   int path_width = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
   path_width = min_ii(path_width, int(16.0f * UI_UNIT_X));
   const int path_height = path_width;
-  &layout->row(false);
+  layout->row(false);
   uiDefBut(block,
            UI_BTYPE_CURVEPROFILE,
            0,
