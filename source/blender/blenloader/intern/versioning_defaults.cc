@@ -94,8 +94,8 @@ static void blo_update_defaults_screen(bScreen *screen,
       }
     }
 
+    /* Set default folder. */
     LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-      /* Set default folder. */
       if (sl->spacetype == SPACE_FILE) {
         SpaceFile *sfile = (SpaceFile *)sl;
         if (sfile->params) {
@@ -106,15 +106,8 @@ static void blo_update_defaults_screen(bScreen *screen,
           }
         }
       }
-      /* Update default Z bias for retopology overlay. */
-      if (sl->spacetype == SPACE_VIEW3D) {
-        View3D *v3d = (View3D *)sl;
-        if (v3d->overlay.retopology_offset == 0.2f) {
-          v3d->overlay.retopology_offset = 0.01f;
-        }
-      }
     }
-    
+  }
 
   /* For builtin templates only. */
   if (!blo_is_builtin_template(app_template)) {
@@ -204,6 +197,8 @@ static void blo_update_defaults_screen(bScreen *screen,
       v3d->overlay.texture_paint_mode_opacity = 1.0f;
       v3d->overlay.weight_paint_mode_opacity = 1.0f;
       v3d->overlay.vertex_paint_mode_opacity = 1.0f;
+      /* Update default Z bias for retopology overlay. */
+      v3d->overlay.retopology_offset = 0.01f;
       /* Clear this deprecated bit for later reuse. */
       v3d->overlay.edit_flag &= ~V3D_OVERLAY_EDIT_EDGES_DEPRECATED;
       /* grease pencil settings */
