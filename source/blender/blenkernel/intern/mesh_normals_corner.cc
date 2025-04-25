@@ -195,9 +195,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       corner_used.resize(vert_faces.size());
       corner_used.fill(false);
 
-      // TODO: Not sure if a nested loop is necssary
-      int i = 0;
-      while (i != -1) {
+      for (int i = 0; i != -1; i = corner_used.first_index_of_try(false)) {
         corner_used[i] = true;
 
         const VertCornerInfo &info = corner_infos[i];
@@ -212,7 +210,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
             std::holds_alternative<EdgeSharp>(edge_next))
         {
           r_corner_normals[corner] = face_normals[info.face];
-          i = corner_used.first_index_of(false);
           continue;
         }
 
