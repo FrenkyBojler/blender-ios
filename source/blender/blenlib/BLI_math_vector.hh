@@ -62,14 +62,11 @@ template<typename T, int Size>
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> min(Span<VecBase<T, Size>> values)
 {
-  BLI_assert(values.size() > 1);
+  BLI_assert(!values.is_empty());
 
-  VecBase<T, Size> result = *values.begin();
-
-  const VecBase<T, Size> *iter = values.begin();
-  iter++;
-  for (; iter != values.end(); iter++) {
-    result = min(result, *iter);
+  VecBase<T, Size> result = values[0];
+  for (const VecBase<T, Size> &v : values.drop_front(1)) {
+    result = min(result, v);
   }
 
   return result;
@@ -84,14 +81,11 @@ template<typename T, int Size>
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> max(Span<VecBase<T, Size>> values)
 {
-  BLI_assert(values.size() > 1);
+  BLI_assert(!values.is_empty());
 
-  VecBase<T, Size> result = *values.begin();
-
-  const VecBase<T, Size> *iter = values.begin();
-  iter++;
-  for (; iter != values.end(); iter++) {
-    result = max(result, *iter);
+  VecBase<T, Size> result = values[0];
+  for (const VecBase<T, Size> &v : values.drop_front(1)) {
+    result = max(result, v);
   }
 
   return result;
