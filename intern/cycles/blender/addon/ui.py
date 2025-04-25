@@ -16,7 +16,6 @@ from bl_ui.properties_view_layer import (
     ViewLayerCryptomattePanelHelper,
     ViewLayerAOVPanelHelper,
     ViewLayerLightgroupsPanelHelper,
-    ViewLayerGreasePencilPanelHelper,
 )
 
 from bl_ui.properties_object import has_geometry_visibility
@@ -1028,6 +1027,7 @@ class CYCLES_RENDER_PT_passes_data(CyclesButtonsPanel, Panel):
         sub.active = not rd.use_motion_blur
         sub.prop(view_layer, "use_pass_vector")
         col.prop(view_layer, "use_pass_uv")
+        col.prop(view_layer, "use_pass_grease_pencil", text="Separate Pass")
 
         col.prop(cycles_view_layer, "denoising_store_passes", text="Denoising Data")
 
@@ -1088,12 +1088,6 @@ class CYCLES_RENDER_PT_passes_crypto(CyclesButtonsPanel, ViewLayerCryptomattePan
 
 class CYCLES_RENDER_PT_passes_aov(CyclesButtonsPanel, ViewLayerAOVPanelHelper, Panel):
     bl_label = "Shader AOV"
-    bl_context = "view_layer"
-    bl_parent_id = "CYCLES_RENDER_PT_passes"
-
-
-class CYCLES_RENDER_PT_passes_grease_pencil(CyclesButtonsPanel, ViewLayerGreasePencilPanelHelper, Panel):
-    bl_label = "Grease Pencil"
     bl_context = "view_layer"
     bl_parent_id = "CYCLES_RENDER_PT_passes"
 
