@@ -563,10 +563,14 @@ class OBJECT_PT_shadow_terminator(ObjectButtonsPanel, Panel):
     bl_label = "Shadow Terminator"
     bl_parent_id = "OBJECT_PT_shading"
     bl_context = "object"
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE_NEXT',
+        'CYCLES',
+    }
 
     @classmethod
     def poll(cls, context):
-        return context.object.type != 'LIGHT'
+        return (context.object) and (context.engine in cls.COMPAT_ENGINES) and (context.object.type != 'LIGHT')
 
     def draw(self, context):
         layout = self.layout
