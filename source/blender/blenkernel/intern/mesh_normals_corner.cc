@@ -180,7 +180,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
     Vector<bool, 16> corner_used;
     Vector<float3, 16> edge_dirs;
     Vector<int, 16> corners_in_fan;
-    // DisjointSet<int> disjoint_set;
     for (const int vert : range) {
       const float3 vert_position = vert_positions[vert];
       const Span<int> vert_faces = vert_to_face_map[vert];
@@ -256,7 +255,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
         normal += face_normals[info.face] * factor;
 
         /* Travel along the previous edge.*/
-        while (false) {
+        for (const VertEdgeInfo *prev = &edge_info_prev; !std::holds_alternative<EdgeSharp>(*prev);
+             i++)
+        {
         }
 
         /* Travel along the next edge.*/
