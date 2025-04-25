@@ -4,8 +4,7 @@
 
 /* A panorama camera implementing a full cubemap projection. */
 
-shader camera(float focal_length = 90.0,
-              output point position = 0.0,
+shader camera(output point position = 0.0,
               output vector direction = 0.0,
               output color throughput = 1.0)
 {
@@ -13,8 +12,8 @@ shader camera(float focal_length = 90.0,
 
   float s = fmod(st.x, 1.0) - 0.5;
   float t = fmod(st.y, 1.0) - 0.5;
-  int s_face = int(st.x);
-  int t_face = int(st.y);
+  int s_face = int(floor(st.x));
+  int t_face = int(floor(st.y));
 
   if (s_face == 0 && t_face == 1) {
     /* Left face. */
