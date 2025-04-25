@@ -1641,6 +1641,7 @@ static GHOST_WindowHandle playanim_window_open(
                             posy,
                             sizex,
                             sizey,
+                            0,
                             /* Could optionally start full-screen. */
                             GHOST_kWindowStateNormal,
                             false,

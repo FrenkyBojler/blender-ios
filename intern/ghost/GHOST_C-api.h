@@ -172,6 +172,7 @@ extern GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                              int32_t top,
                                              uint32_t width,
                                              uint32_t height,
+                                             uint32_t monitor_index,
                                              GHOST_TWindowState state,
                                              bool is_dialog,
                                              GHOST_GPUSettings gpuSettings);
@@ -607,6 +608,11 @@ extern GHOST_RectangleHandle GHOST_GetWindowBounds(GHOST_WindowHandle windowhand
  * \return A handle to the bounding rectangle of the window.
  */
 extern GHOST_RectangleHandle GHOST_GetClientBounds(GHOST_WindowHandle windowhandle);
+
+/**
+ * Returns the index or ID of the monitor this window is on.
+ */
+extern int GHOST_GetMonitorIndex(GHOST_WindowHandle windowhandle);
 
 /**
  * Disposes a rectangle object.

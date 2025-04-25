@@ -57,6 +57,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
                                      int32_t top,
                                      uint32_t width,
                                      uint32_t height,
+                                     uint32_t /*monitor_index*/,
                                      GHOST_TWindowState state,
                                      GHOST_TDrawingContextType type,
                                      bool wantStereoVisual,
@@ -438,6 +439,11 @@ void GHOST_WindowWin32::getClientBounds(GHOST_Rect &bounds) const
     bounds.m_r = 0;
     bounds.m_t = 0;
   }
+}
+
+int GHOST_WindowWin32::getMonitorIndex() const
+{
+  return 0;
 }
 
 GHOST_TSuccess GHOST_WindowWin32::setClientWidth(uint32_t width)

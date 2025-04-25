@@ -123,6 +123,7 @@ class GHOST_SystemX11 : public GHOST_System {
                               int32_t top,
                               uint32_t width,
                               uint32_t height,
+                              uint32_t monitor_index,
                               GHOST_TWindowState state,
                               GHOST_GPUSettings gpuSettings,
                               const bool exclusive = false,

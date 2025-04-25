@@ -394,6 +394,12 @@ typedef struct wmWindow {
    */
   char addmousemove;
 
+  /* OS-supplied index or ID of this window's monitor. This can be set, or not,
+   * depending on the OS. A value of zero should indicate the main monitor, or
+   * for platforms that use a unified desktop, the desktop. */
+  int monitor_index;
+  char _pad3[4];
+
   /** Window+screen handlers, handled last. */
   ListBase handlers;
   /** Priority handlers, handled first. */

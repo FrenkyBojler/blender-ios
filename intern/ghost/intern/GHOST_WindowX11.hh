@@ -54,6 +54,7 @@ class GHOST_WindowX11 : public GHOST_Window {
                   int32_t top,
                   uint32_t width,
                   uint32_t height,
+                  uint32_t monitor_index,
                   GHOST_TWindowState state,
                   GHOST_WindowX11 *parentWindow,
                   GHOST_TDrawingContextType type,

@@ -39,6 +39,7 @@ class GHOST_WindowCocoa : public GHOST_Window {
    * \param bottom: The coordinate of the bottom edge of the window.
    * \param width: The width the window.
    * \param height: The height the window.
+   * \param monitor_index: The index of the monitor to use for the window.
    * \param state: The state the window is initially opened with.
    * \param type: The type of drawing context installed in this window.
    * \param stereoVisual: Stereo visual for quad buffered stereo.
@@ -50,6 +51,7 @@ class GHOST_WindowCocoa : public GHOST_Window {
                     int32_t bottom,
                     uint32_t width,
                     uint32_t height,
+                    uint32_t monitor_index,
                     GHOST_TWindowState state,
                     GHOST_TDrawingContextType type,
                     const bool stereoVisual,

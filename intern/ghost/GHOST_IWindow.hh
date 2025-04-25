@@ -125,6 +125,11 @@ class GHOST_IWindow {
   virtual void getClientBounds(GHOST_Rect &bounds) const = 0;
 
   /**
+   * Returns the monitor index or ID of the monitor this window is on.
+   */
+  virtual int getMonitorIndex() const = 0;
+
+  /**
    * Resizes client rectangle width.
    * \param width: The new width of the client area of the window.
    */

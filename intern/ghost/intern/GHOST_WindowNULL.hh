@@ -85,6 +85,10 @@ class GHOST_WindowNULL : public GHOST_Window {
   void getClientBounds(GHOST_Rect & /*bounds*/) const override
   { /* nothing */
   }
+  int getMonitorIndex() const override
+  {
+    return 0;
+  }
   GHOST_TSuccess setClientWidth(uint32_t /*width*/) override
   {
     return GHOST_kFailure;

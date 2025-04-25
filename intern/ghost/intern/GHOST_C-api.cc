@@ -162,6 +162,7 @@ GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                       int32_t top,
                                       uint32_t width,
                                       uint32_t height,
+                                      uint32_t monitor_index,
                                       GHOST_TWindowState state,
                                       bool is_dialog,
                                       GHOST_GPUSettings gpuSettings)
@@ -173,6 +174,7 @@ GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                                   top,
                                                   width,
                                                   height,
+                                                  monitor_index,
                                                   state,
                                                   gpuSettings,
                                                   false,
@@ -619,6 +621,12 @@ GHOST_RectangleHandle GHOST_GetClientBounds(GHOST_WindowHandle windowhandle)
   window->getClientBounds(*rectangle);
 
   return (GHOST_RectangleHandle)rectangle;
+}
+
+int GHOST_GetMonitorIndex(GHOST_WindowHandle windowhandle)
+{
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
+  return window->getMonitorIndex();
 }
 
 void GHOST_DisposeRectangle(GHOST_RectangleHandle rectanglehandle)

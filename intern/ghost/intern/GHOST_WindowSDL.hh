@@ -40,6 +40,7 @@ class GHOST_WindowSDL : public GHOST_Window {
                   int32_t top,
                   uint32_t width,
                   uint32_t height,
+                  uint32_t monitor_index,
                   GHOST_TWindowState state,
                   GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
                   const bool stereoVisual = false,

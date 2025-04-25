@@ -844,6 +844,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
       posy,
       win->sizex,
       win->sizey,
+      win->monitor_index,
       (GHOST_TWindowState)win->windowstate,
       is_dialog,
       gpuSettings);
@@ -1010,6 +1011,8 @@ void wm_window_ghostwindows_remove_invalid(bContext *C, wmWindowManager *wm)
 /* Update window size and position based on data from GHOST window. */
 static bool wm_window_update_size_position(wmWindow *win)
 {
+  win->monitor_index = GHOST_GetMonitorIndex(static_cast<GHOST_WindowHandle>(win->ghostwin));
+
   GHOST_RectangleHandle client_rect = GHOST_GetClientBounds(
       static_cast<GHOST_WindowHandle>(win->ghostwin));
   int l, t, r, b;

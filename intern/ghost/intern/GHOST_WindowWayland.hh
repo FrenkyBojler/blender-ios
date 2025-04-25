@@ -72,6 +72,7 @@ class GHOST_WindowWayland : public GHOST_Window {
                       int32_t top,
                       uint32_t width,
                       uint32_t height,
+                      uint32_t monitor_index,
                       GHOST_TWindowState state,
                       const GHOST_IWindow *parentWindow,
                       GHOST_TDrawingContextType type,

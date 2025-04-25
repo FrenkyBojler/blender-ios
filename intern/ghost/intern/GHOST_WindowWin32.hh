@@ -62,6 +62,7 @@ class GHOST_WindowWin32 : public GHOST_Window {
    * \param top: The coordinate of the top edge of the window.
    * \param width: The width the window.
    * \param height: The height the window.
+   * \param monitor_index: The index of the monitor to use for the window.
    * \param state: The state the window is initially opened with.
    * \param type: The type of drawing context installed in this window.
    * \param wantStereoVisual: Stereo visual for quad buffered stereo.
@@ -74,6 +75,7 @@ class GHOST_WindowWin32 : public GHOST_Window {
                     int32_t top,
                     uint32_t width,
                     uint32_t height,
+                    uint32_t monitor_index,
                     GHOST_TWindowState state,
                     GHOST_TDrawingContextType type,
                     bool wantStereoVisual,
@@ -145,6 +147,11 @@ class GHOST_WindowWin32 : public GHOST_Window {
    * \param bounds: The bounding rectangle of the client area of the window.
    */
   void getClientBounds(GHOST_Rect &bounds) const;
+
+  /**
+   * Returns the Monitor index or ID of the monitor this window is on.
+   */
+  int getMonitorIndex() const;
 
   /**
    * Resizes client rectangle width.
