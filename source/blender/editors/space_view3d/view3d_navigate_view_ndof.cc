@@ -759,6 +759,9 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
               vod->depsgraph, vod->area, vod->region))
       {
         negate_v3_v3(rv3d->ndof_ofs, center_test.value());
+        if(rv3d->is_persp) {
+          ED_view3d_distance_set_from_location(rv3d, center_test.value(), 1e-6f);
+        }
         rv3d->ndof_flag |= RV3D_NDOF_OFS_IS_VALID;
       }
     }
