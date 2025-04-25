@@ -174,12 +174,12 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
                                        const int start_local_corner,
                                        Vector<int, 16> &result_fan)
 {
-  const VertCornerInfo &start_info = corner_infos[start_local_corner];
-
   const int start_size = result_fan.size();
+  result_fan.append(start_local_corner);
+
   {
-    int edge_prev = other_vert_edge_indices.index_of(start_info.vert_prev);
     int current = start_local_corner;
+    int edge_prev = other_vert_edge_indices.index_of(corner_infos[current].vert_prev);
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_prev])) {
       current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
       if (current == start_local_corner) {
@@ -194,8 +194,8 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
   std::reverse(reverse_traversal.begin(), reverse_traversal.end());
 
   {
-    int edge_next = other_vert_edge_indices.index_of(start_info.vert_next);
     int current = start_local_corner;
+    int edge_next = other_vert_edge_indices.index_of(corner_infos[current].vert_next);
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_next])) {
       current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
       if (current == start_local_corner) {
