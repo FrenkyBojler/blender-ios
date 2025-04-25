@@ -21,6 +21,7 @@
 /* Needed for the instance iterator. */
 #include "DNA_object_types.h"
 
+#include "BKE_duplilist.hh"
 #include "BKE_object_types.hh"
 
 struct BLI_Iterator;
@@ -265,9 +266,11 @@ struct DEGObjectIterData {
   /* Object which created the dupli-list. */
   Object *dupli_parent;
   /* List of duplicated objects. */
-  ListBase *dupli_list;
+  static inline thread_local blender::Vector<DupliObject> dupli_list;
   /* Next duplicated object to step into. */
   DupliObject *dupli_object_next;
+  /* The dupli_list index of dupli_object_next. */
+  int dupli_object_next_index;
   /* Corresponds to current object: current iterator object is evaluated from
    * this duplicated object. */
   DupliObject *dupli_object_current;
