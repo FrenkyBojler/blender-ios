@@ -242,6 +242,15 @@ static void get_manifold(Manifold &manifold,
   meshgl.vertProperties.resize(size_t(mesh.verts_num) * props_num);
   array_utils::copy(mesh.vert_positions(), MutableSpan(meshgl.vertProperties).cast<float3>());
 
+  /* Using separate a OriginalID for each input face will prevent coplanar
+   * faces from being merged.  (Maybe a better way is coming to Manifold
+   * in the future, but for now this will work.) */
+  constexpr bool use_runids = true;
+  if (use_runids) {
+    meshgl.runIndex.resize(mesh.faces_num);
+    meshgl.runOriginalID.resize(mesh.faces_num);
+  }
+
   const int face_start = mesh_offsets.face_start[mesh_index];
 
   meshgl.faceID.resize(corner_tris.size());
@@ -253,6 +262,10 @@ static void get_manifold(Manifold &manifold,
       const int start = poly_to_tri_count(int(i), int(face.start()));
       const int num = bke::mesh::face_triangles_num(int(face.size()));
       face_ids.slice(start, num).fill(uint32_t(i + face_start));
+      if (use_runids) {
+        meshgl.runOriginalID[i] = face_start + i;
+        meshgl.runIndex[i] = start * 3;
+      }
     }
   });
 
@@ -260,11 +273,13 @@ static void get_manifold(Manifold &manifold,
   MutableSpan vert_tris = MutableSpan(meshgl.triVerts).cast<int3>();
   bke::mesh::vert_tris_from_corner_tris(corner_verts, corner_tris, vert_tris);
 
-  meshgl.runIndex.resize(2);
-  meshgl.runOriginalID.resize(1);
-  meshgl.runIndex[0] = 0;
-  meshgl.runIndex[1] = corner_tris.size() * 3;
-  meshgl.runOriginalID[0] = mesh_index;
+  if (!use_runids) {
+    meshgl.runIndex.resize(2);
+    meshgl.runOriginalID.resize(1);
+    meshgl.runIndex[0] = 0;
+    meshgl.runIndex[1] = corner_tris.size() * 3;
+    meshgl.runOriginalID[0] = mesh_index;
+  }
   if (dbg_level > 0) {
     dump_meshgl(meshgl, "converted result for mesh " + std::to_string(mesh_index));
   }
@@ -714,7 +729,7 @@ static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
  * Return 1 if \a group is just the same as the original face \a face_index
  * in \a mesh.
  * Return 2 if it is the same but with the normal reversed.
- * Return 0 otherwise. 
+ * Return 0 otherwise.
   */
 static uchar check_original_face(const Vector<int, face_group_inline> &group,
                                  const MeshGL &mgl,
@@ -1606,6 +1621,10 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
       get_intersecting_edges(r_intersecting_edges, mesh, out_to_in, mesh_offsets);
     }
   }
+
+  mesh->tag_loose_verts_none();
+  mesh->tag_overlapping_none();
+
   return mesh;
 }
 
@@ -1635,7 +1654,6 @@ static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> mes
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const Span<float4x4> transforms,
-                            const float4x4 &target_transform,
                             const Span<Array<short>> /*material_remaps*/,
                             const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
@@ -1720,9 +1738,6 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
 #  endif
       mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets, r_intersecting_edges);
-    }
-    if (!math::is_identity(target_transform)) {
-      bke::mesh_transform(*mesh_result, target_transform, false);
     }
     return mesh_result;
   }
