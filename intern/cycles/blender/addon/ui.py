@@ -2515,7 +2515,6 @@ classes = (
     CYCLES_RENDER_PT_passes_data,
     CYCLES_RENDER_PT_passes_light,
     CYCLES_RENDER_PT_passes_crypto,
-    CYCLES_RENDER_PT_passes_grease_pencil,
     CYCLES_RENDER_PT_passes_aov,
     CYCLES_RENDER_PT_passes_lightgroups,
     CYCLES_RENDER_PT_filter,

@@ -74,7 +74,6 @@ class VIEWLAYER_PT_eevee_next_layer_passes_data(ViewLayerButtonsPanel, Panel):
 
         scene = context.scene
         view_layer = context.view_layer
-        view_layer_eevee = view_layer.eevee
 
         col = layout.column()
         col.prop(view_layer, "use_pass_combined")
@@ -100,7 +99,6 @@ class VIEWLAYER_PT_workbench_layer_passes_data(ViewLayerButtonsPanel, Panel):
         layout.use_property_decorate = False
 
         view_layer = context.view_layer
-        view_layer_eevee = view_layer.eevee
 
         col = layout.column()
         col.prop(view_layer, "use_pass_combined")
@@ -288,7 +286,6 @@ classes = (
     VIEWLAYER_PT_eevee_next_layer_passes_data,
     VIEWLAYER_PT_eevee_next_layer_passes_light,
     VIEWLAYER_PT_layer_passes_cryptomatte,
-    VIEWLAYER_PT_layer_passes_grease_pencil,
     VIEWLAYER_PT_layer_passes_aov,
     VIEWLAYER_PT_layer_passes_lightgroups,
     VIEWLAYER_PT_filter,
