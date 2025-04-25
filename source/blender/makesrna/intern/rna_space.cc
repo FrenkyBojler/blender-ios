@@ -4844,6 +4844,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "overlay.retopology_offset");
   RNA_def_property_ui_text(
       prop, "Retopology Offset", "Offset used to draw edit mesh in front of other geometry");
+  RNA_def_property_float_default(prop, 0.01f);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0f, 10.0f, 0.1f, 3);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
