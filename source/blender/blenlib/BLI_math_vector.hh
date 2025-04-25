@@ -60,9 +60,41 @@ template<typename T, int Size>
 }
 
 template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> min(const std::initializer_list<VecBase<T, Size>> values)
+{
+  BLI_assert(values.size() > 1);
+
+  VecBase<T, Size> result = *values.begin();
+
+  const VecBase<T, Size> *iter = values.begin();
+  iter++;
+  for (; iter != values.end(); iter++) {
+    result = min(result, *iter);
+  }
+
+  return result;
+}
+
+template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> max(const VecBase<T, Size> &a, const VecBase<T, Size> &b)
 {
   BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::max, a, b);
+}
+
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> max(const std::initializer_list<VecBase<T, Size>> values)
+{
+  BLI_assert(values.size() > 1);
+
+  VecBase<T, Size> result = *values.begin();
+
+  const VecBase<T, Size> *iter = values.begin();
+  iter++;
+  for (; iter != values.end(); iter++) {
+    result = max(result, *iter);
+  }
+
+  return result;
 }
 
 template<typename T, int Size>

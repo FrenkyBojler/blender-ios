@@ -217,14 +217,22 @@ inline Bounds<VecBase<T, 3>> transform_bounds(const MatBase<T, D, D> &matrix,
   const blender::float3 p6_transformed = math::transform_point(matrix, p6);
   const blender::float3 p7_transformed = math::transform_point(matrix, p7);
 
-  const blender::float3 new_min = math::min(math::min(math::min(p0_transformed, p1_transformed),
-                                                      math::min(p2_transformed, p3_transformed)),
-                                            math::min(math::min(p4_transformed, p5_transformed),
-                                                      math::min(p6_transformed, p7_transformed)));
-  const blender::float3 new_max = math::max(math::max(math::max(p0_transformed, p1_transformed),
-                                                      math::max(p2_transformed, p3_transformed)),
-                                            math::max(math::max(p4_transformed, p5_transformed),
-                                                      math::max(p6_transformed, p7_transformed)));
+  const blender::float3 new_min = math::min({p0_transformed,
+                                             p1_transformed,
+                                             p2_transformed,
+                                             p3_transformed,
+                                             p4_transformed,
+                                             p5_transformed,
+                                             p6_transformed,
+                                             p7_transformed});
+  const blender::float3 new_max = math::max({p0_transformed,
+                                             p1_transformed,
+                                             p2_transformed,
+                                             p3_transformed,
+                                             p4_transformed,
+                                             p5_transformed,
+                                             p6_transformed,
+                                             p7_transformed});
 
   return blender::Bounds<blender::float3>{new_min, new_max};
 }
