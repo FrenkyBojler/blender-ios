@@ -112,9 +112,7 @@ static Strip *rna_Strip_split(
 static Strip *rna_Strip_parent_meta(ID *id, Strip *strip_self)
 {
   Scene *scene = (Scene *)id;
-  Editing *ed = blender::seq::editing_get(scene);
-
-  return blender::seq::find_metastrip_by_sequence(&ed->seqbase, nullptr, strip_self);
+  return blender::seq::lookup_meta_by_strip(blender::seq::editing_get(scene), strip_self);
 }
 
 static Strip *rna_Strips_new_clip(ID *id,
@@ -260,9 +258,9 @@ static Strip *rna_Strips_new_image(ID *id,
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(reports,
                 RPT_WARNING,
-                "View transform was automatically converted from %s to %s",
-                vt_old,
-                scene->view_settings.view_transform);
+                "View transform set to %s (converted from %s)",
+                scene->view_settings.view_transform,
+                vt_old);
   }
 
   char dirpath[FILE_MAX], filename[FILE_MAXFILE];
@@ -331,17 +329,17 @@ static Strip *rna_Strips_new_movie(ID *id,
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(reports,
                 RPT_WARNING,
-                "View transform was automatically converted from %s to %s",
-                vt_old,
-                scene->view_settings.view_transform);
+                "View transform set to %s (converted from %s)",
+                scene->view_settings.view_transform,
+                vt_old);
   }
 
   if (fps_old != scene->r.frs_sec / scene->r.frs_sec_base) {
     BKE_reportf(reports,
                 RPT_WARNING,
-                "Scene frame rate was automatically converted from %.4g to %.4g",
-                fps_old,
-                scene->r.frs_sec / scene->r.frs_sec_base);
+                "Scene frame rate set to %.4g (converted from %.4g)",
+                scene->r.frs_sec / scene->r.frs_sec_base,
+                fps_old);
   }
 
   DEG_relations_tag_update(bmain);

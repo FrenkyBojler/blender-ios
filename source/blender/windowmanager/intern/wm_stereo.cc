@@ -251,7 +251,7 @@ static void wm_stereo3d_set_init(bContext *C, wmOperator *op)
   s3dd->stereo3d_format = *win->stereo3d_format;
 }
 
-int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win_src = CTX_wm_window(C);
@@ -323,7 +323,8 @@ int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  MEM_freeN(op->customdata);
+  MEM_freeN(s3dd);
+  op->customdata = nullptr;
 
   if (ok) {
     if (win_dst) {
@@ -340,7 +341,7 @@ int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-int wm_stereo3d_set_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus wm_stereo3d_set_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   wm_stereo3d_set_init(C, op);
 
@@ -403,6 +404,7 @@ bool wm_stereo3d_set_check(bContext * /*C*/, wmOperator * /*op*/)
 
 void wm_stereo3d_set_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op->customdata);
+  MEM_freeN(s3dd);
   op->customdata = nullptr;
 }

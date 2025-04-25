@@ -14,6 +14,7 @@
 
 #include "BLI_math_vector_types.hh"
 #include "DNA_object_enums.h"
+#include "DNA_object_types.h"
 
 #include "GPU_material.hh"
 
@@ -30,6 +31,7 @@ struct GPUMaterial;
 struct GPUShader;
 struct GPUTexture;
 struct GPUUniformBuf;
+struct Mesh;
 struct Object;
 struct ParticleSystem;
 struct rcti;
@@ -148,11 +150,6 @@ void DRW_shader_queue_optimize_material(GPUMaterial *mat);
 
 /* Viewport. */
 
-blender::float2 DRW_viewport_size_get();
-
-DefaultFramebufferList *DRW_viewport_framebuffer_list_get();
-DefaultTextureList *DRW_viewport_texture_list_get();
-
 /* Returns a TextureFromPool stored in the given view data for the pass identified by the given
  * pass name. Engines should call this function for each of the passes needed by the viewport
  * compositor in every redraw, then it should allocate the texture and write the pass data to it.
@@ -209,6 +206,17 @@ bool DRW_object_use_hide_faces(const Object *ob);
 bool DRW_object_is_visible_psys_in_active_context(const Object *object,
                                                   const ParticleSystem *psys);
 
+/**
+ * Convenient accessor for object data, that also automatically returns
+ * the base or tessellated mesh depending if GPU subdivision is enabled.
+ */
+template<typename T> T &DRW_object_get_data_for_drawing(const Object &object)
+{
+  return *static_cast<T *>(object.data);
+}
+
+template<> Mesh &DRW_object_get_data_for_drawing(const Object &object);
+
 /* Draw State. */
 
 /* -------------------------------------------------------------------- */
@@ -236,6 +244,10 @@ struct DRWContext {
 
   /* Returns the viewport's default framebuffer. */
   GPUFrameBuffer *default_framebuffer();
+  /* Returns the viewport's default framebuffer list. Not all of them might be available. */
+  DefaultFramebufferList *viewport_framebuffer_list_get() const;
+  /* Returns the viewport's default texture list. Not all of them might be available. */
+  DefaultTextureList *viewport_texture_list_get() const;
 
   const enum Mode {
     /* Render for display of 2D or 3D area. Runs on main thread. */
@@ -421,28 +433,3 @@ struct DRWContext {
 /** \} */
 
 const DRWContext *DRW_context_get();
-
-/**
- * Whether we are rendering for an image
- */
-static inline bool DRW_state_is_image_render()
-{
-  return DRWContext::get_active().is_image_render();
-}
-
-/**
- * Whether we are rendering only the render engine,
- * or if we should also render the mode engines.
- */
-static inline bool DRW_state_is_scene_render()
-{
-  return DRWContext::get_active().is_scene_render();
-}
-
-/**
- * Whether we are rendering simple opengl render
- */
-static inline bool DRW_state_is_viewport_image_render()
-{
-  return DRWContext::get_active().is_viewport_image_render();
-}

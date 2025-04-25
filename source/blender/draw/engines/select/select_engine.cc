@@ -15,6 +15,7 @@
 #include "BLT_translation.hh"
 
 #include "DEG_depsgraph_query.hh"
+#include "DRW_render.hh"
 #include "ED_view3d.hh"
 
 #include "RE_engine.h"
@@ -29,7 +30,7 @@
 #include "draw_pass.hh"
 #include "draw_view_data.hh"
 
-#include "../overlay/overlay_next_private.hh"
+#include "../overlay/overlay_private.hh"
 
 #include "select_engine.hh"
 
@@ -56,6 +57,8 @@ struct Instance : public DrawEngine {
   View view_faces = {"view_faces"};
   View view_edges = {"view_edges"};
   View view_verts = {"view_verts"};
+
+  const DRWContext *draw_ctx = nullptr;
 
  public:
   struct StaticData {
@@ -84,8 +87,8 @@ struct Instance : public DrawEngine {
 
   void init() final
   {
+    this->draw_ctx = DRW_context_get();
     StaticData &e_data = StaticData::get();
-    const DRWContext *draw_ctx = DRW_context_get();
     eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
                                   GPU_SHADER_CFG_CLIPPED :
                                   GPU_SHADER_CFG_DEFAULT;
@@ -106,7 +109,6 @@ struct Instance : public DrawEngine {
   void begin_sync() final
   {
     StaticData &e_data = StaticData::get();
-    const DRWContext *draw_ctx = DRW_context_get();
     eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
                                   GPU_SHADER_CFG_CLIPPED :
                                   GPU_SHADER_CFG_DEFAULT;
@@ -138,14 +140,14 @@ struct Instance : public DrawEngine {
       {
         auto &sub = depth_only_ps.sub("DepthOnly");
         sub.shader_set(sh->select_id_uniform);
-        sub.push_constant("retopologyOffset", retopology_offset);
+        sub.push_constant("retopology_offset", retopology_offset);
         sub.push_constant("select_id", 0);
         depth_only = &sub;
       }
       if (retopology_occlusion) {
         auto &sub = depth_only_ps.sub("Occlusion");
         sub.shader_set(sh->select_id_uniform);
-        sub.push_constant("retopologyOffset", 0.0f);
+        sub.push_constant("retopology_offset", 0.0f);
         sub.push_constant("select_id", 0);
         depth_occlude = &sub;
       }
@@ -157,14 +159,14 @@ struct Instance : public DrawEngine {
       if (e_data.context.select_mode & SCE_SELECT_FACE) {
         auto &sub = select_face_ps.sub("Face");
         sub.shader_set(sh->select_id_flat);
-        sub.push_constant("retopologyOffset", retopology_offset);
+        sub.push_constant("retopology_offset", retopology_offset);
         select_face_flat = &sub;
       }
       else {
         auto &sub = select_face_ps.sub("FaceNoSelect");
         sub.shader_set(sh->select_id_uniform);
         sub.push_constant("select_id", 0);
-        sub.push_constant("retopologyOffset", retopology_offset);
+        sub.push_constant("retopology_offset", retopology_offset);
         select_face_uniform = &sub;
       }
 
@@ -174,7 +176,7 @@ struct Instance : public DrawEngine {
         auto &sub = select_edge_ps.sub("Sub");
         sub.state_set(state | DRW_STATE_FIRST_VERTEX_CONVENTION, clipping_plane_count);
         sub.shader_set(sh->select_id_flat);
-        sub.push_constant("retopologyOffset", retopology_offset);
+        sub.push_constant("retopology_offset", retopology_offset);
         select_edge = &sub;
       }
 
@@ -186,7 +188,7 @@ struct Instance : public DrawEngine {
         sub.state_set(state, clipping_plane_count);
         sub.shader_set(sh->select_id_flat);
         sub.push_constant("vertex_size", float(2 * vertex_size));
-        sub.push_constant("retopologyOffset", retopology_offset);
+        sub.push_constant("retopology_offset", retopology_offset);
         select_vert = &sub;
       }
     }
@@ -208,7 +210,7 @@ struct Instance : public DrawEngine {
   {
     using namespace blender::draw;
     using namespace blender;
-    Mesh &mesh = *static_cast<Mesh *>(ob->data);
+    Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
     BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     ElemIndexRanges ranges{};
@@ -267,7 +269,7 @@ struct Instance : public DrawEngine {
   {
     using namespace blender::draw;
     using namespace blender;
-    Mesh &mesh = *static_cast<Mesh *>(ob->data);
+    Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
     ElemIndexRanges ranges{};
     ranges.total = IndexRange::from_begin_size(initial_index, 0);
@@ -310,7 +312,7 @@ struct Instance : public DrawEngine {
 
     switch (ob->type) {
       case OB_MESH: {
-        const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+        const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
         if (mesh.runtime->edit_mesh) {
           bool draw_facedot = check_ob_drawface_dot(select_mode, v3d, eDrawType(ob->dt));
           return edit_mesh_sync(ob, res_handle, select_mode, draw_facedot, index_start);
@@ -330,13 +332,12 @@ struct Instance : public DrawEngine {
     Object *ob = ob_ref.object;
     StaticData &e_data = StaticData::get();
     SELECTID_Context &sel_ctx = e_data.context;
-    const DRWContext *draw_ctx = DRW_context_get();
 
     if (!sel_ctx.objects.contains(ob) && ob->dt >= OB_SOLID) {
       /* This object is not selectable. It is here to participate in occlusion.
        * This is the case in retopology mode. */
       blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
-          *static_cast<Mesh *>(ob->data));
+          DRW_object_get_data_for_drawing<Mesh>(*ob));
 
       depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
       return;
@@ -361,7 +362,6 @@ struct Instance : public DrawEngine {
 
     DRW_submission_start();
     {
-      const DRWContext *draw_ctx = DRW_context_get();
       View::OffsetData offset_data(*draw_ctx->rv3d);
       /* Create view with depth offset */
       const View &view = View::default_get();
@@ -371,7 +371,7 @@ struct Instance : public DrawEngine {
     }
 
     {
-      DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+      DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
       GPU_framebuffer_bind(dfbl->depth_only_fb);
       GPU_framebuffer_clear_depth(dfbl->depth_only_fb, 1.0f);
       manager.submit(depth_only_ps, view_faces);
@@ -396,7 +396,7 @@ struct Instance : public DrawEngine {
   void framebuffer_setup()
   {
     StaticData &e_data = StaticData::get();
-    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
     int size[2];
     size[0] = GPU_texture_width(dtxl->depth);
     size[1] = GPU_texture_height(dtxl->depth);
@@ -436,7 +436,7 @@ struct Instance : public DrawEngine {
        * Note this is not working correctly for vertex-paint (yet), but has been discussed
        * in #66645 and there is a solution by @mano-wii in P1032.
        * So OB_MODE_VERTEX_PAINT is already included here [required for P1032 I guess]. */
-      Mesh *me_orig = static_cast<Mesh *>(DEG_get_original_object(ob)->data);
+      Mesh *me_orig = static_cast<Mesh *>(DEG_get_original(ob)->data);
       if (me_orig->editflag & ME_EDIT_PAINT_VERT_SEL) {
         r_select_mode = SCE_SELECT_VERTEX;
       }
