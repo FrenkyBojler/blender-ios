@@ -773,7 +773,7 @@ static bool vfont_to_curve(Object *ob,
 
     if (BKE_vfont_select_get(ob, &selstart, &selend)) {
       ef->selboxes_len = (selend - selstart) + 1;
-      ef->selboxes = MEM_calloc_arrayN<EditFontSelBox>(size_t(ef->selboxes_len), "font selboxes");
+      ef->selboxes = MEM_calloc_arrayN<EditFontSelBox>(ef->selboxes_len, "font selboxes");
     }
     else {
       ef->selboxes_len = 0;
@@ -1421,8 +1421,8 @@ static bool vfont_to_curve(Object *ob,
   /* Cursor first. */
   if (ef) {
     ct = &chartransdata[ef->pos];
-    const float cursor_width = 0.04f;
-    const float cursor_half = 0.02f;
+    const float cursor_width = 0.08f;
+    const float cursor_half = 0.04f;
     const float xoffset = ct->xof;
     const float yoffset = ct->yof;
 
@@ -1776,7 +1776,7 @@ static bool vfont_to_curve(Object *ob,
     }
 
     if (ef == nullptr) {
-      MEM_freeN((void *)mem);
+      MEM_freeN(mem);
     }
     return true;
   }
@@ -1788,7 +1788,7 @@ static bool vfont_to_curve(Object *ob,
   }
   else {
     if (ef == nullptr) {
-      MEM_freeN((void *)mem);
+      MEM_freeN(mem);
     }
   }
 

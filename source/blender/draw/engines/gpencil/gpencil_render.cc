@@ -70,7 +70,6 @@ static void render_init_buffers(const DRWContext *draw_ctx,
                                 const rcti *rect,
                                 const bool separated_pass)
 {
-  Scene *scene = DEG_get_evaluated_scene(depsgraph);
   const int2 size = int2(draw_ctx->viewport_size_get());
   View &view = View::default_get();
 
@@ -94,6 +93,8 @@ static void render_init_buffers(const DRWContext *draw_ctx,
   }
 
   const bool do_region = (!separated_pass) && ((scene->r.mode & R_BORDER) != 0);
+  const bool do_region = !(rect->xmin == 0 && rect->ymin == 0 && rect->xmax == size.x &&
+                           rect->ymax == size.y);
   const bool do_clear_z = !pix_z || do_region;
   const bool do_clear_col = separated_pass || (!pix_col) || do_region;
 
@@ -291,7 +292,7 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
   Manager &manager = *DRW_manager_get();
 
   render_set_view(engine, depsgraph);
-  render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect, false);
+  render_init_buffers(draw_ctx, inst, engine, render_layer, &rect, false);
   inst.init();
 
   inst.camera = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
