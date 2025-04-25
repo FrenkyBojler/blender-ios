@@ -6,8 +6,6 @@
 
 #include "BKE_mesh.hh"
 
-#include "BLI_disjoint_set.hh"
-#include "BLI_map.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
@@ -164,6 +162,45 @@ static float3 calc_smooth_vert_normal(const Span<float3> positions,
   return math::normalize(vert_normal);
 }
 
+static Vector<int> find_corner_fan_starting_at(const Span<VertCornerInfo> corner_infos,
+                                               const Span<VertEdgeInfo> edge_infos,
+                                               const VectorSet<int> &other_vert_edge_indices,
+                                               const int start_local_corner)
+{
+  const VertCornerInfo &start_info = corner_infos[start_local_corner];
+
+  Vector<int> local_corners_in_fan;
+  {
+    int edge_prev = other_vert_edge_indices.index_of(start_info.vert_prev);
+    int current = start_local_corner;
+    while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_prev])) {
+      current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
+      if (current == start_local_corner) {
+        break;
+      }
+      local_corners_in_fan.append(current);
+      edge_prev = other_vert_edge_indices.index_of(corner_infos[current].vert_prev);
+    }
+  }
+
+  std::reverse(local_corners_in_fan.begin(), local_corners_in_fan.end());
+
+  {
+    int edge_next = other_vert_edge_indices.index_of(start_info.vert_next);
+    int current = start_local_corner;
+    while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_next])) {
+      current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
+      if (current == start_local_corner) {
+        break;
+      }
+      local_corners_in_fan.append(current);
+      edge_next = other_vert_edge_indices.index_of(corner_infos[current].vert_next);
+    }
+  }
+
+  return local_corners_in_fan;
+}
+
 void normals_calc_corners(const Span<float3> vert_positions,
                           const OffsetIndices<int> faces,
                           const Span<int> corner_verts,
@@ -228,53 +265,33 @@ void normals_calc_corners(const Span<float3> vert_positions,
         edge_dirs[i] = math::normalize(vert_positions[other_vert_edge_indices[i]] - vert_position);
       }
 
-      DisjointSet<int> disjoint_set(vert_faces.size());
-      for (const VertEdgeInfo &edge_info : edge_infos) {
-        if (const EdgeTwoCorners *info_two_corners = std::get_if<EdgeTwoCorners>(&edge_info)) {
-          disjoint_set.join(info_two_corners->local_corner_1, info_two_corners->local_corner_2);
-        }
-      }
-
       corner_used.resize(vert_faces.size());
       corner_used.fill(false);
 
-      for (int i = 0; i != -1; i = corner_used.first_index_of_try(false)) {
-        corner_used[i] = true;
-
-        const VertCornerInfo &info = corner_infos[i];
-        const int corner = info.corner;
-
-        const int vert_prev = corner_verts[info.corner_prev];
-        const int vert_next = corner_verts[info.corner_next];
-        const int edge_prev = other_vert_edge_indices.index_of(vert_prev);
-        const int edge_next = other_vert_edge_indices.index_of(vert_next);
-
-        const VertEdgeInfo &edge_info_prev = edge_infos[edge_prev];
-        const VertEdgeInfo &edge_info_next = edge_infos[edge_next];
-
-        if (std::holds_alternative<EdgeSharp>(edge_info_prev) &&
-            std::holds_alternative<EdgeSharp>(edge_info_next))
-        {
-          r_corner_normals[corner] = face_normals[info.face];
-          continue;
-        }
+      for (int start_local_corner = 0; start_local_corner != -1;
+           start_local_corner = corner_used.first_index_of_try(false))
+      {
+        Vector<int> local_corners_in_fan = find_corner_fan_starting_at(
+            corner_infos, edge_infos, other_vert_edge_indices, start_local_corner);
 
         float3 normal(0);
+        for (const int local_corner : local_corners_in_fan) {
+          const VertCornerInfo &info = corner_infos[local_corner];
 
-        const float factor = math::safe_acos_approx(math::dot(dir_prev, dir_next));
-        normal += face_normals[info.face] * factor;
+          const int edge_prev = other_vert_edge_indices.index_of(info.vert_prev);
+          const int edge_next = other_vert_edge_indices.index_of(info.vert_next);
 
-        /* Travel along the previous edge.*/
-        for (const VertEdgeInfo *prev = &edge_info_prev; !std::holds_alternative<EdgeSharp>(*prev);
-             i++)
-        {
+          const float factor = math::safe_acos_approx(
+              math::dot(edge_dirs[edge_prev], edge_dirs[edge_next]));
+          normal += face_normals[info.face] * factor;
         }
 
-        /* Travel along the next edge.*/
-        while (false) {
-        }
+        normal = math::normalize(normal);
 
-        corners_in_fan.append(corner);
+        for (const int local_corner : local_corners_in_fan) {
+          const VertCornerInfo &info = corner_infos[local_corner];
+          r_corner_normals[info.corner] = normal;
+        }
       }
     }
   });
