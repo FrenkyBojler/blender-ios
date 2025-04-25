@@ -132,10 +132,17 @@ static void blo_update_defaults_screen(bScreen *screen,
         if (sima->mode == SI_MODE_VIEW) {
           sima->mode = SI_MODE_UV;
         }
+        sima->flag |= SI_DRAW_UV_GUIDE;
         sima->uv_face_opacity = 1.0f;
       }
-      else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
+      else if (STREQ(workspace_name, "Texture Paint")) {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+        sima->flag |= SI_DRAW_UV_GUIDE;
+        sima->uv_face_opacity = 0.0f;
+      }
+      else if (STREQ(workspace_name, "Shading")) {
+        SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+        sima->flag &= ~SI_DRAW_UV_GUIDE;
         sima->uv_face_opacity = 0.0f;
       }
     }

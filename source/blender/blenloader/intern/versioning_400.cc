@@ -6454,7 +6454,7 @@ static void version_show_texpaint_to_show_uv(Main *bmain)
         if (sl->spacetype == SPACE_IMAGE) {
           SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
           if (sima->flag & SI_NO_DRAW_TEXPAINT) {
-            sima->flag |= SI_NO_DRAW_UV_GUIDE;
+            sima->flag |= SI_DRAW_UV_GUIDE;
           }
         }
       }
@@ -9110,6 +9110,21 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 49)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+            /* Invert the stored flag value. Prior to this version, when this flag was initially
+             * introduced, it was a "negative" boolean. */
+            sima->flag ^= SI_DRAW_UV_GUIDE;
+          }
+        }
+      }
+    }
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
