@@ -304,7 +304,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
           break;
         }
 
-        local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), false);
+        local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), true);
         start_local_corner = local_corner_visited.first_index_of_try(false);
       }
     }
