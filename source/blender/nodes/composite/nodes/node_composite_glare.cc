@@ -233,16 +233,16 @@ class SocketSearchOp {
 
 static void gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const auto from_socket_type = static_cast<eNodeSocketDatatype>(params.other_socket().type);
+  const eNodeSocketDatatype from_socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (!params.node_tree().typeinfo->validate_link(from_socket_type, SOCK_RGBA)) {
     return;
   }
 
-  params.add_item(IFACE_("Simple Star Glare"), SocketSearchOp{CMP_NODE_GLARE_SIMPLE_STAR});
-  params.add_item(IFACE_("Fog Glow Glare"), SocketSearchOp{CMP_NODE_GLARE_FOG_GLOW});
-  params.add_item(IFACE_("Streaks Glare"), SocketSearchOp{CMP_NODE_GLARE_STREAKS});
-  params.add_item(IFACE_("Ghost Glare"), SocketSearchOp{CMP_NODE_GLARE_GHOST});
-  params.add_item(IFACE_("Bloom Glare"), SocketSearchOp{CMP_NODE_GLARE_BLOOM});
+  params.add_item(IFACE_("Simple Star"), SocketSearchOp{CMP_NODE_GLARE_SIMPLE_STAR});
+  params.add_item(IFACE_("Fog Glow"), SocketSearchOp{CMP_NODE_GLARE_FOG_GLOW});
+  params.add_item(IFACE_("Streaks"), SocketSearchOp{CMP_NODE_GLARE_STREAKS});
+  params.add_item(IFACE_("Ghost"), SocketSearchOp{CMP_NODE_GLARE_GHOST});
+  params.add_item(IFACE_("Bloom"), SocketSearchOp{CMP_NODE_GLARE_BLOOM});
 }
 
 using namespace blender::compositor;
