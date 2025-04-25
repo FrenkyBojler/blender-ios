@@ -202,7 +202,7 @@ static float4 integrate_distortion(const int2 &texel,
     float4 color = input.sample_bilinear_zero(distorted_uv / float2(size));
     accumulated_color[start] += (1.0f - increment) * color[start];
     accumulated_color[end] += increment * color[end];
-    accumulated_color.w += color.w;  // Accumulate alpha
+    accumulated_color.w += color.w;
   }
   return accumulated_color;
 }
