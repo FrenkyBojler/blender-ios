@@ -99,8 +99,15 @@ static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
   return EdgeSharp{};
 }
 
+using LocalEdgeVectorSet = VectorSet<int,
+                                     DefaultProbingStrategy,
+                                     DefaultHash<int>,
+                                     DefaultEquality<int>,
+                                     SimpleVectorSetSlot<int, int>,
+                                     GuardedAllocator>;
+
 static void calc_local_edge_indices(const Span<VertCornerInfo> corner_infos,
-                                    VectorSet<int> &r_other_vert_to_edge)
+                                    LocalEdgeVectorSet &r_other_vert_to_edge)
 {
   r_other_vert_to_edge.reserve(corner_infos.size());
   for (const VertCornerInfo &info : corner_infos) {
@@ -113,7 +120,7 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
                                       const Span<bool> sharp_edges,
                                       const Span<bool> sharp_faces,
                                       const Span<VertCornerInfo> corner_infos,
-                                      const VectorSet<int> &other_vert_edge_indices,
+                                      const LocalEdgeVectorSet &other_vert_edge_indices,
                                       MutableSpan<VertEdgeInfo> vert_edge_infos)
 {
   vert_edge_infos.fill(std::monostate{});
@@ -163,7 +170,7 @@ static float3 calc_smooth_vert_normal(const Span<float3> positions,
 
 static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
                                        const Span<VertEdgeInfo> edge_infos,
-                                       const VectorSet<int> &other_vert_edge_indices,
+                                       const LocalEdgeVectorSet &other_vert_edge_indices,
                                        const int start_local_corner,
                                        Vector<int, 16> &result_fan)
 {
@@ -214,7 +221,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
 {
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
-    VectorSet<int> other_vert_edge_indices;  // TODO: Inline buffer size
+    LocalEdgeVectorSet other_vert_edge_indices;  // TODO: Inline buffer size
     Vector<VertEdgeInfo, 16> edge_infos;
     Vector<bool, 16> corner_used;
     Vector<float3, 16> edge_dirs;
@@ -234,6 +241,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       other_vert_edge_indices.clear_and_keep_capacity();
       calc_local_edge_indices(corner_infos, other_vert_edge_indices);
 
+      edge_infos.resize(corner_infos.size());
       calc_connecting_edge_info(corner_edges,
                                 sharp_edges,
                                 sharp_faces,
@@ -273,6 +281,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
         corners_in_fan.clear();
         traverse_fan_local_corners(
             corner_infos, edge_infos, other_vert_edge_indices, start_local_corner, corners_in_fan);
+        corner_used.as_mutable_span().fill_indices(corners_in_fan.as_span(), false);
 
         float3 normal(0);
         for (const int local_corner : corners_in_fan) {
