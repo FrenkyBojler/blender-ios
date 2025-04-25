@@ -6,6 +6,7 @@
 
 #include "BKE_mesh.hh"
 
+#include "BLI_disjoint_set.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -23,8 +24,10 @@ namespace blender::bke::mesh {
 struct VertCornerInfo {
   int face;
   int corner;
-  int corner_next;
   int corner_prev;
+  int corner_next;
+  int vert_prev;
+  int vert_next;
 };
 
 static void collect_corner_info(const OffsetIndices<int> faces,
@@ -39,6 +42,8 @@ static void collect_corner_info(const OffsetIndices<int> faces,
     r_corner_infos[i].corner = face_find_corner_from_vert(faces[face], corner_verts, vert);
     r_corner_infos[i].corner_prev = face_corner_prev(faces[face], r_corner_infos[i].corner);
     r_corner_infos[i].corner_next = face_corner_next(faces[face], r_corner_infos[i].corner);
+    r_corner_infos[i].vert_prev = corner_verts[r_corner_infos[i].corner_prev];
+    r_corner_infos[i].vert_next = corner_verts[r_corner_infos[i].corner_next];
   }
 }
 
@@ -95,18 +100,16 @@ static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
   return EdgeSharp{};
 }
 
-static void calc_local_edge_indices(const Span<int> corner_verts,
-                                    const Span<VertCornerInfo> corner_infos,
+static void calc_local_edge_indices(const Span<VertCornerInfo> corner_infos,
                                     VectorSet<int> &r_other_vert_to_edge)
 {
   for (const VertCornerInfo &info : corner_infos) {
-    r_other_vert_to_edge.add(corner_verts[info.corner_prev]);
-    r_other_vert_to_edge.add(corner_verts[info.corner_next]);
+    r_other_vert_to_edge.add(info.vert_prev);
+    r_other_vert_to_edge.add(info.vert_next);
   }
 }
 
-static void calc_connecting_edge_info(const Span<int> corner_verts,
-                                      const Span<int> corner_edges,
+static void calc_connecting_edge_info(const Span<int> corner_edges,
                                       const Span<bool> sharp_edges,
                                       const Span<bool> sharp_faces,
                                       const Span<VertCornerInfo> corner_infos,
@@ -117,8 +120,8 @@ static void calc_connecting_edge_info(const Span<int> corner_verts,
   for (const int i : corner_infos.index_range()) {
     const VertCornerInfo &info = corner_infos[i];
     const int face = info.face;
-    const int edge_prev = other_vert_edge_indices.index_of(corner_verts[info.corner_prev]);
-    const int edge_next = other_vert_edge_indices.index_of(corner_verts[info.corner_next]);
+    const int edge_prev = other_vert_edge_indices.index_of(info.vert_prev);
+    const int edge_next = other_vert_edge_indices.index_of(info.vert_next);
     if (!sharp_faces.is_empty() && sharp_faces[face]) {
       vert_edge_infos[edge_prev] = EdgeSharp{};
       vert_edge_infos[edge_next] = EdgeSharp{};
@@ -177,6 +180,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
     Vector<bool, 16> corner_used;
     Vector<float3, 16> edge_dirs;
     Vector<int, 16> corners_in_fan;
+    // DisjointSet<int> disjoint_set;
     for (const int vert : range) {
       const float3 vert_position = vert_positions[vert];
       const Span<int> vert_faces = vert_to_face_map[vert];
@@ -190,10 +194,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
       collect_corner_info(faces, corner_verts, vert_faces, vert, corner_infos);
 
       other_vert_edge_indices.clear();
-      calc_local_edge_indices(corner_verts, corner_infos, other_vert_edge_indices);
+      calc_local_edge_indices(corner_infos, other_vert_edge_indices);
 
-      calc_connecting_edge_info(corner_verts,
-                                corner_edges,
+      calc_connecting_edge_info(corner_edges,
                                 sharp_edges,
                                 sharp_faces,
                                 corner_infos,
