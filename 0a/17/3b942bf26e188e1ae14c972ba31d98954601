@@ -1,3 +1,3 @@
 Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
-Referenced by issue #137966, Kernel Memory Allocation issue with oneAPI GPU Compute
+Referenced by issue #137966, oneAPI can not render when using large textures
