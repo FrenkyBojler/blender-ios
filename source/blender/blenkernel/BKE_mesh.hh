@@ -200,6 +200,19 @@ void normals_calc_corners(Span<float3> vert_positions,
                           CornerNormalSpaceArray *r_lnors_spacearr,
                           MutableSpan<float3> r_corner_normals);
 
+// NEW!
+void normals_calc_corners(const Span<float3> vert_positions,
+                          const OffsetIndices<int> faces,
+                          const Span<int> corner_verts,
+                          const Span<int> corner_edges,
+                          const GroupedSpan<int> vert_to_face_map,
+                          const Span<float3> face_normals,
+                          const Span<bool> sharp_edges,
+                          const Span<bool> sharp_faces,
+                          const Span<short2> custom_normals,
+                          CornerNormalSpaceArray *r_lnors_spacearr,
+                          MutableSpan<float3> r_corner_normals);
+
 /**
  * \param sharp_faces: Optional array used to mark specific faces for sharp shading.
  */

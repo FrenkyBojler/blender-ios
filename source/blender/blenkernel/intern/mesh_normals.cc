@@ -488,11 +488,10 @@ blender::Span<blender::float3> Mesh::corner_normals() const
         const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
         const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
         mesh::normals_calc_corners(this->vert_positions(),
-                                   this->edges(),
                                    this->faces(),
                                    this->corner_verts(),
                                    this->corner_edges(),
-                                   this->corner_to_face_map(),
+                                   this->vert_to_face_map(),
                                    this->face_normals_true(),
                                    sharp_edges,
                                    sharp_faces,

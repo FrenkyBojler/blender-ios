@@ -205,6 +205,7 @@ set(SRC
   intern/mesh_merge_customdata.cc
   intern/mesh_mirror.cc
   intern/mesh_normals.cc
+  intern/mesh_normals_corner.cc
   intern/mesh_remap.cc
   intern/mesh_remesh_voxel.cc
   intern/mesh_runtime.cc
