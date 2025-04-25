@@ -1,2 +1,2 @@
 Referenced by issue #96840, Cycles oneAPI device
-Referenced by issue #137966, Kernel Memory Allocation issue with oneAPI GPU Compute
+Referenced by issue #137966, oneAPI can not render when using large textures
