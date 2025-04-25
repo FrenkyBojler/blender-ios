@@ -9271,6 +9271,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     const Object *dob = DNA_struct_default_get(Object);
     LISTBASE_FOREACH (Object *, object, &bmain->objects) {
       object->shadow_terminator_normal_offset = dob->shadow_terminator_normal_offset;
+      object->shadow_terminator_geometry_offset = dob->shadow_terminator_geometry_offset;
+      object->shadow_terminator_shading_offset = dob->shadow_terminator_shading_offset;
       /* Copy Cycles' property into Blender Object. */
       IDProperty *cob = version_cycles_properties_from_ID(&object->id);
       if (cob) {
