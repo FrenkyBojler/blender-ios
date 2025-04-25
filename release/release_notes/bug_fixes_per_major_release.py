@@ -375,6 +375,9 @@ class CommitInfo:
 
         for report_number in self.fixed_reports:
             report_information = url_json_get(f"{BLENDER_API_URL}/repos/blender/blender/issues/{report_number}")
+            if report_information is None:
+                print(f"ERROR: Could not gather information from report number: {report_number}\n")
+                continue
 
             report_title = report_information['title']
             module = self.get_module(report_information['labels'])
@@ -439,7 +442,12 @@ class CommitInfo:
 
     def read_from_override(self, override_data: str) -> None:
         self.set_defaults()
-        self.fixed_reports = [override_data]
+        if "ignore" in override_data.lower():
+            self.classification = IGNORED
+            self.needs_update = False
+        else:
+            self.fixed_reports = [override_data]
+            self.needs_update = True
 
         self.has_been_overwritten = True
 
@@ -883,8 +891,8 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
 # Override Utilities
 
 
-def overrides_read() -> dict[str, str]:
-    override_data = {}
+def overrides_read(silence: bool) -> dict[str, str]:
+    override_data: dict[str, str] = {}
     override_report = url_json_get(f"{BLENDER_API_URL}/repos/blender/blender/issues/137983")
     description = override_report["body"].splitlines()
 
@@ -896,19 +904,29 @@ def overrides_read() -> dict[str, str]:
         if line.startswith("| -"):
             continue
 
-        info = line.split("|")
-        # Remove empty strings
-        info = [entry for entry in info if entry != ""]
+        split_line = line.split("|")
+        info: list[str] = []
+        for entry in split_line:
+            # Remove empty strings and strip "#" off the issue number
+            entry = entry.strip().strip("#")
+            if len(entry) != 0:
+                info.append(entry)
 
-        # Position 0 is the commit hash
-        # Position 1 is the issue number it actually fixed
-        override_data[info[0].strip()] = info[1].strip()
+        try:
+            hash = info[0]
+            fixed_issue = info[1]
+            override_data[hash] = fixed_issue
+        except IndexError:
+            print("\n" * 3)
+            print(f"ERROR: Failed to process overrides with this data: {info}")
+            if not silence:
+                input("Press enter to acknowledge: ")
 
     return override_data
 
 
-def overrides_apply(list_of_commits: list[CommitInfo]) -> None:
-    override_data = overrides_read()
+def overrides_apply(list_of_commits: list[CommitInfo], silence: bool) -> None:
+    override_data = overrides_read(silence)
     if len(override_data) == 0:
         return
 
@@ -1048,7 +1066,7 @@ def main() -> int:
     if args.cache:
         cached_commits_load(list_of_commits)
 
-    overrides_apply(list_of_commits)
+    overrides_apply(list_of_commits, args.silence)
 
     classify_commits(
         args.backport_tasks,
