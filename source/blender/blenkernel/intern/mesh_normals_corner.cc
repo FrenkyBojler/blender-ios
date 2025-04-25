@@ -12,6 +12,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
+#include "BLI_vector_set.hh"
 
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
@@ -96,18 +97,11 @@ static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
 
 static void calc_local_edge_indices(const Span<int> corner_verts,
                                     const Span<VertCornerInfo> corner_infos,
-                                    Map<int, int, 16> &r_other_vert_to_edge)
+                                    VectorSet<int> &r_other_vert_to_edge)
 {
-  int edge_index = 0;
   for (const VertCornerInfo &info : corner_infos) {
-    r_other_vert_to_edge.lookup_or_add_cb(corner_verts[info.corner_prev], [&](int *value) {
-      edge_index++;
-      *value = edge_index++;
-    });
-    r_other_vert_to_edge.lookup_or_add_cb(corner_verts[info.corner_next], [&](int *value) {
-      edge_index++;
-      *value = edge_index++;
-    });
+    r_other_vert_to_edge.add(corner_verts[info.corner_prev]);
+    r_other_vert_to_edge.add(corner_verts[info.corner_next]);
   }
 }
 
@@ -116,15 +110,15 @@ static void calc_connecting_edge_info(const Span<int> corner_verts,
                                       const Span<bool> sharp_edges,
                                       const Span<bool> sharp_faces,
                                       const Span<VertCornerInfo> corner_infos,
-                                      const Map<int, int, 16> &other_vert_to_edge,
+                                      const VectorSet<int> &other_vert_edge_indices,
                                       MutableSpan<VertEdgeInfo> vert_edge_infos)
 {
   vert_edge_infos.fill(std::monostate{});
   for (const int i : corner_infos.index_range()) {
     const VertCornerInfo &info = corner_infos[i];
     const int face = info.face;
-    const int edge_prev = other_vert_to_edge.lookup(corner_verts[info.corner_prev]);
-    const int edge_next = other_vert_to_edge.lookup(corner_verts[info.corner_next]);
+    const int edge_prev = other_vert_edge_indices.index_of(corner_verts[info.corner_prev]);
+    const int edge_next = other_vert_edge_indices.index_of(corner_verts[info.corner_next]);
     if (!sharp_faces.is_empty() && sharp_faces[face]) {
       vert_edge_infos[edge_prev] = EdgeSharp{};
       vert_edge_infos[edge_next] = EdgeSharp{};
@@ -178,7 +172,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
 {
   threading::parallel_for(vert_positions.index_range(), 512, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
-    Map<int, int, 16> other_vert_to_edge;
+    VectorSet<int> other_vert_edge_indices;  // TODO: Inline buffer size
     Vector<VertEdgeInfo, 16> edge_infos;
     Vector<bool, 16> corner_used;
     Vector<float3, 16> edge_dirs;
@@ -195,15 +189,15 @@ void normals_calc_corners(const Span<float3> vert_positions,
       corner_infos.resize(vert_faces.size());
       collect_corner_info(faces, corner_verts, vert_faces, vert, corner_infos);
 
-      other_vert_to_edge.clear();
-      calc_local_edge_indices(corner_verts, corner_infos, other_vert_to_edge);
+      other_vert_edge_indices.clear();
+      calc_local_edge_indices(corner_verts, corner_infos, other_vert_edge_indices);
 
       calc_connecting_edge_info(corner_verts,
                                 corner_edges,
                                 sharp_edges,
                                 sharp_faces,
                                 corner_infos,
-                                other_vert_to_edge,
+                                other_vert_edge_indices,
                                 edge_infos);
 
       const int sharp_edges_num = std::count_if(
@@ -225,8 +219,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
       }
 
       edge_dirs.resize(vert_faces.size());
-      for (const auto &[other_vert, local_edge] : other_vert_to_edge.items()) {
-        edge_dirs[local_edge] = math::normalize(vert_positions[other_vert] - vert_position);
+      for (const int i : other_vert_edge_indices.index_range()) {
+        edge_dirs[i] = math::normalize(vert_positions[other_vert_edge_indices[i]] - vert_position);
       }
 
       corner_used.resize(vert_faces.size());
@@ -240,8 +234,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
 
         const int vert_prev = corner_verts[info.corner_prev];
         const int vert_next = corner_verts[info.corner_next];
-        const int edge_prev = other_vert_to_edge.lookup(vert_prev);
-        const int edge_next = other_vert_to_edge.lookup(vert_next);
+        const int edge_prev = other_vert_edge_indices.index_of(vert_prev);
+        const int edge_next = other_vert_edge_indices.index_of(vert_next);
 
         const VertEdgeInfo &edge_info_prev = edge_infos[edge_prev];
         const VertEdgeInfo &edge_info_next = edge_infos[edge_next];
