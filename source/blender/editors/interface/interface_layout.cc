@@ -142,12 +142,12 @@ struct uiButtonItem : uiItem {
   uiBut *but;
 };
 
-struct uiLayoutItemFlow : uiLayout {
+struct uiLayoutItemFlow : public uiLayout {
   int number;
   int totcol;
 };
 
-struct uiLayoutItemGridFlow : uiLayout {
+struct uiLayoutItemGridFlow : public uiLayout {
   /* Extra parameters */
   bool row_major;    /* Fill first row first, instead of filling first column first. */
   bool even_columns; /* Same width for all columns. */
@@ -164,22 +164,22 @@ struct uiLayoutItemGridFlow : uiLayout {
   int tot_items, tot_columns, tot_rows;
 };
 
-struct uiLayoutItemBx : uiLayout {
+struct uiLayoutItemBx : public uiLayout {
   uiBut *roundbox;
 };
 
-struct uiLayoutItemPanelHeader : uiLayout {
+struct uiLayoutItemPanelHeader : public uiLayout {
   PointerRNA open_prop_owner;
   char open_prop_name[64];
 };
 
-struct uiLayoutItemPanelBody : uiLayout {};
+struct uiLayoutItemPanelBody : public uiLayout {};
 
-struct uiLayoutItemSplit : uiLayout {
+struct uiLayoutItemSplit : public uiLayout {
   float percentage;
 };
 
-struct uiLayoutItemRoot : uiLayout {};
+struct uiLayoutItemRoot : public uiLayout {};
 
 /** \} */
 

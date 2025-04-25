@@ -61,14 +61,6 @@ struct uiItem {
  * Meanwhile keep using `uiLayout*` functions to read/write this properties.
  */
 struct uiLayout : uiItem {
-
- public:
-  /**
-   * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
-   * other in row.
-   */
-  uiLayout &row(bool align);
-
   // protected:
   uiLayoutRoot *root_;
   bContextStore *context_;
@@ -100,6 +92,13 @@ struct uiLayout : uiItem {
   float search_weight_;
 
   LayoutSuppressFlag suppress_flag_;
+
+ public:
+  /**
+   * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
+   * other in row.
+   */
+  uiLayout &row(bool align);
 };
 
 enum {
