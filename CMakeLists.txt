@@ -333,6 +333,7 @@ endif()
 unset(_option_default)
 
 option(WITH_GMP "Enable features depending on GMP (Exact Boolean)" ON)
+option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean)" ON)
 
 option(WITH_OPENIMAGEDENOISE "Enable the OpenImageDenoise compositing node" ON)
 
@@ -474,6 +475,7 @@ option(WITH_OPENCOLLADA "Enable OpenCollada Support (http://www.opencollada.org)
 option(WITH_IO_WAVEFRONT_OBJ "Enable Wavefront-OBJ 3D file format support (*.obj)" ON)
 option(WITH_IO_PLY "Enable PLY 3D file format support (*.ply)" ON)
 option(WITH_IO_STL "Enable STL 3D file format support (*.stl)" ON)
+option(WITH_IO_FBX "Enable FBX 3D file format support (*.fbx)" ON)
 option(WITH_IO_GREASE_PENCIL "Enable grease-pencil file format IO (*.svg, *.pdf)" ON)
 
 # Csv support
@@ -757,7 +759,6 @@ option(LLVM_STATIC "Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 option(WITH_CLANG "Use Clang" OFF)
 
-# disable for now, but plan to support on all platforms eventually
 option(WITH_MEM_JEMALLOC "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
 mark_as_advanced(WITH_MEM_JEMALLOC)
 
@@ -811,11 +812,6 @@ Enable GPU render related unit testing using Vulkan"
   OFF
 )
 mark_as_advanced(WITH_GPU_RENDER_TESTS_VULKAN)
-option(WITH_GPU_RENDER_TESTS_SILENT "\
-Run GPU render tests silently (finished tests will pass). \
-Generated report will show failing tests"
-  ON
-)
 option(WITH_GPU_RENDER_TESTS_HEADED "\
 Enable GPU render related unit testing that doesn't work in background mode. \
 These tests require an environment with a display server to run. \
@@ -867,6 +863,14 @@ else()
   # TODO: We should probably add more sanity checks for Windows and Mac as well
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
+
+option(WITH_TESTS_EXPERIMENTAL "\
+Run tests marked as experimental. \
+These tests are labeled as such due to long runtime, flakey results, or other issues that make them unsuitable \
+for blocking a build on."
+  OFF
+)
+mark_as_advanced(WITH_TESTS_EXPERIMENTAL)
 
 # Enabled by default for typical use cases to speed up development cycles. However, when looking
 # into threading or memory related issues (in dependency graph, out-of-bounds, etc) forcing single
@@ -1264,6 +1268,10 @@ if(APPLE)
   include(platform_apple_xcode)
 endif()
 
+if(APPLE)
+  option(WITH_LEGACY_MACOS_X64_LINKER "Use legacy macOS linker. Only on x64 platform. Minutes slower, but emits fewer warnings." OFF)
+  mark_as_advanced(WITH_LEGACY_MACOS_X64_LINKER)
+endif()
 
 # -----------------------------------------------------------------------------
 # Check for Conflicting/Unsupported Configurations
@@ -2405,6 +2413,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CXX_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
     CXX_WARN_NO_UNDEF -Wno-undef
     CXX_WARN_NO_UNDEF_PREFIX -Wno-undef-prefix
+    CXX_WARN_NO_INCONSISTENT_MISSING_OVERRIDE -Wno-inconsistent-missing-override
   )
 
 elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
@@ -2491,7 +2500,12 @@ if(WITH_PYTHON)
     # Always use numpy bundled in precompiled libs.
   elseif((WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY) OR WITH_PYTHON_NUMPY)
     if(("${PYTHON_NUMPY_PATH}" STREQUAL "") OR (${PYTHON_NUMPY_PATH} MATCHES NOTFOUND))
-      find_python_package(numpy "core/include")
+      set(_numpy_include "_core/include")
+      if(PYTHON_VERSION VERSION_LESS "3.13")
+        set(_numpy_include "core/include")
+      endif()
+      find_python_package(numpy "${_numpy_include}")
+      unset(_numpy_include)
     endif()
   endif()
 
@@ -2727,6 +2741,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_INPUT_NDOF)
   info_cfg_option(WITH_INPUT_IME)
   info_cfg_option(WITH_INTERNATIONAL)
+  info_cfg_option(WITH_MANIFOLD)
   info_cfg_option(WITH_OPENCOLLADA)
   info_cfg_option(WITH_OPENCOLORIO)
   info_cfg_option(WITH_OPENIMAGEDENOISE)

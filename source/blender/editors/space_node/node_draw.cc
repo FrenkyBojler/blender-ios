@@ -3581,7 +3581,7 @@ static void node_draw_basis(const bContext &C,
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT,
                               0,
-                              is_active ? ICON_HIDE_OFF : ICON_HIDE_ON,
+                              is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
                               iconofs,
                               rct.ymax - NODE_DY,
                               iconbutw,
@@ -3615,12 +3615,31 @@ static void node_draw_basis(const bContext &C,
   if (node.is_type("CompositorNodeViewer")) {
     short shortcut_icon = get_viewer_shortcut_icon(node);
     iconofs -= iconbutw;
+    const bool is_active = node.flag & NODE_DO_OUTPUT;
     UI_block_emboss_set(&block, blender::ui::EmbossType::None);
+    uiBut *but = uiDefIconBut(&block,
+                              UI_BTYPE_BUT,
+                              0,
+                              is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
+                              iconofs,
+                              rct.ymax - NODE_DY,
+                              iconbutw,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              "");
+
+    UI_but_func_set(but,
+                    node_toggle_button_cb,
+                    POINTER_FROM_INT(node.identifier),
+                    (void *)"NODE_OT_activate_viewer");
+
     uiDefIconBut(&block,
                  UI_BTYPE_BUT,
                  0,
                  shortcut_icon,
-                 iconofs,
+                 iconofs - 1.2 * iconbutw,
                  rct.ymax - NODE_DY,
                  iconbutw,
                  UI_UNIT_Y,

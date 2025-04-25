@@ -2115,22 +2115,13 @@ void OBJECT_OT_curves_empty_hair_add(wmOperatorType *ot)
 /** \name Add Point Cloud Operator
  * \{ */
 
-static bool object_pointcloud_add_poll(bContext *C)
-{
-  if (!USER_EXPERIMENTAL_TEST(&U, use_new_point_cloud_type)) {
-    return false;
-  }
-  return ED_operator_objectmode(C);
-}
-
 static wmOperatorStatus object_pointcloud_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   float loc[3], rot[3];
   add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  Object *object = add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
-  object->dtx |= OB_DRAWBOUNDOX; /* TODO: remove once there is actual drawing. */
+  add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
 
   return OPERATOR_FINISHED;
 }
@@ -2144,7 +2135,7 @@ void OBJECT_OT_pointcloud_add(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = object_pointcloud_add_exec;
-  ot->poll = object_pointcloud_add_poll;
+  ot->poll = ED_operator_objectmode;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2497,7 +2488,7 @@ static void make_object_duplilist_real(bContext *C,
   }
 
   LISTBASE_FOREACH (DupliObject *, dob, lb_duplis) {
-    Object *ob_src = DEG_get_original_object(dob->ob);
+    Object *ob_src = DEG_get_original(dob->ob);
     Object *ob_dst = static_cast<Object *>(ID_NEW_SET(ob_src, BKE_id_copy(bmain, &ob_src->id)));
     id_us_min(&ob_dst->id);
 
@@ -2762,9 +2753,7 @@ static const EnumPropertyItem *convert_target_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_MESH);
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_CURVES_LEGACY);
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_CURVES);
-  if (USER_EXPERIMENTAL_TEST(&U, use_new_point_cloud_type)) {
-    RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_POINTCLOUD);
-  }
+  RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_POINTCLOUD);
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_GREASE_PENCIL);
 
   RNA_enum_item_end(&item, &totitem);
@@ -4021,6 +4010,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   }
 
   bool mball_converted = false;
+  int incompatible_count = 0;
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
@@ -4069,6 +4059,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_pointcloud(*base, target_type, info, &new_base);
           break;
         default:
+          incompatible_count++;
           continue;
       }
     }
@@ -4143,6 +4134,29 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
         WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
         WM_event_add_notifier(C, NC_OBJECT | ND_DATA, object);
       }
+    }
+  }
+
+  if (incompatible_count != 0) {
+    const char *target_type_name = "";
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target");
+    BLI_assert(prop != nullptr);
+    RNA_property_enum_name(C, op->ptr, prop, target, &target_type_name);
+    if (incompatible_count == selected_editable_bases.size()) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s \"%s\"",
+                  RPT_("None of the objects are compatible of conversion to"),
+                  IFACE_(target_type_name));
+    }
+    else {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s %d %s \"%s\"",
+                  RPT_("The selection included"),
+                  incompatible_count,
+                  RPT_("object(s) types which don't support conversion to"),
+                  IFACE_(target_type_name));
     }
   }
 
