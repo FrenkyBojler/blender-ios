@@ -639,6 +639,40 @@ void ED_node_shader_default(const bContext *C, ID *id)
   }
 }
 
+void ED_node_composit_default(const bContext *C, Scene *sce)
+{
+  Main *bmain = CTX_data_main(C);
+
+  /* but lets check it anyway */
+  if (sce->compositing_nodetree) {
+    if (G.debug & G_DEBUG) {
+      printf("error in composite initialize\n");
+    }
+    return;
+  }
+
+  sce->compositing_nodetree = blender::bke::node_tree_add_tree(
+      bmain, "Compositing Nodetree Legacy", ntreeType_Composite->idname);
+  id_us_min(&sce->compositing_nodetree->id);
+
+  bNode *out = blender::bke::node_add_static_node(
+      C, *sce->compositing_nodetree, CMP_NODE_COMPOSITE);
+  out->location[0] = 200.0f;
+  out->location[1] = 200.0f;
+
+  bNode *in = blender::bke::node_add_static_node(C, *sce->compositing_nodetree, CMP_NODE_R_LAYERS);
+  in->location[0] = -200.0f;
+  in->location[1] = 200.0f;
+  blender::bke::node_set_active(*sce->compositing_nodetree, *in);
+
+  /* Links from color to color. */
+  bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
+  bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
+  blender::bke::node_add_link(*sce->compositing_nodetree, *in, *fromsock, *out, *tosock);
+
+  BKE_ntree_update_after_single_tree_change(*bmain, *sce->compositing_nodetree);
+}
+
 void ED_node_texture_default(const bContext *C, Tex *tex)
 {
   if (tex->nodetree) {

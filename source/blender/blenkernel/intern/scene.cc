@@ -1106,12 +1106,13 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   if (sce->compositing_nodetree) {
-    // todo(habib): might need to localize: have two scenes refer to the same node with the same
-    // storage
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_nodetree->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
+    // todo(habib): remove name
+    strcpy(temp_nodetree->id.name + 2, "Compositing Nodetree for Forward Compatibility");
     temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
     temp_nodetree->owner_id = &sce->id;
+    temp_nodetree->id.lib = nullptr;
     /* Set deprecated chunksize for forward compatibility. */
     temp_nodetree->chunksize = 256;
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);

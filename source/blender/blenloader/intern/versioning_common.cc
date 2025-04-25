@@ -691,11 +691,17 @@ void do_versions_after_setup(Main *new_bmain,
   }
 
   // todo(habib): update subversion number before merging
-  if (!blendfile_or_libraries_versions_atleast(new_bmain, 405, 33)) {
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 405, 50)) {
     LISTBASE_FOREACH (Scene *, scene, &new_bmain->scenes) {
       bNodeTree *ntree = scene->nodetree;
       if (!ntree) {
         continue;
+      }
+      if (scene->compositing_nodetree) {
+        blender::bke::node_tree_free_embedded_tree(scene->nodetree);
+        MEM_freeN(scene->nodetree);
+        scene->nodetree = nullptr;
+        return;
       }
       ntree->id.flag &= ~ID_FLAG_EMBEDDED_DATA;
       ntree->owner_id = nullptr;

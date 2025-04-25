@@ -1969,6 +1969,15 @@ static std::optional<std::string> rna_SceneRenderView_path(const PointerRNA *ptr
   return fmt::format("render.views[\"{}\"]", srv_name_esc);
 }
 
+static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
+{
+  Scene *scene = (Scene *)ptr->data;
+  if (scene->use_nodes && scene->compositing_nodetree == nullptr) {
+    ED_node_composit_default(C, scene);
+  }
+  DEG_relations_tag_update(CTX_data_main(C));
+}
+
 static void rna_Physics_relations_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
   DEG_relations_tag_update(bmain);
@@ -8873,16 +8882,18 @@ void RNA_def_scene(BlenderRNA *brna)
 
   /* Nodes (Compositing) */
   prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "nodetree");
+  RNA_def_property_pointer_sdna(prop, nullptr, "compositing_nodetree");
   RNA_def_property_clear_flag(prop, PROP_PTR_NO_OWNERSHIP);
   RNA_def_property_struct_type(prop, "NodeTree");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_ui_text(prop, "Node Tree", "Compositing node tree (deprecated)");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  RNA_def_property_ui_text(
+      prop, "Node Tree", "Compositing node tree (deprecated, use compositing_node_tree)");
 
   prop = RNA_def_property(srna, "compositing_node_tree", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "compositing_nodetree");
   RNA_def_property_struct_type(prop, "NodeTree");
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "Compositing node tree");
   RNA_def_property_update(prop, 0, "rna_Scene_compositor_update");
 
@@ -8890,7 +8901,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Use Nodes", "Enable the compositing node tree");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_use_nodes_update");
 
   /* Sequencer */
   prop = RNA_def_property(srna, "sequence_editor", PROP_POINTER, PROP_NONE);

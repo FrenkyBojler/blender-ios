@@ -3495,7 +3495,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
                                         const StringRef name,
                                         const StringRef idname)
 {
-  /* trees are created as local trees for compositor, material or texture nodes,
+  /* trees are created as local trees for material or texture nodes,
    * node groups and other tree types are created as library data.
    */
   int flag = 0;
@@ -3994,7 +3994,6 @@ bNodeTree **node_tree_ptr_from_id(ID *id)
       return &reinterpret_cast<Tex *>(id)->nodetree;
     case ID_SCE:
       /* Needed for backward compatibility. */
-      // todo(habib): silence warning
       return &reinterpret_cast<Scene *>(id)->nodetree;
     case ID_LS:
       return &reinterpret_cast<FreestyleLineStyle *>(id)->nodetree;
