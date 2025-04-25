@@ -73,6 +73,12 @@ template<typename T, int Size>
 }
 
 template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> min(std::initializer_list<VecBase<T, Size>> values)
+{
+  return min(Span(values));
+}
+
+template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> max(const VecBase<T, Size> &a, const VecBase<T, Size> &b)
 {
   BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::max, a, b);
@@ -89,6 +95,12 @@ template<typename T, int Size>
   }
 
   return result;
+}
+
+template<typename T, int Size>
+[[nodiscard]] inline VecBase<T, Size> max(std::initializer_list<VecBase<T, Size>> values)
+{
+  return max(Span(values));
 }
 
 template<typename T, int Size>
