@@ -219,6 +219,7 @@ void USDCameraReader::read_object_data(Main *bmain, const double motionSampleTim
 
   bAction *action = nullptr;
   if (is_time_varying) {
+    std::scoped_lock lock{settings_->reader_mutex};
     action = blender::animrig::id_action_ensure(bmain, &camera->id);
   }
 
