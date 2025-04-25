@@ -102,6 +102,7 @@ static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
 static void calc_local_edge_indices(const Span<VertCornerInfo> corner_infos,
                                     VectorSet<int> &r_other_vert_to_edge)
 {
+  r_other_vert_to_edge.reserve(corner_infos.size());
   for (const VertCornerInfo &info : corner_infos) {
     r_other_vert_to_edge.add(info.vert_prev);
     r_other_vert_to_edge.add(info.vert_next);
@@ -211,7 +212,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           CornerNormalSpaceArray *r_lnors_spacearr,
                           MutableSpan<float3> r_corner_normals)
 {
-  threading::parallel_for(vert_positions.index_range(), 512, [&](const IndexRange range) {
+  threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
     VectorSet<int> other_vert_edge_indices;  // TODO: Inline buffer size
     Vector<VertEdgeInfo, 16> edge_infos;
@@ -230,7 +231,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       corner_infos.resize(vert_faces.size());
       collect_corner_info(faces, corner_verts, vert_faces, vert, corner_infos);
 
-      other_vert_edge_indices.clear();
+      other_vert_edge_indices.clear_and_keep_capacity();
       calc_local_edge_indices(corner_infos, other_vert_edge_indices);
 
       calc_connecting_edge_info(corner_edges,
