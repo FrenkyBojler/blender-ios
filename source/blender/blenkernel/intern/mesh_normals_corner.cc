@@ -223,7 +223,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
     Vector<VertCornerInfo, 16> corner_infos;
     LocalEdgeVectorSet other_vert_edge_indices;  // TODO: Inline buffer size
     Vector<VertEdgeInfo, 16> edge_infos;
-    Vector<bool, 16> corner_used;
+    Vector<bool, 16> local_corner_visited;
     Vector<float3, 16> edge_dirs;
     Vector<int, 16> corners_in_fan;
     for (const int vert : range) {
@@ -272,16 +272,14 @@ void normals_calc_corners(const Span<float3> vert_positions,
         edge_dirs[i] = math::normalize(vert_positions[other_vert_edge_indices[i]] - vert_position);
       }
 
-      corner_used.resize(vert_faces.size());
-      corner_used.fill(false);
+      local_corner_visited.resize(vert_faces.size());
+      local_corner_visited.fill(false);
 
-      for (int start_local_corner = 0; start_local_corner != -1;
-           start_local_corner = corner_used.first_index_of_try(false))
-      {
+      int start_local_corner = 0;
+      while (start_local_corner != -1) {
         corners_in_fan.clear();
         traverse_fan_local_corners(
             corner_infos, edge_infos, other_vert_edge_indices, start_local_corner, corners_in_fan);
-        corner_used.as_mutable_span().fill_indices(corners_in_fan.as_span(), false);
 
         float3 normal(0);
         for (const int local_corner : corners_in_fan) {
@@ -301,6 +299,13 @@ void normals_calc_corners(const Span<float3> vert_positions,
           const VertCornerInfo &info = corner_infos[local_corner];
           r_corner_normals[info.corner] = normal;
         }
+
+        if (corners_in_fan.size() == corner_infos.size()) {
+          break;
+        }
+
+        local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), false);
+        start_local_corner = local_corner_visited.first_index_of_try(false);
       }
     }
   });
