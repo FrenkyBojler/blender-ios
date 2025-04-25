@@ -95,7 +95,7 @@ enum {
    * active button can be polled on non-active buttons to (e.g. for disabling). */
   UI_BUT_ACTIVE_OVERRIDE = (1 << 7),
 
-  /* WARNING: rest of #uiBut.flag in UI_interface.hh */
+  /* WARNING: rest of #uiBut.flag in `UI_interface_c.hh`. */
 };
 
 /** #uiBut.pie_dir */
@@ -458,7 +458,7 @@ struct uiButCurveMapping : public uiBut {
 
 /** Derived struct for #UI_BTYPE_HOTKEY_EVENT. */
 struct uiButHotkeyEvent : public uiBut {
-  uint8_t modifier_key = 0;
+  wmEventModifierFlag modifier_key = wmEventModifierFlag(0);
 };
 
 /**

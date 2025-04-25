@@ -61,7 +61,7 @@ static ScrArea *screen_addarea_ex(ScrAreaMap *area_map,
                                   ScrVert *bottom_right,
                                   const eSpace_Type space_type)
 {
-  ScrArea *area = static_cast<ScrArea *>(MEM_callocN(sizeof(ScrArea), "addscrarea"));
+  ScrArea *area = MEM_callocN<ScrArea>("addscrarea");
 
   area->v1 = bottom_left;
   area->v2 = top_left;
@@ -716,9 +716,6 @@ static bool region_poll(const bContext *C,
   return region->runtime->type->poll(&params);
 }
 
-/**
- * \return true if any region polling state changed, and an area re-init is needed.
- */
 bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
 {
   bScreen *prev_screen = CTX_wm_screen(C);
@@ -979,7 +976,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
 
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Scene *scene = WM_window_get_active_scene(prevwin);
-    Scene *scene_eval = (Scene *)DEG_get_evaluated_id(depsgraph, &scene->id);
+    Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
     BKE_sound_stop_scene(scene_eval);
   }
   screen->animtimer = nullptr;
@@ -1056,28 +1053,15 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
     if (az->type == AZONE_AREA) {
       WM_cursor_set(win, WM_CURSOR_EDIT);
     }
+    else if (az->type == AZONE_REGION_SCROLL) {
+      WM_cursor_set(win, WM_CURSOR_DEFAULT);
+    }
     else if (az->type == AZONE_REGION) {
-      const bool is_hidden = (az->region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL));
-      if (is_hidden) {
-        switch (az->edge) {
-          case AE_LEFT_TO_TOPRIGHT:
-            WM_cursor_set(win, WM_CURSOR_W_ARROW);
-            break;
-          case AE_RIGHT_TO_TOPLEFT:
-            WM_cursor_set(win, WM_CURSOR_E_ARROW);
-            break;
-          case AE_TOP_TO_BOTTOMRIGHT:
-            WM_cursor_set(win, WM_CURSOR_N_ARROW);
-            break;
-          case AE_BOTTOM_TO_TOPLEFT:
-            WM_cursor_set(win, WM_CURSOR_S_ARROW);
-            break;
-        }
+      if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
+        WM_cursor_set(win, WM_CURSOR_X_MOVE);
       }
       else {
-        WM_cursor_set(win,
-                      ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT) ? WM_CURSOR_X_MOVE :
-                                                                                 WM_CURSOR_Y_MOVE);
+        WM_cursor_set(win, WM_CURSOR_Y_MOVE);
       }
     }
   }
@@ -1285,7 +1269,7 @@ static void screen_global_area_refresh(wmWindow *win,
     screen_area_spacelink_add(WM_window_get_active_scene(win), area, space_type);
 
     /* Data specific to global areas. */
-    area->global = static_cast<ScrGlobalAreaData *>(MEM_callocN(sizeof(*area->global), __func__));
+    area->global = MEM_callocN<ScrGlobalAreaData>(__func__);
     area->global->size_max = height_max;
     area->global->size_min = height_min;
     area->global->align = align;
@@ -1863,8 +1847,7 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
   }
 
   if (enable) {
-    ScreenAnimData *sad = static_cast<ScreenAnimData *>(
-        MEM_callocN(sizeof(ScreenAnimData), "ScreenAnimData"));
+    ScreenAnimData *sad = MEM_callocN<ScreenAnimData>("ScreenAnimData");
 
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / FPS));
 

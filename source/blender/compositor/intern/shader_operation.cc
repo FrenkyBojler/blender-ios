@@ -131,7 +131,10 @@ void ShaderOperation::link_node_inputs(DNode node)
   for (int i = 0; i < node->input_sockets().size(); i++) {
     const DInputSocket input{node.context(), node->input_sockets()[i]};
 
+    /* The input is unavailable and unused, but it still needs to be linked as this is what the GPU
+     * material compiler expects. */
     if (!input->is_available()) {
+      this->link_node_input_unavailable(input);
       continue;
     }
 
@@ -166,6 +169,19 @@ void ShaderOperation::link_node_inputs(DNode node)
      * the node input. */
     this->link_node_input_external(input, output);
   }
+}
+
+void ShaderOperation::link_node_input_unavailable(const DInputSocket input)
+{
+  ShaderNode &node = *shader_nodes_.lookup(input.node());
+  GPUNodeStack &stack = node.get_input(input->identifier);
+
+  /* Create a constant link with some zero value. The value is arbitrary and ignored. See the
+   * method description. */
+  zero_v4(stack.vec);
+  GPUNodeLink *link = GPU_constant(stack.vec);
+
+  GPU_link(material_, "set_value", link, &stack.link);
 }
 
 /* Initializes the vector value of the given GPU node stack from the default value of the given
@@ -555,15 +571,15 @@ static ImageType gpu_image_type_from_result_type(const ResultType type)
     case ResultType::Float3:
     case ResultType::Color:
     case ResultType::Float4:
-      return ImageType::FLOAT_2D;
+      return ImageType::Float2D;
     case ResultType::Int:
     case ResultType::Int2:
     case ResultType::Bool:
-      return ImageType::INT_2D;
+      return ImageType::Int2D;
   }
 
   BLI_assert_unreachable();
-  return ImageType::FLOAT_2D;
+  return ImageType::Float2D;
 }
 
 void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_info)
@@ -623,8 +639,8 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
     /* Add a write-only image for this output where its values will be written. */
     shader_create_info.image(output_index,
                              result.get_gpu_texture_format(),
-                             Qualifier::WRITE,
-                             gpu_image_type_from_result_type(result.type()),
+                             Qualifier::write,
+                             ImageReadWriteType(gpu_image_type_from_result_type(result.type())),
                              output_identifier,
                              Frequency::PASS);
     output_index++;
