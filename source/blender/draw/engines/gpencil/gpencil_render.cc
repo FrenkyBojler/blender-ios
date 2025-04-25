@@ -66,7 +66,6 @@ static void render_init_buffers(const DRWContext *draw_ctx,
                                 Instance &inst,
                                 RenderEngine *engine,
                                 RenderLayer *render_layer,
-                                const Depsgraph *depsgraph,
                                 const rcti *rect,
                                 const bool separated_pass)
 {
@@ -92,9 +91,8 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     remap_depth(view, {pix_z, rpass_z_src->rectx * rpass_z_src->recty});
   }
 
-  const bool do_region = (!separated_pass) && ((scene->r.mode & R_BORDER) != 0);
-  const bool do_region = !(rect->xmin == 0 && rect->ymin == 0 && rect->xmax == size.x &&
-                           rect->ymax == size.y);
+  const bool do_region = (!separated_pass) && (!(rect->xmin == 0 && rect->ymin == 0 &&
+                                                 rect->xmax == size.x && rect->ymax == size.y));
   const bool do_clear_z = !pix_z || do_region;
   const bool do_clear_col = separated_pass || (!pix_col) || do_region;
 
@@ -260,7 +258,7 @@ static void render_frame(RenderEngine *engine,
     const float2 aa_sample = Instance::antialiasing_sample_get(sample_i, sample_count) * aa_radius;
     const float2 aa_offset = 2.0f * aa_sample / float2(inst.render_color_tx.size());
     render_set_view(engine, depsgraph, aa_offset);
-    render_init_buffers(draw_ctx, inst, engine, render_layer, depsgraph, &rect, separated_pass);
+    render_init_buffers(draw_ctx, inst, engine, render_layer, &rect, separated_pass);
 
     /* Render the gpencil object and merge the result to the underlying render. */
     inst.draw(manager);
@@ -281,7 +279,7 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
   const DRWContext *draw_ctx = DRW_context_get();
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
-  if (draw_ctx->view_layer->grease_pencil_flags & GREASE_PENCIL_RENDER_PASS_MASTER) {
+  if (draw_ctx->view_layer->grease_pencil_flags & GREASE_PENCIL_AS_SEPARATE_PASS) {
     Render *re = engine->re;
     RE_create_render_pass(
         re->result, RE_PASSNAME_GREASE_PENCIL, 4, "RGBA", render_layer->name, viewname, true);

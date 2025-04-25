@@ -73,7 +73,7 @@ class ViewLayerGreasePencilPanelHelper(ViewLayerButtonsPanel, Panel):
         view_layer = context.view_layer
 
         col = layout.column()
-        col.prop(view_layer, "use_pass_grease_pencil", text="As Separate Pass")
+        col.prop(view_layer, "use_pass_grease_pencil", text="Separate Pass")
 
 
 class VIEWLAYER_PT_layer_passes_grease_pencil(ViewLayerGreasePencilPanelHelper, Panel):

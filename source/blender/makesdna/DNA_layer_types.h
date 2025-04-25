@@ -52,7 +52,7 @@ ENUM_OPERATORS(eViewLayerEEVEEPassType, 1 << EEVEE_RENDER_PASS_MAX_BIT)
 
 /* #ViewLayer::grease_pencil_flags */
 typedef enum eViewLayerGreasePencilFlags {
-  GREASE_PENCIL_RENDER_PASS_MASTER = (1 << 0),
+  GREASE_PENCIL_AS_SEPARATE_PASS = (1 << 0),
 } eViewLayerGreasePencilFlags;
 
 /* #ViewLayerAOV.type */
