@@ -245,12 +245,30 @@ class Preprocessor {
         out_str.replace(start, end - start, macro_body);
       }
     }
-    /* Replace explicit instantiation by macro call. */
-    /* Only `template ret_t fn<T>(args);` syntax is supported. */
-    std::regex regex_instance(R"(template \w+ (\w+)<([\w+, \n]+)>\(([\w+ ,\n]+)\);)");
-    /* Notice the stupid way of keeping the number of lines the same by copying the argument list
-     * inside a multiline comment. */
-    return std::regex_replace(out_str, regex_instance, "$1_TEMPLATE($2)/*$3*/");
+    {
+      /* Replace explicit instantiation by macro call. */
+      /* Only `template ret_t fn<T>(args);` syntax is supported. */
+      std::regex regex_instance(R"(template \w+ (\w+)<([\w+, \n]+)>\(([\w+ ,\n]+)\);)");
+      /* Notice the stupid way of keeping the number of lines the same by copying the argument list
+       * inside a multiline comment. */
+      out_str = std::regex_replace(out_str, regex_instance, "$1_TEMPLATE($2)/*$3*/");
+    }
+    {
+      /* Check if there is no remaining declaration and instantiation that were not processed. */
+      if (out_str.find("template<") != std::string::npos) {
+        std::regex regex_instance(R"(template<)");
+        regex_global_search(out_str, regex_instance, [&](const std::smatch &match) {
+          report_error(match, "Template declaration unsupported syntax");
+        });
+      }
+      if (out_str.find("template ") != std::string::npos) {
+        std::regex regex_instance(R"(template )");
+        regex_global_search(out_str, regex_instance, [&](const std::smatch &match) {
+          report_error(match, "Template instantiation unsupported syntax");
+        });
+      }
+    }
+    return out_str;
   }
 
   std::string remove_quotes(const std::string &str)
