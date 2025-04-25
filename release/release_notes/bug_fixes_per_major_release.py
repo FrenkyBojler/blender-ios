@@ -41,7 +41,7 @@ incorrect.
 
 In situations like this it can be easier to simply override the issue that
 the commit claims to fix. This can be done by adding a entry to the overrides
-issue: https://projects.blender.org/blender/blender/issues/128422
+issue: https://projects.blender.org/blender/blender/issues/137983
 
 ---
 
@@ -819,7 +819,7 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
     print_list_of_commits("Commits that need manual sorting:", dict_of_sorted_commits[NEEDS_MANUAL_SORTING])
 
     print_list_of_commits(
-        "Commits that need a override (launch this script with -o) as they claim to fix a PR:",
+        "Commits that need a override in https://projects.blender.org/blender/blender/issues/137983 as they claim to fix a PR:",
         dict_of_sorted_commits[FIXED_PR])
 
     print_list_of_commits("Ignored commits:", dict_of_sorted_commits[IGNORED])
@@ -885,7 +885,7 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
 
 def overrides_read() -> dict[str, str]:
     override_data = {}
-    override_report = url_json_get("https://projects.blender.org/api/v1/repos/blender/blender/issues/128422")
+    override_report = url_json_get(f"{BLENDER_API_URL}/repos/blender/blender/issues/137983")
     description = override_report["body"].splitlines()
 
     for line in description:
