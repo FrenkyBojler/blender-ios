@@ -1173,12 +1173,12 @@ class SEQUENCER_MT_image_transform(Menu):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_REGION_PREVIEW'
-        
+
         layout.operator("transform.translate")
         layout.operator("transform.rotate")
         layout.operator("transform.resize", text="Scale")
         layout.separator()
-        layout.operator("transform.translate", text="Move Origin").translate_origins = True
+        layout.operator("transform.translate", text="Move Origin").translate_origin = True
 
 
 class SEQUENCER_MT_image_clear(Menu):

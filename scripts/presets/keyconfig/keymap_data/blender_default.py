@@ -3208,7 +3208,7 @@ def km_sequencer_preview(params):
         # Transform Actions.
         *_template_items_transform_actions(params, use_mirror=True),
         ("transform.translate", {"type": 'PERIOD', "ctrl": True, "value": 'PRESS'},
-         {"properties": [("translate_origins", True)]}),
+         {"properties": [("translate_origin", True)]}),
 
         # Edit.
         ("sequencer.strip_transform_clear", {"type": 'G', "alt": True, "value": 'PRESS'},

@@ -845,12 +845,12 @@ void properties_register(wmOperatorType *ot, int flags)
     RNA_def_property_flag(prop, PROP_HIDDEN);
   }
 
-  if (flags & P_TRANSLATE_ORIGINS) {
+  if (flags & P_TRANSLATE_ORIGIN) {
     prop = RNA_def_boolean(ot->srna,
-                           "translate_origins",
+                           "translate_origin",
                            false,
-                           "Translate Origins",
-                           "Translate origins instead of selection");
+                           "Translate Origin",
+                           "Translate origin instead of selection");
     RNA_def_property_flag(prop, PROP_HIDDEN);
   }
 }
@@ -879,7 +879,7 @@ static void TRANSFORM_OT_translate(wmOperatorType *ot)
   properties_register(ot,
                       P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP |
                           P_OPTIONS | P_GPENCIL_EDIT | P_CURSOR_EDIT | P_VIEW2D_EDGE_PAN |
-                          P_POST_TRANSFORM | P_TRANSLATE_ORIGINS);
+                          P_POST_TRANSFORM | P_TRANSLATE_ORIGIN);
 }
 
 static void TRANSFORM_OT_resize(wmOperatorType *ot)

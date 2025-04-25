@@ -700,7 +700,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   }
 
   if (t->mode == TFM_TRANSLATION) {
-    if ((prop = RNA_struct_find_property(op->ptr, "translate_origins")) &&
+    if ((prop = RNA_struct_find_property(op->ptr, "translate_origin")) &&
         RNA_property_is_set(op->ptr, prop))
     {
       if (RNA_property_boolean_get(op->ptr, prop)) {
