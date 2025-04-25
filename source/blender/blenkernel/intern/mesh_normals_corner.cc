@@ -145,16 +145,14 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
 
 static float3 calc_smooth_vert_normal(const Span<float3> positions,
                                       const Span<VertCornerInfo> corner_infos,
-                                      const Span<int> corner_verts,
                                       const int vert,
                                       const Span<float3> face_normals)
 {
   float3 vert_normal(0);
   for (const int i : corner_infos.index_range()) {
-    const int vert_prev = corner_verts[corner_infos[i].corner_prev];
-    const int vert_next = corner_verts[corner_infos[i].corner_next];
-    const float3 dir_prev = math::normalize(positions[vert_prev] - positions[vert]);
-    const float3 dir_next = math::normalize(positions[vert_next] - positions[vert]);
+    const VertCornerInfo &info = corner_infos[i];
+    const float3 dir_prev = math::normalize(positions[info.vert_prev] - positions[vert]);
+    const float3 dir_next = math::normalize(positions[info.vert_next] - positions[vert]);
     const float factor = math::safe_acos_approx(math::dot(dir_prev, dir_next));
 
     vert_normal += face_normals[corner_infos[i].face] * factor;
@@ -162,14 +160,15 @@ static float3 calc_smooth_vert_normal(const Span<float3> positions,
   return math::normalize(vert_normal);
 }
 
-static Vector<int> find_corner_fan_starting_at(const Span<VertCornerInfo> corner_infos,
-                                               const Span<VertEdgeInfo> edge_infos,
-                                               const VectorSet<int> &other_vert_edge_indices,
-                                               const int start_local_corner)
+static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
+                                       const Span<VertEdgeInfo> edge_infos,
+                                       const VectorSet<int> &other_vert_edge_indices,
+                                       const int start_local_corner,
+                                       Vector<int, 16> &result_fan)
 {
   const VertCornerInfo &start_info = corner_infos[start_local_corner];
 
-  Vector<int> local_corners_in_fan;
+  const int start_size = result_fan.size();
   {
     int edge_prev = other_vert_edge_indices.index_of(start_info.vert_prev);
     int current = start_local_corner;
@@ -178,12 +177,13 @@ static Vector<int> find_corner_fan_starting_at(const Span<VertCornerInfo> corner
       if (current == start_local_corner) {
         break;
       }
-      local_corners_in_fan.append(current);
+      result_fan.append(current);
       edge_prev = other_vert_edge_indices.index_of(corner_infos[current].vert_prev);
     }
   }
 
-  std::reverse(local_corners_in_fan.begin(), local_corners_in_fan.end());
+  MutableSpan<int> reverse_traversal = result_fan.as_mutable_span().drop_front(start_size);
+  std::reverse(reverse_traversal.begin(), reverse_traversal.end());
 
   {
     int edge_next = other_vert_edge_indices.index_of(start_info.vert_next);
@@ -193,12 +193,10 @@ static Vector<int> find_corner_fan_starting_at(const Span<VertCornerInfo> corner
       if (current == start_local_corner) {
         break;
       }
-      local_corners_in_fan.append(current);
+      result_fan.append(current);
       edge_next = other_vert_edge_indices.index_of(corner_infos[current].vert_next);
     }
   }
-
-  return local_corners_in_fan;
 }
 
 void normals_calc_corners(const Span<float3> vert_positions,
@@ -249,7 +247,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
 
       if (sharp_edges_num == 0) {
         r_corner_normals[vert] = calc_smooth_vert_normal(
-            vert_positions, corner_infos, corner_verts, vert, face_normals);
+            vert_positions, corner_infos, vert, face_normals);
         continue;
       }
 
@@ -271,11 +269,12 @@ void normals_calc_corners(const Span<float3> vert_positions,
       for (int start_local_corner = 0; start_local_corner != -1;
            start_local_corner = corner_used.first_index_of_try(false))
       {
-        Vector<int> local_corners_in_fan = find_corner_fan_starting_at(
-            corner_infos, edge_infos, other_vert_edge_indices, start_local_corner);
+        corners_in_fan.clear();
+        traverse_fan_local_corners(
+            corner_infos, edge_infos, other_vert_edge_indices, start_local_corner, corners_in_fan);
 
         float3 normal(0);
-        for (const int local_corner : local_corners_in_fan) {
+        for (const int local_corner : corners_in_fan) {
           const VertCornerInfo &info = corner_infos[local_corner];
 
           const int edge_prev = other_vert_edge_indices.index_of(info.vert_prev);
@@ -288,7 +287,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
 
         normal = math::normalize(normal);
 
-        for (const int local_corner : local_corners_in_fan) {
+        for (const int local_corner : corners_in_fan) {
           const VertCornerInfo &info = corner_infos[local_corner];
           r_corner_normals[info.corner] = normal;
         }
