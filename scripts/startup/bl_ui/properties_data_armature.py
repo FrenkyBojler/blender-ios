@@ -122,7 +122,7 @@ class DATA_PT_bone_collections(ArmatureButtonsPanel, Panel):
             col.operator("armature.collection_move", icon='TRIA_UP', text="").direction = 'UP'
             col.operator("armature.collection_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
-        if not (context.mode == 'OBJECT'):
+        if context.mode in {'POSE', 'EDIT_ARMATURE', 'PAINT_WEIGHT'}:
             row = layout.row()
 
             sub = row.row(align=True)

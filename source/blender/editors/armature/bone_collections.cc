@@ -382,7 +382,7 @@ static bool bone_collection_assign_poll(bContext *C)
 
   bArmature *armature = static_cast<bArmature *>(ob->data);
   if (armature != ED_armature_context(C)) {
-    CTX_wm_operator_poll_msg_set(C, "Pinned armature is not active in 3D view");
+    CTX_wm_operator_poll_msg_set(C, "Pinned armature is not active in the 3D viewport");
     return false;
   }
 
@@ -733,16 +733,20 @@ static bool editbone_is_member(const EditBone *ebone, const BoneCollection *bcol
 
 static bool armature_bone_select_poll(bContext *C)
 {
-  const bArmature *armature = ED_armature_context(C);
-  if (armature == nullptr) {
-    return false;
+  Object *ob = blender::ed::object::context_object(C);
+  if (ob || ob->type == OB_ARMATURE) {
+
+    /* For bone selection, at least the pose should be editable to actually store
+     * the selection state. */
+    if (!ID_IS_EDITABLE(ob) && !ID_IS_OVERRIDE_LIBRARY(ob)) {
+      CTX_wm_operator_poll_msg_set(
+          C, "Cannot (de)select bones on linked object, that would need an override");
+      return false;
+    }
   }
 
-  /* For bone selection, at least the pose should be editable to actually store
-   * the selection state. */
-  if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
-    CTX_wm_operator_poll_msg_set(
-        C, "Cannot (de)select bones on linked Armature, that would need an override");
+  const bArmature *armature = ED_armature_context(C);
+  if (armature == nullptr) {
     return false;
   }
 
