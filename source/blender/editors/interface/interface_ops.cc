@@ -371,11 +371,13 @@ static wmOperatorStatus reset_default_button_exec(bContext *C, wmOperator *op)
 
   /* if there is a valid property that is editable... */
   if (ptr.data && prop && RNA_property_editable(&ptr, prop)) {
-    if (RNA_property_reset(&ptr, prop, (all) ? -1 : index)) {
+    const int array_index = (all) ? -1 : index;
+    if (RNA_property_reset(&ptr, prop, array_index)) {
 
       /* Apply auto keyframe when proprety is successfully reset. */
       Scene *scene = CTX_data_scene(C);
-      blender::animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+      blender::animrig::autokeyframe_property(
+          C, scene, &ptr, prop, array_index, scene->r.cfra, true);
 
       return operator_button_property_finish_with_undo(C, &ptr, prop);
     }
@@ -1354,8 +1356,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
       const char *prop_id = RNA_property_identifier(prop);
       r_lb->remove_if([&](const PointerRNA &link) {
         if ((ptr->type != link.type) &&
-            (RNA_struct_type_find_property(link.type, prop_id) != prop))
-        {
+            (RNA_struct_type_find_property(link.type, prop_id) != prop)) {
           return true;
         }
         return false;
@@ -1764,8 +1765,7 @@ static bool copy_driver_to_selected_button(bContext *C, bool copy_entire_array, 
   bool use_path_from_id;
   blender::Vector<PointerRNA> target_properties;
   if (!UI_context_copy_to_selected_list(
-          C, &ptr, prop, &target_properties, &use_path_from_id, &path))
-  {
+          C, &ptr, prop, &target_properties, &use_path_from_id, &path)) {
     return false;
   }
 
