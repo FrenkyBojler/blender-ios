@@ -185,7 +185,7 @@ template<typename T> inline std::optional<T> max(const VArray<T> &values)
 }
 
 /**
- * Return the eight corners of the bounding box represented by `bounds`.
+ * Return the eight corners of a 3D bounding box.
  */
 template<typename T>
 inline std::array<VecBase<T, 3>, 8> corners(const Bounds<VecBase<T, 3>> &bounds)
