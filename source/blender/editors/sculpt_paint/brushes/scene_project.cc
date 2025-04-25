@@ -227,7 +227,7 @@ static float calc_center_projection_distance(const Object &active_object,
     }
   }
 
-  return distance == BVH_RAYCAST_DIST_MAX ? 0.0f : hit.dist;
+  return distance == BVH_RAYCAST_DIST_MAX ? 0.0f : distance;
 }
 
 /*
