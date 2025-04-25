@@ -132,13 +132,13 @@ OptiXDevice::~OptiXDevice()
   }
 
 #  ifdef WITH_OSL
+  if (osl_camera_module != nullptr) {
+    optixModuleDestroy(osl_camera_module);
+  }
   for (const OptixModule &module : osl_modules) {
     if (module != nullptr) {
       optixModuleDestroy(module);
     }
-  }
-  if (osl_camera_module != nullptr) {
-    optixModuleDestroy(osl_camera_module);
   }
   for (const OptixProgramGroup &group : osl_groups) {
     if (group != nullptr) {
@@ -277,12 +277,12 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     }
   }
 
+#  ifdef WITH_OSL
   if (osl_camera_module != nullptr) {
     optixModuleDestroy(osl_camera_module);
     osl_camera_module = nullptr;
   }
 
-#  ifdef WITH_OSL
   /* Recreating base OptiX module invalidates all OSL modules too, since they link against it. */
   for (const OptixModule &module : osl_modules) {
     if (module != nullptr) {
@@ -584,6 +584,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
         "__raygen__kernel_optix_shader_eval_curve_shadow_transparency";
   }
 
+#  ifdef WITH_OSL
   /* When using custom OSL cameras, integrator_init_from_camera is its own specialized module. */
   if (use_osl_camera) {
     /* Load and compile the OSL camera PTX module. */
@@ -594,7 +595,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       return false;
     }
 
-#  if OPTIX_ABI_VERSION >= 84
+#    if OPTIX_ABI_VERSION >= 84
     const OptixResult result = optixModuleCreate(context,
                                                  &module_options,
                                                  &pipeline_options,
@@ -603,7 +604,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
                                                  nullptr,
                                                  nullptr,
                                                  &osl_camera_module);
-#  else
+#    else
     const OptixResult result = optixModuleCreateFromPTX(context,
                                                         &module_options,
                                                         &pipeline_options,
@@ -612,7 +613,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
                                                         nullptr,
                                                         nullptr,
                                                         &osl_camera_module);
-#  endif
+#    endif
     if (result != OPTIX_SUCCESS) {
       set_error(string_printf("Failed to load OptiX kernel from '%s' (%s)",
                               ptx_filename.c_str(),
@@ -625,6 +626,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_INIT_FROM_CAMERA].raygen.entryFunctionName =
         "__raygen__kernel_optix_integrator_init_from_camera";
   }
+#  endif
 
   optix_assert(optixProgramGroupCreate(
       context, group_descs, NUM_PROGRAM_GROUPS, &group_options, nullptr, nullptr, groups));
