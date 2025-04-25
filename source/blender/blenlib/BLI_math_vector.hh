@@ -60,7 +60,7 @@ template<typename T, int Size>
 }
 
 template<typename T, int Size>
-[[nodiscard]] inline VecBase<T, Size> min(const std::initializer_list<VecBase<T, Size>> values)
+[[nodiscard]] inline VecBase<T, Size> min(Span<VecBase<T, Size>> values)
 {
   BLI_assert(values.size() > 1);
 
@@ -82,7 +82,7 @@ template<typename T, int Size>
 }
 
 template<typename T, int Size>
-[[nodiscard]] inline VecBase<T, Size> max(const std::initializer_list<VecBase<T, Size>> values)
+[[nodiscard]] inline VecBase<T, Size> max(Span<VecBase<T, Size>> values)
 {
   BLI_assert(values.size() > 1);
 

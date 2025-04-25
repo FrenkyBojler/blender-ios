@@ -185,6 +185,24 @@ template<typename T> inline std::optional<T> max(const VArray<T> &values)
 }
 
 /**
+ * Return the eight corners of the bounding box represented by `bounds`.
+ */
+template<typename T>
+inline std::array<VecBase<T, 3>, 8> corners(const Bounds<VecBase<T, 3>> &bounds)
+{
+  return {
+      VecBase<T, 3>{bounds.min[0], bounds.min[1], bounds.min[2]},
+      VecBase<T, 3>{bounds.min[0], bounds.min[1], bounds.max[2]},
+      VecBase<T, 3>{bounds.min[0], bounds.max[1], bounds.min[2]},
+      VecBase<T, 3>{bounds.min[0], bounds.max[1], bounds.max[2]},
+      VecBase<T, 3>{bounds.max[0], bounds.min[1], bounds.min[2]},
+      VecBase<T, 3>{bounds.max[0], bounds.min[1], bounds.max[2]},
+      VecBase<T, 3>{bounds.max[0], bounds.max[1], bounds.min[2]},
+      VecBase<T, 3>{bounds.max[0], bounds.max[1], bounds.max[2]},
+  };
+}
+
+/**
  * Transform a 3D bounding box.
  *
  * Note: this necessarily grows the bounding box, to ensure that the transformed
@@ -198,43 +216,11 @@ template<typename T, int D>
 inline Bounds<VecBase<T, 3>> transform_bounds(const MatBase<T, D, D> &matrix,
                                               const Bounds<VecBase<T, 3>> &bounds)
 {
-  /* Corners of the bounding box.*/
-  const blender::float3 p0{bounds.min[0], bounds.min[1], bounds.min[2]};
-  const blender::float3 p1{bounds.min[0], bounds.min[1], bounds.max[2]};
-  const blender::float3 p2{bounds.min[0], bounds.max[1], bounds.min[2]};
-  const blender::float3 p3{bounds.min[0], bounds.max[1], bounds.max[2]};
-  const blender::float3 p4{bounds.max[0], bounds.min[1], bounds.min[2]};
-  const blender::float3 p5{bounds.max[0], bounds.min[1], bounds.max[2]};
-  const blender::float3 p6{bounds.max[0], bounds.max[1], bounds.min[2]};
-  const blender::float3 p7{bounds.max[0], bounds.max[1], bounds.max[2]};
-
-  const blender::float3 p0_transformed = math::transform_point(matrix, p0);
-  const blender::float3 p1_transformed = math::transform_point(matrix, p1);
-  const blender::float3 p2_transformed = math::transform_point(matrix, p2);
-  const blender::float3 p3_transformed = math::transform_point(matrix, p3);
-  const blender::float3 p4_transformed = math::transform_point(matrix, p4);
-  const blender::float3 p5_transformed = math::transform_point(matrix, p5);
-  const blender::float3 p6_transformed = math::transform_point(matrix, p6);
-  const blender::float3 p7_transformed = math::transform_point(matrix, p7);
-
-  const blender::float3 new_min = math::min({p0_transformed,
-                                             p1_transformed,
-                                             p2_transformed,
-                                             p3_transformed,
-                                             p4_transformed,
-                                             p5_transformed,
-                                             p6_transformed,
-                                             p7_transformed});
-  const blender::float3 new_max = math::max({p0_transformed,
-                                             p1_transformed,
-                                             p2_transformed,
-                                             p3_transformed,
-                                             p4_transformed,
-                                             p5_transformed,
-                                             p6_transformed,
-                                             p7_transformed});
-
-  return blender::Bounds<blender::float3>{new_min, new_max};
+  std::array<VecBase<T, 3>, 8> points = corners(bounds);
+  for (VecBase<T, 3> &p : points) {
+    p = math::transform_point(matrix, p);
+  }
+  return {math::min(Span(points)), math::max(Span(points))};
 }
 
 }  // namespace bounds
