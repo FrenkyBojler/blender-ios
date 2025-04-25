@@ -2282,6 +2282,11 @@ void UI_block_draw(const bContext *C, uiBlock *block)
       continue;
     }
 
+    /* Don't draw buttons that are wider than available space. */
+    if (BLI_rcti_size_x(&rect) > region->winx) {
+      continue;
+    }
+
     /* XXX: figure out why invalid coordinates happen when closing render window */
     /* and material preview is redrawn in main window (temp fix for bug #23848) */
     if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
