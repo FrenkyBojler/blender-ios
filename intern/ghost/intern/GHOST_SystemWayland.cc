@@ -5745,6 +5745,9 @@ static const zwp_primary_selection_source_v1_listener primary_selection_source_l
 #ifdef WITH_INPUT_IME
 
 class GHOST_EventIME : public GHOST_Event {
+ protected:
+  GHOST_TEventImeData event_ime_data;
+
  public:
   /**
    * Constructor.
@@ -5752,10 +5755,21 @@ class GHOST_EventIME : public GHOST_Event {
    * \param type: The type of key event.
    * \param key: The key code of the key.
    */
-  GHOST_EventIME(uint64_t msec, GHOST_TEventType type, GHOST_IWindow *window, void *customdata)
+  GHOST_EventIME(uint64_t msec,
+                 GHOST_TEventType type,
+                 GHOST_IWindow *window,
+                 GHOST_TEventImeData *customdata)
       : GHOST_Event(msec, type, window)
   {
-    this->m_data = customdata;
+    this->event_ime_data = *customdata;
+    this->event_ime_data.result = strdup((char *)customdata->result);
+    this->event_ime_data.composite = strdup((char *)customdata->composite);
+    this->m_data = &this->event_ime_data;
+  }
+  ~GHOST_EventIME()
+  {
+    free(this->event_ime_data.result);
+    free(this->event_ime_data.composite);
   }
 };
 

@@ -6338,9 +6338,22 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
 #ifdef WITH_INPUT_IME
     case GHOST_kEventImeCompositionStart: {
       event.val = KM_PRESS;
-      win->ime_data = static_cast<const wmIMEData *>(customdata);
-      BLI_assert(win->ime_data != nullptr);
-      win->ime_data_is_composing = true;
+      BLI_assert(customdata != nullptr);
+      if (win->runtime->ime_data) {
+        /* We need to free the previously allocated data. */
+        free(win->runtime->ime_data->str_result);
+        free(win->runtime->ime_data->str_composite);
+        delete win->runtime->ime_data;
+      }
+      /* We make a copy of the ghost custom data as it is not certain that the pointer
+       * will be valid after the event itself gets freed.
+       */
+      const wmIMEData *ghost_event_data = static_cast<const wmIMEData *>(customdata);
+      win->runtime->ime_data = new wmIMEData(*ghost_event_data);
+      win->runtime->ime_data->str_result = strdup(ghost_event_data->str_result);
+      win->runtime->ime_data->str_composite = strdup(ghost_event_data->str_composite);
+
+      win->runtime->ime_data_is_composing = true;
       event.type = WM_IME_COMPOSITE_START;
       wm_event_add_intern(win, &event);
       break;
@@ -6353,7 +6366,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
     }
     case GHOST_kEventImeCompositionEnd: {
       event.val = KM_PRESS;
-      win->ime_data_is_composing = false;
+      win->runtime->ime_data_is_composing = false;
       event.type = WM_IME_COMPOSITE_END;
       wm_event_add_intern(win, &event);
       break;
