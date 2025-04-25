@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -36,6 +37,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_screen.hh"
 
 #include "NOD_texture.h"
 
@@ -71,6 +73,8 @@
 
 /* Needed for determining tool material/vertex-color pinning. */
 #include "grease_pencil_intern.hh"
+
+#include "brushes/brushes.hh"
 
 /* TODOs:
  *
@@ -314,10 +318,10 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
       target->old_col = col;
     }
     if (col) {
-      buffer = static_cast<uchar *>(MEM_mallocN(sizeof(uchar) * size * size * 4, "load_tex"));
+      buffer = MEM_malloc_arrayN<uchar>(size * size * 4, "load_tex");
     }
     else {
-      buffer = static_cast<uchar *>(MEM_mallocN(sizeof(uchar) * size * size, "load_tex"));
+      buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
     }
 
     pool = BKE_image_pool_new();
@@ -452,7 +456,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 
       cursor_snap.size = size;
     }
-    buffer = static_cast<uchar *>(MEM_mallocN(sizeof(uchar) * size * size, "load_tex"));
+    buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
 
     BKE_curvemapping_init(br->curve);
 
@@ -1241,6 +1245,7 @@ struct PaintCursorContext {
   ARegion *region;
   wmWindow *win;
   wmWindowManager *wm;
+  bScreen *screen;
   Depsgraph *depsgraph;
   Scene *scene;
   UnifiedPaintSettings *ups;
@@ -1309,6 +1314,7 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.region = region;
   pcontext.wm = CTX_wm_manager(C);
   pcontext.win = CTX_wm_window(C);
+  pcontext.screen = CTX_wm_screen(C);
   pcontext.depsgraph = CTX_data_depsgraph_pointer(C);
   pcontext.scene = CTX_data_scene(C);
   pcontext.ups = &pcontext.scene->toolsettings->unified_paint_settings;
@@ -1453,6 +1459,15 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
      * with the UI (dragging a number button for e.g.), see: #102792. */
     return;
   }
+
+  /* Don't set the cursor when a temporary popup is opened (e.g. a context menu, pie menu or
+   * dialog), see: #137386. */
+  if (!BLI_listbase_is_empty(&pcontext.screen->regionbase) &&
+      (BKE_screen_find_region_type(pcontext.screen, RGN_TYPE_TEMPORARY) != nullptr))
+  {
+    return;
+  }
+
   if (ELEM(pcontext.mode, PaintMode::GPencil, PaintMode::VertexGPencil)) {
     WM_cursor_set(pcontext.win, WM_CURSOR_DOT);
   }
@@ -1997,7 +2012,7 @@ static void paint_cursor_cursor_draw_3d_view_brush_cursor_active(PaintCursorCont
   }
 
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE) {
-    multiplane_scrape_preview_draw(
+    brushes::multiplane_scrape_preview_draw(
         pcontext.pos, brush, ss, pcontext.outline_col, pcontext.outline_alpha);
   }
 
