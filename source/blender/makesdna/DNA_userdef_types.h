@@ -855,7 +855,8 @@ typedef struct UserDef {
   short versions;
   short dbl_click_time;
 
-  char _pad0[2];
+  char save_unused_data;
+  char warn_unused_data;
 
   /** Space around each area. Inter-editor gap width. */
   char border_width;
@@ -1297,7 +1298,7 @@ typedef enum eWalkNavigation_Flag {
 /** #UserDef.uiflag */
 typedef enum eUserpref_UI_Flag {
   USER_NO_MULTITOUCH_GESTURES = (1 << 0),
-  USER_UIFLAG_UNUSED_1 = (1 << 1), /* cleared */
+  USER_UIFLAG_UNUSED_1 = (1 << 1),
   USER_WHEELZOOMDIR = (1 << 2),
   USER_FILTERFILEEXTS = (1 << 3),
   USER_DRAWVIEWINFO = (1 << 4),

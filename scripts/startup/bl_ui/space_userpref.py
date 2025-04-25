@@ -1789,7 +1789,11 @@ class USERPREF_PT_saveload_blend(SaveLoadPanel, CenterAlignMixIn, Panel):
         view = prefs.view
 
         col = layout.column(heading="Save")
+        col.prop(view, "save_unused_data")
+
+        col = layout.column(heading="Warn")
         col.prop(view, "use_save_prompt")
+        col.prop(view, "warn_unused_data")
 
         col = layout.column()
         col.prop(paths, "save_version")

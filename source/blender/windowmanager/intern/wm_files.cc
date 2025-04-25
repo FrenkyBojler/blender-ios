@@ -3200,6 +3200,122 @@ static wmOperatorStatus wm_open_mainfile__select_file_path_exec(bContext *C, wmO
   return OPERATOR_RUNNING_MODAL;
 }
 
+static void wm_block_unused_warning_okay(bContext *C, void *arg_block, void * /*arg_data*/)
+{
+  wmWindow *win = CTX_wm_window(C);
+  UI_popup_block_close(C, win, static_cast<uiBlock *>(arg_block));
+}
+
+static void wm_block_unused_warning_manage(bContext *C, void *arg_block, void * /*arg_data*/)
+{
+  wmWindow *win = CTX_wm_window(C);
+  const int width = int(450.0f * UI_SCALE_FAC);
+  const int height = int(450.0f * UI_SCALE_FAC);
+  const rcti window_rect = {0, width, 0, height};
+  if (WM_window_open(C,
+                     IFACE_("Manage Unused Data"),
+                     &window_rect,
+                     SPACE_OUTLINER,
+                     false,
+                     false,
+                     true,
+                     WIN_ALIGN_PARENT_CENTER,
+                     nullptr,
+                     nullptr) != nullptr)
+  {
+    SpaceOutliner *soutline = CTX_wm_space_outliner(C);
+    soutline->outlinevis = SO_ID_ORPHANS;
+  }
+  UI_popup_block_close(C, win, static_cast<uiBlock *>(arg_block));
+}
+
+static uiBlock *block_create_unused_warning_dialog(bContext *C, ARegion *region, void *arg1)
+{
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  UI_block_flag_enable(
+      block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
+  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+
+  uiLayout *layout = uiItemsAlertBox(block, 34, ALERT_ICON_WARNING);
+
+  /* Title. */
+  uiItemL_ex(layout, RPT_("File Contains Unused Data"), ICON_NONE, true, false);
+  uiItemS_ex(layout, 0.1f);
+  uiItemL(layout, RPT_("This file contains some data that does not have any users."), ICON_NONE);
+  uiItemS_ex(layout, 1.5f);
+
+  /* Buttons. */
+#ifdef _WIN32
+  const bool windows_layout = false;
+#else
+  const bool windows_layout = false;
+#endif
+
+  if (windows_layout) {
+    /* Windows standard layout. */
+
+    uiLayout *split = uiLayoutSplit(layout, 0.0f, true);
+    uiLayoutSetScaleY(split, 1.2f);
+
+    uiLayoutColumn(split, false);
+    uiBut *but = uiDefIconTextBut(block,
+                                  UI_BTYPE_BUT,
+                                  0,
+                                  ICON_NONE,
+                                  IFACE_("Manage..."),
+                                  0,
+                                  0,
+                                  0,
+                                  UI_UNIT_Y,
+                                  nullptr,
+                                  0,
+                                  0,
+                                  "");
+    UI_but_func_set(but, wm_block_unused_warning_manage, block, nullptr);
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+
+    uiLayoutColumn(split, false);
+    but = uiDefIconTextBut(
+        block, UI_BTYPE_BUT, 0, ICON_NONE, IFACE_("Okay"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+    UI_but_func_set(but, wm_block_unused_warning_okay, block, nullptr);
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+    UI_but_flag_enable(but, UI_BUT_ACTIVE_DEFAULT);
+  }
+  else {
+    /* Non-Windows layout (macOS and Linux). */
+
+    uiLayout *split = uiLayoutSplit(layout, 0.0f, true);
+    uiLayoutSetScaleY(split, 1.2f);
+
+    uiLayoutColumn(split, false);
+    uiBut *but = uiDefIconTextBut(
+        block, UI_BTYPE_BUT, 0, ICON_NONE, IFACE_("Okay"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+    UI_but_func_set(but, wm_block_unused_warning_okay, block, nullptr);
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+    UI_but_flag_enable(but, UI_BUT_ACTIVE_DEFAULT);
+
+    uiLayoutColumn(split, false);
+    but = uiDefIconTextBut(block,
+                           UI_BTYPE_BUT,
+                           0,
+                           ICON_NONE,
+                           IFACE_("Manage..."),
+                           0,
+                           0,
+                           0,
+                           UI_UNIT_Y,
+                           nullptr,
+                           0,
+                           0,
+                           "");
+    UI_but_func_set(but, wm_block_unused_warning_manage, block, nullptr);
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+  }
+
+  UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
+  return block;
+}
+
 static wmOperatorStatus wm_open_mainfile__open(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
@@ -3224,6 +3340,25 @@ static wmOperatorStatus wm_open_mainfile__open(bContext *C, wmOperator *op)
       ED_outliner_select_sync_from_all_tag(C);
     }
     ED_view3d_local_collections_reset(C, (G.fileflags & G_FILE_NO_UI) != 0);
+
+    if (U.warn_unused_data) {
+      Main *bmain = CTX_data_main(C);
+      LibQueryUnusedIDsData data;
+      data.do_local_ids = true;
+      data.do_linked_ids = true;
+      data.do_recursive = true;
+      BKE_lib_query_unused_ids_amounts(bmain, data);
+      if (data.num_total[INDEX_ID_NULL] > 0) {
+        wmWindowManager *wm = CTX_wm_manager(C);
+        wmWindow *win = (wm->winactive) ? wm->winactive :
+                                          static_cast<wmWindow *>(wm->windows.first);
+        wmWindow *prevwin = CTX_wm_window(C);
+        CTX_wm_window_set(C, win);
+        UI_popup_block_invoke(C, block_create_unused_warning_dialog, nullptr, nullptr);
+        CTX_wm_window_set(C, prevwin);
+      }
+    }
+
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;

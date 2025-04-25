@@ -1364,7 +1364,9 @@ static blender::Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool i
          * For now ignore, issue is not obvious to track down (`temp` bScreen ID from read data
          * _does_ have the proper `temp` tag), and seems anecdotal at worst. */
         BLI_assert((id_type->flags & IDTYPE_FLAGS_NEVER_UNUSED) == 0);
-        continue;
+        if (!(U.save_unused_data)) {
+          continue;
+        }
       }
 
       /* XXX Special handling for ShapeKeys, as having unused shapekeys is not a good thing
