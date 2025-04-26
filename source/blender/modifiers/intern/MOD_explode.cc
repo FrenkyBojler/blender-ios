@@ -1175,7 +1175,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiItemPointerR(
       layout, ptr, "particle_uv", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Show"));
+  row = &layout->row(true, IFACE_("Show"));
   uiItemR(row, ptr, "show_alive", toggles_flag, std::nullopt, ICON_NONE);
   uiItemR(row, ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
   uiItemR(row, ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
@@ -1188,7 +1188,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiLayoutSetActive(row, has_vertex_group);
   uiItemR(row, ptr, "protect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

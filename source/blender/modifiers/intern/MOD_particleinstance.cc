@@ -548,12 +548,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiItemS(layout);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Create Instances"));
+  row = &layout->row(true, IFACE_("Create Instances"));
   uiItemR(row, ptr, "use_normal", toggles_flag, std::nullopt, ICON_NONE);
   uiItemR(row, ptr, "use_children", toggles_flag, std::nullopt, ICON_NONE);
   uiItemR(row, ptr, "use_size", toggles_flag, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Show"));
+  row = &layout->row(true, IFACE_("Show"));
   uiItemR(row, ptr, "show_alive", toggles_flag, std::nullopt, ICON_NONE);
   uiItemR(row, ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
   uiItemR(row, ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
@@ -564,7 +564,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiItemS(layout);
 
   uiItemR(layout, ptr, "space", UI_ITEM_NONE, IFACE_("Coordinate Space"), ICON_NONE);
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiItemR(row, ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_panel_end(layout, ptr);
