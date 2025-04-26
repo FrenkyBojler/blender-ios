@@ -26,6 +26,8 @@ struct VertCornerInfo {
   int corner_next;
   int vert_prev;
   int vert_next;
+  int local_edge_prev;
+  int local_edge_next;
 };
 
 static void collect_corner_info(const OffsetIndices<int> faces,
@@ -106,13 +108,13 @@ using LocalEdgeVectorSet = VectorSet<int,
                                      SimpleVectorSetSlot<int, int>,
                                      GuardedAllocator>;
 
-static void calc_local_edge_indices(const Span<VertCornerInfo> corner_infos,
+static void calc_local_edge_indices(MutableSpan<VertCornerInfo> corner_infos,
                                     LocalEdgeVectorSet &r_other_vert_to_edge)
 {
   r_other_vert_to_edge.reserve(corner_infos.size());
-  for (const VertCornerInfo &info : corner_infos) {
-    r_other_vert_to_edge.add(info.vert_prev);
-    r_other_vert_to_edge.add(info.vert_next);
+  for (VertCornerInfo &info : corner_infos) {
+    info.local_edge_prev = r_other_vert_to_edge.index_of_or_add(info.vert_prev);
+    info.local_edge_next = r_other_vert_to_edge.index_of_or_add(info.vert_next);
   }
 }
 
@@ -120,15 +122,14 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
                                       const Span<bool> sharp_edges,
                                       const Span<bool> sharp_faces,
                                       const Span<VertCornerInfo> corner_infos,
-                                      const LocalEdgeVectorSet &local_edge_by_vert,
                                       MutableSpan<VertEdgeInfo> vert_edge_infos)
 {
   vert_edge_infos.fill(std::monostate{});
   for (const int local_corner : corner_infos.index_range()) {
     const VertCornerInfo &info = corner_infos[local_corner];
     const int face = info.face;
-    const int edge_prev = local_edge_by_vert.index_of(info.vert_prev);
-    const int edge_next = local_edge_by_vert.index_of(info.vert_next);
+    const int edge_prev = info.local_edge_prev;
+    const int edge_next = info.local_edge_next;
     if (!sharp_faces.is_empty() && sharp_faces[face]) {
       vert_edge_infos[edge_prev] = EdgeSharp{};
       vert_edge_infos[edge_next] = EdgeSharp{};
@@ -170,7 +171,6 @@ static float3 calc_smooth_vert_normal(const Span<float3> positions,
 
 static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
                                        const Span<VertEdgeInfo> edge_infos,
-                                       const LocalEdgeVectorSet &local_edge_by_vert,
                                        const int start_local_corner,
                                        Vector<int, 16> &result_fan)
 {
@@ -179,14 +179,14 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
 
   {
     int current = start_local_corner;
-    int edge_prev = local_edge_by_vert.index_of(corner_infos[current].vert_prev);
+    int edge_prev = corner_infos[current].local_edge_prev;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_prev])) {
       current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
       if (current == start_local_corner) {
         break;
       }
       result_fan.append(current);
-      edge_prev = local_edge_by_vert.index_of(corner_infos[current].vert_prev);
+      edge_prev = corner_infos[current].local_edge_prev;
     }
   }
 
@@ -195,16 +195,45 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
 
   {
     int current = start_local_corner;
-    int edge_next = local_edge_by_vert.index_of(corner_infos[current].vert_next);
+    int edge_next = corner_infos[current].local_edge_next;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_next])) {
       current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
       if (current == start_local_corner) {
         break;
       }
       result_fan.append(current);
-      edge_next = local_edge_by_vert.index_of(corner_infos[current].vert_next);
+      edge_next = corner_infos[current].local_edge_next;
     }
   }
+}
+
+static void calc_edge_directions(const Span<float3> vert_positions,
+                                 const LocalEdgeVectorSet &local_edge_by_vert,
+                                 const float3 &vert_position,
+                                 MutableSpan<float3> edge_dirs)
+{
+  for (const int i : local_edge_by_vert.index_range()) {
+    edge_dirs[i] = math::normalize(vert_positions[local_edge_by_vert[i]] - vert_position);
+  }
+}
+
+static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
+                                    const Span<float3> edge_dirs,
+                                    const Span<float3> face_normals,
+                                    const Span<int> local_corners_in_fan)
+{
+  float3 fan_normal(0);
+  for (const int local_corner : local_corners_in_fan) {
+    const VertCornerInfo &info = corner_infos[local_corner];
+
+    const float3 &dir_prev = edge_dirs[info.local_edge_prev];
+    const float3 &dir_next = edge_dirs[info.local_edge_next];
+
+    const float factor = math::safe_acos_approx(math::dot(dir_prev, dir_next));
+    fan_normal += face_normals[info.face] * factor;
+  }
+
+  return math::normalize(fan_normal);
 }
 
 void normals_calc_corners(const Span<float3> vert_positions,
@@ -223,8 +252,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
     Vector<VertCornerInfo, 16> corner_infos;
     LocalEdgeVectorSet local_edge_by_vert;  // TODO: Inline buffer size
     Vector<VertEdgeInfo, 16> edge_infos;
-    Vector<bool, 16> local_corner_visited;
     Vector<float3, 16> edge_dirs;
+    Vector<bool, 16> local_corner_visited;
     Vector<int, 16> corners_in_fan;
     for (const int vert : range) {
       const float3 vert_position = vert_positions[vert];
@@ -242,8 +271,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       calc_local_edge_indices(corner_infos, local_edge_by_vert);
 
       edge_infos.resize(corner_infos.size());
-      calc_connecting_edge_info(
-          corner_edges, sharp_edges, sharp_faces, corner_infos, local_edge_by_vert, edge_infos);
+      calc_connecting_edge_info(corner_edges, sharp_edges, sharp_faces, corner_infos, edge_infos);
 
       const int sharp_edges_num = std::count_if(
           edge_infos.begin(), edge_infos.end(), [](const auto &info) {
@@ -269,45 +297,33 @@ void normals_calc_corners(const Span<float3> vert_positions,
       }
 
       edge_dirs.resize(vert_faces.size());
-      for (const int i : local_edge_by_vert.index_range()) {
-        edge_dirs[i] = math::normalize(vert_positions[local_edge_by_vert[i]] - vert_position);
-      }
+      calc_edge_directions(vert_positions, local_edge_by_vert, vert_position, edge_dirs);
 
       local_corner_visited.resize(vert_faces.size());
       local_corner_visited.fill(false);
+      int visited_corners = 0;
 
       int start_local_corner = 0;
       while (start_local_corner != -1) {
         corners_in_fan.clear();
-        traverse_fan_local_corners(
-            corner_infos, edge_infos, local_edge_by_vert, start_local_corner, corners_in_fan);
+        traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
 
-        float3 fan_normal(0);
-        for (const int local_corner : corners_in_fan) {
-          const VertCornerInfo &info = corner_infos[local_corner];
-
-          const int edge_prev = local_edge_by_vert.index_of(info.vert_prev);
-          const int edge_next = local_edge_by_vert.index_of(info.vert_next);
-
-          const float factor = math::safe_acos_approx(
-              math::dot(edge_dirs[edge_prev], edge_dirs[edge_next]));
-          fan_normal += face_normals[info.face] * factor;
-        }
-
-        fan_normal = math::normalize(fan_normal);
+        const float3 fan_normal = accumulate_fan_normal(
+            corner_infos, edge_dirs, face_normals, corners_in_fan);
 
         for (const int local_corner : corners_in_fan) {
           const VertCornerInfo &info = corner_infos[local_corner];
           r_corner_normals[info.corner] = fan_normal;
         }
 
-        if (corners_in_fan.size() == corner_infos.size()) {
+        visited_corners += corners_in_fan.size();
+        if (visited_corners == corner_infos.size()) {
           break;
         }
-
         local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), true);
         start_local_corner = local_corner_visited.first_index_of_try(false);
       }
+      BLI_assert(visited_corners == corner_infos.size());
     }
   });
 }
