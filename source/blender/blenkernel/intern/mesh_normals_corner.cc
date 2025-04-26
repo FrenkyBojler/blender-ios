@@ -85,13 +85,13 @@ struct EdgeSharp {};
 
 using VertEdgeInfo = std::variant<EdgeUninitialized, EdgeOneCorner, EdgeTwoCorners, EdgeSharp>;
 
-static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
-                                       const Span<bool> sharp_edges,
-                                       const int local_corner,
-                                       const int corner,
-                                       const int other_corner,
-                                       const bool winding_torwards_vert,
-                                       const VertEdgeInfo &info)
+static void add_corner_to_edge(const Span<int> corner_edges,
+                               const Span<bool> sharp_edges,
+                               const int local_corner,
+                               const int corner,
+                               const int other_corner,
+                               const bool winding_torwards_vert,
+                               VertEdgeInfo &info)
 {
   if (std::holds_alternative<EdgeUninitialized>(info)) {
     if (!sharp_edges.is_empty()) {
@@ -99,30 +99,25 @@ static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
        * fans shouldn't propagate past it. To find the edge we need to check if the current corner
        * references the edge connected to `other_corner` or if `other_corner` uses the edge. */
       if (sharp_edges[corner_edges[winding_torwards_vert ? other_corner : corner]]) {
-        return EdgeSharp{};
+        info = EdgeSharp{};
+        return;
       }
     }
-    return EdgeOneCorner{local_corner, winding_torwards_vert};
+    info = EdgeOneCorner{local_corner, winding_torwards_vert};
   }
-  if (const EdgeOneCorner *info_one_edge = std::get_if<EdgeOneCorner>(&info)) {
+  else if (const EdgeOneCorner *info_one_edge = std::get_if<EdgeOneCorner>(&info)) {
     /* If the edge ends up being used by faces, we still have to check if the winding direction
      * changes. Though it's an undesireable situation for the mesh to be in, we shouldn't propogate
      * smooth normals across edges facing opposite directions.*/
     if (info_one_edge->winding_torwards_vert && winding_torwards_vert) {
-      return EdgeSharp{};
+      info = EdgeSharp{};
+      return;
     }
-    return EdgeTwoCorners{info_one_edge->local_corner_1, local_corner};
+    info = EdgeTwoCorners{info_one_edge->local_corner_1, local_corner};
   }
-  if (std::holds_alternative<EdgeSharp>(info)) {
-    return EdgeSharp{};
+  else {
+    info = EdgeSharp{};
   }
-  if (std::holds_alternative<EdgeTwoCorners>(info)) {
-    /* The edge is already used by two corners. Adding a third would make it non-manifold,
-     * which means it should be considered sharp for the purposes of normal computation. */
-    return EdgeSharp{};
-  }
-  /* This case should not happen. */
-  return EdgeSharp{};
 }
 
 using LocalEdgeVectorSet = VectorSet<int,
@@ -158,20 +153,20 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
       vert_edge_infos[edge_next] = EdgeSharp{};
       continue;
     }
-    vert_edge_infos[edge_prev] = add_corner_to_edge(corner_edges,
-                                                    sharp_edges,
-                                                    local_corner,
-                                                    info.corner,
-                                                    info.corner_prev,
-                                                    true,
-                                                    vert_edge_infos[edge_prev]);
-    vert_edge_infos[edge_next] = add_corner_to_edge(corner_edges,
-                                                    sharp_edges,
-                                                    local_corner,
-                                                    info.corner,
-                                                    info.corner_next,
-                                                    false,
-                                                    vert_edge_infos[edge_next]);
+    add_corner_to_edge(corner_edges,
+                       sharp_edges,
+                       local_corner,
+                       info.corner,
+                       info.corner_prev,
+                       true,
+                       vert_edge_infos[edge_prev]);
+    add_corner_to_edge(corner_edges,
+                       sharp_edges,
+                       local_corner,
+                       info.corner,
+                       info.corner_next,
+                       false,
+                       vert_edge_infos[edge_next]);
   }
 }
 
