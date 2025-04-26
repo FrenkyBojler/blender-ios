@@ -96,62 +96,62 @@ static const char *to_string(const Interpolation &interp)
 static const char *to_string(const Type &type)
 {
   switch (type) {
-    case Type::FLOAT:
+    case Type::float_t:
       return "float";
-    case Type::VEC2:
+    case Type::float2_t:
       return "vec2";
-    case Type::VEC3:
+    case Type::float3_t:
       return "vec3";
-    case Type::VEC4:
+    case Type::float4_t:
       return "vec4";
-    case Type::MAT3:
+    case Type::float3x3_t:
       return "mat3";
-    case Type::MAT4:
+    case Type::float4x4_t:
       return "mat4";
-    case Type::UINT:
+    case Type::uint_t:
       return "uint";
-    case Type::UVEC2:
+    case Type::uint2_t:
       return "uvec2";
-    case Type::UVEC3:
+    case Type::uint3_t:
       return "uvec3";
-    case Type::UVEC4:
+    case Type::uint4_t:
       return "uvec4";
-    case Type::INT:
+    case Type::int_t:
       return "int";
-    case Type::IVEC2:
+    case Type::int2_t:
       return "ivec2";
-    case Type::IVEC3:
+    case Type::int3_t:
       return "ivec3";
-    case Type::IVEC4:
+    case Type::int4_t:
       return "ivec4";
-    case Type::BOOL:
+    case Type::bool_t:
       return "bool";
     /* Alias special types. */
-    case Type::UCHAR:
-    case Type::USHORT:
+    case Type::uchar_t:
+    case Type::ushort_t:
       return "uint";
-    case Type::UCHAR2:
-    case Type::USHORT2:
+    case Type::uchar2_t:
+    case Type::ushort2_t:
       return "uvec2";
-    case Type::UCHAR3:
-    case Type::USHORT3:
+    case Type::uchar3_t:
+    case Type::ushort3_t:
       return "uvec3";
-    case Type::UCHAR4:
-    case Type::USHORT4:
+    case Type::uchar4_t:
+    case Type::ushort4_t:
       return "uvec4";
-    case Type::CHAR:
-    case Type::SHORT:
+    case Type::char_t:
+    case Type::short_t:
       return "int";
-    case Type::CHAR2:
-    case Type::SHORT2:
+    case Type::char2_t:
+    case Type::short2_t:
       return "ivec2";
-    case Type::CHAR3:
-    case Type::SHORT3:
+    case Type::char3_t:
+    case Type::short3_t:
       return "ivec3";
-    case Type::CHAR4:
-    case Type::SHORT4:
+    case Type::char4_t:
+    case Type::short4_t:
       return "ivec4";
-    case Type::VEC3_101010I2:
+    case Type::float3_10_10_10_2_t:
       return "vec3";
   }
   BLI_assert_unreachable();
@@ -161,48 +161,48 @@ static const char *to_string(const Type &type)
 static Type UNUSED_FUNCTION(to_component_type)(const Type &type)
 {
   switch (type) {
-    case Type::FLOAT:
-    case Type::VEC2:
-    case Type::VEC3:
-    case Type::VEC4:
-    case Type::MAT3:
-    case Type::MAT4:
-      return Type::FLOAT;
-    case Type::UINT:
-    case Type::UVEC2:
-    case Type::UVEC3:
-    case Type::UVEC4:
-      return Type::UINT;
-    case Type::INT:
-    case Type::IVEC2:
-    case Type::IVEC3:
-    case Type::IVEC4:
-    case Type::BOOL:
-      return Type::INT;
+    case Type::float_t:
+    case Type::float2_t:
+    case Type::float3_t:
+    case Type::float4_t:
+    case Type::float3x3_t:
+    case Type::float4x4_t:
+      return Type::float_t;
+    case Type::uint_t:
+    case Type::uint2_t:
+    case Type::uint3_t:
+    case Type::uint4_t:
+      return Type::uint_t;
+    case Type::int_t:
+    case Type::int2_t:
+    case Type::int3_t:
+    case Type::int4_t:
+    case Type::bool_t:
+      return Type::int_t;
     /* Alias special types. */
-    case Type::UCHAR:
-    case Type::UCHAR2:
-    case Type::UCHAR3:
-    case Type::UCHAR4:
-    case Type::USHORT:
-    case Type::USHORT2:
-    case Type::USHORT3:
-    case Type::USHORT4:
-      return Type::UINT;
-    case Type::CHAR:
-    case Type::CHAR2:
-    case Type::CHAR3:
-    case Type::CHAR4:
-    case Type::SHORT:
-    case Type::SHORT2:
-    case Type::SHORT3:
-    case Type::SHORT4:
-      return Type::INT;
-    case Type::VEC3_101010I2:
-      return Type::FLOAT;
+    case Type::uchar_t:
+    case Type::uchar2_t:
+    case Type::uchar3_t:
+    case Type::uchar4_t:
+    case Type::ushort_t:
+    case Type::ushort2_t:
+    case Type::ushort3_t:
+    case Type::ushort4_t:
+      return Type::uint_t;
+    case Type::char_t:
+    case Type::char2_t:
+    case Type::char3_t:
+    case Type::char4_t:
+    case Type::short_t:
+    case Type::short2_t:
+    case Type::short3_t:
+    case Type::short4_t:
+      return Type::int_t;
+    case Type::float3_10_10_10_2_t:
+      return Type::float_t;
   }
   BLI_assert_unreachable();
-  return Type::FLOAT;
+  return Type::float_t;
 }
 
 static const char *to_string(const eGPUTextureFormat &type)
@@ -328,30 +328,30 @@ static void print_image_type(std::ostream &os,
                              const ShaderCreateInfo::Resource::BindType bind_type)
 {
   switch (type) {
-    case ImageType::INT_BUFFER:
-    case ImageType::INT_1D:
-    case ImageType::INT_1D_ARRAY:
-    case ImageType::INT_2D:
-    case ImageType::INT_2D_ARRAY:
-    case ImageType::INT_3D:
-    case ImageType::INT_CUBE:
-    case ImageType::INT_CUBE_ARRAY:
-    case ImageType::INT_2D_ATOMIC:
-    case ImageType::INT_2D_ARRAY_ATOMIC:
-    case ImageType::INT_3D_ATOMIC:
+    case ImageType::IntBuffer:
+    case ImageType::Int1D:
+    case ImageType::Int1DArray:
+    case ImageType::Int2D:
+    case ImageType::Int2DArray:
+    case ImageType::Int3D:
+    case ImageType::IntCube:
+    case ImageType::IntCubeArray:
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicInt2DArray:
+    case ImageType::AtomicInt3D:
       os << "i";
       break;
-    case ImageType::UINT_BUFFER:
-    case ImageType::UINT_1D:
-    case ImageType::UINT_1D_ARRAY:
-    case ImageType::UINT_2D:
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_3D:
-    case ImageType::UINT_CUBE:
-    case ImageType::UINT_CUBE_ARRAY:
-    case ImageType::UINT_2D_ATOMIC:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_3D_ATOMIC:
+    case ImageType::UintBuffer:
+    case ImageType::Uint1D:
+    case ImageType::Uint1DArray:
+    case ImageType::Uint2D:
+    case ImageType::Uint2DArray:
+    case ImageType::Uint3D:
+    case ImageType::UintCube:
+    case ImageType::UintCubeArray:
+    case ImageType::AtomicUint2D:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::AtomicUint3D:
       os << "u";
       break;
     default:
@@ -366,52 +366,52 @@ static void print_image_type(std::ostream &os,
   }
 
   switch (type) {
-    case ImageType::FLOAT_BUFFER:
-    case ImageType::INT_BUFFER:
-    case ImageType::UINT_BUFFER:
+    case ImageType::FloatBuffer:
+    case ImageType::IntBuffer:
+    case ImageType::UintBuffer:
       os << "Buffer";
       break;
-    case ImageType::FLOAT_1D:
-    case ImageType::FLOAT_1D_ARRAY:
-    case ImageType::INT_1D:
-    case ImageType::INT_1D_ARRAY:
-    case ImageType::UINT_1D:
-    case ImageType::UINT_1D_ARRAY:
+    case ImageType::Float1D:
+    case ImageType::Float1DArray:
+    case ImageType::Int1D:
+    case ImageType::Int1DArray:
+    case ImageType::Uint1D:
+    case ImageType::Uint1DArray:
       os << "1D";
       break;
-    case ImageType::FLOAT_2D:
-    case ImageType::FLOAT_2D_ARRAY:
-    case ImageType::INT_2D:
-    case ImageType::INT_2D_ARRAY:
-    case ImageType::INT_2D_ATOMIC:
-    case ImageType::INT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_2D:
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_2D_ATOMIC:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
-    case ImageType::SHADOW_2D:
-    case ImageType::SHADOW_2D_ARRAY:
-    case ImageType::DEPTH_2D:
-    case ImageType::DEPTH_2D_ARRAY:
+    case ImageType::Float2D:
+    case ImageType::Float2DArray:
+    case ImageType::Int2D:
+    case ImageType::Int2DArray:
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicInt2DArray:
+    case ImageType::Uint2D:
+    case ImageType::Uint2DArray:
+    case ImageType::AtomicUint2D:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::Shadow2D:
+    case ImageType::Shadow2DArray:
+    case ImageType::Depth2D:
+    case ImageType::Depth2DArray:
       os << "2D";
       break;
-    case ImageType::FLOAT_3D:
-    case ImageType::INT_3D:
-    case ImageType::UINT_3D:
-    case ImageType::INT_3D_ATOMIC:
-    case ImageType::UINT_3D_ATOMIC:
+    case ImageType::Float3D:
+    case ImageType::Int3D:
+    case ImageType::Uint3D:
+    case ImageType::AtomicInt3D:
+    case ImageType::AtomicUint3D:
       os << "3D";
       break;
-    case ImageType::FLOAT_CUBE:
-    case ImageType::FLOAT_CUBE_ARRAY:
-    case ImageType::INT_CUBE:
-    case ImageType::INT_CUBE_ARRAY:
-    case ImageType::UINT_CUBE:
-    case ImageType::UINT_CUBE_ARRAY:
-    case ImageType::SHADOW_CUBE:
-    case ImageType::SHADOW_CUBE_ARRAY:
-    case ImageType::DEPTH_CUBE:
-    case ImageType::DEPTH_CUBE_ARRAY:
+    case ImageType::FloatCube:
+    case ImageType::FloatCubeArray:
+    case ImageType::IntCube:
+    case ImageType::IntCubeArray:
+    case ImageType::UintCube:
+    case ImageType::UintCubeArray:
+    case ImageType::ShadowCube:
+    case ImageType::ShadowCubeArray:
+    case ImageType::DepthCube:
+    case ImageType::DepthCubeArray:
       os << "Cube";
       break;
     default:
@@ -419,20 +419,20 @@ static void print_image_type(std::ostream &os,
   }
 
   switch (type) {
-    case ImageType::FLOAT_1D_ARRAY:
-    case ImageType::FLOAT_2D_ARRAY:
-    case ImageType::FLOAT_CUBE_ARRAY:
-    case ImageType::INT_1D_ARRAY:
-    case ImageType::INT_2D_ARRAY:
-    case ImageType::INT_CUBE_ARRAY:
-    case ImageType::UINT_1D_ARRAY:
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_CUBE_ARRAY:
-    case ImageType::SHADOW_2D_ARRAY:
-    case ImageType::SHADOW_CUBE_ARRAY:
-    case ImageType::DEPTH_2D_ARRAY:
-    case ImageType::DEPTH_CUBE_ARRAY:
+    case ImageType::Float1DArray:
+    case ImageType::Float2DArray:
+    case ImageType::FloatCubeArray:
+    case ImageType::Int1DArray:
+    case ImageType::Int2DArray:
+    case ImageType::IntCubeArray:
+    case ImageType::Uint1DArray:
+    case ImageType::Uint2DArray:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::UintCubeArray:
+    case ImageType::Shadow2DArray:
+    case ImageType::ShadowCubeArray:
+    case ImageType::Depth2DArray:
+    case ImageType::DepthCubeArray:
       os << "Array";
       break;
     default:
@@ -440,10 +440,10 @@ static void print_image_type(std::ostream &os,
   }
 
   switch (type) {
-    case ImageType::SHADOW_2D:
-    case ImageType::SHADOW_2D_ARRAY:
-    case ImageType::SHADOW_CUBE:
-    case ImageType::SHADOW_CUBE_ARRAY:
+    case ImageType::Shadow2D:
+    case ImageType::Shadow2DArray:
+    case ImageType::ShadowCube:
+    case ImageType::ShadowCubeArray:
       os << "Shadow";
       break;
     default:
@@ -454,13 +454,13 @@ static void print_image_type(std::ostream &os,
 
 static std::ostream &print_qualifier(std::ostream &os, const Qualifier &qualifiers)
 {
-  if (bool(qualifiers & Qualifier::NO_RESTRICT) == false) {
+  if (bool(qualifiers & Qualifier::no_restrict) == false) {
     os << "restrict ";
   }
-  if (bool(qualifiers & Qualifier::READ) == false) {
+  if (bool(qualifiers & Qualifier::read) == false) {
     os << "writeonly ";
   }
-  if (bool(qualifiers & Qualifier::WRITE) == false) {
+  if (bool(qualifiers & Qualifier::write) == false) {
     os << "readonly ";
   }
   return os;
@@ -633,16 +633,16 @@ std::string GLShader::constants_declare() const
     const SpecializationConstant::Value &value = constants.values[constant_index];
 
     switch (constant_type) {
-      case Type::INT:
+      case Type::int_t:
         ss << "const int " << name << "=" << std::to_string(value.i) << ";\n";
         break;
-      case Type::UINT:
+      case Type::uint_t:
         ss << "const uint " << name << "=" << std::to_string(value.u) << "u;\n";
         break;
-      case Type::BOOL:
+      case Type::bool_t:
         ss << "const bool " << name << "=" << (value.u ? "true" : "false") << ";\n";
         break;
-      case Type::FLOAT:
+      case Type::float_t:
         /* Use uint representation to allow exact same bit pattern even if NaN. */
         ss << "const float " << name << "= uintBitsToFloat(" << std::to_string(value.u) << "u);\n";
         break;
@@ -800,10 +800,8 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
       /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
        * built-in flag. */
       bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
-      bool is_layered_input = ELEM(input.img_type,
-                                   ImageType::UINT_2D_ARRAY,
-                                   ImageType::INT_2D_ARRAY,
-                                   ImageType::FLOAT_2D_ARRAY);
+      bool is_layered_input = ELEM(
+          input.img_type, ImageType::Uint2DArray, ImageType::Int2DArray, ImageType::Float2DArray);
 
       /* Declare image. */
       using Resource = ShaderCreateInfo::Resource;
@@ -1272,8 +1270,12 @@ bool GLShader::post_finalize(const shader::ShaderCreateInfo *info)
   async_compilation_ = false;
 
   GLuint program_id = program_get();
-
-  interface = new GLShaderInterface(program_id, *info);
+  if (info != nullptr) {
+    interface = new GLShaderInterface(program_id, *info);
+  }
+  else {
+    interface = new GLShaderInterface(program_id);
+  }
 
   return true;
 }
