@@ -30,6 +30,13 @@ struct VertCornerInfo {
   int local_edge_next;
 };
 
+/**
+ * Gather data related to all the connected faces / face corners. This makes accessing it simpler
+ * later on in the various per-vertex hot loops. It also means we can be sure it will be in CPU
+ * caches. Gathering it into a single Vector of an "info" struct rather than multiple vectors is
+ * expected to be worth it because there are typically very few connected corners; the overhead of
+ * a Vector for each piece of data would be significant.
+ */
 static void collect_corner_info(const OffsetIndices<int> faces,
                                 const Span<int> corner_verts,
                                 const Span<int> vert_faces,
@@ -47,19 +54,36 @@ static void collect_corner_info(const OffsetIndices<int> faces,
   }
 }
 
+/** The edge hasn't been handled yet while the edge info is being created. */
+struct EdgeUninitialized {};
+
+/**
+ * The first corner has been added to the edge. For boundary edges, this is the only corner. We
+ * store whether the winding direction of the face was towards or away from the vertex to be able
+ * to detect when the winding direction of two neighboring faces doesn't match.
+ */
 struct EdgeOneCorner {
   int local_corner_1;
   bool winding_torwards_vert;
 };
 
+/**
+ * The edge is manifold and is used by two faces/corners. The actual faces and corners have to be
+ * retrieved with the data in #VertCornerInfo.
+ */
 struct EdgeTwoCorners {
   int local_corner_1;
   int local_corner_2;
 };
 
+/**
+ * The edge "breaks" the topology flow of faces around the vertex. It could be marked sharp
+ * explicitly, it could be used by a sharp face, it could have mismatched face winding directions,
+ * or it might be non-manifold and used by more than two faces.
+ */
 struct EdgeSharp {};
 
-using VertEdgeInfo = std::variant<std::monostate, EdgeOneCorner, EdgeTwoCorners, EdgeSharp>;
+using VertEdgeInfo = std::variant<EdgeUninitialized, EdgeOneCorner, EdgeTwoCorners, EdgeSharp>;
 
 static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
                                        const Span<bool> sharp_edges,
@@ -69,7 +93,7 @@ static VertEdgeInfo add_corner_to_edge(const Span<int> corner_edges,
                                        const bool winding_torwards_vert,
                                        const VertEdgeInfo &info)
 {
-  if (std::holds_alternative<std::monostate>(info)) {
+  if (std::holds_alternative<EdgeUninitialized>(info)) {
     if (!sharp_edges.is_empty()) {
       /* The first time we encounter the edge, we check if it is marked sharp. In that case corner
        * fans shouldn't propagate past it. To find the edge we need to check if the current corner
@@ -124,7 +148,6 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
                                       const Span<VertCornerInfo> corner_infos,
                                       MutableSpan<VertEdgeInfo> vert_edge_infos)
 {
-  vert_edge_infos.fill(std::monostate{});
   for (const int local_corner : corner_infos.index_range()) {
     const VertCornerInfo &info = corner_infos[local_corner];
     const int face = info.face;
@@ -259,6 +282,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
       const float3 vert_position = vert_positions[vert];
       const Span<int> vert_faces = vert_to_face_map[vert];
 
+      /* Because we're iterating over vertices in order to batch work for their connected face
+       * corners, we have to handle loose vertices and vertices not used by faces. */
       if (vert_faces.is_empty()) {
         r_corner_normals[vert] = math::normalize(vert_position);
         continue;
@@ -270,6 +295,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       local_edge_by_vert.clear_and_keep_capacity();
       calc_local_edge_indices(corner_infos, local_edge_by_vert);
 
+      edge_infos.clear();
       edge_infos.resize(corner_infos.size());
       calc_connecting_edge_info(corner_edges, sharp_edges, sharp_faces, corner_infos, edge_infos);
 
