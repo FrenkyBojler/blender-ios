@@ -482,6 +482,7 @@ enum {
 
 struct SlipData {
   NumInput num_input;
+  VectorSet<Strip *> strips;
   /* Initial mouse position in view-space. */
   float init_mouse_co[2];
   /* Mouse and virtual mouse-cursor x-values in region-space. */
@@ -489,13 +490,16 @@ struct SlipData {
   float virtual_mval_x;
   /* Parsed offset (integer when in precision mode, float otherwise).*/
   float prev_offset;
-  VectorSet<Strip *> strips;
   bool precision;
-  bool clamp;
-  /* Whether to show clamp option in status bar. */
-  bool show_clamp;
   /* Whether to show sub-frame offset in header. */
   bool show_subframe;
+
+  /* Whether the user is currently clamping. */
+  bool clamp;
+  /* Whether at least one strip has enough content to clamp. */
+  bool can_clamp;
+  /* Whether some strips do not have enough content to clamp. */
+  bool clamp_warning;
 };
 
 void slip_modal_keymap(wmKeyConfig *keyconf)
@@ -535,11 +539,11 @@ static void slip_draw_status(bContext *C, const wmOperator *op)
 
   status.opmodal(IFACE_("Precision"), op->type, SLIP_MODAL_PRECISION_ENABLE, data->precision);
 
-  if (data->show_clamp) {
+  if (data->can_clamp) {
     status.opmodal(IFACE_("Clamp"), op->type, SLIP_MODAL_CLAMP_TOGGLE, data->clamp);
   }
-  else {
-    status.item(TIP_("One or more strips do not have enough content to clamp"), ICON_ERROR);
+  if (data->clamp_warning) {
+    status.item(TIP_("Not enough content to clamp strip(s)"), ICON_ERROR);
   }
 }
 
@@ -591,23 +595,28 @@ static SlipData *slip_data_init(const Scene *scene)
   data->strips = strips;
 
   data->show_subframe = false;
-  data->show_clamp = true;
+  data->clamp_warning = false;
+  data->can_clamp = false;
+
   data->clamp = true;
   for (Strip *strip : strips) {
-    /* Temporarily enable offsets during slip operation. */
     strip->flag |= SEQ_SHOW_OFFSETS;
 
-    /* If any strips do not have enough underlying content to fill the strip, prevent clamping. */
-    if (strip->len < seq::time_right_handle_frame_get(scene, strip) -
-                         seq::time_left_handle_frame_get(scene, strip))
-    {
-      data->show_clamp = false;
-    }
     /* If any strips start out with hold offsets visible, disable clamping on initialization. */
     if (strip->startofs < 0 || strip->endofs < 0) {
       data->clamp = false;
     }
-    /* Only show subframe information in the header if the user operates on sound strips. */
+    /* If any strips do not have enough underlying content to
+     * fill their bounds, show a warning. */
+    if (strip->len < seq::time_right_handle_frame_get(scene, strip) -
+                         seq::time_left_handle_frame_get(scene, strip))
+    {
+      data->clamp_warning = true;
+    }
+    /* Strip exists with enough content, we can clamp. */
+    else {
+      data->can_clamp = true;
+    }
     if (strip->type == STRIP_TYPE_SOUND_RAM) {
       data->show_subframe = true;
     }
@@ -699,7 +708,7 @@ static float slip_apply_clamp(const Scene *scene, const SlipData *data, float *r
 {
   float offset_delta = *r_offset - data->prev_offset;
 
-  if (data->show_clamp) {
+  if (data->can_clamp) {
     for (Strip *strip : data->strips) {
       const float unclamped_start = seq::time_start_frame_get(strip) + strip->sound_offset +
                                     offset_delta;
@@ -711,8 +720,9 @@ static float slip_apply_clamp(const Scene *scene, const SlipData *data, float *r
 
       float diff = 0;
 
-      /* Clamp hold offsets if the option is currently enabled. */
-      if (data->clamp) {
+      /* Clamp hold offsets if the option is currently enabled
+       * and if there are enough frames to fill the strip. */
+      if (data->clamp && strip->len >= right_handle - left_handle) {
         if (unclamped_start > left_handle) {
           diff = left_handle - unclamped_start;
         }
