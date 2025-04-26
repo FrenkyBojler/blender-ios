@@ -2831,6 +2831,41 @@ pbvh::Tree *pbvh_get(Object &object)
   return object.sculpt->pbvh.get();
 }
 
+BMesh &bmesh_ensure(Object &object) {
+  BLI_assert(object.type == OB_MESH);
+  if (BMesh* bm = bmesh_get(object)) {
+    return *bm;
+  }
+
+  const Mesh *mesh = static_cast<Mesh *>(object.data);
+  BLI_assert(object.sculpt != nullptr && mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY);
+  SculptSession &ss = *object.sculpt;
+}
+BMesh *bmesh_get(Object &object)
+{
+  BLI_assert(object.type == OB_MESH);
+  const Mesh *mesh = static_cast<Mesh *>(object.data);
+  BLI_assert(mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY);
+  UNUSED_VARS_NDEBUG(mesh);
+
+  if (!object.sculpt) {
+    return nullptr;
+  }
+  return object.sculpt->bm;
+}
+
+const BMesh *bmesh_get(const Object &object) {
+  BLI_assert(object.type == OB_MESH);
+  const Mesh *mesh = static_cast<Mesh *>(object.data);
+  BLI_assert(mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY);
+  UNUSED_VARS_NDEBUG(mesh);
+
+  if (!object.sculpt) {
+    return nullptr;
+  }
+  return object.sculpt->bm;
+}
+
 }  // namespace blender::bke::object
 
 bool BKE_object_sculpt_use_dyntopo(const Object *object)

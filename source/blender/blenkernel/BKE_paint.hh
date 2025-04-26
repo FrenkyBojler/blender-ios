@@ -641,6 +641,10 @@ pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object);
 pbvh::Tree *pbvh_get(Object &object);
 const pbvh::Tree *pbvh_get(const Object &object);
 
+BMesh &bmesh_ensure(Object &object);
+BMesh *bmesh_get(Object &object);
+const BMesh *bmesh_get(const Object &object);
+
 }  // namespace blender::bke::object
 bool BKE_object_sculpt_use_dyntopo(const Object *object);
 
