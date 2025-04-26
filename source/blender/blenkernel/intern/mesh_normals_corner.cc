@@ -254,9 +254,14 @@ void normals_calc_corners(const Span<float3> vert_positions,
             return std::holds_alternative<EdgeSharp>(info);
           });
 
+      // TODO: Test if this special case is actually helpful. The fully sharp case probably is,
+      // though that's probably much less common in real meshes.
       if (sharp_edges_num == 0) {
-        r_corner_normals[vert] = calc_smooth_vert_normal(
+        const float3 normal = calc_smooth_vert_normal(
             vert_positions, corner_infos, vert, face_normals);
+        for (const VertCornerInfo &info : corner_infos) {
+          r_corner_normals[info.corner] = normal;
+        }
         continue;
       }
 
