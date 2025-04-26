@@ -4100,12 +4100,31 @@ static void count_multi_input_socket_links(bNodeTree &ntree, SpaceNode &snode)
   }
 }
 
-static float frame_node_label_height(const NodeFrame &frame_data)
-{
-  return frame_data.label_size * UI_SCALE_FAC;
-}
+typedef struct FrameNodeLayoutData {
+  float margin;
+  float margin_top;
+  float label_height;
+  float label_baseline;
+  bool has_label;
+} FrameNodeHeaderMetrics;
 
-#define NODE_FRAME_MARGIN (1.5f * U.widget_unit)
+static FrameNodeLayoutData frame_node_layout(const bNode &node)
+{
+  NodeFrame *frame_data = (NodeFrame *)node.storage;
+  const bool has_label = node.label[0] != '\0';
+  const float label_height = frame_data->label_size * UI_SCALE_FAC;
+  const float margin = 1.5f * U.widget_unit;
+  const float margin_top = 0.5f * margin + (has_label ? 1.25f * label_height : 0.5f * margin);
+  const float label_baseline = label_height + (0.5f * margin);
+
+  return {
+      margin,
+      margin_top,
+      label_height,
+      label_baseline,
+      has_label,
+  };
+}
 
 /**
  * Does a bounding box update by iterating over all children.
@@ -4121,13 +4140,7 @@ static rctf calc_node_frame_dimensions(bNode &node)
 
   NodeFrame *data = (NodeFrame *)node.storage;
 
-  const float margin = NODE_FRAME_MARGIN;
-  const float has_label = node.label[0] != '\0';
-
-  const float label_height = frame_node_label_height(*data);
-  /* Add an additional 25% to account for the glyphs descender.
-   * This works well in most cases. */
-  const float margin_top = 0.5f * margin + (has_label ? 1.25f * label_height : 0.5f * margin);
+  FrameNodeLayoutData layout = frame_node_layout(node);
 
   /* Initialize rect from current frame size. */
   rctf rect;
@@ -4141,10 +4154,10 @@ static rctf calc_node_frame_dimensions(bNode &node)
   for (bNode *child : node.direct_children_in_frame()) {
     /* Add margin to node rect. */
     rctf noderect = calc_node_frame_dimensions(*child);
-    noderect.xmin -= margin;
-    noderect.xmax += margin;
-    noderect.ymin -= margin;
-    noderect.ymax += margin_top;
+    noderect.xmin -= layout.margin;
+    noderect.xmax += layout.margin;
+    noderect.ymin -= layout.margin;
+    noderect.ymax += layout.margin_top;
 
     /* First child initializes frame. */
     if (bbinit) {
@@ -4236,6 +4249,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   BLF_enable(fontid, BLF_ASPECT);
   BLF_aspect(fontid, aspect, aspect, 1.0f);
   BLF_size(fontid, font_size * UI_SCALE_FAC);
+  FrameNodeLayoutData layout = frame_node_layout(node);
 
   /* Title color. */
   int color_id = node_get_colorid(tree_draw_ctx, node);
@@ -4243,17 +4257,14 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   UI_GetThemeColorBlendShade3ubv(TH_TEXT, color_id, 0.4f, 10, color);
   BLF_color3ubv(fontid, color);
 
-  const float margin = NODE_FRAME_MARGIN;
   const float label_width = BLF_width(fontid, node.label, strlen(node.label));
-  const int label_height = frame_node_label_height(*data);
 
   const rctf &rct = node.runtime->draw_bounds;
   const float label_x = BLI_rctf_cent_x(&rct) - (0.5f * label_width);
-  const float label_y = rct.ymax - label_height - (0.5f * margin);
+  const float label_y = rct.ymax - layout.label_baseline;
 
   /* Label. */
-  const bool has_label = node.label[0] != '\0';
-  if (has_label) {
+  if (layout.has_label) {
     BLF_position(fontid, label_x, label_y, 0);
     BLF_draw(fontid, node.label, strlen(node.label));
   }
@@ -4263,15 +4274,16 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
     const Text *text = (const Text *)node.id;
     const int line_height_max = BLF_height_max(fontid);
     const float line_spacing = (line_height_max * aspect);
-    const float line_width = (BLI_rctf_size_x(&rct) - 2 * margin) / aspect;
+    const float line_width = (BLI_rctf_size_x(&rct) - 2 * layout.margin) / aspect;
 
-    const float x = rct.xmin + margin;
-    float y = rct.ymax - label_height - (has_label ? line_spacing + margin : 0);
+    const float x = rct.xmin + layout.margin;
+    float y = rct.ymax - layout.label_height -
+              (layout.has_label ? line_spacing + layout.margin : 0);
 
-    const int y_min = rct.ymin + margin;
+    const int y_min = rct.ymin + layout.margin;
 
     BLF_enable(fontid, BLF_CLIPPING | BLF_WORD_WRAP);
-    BLF_clipping(fontid, rct.xmin, rct.ymin + margin, rct.xmax, rct.ymax);
+    BLF_clipping(fontid, rct.xmin, rct.ymin + layout.margin, rct.xmax, rct.ymax);
 
     BLF_wordwrap(fontid, line_width);
 
