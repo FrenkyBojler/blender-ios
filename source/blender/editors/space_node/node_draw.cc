@@ -4236,19 +4236,16 @@ static void node_update_nodetree(const bContext &C,
   }
 }
 
-static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
-                                  const bNode &node,
-                                  const SpaceNode &snode)
+static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx, const bNode &node)
 {
-  const float aspect = snode.runtime->aspect;
   /* XXX font id is crap design */
   const int fontid = UI_style_get()->widget.uifont_id;
   const NodeFrame *data = (const NodeFrame *)node.storage;
-  const float font_size = data->label_size / aspect;
+  const float font_size = data->label_size;
 
-  BLF_enable(fontid, BLF_ASPECT);
-  BLF_aspect(fontid, aspect, aspect, 1.0f);
+  BLF_disable(fontid, BLF_ASPECT);
   BLF_size(fontid, font_size * UI_SCALE_FAC);
+
   FrameNodeLayoutData layout = frame_node_layout(node);
 
   /* Title color. */
@@ -4272,9 +4269,8 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   /* Draw text body. */
   if (node.id) {
     const Text *text = (const Text *)node.id;
-    const int line_height_max = BLF_height_max(fontid);
-    const float line_spacing = (line_height_max * aspect);
-    const float line_width = (BLI_rctf_size_x(&rct) - 2 * layout.margin) / aspect;
+    const float line_spacing = BLF_height_max(fontid);
+    const float line_width = (BLI_rctf_size_x(&rct) - 2 * layout.margin);
 
     const float x = rct.xmin + layout.margin;
     float y = rct.ymax - layout.label_height -
@@ -4304,8 +4300,6 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
     BLF_disable(fontid, BLF_CLIPPING | BLF_WORD_WRAP);
   }
-
-  BLF_disable(fontid, BLF_ASPECT);
 }
 
 static void frame_node_draw_background(const ARegion &region,
@@ -4367,7 +4361,7 @@ static void frame_node_draw_overlay(const bContext &C,
   }
 
   /* Label and text. */
-  frame_node_draw_label(tree_draw_ctx, node, snode);
+  frame_node_draw_label(tree_draw_ctx, node);
 
   node_draw_extra_info_panel(C, tree_draw_ctx, snode, node, nullptr, block);
 
