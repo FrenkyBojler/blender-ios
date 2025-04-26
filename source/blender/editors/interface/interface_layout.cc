@@ -5101,17 +5101,17 @@ uiLayout &uiLayout::row(bool align, const StringRef heading)
   return litem;
 }
 
-uiLayout *uiLayoutColumn(uiLayout *layout, bool align)
+uiLayout &uiLayout::column(bool align)
 {
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, align);
+  ui_litem_init_from_parent(litem, this, align);
 
   litem->type_ = uiItemType::LayoutColumn;
-  litem->space_ = (align) ? 0 : layout->root_->style->buttonspacey;
+  litem->space_ = (align) ? 0 : this->root_->style->buttonspacey;
 
-  UI_block_layout_set_current(layout->root_->block, litem);
+  UI_block_layout_set_current(this->root_->block, litem);
 
-  return litem;
+  return &litem;
 }
 
 uiLayout *uiLayoutColumnWithHeading(uiLayout *layout, bool align, const StringRef heading)
