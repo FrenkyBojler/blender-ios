@@ -240,7 +240,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     uiItemR(layout, ptr, "source_object", UI_ITEM_NONE, std::nullopt, ICON_OBJECT_DATA);
   }
   else if (source_type == LINEART_SOURCE_COLLECTION) {
-    uiLayout *sub = uiLayoutRow(layout, true);
+    uiLayout *sub = &layout->row(true);
     uiItemR(sub, ptr, "source_collection", UI_ITEM_NONE, std::nullopt, ICON_OUTLINER_COLLECTION);
     uiItemR(sub, ptr, "use_invert_collection", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   }
@@ -282,7 +282,7 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayout *sub = uiLayoutRow(layout, false);
+  uiLayout *sub = &layout->row(false);
   uiLayoutSetActive(sub, has_light);
   uiItemR(sub,
           ptr,
@@ -293,10 +293,10 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayout *col = uiLayoutColumn(layout, true);
 
-  sub = uiLayoutRowWithHeading(col, false, IFACE_("Create"));
+  sub = &col->row(false, IFACE_("Create"));
   uiItemR(sub, ptr, "use_contour", UI_ITEM_NONE, "", ICON_NONE);
 
-  uiLayout *entry = uiLayoutRow(sub, true);
+  uiLayout *entry = &sub->row(true);
   uiLayoutSetActive(entry, RNA_boolean_get(ptr, "use_contour"));
   uiItemR(entry, ptr, "silhouette_filtering", UI_ITEM_NONE, "", ICON_NONE);
 
@@ -305,7 +305,7 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
     uiItemR(entry, ptr, "use_invert_silhouette", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   }
 
-  sub = uiLayoutRow(col, false);
+  sub = &col->row(false);
   if (use_cache && !is_first) {
     uiItemR(sub, ptr, "use_crease", UI_ITEM_NONE, IFACE_("Crease (Angle Cached)"), ICON_NONE);
   }
@@ -327,7 +327,7 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
   entry = uiLayoutColumn(col, false);
   uiLayoutSetActive(entry, has_light);
 
-  sub = uiLayoutRow(entry, false);
+  sub = &entry->row(false);
   uiItemR(sub, ptr, "use_light_contour", UI_ITEM_NONE, IFACE_("Light Contour"), ICON_NONE);
 
   uiItemR(entry,
@@ -404,9 +404,9 @@ static void options_panel_draw(const bContext * /*C*/, Panel *panel)
     return;
   }
 
-  uiLayout *row = uiLayoutRowWithHeading(layout, false, IFACE_("Custom Camera"));
+  uiLayout *row = &layout->row(false, IFACE_("Custom Camera"));
   uiItemR(row, ptr, "use_custom_camera", UI_ITEM_NONE, "", ICON_NONE);
-  uiLayout *subrow = uiLayoutRow(row, true);
+  uiLayout *subrow = &row->row(true);
   uiLayoutSetActive(subrow, RNA_boolean_get(ptr, "use_custom_camera"));
   uiLayoutSetPropSep(subrow, true);
   uiItemR(subrow, ptr, "source_camera", UI_ITEM_NONE, "", ICON_OBJECT_DATA);
@@ -504,13 +504,13 @@ static void material_mask_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetEnabled(layout, RNA_boolean_get(ptr, "use_material_mask"));
 
   uiLayout *col = uiLayoutColumn(layout, true);
-  uiLayout *sub = uiLayoutRowWithHeading(col, true, IFACE_("Masks"));
+  uiLayout *sub = &col->row(true, IFACE_("Masks"));
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "use_material_mask_bits");
   for (int i = 0; i < 8; i++) {
     uiItemFullR(sub, ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
     if (i == 3) {
-      sub = uiLayoutRow(col, true);
+      sub = &col->row(true);
     }
   }
 
@@ -530,13 +530,13 @@ static void intersection_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_intersection"));
 
   uiLayout *col = uiLayoutColumn(layout, true);
-  uiLayout *sub = uiLayoutRowWithHeading(col, true, IFACE_("Collection Masks"));
+  uiLayout *sub = &col->row(true, IFACE_("Collection Masks"));
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "use_intersection_mask");
   for (int i = 0; i < 8; i++) {
     uiItemFullR(sub, ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
     if (i == 3) {
-      sub = uiLayoutRow(col, true);
+      sub = &col->row(true);
     }
   }
 
@@ -654,7 +654,7 @@ static void vgroup_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayout *col = uiLayoutColumn(layout, true);
 
-  uiLayout *row = uiLayoutRow(col, true);
+  uiLayout *row = &col->row(true);
 
   uiItemR(
       row, ptr, "source_vertex_group", UI_ITEM_NONE, IFACE_("Filter Source"), ICON_GROUP_VERTEX);

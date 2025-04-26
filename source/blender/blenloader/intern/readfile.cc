@@ -704,7 +704,7 @@ static BHeadN *get_bhead(FileData *fd)
             bh8_from_bh4(&bhead, &bhead4);
           }
           else {
-            /* std::min is only to quiet '-Warray-bounds' compiler warning. */
+            /* #std::min is only to quiet `-Warray-bounds` compiler warning. */
             BLI_assert(sizeof(bhead) == sizeof(bhead4));
             memcpy(&bhead, &bhead4, std::min(sizeof(bhead), sizeof(bhead4)));
           }
@@ -727,7 +727,7 @@ static BHeadN *get_bhead(FileData *fd)
             bh4_from_bh8(&bhead, &bhead8, (fd->flags & FD_FLAGS_SWITCH_ENDIAN) != 0);
           }
           else {
-            /* std::min is only to quiet `-Warray-bounds` compiler warning. */
+            /* #std::min is only to quiet `-Warray-bounds` compiler warning. */
             BLI_assert(sizeof(bhead) == sizeof(bhead8));
             memcpy(&bhead, &bhead8, std::min(sizeof(bhead), sizeof(bhead8)));
           }
@@ -1415,7 +1415,7 @@ void blo_filedata_free(FileData *fd)
     DNA_sdna_free(fd->filesdna);
   }
   if (fd->compflags) {
-    MEM_freeN((void *)fd->compflags);
+    MEM_freeN(fd->compflags);
   }
   if (fd->reconstruct_info) {
     DNA_reconstruct_info_free(fd->reconstruct_info);
@@ -2217,7 +2217,7 @@ static void direct_link_id_common(BlendDataReader *reader,
   if (!BLO_read_data_is_undo(reader)) {
     /* Reset the runtime data, as there were versions of Blender that did not do
      * this before writing to disk. */
-    memset(&id->runtime, 0, sizeof(id->runtime));
+    id->runtime = ID_Runtime{};
   }
   readfile_id_runtime_data_ensure(*id);
   id->runtime.readfile_data->tags = id_read_tags;

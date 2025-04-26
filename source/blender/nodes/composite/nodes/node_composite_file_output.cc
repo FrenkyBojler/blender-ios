@@ -179,7 +179,7 @@ int ntreeCompositOutputFileRemoveActiveSocket(bNodeTree *ntree, bNode *node)
   }
 
   /* free format data */
-  MEM_freeN(sock->storage);
+  MEM_freeN(reinterpret_cast<NodeImageMultiFileSocket *>(sock->storage));
 
   blender::bke::node_remove_socket(*ntree, *node, *sock);
   return 1;
@@ -241,12 +241,12 @@ static void free_output_file(bNode *node)
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
     BKE_image_format_free(&sockdata->format);
-    MEM_freeN(sock->storage);
+    MEM_freeN(sockdata);
   }
 
   NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
   BKE_image_format_free(&nimf->format);
-  MEM_freeN(node->storage);
+  MEM_freeN(nimf);
 }
 
 static void copy_output_file(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNode *src_node)
@@ -354,7 +354,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   uiItemO(layout, IFACE_("Add Input"), ICON_ADD, "NODE_OT_output_file_add_socket");
 
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   col = uiLayoutColumn(row, true);
 
   const int active_index = RNA_int_get(ptr, "active_input_index");
@@ -412,7 +412,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       col = uiLayoutColumn(layout, true);
 
       uiItemL(col, IFACE_("Layer:"), ICON_NONE);
-      row = uiLayoutRow(col, false);
+      row = &col->row(false);
       uiItemR(row, &active_input_ptr, "name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
       uiItemFullO(row,
                   "NODE_OT_output_file_remove_active_socket",
@@ -427,7 +427,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       col = uiLayoutColumn(layout, true);
 
       uiItemL(col, IFACE_("File Subpath:"), ICON_NONE);
-      row = uiLayoutRow(col, false);
+      row = &col->row(false);
       uiItemR(row, &active_input_ptr, "path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
       uiItemFullO(row,
                   "NODE_OT_output_file_remove_active_socket",
