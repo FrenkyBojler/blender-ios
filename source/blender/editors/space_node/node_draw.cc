@@ -4224,7 +4224,6 @@ static void node_update_nodetree(const bContext &C,
 }
 
 static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
-                                  const bNodeTree &ntree,
                                   const bNode &node,
                                   const SpaceNode &snode)
 {
@@ -4233,8 +4232,6 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   const int fontid = UI_style_get()->widget.uifont_id;
   const NodeFrame *data = (const NodeFrame *)node.storage;
   const float font_size = data->label_size / aspect;
-
-  const std::string label = bke::node_label(ntree, node);
 
   BLF_enable(fontid, BLF_ASPECT);
   BLF_aspect(fontid, aspect, aspect, 1.0f);
@@ -4247,18 +4244,18 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   BLF_color3ubv(fontid, color);
 
   const float margin = NODE_FRAME_MARGIN;
-  const float width = BLF_width(fontid, label.c_str(), label.size());
+  const float label_width = BLF_width(fontid, node.label, strlen(node.label));
   const int label_height = frame_node_label_height(*data);
 
   const rctf &rct = node.runtime->draw_bounds;
-  const float label_x = BLI_rctf_cent_x(&rct) - (0.5f * width);
+  const float label_x = BLI_rctf_cent_x(&rct) - (0.5f * label_width);
   const float label_y = rct.ymax - label_height - (0.5f * margin);
 
   /* Label. */
   const bool has_label = node.label[0] != '\0';
   if (has_label) {
     BLF_position(fontid, label_x, label_y, 0);
-    BLF_draw(fontid, label.c_str(), label.size());
+    BLF_draw(fontid, node.label, strlen(node.label));
   }
 
   /* Draw text body. */
@@ -4342,7 +4339,6 @@ static void frame_node_draw_overlay(const bContext &C,
                                     TreeDrawContext &tree_draw_ctx,
                                     const ARegion &region,
                                     const SpaceNode &snode,
-                                    const bNodeTree &ntree,
                                     const bNode &node,
                                     uiBlock &block)
 {
@@ -4359,7 +4355,7 @@ static void frame_node_draw_overlay(const bContext &C,
   }
 
   /* Label and text. */
-  frame_node_draw_label(tree_draw_ctx, ntree, node, snode);
+  frame_node_draw_label(tree_draw_ctx, node, snode);
 
   node_draw_extra_info_panel(C, tree_draw_ctx, snode, node, nullptr, block);
 
@@ -4848,7 +4844,7 @@ static void node_draw_zones_and_frames(const bContext &C,
   for (const ZoneOrNode &zone_or_node : draw_order) {
     if (const bNode *const *node_p = std::get_if<const bNode *>(&zone_or_node)) {
       const bNode &node = **node_p;
-      frame_node_draw_overlay(C, tree_draw_ctx, region, snode, ntree, node, *blocks[node.index()]);
+      frame_node_draw_overlay(C, tree_draw_ctx, region, snode, node, *blocks[node.index()]);
     }
   }
 }
