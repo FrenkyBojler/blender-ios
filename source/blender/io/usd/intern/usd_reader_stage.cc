@@ -637,8 +637,10 @@ void USDStageReader::import_all_materials(Main *bmain)
 
     /* Add the Blender material. If we have an import hook which can handle this material
      * we don't import USD Preview Surface shaders. */
-    Material *new_mtl = mtl_reader.add_material(usd_mtl, !have_import_hook);
+    Material *new_mtl = USDMaterialReader::create_blender_material(*bmain, usd_mtl);
     BLI_assert_msg(new_mtl, "Failed to create material");
+
+    mtl_reader.load_material(usd_mtl, *new_mtl, !have_import_hook);
 
     const std::string mtl_name = make_safe_name(new_mtl->id.name + 2, true);
     settings_.mat_name_to_mat.add_new(mtl_name, new_mtl);

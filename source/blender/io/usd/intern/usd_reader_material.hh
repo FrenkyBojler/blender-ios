@@ -119,8 +119,16 @@ class USDMaterialReader {
  public:
   USDMaterialReader(const USDImportParams &params, Main &bmain, std::mutex &reader_mutex);
 
-  Material *add_material(const pxr::UsdShadeMaterial &usd_material,
-                         bool read_usd_preview = true) const;
+  /* Create the Blender material for the given UsdShadeMaterial. The caller is respondible for
+   * holding any locks necessary for concurrency. */
+  static Material *create_blender_material(Main &bmain, const pxr::UsdShadeMaterial &usd_material);
+
+  /* Load in the Material data, namely the NodeTree and Nodes as well as any Image data-blocks
+   * that might be required. If we have an import hook which can handle this material, then the
+   * USD Preview Surface shaders are skipped. */
+  void load_material(const pxr::UsdShadeMaterial &usd_material,
+                     Material &blender_material,
+                     bool read_usd_preview = true) const;
 
   void import_usd_preview(Material *mtl, const pxr::UsdShadeMaterial &usd_material) const;
 

@@ -109,67 +109,71 @@ static void assign_materials(Main *bmain,
   USDMaterialReader mat_reader(params, *bmain, settings.reader_mutex);
 
   for (const auto item : mat_index_map.items()) {
+    /* Look up the USD material. */
+    pxr::UsdPrim prim = stage->GetPrimAtPath(item.key);
+    pxr::UsdShadeMaterial usd_mat(prim);
+    if (!usd_mat) {
+      CLOG_WARN(
+          &LOG, "Couldn't construct USD material from prim %s", item.key.GetAsString().c_str());
+      continue;
+    }
+
+    const bool have_import_hook = settings.mat_import_hook_sources.contains(item.key);
+
+    bool requires_load = false;
     Material *assigned_mat = nullptr;
+
+    /* Attempt to find an existing Material. If the Material is not found, create a new one and
+     * perform book-keeping. Note: All these tasks must be performed, at the same time, under the
+     * same lock. */
     {
       std::scoped_lock lock{settings.reader_mutex};
+
       assigned_mat = find_existing_material(
           item.key, params, settings.mat_name_to_mat, settings.usd_path_to_mat);
+
+      if (!assigned_mat) {
+        /* Blender material doesn't exist, so create it now. */
+        assigned_mat = USDMaterialReader::create_blender_material(*bmain, usd_mat);
+        if (!assigned_mat) {
+          CLOG_WARN(&LOG,
+                    "Couldn't create Blender material for USD material %s",
+                    item.key.GetAsString().c_str());
+          continue;
+        }
+
+        requires_load = true;
+
+        /* Book-keeping for the various Material maps needs to be threadsafe. */
+        const std::string mat_name = make_safe_name(assigned_mat->id.name + 2, true);
+        settings.mat_name_to_mat.add_new(mat_name, assigned_mat);
+
+        if (params.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
+          /* Record the Blender material we created for the USD material with the given path. */
+          settings.usd_path_to_mat.add_new(item.key, assigned_mat);
+        }
+
+        if (have_import_hook) {
+          /* Defer invoking the import hook until we can do so from the main thread. */
+          settings.usd_path_to_mat_for_hook.add_new(item.key, assigned_mat);
+        }
+      }
     }
 
     if (!assigned_mat) {
-      /* Blender material doesn't exist, so create it now. */
-
-      /* Look up the USD material. */
-      pxr::UsdPrim prim = stage->GetPrimAtPath(item.key);
-      pxr::UsdShadeMaterial usd_mat(prim);
-
-      if (!usd_mat) {
-        CLOG_WARN(
-            &LOG, "Couldn't construct USD material from prim %s", item.key.GetAsString().c_str());
-        continue;
-      }
-
-      const bool have_import_hook = settings.mat_import_hook_sources.contains(item.key);
-
-      /* Add the Blender material. If we have an import hook which can handle this material
-       * we don't import USD Preview Surface shaders. */
-      assigned_mat = mat_reader.add_material(usd_mat, !have_import_hook);
-
-      if (!assigned_mat) {
-        CLOG_WARN(&LOG,
-                  "Couldn't create Blender material from USD material %s",
-                  item.key.GetAsString().c_str());
-        continue;
-      }
-
-      const std::string mat_name = make_safe_name(assigned_mat->id.name + 2, true);
-
-      /* Book-keeping for our various name-to-Material maps needs to be threadsafe. */
-      std::scoped_lock lock{settings.reader_mutex};
-
-      settings.mat_name_to_mat.add_new(mat_name, assigned_mat);
-
-      if (params.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
-        /* Record the Blender material we created for the USD material with the given path. */
-        settings.usd_path_to_mat.add_new(item.key, assigned_mat);
-      }
-
-      if (have_import_hook) {
-        /* Defer invoking the hook to convert the material till we can do so from
-         * the main thread. */
-        settings.usd_path_to_mat_for_hook.add_new(item.key, assigned_mat);
-      }
-    }
-
-    if (assigned_mat) {
-      std::scoped_lock lock{settings.reader_mutex};
-      BKE_object_material_assign_single_obdata(bmain, ob, assigned_mat, item.value);
-    }
-    else {
       /* This shouldn't happen. */
-      CLOG_WARN(&LOG, "Couldn't assign material %s", item.key.GetAsString().c_str());
+      BLI_assert_unreachable();
+      continue;
     }
+
+    if (requires_load) {
+      mat_reader.load_material(usd_mat, *assigned_mat, !have_import_hook);
+    }
+
+    std::scoped_lock lock{settings.reader_mutex};
+    BKE_object_material_assign_single_obdata(bmain, ob, assigned_mat, item.value);
   }
+
   if (ob->totcol > 0) {
     ob->actcol = 1;
   }

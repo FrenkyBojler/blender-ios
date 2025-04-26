@@ -437,14 +437,15 @@ void NodePlacementContext::cache_node(const pxr::UsdShadeShader &usd_shader,
   node_cache_.add_new(get_key(usd_shader, tag), node);
 }
 
-USDMaterialReader::USDMaterialReader(const USDImportParams &params, Main &bmain,
+USDMaterialReader::USDMaterialReader(const USDImportParams &params,
+                                     Main &bmain,
                                      std::mutex &reader_mutex)
     : params_(params), bmain_(bmain), reader_mutex_(reader_mutex)
 {
 }
 
-Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_material,
-                                          const bool read_usd_preview) const
+Material *USDMaterialReader::create_blender_material(Main &bmain,
+                                                     const pxr::UsdShadeMaterial &usd_material)
 {
   if (!usd_material) {
     return nullptr;
@@ -453,21 +454,26 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
   std::string mtl_name = usd_material.GetPrim().GetName().GetString();
 
   /* Create the material. */
-  Material *mtl;
-  {
-    std::scoped_lock lock{reader_mutex_};
-    mtl = BKE_material_add(&bmain_, mtl_name.c_str());
-    id_us_min(&mtl->id);
+  Material *mtl = BKE_material_add(&bmain, mtl_name.c_str());
+  id_us_min(&mtl->id);
+
+  return mtl;
+}
+
+void USDMaterialReader::load_material(const pxr::UsdShadeMaterial &usd_material,
+                                      Material &blender_material,
+                                      const bool read_usd_preview) const
+{
+  if (!usd_material) {
+    return;
   }
 
   if (read_usd_preview) {
-    import_usd_preview(mtl, usd_material);
+    import_usd_preview(&blender_material, usd_material);
   }
 
   /* Load custom properties directly from the Material's prim. */
-  set_id_props_from_prim(&mtl->id, usd_material.GetPrim());
-
-  return mtl;
+  set_id_props_from_prim(&blender_material.id, usd_material.GetPrim());
 }
 
 void USDMaterialReader::import_usd_preview(Material *mtl,
