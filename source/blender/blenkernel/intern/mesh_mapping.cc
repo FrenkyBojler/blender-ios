@@ -13,6 +13,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_timeit.hh"
+
 #include <atomic>
 
 #include "atomic_ops.h"
@@ -374,19 +376,22 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
   if (group_indices.is_empty()) {
     return {};
   }
+  
+  SCOPED_TIMER_AVERAGED(__func__);
+  
   BLI_assert(*std::max_element(group_indices.begin(), group_indices.end()) <= groups_num);
   BLI_assert(*std::min_element(group_indices.begin(), group_indices.end()) >= 0);
 
   static const constexpr int begin = -1;
   Array<std::atomic<int>> lists_ends(groups_num);
-  threading::parallel_for(lists_ends.index_range(), 4096, [&](const IndexRange range) {
+  threading::parallel_for(lists_ends.index_range(), 1024, [&](const IndexRange range) {
     for (auto &value : lists_ends.as_mutable_span().slice(range)) {
       value.store(begin, std::memory_order_relaxed);
     }
   });
 
   Array<int> group_lists(group_indices.size());
-  threading::parallel_for(group_indices.index_range(), 4096, [&](const IndexRange range) {
+  threading::parallel_for(group_indices.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t i : range) {
       const int group_index = group_indices[i];
       const int previous_index = lists_ends[group_index].exchange(int(i));
@@ -397,7 +402,7 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
   BLI_assert(!lists_ends.as_span().contains(begin));
 
   r_offsets.reinitialize(groups_num + 1);
-  threading::parallel_for(lists_ends.index_range(), 4096, [&](const IndexRange range) {
+  threading::parallel_for(lists_ends.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t group_i : range) {
       int count = 0;
       for (int index = lists_ends[group_i].load(std::memory_order_relaxed); index != begin;
@@ -414,7 +419,7 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
 
   threading::parallel_for(
       lists_ends.index_range(),
-      4096,
+      1024,
       [&](const IndexRange range) {
         for (const int64_t group_i : range) {
           const IndexRange group_range = offsets[group_i];
@@ -430,9 +435,7 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
 
           std::sort(dst_results.begin(), dst_results.end());
         }
-      },
-      threading::accumulated_task_sizes(
-          [&](const IndexRange range) { return offsets[range].size(); }));
+      });
 
   return {OffsetIndices<int>(r_offsets), r_indices};
 }
