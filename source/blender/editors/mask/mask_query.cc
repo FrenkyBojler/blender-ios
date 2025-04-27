@@ -608,6 +608,36 @@ static void handle_position_for_minmax(const MaskSplinePoint *point,
   BKE_mask_point_handle(point, which_handle, r_handle);
 }
 
+bool ED_mask_selected(const bContext *C)
+{
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Mask *mask = CTX_data_edit_mask(C);
+
+  if (mask == nullptr) {
+    return false;
+  }
+
+  /* Use evaluated mask to take animation into account.
+   * The animation of splines is not "flushed" back to original, so need to explicitly
+   * use evaluated data-block here. */
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask);
+
+  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask_eval->masklayers) {
+    if (mask_layer->visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
+      continue;
+    }
+    LISTBASE_FOREACH (MaskSpline *, spline, &mask_layer->splines) {
+      for (int i = 0; i < spline->tot_point; i++) {
+        const MaskSplinePoint *point = &spline->points[i];
+        if (MASKPOINT_ISSEL_ANY(point)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 bool ED_mask_selected_minmax(const bContext *C,
                              float min[2],
                              float max[2],
@@ -671,6 +701,31 @@ bool ED_mask_selected_minmax(const bContext *C,
     }
   }
   return ok;
+}
+
+bool ED_mask_center_from_pivot_ex(
+    const bContext *C, ScrArea *area, float r_center[2], char mode, bool *r_has_select)
+{
+  bool changed = false;
+  switch (mode) {
+    case V3D_AROUND_CURSOR: {
+      ED_mask_cursor_location_get(area, r_center);
+      changed = true;
+      if (r_has_select != nullptr) {
+        *r_has_select = ED_mask_selected(C);
+      }
+      break;
+    }
+    default: {
+      float min[2], max[2];
+      changed = ED_mask_selected_minmax(C, min, max, false);
+      mid_v2_v2v2(r_center, min, max);
+      if (r_has_select != nullptr) {
+        *r_has_select = changed;
+      }
+    } break;
+  }
+  return changed;
 }
 
 /** \} */

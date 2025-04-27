@@ -85,10 +85,14 @@ void ED_mask_point_pos__reverse(
     ScrArea *area, ARegion *region, float x, float y, float *r_x, float *r_y);
 
 void ED_mask_cursor_location_get(ScrArea *area, float cursor[2]);
+bool ED_mask_selected(const bContext *C);
 bool ED_mask_selected_minmax(const bContext *C,
                              float min[2],
                              float max[2],
                              bool handles_as_control_point);
+
+bool ED_mask_center_from_pivot_ex(
+    const bContext *C, ScrArea *area, float r_center[2], char mode, bool *r_has_select);
 
 /* `mask_draw.cc` */
 

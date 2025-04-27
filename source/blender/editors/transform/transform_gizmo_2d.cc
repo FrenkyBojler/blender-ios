@@ -39,6 +39,7 @@
 #include "ED_gizmo_library.hh"
 #include "ED_gizmo_utils.hh"
 #include "ED_image.hh"
+#include "ED_mask.hh"
 #include "ED_screen.hh"
 #include "ED_uvedit.hh"
 
@@ -236,12 +237,27 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
   ScrArea *area = CTX_wm_area(C);
   bool has_select = false;
   if (area->spacetype == SPACE_IMAGE) {
-    Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-        scene, view_layer, nullptr);
-    if (ED_uvedit_minmax_multi(scene, objects, r_min, r_max)) {
-      has_select = true;
+    const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
+    switch (sima->mode) {
+      case SI_MODE_UV: {
+        Scene *scene = CTX_data_scene(C);
+        ViewLayer *view_layer = CTX_data_view_layer(C);
+        Vector<Object *> objects =
+            BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+                scene, view_layer, nullptr);
+        if (ED_uvedit_minmax_multi(scene, objects, r_min, r_max)) {
+          has_select = true;
+        }
+        break;
+      }
+      case SI_MODE_MASK: {
+        if (ED_mask_selected_minmax(C, r_min, r_max, false)) {
+          has_select = true;
+        }
+        break;
+      }
+      default:
+        break;
     }
   }
   else if (area->spacetype == SPACE_SEQ) {
@@ -369,9 +385,19 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
   bool has_select = false;
 
   if (area->spacetype == SPACE_IMAGE) {
-    SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+    const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    ED_uvedit_center_from_pivot_ex(sima, scene, view_layer, r_pivot, sima->around, &has_select);
+    switch (sima->mode) {
+      case SI_MODE_UV:
+        ED_uvedit_center_from_pivot_ex(
+            sima, scene, view_layer, r_pivot, sima->around, &has_select);
+        break;
+      case SI_MODE_MASK:
+        ED_mask_center_from_pivot_ex(C, area, r_pivot, sima->around, &has_select);
+        break;
+      default:
+        break;
+    }
   }
   else if (area->spacetype == SPACE_SEQ) {
     SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
