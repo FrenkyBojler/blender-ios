@@ -4100,30 +4100,39 @@ static void count_multi_input_socket_links(bNodeTree &ntree, SpaceNode &snode)
   }
 }
 
-typedef struct FrameNodeLayoutData {
+struct FrameNodeLayoutData {
   float margin;
   float margin_top;
   float label_height;
   float label_baseline;
   bool has_label;
-} FrameNodeHeaderMetrics;
+};
 
 static FrameNodeLayoutData frame_node_layout(const bNode &node)
 {
-  NodeFrame *frame_data = (NodeFrame *)node.storage;
-  const bool has_label = node.label[0] != '\0';
-  const float label_height = frame_data->label_size * UI_SCALE_FAC;
-  const float margin = 1.5f * U.widget_unit;
-  const float margin_top = 0.5f * margin + (has_label ? 1.25f * label_height : 0.5f * margin);
-  const float label_baseline = label_height + (0.5f * margin);
+  const NodeFrame *frame_data = (NodeFrame *)node.storage;
 
-  return {
-      margin,
-      margin_top,
-      label_height,
-      label_baseline,
-      has_label,
-  };
+  FrameNodeLayoutData retval;
+  retval.has_label = node.label[0] != '\0';
+
+  /* This is not the actual height of the letters in the label, but an approximation that includes
+   * some of the whitespace above and below the actual letters. */
+  retval.label_height = frame_data->label_size * UI_SCALE_FAC;
+
+  /* The side and bottom margins are 50% bigger than the widget unit */
+  retval.margin = 1.5f * U.widget_unit;
+
+  /* If there is no label, add the top half and bottom half of the margin.
+   * If there is a label, add the top half of the margin, plus room for the height of the label
+   * and an additional 25% to account for the glyphs descender. This works well in most cases. */
+  retval.margin_top = 0.5f * retval.margin +
+                      (retval.has_label ? 1.25f * retval.label_height : 0.5f * retval.margin);
+
+  /* This adjustment places the top edge of the label near the center of the normal margin.
+   * label_height is not actually the height of the letters, so this is an approximation. */
+  retval.label_baseline = retval.label_height + (0.5f * retval.margin);
+
+  return retval;
 }
 
 /**
@@ -4140,7 +4149,7 @@ static rctf calc_node_frame_dimensions(bNode &node)
 
   NodeFrame *data = (NodeFrame *)node.storage;
 
-  FrameNodeLayoutData layout = frame_node_layout(node);
+  const FrameNodeLayoutData layout = frame_node_layout(node);
 
   /* Initialize rect from current frame size. */
   rctf rect;
@@ -4246,7 +4255,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx, const bNode &n
   BLF_disable(fontid, BLF_ASPECT);
   BLF_size(fontid, font_size * UI_SCALE_FAC);
 
-  FrameNodeLayoutData layout = frame_node_layout(node);
+  const FrameNodeLayoutData layout = frame_node_layout(node);
 
   /* Title color. */
   int color_id = node_get_colorid(tree_draw_ctx, node);
