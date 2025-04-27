@@ -522,14 +522,12 @@ static wmOperatorStatus gizmo_dial_modal(bContext *C,
   dial_ghostarc_get_angles(
       gz, event, CTX_wm_region(C), gz->matrix_basis, co_outer, &angle_ofs, &angle_delta);
 
-  if (tweak_flag & WM_GIZMO_TWEAK_SNAP) {
-    angle_increment = initSnapAngleIncrements(90);
+  if (tweak_flag & WM_GIZMO_TWEAK_SNAP || tweak_flag & WM_GIZMO_TWEAK_PRECISE) {
+    TransInfo *t = nullptr;
+    angle_increment = initSnapAngleIncrements(t);
     angle_delta = roundf(double(angle_delta) / angle_increment) * angle_increment;
   }
-  if (tweak_flag & WM_GIZMO_TWEAK_PRECISE) {
-    angle_increment *= 0.2f;
-    angle_delta *= 0.2f;
-  }
+
   if (angle_delta != 0.0f) {
     inter->has_drag = true;
   }
