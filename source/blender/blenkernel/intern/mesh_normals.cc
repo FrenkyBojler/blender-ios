@@ -1085,8 +1085,6 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
                                        const int start_local_corner,
                                        Vector<int, 16> &result_fan)
 {
-  const int start_size = result_fan.size();
-
   result_fan.append(start_local_corner);
   {
     /* Travel in the "previous" direction. */
@@ -1101,11 +1099,11 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
       edge_prev = corner_infos[current].local_edge_prev;
     }
     /* Reverse the corners added so the final order is consistent with the next traversal. */
-    result_fan.as_mutable_span().drop_front(start_size).reverse();
+    result_fan.as_mutable_span().reverse();
   }
 
   /* Check for a cyclic traversal where the previous traversal direction visted all corners. */
-  if ((result_fan.size() - start_size) < corner_infos.size()) {
+  if (result_fan.size() < corner_infos.size()) {
     /* Travel in the "next" direction. */
     int current = start_local_corner;
     int edge_next = corner_infos[current].local_edge_next;
