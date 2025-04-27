@@ -406,7 +406,7 @@ set(OPENVDB_LICENSE SPDX:MPL-2.0)
 set(OPENVDB_COPYRIGHT "Copyright Contributors to the OpenVDB Project")
 
 # ------------------------------------------------------------------------------
-# Python Modules
+# Python Modules (Note: This section is scanned via regex to display the versions on the extension platform page)
 
 # Needed by: `requests` module (so the version doesn't change on rebuild).
 set(IDNA_VERSION 3.3)
@@ -445,6 +445,10 @@ set(NUMPY_CPE "cpe:2.3:a:numpy:numpy:${NUMPY_VERSION}:*:*:*:*:*:*:*")
 set(NUMPY_HOMEPAGE https://numpy.org/)
 set(NUMPY_LICENSE SPDX:BSD-3-Clause)
 set(NUMPY_COPYRIGHT "Copyright (c) 2005-2022, NumPy Developers. All rights reserved.")
+
+# End of Python Modules
+# ------------------------------------------------------------------------------
+
 
 set(LAME_VERSION 3.100)
 set(LAME_URI http://downloads.sourceforge.net/project/lame/lame/3.100/lame-${LAME_VERSION}.tar.gz)
