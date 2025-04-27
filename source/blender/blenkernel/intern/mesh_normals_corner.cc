@@ -19,6 +19,116 @@
 
 namespace blender::bke::mesh {
 
+/* This threshold is a bit touchy (usual float precision issue), this value seems OK. */
+#define LNOR_SPACE_TRIGO_THRESHOLD (1.0f - 1e-4f)
+
+static CornerNormalSpace corner_fan_space_define(const float3 &lnor,
+                                                 const float3 &vec_ref,
+                                                 const float3 &vec_other,
+                                                 const Span<float3> edge_vectors)
+{
+  CornerNormalSpace lnor_space{};
+  const float pi2 = float(M_PI) * 2.0f;
+  const float dtp_ref = math::dot(vec_ref, lnor);
+  const float dtp_other = math::dot(vec_other, lnor);
+
+  if (UNLIKELY(std::abs(dtp_ref) >= LNOR_SPACE_TRIGO_THRESHOLD ||
+               std::abs(dtp_other) >= LNOR_SPACE_TRIGO_THRESHOLD))
+  {
+    /* If vec_ref or vec_other are too much aligned with lnor, we can't build lnor space,
+     * tag it as invalid and abort. */
+    lnor_space.ref_alpha = lnor_space.ref_beta = 0.0f;
+    return lnor_space;
+  }
+
+  lnor_space.vec_lnor = lnor;
+
+  /* Compute ref alpha, average angle of all available edge vectors to lnor. */
+  if (!edge_vectors.is_empty()) {
+    float alpha = 0.0f;
+    for (const float3 &vec : edge_vectors) {
+      alpha += math::safe_acos_approx(math::dot(vec, lnor));
+    }
+    /* This piece of code shall only be called for more than one loop. */
+    /* NOTE: In theory, this could be `count > 2`,
+     * but there is one case where we only have two edges for two loops:
+     * a smooth vertex with only two edges and two faces (our Monkey's nose has that, e.g.).
+     */
+    BLI_assert(edge_vectors.size() >= 2);
+    lnor_space.ref_alpha = alpha / float(edge_vectors.size());
+  }
+  else {
+    lnor_space.ref_alpha = (math::safe_acos_approx(math::dot(vec_ref, lnor)) +
+                            math::safe_acos_approx(math::dot(vec_other, lnor))) /
+                           2.0f;
+  }
+
+  /* Project vec_ref on lnor's ortho plane. */
+  lnor_space.vec_ref = math::normalize(vec_ref - lnor * dtp_ref);
+  lnor_space.vec_ortho = math::normalize(math::cross(lnor, lnor_space.vec_ref));
+
+  /* Project vec_other on lnor's ortho plane. */
+  const float3 vec_other_proj = math::normalize(vec_other - lnor * dtp_other);
+
+  /* Beta is angle between ref_vec and other_vec, around lnor. */
+  const float dtp = math::dot(lnor_space.vec_ref, vec_other_proj);
+  if (LIKELY(dtp < LNOR_SPACE_TRIGO_THRESHOLD)) {
+    const float beta = math::safe_acos_approx(dtp);
+    lnor_space.ref_beta = (math::dot(lnor_space.vec_ortho, vec_other_proj) < 0.0f) ? pi2 - beta :
+                                                                                     beta;
+  }
+  else {
+    lnor_space.ref_beta = pi2;
+  }
+
+  return lnor_space;
+}
+
+inline float unit_short_to_float(const short val)
+{
+  return float(val) / float(SHRT_MAX);
+}
+
+inline short unit_float_to_short(const float val)
+{
+  /* Rounding. */
+  return short(floorf(val * float(SHRT_MAX) + 0.5f));
+}
+
+static float3 corner_space_custom_data_to_normal(const CornerNormalSpace &lnor_space,
+                                                 const short2 clnor_data)
+{
+  /* NOP custom normal data or invalid lnor space, return. */
+  if (clnor_data[0] == 0 || lnor_space.ref_alpha == 0.0f || lnor_space.ref_beta == 0.0f) {
+    return lnor_space.vec_lnor;
+  }
+
+  float3 r_custom_lnor;
+
+  /* TODO: Check whether using #sincosf() gives any noticeable benefit
+   * (could not even get it working under linux though)! */
+  const float pi2 = float(M_PI * 2.0);
+  const float alphafac = unit_short_to_float(clnor_data[0]);
+  const float alpha = (alphafac > 0.0f ? lnor_space.ref_alpha : pi2 - lnor_space.ref_alpha) *
+                      alphafac;
+  const float betafac = unit_short_to_float(clnor_data[1]);
+
+  r_custom_lnor = lnor_space.vec_lnor * std::cos(alpha);
+
+  if (betafac == 0.0f) {
+    r_custom_lnor += lnor_space.vec_ref * std::sin(alpha);
+  }
+  else {
+    const float sinalpha = sinf(alpha);
+    const float beta = (betafac > 0.0f ? lnor_space.ref_beta : pi2 - lnor_space.ref_beta) *
+                       betafac;
+    r_custom_lnor += lnor_space.vec_ref * sinalpha * std::cos(beta);
+    r_custom_lnor += lnor_space.vec_ortho * sinalpha * std::sin(beta);
+  }
+
+  return r_custom_lnor;
+}
+
 struct VertCornerInfo {
   int face;
   int corner;
@@ -273,6 +383,61 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
   return math::normalize(fan_normal);
 }
 
+BLI_NOINLINE static void handle_fan_result_and_custom_normals(
+    const Span<short2> custom_normals,
+    const Span<VertCornerInfo> corner_infos,
+    const Span<float3> edge_dirs,
+    const Span<int> local_corners_in_fan,
+    float3 &fan_normal,
+    CornerNormalSpaceArray *r_fan_spaces)
+{
+  const int local_edge_first = corner_infos[local_corners_in_fan.first()].local_edge_prev;
+  const int local_edge_last = local_corners_in_fan.size() == corner_infos.size() ?
+                                  corner_infos[local_corners_in_fan.last()].local_edge_prev :
+                                  corner_infos[local_corners_in_fan.last()].local_edge_next;
+
+  Vector<float3, 16> fan_edge_dirs;
+  if (local_corners_in_fan.size() > 1) {
+    fan_edge_dirs.reserve(local_corners_in_fan.size() + 1);
+    fan_edge_dirs.append(edge_dirs[local_edge_first]);
+    for (const int local_corner : local_corners_in_fan) {
+      const VertCornerInfo &info = corner_infos[local_corner];
+      fan_edge_dirs.append(edge_dirs[info.local_edge_next]);
+    }
+  }
+
+  const CornerNormalSpace fan_space = corner_fan_space_define(
+      fan_normal, edge_dirs[local_edge_first], edge_dirs[local_edge_last], fan_edge_dirs);
+
+  if (!custom_normals.is_empty()) {
+    int2 average_custom_normal(0);
+    for (const int local_corner : local_corners_in_fan) {
+      const VertCornerInfo &info = corner_infos[local_corner];
+      average_custom_normal += int2(custom_normals[info.corner]);
+    }
+    average_custom_normal /= local_corners_in_fan.size();
+    fan_normal = corner_space_custom_data_to_normal(fan_space, short2(average_custom_normal));
+  }
+
+  if (r_fan_spaces) {
+    std::lock_guard lock(r_fan_spaces->build_mutex);
+    r_fan_spaces->spaces.append(fan_space);
+    const int fan_space_index = r_fan_spaces->spaces.size() - 1;
+    for (const int local_corner : local_corners_in_fan) {
+      const VertCornerInfo &info = corner_infos[local_corner];
+      r_fan_spaces->corner_space_indices[info.corner] = fan_space_index;
+    }
+    if (r_fan_spaces->create_corners_by_space) {
+      Array<int> corners_in_space(local_corners_in_fan.size());
+      for (const int i : local_corners_in_fan.index_range()) {
+        const VertCornerInfo &info = corner_infos[local_corners_in_fan[i]];
+        corners_in_space[i] = info.corner;
+      }
+      r_fan_spaces->corners_by_space.append(std::move(corners_in_space));
+    }
+  }
+}
+
 void normals_calc_corners(const Span<float3> vert_positions,
                           const OffsetIndices<int> faces,
                           const Span<int> corner_verts,
@@ -282,7 +447,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           const Span<bool> sharp_edges,
                           const Span<bool> sharp_faces,
                           const Span<short2> custom_normals,
-                          CornerNormalSpaceArray *r_lnors_spacearr,
+                          CornerNormalSpaceArray *r_fan_spaces,
                           MutableSpan<float3> r_corner_normals)
 {
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
@@ -321,7 +486,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       /* Check whether all faces are sharp. This situation might be common on meshes that are
        * mostly sharp shaded, and just copying the face normals is so much faster that it's likely
        * worth handling it explicitly. */
-      if (sharp_edges_num == edge_infos.size()) {
+      if (sharp_edges_num == edge_infos.size() && custom_normals.is_empty() && !r_fan_spaces) {
         for (const VertCornerInfo &info : corner_infos) {
           r_corner_normals[info.corner] = face_normals[info.face];
         }
@@ -331,7 +496,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       edge_dirs.resize(vert_faces.size());
       calc_edge_directions(vert_positions, local_edge_by_vert, vert_position, edge_dirs);
 
-      if (sharp_edges_num == 0) {
+      if (sharp_edges_num == 0 && custom_normals.is_empty() && !r_fan_spaces) {
         const float3 normal = calc_smooth_vert_normal(corner_infos, edge_dirs, face_normals);
         for (const VertCornerInfo &info : corner_infos) {
           r_corner_normals[info.corner] = normal;
@@ -353,8 +518,13 @@ void normals_calc_corners(const Span<float3> vert_positions,
         corners_in_fan.clear();
         traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
 
-        const float3 fan_normal = accumulate_fan_normal(
+        float3 fan_normal = accumulate_fan_normal(
             corner_infos, edge_dirs, face_normals, corners_in_fan);
+
+        if (!custom_normals.is_empty() || r_fan_spaces) {
+          handle_fan_result_and_custom_normals(
+              custom_normals, corner_infos, edge_dirs, corners_in_fan, fan_normal, r_fan_spaces);
+        }
 
         for (const int local_corner : corners_in_fan) {
           const VertCornerInfo &info = corner_infos[local_corner];
