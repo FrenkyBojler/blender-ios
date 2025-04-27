@@ -715,17 +715,17 @@ static float3 corner_space_custom_data_to_normal(const CornerNormalSpace &lnor_s
                       alphafac;
   const float betafac = unit_short_to_float(clnor_data[1]);
 
-  mul_v3_v3fl(r_custom_lnor, lnor_space.vec_lnor, cosf(alpha));
+  r_custom_lnor = lnor_space.vec_lnor * std::cos(alpha);
 
   if (betafac == 0.0f) {
-    madd_v3_v3fl(r_custom_lnor, lnor_space.vec_ref, sinf(alpha));
+    r_custom_lnor += lnor_space.vec_ref * std::sin(alpha);
   }
   else {
     const float sinalpha = sinf(alpha);
     const float beta = (betafac > 0.0f ? lnor_space.ref_beta : pi2 - lnor_space.ref_beta) *
                        betafac;
-    madd_v3_v3fl(r_custom_lnor, lnor_space.vec_ref, sinalpha * cosf(beta));
-    madd_v3_v3fl(r_custom_lnor, lnor_space.vec_ortho, sinalpha * sinf(beta));
+    r_custom_lnor += lnor_space.vec_ref * sinalpha * std::cos(beta);
+    r_custom_lnor += lnor_space.vec_ortho * sinalpha * std::sin(beta);
   }
 
   return r_custom_lnor;
@@ -975,7 +975,7 @@ void edges_sharp_from_angle_set(const OffsetIndices<int> faces,
     return;
   }
 
-  /* Mapping edge -> corners. See #bke::mesh::normals_calc_corners for details. */
+  /* Mapping edge -> corners. */
   Array<int2> edge_to_corners(sharp_edges.size(), int2(0));
 
   mesh_edges_sharp_tag(faces,
@@ -1460,10 +1460,10 @@ void normals_calc_corners(const Span<float3> vert_positions,
  */
 
 static void mesh_normals_corner_custom_set(const Span<float3> positions,
-                                           const Span<int2> edges,
                                            const OffsetIndices<int> faces,
                                            const Span<int> corner_verts,
                                            const Span<int> corner_edges,
+                                           const GroupedSpan<int> vert_to_face_map,
                                            const Span<float3> vert_normals,
                                            const Span<float3> face_normals,
                                            const Span<bool> sharp_faces,
@@ -1486,11 +1486,10 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
 
   /* Compute current lnor spacearr. */
   normals_calc_corners(positions,
-                       edges,
                        faces,
                        corner_verts,
                        corner_edges,
-                       corner_to_face,
+                       vert_to_face_map,
                        face_normals,
                        sharp_edges,
                        sharp_faces,
@@ -1606,11 +1605,10 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
 
     /* And now, recompute our new auto `corner_normals` and lnor spacearr! */
     normals_calc_corners(positions,
-                         edges,
                          faces,
                          corner_verts,
                          corner_edges,
-                         corner_to_face,
+                         vert_to_face_map,
                          face_normals,
                          sharp_edges,
                          sharp_faces,
@@ -1663,10 +1661,10 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
 }
 
 void normals_corner_custom_set(const Span<float3> vert_positions,
-                               const Span<int2> edges,
                                const OffsetIndices<int> faces,
                                const Span<int> corner_verts,
                                const Span<int> corner_edges,
+                               const GroupedSpan<int> vert_to_face_map,
                                const Span<float3> vert_normals,
                                const Span<float3> face_normals,
                                const Span<bool> sharp_faces,
@@ -1675,10 +1673,10 @@ void normals_corner_custom_set(const Span<float3> vert_positions,
                                MutableSpan<short2> r_clnors_data)
 {
   mesh_normals_corner_custom_set(vert_positions,
-                                 edges,
                                  faces,
                                  corner_verts,
                                  corner_edges,
+                                 vert_to_face_map,
                                  vert_normals,
                                  face_normals,
                                  sharp_faces,
@@ -1689,10 +1687,10 @@ void normals_corner_custom_set(const Span<float3> vert_positions,
 }
 
 void normals_corner_custom_set_from_verts(const Span<float3> vert_positions,
-                                          const Span<int2> edges,
                                           const OffsetIndices<int> faces,
                                           const Span<int> corner_verts,
                                           const Span<int> corner_edges,
+                                          const GroupedSpan<int> vert_to_face_map,
                                           const Span<float3> vert_normals,
                                           const Span<float3> face_normals,
                                           const Span<bool> sharp_faces,
@@ -1701,10 +1699,10 @@ void normals_corner_custom_set_from_verts(const Span<float3> vert_positions,
                                           MutableSpan<short2> r_clnors_data)
 {
   mesh_normals_corner_custom_set(vert_positions,
-                                 edges,
                                  faces,
                                  corner_verts,
                                  corner_edges,
+                                 vert_to_face_map,
                                  vert_normals,
                                  face_normals,
                                  sharp_faces,
@@ -1729,10 +1727,10 @@ static void mesh_set_custom_normals(Mesh &mesh,
   const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
 
   mesh_normals_corner_custom_set(mesh.vert_positions(),
-                                 mesh.edges(),
                                  mesh.faces(),
                                  mesh.corner_verts(),
                                  mesh.corner_edges(),
+                                 mesh.vert_to_face_map(),
                                  mesh.vert_normals_true(),
                                  mesh.face_normals_true(),
                                  sharp_faces,
