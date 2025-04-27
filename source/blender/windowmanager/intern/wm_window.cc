@@ -25,6 +25,9 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "GHOST_C-api.h"
@@ -270,6 +273,10 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
     }
   }
   wm_window_timers_delete_removed(wm);
+
+  if (win->scrim) {
+    IMB_freeImBuf(win->scrim);
+  }
 
   if (win->eventstate) {
     MEM_freeN(win->eventstate);
@@ -3219,6 +3226,24 @@ void WM_ghost_show_message_box(const char *title,
 {
   BLI_assert(g_system);
   GHOST_ShowMessageBox(g_system, title, message, help_label, continue_label, link, dialog_options);
+}
+
+void WM_add_scrim(bContext *C, wmWindow *win)
+{
+  if (!G.background && BLI_thread_is_main()) {
+    WM_redraw_windows(C);
+  }
+
+  int win_size[2];
+  uint8_t *buffer = WM_window_pixels_read(C, win, win_size);
+  ImBuf *capture = IMB_allocFromBufferOwn(buffer, NULL, win_size[0], win_size[1], 24);
+
+  /* Scale down to make it faster. */
+  IMB_scale(capture, capture->x / 4, capture->y / 4, IMBScaleFilter::Nearest, false);
+
+  win->scrim = IMB_allocImBuf(capture->x, capture->y, capture->planes, capture->flags);
+  IMB_filter_gaussian(capture, win->scrim, 2.0f);
+  IMB_freeImBuf(capture);
 }
 
 /** \} */

@@ -25,6 +25,8 @@
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
+#include "IMB_imbuf.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -965,6 +967,12 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
 void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
 {
   bool is_submenu = false;
+
+  wmWindow *win = CTX_wm_window(C);
+  if (win && win->scrim) {
+    IMB_freeImBuf(win->scrim);
+    win->scrim = nullptr;
+  }
 
   /* If this popup is created from a popover which does NOT have keep-open flag set,
    * then close the popover too. We could extend this to other popup types too. */

@@ -8,6 +8,8 @@
 
 #include <cmath>
 
+#include "fast_gaussian_blur_template.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_base.h"
@@ -648,5 +650,30 @@ void IMB_unpremultiply_alpha(ImBuf *ibuf)
 
   if (ibuf->float_buffer.data) {
     IMB_unpremultiply_rect_float(ibuf->float_buffer.data, ibuf->channels, ibuf->x, ibuf->y);
+  }
+}
+
+void IMB_filter_gaussian(struct ImBuf *source, struct ImBuf *dest, float sigma)
+{
+  if (source->float_buffer.data && dest->float_buffer.data) {
+    fast_gaussian_blur(source->float_buffer.data,
+                       dest->float_buffer.data,
+                       source->x,
+                       source->y,
+                       4,
+                       sigma,
+                       3,
+                       Border::kExtend);
+  }
+
+  if (source->byte_buffer.data && dest->byte_buffer.data) {
+    fast_gaussian_blur(source->byte_buffer.data,
+                       dest->byte_buffer.data,
+                       source->x,
+                       source->y,
+                       4,
+                       sigma,
+                       3,
+                       Border::kExtend);
   }
 }

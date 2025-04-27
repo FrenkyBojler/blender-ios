@@ -51,6 +51,10 @@
 #include "GPU_texture.hh"
 #include "GPU_viewport.hh"
 
+#include "BIF_glutil.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
 #include "RE_engine.h"
 
 #include "WM_api.hh"
@@ -1070,6 +1074,28 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
   }
 }
 
+static void wm_draw_scrim(wmWindow *win)
+{
+  if (win->scrim) {
+    const float col[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_DESATURATE_COLOR);
+    immUniform1f("factor", 0.0f);
+    immDrawPixelsTexScaledFullSize(&state,
+                                   0.0f,
+                                   0.0f,
+                                   win->scrim->x,
+                                   win->scrim->y,
+                                   GPU_RGBA8,
+                                   true,
+                                   win->scrim->byte_buffer.data,
+                                   (float)win->sizex / (float)win->scrim->x,
+                                   (float)win->sizey / (float)win->scrim->y,
+                                   1.0f,
+                                   1.0f,
+                                   col);
+  }
+}
+
 static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1148,6 +1174,10 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 
   wm_draw_callbacks(win);
   wmWindowViewport(win);
+
+  if (win->scrim) {
+    wm_draw_scrim(win);
+  }
 
   /* Blend in floating regions (menus). */
   LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {

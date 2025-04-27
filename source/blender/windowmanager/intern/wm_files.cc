@@ -4284,6 +4284,7 @@ void wm_test_autorun_warning(bContext *C)
 
     wmWindow *prevwin = CTX_wm_window(C);
     CTX_wm_window_set(C, win);
+    WM_add_scrim(C, CTX_wm_window(C));
     UI_popup_block_invoke(C, block_create_autorun_warning, nullptr, nullptr);
     CTX_wm_window_set(C, prevwin);
   }
@@ -4533,7 +4534,7 @@ void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op)
     callback->exec = nullptr;
     callback->user_data = IDP_CopyProperty(op->properties);
     callback->free_user_data = wm_free_operator_properties_callback;
-
+    WM_add_scrim(C, CTX_wm_window(C));
     UI_popup_block_invoke(
         C, block_create_save_file_overwrite_dialog, callback, free_post_file_close_action);
   }
@@ -4854,6 +4855,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
 void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
 {
   if (!UI_popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
+    WM_add_scrim(C, CTX_wm_window(C));
     UI_popup_block_invoke(
         C, block_create__close_file_dialog, post_action, free_post_file_close_action);
   }

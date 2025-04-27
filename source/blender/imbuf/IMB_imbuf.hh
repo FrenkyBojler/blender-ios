@@ -312,6 +312,8 @@ void IMB_makemipmap(ImBuf *ibuf, int use_filter);
 void IMB_remakemipmap(ImBuf *ibuf, int use_filter);
 ImBuf *IMB_getmipmap(ImBuf *ibuf, int level);
 
+void IMB_filter_gaussian(struct ImBuf *source, struct ImBuf *dest, float sigma);
+
 void IMB_filtery(ImBuf *ibuf);
 
 ImBuf *IMB_onehalf(ImBuf *ibuf1);

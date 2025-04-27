@@ -52,6 +52,7 @@ set(SRC
   intern/util_gpu.cc
   intern/writeimage.cc
 
+  intern/fast_gaussian_blur_template.h
   IMB_colormanagement.hh
   IMB_imbuf.hh
   IMB_imbuf_enums.h

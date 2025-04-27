@@ -417,7 +417,8 @@ typedef struct wmWindow {
    */
   uint64_t eventstate_prev_press_time_ms;
 
-  void *_pad2;
+  struct ImBuf *scrim;
+
   WindowRuntimeHandle *runtime;
 } wmWindow;
 

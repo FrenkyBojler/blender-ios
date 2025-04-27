@@ -1763,6 +1763,11 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
   data->mouse_move_quit = (message == nullptr) ? true : false;
   data->include_properties = false;
 
+  if (data->size == WM_POPUP_SIZE_LARGE && ELEM(data->icon, ALERT_ICON_WARNING, ALERT_ICON_ERROR))
+  {
+    WM_add_scrim(C, CTX_wm_window(C));
+  }
+
   UI_popup_block_ex(
       C, wm_block_dialog_create, wm_operator_ui_popup_ok, wm_operator_ui_popup_cancel, data, op);
 

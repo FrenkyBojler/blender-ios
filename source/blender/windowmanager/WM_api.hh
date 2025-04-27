@@ -344,6 +344,8 @@ void WM_system_gpu_context_dispose(void *context);
 void WM_system_gpu_context_activate(void *context);
 void WM_system_gpu_context_release(void *context);
 
+void WM_add_scrim(struct bContext *C, struct wmWindow *win);
+
 /** #WM_window_open alignment. */
 enum eWindowAlignment {
   WIN_ALIGN_ABSOLUTE = 0,
