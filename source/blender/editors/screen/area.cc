@@ -202,7 +202,7 @@ static void area_draw_azone(short /*x1*/, short /*y1*/, short /*x2*/, short /*y2
 /**
  * \brief Edge widgets to show hidden panels such as the toolbar and headers.
  */
-static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge)
+static void draw_azone_arrow(rctf *rect, AZone *az)
 {
   const float size = 0.2f * U.widget_unit;
   const float l = 1.0f;  /* arrow length */
@@ -210,11 +210,11 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
   const float hl = l / 2.0f;
   const float points[6][2] = {
       {0, -hl}, {l, hl}, {l - s, hl + s}, {0, s + s - hl}, {s - l, hl + s}, {-l, hl}};
-  const float center[2] = {(x1 + x2) / 2, (y1 + y2) / 2};
+  const float center[2] = {BLI_rctf_cent_x(rect), BLI_rctf_cent_y(rect)};
 
   int axis;
   int sign;
-  switch (edge) {
+  switch (az->edge) {
     case AE_BOTTOM_TO_TOPLEFT:
       axis = 0;
       sign = 1;
@@ -241,7 +241,7 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
 
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  immUniformColor4f(0.8f, 0.8f, 0.8f, 0.4f);
+  immUniformColor4f(1.0f, 1.0f, 1.0f, az->active ? 0.7f : 0.3f);
 
   immBegin(GPU_PRIM_TRI_FAN, 6);
   for (int i = 0; i < 6; i++) {
@@ -260,36 +260,52 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
 
 static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *az)
 {
+  const float active_offset = 2.0f * U.pixelsize;
+
   GPU_blend(GPU_BLEND_ALPHA);
 
-  /* add code to draw region hidden as 'too small' */
-  switch (az->edge) {
-    case AE_TOP_TO_BOTTOMRIGHT:
-      UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
-      break;
-    case AE_BOTTOM_TO_TOPLEFT:
-      UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
-      break;
-    case AE_LEFT_TO_TOPRIGHT:
-      UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
-      break;
-    case AE_RIGHT_TO_TOPLEFT:
-      UI_draw_roundbox_corner_set(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT);
-      break;
-  }
-
-  /* Workaround for different color spaces between normal areas and the ones using GPUViewports. */
-  float alpha = WM_region_use_viewport(area, region) ? 0.6f : 0.4f;
-  const float color[4] = {0.05f, 0.05f, 0.05f, alpha};
   rctf rect{};
   /* Hit size is a bit larger than visible background. */
   rect.xmin = float(az->x1) + U.pixelsize;
   rect.xmax = float(az->x2) - U.pixelsize;
   rect.ymin = float(az->y1) + U.pixelsize;
   rect.ymax = float(az->y2) - U.pixelsize;
-  UI_draw_roundbox_aa(&rect, true, 4.0f, color);
 
-  draw_azone_arrow(float(az->x1), float(az->y1), float(az->x2), float(az->y2), az->edge);
+  /* add code to draw region hidden as 'too small' */
+  switch (az->edge) {
+    case AE_TOP_TO_BOTTOMRIGHT:
+      UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
+      if (az->active) {
+        rect.ymax += active_offset;
+      }
+      break;
+    case AE_BOTTOM_TO_TOPLEFT:
+      UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
+      if (az->active) {
+        rect.ymin -= active_offset;
+      }
+      break;
+      break;
+    case AE_LEFT_TO_TOPRIGHT:
+      UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
+      if (az->active) {
+        rect.xmin -= active_offset;
+      }
+      break;
+    case AE_RIGHT_TO_TOPLEFT:
+      UI_draw_roundbox_corner_set(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT);
+      if (az->active) {
+        rect.xmax += active_offset;
+      }
+      break;
+  }
+
+  /* Workaround for different color spaces between normal areas and the ones using GPUViewports. */
+  float alpha = az->active ? 0.5f : WM_region_use_viewport(area, region) ? 0.4f : 0.3f;
+  const float color[4] = {0.0f, 0.0f, 0.0f, alpha};
+  UI_draw_roundbox_4fv_ex(&rect, color, nullptr, 1.0f, nullptr, U.pixelsize, 5.0f * UI_SCALE_FAC);
+
+  draw_azone_arrow(&rect, az);
 }
 
 static void area_azone_tag_update(ScrArea *area)

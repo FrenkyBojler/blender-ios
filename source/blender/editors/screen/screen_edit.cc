@@ -1057,7 +1057,11 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
       WM_cursor_set(win, WM_CURSOR_DEFAULT);
     }
     else if (az->type == AZONE_REGION) {
-      if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
+      const bool is_hidden = (az->region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL));
+      if (is_hidden) {
+        WM_cursor_set(win, WM_CURSOR_DEFAULT);
+      }
+      else if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
         WM_cursor_set(win, WM_CURSOR_X_MOVE);
       }
       else {

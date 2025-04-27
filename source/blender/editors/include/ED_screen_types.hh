@@ -75,6 +75,7 @@ struct AZone {
   AZone *next, *prev;
   ARegion *region;
   int type;
+  bool active;
 
   union {
     /** Region-AZone, which of the edges (only for #AZONE_REGION). */
