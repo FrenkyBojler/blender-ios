@@ -42,6 +42,8 @@
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
+#include "../../transform/transform_mode.hh"
+
 /* own includes */
 #include "../gizmo_library_intern.hh"
 
@@ -521,7 +523,7 @@ static wmOperatorStatus gizmo_dial_modal(bContext *C,
       gz, event, CTX_wm_region(C), gz->matrix_basis, co_outer, &angle_ofs, &angle_delta);
 
   if (tweak_flag & WM_GIZMO_TWEAK_SNAP) {
-    angle_increment = RNA_float_get(gz->ptr, "incremental_angle");
+    angle_increment = initSnapAngleIncrements(90);
     angle_delta = roundf(double(angle_delta) / angle_increment) * angle_increment;
   }
   if (tweak_flag & WM_GIZMO_TWEAK_PRECISE) {

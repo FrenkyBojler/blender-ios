@@ -170,7 +170,7 @@ void ED_widgetgroup_gizmo2d_xform_no_cage_callbacks_set(wmGizmoGroupType *gzgt);
 void ED_widgetgroup_gizmo2d_resize_callbacks_set(wmGizmoGroupType *gzgt);
 void ED_widgetgroup_gizmo2d_rotate_callbacks_set(wmGizmoGroupType *gzgt);
 
-#define SNAP_INCREMENTAL_ANGLE DEG2RAD(5.0)
+#define SNAP_INCREMENTAL_ANGLE DEG2RAD(90.0)
 
 struct TransformBounds {
   /** Center for transform widget. */
