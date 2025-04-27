@@ -1085,11 +1085,11 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
                                        const int start_local_corner,
                                        Vector<int, 16> &result_fan)
 {
-  result_fan.append(start_local_corner);
+  const int start_size = result_fan.size();
 
+  result_fan.append(start_local_corner);
   {
     /* Travel in the "previous" direction. */
-    const int start_size = result_fan.size();
     int current = start_local_corner;
     int edge_prev = corner_infos[current].local_edge_prev;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_prev])) {
@@ -1104,7 +1104,8 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
     result_fan.as_mutable_span().drop_front(start_size).reverse();
   }
 
-  {
+  /* Check for a cyclic traversal where the previous traversal direction visted all corners. */
+  if ((result_fan.size() - start_size) < corner_infos.size()) {
     /* Travel in the "next" direction. */
     int current = start_local_corner;
     int edge_next = corner_infos[current].local_edge_next;
@@ -1264,7 +1265,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       calc_local_edge_indices(corner_infos, local_edge_by_vert);
 
       edge_infos.clear();
-      edge_infos.resize(corner_infos.size());
+      edge_infos.resize(local_edge_by_vert.size());
       calc_connecting_edge_info(corner_edges, sharp_edges, sharp_faces, corner_infos, edge_infos);
 
       const int sharp_edges_num = std::count_if(
@@ -1282,7 +1283,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
         continue;
       }
 
-      edge_dirs.resize(vert_faces.size());
+      edge_dirs.resize(edge_infos.size());
       calc_edge_directions(vert_positions, local_edge_by_vert, vert_position, edge_dirs);
 
       if (sharp_edges_num == 0 && custom_normals.is_empty() && !r_fan_spaces) {
