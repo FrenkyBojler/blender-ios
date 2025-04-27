@@ -723,7 +723,8 @@ bool ED_mask_center_from_pivot_ex(
       if (r_has_select != nullptr) {
         *r_has_select = changed;
       }
-    } break;
+      break;
+    }
   }
   return changed;
 }
