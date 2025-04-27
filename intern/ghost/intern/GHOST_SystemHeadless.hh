@@ -164,7 +164,7 @@ class GHOST_SystemHeadless : public GHOST_System {
     GHOST_TSuccess success = GHOST_System::init();
 
     if (success) {
-        return GHOST_kSuccess;
+      return GHOST_kSuccess;
     }
 
     return GHOST_kFailure;
