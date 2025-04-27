@@ -118,8 +118,10 @@ static void add_corner_to_edge(const Span<int> corner_edges,
   else {
     info = EdgeSharp{};
   }
+  /* The edge is either already sharp, or we're trying to add a third corner. */
 }
 
+/** Use a custom VectorSet type to use int32 instead of int64 for the key indices. */
 using LocalEdgeVectorSet = VectorSet<int,
                                      DefaultProbingStrategy,
                                      DefaultHash<int>,
@@ -127,6 +129,11 @@ using LocalEdgeVectorSet = VectorSet<int,
                                      SimpleVectorSetSlot<int, int>,
                                      GuardedAllocator>;
 
+/**
+ * Create a local indexing for the edges connected to the vertex (not including loose edges of
+ * course). We could look up the edge indices from the VectorSet as necessary later, but it should
+ * be better to just use a bit more space in #VertCornerInfo to simplify things instead.
+ */
 static void calc_local_edge_indices(MutableSpan<VertCornerInfo> corner_infos,
                                     LocalEdgeVectorSet &r_other_vert_to_edge)
 {
@@ -145,57 +152,45 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
 {
   for (const int local_corner : corner_infos.index_range()) {
     const VertCornerInfo &info = corner_infos[local_corner];
-    const int face = info.face;
-    const int edge_prev = info.local_edge_prev;
-    const int edge_next = info.local_edge_next;
-    if (!sharp_faces.is_empty() && sharp_faces[face]) {
-      vert_edge_infos[edge_prev] = EdgeSharp{};
-      vert_edge_infos[edge_next] = EdgeSharp{};
+    if (!sharp_faces.is_empty() && sharp_faces[info.face]) {
+      /* Sharp faces implicitly cause sharp edges. */
+      vert_edge_infos[info.local_edge_prev] = EdgeSharp{};
+      vert_edge_infos[info.local_edge_next] = EdgeSharp{};
       continue;
     }
+    /* The "previous" edge is winding towards the vertex, the "next" edge is winding away. */
     add_corner_to_edge(corner_edges,
                        sharp_edges,
                        local_corner,
                        info.corner,
                        info.corner_prev,
                        true,
-                       vert_edge_infos[edge_prev]);
+                       vert_edge_infos[info.local_edge_prev]);
     add_corner_to_edge(corner_edges,
                        sharp_edges,
                        local_corner,
                        info.corner,
                        info.corner_next,
                        false,
-                       vert_edge_infos[edge_next]);
+                       vert_edge_infos[info.local_edge_next]);
   }
 }
 
-static float3 calc_smooth_vert_normal(const Span<float3> positions,
-                                      const Span<VertCornerInfo> corner_infos,
-                                      const int vert,
-                                      const Span<float3> face_normals)
-{
-  float3 vert_normal(0);
-  for (const int i : corner_infos.index_range()) {
-    const VertCornerInfo &info = corner_infos[i];
-    const float3 dir_prev = math::normalize(positions[info.vert_prev] - positions[vert]);
-    const float3 dir_next = math::normalize(positions[info.vert_next] - positions[vert]);
-    const float factor = math::safe_acos_approx(math::dot(dir_prev, dir_next));
-
-    vert_normal += face_normals[corner_infos[i].face] * factor;
-  }
-  return math::normalize(vert_normal);
-}
-
+/**
+ * From a starting corner, follow the connected edges to find the other corners "fanning" arount
+ * the vertex. Crucially, we've removed ambiguity from the process already by marking edges
+ * connected to three faces sharp.
+ */
 static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
                                        const Span<VertEdgeInfo> edge_infos,
                                        const int start_local_corner,
                                        Vector<int, 16> &result_fan)
 {
-  const int start_size = result_fan.size();
   result_fan.append(start_local_corner);
 
   {
+    /* Travel in the "previous" direction. */
+    const int start_size = result_fan.size();
     int current = start_local_corner;
     int edge_prev = corner_infos[current].local_edge_prev;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_prev])) {
@@ -206,12 +201,12 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
       result_fan.append(current);
       edge_prev = corner_infos[current].local_edge_prev;
     }
+    /* Reverse the corners added so the final order is consistent with the next traversal. */
+    result_fan.as_mutable_span().drop_front(start_size).reverse();
   }
 
-  MutableSpan<int> reverse_traversal = result_fan.as_mutable_span().drop_front(start_size);
-  std::reverse(reverse_traversal.begin(), reverse_traversal.end());
-
   {
+    /* Travel in the "next" direction. */
     int current = start_local_corner;
     int edge_next = corner_infos[current].local_edge_next;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_next])) {
@@ -225,8 +220,13 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
   }
 }
 
+/**
+ * The edge directions are used to compute factors for the face normals from each corner. Since
+ * they involve a normalization it's worth it to compute them once, especially since we've
+ * deduplicated the edge indices and can easily index them with #VertCornerInfo.
+ */
 static void calc_edge_directions(const Span<float3> vert_positions,
-                                 const LocalEdgeVectorSet &local_edge_by_vert,
+                                 const Span<int> local_edge_by_vert,
                                  const float3 &vert_position,
                                  MutableSpan<float3> edge_dirs)
 {
@@ -235,6 +235,27 @@ static void calc_edge_directions(const Span<float3> vert_positions,
   }
 }
 
+/**
+ * This is the same as #normals_calc_vert, but uses our already-collected corner info and edge
+ * directions. This case where all the edges aren't smooth is very common and likely worth handling
+ * explicitly.
+ */
+static float3 calc_smooth_vert_normal(const Span<VertCornerInfo> corner_infos,
+                                      const Span<float3> edge_dirs,
+                                      const Span<float3> face_normals)
+{
+  float3 vert_normal(0);
+  for (const int i : corner_infos.index_range()) {
+    const VertCornerInfo &info = corner_infos[i];
+    const float3 &dir_prev = edge_dirs[info.local_edge_prev];
+    const float3 &dir_next = edge_dirs[info.local_edge_next];
+    const float factor = math::safe_acos_approx(math::dot(dir_prev, dir_next));
+    vert_normal += face_normals[info.face] * factor;
+  }
+  return math::normalize(vert_normal);
+}
+
+/** The normal for all the corners in the fan is a weighted combination of their face normals. */
 static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
                                     const Span<float3> edge_dirs,
                                     const Span<float3> face_normals,
@@ -243,10 +264,8 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
   float3 fan_normal(0);
   for (const int local_corner : local_corners_in_fan) {
     const VertCornerInfo &info = corner_infos[local_corner];
-
     const float3 &dir_prev = edge_dirs[info.local_edge_prev];
     const float3 &dir_next = edge_dirs[info.local_edge_next];
-
     const float factor = math::safe_acos_approx(math::dot(dir_prev, dir_next));
     fan_normal += face_normals[info.face] * factor;
   }
@@ -299,17 +318,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
             return std::holds_alternative<EdgeSharp>(info);
           });
 
-      // TODO: Test if this special case is actually helpful. The fully sharp case probably is,
-      // though that's probably much less common in real meshes.
-      if (sharp_edges_num == 0) {
-        const float3 normal = calc_smooth_vert_normal(
-            vert_positions, corner_infos, vert, face_normals);
-        for (const VertCornerInfo &info : corner_infos) {
-          r_corner_normals[info.corner] = normal;
-        }
-        continue;
-      }
-
+      /* Check whether all faces are sharp. This situation might be common on meshes that are
+       * mostly sharp shaded, and just copying the face normals is so much faster that it's likely
+       * worth handling it explicitly. */
       if (sharp_edges_num == edge_infos.size()) {
         for (const VertCornerInfo &info : corner_infos) {
           r_corner_normals[info.corner] = face_normals[info.face];
@@ -320,9 +331,22 @@ void normals_calc_corners(const Span<float3> vert_positions,
       edge_dirs.resize(vert_faces.size());
       calc_edge_directions(vert_positions, local_edge_by_vert, vert_position, edge_dirs);
 
+      if (sharp_edges_num == 0) {
+        const float3 normal = calc_smooth_vert_normal(corner_infos, edge_dirs, face_normals);
+        for (const VertCornerInfo &info : corner_infos) {
+          r_corner_normals[info.corner] = normal;
+        }
+        continue;
+      }
+
+      /* Though we are protected from traversing to the same corner twice by the fact that 3-way
+       * connections are marked sharp, we need to maintain the "visited" status of each corner so
+       * we can find the next start corner for each subsequent fan traversal. Keeping track of the
+       * number of visited corners is a quick way to avoid this book keeping for the final fan (and
+       * there are usually just two, so that should be worth it). */
+      int visited_corners = 0;
       local_corner_visited.resize(vert_faces.size());
       local_corner_visited.fill(false);
-      int visited_corners = 0;
 
       int start_local_corner = 0;
       while (start_local_corner != -1) {
