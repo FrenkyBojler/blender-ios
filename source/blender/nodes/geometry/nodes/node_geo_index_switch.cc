@@ -72,9 +72,9 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   NodeIndexSwitch &storage = node_storage(node);
   if (uiLayout *panel = uiLayoutPanel(C, layout, "index_switch_items", false, IFACE_("Items"))) {
     uiItemO(panel, IFACE_("Add Item"), ICON_ADD, "node.index_switch_item_add");
-    uiLayout *col = uiLayoutColumn(panel, false);
+    uiLayout *col = &panel->column(false);
     for (const int i : IndexRange(storage.items_num)) {
-      uiLayout *row = uiLayoutRow(col, false);
+      uiLayout *row = &col->row(false);
       uiItemL(row, node.input_socket(i + 1).name, ICON_NONE);
       uiItemIntO(row, "", ICON_REMOVE, "node.index_switch_item_remove", "index", i);
     }
@@ -100,13 +100,13 @@ static void node_operators()
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeIndexSwitch *data = MEM_cnew<NodeIndexSwitch>(__func__);
+  NodeIndexSwitch *data = MEM_callocN<NodeIndexSwitch>(__func__);
   data->data_type = SOCK_GEOMETRY;
   data->next_identifier = 0;
 
   BLI_assert(data->items == nullptr);
   const int default_items_num = 2;
-  data->items = MEM_cnew_array<IndexSwitchItem>(default_items_num, __func__);
+  data->items = MEM_calloc_arrayN<IndexSwitchItem>(default_items_num, __func__);
   for (const int i : IndexRange(default_items_num)) {
     data->items[i].identifier = data->next_identifier++;
   }
@@ -340,7 +340,9 @@ static void node_rna(StructRNA *srna)
                                                SOCK_COLLECTION,
                                                SOCK_MATERIAL,
                                                SOCK_IMAGE,
-                                               SOCK_MENU);
+                                               SOCK_MENU,
+                                               SOCK_BUNDLE,
+                                               SOCK_CLOSURE);
                                  });
       });
 }
@@ -354,7 +356,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeIndexSwitch &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_cnew<NodeIndexSwitch>(__func__, src_storage);
+  auto *dst_storage = MEM_dupallocN<NodeIndexSwitch>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<IndexSwitchItemsAccessor>(*src_node, *dst_node);
@@ -378,12 +380,12 @@ static void register_node()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;
-  blender::bke::node_type_storage(&ntype, "NodeIndexSwitch", node_free_storage, node_copy_storage);
+  blender::bke::node_type_storage(ntype, "NodeIndexSwitch", node_free_storage, node_copy_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

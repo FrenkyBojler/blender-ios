@@ -47,6 +47,9 @@ ccl_device_inline Spectrum integrate_transparent_surface_shadow(KernelGlobals kg
     surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE_SHADOW>(
         kg, state, shadow_sd, nullptr, PATH_RAY_SHADOW);
   }
+  else {
+    INTEGRATOR_STATE_WRITE(state, shadow_path, volume_bounds_bounce) += 1;
+  }
 
 #  ifdef __VOLUME__
   /* Exit/enter volume. */
@@ -83,7 +86,6 @@ ccl_device_inline void integrate_transparent_volume_shadow(KernelGlobals kg,
   ray.self.prim = PRIM_NONE;
   ray.self.light_object = OBJECT_NONE;
   ray.self.light_prim = PRIM_NONE;
-  ray.self.light = LAMP_NONE;
   /* Modify ray position and length to match current segment. */
   ray.tmin = (hit == 0) ? ray.tmin : INTEGRATOR_STATE_ARRAY(state, shadow_isect, hit - 1, t);
   ray.tmax = (hit < num_recorded_hits) ? INTEGRATOR_STATE_ARRAY(state, shadow_isect, hit, t) :
@@ -134,6 +136,10 @@ ccl_device_inline bool integrate_transparent_shadow(KernelGlobals kg,
       INTEGRATOR_STATE_WRITE(state, shadow_path, throughput) = throughput;
       INTEGRATOR_STATE_WRITE(state, shadow_path, transparent_bounce) += 1;
       INTEGRATOR_STATE_WRITE(state, shadow_path, rng_offset) += PRNG_BOUNCE_NUM;
+    }
+
+    if (INTEGRATOR_STATE(state, shadow_path, volume_bounds_bounce) > VOLUME_BOUNDS_MAX) {
+      return true;
     }
 
     /* Note we do not need to check max_transparent_bounce here, the number

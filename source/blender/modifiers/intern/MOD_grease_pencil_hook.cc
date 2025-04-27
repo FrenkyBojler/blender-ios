@@ -7,8 +7,6 @@
  */
 
 #include "BLI_index_mask.hh"
-#include "BLI_math_rotation.hh"
-#include "BLI_string.h" /* For #STRNCPY. */
 
 #include "BLT_translation.hh"
 
@@ -123,7 +121,7 @@ static float hook_falloff(const float falloff,
   if (falloff_type == MOD_GREASE_PENCIL_HOOK_Falloff_Const) {
     return fac_orig;
   }
-  else if (falloff_type == MOD_GREASE_PENCIL_HOOK_Falloff_InvSquare) {
+  if (falloff_type == MOD_GREASE_PENCIL_HOOK_Falloff_InvSquare) {
     /* Avoid sqrt below. */
     return (1.0f - (len_sq / falloff_sq)) * fac_orig;
   }
@@ -272,7 +270,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiItemR(col, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_pointer_is_null(&hook_object_ptr) &&
       RNA_enum_get(&hook_object_ptr, "type") == OB_ARMATURE)
@@ -291,7 +289,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
     bool use_falloff = RNA_enum_get(ptr, "falloff_type") != eWarp_Falloff_None;
 
-    uiLayout *row = uiLayoutRow(sub, false);
+    uiLayout *row = &sub->row(false);
     uiLayoutSetActive(row, use_falloff);
     uiItemR(row, ptr, "falloff_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

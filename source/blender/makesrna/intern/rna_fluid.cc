@@ -9,27 +9,18 @@
 #include <climits>
 #include <cstdlib>
 
-#include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
-#include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
 #include "rna_internal.hh"
 
-#include "BKE_fluid.h"
 #include "BKE_modifier.hh"
-#include "BKE_pointcache.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_fluid_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 
 #include "WM_api.hh"
@@ -39,10 +30,13 @@
 
 #  include <fmt/format.h>
 
+#  include "BLI_math_vector.h"
+#  include "BLI_string.h"
 #  include "BLI_threads.h"
 
 #  include "BKE_colorband.hh"
 #  include "BKE_context.hh"
+#  include "BKE_fluid.h"
 #  include "BKE_particle.h"
 
 #  include "DEG_depsgraph.hh"
@@ -2366,6 +2360,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   RNA_def_property_string_maxlength(prop, FILE_MAX);
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Fluid_cache_directory_set");
   RNA_def_property_string_sdna(prop, nullptr, "cache_directory");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "Cache directory", "Directory that contains fluid cache files");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_update");
 

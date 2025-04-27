@@ -318,7 +318,7 @@ static PyObject *bpyunits_to_string(PyObject * /*self*/, PyObject *args, PyObjec
     PyObject *result;
 
     BKE_unit_value_as_string_adaptive(
-        buf1, sizeof(buf1), value, precision, usys, ucat, bool(split_unit), false);
+        buf1, sizeof(buf1), value, precision, usys, ucat, split_unit, false);
 
     if (compatible_unit) {
       BKE_unit_name_to_alt(buf2, sizeof(buf2), buf1, usys, ucat);
@@ -334,9 +334,14 @@ static PyObject *bpyunits_to_string(PyObject * /*self*/, PyObject *args, PyObjec
   }
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpyunits_methods[] = {
@@ -351,8 +356,12 @@ static PyMethodDef bpyunits_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
