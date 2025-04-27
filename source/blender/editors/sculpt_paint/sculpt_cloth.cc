@@ -11,6 +11,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -27,7 +28,6 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_brush.hh"
-#include "BKE_bvhutils.hh"
 #include "BKE_ccg.hh"
 #include "BKE_collision.h"
 #include "BKE_context.hh"
@@ -45,7 +45,7 @@
 
 #include "ED_sculpt.hh"
 
-#include "brushes/types.hh"
+#include "brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_face_set.hh"
@@ -158,7 +158,7 @@ static GroupedSpan<int> calc_vert_neighbor_indices_bmesh(const BMesh &bm,
                                                          Vector<int> &r_offset_data,
                                                          Vector<int> &r_data)
 {
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
 
   r_offset_data.resize(verts.size() + 1);
   r_data.clear();
@@ -574,8 +574,10 @@ void ensure_nodes_constraints(const Sculpt &sd,
 
       Span<float3> init_positions;
       Span<float3> persistent_position;
-      if (brush != nullptr && brush->flag & BRUSH_PERSISTENT) {
-        persistent_position = ss.sculpt_persistent_co;
+      const std::optional<PersistentMultiresData> persistent_multires_data =
+          ss.persistent_multires_data();
+      if (brush != nullptr && brush->flag & BRUSH_PERSISTENT && persistent_multires_data) {
+        persistent_position = persistent_multires_data->positions;
       }
       if (persistent_position.is_empty()) {
         init_positions = cloth_sim.init_pos;
@@ -592,7 +594,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
                                   brush,
                                   initial_location,
                                   radius,
-                                  cloth_sim.init_pos,
+                                  init_positions,
                                   cloth_sim.node_state_index.lookup(&nodes[i]),
                                   verts,
                                   neighbors,
@@ -1530,7 +1532,7 @@ void do_simulation_step(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 static void cloth_brush_apply_brush_forces(const Depsgraph &depsgraph,
@@ -2276,7 +2278,9 @@ static void apply_filter_forces_bmesh(const Depsgraph &depsgraph,
   }
 }
 
-static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   Object &object = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
@@ -2379,7 +2383,7 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 
   /* Activate all nodes. */
   sim_activate_nodes(object, *ss.filter_cache->cloth_sim, node_mask);
@@ -2391,7 +2395,9 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);

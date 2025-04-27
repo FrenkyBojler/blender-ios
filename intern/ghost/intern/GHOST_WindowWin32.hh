@@ -77,7 +77,6 @@ class GHOST_WindowWin32 : public GHOST_Window {
                     GHOST_TWindowState state,
                     GHOST_TDrawingContextType type,
                     bool wantStereoVisual,
-                    bool alphaBackground,
                     GHOST_WindowWin32 *parentWindow,
                     bool is_debug,
                     bool dialog,
@@ -126,6 +125,11 @@ class GHOST_WindowWin32 : public GHOST_Window {
    * \return The title displayed in the title bar.
    */
   std::string getTitle() const;
+
+  /**
+   * Apply the window decoration style using the current flags and settings.
+   */
+  GHOST_TSuccess applyWindowDecorationStyle() override;
 
   /**
    * Returns the window rectangle dimensions.
@@ -286,16 +290,6 @@ class GHOST_WindowWin32 : public GHOST_Window {
    */
   GHOST_TabletData getTabletData();
 
-  GHOST_TSuccess beginFullScreen() const
-  {
-    return GHOST_kFailure;
-  }
-
-  GHOST_TSuccess endFullScreen() const
-  {
-    return GHOST_kFailure;
-  }
-
   void updateDPI();
 
   uint16_t getDPIHint() override;
@@ -399,8 +393,6 @@ class GHOST_WindowWin32 : public GHOST_Window {
   int m_nPressedButtons;
   /** HCURSOR structure of the custom cursor. */
   HCURSOR m_customCursor;
-  /** Request GL context with alpha channel. */
-  bool m_wantAlphaBackground;
 
   /** ITaskbarList3 structure for progress bar. */
   ITaskbarList3 *m_Bar;

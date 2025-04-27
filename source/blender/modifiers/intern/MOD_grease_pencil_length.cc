@@ -8,7 +8,6 @@
 
 #include "BLI_hash.h"
 #include "BLI_rand.h"
-#include "BLI_task.h"
 
 #include "BLT_translation.hh"
 
@@ -22,7 +21,6 @@
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
@@ -279,7 +277,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropSep(layout, true);
   uiItemR(layout, ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *col = &layout->column(true);
 
   if (RNA_enum_get(ptr, "mode") == GP_LENGTH_RELATIVE) {
     uiItemR(col, ptr, "start_factor", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
@@ -292,10 +290,12 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiItemR(layout, ptr, "overshoot_factor", UI_ITEM_R_SLIDER, IFACE_("Used Length"), ICON_NONE);
 
-  if (uiLayout *random_layout = uiLayoutPanelPropWithBoolHeader(
-          C, layout, ptr, "open_random_panel", "use_random", IFACE_("Randomize")))
+  if (uiLayout *random_layout =
+          uiLayoutPanelPropWithBoolHeader(
+              C, layout, ptr, "open_random_panel", ptr, "use_random", IFACE_("Randomize"))
+              .body)
   {
-    uiLayout *subcol = uiLayoutColumn(random_layout, false);
+    uiLayout *subcol = &random_layout->column(false);
     uiLayoutSetPropSep(subcol, true);
     uiLayoutSetActive(subcol, RNA_boolean_get(ptr, "use_random"));
 
@@ -307,10 +307,12 @@ static void panel_draw(const bContext *C, Panel *panel)
     uiItemR(subcol, ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (uiLayout *curvature_layout = uiLayoutPanelPropWithBoolHeader(
-          C, layout, ptr, "open_curvature_panel", "use_curvature", IFACE_("Curvature")))
+  if (uiLayout *curvature_layout =
+          uiLayoutPanelPropWithBoolHeader(
+              C, layout, ptr, "open_curvature_panel", ptr, "use_curvature", IFACE_("Curvature"))
+              .body)
   {
-    uiLayout *subcol = uiLayoutColumn(curvature_layout, false);
+    uiLayout *subcol = &curvature_layout->column(false);
     uiLayoutSetPropSep(subcol, true);
     uiLayoutSetActive(subcol, RNA_boolean_get(ptr, "use_curvature"));
 

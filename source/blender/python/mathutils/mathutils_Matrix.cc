@@ -708,7 +708,7 @@ static PyObject *C_Matrix_Rotation(PyObject *cls, PyObject *args)
   }
 
   if (vec && PyUnicode_Check(vec)) {
-    axis = PyUnicode_AsUTF8((PyObject *)vec);
+    axis = PyUnicode_AsUTF8(vec);
     if (axis == nullptr || axis[0] == '\0' || axis[1] != '\0' || axis[0] < 'X' || axis[0] > 'Z') {
       PyErr_SetString(PyExc_ValueError,
                       "Matrix.Rotation(): "
@@ -2254,7 +2254,7 @@ static PyObject *Matrix_identity(MatrixObject *self)
 /** Copy `Matrix.copy()` */
 static PyObject *Matrix_copy_notest(MatrixObject *self, const float *matrix)
 {
-  return Matrix_CreatePyObject((const float *)matrix, self->col_num, self->row_num, Py_TYPE(self));
+  return Matrix_CreatePyObject(matrix, self->col_num, self->row_num, Py_TYPE(self));
 }
 
 PyDoc_STRVAR(
@@ -3126,8 +3126,7 @@ static PyObject *Matrix_translation_get(MatrixObject *self, void * /*closure*/)
     return nullptr;
   }
 
-  ret = (PyObject *)Vector_CreatePyObject_cb(
-      (PyObject *)self, 3, mathutils_matrix_translation_cb_index, 3);
+  ret = Vector_CreatePyObject_cb((PyObject *)self, 3, mathutils_matrix_translation_cb_index, 3);
 
   return ret;
 }
@@ -3368,9 +3367,14 @@ static PyGetSetDef Matrix_getseters[] = {
 /** \name Matrix Type: Method Definitions
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef Matrix_methods[] = {
@@ -3436,8 +3440,12 @@ static PyMethodDef Matrix_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */

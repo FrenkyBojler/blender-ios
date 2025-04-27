@@ -167,6 +167,11 @@ bool GPU_stencil_clasify_buffer_workaround()
   return GCaps.stencil_clasify_buffer_workaround;
 }
 
+bool GPU_node_link_instancing_workaround()
+{
+  return GCaps.node_link_instancing_workaround;
+}
+
 bool GPU_vulkan_render_pass_workaround()
 {
   return GCaps.render_pass_workaround;
@@ -187,11 +192,6 @@ bool GPU_hdr_support()
   return GCaps.hdr_viewport_support;
 }
 
-bool GPU_texture_view_support()
-{
-  return GCaps.texture_view_support;
-}
-
 bool GPU_stencil_export_support()
 {
   return GCaps.stencil_export_support;
@@ -210,11 +210,6 @@ int GPU_max_compute_shader_storage_blocks()
 int GPU_minimum_per_vertex_stride()
 {
   return GCaps.minimum_per_vertex_stride;
-}
-
-bool GPU_transform_feedback_support()
-{
-  return GCaps.transform_feedback_support;
 }
 
 size_t GPU_max_storage_buffer_size()

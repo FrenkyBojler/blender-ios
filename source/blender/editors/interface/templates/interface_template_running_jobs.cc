@@ -12,6 +12,7 @@
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_time.h"
 
@@ -69,7 +70,9 @@ struct ProgressTooltip_Store {
   void *owner;
 };
 
-static std::string progress_tooltip_func(bContext * /*C*/, void *argN, const char * /*tip*/)
+static std::string progress_tooltip_func(bContext * /*C*/,
+                                         void *argN,
+                                         const blender::StringRef /*tip*/)
 {
   ProgressTooltip_Store *arg = static_cast<ProgressTooltip_Store *>(argN);
   wmWindowManager *wm = arg->wm;
@@ -218,7 +221,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
     const bool active = !(G.is_break || WM_jobs_is_stopped(wm, owner));
 
-    uiLayout *row = uiLayoutRow(layout, false);
+    uiLayout *row = &layout->row(false);
     block = uiLayoutGetBlock(row);
 
     /* get percentage done and set it as the UI text */
@@ -259,7 +262,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
                      "");
 
     /* stick progress bar and cancel button together */
-    row = uiLayoutRow(layout, true);
+    row = &layout->row(true);
     uiLayoutSetActive(row, active);
     block = uiLayoutGetBlock(row);
 

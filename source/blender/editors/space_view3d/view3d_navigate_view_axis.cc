@@ -9,6 +9,8 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 
+#include "DNA_userdef_types.h"
+
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
@@ -40,7 +42,7 @@ static const EnumPropertyItem prop_view_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int view_axis_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_axis_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d;
   ARegion *region;
@@ -70,7 +72,7 @@ static int view_axis_exec(bContext *C, wmOperator *op)
       ViewLayer *view_layer = CTX_data_view_layer(C);
       Object *obedit = CTX_data_edit_object(C);
       /* same as transform gizmo when normal is set */
-      ED_getTransformOrientationMatrix(
+      blender::ed::transform::ED_getTransformOrientationMatrix(
           scene, view_layer, v3d, obact, obedit, V3D_AROUND_ACTIVE, twmat);
       align_quat = align_quat_buf;
       mat3_to_quat(align_quat, twmat);

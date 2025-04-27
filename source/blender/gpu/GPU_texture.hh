@@ -17,8 +17,6 @@
 #include "BLI_assert.h"
 #include "BLI_utildefines.h"
 
-#include "GPU_state.hh"
-
 namespace blender::gpu {
 class VertBuf;
 }
@@ -534,10 +532,12 @@ enum eGPUTextureUsage {
   GPU_TEXTURE_USAGE_MEMORYLESS = (1 << 5),
   /* Whether a texture can support atomic operations. */
   GPU_TEXTURE_USAGE_ATOMIC = (1 << 6),
+  /* Whether a texture can be exported to other instances/processes. */
+  GPU_TEXTURE_USAGE_MEMORY_EXPORT = (1 << 7),
   /* Create a texture whose usage cannot be defined prematurely.
    * This is unoptimized and should not be used. */
-  GPU_TEXTURE_USAGE_GENERAL = (0xFF &
-                               (~(GPU_TEXTURE_USAGE_MEMORYLESS | GPU_TEXTURE_USAGE_ATOMIC))),
+  GPU_TEXTURE_USAGE_GENERAL = (0xFF & (~(GPU_TEXTURE_USAGE_MEMORYLESS | GPU_TEXTURE_USAGE_ATOMIC |
+                                         GPU_TEXTURE_USAGE_MEMORY_EXPORT))),
 };
 
 ENUM_OPERATORS(eGPUTextureUsage, GPU_TEXTURE_USAGE_GENERAL);
@@ -1007,7 +1007,7 @@ void GPU_texture_get_mipmap_size(GPUTexture *texture, int mip_level, int *r_size
 
 /**
  * Width & Height (of source data), optional.
- * WORKAROUND: Calling 'BKE_image_get_size' may free the texture. Store the source image size
+ * WORKAROUND: Calling #BKE_image_get_size may free the texture. Store the source image size
  * (before down-scaling) inside the #GPUTexture to retrieve the original size later (Ref #59347).
  */
 int GPU_texture_original_width(const GPUTexture *texture);
