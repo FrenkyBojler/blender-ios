@@ -97,8 +97,14 @@ typedef struct BrushGpencilSettings {
   /** Brush preselected mode (Active/Material/Vertex-color). */
   short brush_draw_mode;
 
+  /** Randomness for Hue. */
+  float random_hue;
+  /** Randomness for Saturation. */
+  float random_saturation;
+  /** Randomness for Value. */
+  float random_value;
+
   int color_jitter_flag;
-  float hsv_jitter[3];
   char _pad1[4];
 
   /** Factor to extend stroke extremes using fill tool. */

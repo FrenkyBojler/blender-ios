@@ -1613,7 +1613,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   /* Hue randomness. */
   prop = RNA_def_property(srna, "random_hue_factor", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter[0]");
+  RNA_def_property_float_sdna(prop, nullptr, "random_hue");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_ui_text(prop, "Hue", "Random factor to modify original hue");
@@ -1621,7 +1621,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   /* Saturation randomness. */
   prop = RNA_def_property(srna, "random_saturation_factor", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter[1]");
+  RNA_def_property_float_sdna(prop, nullptr, "random_saturation");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_ui_text(prop, "Saturation", "Random factor to modify original saturation");
@@ -1630,7 +1630,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   /* Value randomness. */
   prop = RNA_def_property(srna, "random_value_factor", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter[2]");
+  RNA_def_property_float_sdna(prop, nullptr, "random_value");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_ui_text(prop, "Value", "Random factor to modify original value");
