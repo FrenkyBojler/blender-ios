@@ -17,9 +17,133 @@
 #include "BLI_assert.h"
 #include "BLI_utildefines.h"
 
+#include "GPU_format.hh"
+
 namespace blender::gpu {
 class VertBuf;
 }
+
+namespace blender::gpu {
+
+/* -------------------------------------------------------------------- */
+/** \name Texture Formats
+ * \{ */
+
+/**
+ * Formats compatible with read-only texture.
+ */
+enum class TextureFormat : uint8_t {
+  Invalid = 0,
+
+#define DECLARE(a, b, c, blender_enum, d, e, f, g, h) blender_enum = int(DataFormat::blender_enum),
+
+#define GPU_TEXTURE_FORMAT_EXPAND(impl) \
+  VEC_X_(impl) \
+  VEC_X_X_(impl) \
+  VEC_X_X_X_(impl) /* TODO(fclem): Incompatible with metal, likely to be emulated. To remove. */ \
+  VEC_X_X_X_X_(impl) \
+\
+  UNORM_10_10_10_2_(impl) \
+  UINT_10_10_10_2_(impl) \
+\
+  UFLOAT_11_11_10_(impl) \
+  UFLOAT_9_9_9_EXP_5_(impl) \
+\
+  UNORM_16_DEPTH_(impl) \
+  UNORM_24_DEPTH_(impl) /* TODO(fclem): Incompatible with metal, is emulated. To remove. */ \
+  UNORM_24_DEPTH_UINT_8_(impl) \
+  SFLOAT_32_DEPTH_(impl) \
+  SFLOAT_32_DEPTH_UINT_8_(impl) \
+\
+  SRGBA_8_8_8_(impl) \
+  SRGBA_8_8_8_8_(impl) \
+\
+  SNORM_DXT1_(impl) \
+  SNORM_DXT3_(impl) \
+  SNORM_DXT5_(impl) \
+  SRGB_DXT1_(impl) \
+  SRGB_DXT3_(impl) \
+  SRGB_DXT5_(impl)
+
+  GPU_TEXTURE_FORMAT_EXPAND(DECLARE)
+
+#undef DECLARE
+};
+
+inline constexpr DataFormat to_data_format(TextureFormat format)
+{
+  return DataFormat(int(format));
+}
+
+/**
+ * Formats compatible with framebuffer attachments.
+ */
+enum class TextureTargetFormat : uint8_t {
+  Invalid = 0,
+
+#define DECLARE(a, b, c, blender_enum, d, e, f, g, h) \
+  blender_enum = int(TextureFormat::blender_enum),
+
+#define GPU_TEXTURE_TARGET_FORMAT_EXPAND(impl) \
+  VEC_X_(impl) \
+  VEC_X_X_(impl) \
+  VEC_X_X_X_X_(impl) \
+\
+  UNORM_10_10_10_2_(impl) \
+  UINT_10_10_10_2_(impl) \
+\
+  UFLOAT_11_11_10_(impl) \
+\
+  UNORM_16_DEPTH_(impl) \
+  UNORM_24_DEPTH_(impl) /* TODO(fclem): Incompatible with metal, is emulated. To remove. */ \
+  UNORM_24_DEPTH_UINT_8_(impl) \
+  SFLOAT_32_DEPTH_(impl) \
+  SFLOAT_32_DEPTH_UINT_8_(impl) \
+\
+  SRGBA_8_8_8_8_(impl)
+
+  GPU_TEXTURE_TARGET_FORMAT_EXPAND(DECLARE)
+
+#undef DECLARE
+};
+
+inline constexpr TextureFormat to_texture_format(TextureTargetFormat format)
+{
+  return TextureFormat(int(format));
+}
+
+/**
+ * Formats compatible with shader load/store.
+ */
+enum class TextureWriteFormat : uint8_t {
+  Invalid = 0,
+
+#define DECLARE(a, b, c, blender_enum, d, e, f, g, h) \
+  blender_enum = int(TextureFormat::blender_enum),
+
+#define GPU_TEXTURE_WRITE_FORMAT_EXPAND(impl) \
+  VEC_X_(impl) \
+  VEC_X_X_(impl) \
+  VEC_X_X_X_X_(impl) \
+\
+  UNORM_10_10_10_2_(impl) \
+  UINT_10_10_10_2_(impl) \
+\
+  UFLOAT_11_11_10_(impl)
+
+  GPU_TEXTURE_WRITE_FORMAT_EXPAND(DECLARE)
+
+#undef DECLARE
+};
+
+inline constexpr TextureFormat to_texture_format(TextureWriteFormat format)
+{
+  return TextureFormat(int(format));
+}
+
+/** \} */
+
+}  // namespace blender::gpu
 
 /* -------------------------------------------------------------------- */
 /** \name Sampler State

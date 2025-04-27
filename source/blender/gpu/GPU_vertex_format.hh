@@ -15,6 +15,39 @@
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
+#include "GPU_format.hh"
+
+namespace blender::gpu {
+
+enum class VertexFormat : uint8_t {
+  Invalid = 0,
+
+#define DECLARE(a, b, c, blender_enum, d, e, f, g, h) blender_enum = int(DataFormat::blender_enum),
+
+#define GPU_VERTEX_FORMAT_EXPAND(impl) \
+  VEC_X_(impl) \
+  VEC_X_X_(impl) \
+  VEC_X_X_X_(impl) \
+  VEC_X_X_X_X_(impl) \
+\
+  SNORM_10_10_10_2_(impl) \
+  UNORM_10_10_10_2_(impl) \
+\
+  /* UFLOAT_11_11_10_(impl) Available on Metal (and maybe VK) but not on GL. */ \
+  /* UFLOAT_9_9_9_EXP_5_(impl) Available on Metal (and maybe VK) but not on GL. */
+
+  GPU_DATA_FORMAT_EXPAND(DECLARE)
+
+#undef DECLARE
+};
+
+inline constexpr DataFormat to_data_format(VertexFormat format)
+{
+  return DataFormat(int(format));
+}
+
+}  // namespace blender::gpu
+
 struct GPUShader;
 
 constexpr static int GPU_VERT_ATTR_MAX_LEN = 16;
