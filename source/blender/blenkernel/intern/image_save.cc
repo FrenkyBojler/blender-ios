@@ -58,7 +58,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
     iuser->scene = scene;
   }
 
-  memset(opts, 0, sizeof(*opts));
+  *opts = ImageSaveOptions{};
 
   opts->bmain = bmain;
   opts->scene = scene;
@@ -215,7 +215,10 @@ static void image_save_post(ReportList *reports,
                             bool *r_colorspace_changed)
 {
   if (!ok) {
-    BKE_reportf(reports, RPT_ERROR, "Could not write image: %s", strerror(errno));
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Could not write image: %s",
+                errno ? strerror(errno) : "internal error, see console");
     return;
   }
 
