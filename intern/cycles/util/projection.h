@@ -117,8 +117,8 @@ ccl_device_inline float3 transform_perspective_deriv(const ccl_private Projectio
                                                      const float3 a,
                                                      const float3 dx,
                                                      const float3 dy,
-                                                     float3 &out_dx,
-                                                     float3 &out_dy)
+                                                     ccl_private float3 &out_dx,
+                                                     ccl_private float3 &out_dy)
 {
   const float4 b = make_float4(a.x, a.y, a.z, 1.0f);
   const float3 c = make_float3(dot(t->x, b), dot(t->y, b), dot(t->z, b));
