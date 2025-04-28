@@ -333,6 +333,7 @@ endif()
 unset(_option_default)
 
 option(WITH_GMP "Enable features depending on GMP (Exact Boolean)" ON)
+option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean)" ON)
 
 option(WITH_OPENIMAGEDENOISE "Enable the OpenImageDenoise compositing node" ON)
 
@@ -758,7 +759,6 @@ option(LLVM_STATIC "Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 option(WITH_CLANG "Use Clang" OFF)
 
-# disable for now, but plan to support on all platforms eventually
 option(WITH_MEM_JEMALLOC "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
 mark_as_advanced(WITH_MEM_JEMALLOC)
 
@@ -863,6 +863,14 @@ else()
   # TODO: We should probably add more sanity checks for Windows and Mac as well
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
+
+option(WITH_TESTS_EXPERIMENTAL "\
+Run tests marked as experimental. \
+These tests are labeled as such due to long runtime, flakey results, or other issues that make them unsuitable \
+for blocking a build on."
+  OFF
+)
+mark_as_advanced(WITH_TESTS_EXPERIMENTAL)
 
 # Enabled by default for typical use cases to speed up development cycles. However, when looking
 # into threading or memory related issues (in dependency graph, out-of-bounds, etc) forcing single
@@ -1255,11 +1263,15 @@ endif()
 
 
 # Apple
-
 if(APPLE)
   include(platform_apple_xcode)
-endif()
 
+  option(WITH_LEGACY_MACOS_X64_LINKER "\
+Use legacy macOS linker on x64 platform. Minutes slower, but emits fewer warnings."
+    OFF
+  )
+  mark_as_advanced(WITH_LEGACY_MACOS_X64_LINKER)
+endif()
 
 # -----------------------------------------------------------------------------
 # Check for Conflicting/Unsupported Configurations
@@ -2729,6 +2741,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_INPUT_NDOF)
   info_cfg_option(WITH_INPUT_IME)
   info_cfg_option(WITH_INTERNATIONAL)
+  info_cfg_option(WITH_MANIFOLD)
   info_cfg_option(WITH_OPENCOLLADA)
   info_cfg_option(WITH_OPENCOLORIO)
   info_cfg_option(WITH_OPENIMAGEDENOISE)
