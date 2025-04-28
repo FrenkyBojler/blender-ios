@@ -153,5 +153,5 @@ void main()
    * 0.5, so the expression doesn't change regardless of jitter. */
   color *= 2.0f / float4(number_of_steps);
 
-  imageStore(output_img, texel, float4(color));
+  imageStore(output_img, texel, color);
 }

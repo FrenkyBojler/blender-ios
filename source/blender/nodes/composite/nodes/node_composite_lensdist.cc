@@ -269,7 +269,7 @@ static void screen_lens_distortion(const int2 texel,
    * 0.5, so the expression doesn't change regardless of jitter. */
   color *= 2.0f / float4(number_of_steps);
 
-  output.store_pixel(texel, float4(color));
+  output.store_pixel(texel, color);
 }
 
 class LensDistortionOperation : public NodeOperation {
