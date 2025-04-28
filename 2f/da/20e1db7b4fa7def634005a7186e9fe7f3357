@@ -2,3 +2,4 @@ Referenced by issue #133693, Regression: use after free displaying a mesh with a
 Referenced by issue #133698, Regression: materials viewport color not displayed in edit-mode
 Referenced by issue #136636, Regression: Blender uses all the RAM when opening simple file.
 Referenced by issue #137984, Sculpt mode crash with certain mesh
+Referenced by issue #138102, Grease Pencil: Messed up drawing with time stretching
