@@ -915,10 +915,16 @@ def overrides_read(silence: bool) -> dict[str, str]:
         try:
             hash = info[0]
             fixed_issue = info[1]
+            if len(hash) < 10:
+                print("\n" * 3)
+                print(f"ERROR: Hash is too short in this override data: {info}")
+                if not silence:
+                    input("Press enter to acknowledge: ")
+                continue
             override_data[hash] = fixed_issue
         except IndexError:
             print("\n" * 3)
-            print(f"ERROR: Failed to process overrides with this data: {info}")
+            print(f"INDEX ERROR: Failed to process overrides with this data: {info}")
             if not silence:
                 input("Press enter to acknowledge: ")
 
