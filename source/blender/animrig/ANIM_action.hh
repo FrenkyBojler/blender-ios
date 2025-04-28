@@ -647,13 +647,6 @@ class Strip : public ::ActionStrip {
    */
   template<typename T> const T &data(const Action &owning_action) const;
   template<typename T> T &data(Action &owning_action);
-
-  /**
-   * Remove all data belonging to the given slot.
-   *
-   * This is typically only called from #Layer::slot_data_remove().
-   */
-  void slot_data_remove(Action &owning_action, slot_handle_t slot_handle);
 };
 static_assert(sizeof(Strip) == sizeof(::ActionStrip),
               "DNA struct and its C++ wrapper must have the same size");
@@ -1029,8 +1022,6 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
 
   /**
    * Remove all strip data for the given slot.
-   *
-   * Typically only called from #Strip::slot_data_remove().
    */
   void slot_data_remove(slot_handle_t slot_handle);
 

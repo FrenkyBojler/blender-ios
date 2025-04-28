@@ -1688,14 +1688,6 @@ template<> StripKeyframeData &Strip::data<StripKeyframeData>(Action &owning_acti
   return *owning_action.strip_keyframe_data()[this->data_index];
 }
 
-void Strip::slot_data_remove(Action &owning_action, const slot_handle_t slot_handle)
-{
-  switch (this->type()) {
-    case Type::Keyframe:
-      this->data<StripKeyframeData>(owning_action).slot_data_remove(slot_handle);
-  }
-}
-
 /* ----- ActionStripKeyframeData implementation ----------- */
 
 StripKeyframeData::StripKeyframeData(const StripKeyframeData &other)
