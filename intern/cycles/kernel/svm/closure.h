@@ -1053,12 +1053,12 @@ ccl_device
   return offset;
 }
 
-ccl_device_inline void svm_alloc_closure_volume(ccl_private ShaderData *sd,
-                                                ccl_private float *stack,
-                                                Spectrum weight,
-                                                const uint type,
-                                                const uint param1_offset,
-                                                const uint param_extra)
+ccl_device_inline void svm_alloc_closure_volume_scatter(ccl_private ShaderData *sd,
+                                                        ccl_private float *stack,
+                                                        Spectrum weight,
+                                                        const uint type,
+                                                        const uint param1_offset,
+                                                        const uint param_extra)
 {
   switch (type) {
     case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
@@ -1165,7 +1165,7 @@ ccl_device_noinline void svm_node_closure_volume(KernelGlobals kg,
 
   /* Add closure for volume scattering. */
   if (CLOSURE_IS_VOLUME_SCATTER(type)) {
-    svm_alloc_closure_volume(sd, stack, weight, type, param1_offset, node.w);
+    svm_alloc_closure_volume_scatter(sd, stack, weight, type, param1_offset, node.w);
   }
 
   /* Sum total extinction weight. */
@@ -1177,7 +1177,7 @@ template<ShaderType shader_type>
 ccl_device_noinline void svm_node_volume_coefficients(KernelGlobals kg,
                                                       ccl_private ShaderData *sd,
                                                       ccl_private float *stack,
-                                                      Spectrum closure_weight,
+                                                      Spectrum scatter_coeffs,
                                                       const uint4 node,
                                                       const uint32_t path_flag)
 {
@@ -1200,20 +1200,18 @@ ccl_device_noinline void svm_node_volume_coefficients(KernelGlobals kg,
   }
 
   /* Compute scattering coefficient. */
-  Spectrum weight = closure_weight;
-
-  weight *= mix_weight * object_volume_density(kg, sd->object);
+  Spectrum weight = mix_weight * object_volume_density(kg, sd->object);
 
   /* Add closure for volume scattering. */
   if (!is_zero(weight) && CLOSURE_IS_VOLUME_SCATTER(type)) {
-    svm_alloc_closure_volume(sd, stack, weight, type, param1_offset, node.z);
+    svm_alloc_closure_volume_scatter(sd, stack, weight, type, param1_offset, node.z);
   }
   uint absorption_coeffs_offset;
   uint emission_coeffs_offset;
   svm_unpack_node_uchar4(
       node.w, &absorption_coeffs_offset, &emission_coeffs_offset, &empty_offset, &empty_offset);
   const float3 absorption_coeffs = stack_load_float3(stack, absorption_coeffs_offset);
-  volume_extinction_setup(sd, (weight + absorption_coeffs));
+  volume_extinction_setup(sd, weight * (scatter_coeffs + absorption_coeffs));
 
   const float3 emission_coeffs = stack_load_float3(stack, emission_coeffs_offset);
   /* Compute emission. */
@@ -1225,10 +1223,8 @@ ccl_device_noinline void svm_node_volume_coefficients(KernelGlobals kg,
   if (is_zero(emission_coeffs)) {
     return;
   }
-  emission_setup(sd, emission_coeffs * object_volume_density(kg, sd->object));
+  emission_setup(sd, weight * emission_coeffs);
 
-  /* Sum total extinction weight. */
-  volume_extinction_setup(sd, weight);
 #endif
 }
 
