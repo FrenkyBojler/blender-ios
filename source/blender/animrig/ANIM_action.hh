@@ -748,13 +748,6 @@ class Layer : public ::ActionLayer {
    */
   bool strip_remove(Action &owning_action, Strip &strip);
 
-  /**
-   * Remove all data belonging to the given slot.
-   *
-   * This is typically only called from #Action::slot_remove().
-   */
-  void slot_data_remove(Action &owning_action, slot_handle_t slot_handle);
-
  protected:
   /**
    * Return the index of `strip` in this layer's strip array, or -1 if not found
