@@ -1247,14 +1247,13 @@ void SEQUENCER_OT_refresh_all(wmOperatorType *ot)
 StringRef effect_inputs_validate(const VectorSet<Strip *> &inputs, int num_inputs)
 {
   if (inputs.size() > 2) {
-    return "Cannot apply effect to more than 2 sequence strips with video content";
+    return "Cannot apply effect to more than 2 strips with video content";
   }
-
   if (num_inputs == 2 && inputs.size() != 2) {
-    return "Exactly 2 selected sequence strips with video content are needed";
+    return "Exactly 2 selected strips with video content are needed";
   }
   if (num_inputs == 1 && inputs.size() != 1) {
-    return "Exactly one selected sequence strip with video content is needed";
+    return "Exactly one selected strip with video content is needed";
   }
   return "";
 }
@@ -1668,7 +1667,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
     return OPERATOR_CANCELLED;
   }
 
-  Strip *active_seq = seq::select_active_get(scene);
+  Strip *active_strip = seq::select_active_get(scene);
   ListBase duplicated_strips = {nullptr, nullptr};
 
   seq::sequence_base_dupli_recursive(scene, scene, &duplicated_strips, ed->seqbasep, 0, 0);
@@ -1696,7 +1695,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
   /* Handle duplicated strips: set active, select, ensure unique name and duplicate animation
    * data. */
   for (Strip *strip = strip_last->next; strip; strip = strip->next) {
-    if (active_seq != nullptr && STREQ(strip->name, active_seq->name)) {
+    if (active_strip != nullptr && STREQ(strip->name, active_strip->name)) {
       seq::select_active_set(scene, strip);
     }
     strip->flag &= ~(SEQ_LEFTSEL + SEQ_RIGHTSEL + SEQ_LOCK);
@@ -2091,7 +2090,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   Strip *seqm = seq::strip_alloc(active_seqbase, 1, 1, STRIP_TYPE_META);
 
   /* Remove all selected from main list, and put in meta.
-   * Sequence is moved within the same edit, no need to re-generate the UID. */
+   * Strip is moved within the same edit, no need to re-generate the UID. */
   blender::VectorSet<Strip *> strips_to_move;
   strips_to_move.add_multiple(selected);
   seq::iterator_set_expand(
@@ -2172,7 +2171,7 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   }
 
   /* Remove all selected from meta, and put in main list.
-   * Sequence is moved within the same edit, no need to re-generate the UID. */
+   * Strip is moved within the same edit, no need to re-generate the UID. */
   BLI_movelisttolist(ed->seqbasep, &active_strip->seqbase);
   BLI_listbase_clear(&active_strip->seqbase);
 
@@ -2373,16 +2372,16 @@ static wmOperatorStatus sequencer_swap_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *active_seq = seq::select_active_get(scene);
+  Strip *active_strip = seq::select_active_get(scene);
   ListBase *seqbase = seq::active_seqbase_get(ed);
   Strip *strip;
   int side = RNA_enum_get(op->ptr, "side");
 
-  if (active_seq == nullptr) {
+  if (active_strip == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  strip = find_next_prev_strip(scene, active_seq, side, -1);
+  strip = find_next_prev_strip(scene, active_strip, side, -1);
 
   if (strip) {
 
@@ -2392,32 +2391,32 @@ static wmOperatorStatus sequencer_swap_exec(bContext *C, wmOperator *op)
     {
       return OPERATOR_CANCELLED;
     }
-    if ((seq::effect_get_num_inputs(active_seq->type) >= 1) &&
-        (active_seq->effectdata || active_seq->seq1 || active_seq->seq2))
+    if ((seq::effect_get_num_inputs(active_strip->type) >= 1) &&
+        (active_strip->effectdata || active_strip->seq1 || active_strip->seq2))
     {
       return OPERATOR_CANCELLED;
     }
 
     ListBase *channels = seq::channels_displayed_get(seq::editing_get(scene));
     if (seq::transform_is_locked(channels, strip) ||
-        seq::transform_is_locked(channels, active_seq))
+        seq::transform_is_locked(channels, active_strip))
     {
       return OPERATOR_CANCELLED;
     }
 
     switch (side) {
       case seq::SIDE_LEFT:
-        swap_strips(scene, strip, active_seq);
+        swap_strips(scene, strip, active_strip);
         break;
       case seq::SIDE_RIGHT:
-        swap_strips(scene, active_seq, strip);
+        swap_strips(scene, active_strip, strip);
         break;
     }
 
     /* Do this in a new loop since both effects need to be calculated first. */
     LISTBASE_FOREACH (Strip *, iseq, seqbase) {
       if ((iseq->type & STRIP_TYPE_EFFECT) &&
-          (strip_is_parent(iseq, active_seq) || strip_is_parent(iseq, strip)))
+          (strip_is_parent(iseq, active_strip) || strip_is_parent(iseq, strip)))
       {
         /* This may now overlap. */
         if (seq::transform_test_overlap(scene, seqbase, iseq)) {
@@ -2461,19 +2460,19 @@ void SEQUENCER_OT_swap(wmOperatorType *ot)
 static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
-  Strip *active_seq = seq::select_active_get(scene);
+  Strip *active_strip = seq::select_active_get(scene);
   StripElem *se = nullptr;
 
-  if (active_seq == nullptr || active_seq->data == nullptr) {
+  if (active_strip == nullptr || active_strip->data == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  switch (active_seq->type) {
+  switch (active_strip->type) {
     case STRIP_TYPE_IMAGE:
-      se = seq::render_give_stripelem(scene, active_seq, scene->r.cfra);
+      se = seq::render_give_stripelem(scene, active_strip, scene->r.cfra);
       break;
     case STRIP_TYPE_MOVIE:
-      se = active_seq->data->stripdata;
+      se = active_strip->data->stripdata;
       break;
     default:
       return OPERATOR_CANCELLED;
@@ -2483,7 +2482,7 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
     return OPERATOR_CANCELLED;
   }
 
-  /* Prevent setting the render size if sequence values aren't initialized. */
+  /* Prevent setting the render size if values aren't initialized. */
   if (se->orig_width <= 0 || se->orig_height <= 0) {
     return OPERATOR_CANCELLED;
   }
@@ -2491,10 +2490,10 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
   scene->r.xsch = se->orig_width;
   scene->r.ysch = se->orig_height;
 
-  active_seq->data->transform->scale_x = active_seq->data->transform->scale_y = 1.0f;
-  active_seq->data->transform->xofs = active_seq->data->transform->yofs = 0.0f;
+  active_strip->data->transform->scale_x = active_strip->data->transform->scale_y = 1.0f;
+  active_strip->data->transform->xofs = active_strip->data->transform->yofs = 0.0f;
 
-  seq::relations_invalidate_cache_preprocessed(scene, active_seq);
+  seq::relations_invalidate_cache_preprocessed(scene, active_strip);
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
@@ -2506,7 +2505,7 @@ void SEQUENCER_OT_rendersize(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Set Render Size";
   ot->idname = "SEQUENCER_OT_rendersize";
-  ot->description = "Set render size and aspect from active sequence";
+  ot->description = "Set render size and aspect from active strip";
 
   /* Api callbacks. */
   ot->exec = sequencer_rendersize_exec;

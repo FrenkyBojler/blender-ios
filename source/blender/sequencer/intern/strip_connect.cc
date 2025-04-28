@@ -87,14 +87,14 @@ void cut_one_way_connections(Strip *strip)
   }
 }
 
-void connect(Strip *seq1, Strip *seq2)
+void connect(Strip *strip1, Strip *strip2)
 {
-  if (seq1 == nullptr || seq2 == nullptr) {
+  if (strip1 == nullptr || strip2 == nullptr) {
     return;
   }
   blender::VectorSet<Strip *> strip_list;
-  strip_list.add(seq1);
-  strip_list.add(seq2);
+  strip_list.add(strip1);
+  strip_list.add(strip2);
 
   connect(strip_list);
 }

@@ -211,46 +211,46 @@ bool edit_move_strip_to_seqbase(Scene *scene,
 }
 
 bool edit_move_strip_to_meta(Scene *scene,
-                             Strip *src_seq,
-                             Strip *dst_seqm,
+                             Strip *src_strip,
+                             Strip *dst_stripm,
                              const char **r_error_str)
 {
   /* Find the appropriate seqbase */
   Editing *ed = editing_get(scene);
-  ListBase *seqbase = get_seqbase_by_strip(scene, src_seq);
+  ListBase *seqbase = get_seqbase_by_strip(scene, src_strip);
 
-  if (dst_seqm->type != STRIP_TYPE_META) {
+  if (dst_stripm->type != STRIP_TYPE_META) {
     *r_error_str = N_("Cannot move strip to non-meta strip");
     return false;
   }
 
-  if (src_seq == dst_seqm) {
+  if (src_strip == dst_stripm) {
     *r_error_str = N_("Strip cannot be moved into itself");
     return false;
   }
 
-  if (seqbase == &dst_seqm->seqbase) {
+  if (seqbase == &dst_stripm->seqbase) {
     *r_error_str = N_("Moved strip is already inside provided meta strip");
     return false;
   }
 
-  if (src_seq->type == STRIP_TYPE_META && exists_in_seqbase(dst_seqm, &src_seq->seqbase)) {
+  if (src_strip->type == STRIP_TYPE_META && exists_in_seqbase(dst_stripm, &src_strip->seqbase)) {
     *r_error_str = N_("Moved strip is parent of provided meta strip");
     return false;
   }
 
-  if (!exists_in_seqbase(dst_seqm, &ed->seqbase)) {
+  if (!exists_in_seqbase(dst_stripm, &ed->seqbase)) {
     *r_error_str = N_("Cannot move strip to different scene");
     return false;
   }
 
   blender::VectorSet<Strip *> strips;
-  strips.add(src_seq);
+  strips.add(src_strip);
   iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
 
   for (Strip *strip : strips) {
     /* Move to meta. */
-    edit_move_strip_to_seqbase(scene, seqbase, strip, &dst_seqm->seqbase);
+    edit_move_strip_to_seqbase(scene, seqbase, strip, &dst_stripm->seqbase);
   }
 
   return true;

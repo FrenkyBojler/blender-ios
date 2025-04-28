@@ -61,7 +61,7 @@ int time_find_next_prev_edit(Scene *scene,
  * \note This checks if strip would be rendered at this frame. For rendering it is assumed, that
  * timeline frame has width of 1 frame and therefore ends at timeline_frame + 1
  *
- * \param seq: Sequence to be checked
+ * \param strip: Strip to be checked
  * \param timeline_frame: absolute frame position
  * \return true if strip intersects with timeline frame.
  */
@@ -134,7 +134,7 @@ float time_media_playback_rate_factor_get(const Strip *strip, float scene_fps);
 /**
  * Get the sound offset (if any) and round it to the nearest integer.
  * This is mostly used in places where subframe data is not allowed (like re-timing key positions).
- * Returns zero if sequence is not a sound strip or if there is no offset.
+ * Returns zero if strip is not a sound strip or if there is no offset.
  */
 int time_get_rounded_sound_offset(const Strip *strip, float frames_per_second);
 

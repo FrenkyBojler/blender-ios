@@ -451,22 +451,22 @@ MetaStack *meta_stack_active_get(const Editing *ed)
   return static_cast<MetaStack *>(ed->metastack.last);
 }
 
-void meta_stack_set(const Scene *scene, Strip *dst_seq)
+void meta_stack_set(const Scene *scene, Strip *dst)
 {
   Editing *ed = editing_get(scene);
   /* Clear metastack */
   BLI_freelistN(&ed->metastack);
 
-  if (dst_seq != nullptr) {
+  if (dst != nullptr) {
     /* Allocate meta stack in a way, that represents meta hierarchy in timeline. */
-    seq_meta_stack_alloc(scene, dst_seq);
-    Strip *meta_parent = dst_seq;
+    seq_meta_stack_alloc(scene, dst);
+    Strip *meta_parent = dst;
     while ((meta_parent = lookup_meta_by_strip(ed, meta_parent))) {
       seq_meta_stack_alloc(scene, meta_parent);
     }
 
-    active_seqbase_set(ed, &dst_seq->seqbase);
-    channels_displayed_set(ed, &dst_seq->channels);
+    active_seqbase_set(ed, &dst->seqbase);
+    channels_displayed_set(ed, &dst->channels);
   }
   else {
     /* Go to top level, exiting meta strip. */

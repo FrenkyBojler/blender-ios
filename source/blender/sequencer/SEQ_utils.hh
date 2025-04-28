@@ -24,7 +24,7 @@ const char *strip_give_name(const Strip *strip);
 ListBase *get_seqbase_from_strip(Strip *strip, ListBase **r_channels, int *r_offset);
 const Strip *get_topmost_sequence(const Scene *scene, int frame);
 /**
- * In cases where we don't know the sequence's listbase.
+ * In cases where we don't know the strip's listbase.
  */
 ListBase *get_seqbase_by_strip(const Scene *scene, Strip *strip);
 /**
@@ -50,10 +50,10 @@ void set_scale_to_fit(const Strip *strip,
                       int preview_height,
                       eSeqImageFitMethod fit_method);
 /**
- * Ensure, that provided Sequence has unique name. If animation data exists for this Sequence, it
+ * Ensure, that provided Strip has unique name. If animation data exists for this Strip, it
  * will be duplicated and mapped onto new name
  *
- * \param seq: Sequence which name will be ensured to be unique
+ * \param strip: Strip which name will be ensured to be unique
  * \param scene: Scene in which name must be unique
  */
 void ensure_unique_name(Strip *strip, Scene *scene);

@@ -79,9 +79,9 @@ MetaStack *meta_stack_active_get(const Editing *ed);
  * Open Meta strip content for editing.
  *
  * \param ed: sequence editor data
- * \param seqm: meta sequence or NULL for top level view
+ * \param dst: meta strip or NULL for top level view
  */
-void meta_stack_set(const Scene *scene, Strip *dst_seq);
+void meta_stack_set(const Scene *scene, Strip *dst);
 /**
  * Close last Meta strip open for editing.
  *
@@ -109,7 +109,7 @@ void doversion_250_sound_proxy_update(Main *bmain, Editing *ed);
 /* Depsgraph update function. */
 
 /**
- * Evaluate parts of sequences which needs to be done as a part of a dependency graph evaluation.
+ * Evaluate parts of strips which needs to be done as a part of a dependency graph evaluation.
  * This does NOT include actual rendering of the strips, but rather makes them up-to-date for
  * animation playback and makes them ready for the sequencer's rendering pipeline to render them.
  */

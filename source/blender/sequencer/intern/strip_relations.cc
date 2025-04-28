@@ -42,26 +42,26 @@ bool relation_is_effect_of_strip(const Strip *effect, const Strip *input)
   return ELEM(input, effect->seq1, effect->seq2);
 }
 
-/* check whether sequence cur depends on seq */
+/* check whether cur depends on strip */
 static bool strip_relations_check_depend(const Scene *scene, Strip *strip, Strip *cur)
 {
   if (relation_is_effect_of_strip(cur, strip)) {
     return true;
   }
 
-  /* sequences are not intersecting in time, assume no dependency exists between them */
+  /* strips are not intersecting in time, assume no dependency exists between them */
   if (time_right_handle_frame_get(scene, cur) < time_left_handle_frame_get(scene, strip) ||
       time_left_handle_frame_get(scene, cur) > time_right_handle_frame_get(scene, strip))
   {
     return false;
   }
 
-  /* checking sequence is below reference one, not dependent on it */
+  /* checking strip is below reference one, not dependent on it */
   if (cur->machine < strip->machine) {
     return false;
   }
 
-  /* sequence is not blending with lower machines, no dependency here occurs
+  /* strip is not blending with lower machines, no dependency here occurs
    * check for non-effects only since effect could use lower machines as input
    */
   if ((cur->type & STRIP_TYPE_EFFECT) == 0 &&
@@ -396,9 +396,9 @@ void relations_strip_free_anim(Strip *strip)
   BLI_listbase_clear(&strip->anims);
 }
 
-void relations_session_uid_generate(Strip *sequence)
+void relations_session_uid_generate(Strip *strip)
 {
-  sequence->runtime.session_uid = BLI_session_uid_generate();
+  strip->runtime.session_uid = BLI_session_uid_generate();
 }
 
 static bool get_uids_cb(Strip *strip, void *user_data)

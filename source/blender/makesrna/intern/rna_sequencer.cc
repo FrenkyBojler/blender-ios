@@ -1133,8 +1133,7 @@ static bool colbalance_seq_cmp_fn(Strip *strip, void *arg_pt)
 {
   StripSearchData *data = static_cast<StripSearchData *>(arg_pt);
 
-  for (StripModifierData *smd = static_cast<StripModifierData *>(strip->modifiers.first);
-       smd;
+  for (StripModifierData *smd = static_cast<StripModifierData *>(strip->modifiers.first); smd;
        smd = smd->next)
   {
     if (smd->type == seqModifierType_ColorBalance) {
@@ -1260,11 +1259,14 @@ static void rna_SequenceEditor_overlay_frame_set(PointerRNA *ptr, int value)
   }
 }
 
-static void rna_SequenceEditor_display_stack(ID *id, Editing *ed, ReportList *reports, Strip *seqm)
+static void rna_SequenceEditor_display_stack(ID *id,
+                                             Editing *ed,
+                                             ReportList *reports,
+                                             Strip *strip_meta)
 {
   /* Check for non-meta sequence */
-  if (seqm != nullptr && seqm->type != STRIP_TYPE_META &&
-      blender::seq::exists_in_seqbase(seqm, &ed->seqbase))
+  if (strip_meta != nullptr && strip_meta->type != STRIP_TYPE_META &&
+      blender::seq::exists_in_seqbase(strip_meta, &ed->seqbase))
   {
     BKE_report(reports, RPT_ERROR, "Strip type must be 'META'");
     return;
@@ -1272,7 +1274,7 @@ static void rna_SequenceEditor_display_stack(ID *id, Editing *ed, ReportList *re
 
   /* Get editing base of meta sequence */
   Scene *scene = (Scene *)id;
-  blender::seq::meta_stack_set(scene, seqm);
+  blender::seq::meta_stack_set(scene, strip_meta);
   /* De-activate strip. This is to prevent strip from different timeline being drawn. */
   blender::seq::select_active_set(scene, nullptr);
 
@@ -1498,18 +1500,18 @@ static float rna_Strip_fps_get(PointerRNA *ptr)
   return blender::seq::time_strip_fps_get(scene, strip);
 }
 
-static void rna_Strip_separate(ID *id, Strip *seqm, Main *bmain)
+static void rna_Strip_separate(ID *id, Strip *strip_meta, Main *bmain)
 {
   Scene *scene = (Scene *)id;
 
   /* Find the appropriate seqbase */
-  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, seqm);
+  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip_meta);
 
-  LISTBASE_FOREACH_MUTABLE (Strip *, strip, &seqm->seqbase) {
-    blender::seq::edit_move_strip_to_seqbase(scene, &seqm->seqbase, strip, seqbase);
+  LISTBASE_FOREACH_MUTABLE (Strip *, strip, &strip_meta->seqbase) {
+    blender::seq::edit_move_strip_to_seqbase(scene, &strip_meta->seqbase, strip, seqbase);
   }
 
-  blender::seq::edit_flag_for_removal(scene, seqbase, seqm);
+  blender::seq::edit_flag_for_removal(scene, seqbase, strip_meta);
   blender::seq::edit_remove_flagged_strips(scene, seqbase);
 
   /* Update depsgraph. */
