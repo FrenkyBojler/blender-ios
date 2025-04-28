@@ -1200,11 +1200,12 @@ ccl_device_noinline void svm_node_volume_coefficients(KernelGlobals kg,
   }
 
   /* Compute scattering coefficient. */
-  Spectrum weight = mix_weight * object_volume_density(kg, sd->object);
+  const float weight = mix_weight * object_volume_density(kg, sd->object);
 
   /* Add closure for volume scattering. */
-  if (!is_zero(weight) && CLOSURE_IS_VOLUME_SCATTER(type)) {
-    svm_alloc_closure_volume_scatter(sd, stack, weight, type, param1_offset, node.z);
+  if (!is_zero(scatter_coeffs) && CLOSURE_IS_VOLUME_SCATTER(type)) {
+    svm_alloc_closure_volume_scatter(
+        sd, stack, weight * scatter_coeffs, type, param1_offset, node.z);
   }
   uint absorption_coeffs_offset;
   uint emission_coeffs_offset;

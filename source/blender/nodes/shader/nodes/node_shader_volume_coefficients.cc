@@ -4,8 +4,6 @@
 
 #include "node_shader_util.hh"
 
-#include "BLI_string.h"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
@@ -15,17 +13,28 @@ namespace blender::nodes::node_shader_volume_coefficients_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Absorption Coefficients")
+  PanelDeclarationBuilder &abs = b.add_panel("Absorption").default_closed(false);
+  abs.add_input<decl::Vector>("Absorption Coefficientsssss")
       .default_value({1.0f, 1.0f, 1.0f})
       .min(0.0f)
-      .max(1000.0f);
+      .max(1000.0f)
+      .description(
+          "Probability density per color channel that light is absorbed per unit distance "
+          "traveled in the medium");
 #define SOCK_ABS_COEFFICIENTS_ID 0
-  b.add_input<decl::Vector>("Scatter Coefficients")
+  PanelDeclarationBuilder &sca = b.add_panel("Scatter").default_closed(false);
+  sca.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
+    uiItemR(layout, ptr, "phase", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  });
+  sca.add_input<decl::Vector>("Scatter Coefficients")
       .default_value({1.0f, 1.0f, 1.0f})
       .min(0.0f)
-      .max(1000.0f);
+      .max(1000.0f)
+      .description(
+          "Probability density per color channel of an out-scattering event occurring per unit "
+          "distance");
 #define SOCK_SCT_COEFFICIENTS_ID 1
-  b.add_input<decl::Float>("Anisotropy")
+  sca.add_input<decl::Float>("Anisotropy")
       .default_value(0.0f)
       .min(-1.0f)
       .max(1.0f)
@@ -33,35 +42,32 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Directionality of the scattering. Zero is isotropic, negative is backward, "
           "positive is forward");
-  b.add_input<decl::Float>("IOR")
+  sca.add_input<decl::Float>("IOR")
       .default_value(1.33f)
       .min(1.0f)
       .max(2.0f)
       .subtype(PROP_FACTOR)
       .description("Index Of Refraction of the scattering particles");
-  b.add_input<decl::Float>("Backscatter")
+  sca.add_input<decl::Float>("Backscatter")
       .default_value(0.1f)
       .min(0.0f)
       .max(0.5f)
       .subtype(PROP_FACTOR)
       .description("Fraction of light that is scattered backwards");
-  b.add_input<decl::Float>("Alpha").default_value(0.5f).min(0.0f).max(500.0f);
-  b.add_input<decl::Float>("Diameter")
+  sca.add_input<decl::Float>("Alpha").default_value(0.5f).min(0.0f).max(500.0f);
+  sca.add_input<decl::Float>("Diameter")
       .default_value(20.0f)
       .min(0.0f)
       .max(50.0f)
       .description("Diameter of the water droplets, in micrometers");
-  b.add_input<decl::Vector>("Emission Coefficients")
+  PanelDeclarationBuilder &emi = b.add_panel("Emission").default_closed(false);
+  emi.add_input<decl::Vector>("Emission Coefficients")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(0.0f)
-      .max(1000.0f);
+      .max(1000.0f)
+      .description("Emitted radiance per color channel that is added to a ray per unit distance");
   b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
-}
-
-static void node_shader_buts_coefficients(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "phase", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_coefficients(bNodeTree * /*ntree*/, bNode *node)
@@ -97,10 +103,10 @@ static int node_shader_gpu_volume_coefficients(GPUMaterial *mat,
                                                GPUNodeStack *in,
                                                GPUNodeStack *out)
 {
-  if (node_socket_not_zero(in[SOCK_SCT_COEFFICIENTS_ID])) {
+  if (node_socket_not_black(in[SOCK_SCT_COEFFICIENTS_ID])) {
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_SCATTER | GPU_MATFLAG_VOLUME_ABSORPTION);
   }
-  if ((node_socket_not_zero(in[SOCK_ABS_COEFFICIENTS_ID]) ||
+  if ((node_socket_not_black(in[SOCK_ABS_COEFFICIENTS_ID]) ||
        node_socket_not_black(in[SOCK_ABS_COEFFICIENTS_ID])))
   {
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_ABSORPTION);
@@ -122,13 +128,13 @@ void register_node_type_sh_volume_coefficients()
 
   sh_node_type_base(&ntype, "ShaderNodeVolumeCoefficients", SH_NODE_VOLUME_COEFFICIENTS);
   ntype.ui_name = "Volume Coefficients";
-  ntype.ui_description = "Scatter and absorb light as it passes through the volume";
+  ntype.ui_description =
+      "Model all three physical processes in a volume, represented by their coefficients";
   ntype.enum_name_legacy = "VOLUME_COEFFICIENTS";
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
-  ntype.draw_buttons = file_ns::node_shader_buts_coefficients;
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
   ntype.initfunc = file_ns::node_shader_init_coefficients;
   ntype.gpu_fn = file_ns::node_shader_gpu_volume_coefficients;
   ntype.updatefunc = file_ns::node_shader_update_coefficients;

@@ -18,7 +18,8 @@ shader node_volume_coefficients(string phase = "Henyey-Greenstein",
   closure color scatter_closure = scatter(phase, Anisotropy, IOR, Backscatter, Alpha, Diameter);
 
   /* Add scattering and absorption closures. */
-  Volume = color(ScatterCoefficients) * scatter_closure + color(AbsorptionCoefficients) * absorption();
+  Volume = color(ScatterCoefficients) * scatter_closure +
+           color(AbsorptionCoefficients) * absorption();
 
   /* Compute emission. */
   Volume += color(EmissionCoefficients) * emission();

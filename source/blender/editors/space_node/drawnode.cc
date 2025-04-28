@@ -506,7 +506,6 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
       ntype->draw_buttons = node_buts_output_shader;
       break;
     case SH_NODE_VOLUME_SCATTER:
-    case SH_NODE_VOLUME_COEFFICIENTS:
       ntype->draw_buttons = node_shader_buts_scatter;
       break;
   }
