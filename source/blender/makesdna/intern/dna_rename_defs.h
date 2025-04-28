@@ -90,6 +90,7 @@ DNA_STRUCT_RENAME_MEMBER(Curves, attributes_active_index, attributes_active_inde
 DNA_STRUCT_RENAME_MEMBER(CurvesGeometry, curve_size, curve_num)
 DNA_STRUCT_RENAME_MEMBER(CurvesGeometry, point_size, point_num)
 DNA_STRUCT_RENAME_MEMBER(CustomDataExternal, filename, filepath)
+DNA_STRUCT_RENAME_MEMBER(Editing, act_seq, act_strip)
 DNA_STRUCT_RENAME_MEMBER(Editing, over_border, overlay_frame_rect)
 DNA_STRUCT_RENAME_MEMBER(Editing, over_cfra, overlay_frame_abs)
 DNA_STRUCT_RENAME_MEMBER(Editing, over_flag, overlay_frame_flag)

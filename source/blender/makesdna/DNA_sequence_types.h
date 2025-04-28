@@ -348,7 +348,7 @@ typedef struct Editing {
   ListBase channels; /* SeqTimelineChannel */
 
   /* Context vars, used to be static */
-  Strip *act_seq;
+  Strip *act_strip;
   /** 1024 = FILE_MAX. */
   char act_imagedir[1024];
   /** 1024 = FILE_MAX. */

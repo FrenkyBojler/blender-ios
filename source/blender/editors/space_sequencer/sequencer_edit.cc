@@ -185,7 +185,7 @@ bool sequencer_editing_initialized_and_active(bContext *C)
 bool sequencer_strip_poll(bContext *C)
 {
   Editing *ed;
-  return (((ed = seq::editing_get(CTX_data_scene(C))) != nullptr) && (ed->act_seq != nullptr));
+  return (((ed = seq::editing_get(CTX_data_scene(C))) != nullptr) && (ed->act_strip != nullptr));
 }
 #endif
 
@@ -196,7 +196,7 @@ bool sequencer_strip_editable_poll(bContext *C)
     return false;
   }
   Editing *ed = seq::editing_get(scene);
-  return (ed && (ed->act_seq != nullptr));
+  return (ed && (ed->act_strip != nullptr));
 }
 
 bool sequencer_strip_has_path_poll(bContext *C)
@@ -204,7 +204,7 @@ bool sequencer_strip_has_path_poll(bContext *C)
   Editing *ed;
   Strip *strip;
   return (((ed = seq::editing_get(CTX_data_scene(C))) != nullptr) &&
-          ((strip = ed->act_seq) != nullptr) && STRIP_HAS_PATH(strip));
+          ((strip = ed->act_strip) != nullptr) && STRIP_HAS_PATH(strip));
 }
 
 bool sequencer_view_has_preview_poll(bContext *C)
@@ -2942,7 +2942,7 @@ static bool sequencer_strip_change_scene_poll(bContext *C)
   if (ed == nullptr) {
     return false;
   }
-  Strip *strip = ed->act_seq;
+  Strip *strip = ed->act_strip;
   return ((strip != nullptr) && (strip->type == STRIP_TYPE_SCENE));
 }
 static wmOperatorStatus sequencer_change_scene_exec(bContext *C, wmOperator *op)
@@ -3146,7 +3146,7 @@ static bool sequencer_strip_is_text_poll(bContext *C)
   Editing *ed;
   Strip *strip;
   return (((ed = seq::editing_get(CTX_data_scene(C))) != nullptr) &&
-          ((strip = ed->act_seq) != nullptr) && (strip->type == STRIP_TYPE_TEXT));
+          ((strip = ed->act_strip) != nullptr) && (strip->type == STRIP_TYPE_TEXT));
 }
 
 void SEQUENCER_OT_export_subtitles(wmOperatorType *ot)
@@ -3460,8 +3460,8 @@ static bool sequencer_strip_color_tag_set_poll(bContext *C)
     return false;
   }
 
-  Strip *act_seq = ed->act_seq;
-  return act_seq != nullptr;
+  Strip *act_strip = ed->act_strip;
+  return act_strip != nullptr;
 }
 
 void SEQUENCER_OT_strip_color_tag_set(wmOperatorType *ot)
@@ -3556,7 +3556,7 @@ static wmOperatorStatus sequencer_scene_frame_range_update_exec(bContext *C, wmO
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *strip = ed->act_seq;
+  Strip *strip = ed->act_strip;
 
   const int old_start = seq::time_left_handle_frame_get(scene, strip);
   const int old_end = seq::time_right_handle_frame_get(scene, strip);
@@ -3576,7 +3576,8 @@ static wmOperatorStatus sequencer_scene_frame_range_update_exec(bContext *C, wmO
 static bool sequencer_scene_frame_range_update_poll(bContext *C)
 {
   Editing *ed = seq::editing_get(CTX_data_scene(C));
-  return (ed != nullptr && ed->act_seq != nullptr && (ed->act_seq->type & STRIP_TYPE_SCENE) != 0);
+  return (ed != nullptr && ed->act_strip != nullptr &&
+          (ed->act_strip->type & STRIP_TYPE_SCENE) != 0);
 }
 
 void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot)

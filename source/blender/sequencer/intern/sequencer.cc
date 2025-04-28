@@ -199,8 +199,8 @@ static void seq_strip_free_ex(Scene *scene,
   if (scene) {
     Editing *ed = scene->ed;
 
-    if (ed->act_seq == strip) {
-      ed->act_seq = nullptr;
+    if (ed->act_strip == strip) {
+      ed->act_strip = nullptr;
     }
 
     if (strip->scene_sound && ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {

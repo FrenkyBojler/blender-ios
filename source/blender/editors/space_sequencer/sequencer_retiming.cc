@@ -133,7 +133,7 @@ static bool retiming_poll(bContext *C)
   if (ed == nullptr) {
     return false;
   }
-  Strip *strip = ed->act_seq;
+  Strip *strip = ed->act_strip;
   if (strip == nullptr) {
     return false;
   }

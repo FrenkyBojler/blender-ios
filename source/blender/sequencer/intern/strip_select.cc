@@ -26,7 +26,7 @@ Strip *select_active_get(const Scene *scene)
     return nullptr;
   }
 
-  return ed->act_seq;
+  return ed->act_strip;
 }
 
 void select_active_set(Scene *scene, Strip *strip)
@@ -37,7 +37,7 @@ void select_active_set(Scene *scene, Strip *strip)
     return;
   }
 
-  ed->act_seq = strip;
+  ed->act_strip = strip;
 }
 
 bool select_active_get_pair(Scene *scene, Strip **r_seq_act, Strip **r_seq_other)

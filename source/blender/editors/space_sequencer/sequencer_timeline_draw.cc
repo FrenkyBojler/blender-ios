@@ -1194,16 +1194,16 @@ static void draw_seq_fcurve_overlay(TimelineDrawContext *timeline_ctx,
 static void draw_multicam_highlight(TimelineDrawContext *timeline_ctx,
                                     const StripDrawContext *strip_ctx)
 {
-  Strip *act_seq = seq::select_active_get(timeline_ctx->scene);
+  Strip *act_strip = seq::select_active_get(timeline_ctx->scene);
 
-  if (strip_ctx->strip != act_seq || act_seq == nullptr) {
+  if (strip_ctx->strip != act_strip || act_strip == nullptr) {
     return;
   }
-  if ((act_seq->flag & SELECT) == 0 || act_seq->type != STRIP_TYPE_MULTICAM) {
+  if ((act_strip->flag & SELECT) == 0 || act_strip->type != STRIP_TYPE_MULTICAM) {
     return;
   }
 
-  int channel = act_seq->multicam_source;
+  int channel = act_strip->multicam_source;
 
   if (channel == 0) {
     return;
@@ -1436,11 +1436,11 @@ static void strip_data_highlight_flags_set(const StripDrawContext &strip,
                                            const TimelineDrawContext *timeline_ctx,
                                            SeqStripDrawData &data)
 {
-  const Strip *act_seq = seq::select_active_get(timeline_ctx->scene);
+  const Strip *act_strip = seq::select_active_get(timeline_ctx->scene);
   const Strip *special_preview = special_preview_get();
   /* Highlight if strip is an input of an active strip, or if the strip is solo preview. */
-  if (act_seq != nullptr && (act_seq->flag & SELECT) != 0) {
-    if (act_seq->seq1 == strip.strip || act_seq->seq2 == strip.strip) {
+  if (act_strip != nullptr && (act_strip->flag & SELECT) != 0) {
+    if (act_strip->seq1 == strip.strip || act_strip->seq2 == strip.strip) {
       data.flags |= GPU_SEQ_FLAG_HIGHLIGHT;
     }
   }
