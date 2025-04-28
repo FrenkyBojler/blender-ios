@@ -260,14 +260,16 @@ class Preprocessor {
 
     std::vector<Loop> loops;
 
+    /* Parse the loop syntax. */
     {
       /* [[unroll]]. */
       std::regex regex(R"(( *))"
                        R"(\[\[unroll\]\])"
                        R"(\s*for\s*\()"
-                       R"(\s*((?:uint|int)\s+(\w+)\s+=\s+(-?\d+));)"
-                       R"(\s*((\w+)\s+(>|<)(=?)\s+(-?\d+));)"
-                       R"(\s*((\w+)(\+\+|\-\-)))"
+                       R"(\s*((?:uint|int)\s+(\w+)\s+=\s+(-?\d+));)" /* Init statement. */
+                       R"(\s*((\w+)\s+(>|<)(=?)\s+(-?\d+)))"         /* Conditional statement. */
+                       R"(\s*(?:&&)?\s*([^;)]+)?;)"       /* Extra conditional statement. */
+                       R"(\s*(((\w+)(\+\+|\-\-))[^\)]*))" /* Iteration statement. */
                        R"(\)(\s*))");
 
       int64_t line = 0;
@@ -275,7 +277,7 @@ class Preprocessor {
       regex_global_search(str, regex, [&](const std::smatch &match) {
         std::string counter_1 = match[3].str();
         std::string counter_2 = match[6].str();
-        std::string counter_3 = match[11].str();
+        std::string counter_3 = match[13].str();
 
         std::string content = match[0].str();
         int64_t lines_in_content = line_count(content);
@@ -304,7 +306,7 @@ class Preprocessor {
           loop.iter_count += 1;
         }
 
-        std::string iter = match[12].str();
+        std::string iter = match[14].str();
         if (iter == "++") {
           if (condition == ">") {
             report_error(match, "Error: Unsupported condition in unrolled loop.");
@@ -324,9 +326,11 @@ class Preprocessor {
         loop.definition = content;
         loop.indent = match[1].str();
         loop.init_statement = match[2].str();
-        loop.test_statement = ""; /* No need for checking since the whole loop is unrolled. */
-        loop.iter_statement = match[10].str();
-        loop.body_prefix = match[13].str();
+        if (!match[10].str().empty()) {
+          loop.test_statement = "if (" + match[10].str() + ") ";
+        }
+        loop.iter_statement = match[11].str();
+        loop.body_prefix = match[15].str();
         loop.body = get_content_between_balanced_pair(loop.definition + suffix, '{', '}');
         loop.body = '{' + loop.body + '}';
 
@@ -378,6 +382,7 @@ class Preprocessor {
 
     std::string out = str;
 
+    /* Copy paste loop iterations. */
     for (const Loop &loop : loops) {
       std::string replacement = loop.indent + "{ " + loop.init_statement + ";";
       for (int64_t i = 0; i < loop.iter_count; i++) {
@@ -399,6 +404,7 @@ class Preprocessor {
       replace_all(out, replaced, replacement);
     }
 
+    /* Check for remaining keywords. */
     if (out.find("[[unroll") != std::string::npos) {
       regex_global_search(str, std::regex(R"(\[\[unroll)"), [&](const std::smatch &match) {
         report_error(match, "Error: Incompatible format for [[unroll]].");
