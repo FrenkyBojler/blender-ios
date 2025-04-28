@@ -96,6 +96,7 @@ render_graph::VKRenderGraph *VKDevice::render_graph_new()
   if (render_graph) {
     return render_graph;
   }
+
   std::scoped_lock lock(resources.mutex);
   render_graph = MEM_new<render_graph::VKRenderGraph>(__func__, resources);
   render_graphs_.append(render_graph);
