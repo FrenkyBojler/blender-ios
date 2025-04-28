@@ -67,7 +67,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
                                 RenderEngine *engine,
                                 RenderLayer *render_layer,
                                 const rcti *rect,
-                                const bool separated_pass)
+                                const bool use_separated_pass)
 {
   const int2 size = int2(draw_ctx->viewport_size_get());
   View &view = View::default_get();
@@ -91,10 +91,11 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     remap_depth(view, {pix_z, rpass_z_src->rectx * rpass_z_src->recty});
   }
 
-  const bool do_region = (!separated_pass) && (!(rect->xmin == 0 && rect->ymin == 0 &&
-                                                 rect->xmax == size.x && rect->ymax == size.y));
+  const bool do_region = (!use_separated_pass) &&
+                         (!(rect->xmin == 0 && rect->ymin == 0 && rect->xmax == size.x &&
+                            rect->ymax == size.y));
   const bool do_clear_z = !pix_z || do_region;
-  const bool do_clear_col = separated_pass || (!pix_col) || do_region;
+  const bool do_clear_col = use_separated_pass || (!pix_col) || do_region;
 
   /* FIXME(fclem): we have a precision loss in the depth buffer because of this re-upload.
    * Find where it comes from! */
