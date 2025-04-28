@@ -1,3 +1,4 @@
 Referenced by issue #91990, Cycles Sampling Presets changes are being completely ignore.
 Referenced by issue #62325, Clicking Preset doesn't change the settings immediately
 Referenced by pull request #138093, Fix #138071: Cycles World Ray Visibility not updating viewport
+Referenced by commit dde50b718667dc0c6819e42a93d3caf1cd928810, Fix #138071: Cycles World Ray Visibility not updating viewport
