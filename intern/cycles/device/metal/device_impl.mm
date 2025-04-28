@@ -12,6 +12,8 @@
 
 #  include "scene/scene.h"
 
+#  include "session/display_driver.h"
+
 #  include "util/debug.h"
 #  include "util/md5.h"
 #  include "util/path.h"
@@ -98,6 +100,16 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     if (auto *metalrt = getenv("CYCLES_METALRT")) {
       use_metalrt = (atoi(metalrt) != 0);
     }
+
+#  if defined(MAC_OS_VERSION_15_0)
+    /* Use "Ray tracing with per component motion interpolation" if available.
+     * Requires Apple9 support (https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf). */
+    if (use_metalrt && [mtlDevice supportsFamily:MTLGPUFamilyApple9]) {
+      if (@available(macos 15.0, *)) {
+        use_pcmi = DebugFlags().metal.use_metalrt_pcmi;
+      }
+    }
+#  endif
 
     if (getenv("CYCLES_DEBUG_METAL_CAPTURE_KERNEL")) {
       capture_enabled = true;
@@ -456,7 +468,7 @@ bool MetalDevice::load_kernels(const uint _kernel_features)
      * This is necessary since objects may be reported to have motion if the Vector pass is
      * active, but may still need to be rendered without motion blur if that isn't active as well.
      */
-    motion_blur |= kernel_features & KERNEL_FEATURE_OBJECT_MOTION;
+    motion_blur = motion_blur || (kernel_features & KERNEL_FEATURE_OBJECT_MOTION);
 
     /* Only request generic kernels if they aren't cached in memory. */
     refresh_source_and_kernels_md5(PSO_GENERIC);
@@ -1350,10 +1362,11 @@ unique_ptr<DeviceQueue> MetalDevice::gpu_queue_create()
   return make_unique<MetalDeviceQueue>(this);
 }
 
-bool MetalDevice::should_use_graphics_interop()
+bool MetalDevice::should_use_graphics_interop(const GraphicsInteropDevice &interop_device,
+                                              const bool /*log*/)
 {
-  /* METAL_WIP - provide fast interop */
-  return false;
+  /* Always supported with unified memory. */
+  return interop_device.type == GraphicsInteropDevice::METAL;
 }
 
 void *MetalDevice::get_native_buffer(device_ptr ptr)
@@ -1383,6 +1396,7 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
     BVHMetal *bvh_metal = static_cast<BVHMetal *>(bvh);
     bvh_metal->motion_blur = motion_blur;
+    bvh_metal->use_pcmi = use_pcmi;
     if (bvh_metal->build(progress, mtlDevice, mtlGeneralCommandQueue, refit)) {
 
       if (bvh->params.top_level) {

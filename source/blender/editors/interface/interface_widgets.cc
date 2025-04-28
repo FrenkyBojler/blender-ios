@@ -10,6 +10,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <list>
 
 #include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
@@ -250,7 +251,7 @@ struct uiWidgetType {
   /* converted colors for state */
   uiWidgetColors wcol;
 
-  void (*state)(uiWidgetType *, const uiWidgetStateInfo *state, eUIEmbossType emboss)
+  void (*state)(uiWidgetType *, const uiWidgetStateInfo *state, blender::ui::EmbossType emboss)
       ATTR_NONNULL();
   void (*draw)(uiWidgetColors *,
                rcti *,
@@ -1288,7 +1289,7 @@ static void widget_draw_preview_icon(BIFIconID icon,
 
 static int ui_but_draw_menu_icon(const uiBut *but)
 {
-  return (but->flag & UI_BUT_ICON_SUBMENU) && (but->emboss == UI_EMBOSS_PULLDOWN);
+  return (but->flag & UI_BUT_ICON_SUBMENU) && (but->emboss == blender::ui::EmbossType::Pulldown);
 }
 
 /* icons have been standardized... and this call draws in untransformed coordinates */
@@ -1353,7 +1354,7 @@ static void widget_draw_icon(
       {
         xs = rect->xmin + 2.0f * ofs;
       }
-      else if (but->emboss == UI_EMBOSS_NONE || but->type == UI_BTYPE_LABEL) {
+      else if (but->emboss == blender::ui::EmbossType::None || but->type == UI_BTYPE_LABEL) {
         xs = rect->xmin + 2.0f * ofs;
       }
       else {
@@ -1492,7 +1493,8 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
                              float okwidth,
                              const float minwidth,
                              const size_t max_len,
-                             const char rpart_sep)
+                             const char rpart_sep,
+                             const bool clip_right_if_tight)
 {
   BLI_assert(str[0]);
 
@@ -1541,7 +1543,9 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
 
     const size_t l_end = BLF_width_to_strlen(
         fstyle->uifont_id, str, max_len, parts_strwidth, nullptr);
-    if (l_end < 10 || min_ff(parts_strwidth, strwidth - okwidth) < minwidth) {
+    if (clip_right_if_tight &&
+        (l_end < 10 || min_ff(parts_strwidth, strwidth - okwidth) < minwidth))
+    {
       /* If we really have no place, or we would clip a very small piece of string in the middle,
        * only show start of string.
        */
@@ -1651,6 +1655,96 @@ static void ui_text_clip_middle_protect_right(const uiFontStyle *fstyle,
   const size_t max_len = sizeof(new_drawstr);
   but->strwidth = UI_text_clip_middle_ex(fstyle, new_drawstr, okwidth, minwidth, max_len, rsep);
   but->drawstr = new_drawstr;
+}
+
+blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
+    const uiFontStyle *fstyle,
+    const char *str,
+    char *clipped_str_buf,
+    const size_t max_len_clipped_str_buf,
+    const float max_line_width,
+    const int max_lines)
+{
+  using namespace blender;
+  BLI_assert(max_lines > 0);
+
+  const Vector<StringRef> lines = BLF_string_wrap(
+      fstyle->uifont_id,
+      str,
+      max_line_width,
+      BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
+
+  if (lines.size() <= max_lines) {
+    return lines;
+  }
+
+  Vector<StringRef> clipped_lines;
+  clipped_lines.reserve(max_lines);
+
+  if (max_lines == 1) {
+    BLI_strncpy(clipped_str_buf, str, max_len_clipped_str_buf);
+
+    UI_text_clip_middle_ex(
+        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0');
+    clipped_lines.append(clipped_str_buf);
+    return clipped_lines;
+  }
+  if (max_lines == 2) {
+    clipped_lines.append(lines[0]);
+    BLI_strncpy(clipped_str_buf, str + lines[0].size(), max_len_clipped_str_buf);
+    UI_text_clip_middle_ex(fstyle,
+                           clipped_str_buf,
+                           max_line_width,
+                           UI_ICON_SIZE,
+                           max_len_clipped_str_buf,
+                           '\0',
+                           false);
+    clipped_lines.append(clipped_str_buf);
+    return clipped_lines;
+  }
+
+  /* The line in the middle that will get the "..." (rounded upwards, so will use the first line of
+   * the second half if the number of lines is even) */
+  const int middle_index = max_lines / 2;
+
+  /* Take the lines until the middle line with the "..." as is. */
+  for (int i = 0; i < middle_index; i++) {
+    clipped_lines.append(lines[i]);
+  }
+
+  /* Clip the middle of the middle line. */
+  {
+    BLI_strncpy(clipped_str_buf, lines[middle_index].data(), max_len_clipped_str_buf);
+    UI_text_clip_middle_ex(fstyle,
+                           clipped_str_buf,
+                           max_line_width,
+                           UI_ICON_SIZE,
+                           max_len_clipped_str_buf,
+                           '\0',
+                           false);
+    clipped_lines.append(clipped_str_buf);
+  }
+
+  /* All remaining lines should be completely filled, including the last one. So fill lines
+   * backwards, and append them to #clipped_lines in the correct order afterwards. */
+  if ((middle_index + 1) < max_lines) {
+    const char *remaining = lines[middle_index + 1].data();
+    size_t remaining_len = strlen(remaining);
+    std::list<StringRef> last_lines;
+    for (int i = 0; i < max_lines - (middle_index + 1) && remaining_len; i++) {
+      size_t offset = BLF_width_to_rstrlen(
+          fstyle->uifont_id, remaining, remaining_len, max_line_width, nullptr);
+      size_t line_len = remaining_len - offset;
+      last_lines.emplace_front(remaining + offset, int64_t(line_len));
+      remaining_len = offset;
+    }
+
+    for (StringRef line : last_lines) {
+      clipped_lines.append(line);
+    }
+  }
+
+  return clipped_lines;
 }
 
 /**
@@ -1906,8 +2000,8 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
   else {
     if (but->editstr) {
-      /* max length isn't used in this case,
-       * we rely on string being nullptr terminated. */
+      /* The maximum length isn't used in this case,
+       * we rely on string being null terminated. */
       drawstr_left_len = INT_MAX;
 
 #ifdef WITH_INPUT_IME
@@ -2345,7 +2439,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
       /* pass (even if its a menu toolbar) */
     }
     else if (ui_block_is_pie_menu(but->block)) {
-      if (but->emboss == UI_EMBOSS_PIE_MENU) {
+      if (but->emboss == blender::ui::EmbossType::PieMenu) {
         rect->xmin += 0.3f * U.widget_unit;
       }
     }
@@ -2478,10 +2572,11 @@ static void widget_active_color(uiWidgetColors *wcol)
 
 static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wcol_state,
                                                   const uiWidgetStateInfo *state,
-                                                  const eUIEmbossType emboss)
+                                                  const blender::ui::EmbossType emboss)
 {
-  /* Explicitly require #UI_EMBOSS_NONE_OR_STATUS for color blending with no emboss. */
-  if (emboss == UI_EMBOSS_NONE) {
+  /* Explicitly require #blender::ui::EmbossType::NoneOrStatus for color blending with no emboss.
+   */
+  if (emboss == blender::ui::EmbossType::None) {
     return nullptr;
   }
 
@@ -2504,7 +2599,9 @@ static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wco
 }
 
 /* copy colors from theme, and set changes in it based on state */
-static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEmbossType emboss)
+static void widget_state(uiWidgetType *wt,
+                         const uiWidgetStateInfo *state,
+                         blender::ui::EmbossType emboss)
 {
   uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -2551,7 +2648,7 @@ static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEm
   }
 
   if (state->but_flag & UI_BUT_REDALERT) {
-    if (wt->draw && emboss != UI_EMBOSS_NONE) {
+    if (wt->draw && emboss != blender::ui::EmbossType::None) {
       UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.inner);
     }
     else {
@@ -2631,7 +2728,7 @@ static bool draw_emboss(const uiBut *but)
 /* sliders use special hack which sets 'item' as inner when drawing filling */
 static void widget_state_numslider(uiWidgetType *wt,
                                    const uiWidgetStateInfo *state,
-                                   eUIEmbossType emboss)
+                                   blender::ui::EmbossType emboss)
 {
   uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -2656,7 +2753,7 @@ static void widget_state_numslider(uiWidgetType *wt,
 /* labels use theme colors for text */
 static void widget_state_option_menu(uiWidgetType *wt,
                                      const uiWidgetStateInfo *state,
-                                     eUIEmbossType emboss)
+                                     blender::ui::EmbossType emboss)
 {
   const bTheme *btheme = UI_GetTheme();
 
@@ -2675,7 +2772,7 @@ static void widget_state_option_menu(uiWidgetType *wt,
 
 static void widget_state_nothing(uiWidgetType *wt,
                                  const uiWidgetStateInfo * /*state*/,
-                                 eUIEmbossType /*emboss*/)
+                                 blender::ui::EmbossType /*emboss*/)
 {
   wt->wcol = *(wt->wcol_theme);
 }
@@ -2683,7 +2780,7 @@ static void widget_state_nothing(uiWidgetType *wt,
 /* special case, button that calls pulldown */
 static void widget_state_pulldown(uiWidgetType *wt,
                                   const uiWidgetStateInfo * /*state*/,
-                                  eUIEmbossType /*emboss*/)
+                                  blender::ui::EmbossType /*emboss*/)
 {
   wt->wcol = *(wt->wcol_theme);
 }
@@ -2691,7 +2788,7 @@ static void widget_state_pulldown(uiWidgetType *wt,
 /* special case, pie menu items */
 static void widget_state_pie_menu_item(uiWidgetType *wt,
                                        const uiWidgetStateInfo *state,
-                                       eUIEmbossType /*emboss*/)
+                                       blender::ui::EmbossType /*emboss*/)
 {
   wt->wcol = *(wt->wcol_theme);
 
@@ -2724,7 +2821,7 @@ static void widget_state_pie_menu_item(uiWidgetType *wt,
 /* special case, menu items */
 static void widget_state_menu_item(uiWidgetType *wt,
                                    const uiWidgetStateInfo *state,
-                                   eUIEmbossType /*emboss*/)
+                                   blender::ui::EmbossType /*emboss*/)
 {
   wt->wcol = *(wt->wcol_theme);
 
@@ -3281,8 +3378,9 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
     CLAMP(x, rect->xmin + margin, rect->xmax - margin);
     CLAMP(y, rect->ymin + margin, rect->ymax - margin);
     rectf.ymax += 1;
-    rectf.xmin = x - (4.0f * UI_SCALE_FAC) - U.pixelsize;
-    rectf.xmax = x + (4.0f * UI_SCALE_FAC) + U.pixelsize;
+    const float cursor_width = std::max(BLI_rctf_size_y(&rectf) * 0.35f, 1.0f);
+    rectf.xmin = x - cursor_width;
+    rectf.xmax = x + cursor_width;
 
     if (but->flag & UI_SELECT) {
       /* Make the indicator larger while the mouse button is pressed. */
@@ -3332,13 +3430,16 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
   const float inner1[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   const float inner2[4] = {0.0f, 0.0f, 0.0f, 1.0f};
   const float outline[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-  UI_draw_roundbox_4fv_ex(&rectf, inner1, inner2, U.pixelsize, outline, 1.0f, 0.0f);
+
+  const float outline_width = (BLI_rctf_size_x(&rectf) < 4.0f) ? 0.0f : 1.0f;
+  UI_draw_roundbox_4fv_ex(&rectf, inner1, inner2, U.pixelsize, outline, outline_width, 0.0f);
 
   /* cursor */
   float y = rect->ymin + v * BLI_rcti_size_y(rect);
   CLAMP(y, float(rect->ymin) + (2.0f * UI_SCALE_FAC), float(rect->ymax) - (2.0f * UI_SCALE_FAC));
-  rectf.ymin = y - (4.0f * UI_SCALE_FAC) - U.pixelsize;
-  rectf.ymax = y + (4.0f * UI_SCALE_FAC) + U.pixelsize;
+  const float cursor_height = std::max(BLI_rctf_size_x(&rectf) * 0.35f, 1.0f);
+  rectf.ymin = y - cursor_height;
+  rectf.ymax = y + cursor_height;
   float col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
   if (but->flag & UI_SELECT) {
@@ -3630,16 +3731,19 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
     round_box_edges(&wtb, UI_CNR_ALL, slider, rad);
 
     if (state & UI_SCROLL_ARROWS) {
-      if (wcol->item[0] > 48) {
-        wcol->item[0] -= 48;
+      const uchar lightness = srgb_to_grayscale_byte(wcol->item);
+      if (lightness > 70) {
+        wcol->item[0] = 0;
+        wcol->item[1] = 0;
+        wcol->item[2] = 0;
+        wcol->item[3] = 128;
       }
-      if (wcol->item[1] > 48) {
-        wcol->item[1] -= 48;
+      else {
+        wcol->item[0] = 255;
+        wcol->item[1] = 255;
+        wcol->item[2] = 255;
+        wcol->item[3] = 128;
       }
-      if (wcol->item[2] > 48) {
-        wcol->item[2] -= 48;
-      }
-      wcol->item[3] = 255;
 
       if (horizontal) {
         rcti slider_inset = *slider;
@@ -4077,7 +4181,7 @@ static void widget_icon_has_anim(uiBut *but,
 {
   if (state->but_flag & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN |
                          UI_BUT_OVERRIDDEN | UI_BUT_REDALERT) &&
-      but->emboss != UI_EMBOSS_NONE)
+      but->emboss != blender::ui::EmbossType::None)
   {
     uiWidgetBase wtb;
     widget_init(&wtb);
@@ -4278,7 +4382,7 @@ static void widget_preview_tile(uiBut *but,
                                 int roundboxalign,
                                 const float zoom)
 {
-  if (!ELEM(but->emboss, UI_EMBOSS_NONE, UI_EMBOSS_NONE_OR_STATUS)) {
+  if (!ELEM(but->emboss, blender::ui::EmbossType::None, blender::ui::EmbossType::NoneOrStatus)) {
     widget_list_itembut(but, wcol, rect, state, roundboxalign, zoom);
   }
 
@@ -4352,7 +4456,7 @@ static void widget_optionbut(uiWidgetColors *wcol,
 /* labels use Editor theme colors for text */
 static void widget_state_label(uiWidgetType *wt,
                                const uiWidgetStateInfo *state,
-                               eUIEmbossType emboss)
+                               blender::ui::EmbossType emboss)
 {
   if (state->but_flag & UI_BUT_LIST_ITEM) {
     /* Override default label theme's colors. */
@@ -4847,7 +4951,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   uiWidgetType *wt = nullptr;
 
   /* handle menus separately */
-  if (but->emboss == UI_EMBOSS_PULLDOWN) {
+  if (but->emboss == blender::ui::EmbossType::Pulldown) {
     switch (but->type) {
       case UI_BTYPE_LABEL:
         widget_draw_text_icon(&style->widget, &tui->wcol_menu_back, but, rect);
@@ -4867,9 +4971,10 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
       }
     }
   }
-  else if (ELEM(but->emboss, UI_EMBOSS_NONE, UI_EMBOSS_NONE_OR_STATUS)) {
+  else if (ELEM(but->emboss, blender::ui::EmbossType::None, blender::ui::EmbossType::NoneOrStatus))
+  {
     /* Use the same widget types for both no emboss types. Later on,
-     * #UI_EMBOSS_NONE_OR_STATUS will blend state colors if they apply. */
+     * #blender::ui::EmbossType::NoneOrStatus will blend state colors if they apply. */
     switch (but->type) {
       case UI_BTYPE_LABEL:
       case UI_BTYPE_TEXT:
@@ -4886,11 +4991,11 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         break;
     }
   }
-  else if (but->emboss == UI_EMBOSS_PIE_MENU) {
+  else if (but->emboss == blender::ui::EmbossType::PieMenu) {
     wt = widget_type(UI_WTYPE_MENU_ITEM_PIE);
   }
   else {
-    BLI_assert(but->emboss == UI_EMBOSS);
+    BLI_assert(but->emboss == blender::ui::EmbossType::Emboss);
 
     switch (but->type) {
       case UI_BTYPE_LABEL:
@@ -5149,7 +5254,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   }
 
   bool use_alpha_blend = false;
-  if (but->emboss != UI_EMBOSS_PULLDOWN) {
+  if (but->emboss != blender::ui::EmbossType::Pulldown) {
     if (but->flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
       use_alpha_blend = true;
       ui_widget_color_disabled(wt, &state);
@@ -5224,7 +5329,7 @@ void ui_draw_menu_back(uiStyle * /*style*/, uiBlock *block, const rcti *rect)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_BACK);
 
-  wt->state(wt, &STATE_INFO_NULL, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &STATE_INFO_NULL, blender::ui::EmbossType::Undefined);
   if (block) {
     const float zoom = 1.0f / block->aspect;
     wt->draw_block(&wt->wcol, rect, block->flag, block->direction, zoom);
@@ -5503,7 +5608,7 @@ static void ui_draw_widget_back_color(uiWidgetTypeEnum type,
     widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
   }
 
-  wt->state(wt, &STATE_INFO_NULL, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &STATE_INFO_NULL, blender::ui::EmbossType::Undefined);
   if (color) {
     rgba_float_to_uchar(wt->wcol.inner, color);
   }
@@ -5532,7 +5637,7 @@ void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow)
 void ui_draw_tooltip_background(const uiStyle * /*style*/, uiBlock * /*block*/, const rcti *rect)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
-  wt->state(wt, &STATE_INFO_NULL, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &STATE_INFO_NULL, blender::ui::EmbossType::Undefined);
   /* wt->draw_block ends up using same function to draw the tooltip as menu_back */
   wt->draw_block(&wt->wcol, rect, 0, 0, 1.0f);
 }
@@ -5555,7 +5660,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   uiWidgetStateInfo state = {0};
   state.but_flag = but_flag;
 
-  wt->state(wt, &state, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &state, blender::ui::EmbossType::Undefined);
   wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, 1.0f);
 
   UI_fontstyle_set(fstyle);
@@ -5650,7 +5755,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
       /* Set inactive state for grayed out text. */
       hint_state.but_flag |= UI_BUT_INACTIVE;
 
-      wt->state(wt, &hint_state, UI_EMBOSS_UNDEFINED);
+      wt->state(wt, &hint_state, blender::ui::EmbossType::Undefined);
 
       char hint_drawstr[UI_MAX_DRAW_STR];
       {
@@ -5735,7 +5840,7 @@ void ui_draw_preview_item(const uiFontStyle *fstyle,
   state.but_flag = but_flag;
 
   /* drawing button background */
-  wt->state(wt, &state, UI_EMBOSS_UNDEFINED);
+  wt->state(wt, &state, blender::ui::EmbossType::Undefined);
   wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, 1.0f);
 
   ui_draw_preview_item_stateless(fstyle, rect, name, iconid, wt->wcol.text, text_align, true);
