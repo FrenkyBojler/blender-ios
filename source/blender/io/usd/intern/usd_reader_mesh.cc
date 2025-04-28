@@ -106,7 +106,7 @@ static void assign_materials(Main *bmain,
     return;
   }
 
-  USDMaterialReader mat_reader(params, bmain);
+  USDMaterialReader mat_reader(params, *bmain);
 
   for (const auto item : mat_index_map.items()) {
     Material *assigned_mat = find_existing_material(
@@ -167,7 +167,7 @@ static void assign_materials(Main *bmain,
 
 }  // namespace utils
 
-void USDMeshReader::create_object(Main *bmain, const double /*motionSampleTime*/)
+void USDMeshReader::create_object(Main *bmain)
 {
   Mesh *mesh = BKE_mesh_add(bmain, name_.c_str());
 
