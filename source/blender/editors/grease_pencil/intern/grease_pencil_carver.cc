@@ -7,6 +7,7 @@
  */
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_geom.h"
@@ -149,6 +150,13 @@ static bool execute_carver_on_drawing(const int layer_index,
   fill_writer.span.last() = true;
   fill_writer.finish();
 
+  if (!attributes.lookup<int>("shape_id", bke::AttrDomain::Curve)) {
+    bke::SpanAttributeWriter<int> shape_id_writer = attributes.lookup_or_add_for_write_span<int>(
+        "shape_id", bke::AttrDomain::Curve);
+    array_utils::fill_index_range(shape_id_writer.span, 1);
+    shape_id_writer.finish();
+  }
+
   const IndexRange clipping_points = IndexRange::from_begin_size(src.points_num(), mcoords.size());
   const IndexRange clipping_curves = IndexRange::from_single(src.curves_num());
 
@@ -179,6 +187,7 @@ static bool execute_carver_on_drawing(const int layer_index,
   // placement.reproject(carved_strokes.positions(), carved_strokes.positions_for_write());
 
   carved_strokes.attributes_for_write().remove(".positions_2d");
+  carved_strokes.attributes_for_write().remove("shape_id");
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(carved_strokes);
