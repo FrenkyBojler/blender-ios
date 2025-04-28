@@ -1030,3 +1030,8 @@ void groupMemoryBarrier() {}
 #define GLSL_CPP_STUBS
 
 #include "GPU_shader_shared_utils.hh"
+
+#ifdef __GNUC__
+/* Avoid warnings caused by our own unroll attributes. */
+#  pragma GCC diagnostic ignored "-Wunknown-attributes"
+#endif
