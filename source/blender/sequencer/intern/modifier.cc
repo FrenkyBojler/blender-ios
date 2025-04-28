@@ -1287,7 +1287,7 @@ static bool skip_modifier(Scene *scene, const SequenceModifierData *smd, int tim
                                     smd->mask_time == SEQUENCE_MASK_TIME_RELATIVE &&
                                     !time_strip_intersects_frame(
                                         scene, smd->mask_sequence, timeline_frame);
-  const bool missing_data_skip = !sequence_has_valid_data(smd->mask_sequence) ||
+  const bool missing_data_skip = !strip_has_valid_data(smd->mask_sequence) ||
                                  media_presence_is_missing(scene, smd->mask_sequence);
 
   return strip_has_ended_skip || missing_data_skip;

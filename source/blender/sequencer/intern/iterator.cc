@@ -253,7 +253,7 @@ void query_strip_connected_and_effect_chain(const Scene *scene,
 
     r_strips.add(current);
 
-    VectorSet<Strip *> connections = get_connected_strips(current);
+    VectorSet<Strip *> connections = connected_strips_get(current);
     for (Strip *connection : connections) {
       if (!r_strips.contains(connection)) {
         pending.append(connection);

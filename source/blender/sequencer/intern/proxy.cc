@@ -460,7 +460,7 @@ bool proxy_rebuild_context(Main *bmain,
       continue;
     }
 
-    relations_sequence_free_anim(strip);
+    relations_strip_free_anim(strip);
 
     context = MEM_callocN<IndexBuildContext>("strip proxy rebuild context");
 
@@ -586,7 +586,7 @@ void proxy_rebuild_finish(IndexBuildContext *context, bool stop)
     MOV_proxy_builder_finish(context->proxy_builder, stop);
   }
 
-  seq_free_sequence_recurse(nullptr, context->strip, true);
+  seq_free_strip_recurse(nullptr, context->strip, true);
 
   MEM_freeN(context);
 }
@@ -614,7 +614,7 @@ void seq_proxy_index_dir_set(MovieReader *anim, const char *base_dir)
   MOV_set_custom_proxy_dir(anim, dirname);
 }
 
-void free_proxy_seq(Strip *strip)
+void free_strip_proxy(Strip *strip)
 {
   if (strip->data && strip->data->proxy && strip->data->proxy->anim) {
     MOV_close(strip->data->proxy->anim);

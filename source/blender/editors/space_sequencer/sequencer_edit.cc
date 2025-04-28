@@ -370,10 +370,10 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
   /* Check meta-strips. */
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
     if (strip->flag & SELECT && !seq::transform_is_locked(channels, strip) &&
-        seq::transform_sequence_can_be_translated(strip))
+        seq::transform_strip_can_be_translated(strip))
     {
       if ((strip->flag & (SEQ_LEFTSEL + SEQ_RIGHTSEL)) == 0) {
-        seq::transform_translate_sequence(
+        seq::transform_translate_strip(
             scene, strip, (snap_frame - strip->startofs) - strip->start);
       }
       else {
@@ -1714,7 +1714,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
         seq::edit_flag_for_removal(scene, ed->seqbasep, strip);
       }
     }
-    seq::edit_remove_flagged_sequences(scene, ed->seqbasep);
+    seq::edit_remove_flagged_strips(scene, ed->seqbasep);
 
     for (Strip *strip = strip_last->next; strip; strip = strip->next) {
       if (seq::transform_test_overlap(scene, ed->seqbasep, strip)) {
@@ -1786,7 +1786,7 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
       sequencer_delete_strip_data(C, strip);
     }
   }
-  seq::edit_remove_flagged_sequences(scene, seqbasep);
+  seq::edit_remove_flagged_strips(scene, seqbasep);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   if (scene->adt && scene->adt->action) {
@@ -1982,7 +1982,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
     }
   }
 
-  seq::edit_remove_flagged_sequences(scene, seqbase);
+  seq::edit_remove_flagged_strips(scene, seqbase);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
@@ -2088,7 +2088,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 
   int channel_max = 1, channel_min = INT_MAX, meta_start_frame = MAXFRAME,
       meta_end_frame = MINFRAME;
-  Strip *seqm = seq::sequence_alloc(active_seqbase, 1, 1, STRIP_TYPE_META);
+  Strip *seqm = seq::strip_alloc(active_seqbase, 1, 1, STRIP_TYPE_META);
 
   /* Remove all selected from main list, and put in meta.
    * Sequence is moved within the same edit, no need to re-generate the UID. */
@@ -2178,7 +2178,7 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
 
   ListBase *active_seqbase = seq::active_seqbase_get(ed);
   seq::edit_flag_for_removal(scene, active_seqbase, active_strip);
-  seq::edit_remove_flagged_sequences(scene, active_seqbase);
+  seq::edit_remove_flagged_strips(scene, active_seqbase);
 
   /* Test for effects and overlap. */
   LISTBASE_FOREACH (Strip *, strip, active_seqbase) {
@@ -2293,25 +2293,25 @@ static const EnumPropertyItem prop_side_lr_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void swap_sequence(Scene *scene, Strip *seqa, Strip *seqb)
+static void swap_strips(Scene *scene, Strip *strip_a, Strip *strip_b)
 {
-  int gap = seq::time_left_handle_frame_get(scene, seqb) -
-            seq::time_right_handle_frame_get(scene, seqa);
+  int gap = seq::time_left_handle_frame_get(scene, strip_b) -
+            seq::time_right_handle_frame_get(scene, strip_a);
   int strip_a_start;
   int strip_b_start;
 
-  strip_b_start = (seqb->start - seq::time_left_handle_frame_get(scene, seqb)) +
-                  seq::time_left_handle_frame_get(scene, seqa);
-  seq::transform_translate_sequence(scene, seqb, strip_b_start - seqb->start);
-  seq::relations_invalidate_cache_preprocessed(scene, seqb);
+  strip_b_start = (strip_b->start - seq::time_left_handle_frame_get(scene, strip_b)) +
+                  seq::time_left_handle_frame_get(scene, strip_a);
+  seq::transform_translate_strip(scene, strip_b, strip_b_start - strip_b->start);
+  seq::relations_invalidate_cache_preprocessed(scene, strip_b);
 
-  strip_a_start = (seqa->start - seq::time_left_handle_frame_get(scene, seqa)) +
-                  seq::time_right_handle_frame_get(scene, seqb) + gap;
-  seq::transform_translate_sequence(scene, seqa, strip_a_start - seqa->start);
-  seq::relations_invalidate_cache_preprocessed(scene, seqa);
+  strip_a_start = (strip_a->start - seq::time_left_handle_frame_get(scene, strip_a)) +
+                  seq::time_right_handle_frame_get(scene, strip_b) + gap;
+  seq::transform_translate_strip(scene, strip_a, strip_a_start - strip_a->start);
+  seq::relations_invalidate_cache_preprocessed(scene, strip_a);
 }
 
-static Strip *find_next_prev_sequence(Scene *scene, Strip *test, int lr, int sel)
+static Strip *find_next_prev_strip(Scene *scene, Strip *test, int lr, int sel)
 {
   /* sel: 0==unselected, 1==selected, -1==don't care. */
   Strip *strip, *best_strip = nullptr;
@@ -2382,7 +2382,7 @@ static wmOperatorStatus sequencer_swap_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  strip = find_next_prev_sequence(scene, active_seq, side, -1);
+  strip = find_next_prev_strip(scene, active_seq, side, -1);
 
   if (strip) {
 
@@ -2407,10 +2407,10 @@ static wmOperatorStatus sequencer_swap_exec(bContext *C, wmOperator *op)
 
     switch (side) {
       case seq::SIDE_LEFT:
-        swap_sequence(scene, strip, active_seq);
+        swap_strips(scene, strip, active_seq);
         break;
       case seq::SIDE_RIGHT:
-        swap_sequence(scene, active_seq, strip);
+        swap_strips(scene, active_seq, strip);
         break;
     }
 
@@ -2603,7 +2603,7 @@ static wmOperatorStatus sequencer_swap_data_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (seq::edit_sequence_swap(scene, strip_act, strip_other, &error_msg) == false) {
+  if (seq::edit_strip_swap(scene, strip_act, strip_other, &error_msg) == false) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
@@ -2865,7 +2865,7 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
     prop = RNA_struct_find_property(&strip_ptr, "filepath");
     RNA_property_string_set(&strip_ptr, prop, filepath);
     RNA_property_update(C, &strip_ptr, prop);
-    seq::relations_sequence_free_anim(strip);
+    seq::relations_strip_free_anim(strip);
   }
 
   seq::relations_invalidate_cache_raw(scene, strip);

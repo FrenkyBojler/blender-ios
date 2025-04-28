@@ -145,7 +145,7 @@ static void rna_StripElement_update(Main * /*bmain*/, Scene * /*scene*/, Pointer
     Strip *strip;
 
     /* slow but we can't avoid! */
-    strip = blender::seq::sequence_from_strip_elem(&ed->seqbase, se);
+    strip = blender::seq::strip_from_strip_elem(&ed->seqbase, se);
     if (strip) {
       blender::seq::relations_invalidate_cache_raw(scene, strip);
     }
@@ -424,7 +424,7 @@ static void rna_Strip_views_format_update(Main *bmain, Scene *scene, PointerRNA 
 
 static void do_sequence_frame_change_update(Scene *scene, Strip *strip)
 {
-  ListBase *seqbase = blender::seq::get_seqbase_by_seq(scene, strip);
+  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   if (blender::seq::transform_test_overlap(scene, seqbase, strip)) {
     blender::seq::transform_seqbase_shuffle(seqbase, strip, scene);
@@ -481,7 +481,7 @@ static void rna_Strip_start_frame_set(PointerRNA *ptr, float value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::transform_translate_sequence(scene, strip, value - strip->start);
+  blender::seq::transform_translate_strip(scene, strip, value - strip->start);
   do_sequence_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache_composite(scene, strip);
 }
@@ -597,7 +597,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
 {
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
-  ListBase *seqbase = blender::seq::get_seqbase_by_seq(scene, strip);
+  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   /* check channel increment or decrement */
   const int channel_delta = (value >= strip->machine) ? 1 : -1;
@@ -614,7 +614,7 @@ static bool rna_Strip_lock_get(PointerRNA *ptr)
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
   Strip *strip = static_cast<Strip *>(ptr->data);
   Editing *ed = blender::seq::editing_get(scene);
-  ListBase *channels = blender::seq::get_channels_by_seq(ed, strip);
+  ListBase *channels = blender::seq::get_channels_by_strip(ed, strip);
   return blender::seq::transform_is_locked(channels, strip);
 }
 
@@ -759,7 +759,7 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
   BLI_strncpy(oldname, strip->name + 2, sizeof(strip->name) - 2);
 
   /* copy the new name into the name slot */
-  blender::seq::edit_sequence_name_set(scene, strip, value);
+  blender::seq::edit_strip_name_set(scene, strip, value);
 
   /* make sure the name is unique */
   blender::seq::sequence_base_unique_name_recursive(scene, &scene->ed->seqbase, strip);
@@ -1497,7 +1497,7 @@ static float rna_Strip_fps_get(PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   Strip *strip = (Strip *)(ptr->data);
-  return blender::seq::time_sequence_get_fps(scene, strip);
+  return blender::seq::time_strip_fps_get(scene, strip);
 }
 
 static void rna_Strip_separate(ID *id, Strip *seqm, Main *bmain)
@@ -1505,14 +1505,14 @@ static void rna_Strip_separate(ID *id, Strip *seqm, Main *bmain)
   Scene *scene = (Scene *)id;
 
   /* Find the appropriate seqbase */
-  ListBase *seqbase = blender::seq::get_seqbase_by_seq(scene, seqm);
+  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, seqm);
 
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, &seqm->seqbase) {
     blender::seq::edit_move_strip_to_seqbase(scene, &seqm->seqbase, strip, seqbase);
   }
 
   blender::seq::edit_flag_for_removal(scene, seqbase, seqm);
-  blender::seq::edit_remove_flagged_sequences(scene, seqbase);
+  blender::seq::edit_remove_flagged_strips(scene, seqbase);
 
   /* Update depsgraph. */
   DEG_relations_tag_update(bmain);

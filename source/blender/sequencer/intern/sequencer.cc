@@ -125,7 +125,7 @@ static void seq_free_strip(StripData *data)
   MEM_freeN(data);
 }
 
-Strip *sequence_alloc(ListBase *lb, int timeline_frame, int machine, int type)
+Strip *strip_alloc(ListBase *lb, int timeline_frame, int machine, int type)
 {
   Strip *strip;
 
@@ -169,16 +169,16 @@ Strip *sequence_alloc(ListBase *lb, int timeline_frame, int machine, int type)
 }
 
 /* only give option to skip cache locally (static func) */
-static void seq_sequence_free_ex(Scene *scene,
-                                 Strip *strip,
-                                 const bool do_cache,
-                                 const bool do_id_user)
+static void seq_strip_free_ex(Scene *scene,
+                              Strip *strip,
+                              const bool do_cache,
+                              const bool do_id_user)
 {
   if (strip->data) {
     seq_free_strip(strip->data);
   }
 
-  relations_sequence_free_anim(strip);
+  relations_strip_free_anim(strip);
 
   if (strip->type & STRIP_TYPE_EFFECT) {
     EffectHandle sh = effect_handle_get(strip);
@@ -246,21 +246,21 @@ static void seq_sequence_free_ex(Scene *scene,
   MEM_freeN(strip);
 }
 
-void sequence_free(Scene *scene, Strip *strip)
+void strip_free(Scene *scene, Strip *strip)
 {
-  seq_sequence_free_ex(scene, strip, true, true);
+  seq_strip_free_ex(scene, strip, true, true);
 }
 
-void seq_free_sequence_recurse(Scene *scene, Strip *strip, const bool do_id_user)
+void seq_free_strip_recurse(Scene *scene, Strip *strip, const bool do_id_user)
 {
-  Strip *iseq, *iseq_next;
+  Strip *istrip, *istrip_next;
 
-  for (iseq = static_cast<Strip *>(strip->seqbase.first); iseq; iseq = iseq_next) {
-    iseq_next = iseq->next;
-    seq_free_sequence_recurse(scene, iseq, do_id_user);
+  for (istrip = static_cast<Strip *>(strip->seqbase.first); istrip; istrip = istrip_next) {
+    istrip_next = istrip->next;
+    seq_free_strip_recurse(scene, istrip, do_id_user);
   }
 
-  seq_sequence_free_ex(scene, strip, false, do_id_user);
+  seq_strip_free_ex(scene, strip, false, do_id_user);
 }
 
 Editing *editing_get(const Scene *scene)
@@ -298,7 +298,7 @@ void editing_free(Scene *scene, const bool do_id_user)
 
   /* handle cache freeing above */
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, &ed->seqbase) {
-    seq_free_sequence_recurse(scene, strip, do_id_user);
+    seq_free_strip_recurse(scene, strip, do_id_user);
   }
 
   BLI_freelistN(&ed->metastack);
@@ -419,7 +419,7 @@ ListBase *active_seqbase_get(const Editing *ed)
   return ed->seqbasep;
 }
 
-void seqbase_active_set(Editing *ed, ListBase *seqbase)
+void active_seqbase_set(Editing *ed, ListBase *seqbase)
 {
   ed->seqbasep = seqbase;
 }
@@ -465,12 +465,12 @@ void meta_stack_set(const Scene *scene, Strip *dst_seq)
       seq_meta_stack_alloc(scene, meta_parent);
     }
 
-    seqbase_active_set(ed, &dst_seq->seqbase);
+    active_seqbase_set(ed, &dst_seq->seqbase);
     channels_displayed_set(ed, &dst_seq->channels);
   }
   else {
     /* Go to top level, exiting meta strip. */
-    seqbase_active_set(ed, &ed->seqbase);
+    active_seqbase_set(ed, &ed->seqbase);
     channels_displayed_set(ed, &ed->channels);
   }
 }
@@ -479,7 +479,7 @@ Strip *meta_stack_pop(Editing *ed)
 {
   MetaStack *ms = meta_stack_active_get(ed);
   Strip *meta_parent = ms->parseq;
-  seqbase_active_set(ed, ms->oldbasep);
+  active_seqbase_set(ed, ms->oldbasep);
   channels_displayed_set(ed, ms->old_channels);
   BLI_remlink(&ed->metastack, ms);
   MEM_freeN(ms);

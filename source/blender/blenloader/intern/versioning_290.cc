@@ -385,7 +385,7 @@ static void seq_update_meta_disp_range(Scene *scene)
 
     /* Ensure that active seqbase points to active meta strip seqbase. */
     MetaStack *active_ms = blender::seq::meta_stack_active_get(ed);
-    blender::seq::seqbase_active_set(ed, &active_ms->parseq->seqbase);
+    blender::seq::active_seqbase_set(ed, &active_ms->parseq->seqbase);
   }
 }
 

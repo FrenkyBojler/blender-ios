@@ -244,13 +244,13 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Strip *
                                     SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG);
 
   /* Determine if strip (or contents of meta strip) has missing data/media. */
-  strip_ctx.missing_data_block = !sequence_has_valid_data(strip);
+  strip_ctx.missing_data_block = !strip_has_valid_data(strip);
   strip_ctx.missing_media = media_presence_is_missing(scene, strip);
   strip_ctx.is_connected = seq::is_strip_connected(strip);
   if (strip->type == STRIP_TYPE_META) {
     const ListBase *seqbase = &strip->seqbase;
     LISTBASE_FOREACH (const Strip *, sub, seqbase) {
-      if (!sequence_has_valid_data(sub)) {
+      if (!strip_has_valid_data(sub)) {
         strip_ctx.missing_data_block = true;
       }
       if (media_presence_is_missing(scene, sub)) {
@@ -659,7 +659,7 @@ static void drawmeta_contents(TimelineDrawContext *timeline_ctx,
   ListBase *meta_channels;
   int offset;
 
-  meta_seqbase = seq::get_seqbase_from_sequence(strip_meta, &meta_channels, &offset);
+  meta_seqbase = seq::get_seqbase_from_strip(strip_meta, &meta_channels, &offset);
 
   if (!meta_seqbase || BLI_listbase_is_empty(meta_seqbase)) {
     return;
@@ -709,7 +709,7 @@ static void drawmeta_contents(TimelineDrawContext *timeline_ctx,
         col[3] = 196;
       }
 
-      const bool missing_data = !sequence_has_valid_data(strip);
+      const bool missing_data = !strip_has_valid_data(strip);
       const bool missing_media = media_presence_is_missing(scene, strip);
       if (missing_data || missing_media) {
         col[0] = 112;
@@ -788,7 +788,7 @@ static const char *draw_seq_text_get_name(const Strip *strip)
 {
   const char *name = strip->name + 2;
   if (name[0] == '\0') {
-    name = seq::sequence_give_name(strip);
+    name = seq::strip_give_name(strip);
   }
   return name;
 }

@@ -249,11 +249,11 @@ StripElem *render_give_stripelem(const Scene *scene, const Strip *strip, int tim
   return se;
 }
 
-Vector<Strip *> seq_get_shown_sequences(const Scene *scene,
-                                        ListBase *channels,
-                                        ListBase *seqbase,
-                                        const int timeline_frame,
-                                        const int chanshown)
+Vector<Strip *> seq_shown_strips_get(const Scene *scene,
+                                     ListBase *channels,
+                                     ListBase *seqbase,
+                                     const int timeline_frame,
+                                     const int chanshown)
 {
   VectorSet strips = query_rendered_strips(scene, channels, seqbase, timeline_frame, chanshown);
   const int strip_count = strips.size();
@@ -1609,7 +1609,7 @@ static ImBuf *do_render_strip_seqbase(const RenderData *context,
   ListBase *channels = nullptr;
   int offset;
 
-  seqbase = get_seqbase_from_sequence(strip, &channels, &offset);
+  seqbase = get_seqbase_from_strip(strip, &channels, &offset);
 
   if (seqbase && !BLI_listbase_is_empty(seqbase)) {
 
@@ -1839,7 +1839,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
                                      float timeline_frame,
                                      int chanshown)
 {
-  Vector<Strip *> strips = seq_get_shown_sequences(
+  Vector<Strip *> strips = seq_shown_strips_get(
       context->scene, channels, seqbasep, timeline_frame, chanshown);
   if (strips.is_empty()) {
     return nullptr;
@@ -1982,7 +1982,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   SeqRenderState state;
   ImBuf *out = nullptr;
 
-  Vector<Strip *> strips = seq_get_shown_sequences(
+  Vector<Strip *> strips = seq_shown_strips_get(
       scene, channels, seqbasep, timeline_frame, chanshown);
 
   if (!strips.is_empty()) {

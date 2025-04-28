@@ -42,7 +42,7 @@ void connect(blender::VectorSet<Strip *> &strip_list);
  * NOTE: This does not include `seq` itself.
  * This list is empty if `seq` is not connected.
  */
-blender::VectorSet<Strip *> get_connected_strips(const Strip *strip);
+blender::VectorSet<Strip *> connected_strips_get(const Strip *strip);
 
 /**
  * Check whether a strip has any connections.

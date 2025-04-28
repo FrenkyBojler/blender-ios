@@ -41,7 +41,7 @@
 
 namespace blender::seq {
 
-bool edit_sequence_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **r_error_str)
+bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **r_error_str)
 {
   char name[sizeof(strip_a->name)];
 
@@ -177,16 +177,16 @@ void edit_flag_for_removal(Scene *scene, ListBase *seqbase, Strip *strip)
   sequencer_flag_users_for_removal(scene, seqbase, strip);
 }
 
-void edit_remove_flagged_sequences(Scene *scene, ListBase *seqbase)
+void edit_remove_flagged_strips(Scene *scene, ListBase *seqbase)
 {
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, seqbase) {
     if (strip->flag & SEQ_FLAG_DELETE) {
       if (strip->type == STRIP_TYPE_META) {
-        edit_remove_flagged_sequences(scene, &strip->seqbase);
+        edit_remove_flagged_strips(scene, &strip->seqbase);
       }
       free_animdata(scene, strip);
       BLI_remlink(seqbase, strip);
-      sequence_free(scene, strip);
+      strip_free(scene, strip);
       strip_lookup_invalidate(scene->ed);
     }
   }
@@ -217,7 +217,7 @@ bool edit_move_strip_to_meta(Scene *scene,
 {
   /* Find the appropriate seqbase */
   Editing *ed = editing_get(scene);
-  ListBase *seqbase = get_seqbase_by_seq(scene, src_seq);
+  ListBase *seqbase = get_seqbase_by_strip(scene, src_seq);
 
   if (dst_seqm->type != STRIP_TYPE_META) {
     *r_error_str = N_("Cannot move strip to non-meta strip");
@@ -423,7 +423,7 @@ Strip *edit_strip_split(Main *bmain,
   /* All connected strips (that are selected and at the cut frame) must also be duplicated. */
   blender::VectorSet<Strip *> strips_old(strips);
   for (Strip *strip : strips_old) {
-    blender::VectorSet<Strip *> connections = get_connected_strips(strip);
+    blender::VectorSet<Strip *> connections = connected_strips_get(strip);
     connections.remove_if([&](Strip *connection) {
       return !(connection->flag & SELECT) ||
              !seq_edit_split_intersect_check(scene, connection, timeline_frame);
@@ -489,7 +489,7 @@ Strip *edit_strip_split(Main *bmain,
     right_seq = right_seq->next;
   }
 
-  edit_remove_flagged_sequences(scene, seqbase);
+  edit_remove_flagged_strips(scene, seqbase);
   animation_restore_original(scene, &animation_backup);
 
   return return_seq;
@@ -519,7 +519,7 @@ bool edit_remove_gaps(Scene *scene,
   return true;
 }
 
-void edit_sequence_name_set(Scene *scene, Strip *strip, const char *new_name)
+void edit_strip_name_set(Scene *scene, Strip *strip, const char *new_name)
 {
   BLI_strncpy_utf8(strip->name + 2, new_name, MAX_NAME - 2);
   BLI_str_utf8_invalid_strip(strip->name + 2, strlen(strip->name + 2));

@@ -504,7 +504,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   LISTBASE_FOREACH (Strip *, iseq, &nseqbase) {
     /* Translate after name has been changed, otherwise this will affect animdata of original
      * strip. */
-    seq::transform_translate_sequence(scene_dst, iseq, ofs);
+    seq::transform_translate_strip(scene_dst, iseq, ofs);
     /* Ensure, that pasted strips don't overlap. */
     if (seq::transform_test_overlap(scene_dst, ed_dst->seqbasep, iseq)) {
       seq::transform_seqbase_shuffle(ed_dst->seqbasep, iseq, scene_dst);

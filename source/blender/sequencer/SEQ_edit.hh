@@ -16,7 +16,7 @@ struct Strip;
 
 namespace blender::seq {
 
-bool edit_sequence_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **r_error_str);
+bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **r_error_str);
 /**
  * Move sequence to seqbase.
  *
@@ -48,7 +48,7 @@ void edit_flag_for_removal(Scene *scene, ListBase *seqbase, Strip *strip);
 /**
  * Remove all flagged sequences, return true if sequence is removed.
  */
-void edit_remove_flagged_sequences(Scene *scene, ListBase *seqbase);
+void edit_remove_flagged_strips(Scene *scene, ListBase *seqbase);
 void edit_update_muting(Editing *ed);
 
 enum eSplitMethod {
@@ -84,6 +84,6 @@ Strip *edit_strip_split(Main *bmain,
  * \return true if gap is removed, otherwise false
  */
 bool edit_remove_gaps(Scene *scene, ListBase *seqbase, int initial_frame, bool remove_all_gaps);
-void edit_sequence_name_set(Scene *scene, Strip *strip, const char *new_name);
+void edit_strip_name_set(Scene *scene, Strip *strip, const char *new_name);
 
 }  // namespace blender::seq

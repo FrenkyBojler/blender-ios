@@ -62,7 +62,7 @@ static void rna_Strip_swap_internal(ID *id,
   const char *error_msg;
   Scene *scene = (Scene *)id;
 
-  if (blender::seq::edit_sequence_swap(scene, strip_self, strip_other, &error_msg) == false) {
+  if (blender::seq::edit_strip_swap(scene, strip_self, strip_other, &error_msg) == false) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
 }
@@ -91,7 +91,7 @@ static Strip *rna_Strip_split(
     ID *id, Strip *strip, Main *bmain, ReportList *reports, int frame, int split_method)
 {
   Scene *scene = (Scene *)id;
-  ListBase *seqbase = blender::seq::get_seqbase_by_seq(scene, strip);
+  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   const char *error_msg = nullptr;
   Strip *r_seq = blender::seq::edit_strip_split(
@@ -570,7 +570,7 @@ static void rna_Strips_remove(
   }
 
   blender::seq::edit_flag_for_removal(scene, seqbase, strip);
-  blender::seq::edit_remove_flagged_sequences(scene, seqbase);
+  blender::seq::edit_remove_flagged_strips(scene, seqbase);
   strip_ptr->invalidate();
 
   DEG_relations_tag_update(bmain);
