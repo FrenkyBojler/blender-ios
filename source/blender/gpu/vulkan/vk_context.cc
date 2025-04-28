@@ -36,6 +36,11 @@ VKContext::VKContext(void *ghost_window, void *ghost_context)
 
 VKContext::~VKContext()
 {
+  /* During rendering a context can be deleted with still a render graph attached. */
+  if (render_graph_.has_value()) {
+    flush_render_graph(RenderGraphFlushFlags(0));
+  }
+
   if (surface_texture_) {
     back_left->attachment_remove(GPU_FB_COLOR_ATTACHMENT0);
     front_left->attachment_remove(GPU_FB_COLOR_ATTACHMENT0);

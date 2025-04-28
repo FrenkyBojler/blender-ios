@@ -573,13 +573,17 @@ void VKBackend::render_end()
   VKThreadData &thread_data = device.current_thread_data();
   thread_data.rendering_depth -= 1;
   BLI_assert_msg(thread_data.rendering_depth >= 0, "Unbalanced `GPU_render_begin/end`");
+
+  if (thread_data.rendering_depth == 0) {
+    VKContext *context = VKContext::get();
+    if (context != nullptr) {
+      context->flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+    }
+  }
+
   if (G.background) {
     /* Garbage collection when performing background rendering. */
     if (thread_data.rendering_depth == 0) {
-      VKContext *context = VKContext::get();
-      if (context != nullptr) {
-        context->flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-      }
       device.orphaned_data.destroy_discarded_resources(device);
     }
   }
