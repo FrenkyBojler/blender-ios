@@ -107,8 +107,8 @@ class Preprocessor {
         include_parse(str);
       }
       str = preprocessor_directive_mutation(str);
-      str = loop_unroll(str);
       if (language == BLENDER_GLSL) {
+        str = loop_unroll(str, report_error);
         str = assert_processing(str, filename);
         static_strings_parsing(str);
         str = static_strings_mutation(str);
@@ -227,7 +227,7 @@ class Preprocessor {
     });
   }
 
-  std::string loop_unroll(const std::string &str)
+  std::string loop_unroll(const std::string &str, report_callback report_error)
   {
     if (str.find("[[unroll") == std::string::npos) {
       return str;
@@ -283,8 +283,7 @@ class Preprocessor {
         line += line_count(match.prefix().str()) + lines_in_content;
 
         if ((counter_1 != counter_2) || (counter_1 != counter_3)) {
-          std::cout << "Error: Non matching loop counter variable: " << counter_1 << " "
-                    << counter_2 << " " << counter_3 << std::endl;
+          report_error(match, "Error: Non matching loop counter variable.");
           return;
         }
 
@@ -297,7 +296,7 @@ class Preprocessor {
 
         std::string condition = match[7].str();
         if (condition.empty()) {
-          std::cout << "Error: Unsupported condition in unrolled loop." << std::endl;
+          report_error(match, "Error: Unsupported condition in unrolled loop.");
         }
 
         std::string equal = match[8].str();
@@ -308,16 +307,16 @@ class Preprocessor {
         std::string iter = match[12].str();
         if (iter == "++") {
           if (condition == ">") {
-            std::cout << "Error: Unsupported condition in unrolled loop." << std::endl;
+            report_error(match, "Error: Unsupported condition in unrolled loop.");
           }
         }
         else if (iter == "--") {
           if (condition == "<") {
-            std::cout << "Error: Unsupported condition in unrolled loop." << std::endl;
+            report_error(match, "Error: Unsupported condition in unrolled loop.");
           }
         }
         else {
-          std::cout << "Error: Unsupported for loop expression. Expecting ++ or --" << std::endl;
+          report_error(match, "Error: Unsupported for loop expression. Expecting ++ or --");
         }
 
         std::string suffix = match.suffix().str();
@@ -401,7 +400,9 @@ class Preprocessor {
     }
 
     if (out.find("[[unroll") != std::string::npos) {
-      std::cout << "Error: Incompatible format for [[unroll]]." << std::endl;
+      regex_global_search(str, std::regex(R"(\[\[unroll)"), [&](const std::smatch &match) {
+        report_error(match, "Error: Incompatible format for [[unroll]].");
+      });
     }
 
     return out;
