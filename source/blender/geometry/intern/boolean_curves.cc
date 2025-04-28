@@ -510,8 +510,10 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
     if (!segment.is_loop()) {
       const float2 first_point_i = math::interpolate(
           points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
-      const Span<float2> poly_i = points.slice(points_by_curve[curve_i]);
-      const int winding_twice_i = edge_in_polygon_winding_twice(segment.start_edge().x, poly_i);
+      const IndexRange points_i = points_by_curve[curve_i];
+      const Span<float2> poly_i = points.slice(points_i);
+      const int winding_twice_i = edge_in_polygon_winding_twice(
+          segment.start_edge().x - points_i.first(), poly_i);
 
       /* The point should be exactly on the edge. */
       BLI_assert(math::abs(winding_twice_i) % 2 == 1);
