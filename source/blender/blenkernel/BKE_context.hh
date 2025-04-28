@@ -125,7 +125,7 @@ enum eContextObjectMode {
   CTX_MODE_EDIT_LATTICE,
   CTX_MODE_EDIT_CURVES,
   CTX_MODE_EDIT_GREASE_PENCIL,
-  CTX_MODE_EDIT_POINT_CLOUD,
+  CTX_MODE_EDIT_POINTCLOUD,
   CTX_MODE_POSE,
   CTX_MODE_SCULPT,
   CTX_MODE_PAINT_WEIGHT,
@@ -299,7 +299,7 @@ std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member);
 /**
  * \param C: Context.
  * \param use_store: Use 'C->wm.store'.
- * \param use_rna: Use Include the properties from 'RNA_Context'.
+ * \param use_rna: Use Include the properties from #RNA_Context.
  * \param use_all: Don't skip values (currently only "scene").
  */
 ListBase CTX_data_dir_get_ex(const bContext *C, bool use_store, bool use_rna, bool use_all);

@@ -198,7 +198,9 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   }
 
 #  ifdef WITH_OSL
-  const bool use_osl = (kernel_features & KERNEL_FEATURE_OSL);
+  /* TODO: Consider splitting kernels into an OSL-camera-only and a full-OSL variant. */
+  const uint osl_mask = KERNEL_FEATURE_OSL_SHADING | KERNEL_FEATURE_OSL_CAMERA;
+  const bool use_osl = (kernel_features & osl_mask);
 #  else
   const bool use_osl = false;
 #  endif
@@ -570,6 +572,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY].raygen.module = optix_module;
     group_descs[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY].raygen.entryFunctionName =
         "__raygen__kernel_optix_shader_eval_curve_shadow_transparency";
+    group_descs[PG_RGEN_INIT_FROM_CAMERA].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_INIT_FROM_CAMERA].raygen.module = optix_module;
+    group_descs[PG_RGEN_INIT_FROM_CAMERA].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_init_from_camera";
   }
 
   optix_assert(optixProgramGroupCreate(
@@ -613,8 +619,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
 #  endif
 
   if (use_osl) {
-    /* Re-create OSL pipeline in case kernels are reloaded after it has been created before. */
-    load_osl_kernels();
+    /* OSL kernels will be (re)created on by OSL manager. */
   }
   else if (kernel_features & (KERNEL_FEATURE_NODE_RAYTRACE | KERNEL_FEATURE_MNEE)) {
     /* Create shader ray-tracing and MNEE pipeline. */
@@ -721,48 +726,51 @@ bool OptiXDevice::load_osl_kernels()
     string fused_entry;
   };
 
+  auto get_osl_kernel = [&](const OSL::ShaderGroupRef &group) {
+    if (!group) {
+      return OSLKernel{};
+    }
+    string osl_ptx, fused_name;
+    osl_globals.ss->getattribute(group.get(), "group_fused_name", fused_name);
+    osl_globals.ss->getattribute(
+        group.get(), "ptx_compiled_version", OSL::TypeDesc::PTR, &osl_ptx);
+
+    int groupdata_size = 0;
+    osl_globals.ss->getattribute(group.get(), "llvm_groupdata_size", groupdata_size);
+    if (groupdata_size == 0) {
+      // Old attribute name from our patched OSL version as fallback.
+      osl_globals.ss->getattribute(group.get(), "groupdata_size", groupdata_size);
+    }
+    if (groupdata_size > 2048) { /* See 'group_data' array in kernel/osl/osl.h */
+      set_error(
+          string_printf("Requested OSL group data size (%d) is greater than the maximum "
+                        "supported with OptiX (2048)",
+                        groupdata_size));
+      return OSLKernel{};
+    }
+
+    return OSLKernel{std::move(osl_ptx), std::move(fused_name)};
+  };
+
   /* This has to be in the same order as the ShaderType enum, so that the index calculation in
    * osl_eval_nodes checks out */
   vector<OSLKernel> osl_kernels;
+  osl_kernels.emplace_back(get_osl_kernel(osl_globals.camera_state));
+  for (const OSL::ShaderGroupRef &group : osl_globals.surface_state) {
+    osl_kernels.emplace_back(get_osl_kernel(group));
+  }
+  for (const OSL::ShaderGroupRef &group : osl_globals.volume_state) {
+    osl_kernels.emplace_back(get_osl_kernel(group));
+  }
+  for (const OSL::ShaderGroupRef &group : osl_globals.displacement_state) {
+    osl_kernels.emplace_back(get_osl_kernel(group));
+  }
+  for (const OSL::ShaderGroupRef &group : osl_globals.bump_state) {
+    osl_kernels.emplace_back(get_osl_kernel(group));
+  }
 
-  for (ShaderType type = SHADER_TYPE_SURFACE; type <= SHADER_TYPE_BUMP;
-       type = static_cast<ShaderType>(type + 1))
-  {
-    const vector<OSL::ShaderGroupRef> &groups = (type == SHADER_TYPE_SURFACE ?
-                                                     osl_globals.surface_state :
-                                                 type == SHADER_TYPE_VOLUME ?
-                                                     osl_globals.volume_state :
-                                                 type == SHADER_TYPE_DISPLACEMENT ?
-                                                     osl_globals.displacement_state :
-                                                     osl_globals.bump_state);
-    for (const OSL::ShaderGroupRef &group : groups) {
-      if (group) {
-        string osl_ptx, fused_name;
-        osl_globals.ss->getattribute(group.get(), "group_fused_name", fused_name);
-        osl_globals.ss->getattribute(
-            group.get(), "ptx_compiled_version", OSL::TypeDesc::PTR, &osl_ptx);
-
-        int groupdata_size = 0;
-        osl_globals.ss->getattribute(group.get(), "llvm_groupdata_size", groupdata_size);
-        if (groupdata_size == 0) {
-          // Old attribute name from our patched OSL version as fallback.
-          osl_globals.ss->getattribute(group.get(), "groupdata_size", groupdata_size);
-        }
-        if (groupdata_size > 2048) { /* See 'group_data' array in kernel/osl/osl.h */
-          set_error(
-              string_printf("Requested OSL group data size (%d) is greater than the maximum "
-                            "supported with OptiX (2048)",
-                            groupdata_size));
-          return false;
-        }
-
-        osl_kernels.push_back({std::move(osl_ptx), std::move(fused_name)});
-      }
-      else {
-        /* Add empty entry for non-existent shader groups, so that the index stays stable. */
-        osl_kernels.emplace_back();
-      }
-    }
+  if (have_error()) {
+    return false;
   }
 
   const CUDAContextScope scope(this);
@@ -784,8 +792,9 @@ bool OptiXDevice::load_osl_kernels()
     }
   }
 
-  if (osl_kernels.empty()) {
-    /* No OSL shader groups, so no need to create a pipeline. */
+  /* We always need to reserve a spot for the camera shader group, but if it's unused
+   * and there are no other shader groups, we can skip creating the pipeline. */
+  if (osl_kernels.size() == 1 && osl_kernels[0].ptx.empty()) {
     return true;
   }
 
@@ -950,6 +959,7 @@ bool OptiXDevice::load_osl_kernels()
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_DISPLACE]);
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_BACKGROUND]);
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY]);
+    pipeline_groups.push_back(groups[PG_RGEN_INIT_FROM_CAMERA]);
 
     for (const OptixProgramGroup &group : osl_groups) {
       if (group != nullptr) {

@@ -15,6 +15,7 @@
 #include "BLI_assert.h"
 #include "BLI_bounds_types.hh"
 
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 
 #include "CLG_log.h"
@@ -22,13 +23,6 @@ static CLG_LogRef LOG = {"io.usd"};
 
 /* TfToken objects are not cheap to construct, so we do it once. */
 namespace usdtokens {
-/* Materials */
-static const pxr::TfToken diffuse_color("diffuseColor", pxr::TfToken::Immortal);
-static const pxr::TfToken metallic("metallic", pxr::TfToken::Immortal);
-static const pxr::TfToken preview_shader("previewShader", pxr::TfToken::Immortal);
-static const pxr::TfToken preview_surface("UsdPreviewSurface", pxr::TfToken::Immortal);
-static const pxr::TfToken roughness("roughness", pxr::TfToken::Immortal);
-static const pxr::TfToken surface("surface", pxr::TfToken::Immortal);
 static const pxr::TfToken blender_ns("userProperties:blender", pxr::TfToken::Immortal);
 }  // namespace usdtokens
 
@@ -171,8 +165,7 @@ pxr::UsdTimeCode USDAbstractWriter::get_export_time_code() const
   }
   /* By using the default time-code USD won't even write a single `timeSample` for non-animated
    * data. Instead, it writes it as non-time-sampled. */
-  static pxr::UsdTimeCode default_timecode = pxr::UsdTimeCode::Default();
-  return default_timecode;
+  return pxr::UsdTimeCode::Default();
 }
 
 void USDAbstractWriter::write(HierarchyContext &context)

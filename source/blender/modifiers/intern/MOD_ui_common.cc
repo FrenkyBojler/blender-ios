@@ -12,6 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 
@@ -91,7 +92,7 @@ void modifier_panel_end(uiLayout *layout, PointerRNA *ptr)
 {
   ModifierData *md = static_cast<ModifierData *>(ptr->data);
   if (md->error) {
-    uiLayout *row = uiLayoutRow(layout, false);
+    uiLayout *row = &layout->row(false);
     uiItemL(row, RPT_(md->error), ICON_ERROR);
   }
 }
@@ -130,10 +131,10 @@ void modifier_vgroup_ui(uiLayout *layout,
 {
   bool has_vertex_group = RNA_string_length(ptr, vgroup_prop.c_str()) != 0;
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   uiItemPointerR(row, ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
   if (invert_vgroup_prop) {
-    uiLayout *sub = uiLayoutRow(row, true);
+    uiLayout *sub = &row->row(true);
     uiLayoutSetActive(sub, has_vertex_group);
     uiLayoutSetPropDecorate(sub, false);
     uiItemR(sub, ptr, *invert_vgroup_prop, UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
@@ -339,8 +340,8 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   int index = BLI_findindex(&ob->modifiers, md);
 
   /* Modifier Icon. */
-  sub = uiLayoutRow(layout, true);
-  uiLayoutSetEmboss(sub, UI_EMBOSS_NONE);
+  sub = &layout->row(true);
+  uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
   if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
     uiLayoutSetRedAlert(sub, true);
   }
@@ -351,19 +352,19 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
                 "modifier",
                 md->name);
 
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
 
   /* Modifier Name.
    * Count how many buttons are added to the header to check if there is enough space. */
   int buttons_number = 0;
-  name_row = uiLayoutRow(row, true);
+  name_row = &row->row(true);
 
   /* Display mode switching buttons. */
   if (ob->type == OB_MESH) {
     int last_cage_index;
     int cage_index = BKE_modifiers_get_cage_index(scene, ob, &last_cage_index, false);
     if (BKE_modifier_supports_cage(scene, md) && (index <= last_cage_index)) {
-      sub = uiLayoutRow(row, true);
+      sub = &row->row(true);
       if (index < cage_index || !BKE_modifier_couldbe_cage(scene, md)) {
         uiLayoutSetActive(sub, false);
       }
@@ -375,7 +376,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     /* Smooth modifier can work with tessellated curves only (works on mesh edges explicitly). */
     if (md->type == eModifierType_Smooth) {
       /* Add button (appearing to be OFF) and add tip why this can't be changed. */
-      sub = uiLayoutRow(row, true);
+      sub = &row->row(true);
       uiBlock *block = uiLayoutGetBlock(sub);
       static int apply_on_spline_always_off_hack = 0;
       uiBut *but = uiDefIconButBitI(block,
@@ -399,7 +400,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     else if (ELEM(md->type, eModifierType_Hook, eModifierType_Softbody, eModifierType_MeshDeform))
     {
       /* Add button (appearing to be ON) and add tip why this can't be changed. */
-      sub = uiLayoutRow(row, true);
+      sub = &row->row(true);
       uiBlock *block = uiLayoutGetBlock(sub);
       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
       uiBut *but = uiDefIconButBitI(block,
@@ -428,7 +429,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   /* Collision and Surface are always enabled, hide buttons. */
   if (!ELEM(md->type, eModifierType_Collision, eModifierType_Surface)) {
     if (mti->flags & eModifierTypeFlag_SupportsEditmode) {
-      sub = uiLayoutRow(row, true);
+      sub = &row->row(true);
       uiLayoutSetActive(sub, (md->mode & eModifierMode_Realtime));
       uiItemR(sub, ptr, "show_in_editmode", UI_ITEM_NONE, "", ICON_NONE);
       buttons_number++;
@@ -443,8 +444,8 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
 
   /* Delete button. */
   if (modifier_can_delete(md) && !modifier_is_simulation(md)) {
-    sub = uiLayoutRow(row, false);
-    uiLayoutSetEmboss(sub, UI_EMBOSS_NONE);
+    sub = &row->row(false);
+    uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
     uiItemO(sub, "", ICON_X, "OBJECT_OT_modifier_remove");
     buttons_number++;
   }
@@ -481,7 +482,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
 
 PanelType *modifier_panel_register(ARegionType *region_type, ModifierType type, PanelDrawFn draw)
 {
-  PanelType *panel_type = MEM_cnew<PanelType>(__func__);
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BKE_modifier_type_panel_id(type, panel_type->idname);
   STRNCPY(panel_type->label, "");
@@ -513,7 +514,7 @@ PanelType *modifier_subpanel_register(ARegionType *region_type,
                                       PanelDrawFn draw,
                                       PanelType *parent)
 {
-  PanelType *panel_type = MEM_cnew<PanelType>(__func__);
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
   SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);

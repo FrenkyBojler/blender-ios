@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include <climits>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
@@ -47,15 +46,9 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 
-#include "BLI_sys_types.h" /* for intptr_t support */
-
 #include "BKE_shrinkwrap.hh"
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-
-#ifdef WITH_OPENSUBDIV
-// #  include "DNA_userdef_types.h"
-#endif
 
 namespace blender::bke {
 
@@ -85,20 +78,6 @@ namespace blender::bke {
 #endif
 
 static void mesh_init_origspace(Mesh &mesh);
-
-void mesh_eval_to_meshkey(const Mesh *me_deformed, Mesh *mesh, KeyBlock *kb)
-{
-  /* Just a shallow wrapper around #BKE_keyblock_convert_from_mesh,
-   * that ensures both evaluated mesh and original one has same number of vertices. */
-
-  const int totvert = me_deformed->verts_num;
-
-  if (totvert == 0 || mesh->verts_num == 0 || mesh->verts_num != totvert) {
-    return;
-  }
-
-  BKE_keyblock_convert_from_mesh(me_deformed, mesh->key, kb);
-}
 
 static void mesh_set_only_copy(Mesh *mesh, const CustomData_MeshMasks *mask)
 {
@@ -699,7 +678,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
 
   /* Remove temporary data layer only needed for modifier evaluation.
    * Save some memory, and ensure GPU subdivision does not need to deal with this. */
-  CustomData_free_layers(&mesh->vert_data, CD_CLOTH_ORCO, mesh->verts_num);
+  CustomData_free_layers(&mesh->vert_data, CD_CLOTH_ORCO);
 
   /* Compute normals. */
   if (is_own_mesh) {
@@ -1114,9 +1093,9 @@ static void object_get_datamask(const Depsgraph &depsgraph,
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *actob = BKE_view_layer_active_object_get(view_layer);
   if (actob) {
-    actob = DEG_get_original_object(actob);
+    actob = DEG_get_original(actob);
   }
-  if (DEG_get_original_object(&ob) == actob) {
+  if (DEG_get_original(&ob) == actob) {
     bool editing = BKE_paint_select_face_test(actob);
 
     /* weight paint and face select need original indices because of selection buffer drawing */
@@ -1288,8 +1267,8 @@ Mesh *editbmesh_get_eval_cage_from_orig(Depsgraph *depsgraph,
                                         const CustomData_MeshMasks *dataMask)
 {
   BLI_assert((obedit->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
-  const Scene *scene_eval = (const Scene *)DEG_get_evaluated_id(depsgraph, (ID *)&scene->id);
-  Object *obedit_eval = (Object *)DEG_get_evaluated_id(depsgraph, &obedit->id);
+  const Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
+  Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
   BMEditMesh *em_eval = BKE_editmesh_from_object(obedit_eval);
   return editbmesh_get_eval_cage(depsgraph, scene_eval, obedit_eval, em_eval, dataMask);
 }

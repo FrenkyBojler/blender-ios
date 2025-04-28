@@ -13,9 +13,9 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 
-#include "node_texture_register.hh"
+#include "node_texture_register.hh"  // IWYU pragma: export
 
-#include "BLT_translation.hh"
+#include "BLT_translation.hh"  // IWYU pragma: export
 
 #include "RE_texture.h"
 
@@ -55,7 +55,6 @@ struct TexDelegate {
   TexCallData *cdata;
   TexFn fn;
   bNode *node;
-  bNodePreview *preview;
   bNodeStack *in[MAX_SOCKET];
   int type;
 };

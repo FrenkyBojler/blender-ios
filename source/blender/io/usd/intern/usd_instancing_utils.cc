@@ -6,6 +6,7 @@
 
 #include "usd.hh"
 #include "usd_hash_types.hh"
+#include "usd_utils.hh"
 
 #include "BLI_map.hh"
 #include "BLI_set.hh"
@@ -20,23 +21,6 @@
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.usd"};
-
-namespace {
-
-/* If the given path already exists on the given stage, return the path with
- * a numerical suffix appende to the name that ensures the path is unique. If
- * the path does not exist on the stage, it will be returned unchanged. */
-pxr::SdfPath get_unique_path(pxr::UsdStageRefPtr stage, const std::string &path)
-{
-  std::string unique_path = path;
-  int suffix = 2;
-  while (stage->GetPrimAtPath(pxr::SdfPath(unique_path)).IsValid()) {
-    unique_path = path + std::to_string(suffix++);
-  }
-  return pxr::SdfPath(unique_path);
-}
-
-}  // End anonymous namespace
 
 namespace blender::io::usd {
 
@@ -131,7 +115,7 @@ void process_scene_graph_instances(const USDExportParams &export_params, pxr::Us
     copy_path = copy_path.AppendChild(proto_path.GetNameToken());
     copy_path = get_unique_path(stage, copy_path.GetAsString());
 
-    /* Ceate the placeholder prim. */
+    /* Create the placeholder prim. */
     static pxr::TfToken xform_type_tok("Xform");
     pxr::UsdPrim dest_prim = stage->DefinePrim(copy_path, xform_type_tok);
     if (!dest_prim) {

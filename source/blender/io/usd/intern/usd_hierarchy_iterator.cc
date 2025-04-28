@@ -251,22 +251,18 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_particle_writer(
   return nullptr;
 }
 
-/* Don't generate data writers for instances. */
 bool USDHierarchyIterator::include_data_writers(const HierarchyContext *context) const
 {
+  /* Don't generate data writers for instances. */
+
   return !(params_.use_instancing && context->is_instance());
 }
 
-/* Don't generate writers for children of instances. */
 bool USDHierarchyIterator::include_child_writers(const HierarchyContext *context) const
 {
-  return !(params_.use_instancing && context->is_instance());
-}
+  /* Don't generate writers for children of instances. */
 
-bool USDHierarchyIterator::should_determine_duplication_references(
-    const HierarchyContext *parent_context) const
-{
-  return !(params_.use_instancing && parent_context->is_instance());
+  return !(params_.use_instancing && context->is_instance());
 }
 
 void USDHierarchyIterator::add_usd_skel_export_mapping(const Object *obj, const pxr::SdfPath &path)
