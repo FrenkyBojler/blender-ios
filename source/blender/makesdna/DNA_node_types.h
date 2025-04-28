@@ -1078,21 +1078,21 @@ typedef struct NodeImageAnim {
 } NodeImageAnim;
 
 typedef struct ColorCorrectionData {
-  float saturation;
-  float contrast;
-  float gamma;
-  float gain;
-  float lift;
+  float saturation DNA_DEPRECATED;
+  float contrast DNA_DEPRECATED;
+  float gamma DNA_DEPRECATED;
+  float gain DNA_DEPRECATED;
+  float lift DNA_DEPRECATED;
   char _pad[4];
 } ColorCorrectionData;
 
 typedef struct NodeColorCorrection {
-  ColorCorrectionData master;
-  ColorCorrectionData shadows;
-  ColorCorrectionData midtones;
-  ColorCorrectionData highlights;
-  float startmidtones;
-  float endmidtones;
+  ColorCorrectionData master DNA_DEPRECATED;
+  ColorCorrectionData shadows DNA_DEPRECATED;
+  ColorCorrectionData midtones DNA_DEPRECATED;
+  ColorCorrectionData highlights DNA_DEPRECATED;
+  float startmidtones DNA_DEPRECATED;
+  float endmidtones DNA_DEPRECATED;
 } NodeColorCorrection;
 
 typedef struct NodeBokehImage {
@@ -1530,10 +1530,10 @@ typedef struct NodeScaleData {
 typedef struct NodePlaneTrackDeformData {
   char tracking_object[64];
   char plane_track_name[64];
-  char flag;
-  char motion_blur_samples;
+  char flag DNA_DEPRECATED;
+  char motion_blur_samples DNA_DEPRECATED;
   char _pad[2];
-  float motion_blur_shutter;
+  float motion_blur_shutter DNA_DEPRECATED;
 } NodePlaneTrackDeformData;
 
 typedef struct NodeShaderScript {
@@ -2954,13 +2954,6 @@ typedef enum CMPNodeCornerPinInterpolation {
   CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC = 2,
   CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC = 3,
 } CMPNodeCornerPinInterpolation;
-
-#define CMP_NODE_PLANE_TRACK_DEFORM_MOTION_BLUR_SAMPLES_MAX 64
-
-/* Plane track deform node. */
-typedef enum CMPNodePlaneTrackDeformFlags {
-  CMP_NODE_PLANE_TRACK_DEFORM_FLAG_MOTION_BLUR = 1,
-} CMPNodePlaneTrackDeformFlags;
 
 /* Set Alpha Node. */
 
