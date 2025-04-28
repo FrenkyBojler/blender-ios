@@ -19,10 +19,18 @@
 
 namespace blender::gpu {
 
-void GPUTest::SetUp()
+GHOST_SystemHandle GPUTest::ghost_system_;
+GHOST_ContextHandle GPUTest::ghost_context_;
+GPUContext *GPUTest::context;
+
+int32_t GPUTest::prev_g_debug_;
+
+void GPUTest::SetUpTestSuite(GHOST_TDrawingContextType draw_context_type,
+                             eGPUBackendType gpu_backend_type,
+                             int32_t g_debug_flags)
 {
   prev_g_debug_ = G.debug;
-  G.debug |= g_debug_flags_;
+  G.debug |= g_debug_flags;
 
   CLG_init();
   BLI_threadapi_init();
@@ -30,11 +38,11 @@ void GPUTest::SetUp()
   GHOST_GPUSettings gpuSettings = {};
   gpuSettings.context_type = draw_context_type;
   gpuSettings.flags = GHOST_gpuDebugContext;
-  ghost_system = GHOST_CreateSystem();
-  GPU_backend_ghost_system_set(ghost_system);
-  ghost_context = GHOST_CreateGPUContext(ghost_system, gpuSettings);
-  GHOST_ActivateGPUContext(ghost_context);
-  context = GPU_context_create(nullptr, ghost_context);
+  ghost_system_ = GHOST_CreateSystem();
+  GPU_backend_ghost_system_set(ghost_system_);
+  ghost_context_ = GHOST_CreateGPUContext(ghost_system_, gpuSettings);
+  GHOST_ActivateGPUContext(ghost_context_);
+  context = GPU_context_create(nullptr, ghost_context_);
   GPU_init();
 
   BLI_init_srgb_conversion();
@@ -44,7 +52,7 @@ void GPUTest::SetUp()
   GPU_debug_capture_begin(nullptr);
 }
 
-void GPUTest::TearDown()
+void GPUTest::TearDownTestSuite()
 {
   GPU_debug_capture_end();
   GPU_context_end_frame(context);
@@ -52,8 +60,8 @@ void GPUTest::TearDown()
 
   GPU_exit();
   GPU_context_discard(context);
-  GHOST_DisposeGPUContext(ghost_system, ghost_context);
-  GHOST_DisposeSystem(ghost_system);
+  GHOST_DisposeGPUContext(ghost_system_, ghost_context_);
+  GHOST_DisposeSystem(ghost_system_);
   CLG_exit();
 
   G.debug = prev_g_debug_;
