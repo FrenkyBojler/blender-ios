@@ -1033,5 +1033,9 @@ void groupMemoryBarrier() {}
 
 #ifdef __GNUC__
 /* Avoid warnings caused by our own unroll attributes. */
-#  pragma GCC diagnostic ignored "-Wunknown-attributes"
+#  ifdef __clang__
+#    pragma GCC diagnostic ignored "-Wunknown-attributes"
+#  else
+#    pragma GCC diagnostic ignored "-Wattributes"
+#  endif
 #endif
