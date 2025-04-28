@@ -4629,7 +4629,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 51)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 52)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
@@ -9585,6 +9585,23 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 51)) {
+    const Object *dob = DNA_struct_default_get(Object);
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      object->shadow_terminator_normal_offset = dob->shadow_terminator_normal_offset;
+      object->shadow_terminator_geometry_offset = dob->shadow_terminator_geometry_offset;
+      object->shadow_terminator_shading_offset = dob->shadow_terminator_shading_offset;
+      /* Copy Cycles' property into Blender Object. */
+      IDProperty *cob = version_cycles_properties_from_ID(&object->id);
+      if (cob) {
+        object->shadow_terminator_geometry_offset = version_cycles_property_float(
+            cob, "shadow_terminator_geometry_offset", dob->shadow_terminator_geometry_offset);
+        object->shadow_terminator_shading_offset = version_cycles_property_float(
+            cob, "shadow_terminator_offset", dob->shadow_terminator_shading_offset);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 52)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
