@@ -39,33 +39,33 @@ class SequencerCrossfadeSounds(Operator):
 
     def execute(self, context):
         scene = context.scene
-        seq1 = None
-        seq2 = None
+        strip1 = None
+        strip2 = None
         for strip in scene.sequence_editor.strips_all:
             if strip.select and strip.type == 'SOUND':
-                if seq1 is None:
-                    seq1 = strip
-                elif seq2 is None:
-                    seq2 = strip
+                if strip1 is None:
+                    strip1 = strip
+                elif strip2 is None:
+                    strip2 = strip
                 else:
-                    seq2 = None
+                    strip2 = None
                     break
-        if seq2 is None:
+        if strip2 is None:
             self.report({'ERROR'}, "Select 2 sound strips")
             return {'CANCELLED'}
-        if seq1.frame_final_start > seq2.frame_final_start:
-            seq1, seq2 = seq2, seq1
-        if seq1.frame_final_end > seq2.frame_final_start:
+        if strip1.frame_final_start > strip2.frame_final_start:
+            strip1, strip2 = strip2, strip1
+        if strip1.frame_final_end > strip2.frame_final_start:
             tempcfra = scene.frame_current
-            scene.frame_current = seq2.frame_final_start
-            seq1.keyframe_insert("volume")
-            scene.frame_current = seq1.frame_final_end
-            seq1.volume = 0
-            seq1.keyframe_insert("volume")
-            seq2.keyframe_insert("volume")
-            scene.frame_current = seq2.frame_final_start
-            seq2.volume = 0
-            seq2.keyframe_insert("volume")
+            scene.frame_current = strip2.frame_final_start
+            strip1.keyframe_insert("volume")
+            scene.frame_current = strip1.frame_final_end
+            strip1.volume = 0
+            strip1.keyframe_insert("volume")
+            strip2.keyframe_insert("volume")
+            scene.frame_current = strip2.frame_final_start
+            strip2.volume = 0
+            strip2.keyframe_insert("volume")
             scene.frame_current = tempcfra
             return {'FINISHED'}
         else:
