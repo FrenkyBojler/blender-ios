@@ -930,9 +930,11 @@ def overrides_apply(list_of_commits: list[CommitInfo], silence: bool) -> None:
     if len(override_data) == 0:
         return
 
-    for commit in list_of_commits:
-        if commit.hash in override_data:
-            commit.read_from_override(override_data[commit.hash])
+    for commit_hash in override_data:
+        for commit in list_of_commits:
+            if commit.hash.startswith(commit_hash):
+                commit.read_from_override(override_data[commit_hash])
+                break
 
 
 # -----------------------------------------------------------------------------
