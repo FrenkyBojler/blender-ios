@@ -1347,7 +1347,6 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
                BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
 
   int i, fonth, fontw;
-
   for (i = 0, fontw = 0, fonth = 0; i < data->fields.size(); i++) {
     uiTooltipField *field = &data->fields[i];
     ResultBLF info = {0};
