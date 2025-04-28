@@ -125,7 +125,7 @@ struct uiLayout : uiItem {
   /**
    * Add a new column flow sub-layout, items placed in this sub-layout would be evenly distributed
    * in columns.
-   * \param number: the number of columns in which items are distributed
+   * \param number: the number of columns in which items are distributed.
    */
   uiLayout &column_flow(int number, bool align);
   /**
