@@ -73,7 +73,7 @@ void emit_vertex(const uint strip_index,
     return;
   }
 
-  finalColor = color;
+  final_color = color;
 
   gl_Position = hs_P;
   /* Offset away from the center to avoid overlap with solid shape. */
@@ -81,7 +81,7 @@ void emit_vertex(const uint strip_index,
   /* Improve AA bleeding inside bone silhouette. */
   gl_Position.z -= (is_persp) ? 1e-4f : 1e-6f;
 
-  edgeStart = edgePos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
 
   view_clipping_distances(ws_P);
 }
@@ -164,15 +164,15 @@ void main()
   select_id_set(in_select_buf[gl_InstanceID]);
 
   /* Line Adjacency primitive. */
-  const uint input_primitive_vertex_count = 4u;
+  constexpr uint input_primitive_vertex_count = 4u;
   /* Line list primitive. */
-  const uint ouput_primitive_vertex_count = 2u;
-  const uint ouput_primitive_count = 1u;
-  const uint ouput_invocation_count = 1u;
-  const uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                  ouput_primitive_vertex_count;
-  const uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                       ouput_invocation_count;
+  constexpr uint ouput_primitive_vertex_count = 2u;
+  constexpr uint ouput_primitive_count = 1u;
+  constexpr uint ouput_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
+                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
+                                                           ouput_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;

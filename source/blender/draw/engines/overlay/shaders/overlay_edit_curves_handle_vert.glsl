@@ -63,7 +63,7 @@ struct GeomOut {
 
 void export_vertex(GeomOut geom_out)
 {
-  finalColor = geom_out.color;
+  final_color = geom_out.color;
   gl_Position = geom_out.gpu_position;
   gl_Position.xy += geom_out.offset * geom_out.gpu_position.w;
   view_clipping_distances(geom_out.ws_P);
@@ -132,13 +132,13 @@ void geometry_main(VertOut geom_in[2],
 
   bool is_bezier_handle = (geom_in[0].flag & EDIT_CURVES_BEZIER_HANDLE) != 0;
   /* Don't output any edges if we don't show handles */
-  if ((uint(curveHandleDisplay) == CURVE_HANDLE_NONE) && is_bezier_handle) {
+  if ((uint(curve_handle_display) == CURVE_HANDLE_NONE) && is_bezier_handle) {
     return;
   }
 
   /* If handle type is only selected and the edge is not selected, don't show.
    * Nurbs and other curves must show the handles always. */
-  if ((uint(curveHandleDisplay) == CURVE_HANDLE_SELECTED) && is_bezier_handle && !is_active) {
+  if ((uint(curve_handle_display) == CURVE_HANDLE_SELECTED) && is_bezier_handle && !is_active) {
     return;
   }
 
@@ -201,15 +201,15 @@ void geometry_main(VertOut geom_in[2],
 void main()
 {
   /* Line list primitive. */
-  const uint input_primitive_vertex_count = 2u;
+  constexpr uint input_primitive_vertex_count = 2u;
   /* Triangle list primitive (emulating triangle strip). */
-  const uint ouput_primitive_vertex_count = 3u;
-  const uint ouput_primitive_count = 8u;
-  const uint ouput_invocation_count = 1u;
-  const uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                  ouput_primitive_vertex_count;
-  const uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                       ouput_invocation_count;
+  constexpr uint ouput_primitive_vertex_count = 3u;
+  constexpr uint ouput_primitive_count = 8u;
+  constexpr uint ouput_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
+                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
+                                                           ouput_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;

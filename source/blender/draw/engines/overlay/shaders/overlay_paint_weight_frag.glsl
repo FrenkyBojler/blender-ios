@@ -9,9 +9,9 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_paint_weight)
 float contours(float value, float steps, float width_px, float max_rel_width, float gradient)
 {
   /* Minimum visible and minimum full strength line width in screen space for fade out. */
-  const float min_width_px = 1.3f, fade_width_px = 2.3f;
+  constexpr float min_width_px = 1.3f, fade_width_px = 2.3f;
   /* Line is thinner towards the increase in the weight gradient by this factor. */
-  const float hi_bias = 2.0f;
+  constexpr float hi_bias = 2.0f;
 
   /* Don't draw lines at 0 or 1. */
   float rel_value = value * steps;
@@ -88,7 +88,7 @@ void main()
     weight_color = apply_color_fac(weight_color);
 
     /* Contour display */
-    if (drawContours) {
+    if (draw_contours) {
       /* This must be executed uniformly for all fragments */
       float weight_gradient = length(float2(dFdx(weight), dFdy(weight)));
 
@@ -102,6 +102,6 @@ void main()
     color = mix(weight_color, color_unreferenced, alert * alert);
   }
 
-  fragColor = float4(color.rgb, opacity);
-  lineOutput = float4(0.0f);
+  frag_color = float4(color.rgb, opacity);
+  line_output = float4(0.0f);
 }

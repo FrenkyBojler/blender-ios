@@ -47,8 +47,8 @@ struct GeomOut {
 
 void export_vertex(GeomOut geom_out)
 {
-  geometry_out.finalColor = geom_out.final_color;
-  geometry_noperspective_out.edgeCoord = geom_out.edge_coord;
+  geometry_out.final_color = geom_out.final_color;
+  geometry_noperspective_out.edge_coord = geom_out.edge_coord;
   view_clipping_distances(geom_out.world_pos);
   gl_Position = geom_out.gpu_position;
 }
@@ -116,10 +116,10 @@ void geometry_main(VertOut geom_in[2], uint out_vert_id, uint out_prim_id, uint 
   float2 line = ss_pos[0] - ss_pos[1];
   line = abs(line) * sizeViewport;
 
-  geometry_flat_out.finalColorOuter = geom_in[0].final_color_outer;
+  geometry_flat_out.final_color_outer = geom_in[0].final_color_outer;
   float half_size = sizeEdge;
   /* Enlarge edge for flag display. */
-  half_size += (geometry_flat_out.finalColorOuter.a > 0.0f) ? max(sizeEdge, 1.0f) : 0.0f;
+  half_size += (geometry_flat_out.final_color_outer.a > 0.0f) ? max(sizeEdge, 1.0f) : 0.0f;
 
   if (do_smooth_wire) {
     /* Add 1px for AA */
@@ -148,15 +148,15 @@ void geometry_main(VertOut geom_in[2], uint out_vert_id, uint out_prim_id, uint 
 void main()
 {
   /* Line list primitive. */
-  const uint input_primitive_vertex_count = 2u;
+  constexpr uint input_primitive_vertex_count = 2u;
   /* Triangle list primitive. */
-  const uint ouput_primitive_vertex_count = 3u;
-  const uint ouput_primitive_count = 2u;
-  const uint ouput_invocation_count = 1u;
-  const uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                  ouput_primitive_vertex_count;
-  const uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                       ouput_invocation_count;
+  constexpr uint ouput_primitive_vertex_count = 3u;
+  constexpr uint ouput_primitive_count = 2u;
+  constexpr uint ouput_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
+                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
+                                                           ouput_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;

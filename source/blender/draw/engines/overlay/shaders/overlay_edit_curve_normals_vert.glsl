@@ -15,15 +15,15 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_curve_normals)
 void main()
 {
   /* Line list primitive. */
-  const uint input_primitive_vertex_count = 2u;
+  constexpr uint input_primitive_vertex_count = 2u;
   /* Line list primitive. */
-  const uint ouput_primitive_vertex_count = 2u;
-  const uint ouput_primitive_count = 2u;
-  const uint ouput_invocation_count = 1u;
-  const uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                  ouput_primitive_vertex_count;
-  const uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                       ouput_invocation_count;
+  constexpr uint ouput_primitive_vertex_count = 2u;
+  constexpr uint ouput_primitive_count = 2u;
+  constexpr uint ouput_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
+                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
+                                                           ouput_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
@@ -38,13 +38,13 @@ void main()
 
   if ((gl_VertexID & 1) == 0) {
     float flip = ((gl_VertexID & 2) == 0) ? -1.0f : 1.0f;
-    ls_P += normalSize * radius * (flip * ls_N - ls_T);
+    ls_P += normal_size * radius * (flip * ls_N - ls_T);
   }
 
   float3 world_pos = drw_point_object_to_world(ls_P);
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
-  finalColor = colorWireEdit;
+  final_color = colorWireEdit;
 
   view_clipping_distances(world_pos);
 }

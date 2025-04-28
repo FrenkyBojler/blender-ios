@@ -1029,7 +1029,10 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   }
 
   /* Warn if relative paths are used when unsupported (will already display red-alert). */
-  if (ELEM(but->type, UI_BTYPE_TEXT)) {
+  if (ELEM(but->type, UI_BTYPE_TEXT) &&
+      /* Check red-alert, if the flag is not set, then this was suppressed. */
+      (but->flag & UI_BUT_REDALERT))
+  {
     if (rnaprop) {
       PropertySubType subtype = RNA_property_subtype(rnaprop);
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
@@ -1078,7 +1081,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                                 UI_TIP_LC_ALERT);
     }
     if (disabled_msg_free) {
-      MEM_freeN((void *)disabled_msg_orig);
+      MEM_freeN(disabled_msg_orig);
     }
   }
 
@@ -1678,7 +1681,7 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
   }
 
   if (BKE_image_has_anim(&ima)) {
-    MovieReader *anim = static_cast<MovieReader *>(ima.anims.first);
+    MovieReader *anim = static_cast<ImageAnim *>(ima.anims.first)->anim;
     if (anim) {
       int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       UI_tooltip_text_field_add(

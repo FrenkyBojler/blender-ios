@@ -12,8 +12,8 @@ VERTEX_SHADER_CREATE_INFO(overlay_paint_wire)
 
 void main()
 {
-  bool is_select = (nor.w > 0.0f) && useSelect;
-  bool is_hidden = (nor.w < 0.0f) && useSelect;
+  bool is_select = (nor.w > 0.0f) && use_select;
+  bool is_hidden = (nor.w < 0.0f) && use_select;
 
   float3 world_pos = drw_point_object_to_world(pos);
   gl_Position = drw_point_world_to_homogenous(world_pos);
@@ -25,13 +25,13 @@ void main()
     gl_Position = float4(-2.0f, -2.0f, -2.0f, 1.0f);
   }
 
-  const float4 colSel = float4(1.0f);
+  constexpr float4 colSel = float4(1.0f);
 
-  finalColor = (is_select) ? colSel : colorWire;
+  final_color = (is_select) ? colSel : colorWire;
 
   /* Weight paint needs a light color to contrasts with dark weights. */
-  if (!useSelect) {
-    finalColor = float4(1.0f, 1.0f, 1.0f, 0.3f);
+  if (!use_select) {
+    final_color = float4(1.0f, 1.0f, 1.0f, 0.3f);
   }
 
   view_clipping_distances(world_pos);

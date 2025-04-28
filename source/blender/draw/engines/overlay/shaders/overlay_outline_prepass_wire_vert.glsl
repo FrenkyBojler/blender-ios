@@ -19,7 +19,7 @@ uint outline_colorid_get()
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
 
-  if (isTransform) {
+  if (is_transform) {
     return 0u; /* colorTransform */
   }
   else if (is_active) {
@@ -45,11 +45,6 @@ VertIn input_assembly(uint in_vertex_id)
   return vert_in;
 }
 
-/* Replace top 2 bits (of the 16bit output) by outlineId.
- * This leaves 16K different IDs to create outlines between objects.
- * SHIFT = (32 - (16 - 2)) */
-#define SHIFT 18u
-
 struct VertOut {
   float3 ws_P;
   float4 hs_P;
@@ -74,7 +69,7 @@ VertOut vertex_main(VertIn v_in)
   uint outline_id = outline_colorid_get();
 
   /* Combine for 16bit uint target. */
-  vert_out.ob_id = (outline_id << 14u) | ((vert_out.ob_id << SHIFT) >> SHIFT);
+  vert_out.ob_id = outline_id_pack(outline_id, vert_out.ob_id);
 
   return vert_out;
 }
@@ -112,15 +107,15 @@ void geometry_main(VertOut geom_in[4],
 void main()
 {
   /* Line adjacency list primitive. */
-  const uint input_primitive_vertex_count = 4u;
+  constexpr uint input_primitive_vertex_count = 4u;
   /* Line list primitive. */
-  const uint ouput_primitive_vertex_count = 2u;
-  const uint ouput_primitive_count = 1u;
-  const uint ouput_invocation_count = 1u;
-  const uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                  ouput_primitive_vertex_count;
-  const uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                       ouput_invocation_count;
+  constexpr uint ouput_primitive_vertex_count = 2u;
+  constexpr uint ouput_primitive_count = 1u;
+  constexpr uint ouput_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
+                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
+                                                           ouput_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
