@@ -49,8 +49,7 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
                                          Vector<bool> &r_new_cyclic,
                                          Vector<IndexRange> &r_src_ranges,
                                          Vector<int> &r_dst_offsets,
-                                         Vector<int> &r_dst_to_src_curve,
-                                         bool can_be_cyclic = true)
+                                         Vector<int> &r_dst_to_src_curve)
 {
   if (selected_points.is_empty()) {
     return;
@@ -76,8 +75,8 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
   }
   const int curves_added = selected_points.size() - merge_loop;
   r_dst_to_src_curve.append_n_times(curve, curves_added);
-  r_new_cyclic.append_n_times(
-      can_be_cyclic && cyclic && selected_points.first().size() == points.size(), curves_added);
+  r_new_cyclic.append_n_times(cyclic && selected_points.first().size() == points.size(),
+                              curves_added);
 }
 
 static void append_point_knots(const Span<IndexRange> src_ranges,
@@ -443,19 +442,21 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
         extend_range_by_1_within_bounds(
             points, cyclic[curve], unselected_curve_points, curve_points_to_preserve);
         const int size_before = curve_map.size();
-        const bool can_be_cyclic = !unselected_curve_points.is_empty() &&
-                                   (unselected_curve_points.first().first() == points.first() ||
-                                    unselected_curve_points.last().last() == points.last());
+        /* Unselected part can contain all points from original curve, but have cuts. This happens
+         * when pairs of adjacent points are selected. To prevent loop merge and result curve from
+         * cyclic additional condition is checked. */
+        const bool can_merge_loop = !unselected_curve_points.is_empty() &&
+                                    (unselected_curve_points.first().first() == points.first() ||
+                                     unselected_curve_points.last().last() == points.last());
         curve_offsets_from_selection(curve_points_to_preserve,
                                      points,
                                      curve,
-                                     cyclic[curve],
+                                     cyclic[curve] && can_merge_loop,
                                      new_offsets,
                                      new_cyclic,
                                      src_ranges,
                                      dst_offsets,
-                                     curve_map,
-                                     can_be_cyclic);
+                                     curve_map);
         deselect.append(IndexRange::from_begin_end(size_before, curve_map.size()));
       },
       [&](const IndexRange curves, const IndexRange points) {

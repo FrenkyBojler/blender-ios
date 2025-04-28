@@ -162,7 +162,7 @@ TEST(curves_editors, SplitPointsTwoSingle)
   const Vector<Vector<float3>> expected_positions = {
       {{-1, 1, 0}, {1, 1, 0}}, {{-1.5, 0, 0}, {-1, 1, 0}}, {{1, 1, 0}, {1.5, 0, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
 }
 
@@ -187,7 +187,7 @@ TEST(curves_editors, SplitPointsFourThree)
       {{1, -1, 0}},
       {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {1, -1, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
 }
 
@@ -213,7 +213,7 @@ TEST(curves_editors, SplitPointsTwoCyclic)
       {{1, 1, 0}, {1, -1, 0}, {-1, -1, 0}, {-1, 1, 0}},
       {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {1, -1, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
   Array<bool> expected_cyclic = {false, false, false, false, false};
   VArray<bool> cyclic = new_curves.cyclic();
@@ -244,7 +244,7 @@ TEST(curves_editors, SplitPointsTwoTouchCyclic)
       {{1, -1, 0}, {-1, -1, 0}, {-1, 1, 0}, {1, 1, 0}},
       {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {1, -1, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
 }
 
@@ -280,7 +280,7 @@ TEST(curves_editors, SplitEverySecondCyclic)
                                                       {1, 0, 0},
                                                       {1, -1, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
 }
 
@@ -309,11 +309,43 @@ TEST(curves_editors, SplitAllSelectedButFirstCyclic)
       {{1, -1, 0}, {0, -1, 0}, {-1, -1, 0}},
   };
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
   EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
   EXPECT_FALSE(new_curves.cyclic()[0]);
   EXPECT_FALSE(new_curves.cyclic()[1]);
+}
+
+TEST(curves_editors, SplitTwoOnSeamAndExtraCyclic)
+{
+  /* Split first, last and pair in the middle. Expected result four non cyclic curves. */
+  const Vector<Vector<float3>> positions = {{{0, -1, 0},
+                                             {-1, -1, 0},
+                                             {-1, 0, 0},
+                                             {-1, 1, 0},
+                                             {0, 1, 0},
+                                             {1, 1, 0},
+                                             {1, 0, 0},
+                                             {1, -1, 0}}};
+
+  bke::CurvesGeometry curves = create_curves(positions, 4, {0});
+  IndexMaskMemory memory;
+  const IndexMask mask = IndexMask::from_indices(Array<int>{0, 3, 4, 7}.as_span(), memory);
+
+  bke::CurvesGeometry new_curves = split_points(curves, mask);
+
+  const Vector<Vector<float3>> expected_positions = {
+      {{-1, 1, 0}, {0, 1, 0}},
+      {{1, -1, 0}, {0, -1, 0}},
+      {{0, -1, 0}, {-1, -1, 0}, {-1, 0, 0}, {-1, 1, 0}},
+      {{0, 1, 0}, {1, 1, 0}, {1, 0, 0}, {1, -1, 0}}};
+
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
+  validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+  EXPECT_FALSE(new_curves.cyclic()[0]);
+  EXPECT_FALSE(new_curves.cyclic()[1]);
+  EXPECT_FALSE(new_curves.cyclic()[2]);
+  EXPECT_FALSE(new_curves.cyclic()[3]);
 }
 
 }  // namespace blender::ed::curves::tests
