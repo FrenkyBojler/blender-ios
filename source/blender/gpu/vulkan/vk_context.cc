@@ -36,7 +36,8 @@ VKContext::VKContext(void *ghost_window, void *ghost_context)
 
 VKContext::~VKContext()
 {
-  /* During rendering a context can be deleted with still a render graph attached. */
+  /* Context can still own the render graph. Flush the render graph to the device as it can contain
+   * commands that are needed to be executed. */
   if (render_graph_.has_value()) {
     flush_render_graph(RenderGraphFlushFlags(0));
   }
