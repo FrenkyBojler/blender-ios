@@ -138,17 +138,29 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     STRNCPY(name, brush->id.name + 2);
   }
 
-  const bUserAssetLibrary *user_library = asset::get_asset_library_from_opptr(*op->ptr);
-  if (!user_library) {
-    return OPERATOR_CANCELLED;
-  }
+  const eAssetLibraryType enum_value = (eAssetLibraryType)RNA_enum_get(op->ptr, "asset_library_reference");
+  bool is_local_library = enum_value == ASSET_LIBRARY_LOCAL;
 
+  AssetLibraryReference library_reference;
+  const bUserAssetLibrary *user_library = nullptr;
+  if (is_local_library) {
+    library_reference = asset_system::current_file_library_reference();
+  }
+  else {
+    user_library = asset::get_asset_library_from_opptr(*op->ptr);
+    if (!user_library) {
+      return OPERATOR_CANCELLED;
+    }
+    library_reference = asset::user_library_to_library_ref(*user_library);
+  }
   asset_system::AssetLibrary *library = AS_asset_library_load(
-      bmain, asset::user_library_to_library_ref(*user_library));
+        bmain, library_reference);
   if (!library) {
     BKE_report(op->reports, RPT_ERROR, "Failed to load asset library");
     return OPERATOR_CANCELLED;
   }
+
+  BLI_assert(is_local_library || user_library);
 
   /* Turn brush into asset if it isn't yet. */
   if (!ID_IS_ASSET(&brush->id)) {
@@ -170,25 +182,32 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
   }
 
   AssetWeakReference brush_asset_reference;
-  const std::optional<std::string> final_full_asset_filepath = bke::asset_edit_id_save_as(
-      *bmain, brush->id, name, *user_library, brush_asset_reference, *op->reports);
-  if (!final_full_asset_filepath) {
-    return OPERATOR_CANCELLED;
+  if (is_local_library) {
+    brush = reinterpret_cast<Brush *>(bke::asset_edit_id_ensure_local(*bmain, brush->id));
+    asset::mark_id(&brush->id);
+    asset::generate_preview(C, &brush->id);
+  }
+  else {
+    const std::optional<std::string> final_full_asset_filepath = bke::asset_edit_id_save_as(
+        *bmain, brush->id, name, *user_library, brush_asset_reference, *op->reports);
+    if (!final_full_asset_filepath) {
+      return OPERATOR_CANCELLED;
+    }
+    library->catalog_service().write_to_disk(*final_full_asset_filepath);
+
+    brush = reinterpret_cast<Brush *>(
+        bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
+    brush->has_unsaved_changes = false;
   }
 
-  library->catalog_service().write_to_disk(*final_full_asset_filepath);
   asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
-
-  brush = reinterpret_cast<Brush *>(
-      bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
-  brush->has_unsaved_changes = false;
 
   if (!WM_toolsystem_activate_brush_and_tool(C, paint, brush)) {
     /* Note brush asset was still saved in editable asset library, so was not a no-op. */
     BKE_report(op->reports, RPT_WARNING, "Unable to activate just-saved brush asset");
   }
 
-  asset::refresh_asset_library(C, *user_library);
+  asset::refresh_asset_library(C, library_reference);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
 
@@ -260,7 +279,7 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
       /* Only get writable libraries. */
       /*include_readonly=*/false,
       /* Saving brushes to the current file isn't working correctly yet. */
-      /*include_current_file=*/false);
+      /*include_current_file=*/true);
   if (!items) {
     *r_free = false;
     return nullptr;
