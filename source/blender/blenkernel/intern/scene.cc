@@ -1011,7 +1011,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (BLO_write_is_undo(writer)) {
     /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     /* XXX This UI data should not be stored in Scene at all... */
-    memset(&sce->cursor, 0, sizeof(sce->cursor));
+    sce->cursor = View3DCursor{};
   }
 
   /* write LibData */
@@ -1199,8 +1199,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
   sce->depsgraph_hash = nullptr;
   sce->fps_info = nullptr;
 
-  memset(&sce->customdata_mask, 0, sizeof(sce->customdata_mask));
-  memset(&sce->customdata_mask_modal, 0, sizeof(sce->customdata_mask_modal));
+  sce->customdata_mask = CustomData_MeshMasks{};
+  sce->customdata_mask_modal = CustomData_MeshMasks{};
 
   BKE_sound_reset_scene_runtime(sce);
 
@@ -3197,12 +3197,15 @@ void BKE_scene_ppm_get(const RenderData *rd, double r_ppm[2])
     r_ppm[0] = 0.0;
     r_ppm[1] = 0.0;
   }
+  /* Non-square aspects result in a lower density on one dimension to indicate
+   * the image should be stretched to match the original size causing the pixel
+   * density to be lower on that dimension. */
   double xasp = 1.0, yasp = 1.0;
   if (rd->xasp < rd->yasp) {
-    yasp = double(rd->yasp) / double(rd->xasp);
+    yasp = double(rd->xasp) / double(rd->yasp);
   }
   else if (rd->xasp > rd->yasp) {
-    xasp = double(rd->xasp) / double(rd->yasp);
+    xasp = double(rd->yasp) / double(rd->xasp);
   }
 
   const double ppm_base = rd->ppm_base;

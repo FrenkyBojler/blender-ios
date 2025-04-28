@@ -24,6 +24,7 @@ set(SRC
   intern/merge_curves.cc
   intern/merge_layers.cc
   intern/mesh_boolean.cc
+  intern/mesh_boolean_manifold.cc
   intern/mesh_copy_selection.cc
   intern/mesh_merge_by_distance.cc
   intern/mesh_primitive_cuboid.cc
@@ -97,6 +98,7 @@ set(SRC
   GEO_uv_pack.hh
   GEO_uv_parametrizer.hh
   GEO_volume_grid_resample.hh
+  intern/mesh_boolean_manifold.hh
 )
 
 set(LIB
@@ -109,6 +111,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::dependencies::optional::manifold
 )
 
 if(WITH_UV_SLIM)
@@ -142,6 +145,10 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
+endif()
+
+if(WITH_MANIFOLD)
+  add_definitions(-DWITH_MANIFOLD)
 endif()
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

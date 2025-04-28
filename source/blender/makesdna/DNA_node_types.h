@@ -1096,11 +1096,11 @@ typedef struct NodeColorCorrection {
 } NodeColorCorrection;
 
 typedef struct NodeBokehImage {
-  float angle;
-  int flaps;
-  float rounding;
-  float catadioptric;
-  float lensshift;
+  float angle DNA_DEPRECATED;
+  int flaps DNA_DEPRECATED;
+  float rounding DNA_DEPRECATED;
+  float catadioptric DNA_DEPRECATED;
+  float lensshift DNA_DEPRECATED;
 } NodeBokehImage;
 
 typedef struct NodeBoxMask {
@@ -1156,17 +1156,17 @@ typedef struct NodeBilateralBlurData {
 typedef struct NodeKuwaharaData {
   short size DNA_DEPRECATED;
   short variation;
-  int uniformity;
-  float sharpness;
-  float eccentricity;
-  char high_precision;
+  int uniformity DNA_DEPRECATED;
+  float sharpness DNA_DEPRECATED;
+  float eccentricity DNA_DEPRECATED;
+  char high_precision DNA_DEPRECATED;
   char _pad[3];
 } NodeKuwaharaData;
 
 typedef struct NodeAntiAliasingData {
-  float threshold;
-  float contrast_limit;
-  float corner_rounding;
+  float threshold DNA_DEPRECATED;
+  float contrast_limit DNA_DEPRECATED;
+  float corner_rounding DNA_DEPRECATED;
 } NodeAntiAliasingData;
 
 /** \note Only for do-version code. */
@@ -1262,7 +1262,7 @@ typedef struct NodeGlare {
   char angle DNA_DEPRECATED;
   char _pad0;
   char size DNA_DEPRECATED;
-  char star_45;
+  char star_45 DNA_DEPRECATED;
   char streaks DNA_DEPRECATED;
   float colmod DNA_DEPRECATED;
   float mix DNA_DEPRECATED;
@@ -1274,8 +1274,13 @@ typedef struct NodeGlare {
 
 /** Tone-map node. */
 typedef struct NodeTonemap {
-  float key, offset, gamma;
-  float f, m, a, c;
+  float key DNA_DEPRECATED;
+  float offset DNA_DEPRECATED;
+  float gamma DNA_DEPRECATED;
+  float f DNA_DEPRECATED;
+  float m DNA_DEPRECATED;
+  float a DNA_DEPRECATED;
+  float c DNA_DEPRECATED;
   int type;
 } NodeTonemap;
 
@@ -1306,9 +1311,12 @@ typedef struct NodeColorBalance {
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
-  short limchan, unspill;
-  float limscale;
-  float uspillr, uspillg, uspillb;
+  short limchan;
+  short unspill DNA_DEPRECATED;
+  float limscale DNA_DEPRECATED;
+  float uspillr DNA_DEPRECATED;
+  float uspillg DNA_DEPRECATED;
+  float uspillb DNA_DEPRECATED;
 } NodeColorspill;
 
 typedef struct NodeConvertColorSpace {
@@ -1321,7 +1329,8 @@ typedef struct NodeDilateErode {
 } NodeDilateErode;
 
 typedef struct NodeMask {
-  int size_x, size_y;
+  int size_x DNA_DEPRECATED;
+  int size_y DNA_DEPRECATED;
 } NodeMask;
 
 typedef struct NodeSetAlpha {
@@ -1480,20 +1489,22 @@ typedef struct TexNodeOutput {
 
 typedef struct NodeKeyingScreenData {
   char tracking_object[64];
-  float smoothness;
+  float smoothness DNA_DEPRECATED;
 } NodeKeyingScreenData;
 
 typedef struct NodeKeyingData {
-  float screen_balance;
-  float despill_factor;
-  float despill_balance;
-  int edge_kernel_radius;
-  float edge_kernel_tolerance;
-  float clip_black, clip_white;
-  int dilate_distance;
-  int feather_distance;
+  float screen_balance DNA_DEPRECATED;
+  float despill_factor DNA_DEPRECATED;
+  float despill_balance DNA_DEPRECATED;
+  int edge_kernel_radius DNA_DEPRECATED;
+  float edge_kernel_tolerance DNA_DEPRECATED;
+  float clip_black DNA_DEPRECATED;
+  float clip_white DNA_DEPRECATED;
+  int dilate_distance DNA_DEPRECATED;
+  int feather_distance DNA_DEPRECATED;
   int feather_falloff;
-  int blur_pre, blur_post;
+  int blur_pre DNA_DEPRECATED;
+  int blur_post DNA_DEPRECATED;
 } NodeKeyingData;
 
 typedef struct NodeTrackPosData {
@@ -1613,7 +1624,7 @@ typedef struct NodeCryptomatte {
 } NodeCryptomatte;
 
 typedef struct NodeDenoise {
-  char hdr;
+  char hdr DNA_DEPRECATED;
   char prefilter;
   char quality;
   char _pad[1];
@@ -2930,6 +2941,14 @@ typedef enum CMPNodeInterpolation {
   CMP_NODE_INTERPOLATION_BILINEAR = 1,
   CMP_NODE_INTERPOLATION_BICUBIC = 2,
 } CMPNodeInterpolation;
+
+/* CornerPin node interpolation option. */
+typedef enum CMPNodeCornerPinInterpolation {
+  CMP_NODE_CORNER_PIN_INTERPOLATION_NEAREST = 0,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR = 1,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC = 2,
+  CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC = 3,
+} CMPNodeCornerPinInterpolation;
 
 /* Stabilize 2D node. Stored in custom2. */
 typedef enum CMPNodeStabilizeInverse {
