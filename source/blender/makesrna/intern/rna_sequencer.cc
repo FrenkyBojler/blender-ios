@@ -132,7 +132,7 @@ const EnumPropertyItem rna_enum_strip_color_items[] = {
 struct StripSearchData {
   Strip *strip;
   void *data;
-  SequenceModifierData *smd;
+  StripModifierData *smd;
 };
 
 static void rna_StripElement_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -1133,7 +1133,7 @@ static bool colbalance_seq_cmp_fn(Strip *strip, void *arg_pt)
 {
   StripSearchData *data = static_cast<StripSearchData *>(arg_pt);
 
-  for (SequenceModifierData *smd = static_cast<SequenceModifierData *>(strip->modifiers.first);
+  for (StripModifierData *smd = static_cast<StripModifierData *>(strip->modifiers.first);
        smd;
        smd = smd->next)
   {
@@ -1153,7 +1153,7 @@ static bool colbalance_seq_cmp_fn(Strip *strip, void *arg_pt)
 
 static Strip *strip_get_by_colorbalance(Editing *ed,
                                         StripColorBalance *cb,
-                                        SequenceModifierData **r_smd)
+                                        StripModifierData **r_smd)
 {
   StripSearchData data;
 
@@ -1172,7 +1172,7 @@ static Strip *strip_get_by_colorbalance(Editing *ed,
 static std::optional<std::string> rna_StripColorBalance_path(const PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
-  SequenceModifierData *smd;
+  StripModifierData *smd;
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = strip_get_by_colorbalance(ed, static_cast<StripColorBalance *>(ptr->data), &smd);
 
@@ -1200,7 +1200,7 @@ static void rna_StripColorBalance_update(Main * /*bmain*/, Scene * /*scene*/, Po
 {
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = blender::seq::editing_get(scene);
-  SequenceModifierData *smd;
+  StripModifierData *smd;
   Strip *strip = strip_get_by_colorbalance(ed, static_cast<StripColorBalance *>(ptr->data), &smd);
 
   blender::seq::relations_invalidate_cache_preprocessed(scene, strip);
@@ -1291,7 +1291,7 @@ static bool modifier_strip_cmp_fn(Strip *strip, void *arg_pt)
   return true;
 }
 
-static Strip *strip_get_by_modifier(Editing *ed, SequenceModifierData *smd)
+static Strip *strip_get_by_modifier(Editing *ed, StripModifierData *smd)
 {
   StripSearchData data;
 
@@ -1306,7 +1306,7 @@ static Strip *strip_get_by_modifier(Editing *ed, SequenceModifierData *smd)
 
 static StructRNA *rna_StripModifier_refine(PointerRNA *ptr)
 {
-  SequenceModifierData *smd = (SequenceModifierData *)ptr->data;
+  StripModifierData *smd = (StripModifierData *)ptr->data;
 
   switch (smd->type) {
     case seqModifierType_ColorBalance:
@@ -1332,7 +1332,7 @@ static std::optional<std::string> rna_StripModifier_path(const PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = blender::seq::editing_get(scene);
-  SequenceModifierData *smd = static_cast<SequenceModifierData *>(ptr->data);
+  StripModifierData *smd = static_cast<StripModifierData *>(ptr->data);
   Strip *strip = strip_get_by_modifier(ed, smd);
 
   if (strip) {
@@ -1349,7 +1349,7 @@ static std::optional<std::string> rna_StripModifier_path(const PointerRNA *ptr)
 
 static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  SequenceModifierData *smd = static_cast<SequenceModifierData *>(ptr->data);
+  StripModifierData *smd = static_cast<StripModifierData *>(ptr->data);
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = strip_get_by_modifier(ed, smd);
@@ -1384,7 +1384,7 @@ static void rna_StripModifier_update(Main *bmain, Scene * /*scene*/, PointerRNA 
   /* strip from other scenes could be modified, so using active scene is not reliable */
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = blender::seq::editing_get(scene);
-  Strip *strip = strip_get_by_modifier(ed, static_cast<SequenceModifierData *>(ptr->data));
+  Strip *strip = strip_get_by_modifier(ed, static_cast<StripModifierData *>(ptr->data));
 
   if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS | ID_RECALC_AUDIO);
@@ -1413,7 +1413,7 @@ static bool rna_StripModifier_otherStrip_poll(PointerRNA *ptr, PointerRNA value)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = blender::seq::editing_get(scene);
-  Strip *strip = strip_get_by_modifier(ed, static_cast<SequenceModifierData *>(ptr->data));
+  Strip *strip = strip_get_by_modifier(ed, static_cast<StripModifierData *>(ptr->data));
   Strip *cur = (Strip *)value.data;
 
   if ((strip == cur) || (cur->type == STRIP_TYPE_SOUND_RAM)) {
@@ -1423,7 +1423,7 @@ static bool rna_StripModifier_otherStrip_poll(PointerRNA *ptr, PointerRNA value)
   return true;
 }
 
-static SequenceModifierData *rna_Strip_modifier_new(
+static StripModifierData *rna_Strip_modifier_new(
     Strip *strip, bContext *C, ReportList *reports, const char *name, int type)
 {
   if (!blender::seq::sequence_supports_modifiers(strip)) {
@@ -1433,7 +1433,7 @@ static SequenceModifierData *rna_Strip_modifier_new(
   }
   else {
     Scene *scene = CTX_data_scene(C);
-    SequenceModifierData *smd;
+    StripModifierData *smd;
 
     smd = blender::seq::modifier_new(strip, name, type);
 
@@ -1450,7 +1450,7 @@ static void rna_Strip_modifier_remove(Strip *strip,
                                       ReportList *reports,
                                       PointerRNA *smd_ptr)
 {
-  SequenceModifierData *smd = static_cast<SequenceModifierData *>(smd_ptr->data);
+  StripModifierData *smd = static_cast<StripModifierData *>(smd_ptr->data);
   Scene *scene = CTX_data_scene(C);
 
   if (blender::seq::modifier_remove(strip, smd) == false) {
@@ -1477,7 +1477,7 @@ static void rna_Strip_modifier_clear(Strip *strip, bContext *C)
 
 static void rna_StripModifier_strip_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
-  SequenceModifierData *smd = static_cast<SequenceModifierData *>(ptr->data);
+  StripModifierData *smd = static_cast<StripModifierData *>(ptr->data);
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = strip_get_by_modifier(ed, smd);
@@ -1488,7 +1488,7 @@ static void rna_StripModifier_strip_set(PointerRNA *ptr, PointerRNA value, Repor
     return;
   }
 
-  smd->mask_sequence = target;
+  smd->mask_strip = target;
 }
 
 static float rna_Strip_fps_get(PointerRNA *ptr)
@@ -1598,7 +1598,7 @@ static EQCurveMappingData *rna_Strip_SoundEqualizer_Curve_add(SoundEqualizerModi
 static void rna_Strip_SoundEqualizer_Curve_clear(SoundEqualizerModifierData *semd,
                                                  bContext * /*C*/)
 {
-  blender::seq::sound_equalizermodifier_free((SequenceModifierData *)semd);
+  blender::seq::sound_equalizermodifier_free((StripModifierData *)semd);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
 }
 
@@ -3697,7 +3697,7 @@ static void rna_def_modifier(BlenderRNA *brna)
   };
 
   srna = RNA_def_struct(brna, "StripModifier", nullptr);
-  RNA_def_struct_sdna(srna, "SequenceModifierData");
+  RNA_def_struct_sdna(srna, "StripModifierData");
   RNA_def_struct_ui_text(srna, "Strip Modifier", "Modifier for sequence strip");
   RNA_def_struct_refine_func(srna, "rna_StripModifier_refine");
   RNA_def_struct_path_func(srna, "rna_StripModifier_path");
@@ -3740,7 +3740,7 @@ static void rna_def_modifier(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
   prop = RNA_def_property(srna, "input_mask_strip", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "mask_sequence");
+  RNA_def_property_pointer_sdna(prop, nullptr, "mask_strip");
   RNA_def_property_pointer_funcs(
       prop, nullptr, "rna_StripModifier_strip_set", nullptr, "rna_StripModifier_otherStrip_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE);

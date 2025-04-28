@@ -372,8 +372,8 @@ bool relations_render_loop_check(Strip *strip_main, Strip *strip)
     return true;
   }
 
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip_main->modifiers) {
-    if (smd->mask_sequence && relations_render_loop_check(smd->mask_sequence, strip)) {
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip_main->modifiers) {
+    if (smd->mask_strip && relations_render_loop_check(smd->mask_strip, strip)) {
       return true;
     }
   }

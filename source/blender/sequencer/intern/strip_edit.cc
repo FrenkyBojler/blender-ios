@@ -145,9 +145,9 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, St
     }
 
     /* Clear strip from modifiers. */
-    LISTBASE_FOREACH (SequenceModifierData *, smd, &user_seq->modifiers) {
-      if (smd->mask_sequence == strip) {
-        smd->mask_sequence = nullptr;
+    LISTBASE_FOREACH (StripModifierData *, smd, &user_seq->modifiers) {
+      if (smd->mask_strip == strip) {
+        smd->mask_strip = nullptr;
       }
     }
 

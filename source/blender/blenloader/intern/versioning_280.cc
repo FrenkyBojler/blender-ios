@@ -772,7 +772,7 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
 
     if (scene->ed != nullptr) {
       LISTBASE_FOREACH (Strip *, seq, &scene->ed->seqbase) {
-        LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
+        LISTBASE_FOREACH (StripModifierData *, smd, &seq->modifiers) {
           const blender::seq::StripModifierTypeInfo *smti = blender::seq::modifier_type_info_get(
               smd->type);
 

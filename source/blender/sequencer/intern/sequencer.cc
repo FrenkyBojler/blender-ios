@@ -319,8 +319,8 @@ static void seq_new_fix_links_recursive(Strip *strip, blender::Map<Strip *, Stri
     strip->seq2 = strip_map.lookup_default(strip->seq2, strip->seq2);
   }
 
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
-    smd->mask_sequence = strip_map.lookup_default(smd->mask_sequence, smd->mask_sequence);
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    smd->mask_strip = strip_map.lookup_default(smd->mask_strip, smd->mask_strip);
   }
 
   if (is_strip_connected(strip)) {
@@ -997,7 +997,7 @@ static void strip_update_sound_modifiers(Strip *strip)
 {
   void *sound_handle = strip->sound->playback_handle;
   if (!BLI_listbase_is_empty(&strip->modifiers)) {
-    LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
+    LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
       sound_handle = sound_modifier_recreator(strip, smd, sound_handle);
     }
   }

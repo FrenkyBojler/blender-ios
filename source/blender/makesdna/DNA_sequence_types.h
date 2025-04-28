@@ -513,8 +513,8 @@ typedef struct ColorMixVars {
 /** \name Strip Modifiers
  * \{ */
 
-typedef struct SequenceModifierData {
-  struct SequenceModifierData *next, *prev;
+typedef struct StripModifierData {
+  struct StripModifierData *next, *prev;
   int type, flag;
   /** MAX_NAME. */
   char name[64];
@@ -523,12 +523,12 @@ typedef struct SequenceModifierData {
   int mask_input_type;
   int mask_time;
 
-  struct Strip *mask_sequence;
+  struct Strip *mask_strip;
   struct Mask *mask_id;
-} SequenceModifierData;
+} StripModifierData;
 
 typedef struct ColorBalanceModifierData {
-  SequenceModifierData modifier;
+  StripModifierData modifier;
 
   StripColorBalance color_balance;
   float color_multiply;
@@ -540,37 +540,37 @@ enum {
 };
 
 typedef struct CurvesModifierData {
-  SequenceModifierData modifier;
+  StripModifierData modifier;
 
   struct CurveMapping curve_mapping;
 } CurvesModifierData;
 
 typedef struct HueCorrectModifierData {
-  SequenceModifierData modifier;
+  StripModifierData modifier;
 
   struct CurveMapping curve_mapping;
 } HueCorrectModifierData;
 
 typedef struct BrightContrastModifierData {
-  SequenceModifierData modifier;
+  StripModifierData modifier;
 
   float bright;
   float contrast;
 } BrightContrastModifierData;
 
 typedef struct SequencerMaskModifierData {
-  SequenceModifierData modifier;
+  StripModifierData modifier;
 } SequencerMaskModifierData;
 
 typedef struct WhiteBalanceModifierData {
-  SequenceModifierData modifier;
+  StripModifierData modifier;
 
   float white_value[3];
   char _pad[4];
 } WhiteBalanceModifierData;
 
 typedef struct SequencerTonemapModifierData {
-  SequenceModifierData modifier;
+  StripModifierData modifier;
 
   float key, offset, gamma;
   float intensity, contrast, adaptation, correction;
@@ -593,7 +593,7 @@ typedef struct EQCurveMappingData {
 } EQCurveMappingData;
 
 typedef struct SoundEqualizerModifierData {
-  SequenceModifierData modifier;
+  StripModifierData modifier;
   /* EQCurveMappingData */
   ListBase graphics;
 } SoundEqualizerModifierData;
@@ -813,7 +813,7 @@ enum {
 
 /* modifiers */
 
-/** #SequenceModifierData.type */
+/** #StripModifierData.type */
 enum {
   seqModifierType_ColorBalance = 1,
   seqModifierType_Curves = 2,
@@ -827,7 +827,7 @@ enum {
   NUM_SEQUENCE_MODIFIER_TYPES,
 };
 
-/** #SequenceModifierData.flag */
+/** #StripModifierData.flag */
 enum {
   SEQUENCE_MODIFIER_MUTE = (1 << 0),
   SEQUENCE_MODIFIER_EXPANDED = (1 << 1),

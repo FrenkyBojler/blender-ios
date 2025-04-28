@@ -1823,7 +1823,7 @@ static bool is_opaque_alpha_over(const Strip *strip)
   if (strip->mul < 1.0f && (strip->flag & SEQ_MULTIPLY_ALPHA) != 0) {
     return false;
   }
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     /* Assume result is not opaque if there is an enabled Mask modifier. */
     if ((smd->flag & SEQUENCE_MODIFIER_MUTE) == 0 && smd->type == seqModifierType_Mask) {
       return false;

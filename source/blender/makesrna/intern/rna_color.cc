@@ -80,7 +80,7 @@ static bool seq_update_modifier_curve(Strip *strip, void *user_data)
   /* Invalidate cache of any strips that have modifiers using this
    * curve mapping. */
   SeqCurveMappingUpdateData *data = static_cast<SeqCurveMappingUpdateData *>(user_data);
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     if (smd->type == seqModifierType_Curves) {
       CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
       if (&cmd->curve_mapping == data->curve) {
