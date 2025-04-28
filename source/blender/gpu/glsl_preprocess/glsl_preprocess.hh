@@ -260,21 +260,36 @@ class Preprocessor {
 
     std::vector<Loop> loops;
 
-    auto add_loop =
-        [&](Loop &loop, const std::smatch &match, int64_t line, int64_t lines_in_content) {
-          std::string suffix = match.suffix().str();
-          loop.body = get_content_between_balanced_pair(loop.definition + suffix, '{', '}');
-          loop.body = '{' + loop.body + '}';
-          loop.definition_line = line - lines_in_content;
-          loop.body_line = line;
-          loop.end_line = loop.body_line + line_count(loop.body);
+    auto add_loop = [&](Loop &loop,
+                        const std::smatch &match,
+                        int64_t line,
+                        int64_t lines_in_content) {
+      std::string suffix = match.suffix().str();
+      loop.body = get_content_between_balanced_pair(loop.definition + suffix, '{', '}');
+      loop.body = '{' + loop.body + '}';
+      loop.definition_line = line - lines_in_content;
+      loop.body_line = line;
+      loop.end_line = loop.body_line + line_count(loop.body);
 
-          /* Check that there is no break keywords in the loop body. */
-          if (loop.body.find(" break;") != std::string::npos) {
-            report_error(match, "Error: Unrolled loop cannot contain break statement.");
-          }
-          loops.emplace_back(loop);
-        };
+      /* Check that there is no break keywords in the loop body. */
+      if (loop.body.find(" break;") != std::string::npos) {
+        /* Expensive check. Remove other loops and switch bodies inside the unrolled loop body and
+         * check again to avoid false positive. It is only invalid to have break in the unrolled
+         * loop scope. */
+        std::string modified_body = loop.body;
+
+        std::regex regex(R"( (for|while|switch|do) )");
+        regex_global_search(loop.body, regex, [&](const std::smatch &match) {
+          std::string inner_scope = get_content_between_balanced_pair(match.suffix(), '{', '}');
+          replace_all(modified_body, inner_scope, "");
+        });
+
+        if (modified_body.find(" break;") != std::string::npos) {
+          report_error(match, "Error: Unrolled loop cannot contain break statement.");
+        }
+      }
+      loops.emplace_back(loop);
+    };
 
     /* Parse the loop syntax. */
     {
