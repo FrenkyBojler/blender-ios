@@ -1469,8 +1469,6 @@ void BKE_pose_channel_gizmo_get_pose_orientation(const bArmature *arm,
     return;
   }
 
-  pose_channel_gizmo_calculate_localized_pose_orientation(pchan, r_pose_orientation);
-
   BLI_assert(owner->custom);
   BLI_assert(owner->custom_tx);
 
@@ -1498,10 +1496,8 @@ void BKE_pose_channel_gizmo_get_pose_orientation(const bArmature *arm,
     copy_m3_m4(animated_owner_local, pchan_basis_m4);
   }
 
-  mul_m3_series(r_localized_pose_from_animated_owner_local,
-                pose_from_custom_tx,
-                custom_tx_from_owner,
-                animated_owner_local);
+  mul_m3_series(
+      r_pose_orientation, pose_from_custom_tx, custom_tx_from_owner, animated_owner_local);
 }
 
 void BKE_pose_channel_gizmo_get_pose_pivot(const bArmature *arm,
