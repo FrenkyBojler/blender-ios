@@ -469,6 +469,7 @@ class IMAGE_MT_uvs(Menu):
         layout.separator()
 
         layout.operator("uv.minimize_stretch")
+        layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("uv.stitch")
         layout.menu("IMAGE_MT_uvs_align")
         layout.operator("uv.align_rotation")
