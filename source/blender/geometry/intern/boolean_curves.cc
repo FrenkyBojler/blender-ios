@@ -1262,9 +1262,6 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                      const VArray<bool> &is_fill,
                                      const VArray<bool> &is_cyclic)
 {
-  /* TODO. */
-  BLI_assert(bool(shape_ids));
-
   IndexMaskMemory memory;
   VectorSet<int> shape_indexing;
   const Vector<IndexMask> shapes = IndexMask::from_group_ids(shape_ids, memory, shape_indexing);
@@ -1413,6 +1410,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
 
   const VArray<bool> is_fills = *src_attributes.lookup<bool>("is_fill", bke::AttrDomain::Curve);
   const VArray<int> shape_ids = *src_attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
+  BLI_assert(shape_ids);
 
   const BooleanResult result = execute_boolean(op_params,
                                                src_positions_2d,
