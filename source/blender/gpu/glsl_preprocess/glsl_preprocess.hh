@@ -260,6 +260,22 @@ class Preprocessor {
 
     std::vector<Loop> loops;
 
+    auto add_loop =
+        [&](Loop &loop, const std::smatch &match, int64_t line, int64_t lines_in_content) {
+          std::string suffix = match.suffix().str();
+          loop.body = get_content_between_balanced_pair(loop.definition + suffix, '{', '}');
+          loop.body = '{' + loop.body + '}';
+          loop.definition_line = line - lines_in_content;
+          loop.body_line = line;
+          loop.end_line = loop.body_line + line_count(loop.body);
+
+          /* Check that there is no break keywords in the loop body. */
+          if (loop.body.find(" break;") != std::string::npos) {
+            report_error(match, "Error: Unrolled loop cannot contain break statement.");
+          }
+          loops.emplace_back(loop);
+        };
+
     /* Parse the loop syntax. */
     {
       /* [[unroll]]. */
@@ -321,8 +337,6 @@ class Preprocessor {
           report_error(match, "Error: Unsupported for loop expression. Expecting ++ or --");
         }
 
-        std::string suffix = match.suffix().str();
-
         loop.definition = content;
         loop.indent = match[1].str();
         loop.init_statement = match[2].str();
@@ -331,14 +345,8 @@ class Preprocessor {
         }
         loop.iter_statement = match[11].str();
         loop.body_prefix = match[15].str();
-        loop.body = get_content_between_balanced_pair(loop.definition + suffix, '{', '}');
-        loop.body = '{' + loop.body + '}';
 
-        loop.definition_line = line - lines_in_content;
-        loop.body_line = line;
-        loop.end_line = loop.body_line + line_count(loop.body);
-
-        loops.emplace_back(loop);
+        add_loop(loop, match, line, lines_in_content);
       });
     }
     {
@@ -355,7 +363,6 @@ class Preprocessor {
 
       regex_global_search(str, regex, [&](const std::smatch &match) {
         std::string content = match[0].str();
-        std::string suffix = match.suffix().str();
 
         int64_t lines_in_content = line_count(content);
 
@@ -369,14 +376,8 @@ class Preprocessor {
         loop.test_statement = "if (" + match[4].str() + ") ";
         loop.iter_statement = match[5].str();
         loop.body_prefix = match[13].str();
-        loop.body = get_content_between_balanced_pair(loop.definition + suffix, '{', '}');
-        loop.body = '{' + loop.body + '}';
 
-        loop.definition_line = line - lines_in_content;
-        loop.body_line = line;
-        loop.end_line = loop.body_line + line_count(loop.body);
-
-        loops.emplace_back(loop);
+        add_loop(loop, match, line, lines_in_content);
       });
     }
 
