@@ -491,16 +491,14 @@ typedef enum ePchan_IkFlag {
 /* PoseChannel->drawflag */
 typedef enum ePchan_DrawFlag {
   PCHAN_DRAW_NO_CUSTOM_BONE_SIZE = (1 << 0),
-  /* Draw transform gizmos at the custom transform's location. This provides a more useful
-   * gizmo location for users and affects rotation and scaling input origin. Specifically,
-   * for clockwise vs counter clockwise rotating based on mouse and gizmo origin.
+  /* Places the gizmo at the Custom Transform Location, and uses that as
+   * the origin for manipulating rotation and scale. This decouples the
+   * location of the gizmo from the actual location of the bone.
    */
   PCHAN_DRAW_GIZMO_USE_CUSTOM_LOCATION = (1 << 1),
-  /* Gizmo-transforming pchan as if it had the same hierarchical parenting relations as the custom
-   * transform. Useful when pchan should inherit the same parent effects as the custom transform,
-   * without actually requiring such a direct parenting relation.
-   *
-   * Useful for face rigging.
+  /* Follow the Custom Transform's parent. However, this also implicitly
+   * enables the behavior of PCHAN_DRAW_GIZMO_USE_CUSTOM_LOCATION so
+   * location follows the Custom Transform.
    */
   PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM = (1 << 2),
 } ePchan_DrawFlag;

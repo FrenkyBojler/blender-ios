@@ -16,6 +16,7 @@ struct BlendDataReader;
 struct BlendLibReader;
 struct BlendWriter;
 struct bArmature;
+struct BoneParentTransform;
 
 /* The following structures are defined in DNA_action_types.h, and DNA_anim_types.h */
 struct AnimationEvalContext;
@@ -308,13 +309,31 @@ void BKE_pose_itasc_init(bItasc *itasc);
  */
 bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan);
 
-bool BKE_pose_channel_gizmo_use_custom_pivot(const bArmature *arm, const bPoseChannel *pchan);
+/* Get the effective gizmo location, accounting for PCHAN_DRAW_GIZMO_USE_CUSTOM_LOCATION
+ * and PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM  */
+void BKE_pose_channel_gizmo_get_pose_pivot(const bArmature *arm,
+                                           const bPoseChannel *pchan,
+                                           float r_pose_space_pivot[3]);
 
-bool BKE_pose_channel_gizmo_use_localized_transform(const bArmature *arm,
-                                                    const bPoseChannel *pchan);
+/* Get the effective gizmo pose orientation, accounting for
+ * PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM  */
+void BKE_pose_channel_gizmo_get_pose_orientation(const bArmature *arm,
+                                                 const bPoseChannel *pchan,
+                                                 float r_pose_orientation[3][3]);
 
-void BKE_pose_channel_gizmo_calculate_localized_pose_orientation(bPoseChannel *pchan,
-                                                                 float r_pose_from_basis[3][3]);
+/* Get the effective BoneParentTransform to use for gizmos, accounting for
+ * PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM  */
+void BKE_pose_channel_gizmo_get_bone_parent_transform(const bArmature *arm,
+                                                      const bPoseChannel *pchan,
+                                                      BoneParentTransform *r_bpt);
+
+/* This accounts for PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM.
+ * If enabled, we calculate r_modified_local_mat relative to pchan's custom_tx then return
+ * custom_tx. If disabled, this is a noop. */
+bPoseChannel *BKE_pose_channel_gizmo_get_gimbal_pchan(const bArmature *arm,
+                                                      const bPoseChannel *pchan,
+                                                      float r_modified_local_mat[3][3]);
+
 /* Bone Groups API --------------------- */
 
 /**

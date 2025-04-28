@@ -843,13 +843,9 @@ static int gizmo_3d_foreach_selected(const bContext *C,
           continue;
         }
 
-        const bool use_custom_pivot = BKE_pose_channel_gizmo_use_custom_pivot(arm, pchan);
-        if (use_custom_pivot) {
-          run_coord_with_matrix(pchan->custom_tx->pose_mat[3], use_mat_local, mat_local);
-        }
-        else {
-          run_coord_with_matrix(pchan->pose_head, use_mat_local, mat_local);
-        }
+        float pchan_pivot[3];
+        BKE_pose_channel_gizmo_get_pose_pivot(arm, pchan, pchan_pivot);
+        run_coord_with_matrix(pchan_pivot, use_mat_local, mat_local);
         totsel++;
 
         if (r_drawflags) {
