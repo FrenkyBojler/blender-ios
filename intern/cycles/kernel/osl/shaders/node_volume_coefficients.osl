@@ -2,8 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "node_scatter_mie.h"
-#include "stdcycles.h"
+#include "node_scatter.h"
 
 shader node_volume_coefficients(string phase = "Henyey-Greenstein",
                                 vector AbsorptionCoefficients = vector(1.0, 1.0, 1.0),
@@ -16,28 +15,10 @@ shader node_volume_coefficients(string phase = "Henyey-Greenstein",
                                 vector EmissionCoefficients = vector(0.0, 0.0, 0.0),
                                 output closure color Volume = 0)
 {
-  closure color scatter = 0;
-  if (phase == "Fournier-Forand") {
-    scatter = fournier_forand(Backscatter, IOR);
-  }
-  else if (phase == "Draine") {
-    scatter = draine(Anisotropy, Alpha);
-  }
-  else if (phase == "Rayleigh") {
-    scatter = rayleigh();
-  }
-  else if (phase == "Mie") {
-    /* Approximation of Mie phase function for water droplets using a mix of Draine and H-G.
-     * See `kernel/svm/closure.h` for details. */
-    MieParameters param = phase_mie_fitted_parameters(Diameter);
-    scatter = mix(henyey_greenstein(param.g_HG), draine(param.g_D, param.alpha), param.mixture);
-  }
-  else {
-    scatter = henyey_greenstein(Anisotropy);
-  }
+  closure color scatter_closure = scatter(phase, Anisotropy, IOR, Backscatter, Alpha, Diameter);
 
   /* Add scattering and absorption closures. */
-  Volume = color(ScatterCoefficients) * scatter + color(AbsorptionCoefficients) * absorption();
+  Volume = color(ScatterCoefficients) * scatter_closure + color(AbsorptionCoefficients) * absorption();
 
   /* Compute emission. */
   Volume += color(EmissionCoefficients) * emission();

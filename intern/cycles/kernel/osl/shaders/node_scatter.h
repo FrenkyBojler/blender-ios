@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "stdcycles.h"
+
 struct MieParameters {
   float g_HG;
   float g_D;
@@ -44,4 +46,29 @@ MieParameters phase_mie_fitted_parameters(float Diameter)
           exp(-2.20679 / (d + 3.91029) - 0.428934),
           exp(3.62489 - 8.29288 / (d + 5.52825)),
           exp(-0.599085 / (d - 0.641583) - 0.665888)};
+}
+
+closure color
+scatter(string phase, float Anisotropy, float IOR, float Backscatter, float Alpha, float Diameter)
+{
+  closure color scatter = 0;
+  if (phase == "Fournier-Forand") {
+    scatter = fournier_forand(Backscatter, IOR);
+  }
+  else if (phase == "Draine") {
+    scatter = draine(Anisotropy, Alpha);
+  }
+  else if (phase == "Rayleigh") {
+    scatter = rayleigh();
+  }
+  else if (phase == "Mie") {
+    /* Approximation of Mie phase function for water droplets using a mix of Draine and H-G.
+     * See `kernel/svm/closure.h` for details. */
+    MieParameters param = phase_mie_fitted_parameters(Diameter);
+    scatter = mix(henyey_greenstein(param.g_HG), draine(param.g_D, param.alpha), param.mixture);
+  }
+  else {
+    scatter = henyey_greenstein(Anisotropy);
+  }
+  return scatter;
 }
