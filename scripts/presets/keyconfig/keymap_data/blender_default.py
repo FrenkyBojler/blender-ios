@@ -7020,6 +7020,7 @@ def km_image_editor_tool_mask_select_lasso(params, *, fallback):
         ]},
     )
 
+
 def km_image_editor_tool_mask_move(params):
     return (
         "Image Editor Tool: Mask, Move",
