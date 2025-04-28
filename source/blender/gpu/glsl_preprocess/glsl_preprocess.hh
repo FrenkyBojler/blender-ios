@@ -271,21 +271,34 @@ class Preprocessor {
       loop.body_line = line;
       loop.end_line = loop.body_line + line_count(loop.body);
 
-      /* Check that there is no break keywords in the loop body. */
-      if (loop.body.find(" break;") != std::string::npos) {
-        /* Expensive check. Remove other loops and switch bodies inside the unrolled loop body and
-         * check again to avoid false positive. It is only invalid to have break in the unrolled
-         * loop scope. */
+      /* Check that there is no unsupported keywords in the loop body. */
+      if (loop.body.find(" break;") != std::string::npos ||
+          loop.body.find(" continue;") != std::string::npos)
+      {
+        /* Expensive check. Remove other loops and switch scopes inside the unrolled loop scope and
+         * check again to avoid false positive. */
         std::string modified_body = loop.body;
 
-        std::regex regex(R"( (for|while|switch|do) )");
-        regex_global_search(loop.body, regex, [&](const std::smatch &match) {
+        std::regex regex_loop(R"( (for|while|do) )");
+        regex_global_search(loop.body, regex_loop, [&](const std::smatch &match) {
           std::string inner_scope = get_content_between_balanced_pair(match.suffix(), '{', '}');
           replace_all(modified_body, inner_scope, "");
         });
 
+        /* Checks if `continue` exists, even in switch statement inside the unrolled loop scope. */
+        if (modified_body.find(" continue;") != std::string::npos) {
+          report_error(match, "Error: Unrolled loop cannot contain \"continue\" statement.");
+        }
+
+        std::regex regex_switch(R"( switch )");
+        regex_global_search(loop.body, regex_switch, [&](const std::smatch &match) {
+          std::string inner_scope = get_content_between_balanced_pair(match.suffix(), '{', '}');
+          replace_all(modified_body, inner_scope, "");
+        });
+
+        /* Checks if `break` exists inside the unrolled loop scope. */
         if (modified_body.find(" break;") != std::string::npos) {
-          report_error(match, "Error: Unrolled loop cannot contain break statement.");
+          report_error(match, "Error: Unrolled loop cannot contain \"break\" statement.");
         }
       }
       loops.emplace_back(loop);
