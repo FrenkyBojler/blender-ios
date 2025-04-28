@@ -150,8 +150,8 @@ static int4 compute_number_of_integration_steps(const float3 &chromatic_distorti
   float distortion_blue = math::distance(distorted_uv_green, distorted_uv_blue);
   int steps_blue = compute_number_of_integration_steps_heuristic(distortion_blue, use_jitter);
 
-  /* The number of integration steps used to compute the green channel is the sum of both the red
-   * and the blue channel steps because it is computed once with each of them. */
+  /* The number of integration steps used to compute the green and the alpha channels is the sum
+   * of both the red and the blue channel steps because it is computed once with each of them. */
   return int4(steps_red, steps_red + steps_blue, steps_blue, steps_red + steps_blue);
 }
 
