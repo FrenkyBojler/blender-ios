@@ -267,6 +267,12 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
   FSMenuEntry *fsm_iter;
   FSMenuEntry *fsm_head;
 
+#ifdef WIN32
+  /* On Windows always add items without validation. Otherwise you can get a
+   * very long timeout checking items that might not even be used. #132460 */
+  flag = FSMenuInsert(int(flag) | int(FS_INSERT_NO_VALIDATE));
+#endif
+
   fsm_head = ED_fsmenu_get_category(fsmenu, category);
   fsm_prev = fsm_head; /* this is odd and not really correct? */
 
