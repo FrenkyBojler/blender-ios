@@ -109,7 +109,6 @@ class IMAGE_MT_view(Menu):
             layout.separator()
 
         if paint.brush and (context.image_paint_object or sima.mode == 'PAINT'):
-            layout.prop(uv, "show_texpaint")
             layout.prop(tool_settings, "show_uv_local_view", text="Show Same Material")
 
         layout.menu("INFO_MT_area")
@@ -470,7 +469,9 @@ class IMAGE_MT_uvs(Menu):
         layout.separator()
 
         layout.operator("uv.minimize_stretch")
+        layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("uv.stitch")
+        layout.operator_context = 'EXEC_REGION_WIN'
         layout.menu("IMAGE_MT_uvs_align")
         layout.operator("uv.align_rotation")
 
@@ -589,7 +590,9 @@ class IMAGE_MT_uvs_context_menu(Menu):
 
             # Remove
             layout.menu("IMAGE_MT_uvs_merge")
+            layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("uv.stitch")
+            layout.operator_context = 'EXEC_REGION_WIN'
             layout.menu("IMAGE_MT_uvs_split")
 
 
@@ -1682,7 +1685,7 @@ class IMAGE_PT_overlay_uv_edit_geometry(Panel):
         row.prop(uvedit, "show_faces", text="Faces")
 
 
-class IMAGE_PT_overlay_texture_paint(Panel):
+class IMAGE_PT_overlay_uv_display(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Geometry"
@@ -1691,7 +1694,7 @@ class IMAGE_PT_overlay_texture_paint(Panel):
     @classmethod
     def poll(cls, context):
         sima = context.space_data
-        return (sima and (sima.show_paint))
+        return (sima and not (sima.show_uvedit or sima.show_render))
 
     def draw(self, context):
         layout = self.layout
@@ -1701,7 +1704,8 @@ class IMAGE_PT_overlay_texture_paint(Panel):
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        layout.prop(uvedit, "show_texpaint")
+        layout.prop(uvedit, "show_uv")
+        layout.prop(uvedit, "uv_face_opacity")
 
 
 class IMAGE_PT_overlay_image(Panel):
@@ -1814,7 +1818,7 @@ classes = (
     IMAGE_PT_overlay_guides,
     IMAGE_PT_overlay_uv_stretch,
     IMAGE_PT_overlay_uv_edit_geometry,
-    IMAGE_PT_overlay_texture_paint,
+    IMAGE_PT_overlay_uv_display,
     IMAGE_PT_overlay_image,
     IMAGE_AST_brush_paint,
 )

@@ -8,6 +8,7 @@
 
 #include <cerrno>
 #include <fcntl.h>
+#include <mutex>
 #include <sys/types.h>
 
 #ifndef WIN32
@@ -363,6 +364,8 @@ void CLIP_OT_reload(wmOperatorType *ot)
 /** \name View Pan Operator
  * \{ */
 
+namespace {
+
 struct ViewPanData {
   float x, y;
   float xof, yof, xorig, yorig;
@@ -370,6 +373,8 @@ struct ViewPanData {
   bool own_cursor;
   float *vec;
 };
+
+}  // namespace
 
 static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -416,7 +421,7 @@ static void view_pan_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
 static wmOperatorStatus view_pan_exec(bContext *C, wmOperator *op)
@@ -536,6 +541,8 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
 /** \name View Zoom Operator
  * \{ */
 
+namespace {
+
 struct ViewZoomData {
   float x, y;
   float zoom;
@@ -545,6 +552,8 @@ struct ViewZoomData {
   double timer_lastdraw;
   bool own_cursor;
 };
+
+}  // namespace
 
 static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -594,7 +603,7 @@ static void view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
 static wmOperatorStatus view_zoom_exec(bContext *C, wmOperator *op)
@@ -1253,13 +1262,11 @@ static void do_movie_proxy(void *pjv,
   const int efra = clip->len;
 
   if (build_undistort_count) {
-    int threads = BLI_system_thread_count();
     int width, height;
 
     BKE_movieclip_get_size(clip, nullptr, &width, &height);
 
     distortion = BKE_tracking_distortion_new(&clip->tracking, width, height);
-    BKE_tracking_distortion_set_threads(distortion, threads);
   }
 
   for (int cfra = sfra; cfra <= efra; cfra++) {
@@ -1293,7 +1300,7 @@ struct ProxyQueue {
   int cfra;
   int sfra;
   int efra;
-  SpinLock spin;
+  std::mutex mutex;
 
   const bool *stop;
   bool *do_update;
@@ -1314,7 +1321,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 {
   uchar *mem = nullptr;
 
-  BLI_spin_lock(&queue->spin);
+  std::lock_guard lock(queue->mutex);
   if (!*queue->stop && queue->cfra <= queue->efra) {
     MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
     char filepath[FILE_MAX];
@@ -1326,14 +1333,12 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
     file = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
     if (file < 0) {
-      BLI_spin_unlock(&queue->spin);
       return nullptr;
     }
 
     const size_t size = BLI_file_descriptor_size(file);
     if (UNLIKELY(ELEM(size, 0, size_t(-1)))) {
       close(file);
-      BLI_spin_unlock(&queue->spin);
       return nullptr;
     }
 
@@ -1341,7 +1346,6 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
     if (BLI_read(file, mem, size) != size) {
       close(file);
-      BLI_spin_unlock(&queue->spin);
       MEM_freeN(mem);
       return nullptr;
     }
@@ -1355,8 +1359,6 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
     *queue->do_update = true;
     *queue->progress = float(queue->cfra - queue->sfra) / (queue->efra - queue->sfra);
   }
-  BLI_spin_unlock(&queue->spin);
-
   return mem;
 }
 
@@ -1419,8 +1421,6 @@ static void do_sequence_proxy(void *pjv,
   }
 
   ProxyQueue queue;
-  BLI_spin_init(&queue.spin);
-
   queue.cfra = sfra;
   queue.sfra = sfra;
   queue.efra = efra;
@@ -1458,7 +1458,6 @@ static void do_sequence_proxy(void *pjv,
     }
   }
 
-  BLI_spin_end(&queue.spin);
   MEM_freeN(handles);
 }
 
