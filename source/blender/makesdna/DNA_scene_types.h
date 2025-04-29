@@ -10,9 +10,6 @@
 
 #include "DNA_defs.h"
 
-/* XXX(@ideasman42): temp feature. */
-#define DURIAN_CAMERA_SWITCH
-
 /**
  * Check for cyclic set-scene.
  * Libraries can cause this case which is normally prevented, see (#42009).
@@ -218,6 +215,7 @@ enum {
   SCE_LAY_AO = 1 << 7,
   SCE_LAY_VOLUMES = 1 << 8,
   SCE_LAY_MOTION_BLUR = 1 << 9,
+  SCE_LAY_GREASE_PENCIL = 1 << 10,
 
   /* Flags between (1 << 9) and (1 << 15) are set to 1 already, for future options. */
 
@@ -306,6 +304,8 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_CRYPTOMATTE_ASSET "CryptoAsset"
 #define RE_PASSNAME_CRYPTOMATTE_MATERIAL "CryptoMaterial"
 
+#define RE_PASSNAME_GREASE_PENCIL "GreasePencil"
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -393,7 +393,7 @@ typedef enum eStereo3dInterlaceType {
 
 /**
  * Generic image format settings,
- * this is used for #NodeImageFile and IMAGE_OT_save_as operator too.
+ * this is used for #NodeImageFile and #IMAGE_OT_save_as operator too.
  *
  * NOTE: its a bit strange that even though this is an image format struct
  * the imtype can still be used to select video formats.
@@ -1748,8 +1748,9 @@ typedef struct ToolSettings {
   short snap_flag_node;
   short snap_flag_seq;
   short snap_flag_anim;
+  short snap_flag_driver;
   short snap_uv_flag;
-  char _pad[4];
+  char _pad[2];
   /** Default snap source, #eSnapSourceOP. */
   /**
    * TODO(@gfxcoder): Rename `snap_target` to `snap_source` to avoid previous ambiguity of
@@ -2204,9 +2205,8 @@ enum {
   R_BORDER = 1 << 9,
   R_MODE_UNUSED_10 = 1 << 10, /* cleared */
   R_CROP = 1 << 11,
-  /** Disable camera switching: runtime (DURIAN_CAMERA_SWITCH) */
-  R_NO_CAMERA_SWITCH = 1 << 12,
-  R_MODE_UNUSED_13 = 1 << 13, /* cleared */
+  R_NO_CAMERA_SWITCH = 1 << 12, /* Disable cache switching */
+  R_MODE_UNUSED_13 = 1 << 13,   /* cleared */
   R_MBLUR = 1 << 14,
   /* unified was here */
   R_MODE_UNUSED_16 = 1 << 16, /* cleared */

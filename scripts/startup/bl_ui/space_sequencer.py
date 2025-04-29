@@ -653,7 +653,7 @@ class SEQUENCER_MT_change(Menu):
             del bpy_data_scenes_len
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.operator_menu_enum("sequencer.change_effect_input", "swap")
+        layout.operator("sequencer.change_effect_input")
         layout.operator_menu_enum("sequencer.change_effect_type", "type")
         props = layout.operator("sequencer.change_path", text="Path/Files")
 
@@ -941,6 +941,18 @@ class SEQUENCER_MT_strip_text(Menu):
         layout.operator("sequencer.text_deselect_all")
 
 
+class SEQUENCER_MT_strip_show_hide(Menu):
+    bl_label = "Show/Hide"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_PREVIEW'
+        layout.operator("sequencer.unmute", text="Show Hidden Strips").unselected = False
+        layout.separator()
+        layout.operator("sequencer.mute", text="Hide Selected").unselected = False
+        layout.operator("sequencer.mute", text="Hide Unselected").unselected = True
+
+
 class SEQUENCER_MT_strip_input(Menu):
     bl_label = "Inputs"
 
@@ -987,7 +999,7 @@ class SEQUENCER_MT_strip_effect(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator_menu_enum("sequencer.change_effect_input", "swap")
+        layout.operator("sequencer.change_effect_input")
         layout.operator_menu_enum("sequencer.change_effect_type", "type")
         layout.operator("sequencer.reassign_inputs")
         layout.operator("sequencer.swap_inputs")
@@ -1060,6 +1072,8 @@ class SEQUENCER_MT_strip(Menu):
         if has_preview:
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.separator()
+            layout.menu("SEQUENCER_MT_strip_show_hide")
             layout.separator()
             if strip and strip.type == 'TEXT':
                 layout.menu("SEQUENCER_MT_strip_text")
@@ -3114,6 +3128,7 @@ classes = (
     SEQUENCER_MT_strip_transform,
     SEQUENCER_MT_strip_retiming,
     SEQUENCER_MT_strip_text,
+    SEQUENCER_MT_strip_show_hide,
     SEQUENCER_MT_strip_input,
     SEQUENCER_MT_strip_lock_mute,
     SEQUENCER_MT_image,

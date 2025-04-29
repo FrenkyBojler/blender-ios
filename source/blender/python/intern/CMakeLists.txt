@@ -65,7 +65,6 @@ set(SRC
   bpy_traceback.cc
   bpy_utils_previews.cc
   bpy_utils_units.cc
-  stubs.cc
 
   bpy.hh
   bpy_app.hh
@@ -315,6 +314,10 @@ endif()
 
 if(WITH_IO_STL)
   add_definitions(-DWITH_IO_STL)
+endif()
+
+if(WITH_IO_FBX)
+  add_definitions(-DWITH_IO_FBX)
 endif()
 
 if(WITH_IO_GREASE_PENCIL)
