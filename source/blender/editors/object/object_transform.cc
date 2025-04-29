@@ -1101,7 +1101,6 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
   }
   if (has_errors) {
     BKE_report(reports, RPT_WARNING, "Failed to apply rotation to some of the objects");
-    return OPERATOR_CANCELLED;
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
