@@ -543,6 +543,8 @@ class NodeTreeMainUpdater {
 
     if (result.interface_changed) {
       if (ntree.runtime->modifier_struct) {
+        /* Avoids warning when freeing the #StructRNA. */
+        RNA_struct_py_type_set(ntree.runtime->modifier_struct, nullptr);
         RNA_struct_free(&BLENDER_RNA, ntree.runtime->modifier_struct);
         ntree.runtime->modifier_struct = nullptr;
       }
@@ -1762,6 +1764,8 @@ class NodeTreeMainUpdater {
   {
     /* TODO: Generate more unique struct name. */
     const StringRefNull struct_name = ntree.id.name;
+    /* TODO: Is it feasible to not add this to #BLENDER_RNA? It shouldn't really ever be looked up
+     * from there, and simplifies thread-safety. */
     StructRNA *srna = RNA_def_struct_ptr(
         &BLENDER_RNA, struct_name.c_str(), &RNA_NodesModifierProperties);
 
