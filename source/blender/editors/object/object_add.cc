@@ -4883,8 +4883,10 @@ static wmOperatorStatus join_shapes_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_join_shapes(wmOperatorType *ot)
 {
-  ot->name = "Add Shape Keys from Objects";
-  ot->description = "Copy the current resulting shape of another selected object to this one";
+  ot->name = "Join as Shapes";
+  ot->description =
+      "Add the vertex positions of selected objects as shape keys or update existing shape keys "
+      "with matching names";
   ot->idname = "OBJECT_OT_join_shapes";
 
   ot->exec = join_shapes_exec;
@@ -4900,9 +4902,10 @@ static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_update_shapes(wmOperatorType *ot)
 {
-  ot->name = "Update Shape Keys from Objects";
+  ot->name = "Update from Objects";
   ot->description =
-      "Copy the current positions of selected objects to shape keys with matching names";
+      "Update existing shape keys with the vertex positions of selected objects with matching "
+      "names";
   ot->idname = "OBJECT_OT_update_shapes";
 
   ot->exec = update_all_shape_keys_exec;
