@@ -303,8 +303,6 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
 
 static void node_composit_buts_file_output(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  PointerRNA imfptr = RNA_pointer_get(ptr, "format");
-  const bool multilayer = RNA_enum_get(&imfptr, "file_format") == R_IMF_IMTYPE_MULTILAYER;
   uiItemR(layout, ptr, "base_path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
@@ -396,12 +394,11 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
    * setting this manually here */
   active_input_ptr.owner_id = ptr->owner_id;
 
-  uiLayout *sub = &col->column(true);
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
-  uiItemFullO_ptr(sub, ot, "", ICON_TRIA_UP, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+  uiItemFullO_ptr(col, ot, "", ICON_TRIA_UP, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
   RNA_enum_set(&op_ptr, "direction", 1);
   uiItemFullO_ptr(
-      sub, ot, "", ICON_TRIA_DOWN, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+      col, ot, "", ICON_TRIA_DOWN, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
   RNA_enum_set(&op_ptr, "direction", 2);
 
   if (active_input_ptr.data) {
