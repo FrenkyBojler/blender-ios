@@ -1041,6 +1041,15 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
                            "This socket is meant to be used as the toggle in its panel header");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
+  prop = RNA_def_property(srna, "hide_if_unused", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_HIDE_IF_UNUSED);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Hide If Unused",
+      "Don't show the input value in the geometry nodes modifier interface when it is not used");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
   prop = RNA_def_property(srna, "layer_selection_field", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_LAYER_SELECTION);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);

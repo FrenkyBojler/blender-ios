@@ -67,6 +67,8 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_INSPECT = 1 << 7,
   /* Socket is used in the panel header as a toggle. */
   NODE_INTERFACE_SOCKET_PANEL_TOGGLE = 1 << 8,
+  /* Hide the socket input in the modifier panel when it is unused. */
+  NODE_INTERFACE_SOCKET_HIDE_IF_UNUSED = 1 << 9,
 } NodeTreeInterfaceSocketFlag;
 ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
 

@@ -1532,6 +1532,7 @@ static void std_node_socket_interface_draw(ID *id,
     uiLayout *sub = &col->column(false);
     uiLayoutSetActive(sub, !is_layer_selection_field(*interface_socket));
     uiItemR(sub, &ptr, "hide_in_modifier", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+    uiItemR(sub, &ptr, "hide_if_unused", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     if (nodes::socket_type_supports_fields(type)) {
       uiLayout *sub_sub = &col->column(false);
       uiLayoutSetActive(sub_sub,

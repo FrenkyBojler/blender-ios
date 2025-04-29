@@ -2326,7 +2326,8 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
  * the correct label displayed in the UI. */
 static void draw_property_for_socket(DrawGroupInputsContext &ctx,
                                      uiLayout *layout,
-                                     const bNodeTreeInterfaceSocket &socket)
+                                     const bNodeTreeInterfaceSocket &socket,
+                                     const bool is_active)
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
@@ -2348,7 +2349,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   uiLayout *row = &layout->row(true);
   uiLayoutSetPropDecorate(row, true);
-  uiLayoutSetActive(row, ctx.input_usages[input_index]);
+  uiLayoutSetActive(row, is_active);
 
   /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
    * information about what type of ID to select for editing the values. This is because
@@ -2469,11 +2470,15 @@ static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
       if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
         continue;
       }
+      const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+      const bool is_active = ctx.input_usages[input_index];
+      if (!is_active && (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IF_UNUSED)) {
+        continue;
+      }
       if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
         continue;
       }
-      const int input_index = ctx.nmd.node_group->interface_input_index(socket);
-      if (ctx.input_usages[input_index]) {
+      if (is_active) {
         return true;
       }
     }
@@ -2554,8 +2559,13 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
     else {
       const auto &interface_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
       if (interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
-        if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
-          draw_property_for_socket(ctx, layout, interface_socket);
+        const int input_index = ctx.nmd.node_group->interface_input_index(interface_socket);
+        const bool is_active = ctx.input_usages[input_index];
+        const bool hide_property =
+            (interface_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) ||
+            (!is_active && (interface_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IF_UNUSED));
+        if (!hide_property) {
+          draw_property_for_socket(ctx, layout, interface_socket, is_active);
         }
       }
     }
