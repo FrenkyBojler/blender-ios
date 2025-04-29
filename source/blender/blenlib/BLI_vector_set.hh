@@ -138,6 +138,7 @@ class VectorSet {
    */
   SlotArray slots_;
 
+  /** A buffer for #keys_ that will remain uninitialized until it is used. */
   BLI_NO_UNIQUE_ADDRESS TypedBuffer<Key, InlineBufferCapacity> inline_buffer_;
 
   /**
