@@ -219,6 +219,13 @@ void VKDevice::init_memory_allocator()
   info.instance = vk_instance_;
   vmaCreateAllocator(&info, &mem_allocator_);
 
+  /* Windows on ARM drivers don't support external memory. External memory is currently used for
+   * OpenXR and Cycles GPU rendering both are not supported on these devices. */
+  if (!extensions_.external_memory) {
+    vma_pools.external_memory = VK_NULL_HANDLE;
+    return;
+  }
+
   /* External memory pool */
   /* Initialize a dummy image create info to find the memory type index that will be used for
    * allocating. */

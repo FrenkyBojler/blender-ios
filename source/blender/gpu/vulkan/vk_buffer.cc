@@ -68,6 +68,8 @@ bool VKBuffer::create(size_t size_in_bytes,
   vma_create_info.usage = VMA_MEMORY_USAGE_AUTO;
 
   if (export_memory) {
+    BLI_assert_msg(device.extensions_get().external_memory,
+                   "External memory isn't supported on this platform.");
     create_info.pNext = &external_memory_create_info;
 #ifdef _WIN32
     external_memory_create_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
@@ -198,6 +200,8 @@ void VKBuffer::unmap()
 VkDeviceMemory VKBuffer::export_memory_get(size_t &memory_size)
 {
   const VKDevice &device = VKBackend::get().device;
+  BLI_assert_msg(device.extensions_get().external_memory,
+                 "External memory isn't supported on this platform.");
   VmaAllocator allocator = device.mem_allocator_get();
 
   VmaAllocationInfo info = {};

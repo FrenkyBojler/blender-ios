@@ -58,6 +58,11 @@ struct VKExtensions {
    * Does the device support logic ops.
    */
   bool logic_ops = false;
+
+  /**
+   * Does the device support external memory.
+   */
+  bool external_memory = false;
 };
 
 /* TODO: Split into VKWorkarounds and VKExtensions to remove the negating when an extension isn't

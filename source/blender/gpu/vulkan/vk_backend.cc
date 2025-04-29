@@ -372,6 +372,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.dynamic_rendering = false;
     extensions.dynamic_rendering_local_read = false;
     extensions.dynamic_rendering_unused_attachments = false;
+    extensions.external_memory = device.supports_extension(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
 
     GCaps.render_pass_workaround = true;
 
@@ -424,6 +425,8 @@ void VKBackend::detect_workarounds(VKDevice &device)
                                        VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) == 0;
 
   GCaps.render_pass_workaround = !extensions.dynamic_rendering;
+
+  extensions.external_memory = device.supports_extension(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
 
 #ifdef __APPLE__
   /* Due to a limitation in MoltenVK, attachments should be sequential even when using
