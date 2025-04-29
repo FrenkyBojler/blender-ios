@@ -277,7 +277,7 @@ static void sequencer_all_free_anim_ibufs(const Scene *scene,
       int meta_range[2];
 
       MetaStack *ms = meta_stack_active_get(ed);
-      if (ms != nullptr && ms->parseq == strip) {
+      if (ms != nullptr && ms->parent_strip == strip) {
         meta_range[0] = -MAXFRAME;
         meta_range[1] = MAXFRAME;
       }

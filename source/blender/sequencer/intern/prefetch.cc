@@ -314,7 +314,7 @@ static void seq_prefetch_update_active_seqbase(PrefetchJob *pfjob)
   Editing *ed_eval = editing_get(pfjob->scene_eval);
 
   if (ms_orig != nullptr) {
-    Strip *meta_eval = seq_prefetch_original_strip_get(ms_orig->parseq, pfjob->scene_eval);
+    Strip *meta_eval = seq_prefetch_original_strip_get(ms_orig->parent_strip, pfjob->scene_eval);
     active_seqbase_set(ed_eval, &meta_eval->seqbase);
   }
   else {

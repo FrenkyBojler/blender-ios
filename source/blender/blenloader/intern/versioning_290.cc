@@ -367,13 +367,13 @@ static void seq_update_meta_disp_range(Scene *scene)
   LISTBASE_FOREACH_BACKWARD (MetaStack *, ms, &ed->metastack) {
     /* Update ms->disp_range from meta. */
     if (ms->disp_range[0] == ms->disp_range[1]) {
-      ms->disp_range[0] = blender::seq::time_left_handle_frame_get(scene, ms->parseq);
-      ms->disp_range[1] = blender::seq::time_right_handle_frame_get(scene, ms->parseq);
+      ms->disp_range[0] = blender::seq::time_left_handle_frame_get(scene, ms->parent_strip);
+      ms->disp_range[1] = blender::seq::time_right_handle_frame_get(scene, ms->parent_strip);
     }
 
     /* Update meta strip endpoints. */
-    blender::seq::time_left_handle_frame_set(scene, ms->parseq, ms->disp_range[0]);
-    blender::seq::time_right_handle_frame_set(scene, ms->parseq, ms->disp_range[1]);
+    blender::seq::time_left_handle_frame_set(scene, ms->parent_strip, ms->disp_range[0]);
+    blender::seq::time_right_handle_frame_set(scene, ms->parent_strip, ms->disp_range[1]);
 
     /* Recalculate effects using meta strip. */
     LISTBASE_FOREACH (Strip *, strip, ms->oldbasep) {
@@ -385,7 +385,7 @@ static void seq_update_meta_disp_range(Scene *scene)
 
     /* Ensure that active seqbase points to active meta strip seqbase. */
     MetaStack *active_ms = blender::seq::meta_stack_active_get(ed);
-    blender::seq::active_seqbase_set(ed, &active_ms->parseq->seqbase);
+    blender::seq::active_seqbase_set(ed, &active_ms->parent_strip->seqbase);
   }
 }
 

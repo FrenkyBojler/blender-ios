@@ -3664,9 +3664,9 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       ListBase *previous_channels = &ed->channels;
       LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
         ms->old_channels = previous_channels;
-        previous_channels = &ms->parseq->channels;
+        previous_channels = &ms->parent_strip->channels;
         /* If `MetaStack` exists, active channels must point to last link. */
-        ed->displayed_channels = &ms->parseq->channels;
+        ed->displayed_channels = &ms->parent_strip->channels;
       }
     }
   }

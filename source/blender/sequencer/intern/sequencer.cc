@@ -430,15 +430,15 @@ static MetaStack *seq_meta_stack_alloc(const Scene *scene, Strip *strip_meta)
 
   MetaStack *ms = MEM_mallocN<MetaStack>("metastack");
   BLI_addhead(&ed->metastack, ms);
-  ms->parseq = strip_meta;
+  ms->parent_strip = strip_meta;
 
   /* Reference to previously displayed timeline data. */
   Strip *higher_level_meta = lookup_meta_by_strip(ed, strip_meta);
   ms->oldbasep = higher_level_meta ? &higher_level_meta->seqbase : &ed->seqbase;
   ms->old_channels = higher_level_meta ? &higher_level_meta->channels : &ed->channels;
 
-  ms->disp_range[0] = time_left_handle_frame_get(scene, ms->parseq);
-  ms->disp_range[1] = time_right_handle_frame_get(scene, ms->parseq);
+  ms->disp_range[0] = time_left_handle_frame_get(scene, ms->parent_strip);
+  ms->disp_range[1] = time_right_handle_frame_get(scene, ms->parent_strip);
   return ms;
 }
 
@@ -478,7 +478,7 @@ void meta_stack_set(const Scene *scene, Strip *dst)
 Strip *meta_stack_pop(Editing *ed)
 {
   MetaStack *ms = meta_stack_active_get(ed);
-  Strip *meta_parent = ms->parseq;
+  Strip *meta_parent = ms->parent_strip;
   active_seqbase_set(ed, ms->oldbasep);
   channels_displayed_set(ed, ms->old_channels);
   BLI_remlink(&ed->metastack, ms);

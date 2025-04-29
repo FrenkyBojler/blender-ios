@@ -313,7 +313,7 @@ typedef struct MetaStack {
   struct MetaStack *next, *prev;
   ListBase *oldbasep;
   ListBase *old_channels;
-  Strip *parseq;
+  Strip *parent_strip;
   /* the startdisp/enddisp when entering the meta */
   int disp_range[2];
 } MetaStack;

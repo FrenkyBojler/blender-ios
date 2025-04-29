@@ -2542,7 +2542,7 @@ static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *o
   blender::VectorSet strips = all_strips_from_context(C);
 
   if (act_strip == nullptr || (is_preview && !strips.contains(act_strip))) {
-    BKE_report(op->reports, RPT_ERROR, "No active sequence!");
+    BKE_report(op->reports, RPT_ERROR, "No active strip!");
     return OPERATOR_CANCELLED;
   }
 
