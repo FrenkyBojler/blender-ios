@@ -2836,7 +2836,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
     bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
     const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
 
-    // Only auto-normalize if the active group is bone-deforming
+    /* Only auto-normalize if the active group is bone-deforming. */
     if (defgroup_validmap[def_nr] == true) {
       int subset_count, vgroup_tot;
       const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
