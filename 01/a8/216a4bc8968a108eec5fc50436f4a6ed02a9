@@ -1,2 +1,3 @@
 Referenced by issue #46245, File delete error in splash screen
 Referenced by issue #45600, recent files are still selectable although deleted
+Referenced by pull request #132500, Fix #132460: Win32 Add File Browser Locations Without Validation
