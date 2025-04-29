@@ -1968,7 +1968,7 @@ static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
 static IDProperty **rna_NodesModifierProperties_idprops(PointerRNA *ptr)
 {
   auto *nmd = ptr->data_as<NodesModifierData>();
-  return &nmd->properties.properties;
+  return &nmd->properties;
 }
 
 static PointerRNA rna_NodesModifier_properties_get(PointerRNA *ptr)

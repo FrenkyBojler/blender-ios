@@ -2392,10 +2392,6 @@ typedef struct NodesModifierSettings {
   struct IDProperty *properties;
 } NodesModifierSettings;
 
-typedef struct NodesModifierProperties {
-  struct IDProperty *properties;
-} NodesModifierProperties;
-
 /**
  * Maps a name (+ optional library name) to a data-block. The name can be stored on disk and is
  * remapped to the data-block when the data is loaded.
@@ -2526,7 +2522,7 @@ typedef struct NodesModifierData {
   ModifierData modifier;
   struct bNodeTree *node_group;
   struct NodesModifierSettings settings;
-  struct NodesModifierProperties properties;
+  struct IDProperty *properties;
   /**
    * Directory where baked simulation states are stored. This may be relative to the .blend file.
    */

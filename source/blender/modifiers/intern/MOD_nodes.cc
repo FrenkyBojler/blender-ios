@@ -2821,8 +2821,8 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     IDP_BlendWrite(writer, nmd->settings.properties);
   }
 
-  if (nmd->properties.properties) {
-    IDP_BlendWrite(writer, nmd->properties.properties);
+  if (nmd->properties) {
+    IDP_BlendWrite(writer, nmd->properties);
   }
 
   BLO_write_struct_array(writer, NodesModifierBake, nmd->bakes_num, nmd->bakes);
@@ -2888,8 +2888,8 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
     IDP_BlendDataRead(reader, &nmd->settings.properties);
   }
 
-  BLO_read_struct(reader, IDProperty, &nmd->properties.properties);
-  IDP_BlendDataRead(reader, &nmd->properties.properties);
+  BLO_read_struct(reader, IDProperty, &nmd->properties);
+  IDP_BlendDataRead(reader, &nmd->properties);
 
   BLO_read_struct_array(reader, NodesModifierBake, nmd->bakes_num, &nmd->bakes);
 
