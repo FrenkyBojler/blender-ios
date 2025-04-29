@@ -357,9 +357,13 @@ static void rna_userdef_asset_library_path_set(PointerRNA *ptr, const char *valu
   BKE_preferences_asset_library_path_set(library, value);
 }
 
-static void rna_userdef_asset_library_path_update(bContext *C, PointerRNA *ptr)
+static void rna_userdef_asset_libraries_refresh(bContext *C, PointerRNA *ptr)
 {
   blender::ed::asset::list::clear_all_library(C);
+
+  /* Trigger refresh for the Asset Browser. */
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
+
   rna_userdef_update(CTX_data_main(C), CTX_data_scene(C), ptr);
 }
 
@@ -6946,7 +6950,13 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_EDITOR_FILEBROWSER);
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_userdef_asset_library_path_set");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(prop, 0, "rna_userdef_asset_library_path_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_libraries_refresh");
+
+  prop = RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", ASSET_LIBRARY_DISABLED);
+  RNA_def_property_ui_text(prop, "Enabled", "Enable the asset library");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_libraries_refresh");
 
   static const EnumPropertyItem import_method_items[] = {
       {ASSET_IMPORT_LINK, "LINK", 0, "Link", "Import the assets as linked data-block"},

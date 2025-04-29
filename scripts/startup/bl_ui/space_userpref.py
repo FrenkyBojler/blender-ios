@@ -1725,7 +1725,9 @@ class USERPREF_UL_asset_libraries(UIList):
         asset_library = item
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(asset_library, "name", text="", emboss=False)
+            row = layout.row(align=True)
+            row.prop(asset_library, "enabled", text="")
+            row.prop(asset_library, "name", text="", emboss=False)
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.prop(asset_library, "name", text="", emboss=False)

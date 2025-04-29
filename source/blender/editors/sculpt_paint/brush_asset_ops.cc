@@ -226,18 +226,35 @@ static wmOperatorStatus brush_asset_save_as_invoke(bContext *C,
   /* If the library isn't saved from the operator's last execution, find the current library or the
    * first library if the current library isn't editable. */
   if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
+    std::optional<AssetLibraryReference> dest_library_ref;
+
     if (library_is_editable(*library_ref)) {
-      RNA_enum_set(op->ptr,
-                   "asset_library_reference",
-                   asset::library_reference_to_enum_value(&*library_ref));
+      dest_library_ref = library_ref;
     }
     else {
-      const AssetLibraryReference first_library = asset::user_library_to_library_ref(
-          *static_cast<const bUserAssetLibrary *>(U.asset_libraries.first));
-      RNA_enum_set(op->ptr,
-                   "asset_library_reference",
-                   asset::library_reference_to_enum_value(&first_library));
+      LISTBASE_FOREACH (bUserAssetLibrary *, asset_library, &U.asset_libraries) {
+        if (asset_library->flag & ASSET_LIBRARY_DISABLED) {
+          continue;
+        }
+        dest_library_ref = asset::user_library_to_library_ref(*asset_library);
+        break;
+      }
+
+      /* If there's no enabled asset library, just use the first one, even if disabled. */
+      if (!dest_library_ref) {
+        const AssetLibraryReference first_library = asset::user_library_to_library_ref(
+            *static_cast<bUserAssetLibrary *>(U.asset_libraries.first));
+        dest_library_ref = first_library;
+      }
     }
+
+    if (!dest_library_ref) {
+      BKE_report(op->reports, RPT_WARNING, "No editable asset library to save into");
+      return OPERATOR_CANCELLED;
+    }
+    RNA_enum_set(op->ptr,
+                 "asset_library_reference",
+                 asset::library_reference_to_enum_value(&*dest_library_ref));
   }
 
   /* By default, put the new asset in the same catalog as the existing asset. */
