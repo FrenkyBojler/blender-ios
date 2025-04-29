@@ -65,6 +65,7 @@ class NodeSocketDropTarget : public TreeViewItemDropTarget {
 
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const DragInfo &drag_info) const override;
+  void drop_linehint(ARegion &region, const DragInfo &drag) const override;
   bool on_drop(bContext * /*C*/, const DragInfo &drag_info) const override;
 
  protected:
@@ -80,6 +81,7 @@ class NodePanelDropTarget : public TreeViewItemDropTarget {
 
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const DragInfo &drag_info) const override;
+  void drop_linehint(ARegion &region, const DragInfo &drag) const override;
   bool on_drop(bContext *C, const DragInfo &drag_info) const override;
 
  protected:
@@ -366,17 +368,17 @@ bool NodeSocketDropTarget::can_drop(const wmDrag &drag, const char ** /*r_disabl
   return true;
 }
 
-std::string NodeSocketDropTarget::drop_tooltip(const DragInfo &drag_info) const
+void NodeSocketDropTarget::drop_linehint(ARegion &region, const DragInfo &drag_info) const
 {
-  switch (drag_info.drop_location) {
-    case DropLocation::Into:
-      return "";
-    case DropLocation::Before:
-      return TIP_("Insert before socket");
-    case DropLocation::After:
-      return TIP_("Insert after socket");
-  }
-  return "";
+  /* Draw a horizontal line indicating the drop location. */
+  AbstractTreeView &view = this->view_item_.get_tree_view();
+  view.set_drop_linehint(region, this->view_item_, drag_info.drop_location);
+}
+
+std::string NodeSocketDropTarget::drop_tooltip(const DragInfo & /*drag_info*/) const
+{
+  /* No tooltip, since we use line hints.*/
+  return {};
 }
 
 bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
@@ -449,17 +451,17 @@ bool NodePanelDropTarget::can_drop(const wmDrag &drag, const char ** /*r_disable
   return true;
 }
 
-std::string NodePanelDropTarget::drop_tooltip(const DragInfo &drag_info) const
+void NodePanelDropTarget::drop_linehint(ARegion &region, const DragInfo &drag_info) const
 {
-  switch (drag_info.drop_location) {
-    case DropLocation::Into:
-      return TIP_("Insert into panel");
-    case DropLocation::Before:
-      return TIP_("Insert before panel");
-    case DropLocation::After:
-      return TIP_("Insert after panel");
-  }
-  return "";
+  /* Draw a horizontal line indicating the drop location. */
+  AbstractTreeView &view = this->view_item_.get_tree_view();
+  view.set_drop_linehint(region, this->view_item_, drag_info.drop_location);
+}
+
+std::string NodePanelDropTarget::drop_tooltip(const DragInfo & /*drag_info*/) const
+{
+  /* No tooltip, since we use line hints.*/
+  return {};
 }
 
 bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const

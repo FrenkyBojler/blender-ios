@@ -129,26 +129,17 @@ class BoneCollectionDropTarget : public TreeViewItemDropTarget {
     return true;
   }
 
-  std::string drop_tooltip(const DragInfo &drag_info) const override
+  void drop_linehint(ARegion &region, const DragInfo &drag_info) const override
   {
-    const ArmatureBoneCollection *drag_bone_collection =
-        static_cast<const ArmatureBoneCollection *>(drag_info.drag_data.poin);
-    const BoneCollection &drag_bcoll = drag_bone_collection->bcoll();
-    const BoneCollection &drop_bcoll = drop_bonecoll_.bcoll();
+    /* Draw a horizontal line indicating the drop location. */
+    AbstractTreeView &view = this->view_item_.get_tree_view();
+    view.set_drop_linehint(region, this->view_item_, drag_info.drop_location);
+  }
 
-    const StringRef drag_name = drag_bcoll.name;
-    const StringRef drop_name = drop_bcoll.name;
-
-    switch (drag_info.drop_location) {
-      case DropLocation::Into:
-        return fmt::format(fmt::runtime(TIP_("Move {} into {}")), drag_name, drop_name);
-      case DropLocation::Before:
-        return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
-      case DropLocation::After:
-        return fmt::format(fmt::runtime(TIP_("Move {} below {}")), drag_name, drop_name);
-    }
-
-    return "";
+  std::string drop_tooltip(const DragInfo & /*drag_info*/) const override
+  {
+    /* No tooltip, since we use line hints.*/
+    return {};
   }
 
   bool on_drop(bContext *C, const DragInfo &drag_info) const override

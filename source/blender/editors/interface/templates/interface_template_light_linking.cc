@@ -88,7 +88,8 @@ class InsertCollectionDropTarget : public DropTargetInterface {
 
   std::string drop_tooltip(const DragInfo & /*drag*/) const override
   {
-    return TIP_("Add to linking collection");
+    /* No tooltip, since we use line hints.*/
+    return {};
   }
 
   void drop_linehint(ARegion & /*region*/, const DragInfo & /*drag*/) const override {}
@@ -135,20 +136,17 @@ class ReorderCollectionDropTarget : public TreeViewItemDropTarget {
     return collection_target_.can_drop(drag, r_disabled_hint);
   }
 
-  std::string drop_tooltip(const DragInfo &drag) const override
+  void drop_linehint(ARegion &region, const DragInfo &drag) const override
   {
-    const StringRef drop_name = drop_id_.name + 2;
+    /* Draw a horizontal line indicating the drop location. */
+    AbstractTreeView &view = this->view_item_.get_tree_view();
+    view.set_drop_linehint(region, this->view_item_, drag.drop_location);
+  }
 
-    switch (drag.drop_location) {
-      case DropLocation::Into:
-        return "Add to linking collection";
-      case DropLocation::Before:
-        return fmt::format(fmt::runtime(TIP_("Add to linking collection before {}")), drop_name);
-      case DropLocation::After:
-        return fmt::format(fmt::runtime(TIP_("Add to linking collection after {}")), drop_name);
-    }
-
-    return "";
+  std::string drop_tooltip(const DragInfo & /*drag*/) const override
+  {
+    /* No tooltip, since we use line hints.*/
+    return {};
   }
 
   bool on_drop(bContext *C, const DragInfo &drag) const override
