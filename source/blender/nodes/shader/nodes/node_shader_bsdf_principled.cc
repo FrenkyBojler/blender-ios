@@ -593,49 +593,61 @@ NODE_SHADER_MATERIALX_BEGIN
       auto e_in = edf_inputs();
       in.insert(e_in.begin(), e_in.end());
 
-      NodeItem roughness = in["roughness"];
       NodeItem base_color = in["base_color"];
-      NodeItem anisotropic = in["anisotropic"];
-      NodeItem rotation = in["anisotropic_rotation"];
+      NodeItem anisotropy = in["anisotropic"];
+      NodeItem rotation = in["anisotropic_rotation"] * val(360.0f);
+      NodeItem normal = in["normal"];
+      NodeItem tangent = in["tangent"];
 
-      res = create_node(
-          "standard_surface",
-          NodeItem::Type::SurfaceShader,
-          {{"base", val(1.0f)},
-           {"base_color", base_color},
-           {"diffuse_roughness", in["diffuse_roughness"]},
-           {"metalness", in["metallic"]},
-           {"specular", in["specular"]},
-           {"specular_color", in["specular_tint"]},
-           {"specular_roughness", roughness},
-           {"specular_IOR", in["ior"]},
-           {"specular_anisotropy", anisotropic},
-           {"specular_rotation", rotation},
-           {"transmission", in["transmission"]},
-           {"transmission_color", base_color},
-           {"transmission_extra_roughness", roughness},
-           {"subsurface", in["subsurface"]},
-           {"subsurface_color", base_color},
-           {"subsurface_radius",
-            (in["subsurface_radius"] * in["subsurface_scale"]).convert(NodeItem::Type::Color3)},
-           {"subsurface_anisotropy", in["subsurface_anisotropy"]},
-           {"sheen", in["sheen"]},
-           {"sheen_color", in["sheen_tint"]},
-           {"sheen_roughness", in["sheen_roughness"]},
-           {"coat", in["coat"]},
-           {"coat_color", in["coat_tint"]},
-           {"coat_roughness", in["coat_roughness"]},
-           {"coat_IOR", in["coat_ior"]},
-           {"coat_anisotropy", anisotropic},
-           {"coat_rotation", rotation},
-           {"coat_normal", in["coat_normal"]},
-           {"emission", in["emission"]},
-           {"emission_color", in["emission_color"]},
-           {"thin_film_thickness", in["thin_film_thickness"]},
-           {"thin_film_IOR", in["thin_film_IOR"]},
-           {"normal", in["normal"]},
-           {"tangent", in["tangent"]},
-           {"opacity", in["alpha"].convert(NodeItem::Type::Color3)}});
+      NodeItem n_main_tangent = empty();
+      if (tangent && normal) {
+        NodeItem n_tangent_rotate_normalize = tangent.rotate(rotation, normal).normalize();
+        n_main_tangent = anisotropy.if_else(
+            NodeItem::CompareOp::Greater, val(0.0f), n_tangent_rotate_normalize, tangent);
+      }
+
+      NodeItem thin_film_thickness = in["thin_film_thickness"] * val(0.001f);
+      // enable OpenPBR thin film only if thickness > 0
+      NodeItem thin_film_weight = thin_film_thickness.if_else(
+          NodeItem::CompareOp::Greater, val(0.0f), val(1.0f), val(0.0f));
+
+      res = create_node("open_pbr_surface",
+                        NodeItem::Type::SurfaceShader,
+                        {{"base_weight", val(1.0f)},
+                         {"base_color", base_color},
+                         {"base_diffuse_roughness", in["diffuse_roughness"]},
+                         {"base_metalness", in["metallic"]},
+                         {"specular_weight", in["specular"]},
+                         {"specular_color", in["specular_tint"]},
+                         {"specular_roughness", in["roughness"]},
+                         {"specular_ior", in["ior"]},
+                         {"specular_roughness_anisotropy", anisotropy},
+                         {"transmission_weight", in["transmission"]},
+                         {"transmission_color", base_color},
+                         {"subsurface_weight", in["subsurface"]},
+                         {"subsurface_color", base_color},
+                         {"subsurface_radius_scale", in["subsurface_radius"]},
+                         {"subsurface_radius", in["subsurface_scale"]},
+                         {"subsurface_scatter_anisotropy", in["subsurface_anisotropy"]},
+                         {"fuzz_weight", in["sheen"]},
+                         {"fuzz_color", in["sheen_tint"]},
+                         {"fuzz_roughness", in["sheen_roughness"]},
+                         {"coat_weight", in["coat"]},
+                         {"coat_color", in["coat_tint"]},
+                         {"coat_roughness", in["coat_roughness"]},
+                         {"coat_ior", in["coat_ior"]},
+                         // Blender Principled BSDF does not support anisotropy for the coat
+                         //  {"coat_roughness_anisotropy", anisotropic},
+                         //  {"geometry_coat_tangent", n_main_tangent},
+                         {"emission_luminance", in["emission"]},
+                         {"emission_color", in["emission_color"]},
+                         {"thin_film_weight", thin_film_weight},
+                         {"thin_film_thickness", thin_film_thickness},
+                         {"thin_film_ior", in["thin_film_IOR"]},
+                         {"geometry_normal", normal},
+                         {"geometry_coat_normal", in["coat_normal"]},
+                         {"geometry_tangent", n_main_tangent},
+                         {"geometry_opacity", in["alpha"]}});
       break;
     }
 
