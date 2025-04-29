@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_geometry_nodes_srna.hh"
+#include <fmt/format.h>
 
-#include "BLI_rand.hh"
+#include "NOD_geometry_nodes_srna.hh"
 
 #include "DNA_node_types.h"
 
@@ -16,7 +16,7 @@
 
 namespace blender::nodes {
 
-static StructRNA *get_input_socket_struct_rna(const bNodeTree & /*tree*/,
+static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
                                               const bNodeTreeInterfaceSocket &socket,
                                               GeneratedTreeSrnaData &r_generated)
 {
@@ -24,68 +24,15 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree & /*tree*/,
   if (!stype) {
     return nullptr;
   }
+  const StringRefNull srna_identifier = r_generated.scope.allocator().copy_string(
+      fmt::format("{}_{}", stype->idname, socket.identifier));
 
-  StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesSocketInputs", &RNA_PropertyGroup);
+  StructRNA *srna = RNA_def_struct_ptr(&BLENDER_RNA, srna_identifier.c_str(), &RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 
-  PropertyRNA *prop;
-  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(stype->type);
-  switch (socket_type) {
-    case SOCK_FLOAT: {
-      const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
-      prop = RNA_def_float(srna,
-                           "value",
-                           data->value,
-                           -FLT_MAX,
-                           FLT_MAX,
-                           socket.name,
-                           socket.description,
-                           data->min,
-                           data->max);
-      RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-
-      static const EnumPropertyItem input_type_items[] = {
-          {int(GeometryNodesInputTypeFloat::Value), "VALUE", 0, "Value", ""},
-          {int(GeometryNodesInputTypeFloat::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
-          {0, nullptr, 0, nullptr, nullptr}};
-      prop = RNA_def_enum(srna,
-                          "input_type",
-                          input_type_items,
-                          int(GeometryNodesInputTypeFloat::Value),
-                          "Input Type",
-                          "");
-      break;
-    }
-    case SOCK_INT: {
-      const auto *data = static_cast<const bNodeSocketValueInt *>(socket.socket_data);
-      prop = RNA_def_int(srna,
-                         "value",
-                         data->value,
-                         INT32_MIN,
-                         INT32_MAX,
-                         socket.name,
-                         socket.description,
-                         data->min,
-                         data->max);
-      RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-
-      static const EnumPropertyItem input_type_items[] = {
-          {int(GeometryNodesInputTypeInt::Value), "VALUE", 0, "Value", ""},
-          {int(GeometryNodesInputTypeInt::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
-          {0, nullptr, 0, nullptr, nullptr}};
-      prop = RNA_def_enum(srna,
-                          "input_type",
-                          input_type_items,
-                          int(GeometryNodesInputTypeInt::Value),
-                          "Input Type",
-                          "");
-      break;
-    }
-    default: {
-      break;
-    }
+  if (stype->make_geometry_nodes_input_srna) {
+    stype->make_geometry_nodes_input_srna(tree, *srna, socket, r_generated);
   }
 
   return srna;

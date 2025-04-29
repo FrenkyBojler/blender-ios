@@ -31,11 +31,13 @@
 #include "DNA_material_types.h"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_srna.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
@@ -1031,10 +1033,33 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
   };
   static SocketValueVariant default_value{0.0f};
   socktype->geometry_nodes_default_cpp_value = &default_value;
-  socktype->create_geometry_nodes_input_srna =
-      [](const bNodeTree &tree,
-         const bNodeTreeInterfaceSocket &socket,
-         nodes::GeneratedTreeSrnaData &r_generated) -> StructRNA * { return nullptr; };
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+    PropertyRNA *prop;
+    const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
+    prop = RNA_def_float(&srna,
+                         "value",
+                         data->value,
+                         -FLT_MAX,
+                         FLT_MAX,
+                         socket.name,
+                         socket.description,
+                         data->min,
+                         data->max);
+    RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+    static const EnumPropertyItem input_type_items[] = {
+        {int(nodes::GeometryNodesInputTypeFloat::Value), "VALUE", 0, "Value", ""},
+        {int(nodes::GeometryNodesInputTypeFloat::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
+        {0, nullptr, 0, nullptr, nullptr}};
+    prop = RNA_def_enum(&srna,
+                        "input_type",
+                        input_type_items,
+                        int(nodes::GeometryNodesInputTypeFloat::Value),
+                        "Input Type",
+                        "");
+  };
   return socktype;
 }
 
@@ -1052,6 +1077,34 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
   };
   static SocketValueVariant default_value{0};
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+    PropertyRNA *prop;
+    const auto *data = static_cast<const bNodeSocketValueInt *>(socket.socket_data);
+    prop = RNA_def_int(&srna,
+                       "value",
+                       data->value,
+                       INT32_MIN,
+                       INT32_MAX,
+                       socket.name,
+                       socket.description,
+                       data->min,
+                       data->max);
+    RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+
+    static const EnumPropertyItem input_type_items[] = {
+        {int(nodes::GeometryNodesInputTypeInt::Value), "VALUE", 0, "Value", ""},
+        {int(nodes::GeometryNodesInputTypeInt::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
+        {0, nullptr, 0, nullptr, nullptr}};
+    prop = RNA_def_enum(&srna,
+                        "input_type",
+                        input_type_items,
+                        int(nodes::GeometryNodesInputTypeInt::Value),
+                        "Input Type",
+                        "");
+  };
   return socktype;
 }
 
