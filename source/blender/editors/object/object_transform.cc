@@ -816,7 +816,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  bool has_errors;
+  bool has_non_invertable_matrix;
 
   for (Object *ob : objects) {
     /* calculate rotation/scale matrix */
@@ -837,12 +837,12 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       bool invert_success = invert_m3_m3(timat, tmat);
       if (!invert_success) {
         BKE_reportf(reports,
-                    RPT_INFO,
+                    RPT_WARNING,
                     "%s \"%s\" %s",
                     RPT_("Object"),
                     ob->id.name + 2,
                     RPT_("have non-invertable transformation matrix, not applying transform."));
-        has_errors = 1;
+        has_non_invertable_matrix = 1;
         continue;
       }
       mul_m3_m3m3(rsmat, timat, rsmat);
@@ -1099,7 +1099,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
     BKE_report(reports, RPT_WARNING, "Objects have no data to transform");
     return OPERATOR_CANCELLED;
   }
-  if (has_errors) {
+  if (has_non_invertable_matrix) {
     BKE_report(reports, RPT_WARNING, "Failed to apply rotation to some of the objects");
   }
 
