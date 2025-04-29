@@ -19,7 +19,7 @@ namespace blender::bke {
 
 static int segments_num_no_duplicate_edge(const int points_num, const bool cyclic)
 {
-  if (UNLIKELY(points_num == 0)) {
+  if (points_num == 0) {
     return 0;
   }
   if (points_num <= 2) {
@@ -302,7 +302,7 @@ static ResultOffsets calculate_result_offsets(const CurvesInfo &info, const bool
 
             const bool profile_cyclic = info.profile_cyclic[i_profile];
             const int profile_point_num = profile_offsets[i_profile].size();
-            if (UNLIKELY(profile_point_num == 0)) {
+            if (profile_point_num == 0) {
               continue;
             }
             const int profile_segment_num = curves::segments_num(profile_point_num,
@@ -464,7 +464,7 @@ static void foreach_curve_combination(const CurvesInfo &info,
 
       const IndexRange main_points = main_offsets[i_main];
       const IndexRange profile_points = profile_offsets[i_profile];
-      if (UNLIKELY(main_points.is_empty() || profile_points.is_empty())) {
+      if (main_points.is_empty() || profile_points.is_empty()) {
         continue;
       }
 

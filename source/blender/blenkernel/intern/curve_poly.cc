@@ -57,7 +57,7 @@ void calculate_tangents(const Span<float3> positions,
 {
   BLI_assert(positions.size() == tangents.size());
 
-  if (UNLIKELY(positions.is_empty())) {
+  if (positions.is_empty()) {
     return;
   }
 
