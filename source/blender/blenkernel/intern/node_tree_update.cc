@@ -1800,7 +1800,8 @@ class NodeTreeMainUpdater {
     r_generated.structs.append(srna);
 
     PropertyRNA *prop;
-    switch (stype->type) {
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(stype->type);
+    switch (socket_type) {
       case SOCK_FLOAT: {
         const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
         prop = RNA_def_float(srna,
@@ -1827,6 +1828,9 @@ class NodeTreeMainUpdater {
                            data->min,
                            data->max);
         RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+        break;
+      }
+      default: {
         break;
       }
     }
