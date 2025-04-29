@@ -2,3 +2,4 @@ Referenced by issue #137683, Fog missing every other frame when `Persistent Data
 Referenced by pull request #137696, Fix: Sculpt view normal incorrectly calculated
 Referenced by commit 719c1b9611d0549b8db0ddacb893d1677687e43b, Fix: Sculpt view normal incorrectly calculated
 Referenced by pull request #138146, Fix: Incorrect sculpt view normal calculation
+Referenced by commit a42fc3bcc16703e2411b3fb39ed83f5939aa7fbb, Fix: Incorrect sculpt view normal calculation
