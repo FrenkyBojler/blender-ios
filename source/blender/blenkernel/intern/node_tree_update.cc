@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
+#include <sstream>
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -542,15 +543,19 @@ class NodeTreeMainUpdater {
     }
 
     if (result.interface_changed) {
-      if (ntree.runtime->modifier_struct) {
-        /* Avoids warning when freeing the #StructRNA. */
-        RNA_struct_py_type_set(ntree.runtime->modifier_struct, nullptr);
-        RNA_struct_free(&BLENDER_RNA, ntree.runtime->modifier_struct);
+      if (ntree.runtime->generated_srna_data) {
+        for (StructRNA *srna : ntree.runtime->generated_srna_data->structs) {
+          /* Avoids warning when freeing the #StructRNA. */
+          RNA_struct_py_type_set(srna, nullptr);
+          RNA_struct_free(&BLENDER_RNA, srna);
+        }
         ntree.runtime->modifier_struct = nullptr;
+        ntree.runtime->generated_srna_data.reset();
       }
-      StructRNA *modifier_struct = this->create_modifier_struct_rna(ntree);
+      ntree.runtime->generated_srna_data = std::make_unique<GeneratedTreeSrnaData>();
+      StructRNA *modifier_struct = this->create_modifier_struct_rna(
+          ntree, *ntree.runtime->generated_srna_data);
       fmt::println("{}", RNA_struct_to_string(*modifier_struct));
-      /* TODO: Handle freeing of struct. Beware of non-thread-safety of #RNA_struct_free. */
       ntree.runtime->modifier_struct = modifier_struct;
     }
 
@@ -1760,33 +1765,46 @@ class NodeTreeMainUpdater {
     return changed;
   }
 
-  StructRNA *create_modifier_struct_rna(const bNodeTree &ntree)
+  StructRNA *create_modifier_struct_rna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
   {
-    /* TODO: Generate more unique struct name. */
-    const StringRefNull struct_name = ntree.id.name;
-    /* TODO: Is it feasible to not add this to #BLENDER_RNA? It shouldn't really ever be looked up
-     * from there, and simplifies thread-safety. */
+    const StringRefNull struct_identifier = this->get_unique_struct_name(tree, r_generated);
     StructRNA *srna = RNA_def_struct_ptr(
-        &BLENDER_RNA, struct_name.c_str(), &RNA_NodesModifierProperties);
+        &BLENDER_RNA, struct_identifier.c_str(), &RNA_NodesModifierProperties);
+    r_generated.structs.append(srna);
 
-    ntree.ensure_interface_cache();
-    for (const bNodeTreeInterfaceSocket *socket : ntree.interface_inputs()) {
-      this->create_modifier_struct_input_property(*srna, *socket);
+    tree.ensure_interface_cache();
+    for (const bNodeTreeInterfaceSocket *socket : tree.interface_inputs()) {
+      StructRNA *socket_srna = this->get_input_socket_struct_rna(tree, *socket, r_generated);
+      if (!socket_srna) {
+        continue;
+      }
+      RNA_def_pointer_runtime(
+          srna, socket->identifier, socket_srna, socket->name, socket->description);
     }
 
     return srna;
   }
 
-  PropertyRNA *create_modifier_struct_input_property(StructRNA &srna,
-                                                     const bNodeTreeInterfaceSocket &socket)
+  StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
+                                         const bNodeTreeInterfaceSocket &socket,
+                                         GeneratedTreeSrnaData &r_generated)
   {
     const bNodeSocketType *stype = socket.socket_typeinfo();
-    const char *identifier = socket.identifier;
+    if (!stype) {
+      return nullptr;
+    }
+
+    const StringRefNull struct_identifier = this->get_unique_struct_name(tree, r_generated);
+    StructRNA *srna = RNA_def_struct_ptr(
+        &BLENDER_RNA, struct_identifier.c_str(), &RNA_PropertyGroup);
+    r_generated.structs.append(srna);
+
+    PropertyRNA *prop;
     switch (stype->type) {
       case SOCK_FLOAT: {
         const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
-        return RNA_def_float(&srna,
-                             identifier,
+        prop = RNA_def_float(srna,
+                             "value",
                              data->value,
                              -FLT_MAX,
                              FLT_MAX,
@@ -1794,11 +1812,13 @@ class NodeTreeMainUpdater {
                              socket.description,
                              data->min,
                              data->max);
+        RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+        break;
       }
       case SOCK_INT: {
         const auto *data = static_cast<const bNodeSocketValueInt *>(socket.socket_data);
-        return RNA_def_int(&srna,
-                           identifier,
+        prop = RNA_def_int(srna,
+                           "value",
                            data->value,
                            INT32_MIN,
                            INT32_MAX,
@@ -1806,9 +1826,24 @@ class NodeTreeMainUpdater {
                            socket.description,
                            data->min,
                            data->max);
+        RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+        break;
       }
     }
-    return nullptr;
+
+    return srna;
+  }
+
+  StringRefNull get_unique_struct_name(const bNodeTree &ntree, GeneratedTreeSrnaData &r_generated)
+  {
+    RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
+    std::stringstream ss;
+    ss << ntree.id.name;
+    ss << "_";
+    for ([[maybe_unused]] const int i : IndexRange(10)) {
+      ss << char(rng.get_int32(26) + 97);
+    }
+    return r_generated.scope.allocator().copy_string(ss.str());
   }
 };
 
