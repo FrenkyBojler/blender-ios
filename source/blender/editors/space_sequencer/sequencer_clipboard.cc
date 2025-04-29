@@ -168,7 +168,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
   /* Create an empty sequence editor data to store all copied strips. */
   scene_dst->ed = MEM_callocN<Editing>(__func__);
   scene_dst->ed->seqbasep = &scene_dst->ed->seqbase;
-  seq::sequence_base_dupli_recursive(
+  seq::seqbase_duplicate_recursive(
       scene_src, scene_dst, &scene_dst->ed->seqbase, scene_src->ed->seqbasep, 0, 0);
 
   BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
@@ -474,9 +474,9 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   bool has_animation = sequencer_paste_animation(bmain_dst, scene_dst, scene_src);
 
   ListBase nseqbase = {nullptr, nullptr};
-  /* NOTE: seq::sequence_base_dupli_recursive() takes care of generating
+  /* NOTE: seq::seqbase_duplicate_recursive() takes care of generating
    * new UIDs for sequences in the new list. */
-  seq::sequence_base_dupli_recursive(
+  seq::seqbase_duplicate_recursive(
       scene_src, scene_dst, &nseqbase, &scene_src->ed->seqbase, 0, 0);
 
   /* BKE_main_merge will copy the scene_src and its action into bmain_dst. Remove them as

@@ -19,10 +19,10 @@ struct StripElem;
 
 namespace blender::seq {
 
-void sequence_base_unique_name_recursive(Scene *scene, ListBase *seqbasep, Strip *strip);
+void strip_unique_name_set(Scene *scene, ListBase *seqbasep, Strip *strip);
 const char *strip_give_name(const Strip *strip);
 ListBase *get_seqbase_from_strip(Strip *strip, ListBase **r_channels, int *r_offset);
-const Strip *get_topmost_sequence(const Scene *scene, int frame);
+const Strip *strip_topmost_get(const Scene *scene, int frame);
 /**
  * In cases where we don't know the strip's listbase.
  */

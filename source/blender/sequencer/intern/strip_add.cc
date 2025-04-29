@@ -77,7 +77,7 @@ void add_load_data_init(LoadData *load_data,
 
 static void strip_add_generic_update(Scene *scene, Strip *strip)
 {
-  sequence_base_unique_name_recursive(scene, &scene->ed->seqbase, strip);
+  strip_unique_name_set(scene, &scene->ed->seqbase, strip);
   relations_invalidate_cache_composite(scene, strip);
   strip_lookup_invalidate(scene->ed);
   strip_time_effect_range_set(scene, strip);
@@ -374,19 +374,20 @@ Strip *add_sound_strip(Main * /*bmain*/,
 
 Strip *add_meta_strip(Scene *scene, ListBase *seqbase, LoadData *load_data)
 {
-  /* Allocate sequence. */
-  Strip *seqm = strip_alloc(seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_META);
+  /* Allocate strip. */
+  Strip *strip_meta = strip_alloc(
+      seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_META);
 
   /* Set name. */
-  strip_add_set_name(scene, seqm, load_data);
+  strip_add_set_name(scene, strip_meta, load_data);
 
   /* Set frames start and length. */
-  seqm->start = load_data->start_frame;
-  seqm->len = 1;
+  strip_meta->start = load_data->start_frame;
+  strip_meta->len = 1;
 
-  strip_add_generic_update(scene, seqm);
+  strip_add_generic_update(scene, strip_meta);
 
-  return seqm;
+  return strip_meta;
 }
 
 Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *load_data)

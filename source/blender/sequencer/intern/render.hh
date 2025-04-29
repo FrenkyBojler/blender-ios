@@ -16,7 +16,6 @@ struct LinkNode;
 struct ListBase;
 struct Mask;
 struct Scene;
-struct SeqEffectHandle;
 struct RenderData;
 struct Strip;
 

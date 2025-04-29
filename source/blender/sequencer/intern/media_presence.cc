@@ -74,8 +74,8 @@ static bool check_media_missing(const Strip *strip)
 
   /* Recurse into meta strips. */
   if (strip->type == STRIP_TYPE_META) {
-    LISTBASE_FOREACH (Strip *, seqn, &strip->seqbase) {
-      if (check_media_missing(seqn)) {
+    LISTBASE_FOREACH (Strip *, strip_n, &strip->seqbase) {
+      if (check_media_missing(strip_n)) {
         return true;
       }
     }

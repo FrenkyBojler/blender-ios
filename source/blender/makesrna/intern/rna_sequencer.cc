@@ -762,7 +762,7 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
   blender::seq::edit_strip_name_set(scene, strip, value);
 
   /* make sure the name is unique */
-  blender::seq::sequence_base_unique_name_recursive(scene, &scene->ed->seqbase, strip);
+  blender::seq::strip_unique_name_set(scene, &scene->ed->seqbase, strip);
   /* fix all the animation data which may link to this */
 
   /* Don't rename everywhere because these are per scene. */

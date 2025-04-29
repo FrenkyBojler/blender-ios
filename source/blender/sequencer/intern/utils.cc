@@ -51,7 +51,7 @@
 
 namespace blender::seq {
 
-struct SeqUniqueInfo {
+struct StripUniqueInfo {
   Strip *strip;
   char name_src[STRIP_NAME_MAXSTR];
   char name_dest[STRIP_NAME_MAXSTR];
@@ -59,7 +59,7 @@ struct SeqUniqueInfo {
   int match;
 };
 
-static void seqbase_unique_name(ListBase *seqbasep, SeqUniqueInfo *sui)
+static void seqbase_unique_name(ListBase *seqbasep, StripUniqueInfo *sui)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbasep) {
     if ((sui->strip != strip) && STREQ(sui->name_dest, strip->name + 2)) {
@@ -74,14 +74,14 @@ static void seqbase_unique_name(ListBase *seqbasep, SeqUniqueInfo *sui)
 static bool seqbase_unique_name_recursive_fn(Strip *strip, void *arg_pt)
 {
   if (strip->seqbase.first) {
-    seqbase_unique_name(&strip->seqbase, (SeqUniqueInfo *)arg_pt);
+    seqbase_unique_name(&strip->seqbase, (StripUniqueInfo *)arg_pt);
   }
   return true;
 }
 
-void sequence_base_unique_name_recursive(Scene *scene, ListBase *seqbasep, Strip *strip)
+void strip_unique_name_set(Scene *scene, ListBase *seqbasep, Strip *strip)
 {
-  SeqUniqueInfo sui;
+  StripUniqueInfo sui;
   char *dot;
   sui.strip = strip;
   STRNCPY(sui.name_src, strip->name + 2);
@@ -328,7 +328,7 @@ void strip_open_anim_file(Scene *scene, Strip *strip, bool openfile)
   }
 }
 
-const Strip *get_topmost_sequence(const Scene *scene, int frame)
+const Strip *strip_topmost_get(const Scene *scene, int frame)
 {
   Editing *ed = scene->ed;
 
@@ -337,7 +337,7 @@ const Strip *get_topmost_sequence(const Scene *scene, int frame)
   }
 
   ListBase *channels = channels_displayed_get(ed);
-  const Strip *best_seq = nullptr;
+  const Strip *best_strip = nullptr;
   int best_machine = -1;
 
   LISTBASE_FOREACH (const Strip *, strip, ed->seqbasep) {
@@ -355,12 +355,12 @@ const Strip *get_topmost_sequence(const Scene *scene, int frame)
              STRIP_TYPE_TEXT))
     {
       if (strip->machine > best_machine) {
-        best_seq = strip;
+        best_strip = strip;
         best_machine = strip->machine;
       }
     }
   }
-  return best_seq;
+  return best_strip;
 }
 
 ListBase *get_seqbase_by_strip(const Scene *scene, Strip *strip)
@@ -501,7 +501,7 @@ void ensure_unique_name(Strip *strip, Scene *scene)
   char name[STRIP_NAME_MAXSTR];
 
   STRNCPY_UTF8(name, strip->name + 2);
-  sequence_base_unique_name_recursive(scene, &scene->ed->seqbase, strip);
+  strip_unique_name_set(scene, &scene->ed->seqbase, strip);
   BKE_animdata_fix_paths_rename(&scene->id,
                                 scene->adt,
                                 nullptr,

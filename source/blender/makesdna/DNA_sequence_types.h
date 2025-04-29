@@ -166,8 +166,8 @@ typedef struct StripRuntime {
 } StripRuntime;
 
 /**
- * The sequence structure is the basic struct used by any strip.
- * each of the strips uses a different sequence structure.
+ * `Strip` is the basic struct used by any strip.
+ * Each strip uses a different `Strip` struct.
  *
  * \warning The first part identical to ID (for use in ipo's)
  * the comment above is historic, probably we can drop the ID compatibility,
@@ -181,7 +181,7 @@ typedef struct Strip {
   /** STRIP_NAME_MAXSTR - name, set by default and needs to be unique, for RNA paths. */
   char name[64];
 
-  /** Flags bitmap (see below) and the type of sequence. */
+  /** Flags bitmap (see below) and the type of strip. */
   int flag, type;
   /** The length of the contents of this strip - before handles are applied. */
   int len;

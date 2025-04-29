@@ -358,12 +358,12 @@ static void scene_copy_data(Main *bmain,
     scene_dst->ed->show_missing_media_flag = scene_src->ed->show_missing_media_flag;
     scene_dst->ed->proxy_storage = scene_src->ed->proxy_storage;
     STRNCPY(scene_dst->ed->proxy_dir, scene_src->ed->proxy_dir);
-    blender::seq::sequence_base_dupli_recursive(scene_src,
-                                                scene_dst,
-                                                &scene_dst->ed->seqbase,
-                                                &scene_src->ed->seqbase,
-                                                STRIP_DUPE_ALL,
-                                                flag_subdata);
+    blender::seq::seqbase_duplicate_recursive(scene_src,
+                                              scene_dst,
+                                              &scene_dst->ed->seqbase,
+                                              &scene_src->ed->seqbase,
+                                              STRIP_DUPE_ALL,
+                                              flag_subdata);
     BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
     scene_dst->ed->displayed_channels = &scene_dst->ed->channels;
   }

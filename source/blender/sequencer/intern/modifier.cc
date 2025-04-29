@@ -1339,7 +1339,7 @@ void modifier_apply_stack(const RenderData *context,
   }
 }
 
-void modifier_list_copy(Strip *seqn, Strip *strip)
+void modifier_list_copy(Strip *strip_new, Strip *strip)
 {
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     StripModifierData *smdn;
@@ -1351,8 +1351,8 @@ void modifier_list_copy(Strip *seqn, Strip *strip)
       smti->copy_data(smdn, smd);
     }
 
-    BLI_addtail(&seqn->modifiers, smdn);
-    BLI_uniquename(&seqn->modifiers,
+    BLI_addtail(&strip_new->modifiers, smdn);
+    BLI_uniquename(&strip_new->modifiers,
                    smdn,
                    "Strip Modifier",
                    '.',

@@ -1670,7 +1670,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
   Strip *active_strip = seq::select_active_get(scene);
   ListBase duplicated_strips = {nullptr, nullptr};
 
-  seq::sequence_base_dupli_recursive(scene, scene, &duplicated_strips, ed->seqbasep, 0, 0);
+  seq::seqbase_duplicate_recursive(scene, scene, &duplicated_strips, ed->seqbasep, 0, 0);
   deselect_all_strips(scene);
 
   if (duplicated_strips.first == nullptr) {
@@ -1939,7 +1939,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
         /* New strip. */
         se = seq::render_give_stripelem(scene, strip, timeline_frame);
 
-        strip_new = seq::sequence_dupli_recursive(
+        strip_new = seq::strip_duplicate_recursive(
             scene, scene, seqbase, strip, STRIP_DUPE_UNIQUE_NAME);
 
         strip_new->start = start_ofs;
@@ -2087,7 +2087,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 
   int channel_max = 1, channel_min = INT_MAX, meta_start_frame = MAXFRAME,
       meta_end_frame = MINFRAME;
-  Strip *seqm = seq::strip_alloc(active_seqbase, 1, 1, STRIP_TYPE_META);
+  Strip *strip_meta = seq::strip_alloc(active_seqbase, 1, 1, STRIP_TYPE_META);
 
   /* Remove all selected from main list, and put in meta.
    * Strip is moved within the same edit, no need to re-generate the UID. */
@@ -2099,7 +2099,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   for (Strip *strip : strips_to_move) {
     seq::relations_invalidate_cache_preprocessed(scene, strip);
     BLI_remlink(active_seqbase, strip);
-    BLI_addtail(&seqm->seqbase, strip);
+    BLI_addtail(&strip_meta->seqbase, strip);
     channel_max = max_ii(strip->machine, channel_max);
     channel_min = min_ii(strip->machine, channel_min);
     meta_start_frame = min_ii(seq::time_left_handle_frame_get(scene, strip), meta_start_frame);
@@ -2107,7 +2107,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   }
 
   ListBase *channels_cur = seq::channels_displayed_get(ed);
-  ListBase *channels_meta = &seqm->channels;
+  ListBase *channels_meta = &strip_meta->channels;
   for (int i = channel_min; i <= channel_max; i++) {
     SeqTimelineChannel *channel_cur = seq::channel_get_by_index(channels_cur, i);
     SeqTimelineChannel *channel_meta = seq::channel_get_by_index(channels_meta, i);
@@ -2116,14 +2116,14 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   }
 
   const int channel = active_strip ? active_strip->machine : channel_max;
-  seq::strip_channel_set(seqm, channel);
-  BLI_strncpy(seqm->name + 2, DATA_("MetaStrip"), sizeof(seqm->name) - 2);
-  seq::sequence_base_unique_name_recursive(scene, &ed->seqbase, seqm);
-  seqm->start = meta_start_frame;
-  seqm->len = meta_end_frame - meta_start_frame;
-  seq::select_active_set(scene, seqm);
-  if (seq::transform_test_overlap(scene, active_seqbase, seqm)) {
-    seq::transform_seqbase_shuffle(active_seqbase, seqm, scene);
+  seq::strip_channel_set(strip_meta, channel);
+  BLI_strncpy(strip_meta->name + 2, DATA_("MetaStrip"), sizeof(strip_meta->name) - 2);
+  seq::strip_unique_name_set(scene, &ed->seqbase, strip_meta);
+  strip_meta->start = meta_start_frame;
+  strip_meta->len = meta_end_frame - meta_start_frame;
+  seq::select_active_set(scene, strip_meta);
+  if (seq::transform_test_overlap(scene, active_seqbase, strip_meta)) {
+    seq::transform_seqbase_shuffle(active_seqbase, strip_meta, scene);
   }
 
   seq::strip_lookup_invalidate(ed);

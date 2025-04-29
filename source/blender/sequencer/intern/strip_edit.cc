@@ -96,26 +96,26 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
 
 static void strip_update_muting_recursive(ListBase *channels,
                                           ListBase *seqbasep,
-                                          Strip *metaseq,
+                                          Strip *strip_meta,
                                           const bool mute)
 {
   /* For sound we go over full meta tree to update muted state,
    * since sound is played outside of evaluating the imbufs. */
   LISTBASE_FOREACH (Strip *, strip, seqbasep) {
-    bool seqmute = (mute || render_is_muted(channels, strip));
+    bool strip_mute = (mute || render_is_muted(channels, strip));
 
     if (strip->type == STRIP_TYPE_META) {
-      /* if this is the current meta sequence, unmute because
-       * all sequences above this were set to mute */
-      if (strip == metaseq) {
-        seqmute = false;
+      /* if this is the current metastrip, unmute because
+       * all strips above this were set to mute */
+      if (strip == strip_meta) {
+        strip_mute = false;
       }
 
-      strip_update_muting_recursive(&strip->channels, &strip->seqbase, metaseq, seqmute);
+      strip_update_muting_recursive(&strip->channels, &strip->seqbase, strip_meta, strip_mute);
     }
     else if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
       if (strip->scene_sound) {
-        BKE_sound_mute_scene_sound(strip->scene_sound, seqmute);
+        BKE_sound_mute_scene_sound(strip->scene_sound, strip_mute);
       }
     }
   }
@@ -454,7 +454,7 @@ Strip *edit_strip_split(Main *bmain,
 
   /* Duplicate ListBase. */
   ListBase right_strips = {nullptr, nullptr};
-  sequence_base_dupli_recursive(scene, scene, &right_strips, &left_strips, STRIP_DUPE_ALL, 0);
+  seqbase_duplicate_recursive(scene, scene, &right_strips, &left_strips, STRIP_DUPE_ALL, 0);
 
   Strip *left_seq = static_cast<Strip *>(left_strips.first);
   Strip *right_seq = static_cast<Strip *>(right_strips.first);
