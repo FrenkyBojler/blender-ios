@@ -13,7 +13,6 @@
 
 #include "BKE_idprop.hh"
 
-struct StructRNA;
 struct bNodeTree;
 struct bNodeTreeInterfaceSocket;
 namespace blender::bke {

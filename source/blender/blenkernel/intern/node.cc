@@ -220,7 +220,7 @@ static void ntree_copy_data(Main * /*bmain*/,
       }
     }
   }
-  dst_runtime.modifier_struct = ntree_src->runtime->modifier_struct;
+  dst_runtime.geometry_nodes_srna = ntree_src->runtime->geometry_nodes_srna;
 
   if (ntree_src->geometry_node_asset_traits) {
     ntree_dst->geometry_node_asset_traits = MEM_dupallocN<GeometryNodeAssetTraits>(

@@ -46,8 +46,6 @@
 #include "BLT_translation.hh"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
-#include "RNA_prototypes.hh"
 
 using namespace blender::nodes;
 
@@ -543,20 +541,20 @@ class NodeTreeMainUpdater {
     }
 
     if (result.interface_changed) {
-      if (ntree.runtime->generated_srna_data) {
-        for (StructRNA *srna : ntree.runtime->generated_srna_data->structs) {
+      if (ntree.runtime->geometry_nodes_srna_data) {
+        for (StructRNA *srna : ntree.runtime->geometry_nodes_srna_data->structs) {
           /* Avoids warning when freeing the #StructRNA. */
           RNA_struct_py_type_set(srna, nullptr);
           RNA_struct_free(&BLENDER_RNA, srna);
         }
-        ntree.runtime->modifier_struct = nullptr;
-        ntree.runtime->generated_srna_data.reset();
+        ntree.runtime->geometry_nodes_srna = nullptr;
+        ntree.runtime->geometry_nodes_srna_data.reset();
       }
-      ntree.runtime->generated_srna_data = std::make_unique<GeneratedTreeSrnaData>();
+      ntree.runtime->geometry_nodes_srna_data = std::make_unique<GeneratedTreeSrnaData>();
       StructRNA *modifier_struct = nodes::get_geometry_nodes_inputs_srna(
-          ntree, *ntree.runtime->generated_srna_data);
+          ntree, *ntree.runtime->geometry_nodes_srna_data);
       fmt::println("{}", RNA_struct_to_string(*modifier_struct));
-      ntree.runtime->modifier_struct = modifier_struct;
+      ntree.runtime->geometry_nodes_srna = modifier_struct;
     }
 
 #ifndef NDEBUG
