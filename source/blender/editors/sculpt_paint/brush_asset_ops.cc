@@ -185,10 +185,6 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
   if (is_local_library) {
     brush = reinterpret_cast<Brush *>(bke::asset_edit_id_ensure_local(*bmain, brush->id));
     asset::mark_id(&brush->id);
-    BLI_assert(brush->id.us == 0);
-    // This doesn't really seem correct, but the above `asset_edit_id_ensure_local` sets the user
-    // count to 0 while sitll setting the fake user flag.
-    id_us_plus(&brush->id);
     BLI_assert(brush->id.us != 0);
   }
   else {
