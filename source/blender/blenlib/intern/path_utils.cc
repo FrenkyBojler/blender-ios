@@ -271,7 +271,7 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
     char *start = start_base;
     char *start_temp;
     while ((start_temp = strstr(start, SEP_STR ".." SEP_STR)) ||
-           /* Check if the string ends with `/..` & assign when found, else NULL. */
+           /* Check if the string ends with `/..` & assign when found, else nullptr. */
            (start_temp = ((start <= &path[path_len - 3]) &&
                           STREQ(&path[path_len - 3], SEP_STR "..")) ?
                              &path[path_len - 3] :
@@ -445,9 +445,9 @@ bool BLI_path_make_safe_filename_ex(char *filename, bool allow_tokens)
 #ifdef WIN32
   {
     const char *invalid_names[] = {
-        "con",  "prn",  "aux",  "null", "com1", "com2", "com3", "com4",
-        "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2", "lpt3",
-        "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9", NULL,
+        "con",  "prn",  "aux",  "null", "com1", "com2", "com3",  "com4",
+        "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2",  "lpt3",
+        "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9", nullptr,
     };
     const size_t len = strlen(filename);
     char *filename_lower = BLI_strdupn(filename, len);
@@ -590,7 +590,9 @@ bool BLI_path_is_win32_drive_with_slash(const char *path)
  */
 static bool BLI_path_is_abs_win32(const char *path)
 {
-  return BLI_path_is_win32_drive_with_slash(path) || BLI_path_is_unc(path);
+  /* Don't use the `BLI_path_is_win32_drive_with_slash`
+   * since paths such as `C:` are valid on their own. */
+  return BLI_path_is_win32_drive(path) || BLI_path_is_unc(path);
 }
 
 static wchar_t *next_slash(wchar_t *path)
@@ -1199,14 +1201,13 @@ bool BLI_path_abs(char path[FILE_MAX], const char *basepath)
 bool BLI_path_is_abs_from_cwd(const char *path)
 {
   bool is_abs = false;
-  const int path_len_clamp = BLI_strnlen(path, 3);
 
 #ifdef WIN32
-  if ((path_len_clamp >= 3 && BLI_path_is_abs_win32(path)) || BLI_path_is_unc(path)) {
+  if (BLI_path_is_abs_win32(path)) {
     is_abs = true;
   }
 #else
-  if (path_len_clamp >= 2 && path[0] == '/') {
+  if (path[0] == '/') {
     is_abs = true;
   }
 #endif
@@ -1367,7 +1368,7 @@ void BLI_setenv_if_new(const char *env, const char *val)
 const char *BLI_getenv(const char *env)
 {
 #ifdef _MSC_VER
-  const char *result = NULL;
+  const char *result = nullptr;
   /* 32767 is the maximum size of the environment variable on windows,
    * reserve one more character for the zero terminator. */
   static wchar_t buffer[32768];
@@ -1987,9 +1988,9 @@ int BLI_path_cmp_normalized(const char *p1, const char *p2)
   const size_t p2_size = strlen(p2) + 1;
 
   char *norm_p1 = (p1_size <= sizeof(norm_p1_buf)) ? norm_p1_buf :
-                                                     MEM_cnew_array<char>(p1_size, __func__);
+                                                     MEM_calloc_arrayN<char>(p1_size, __func__);
   char *norm_p2 = (p2_size <= sizeof(norm_p2_buf)) ? norm_p2_buf :
-                                                     MEM_cnew_array<char>(p2_size, __func__);
+                                                     MEM_calloc_arrayN<char>(p2_size, __func__);
 
   memcpy(norm_p1, p1, p1_size);
   memcpy(norm_p2, p2, p2_size);

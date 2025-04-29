@@ -9,7 +9,7 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
@@ -70,7 +70,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryVolumeToMesh *data = MEM_cnew<NodeGeometryVolumeToMesh>(__func__);
+  NodeGeometryVolumeToMesh *data = MEM_callocN<NodeGeometryVolumeToMesh>(__func__);
   data->resolution_mode = VOLUME_TO_MESH_RESOLUTION_MODE_GRID;
   node->storage = data;
 }
@@ -94,13 +94,18 @@ static bke::VolumeToMeshResolution get_resolution_param(const GeoNodeExecParams 
 }
 
 static Mesh *create_mesh_from_volume_grids(Span<const openvdb::GridBase *> grids,
+                                           GeoNodeExecParams &params,
                                            const float threshold,
                                            const float adaptivity,
                                            const bke::VolumeToMeshResolution &resolution)
 {
-  Array<bke::OpenVDBMeshData> mesh_data(grids.size());
+  Array<bke::VolumeToMeshDataResult> mesh_data(grids.size());
   for (const int i : grids.index_range()) {
-    mesh_data[i] = bke::volume_to_mesh_data(*grids[i], resolution, threshold, adaptivity);
+    bke::VolumeToMeshDataResult &result = mesh_data[i];
+    result = bke::volume_to_mesh_data(*grids[i], resolution, threshold, adaptivity);
+    if (!result.error.empty()) {
+      params.error_message_add(NodeWarningType::Error, result.error);
+    }
   }
 
   int vert_offset = 0;
@@ -110,7 +115,7 @@ static Mesh *create_mesh_from_volume_grids(Span<const openvdb::GridBase *> grids
   Array<int> face_offsets(mesh_data.size());
   Array<int> loop_offsets(mesh_data.size());
   for (const int i : grids.index_range()) {
-    const bke::OpenVDBMeshData &data = mesh_data[i];
+    const bke::OpenVDBMeshData &data = mesh_data[i].data;
     vert_offsets[i] = vert_offset;
     face_offsets[i] = face_offset;
     loop_offsets[i] = loop_offset;
@@ -126,7 +131,7 @@ static Mesh *create_mesh_from_volume_grids(Span<const openvdb::GridBase *> grids
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
   for (const int i : grids.index_range()) {
-    const bke::OpenVDBMeshData &data = mesh_data[i];
+    const bke::OpenVDBMeshData &data = mesh_data[i].data;
     bke::fill_mesh_from_openvdb_data(data.verts,
                                      data.tris,
                                      data.quads,
@@ -183,6 +188,7 @@ static Mesh *create_mesh_from_volume(GeometrySet &geometry_set, GeoNodeExecParam
   }
 
   return create_mesh_from_volume_grids(grids,
+                                       params,
                                        params.get_input<float>("Threshold"),
                                        params.get_input<float>("Adaptivity"),
                                        resolution);
@@ -238,15 +244,19 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_VOLUME_TO_MESH, "Volume to Mesh", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeVolumeToMesh", GEO_NODE_VOLUME_TO_MESH);
+  ntype.ui_name = "Volume to Mesh";
+  ntype.ui_description = "Generate a mesh on the \"surface\" of a volume";
+  ntype.enum_name_legacy = "VOLUME_TO_MESH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_type_size(&ntype, 170, 120, 700);
+      ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_size(ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

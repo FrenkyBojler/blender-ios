@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_task.hh"
-
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
@@ -13,10 +11,12 @@ namespace blender::nodes::node_geo_curve_reverse_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Curve").supported_type(
       {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_output<decl::Geometry>("Curve").propagate_all();
 }
 
 static void reverse_curve(bke::CurvesGeometry &curves,
@@ -73,10 +73,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_REVERSE_CURVE, "Reverse Curve", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeReverseCurve", GEO_NODE_REVERSE_CURVE);
+  ntype.ui_name = "Reverse Curve";
+  ntype.ui_description = "Change the direction of curves by swapping their start and end data";
+  ntype.enum_name_legacy = "REVERSE_CURVE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

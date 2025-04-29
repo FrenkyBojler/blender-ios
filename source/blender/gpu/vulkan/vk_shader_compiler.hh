@@ -16,6 +16,8 @@
 
 #include "shaderc/shaderc.hpp"
 
+#include <mutex>
+
 namespace blender::gpu {
 class VKShader;
 class VKShaderModule;
@@ -39,6 +41,14 @@ class VKShaderCompiler : public ShaderCompiler {
   TaskPool *task_pool_ = nullptr;
 
  public:
+  /**
+   * Cached path to the cache folder.
+   *
+   * GHOST and BKE_appdir are not thread safe. Storing the cache_dir locally to work around
+   * threading issues.
+   */
+  static std::optional<std::string> cache_dir;
+
   VKShaderCompiler();
   virtual ~VKShaderCompiler();
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
@@ -48,6 +58,8 @@ class VKShaderCompiler : public ShaderCompiler {
   static bool compile_module(VKShader &shader,
                              shaderc_shader_kind stage,
                              VKShaderModule &shader_module);
+
+  static void cache_dir_clear_old();
 
  private:
   static void run(TaskPool *__restrict pool, void *task_data);

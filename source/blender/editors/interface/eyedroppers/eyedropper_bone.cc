@@ -10,12 +10,9 @@
 
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
-#include "BKE_idtype.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
-
-#include "BLT_translation.hh"
 
 #include "BLI_assert.h"
 #include "BLI_math_vector.h"
@@ -51,18 +48,18 @@ enum class SampleResult {
 };
 
 struct BoneDropper {
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  PointerRNA search_ptr;
-  PropertyRNA *search_prop;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  PointerRNA search_ptr = {};
+  PropertyRNA *search_prop = nullptr;
 
-  bool is_undo;
+  bool is_undo = false;
 
-  ScrArea *cursor_area; /* Area under the cursor. */
-  ARegionType *area_region_type;
-  void *draw_handle_pixel;
-  int name_pos[2];
-  char name[64];
+  ScrArea *cursor_area = nullptr; /* Area under the cursor. */
+  ARegionType *area_region_type = nullptr;
+  void *draw_handle_pixel = nullptr;
+  int name_pos[2] = {};
+  char name[64] = {};
 };
 
 struct BoneSampleData {
@@ -106,14 +103,14 @@ static int bonedropper_init(bContext *C, wmOperator *op)
     return false;
   }
 
-  BoneDropper *bone_dropper = MEM_cnew<BoneDropper>(__func__);
+  BoneDropper *bone_dropper = MEM_new<BoneDropper>(__func__);
   uiButSearch *search_button = (uiButSearch *)button;
   bone_dropper->ptr = button_ptr;
   bone_dropper->prop = button_prop;
   bone_dropper->search_ptr = search_button->rnasearchpoin;
   bone_dropper->search_prop = search_button->rnasearchprop;
   if (!is_bone_dropper_valid(bone_dropper)) {
-    MEM_freeN(bone_dropper);
+    MEM_delete(bone_dropper);
     return false;
   }
 
@@ -138,15 +135,14 @@ static void bonedropper_exit(bContext *C, wmOperator *op)
 
   if (op->customdata) {
     BoneDropper *bdr = (BoneDropper *)op->customdata;
+    op->customdata = nullptr;
 
     if (bdr->area_region_type) {
       ED_region_draw_cb_exit(bdr->area_region_type, bdr->draw_handle_pixel);
     }
     ED_area_tag_redraw(bdr->cursor_area);
 
-    MEM_freeN(op->customdata);
-
-    op->customdata = nullptr;
+    MEM_delete(bdr);
   }
   WM_event_add_mousemove(win);
 }
@@ -199,7 +195,7 @@ static BoneSampleData sample_data_from_3d_view(bContext *C,
       BoneSampleData sample_data;
       sample_data.name = bone->name;
       /* Not using the search pointer owner ID because pose bones are part of the object. */
-      sample_data.bone_rna = RNA_pointer_create(&base->object->id, &RNA_PoseBone, bone);
+      sample_data.bone_rna = RNA_pointer_create_discrete(&base->object->id, &RNA_PoseBone, bone);
       sample_data.sample_result = SampleResult::SUCCESS;
       return sample_data;
     }
@@ -217,7 +213,7 @@ static BoneSampleData sample_data_from_3d_view(bContext *C,
 
       BoneSampleData sample_data;
       sample_data.name = ebone->name;
-      sample_data.bone_rna = RNA_pointer_create(&armature->id, &RNA_EditBone, ebone);
+      sample_data.bone_rna = RNA_pointer_create_discrete(&armature->id, &RNA_EditBone, ebone);
       sample_data.sample_result = SampleResult::SUCCESS;
       return sample_data;
     }
@@ -378,7 +374,8 @@ static SampleResult bonedropper_sample(bContext *C, BoneDropper &bdr, const int 
      * searching for since there is no way to get the armature ID from the object ID that we
      * have. */
     bPoseChannel *pose_bone = (bPoseChannel *)sample_data.bone_rna.data;
-    sample_data.bone_rna = RNA_pointer_create(bdr.search_ptr.owner_id, &RNA_Bone, pose_bone->bone);
+    sample_data.bone_rna = RNA_pointer_create_discrete(
+        bdr.search_ptr.owner_id, &RNA_Bone, pose_bone->bone);
   }
 
   PropertyType type = RNA_property_type(bdr.prop);
@@ -431,7 +428,7 @@ static void generate_sample_warning(SampleResult result, wmOperator *op)
   }
 }
 
-static int bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   BoneDropper *bdr = (BoneDropper *)op->customdata;
   if (!bdr) {
@@ -471,7 +468,7 @@ static int bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   return OPERATOR_RUNNING_MODAL;
 }
-static int bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* This is needed to ensure viewport picking works. */
   BKE_object_update_select_id(CTX_data_main(C));
@@ -488,7 +485,7 @@ static int bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*eve
   return OPERATOR_CANCELLED;
 }
 
-static int bonedropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bonedropper_exec(bContext *C, wmOperator *op)
 {
   if (bonedropper_init(C, op)) {
     bonedropper_exit(C, op);

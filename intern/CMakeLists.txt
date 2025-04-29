@@ -35,17 +35,17 @@ if(WITH_CYCLES)
   add_subdirectory(cycles)
 endif()
 
-if(WITH_INTERNATIONAL)
-  add_subdirectory(locale)
-endif()
-
 if(WITH_BULLET)
   add_subdirectory(rigidbody)
 endif()
 
-# only windows needs utf16 converter
+
 if(WIN32)
+  # Only windows needs utf16 converter.
   add_subdirectory(utfconv)
+
+  # Only used for Windows for now.
+  add_subdirectory(uriconvert)
 endif()
 
 if(WITH_MOD_FLUID)
@@ -62,10 +62,6 @@ endif()
 
 if(WITH_QUADRIFLOW)
   add_subdirectory(quadriflow)
-endif()
-
-if(WITH_CODEC_FFMPEG)
-  add_subdirectory(ffmpeg)
 endif()
 
 if(UNIX AND NOT APPLE)

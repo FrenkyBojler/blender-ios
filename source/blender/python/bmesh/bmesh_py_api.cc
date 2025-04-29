@@ -10,8 +10,6 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
-
 #include "bmesh.hh"
 
 #include "bmesh_py_types.hh"
@@ -106,9 +104,9 @@ PyDoc_STRVAR(
     "   :arg mesh: The editmode mesh.\n"
     "   :type mesh: :class:`bpy.types.Mesh`\n"
     "   :arg loop_triangles: Option to recalculate n-gon tessellation.\n"
-    "   :type loop_triangles: boolean\n"
+    "   :type loop_triangles: bool\n"
     "   :arg destructive: Use when geometry has been added or removed.\n"
-    "   :type destructive: boolean\n");
+    "   :type destructive: bool\n");
 static PyObject *bpy_bm_update_edit_mesh(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   static const char *kwlist[] = {"mesh", "loop_triangles", "destructive", nullptr};
@@ -148,9 +146,14 @@ static PyObject *bpy_bm_update_edit_mesh(PyObject * /*self*/, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef BPy_BM_methods[] = {
@@ -163,8 +166,12 @@ static PyMethodDef BPy_BM_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(

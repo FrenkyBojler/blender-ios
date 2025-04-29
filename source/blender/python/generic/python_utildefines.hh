@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include <Python.h>
+
 #define PyTuple_SET_ITEMS(op_arg, ...) \
   { \
     PyTupleObject *op = (PyTupleObject *)op_arg; \
@@ -19,16 +21,6 @@
     ARRAY_SET_ITEMS(ob_items, __VA_ARGS__); \
   } \
   (void)0
-
-/**
- * Wrap #Py_INCREF & return the result,
- * use sparingly to avoid comma operator or temp var assignment.
- */
-Py_LOCAL_INLINE(PyObject *) Py_INCREF_RET(PyObject *op)
-{
-  Py_INCREF(op);
-  return op;
-}
 
 /**
  * Append & transfer ownership to the list,

@@ -4,15 +4,9 @@
 
 set(INC
   ..
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
   ../../editors/include
-  ../../gpu
-  ../../imbuf
   ../../imbuf/intern/oiio
   ../../makesrna
-  ../../windowmanager
   ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
   # RNA_prototypes.hh
@@ -42,6 +36,7 @@ set(SRC
   bpy_capi_utils.cc
   bpy_cli_command.cc
   bpy_driver.cc
+  bpy_geometry_set.cc
   bpy_gizmo_wrap.cc
   bpy_interface.cc
   bpy_interface_atexit.cc
@@ -70,7 +65,6 @@ set(SRC
   bpy_traceback.cc
   bpy_utils_previews.cc
   bpy_utils_units.cc
-  stubs.cc
 
   bpy.hh
   bpy_app.hh
@@ -90,6 +84,7 @@ set(SRC
   bpy_capi_utils.hh
   bpy_cli_command.hh
   bpy_driver.hh
+  bpy_geometry_set.hh
   bpy_gizmo_wrap.hh
   bpy_intern_string.hh
   bpy_library.hh
@@ -120,12 +115,17 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_animation
   bf_editor_interface
   bf_editor_space_api
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
@@ -133,11 +133,16 @@ set(LIB
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
+  PRIVATE bf::windowmanager
 )
 
 # Only to check if `buildinfo` is available.
 if(WITH_BUILDINFO)
   add_definitions(-DBUILD_DATE)
+endif()
+
+if(WITH_INSTALL_PORTABLE)
+  add_definitions(-DWITH_INSTALL_PORTABLE)
 endif()
 
 if(WITH_PYTHON_MODULE)
@@ -196,10 +201,6 @@ if(WITH_CODEC_SNDFILE)
   add_definitions(-DWITH_SNDFILE)
 endif()
 
-if(WITH_COMPOSITOR_CPU)
-  add_definitions(-DWITH_COMPOSITOR_CPU)
-endif()
-
 if(WITH_CYCLES)
   list(APPEND INC
     ../../../../intern/cycles/blender
@@ -226,19 +227,19 @@ if(WITH_FREESTYLE)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
-if(WITH_WEBP)
-  add_definitions(-DWITH_WEBP)
+if(WITH_IMAGE_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_INPUT_NDOF)
@@ -313,6 +314,10 @@ endif()
 
 if(WITH_IO_STL)
   add_definitions(-DWITH_IO_STL)
+endif()
+
+if(WITH_IO_FBX)
+  add_definitions(-DWITH_IO_FBX)
 endif()
 
 if(WITH_IO_GREASE_PENCIL)

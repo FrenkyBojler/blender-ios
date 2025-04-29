@@ -8,12 +8,13 @@
 
 #pragma once
 
+#include <Python.h>
+
 #include <string>
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_span.hh"
 #include "BLI_sys_types.h"
-#include "BLI_utildefines_variadic.h"
 
 /** Useful to print Python objects while debugging. */
 void PyC_ObSpit(const char *name, PyObject *var);
@@ -259,6 +260,11 @@ bool PyC_RunString_AsStringOrNone(const char **imports,
                                   char **r_value) ATTR_NONNULL(2, 3, 4) ATTR_WARN_UNUSED_RESULT;
 
 /**
+ * Flush Python's `sys.stdout` and `sys.stderr`. Errors are ignored.
+ */
+void PyC_StdFilesFlush();
+
+/**
  * Use with PyArg_ParseTuple's "O&" formatting.
  *
  * \see #PyC_Long_AsBool for a similar function to use outside of argument parsing.
@@ -339,7 +345,11 @@ uint64_t PyC_Long_AsU64(PyObject *value);
 /* inline so type signatures match as expected */
 Py_LOCAL_INLINE(int32_t) PyC_Long_AsI32(PyObject *value)
 {
+#if PY_VERSION_HEX < 0x030d0000 /* <3.13 */
   return (int32_t)_PyLong_AsInt(value);
+#else
+  return (int32_t)PyLong_AsInt(value);
+#endif
 }
 Py_LOCAL_INLINE(int64_t) PyC_Long_AsI64(PyObject *value)
 {
