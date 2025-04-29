@@ -18,6 +18,7 @@
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_paint.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
@@ -181,13 +182,17 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
-  AssetWeakReference brush_asset_reference;
   if (is_local_library) {
     brush = reinterpret_cast<Brush *>(bke::asset_edit_id_ensure_local(*bmain, brush->id));
     asset::mark_id(&brush->id);
-    asset::generate_preview(C, &brush->id);
+    BLI_assert(brush->id.us == 0);
+    // This doesn't really seem correct, but the above `asset_edit_id_ensure_local` sets the user
+    // count to 0 while sitll setting the fake user flag.
+    id_us_plus(&brush->id);
+    BLI_assert(brush->id.us != 0);
   }
   else {
+    AssetWeakReference brush_asset_reference;
     const std::optional<std::string> final_full_asset_filepath = bke::asset_edit_id_save_as(
         *bmain, brush->id, name, *user_library, brush_asset_reference, *op->reports);
     if (!final_full_asset_filepath) {
