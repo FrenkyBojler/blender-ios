@@ -111,6 +111,11 @@ const char *RNA_struct_ui_description_raw(const StructRNA *type);
 const char *RNA_struct_translation_context(const StructRNA *type);
 int RNA_struct_ui_icon(const StructRNA *type);
 
+/**
+ * Debug utility to print a #StructRNA.
+ */
+std::string RNA_struct_to_string(const StructRNA &type);
+
 PropertyRNA *RNA_struct_name_property(const StructRNA *type);
 const EnumPropertyItem *RNA_struct_property_tag_defines(const StructRNA *type);
 PropertyRNA *RNA_struct_iterator_property(StructRNA *type);

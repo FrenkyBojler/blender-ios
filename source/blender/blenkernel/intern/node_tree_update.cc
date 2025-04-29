@@ -44,6 +44,9 @@
 
 #include "BLT_translation.hh"
 
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+
 using namespace blender::nodes;
 
 /**
@@ -535,6 +538,12 @@ class NodeTreeMainUpdater {
 
     if (ntree.tree_interface.is_changed()) {
       result.interface_changed = true;
+    }
+
+    if (result.interface_changed) {
+      StructRNA *modifier_struct = this->create_modifier_struct_rna(ntree);
+      fmt::println("{}", RNA_struct_to_string(*modifier_struct));
+      RNA_struct_free(&BLENDER_RNA, modifier_struct);
     }
 
 #ifndef NDEBUG
@@ -1741,6 +1750,41 @@ class NodeTreeMainUpdater {
       }
     }
     return changed;
+  }
+
+  StructRNA *create_modifier_struct_rna(const bNodeTree &ntree)
+  {
+    /* TODO: Generate more unique struct name. */
+    const StringRefNull struct_name = ntree.id.name;
+    StructRNA *srna = RNA_def_struct_ptr(&BLENDER_RNA, struct_name.c_str(), nullptr);
+
+    ntree.ensure_interface_cache();
+    for (const bNodeTreeInterfaceSocket *socket : ntree.interface_inputs()) {
+      this->create_modifier_struct_input_property(*srna, *socket);
+    }
+
+    return srna;
+  }
+
+  PropertyRNA *create_modifier_struct_input_property(StructRNA &srna,
+                                                     const bNodeTreeInterfaceSocket &socket)
+  {
+    const bNodeSocketType *stype = socket.socket_typeinfo();
+    switch (stype->type) {
+      case SOCK_FLOAT: {
+        const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
+        return RNA_def_float(&srna,
+                             socket.identifier,
+                             data->value,
+                             -FLT_MAX,
+                             FLT_MAX,
+                             socket.name,
+                             socket.description,
+                             data->min,
+                             data->max);
+      }
+    }
+    return nullptr;
   }
 };
 

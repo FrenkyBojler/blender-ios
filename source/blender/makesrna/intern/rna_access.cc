@@ -694,6 +694,19 @@ PropertyRNA *RNA_struct_iterator_property(StructRNA *type)
   return type->iteratorproperty;
 }
 
+std::string RNA_struct_to_string(const StructRNA &type)
+{
+  fmt::memory_buffer buf;
+  fmt::appender dst{buf};
+  fmt::format_to(dst, "Type: {}\n", type.identifier);
+
+  LISTBASE_FOREACH (const PropertyRNA *, prop, &type.cont.properties) {
+    fmt::format_to(dst, "  {}\n", RNA_property_identifier(prop));
+  }
+
+  return fmt::to_string(buf);
+}
+
 StructRNA *RNA_struct_base(StructRNA *type)
 {
   return type->base;
