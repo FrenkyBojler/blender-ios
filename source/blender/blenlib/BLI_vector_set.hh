@@ -154,6 +154,19 @@ class VectorSet {
     auto &R_SLOT = slots_[SLOT_INDEX];
 #define VECTOR_SET_SLOT_PROBING_END() SLOT_PROBING_END()
 
+  /**
+   * Be a friend with other template instantiations. This is necessary to implement some memory
+   * management logic.
+   */
+  template<typename Other,
+           int64_t OtherInlineBufferCapacity,
+           typename OtherProbingStrategy,
+           typename OtherHash,
+           typename OtherIsEqual,
+           typename OtherSlot,
+           typename OtherAllocator>
+  friend class VectorSet;
+
  public:
   /**
    * Initialize an empty vector set. This is a cheap operation and won't do an allocation. This is
