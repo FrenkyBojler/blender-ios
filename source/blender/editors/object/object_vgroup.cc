@@ -1404,6 +1404,35 @@ static bool vgroup_normalize_all(Object *ob,
   return false;
 }
 
+/**
+ * If the currently active vertex group is for a deform bone, normalize all
+ * vertex groups that are for deform bones.
+ *
+ * \param lock_active If true, the active vertex group will be left untouched,
+ * and the remaining deform groups will be normalized to occupy the remaining
+ * weight not used by it.
+ */
+static void vgroup_normalize_all_deform_if_active_is_deform(Object *ob,
+                                                            const bool lock_active,
+                                                            ReportList *reports)
+{
+  int r_defgroup_tot = BKE_object_defgroup_count(ob);
+  bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
+  const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
+
+  /* Only auto-normalize if the active group is bone-deforming. */
+  if (defgroup_validmap[def_nr] == true) {
+    int subset_count, vgroup_tot;
+    const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
+        ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
+
+    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, lock_active, reports);
+    MEM_SAFE_FREE(vgroup_validmap);
+  }
+
+  MEM_SAFE_FREE(defgroup_validmap);
+}
+
 enum {
   VGROUP_TOGGLE,
   VGROUP_LOCK,
@@ -2716,21 +2745,7 @@ static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator *op)
   vgroup_assign_verts(ob, scene, ts->vgroup_weight);
 
   if (ts->auto_normalize) {
-    int r_defgroup_tot = BKE_object_defgroup_count(ob);
-    bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
-    const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
-
-    // Only auto-normalize if the active group is bone-deforming
-    if (defgroup_validmap[def_nr] == true) {
-      int subset_count, vgroup_tot;
-      const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
-          ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
-
-      vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, true, op->reports);
-      MEM_SAFE_FREE(vgroup_validmap);
-    }
-
-    MEM_SAFE_FREE(defgroup_validmap);
+    vgroup_normalize_all_deform_if_active_is_deform(ob, true, op->reports);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -2832,21 +2847,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
 
   ToolSettings *ts = CTX_data_tool_settings(C);
   if (ts->auto_normalize) {
-    int r_defgroup_tot = BKE_object_defgroup_count(ob);
-    bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
-    const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
-
-    /* Only auto-normalize if the active group is bone-deforming. */
-    if (defgroup_validmap[def_nr] == true) {
-      int subset_count, vgroup_tot;
-      const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
-          ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
-
-      vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, false, op->reports);
-      MEM_SAFE_FREE(vgroup_validmap);
-    }
-
-    MEM_SAFE_FREE(defgroup_validmap);
+    vgroup_normalize_all_deform_if_active_is_deform(ob, false, op->reports);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
