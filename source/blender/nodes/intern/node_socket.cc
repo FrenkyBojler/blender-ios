@@ -947,6 +947,25 @@ static bke::bNodeSocketType *make_socket_type_bool()
   };
   static SocketValueVariant default_value{false};
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+    const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
+    RNA_def_boolean(&srna, "value", data->value, socket.name, socket.description);
+
+    static const EnumPropertyItem input_type_items[] = {
+        {int(nodes::GeometryNodesInputTypeBool::Value), "VALUE", 0, "Value", ""},
+        {int(nodes::GeometryNodesInputTypeBool::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
+        {0, nullptr, 0, nullptr, nullptr},
+    };
+    RNA_def_enum(&srna,
+                 "input_type",
+                 input_type_items,
+                 int(nodes::GeometryNodesInputTypeBool::Value),
+                 "Input Type",
+                 "");
+  };
   return socktype;
 }
 

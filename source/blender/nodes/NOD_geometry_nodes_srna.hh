@@ -21,6 +21,11 @@ enum class GeometryNodesInputTypeInt {
   Attribute = 1,
 };
 
+enum class GeometryNodesInputTypeBool {
+  Value = 0,
+  Attribute = 1,
+};
+
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
   Vector<StructRNA *> structs;
