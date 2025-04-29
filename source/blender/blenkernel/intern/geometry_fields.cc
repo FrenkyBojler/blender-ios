@@ -849,6 +849,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     const CPPType &type = fields[input_index].cpp_type();
     const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(type);
 
+    /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
     if (const std::optional<AttributeDomainAndType> meta_data =
             attributes.get_builtin_domain_and_type(id))
     {
