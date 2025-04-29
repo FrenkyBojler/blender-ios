@@ -711,7 +711,7 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
             rect.xmin += UI_UNIT_X / 8;
           }
 
-          /* No backdrop. The previous menu item draws the active selection. */
+          /* The previous menu item draws the active selection. */
           ui_draw_menu_item(&data->fstyle,
                             &rect,
                             nullptr,
@@ -820,7 +820,7 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
     /* In this case, the search menu is inside another menu, so we copy the region size. */
     region->winrct = butregion->winrct;
 
-    /* Widget rect, in region coordinates. */
+    /* widget rect, in region coords */
     data->bbox.xmin = margin + padding;
     data->bbox.xmax = BLI_rcti_size_x(&region->winrct) - (margin + padding);
     data->bbox.ymin = margin;

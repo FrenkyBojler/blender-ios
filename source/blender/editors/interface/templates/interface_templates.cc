@@ -179,7 +179,7 @@ uiBlock *template_common_search_menu(const bContext *C,
     const int h = 5 * U.widget_unit * preview_rows * scale + 2 * UI_SEARCHBOX_TRIA_H -
                   UI_SEARCHBOX_BOUNDS;
 
-    /* Fake button holds space for search items. */
+    /* fake button, it holds space for search items */
     uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, UI_UNIT_Y, w, h, nullptr, 0, 0, std::nullopt);
 
     but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, w, UI_UNIT_Y, "");
