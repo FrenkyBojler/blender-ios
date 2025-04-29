@@ -2724,7 +2724,7 @@ static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator *op)
     if (defgroup_validmap[def_nr] == true) {
       int subset_count, vgroup_tot;
       const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
-        ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
+          ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
       vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, true, op->reports);
       MEM_SAFE_FREE(vgroup_validmap);
@@ -3132,8 +3132,7 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
     changed = false;
   }
   else {
-    changed = vgroup_normalize_all(
-      ob, vgroup_validmap, vgroup_tot, lock_active, op->reports);
+    changed = vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, lock_active, op->reports);
   }
 
   MEM_freeN(vgroup_validmap);
