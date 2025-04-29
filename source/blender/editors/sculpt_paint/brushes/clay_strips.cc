@@ -306,26 +306,8 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
     return;
   }
 
-  float4x4 mat = float4x4::identity();
-  mat.x_axis() = math::cross(plane_normal, ss.cache->grab_delta_symm);
-  mat.y_axis() = math::cross(plane_normal, float3(mat[0]));
-  mat.z_axis() = plane_normal;
-
-  /* Flip the z-axis so that the vertices below the plane have positive z-coordinates. When the
-   * brush is inverted, the affected z-coordinates are already positive. */
-  if (!flip) {
-    mat.z_axis() *= -1.0f;
-  }
-
-  mat.location() = plane_center;
-  mat = math::normalize(mat);
-
-  /* Scale brush local space matrix. */
-  const float4x4 scale = math::from_scale<float4x4>(float3(ss.cache->radius));
-  float4x4 tmat = mat * scale;
-  tmat.y_axis() *= brush.tip_scale_x;
-  mat = math::invert(tmat);
-
+  const float4x4 mat = clay_strips::calc_local_mat(
+      brush, *ss.cache, plane_normal, plane_center, flip);
   const float3 offset = plane_normal * ss.cache->bstrength * ss.cache->radius;
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -379,6 +361,122 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
 }
 
 namespace clay_strips {
+
+/**
+ * Checks whether the node's bounding box overlaps with the region affected by the brush.
+ * Clay Strips affects only vertices below the brush plane. The brush-local coordinate
+ * system is oriented so that vertices below the plane have positive
+ * local z-coordinates. Therefore, we only need to check if the transformed bounding
+ * box intersects the [-1, 1] x [-1, 1] x [0, 1] volume in local space.
+ */
+static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds)
+{
+  /* Coordinates of the bounds corners in object space. */
+  std::array<float3, 8> corners = {float3(bounds.min.x, bounds.min.y, bounds.min.z),
+                                   float3(bounds.min.x, bounds.min.y, bounds.max.z),
+                                   float3(bounds.min.x, bounds.max.y, bounds.min.z),
+                                   float3(bounds.min.x, bounds.max.y, bounds.max.z),
+                                   float3(bounds.max.x, bounds.min.y, bounds.min.z),
+                                   float3(bounds.max.x, bounds.min.y, bounds.max.z),
+                                   float3(bounds.max.x, bounds.max.y, bounds.min.z),
+                                   float3(bounds.max.x, bounds.max.y, bounds.max.z)};
+
+  /* Convert the corner coordinates to local space. */
+  for (float3 &corner : corners) {
+    corner = math::transform_point(mat, corner);
+  }
+
+  float3 node_min = corners[0];
+  float3 node_max = corners[0];
+
+  for (const float3 &corner : corners) {
+    node_min = math::min(node_min, corner);
+    node_max = math::max(node_max, corner);
+  }
+
+  const bool overlap_x = (-1.0f <= node_max.x && node_min.x <= 1.0f);
+  const bool overlap_y = (-1.0f <= node_max.y && node_min.y <= 1.0f);
+  const bool overlap_z = (0.0f <= node_max.z && node_min.z <= 1.0f);
+
+  return overlap_x && overlap_y && overlap_z;
+}
+
+static bool node_in_box2(const float4x4& mat, const Bounds<float3>& bounds)
+{
+  const float3 center1 = float3(0, 0, 0.5);
+  const float3 center2 = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
+
+  const float3 half_lengths1 = float3(1, 1, 0.5);
+  const float3 half_lengths2 = (bounds.max - bounds.min) * 0.5f;
+
+  const float3 u0 = mat.x_axis(); // float3(mat[0][0], mat[1][0], mat[2][0]);
+  const float3 u1 = mat.y_axis(); // float3(mat[0][1], mat[1][1], mat[2][1]);
+  const float3 u2 = mat.z_axis(); // float3(mat[0][2], mat[1][2], mat[2][2]);
+
+  auto test_axis = [&](const float3 axis) {
+    const float radius1 = math::dot(math::abs(axis), half_lengths1);
+    const float radius2 = math::abs(math::dot(axis, u0)) * half_lengths2.x +
+      math::abs(math::dot(axis, u1)) * half_lengths2.y +
+      math::abs(math::dot(axis, u2)) * half_lengths2.z;
+
+    const float projection = math::abs(math::dot(center1 - center2, axis));
+
+    return projection > radius1 + radius2;
+  };
+
+  std::array<float3, 15> axes;
+  axes[0] = float3(1, 0, 0);
+  axes[1] = float3(0, 1, 0);
+  axes[2] = float3(0, 0, 1);
+  axes[3] = u0;
+  axes[4] = u1;
+  axes[5] = u2;
+
+  int k = 6;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 3; j < 6; j++) {
+      axes[k] = math::cross(axes[i], axes[j]);
+      k++;
+    }
+  }
+
+  for (int i = 0; i < axes.size(); i++) {
+    if (test_axis(axes[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+float4x4 calc_local_mat(const Brush &brush,
+                        const StrokeCache &cache,
+                        const float3 &plane_normal,
+                        const float3 &plane_center,
+                        bool flip)
+{
+  float4x4 mat = float4x4::identity();
+  mat.x_axis() = math::cross(plane_normal, cache.grab_delta_symm);
+  mat.y_axis() = math::cross(plane_normal, mat.x_axis());
+  mat.z_axis() = plane_normal;
+
+  /* Flip the z-axis so that the vertices below the plane have positive z-coordinates. When the
+   * brush is inverted, the affected z-coordinates are already positive. */
+  if (!flip) {
+    mat.z_axis() *= -1.0f;
+  }
+
+  mat.location() = plane_center;
+  mat = math::normalize(mat);
+
+  /* Scale brush local space matrix. */
+  const float4x4 scale = math::from_scale<float4x4>(float3(cache.radius));
+  float4x4 tmat = mat * scale;
+  tmat.y_axis() *= brush.tip_scale_x;
+  mat = math::invert(tmat);
+  return mat;
+}
+
 CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
                                   Object &object,
                                   const Brush &brush,
@@ -415,20 +513,42 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
   }
 
   plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
+  //plane_normal = float3(0, 0, 1);
   plane_center += plane_normal * ss.cache->scale * displace;
 
-  /* With a cube influence area, this brush needs slightly more than the radius.
-   *
-   * SQRT3 because the cube circumscribes the spherical brush area, so the current radius is equal
-   * to half of the length of a side of the cube. */
-  const float radius_squared = math::square(ss.cache->radius * math::numbers::sqrt3);
+  //printf("radius %f\n", ss.cache->radius);
+
+  const float4x4 mat = calc_local_mat(brush, *ss.cache, plane_normal, plane_center, flip);
+
+
   const IndexMask plane_mask = bke::pbvh::search_nodes(
       pbvh, memory, [&](const bke::pbvh::Node &node) {
         if (node_fully_masked_or_hidden(node)) {
           return false;
         }
-        return node_in_sphere(node, plane_center, radius_squared, use_original);
+        bool ok = node_in_box2(mat, node.bounds());
+
+        if (!ok) {
+          //printf("------\n");
+          //printf("bounds: %f %f %f %f %f %f\n", node.bounds().min.x, node.bounds().min.y, node.bounds().min.z, node.bounds().max.x, node.bounds().max.y, node.bounds().max.z);
+          //printf("normal: %f %f %f\n", plane_normal.x, plane_normal.y, plane_normal.z);
+          //printf("center: %f %f %f\n", plane_center.x, plane_center.y, plane_center.z);
+        }
+        return ok;
       });
+
+  
+   const float radius_squared = math::square(ss.cache->radius * math::numbers::sqrt3);
+
+   const IndexMask plane_mask2 = bke::pbvh::search_nodes(
+    pbvh, memory, [&](const bke::pbvh::Node& node) {
+      if (node_fully_masked_or_hidden(node)) {
+        return false;
+      }
+      return node_in_sphere(node, plane_center, radius_squared, use_original);
+    });
+
+   printf("sz %d %d\n", (int)plane_mask.size(), (int)plane_mask2.size());
 
   return {plane_mask, plane_center, plane_normal};
 }
