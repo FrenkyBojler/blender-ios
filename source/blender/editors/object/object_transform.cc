@@ -837,9 +837,11 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       bool invert_success = invert_m3_m3(timat, tmat);
       if (!invert_success) {
         BKE_reportf(reports,
-                    RPT_ERROR,
-                    "Can't apply rotation to object \"%s\", check if any of the axis has 0 scale.",
-                    ob->id.name + 2);
+                    RPT_INFO,
+                    "%s \"%s\" %s",
+                    RPT_("Object"),
+                    ob->id.name + 2,
+                    RPT_("have non-invertable transformation matrix, not applying transform."));
         has_errors = 1;
         continue;
       }
