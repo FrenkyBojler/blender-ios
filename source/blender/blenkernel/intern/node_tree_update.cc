@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
-#include <sstream>
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -35,9 +34,9 @@
 
 #include "NOD_geo_closure.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
-#include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_srna.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 #include "NOD_texture.h"
