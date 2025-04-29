@@ -16,19 +16,7 @@
 
 namespace blender::nodes {
 
-static StringRefNull get_unique_struct_name(const bNodeTree &ntree,
-                                            GeneratedTreeSrnaData &r_generated)
-{
-  RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
-  std::string str = ntree.id.name + 2;
-  str += '_';
-  for ([[maybe_unused]] const int i : IndexRange(10)) {
-    str += char(rng.get_int32(26) + 97);
-  }
-  return r_generated.scope.allocator().copy_string(str);
-}
-
-static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
+static StructRNA *get_input_socket_struct_rna(const bNodeTree & /*tree*/,
                                               const bNodeTreeInterfaceSocket &socket,
                                               GeneratedTreeSrnaData &r_generated)
 {
@@ -37,9 +25,9 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
     return nullptr;
   }
 
-  const StringRefNull struct_identifier = get_unique_struct_name(tree, r_generated);
   StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, struct_identifier.c_str(), &RNA_PropertyGroup);
+      &BLENDER_RNA, "GeometryNodesSocketInputs", &RNA_PropertyGroup);
+  BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 
   PropertyRNA *prop;
@@ -106,9 +94,9 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
 StructRNA *get_geometry_nodes_inputs_srna(const bNodeTree &tree,
                                           GeneratedTreeSrnaData &r_generated)
 {
-  const StringRefNull struct_identifier = get_unique_struct_name(tree, r_generated);
   StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, struct_identifier.c_str(), &RNA_NodesModifierProperties);
+      &BLENDER_RNA, "GeometryNodesInputs", &RNA_NodesModifierProperties);
+  BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 
   tree.ensure_interface_cache();

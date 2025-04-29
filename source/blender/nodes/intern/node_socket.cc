@@ -1031,6 +1031,10 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
   };
   static SocketValueVariant default_value{0.0f};
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  socktype->create_geometry_nodes_input_srna =
+      [](const bNodeTree &tree,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData &r_generated) -> StructRNA * { return nullptr; };
   return socktype;
 }
 

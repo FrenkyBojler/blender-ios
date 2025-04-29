@@ -733,6 +733,11 @@ bool RNA_struct_undo_check(const StructRNA *type)
   return (type->flag & STRUCT_UNDO) != 0;
 }
 
+bool RNA_struct_in_public_namespace(const StructRNA *type)
+{
+  return (type->flag & STRUCT_PUBLIC_NAMESPACE) != 0;
+}
+
 bool RNA_struct_idprops_register_check(const StructRNA *type)
 {
   return (type->flag & STRUCT_NO_IDPROPERTIES) == 0;

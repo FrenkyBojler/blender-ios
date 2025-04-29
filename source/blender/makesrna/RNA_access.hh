@@ -159,6 +159,12 @@ bool RNA_struct_idprops_contains_datablock(const StructRNA *type);
  */
 bool RNA_struct_idprops_unset(PointerRNA *ptr, const char *identifier);
 
+/**
+ * If true, the name of the struct is unique among all names in the public namespace and can be
+ * looked up with #RNA_struct_find.
+ */
+bool RNA_struct_in_public_namespace(const StructRNA *type);
+
 PropertyRNA *RNA_struct_find_property(PointerRNA *ptr, const char *identifier);
 
 /**
