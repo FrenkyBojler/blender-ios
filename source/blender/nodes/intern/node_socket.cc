@@ -960,10 +960,10 @@ static bke::bNodeSocketType *make_socket_type_bool()
         {0, nullptr, 0, nullptr, nullptr},
     };
     RNA_def_enum(&srna,
-                 "input_type",
+                 "type",
                  input_type_items,
                  int(nodes::GeometryNodesInputTypeBool::Value),
-                 "Input Type",
+                 "Type",
                  "");
   };
   return socktype;
@@ -1073,10 +1073,10 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
         {int(nodes::GeometryNodesInputTypeFloat::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
         {0, nullptr, 0, nullptr, nullptr}};
     prop = RNA_def_enum(&srna,
-                        "input_type",
+                        "type",
                         input_type_items,
                         int(nodes::GeometryNodesInputTypeFloat::Value),
-                        "Input Type",
+                        "Type",
                         "");
   };
   return socktype;
@@ -1117,12 +1117,8 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
         {int(nodes::GeometryNodesInputTypeInt::Value), "VALUE", 0, "Value", ""},
         {int(nodes::GeometryNodesInputTypeInt::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
         {0, nullptr, 0, nullptr, nullptr}};
-    prop = RNA_def_enum(&srna,
-                        "input_type",
-                        input_type_items,
-                        int(nodes::GeometryNodesInputTypeInt::Value),
-                        "Input Type",
-                        "");
+    prop = RNA_def_enum(
+        &srna, "type", input_type_items, int(nodes::GeometryNodesInputTypeInt::Value), "Type", "");
   };
   return socktype;
 }
