@@ -91,7 +91,9 @@ TEST(attribute_storage, MultipleShared)
   storage.add("data", AttrDomain::Edge, AttrType::Float, data);
 
   /* The same data is shared among 4 attributes. */
-  EXPECT_EQ(sharing_info->strong_users(), 4);
+  EXPECT_EQ(sharing_info->strong_users(), 5);
+  storage.add("final!", AttrDomain::Edge, AttrType::Float, std::move(data));
+  EXPECT_EQ(sharing_info->strong_users(), 5);
 
   {
     const auto &data = std::get<Attribute::ArrayData>(storage.lookup("more")->data_for_write());
@@ -104,7 +106,7 @@ TEST(attribute_storage, MultipleShared)
 
   int count = 0;
   storage.foreach([&](const Attribute & /*attribute*/) { count++; });
-  EXPECT_EQ(count, 4);
+  EXPECT_EQ(count, 5);
 }
 
 TEST(attribute_storage, CopyConstruct)
