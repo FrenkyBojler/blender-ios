@@ -231,22 +231,20 @@ static void ui_searchbox_select(bContext *C, ARegion *region, uiBut *but, int st
   ED_region_tag_redraw(region);
 }
 
-/**
- * Calculates the bounding rectangle \a r_rect around the visible search result item \a itemnr.
- */
 static void ui_searchbox_butrect(rcti *r_rect, uiSearchboxData *data, int itemnr)
 {
-  const float zoom = data->zoom;
-  const float tria_h = zoom * UI_SEARCHBOX_TRIA_H;
+  const float tria_h = data->zoom * UI_SEARCHBOX_TRIA_H;
 
   /* thumbnail preview */
   if (data->preview) {
     const int butw = BLI_rcti_size_x(&data->bbox) / data->prv_cols;
     const int buth = (BLI_rcti_size_y(&data->bbox) - 2.0f * tria_h) / data->prv_rows;
-    const int col = itemnr % data->prv_cols;
-    const int row = itemnr / data->prv_cols;
+    int row, col;
 
     *r_rect = data->bbox;
+
+    col = itemnr % data->prv_cols;
+    row = itemnr / data->prv_cols;
 
     r_rect->xmin += col * butw;
     r_rect->xmax = r_rect->xmin + butw;
@@ -587,8 +585,6 @@ static void ui_searchbox_draw_clip_tri_up(rcti *rect, const float zoom)
 static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
 {
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
-  const float zoom = data->zoom;
-  const bool use_unpadded = data->noback;
 
   /* pixel space */
   wmOrtho2_region_pixelspace(region);
@@ -614,7 +610,7 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
         /* widget itself */
         ui_draw_preview_item(&data->fstyle,
                              &rect,
-                             zoom,
+                             data->zoom,
                              data->items.names[a],
                              data->items.icons[a],
                              but_flag,
@@ -631,13 +627,13 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
         if (data->items.offset) {
           /* The first item is in the top left corner. Adjust width so the icon is centered. */
           rect_first_item.xmax = rect_max_item.xmax;
-          ui_searchbox_draw_clip_tri_up(&rect_first_item, zoom);
+          ui_searchbox_draw_clip_tri_up(&rect_first_item, data->zoom);
         }
 
         if (data->items.more) {
           /* The last item is in the bottom right corner. Adjust width so the icon is centered. */
           rect_max_item.xmin = rect_first_item.xmin;
-          ui_searchbox_draw_clip_tri_down(&rect_max_item, zoom);
+          ui_searchbox_draw_clip_tri_down(&rect_max_item, data->zoom);
         }
       }
     }
@@ -674,8 +670,8 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
           ui_draw_menu_item(&data->fstyle,
                             &rect,
                             &rect,
-                            zoom,
-                            use_unpadded,
+                            data->zoom,
+                            data->noback,
                             name,
                             icon,
                             but_flag,
@@ -697,8 +693,8 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
           ui_draw_menu_item(&data->fstyle,
                             &rect,
                             &rect,
-                            zoom,
-                            use_unpadded,
+                            data->zoom,
+                            data->noback,
                             name,
                             ICON_NONE,
                             but_flag | UI_BUT_INACTIVE,
@@ -719,8 +715,8 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
           ui_draw_menu_item(&data->fstyle,
                             &rect,
                             nullptr,
-                            zoom,
-                            use_unpadded,
+                            data->zoom,
+                            data->noback,
                             name_sep,
                             icon,
                             but_flag,
@@ -731,11 +727,11 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
       /* indicate more */
       if (data->items.more) {
         ui_searchbox_butrect(&rect, data, data->items.maxitem - 1);
-        ui_searchbox_draw_clip_tri_down(&rect, zoom);
+        ui_searchbox_draw_clip_tri_down(&rect, data->zoom);
       }
       if (data->items.offset) {
         ui_searchbox_butrect(&rect, data, 0);
-        ui_searchbox_draw_clip_tri_up(&rect, zoom);
+        ui_searchbox_draw_clip_tri_up(&rect, data->zoom);
       }
     }
   }
@@ -745,8 +741,8 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
     ui_draw_menu_item(&data->fstyle,
                       &rect,
                       &rect,
-                      zoom,
-                      use_unpadded,
+                      data->zoom,
+                      data->noback,
                       IFACE_("No results found"),
                       0,
                       0,
@@ -1034,8 +1030,6 @@ static void str_tolower_titlecaps_ascii(char *str, const size_t len)
 static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegion *region)
 {
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
-  const float zoom = data->zoom;
-  const bool use_unpadded = data->noback;
 
   /* pixel space */
   wmOrtho2_region_pixelspace(region);
@@ -1082,8 +1076,8 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
         ui_draw_menu_item(&data->fstyle,
                           &rect_pre,
                           &rect,
-                          zoom,
-                          use_unpadded,
+                          data->zoom,
+                          data->noback,
                           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, text_pre),
                           data->items.icons[a],
                           but_flag,
@@ -1092,8 +1086,8 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
         ui_draw_menu_item(&data->fstyle,
                           &rect_post,
                           nullptr,
-                          zoom,
-                          use_unpadded,
+                          data->zoom,
+                          data->noback,
                           data->items.names[a],
                           0,
                           but_flag,
@@ -1105,11 +1099,11 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
     /* indicate more */
     if (data->items.more) {
       ui_searchbox_butrect(&rect, data, data->items.maxitem - 1);
-      ui_searchbox_draw_clip_tri_down(&rect, zoom);
+      ui_searchbox_draw_clip_tri_down(&rect, data->zoom);
     }
     if (data->items.offset) {
       ui_searchbox_butrect(&rect, data, 0);
-      ui_searchbox_draw_clip_tri_up(&rect, zoom);
+      ui_searchbox_draw_clip_tri_up(&rect, data->zoom);
     }
   }
   else {
@@ -1118,8 +1112,8 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
     ui_draw_menu_item(&data->fstyle,
                       &rect,
                       &rect,
-                      zoom,
-                      use_unpadded,
+                      data->zoom,
+                      data->noback,
                       IFACE_("No results found"),
                       0,
                       0,
