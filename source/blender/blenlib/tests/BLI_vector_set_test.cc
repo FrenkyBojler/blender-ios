@@ -347,6 +347,18 @@ TEST(vector_set, ExtractVectorInline)
   EXPECT_TRUE(set.is_empty());
 }
 
+TEST(vector_set, ExtractVectorInlineExceptions)
+{
+  VectorSet<ExceptionThrower, 32> set;
+  set.add_multiple({5, 2, 7, 4, 8, 5, 4, 5});
+  set[3].throw_during_copy = true;
+  set[3].throw_during_move = true;
+  EXPECT_EQ(set.size(), 5);
+
+  EXPECT_ANY_THROW({ Vector<ExceptionThrower> vec = set.extract_vector(); });
+  EXPECT_EQ(set.size(), 5);
+}
+
 TEST(vector_set, ExtractVectorEmpty)
 {
   VectorSet<int> set;
