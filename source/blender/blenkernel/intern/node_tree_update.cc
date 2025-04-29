@@ -46,6 +46,7 @@
 #include "BLT_translation.hh"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 
 using namespace blender::nodes;
 
