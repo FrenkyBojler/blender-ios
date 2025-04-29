@@ -302,7 +302,7 @@ typedef struct Brush {
   char gpencil_weight_brush_type;
   /** Active curves sculpt brush type (#eBrushCurvesSculptType). */
   char curves_sculpt_brush_type;
-  char _pad1[6];
+  char _pad1[10];
 
   float autosmooth_factor;
 

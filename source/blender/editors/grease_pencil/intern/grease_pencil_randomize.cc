@@ -138,21 +138,21 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
                                 const float pressure)
 {
   const bool use_random = (settings.flag & GP_BRUSH_GROUP_RANDOM) != 0;
-  if (!use_random || !(settings.hsv_jitter[0] > 0.0f || settings.hsv_jitter[1] > 0.0f ||
-                       settings.hsv_jitter[2] > 0.0f))
+  if (!use_random || !(settings.random_hue > 0.0f || settings.random_saturation > 0.0f ||
+                       settings.random_value > 0.0f))
   {
     return color;
   }
 
   BrushColorJitterSettings jitter_settings = {
       settings.color_jitter_flag,
-      settings.hsv_jitter[0],
-      settings.hsv_jitter[1],
-      settings.hsv_jitter[2],
+      settings.random_hue,
+      settings.random_saturation,
+      settings.random_value,
 
-      settings.curve_hue_jitter,
-      settings.curve_sat_jitter,
-      settings.curve_val_jitter,
+      settings.curve_rand_hue,
+      settings.curve_rand_saturation,
+      settings.curve_rand_value,
   };
 
   blender::float3 initial_hsv_jitter = {
