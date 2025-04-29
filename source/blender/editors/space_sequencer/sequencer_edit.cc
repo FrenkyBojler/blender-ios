@@ -2414,13 +2414,13 @@ static wmOperatorStatus sequencer_swap_exec(bContext *C, wmOperator *op)
     }
 
     /* Do this in a new loop since both effects need to be calculated first. */
-    LISTBASE_FOREACH (Strip *, iseq, seqbase) {
-      if ((iseq->type & STRIP_TYPE_EFFECT) &&
-          (strip_is_parent(iseq, active_strip) || strip_is_parent(iseq, strip)))
+    LISTBASE_FOREACH (Strip *, istrip, seqbase) {
+      if ((istrip->type & STRIP_TYPE_EFFECT) &&
+          (strip_is_parent(istrip, active_strip) || strip_is_parent(istrip, strip)))
       {
         /* This may now overlap. */
-        if (seq::transform_test_overlap(scene, seqbase, iseq)) {
-          seq::transform_seqbase_shuffle(seqbase, iseq, scene);
+        if (seq::transform_test_overlap(scene, seqbase, istrip)) {
+          seq::transform_seqbase_shuffle(seqbase, istrip, scene);
         }
       }
     }

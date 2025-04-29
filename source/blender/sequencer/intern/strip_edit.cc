@@ -138,24 +138,24 @@ void edit_update_muting(Editing *ed)
 
 static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, Strip *strip)
 {
-  LISTBASE_FOREACH (Strip *, user_seq, seqbase) {
+  LISTBASE_FOREACH (Strip *, user_strip, seqbase) {
     /* Look in meta-strips for usage of strip. */
-    if (user_seq->type == STRIP_TYPE_META) {
-      sequencer_flag_users_for_removal(scene, &user_seq->seqbase, strip);
+    if (user_strip->type == STRIP_TYPE_META) {
+      sequencer_flag_users_for_removal(scene, &user_strip->seqbase, strip);
     }
 
     /* Clear strip from modifiers. */
-    LISTBASE_FOREACH (StripModifierData *, smd, &user_seq->modifiers) {
+    LISTBASE_FOREACH (StripModifierData *, smd, &user_strip->modifiers) {
       if (smd->mask_strip == strip) {
         smd->mask_strip = nullptr;
       }
     }
 
     /* Remove effects, that use strip. */
-    if (relation_is_effect_of_strip(user_seq, strip)) {
-      user_seq->flag |= SEQ_FLAG_DELETE;
+    if (relation_is_effect_of_strip(user_strip, strip)) {
+      user_strip->flag |= SEQ_FLAG_DELETE;
       /* Strips can be used as mask even if not in same seqbase. */
-      sequencer_flag_users_for_removal(scene, &scene->ed->seqbase, user_seq);
+      sequencer_flag_users_for_removal(scene, &scene->ed->seqbase, user_strip);
     }
   }
 }
@@ -321,29 +321,29 @@ static bool seq_edit_split_intersect_check(const Scene *scene,
 
 static void seq_edit_split_handle_strip_offsets(Main *bmain,
                                                 Scene *scene,
-                                                Strip *left_seq,
-                                                Strip *right_seq,
+                                                Strip *left_strip,
+                                                Strip *right_strip,
                                                 const int timeline_frame,
                                                 const eSplitMethod method)
 {
-  if (seq_edit_split_intersect_check(scene, right_seq, timeline_frame)) {
+  if (seq_edit_split_intersect_check(scene, right_strip, timeline_frame)) {
     switch (method) {
       case SPLIT_SOFT:
-        time_left_handle_frame_set(scene, right_seq, timeline_frame);
+        time_left_handle_frame_set(scene, right_strip, timeline_frame);
         break;
       case SPLIT_HARD:
-        seq_split_set_left_hold_offset(bmain, scene, right_seq, timeline_frame);
+        seq_split_set_left_hold_offset(bmain, scene, right_strip, timeline_frame);
         break;
     }
   }
 
-  if (seq_edit_split_intersect_check(scene, left_seq, timeline_frame)) {
+  if (seq_edit_split_intersect_check(scene, left_strip, timeline_frame)) {
     switch (method) {
       case SPLIT_SOFT:
-        time_right_handle_frame_set(scene, left_seq, timeline_frame);
+        time_right_handle_frame_set(scene, left_strip, timeline_frame);
         break;
       case SPLIT_HARD:
-        seq_split_set_right_hold_offset(bmain, scene, left_seq, timeline_frame);
+        seq_split_set_right_hold_offset(bmain, scene, left_strip, timeline_frame);
         break;
     }
   }
@@ -456,9 +456,9 @@ Strip *edit_strip_split(Main *bmain,
   ListBase right_strips = {nullptr, nullptr};
   seqbase_duplicate_recursive(scene, scene, &right_strips, &left_strips, STRIP_DUPE_ALL, 0);
 
-  Strip *left_seq = static_cast<Strip *>(left_strips.first);
-  Strip *right_seq = static_cast<Strip *>(right_strips.first);
-  Strip *return_seq = nullptr;
+  Strip *left_strip = static_cast<Strip *>(left_strips.first);
+  Strip *right_strip = static_cast<Strip *>(right_strips.first);
+  Strip *return_strip = nullptr;
 
   /* Move strips from detached `ListBase`, otherwise they can't be flagged for removal. */
   BLI_movelisttolist(seqbase, &left_strips);
@@ -466,33 +466,34 @@ Strip *edit_strip_split(Main *bmain,
 
   /* Rename duplicated strips. This has to be done immediately after adding
    * strips to seqbase, for lookup cache to work correctly. */
-  Strip *strip_rename = right_seq;
+  Strip *strip_rename = right_strip;
   for (; strip_rename; strip_rename = strip_rename->next) {
     ensure_unique_name(strip_rename, scene);
   }
 
   /* Split strips. */
-  while (left_seq && right_seq) {
-    if (time_left_handle_frame_get(scene, left_seq) >= timeline_frame) {
-      edit_flag_for_removal(scene, seqbase, left_seq);
+  while (left_strip && right_strip) {
+    if (time_left_handle_frame_get(scene, left_strip) >= timeline_frame) {
+      edit_flag_for_removal(scene, seqbase, left_strip);
     }
-    else if (time_right_handle_frame_get(scene, right_seq) <= timeline_frame) {
-      edit_flag_for_removal(scene, seqbase, right_seq);
+    else if (time_right_handle_frame_get(scene, right_strip) <= timeline_frame) {
+      edit_flag_for_removal(scene, seqbase, right_strip);
     }
-    else if (return_seq == nullptr) {
+    else if (return_strip == nullptr) {
       /* Store return value - pointer to strip that will not be removed. */
-      return_seq = right_seq;
+      return_strip = right_strip;
     }
 
-    seq_edit_split_handle_strip_offsets(bmain, scene, left_seq, right_seq, timeline_frame, method);
-    left_seq = left_seq->next;
-    right_seq = right_seq->next;
+    seq_edit_split_handle_strip_offsets(
+        bmain, scene, left_strip, right_strip, timeline_frame, method);
+    left_strip = left_strip->next;
+    right_strip = right_strip->next;
   }
 
   edit_remove_flagged_strips(scene, seqbase);
   animation_restore_original(scene, &animation_backup);
 
-  return return_seq;
+  return return_strip;
 }
 
 bool edit_remove_gaps(Scene *scene,

@@ -1180,14 +1180,14 @@ static void link_recurs_seq(BlendDataReader *reader, ListBase *lb)
 {
   BLO_read_struct_list(reader, Strip, lb);
 
-  LISTBASE_FOREACH_MUTABLE (Strip *, seq, lb) {
+  LISTBASE_FOREACH_MUTABLE (Strip *, strip, lb) {
     /* Sanity check. */
-    if (!blender::seq::is_valid_strip_channel(seq)) {
-      BLI_freelinkN(lb, seq);
+    if (!blender::seq::is_valid_strip_channel(strip)) {
+      BLI_freelinkN(lb, strip);
       BLO_read_data_reports(reader)->count.sequence_strips_skipped++;
     }
-    else if (seq->seqbase.first) {
-      link_recurs_seq(reader, &seq->seqbase);
+    else if (strip->seqbase.first) {
+      link_recurs_seq(reader, &strip->seqbase);
     }
   }
 }

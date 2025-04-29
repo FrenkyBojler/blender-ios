@@ -380,32 +380,32 @@ ListBase *get_seqbase_by_strip(const Scene *scene, Strip *strip)
 
 Strip *strip_from_strip_elem(ListBase *seqbase, StripElem *se)
 {
-  Strip *iseq;
+  Strip *istrip;
 
-  for (iseq = static_cast<Strip *>(seqbase->first); iseq; iseq = iseq->next) {
+  for (istrip = static_cast<Strip *>(seqbase->first); istrip; istrip = istrip->next) {
     Strip *strip_found;
-    if ((iseq->data && iseq->data->stripdata) &&
-        ARRAY_HAS_ITEM(se, iseq->data->stripdata, iseq->len))
+    if ((istrip->data && istrip->data->stripdata) &&
+        ARRAY_HAS_ITEM(se, istrip->data->stripdata, istrip->len))
     {
       break;
     }
-    if ((strip_found = strip_from_strip_elem(&iseq->seqbase, se))) {
-      iseq = strip_found;
+    if ((strip_found = strip_from_strip_elem(&istrip->seqbase, se))) {
+      istrip = strip_found;
       break;
     }
   }
 
-  return iseq;
+  return istrip;
 }
 
 Strip *get_strip_by_name(ListBase *seqbase, const char *name, bool recursive)
 {
-  LISTBASE_FOREACH (Strip *, iseq, seqbase) {
-    if (STREQ(name, iseq->name + 2)) {
-      return iseq;
+  LISTBASE_FOREACH (Strip *, istrip, seqbase) {
+    if (STREQ(name, istrip->name + 2)) {
+      return istrip;
     }
-    if (recursive && !BLI_listbase_is_empty(&iseq->seqbase)) {
-      Strip *rseq = get_strip_by_name(&iseq->seqbase, name, true);
+    if (recursive && !BLI_listbase_is_empty(&istrip->seqbase)) {
+      Strip *rseq = get_strip_by_name(&istrip->seqbase, name, true);
       if (rseq != nullptr) {
         return rseq;
       }

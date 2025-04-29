@@ -804,8 +804,8 @@ enum {
  * otherwise, you can't really blend, right :) !)
  */
 
-#define STRIP_HAS_PATH(_seq) \
-  (ELEM((_seq)->type, \
+#define STRIP_HAS_PATH(_strip) \
+  (ELEM((_strip)->type, \
         STRIP_TYPE_MOVIE, \
         STRIP_TYPE_IMAGE, \
         STRIP_TYPE_SOUND_RAM, \
