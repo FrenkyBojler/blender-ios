@@ -46,6 +46,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
 using namespace blender::nodes;
 
@@ -541,9 +542,14 @@ class NodeTreeMainUpdater {
     }
 
     if (result.interface_changed) {
+      if (ntree.runtime->modifier_struct) {
+        RNA_struct_free(&BLENDER_RNA, ntree.runtime->modifier_struct);
+        ntree.runtime->modifier_struct = nullptr;
+      }
       StructRNA *modifier_struct = this->create_modifier_struct_rna(ntree);
       fmt::println("{}", RNA_struct_to_string(*modifier_struct));
-      RNA_struct_free(&BLENDER_RNA, modifier_struct);
+      /* TODO: Handle freeing of struct. Beware of non-thread-safety of #RNA_struct_free. */
+      ntree.runtime->modifier_struct = modifier_struct;
     }
 
 #ifndef NDEBUG
@@ -1756,7 +1762,8 @@ class NodeTreeMainUpdater {
   {
     /* TODO: Generate more unique struct name. */
     const StringRefNull struct_name = ntree.id.name;
-    StructRNA *srna = RNA_def_struct_ptr(&BLENDER_RNA, struct_name.c_str(), nullptr);
+    StructRNA *srna = RNA_def_struct_ptr(
+        &BLENDER_RNA, struct_name.c_str(), &RNA_NodesModifierProperties);
 
     ntree.ensure_interface_cache();
     for (const bNodeTreeInterfaceSocket *socket : ntree.interface_inputs()) {

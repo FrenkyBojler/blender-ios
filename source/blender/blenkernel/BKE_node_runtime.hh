@@ -137,6 +137,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
 
   /* End legacy execution data. */
 
+  StructRNA *modifier_struct = nullptr;
+
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
   /** Field status for every socket, accessed with #bNodeSocket::index_in_tree(). */

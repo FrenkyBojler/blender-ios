@@ -25,6 +25,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
 #include "BKE_mesh_remap.hh"
+#include "BKE_node_runtime.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -1954,6 +1955,32 @@ static void rna_NodesModifier_node_group_update(Main *bmain, Scene *scene, Point
   MOD_nodes_update_interface(object, nmd);
 }
 
+static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
+{
+  auto *nmd = ptr->data_as<NodesModifierData>();
+  if (!nmd->node_group) {
+    /* TODO: Check if this is valid or if a dummy struct is needed. */
+    return nullptr;
+  }
+  return nmd->node_group->runtime->modifier_struct;
+}
+
+static IDProperty **rna_NodesModifierProperties_idprops(PointerRNA *ptr)
+{
+  auto *nmd = ptr->data_as<NodesModifierData>();
+  return &nmd->properties.properties;
+}
+
+static PointerRNA rna_NodesModifier_properties_get(PointerRNA *ptr)
+{
+  auto *nmd = ptr->data_as<NodesModifierData>();
+  if (!nmd->node_group) {
+    return PointerRNA_NULL;
+  }
+  StructRNA *srna = nmd->node_group->runtime->modifier_struct;
+  return RNA_pointer_create_with_parent(*ptr, srna, nmd);
+}
+
 static blender::nodes::geo_eval_log::GeoTreeLog *get_nodes_modifier_log(NodesModifierData &nmd)
 {
   if (!nmd.runtime->eval_log) {
@@ -2020,7 +2047,7 @@ static int rna_NodesModifierWarning_type_get(PointerRNA *ptr)
   return int(warning->type);
 }
 
-static IDProperty **rna_NodesModifier_properties(PointerRNA *ptr)
+static IDProperty **rna_NodesModifier_settings_properties(PointerRNA *ptr)
 {
   NodesModifierData *nmd = static_cast<NodesModifierData *>(ptr->data);
   NodesModifierSettings *settings = &nmd->settings;
@@ -8066,6 +8093,16 @@ static void rna_def_modifier_nodes_warning(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop, "rna_NodesModifierWarning_type_get", nullptr, nullptr);
 }
 
+static void rna_def_modifier_nodes_properties(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodesModifierProperties", nullptr);
+  RNA_def_struct_ui_text(srna, "Geometry Nodes Modifier Properties", "");
+  RNA_def_struct_refine_func(srna, "rna_NodesModifierProperties_refine");
+  RNA_def_struct_idprops_func(srna, "rna_NodesModifierProperties_idprops");
+}
+
 static void rna_def_modifier_nodes(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -8081,10 +8118,12 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
 
   rna_def_modifier_nodes_warning(brna);
 
+  rna_def_modifier_nodes_properties(brna);
+
   srna = RNA_def_struct(brna, "NodesModifier", "Modifier");
   RNA_def_struct_ui_text(srna, "Nodes Modifier", "");
   RNA_def_struct_sdna(srna, "NodesModifierData");
-  RNA_def_struct_idprops_func(srna, "rna_NodesModifier_properties");
+  RNA_def_struct_idprops_func(srna, "rna_NodesModifier_settings_properties");
   RNA_def_struct_ui_icon(srna, ICON_GEOMETRY_NODES);
 
   RNA_define_lib_overridable(true);
@@ -8145,6 +8184,12 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   rna_def_modifier_panel_open_prop(
       srna, "open_bake_data_blocks_panel", NODES_MODIFIER_PANEL_BAKE_DATA_BLOCKS);
   rna_def_modifier_panel_open_prop(srna, "open_warnings_panel", NODES_MODIFIER_PANEL_WARNINGS);
+
+  prop = RNA_def_property(srna, "properties", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "NodesModifierProperties");
+  RNA_def_property_ui_text(prop, "Properties", "");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_NodesModifier_properties_get", nullptr, nullptr, nullptr);
 
   RNA_define_lib_overridable(false);
 }
