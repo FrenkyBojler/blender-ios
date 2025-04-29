@@ -28,12 +28,12 @@
 #include "MOV_util.hh"
 
 #include "BKE_addon.h"
+#include "BKE_appdir.hh"
 #include "BKE_asset.hh"
 #include "BKE_blender.hh"           /* own include */
 #include "BKE_blender_user_menu.hh" /* own include */
 #include "BKE_blender_version.h"    /* own include */
 #include "BKE_brush.hh"
-#include "BKE_cachefile.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
@@ -73,7 +73,6 @@ void BKE_blender_free()
   BKE_spacetypes_free(); /* after free main, it uses space callbacks */
 
   IMB_exit();
-  BKE_cachefiles_exit();
   DEG_free_node_types();
 
   BKE_brush_system_exit();
@@ -199,6 +198,7 @@ void BKE_blender_globals_init()
   BKE_blender_globals_main_replace(BKE_main_new());
 
   STRNCPY(G.filepath_last_image, "//");
+  G.filepath_last_blend[0] = '\0';
 
 #ifndef WITH_PYTHON_SECURITY /* default */
   G.f |= G_FLAG_SCRIPT_AUTOEXEC;
@@ -239,6 +239,20 @@ Main *BKE_blender_globals_main_swap(Main *new_gmain)
   G_MAIN = new_gmain;
   old_gmain->is_global_main = false;
   return old_gmain;
+}
+
+void BKE_blender_globals_crash_path_get(char filepath[FILE_MAX])
+{
+  /* Might be called after WM/Main exit, so needs to be careful about nullptr-checking before
+   * de-referencing. */
+
+  if (!(G_MAIN && G_MAIN->filepath[0])) {
+    BLI_path_join(filepath, FILE_MAX, BKE_tempdir_base(), "blender.crash.txt");
+  }
+  else {
+    BLI_path_join(filepath, FILE_MAX, BKE_tempdir_base(), BLI_path_basename(G_MAIN->filepath));
+    BLI_path_extension_replace(filepath, FILE_MAX, ".crash.txt");
+  }
 }
 
 /** \} */

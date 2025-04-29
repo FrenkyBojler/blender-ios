@@ -404,7 +404,6 @@ function(blender_link_libraries
   endif()
 endfunction()
 
-# only MSVC uses SOURCE_GROUP
 function(blender_add_lib__impl
   name
   sources
@@ -551,7 +550,7 @@ macro(TEST_SSE_SUPPORT
   if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
     set(${_sse42_flags} "-march=x86-64-v2")
   elseif(MSVC)
-    # msvc has no specific build flags for SSE42, but when using intrinsics it will
+    # MSVC has no specific build flags for SSE42, but when using intrinsics it will
     # generate the right instructions.
     set(${_sse42_flags} "")
   elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
@@ -1275,7 +1274,7 @@ endmacro()
 function(print_all_vars)
   get_cmake_property(_vars VARIABLES)
   foreach(_var ${_vars})
-    message("${_var}=${${_var}}")
+    message(STATUS "${_var}=${${_var}}")
   endforeach()
 endfunction()
 

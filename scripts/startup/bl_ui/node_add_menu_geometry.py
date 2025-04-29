@@ -156,8 +156,8 @@ class NODE_MT_geometry_node_curve_topology(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Curve/Topology")
 
 
-class NODE_MT_geometry_node_GEO_GREASE_PENCIL_READ(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_GREASE_PENCIL_READ"
+class NODE_MT_geometry_node_grease_pencil_read(Menu):
+    bl_idname = "NODE_MT_geometry_node_grease_pencil_read"
     bl_label = "Read"
 
     def draw(self, _context):
@@ -166,8 +166,19 @@ class NODE_MT_geometry_node_GEO_GREASE_PENCIL_READ(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Read")
 
 
-class NODE_MT_geometry_node_GEO_GREASE_PENCIL_OPERATIONS(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_GREASE_PENCIL_OPERATIONS"
+class NODE_MT_geometry_node_grease_pencil_write(Menu):
+    bl_idname = "NODE_MT_geometry_node_grease_pencil_write"
+    bl_label = "Write"
+
+    def draw(self, _context):
+        layout = self.layout
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilColor")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilDepth")
+        node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Write")
+
+
+class NODE_MT_geometry_node_grease_pencil_operations(Menu):
+    bl_idname = "NODE_MT_geometry_node_grease_pencil_operations"
     bl_label = "Operations"
 
     def draw(self, _context):
@@ -177,15 +188,16 @@ class NODE_MT_geometry_node_GEO_GREASE_PENCIL_OPERATIONS(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Operations")
 
 
-class NODE_MT_geometry_node_GEO_GREASE_PENCIL(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_GREASE_PENCIL"
+class NODE_MT_geometry_node_grease_pencil(Menu):
+    bl_idname = "NODE_MT_geometry_node_grease_pencil"
     bl_label = "Grease Pencil"
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_GREASE_PENCIL_READ")
+        layout.menu("NODE_MT_geometry_node_grease_pencil_read")
+        layout.menu("NODE_MT_geometry_node_grease_pencil_write")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_GREASE_PENCIL_OPERATIONS")
+        layout.menu("NODE_MT_geometry_node_grease_pencil_operations")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -369,6 +381,7 @@ class NODE_MT_geometry_node_GEO_INSTANCE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeTranslateInstances")
         node_add_menu.add_node_type(layout, "GeometryNodeSetInstanceTransform")
         layout.separator()
+        node_add_menu.add_node_type(layout, "GeometryNodeInputInstanceBounds")
         node_add_menu.add_node_type(layout, "GeometryNodeInstanceTransform")
         node_add_menu.add_node_type(layout, "GeometryNodeInputInstanceRotation")
         node_add_menu.add_node_type(layout, "GeometryNodeInputInstanceScale")
@@ -451,6 +464,7 @@ class NODE_MT_geometry_node_GEO_MESH_WRITE(Menu):
         layout = self.layout
         if context.space_data.geometry_nodes_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolSetFaceSet")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetMeshNormal")
         node_add_menu.add_node_type(layout, "GeometryNodeSetShadeSmooth")
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Write")
 
@@ -664,6 +678,9 @@ class NODE_MT_category_GEO_UTILITIES_FIELD(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeAccumulateField")
         node_add_menu.add_node_type(layout, "GeometryNodeFieldAtIndex")
         node_add_menu.add_node_type(layout, "GeometryNodeFieldOnDomain")
+        node_add_menu.add_node_type(layout, "GeometryNodeFieldAverage")
+        node_add_menu.add_node_type(layout, "GeometryNodeFieldMinAndMax")
+        node_add_menu.add_node_type(layout, "GeometryNodeFieldVariance")
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Field")
 
 
@@ -850,7 +867,7 @@ class NODE_MT_geometry_node_add_all(Menu):
         layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY")
         layout.separator()
         layout.menu("NODE_MT_geometry_node_GEO_CURVE")
-        layout.menu("NODE_MT_geometry_node_GEO_GREASE_PENCIL")
+        layout.menu("NODE_MT_geometry_node_grease_pencil")
         layout.menu("NODE_MT_geometry_node_GEO_INSTANCE")
         layout.menu("NODE_MT_geometry_node_GEO_MESH")
         layout.menu("NODE_MT_category_GEO_POINT")
@@ -882,9 +899,10 @@ classes = (
     NODE_MT_geometry_node_GEO_CURVE_OPERATIONS,
     NODE_MT_geometry_node_GEO_PRIMITIVES_CURVE,
     NODE_MT_geometry_node_curve_topology,
-    NODE_MT_geometry_node_GEO_GREASE_PENCIL,
-    NODE_MT_geometry_node_GEO_GREASE_PENCIL_READ,
-    NODE_MT_geometry_node_GEO_GREASE_PENCIL_OPERATIONS,
+    NODE_MT_geometry_node_grease_pencil,
+    NODE_MT_geometry_node_grease_pencil_read,
+    NODE_MT_geometry_node_grease_pencil_write,
+    NODE_MT_geometry_node_grease_pencil_operations,
     NODE_MT_geometry_node_GEO_GEOMETRY,
     NODE_MT_geometry_node_GEO_GEOMETRY_READ,
     NODE_MT_geometry_node_GEO_GEOMETRY_WRITE,
