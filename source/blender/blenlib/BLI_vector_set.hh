@@ -779,7 +779,8 @@ class VectorSet {
       new_keys = this->allocate_keys_array(usable_slots);
     }
 
-    /* Copy the keys to the new array (when the inline buffer isn't used before and after). */
+    /* Copy the keys to the new array. When the inline buffer isn't used before and after the
+     * reallocation (`new_keys` also references the inline buffer), no copying is necessary. */
     if (new_keys != keys_) {
       try {
         uninitialized_relocate_n(keys_, this->size(), new_keys);
