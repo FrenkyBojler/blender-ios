@@ -33,7 +33,7 @@ struct LastUpdate {
    * Update counter of the current nodetree. If the counter differs, it means that all node
    * previews are outdated.
    */
-  UpdateCounter whole_tree_updatecounter = UpdateCounter();
+  UpdateCounter whole_tree_update_counter = UpdateCounter();
   /**
    * Update counter of the nodetree viewed, it is used to know if at least one node preview needs
    * to be re-rendered.

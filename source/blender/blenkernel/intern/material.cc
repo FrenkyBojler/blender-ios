@@ -288,7 +288,7 @@ void BKE_material_make_node_previews_dirty(Material *ma)
      * Counting the update only for the top tree, as all the nested trees will get updated when
      * checking the `tree_path` updates in `get_treepath_update_counter`.
      */
-    ma->nodetree->runtime->whole_tree_updatecounter.count_update();
+    ma->nodetree->runtime->whole_tree_update_counter.count_update();
   }
 }
 

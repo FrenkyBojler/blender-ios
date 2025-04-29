@@ -145,11 +145,11 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * Tracks updates to the node tree for shader node previews, by incrementing a counter
    * on every update. Modifications migth be needed to adapt for other cases.
 
-   * `whole_tree_updatecounter` is changed when the previews of the whole tree needs to be updated
+   * `whole_tree_update_counter` is changed when the previews of the whole tree needs to be updated
    * `any_node_updatecounter` is changed when at least one node preview needs to be updated (to
    avoid checking all nodes every times)
    */
-  UpdateCounter whole_tree_updatecounter;
+  UpdateCounter whole_tree_update_counter;
   UpdateCounter any_node_updatecounter;
 
   /** Allows logging zone graphs purely for debugging purposes. */

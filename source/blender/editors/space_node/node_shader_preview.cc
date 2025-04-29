@@ -721,11 +721,11 @@ static void preview_render(ShaderNodesPreviewJob &job_data)
 static UpdateCounter get_treepath_update_counter(const ListBase *treepath)
 {
   UpdateCounter treepath_updatecounter =
-      static_cast<bNodeTreePath *>(treepath->first)->nodetree->runtime->whole_tree_updatecounter;
+      static_cast<bNodeTreePath *>(treepath->first)->nodetree->runtime->whole_tree_update_counter;
   for (bNodeTreePath *path_iter = static_cast<bNodeTreePath *>(treepath->first)->next; path_iter;
        path_iter = path_iter->next)
   {
-    treepath_updatecounter.merge(path_iter->nodetree->runtime->whole_tree_updatecounter);
+    treepath_updatecounter.merge(path_iter->nodetree->runtime->whole_tree_update_counter);
     bNode *group_node = nullptr;
     LISTBASE_FOREACH (bNode *, node, &path_iter->prev->nodetree->nodes) {
       if (STREQ(node->name, path_iter->node_name)) {
@@ -743,16 +743,16 @@ static bool update_needed(const ListBase *treepath,
                           const ePreviewType preview_type)
 {
   bNodeTree *nodetree = static_cast<bNodeTreePath *>(treepath->last)->nodetree;
-  LastUpdate update_reference;
+  LastUpdate last_update;
   if (tree_previews->running_job) {
-    update_reference = tree_previews->running_job->last_update_state;
+    last_update = tree_previews->running_job->last_update_state;
   }
   else {
-    update_reference = tree_previews->last_update;
+    last_update = tree_previews->last_update;
   }
-  if (U.node_preview_res != update_reference.preview_size ||
-      nodetree->runtime->whole_tree_updatecounter != update_reference.whole_tree_updatecounter ||
-      preview_type != update_reference.preview_type)
+  if (U.node_preview_res != last_update.preview_size ||
+      nodetree->runtime->whole_tree_update_counter != last_update.whole_tree_update_counter ||
+      preview_type != last_update.preview_type)
   {
     /* Force whole tree redraw. */
     partial_tree_refresh = false;
@@ -760,14 +760,14 @@ static bool update_needed(const ListBase *treepath,
   }
 
   UpdateCounter treepath_update_counter = get_treepath_update_counter(treepath);
-  if (treepath_update_counter != update_reference.treepath_updatecounter) {
+  if (treepath_update_counter != last_update.treepath_updatecounter) {
     /* If the path update state differs, then we may need to redraw all the nodetree (excepted if
      * we know which nodes differs). */
     partial_tree_refresh = nodetree->runtime->any_node_updatecounter !=
-                           update_reference.any_node_updatecounter;
+                           last_update.any_node_updatecounter;
     return true;
   }
-  if (nodetree->runtime->any_node_updatecounter != update_reference.any_node_updatecounter) {
+  if (nodetree->runtime->any_node_updatecounter != last_update.any_node_updatecounter) {
     /* If we know that only some node update_counter differs, then enable partial refresh. */
     partial_tree_refresh = true;
     return true;
@@ -915,7 +915,7 @@ static void ensure_nodetree_previews(const bContext &C,
   update_state.preview_size = U.node_preview_res;
   update_state.treepath_updatecounter = get_treepath_update_counter(&treepath);
   update_state.any_node_updatecounter = displayed_nodetree->runtime->any_node_updatecounter;
-  update_state.whole_tree_updatecounter = displayed_nodetree->runtime->whole_tree_updatecounter;
+  update_state.whole_tree_update_counter = displayed_nodetree->runtime->whole_tree_update_counter;
   job_data->last_update_state = update_state;
 
   /* Update the treepath copied to fit the structure of the nodetree copied. */

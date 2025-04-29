@@ -154,7 +154,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   bNodeTreeRuntime &dst_runtime = *ntree_dst->runtime;
 
   dst_runtime.any_node_updatecounter = ntree_src->runtime->any_node_updatecounter;
-  dst_runtime.whole_tree_updatecounter = ntree_src->runtime->whole_tree_updatecounter;
+  dst_runtime.whole_tree_update_counter = ntree_src->runtime->whole_tree_update_counter;
 
   Map<const bNodeSocket *, bNodeSocket *> socket_map;
 
