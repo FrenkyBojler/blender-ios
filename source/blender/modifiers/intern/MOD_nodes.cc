@@ -448,6 +448,7 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
 void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
 {
   using namespace blender;
+  /* TODO: Update new properties according struct rna (while keeping old values). */
   update_id_properties_from_node_group(nmd);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
