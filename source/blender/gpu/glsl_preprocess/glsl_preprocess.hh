@@ -752,7 +752,7 @@ class Preprocessor {
       suffix << "\"" << filename << "\"";
     }
 #else
-    uint64_t hash_value = hash(filename);
+    uint64_t hash_value = metadata::hash(filename);
     /* Fold the value so it fits the GLSL spec. */
     hash_value = (hash_value ^ (hash_value >> 32)) & (~uint64_t(0) >> 33);
     suffix << std::to_string(uint64_t(hash_value));
