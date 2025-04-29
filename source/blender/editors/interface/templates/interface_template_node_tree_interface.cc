@@ -383,6 +383,9 @@ std::string NodeSocketDropTarget::drop_tooltip(const DragInfo & /*drag_info*/) c
 
 bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 {
+  AbstractTreeView &view = this->view_item_.get_tree_view();
+  view.clear_drop_linehint();
+
   wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
   BLI_assert(drag_data != nullptr);
   bNodeTreeInterfaceItem *drag_item = drag_data->item;
@@ -466,6 +469,9 @@ std::string NodePanelDropTarget::drop_tooltip(const DragInfo & /*drag_info*/) co
 
 bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 {
+  AbstractTreeView &view = this->view_item_.get_tree_view();
+  view.clear_drop_linehint();
+
   wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
   BLI_assert(drag_data != nullptr);
   bNodeTreeInterfaceItem *drag_item = drag_data->item;

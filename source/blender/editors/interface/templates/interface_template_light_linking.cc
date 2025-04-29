@@ -154,6 +154,9 @@ class ReorderCollectionDropTarget : public TreeViewItemDropTarget {
     Main *bmain = CTX_data_main(C);
     Scene *scene = CTX_data_scene(C);
 
+    AbstractTreeView &view = this->view_item_.get_tree_view();
+    view.clear_drop_linehint();
+
     Collection &collection = collection_target_.get_collection();
     const eCollectionLightLinkingState link_state = COLLECTION_LIGHT_LINKING_STATE_INCLUDE;
 

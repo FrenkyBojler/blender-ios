@@ -144,6 +144,9 @@ class BoneCollectionDropTarget : public TreeViewItemDropTarget {
 
   bool on_drop(bContext *C, const DragInfo &drag_info) const override
   {
+    AbstractTreeView &view = this->view_item_.get_tree_view();
+    view.clear_drop_linehint();
+
     const ArmatureBoneCollection *drag_arm_bcoll = static_cast<const ArmatureBoneCollection *>(
         drag_info.drag_data.poin);
     bArmature *arm = drop_bonecoll_.armature;
