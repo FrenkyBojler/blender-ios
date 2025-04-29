@@ -1822,11 +1822,6 @@ ListBase *object_duplilist(Depsgraph *depsgraph,
   return duplilist;
 }
 
-ListBase *object_duplilist(Depsgraph *depsgraph, Scene *sce, Object *ob)
-{
-  return object_duplilist(depsgraph, sce, ob, nullptr);
-}
-
 ListBase *object_duplilist_preview(Depsgraph *depsgraph,
                                    Scene *sce,
                                    Object *ob_eval,
