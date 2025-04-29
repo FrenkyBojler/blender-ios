@@ -4427,7 +4427,7 @@ std::string node_label(const bNodeTree &ntree, const bNode &node)
     return label_buffer;
   }
 
-  return IFACE_(node.typeinfo->ui_name.c_str());
+  return IFACE_(node.typeinfo->ui_name);
 }
 
 std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
