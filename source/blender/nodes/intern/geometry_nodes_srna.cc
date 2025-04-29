@@ -38,15 +38,13 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
   return srna;
 }
 
-StructRNA *get_geometry_nodes_inputs_srna(const bNodeTree &tree,
-                                          GeneratedTreeSrnaData &r_generated)
+static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesInputs", &RNA_NodesModifierProperties);
+      &BLENDER_RNA, "GeometryNodesInterfaceInputs", &RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
 
-  tree.ensure_interface_cache();
   for (const bNodeTreeInterfaceSocket *socket : tree.interface_inputs()) {
     StructRNA *socket_srna = get_input_socket_struct_rna(tree, *socket, r_generated);
     if (!socket_srna) {
@@ -56,6 +54,35 @@ StructRNA *get_geometry_nodes_inputs_srna(const bNodeTree &tree,
     RNA_def_pointer_runtime(
         srna, identifier.c_str(), socket_srna, socket->name, socket->description);
   }
+
+  return srna;
+}
+
+static StructRNA *create_outputs_srna(const bNodeTree & /*tree*/,
+                                      GeneratedTreeSrnaData &r_generated)
+{
+  StructRNA *srna = RNA_def_struct_ptr(
+      &BLENDER_RNA, "GeometryNodesInterfaceOutputs", &RNA_PropertyGroup);
+  BLI_assert(!RNA_struct_in_public_namespace(srna));
+  r_generated.structs.append(srna);
+
+  return srna;
+}
+
+StructRNA *get_geometry_nodes_interface_srna(const bNodeTree &tree,
+                                             GeneratedTreeSrnaData &r_generated)
+{
+  tree.ensure_interface_cache();
+  StructRNA *srna = RNA_def_struct_ptr(
+      &BLENDER_RNA, "GeometryNodesInterface", &RNA_NodesModifierProperties);
+  BLI_assert(!RNA_struct_in_public_namespace(srna));
+  r_generated.structs.append(srna);
+
+  StructRNA *inputs_srna = create_inputs_srna(tree, r_generated);
+  StructRNA *outputs_srna = create_outputs_srna(tree, r_generated);
+
+  RNA_def_pointer_runtime(srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
+  RNA_def_pointer_runtime(srna, "outputs", outputs_srna, "Outputs", "Settings for output sockets");
 
   return srna;
 }

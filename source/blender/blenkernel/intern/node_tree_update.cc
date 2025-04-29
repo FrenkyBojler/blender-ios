@@ -552,7 +552,7 @@ class NodeTreeMainUpdater {
         ntree.runtime->geometry_nodes_srna_data.reset();
       }
       ntree.runtime->geometry_nodes_srna_data = std::make_unique<GeneratedTreeSrnaData>();
-      StructRNA *modifier_struct = nodes::get_geometry_nodes_inputs_srna(
+      StructRNA *modifier_struct = nodes::get_geometry_nodes_interface_srna(
           ntree, *ntree.runtime->geometry_nodes_srna_data);
       fmt::println("{}", RNA_struct_to_string(*modifier_struct));
       ntree.runtime->geometry_nodes_srna = modifier_struct;

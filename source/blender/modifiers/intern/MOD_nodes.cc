@@ -2336,8 +2336,10 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     return;
   }
   PointerRNA socket_prop;
-  if (!RNA_path_resolve(
-          ctx.md_ptr, fmt::format("properties.{}", identifier).c_str(), &socket_prop, nullptr))
+  if (!RNA_path_resolve(ctx.md_ptr,
+                        fmt::format("properties.inputs.{}", identifier).c_str(),
+                        &socket_prop,
+                        nullptr))
   {
     return;
   }
