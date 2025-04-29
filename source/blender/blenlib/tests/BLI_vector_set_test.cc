@@ -66,10 +66,18 @@ TEST(vector_set, CopyAssignment)
 
 TEST(vector_set, Move)
 {
-  VectorSet<int> set1 = {1, 2, 3};
-  VectorSet<int> set2 = std::move(set1);
-  EXPECT_EQ(set1.size(), 0); /* NOLINT: bugprone-use-after-move */
-  EXPECT_EQ(set2.size(), 3);
+  {
+    VectorSet<int> set1 = {1, 2, 3};
+    VectorSet<int> set2 = std::move(set1);
+    EXPECT_EQ(set1.size(), 0); /* NOLINT: bugprone-use-after-move */
+    EXPECT_EQ(set2.size(), 3);
+  }
+  {
+    VectorSet<int, 24> set1 = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    VectorSet<int> set2 = std::move(set1);
+    EXPECT_EQ(set1.size(), 0); /* NOLINT: bugprone-use-after-move */
+    EXPECT_EQ(set2.size(), 9);
+  }
 }
 
 TEST(vector_set, MoveNonInline)
