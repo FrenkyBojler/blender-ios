@@ -959,8 +959,7 @@ static ImBuf *seq_render_image_strip(const RenderData *context,
 
   if (is_multiview_render) {
     int totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
-    ImBuf **ibufs_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews),
-                                                   "Sequence Image Views Imbufs");
+    ImBuf **ibufs_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
 
     for (int view_id = 0; view_id < totfiles; view_id++) {
       ibufs_arr[view_id] = seq_render_image_strip_view(
@@ -1115,7 +1114,7 @@ static ImBuf *seq_render_movie_strip(const RenderData *context,
   if (is_multiview_render) {
     ImBuf **ibuf_arr;
     int totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
-    ibuf_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews), "Sequence Image Views Imbufs");
+    ibuf_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
     int ibuf_view_id;
 
     for (ibuf_view_id = 0, sanim = static_cast<StripAnim *>(strip->anims.first); sanim;
@@ -1353,10 +1352,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
     int scemode;
     int timeline_frame;
     float subframe;
-
-#ifdef DURIAN_CAMERA_SWITCH
     int mode;
-#endif
   } orig_data;
 
   /* Old info:
@@ -1425,9 +1421,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
   orig_data.scemode = scene->r.scemode;
   orig_data.timeline_frame = scene->r.cfra;
   orig_data.subframe = scene->r.subframe;
-#ifdef DURIAN_CAMERA_SWITCH
   orig_data.mode = scene->r.mode;
-#endif
 
   BKE_scene_frame_set(scene, frame);
 
@@ -1450,10 +1444,8 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
   /* prevent eternal loop */
   scene->r.scemode &= ~R_DOSEQ;
 
-#ifdef DURIAN_CAMERA_SWITCH
   /* stooping to new low's in hackyness :( */
   scene->r.mode |= R_NO_CAMERA_SWITCH;
-#endif
 
   is_frame_update = (orig_data.timeline_frame != scene->r.cfra) ||
                     (orig_data.subframe != scene->r.subframe);
@@ -1519,7 +1511,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
       goto finally;
     }
 
-    ibufs_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews), "Sequence Image Views Imbufs");
+    ibufs_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
 
     if (re == nullptr) {
       re = RE_NewSceneRender(scene);
@@ -1598,10 +1590,8 @@ finally:
     BKE_scene_graph_update_for_newframe(depsgraph);
   }
 
-#ifdef DURIAN_CAMERA_SWITCH
   /* stooping to new low's in hackyness :( */
   scene->r.mode &= orig_data.mode | ~R_NO_CAMERA_SWITCH;
-#endif
 
   return ibuf;
 }

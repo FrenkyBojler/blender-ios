@@ -398,6 +398,8 @@ void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
       rr->rectx = re->result->rectx;
       rr->recty = re->result->recty;
 
+      copy_v2_v2_db(rr->ppm, re->result->ppm);
+
       /* creates a temporary duplication of views */
       render_result_views_shallowcopy(rr, re->result);
 
@@ -449,6 +451,8 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 
       rr->rectx = re->result->rectx;
       rr->recty = re->result->recty;
+
+      copy_v2_v2_db(rr->ppm, re->result->ppm);
 
       /* `scene.rd.actview` view. */
       rv = RE_RenderViewGetById(re->result, view_id);
@@ -921,6 +925,7 @@ void RE_InitState(Render *re,
     re->result = MEM_callocN<RenderResult>("new render result");
     re->result->rectx = re->rectx;
     re->result->recty = re->recty;
+    BKE_scene_ppm_get(&re->r, re->result->ppm);
     render_result_view_new(re->result, "");
   }
 
@@ -1162,7 +1167,7 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
   /* initial setup */
   RE_InitState(resc, re, &sce->r, &sce->view_layers, nullptr, winx, winy, &re->disprect);
 
-  /* We still want to use 'rendercache' setting from org (main) scene... */
+  /* We still want to use "Render Cache" setting from the original (main) scene. */
   resc->r.scemode = (resc->r.scemode & ~R_EXR_CACHE_FILE) | (re->r.scemode & R_EXR_CACHE_FILE);
 
   /* still unsure entity this... */
@@ -1350,11 +1355,6 @@ static void do_render_compositor(Render *re)
   }
 
   if (!re->test_break()) {
-
-    if (ntree) {
-      ntreeCompositTagRender(re->pipeline_scene_eval);
-    }
-
     if (ntree && re->scene->use_nodes && re->r.scemode & R_DOCOMP) {
       /* checks if there are render-result nodes that need scene */
       if ((re->r.scemode & R_SINGLE_LAYER) == 0) {
@@ -1985,9 +1985,6 @@ static bool render_init_from_main(Render *re,
   if (!re->ok) { /* if an error was printed, abort */
     return false;
   }
-
-  /* Init-state makes new result, have to send changed tags around. */
-  ntreeCompositTagRender(re->scene);
 
   re->display_init(re->result);
   re->display_clear(re->result);
