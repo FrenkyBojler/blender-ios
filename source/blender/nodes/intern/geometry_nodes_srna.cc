@@ -57,6 +57,17 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
                            data->min,
                            data->max);
       RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+
+      static const EnumPropertyItem input_type_items[] = {
+          {int(GeometryNodesInputTypeFloat::Value), "VALUE", 0, "Value", ""},
+          {int(GeometryNodesInputTypeFloat::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
+          {0, nullptr, 0, nullptr, nullptr}};
+      prop = RNA_def_enum(srna,
+                          "input_type",
+                          input_type_items,
+                          int(GeometryNodesInputTypeFloat::Value),
+                          "Input Type",
+                          "");
       break;
     }
     case SOCK_INT: {
@@ -71,6 +82,17 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
                          data->min,
                          data->max);
       RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+
+      static const EnumPropertyItem input_type_items[] = {
+          {int(GeometryNodesInputTypeInt::Value), "VALUE", 0, "Value", ""},
+          {int(GeometryNodesInputTypeInt::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
+          {0, nullptr, 0, nullptr, nullptr}};
+      prop = RNA_def_enum(srna,
+                          "input_type",
+                          input_type_items,
+                          int(GeometryNodesInputTypeInt::Value),
+                          "Input Type",
+                          "");
       break;
     }
     default: {

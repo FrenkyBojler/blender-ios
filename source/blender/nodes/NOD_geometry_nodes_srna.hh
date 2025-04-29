@@ -11,6 +11,16 @@ struct bNodeTree;
 
 namespace blender::nodes {
 
+enum class GeometryNodesInputTypeFloat {
+  Value = 0,
+  Attribute = 1,
+};
+
+enum class GeometryNodesInputTypeInt {
+  Value = 0,
+  Attribute = 1,
+};
+
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
   Vector<StructRNA *> structs;
