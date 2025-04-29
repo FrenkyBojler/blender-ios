@@ -182,29 +182,10 @@ Attribute *AttributeStorage::lookup(const StringRef name)
   return attribute->get();
 }
 
-bool AttributeStorage::remove(const StringRef name)
-{
-  return this->runtime->attributes.remove_as(name);
-}
-
 Attribute &AttributeStorage::add(std::string name,
                                  const AttrDomain domain,
                                  const AttrType data_type,
-                                 Attribute::ArrayData data)
-{
-  return this->add(name, domain, data_type, std::move(data));
-}
-
-std::string AttributeStorage::unique_name_calc(const StringRef name)
-{
-  return BLI_uniquename_cb(
-      [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
-}
-
-Attribute &AttributeStorage::add(std::string name,
-                                 const AttrDomain domain,
-                                 const AttrType data_type,
-                                 Attribute::DataVariant &&data)
+                                 Attribute::DataVariant data)
 {
   BLI_assert(!this->lookup(name));
   std::unique_ptr<Attribute> ptr = std::make_unique<Attribute>();
@@ -215,6 +196,17 @@ Attribute &AttributeStorage::add(std::string name,
   attribute.data_ = std::move(data);
   this->runtime->attributes.add_new(std::move(ptr));
   return attribute;
+}
+
+bool AttributeStorage::remove(const StringRef name)
+{
+  return this->runtime->attributes.remove_as(name);
+}
+
+std::string AttributeStorage::unique_name_calc(const StringRef name)
+{
+  return BLI_uniquename_cb(
+      [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
 }
 
 static void read_array_data(BlendDataReader &reader,
@@ -263,6 +255,7 @@ static void read_array_data(BlendDataReader &reader,
     case int8_t(AttrType::String):
       BLO_read_struct_array(
           &reader, MStringProperty, size, reinterpret_cast<MStringProperty **>(data));
+      return;
     default:
       *data = nullptr;
       return;

@@ -30,7 +30,7 @@ class Attribute {
  public:
   /**
    * Data for an attribute stored as a full contiguous array with a data type exactly matching the
-   * attribute's type.
+   * attribute's type. The array referenced must match the size of the domain and the data type.
    */
   struct ArrayData {
     /* NOTE: Since the shared data pointed to by `sharing_info` knows how to free itself, it often
@@ -146,14 +146,13 @@ class AttributeStorage : public ::AttributeStorage {
   bool remove(StringRef name);
 
   /**
-   * Add an attribute stored as an array with the given name, which must not already be used by an
-   * existing attribute or this will invoke undefined behavior. The array referenced by the `data`
-   * argument must match the size of the domain and the data type.
+   * Add an attribute with the given name, which must not already be used by an existing attribute
+   * or this will invoke undefined behavior.
    */
   Attribute &add(std::string name,
                  bke::AttrDomain domain,
                  bke::AttrType data_type,
-                 Attribute::ArrayData data);
+                 Attribute::DataVariant data);
 
   /** Return a possibly changed version of the input name that is unique within existing names. */
   std::string unique_name_calc(StringRef name);
@@ -176,12 +175,6 @@ class AttributeStorage : public ::AttributeStorage {
    * the #AttributeStorage struct.
    */
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
-
- private:
-  Attribute &add(std::string name,
-                 bke::AttrDomain domain,
-                 bke::AttrType data_type,
-                 Attribute::DataVariant &&data);
 };
 
 inline StringRefNull Attribute::name() const
