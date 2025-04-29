@@ -1962,7 +1962,7 @@ static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
     /* TODO: Check if this is valid or if a dummy struct is needed. */
     return nullptr;
   }
-  return nmd->node_group->runtime->modifier_struct;
+  return nmd->node_group->runtime->geometry_nodes_srna;
 }
 
 static IDProperty **rna_NodesModifierProperties_idprops(PointerRNA *ptr)
@@ -1977,7 +1977,7 @@ static PointerRNA rna_NodesModifier_properties_get(PointerRNA *ptr)
   if (!nmd->node_group) {
     return PointerRNA_NULL;
   }
-  StructRNA *srna = nmd->node_group->runtime->modifier_struct;
+  StructRNA *srna = nmd->node_group->runtime->geometry_nodes_srna;
   return RNA_pointer_create_with_parent(*ptr, srna, nmd);
 }
 
