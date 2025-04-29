@@ -893,10 +893,13 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       }
       totsel++;
       if (r_drawflags) {
+        if (orient_index == V3D_ORIENT_GLOBAL) {
           /* Protect-flags apply to world space in object mode,
            * so only let them influence axis visibility if we show the global orientation,
            * otherwise it's confusing. */
-        if (ELEM(orient_index, V3D_ORIENT_GLOBAL, V3D_ORIENT_LOCAL, V3D_ORIENT_GIMBAL)) {
+          protectflag_to_drawflags(base->object->protectflag & OB_LOCK_LOC, r_drawflags);
+        }
+        else if (ELEM(orient_index, V3D_ORIENT_LOCAL, V3D_ORIENT_GIMBAL)) {
           protectflag_to_drawflags(base->object->protectflag, r_drawflags);
         }
       }
