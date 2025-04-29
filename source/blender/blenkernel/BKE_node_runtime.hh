@@ -32,6 +32,7 @@ struct bNodeTree;
 namespace blender::nodes {
 struct FieldInferencingInterface;
 struct GeometryNodesEvalDependencies;
+struct GeneratedTreeSrnaData;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
 namespace anonymous_attribute_lifetime {
@@ -78,11 +79,6 @@ struct LoggedZoneGraphs {
    * anyway.
    */
   Map<int, std::string> graph_by_zone_id;
-};
-
-struct GeneratedTreeSrnaData {
-  ResourceScope scope;
-  Vector<StructRNA *> structs;
 };
 
 /**
@@ -144,7 +140,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   /* End legacy execution data. */
 
   StructRNA *modifier_struct = nullptr;
-  std::unique_ptr<GeneratedTreeSrnaData> generated_srna_data;
+  std::unique_ptr<nodes::GeneratedTreeSrnaData> generated_srna_data;
 
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;

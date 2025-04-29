@@ -13,6 +13,7 @@
 
 #include "BKE_idprop.hh"
 
+struct StructRNA;
 struct bNodeTree;
 struct bNodeTreeInterfaceSocket;
 namespace blender::bke {
@@ -91,5 +92,13 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
                                           const PropertiesVectorSet &properties,
                                           ResourceScope &scope,
                                           MutableSpan<GPointer> r_values);
+
+struct GeneratedTreeSrnaData {
+  ResourceScope scope;
+  Vector<StructRNA *> structs;
+};
+
+StructRNA *get_geometry_nodes_inputs_srna(const bNodeTree &tree,
+                                          GeneratedTreeSrnaData &r_generated);
 
 }  // namespace blender::nodes

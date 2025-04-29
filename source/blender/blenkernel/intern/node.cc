@@ -88,6 +88,7 @@
 #include "NOD_geo_repeat.hh"
 #include "NOD_geo_simulation.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
+#include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"

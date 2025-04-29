@@ -35,6 +35,7 @@
 
 #include "NOD_geo_closure.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
+#include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
@@ -553,7 +554,7 @@ class NodeTreeMainUpdater {
         ntree.runtime->generated_srna_data.reset();
       }
       ntree.runtime->generated_srna_data = std::make_unique<GeneratedTreeSrnaData>();
-      StructRNA *modifier_struct = this->create_modifier_struct_rna(
+      StructRNA *modifier_struct = nodes::get_geometry_nodes_inputs_srna(
           ntree, *ntree.runtime->generated_srna_data);
       fmt::println("{}", RNA_struct_to_string(*modifier_struct));
       ntree.runtime->modifier_struct = modifier_struct;
@@ -1763,91 +1764,6 @@ class NodeTreeMainUpdater {
       }
     }
     return changed;
-  }
-
-  StructRNA *create_modifier_struct_rna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
-  {
-    const StringRefNull struct_identifier = this->get_unique_struct_name(tree, r_generated);
-    StructRNA *srna = RNA_def_struct_ptr(
-        &BLENDER_RNA, struct_identifier.c_str(), &RNA_NodesModifierProperties);
-    r_generated.structs.append(srna);
-
-    tree.ensure_interface_cache();
-    for (const bNodeTreeInterfaceSocket *socket : tree.interface_inputs()) {
-      StructRNA *socket_srna = this->get_input_socket_struct_rna(tree, *socket, r_generated);
-      if (!socket_srna) {
-        continue;
-      }
-      RNA_def_pointer_runtime(
-          srna, socket->identifier, socket_srna, socket->name, socket->description);
-    }
-
-    return srna;
-  }
-
-  StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
-                                         const bNodeTreeInterfaceSocket &socket,
-                                         GeneratedTreeSrnaData &r_generated)
-  {
-    const bNodeSocketType *stype = socket.socket_typeinfo();
-    if (!stype) {
-      return nullptr;
-    }
-
-    const StringRefNull struct_identifier = this->get_unique_struct_name(tree, r_generated);
-    StructRNA *srna = RNA_def_struct_ptr(
-        &BLENDER_RNA, struct_identifier.c_str(), &RNA_PropertyGroup);
-    r_generated.structs.append(srna);
-
-    PropertyRNA *prop;
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(stype->type);
-    switch (socket_type) {
-      case SOCK_FLOAT: {
-        const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
-        prop = RNA_def_float(srna,
-                             "value",
-                             data->value,
-                             -FLT_MAX,
-                             FLT_MAX,
-                             socket.name,
-                             socket.description,
-                             data->min,
-                             data->max);
-        RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-        break;
-      }
-      case SOCK_INT: {
-        const auto *data = static_cast<const bNodeSocketValueInt *>(socket.socket_data);
-        prop = RNA_def_int(srna,
-                           "value",
-                           data->value,
-                           INT32_MIN,
-                           INT32_MAX,
-                           socket.name,
-                           socket.description,
-                           data->min,
-                           data->max);
-        RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-        break;
-      }
-      default: {
-        break;
-      }
-    }
-
-    return srna;
-  }
-
-  StringRefNull get_unique_struct_name(const bNodeTree &ntree, GeneratedTreeSrnaData &r_generated)
-  {
-    RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
-    std::stringstream ss;
-    ss << ntree.id.name;
-    ss << "_";
-    for ([[maybe_unused]] const int i : IndexRange(10)) {
-      ss << char(rng.get_int32(26) + 97);
-    }
-    return r_generated.scope.allocator().copy_string(ss.str());
   }
 };
 
