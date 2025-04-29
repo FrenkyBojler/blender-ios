@@ -25,8 +25,8 @@
 /**
  * Variables (names and associated values) for use in template substitution.
  *
- * Note that this is not intended to be a persistent store, but rather a
- * transient one for collecting data that is relevant/available in a given
+ * Note that this is not intended to be persistent storage, but rather is
+ * transient for collecting data that is relevant/available in a given
  * templating context.
  *
  * There are currently three supported variable types: string, integer, and
