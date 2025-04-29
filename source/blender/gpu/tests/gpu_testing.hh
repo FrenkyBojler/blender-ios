@@ -21,7 +21,7 @@ class GPUTest : public ::testing::Test {
  private:
   static GHOST_SystemHandle ghost_system_;
   static GHOST_ContextHandle ghost_context_;
-  static GPUContext *context;
+  static GPUContext *context_;
 
   static int32_t prev_g_debug_;
 
