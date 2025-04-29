@@ -1777,11 +1777,12 @@ class NodeTreeMainUpdater {
                                                      const bNodeTreeInterfaceSocket &socket)
   {
     const bNodeSocketType *stype = socket.socket_typeinfo();
+    const char *identifier = socket.identifier;
     switch (stype->type) {
       case SOCK_FLOAT: {
         const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
         return RNA_def_float(&srna,
-                             socket.identifier,
+                             identifier,
                              data->value,
                              -FLT_MAX,
                              FLT_MAX,
@@ -1789,6 +1790,18 @@ class NodeTreeMainUpdater {
                              socket.description,
                              data->min,
                              data->max);
+      }
+      case SOCK_INT: {
+        const auto *data = static_cast<const bNodeSocketValueInt *>(socket.socket_data);
+        return RNA_def_int(&srna,
+                           identifier,
+                           data->value,
+                           INT32_MIN,
+                           INT32_MAX,
+                           socket.name,
+                           socket.description,
+                           data->min,
+                           data->max);
       }
     }
     return nullptr;
