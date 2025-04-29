@@ -1958,7 +1958,7 @@ BLI_STATIC_ASSERT(std::is_trivially_destructible_v<SocketSearchData>, "");
 struct DrawGroupInputsContext {
   const bContext &C;
   NodesModifierData &nmd;
-  nodes::PropertiesVectorSet properties;
+  nodes::PropertiesVectorSet input_properties;
   nodes::PropertiesVectorSet legacy_properties;
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
@@ -2334,7 +2334,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 {
   const StringRefNull identifier = socket.identifier;
   PointerRNA socket_prop;
-  IDProperty *socket_id_property_group = ctx.properties.lookup_key_default_as(identifier, nullptr);
+  IDProperty *socket_id_property_group = ctx.input_properties.lookup_key_default_as(identifier,
+                                                                                    nullptr);
   if (socket_id_property_group) {
     StructRNA *socket_srna = ctx.nmd.node_group->runtime->geometry_nodes_srna_data->inputs_map
                                  .lookup_default(identifier, nullptr);
@@ -2771,12 +2772,13 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
-  DrawGroupInputsContext ctx{*C,
-                             *nmd,
-                             nodes::build_properties_vector_set(nmd->properties),
-                             nodes::build_properties_vector_set(nmd->settings.properties),
-                             ptr,
-                             &bmain_ptr};
+  DrawGroupInputsContext ctx{
+      *C,
+      *nmd,
+      nodes::build_properties_vector_set(IDP_GetPropertyFromGroup(nmd->properties, "inputs")),
+      nodes::build_properties_vector_set(nmd->settings.properties),
+      ptr,
+      &bmain_ptr};
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
