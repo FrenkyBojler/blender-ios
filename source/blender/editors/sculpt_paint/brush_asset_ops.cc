@@ -139,7 +139,8 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     STRNCPY(name, brush->id.name + 2);
   }
 
-  const eAssetLibraryType enum_value = (eAssetLibraryType)RNA_enum_get(op->ptr, "asset_library_reference");
+  const eAssetLibraryType enum_value = (eAssetLibraryType)RNA_enum_get(op->ptr,
+                                                                       "asset_library_reference");
   bool is_local_library = enum_value == ASSET_LIBRARY_LOCAL;
 
   AssetLibraryReference library_reference;
@@ -154,8 +155,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     }
     library_reference = asset::user_library_to_library_ref(*user_library);
   }
-  asset_system::AssetLibrary *library = AS_asset_library_load(
-        bmain, library_reference);
+  asset_system::AssetLibrary *library = AS_asset_library_load(bmain, library_reference);
   if (!library) {
     BKE_report(op->reports, RPT_ERROR, "Failed to load asset library");
     return OPERATOR_CANCELLED;
