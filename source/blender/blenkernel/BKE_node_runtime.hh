@@ -139,7 +139,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   /* End legacy execution data. */
 
   StructRNA *geometry_nodes_srna = nullptr;
-  std::unique_ptr<nodes::GeneratedTreeSrnaData> geometry_nodes_srna_data;
+  std::shared_ptr<nodes::GeneratedTreeSrnaData> geometry_nodes_srna_data;
 
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;

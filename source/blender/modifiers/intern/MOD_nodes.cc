@@ -90,6 +90,7 @@
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_srna.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket_usage_inference.hh"
 
@@ -1958,6 +1959,7 @@ struct DrawGroupInputsContext {
   const bContext &C;
   NodesModifierData &nmd;
   nodes::PropertiesVectorSet properties;
+  nodes::PropertiesVectorSet legacy_properties;
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
   Array<bool> input_usages;
@@ -2152,8 +2154,8 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   uiLayout *prop_row = nullptr;
 
-  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(ctx.properties,
-                                                                                  socket);
+  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(
+      ctx.legacy_properties, socket);
   if (type == SOCK_BOOLEAN && !attribute_name) {
     uiItemL(name_row, "", ICON_NONE);
     prop_row = &split->row(true);
@@ -2331,17 +2333,25 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
                                      const bNodeTreeInterfaceSocket &socket)
 {
   const StringRefNull identifier = socket.identifier;
-  IDProperty *socket_id_property_group = ctx.properties.lookup_key_default_as(identifier, nullptr);
-  if (!socket_id_property_group) {
-    return;
-  }
   PointerRNA socket_prop;
-  if (!RNA_path_resolve(ctx.md_ptr,
-                        fmt::format("properties.inputs.{}", identifier).c_str(),
-                        &socket_prop,
-                        nullptr))
-  {
-    return;
+  IDProperty *socket_id_property_group = ctx.properties.lookup_key_default_as(identifier, nullptr);
+  if (socket_id_property_group) {
+    StructRNA *socket_srna = ctx.nmd.node_group->runtime->geometry_nodes_srna_data->inputs_map
+                                 .lookup_default(identifier, nullptr);
+    if (!socket_srna) {
+      return;
+    }
+    socket_prop = RNA_pointer_create_discrete(
+        ctx.md_ptr->owner_id, socket_srna, socket_id_property_group);
+  }
+  else {
+    if (!RNA_path_resolve(ctx.md_ptr,
+                          fmt::format("properties.inputs.{}", identifier).c_str(),
+                          &socket_prop,
+                          nullptr))
+    {
+      return;
+    }
   }
 
   const int input_index = ctx.nmd.node_group->interface_input_index(socket);
@@ -2513,7 +2523,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
       const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
       if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
         const StringRefNull identifier = toggle_socket->identifier;
-        IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
+        IDProperty *property = ctx.legacy_properties.lookup_key_default_as(identifier, nullptr);
         /* IDProperties can be removed with python, so there could be a situation where
          * there isn't a property for a socket or it doesn't have the correct type. */
         if (property == nullptr ||
@@ -2761,14 +2771,18 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
-  DrawGroupInputsContext ctx{
-      *C, *nmd, nodes::build_properties_vector_set(nmd->settings.properties), ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{*C,
+                             *nmd,
+                             nodes::build_properties_vector_set(nmd->properties),
+                             nodes::build_properties_vector_set(nmd->settings.properties),
+                             ptr,
+                             &bmain_ptr};
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
     nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-        *nmd->node_group, ctx.properties, ctx.input_usages);
+        *nmd->node_group, ctx.legacy_properties, ctx.input_usages);
     draw_interface_panel_content(ctx, layout, nmd->node_group->tree_interface.root_panel);
   }
 

@@ -138,10 +138,11 @@ using NodeInverseElemEvalFunction =
 using NodeElemEvalFunction = void (*)(blender::nodes::value_elem::ElemEvalParams &params);
 using NodeInverseEvalFunction = void (*)(blender::nodes::inverse_eval::InverseEvalParams &params);
 
-using MakeGeometryNodesInputSrnaFunction = void (*)(const bNodeTree &tree,
-                                                    StructRNA &srna,
-                                                    const bNodeTreeInterfaceSocket &io_socket,
-                                                    nodes::GeneratedTreeSrnaData &r_generated);
+using SocketMakeGeometryNodesInputSrnaFunction =
+    void (*)(const bNodeTree &tree,
+             StructRNA &srna,
+             const bNodeTreeInterfaceSocket &io_socket,
+             nodes::GeneratedTreeSrnaData &r_generated);
 
 /**
  * \brief Defines a socket type.
@@ -204,7 +205,7 @@ struct bNodeSocketType {
   /* Default value for this socket type. */
   const void *geometry_nodes_default_cpp_value = nullptr;
 
-  MakeGeometryNodesInputSrnaFunction make_geometry_nodes_input_srna = nullptr;
+  SocketMakeGeometryNodesInputSrnaFunction make_geometry_nodes_input_srna = nullptr;
 };
 
 using NodeInitExecFunction = void *(*)(bNodeExecContext *context,

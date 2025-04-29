@@ -29,6 +29,7 @@ enum class GeometryNodesInputTypeBool {
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
   Vector<StructRNA *> structs;
+  Map<StringRef, StructRNA *> inputs_map;
 };
 
 StructRNA *get_geometry_nodes_interface_srna(const bNodeTree &tree,

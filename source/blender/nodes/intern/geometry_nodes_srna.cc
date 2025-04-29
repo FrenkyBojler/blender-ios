@@ -51,6 +51,7 @@ static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
       continue;
     }
     const StringRefNull identifier = r_generated.scope.allocator().copy_string(socket->identifier);
+    r_generated.inputs_map.add_as(identifier, socket_srna);
     RNA_def_pointer_runtime(
         srna, identifier.c_str(), socket_srna, socket->name, socket->description);
   }

@@ -548,8 +548,11 @@ class NodeTreeMainUpdater {
           RNA_struct_py_type_set(srna, nullptr);
           RNA_struct_free(&BLENDER_RNA, srna);
         }
-        ntree.runtime->geometry_nodes_srna = nullptr;
+        /* TODO: Need to check that no one else is referencing this data still? */
+        ntree.runtime->geometry_nodes_srna_data->structs.clear();
+        ntree.runtime->geometry_nodes_srna_data->inputs_map.clear();
         ntree.runtime->geometry_nodes_srna_data.reset();
+        ntree.runtime->geometry_nodes_srna = nullptr;
       }
       ntree.runtime->geometry_nodes_srna_data = std::make_unique<GeneratedTreeSrnaData>();
       StructRNA *modifier_struct = nodes::get_geometry_nodes_interface_srna(
