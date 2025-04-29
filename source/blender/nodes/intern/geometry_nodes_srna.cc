@@ -52,8 +52,9 @@ StructRNA *get_geometry_nodes_inputs_srna(const bNodeTree &tree,
     if (!socket_srna) {
       continue;
     }
+    const StringRefNull identifier = r_generated.scope.allocator().copy_string(socket->identifier);
     RNA_def_pointer_runtime(
-        srna, socket->identifier, socket_srna, socket->name, socket->description);
+        srna, identifier.c_str(), socket_srna, socket->name, socket->description);
   }
 
   return srna;

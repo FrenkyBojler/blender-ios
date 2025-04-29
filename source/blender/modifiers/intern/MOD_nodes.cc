@@ -68,6 +68,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_build.hh"
@@ -2330,20 +2331,16 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
                                      const bNodeTreeInterfaceSocket &socket)
 {
   const StringRefNull identifier = socket.identifier;
-  /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
-
-  /* IDProperties can be removed with python, so there could be a situation where
-   * there isn't a property for a socket or it doesn't have the correct type. */
-  if (property == nullptr || !nodes::id_property_type_matches_socket(socket, *property)) {
+  IDProperty *socket_id_property_group = ctx.properties.lookup_key_default_as(identifier, nullptr);
+  if (!socket_id_property_group) {
     return;
   }
-
-  char socket_id_esc[MAX_NAME * 2];
-  BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
-
-  char rna_path[sizeof(socket_id_esc) + 4];
-  SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
+  PointerRNA socket_prop;
+  if (!RNA_path_resolve(
+          ctx.md_ptr, fmt::format("properties.{}", identifier).c_str(), &socket_prop, nullptr))
+  {
+    return;
+  }
 
   const int input_index = ctx.nmd.node_group->interface_input_index(socket);
 
@@ -2359,27 +2356,32 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   const char *name = socket.name ? IFACE_(socket.name) : "";
   switch (type) {
     case SOCK_OBJECT: {
-      uiItemPointerR(row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
+      uiItemPointerR(row, &socket_prop, "value", ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
       break;
     }
     case SOCK_COLLECTION: {
-      uiItemPointerR(
-          row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "collections", name, ICON_OUTLINER_COLLECTION);
+      uiItemPointerR(row,
+                     &socket_prop,
+                     "value",
+                     ctx.bmain_ptr,
+                     "collections",
+                     name,
+                     ICON_OUTLINER_COLLECTION);
       break;
     }
     case SOCK_MATERIAL: {
-      uiItemPointerR(row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "materials", name, ICON_MATERIAL);
+      uiItemPointerR(row, &socket_prop, "value", ctx.bmain_ptr, "materials", name, ICON_MATERIAL);
       break;
     }
     case SOCK_TEXTURE: {
-      uiItemPointerR(row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
+      uiItemPointerR(row, &socket_prop, "value", ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
       break;
     }
     case SOCK_IMAGE: {
       uiTemplateID(row,
                    &ctx.C,
-                   ctx.md_ptr,
-                   rna_path,
+                   &socket_prop,
+                   "value",
                    "image.new",
                    "image.open",
                    nullptr,
@@ -2389,21 +2391,21 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_BOOLEAN: {
-      if (is_layer_selection_field(socket)) {
-        add_layer_name_search_button(ctx, row, socket_id_esc, socket);
-        /* Adds a spacing at the end of the row. */
-        uiItemL(row, "", ICON_BLANK1);
-        break;
-      }
+      // if (is_layer_selection_field(socket)) {
+      //   add_layer_name_search_button(ctx, row, socket_id_esc, socket);
+      //   /* Adds a spacing at the end of the row. */
+      //   uiItemL(row, "", ICON_BLANK1);
+      //   break;
+      // }
       ATTR_FALLTHROUGH;
     }
     default: {
-      if (nodes::input_has_attribute_toggle(*ctx.nmd.node_group, input_index)) {
-        add_attribute_search_or_value_buttons(ctx, row, socket_id_esc, rna_path, socket);
-      }
-      else {
-        uiItemR(row, ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
-      }
+      // if (nodes::input_has_attribute_toggle(*ctx.nmd.node_group, input_index)) {
+      //   add_attribute_search_or_value_buttons(ctx, row, socket_id_esc, rna_path, socket);
+      // }
+      // else {
+      uiItemR(row, &socket_prop, "value", UI_ITEM_NONE, name, ICON_NONE);
+      // }
     }
   }
   if (!nodes::input_has_attribute_toggle(*ctx.nmd.node_group, input_index)) {
