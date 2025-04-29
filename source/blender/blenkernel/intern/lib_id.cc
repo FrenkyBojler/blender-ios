@@ -814,7 +814,7 @@ static int foreach_assign_id_to_orig_callback(LibraryIDLinkCallbackData *cb_data
 
   if (*id_p) {
     ID *id = *id_p;
-    *id_p = DEG_get_original_id(id);
+    *id_p = DEG_get_original(id);
 
     /* If the ID changes increase the user count.
      *
@@ -1358,7 +1358,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
       BLI_assert(bmain->is_locked_for_linking == false || ELEM(type, ID_WS, ID_GR, ID_NT));
       ListBase *lb = which_libbase(bmain, type);
 
-      /* This is important in 'readfile doversion after liblink' context mainly, but is a good
+      /* This is important in "read-file do-version after lib-link" context mainly, but is a good
        * behavior for consistency in general: ID created for a Main should get that main's current
        * library pointer.
        *
@@ -2630,3 +2630,15 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
     }
   }
 }
+
+struct SomeTypeWithIDMember {
+  int id;
+};
+
+static_assert(blender::dna::is_ID_v<ID>);
+static_assert(blender::dna::is_ID_v<Object>);
+static_assert(!blender::dna::is_ID_v<int>);
+static_assert(!blender::dna::is_ID_v<ID *>);
+static_assert(!blender::dna::is_ID_v<const ID>);
+static_assert(!blender::dna::is_ID_v<ListBase>);
+static_assert(!blender::dna::is_ID_v<SomeTypeWithIDMember>);

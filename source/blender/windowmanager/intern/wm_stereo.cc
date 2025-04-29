@@ -323,7 +323,8 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  MEM_freeN(op->customdata);
+  MEM_freeN(s3dd);
+  op->customdata = nullptr;
 
   if (ok) {
     if (win_dst) {
@@ -362,7 +363,7 @@ void wm_stereo3d_set_draw(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, &stereo3d_format_ptr, "display_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (s3dd->stereo3d_format.display_mode) {
@@ -403,6 +404,7 @@ bool wm_stereo3d_set_check(bContext * /*C*/, wmOperator * /*op*/)
 
 void wm_stereo3d_set_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op->customdata);
+  MEM_freeN(s3dd);
   op->customdata = nullptr;
 }

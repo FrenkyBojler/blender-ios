@@ -88,7 +88,7 @@ struct FbxImportContext {
 
 void FbxImportContext::import_globals(Scene *scene) const
 {
-  /* Set scene framerate to that of FBX file. */
+  /* Set scene frame-rate to that of FBX file. */
   double fps = this->fbx.settings.frames_per_second;
   scene->r.frs_sec = roundf(fps);
   scene->r.frs_sec_base = scene->r.frs_sec / fps;
@@ -259,7 +259,7 @@ void FbxImportContext::setup_hierarchy()
     }
     if (node->parent) {
       Object *obj_par = this->mapping.el_to_object.lookup_default(&node->parent->element, nullptr);
-      if (obj_par != nullptr && obj_par != item.value) {
+      if (!ELEM(obj_par, nullptr, item.value)) {
         item.value->parent = obj_par;
       }
     }
