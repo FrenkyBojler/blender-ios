@@ -304,21 +304,30 @@ LinkNode *BM_mesh_calc_path_edge(BMesh *bm,
 {
   LinkNode *path = nullptr;
   /* #BM_ELEM_TAG flag is used to store visited edges. */
-  BMEdge *e;
-  BMIter eiter;
+  BMIter iter;
   HeapSimple *heap;
   float *cost;
   BMEdge **edges_prev;
   int i, totedge;
 
-  /* NOTE: would pass #BM_EDGE except we are looping over all edges anyway. */
-  BM_mesh_elem_index_ensure(bm, BM_VERT /* | BM_EDGE */);
-
-  BM_ITER_MESH_INDEX (e, &eiter, bm, BM_EDGES_OF_MESH, i) {
-    BM_elem_flag_set(e, BM_ELEM_TAG, !filter_fn(e, user_data));
-    BM_elem_index_set(e, i); /* set_inline */
+  {
+    BMVert *v;
+    BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
+      /* Tagging is only done to count unique vertices, see `verts_unique_count`. */
+      BM_elem_flag_disable(v, BM_ELEM_TAG);
+      BM_elem_index_set(v, i); /* set_inline */
+    }
+    bm->elem_index_dirty &= ~BM_VERT;
   }
-  bm->elem_index_dirty &= ~BM_EDGE;
+
+  {
+    BMEdge *e;
+    BM_ITER_MESH_INDEX (e, &iter, bm, BM_EDGES_OF_MESH, i) {
+      BM_elem_flag_set(e, BM_ELEM_TAG, !filter_fn(e, user_data));
+      BM_elem_index_set(e, i); /* set_inline */
+    }
+    bm->elem_index_dirty &= ~BM_EDGE;
+  }
 
   /* Allocate. */
   totedge = bm->totedge;
@@ -343,6 +352,7 @@ LinkNode *BM_mesh_calc_path_edge(BMesh *bm,
   BLI_heapsimple_insert(heap, 0.0f, e_src);
   cost[BM_elem_index_get(e_src)] = 0.0f;
 
+  BMEdge *e = nullptr;
   while (!BLI_heapsimple_is_empty(heap)) {
     e = static_cast<BMEdge *>(BLI_heapsimple_pop_min(heap));
 
@@ -356,15 +366,87 @@ LinkNode *BM_mesh_calc_path_edge(BMesh *bm,
     }
   }
 
+  BLI_heapsimple_free(heap, nullptr);
+
+  int path_num = 0;
+  int verts_unique_count = 0;
   if (e == e_dst) {
     do {
+      /* Needed to detect doubling back. */
+      for (int j = 0; j < 2; j++) {
+        BMVert *v = *((&e->v1) + j);
+        if (!BM_elem_flag_test(v, BM_ELEM_TAG)) {
+          BM_elem_flag_enable(v, BM_ELEM_TAG);
+          verts_unique_count += 1;
+        }
+      }
+
+      path_num += 1;
       BLI_linklist_prepend(&path, e);
     } while ((e = edges_prev[BM_elem_index_get(e)]));
   }
 
   MEM_freeN(edges_prev);
+
+  if (path_num > 2) {
+    /* Finally check on the path doubling back on itself.
+     * This can happen with a mix of very long & short edges, see #137456. */
+    bool detect_overlap = false;
+    if (params->use_step_face) {
+      /* With face stepping the path may not be contiguous so the number of edges & verts
+       * can't be used to check if overlap detection should be performed. */
+      detect_overlap = true;
+    }
+    else {
+      /* Detect if this is a closed loop, highly unlikely but possible
+       * because the "cost" allows a less direct path to be used. */
+      bool is_closed = false;
+      if (path_num > 2) {
+        if (BMVert *v_shared = BM_edge_share_vert(e_src, e_dst)) {
+          if (v_shared != BM_edge_share_vert(static_cast<BMEdge *>(path->link),
+                                             static_cast<BMEdge *>(path->next->link)))
+          {
+            is_closed = true;
+          }
+        }
+      }
+      if (UNLIKELY(verts_unique_count != path_num + (is_closed ? 0 : 1))) {
+        detect_overlap = true;
+      }
+    }
+    if (detect_overlap) {
+      int *edge_order = reinterpret_cast<int *>(cost);
+      copy_vn_i(edge_order, totedge, -1);
+      int path_index = 0;
+      for (LinkNode *path_step = path; path_step; path_step = path_step->next) {
+        BMEdge *e = static_cast<BMEdge *>(path_step->link);
+        edge_order[BM_elem_index_get(e)] = path_index;
+        path_index += 1;
+      }
+
+      /* Walk over the edges, removing loops that double back on themselves. */
+      for (LinkNode *path_step = path; path_step && path_step->next; path_step = path_step->next) {
+        BMEdge *e_curr = static_cast<BMEdge *>(path_step->link);
+        BMEdge *e_next = static_cast<BMEdge *>(path_step->next->link);
+        BMVert *v = BM_edge_share_vert(e_curr, e_next);
+        BMEdge *e_first = v->e;
+        BMEdge *e_iter = e_first;
+        int e_next_order = edge_order[BM_elem_index_get(e_next)];
+        int e_next_order_best = e_next_order;
+        do {
+          e_next_order_best = std::max(edge_order[BM_elem_index_get(e_iter)], e_next_order_best);
+        } while ((e_iter = BM_DISK_EDGE_NEXT(e_iter, v)) != e_first);
+        /* Skip the loop that doubles back on itself. */
+        for (; e_next_order < e_next_order_best; e_next_order++) {
+          LinkNode *path_step_next = path_step->next;
+          path_step->next = path_step_next->next;
+          MEM_freeN(path_step_next);
+        }
+      }
+    }
+  }
+
   MEM_freeN(cost);
-  BLI_heapsimple_free(heap, nullptr);
 
   return path;
 }
