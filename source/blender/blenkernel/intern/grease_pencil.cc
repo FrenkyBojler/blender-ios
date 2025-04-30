@@ -3520,12 +3520,30 @@ void GreasePencil::autolock_inactive_layers()
 {
   using namespace blender::bke::greasepencil;
 
-  for (Layer *layer : this->layers_for_write()) {
-    if (this->is_layer_active(layer)) {
-      layer->set_locked(false);
-      continue;
+  TreeNode *active_node = this->get_active_node();
+  if (active_node == nullptr) {
+    return;
+  }
+
+  /* Lock all inactive tree nodes (layers and groups). */
+  for (TreeNode *node : this->nodes_for_write()) {
+    node->set_locked(node != active_node);
+  }
+
+  /* When the active node is a layer group, unlock all nodes within that group. */
+  if (active_node->is_group()) {
+    for (TreeNode *node : this->nodes_for_write()) {
+      if (node->is_child_of(active_node->as_group())) {
+        node->set_locked(false);
+      }
     }
-    layer->set_locked(true);
+  }
+
+  /* Unlock the parent layer groups of the active node. So the chain of layer groups from
+   * the root up to the active node is unlocked. */
+  TreeNode *node = active_node->is_group() ? active_node : active_node->parent_node();
+  for (; node; node = node->parent_node()) {
+    node->set_locked(false);
   }
 }
 
@@ -3572,6 +3590,10 @@ blender::bke::greasepencil::TreeNode *GreasePencil::get_active_node()
 void GreasePencil::set_active_node(blender::bke::greasepencil::TreeNode *node)
 {
   this->active_node = reinterpret_cast<GreasePencilLayerTreeNode *>(node);
+
+  if (this->flag & GREASE_PENCIL_AUTOLOCK_LAYERS) {
+    this->autolock_inactive_layers();
+  }
 }
 
 static blender::VectorSet<blender::StringRef> get_node_names(const GreasePencil &grease_pencil)
