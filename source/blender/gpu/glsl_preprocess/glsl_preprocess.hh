@@ -333,12 +333,12 @@ class Preprocessor {
 
   std::string loop_unroll(const std::string &str, report_callback report_error)
   {
-    if (str.find("[[unroll") == std::string::npos) {
+    if (str.find("[[gpu::unroll") == std::string::npos) {
       return str;
     }
 
     struct Loop {
-      /* `[[unroll]] for (int i = 0; i < 10; i++)` */
+      /* `[[gpu::unroll]] for (int i = 0; i < 10; i++)` */
       std::string definition;
       /* `{ some_computation(i); }` */
       std::string body;
@@ -410,9 +410,9 @@ class Preprocessor {
 
     /* Parse the loop syntax. */
     {
-      /* [[unroll]]. */
+      /* [[gpu::unroll]]. */
       std::regex regex(R"(( *))"
-                       R"(\[\[unroll\]\])"
+                       R"(\[\[gpu::unroll\]\])"
                        R"(\s*for\s*\()"
                        R"(\s*((?:uint|int)\s+(\w+)\s+=\s+(-?\d+));)" /* Init statement. */
                        R"(\s*((\w+)\s+(>|<)(=?)\s+(-?\d+)))"         /* Conditional statement. */
@@ -482,9 +482,9 @@ class Preprocessor {
       });
     }
     {
-      /* [[unroll(n)]]. */
+      /* [[gpu::unroll(n)]]. */
       std::regex regex(R"(( *))"
-                       R"(\[\[unroll\((\d+)\)\]\])"
+                       R"(\[\[gpu::unroll\((\d+)\)\]\])"
                        R"(\s*for\s*\()"
                        R"(\s*([^;]*);)"
                        R"(\s*([^;]*);)"
@@ -536,9 +536,9 @@ class Preprocessor {
     }
 
     /* Check for remaining keywords. */
-    if (out.find("[[unroll") != std::string::npos) {
-      regex_global_search(str, std::regex(R"(\[\[unroll)"), [&](const std::smatch &match) {
-        report_error(match, "Error: Incompatible format for [[unroll]].");
+    if (out.find("[[gpu::unroll") != std::string::npos) {
+      regex_global_search(str, std::regex(R"(\[\[gpu::unroll)"), [&](const std::smatch &match) {
+        report_error(match, "Error: Incompatible format for [[gpu::unroll]].");
       });
     }
 
