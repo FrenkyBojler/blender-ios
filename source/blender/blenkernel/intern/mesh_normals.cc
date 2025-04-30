@@ -1022,6 +1022,7 @@ static void add_corner_to_edge(const Span<int> corner_edges,
 
 /** Use a custom VectorSet type to use int32 instead of int64 for the key indices. */
 using LocalEdgeVectorSet = VectorSet<int,
+16,
                                      DefaultProbingStrategy,
                                      DefaultHash<int>,
                                      DefaultEquality<int>,
