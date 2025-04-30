@@ -50,18 +50,22 @@ class NodeTest : public ::testing::Test {
     CLG_exit();
   }
 
-  std::tuple<std::vector<bNodeTree *>, std::vector<ID *>> get_node_trees(Main *bmain)
+  struct IteratorResult {
+    Vector<bNodeTree *> node_trees;
+    Vector<ID *> ids;
+  };
+
+  IteratorResult get_node_trees(Main *bmain)
   {
-    std::vector<bNodeTree *> r_ntrees;
-    std::vector<ID *> r_ids;
+    IteratorResult iter_result;
 
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      r_ntrees.push_back(ntree);
-      r_ids.push_back(id);
+      iter_result.node_trees.append(ntree);
+      iter_result.ids.append(id);
     }
     FOREACH_NODETREE_END;
 
-    return std::make_tuple(r_ntrees, r_ids);
+    return iter_result;
   };
 };
 
@@ -102,10 +106,10 @@ TEST_F(NodeTest, tree_iterator_empty)
 {
   TestData context;
 
-  auto [all_trees, all_ids] = this->get_node_trees(context.bmain);
+  IteratorResult iter_result = this->get_node_trees(context.bmain);
 
-  EXPECT_EQ(all_trees.size(), 0);
-  EXPECT_EQ(all_ids.size(), 0);
+  EXPECT_EQ(iter_result.node_trees.size(), 0);
+  EXPECT_EQ(iter_result.ids.size(), 0);
 }
 
 TEST_F(NodeTest, tree_iterator_1_mat)
@@ -115,12 +119,12 @@ TEST_F(NodeTest, tree_iterator_1_mat)
   Material *material = BKE_material_add(context.bmain, "Material");
   ED_node_shader_default(context.C, &material->id);
 
-  auto [all_trees, all_ids] = this->get_node_trees(context.bmain);
+  IteratorResult iter_result = this->get_node_trees(context.bmain);
 
-  ASSERT_EQ(all_trees.size(), 1);
-  ASSERT_EQ(all_ids.size(), 1);
+  ASSERT_EQ(iter_result.node_trees.size(), 1);
+  ASSERT_EQ(iter_result.ids.size(), 1);
 
-  EXPECT_EQ(GS(all_ids[0]->name), ID_MA);
+  EXPECT_EQ(GS(iter_result.ids[0]->name), ID_MA);
 }
 
 TEST_F(NodeTest, tree_iterator_scene_no_tree)
@@ -132,12 +136,12 @@ TEST_F(NodeTest, tree_iterator_scene_no_tree)
 
   BKE_scene_add(context.bmain, "Scene");
 
-  auto [all_trees, all_ids] = this->get_node_trees(context.bmain);
+  IteratorResult iter_result = this->get_node_trees(context.bmain);
 
-  ASSERT_EQ(all_trees.size(), 1);
-  ASSERT_EQ(all_ids.size(), 1);
+  ASSERT_EQ(iter_result.node_trees.size(), 1);
+  ASSERT_EQ(iter_result.ids.size(), 1);
 
-  EXPECT_EQ(GS(all_ids[0]->name), ID_MA);
+  EXPECT_EQ(GS(iter_result.ids[0]->name), ID_MA);
 }
 
 TEST_F(NodeTest, tree_iterator_1mat_1scene)
@@ -152,14 +156,14 @@ TEST_F(NodeTest, tree_iterator_1mat_1scene)
   scene->nodetree = bke::node_tree_add_tree_embedded(
       context.bmain, &scene->id, "compositing nodetree", "CompositorNodeTree");
 
-  auto [all_trees, all_ids] = this->get_node_trees(context.bmain);
+  IteratorResult iter_result = this->get_node_trees(context.bmain);
 
-  ASSERT_EQ(all_trees.size(), 2);
-  ASSERT_EQ(all_ids.size(), 2);
+  ASSERT_EQ(iter_result.node_trees.size(), 2);
+  ASSERT_EQ(iter_result.ids.size(), 2);
 
-  EXPECT_EQ(GS(all_ids[1]->name), ID_MA);
-  EXPECT_EQ(GS(all_ids[0]->name), ID_SCE);
-  EXPECT_STREQ(all_ids[0]->name + 2, SCENE_NAME);
+  EXPECT_EQ(GS(iter_result.ids[1]->name), ID_MA);
+  EXPECT_EQ(GS(iter_result.ids[0]->name), ID_SCE);
+  EXPECT_STREQ(iter_result.ids[0]->name + 2, SCENE_NAME);
 }
 
 TEST_F(NodeTest, tree_iterator_1mat_3scenes)
@@ -185,18 +189,18 @@ TEST_F(NodeTest, tree_iterator_1mat_3scenes)
   BKE_scene_add(context.bmain, SCENE_NAME_3);
   /* Also no node tree for scene 3. */
 
-  auto [all_trees, all_ids] = get_node_trees(context.bmain);
+  IteratorResult iter_result = this->get_node_trees(context.bmain);
 
-  ASSERT_EQ(all_trees.size(), 2);
-  ASSERT_EQ(all_ids.size(), 2);
+  ASSERT_EQ(iter_result.node_trees.size(), 2);
+  ASSERT_EQ(iter_result.ids.size(), 2);
 
   /* Expect that scenes with no nodetrees don't have side effects for node trees*/
-  EXPECT_EQ(GS(all_ids[0]->name), ID_SCE);
-  EXPECT_STREQ(all_ids[0]->name + 2, SCENE_NAME_2);
-  EXPECT_STREQ(all_trees[0]->id.name + 2, NTREE_NAME);
+  EXPECT_EQ(GS(iter_result.ids[0]->name), ID_SCE);
+  EXPECT_STREQ(iter_result.ids[0]->name + 2, SCENE_NAME_2);
+  EXPECT_STREQ(iter_result.node_trees[0]->id.name + 2, NTREE_NAME);
 
-  EXPECT_EQ(GS(all_ids[1]->name), ID_MA);
-  EXPECT_STREQ(all_trees[1]->id.name + 2, MATERIAL_NTREE_NAME);
+  EXPECT_EQ(GS(iter_result.ids[1]->name), ID_MA);
+  EXPECT_STREQ(iter_result.node_trees[1]->id.name + 2, MATERIAL_NTREE_NAME);
 }
 
 }  // namespace blender::nodes::tests
