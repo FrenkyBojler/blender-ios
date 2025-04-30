@@ -1222,7 +1222,9 @@ BLI_NOINLINE static void handle_fan_result_and_custom_normals(
   for (const float3 &vec : fan_edge_dirs.as_span().drop_back(1)) {
     std::cout << vec << ", ";
   }
+if (!fan_edge_dirs.is_empty()) {
   std::cout << fan_edge_dirs.as_span().last();
+}
   std::cout << "}" << std::endl;
 
   if (r_fan_spaces) {
