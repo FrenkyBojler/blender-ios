@@ -21,14 +21,13 @@ from bpy.app.translations import (
 
 def is_operator_available(idname):
     module, _, operator = idname.partition(".")
-    if not module or not operator:
-        return False
 
     # Check if the module and operator exist.
-    if module in dir(bpy.ops):
-        operator_list = dir(getattr(bpy.ops, module))
-        return operator in operator_list
-    return False
+    return (
+        module and
+        operator and
+        getattr(getattr(bpy.ops, module, None), operator, None) is not None
+    )
 
 
 def _indented_layout(layout, level):
@@ -148,7 +147,7 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             row.label(text=kmi.name)
         else:
             row.alert = True
-            row.label(icon="WARNING_LARGE", text="{:s} (unavailable)".format(kmi.idname))
+            row.label(text="{:s} (unavailable)".format(kmi.idname), icon='WARNING_LARGE')
 
     row = split.row()
     row.prop(kmi, "map_type", text="")
