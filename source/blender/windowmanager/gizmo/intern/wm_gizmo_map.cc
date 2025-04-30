@@ -716,10 +716,23 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
                                   });
     GPU_framebuffer_bind(depth_read_fb);
 
+    /* NOTE(@ideasman42): Regarding the hit-radius:
+     *
+     * - These must remain constant for all event types
+     *   since changing the radius per event types means mon-motion events
+     *   can cause the gizmo not to be highlighted.
+     * - A single large radius would result in gizmos that are further away from the cursor
+     *   with a nearer Z-depth being highlighted.
+     *   So only use the larger radius when the first (smaller) pass has no hits.
+     * - As this runs on cursor-motion, avoid doing too many tests (currently 2x).
+     */
     const int hotspot_radii[] = {
-        int(3 * U.pixelsize),
-        /* This runs on mouse move, careful doing too many tests! */
-        int(10 * U.pixelsize),
+        /* Use a small value so it's possible to accurately pick a gizmo
+         * when multiple are overlapping. */
+        int(3.0f * UI_SCALE_FAC),
+        /* Use a larger value as a fallback so wire gizmos aren't difficult to click on.
+         * This value has been selected for both mouse & tablet motion, see !136847. */
+        int(12.0f * UI_SCALE_FAC),
     };
     for (int i = 0; i < ARRAY_SIZE(hotspot_radii); i++) {
       hit = gizmo_find_intersected_3d_intern(

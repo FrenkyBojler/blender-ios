@@ -1741,8 +1741,7 @@ static void filelist_cache_init(FileListEntryCache *cache, size_t cache_size)
       MEM_mallocN(sizeof(*cache->block_entries) * cache_size, __func__));
 
   cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, cache_size);
-  cache->misc_entries_indices = static_cast<int *>(
-      MEM_mallocN(sizeof(*cache->misc_entries_indices) * cache_size, __func__));
+  cache->misc_entries_indices = MEM_malloc_arrayN<int>(cache_size, __func__);
   copy_vn_i(cache->misc_entries_indices, cache_size, -1);
   cache->misc_cursor = 0;
 
@@ -4239,7 +4238,10 @@ static void assetlibrary_readjob_startjob(void *flrjv, wmJobWorkerStatus *worker
   filelist_readjob_startjob(flrjv, worker_status);
 }
 
-void filelist_readjob_start(FileList *filelist, const int space_notifier, const bContext *C)
+static void filelist_readjob_start_ex(FileList *filelist,
+                                      const int space_notifier,
+                                      const bContext *C,
+                                      const bool force_blocking_read)
 {
   Main *bmain = CTX_data_main(C);
   wmJob *wm_job;
@@ -4276,7 +4278,7 @@ void filelist_readjob_start(FileList *filelist, const int space_notifier, const 
    * main data changed may need access to the ID files (see #93691). */
   const bool no_threads = (filelist->tags & FILELIST_TAGS_NO_THREADS) || flrj->only_main_data;
 
-  if (no_threads) {
+  if (force_blocking_read || no_threads) {
     /* Single threaded execution. Just directly call the callbacks. */
     wmJobWorkerStatus worker_status = {};
     filelist_readjob_startjob(flrj, &worker_status);
@@ -4305,6 +4307,16 @@ void filelist_readjob_start(FileList *filelist, const int space_notifier, const 
 
   /* start the job */
   WM_jobs_start(CTX_wm_manager(C), wm_job);
+}
+
+void filelist_readjob_start(FileList *filelist, const int space_notifier, const bContext *C)
+{
+  filelist_readjob_start_ex(filelist, space_notifier, C, false);
+}
+
+void filelist_readjob_blocking_run(FileList *filelist, int space_notifier, const bContext *C)
+{
+  filelist_readjob_start_ex(filelist, space_notifier, C, true);
 }
 
 void filelist_readjob_stop(FileList *filelist, wmWindowManager *wm)

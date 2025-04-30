@@ -54,7 +54,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool transform_space_relative = (storage.transform_space ==
                                          GEO_NODE_TRANSFORM_SPACE_RELATIVE);
 
-  Object *object = params.get_input<Object *>("Object");
+  Object *object = params.extract_input<Object *>("Object");
 
   const Object *self_object = params.self_object();
   if (object == nullptr) {
@@ -103,7 +103,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   /* Compare by `orig_id` because objects may be copied into separate depsgraphs. */
-  if (DEG_get_original_id(&object->id) == DEG_get_original_id(&self_object->id)) {
+  if (DEG_get_original(object) == DEG_get_original(self_object)) {
     params.error_message_add(
         NodeWarningType::Error,
         params.user_data()->call_data->operator_data ?
@@ -136,7 +136,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   GeometrySet geometry_set;
-  if (params.get_input<bool>("As Instance")) {
+  if (params.extract_input<bool>("As Instance")) {
     std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
     const int handle = instances->add_reference(*object);
     if (transform_space_relative) {

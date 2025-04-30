@@ -194,7 +194,7 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   /* Note that even if building the shader fails in some way, we want to keep
    * it to avoid trying to compile again and again, and simply do not use
    * the actual shader on drawing. */
-  LinkData *link = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), "GPUMaterialLink"));
+  LinkData *link = MEM_callocN<LinkData>("GPUMaterialLink");
   link->data = mat;
   BLI_addtail(gpumaterials, link);
 
@@ -399,8 +399,7 @@ GPUTexture **gpu_material_sky_texture_layer_set(
   UNUSED_VARS_NDEBUG(width, height);
 
   if (mat->sky_builder == nullptr) {
-    mat->sky_builder = static_cast<GPUSkyBuilder *>(
-        MEM_mallocN(sizeof(GPUSkyBuilder), "GPUSkyBuilder"));
+    mat->sky_builder = MEM_mallocN<GPUSkyBuilder>("GPUSkyBuilder");
     mat->sky_builder->current_layer = 0;
   }
 
@@ -430,8 +429,7 @@ GPUTexture **gpu_material_ramp_texture_row_set(GPUMaterial *mat,
   UNUSED_VARS_NDEBUG(size);
 
   if (mat->coba_builder == nullptr) {
-    mat->coba_builder = static_cast<GPUColorBandBuilder *>(
-        MEM_mallocN(sizeof(GPUColorBandBuilder), "GPUColorBandBuilder"));
+    mat->coba_builder = MEM_mallocN<GPUColorBandBuilder>("GPUColorBandBuilder");
     mat->coba_builder->current_layer = 0;
   }
 
@@ -524,8 +522,7 @@ void GPU_material_output_thickness(GPUMaterial *material, GPUNodeLink *link)
 
 void GPU_material_add_output_link_aov(GPUMaterial *material, GPUNodeLink *link, int hash)
 {
-  GPUNodeGraphOutputLink *aov_link = static_cast<GPUNodeGraphOutputLink *>(
-      MEM_callocN(sizeof(GPUNodeGraphOutputLink), __func__));
+  GPUNodeGraphOutputLink *aov_link = MEM_callocN<GPUNodeGraphOutputLink>(__func__);
   aov_link->outlink = link;
   aov_link->hash = hash;
   BLI_addtail(&material->graph.outlink_aovs, aov_link);
@@ -533,8 +530,7 @@ void GPU_material_add_output_link_aov(GPUMaterial *material, GPUNodeLink *link, 
 
 void GPU_material_add_output_link_composite(GPUMaterial *material, GPUNodeLink *link)
 {
-  GPUNodeGraphOutputLink *compositor_link = static_cast<GPUNodeGraphOutputLink *>(
-      MEM_callocN(sizeof(GPUNodeGraphOutputLink), __func__));
+  GPUNodeGraphOutputLink *compositor_link = MEM_callocN<GPUNodeGraphOutputLink>(__func__);
   compositor_link->outlink = link;
   BLI_addtail(&material->graph.outlink_compositor, compositor_link);
 }
@@ -559,8 +555,7 @@ char *GPU_material_split_sub_function(GPUMaterial *material,
       break;
   }
 
-  GPUNodeGraphFunctionLink *func_link = static_cast<GPUNodeGraphFunctionLink *>(
-      MEM_callocN(sizeof(GPUNodeGraphFunctionLink), __func__));
+  GPUNodeGraphFunctionLink *func_link = MEM_callocN<GPUNodeGraphFunctionLink>(__func__);
   func_link->outlink = *link;
   SNPRINTF(func_link->name, "ntree_fn%d", material->generated_function_len++);
   BLI_addtail(&material->graph.material_functions, func_link);

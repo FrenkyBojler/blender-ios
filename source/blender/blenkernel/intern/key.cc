@@ -245,11 +245,6 @@ struct WeightsArrayCache {
   float **defgroup_weights;
 };
 
-void BKE_key_free_data(Key *key)
-{
-  shapekey_free_data(&key->id);
-}
-
 void BKE_key_free_nolib(Key *key)
 {
   while (KeyBlock *kb = static_cast<KeyBlock *>(BLI_pophead(&key->block))) {
@@ -1309,7 +1304,7 @@ static float *get_weights_array(Object *ob, const char *vgroup, WeightsArrayCach
     if (cache) {
       if (cache->defgroup_weights == nullptr) {
         int num_defgroup = BKE_object_defgroup_count(ob);
-        cache->defgroup_weights = MEM_calloc_arrayN<float *>(size_t(num_defgroup),
+        cache->defgroup_weights = MEM_calloc_arrayN<float *>(num_defgroup,
                                                              "cached defgroup weights");
         cache->num_defgroup_weights = num_defgroup;
       }
@@ -1556,7 +1551,7 @@ float *BKE_key_evaluate_object_ex(
 
   /* allocate array */
   if (arr == nullptr) {
-    out = static_cast<char *>(MEM_callocN(size, "BKE_key_evaluate_object out"));
+    out = MEM_calloc_arrayN<char>(size, "BKE_key_evaluate_object out");
   }
   else {
     if (arr_size != size) {
@@ -1878,13 +1873,16 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
   return kb;
 }
 
-KeyBlock *BKE_keyblock_duplicate(Key *key, const KeyBlock *kb_src)
+KeyBlock *BKE_keyblock_duplicate(Key *key, KeyBlock *kb_src)
 {
   BLI_assert(BLI_findindex(&key->block, kb_src) != -1);
   KeyBlock *kb_dst = BKE_keyblock_add(key, kb_src->name);
   kb_dst->totelem = kb_src->totelem;
   kb_dst->data = MEM_dupallocN(kb_src->data);
+  BLI_remlink(&key->block, kb_dst);
+  BLI_insertlinkafter(&key->block, kb_src, kb_dst);
   BKE_keyblock_copy_settings(kb_dst, kb_src);
+  kb_dst->flag = kb_src->flag;
   return kb_dst;
 }
 
@@ -2213,11 +2211,10 @@ void BKE_keyblock_convert_from_mesh(const Mesh *mesh, const Key *key, KeyBlock *
 }
 
 void BKE_keyblock_convert_to_mesh(const KeyBlock *kb,
-                                  float (*vert_positions)[3],
-                                  const int totvert)
+                                  blender::MutableSpan<blender::float3> vert_positions)
 {
-  const int tot = min_ii(kb->totelem, totvert);
-  memcpy(vert_positions, kb->data, sizeof(float[3]) * tot);
+  vert_positions.take_front(kb->totelem)
+      .copy_from({static_cast<blender::float3 *>(kb->data), kb->totelem});
 }
 
 void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
@@ -2233,8 +2230,7 @@ void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
   }
 
   blender::Array<blender::float3> positions(mesh->vert_positions());
-  BKE_keyblock_convert_to_mesh(
-      kb, reinterpret_cast<float(*)[3]>(positions.data()), mesh->verts_num);
+  BKE_keyblock_convert_to_mesh(kb, positions);
   const blender::Span<blender::int2> edges = mesh->edges();
   const blender::OffsetIndices faces = mesh->faces();
   const blender::Span<int> corner_verts = mesh->corner_verts();

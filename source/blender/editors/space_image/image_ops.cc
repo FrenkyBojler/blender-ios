@@ -339,7 +339,7 @@ bool space_image_main_region_poll(bContext *C)
   return false;
 }
 
-/* For IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or editmode */
+/** For #IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or edit-mode. */
 static bool space_image_main_area_not_uv_brush_poll(bContext *C)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
@@ -374,8 +374,7 @@ static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *even
   SpaceImage *sima = CTX_wm_space_image(C);
   ViewPanData *vpd;
 
-  op->customdata = vpd = static_cast<ViewPanData *>(
-      MEM_callocN(sizeof(ViewPanData), "ImageViewPanData"));
+  op->customdata = vpd = MEM_callocN<ViewPanData>("ImageViewPanData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = (win->grabcursor == 0);
@@ -406,7 +405,7 @@ static void image_view_pan_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
 static wmOperatorStatus image_view_pan_exec(bContext *C, wmOperator *op)
@@ -535,8 +534,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   ARegion *region = CTX_wm_region(C);
   ViewZoomData *vpd;
 
-  op->customdata = vpd = static_cast<ViewZoomData *>(
-      MEM_callocN(sizeof(ViewZoomData), "ImageViewZoomData"));
+  op->customdata = vpd = MEM_callocN<ViewZoomData>("ImageViewZoomData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = (win->grabcursor == 0);
@@ -581,7 +579,7 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
 static wmOperatorStatus image_view_zoom_exec(bContext *C, wmOperator *op)
@@ -1917,7 +1915,7 @@ static ImageSaveData *image_save_as_init(bContext *C, wmOperator *op)
   ImageUser *iuser = image_user_from_context(C);
   Scene *scene = CTX_data_scene(C);
 
-  ImageSaveData *isd = static_cast<ImageSaveData *>(MEM_callocN(sizeof(*isd), __func__));
+  ImageSaveData *isd = MEM_callocN<ImageSaveData>(__func__);
   isd->image = image;
   isd->iuser = iuser;
 
@@ -1960,7 +1958,7 @@ static void image_save_as_free(wmOperator *op)
     ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
     BKE_image_save_options_free(&isd->opts);
 
-    MEM_freeN(op->customdata);
+    MEM_freeN(isd);
     op->customdata = nullptr;
   }
 }
@@ -2068,7 +2066,7 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
 
   if (!save_as_render) {
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
-    uiLayout *col = uiLayoutColumn(layout, true);
+    uiLayout *col = &layout->column(true);
     uiItemS(col);
     uiItemR(col, &linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
   }
@@ -2704,7 +2702,7 @@ static void image_new_draw(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4253,7 +4251,7 @@ static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiItemR(col, ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4400,7 +4398,7 @@ static void tile_add_draw(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
