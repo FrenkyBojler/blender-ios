@@ -526,18 +526,22 @@ void separate_points(const bke::CurvesGeometry &curves,
                                      separated_src_ranges,
                                      separated_dst_offsets,
                                      separated_curve_map);
-        const int separated_points_num = separated_offsets.last() - points_start;
         /* Invert ranges to get non selected points. */
         invert_ranges(points, selected_curve_points, unselected_curve_points);
         /* Extended every range to left and right by one point. Any resulting intersection is
          * merged. */
         extend_range_by_1_within_bounds(
             points, cyclic[curve], unselected_curve_points, curve_points_to_retain);
+        /* Unselected part can contain all points from original curve, but have cuts. This happens
+         * when pairs of adjacent points are selected. To prevent loop merge and result curve from
+         * cyclic additional condition is checked. */
+        const bool can_merge_loop = !unselected_curve_points.is_empty() &&
+                                    (unselected_curve_points.first().first() == points.first() ||
+                                     unselected_curve_points.last().last() == points.last());
         curve_offsets_from_selection(curve_points_to_retain,
                                      points,
                                      curve,
-                                     cyclic[curve] &&
-                                         (separated_points_num <= curve_points_to_retain.size()),
+                                     cyclic[curve] && can_merge_loop,
                                      retained_offsets,
                                      retained_cyclic,
                                      retained_src_ranges,
