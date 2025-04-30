@@ -434,8 +434,8 @@ class Cameras : Overlay {
     int track_index = 1;
 
     float4 bundle_color_custom;
-    float *bundle_color_solid = res.theme_settings.color_bundle_solid;
-    float *bundle_color_unselected = res.theme_settings.color_wire;
+    float *bundle_color_solid = res.theme.colors.bundle_solid;
+    float *bundle_color_unselected = res.theme.colors.wire;
     uchar4 text_color_selected, text_color_unselected;
     /* Color Management: Exception here as texts are drawn in sRGB space directly. */
     UI_GetThemeColor4ubv(TH_SELECT, text_color_selected);
@@ -603,11 +603,11 @@ class Cameras : Overlay {
         PassMain &pass = is_foreground ?
                              (use_view_transform ? foreground_scene_ps_ : foreground_ps_) :
                              (use_view_transform ? background_scene_ps_ : background_ps_);
-        pass.bind_texture("imgTexture", tex);
-        pass.push_constant("imgPremultiplied", use_alpha_premult);
-        pass.push_constant("imgAlphaBlend", true);
-        pass.push_constant("isCameraBackground", true);
-        pass.push_constant("depthSet", true);
+        pass.bind_texture("img_tx", tex);
+        pass.push_constant("img_premultiplied", use_alpha_premult);
+        pass.push_constant("img_alpha_blend", true);
+        pass.push_constant("is_camera_background", true);
+        pass.push_constant("depth_set", true);
         pass.push_constant("ucolor", color_premult_alpha);
         ResourceHandle res_handle = manager.resource_handle(mat);
         pass.draw(res.shapes.quad_solid.get(), res_handle, select_id.get());
@@ -812,7 +812,7 @@ class Cameras : Overlay {
         /* Connecting line between cameras. */
         call_buffers_.stereo_connect_lines.append(stereodata.matrix.location(),
                                                   instdata.object_to_world.location(),
-                                                  res.theme_settings.color_wire,
+                                                  res.theme.colors.wire,
                                                   cam_select_id);
       }
 
