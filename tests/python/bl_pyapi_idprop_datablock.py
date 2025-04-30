@@ -184,12 +184,11 @@ def check_linked_scene_copying():
     intern_sce = get_scene(None, "Scene_lib")
     extern_sce = get_scene("lib.blend", "Scene_lib")
 
-    # check node's props
-    # must point to own scene camera
+    # The node trees are shared between scenes, so expect 'prop' to point to the old scene's camera
     expect_false_or_abort(
         intern_sce.node_tree.nodes['Render Layers']["prop"] and
-        not (intern_sce.node_tree.nodes['Render Layers']["prop"] ==
-             extern_sce.node_tree.nodes['Render Layers']["prop"]))
+        (intern_sce.node_tree.nodes['Render Layers']["prop"] ==
+         extern_sce.node_tree.nodes['Render Layers']["prop"]))
 
 
 def check_scene_copying():
@@ -206,11 +205,10 @@ def check_scene_copying():
     first_sce = get_scene(None, "Scene_lib")
     second_sce = get_scene(None, "Scene_lib.001")
 
-    # check node's props
-    # must point to own scene camera
+    # The node trees are shared between scenes, so expect 'prop' to point to the old scene's camera
     expect_false_or_abort(
-        not (first_sce.node_tree.nodes['Render Layers']["prop"] ==
-             second_sce.node_tree.nodes['Render Layers']["prop"]))
+        (first_sce.node_tree.nodes['Render Layers']["prop"] ==
+         second_sce.node_tree.nodes['Render Layers']["prop"]))
 
 
 # count users

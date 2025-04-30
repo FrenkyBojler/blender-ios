@@ -691,17 +691,11 @@ void do_versions_after_setup(Main *new_bmain,
   }
 
   // todo(habib): update subversion number before merging
-  if (!blendfile_or_libraries_versions_atleast(new_bmain, 405, 50)) {
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 405, 53)) {
     LISTBASE_FOREACH (Scene *, scene, &new_bmain->scenes) {
       bNodeTree *ntree = scene->nodetree;
       if (!ntree) {
         continue;
-      }
-      if (scene->compositing_nodetree) {
-        blender::bke::node_tree_free_embedded_tree(scene->nodetree);
-        MEM_freeN(scene->nodetree);
-        scene->nodetree = nullptr;
-        return;
       }
       ntree->id.flag &= ~ID_FLAG_EMBEDDED_DATA;
       ntree->owner_id = nullptr;
@@ -710,6 +704,7 @@ void do_versions_after_setup(Main *new_bmain,
       BLI_addtail(&new_bmain->nodetrees, ntree);
 
       scene->nodetree = nullptr;
+      BKE_main_namemap_validate_and_fix(*new_bmain);
 
       /* Note: The user count remains zero at this point. It will get automatically updated after
        * blend file reading is done.*/
