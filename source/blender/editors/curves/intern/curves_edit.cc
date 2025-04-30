@@ -82,15 +82,19 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
 static void append_point_knots(const Span<IndexRange> src_ranges,
                                const OffsetIndices<int> dst_offsets,
                                const Span<int> dst_to_src_curve,
+                               const bke::CurvesGeometry &src_curves,
                                bke::CurvesGeometry &curves)
 {
   curves.nurbs_custom_knots_update_size();
 
+  const Span<int> src_points_by_curve = src_curves.points_by_curve().data();
+  const Span<int> src_knots_by_curve = src_curves.nurbs_custom_knots_by_curve().data();
+  const VArray<int8_t> src_orders = src_curves.nurbs_orders();
+  const Span<float> src_knots = src_curves.nurbs_custom_knots();
   const VArray<int8_t> knot_modes = curves.nurbs_knots_modes();
-  const VArray<int8_t> orders = curves.nurbs_orders();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const OffsetIndices<int> knots_by_curve = curves.nurbs_custom_knots_by_curve();
-  MutableSpan<float> knots = curves.nurbs_custom_knots_for_write();
+  MutableSpan<float> dst_knots = curves.nurbs_custom_knots_for_write();
 
   const int old_curves_num = curves.curves_num() - dst_to_src_curve.size();
 
@@ -101,24 +105,25 @@ static void append_point_knots(const Span<IndexRange> src_ranges,
       continue;
     }
     const int src_curve = dst_to_src_curve[appended_curve];
-    const int order = orders[src_curve];
-    const int first_curve_point = points_by_curve.data()[src_curve];
-    const int first_curve_knot = knots_by_curve.data()[src_curve];
+    const int order = src_orders[src_curve];
+    const int first_curve_point = src_points_by_curve[src_curve];
+    const int first_curve_knot = src_knots_by_curve[src_curve];
     const int point_to_knot = -first_curve_point + first_curve_knot;
     const IndexRange src_range = src_ranges[range];
-    const IndexRange src_knots = IndexRange::from_begin_size(src_range.first() + point_to_knot,
-                                                             src_range.size() + order);
-    const IndexRange dst_knots = knots_by_curve[dst_curve];
-    knots.slice(dst_knots.take_front(src_knots.size())).copy_from(knots.slice(src_knots));
+    const IndexRange src_knot_range = IndexRange::from_begin_size(
+        src_range.first() + point_to_knot, src_range.size() + order);
+    const IndexRange dst_knot_range = knots_by_curve[dst_curve];
+    dst_knots.slice(dst_knot_range.take_front(src_knot_range.size()))
+        .copy_from(src_knots.slice(src_knot_range));
     if (dst_offsets[range].size() != points_by_curve[dst_curve].size()) {
       range++;
       const IndexRange merged_tail = src_ranges[range];
       const IndexRange src_tail_knots = merged_tail.shift(point_to_knot + order);
-      const IndexRange dst_tail_knots = dst_knots.take_back(src_tail_knots.size());
-      const float knot_shift = knots[dst_tail_knots.one_before_start()] -
-                               knots[src_tail_knots.one_before_start()];
+      const IndexRange dst_tail_knots = dst_knot_range.take_back(src_tail_knots.size());
+      const float knot_shift = dst_knots[dst_tail_knots.one_before_start()] -
+                               src_knots[src_tail_knots.one_before_start()];
       for (const int i : src_tail_knots.index_range()) {
-        knots[dst_tail_knots[i]] = knots[src_tail_knots[i]] + knot_shift;
+        dst_knots[dst_tail_knots[i]] = src_knots[src_tail_knots[i]] + knot_shift;
       }
     }
     range++;
@@ -220,7 +225,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   curves.tag_topology_changed();
 
   if (curves.nurbs_has_custom_knots()) {
-    append_point_knots(src_ranges, dst_offsets.as_span(), dst_to_src_curve, curves);
+    append_point_knots(src_ranges, dst_offsets.as_span(), dst_to_src_curve, curves, curves);
   }
 
   for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
@@ -402,6 +407,10 @@ static void copy_data_to_geometry(const bke::CurvesGeometry &src_curves,
 
   dst_curves.update_curve_types();
   dst_curves.tag_topology_changed();
+
+  if (src_curves.nurbs_has_custom_knots()) {
+    append_point_knots(src_ranges, dst_offsets, dst_to_src_curve, src_curves, dst_curves);
+  }
 }
 
 bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
