@@ -1,1 +1,2 @@
 Referenced by issue #138178, Grease Pencil 3 strokes loses bone influence after Re-Arrange (Back to Front)
+Referenced by pull request #138202, Fix #138178: Grease Pencil strokes loose vertexgroups after Re-Arrange
