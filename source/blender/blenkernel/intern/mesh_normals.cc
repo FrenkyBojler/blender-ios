@@ -1196,8 +1196,9 @@ BLI_NOINLINE static void handle_fan_result_and_custom_normals(
                                   corner_infos[local_corners_in_fan.last()].local_edge_prev :
                                   corner_infos[local_corners_in_fan.last()].local_edge_next;
 
-  Array<float3, 16> fan_edge_dirs(local_corners_in_fan.size());
+  Array<float3, 16> fan_edge_dirs;
   if (local_corners_in_fan.size() > 1) {
+fan_edge_dirs.reinitialize(local_corners_in_fan.size());
     for (const int i : local_corners_in_fan.index_range()) {
       const VertCornerInfo &info = corner_infos[local_corners_in_fan[i]];
       fan_edge_dirs[i] = edge_dirs[info.local_edge_prev];
