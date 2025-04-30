@@ -1252,7 +1252,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
 {
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
-    LocalEdgeVectorSet local_edge_by_vert;  // TODO: Inline buffer size
+    LocalEdgeVectorSet local_edge_by_vert;
     Vector<VertEdgeInfo, 16> edge_infos;
     Vector<float3, 16> edge_dirs;
     Vector<bool, 16> local_corner_visited;
