@@ -321,48 +321,12 @@ class MTLShader : public Shader {
   MEM_CXX_CLASS_ALLOC_FUNCS("MTLShader");
 };
 
-class MTLParallelShaderCompiler : public ShaderCompilerGeneric {
-  std::atomic<int> ref_count = 1;
-
+class MTLShaderCompiler : public ShaderCompilerGeneric {
  public:
-  MTLParallelShaderCompiler();
+  MTLShaderCompiler();
 
   Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
   void specialize_shader(ShaderSpecialization &specialization) override;
-
-  void increment_ref_count()
-  {
-    ref_count++;
-  }
-  void decrement_ref_count()
-  {
-    BLI_assert(ref_count > 0);
-    ref_count--;
-  }
-  int get_ref_count()
-  {
-    return ref_count;
-  }
-};
-
-class MTLShaderCompiler : public ShaderCompiler {
- private:
-  MTLParallelShaderCompiler *parallel_shader_compiler;
-
- public:
-  MTLShaderCompiler();
-  virtual ~MTLShaderCompiler() override;
-
-  virtual BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
-  virtual void batch_cancel(BatchHandle &handle) override;
-  virtual bool batch_is_ready(BatchHandle handle) override;
-  virtual Vector<Shader *> batch_finalize(BatchHandle &handle) override;
-
-  virtual SpecializationBatchHandle precompile_specializations(
-      Span<ShaderSpecialization> specializations) override;
-  virtual bool specialization_batch_is_ready(SpecializationBatchHandle &handle) override;
-
-  void release_parallel_shader_compiler();
 };
 
 /* Vertex format conversion.

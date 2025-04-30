@@ -1543,52 +1543,17 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
 }
 /** \} */
 
-/* Since this is going to be compiling shaders in a multi-threaded fashion we
- * don't want to create an instance per context as we want to restrict the
- * number of simultaneous compilation threads to ensure system responsiveness.
- * Hence the global shared instance. */
-MTLParallelShaderCompiler *g_shared_parallel_shader_compiler = nullptr;
-std::mutex g_shared_parallel_shader_compiler_mutex;
-
-MTLParallelShaderCompiler *get_shared_parallel_shader_compiler()
-{
-  std::scoped_lock lock(g_shared_parallel_shader_compiler_mutex);
-
-  if (!g_shared_parallel_shader_compiler) {
-    g_shared_parallel_shader_compiler = new MTLParallelShaderCompiler();
-  }
-  else {
-    g_shared_parallel_shader_compiler->increment_ref_count();
-  }
-  return g_shared_parallel_shader_compiler;
-}
-
-void release_shared_parallel_shader_compiler()
-{
-  std::scoped_lock lock(g_shared_parallel_shader_compiler_mutex);
-
-  if (!g_shared_parallel_shader_compiler) {
-    return;
-  }
-
-  g_shared_parallel_shader_compiler->decrement_ref_count();
-  if (g_shared_parallel_shader_compiler->get_ref_count() == 0) {
-    delete g_shared_parallel_shader_compiler;
-    g_shared_parallel_shader_compiler = nullptr;
-  }
-}
-
 /* -------------------------------------------------------------------- */
-/** \name MTLParallelShaderCompiler
+/** \name MTLShaderCompiler
  * \{ */
 
-MTLParallelShaderCompiler::MTLParallelShaderCompiler()
+MTLShaderCompiler::MTLShaderCompiler()
     : ShaderCompilerGeneric(true, GPUWorker::ContextType::Shared, true)
 {
   BLI_assert(GPU_use_parallel_compilation());
 }
 
-Shader *MTLParallelShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
+Shader *MTLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
 {
   MTLShader *shader = static_cast<MTLShader *>(compile(info, true));
 
@@ -1601,7 +1566,7 @@ Shader *MTLParallelShaderCompiler::compile_shader(const shader::ShaderCreateInfo
   return shader;
 }
 
-void MTLParallelShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
+void MTLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 {
   MTLShader *shader = static_cast<MTLShader *>(unwrap(specialization.shader));
 
@@ -1627,58 +1592,6 @@ void MTLParallelShaderCompiler::specialize_shader(ShaderSpecialization &speciali
 
   MTLContext *metal_context = static_cast<MTLContext *>(Context::get());
   shader->bake_compute_pipeline_state(metal_context, compute_pipeline_descriptor);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name MTLShaderCompiler
- * \{ */
-
-MTLShaderCompiler::MTLShaderCompiler()
-{
-  parallel_shader_compiler = get_shared_parallel_shader_compiler();
-}
-
-MTLShaderCompiler::~MTLShaderCompiler()
-{
-  release_parallel_shader_compiler();
-}
-
-void MTLShaderCompiler::release_parallel_shader_compiler()
-{
-  if (parallel_shader_compiler) {
-    release_shared_parallel_shader_compiler();
-    parallel_shader_compiler = nullptr;
-  }
-}
-
-BatchHandle MTLShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
-{
-  BLI_assert(parallel_shader_compiler);
-  return parallel_shader_compiler->batch_compile(infos);
-}
-void MTLShaderCompiler::batch_cancel(BatchHandle &handle)
-{
-  return parallel_shader_compiler->batch_cancel(handle);
-}
-bool MTLShaderCompiler::batch_is_ready(BatchHandle handle)
-{
-  return parallel_shader_compiler->batch_is_ready(handle);
-}
-Vector<Shader *> MTLShaderCompiler::batch_finalize(BatchHandle &handle)
-{
-  return parallel_shader_compiler->batch_finalize(handle);
-}
-SpecializationBatchHandle MTLShaderCompiler::precompile_specializations(
-    Span<ShaderSpecialization> specializations)
-{
-  return parallel_shader_compiler->precompile_specializations(specializations);
-}
-
-bool MTLShaderCompiler::specialization_batch_is_ready(SpecializationBatchHandle &handle)
-{
-  return parallel_shader_compiler->specialization_batch_is_ready(handle);
 }
 
 /** \} */
