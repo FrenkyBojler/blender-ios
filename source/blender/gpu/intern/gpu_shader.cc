@@ -948,15 +948,9 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   return shader;
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name ShaderCompilerGeneric
- * \{ */
-
-ShaderCompilerGeneric::ShaderCompilerGeneric(uint32_t threads_count,
-                                             GPUWorker::ContextType context_type,
-                                             bool support_specializations)
+ShaderCompiler::ShaderCompiler(uint32_t threads_count,
+                               GPUWorker::ContextType context_type,
+                               bool support_specializations)
 {
   support_specializations_ = support_specializations;
 
@@ -966,7 +960,7 @@ ShaderCompilerGeneric::ShaderCompilerGeneric(uint32_t threads_count,
   }
 }
 
-ShaderCompilerGeneric::~ShaderCompilerGeneric()
+ShaderCompiler::~ShaderCompiler()
 {
   compilation_worker_.reset();
 
@@ -974,12 +968,12 @@ ShaderCompilerGeneric::~ShaderCompilerGeneric()
   BLI_assert(batches_.is_empty());
 }
 
-Shader *ShaderCompilerGeneric::compile_shader(const shader::ShaderCreateInfo &info)
+Shader *ShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
 {
   return compile(info, false);
 }
 
-BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
+BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
 {
   std::unique_lock lock(mutex_);
 
@@ -1007,7 +1001,7 @@ BatchHandle ShaderCompilerGeneric::batch_compile(Span<const shader::ShaderCreate
   return handle;
 }
 
-void ShaderCompilerGeneric::batch_cancel(BatchHandle &handle)
+void ShaderCompiler::batch_cancel(BatchHandle &handle)
 {
   std::lock_guard lock(mutex_);
 
@@ -1036,14 +1030,14 @@ void ShaderCompilerGeneric::batch_cancel(BatchHandle &handle)
   handle = 0;
 }
 
-bool ShaderCompilerGeneric::batch_is_ready(BatchHandle handle)
+bool ShaderCompiler::batch_is_ready(BatchHandle handle)
 {
   std::lock_guard lock(mutex_);
 
   return batches_.lookup(handle)->is_ready();
 }
 
-Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
+Vector<Shader *> ShaderCompiler::batch_finalize(BatchHandle &handle)
 {
   std::unique_lock lock(mutex_);
   compilation_finished_notification_.wait(lock,
@@ -1057,7 +1051,7 @@ Vector<Shader *> ShaderCompilerGeneric::batch_finalize(BatchHandle &handle)
   return shaders;
 }
 
-SpecializationBatchHandle ShaderCompilerGeneric::precompile_specializations(
+SpecializationBatchHandle ShaderCompiler::precompile_specializations(
     Span<ShaderSpecialization> specializations)
 {
   if (!compilation_worker_ || !support_specializations_) {
@@ -1081,7 +1075,7 @@ SpecializationBatchHandle ShaderCompilerGeneric::precompile_specializations(
   return handle;
 }
 
-bool ShaderCompilerGeneric::specialization_batch_is_ready(SpecializationBatchHandle &handle)
+bool ShaderCompiler::specialization_batch_is_ready(SpecializationBatchHandle &handle)
 {
   if (handle != 0 && batch_is_ready(handle)) {
     std::lock_guard lock(mutex_);
@@ -1094,7 +1088,7 @@ bool ShaderCompilerGeneric::specialization_batch_is_ready(SpecializationBatchHan
   return handle == 0;
 }
 
-void ShaderCompilerGeneric::run_thread()
+void ShaderCompiler::run_thread()
 {
   while (true) {
     Batch *batch;

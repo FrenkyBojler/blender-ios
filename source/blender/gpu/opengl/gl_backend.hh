@@ -60,7 +60,7 @@ class GLBackend : public GPUBackend {
       compiler_ = MEM_new<GLShaderCompiler>(__func__);
     }
     else {
-      compiler_ = MEM_new<ShaderCompilerGeneric>(__func__);
+      compiler_ = MEM_new<ShaderCompiler>(__func__);
     }
   };
 

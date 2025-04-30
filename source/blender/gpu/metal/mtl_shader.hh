@@ -321,7 +321,7 @@ class MTLShader : public Shader {
   MEM_CXX_CLASS_ALLOC_FUNCS("MTLShader");
 };
 
-class MTLShaderCompiler : public ShaderCompilerGeneric {
+class MTLShaderCompiler : public ShaderCompiler {
  public:
   MTLShaderCompiler();
 

@@ -450,7 +450,7 @@ void VKBackend::platform_exit()
 
 void VKBackend::init_resources()
 {
-  shader_compiler = MEM_new<ShaderCompilerGeneric>(
+  shader_compiler = MEM_new<ShaderCompiler>(
       __func__, GPU_max_parallel_compilations(), GPUWorker::ContextType::Main);
 }
 

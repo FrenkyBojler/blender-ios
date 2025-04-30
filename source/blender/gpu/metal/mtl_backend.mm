@@ -47,7 +47,7 @@ void MTLBackend::init_resources()
     compiler_ = MEM_new<MTLShaderCompiler>(__func__);
   }
   else {
-    compiler_ = MEM_new<ShaderCompilerGeneric>(__func__);
+    compiler_ = MEM_new<ShaderCompiler>(__func__);
   }
 }
 

@@ -1548,7 +1548,7 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
  * \{ */
 
 MTLShaderCompiler::MTLShaderCompiler()
-    : ShaderCompilerGeneric(true, GPUWorker::ContextType::Shared, true)
+    : ShaderCompiler(true, GPUWorker::ContextType::Shared, true)
 {
   BLI_assert(GPU_use_parallel_compilation());
 }
