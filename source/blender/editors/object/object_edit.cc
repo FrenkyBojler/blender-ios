@@ -1003,6 +1003,8 @@ static wmOperatorStatus editmode_toggle_exec(bContext *C, wmOperator *op)
 
 static bool editmode_toggle_poll(bContext *C)
 {
+  /* Get object the same way as in editmode_toggle_exec(). Otherwise overriding context can crash,
+   * see #137998. */
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
