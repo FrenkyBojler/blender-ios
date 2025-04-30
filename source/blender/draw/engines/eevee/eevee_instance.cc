@@ -25,6 +25,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 #include "GPU_context.hh"
+#include "GPU_pass.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "RE_pipeline.h"
@@ -477,6 +478,8 @@ void Instance::render_sample()
     while (materials.queued_shaders_count > 0) {
       /* Leave some time for shaders to compile. */
       BLI_time_sleep_ms(50);
+      /* TODO: Clean this up. */
+      GPU_pass_cache_update();
       /** WORKAROUND: Re-sync to check if all shaders are already compiled. */
       render_sync();
     }
