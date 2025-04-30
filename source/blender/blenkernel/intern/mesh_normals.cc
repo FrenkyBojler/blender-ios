@@ -1191,17 +1191,18 @@ BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     float3 &fan_normal,
     CornerNormalSpaceArray *r_fan_spaces)
 {
-  const int local_edge_first = corner_infos[local_corners_in_fan.first()].local_edge_prev;
-  const int local_edge_last = local_corners_in_fan.size() == corner_infos.size() ?
-                                  corner_infos[local_corners_in_fan.last()].local_edge_prev :
-                                  corner_infos[local_corners_in_fan.last()].local_edge_next;
+  const int local_edge_first = corner_infos[local_corners_in_fan.first()].local_edge_next;
+  const int local_edge_last = corner_infos[local_corners_in_fan.last()].local_edge_prev;
 
-  Array<float3, 16> fan_edge_dirs;
+  Vector<float3, 16> fan_edge_dirs;
   if (local_corners_in_fan.size() > 1) {
-fan_edge_dirs.reinitialize(local_corners_in_fan.size());
-    for (const int i : local_corners_in_fan.index_range()) {
-      const VertCornerInfo &info = corner_infos[local_corners_in_fan[i]];
-      fan_edge_dirs[i] = edge_dirs[info.local_edge_prev];
+    fan_edge_dirs.reserve(local_corners_in_fan.size() + 1);
+    for (const int local_corner : local_corners_in_fan) {
+      const VertCornerInfo &info = corner_infos[local_corner];
+      fan_edge_dirs.append_unchecked(edge_dirs[info.local_edge_next]);
+    }
+    if (local_corners_in_fan.size() < corner_infos.size()) {
+      fan_edge_dirs.append_unchecked(edge_dirs[local_edge_last]);
     }
   }
 
@@ -1223,9 +1224,9 @@ fan_edge_dirs.reinitialize(local_corners_in_fan.size());
   for (const float3 &vec : fan_edge_dirs.as_span().drop_back(1)) {
     std::cout << vec << ", ";
   }
-if (!fan_edge_dirs.is_empty()) {
-  std::cout << fan_edge_dirs.as_span().last();
-}
+  if (!fan_edge_dirs.is_empty()) {
+    std::cout << fan_edge_dirs.as_span().last();
+  }
   std::cout << "}" << std::endl;
 
   if (r_fan_spaces) {
