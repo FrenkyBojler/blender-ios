@@ -25,6 +25,7 @@
 #include "BLI_span.hh"
 #include "BLI_virtual_array.hh"
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
@@ -33,6 +34,8 @@
 #include "BKE_report.hh"
 
 #include "BLT_translation.hh"
+
+#include "DNA_material_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
@@ -277,11 +280,13 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
   orders.resize(num_curves);
 
   const Span<float3> positions = curves.positions();
+  const Span<float> custom_knots = curves.nurbs_custom_knots();
 
   VArray<int8_t> geom_orders = curves.nurbs_orders();
   VArray<int8_t> knots_modes = curves.nurbs_knots_modes();
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
+  const OffsetIndices custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
   for (const int i_curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[i_curve];
     for (const int i_point : points) {
@@ -299,7 +304,14 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
 
     const int knots_num = bke::curves::nurbs::knots_num(tot_points, order, is_cyclic);
     Array<float> temp_knots(knots_num);
-    bke::curves::nurbs::calculate_knots(tot_points, mode, order, is_cyclic, temp_knots);
+
+    if (mode == NURBS_KNOT_MODE_CUSTOM) {
+      bke::curves::nurbs::copy_custom_knots(
+          order, is_cyclic, custom_knots.slice(custom_knots_by_curve[i_curve]), temp_knots);
+    }
+    else {
+      bke::curves::nurbs::calculate_knots(tot_points, mode, order, is_cyclic, temp_knots);
+    }
 
     /* Knots should be the concatenation of all batched curves.
      * https://graphics.pixar.com/usd/dev/api/class_usd_geom_nurbs_curves.html#details */
@@ -648,7 +660,7 @@ void USDCurvesWriter::assign_materials(const HierarchyContext &context,
   }
 
   bool curve_material_bound = false;
-  for (short mat_num = 0; mat_num < context.object->totcol; mat_num++) {
+  for (int mat_num = 0; mat_num < context.object->totcol; mat_num++) {
     Material *material = BKE_object_material_get(context.object, mat_num + 1);
     if (material == nullptr) {
       continue;

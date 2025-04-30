@@ -30,6 +30,7 @@ class MetalDevice : public Device {
   id<MTLCommandQueue> mtlGeneralCommandQueue = nil;
   id<MTLArgumentEncoder> mtlAncillaryArgEncoder =
       nil; /* encoder used for fetching device pointers from MTLBuffers */
+  id<MTLCounterSampleBuffer> mtlCounterSampleBuffer = nil;
   string source[PSO_NUM];
   string kernels_md5[PSO_NUM];
   string global_defines_md5[PSO_NUM];
@@ -41,6 +42,7 @@ class MetalDevice : public Device {
   /* MetalRT members ----------------------------------*/
   bool use_metalrt = false;
   bool motion_blur = false;
+  bool use_pcmi = false;
   id<MTLArgumentEncoder> mtlASArgEncoder =
       nil; /* encoder used for fetching device pointers from MTLAccelerationStructure */
 
@@ -56,7 +58,6 @@ class MetalDevice : public Device {
 
   uint kernel_features = 0;
   bool using_nanovdb = false;
-  MTLResourceOptions default_storage_mode;
   int max_threads_per_threadgroup;
 
   int mtlDevId = 0;
@@ -70,7 +71,6 @@ class MetalDevice : public Device {
     uint64_t offset = 0;
     uint64_t size = 0;
     void *hostPtr = nullptr;
-    bool use_UMA = false; /* If true, UMA memory in shared_pointer is being used. */
   };
   using MetalMemMap = map<device_memory *, unique_ptr<MetalMem>>;
   MetalMemMap metal_mem_map;
@@ -134,7 +134,8 @@ class MetalDevice : public Device {
 
   void erase_allocation(device_memory &mem);
 
-  bool should_use_graphics_interop() override;
+  bool should_use_graphics_interop(const GraphicsInteropDevice &interop_device,
+                                   const bool log) override;
 
   void *get_native_buffer(device_ptr ptr) override;
 
@@ -161,6 +162,8 @@ class MetalDevice : public Device {
 
   void mem_copy_to(device_memory &mem) override;
 
+  void mem_move_to_host(device_memory &mem) override;
+
   void mem_copy_from(device_memory &mem)
   {
     mem_copy_from(mem, -1, -1, -1, -1);
@@ -177,13 +180,11 @@ class MetalDevice : public Device {
   void const_copy_to(const char *name, void *host, const size_t size) override;
 
   void global_alloc(device_memory &mem);
-
   void global_free(device_memory &mem);
 
   void tex_alloc(device_texture &mem);
-
   void tex_alloc_as_buffer(device_texture &mem);
-
+  void tex_copy_to(device_texture &mem);
   void tex_free(device_texture &mem);
 
   void flush_delayed_free_list();

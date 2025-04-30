@@ -6,12 +6,7 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
-
-#include "BLI_utildefines.h"
-
-#include "BLT_translation.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -19,7 +14,6 @@
 #include "DNA_screen_types.h"
 
 #include "UI_interface.hh"
-#include "UI_interface_icons.hh"
 #include "UI_resources.hh"
 
 #include "rna_internal.hh"
@@ -35,12 +29,18 @@ const EnumPropertyItem rna_enum_icon_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "BLT_translation.hh"
+
 #  include "DNA_asset_types.h"
+
+#  include "BKE_report.hh"
 
 #  include "ED_asset_filter.hh"
 #  include "ED_geometry.hh"
 #  include "ED_node.hh"
 #  include "ED_object.hh"
+
+#  include "WM_api.hh"
 
 using blender::StringRefNull;
 
@@ -873,7 +873,7 @@ static uiLayout *rna_uiLayoutRowWithHeading(
   /* Get translated heading. */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       heading, heading_ctxt, nullptr, nullptr, translate);
-  return uiLayoutRowWithHeading(layout, align, text.value_or(""));
+  return &layout->row(align, text.value_or(""));
 }
 
 static uiLayout *rna_uiLayoutColumnWithHeading(
@@ -882,7 +882,22 @@ static uiLayout *rna_uiLayoutColumnWithHeading(
   /* Get translated heading. */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       heading, heading_ctxt, nullptr, nullptr, translate);
-  return uiLayoutColumnWithHeading(layout, align, text.value_or(""));
+  return &layout->column(align, text.value_or(""));
+}
+
+static uiLayout *rna_uiLayoutColumnFlow(uiLayout *layout, int number, bool align)
+{
+  return &layout->column_flow(number, align);
+}
+
+static uiLayout *rna_uiLayoutGridFlow(uiLayout *layout,
+                                      bool row_major,
+                                      int columns_len,
+                                      bool even_columns,
+                                      bool even_rows,
+                                      bool align)
+{
+  return &layout->grid_flow(row_major, columns_len, even_columns, even_rows, align);
 }
 
 void rna_uiLayoutPanelProp(uiLayout *layout,
@@ -984,7 +999,7 @@ static const char *rna_ui_get_enum_name(bContext *C,
       name = items[index].name;
     }
     if (free) {
-      MEM_freeN((void *)items);
+      MEM_freeN(items);
     }
   }
 
@@ -1016,7 +1031,7 @@ static const char *rna_ui_get_enum_description(bContext *C,
       desc = items[index].description;
     }
     if (free) {
-      MEM_freeN((void *)items);
+      MEM_freeN(items);
     }
   }
 
@@ -1048,7 +1063,7 @@ static int rna_ui_get_enum_icon(bContext *C,
       icon = items[index].icon;
     }
     if (free) {
-      MEM_freeN((void *)items);
+      MEM_freeN(items);
     }
   }
 
@@ -1325,13 +1340,13 @@ void RNA_api_ui_layout(StructRNA *srna)
                          "Sub-layout to put items in. Will be none if the panel is collapsed.");
   RNA_def_function_output(func, parm);
 
-  func = RNA_def_function(srna, "column_flow", "uiLayoutColumnFlow");
+  func = RNA_def_function(srna, "column_flow", "rna_uiLayoutColumnFlow");
   RNA_def_int(func, "columns", 0, 0, INT_MAX, "", "Number of columns, 0 is automatic", 0, INT_MAX);
   parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
   RNA_def_function_return(func, parm);
   RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
 
-  func = RNA_def_function(srna, "grid_flow", "uiLayoutGridFlow");
+  func = RNA_def_function(srna, "grid_flow", "rna_uiLayoutGridFlow");
   RNA_def_boolean(func, "row_major", false, "", "Fill row by row, instead of column by column");
   RNA_def_int(
       func,

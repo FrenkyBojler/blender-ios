@@ -12,6 +12,7 @@
 
 #include "BKE_screen.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -235,21 +236,21 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
   }
 
   bScreen *screen = CTX_wm_screen(C);
-  PointerRNA library_ref_ptr = RNA_pointer_create(
+  PointerRNA library_ref_ptr = RNA_pointer_create_discrete(
       &screen->id, &RNA_AssetLibraryReference, &shelf->settings.asset_library_reference);
   uiLayoutSetContextPointer(layout, "asset_library_reference", &library_ref_ptr);
 
-  uiLayout *row = uiLayoutRow(layout, false);
-  uiLayout *catalogs_col = uiLayoutColumn(row, false);
+  uiLayout *row = &layout->row(false);
+  uiLayout *catalogs_col = &row->column(false);
   uiLayoutSetUnitsX(catalogs_col, LEFT_COL_WIDTH_UNITS);
   uiLayoutSetFixedSize(catalogs_col, true);
   library_selector_draw(C, catalogs_col, *shelf);
   catalog_tree_draw(*C, *catalogs_col, *shelf);
 
-  uiLayout *right_col = uiLayoutColumn(row, false);
-  uiLayout *sub = uiLayoutRow(right_col, false);
+  uiLayout *right_col = &row->column(false);
+  uiLayout *sub = &right_col->row(false);
   /* Same as file/asset browser header. */
-  PointerRNA shelf_ptr = RNA_pointer_create(&screen->id, &RNA_AssetShelf, shelf);
+  PointerRNA shelf_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_AssetShelf, shelf);
   uiItemR(sub,
           &shelf_ptr,
           "search_filter",
@@ -258,7 +259,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
           "",
           ICON_VIEWZOOM);
 
-  uiLayout *asset_view_col = uiLayoutColumn(right_col, false);
+  uiLayout *asset_view_col = &right_col->column(false);
   BLI_assert((layout_width_units - LEFT_COL_WIDTH_UNITS) > 0);
   uiLayoutSetUnitsX(asset_view_col, layout_width_units - LEFT_COL_WIDTH_UNITS);
   uiLayoutSetFixedSize(asset_view_col, true);
@@ -284,7 +285,7 @@ void popover_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_cnew<PanelType>(__func__);
+  PanelType *pt = MEM_callocN<PanelType>(__func__);
   STRNCPY(pt->idname, "ASSETSHELF_PT_popover_panel");
   STRNCPY(pt->label, N_("Asset Shelf Panel"));
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

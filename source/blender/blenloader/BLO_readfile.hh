@@ -3,8 +3,15 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
-#include "BLI_listbase.h"
+#include <optional>
+#include <variant>
+
+#include "DNA_listBase.h"
+#include "DNA_sdna_types.h"
+
+#include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
+#include "BLI_utildefines.h"
 #include "BLI_utility_mixins.hh"
 
 /** \file
@@ -18,6 +25,7 @@ struct BlendfileLinkAppendContext;
 struct BlendHandle;
 struct BlendThumbnail;
 struct FileData;
+struct FileReader;
 struct ID;
 struct Library;
 struct LinkNode;
@@ -383,6 +391,10 @@ enum eBLOLibLinkFlags {
   BLO_LIBLINK_OBDATA_INSTANCE = 1 << 24,
   /** Instantiate collections as empties, instead of linking them into current view layer. */
   BLO_LIBLINK_COLLECTION_INSTANCE = 1 << 25,
+  /** Do not rebuild collections hierarchy runtime data (mainly the parents info) as part of
+     #BLO_library_link_end. Needed when some IDs have been temporarily removed from Main, see e.g.
+     #BKE_blendfile_library_relocate. */
+  BLO_LIBLINK_COLLECTION_NO_HIERARCHY_REBUILD = 1 << 26,
 };
 
 /**
@@ -461,14 +473,9 @@ void BLO_library_link_end(Main *mainl, BlendHandle **bh, const LibraryLink_Param
  * Struct for temporarily loading datablocks from a blend file.
  */
 struct TempLibraryContext {
-  /** Temporary main used for library data. */
-  Main *bmain_lib;
   /** Temporary main used to load data into (currently initialized from `real_main`). */
   Main *bmain_base;
-  BlendHandle *blendhandle;
   BlendFileReadReport bf_reports;
-  LibraryLink_Params liblink_params;
-  Library *lib;
 
   /** The ID datablock that was loaded. Is NULL if loading failed. */
   ID *temp_id;
@@ -489,7 +496,8 @@ using BLOExpandDoitCallback = void (*)(void *fdhandle, Main *mainvar, void *idv)
 
 /**
  * Loop over all ID data in Main to mark relations.
- * Set (id->tag & ID_TAG_NEED_EXPAND) to mark expanding. Flags get cleared after expanding.
+ * Set #ID_Readfile_Data::Tags.needs_expanding to mark expanding. Flags get
+ * cleared after expanding.
  *
  * \param fdhandle: usually file-data, or own handle. May be nullptr.
  * \param mainvar: the Main database to expand.
@@ -545,7 +553,24 @@ short BLO_version_from_file(const char *filepath);
  */
 struct ID_Readfile_Data {
   struct Tags {
-    bool is_id_link_placeholder : 1;
+    /* General ID reading related tags. */
+
+    /**
+     * Mark ID placeholders for linked data-blocks needing to be read from their library
+     * blend-files.
+     */
+    bool is_link_placeholder : 1;
+    /**
+     * Mark IDs needing to be expanded (only done once). See #BLO_expand_main.
+     */
+    bool needs_expanding : 1;
+    /**
+     * Mark IDs needing to be 'lib-linked', i.e. to get their pointers to other data-blocks
+     * updated from the 'UID' values stored in `.blend` files to the new, actual pointers.
+     */
+    bool needs_linking : 1;
+
+    /* Specific ID-type reading/versioning related tags. */
 
     /**
      * Set when this ID used a legacy Action, in which case it also should pick
@@ -564,6 +589,13 @@ struct ID_Readfile_Data {
 ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(ID &id);
 
 /**
+ * Create the `readfile_data` if needed, and return `id->runtime.readfile_data->tags`.
+ *
+ * Use it instead of #BLO_readfile_id_runtime_tags when tags need to be set.
+ */
+ID_Readfile_Data::Tags &BLO_readfile_id_runtime_tags_for_write(ID &id);
+
+/**
  * Free the ID_Readfile_Data of all IDs in this bmain and all their embedded IDs.
  *
  * This is typically called at the end of the versioning process, as after that
@@ -575,3 +607,33 @@ void BLO_readfile_id_runtime_data_free_all(Main &bmain);
  *  Free the ID_Readfile_Data of this ID. Does _not_ deal with embedded IDs.
  */
 void BLO_readfile_id_runtime_data_free(ID &id);
+
+/** A header that has been parsed successfully. */
+struct BlenderHeader {
+  /** 4 or 8. */
+  int pointer_size;
+  /** L_ENDIAN or B_ENDIAN. */
+  int endian;
+  /** #BLENDER_FILE_VERSION. */
+  int file_version;
+  /** #BLEND_FILE_FORMAT_VERSION. */
+  int file_format_version;
+
+  BHeadType bhead_type() const;
+};
+
+/** The file is detected to be a Blender file, but it could not be decoded successfully. */
+struct BlenderHeaderUnknown {};
+
+/** The file is not a Blender file. */
+struct BlenderHeaderInvalid {};
+
+using BlenderHeaderVariant =
+    std::variant<BlenderHeaderInvalid, BlenderHeaderUnknown, BlenderHeader>;
+
+BlenderHeaderVariant BLO_readfile_blender_header_decode(FileReader *file);
+
+/* Returns std::nullopt if the file is exhausted. */
+std::optional<BHead> BLO_readfile_read_bhead(FileReader *file,
+                                             BHeadType type,
+                                             bool do_endian_swap);

@@ -6,7 +6,6 @@
  * \ingroup spview3d
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -37,7 +36,7 @@
 /** \name Toggle Matcap Flip Operator
  * \{ */
 
-static int toggle_matcap_flip_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus toggle_matcap_flip_exec(bContext *C, wmOperator * /*op*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
 
@@ -81,7 +80,7 @@ void uiTemplateEditModeSelection(uiLayout *layout, bContext *C)
   }
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
 
   PointerRNA op_ptr;
   wmOperatorType *ot = WM_operatortype_find("MESH_OT_select_mode", true);
@@ -124,12 +123,13 @@ static void uiTemplatePaintModeSelection(uiLayout *layout, bContext *C)
   /* Gizmos aren't used in paint modes */
   if (!ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_PARTICLE_EDIT)) {
     /* masks aren't used for sculpt and particle painting */
-    PointerRNA meshptr = RNA_pointer_create(static_cast<ID *>(ob->data), &RNA_Mesh, ob->data);
+    PointerRNA meshptr = RNA_pointer_create_discrete(
+        static_cast<ID *>(ob->data), &RNA_Mesh, ob->data);
     if (ob->mode & OB_MODE_TEXTURE_PAINT) {
       uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
     }
     else {
-      uiLayout *row = uiLayoutRow(layout, true);
+      uiLayout *row = &layout->row(true);
       uiItemR(row, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
       uiItemR(row, &meshptr, "use_paint_mask_vertex", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 

@@ -9,6 +9,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_report.hh"
 
 #include "DNA_scene_types.h"
 
@@ -108,6 +109,17 @@ template<typename T> void reverse_point_data(const IndexRange point_range, Mutab
   data.slice(point_range.first(), point_range.size()).reverse();
 }
 
+template<typename T>
+void swap_handle_attributes(MutableSpan<T> handles_left, MutableSpan<T> handles_right)
+{
+  BLI_assert(handles_left.size() == handles_right.size());
+  threading::parallel_for(handles_left.index_range(), 8192, [&](const IndexRange range) {
+    for (const int point : range) {
+      std::swap(handles_left[point], handles_right[point]);
+    }
+  });
+};
+
 /**
  * Change on \dst_curves the direction of \a points_to_reverse (switch the start and end) without
  * changing their shape.
@@ -131,6 +143,35 @@ void reverse_points_of(bke::CurvesGeometry &dst_curves, const IndexRange points_
     });
     attribute.finish();
   });
+
+  /* Also needs to swap left/right bezier handles if handle attributes exist. */
+  if (attributes.contains("handle_left") && attributes.contains("handle_right")) {
+    MutableSpan<float3> handles_left = dst_curves.handle_positions_left_for_write().slice(
+        points_to_reverse);
+    MutableSpan<float3> handles_right = dst_curves.handle_positions_right_for_write().slice(
+        points_to_reverse);
+    swap_handle_attributes<float3>(handles_left, handles_right);
+  }
+  if (attributes.contains(".selection_handle_left") &&
+      attributes.contains(".selection_handle_right"))
+  {
+    bke::SpanAttributeWriter<bool> writer_left = attributes.lookup_for_write_span<bool>(
+        ".selection_handle_left");
+    bke::SpanAttributeWriter<bool> writer_right = attributes.lookup_for_write_span<bool>(
+        ".selection_handle_right");
+    const MutableSpan<bool> selection_left = writer_left.span.slice(points_to_reverse);
+    const MutableSpan<bool> selection_right = writer_right.span.slice(points_to_reverse);
+    swap_handle_attributes<bool>(selection_left, selection_right);
+    writer_left.finish();
+    writer_right.finish();
+  }
+  if (attributes.contains("handle_type_left") && attributes.contains("handle_type_right")) {
+    MutableSpan<int8_t> types_left = dst_curves.handle_types_left_for_write().slice(
+        points_to_reverse);
+    MutableSpan<int8_t> types_right = dst_curves.handle_types_right_for_write().slice(
+        points_to_reverse);
+    swap_handle_attributes<int8_t>(types_left, types_right);
+  }
 }
 
 void apply_action(ActionOnNextRange action,
@@ -311,9 +352,10 @@ void copy_curve_attributes(Span<PointsRange> ranges_selected, bke::CurvesGeometr
    */
 
   auto src_range = [&]() -> const PointsRange & {
-    auto it = std::find_if(ranges_selected.begin(),
-                           ranges_selected.end(),
-                           [](const PointsRange &range) { return range.belongs_to_active_layer; });
+    const auto *it = std::find_if(
+        ranges_selected.begin(), ranges_selected.end(), [](const PointsRange &range) {
+          return range.belongs_to_active_layer;
+        });
 
     return it != ranges_selected.end() ? *it : ranges_selected.first();
   }();
@@ -340,21 +382,15 @@ void copy_curve_attributes(Span<PointsRange> ranges_selected, bke::CurvesGeometr
  * Removes the selection state of all the affected CurvesGeometry, except the one
  * of the active layer. Points in the active layer do not get unselected
  */
-void clear_selection_attribute(Span<PointsRange> ranges_selected,
-                               const bke::AttrDomain selection_domain)
+void clear_selection_attribute(Span<PointsRange> ranges_selected)
 {
   for (const PointsRange &range : ranges_selected) {
     bke::CurvesGeometry &curves = *range.owning_curves;
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
-        ".selection", selection_domain);
-
-    const IndexMask mask = selection_domain == bke::AttrDomain::Point ?
-                               IndexMask{curves.points_num()} :
-                               IndexMask{curves.curves_num()};
-
-    masked_fill(selection.span, false, mask);
-    selection.finish();
+    if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection")) {
+      ed::curves::fill_selection_false(selection.span);
+      selection.finish();
+    }
   }
 }
 
@@ -428,7 +464,7 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
  * This operator builds a new stroke from the points/curves selected. It makes a copy of all the
  * selected points and joins them in a single stroke, which is added to the active layer.
  */
-int grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
+wmOperatorStatus grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
 
@@ -438,6 +474,7 @@ int grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
       scene->toolsettings, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   if (!grease_pencil.has_active_layer()) {
+    BKE_report(op->reports, RPT_ERROR, "No active layer");
     return OPERATOR_CANCELLED;
   }
 
@@ -473,10 +510,10 @@ int grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
   const PointsRange working_range = copy_point_attributes(ranges_selected, tmp_curves);
   copy_curve_attributes(ranges_selected, tmp_curves);
 
-  clear_selection_attribute(ranges_selected, selection_domain);
+  clear_selection_attribute(ranges_selected);
 
   Array<PointsRange> working_range_collection = {working_range};
-  clear_selection_attribute(working_range_collection, selection_domain);
+  clear_selection_attribute(working_range_collection);
 
   bke::CurvesGeometry &dst_curves = dst_drawing->strokes_for_write();
   if (active_layer_behavior == ActiveLayerBehavior::JoinSelection) {

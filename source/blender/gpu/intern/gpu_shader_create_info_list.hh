@@ -79,6 +79,7 @@
 #include "compositor_keying_info.hh"
 #include "compositor_keying_screen_info.hh"
 #include "compositor_kuwahara_info.hh"
+#include "compositor_lens_distortion_info.hh"
 #include "compositor_map_uv_info.hh"
 #include "compositor_morphological_blur_info.hh"
 #include "compositor_morphological_distance_feather_info.hh"
@@ -89,14 +90,13 @@
 #include "compositor_movie_distortion_info.hh"
 #include "compositor_normalize_info.hh"
 #include "compositor_parallel_reduction_info.hh"
+#include "compositor_pixel_coordinates_info.hh"
 #include "compositor_pixelate_info.hh"
 #include "compositor_plane_deform_info.hh"
 #include "compositor_premultiply_alpha_info.hh"
-#include "compositor_projector_lens_distortion_info.hh"
 #include "compositor_read_input_info.hh"
 #include "compositor_realize_on_domain_info.hh"
 #include "compositor_scale_variable_info.hh"
-#include "compositor_screen_lens_distortion_info.hh"
 #include "compositor_smaa_info.hh"
 #include "compositor_split_info.hh"
 #include "compositor_summed_area_table_info.hh"
@@ -105,6 +105,7 @@
 #include "compositor_symmetric_blur_variable_size_info.hh"
 #include "compositor_symmetric_separable_blur_info.hh"
 #include "compositor_symmetric_separable_blur_variable_size_info.hh"
+#include "compositor_texture_coordinates_info.hh"
 #include "compositor_tone_map_photoreceptor_info.hh"
 #include "compositor_tone_map_simple_info.hh"
 #include "compositor_translate_wrapped_info.hh"
@@ -114,10 +115,13 @@
 
 /* DRW module. */
 #include "draw_debug_info.hh"
-#include "draw_fullscreen_info.hh"
 #include "draw_hair_refine_info.hh"
 #include "draw_object_infos_info.hh"
 #include "draw_view_info.hh"
+#include "gpu_shader_fullscreen_info.hh"
+#ifdef WITH_OPENSUBDIV
+#  include "subdiv_info.hh"
+#endif
 
 /* EEVEE engine. */
 #include "eevee_ambient_occlusion_info.hh"
@@ -150,6 +154,7 @@
 #include "overlay_antialiasing_info.hh"
 #include "overlay_armature_info.hh"
 #include "overlay_background_info.hh"
+#include "overlay_common_info.hh"
 #include "overlay_edit_mode_info.hh"
 #include "overlay_extra_info.hh"
 #include "overlay_facing_info.hh"

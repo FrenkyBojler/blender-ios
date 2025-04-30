@@ -16,6 +16,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_texture_types.h"
 
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
@@ -64,7 +65,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -112,14 +113,13 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   }
 }
 
-static void waveModifier_do(WaveModifierData *md,
+static void waveModifier_do(WaveModifierData *wmd,
                             const ModifierEvalContext *ctx,
                             Object *ob,
                             Mesh *mesh,
                             float (*vertexCos)[3],
                             int verts_num)
 {
-  WaveModifierData *wmd = (WaveModifierData *)md;
   const MDeformVert *dvert;
   int defgrp_index;
   float ctime = DEG_get_ctime(ctx->depsgraph);
@@ -163,14 +163,14 @@ static void waveModifier_do(WaveModifierData *md,
         lifefac = 0.0;
       }
       else {
-        lifefac = float(wmd->height * (1.0f - sqrtf(lifefac / wmd->damp)));
+        lifefac = (wmd->height * (1.0f - sqrtf(lifefac / wmd->damp)));
       }
     }
   }
 
   Tex *tex_target = wmd->texture;
   if (mesh != nullptr && tex_target != nullptr) {
-    tex_co = static_cast<float(*)[3]>(MEM_malloc_arrayN(verts_num, sizeof(*tex_co), __func__));
+    tex_co = MEM_malloc_arrayN<float[3]>(size_t(verts_num), __func__);
     MOD_get_texture_coords((MappingInfoModifierData *)wmd, ctx, ob, mesh, vertexCos, tex_co);
 
     MOD_init_texture((MappingInfoModifierData *)wmd, ctx);
@@ -215,7 +215,7 @@ static void waveModifier_do(WaveModifierData *md,
       amplit -= (ctime - wmd->timeoffs) * wmd->speed;
 
       if (wmd->flag & MOD_WAVE_CYCL) {
-        amplit = float(fmodf(amplit - wmd->width, 2.0f * wmd->width)) + wmd->width;
+        amplit = fmodf(amplit - wmd->width, 2.0f * wmd->width) + wmd->width;
       }
 
       if (falloff != 0.0f) {
@@ -240,7 +240,7 @@ static void waveModifier_do(WaveModifierData *md,
       /* GAUSSIAN */
       if ((falloff_fac != 0.0f) && (amplit > -wmd->width) && (amplit < wmd->width)) {
         amplit = amplit * wmd->narrow;
-        amplit = float(1.0f / expf(amplit * amplit) - minfac);
+        amplit = (1.0f / expf(amplit * amplit) - minfac);
 
         /* Apply texture. */
         if (tex_co) {
@@ -299,7 +299,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Motion"));
+  row = &layout->row(true, IFACE_("Motion"));
   uiItemR(row,
           ptr,
           "use_x",
@@ -315,15 +315,15 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiItemR(layout, ptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Along Normals"));
+  row = &layout->row(true, IFACE_("Along Normals"));
   uiItemR(row, ptr, "use_normal", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(row, true);
+  sub = &row->row(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_normal"));
   uiItemR(sub, ptr, "use_normal_x", UI_ITEM_R_TOGGLE, "X", ICON_NONE);
   uiItemR(sub, ptr, "use_normal_y", UI_ITEM_R_TOGGLE, "Y", ICON_NONE);
   uiItemR(sub, ptr, "use_normal_z", UI_ITEM_R_TOGGLE, "Z", ICON_NONE);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, ptr, "falloff_radius", UI_ITEM_NONE, IFACE_("Falloff"), ICON_NONE);
   uiItemR(col, ptr, "height", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "width", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
@@ -345,7 +345,7 @@ static void position_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiItemR(layout, ptr, "start_position_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   uiItemR(col, ptr, "start_position_x", UI_ITEM_NONE, IFACE_("Start Position X"), ICON_NONE);
   uiItemR(col, ptr, "start_position_y", UI_ITEM_NONE, "Y", ICON_NONE);
 }
@@ -359,7 +359,7 @@ static void time_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, ptr, "time_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
   uiItemR(col, ptr, "lifetime", UI_ITEM_NONE, IFACE_("Life"), ICON_NONE);
   uiItemR(col, ptr, "damping_time", UI_ITEM_NONE, IFACE_("Damping"), ICON_NONE);
@@ -380,7 +380,7 @@ static void texture_panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, ptr, "texture_coords", UI_ITEM_NONE, IFACE_("Coordinates"), ICON_NONE);
   if (texture_coords == MOD_DISP_MAP_OBJECT) {
     uiItemR(col, ptr, "texture_coords_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);

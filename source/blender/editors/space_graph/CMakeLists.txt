@@ -22,9 +22,11 @@ set(SRC
   graph_slider_ops.cc
   graph_utils.cc
   graph_view.cc
+  graph_query.cc
   space_graph.cc
 
   graph_intern.hh
+  ED_space_graph.hh
 )
 
 set(LIB
@@ -34,6 +36,7 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig

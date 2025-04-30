@@ -69,7 +69,7 @@ TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
     render_graph->add_node(copy_image_to_buffer);
   }
 
-  render_graph->submit_for_read();
+  submit(render_graph, command_buffer);
 
   EXPECT_EQ(6, log.size());
   EXPECT_EQ(
@@ -177,6 +177,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout;
+    draw.node_data.viewport_data.viewports.append(VkViewport{});
+    draw.node_data.viewport_data.scissors.append(VkRect2D{});
     render_graph->add_node(draw);
   }
 
@@ -185,8 +187,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
     render_graph->add_node(end_rendering);
   }
 
-  render_graph->submit();
-  EXPECT_EQ(5, log.size());
+  submit(render_graph, command_buffer);
+  EXPECT_EQ(7, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
@@ -211,10 +213,12 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
                 "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
                 endl() + ")",
             log[1]);
+  EXPECT_EQ("set_viewport(num_viewports=1)", log[2]);
+  EXPECT_EQ("set_scissor(num_scissors=1)", log[3]);
   EXPECT_EQ("bind_pipeline(pipeline_bind_point=VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline=0x3)",
-            log[2]);
-  EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[3]);
-  EXPECT_EQ("end_rendering()", log[4]);
+            log[4]);
+  EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[5]);
+  EXPECT_EQ("end_rendering()", log[6]);
 }
 
 TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
@@ -259,6 +263,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
     draw.node_data.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
     draw.node_data.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.pipeline_data.vk_pipeline_layout = pipeline_layout;
+    draw.node_data.viewport_data.viewports.append(VkViewport{});
+    draw.node_data.viewport_data.scissors.append(VkRect2D{});
     render_graph->add_node(draw);
   }
 
@@ -267,8 +273,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
     render_graph->add_node(end_rendering);
   }
 
-  render_graph->submit();
-  EXPECT_EQ(7, log.size());
+  submit(render_graph, command_buffer);
+  EXPECT_EQ(9, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
@@ -311,10 +317,12 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
                 "load_op=VK_ATTACHMENT_LOAD_OP_DONT_CARE, store_op=VK_ATTACHMENT_STORE_OP_STORE" +
                 endl() + ")",
             log[2]);
+  EXPECT_EQ("set_viewport(num_viewports=1)", log[3]);
+  EXPECT_EQ("set_scissor(num_scissors=1)", log[4]);
   EXPECT_EQ("bind_pipeline(pipeline_bind_point=VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline=0x3)",
-            log[3]);
-  EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[4]);
-  EXPECT_EQ("end_rendering()", log[5]);
+            log[5]);
+  EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[6]);
+  EXPECT_EQ("end_rendering()", log[7]);
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT" +
@@ -331,7 +339,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
           "base_array_layer=1, layer_count=0  )" +
           endl() + ")",
-      log[6]);
+      log[8]);
 }
 
 INSTANTIATE_TEST_SUITE_P(,

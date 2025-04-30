@@ -337,11 +337,11 @@ ccl_device_inline bool volume_equiangular_valid_ray_segment(KernelGlobals kg,
                                                             const ccl_private LightSample *ls)
 {
   if (ls->type == LIGHT_SPOT) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->lamp);
-    return spot_light_valid_ray_segment(klight, ray_P, ray_D, t_range);
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+    return spot_light_valid_ray_segment(kg, klight, ray_P, ray_D, t_range);
   }
   if (ls->type == LIGHT_AREA) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->lamp);
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
     return area_light_valid_ray_segment(&klight->area, ray_P - klight->co, ray_D, t_range);
   }
   if (ls->type == LIGHT_TRIANGLE) {
@@ -858,6 +858,8 @@ ccl_device_forceinline void integrate_volume_direct_light(
       state, path, glossy_bounce);
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, transmission_bounce) = INTEGRATOR_STATE(
       state, path, transmission_bounce);
+  INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, volume_bounds_bounce) = INTEGRATOR_STATE(
+      state, path, volume_bounds_bounce);
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, throughput) = throughput_phase;
 
   /* Write Light-group, +1 as light-group is int but we need to encode into a uint8_t. */
