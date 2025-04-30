@@ -10,16 +10,10 @@ GPUWorker::GPUWorker(uint32_t threads_count,
                      ContextType context_type,
                      std::function<void()> run_cb)
 {
-  std::shared_ptr<GPUSecondaryContext> shared_context = nullptr;
-  if (context_type == ContextType::Shared) {
-    shared_context = std::make_shared<GPUSecondaryContext>();
-  }
-
   for (int i : IndexRange(threads_count)) {
     UNUSED_VARS(i);
     std::shared_ptr<GPUSecondaryContext> thread_context =
-        context_type == ContextType::PerThread ? std::make_shared<GPUSecondaryContext>() :
-                                                 shared_context;
+        context_type == ContextType::PerThread ? std::make_shared<GPUSecondaryContext>() : nullptr;
     threads_.append(std::make_unique<std::thread>([=]() { this->run(thread_context, run_cb); }));
   }
 }
