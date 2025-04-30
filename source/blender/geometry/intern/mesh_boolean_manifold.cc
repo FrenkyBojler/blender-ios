@@ -242,6 +242,15 @@ static void get_manifold(Manifold &manifold,
   meshgl.vertProperties.resize(size_t(mesh.verts_num) * props_num);
   array_utils::copy(mesh.vert_positions(), MutableSpan(meshgl.vertProperties).cast<float3>());
 
+  /* Using separate a OriginalID for each input face will prevent coplanar
+   * faces from being merged.  (Maybe a better way is coming to Manifold
+   * in the future, but for now this will work.) */
+  constexpr bool use_runids = true;
+  if (use_runids) {
+    meshgl.runIndex.resize(mesh.faces_num);
+    meshgl.runOriginalID.resize(mesh.faces_num);
+  }
+
   const int face_start = mesh_offsets.face_start[mesh_index];
 
   meshgl.faceID.resize(corner_tris.size());
@@ -253,6 +262,10 @@ static void get_manifold(Manifold &manifold,
       const int start = poly_to_tri_count(int(i), int(face.start()));
       const int num = bke::mesh::face_triangles_num(int(face.size()));
       face_ids.slice(start, num).fill(uint32_t(i + face_start));
+      if (use_runids) {
+        meshgl.runOriginalID[i] = face_start + i;
+        meshgl.runIndex[i] = start * 3;
+      }
     }
   });
 
@@ -260,11 +273,13 @@ static void get_manifold(Manifold &manifold,
   MutableSpan vert_tris = MutableSpan(meshgl.triVerts).cast<int3>();
   bke::mesh::vert_tris_from_corner_tris(corner_verts, corner_tris, vert_tris);
 
-  meshgl.runIndex.resize(2);
-  meshgl.runOriginalID.resize(1);
-  meshgl.runIndex[0] = 0;
-  meshgl.runIndex[1] = corner_tris.size() * 3;
-  meshgl.runOriginalID[0] = mesh_index;
+  if (!use_runids) {
+    meshgl.runIndex.resize(2);
+    meshgl.runOriginalID.resize(1);
+    meshgl.runIndex[0] = 0;
+    meshgl.runIndex[1] = corner_tris.size() * 3;
+    meshgl.runOriginalID[0] = mesh_index;
+  }
   if (dbg_level > 0) {
     dump_meshgl(meshgl, "converted result for mesh " + std::to_string(mesh_index));
   }
@@ -714,7 +729,7 @@ static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
  * Return 1 if \a group is just the same as the original face \a face_index
  * in \a mesh.
  * Return 2 if it is the same but with the normal reversed.
- * Return 0 otherwise. 
+ * Return 0 otherwise.
   */
 static uchar check_original_face(const Vector<int, face_group_inline> &group,
                                  const MeshGL &mgl,
@@ -1251,6 +1266,8 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   Vector<bke::GAttributeReader> readers;
   Vector<GVArraySpan> srcs;
   Vector<GMutableSpan> dsts;
+  /* For each index of srcs and dest, we need to know if it is a "normal"-like attribute. */
+  Vector<bool> is_normal_attribute;
   input_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != bke::AttrDomain::Corner || ELEM(iter.name, ".corner_vert", ".corner_edge"))
     {
@@ -1266,6 +1283,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
     readers.append(input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type));
     srcs.append(*readers.last());
     dsts.append(writers.last().span);
+    is_normal_attribute.append(iter.name == "custom_normal");
   });
   /* Loop per source face, as there is an expensive weight calculation that needs to be done per
    * face. */
@@ -1290,6 +1308,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                 return out_to_in_corner_map[c] == -1;
               }))
           {
+            /* We copied the attributes using the corner map before calling this function. */
             continue;
           }
           /* At least one output corner did not map to an input corner. */
@@ -1300,19 +1319,26 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
           const IndexRange in_face = input_faces[in_face_index];
           const Span<int> in_face_verts = input_corner_verts.slice(in_face);
           const int in_face_size = in_face.size();
+          const Span<int> out_face_verts = output_corner_verts.slice(out_face);
           weights.resize(in_face_size);
           cos_2d.resize(in_face_size);
           float(*cos_2d_p)[2] = reinterpret_cast<float(*)[2]>(cos_2d.data());
           const float3 axis_dominant = bke::mesh::face_normal_calc(input_vert_positions,
                                                                    in_face_verts);
           axis_dominant_v3_to_m3(axis_mat.ptr(), axis_dominant);
+          /* We also need to know if the output face has a flipped normal compared
+           * to the corresponding input face (used if we have custom normals).
+           */
+          const float3 out_face_normal = bke::mesh::face_normal_calc(output_vert_positions,
+                                                                     out_face_verts);
+          const bool face_is_flipped = math::dot(axis_dominant, out_face_normal) < 0.0;
           for (const int i : in_face_verts.index_range()) {
             const float3 &co = input_vert_positions[in_face_verts[i]];
             cos_2d[i] = (axis_mat * co).xy();
           }
           /* Now the loop to actually interpolate attributes of the new-vertex corners of the
            * output face. */
-          for (const int out_c : output_faces[out_face_index]) {
+          for (const int out_c : out_face) {
             const int in_c = out_to_in_corner_map[out_c];
             if (in_c != -1) {
               continue;
@@ -1325,6 +1351,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
             for (const int attr_index : dsts.index_range()) {
               const GSpan src = srcs[attr_index];
               GMutableSpan dst = dsts[attr_index];
+              const bool need_flip = face_is_flipped && is_normal_attribute[attr_index];
               const CPPType &type = dst.type();
               bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
                 using T = decltype(dummy);
@@ -1335,6 +1362,12 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                   mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
                 }
                 mixer.finalize();
+                if (need_flip) {
+                  /* The joined mesh has converted custom normals to float3. */
+                  if (type.is<float3>()) {
+                    dst.typed<float3>()[out_c] = -dst.typed<float3>()[out_c];
+                  }
+                }
               });
             }
           }
@@ -1606,6 +1639,10 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
       get_intersecting_edges(r_intersecting_edges, mesh, out_to_in, mesh_offsets);
     }
   }
+
+  mesh->tag_loose_verts_none();
+  mesh->tag_overlapping_none();
+
   return mesh;
 }
 
@@ -1635,7 +1672,6 @@ static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> mes
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const Span<float4x4> transforms,
-                            const float4x4 &target_transform,
                             const Span<Array<short>> /*material_remaps*/,
                             const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
@@ -1720,9 +1756,6 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
 #  endif
       mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets, r_intersecting_edges);
-    }
-    if (!math::is_identity(target_transform)) {
-      bke::mesh_transform(*mesh_result, target_transform, false);
     }
     return mesh_result;
   }

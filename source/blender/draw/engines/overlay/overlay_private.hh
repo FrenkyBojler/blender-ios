@@ -274,7 +274,12 @@ struct State {
 /* Matches Vertex Format. */
 struct Vertex {
   float3 pos;
-  int vclass;
+  VertexClass vclass;
+};
+
+struct VertexBone {
+  float3 pos;
+  StickBoneFlag vclass;
 };
 
 struct VertexWithColor {
@@ -284,7 +289,7 @@ struct VertexWithColor {
 
 struct VertShaded {
   float3 pos;
-  int v_class;
+  VertexClass v_class;
   float3 nor;
 };
 
@@ -390,6 +395,17 @@ class ShapeCache {
   GPUVertFormat format_vert_triple = {0};
 
   const GPUVertFormat &get_format(Vertex /*unused*/)
+  {
+    GPUVertFormat &format = format_vert;
+    if (format.attr_len != 0) {
+      return format;
+    }
+    GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "vclass", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    return format;
+  }
+
+  const GPUVertFormat &get_format(VertexBone /*unused*/)
   {
     GPUVertFormat &format = format_vert;
     if (format.attr_len != 0) {
@@ -662,8 +678,8 @@ struct Resources : public select::SelectMap {
   detail::SubPassVector<GreasePencilDepthPlane, 16> depth_planes;
   int64_t depth_planes_count = 0;
 
-  draw::UniformBuffer<GlobalsUboStorage> globals_buf;
-  GlobalsUboStorage &theme_settings = globals_buf;
+  draw::UniformBuffer<UniformData> globals_buf;
+  UniformData &theme = globals_buf;
   draw::UniformArrayBuffer<float4, 6> clip_planes_buf;
   /* Wrappers around #DefaultTextureList members. */
   TextureRef depth_in_front_tx;
@@ -848,27 +864,27 @@ struct Resources : public select::SelectMap {
   const float4 &object_wire_color(const ObjectRef &ob_ref, ThemeColorID theme_id) const
   {
     if (UNLIKELY(ob_ref.object->base_flag & BASE_FROM_SET)) {
-      return theme_settings.color_wire;
+      return theme.colors.wire;
     }
     switch (theme_id) {
       case TH_WIRE_EDIT:
-        return theme_settings.color_wire_edit;
+        return theme.colors.wire_edit;
       case TH_ACTIVE:
-        return theme_settings.color_active;
+        return theme.colors.active_object;
       case TH_SELECT:
-        return theme_settings.color_select;
+        return theme.colors.select;
       case TH_TRANSFORM:
-        return theme_settings.color_transform;
+        return theme.colors.transform;
       case TH_SPEAKER:
-        return theme_settings.color_speaker;
+        return theme.colors.speaker;
       case TH_CAMERA:
-        return theme_settings.color_camera;
+        return theme.colors.camera;
       case TH_EMPTY:
-        return theme_settings.color_empty;
+        return theme.colors.empty;
       case TH_LIGHT:
-        return theme_settings.color_light;
+        return theme.colors.light;
       default:
-        return theme_settings.color_wire;
+        return theme.colors.wire;
     }
   }
 
@@ -917,7 +933,7 @@ struct Resources : public select::SelectMap {
   static float vertex_size_get()
   {
     /* M_SQRT2 to be at least the same size of the old square */
-    return U.pixelsize * max_ff(1.0f, UI_GetThemeValuef(TH_VERTEX_SIZE) * float(M_SQRT2) / 2.0f);
+    return max_ff(1.0f, UI_GetThemeValuef(TH_VERTEX_SIZE) * float(M_SQRT2) / 2.0f);
   }
 
   /** Convenience functions. */

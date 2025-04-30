@@ -1415,10 +1415,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-#ifdef DURIAN_CAMERA_SWITCH
   /* Runtime */
   sce->r.mode &= ~R_NO_CAMERA_SWITCH;
-#endif
 
   BLO_read_struct_list(reader, TimeMarker, &(sce->markers));
   LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
@@ -2176,7 +2174,6 @@ Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *colle
   return nullptr;
 }
 
-#ifdef DURIAN_CAMERA_SWITCH
 Object *BKE_scene_camera_switch_find(Scene *scene)
 {
   if (scene->r.mode & R_NO_CAMERA_SWITCH) {
@@ -2217,20 +2214,15 @@ Object *BKE_scene_camera_switch_find(Scene *scene)
 
   return camera;
 }
-#endif
 
 bool BKE_scene_camera_switch_update(Scene *scene)
 {
-#ifdef DURIAN_CAMERA_SWITCH
   Object *camera = BKE_scene_camera_switch_find(scene);
   if (camera && (camera != scene->camera)) {
     scene->camera = camera;
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_PARAMETERS);
     return true;
   }
-#else
-  (void)scene;
-#endif
   return false;
 }
 

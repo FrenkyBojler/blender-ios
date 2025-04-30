@@ -307,13 +307,13 @@ void BKE_armature_mat_world_to_pose(Object *ob, const float inmat[4][4], float o
 /**
  * Convert World-Space Location to Pose-Space Location
  * \note this cannot be used to convert to pose-space location of the supplied
- * pose-channel into its local space (i.e. 'visual'-keyframing).
+ * pose-channel into its local space (i.e. *visual*-keyframing).
  */
 void BKE_armature_loc_world_to_pose(Object *ob, const float inloc[3], float outloc[3]);
 /**
  * Convert Pose-Space Matrix to Bone-Space Matrix.
  * \note this cannot be used to convert to pose-space transforms of the supplied
- * pose-channel into its local space (i.e. 'visual'-keyframing).
+ * pose-channel into its local space (i.e. *visual*-keyframing).
  */
 void BKE_armature_mat_pose_to_bone(bPoseChannel *pchan,
                                    const float inmat[4][4],
@@ -321,7 +321,7 @@ void BKE_armature_mat_pose_to_bone(bPoseChannel *pchan,
 /**
  * Convert Pose-Space Location to Bone-Space Location
  * \note this cannot be used to convert to pose-space location of the supplied
- * pose-channel into its local space (i.e. 'visual'-keyframing).
+ * pose-channel into its local space (i.e. *visual*-keyframing).
  */
 void BKE_armature_loc_pose_to_bone(bPoseChannel *pchan, const float inloc[3], float outloc[3]);
 /**
@@ -412,7 +412,7 @@ void BKE_bone_parent_transform_apply(const BoneParentTransform *bpt,
  * will differ from the rotation/scale matrix...
  *
  * \note This cannot be used to convert to pose-space transforms of the supplied
- * pose-channel into its local space (i.e. 'visual'-keyframing).
+ * pose-channel into its local space (i.e. *visual*-key-framing).
  * (NOTE(@mont29): I don't understand that, so I keep it :p).
  */
 void BKE_bone_parent_transform_calc_from_pchan(const bPoseChannel *pchan,
@@ -641,7 +641,7 @@ void BKE_pose_eval_cleanup(Depsgraph *depsgraph, Scene *scene, Object *object);
 /** \name Deform 3D Coordinates by Armature (`armature_deform.cc`)
  * \{ */
 
-/* Note that we could have a 'BKE_armature_deform_coords' that doesn't take object data
+/* Note that we could have a #BKE_armature_deform_coords that doesn't take object data
  * currently there are no callers for this though. */
 
 void BKE_armature_deform_coords_with_curves(

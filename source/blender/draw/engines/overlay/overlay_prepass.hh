@@ -85,7 +85,7 @@ class Prepass : Overlay {
 
     use_material_slot_selection_ = state.is_material_select;
 
-    bool use_cull = res.theme_settings.backface_culling;
+    bool use_cull = res.globals_buf.backface_culling;
     DRWState backface_cull_state = use_cull ? DRW_STATE_CULL_BACK : DRWState(0);
 
     ps_.init();
@@ -146,8 +146,8 @@ class Prepass : Overlay {
             /* Case where the render engine should have rendered it, but we need to draw it for
              * selection purpose. */
             if (handle.raw == 0u) {
-              handle = manager.resource_handle_for_psys(
-                  ob_ref, overlay::Particles::dupli_matrix_get(ob_ref));
+              handle = manager.resource_handle_for_psys(ob_ref,
+                                                        DRW_particles_dupli_matrix_get(ob_ref));
             }
 
             select::ID select_id = use_material_slot_selection_ ?
