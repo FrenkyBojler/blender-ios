@@ -923,14 +923,21 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
   /* Tip */
   if (!but_tip.empty()) {
-    const bool add_period = ui_tooltip_period_needed(but_tip);
-    UI_tooltip_text_field_add(*data,
-                              fmt::format("{}{}", but_tip, add_period ? "." : ""),
-                              {},
-                              UI_TIP_STYLE_HEADER,
-                              UI_TIP_LC_NORMAL);
-    if (but_label.empty()) {
+    if (!enum_label.empty() && enum_label == but_label) {
+      UI_tooltip_text_field_add(
+          *data, fmt::format("{}: ", but_tip), enum_label, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
       UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
+    }
+    else {
+      const bool add_period = ui_tooltip_period_needed(but_tip);
+      UI_tooltip_text_field_add(*data,
+                                fmt::format("{}{}", but_tip, add_period ? "." : ""),
+                                {},
+                                UI_TIP_STYLE_HEADER,
+                                UI_TIP_LC_NORMAL);
+      if (but_label.empty()) {
+        UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
+      }
     }
 
     /* special case enum rna buttons */
