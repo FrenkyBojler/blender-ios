@@ -516,7 +516,6 @@ void separate_points(const bke::CurvesGeometry &curves,
       points_to_separate,
       points_by_curve,
       [&](const int curve, const IndexRange points, const Span<IndexRange> selected_curve_points) {
-        const int points_start = separated_offsets.last();
         curve_offsets_from_selection(selected_curve_points,
                                      points,
                                      curve,

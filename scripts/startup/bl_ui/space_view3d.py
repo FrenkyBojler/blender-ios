@@ -5944,7 +5944,6 @@ class VIEW3D_MT_edit_curves_context_menu(Menu):
         layout.separator()
 
         layout.operator("curves.split")
-        layout.operator("curves.separate")
 
 
 class VIEW3D_MT_edit_pointcloud(Menu):
