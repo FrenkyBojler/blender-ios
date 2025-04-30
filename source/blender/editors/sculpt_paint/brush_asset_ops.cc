@@ -171,9 +171,16 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
   BLI_assert(ID_IS_ASSET(&brush->id));
 
   if (is_local_library) {
+    const Brush* original_brush = brush;
     brush = reinterpret_cast<Brush *>(bke::asset_edit_id_ensure_local(*bmain, brush->id));
     asset::mark_id(&brush->id);
     BLI_assert(brush->id.us != 0);
+
+    BLI_assert(brush->id.asset_data != nullptr);
+    BKE_asset_metadata_free(&brush->id.asset_data);
+    BLI_assert(brush->id.asset_data == nullptr);
+    brush->id.asset_data = BKE_asset_metadata_copy(original_brush->id.asset_data);
+    BLI_assert(brush->id.asset_data != nullptr);
   }
   else {
     AssetWeakReference brush_asset_reference;
