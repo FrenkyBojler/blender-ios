@@ -1196,13 +1196,11 @@ BLI_NOINLINE static void handle_fan_result_and_custom_normals(
                                   corner_infos[local_corners_in_fan.last()].local_edge_prev :
                                   corner_infos[local_corners_in_fan.last()].local_edge_next;
 
-  Vector<float3, 16> fan_edge_dirs;
+  Array<float3, 16> fan_edge_dirs(local_corners_in_fan.size());
   if (local_corners_in_fan.size() > 1) {
-    fan_edge_dirs.reserve(local_corners_in_fan.size() + 1);
-    fan_edge_dirs.append(edge_dirs[local_edge_first]);
-    for (const int local_corner : local_corners_in_fan) {
-      const VertCornerInfo &info = corner_infos[local_corner];
-      fan_edge_dirs.append(edge_dirs[info.local_edge_next]);
+    for (const int i : local_corners_in_fan.index_range()) {
+      const VertCornerInfo &info = corner_infos[local_corners_in_fan[i]];
+      fan_edge_dirs[i] = edge_dirs[info.local_edge_prev];
     }
   }
 
@@ -1218,6 +1216,14 @@ BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     average_custom_normal /= local_corners_in_fan.size();
     fan_normal = corner_space_custom_data_to_normal(fan_space, short2(average_custom_normal));
   }
+
+  std::cout << "}, vec_ref: " << edge_dirs[local_edge_first]
+            << ", vec_other: " << edge_dirs[local_edge_last] << ", edge_vectors: {";
+  for (const float3 &vec : fan_edge_dirs.as_span().drop_back(1)) {
+    std::cout << vec << ", ";
+  }
+  std::cout << fan_edge_dirs.as_span().last();
+  std::cout << "}" << std::endl;
 
   if (r_fan_spaces) {
     std::lock_guard lock(r_fan_spaces->build_mutex);
@@ -1328,7 +1334,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
           std::cout << corner_infos[i].face << ", ";
         }
         std::cout << corner_infos[corners_in_fan.as_span().last()].face;
-        std::cout << "}" << std::endl;
 
         float3 fan_normal = accumulate_fan_normal(
             corner_infos, edge_dirs, face_normals, corners_in_fan);
