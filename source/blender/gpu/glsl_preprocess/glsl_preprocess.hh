@@ -521,11 +521,9 @@ class Preprocessor {
       for (int64_t i = 0; i < loop.iter_count; i++) {
         replacement += std::string("\n#line ") + std::to_string(loop.body_line + 1) + "\n";
         replacement += loop.indent + loop.test_statement + loop.body;
-        if (i < loop.iter_count - 1) {
-          replacement += std::string("\n#line ") + std::to_string(loop.definition_line + 1) + "\n";
-          replacement += loop.indent + loop.iter_statement + ";";
-        }
-        else {
+        replacement += std::string("\n#line ") + std::to_string(loop.definition_line + 1) + "\n";
+        replacement += loop.indent + loop.iter_statement + ";";
+        if (i == loop.iter_count - 1) {
           replacement += std::string("\n#line ") + std::to_string(loop.end_line + 1) + "\n";
           replacement += loop.indent + "}";
         }
