@@ -143,8 +143,7 @@ AttributeStorage::AttributeStorage(AttributeStorage &&other)
 {
   this->dna_attributes = nullptr;
   this->dna_attributes_num = 0;
-  this->runtime = other.runtime;
-  other.runtime = nullptr;
+  this->runtime = MEM_new<AttributeStorageRuntime>(__func__, std::move(*other.runtime));
 }
 
 AttributeStorage &AttributeStorage::operator=(AttributeStorage &&other)
