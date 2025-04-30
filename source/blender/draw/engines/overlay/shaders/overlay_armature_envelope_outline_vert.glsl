@@ -13,7 +13,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_armature_envelope_outline)
 /* project to screen space */
 float2 proj(float4 pos)
 {
-  return (0.5f * (pos.xy / pos.w) + 0.5f) * sizeViewport;
+  return (0.5f * (pos.xy / pos.w) + 0.5f) * uniform_buf.size_viewport;
 }
 
 float2 compute_dir(float2 v0, float2 v1, float2 v2)
@@ -43,7 +43,7 @@ float3x3 compute_mat(float4 sphere, float3 bone_vec, out float z_ofs)
      * can be bigger than the center disc. Compute the
      * max angular size and compensate by sliding the disc
      * towards the camera and scale it accordingly. */
-    const float half_pi = 3.1415926f * 0.5f;
+    constexpr float half_pi = 3.1415926f * 0.5f;
     float rad = sphere.w;
     /* Let be :
      * V the view vector origin.
@@ -148,9 +148,9 @@ void main()
   float2 ofs_dir = compute_dir(ss0, ss1, ss2);
 
   /* Offset away from the center to avoid overlap with solid shape. */
-  gl_Position.xy += ofs_dir * sizeViewportInv * gl_Position.w;
+  gl_Position.xy += ofs_dir * uniform_buf.size_viewport_inv * gl_Position.w;
 
-  edgeStart = edgePos = proj(gl_Position);
+  edge_start = edge_pos = proj(gl_Position);
 
-  finalColor = float4(data_buf[gl_InstanceID].bone_color_and_wire_width.rgb, 1.0f);
+  final_color = float4(data_buf[gl_InstanceID].bone_color_and_wire_width.rgb, 1.0f);
 }

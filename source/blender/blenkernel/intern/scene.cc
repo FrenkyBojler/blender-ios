@@ -1011,7 +1011,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (BLO_write_is_undo(writer)) {
     /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     /* XXX This UI data should not be stored in Scene at all... */
-    memset(&sce->cursor, 0, sizeof(sce->cursor));
+    sce->cursor = View3DCursor{};
   }
 
   /* write LibData */
@@ -1199,8 +1199,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
   sce->depsgraph_hash = nullptr;
   sce->fps_info = nullptr;
 
-  memset(&sce->customdata_mask, 0, sizeof(sce->customdata_mask));
-  memset(&sce->customdata_mask_modal, 0, sizeof(sce->customdata_mask_modal));
+  sce->customdata_mask = CustomData_MeshMasks{};
+  sce->customdata_mask_modal = CustomData_MeshMasks{};
 
   BKE_sound_reset_scene_runtime(sce);
 
@@ -1406,10 +1406,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-#ifdef DURIAN_CAMERA_SWITCH
   /* Runtime */
   sce->r.mode &= ~R_NO_CAMERA_SWITCH;
-#endif
 
   BLO_read_struct_list(reader, TimeMarker, &(sce->markers));
   LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
@@ -2164,7 +2162,6 @@ Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *colle
   return nullptr;
 }
 
-#ifdef DURIAN_CAMERA_SWITCH
 Object *BKE_scene_camera_switch_find(Scene *scene)
 {
   if (scene->r.mode & R_NO_CAMERA_SWITCH) {
@@ -2205,20 +2202,15 @@ Object *BKE_scene_camera_switch_find(Scene *scene)
 
   return camera;
 }
-#endif
 
 bool BKE_scene_camera_switch_update(Scene *scene)
 {
-#ifdef DURIAN_CAMERA_SWITCH
   Object *camera = BKE_scene_camera_switch_find(scene);
   if (camera && (camera != scene->camera)) {
     scene->camera = camera;
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_PARAMETERS);
     return true;
   }
-#else
-  (void)scene;
-#endif
   return false;
 }
 

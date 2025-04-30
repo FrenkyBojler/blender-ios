@@ -108,7 +108,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
 #ifdef METAL_AMD_RAYTRACE_WORKAROUND
   bool hit_failsafe = true;
 #endif
-  const int max_steps = 255;
+  constexpr int max_steps = 255;
   for (int iter = 1; !hit && (time < ssray.max_time) && (iter < max_steps); iter++) {
     float stride = 1.0f + float(iter) * rt_data.quality;
     float lod = log2(stride) * lod_fac;
@@ -169,7 +169,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
 #ifdef PLANAR_PROBES
 
 ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
-                                   depth2DArray planar_depth_tx,
+                                   sampler2DArrayDepth planar_depth_tx,
                                    PlanarProbeData planar,
                                    float stride_rand,
                                    Ray ray)
@@ -191,7 +191,7 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
   float t = 0.0f, time = 0.0f;
   bool hit = false;
-  const int max_steps = 32;
+  constexpr int max_steps = 32;
   for (int iter = 1; !hit && (time < ssray.max_time) && (iter < max_steps); iter++) {
     float stride = 1.0f + float(iter) * rt_data.quality;
 
