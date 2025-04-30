@@ -182,7 +182,22 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     brush->id.asset_data = BKE_asset_metadata_copy(original_brush->id.asset_data);
     BLI_assert(brush->id.asset_data != nullptr);
   }
-  else {
+
+  /* Add asset to catalog. */
+  /* Note: This needs to happen after the local asset is created but BEFORE a non-local library
+   * is saved */
+  char catalog_path_c[MAX_NAME];
+  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
+
+  AssetMetaData &meta_data = *brush->id.asset_data;
+  if (catalog_path_c[0]) {
+    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
+    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
+        *library, catalog_path);
+    BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
+  }
+
+  if (!is_local_library) {
     AssetWeakReference brush_asset_reference;
     const std::optional<std::string> final_full_asset_filepath = bke::asset_edit_id_save_as(
         *bmain, brush->id, name, *user_library, brush_asset_reference, *op->reports);
@@ -196,17 +211,6 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     brush->has_unsaved_changes = false;
   }
 
-  /* Add asset to catalog. */
-  char catalog_path_c[MAX_NAME];
-  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
-
-  AssetMetaData &meta_data = *brush->id.asset_data;
-  if (catalog_path_c[0]) {
-    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
-    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
-        *library, catalog_path);
-    BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
-  }
 
   asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
 
