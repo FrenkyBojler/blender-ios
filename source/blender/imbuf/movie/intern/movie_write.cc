@@ -803,7 +803,15 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   if (codec_id == AV_CODEC_ID_FFV1) {
-    c->pix_fmt = AV_PIX_FMT_RGB32;
+    if (rd->im_format.planes == R_IMF_PLANES_BW) {
+      c->pix_fmt = AV_PIX_FMT_GRAY8;
+    }
+    else if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+      c->pix_fmt = AV_PIX_FMT_RGB32;
+    }
+    else { /* RGB */
+      c->pix_fmt = AV_PIX_FMT_0RGB32;
+    }
   }
 
   if (codec_id == AV_CODEC_ID_QTRLE) {
