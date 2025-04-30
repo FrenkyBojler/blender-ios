@@ -41,28 +41,28 @@ class TestData {
 
   TestData()
   {
-    if (bmain == nullptr) {
-      bmain = BKE_main_new();
-      G.main = bmain;
+    if (this->bmain == nullptr) {
+      this->bmain = BKE_main_new();
+      G.main = this->bmain;
     }
 
-    if (C == nullptr) {
-      C = CTX_create();
-      CTX_data_main_set(C, bmain);
+    if (this->C == nullptr) {
+      this->C = CTX_create();
+      CTX_data_main_set(this->C, this->bmain);
     }
   }
 
   ~TestData()
   {
-    if (bmain != nullptr) {
-      BKE_main_free(bmain);
-      bmain = nullptr;
+    if (this->bmain != nullptr) {
+      BKE_main_free(this->bmain);
+      this->bmain = nullptr;
       G.main = nullptr;
     }
 
-    if (C != nullptr) {
+    if (this->C != nullptr) {
       CTX_free(C);
-      C = nullptr;
+      this->C = nullptr;
     }
   }
 };
@@ -99,14 +99,14 @@ class MaterialTestData : public TestData {
   bNodeTree *material_nodetree = nullptr;
   MaterialTestData()
   {
-    material = BKE_material_add(bmain, "Material");
-    ED_node_shader_default(C, &material->id);
-    material_nodetree = material->nodetree;
+    material = BKE_material_add(this->bmain, "Material");
+    ED_node_shader_default(this->C, &this->material->id);
+    this->material_nodetree = this->material->nodetree;
   }
 
   ~MaterialTestData()
   {
-    BKE_id_free(bmain, &material->id);
+    BKE_id_free(this->bmain, &this->material->id);
   }
 };
 
@@ -115,7 +115,7 @@ class MeshTestData : public TestData {
   Mesh *mesh = nullptr;
   MeshTestData()
   {
-    mesh = BKE_mesh_add(bmain, nullptr);
+    this->mesh = BKE_mesh_add(this->bmain, nullptr);
   }
 };
 
@@ -125,7 +125,7 @@ class TwoMeshesTestData : public MeshTestData {
 
   TwoMeshesTestData()
   {
-    other_mesh = BKE_mesh_add(bmain, nullptr);
+    this->other_mesh = BKE_mesh_add(this->bmain, nullptr);
   }
 };
 
@@ -134,8 +134,8 @@ class MeshObjectTestData : public MeshTestData {
   Object *object;
   MeshObjectTestData()
   {
-    object = BKE_object_add_only_object(bmain, OB_MESH, nullptr);
-    object->data = mesh;
+    this->object = BKE_object_add_only_object(this->bmain, OB_MESH, nullptr);
+    this->object->data = this->mesh;
   }
 };
 
