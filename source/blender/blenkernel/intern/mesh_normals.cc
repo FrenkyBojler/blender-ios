@@ -1318,6 +1318,18 @@ void normals_calc_corners(const Span<float3> vert_positions,
         corners_in_fan.clear();
         traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
 
+        std::cout << "vert: " << vert << " corners: {";
+        for (const int i : corners_in_fan.as_span().drop_back(1)) {
+          std::cout << corner_infos[i].corner << ", ";
+        }
+        std::cout << corner_infos[corners_in_fan.as_span().last()].corner;
+        std::cout << "}, faces: {";
+        for (const int i : corners_in_fan.as_span().drop_back(1)) {
+          std::cout << corner_infos[i].face << ", ";
+        }
+        std::cout << corner_infos[corners_in_fan.as_span().last()].face;
+        std::cout << "}" << std::endl;
+
         float3 fan_normal = accumulate_fan_normal(
             corner_infos, edge_dirs, face_normals, corners_in_fan);
 
