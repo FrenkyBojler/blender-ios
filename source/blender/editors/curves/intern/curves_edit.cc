@@ -468,13 +468,20 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
                                      curve_map);
         deselect.append(IndexRange::from_begin_end(size_before, curve_map.size()));
       },
-      [&](const IndexRange curves, const IndexRange points) {
+      [&](const IndexRange curves, [[maybe_unused]] const IndexRange unselected_points) {
         deselect.append(IndexRange::from_begin_size(curve_map.size(), curves.size()));
-        src_ranges.append(points);
-        dst_offsets.append(dst_offsets.last() + points.size());
         int last_offset = new_offsets.last();
+        int last_dst_offset = dst_offsets.last();
         for (const int curve : curves) {
-          last_offset += points_by_curve[curve].size();
+          /* Point ranges to `src_ranges` and `dst_offsets` have to be appended curve by curve to
+           * ease custom knots are copying. It gives better mapping between `src_ranges` and
+           * `curve_map`. */
+          const IndexRange points = points_by_curve[curve];
+          src_ranges.append(points);
+          last_dst_offset += points.size();
+          dst_offsets.append(last_dst_offset);
+
+          last_offset += points.size();
           new_offsets.append(last_offset);
           curve_map.append(curve);
           new_cyclic.append(cyclic[curve]);
