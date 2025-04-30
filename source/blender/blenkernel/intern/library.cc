@@ -463,6 +463,9 @@ void blender::bke::library::embed_linked_ids(Main &bmain, const blender::Set<ID 
     BKE_main_namemap_remove_id(bmain, *id);
     id->lib = archive_lib;
     id->flag |= ID_FLAG_LINKED_AND_EMBEDDED;
+    /* Technically, this ID becomes a new data (since it comes from a new library), so its session
+     * UID needs to be renewed. */
+    BKE_lib_libblock_session_uid_renew(id);
     const IDHash &deep_hash = deep_hashes.hashes.lookup(id);
     id->deep_hash = deep_hash;
     ListBase &lb = *which_libbase(&bmain, GS(id->name));
