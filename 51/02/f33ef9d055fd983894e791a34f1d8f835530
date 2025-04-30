@@ -1,2 +1,3 @@
 Referenced by issue #137983, List of bug fixes per release override
 Referenced by issue #138032, Vulkan: Crash when opening files with minimized windows (NVIDIA Windows only)
+Referenced by issue #138149, Vulkan: Regression in playback speed.
