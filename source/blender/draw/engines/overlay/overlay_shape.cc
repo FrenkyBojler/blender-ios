@@ -13,29 +13,6 @@
 
 namespace blender::draw::overlay {
 
-enum VertexClass {
-  VCLASS_NONE = 0,
-
-  VCLASS_LIGHT_AREA_SHAPE = 1 << 0,
-  VCLASS_LIGHT_SPOT_SHAPE = 1 << 1,
-  VCLASS_LIGHT_SPOT_BLEND = 1 << 2,
-  VCLASS_LIGHT_SPOT_CONE = 1 << 3,
-  VCLASS_LIGHT_DIST = 1 << 4,
-
-  VCLASS_CAMERA_FRAME = 1 << 5,
-  VCLASS_CAMERA_DIST = 1 << 6,
-  VCLASS_CAMERA_VOLUME = 1 << 7,
-
-  VCLASS_SCREENSPACE = 1 << 8,
-  VCLASS_SCREENALIGNED = 1 << 9,
-
-  VCLASS_EMPTY_SCALED = 1 << 10,
-  VCLASS_EMPTY_AXES = 1 << 11,
-  VCLASS_EMPTY_AXES_NAME = 1 << 12,
-  VCLASS_EMPTY_AXES_SHADOW = 1 << 13,
-  VCLASS_EMPTY_SIZE = 1 << 14,
-};
-
 static constexpr int diamond_nsegments = 4;
 static constexpr int inner_nsegments = 8;
 static constexpr int outer_nsegments = 10;
@@ -77,8 +54,8 @@ static const std::array<uint3, 12> bone_box_solid_tris{
 };
 
 /**
- * Store indices of generated verts from bone_box_solid_tris to define adjacency infos.
- * See bone_octahedral_solid_tris for more infos.
+ * Store indices of generated verts from `bone_box_solid_tris` to define adjacency information.
+ * See `bone_octahedral_solid_tris` for more information.
  */
 static const std::array<uint4, 12> bone_box_wire_lines_adjacency = {
     uint4{4, 2, 0, 11},
@@ -168,7 +145,8 @@ static const std::array<uint3, 8> bone_octahedral_solid_tris = {
 };
 
 /**
- * Store indices of generated verts from bone_octahedral_solid_tris to define adjacency infos.
+ * Store indices of generated verts from `bone_octahedral_solid_tris` to define adjacency
+ * information.
  * Example: triangle {2, 1, 0} is adjacent to {3, 2, 0}, {1, 4, 0} and {5, 1, 2}.
  * {2, 1, 0} becomes {0, 1, 2}
  * {3, 2, 0} becomes {3, 4, 5}
@@ -206,7 +184,7 @@ static const float bone_octahedral_solid_normals[8][3] = {
 };
 
 static void append_line_loop(
-    Vector<Vertex> &dest, Span<float2> verts, float z, int flag, bool dashed = false)
+    Vector<Vertex> &dest, Span<float2> verts, float z, VertexClass flag, bool dashed = false)
 {
   const int step = dashed ? 2 : 1;
   for (const int i : IndexRange(verts.size() / step)) {
@@ -401,16 +379,17 @@ ShapeCache::ShapeCache()
 
   /* Armature Stick. */
   {
+    const StickBoneFlag bone = StickBoneFlag(COL_BONE | POS_BONE);
     /* Gather as a strip and add to main buffer as a list of triangles. */
-    Vector<Vertex> vert_strip;
-    vert_strip.append({{0.0f, 1.0f, 0.0f}, COL_BONE | POS_BONE | POS_HEAD | COL_HEAD | COL_WIRE});
-    vert_strip.append({{0.0f, 1.0f, 0.0f}, COL_BONE | POS_BONE | POS_TAIL | COL_TAIL | COL_WIRE});
-    vert_strip.append({{0.0f, 0.0f, 0.0f}, COL_BONE | POS_BONE | POS_HEAD | COL_HEAD});
-    vert_strip.append({{0.0f, 0.0f, 0.0f}, COL_BONE | POS_BONE | POS_TAIL | COL_TAIL});
-    vert_strip.append({{0.0f, -1.0f, 0.0f}, COL_BONE | POS_BONE | POS_HEAD | COL_HEAD | COL_WIRE});
-    vert_strip.append({{0.0f, -1.0f, 0.0f}, COL_BONE | POS_BONE | POS_TAIL | COL_TAIL | COL_WIRE});
+    Vector<VertexBone> vert_strip;
+    vert_strip.append({{0.0f, 1.0f, 0.0f}, StickBoneFlag(bone | POS_HEAD | COL_HEAD | COL_WIRE)});
+    vert_strip.append({{0.0f, 1.0f, 0.0f}, StickBoneFlag(bone | POS_TAIL | COL_TAIL | COL_WIRE)});
+    vert_strip.append({{0.0f, 0.0f, 0.0f}, StickBoneFlag(bone | POS_HEAD | COL_HEAD)});
+    vert_strip.append({{0.0f, 0.0f, 0.0f}, StickBoneFlag(bone | POS_TAIL | COL_TAIL)});
+    vert_strip.append({{0.0f, -1.0f, 0.0f}, StickBoneFlag(bone | POS_HEAD | COL_HEAD | COL_WIRE)});
+    vert_strip.append({{0.0f, -1.0f, 0.0f}, StickBoneFlag(bone | POS_TAIL | COL_TAIL | COL_WIRE)});
 
-    Vector<Vertex> verts;
+    Vector<VertexBone> verts;
     /* Bone rectangle */
     for (int t : IndexRange(vert_strip.size() - 2)) {
       /* NOTE: Don't care about winding.
@@ -426,13 +405,13 @@ ShapeCache::ShapeCache()
       float2 cv1 = ring[a % resolution];
       float2 cv2 = ring[(a + 1) % resolution];
       /* Head point. */
-      verts.append({{0.0f, 0.0f, 0.0f}, int(POS_HEAD | COL_HEAD)});
-      verts.append({{cv1.x, cv1.y, 0.0f}, int(POS_HEAD | COL_HEAD | COL_WIRE)});
-      verts.append({{cv2.x, cv2.y, 0.0f}, int(POS_HEAD | COL_HEAD | COL_WIRE)});
+      verts.append({{0.0f, 0.0f, 0.0f}, StickBoneFlag(POS_HEAD | COL_HEAD)});
+      verts.append({{cv1.x, cv1.y, 0.0f}, StickBoneFlag(POS_HEAD | COL_HEAD | COL_WIRE)});
+      verts.append({{cv2.x, cv2.y, 0.0f}, StickBoneFlag(POS_HEAD | COL_HEAD | COL_WIRE)});
       /* Tail point. */
-      verts.append({{0.0f, 0.0f, 0.0f}, int(POS_TAIL | COL_TAIL)});
-      verts.append({{cv1.x, cv1.y, 0.0f}, int(POS_TAIL | COL_TAIL | COL_WIRE)});
-      verts.append({{cv2.x, cv2.y, 0.0f}, int(POS_TAIL | COL_TAIL | COL_WIRE)});
+      verts.append({{0.0f, 0.0f, 0.0f}, StickBoneFlag(POS_TAIL | COL_TAIL)});
+      verts.append({{cv1.x, cv1.y, 0.0f}, StickBoneFlag(POS_TAIL | COL_TAIL | COL_WIRE)});
+      verts.append({{cv2.x, cv2.y, 0.0f}, StickBoneFlag(POS_TAIL | COL_TAIL | COL_WIRE)});
     }
 
     bone_stick = BatchPtr(
@@ -806,12 +785,12 @@ ShapeCache::ShapeCache()
     for (int axis : IndexRange(3)) {
       /* Vertex layout is XY screen position and axis in Z.
        * Fractional part of Z is a positive offset at axis unit position. */
-      int flag = VCLASS_EMPTY_AXES | VCLASS_SCREENALIGNED;
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_SCREENALIGNED;
       /* Center to axis line. */
       /* NOTE: overlay_armature_shape_wire_vert.glsl expects the axis verts at the origin to be the
        * only ones with this coordinates (it derives the VCLASS from it). */
       float pos_on_axis = float(axis) + 1e-8f;
-      verts.append({{0.0f, 0.0f, 0.0f}, 0});
+      verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_NONE});
       verts.append({{0.0f, 0.0f, pos_on_axis}, flag});
       /* Axis end marker. */
       constexpr int marker_fill_layer = 6;
@@ -823,7 +802,7 @@ ShapeCache::ShapeCache()
       /* Axis name. */
       const Vector<float2> *axis_names[3] = {&x_axis_name, &y_axis_name, &z_axis_name};
       for (float2 axis_name_vert : *(axis_names[axis])) {
-        int flag = VCLASS_EMPTY_AXES | VCLASS_EMPTY_AXES_NAME | VCLASS_SCREENALIGNED;
+        VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_EMPTY_AXES_NAME | VCLASS_SCREENALIGNED;
         verts.append({{axis_name_vert * 4.0f, pos_on_axis + 0.25f}, flag});
       }
     }
@@ -965,10 +944,10 @@ ShapeCache::ShapeCache()
 
     Vector<Vertex> verts;
     /* Ground Point */
-    append_line_loop(verts, ring, 0.0f, 0);
+    append_line_loop(verts, ring, 0.0f, VCLASS_NONE);
     /* Ground Line */
-    verts.append({{0.0, 0.0, 1.0}, 0});
-    verts.append({{0.0, 0.0, 0.0}, 0});
+    verts.append({{0.0, 0.0, 1.0}, VCLASS_NONE});
+    verts.append({{0.0, 0.0, 0.0}, VCLASS_NONE});
 
     ground_line = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
@@ -988,7 +967,7 @@ ShapeCache::ShapeCache()
     Vector<Vertex> verts;
 
     /* Cone apex */
-    verts.append({{0.0f, 0.0f, 0.0f}, 0});
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_NONE});
     /* Cone silhouette */
     for (const int angle_i : IndexRange(circle_nsegments + 1)) {
       const float angle = (2.0f * math::numbers::pi * angle_i) / circle_nsegments;
@@ -1052,8 +1031,8 @@ ShapeCache::ShapeCache()
   {
     Vector<Vertex> verts;
     /* Direction Line */
-    verts.append({{0.0, 0.0, 0.0}, 0});
-    verts.append({{0.0, 0.0, -20.0}, 0}); /* Good default. */
+    verts.append({{0.0, 0.0, 0.0}, VCLASS_NONE});
+    verts.append({{0.0, 0.0, -20.0}, VCLASS_NONE}); /* Good default. */
     light_sun_lines = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
@@ -1069,7 +1048,7 @@ ShapeCache::ShapeCache()
     append_line_loop(verts, ring, 0.0f, VCLASS_LIGHT_SPOT_SHAPE | VCLASS_LIGHT_SPOT_BLEND);
     /* Cone silhouette */
     for (const float2 &point : ring) {
-      verts.append({{0.0f, 0.0f, 0.0f}, 0});
+      verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_NONE});
       verts.append({{point.x, point.y, -1.0f}, VCLASS_LIGHT_SPOT_SHAPE | VCLASS_LIGHT_SPOT_CONE});
     }
 
@@ -1107,7 +1086,7 @@ ShapeCache::ShapeCache()
   /* field_force */
   {
     constexpr int circle_resol = 32;
-    constexpr int flag = VCLASS_EMPTY_SIZE | VCLASS_SCREENALIGNED;
+    constexpr VertexClass flag = VCLASS_EMPTY_SIZE | VCLASS_SCREENALIGNED;
     constexpr std::array<float, 2> scales{2.0f, 0.75};
     Vector<float2> ring = ring_vertices(1.0f, circle_resol);
 
@@ -1234,7 +1213,7 @@ ShapeCache::ShapeCache()
   /* lightprobe_cube */
   {
     constexpr float r = 14.0f;
-    constexpr int flag = VCLASS_SCREENSPACE;
+    constexpr VertexClass flag = VCLASS_SCREENSPACE;
     /* Icon */
     constexpr float sin_pi_3 = 0.86602540378f;
     constexpr float cos_pi_3 = 0.5f;
@@ -1287,7 +1266,7 @@ ShapeCache::ShapeCache()
   /* lightprobe_grid */
   {
     constexpr float r = 14.0f;
-    constexpr int flag = VCLASS_SCREENSPACE;
+    constexpr VertexClass flag = VCLASS_SCREENSPACE;
     /* Icon */
     constexpr float sin_pi_3 = 0.86602540378f;
     constexpr float cos_pi_3 = 0.5f;

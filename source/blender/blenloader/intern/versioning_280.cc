@@ -615,18 +615,18 @@ static void do_version_constraints_copy_rotation_mix_mode(ListBase *lb)
 
 static void do_versions_seq_alloc_transform_and_crop(ListBase *seqbase)
 {
-  LISTBASE_FOREACH (Strip *, seq, seqbase) {
-    if (ELEM(seq->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD) == 0) {
-      if (seq->data->transform == nullptr) {
-        seq->data->transform = MEM_callocN<StripTransform>("StripTransform");
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD) == 0) {
+      if (strip->data->transform == nullptr) {
+        strip->data->transform = MEM_callocN<StripTransform>("StripTransform");
       }
 
-      if (seq->data->crop == nullptr) {
-        seq->data->crop = MEM_callocN<StripCrop>("StripCrop");
+      if (strip->data->crop == nullptr) {
+        strip->data->crop = MEM_callocN<StripCrop>("StripCrop");
       }
 
-      if (seq->seqbase.first != nullptr) {
-        do_versions_seq_alloc_transform_and_crop(&seq->seqbase);
+      if (strip->seqbase.first != nullptr) {
+        do_versions_seq_alloc_transform_and_crop(&strip->seqbase);
       }
     }
   }
@@ -771,8 +771,8 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
     }
 
     if (scene->ed != nullptr) {
-      LISTBASE_FOREACH (Strip *, seq, &scene->ed->seqbase) {
-        LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
+      LISTBASE_FOREACH (Strip *, strip, &scene->ed->seqbase) {
+        LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
           const blender::seq::StripModifierTypeInfo *smti = blender::seq::modifier_type_info_get(
               smd->type);
 
@@ -1875,8 +1875,8 @@ static void update_musgrave_node_dimensions(bNodeTree *ntree)
 }
 
 /* The Color output of the Musgrave node has been removed. Previously, this
- * output was just equal to the Fac output. To correct this, we move links
- * from the Color output to the Fac output if they exist.
+ * output was just equal to the `Fac` output. To correct this, we move links
+ * from the Color output to the `Fac` output if they exist.
  */
 static void update_musgrave_node_color_output(bNodeTree *ntree)
 {
@@ -1919,10 +1919,10 @@ static void update_voronoi_node_f3_and_f4(bNodeTree *ntree)
   }
 }
 
-/* The Fac output of the Voronoi node has been removed. Previously, this
+/* The `Fac` output of the Voronoi node has been removed. Previously, this
  * output was the voronoi distance in the Intensity mode and the Cell ID
  * in the Cell mode. To correct this, we update the identifier and name
- * of the Fac socket such that it gets mapped to the Distance socket.
+ * of the `Fac` socket such that it gets mapped to the Distance socket.
  * This is supposed to work with update_voronoi_node_coloring.
  */
 static void update_voronoi_node_fac_output(bNodeTree *ntree)
@@ -2051,7 +2051,7 @@ static void update_voronoi_node_crackle(bNodeTree *ntree)
  * The coloring property of the Voronoi node was removed. Previously,
  * if the coloring enum was set to Intensity (0), the voronoi distance
  * was returned in all outputs, otherwise, the Cell ID was returned.
- * Since we remapped the Fac output in update_voronoi_node_fac_output,
+ * Since we remapped the `Fac` output in update_voronoi_node_fac_output,
  * then to fix this, we relink the Color output to the Distance
  * output if coloring was set to 0, and the other way around otherwise.
  */
@@ -2482,7 +2482,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         }
 
         block->totelem = new_count;
-        block->data = MEM_calloc_arrayN<float[3]>(size_t(new_count), __func__);
+        block->data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
         float(*newptr)[3] = static_cast<float(*)[3]>(block->data);
@@ -3005,10 +3005,10 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
  * (see #55668, involving Meta strips). */
 static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbasep)
 {
-  LISTBASE_FOREACH (Strip *, seq, seqbasep) {
-    blender::seq::sequence_base_unique_name_recursive(sce, &sce->ed->seqbase, seq);
-    if (seq->seqbase.first != nullptr) {
-      do_versions_seq_unique_name_all_strips(sce, &seq->seqbase);
+  LISTBASE_FOREACH (Strip *, strip, seqbasep) {
+    blender::seq::strip_unique_name_set(sce, &sce->ed->seqbase, strip);
+    if (strip->seqbase.first != nullptr) {
+      do_versions_seq_unique_name_all_strips(sce, &strip->seqbase);
     }
   }
 }

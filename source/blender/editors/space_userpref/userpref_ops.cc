@@ -83,8 +83,7 @@ static void PREFERENCES_OT_reset_default_theme(wmOperatorType *ot)
 
 static wmOperatorStatus preferences_autoexec_add_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
-  bPathCompare *path_cmp = static_cast<bPathCompare *>(
-      MEM_callocN(sizeof(bPathCompare), "bPathCompare"));
+  bPathCompare *path_cmp = MEM_callocN<bPathCompare>("bPathCompare");
   BLI_addtail(&U.autoexec_paths, path_cmp);
   U.runtime.is_dirty = true;
   return OPERATOR_FINISHED;
@@ -443,9 +442,9 @@ static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
                                  ICON_LOCKED :
                                  ICON_UNLOCKED;
 
-      uiLayout *row = uiLayoutRowWithHeading(layout, true, IFACE_("Authentication"));
+      uiLayout *row = &layout->row(true, IFACE_("Authentication"));
       uiItemR(row, op->ptr, "use_access_token", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiLayout *col = uiLayoutRow(layout, false);
+      uiLayout *col = &layout->row(false);
       uiLayoutSetActive(col, use_access_token);
       /* Use "immediate" flag to refresh the icon. */
       uiItemR(col, op->ptr, "access_token", UI_ITEM_R_IMMEDIATE, std::nullopt, token_icon);
@@ -461,7 +460,7 @@ static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
   }
 
   uiItemR(layout, op->ptr, "use_custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiLayout *col = uiLayoutRow(layout, false);
+  uiLayout *col = &layout->row(false);
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_custom_directory"));
   uiItemR(col, op->ptr, "custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }

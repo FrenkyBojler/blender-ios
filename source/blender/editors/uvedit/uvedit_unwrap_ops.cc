@@ -902,8 +902,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
   const int *origPolyIndices = static_cast<const int *>(
       CustomData_get_layer(&subdiv_mesh->face_data, CD_ORIGINDEX));
 
-  faceMap = static_cast<BMFace **>(
-      MEM_mallocN(subdiv_mesh->faces_num * sizeof(BMFace *), "unwrap_edit_face_map"));
+  faceMap = MEM_malloc_arrayN<BMFace *>(subdiv_mesh->faces_num, "unwrap_edit_face_map");
 
   BM_mesh_elem_index_ensure(em->bm, BM_VERT);
   BM_mesh_elem_table_ensure(em->bm, BM_EDGE | BM_FACE);
@@ -913,8 +912,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     faceMap[i] = BM_face_at_index(em->bm, origPolyIndices[i]);
   }
 
-  edgeMap = static_cast<BMEdge **>(
-      MEM_mallocN(subdiv_mesh->edges_num * sizeof(BMEdge *), "unwrap_edit_edge_map"));
+  edgeMap = MEM_malloc_arrayN<BMEdge *>(subdiv_mesh->edges_num, "unwrap_edit_edge_map");
 
   /* map subsurfed edges to original editEdges */
   for (int i = 0; i < subdiv_mesh->edges_num; i++) {
@@ -1897,7 +1895,7 @@ static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
   uiItemR(layout, op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   {
     uiItemR(layout, op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = uiLayoutRow(layout, true);
+    uiLayout *sub = &layout->row(true);
     uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "rotate"));
     uiItemR(sub, op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemS(layout);
@@ -1907,7 +1905,7 @@ static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
   uiItemS(layout);
   {
     uiItemR(layout, op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = uiLayoutRow(layout, true);
+    uiLayout *sub = &layout->row(true);
     uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "pin"));
     uiItemR(sub, op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
     uiItemS(layout);
@@ -2145,8 +2143,8 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, wmWindow *win_mod
   /* Create or increase size of g_live_unwrap.handles array */
   if (g_live_unwrap.handles == nullptr) {
     g_live_unwrap.len_alloc = 32;
-    g_live_unwrap.handles = static_cast<ParamHandle **>(MEM_mallocN(
-        sizeof(ParamHandle *) * g_live_unwrap.len_alloc, "uvedit_live_unwrap_liveHandles"));
+    g_live_unwrap.handles = MEM_malloc_arrayN<ParamHandle *>(g_live_unwrap.len_alloc,
+                                                             "uvedit_live_unwrap_liveHandles");
     g_live_unwrap.len = 0;
   }
   if (g_live_unwrap.len >= g_live_unwrap.len_alloc) {
@@ -2893,7 +2891,7 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 
   uiLayout *col;
 
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   uiItemR(col, &ptr, "method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   bool is_slim = RNA_enum_get(op->ptr, "method") == UVCALC_UNWRAP_METHOD_MINIMUM_STRETCH;
 
@@ -2905,7 +2903,7 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
     uiItemR(col, &ptr, "use_weights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (RNA_boolean_get(op->ptr, "use_weights")) {
-      col = uiLayoutColumn(layout, true);
+      col = &layout->column(true);
       uiItemR(col, &ptr, "weight_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       uiItemR(col, &ptr, "weight_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
@@ -3197,8 +3195,7 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
 
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
     BLI_assert(offsets.uv >= 0);
-    ThickFace *thick_faces = static_cast<ThickFace *>(
-        MEM_mallocN(sizeof(*thick_faces) * em->bm->totface, __func__));
+    ThickFace *thick_faces = MEM_malloc_arrayN<ThickFace>(em->bm->totface, __func__);
 
     uint thick_faces_len = 0;
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {

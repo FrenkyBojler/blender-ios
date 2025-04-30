@@ -130,7 +130,7 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src);
 /** Reset runtime image fields when data-block is being initialized. */
 static void image_runtime_reset(Image *image)
 {
-  memset(&image->runtime, 0, sizeof(image->runtime));
+  image->runtime = Image_Runtime{};
   image->runtime.cache_mutex = MEM_mallocN<ThreadMutex>("image runtime cache_mutex");
   BLI_mutex_init(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
   image->runtime.update_count = 0;
@@ -152,7 +152,7 @@ static void image_runtime_reset_on_copy(Image *image)
 static void image_runtime_free_data(Image *image)
 {
   BLI_mutex_end(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
-  MEM_freeN(image->runtime.cache_mutex);
+  MEM_freeN((ThreadMutex *)image->runtime.cache_mutex);
   image->runtime.cache_mutex = nullptr;
 
   if (image->runtime.partial_update_user != nullptr) {
@@ -1877,7 +1877,7 @@ static void stampdata(
   }
 
   if (use_dynamic && scene->r.stamp & R_STAMP_SEQSTRIP) {
-    const Strip *strip = blender::seq::get_topmost_sequence(scene, scene->r.cfra);
+    const Strip *strip = blender::seq::strip_topmost_get(scene, scene->r.cfra);
 
     if (strip) {
       STRNCPY(text, strip->name + 2);
@@ -3135,7 +3135,7 @@ static void image_tag_reload(Image *ima, ID *iuser_id, ImageUser *iuser, void *c
 
 void BKE_imageuser_default(ImageUser *iuser)
 {
-  memset(iuser, 0, sizeof(ImageUser));
+  *iuser = ImageUser{};
   iuser->frames = 100;
   iuser->sfra = 1;
 }

@@ -71,18 +71,19 @@ class Sculpts : Overlay {
       sculpt_mask_.init();
       sculpt_mask_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       sculpt_mask_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-      sculpt_mask_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL |
-                                 DRW_STATE_BLEND_ALPHA,
-                             state.clipping_plane_count);
       {
         auto &sub = sculpt_mask_.sub("Mesh");
+        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_MUL,
+                      state.clipping_plane_count);
         sub.shader_set(res.shaders->sculpt_mesh.get());
-        sub.push_constant("maskOpacity", mask_opacity);
-        sub.push_constant("faceSetsOpacity", face_set_opacity);
+        sub.push_constant("mask_opacity", mask_opacity);
+        sub.push_constant("face_sets_opacity", face_set_opacity);
         mesh_ps_ = &sub;
       }
       {
         auto &sub = sculpt_mask_.sub("Curves");
+        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA,
+                      state.clipping_plane_count);
         sub.shader_set(res.shaders->sculpt_curves.get());
         sub.push_constant("selection_opacity", mask_opacity);
         curves_ps_ = &sub;
@@ -172,7 +173,7 @@ class Sculpts : Overlay {
     /* Using the original object/geometry is necessary because we skip depsgraph updates in sculpt
      * mode to improve performance. This means the evaluated mesh doesn't have the latest face set,
      * visibility, and mask data. */
-    Object *object_orig = reinterpret_cast<Object *>(DEG_get_original_id(&ob_ref.object->id));
+    Object *object_orig = DEG_get_original(ob_ref.object);
     if (!object_orig) {
       BLI_assert_unreachable();
       return;

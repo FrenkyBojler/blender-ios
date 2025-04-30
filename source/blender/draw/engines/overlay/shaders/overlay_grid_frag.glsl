@@ -13,23 +13,6 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
  * interpolation.
  */
 
-/**
- * We want to know how much of a pixel is covered by a line.
- * Here, we imagine the square pixel is a circle with the same area and try to find the
- * intersection area. The overlap area is a circular segment.
- * https://en.wikipedia.org/wiki/Circular_segment The formula for the area uses inverse trig
- * function and is quite complex. Instead, we approximate it by using the smoothstep function and
- * a 1.05f factor to the disc radius.
- *
- * For an alternate approach, see:
- * https://developer.nvidia.com/gpugems/gpugems2/part-iii-high-quality-rendering/chapter-22-fast-prefiltered-lines
- */
-#define M_1_SQRTPI 0.5641895835477563f /* `1/sqrt(pi)`. */
-#define DISC_RADIUS (M_1_SQRTPI * 1.05f)
-#define GRID_LINE_SMOOTH_START (0.5f + DISC_RADIUS)
-#define GRID_LINE_SMOOTH_END (0.5f - DISC_RADIUS)
-#define GRID_LINE_STEP(dist) smoothstep(GRID_LINE_SMOOTH_START, GRID_LINE_SMOOTH_END, dist)
-
 #include "draw_view_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
@@ -43,7 +26,7 @@ float get_grid(float2 co, float2 fwidthCos, float2 grid_scale)
   grid_domain /= fwidthCos;
   /* Collapse waves. */
   float line_dist = min(grid_domain.x, grid_domain.y);
-  return GRID_LINE_STEP(line_dist - grid_buf.line_size);
+  return 1.0 - LINE_STEP(line_dist - grid_buf.line_size);
 }
 
 float3 get_axes(float3 co, float3 fwidthCos, float line_size)
@@ -52,7 +35,7 @@ float3 get_axes(float3 co, float3 fwidthCos, float line_size)
   /* Modulate by the absolute rate of change of the coordinates
    * (make line have the same width under perspective). */
   axes_domain /= fwidthCos;
-  return GRID_LINE_STEP(axes_domain - (line_size + grid_buf.line_size));
+  return 1.0 - LINE_STEP(axes_domain - (line_size + grid_buf.line_size));
 }
 
 #define linearstep(p0, p1, v) (clamp(((v) - (p0)) / abs((p1) - (p0)), 0.0f, 1.0f))
@@ -164,13 +147,13 @@ void main()
     float gridB = get_grid(grid_pos, grid_fwidth, float2(scaleBx, scaleBy));
     float gridC = get_grid(grid_pos, grid_fwidth, float2(scaleCx, scaleCy));
 
-    out_color = colorGrid;
+    out_color = theme.colors.grid;
     out_color.a *= gridA * blend;
-    out_color = mix(out_color, mix(colorGrid, colorGridEmphasis, blend), gridB);
-    out_color = mix(out_color, colorGridEmphasis, gridC);
+    out_color = mix(out_color, mix(theme.colors.grid, theme.colors.grid_emphasis, blend), gridB);
+    out_color = mix(out_color, theme.colors.grid_emphasis, gridC);
   }
   else {
-    out_color = float4(colorGrid.rgb, 0.0f);
+    out_color = float4(theme.colors.grid.rgb, 0.0f);
   }
 
   if (flag_test(grid_flag, (SHOW_AXIS_X | SHOW_AXIS_Y | SHOW_AXIS_Z))) {
@@ -195,15 +178,15 @@ void main()
 
     if (flag_test(grid_flag, SHOW_AXIS_X)) {
       out_color.a = max(out_color.a, axes.x);
-      out_color.rgb = (axes.x < 1e-8f) ? out_color.rgb : colorGridAxisX.rgb;
+      out_color.rgb = (axes.x < 1e-8f) ? out_color.rgb : theme.colors.grid_axis_x.rgb;
     }
     if (flag_test(grid_flag, SHOW_AXIS_Y)) {
       out_color.a = max(out_color.a, axes.y);
-      out_color.rgb = (axes.y < 1e-8f) ? out_color.rgb : colorGridAxisY.rgb;
+      out_color.rgb = (axes.y < 1e-8f) ? out_color.rgb : theme.colors.grid_axis_y.rgb;
     }
     if (flag_test(grid_flag, SHOW_AXIS_Z)) {
       out_color.a = max(out_color.a, axes.z);
-      out_color.rgb = (axes.z < 1e-8f) ? out_color.rgb : colorGridAxisZ.rgb;
+      out_color.rgb = (axes.z < 1e-8f) ? out_color.rgb : theme.colors.grid_axis_z.rgb;
     }
   }
 
