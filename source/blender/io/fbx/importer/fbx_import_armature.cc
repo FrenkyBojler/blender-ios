@@ -304,11 +304,12 @@ void ArmatureImportContext::find_armatures(const ufbx_node *node)
             fbone, world_to_arm, found);
         if (found) {
           ufbx_matrix bind_local_mtx_inv = ufbx_matrix_invert(&bind_local_mtx);
-          ufbx_matrix local_mtx = fbone->node_to_parent;
+          ufbx_transform xform = fbone->local_transform;
           if (fbone->node_depth <= 1) {
-            local_mtx = ufbx_matrix_mul(&world_to_arm, &fbone->node_to_world);
+            ufbx_matrix matrix = ufbx_matrix_mul(&world_to_arm, &fbone->node_to_world);
+            xform = ufbx_matrix_to_transform(&matrix);
           }
-          ufbx_matrix pose_mtx = ufbx_matrix_mul(&bind_local_mtx_inv, &local_mtx);
+          ufbx_matrix pose_mtx = calc_bone_pose_matrix(xform, *fbone, bind_local_mtx_inv);
 
           float pchan_matrix[4][4];
           matrix_to_m44(pose_mtx, pchan_matrix);
