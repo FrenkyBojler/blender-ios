@@ -4905,42 +4905,55 @@ bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetre
     *r_nodetree = &node_tree;
     *r_id = &node_tree.id;
     ntreeiter->ngroup = reinterpret_cast<bNodeTree *>(node_tree.id.next);
+    return true;
   }
-  else if (ntreeiter->scene) {
-    *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->scene->nodetree);
-    *r_id = &ntreeiter->scene->id;
-    ntreeiter->scene = reinterpret_cast<Scene *>(ntreeiter->scene->id.next);
+  if (ntreeiter->scene) {
+    Scene *scene_iter = ntreeiter->scene;
+
+    /* Find the next scene that has a valid nodetree. */
+    while (scene_iter) {
+      if (scene_iter->nodetree) {
+        *r_nodetree = reinterpret_cast<bNodeTree *>(scene_iter->nodetree);
+        *r_id = &ntreeiter->scene->id;
+        ntreeiter->scene = (Scene *)scene_iter->id.next;
+        return true;
+      }
+      scene_iter = (Scene *)scene_iter->id.next;
+      ntreeiter->scene = (Scene *)ntreeiter->scene->id.next;
+    }
   }
-  else if (ntreeiter->mat) {
+  if (ntreeiter->mat) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->mat->nodetree);
     *r_id = &ntreeiter->mat->id;
     ntreeiter->mat = reinterpret_cast<Material *>(ntreeiter->mat->id.next);
+    return true;
   }
-  else if (ntreeiter->tex) {
+  if (ntreeiter->tex) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->tex->nodetree);
     *r_id = &ntreeiter->tex->id;
     ntreeiter->tex = reinterpret_cast<Tex *>(ntreeiter->tex->id.next);
+    return true;
   }
-  else if (ntreeiter->light) {
+  if (ntreeiter->light) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->light->nodetree);
     *r_id = &ntreeiter->light->id;
     ntreeiter->light = reinterpret_cast<Light *>(ntreeiter->light->id.next);
+    return true;
   }
-  else if (ntreeiter->world) {
+  if (ntreeiter->world) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->world->nodetree);
     *r_id = &ntreeiter->world->id;
     ntreeiter->world = reinterpret_cast<World *>(ntreeiter->world->id.next);
+    return true;
   }
-  else if (ntreeiter->linestyle) {
+  if (ntreeiter->linestyle) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->linestyle->nodetree);
     *r_id = &ntreeiter->linestyle->id;
     ntreeiter->linestyle = reinterpret_cast<FreestyleLineStyle *>(ntreeiter->linestyle->id.next);
-  }
-  else {
-    return false;
+    return true;
   }
 
-  return true;
+  return false;
 }
 
 void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, const int layer_index)
