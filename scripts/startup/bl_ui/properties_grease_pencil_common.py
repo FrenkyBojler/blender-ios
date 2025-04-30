@@ -221,6 +221,14 @@ class GREASE_PENCIL_MT_move_to_layer(Menu):
 class GREASE_PENCIL_MT_layer_active(Menu):
     bl_label = "Change Active Layer"
 
+    def get_layer_group_depth(self, group):
+        depth = 0
+        node = group
+        while node.parent_group is not None:
+            depth += 1
+            node = node.parent_group
+        return depth
+
     def draw(self, context):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
@@ -234,13 +242,31 @@ class GREASE_PENCIL_MT_layer_active(Menu):
 
         layout.separator()
 
+        # List groups and layers
+        groups = []
         for i in range(len(obd.layers) - 1, -1, -1):
             layer = obd.layers[i]
-            if layer == obd.layers.active:
-                icon = 'GREASEPENCIL'
-            else:
-                icon = 'NONE'
-            layout.operator("grease_pencil.layer_active", text=layer.name, icon=icon).layer = i
+
+            # Layer group
+            indent = ''
+            if layer.parent_group is not None:
+                group = layer.parent_group
+                depth = self.get_layer_group_depth(group)
+                # Show the group only once
+                if group.name not in groups:
+                    groups.append(group.name)
+                    index = list(obd.layer_groups).index(group)
+                    indent = '   ' * depth
+                    icon = 'GREASEPENCIL' if group == obd.layer_groups.active else 'GREASEPENCIL_LAYER_GROUP'
+                    layout.operator(
+                        "grease_pencil.layer_group_active",
+                        text=indent + group.name,
+                        icon=icon).layer_group = index
+                indent = '   ' * (depth + 1)
+
+            # Layer
+            icon = 'GREASEPENCIL' if layer == obd.layers.active else 'NONE'
+            layout.operator("grease_pencil.layer_active", text=indent + layer.name, icon=icon).layer = i
 
 
 class GPENCIL_UL_annotation_layer(UIList):
