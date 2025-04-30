@@ -1022,7 +1022,7 @@ static void add_corner_to_edge(const Span<int> corner_edges,
 
 /** Use a custom VectorSet type to use int32 instead of int64 for the key indices. */
 using LocalEdgeVectorSet = VectorSet<int,
-16,
+                                     16,
                                      DefaultProbingStrategy,
                                      DefaultHash<int>,
                                      DefaultEquality<int>,
@@ -1090,14 +1090,14 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
   {
     /* Travel in the "previous" direction. */
     int current = start_local_corner;
-    int edge_prev = corner_infos[current].local_edge_prev;
-    while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_prev])) {
+    int local_edge = corner_infos[current].local_edge_prev;
+    while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
       current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
       if (current == start_local_corner) {
         break;
       }
       result_fan.append(current);
-      edge_prev = corner_infos[current].local_edge_prev;
+      local_edge = corner_infos[current].local_edge_prev;
     }
     /* Reverse the corners added so the final order is consistent with the next traversal. */
     result_fan.as_mutable_span().reverse();
@@ -1107,14 +1107,14 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
   if (result_fan.size() < corner_infos.size()) {
     /* Travel in the "next" direction. */
     int current = start_local_corner;
-    int edge_next = corner_infos[current].local_edge_next;
-    while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[edge_next])) {
+    int local_edge = corner_infos[current].local_edge_next;
+    while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
       current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
       if (current == start_local_corner) {
         break;
       }
       result_fan.append(current);
-      edge_next = corner_infos[current].local_edge_next;
+      local_edge = corner_infos[current].local_edge_next;
     }
   }
 }
