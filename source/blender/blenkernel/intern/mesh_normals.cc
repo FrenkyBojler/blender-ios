@@ -32,6 +32,8 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
+#include <iostream>
+
 // #define DEBUG_TIME
 
 #ifdef DEBUG_TIME
@@ -1088,24 +1090,7 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
 {
   result_fan.append(start_local_corner);
   {
-    /* Travel in the "previous" direction. */
-    int current = start_local_corner;
-    int local_edge = corner_infos[current].local_edge_prev;
-    while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
-      current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
-      if (current == start_local_corner) {
-        break;
-      }
-      result_fan.append(current);
-      local_edge = corner_infos[current].local_edge_prev;
-    }
-    /* Reverse the corners added so the final order is consistent with the next traversal. */
-    result_fan.as_mutable_span().reverse();
-  }
-
-  /* Check for a cyclic traversal where the previous traversal direction visted all corners. */
-  if (result_fan.size() < corner_infos.size()) {
-    /* Travel in the "next" direction. */
+    /* Travel around the vertex in a right-handed clockwise direction (based on the normal). */
     int current = start_local_corner;
     int local_edge = corner_infos[current].local_edge_next;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
@@ -1116,6 +1101,32 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
       result_fan.append(current);
       local_edge = corner_infos[current].local_edge_next;
     }
+    /* Reverse the corners added so the final order is consistent with the next traversal. */
+    result_fan.as_mutable_span().reverse();
+  }
+
+  if (result_fan.size() == corner_infos.size()) {
+    /* This is a cylic corner fan that goes all the way around the vertex. To match with behavior
+     * from the previous implementation of face corner normal calculation, the final fan is rotated
+     * so that the smallest face corner comes first. */
+    int *fan_first_corner = std::min_element(
+        result_fan.begin(), result_fan.end(), [&](const int a, const int b) {
+          return corner_infos[a].corner < corner_infos[b].corner;
+        });
+    std::rotate(result_fan.begin(), fan_first_corner, result_fan.end());
+    return;
+  }
+
+  /* Travel in the other direction. */
+  int current = start_local_corner;
+  int local_edge = corner_infos[current].local_edge_prev;
+  while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
+    current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
+    if (current == start_local_corner) {
+      break;
+    }
+    result_fan.append(current);
+    local_edge = corner_infos[current].local_edge_prev;
   }
 }
 
@@ -1306,6 +1317,18 @@ void normals_calc_corners(const Span<float3> vert_positions,
       while (start_local_corner != -1) {
         corners_in_fan.clear();
         traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
+
+        std::cout << "vert: " << vert << " corners: {";
+        for (const int i : corners_in_fan.as_span().drop_back(1)) {
+          std::cout << corner_infos[i].corner << ", ";
+        }
+        std::cout << corner_infos[corners_in_fan.as_span().last()].corner;
+        std::cout << "}, faces: {";
+        for (const int i : corners_in_fan.as_span().drop_back(1)) {
+          std::cout << corner_infos[i].face << ", ";
+        }
+        std::cout << corner_infos[corners_in_fan.as_span().last()].face;
+        std::cout << "}" << std::endl;
 
         float3 fan_normal = accumulate_fan_normal(
             corner_infos, edge_dirs, face_normals, corners_in_fan);
