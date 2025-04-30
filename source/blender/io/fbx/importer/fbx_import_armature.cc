@@ -101,6 +101,9 @@ void ArmatureImportContext::create_armature_bones(const ufbx_node *node,
   this->mapping.el_to_object.add(&node->element, arm_obj);
   bone->flag |= BONE_SELECTED;
   bone->parent = parent_bone;
+  if (node->inherit_mode == UFBX_INHERIT_MODE_IGNORE_PARENT_SCALE) {
+    bone->inherit_scale_mode = BONE_INHERIT_SCALE_NONE;
+  }
 
   this->mapping.bone_to_armature.add(node, arm_obj);
 
