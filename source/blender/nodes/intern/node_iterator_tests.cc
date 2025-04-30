@@ -4,8 +4,6 @@
 
 #include "testing/testing.h"
 
-#include <tuple>
-
 #include "CLG_log.h"
 
 #include "DNA_material_types.h"
@@ -22,6 +20,7 @@
 #include "IMB_imbuf.hh"
 
 #include "ED_node_c.hh"
+
 #include "RNA_define.hh"
 
 namespace blender::nodes::tests {
