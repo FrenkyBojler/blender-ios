@@ -170,18 +170,6 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
   }
   BLI_assert(ID_IS_ASSET(&brush->id));
 
-  /* Add asset to catalog. */
-  char catalog_path_c[MAX_NAME];
-  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
-
-  AssetMetaData &meta_data = *brush->id.asset_data;
-  if (catalog_path_c[0]) {
-    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
-    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
-        *library, catalog_path);
-    BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
-  }
-
   if (is_local_library) {
     brush = reinterpret_cast<Brush *>(bke::asset_edit_id_ensure_local(*bmain, brush->id));
     asset::mark_id(&brush->id);
@@ -199,6 +187,18 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     brush = reinterpret_cast<Brush *>(
         bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
     brush->has_unsaved_changes = false;
+  }
+
+  /* Add asset to catalog. */
+  char catalog_path_c[MAX_NAME];
+  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
+
+  AssetMetaData &meta_data = *brush->id.asset_data;
+  if (catalog_path_c[0]) {
+    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
+    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
+        *library, catalog_path);
+    BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
   asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
