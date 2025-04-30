@@ -59,12 +59,11 @@ float4x4 calc_local_mat(const Brush &brush,
                         const float3 &plane_normal,
                         const float3 &plane_center,
                         bool flip);
-
 CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
                                   Object &ob,
                                   const Brush &brush,
                                   IndexMaskMemory &memory);
-}  // namespace clay_strips
+}
 void do_clay_thumb_brush(const Depsgraph &depsgraph,
                          const Sculpt &sd,
                          Object &ob,
