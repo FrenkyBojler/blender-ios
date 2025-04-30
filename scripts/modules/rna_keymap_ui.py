@@ -145,6 +145,9 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
     else:
         if is_op_available:
             row.label(text=kmi.name)
+        elif kmi.name in ["none", ""]:
+            row.alert = True
+            row.label(text="(Unassigned)")
         else:
             row.alert = True
             row.label(text="{:s} (unavailable)".format(kmi.idname), icon='WARNING_LARGE')
