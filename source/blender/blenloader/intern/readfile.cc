@@ -679,7 +679,8 @@ static const void *old_ptr_from_uint64_ptr(const uint64_t ptr, const bool use_en
     return reinterpret_cast<const void *>(ptr);
   }
   else {
-    return reinterpret_cast<const void *>(static_cast<uint64_t>(uint32_from_uint64_ptr(ptr, use_endian_swap)));
+    return reinterpret_cast<const void *>(
+        static_cast<uint64_t>(uint32_from_uint64_ptr(ptr, use_endian_swap)));
   }
 }
 
