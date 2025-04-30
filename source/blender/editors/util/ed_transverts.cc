@@ -6,6 +6,7 @@
  * \ingroup edutil
  */
 
+#include "DNA_mesh_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_armature_types.h"
@@ -26,9 +27,11 @@
 #include "BKE_editmesh.hh"
 #include "BKE_lattice.hh"
 #include "BKE_mesh_iterators.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "ED_armature.hh"
 #include "ED_curves.hh"
@@ -225,7 +228,9 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
   tvs->transverts_tot = 0;
 
   if (obedit->type == OB_MESH) {
-    BMEditMesh *em = BKE_editmesh_from_object((Object *)obedit);
+    const Object *object_orig = DEG_get_original(obedit);
+    const Mesh &mesh = *static_cast<Mesh *>(object_orig->data);
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
     BMesh *bm = em->bm;
     BMIter iter;
     void *userdata[2] = {em, nullptr};
@@ -296,8 +301,7 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
 
     /* and now make transverts */
     if (tvs->transverts_tot) {
-      tv = tvs->transverts = static_cast<TransVert *>(
-          MEM_callocN(tvs->transverts_tot * sizeof(TransVert), __func__));
+      tv = tvs->transverts = MEM_calloc_arrayN<TransVert>(tvs->transverts_tot, __func__);
 
       a = 0;
       BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
@@ -339,8 +343,7 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
 
     totmalloc *= 2; /* probably overkill but bones can have 2 trans verts each */
 
-    tv = tvs->transverts = static_cast<TransVert *>(
-        MEM_callocN(totmalloc * sizeof(TransVert), __func__));
+    tv = tvs->transverts = MEM_calloc_arrayN<TransVert>(totmalloc, __func__);
 
     LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
       if (EBONE_VISIBLE(arm, ebo)) {
@@ -394,8 +397,7 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
         totmalloc += nu->pntsu * nu->pntsv;
       }
     }
-    tv = tvs->transverts = static_cast<TransVert *>(
-        MEM_callocN(totmalloc * sizeof(TransVert), __func__));
+    tv = tvs->transverts = MEM_calloc_arrayN<TransVert>(totmalloc, __func__);
 
     nu = static_cast<Nurb *>(nurbs->first);
     while (nu) {
@@ -475,8 +477,7 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
     MetaBall *mb = static_cast<MetaBall *>(obedit->data);
     int totmalloc = BLI_listbase_count(mb->editelems);
 
-    tv = tvs->transverts = static_cast<TransVert *>(
-        MEM_callocN(totmalloc * sizeof(TransVert), __func__));
+    tv = tvs->transverts = MEM_calloc_arrayN<TransVert>(totmalloc, __func__);
 
     ml = static_cast<MetaElem *>(mb->editelems->first);
     while (ml) {
@@ -497,7 +498,7 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
 
     a = lt->editlatt->latt->pntsu * lt->editlatt->latt->pntsv * lt->editlatt->latt->pntsw;
 
-    tv = tvs->transverts = static_cast<TransVert *>(MEM_callocN(a * sizeof(TransVert), __func__));
+    tv = tvs->transverts = MEM_calloc_arrayN<TransVert>(a, __func__);
 
     while (a--) {
       if (bp->f1 & SELECT) {
@@ -514,7 +515,8 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
   }
   else if (obedit->type == OB_CURVES) {
     Curves *curves_id = static_cast<Curves *>(obedit->data);
-    blender::ed::curves::transverts_from_curves_positions_create(curves_id->geometry.wrap(), tvs);
+    blender::ed::curves::transverts_from_curves_positions_create(
+        curves_id->geometry.wrap(), tvs, ((mode & TM_SKIP_HANDLES) != 0));
   }
   else if (obedit->type == OB_POINTCLOUD) {
     PointCloud *pointcloud = static_cast<PointCloud *>(obedit->data);
@@ -524,8 +526,7 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
                                                                                   memory);
     MutableSpan<float3> positions = pointcloud->positions_for_write();
 
-    tvs->transverts = static_cast<TransVert *>(
-        MEM_calloc_arrayN(selection.size(), sizeof(TransVert), __func__));
+    tvs->transverts = MEM_calloc_arrayN<TransVert>(selection.size(), __func__);
     tvs->transverts_tot = selection.size();
 
     selection.foreach_index(GrainSize(1024), [&](const int64_t i, const int64_t pos) {

@@ -46,6 +46,7 @@ int GPU_texture_size_with_limit(int res);
 bool GPU_use_parallel_compilation();
 
 bool GPU_stencil_clasify_buffer_workaround();
+bool GPU_node_link_instancing_workaround();
 bool GPU_mip_render_workaround();
 bool GPU_depth_blitting_workaround();
 bool GPU_use_main_context_workaround();
@@ -57,7 +58,6 @@ bool GPU_vulkan_render_pass_workaround();
 bool GPU_geometry_shader_support();
 bool GPU_shader_draw_parameters_support();
 bool GPU_hdr_support();
-bool GPU_texture_view_support();
 bool GPU_stencil_export_support();
 
 bool GPU_mem_stats_supported();

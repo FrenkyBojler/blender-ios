@@ -128,6 +128,14 @@ struct RenderResult {
   /* for render results in Image, verify validity for sequences */
   int framenr;
 
+  /**
+   * Pixels per meter (for image output).
+   * - Typically initialized via #BKE_scene_ppm_get.
+   * - May be zero which indicates the PPM being "unset".
+   *   Although in most cases a scene is available.
+   */
+  double ppm[2];
+
   /* for acquire image, to indicate if it there is a combined layer */
   bool have_combined;
 
@@ -189,6 +197,11 @@ void RE_FreeViewRender(struct ViewRender *view_render);
  * Only called on exit.
  */
 void RE_FreeAllRender(void);
+
+/**
+ * On file load, free all interactive compositor renders.
+ */
+void RE_FreeInteractiveCompositorRenders(void);
 
 /**
  * On file load, free render results.

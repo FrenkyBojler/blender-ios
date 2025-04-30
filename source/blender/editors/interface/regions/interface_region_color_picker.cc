@@ -895,7 +895,7 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
   uiBut *but = static_cast<uiBut *>(arg_but);
   uiBlock *block;
 
-  block = UI_block_begin(C, handle->region, __func__, UI_EMBOSS);
+  block = UI_block_begin(C, handle->region, __func__, blender::ui::EmbossType::Emboss);
 
   if (ui_but_is_color_gamma(but)) {
     block->is_color_gamma_picker = true;
@@ -917,7 +917,7 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 
 ColorPicker *ui_block_colorpicker_create(uiBlock *block)
 {
-  ColorPicker *cpicker = MEM_cnew<ColorPicker>(__func__);
+  ColorPicker *cpicker = MEM_callocN<ColorPicker>(__func__);
   BLI_addhead(&block->color_pickers.list, cpicker);
 
   return cpicker;

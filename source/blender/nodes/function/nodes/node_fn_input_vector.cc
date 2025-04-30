@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *col = &layout->column(true);
   uiItemR(col, ptr, "vector", UI_ITEM_R_EXPAND, "", ICON_NONE);
 }
 
@@ -30,7 +30,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeInputVector *data = MEM_cnew<NodeInputVector>(__func__);
+  NodeInputVector *data = MEM_callocN<NodeInputVector>(__func__);
   node->storage = data;
 }
 

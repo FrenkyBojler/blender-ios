@@ -19,6 +19,7 @@
 #include "BLI_easing.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -144,7 +145,7 @@ struct RerouteCutsForSocket {
   Map<bNodeLink *, float2> links;
 };
 
-static int add_reroute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_reroute_exec(bContext *C, wmOperator *op)
 {
   const ARegion &region = *CTX_wm_region(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -293,7 +294,7 @@ static bool node_group_add_poll(const bNodeTree &node_tree,
   return true;
 }
 
-static int node_add_group_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_group_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -353,7 +354,7 @@ static bool node_add_group_poll(bContext *C)
   return true;
 }
 
-static int node_add_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -443,7 +444,9 @@ static bool add_node_group_asset(const bContext &C,
   return true;
 }
 
-static int node_add_group_asset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_group_asset_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   ARegion &region = *CTX_wm_region(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -514,7 +517,7 @@ void NODE_OT_add_group_asset(wmOperatorType *ot)
 /** \name Add Node Object Operator
  * \{ */
 
-static int node_add_object_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_object_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -553,7 +556,7 @@ static int node_add_object_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int node_add_object_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_object_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -601,7 +604,7 @@ void NODE_OT_add_object(wmOperatorType *ot)
 /** \name Add Node Collection Operator
  * \{ */
 
-static int node_add_collection_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_collection_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -640,7 +643,9 @@ static int node_add_collection_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int node_add_collection_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_collection_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -685,10 +690,10 @@ void NODE_OT_add_collection(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Add File Node Operator
+/** \name Add Image Node Operator
  * \{ */
 
-static bool node_add_file_poll(bContext *C)
+static bool node_add_image_poll(bContext *C)
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
   return ED_operator_node_editable(C) &&
@@ -701,7 +706,7 @@ struct NodeStackAnimationData {
   wmTimer *anim_timer;
 };
 
-static int node_add_file_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_nodes_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   NodeStackAnimationData *data = static_cast<NodeStackAnimationData *>(op->customdata);
 
@@ -743,7 +748,7 @@ static int node_add_file_modal(bContext *C, wmOperator *op, const wmEvent *event
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int node_add_file_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -845,7 +850,7 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int node_add_file_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_image_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -863,23 +868,23 @@ static int node_add_file_invoke(bContext *C, wmOperator *op, const wmEvent *even
   if (WM_operator_properties_id_lookup_is_set(op->ptr) ||
       RNA_struct_property_is_set(op->ptr, "filepath"))
   {
-    return node_add_file_exec(C, op);
+    return node_add_image_exec(C, op);
   }
   return WM_operator_filesel(C, op, event);
 }
 
-void NODE_OT_add_file(wmOperatorType *ot)
+void NODE_OT_add_image(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Add File Node";
-  ot->description = "Add a file node to the current node editor";
-  ot->idname = "NODE_OT_add_file";
+  ot->name = "Add Image as Node";
+  ot->description = "Add a image/movie file as node to the current node editor";
+  ot->idname = "NODE_OT_add_image";
 
   /* callbacks */
-  ot->exec = node_add_file_exec;
-  ot->modal = node_add_file_modal;
-  ot->invoke = node_add_file_invoke;
-  ot->poll = node_add_file_poll;
+  ot->exec = node_add_image_exec;
+  ot->modal = node_add_nodes_modal;
+  ot->invoke = node_add_image_invoke;
+  ot->poll = node_add_image_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -908,7 +913,7 @@ static bool node_add_mask_poll(bContext *C)
   return ED_operator_node_editable(C) && snode->nodetree->type == NTREE_COMPOSIT;
 }
 
-static int node_add_mask_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_mask_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -959,7 +964,7 @@ void NODE_OT_add_mask(wmOperatorType *ot)
 /** \name Add Material Operator
  * \{ */
 
-static int node_add_material_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_material_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -989,7 +994,7 @@ static int node_add_material_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int node_add_material_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_material_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1034,10 +1039,124 @@ void NODE_OT_add_material(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Add Import Node Operator
+ * \{ */
+
+static wmOperatorStatus node_add_import_node_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  bNodeTree *ntree = snode->edittree;
+
+  const Vector<std::string> paths = ed::io::paths_from_operator_properties(op->ptr);
+
+  Vector<bNode *> new_nodes;
+  for (const StringRefNull path : paths) {
+    bNode *node = nullptr;
+    if (path.endswith(".csv")) {
+      node = add_node(*C, "GeometryNodeImportCSV", snode->runtime->cursor);
+    }
+    else if (path.endswith(".obj")) {
+      node = add_node(*C, "GeometryNodeImportOBJ", snode->runtime->cursor);
+    }
+    else if (path.endswith(".ply")) {
+      node = add_node(*C, "GeometryNodeImportPLY", snode->runtime->cursor);
+    }
+    else if (path.endswith(".stl")) {
+      node = add_node(*C, "GeometryNodeImportSTL", snode->runtime->cursor);
+    }
+    else if (path.endswith(".txt")) {
+      node = add_node(*C, "GeometryNodeImportText", snode->runtime->cursor);
+    }
+
+    if (node) {
+      bNodeSocket &path_socket = node->input_by_identifier("Path");
+      BLI_assert(path_socket.type == SOCK_STRING);
+      auto *socket_data = static_cast<bNodeSocketValueString *>(path_socket.default_value);
+      STRNCPY(socket_data->value, path.c_str());
+      new_nodes.append(node);
+    }
+  }
+
+  if (new_nodes.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  node_deselect_all(*ntree);
+
+  for (const int i : new_nodes.index_range()) {
+    bNode *node = new_nodes[i];
+    node->flag |= NODE_SELECT;
+  }
+  bke::node_set_active(*ntree, *new_nodes[0]);
+
+  NodeStackAnimationData *data = MEM_new<NodeStackAnimationData>(__func__);
+  data->nodes = std::move(new_nodes);
+  data->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
+  op->customdata = data;
+  WM_event_add_modal_handler(C, op);
+
+  BKE_main_ensure_invariants(*bmain, ntree->id);
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static wmOperatorStatus node_add_import_node_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
+{
+  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  /* Convert mouse coordinates to v2d space. */
+  UI_view2d_region_to_view(&region->v2d,
+                           event->mval[0],
+                           event->mval[1],
+                           &snode->runtime->cursor[0],
+                           &snode->runtime->cursor[1]);
+
+  snode->runtime->cursor[0] /= UI_SCALE_FAC;
+  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+
+  return node_add_import_node_exec(C, op);
+}
+
+static bool node_add_import_node_poll(bContext *C)
+{
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  return ED_operator_node_editable(C) && snode->nodetree->type == NTREE_GEOMETRY;
+}
+
+void NODE_OT_add_import_node(wmOperatorType *ot)
+{
+  ot->name = "Add Import Node";
+  ot->description = "Add an import node to the node tree";
+  ot->idname = "NODE_OT_add_import_node";
+
+  ot->poll = node_add_import_node_poll;
+  ot->exec = node_add_import_node_exec;
+  ot->invoke = node_add_import_node_invoke;
+  ot->modal = node_add_nodes_modal;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_string_dir_path(
+      ot->srna, "directory", nullptr, FILE_MAX, "Directory", "Directory of the file");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  prop = RNA_def_collection_runtime(ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Add Color Operator
  * \{ */
 
-static int node_add_color_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_color_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1100,7 +1219,7 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int node_add_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1152,7 +1271,7 @@ void NODE_OT_add_color(wmOperatorType *ot)
 /** \name New Node Tree Operator
  * \{ */
 
-static int new_node_tree_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus new_node_tree_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   Main *bmain = CTX_data_main(C);

@@ -439,7 +439,6 @@ ccl_device_inline bool volume_shader_eval_entry(KernelGlobals kg,
   /* Setup shader-data from stack. It's mostly setup already in shader_setup_from_volume, this
    * switching should be quick. */
   sd->object = entry.object;
-  sd->lamp = LAMP_NONE;
   sd->shader = entry.shader;
 
   sd->flag &= ~SD_SHADER_FLAGS;
@@ -470,7 +469,7 @@ ccl_device_inline bool volume_shader_eval_entry(KernelGlobals kg,
 
   /* Evaluate shader. */
 #  ifdef __OSL__
-  if (kernel_data.kernel_features & KERNEL_FEATURE_OSL) {
+  if (kernel_data.kernel_features & KERNEL_FEATURE_OSL_SHADING) {
     osl_eval_nodes<SHADER_TYPE_VOLUME>(kg, state, sd, path_flag);
   }
   else

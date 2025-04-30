@@ -80,7 +80,7 @@ static void node_shader_buts_tex_brick(uiLayout *layout, bContext * /*C*/, Point
 {
   uiLayout *col;
 
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   uiItemR(col,
           ptr,
           "offset",
@@ -90,7 +90,7 @@ static void node_shader_buts_tex_brick(uiLayout *layout, bContext * /*C*/, Point
   uiItemR(
       col, ptr, "offset_frequency", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   uiItemR(col, ptr, "squash", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Squash"), ICON_NONE);
   uiItemR(
       col, ptr, "squash_frequency", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
@@ -98,7 +98,7 @@ static void node_shader_buts_tex_brick(uiLayout *layout, bContext * /*C*/, Point
 
 static void node_shader_init_tex_brick(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexBrick *tex = MEM_cnew<NodeTexBrick>(__func__);
+  NodeTexBrick *tex = MEM_callocN<NodeTexBrick>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
 
@@ -301,7 +301,7 @@ void register_node_type_sh_tex_brick()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, "ShaderNodeTexBrick", SH_NODE_TEX_BRICK);
+  common_node_type_base(&ntype, "ShaderNodeTexBrick", SH_NODE_TEX_BRICK);
   ntype.ui_name = "Brick Texture";
   ntype.ui_description = "Generate a procedural texture producing bricks";
   ntype.enum_name_legacy = "TEX_BRICK";

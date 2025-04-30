@@ -50,18 +50,18 @@ static void node_shader_buts_tex_sky(uiLayout *layout, bContext *C, PointerRNA *
 
     uiLayout *col;
     if (RNA_boolean_get(ptr, "sun_disc")) {
-      col = uiLayoutColumn(layout, true);
+      col = &layout->column(true);
       uiItemR(col, ptr, "sun_size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
       uiItemR(col, ptr, "sun_intensity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     }
 
-    col = uiLayoutColumn(layout, true);
+    col = &layout->column(true);
     uiItemR(col, ptr, "sun_elevation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "sun_rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
     uiItemR(layout, ptr, "altitude", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-    col = uiLayoutColumn(layout, true);
+    col = &layout->column(true);
     uiItemR(col, ptr, "air_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "dust_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     uiItemR(col, ptr, "ozone_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
@@ -70,7 +70,7 @@ static void node_shader_buts_tex_sky(uiLayout *layout, bContext *C, PointerRNA *
 
 static void node_shader_init_tex_sky(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexSky *tex = MEM_cnew<NodeTexSky>("NodeTexSky");
+  NodeTexSky *tex = MEM_callocN<NodeTexSky>("NodeTexSky");
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->sun_direction[0] = 0.0f;

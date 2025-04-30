@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include <functional>
@@ -66,6 +70,7 @@ struct AttributeMetaData {
 struct AttributeDomainAndType {
   AttrDomain domain;
   eCustomDataType data_type;
+  BLI_STRUCT_EQUALITY_OPERATORS_2(AttributeDomainAndType, domain, data_type)
 };
 
 /**

@@ -75,7 +75,6 @@ ustring OSLRenderServices::u_geom_dupli_generated("geom:dupli_generated");
 ustring OSLRenderServices::u_geom_dupli_uv("geom:dupli_uv");
 ustring OSLRenderServices::u_material_index("material:index");
 ustring OSLRenderServices::u_object_random("object:random");
-ustring OSLRenderServices::u_light_random("light:random");
 ustring OSLRenderServices::u_particle_index("particle:index");
 ustring OSLRenderServices::u_particle_random("particle:random");
 ustring OSLRenderServices::u_particle_age("particle:age");
@@ -117,6 +116,13 @@ ustring OSLRenderServices::u_I("I");
 ustring OSLRenderServices::u_u("u");
 ustring OSLRenderServices::u_v("v");
 ustring OSLRenderServices::u_empty;
+
+ustring OSLRenderServices::u_sensor_size("cam:sensor_size");
+ustring OSLRenderServices::u_image_resolution("cam:image_resolution");
+ustring OSLRenderServices::u_aperture_aspect_ratio("cam:aperture_aspect_ratio");
+ustring OSLRenderServices::u_aperture_size("cam:aperture_size");
+ustring OSLRenderServices::u_aperture_position("cam:aperture_position");
+ustring OSLRenderServices::u_focal_distance("cam:focal_distance");
 
 ImageManager *OSLRenderServices::image_manager = nullptr;
 
@@ -177,12 +183,6 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
 
     return true;
   }
-  if (sd->type == PRIMITIVE_LAMP) {
-    const Transform tfm = lamp_fetch_transform(kg, sd->lamp, false);
-    copy_matrix(result, tfm);
-
-    return true;
-  }
 
   return false;
 }
@@ -217,12 +217,6 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
 #else
     const Transform itfm = object_get_inverse_transform(kg, sd);
 #endif
-    copy_matrix(result, itfm);
-
-    return true;
-  }
-  if (sd->type == PRIMITIVE_LAMP) {
-    const Transform itfm = lamp_fetch_transform(kg, sd->lamp, true);
     copy_matrix(result, itfm);
 
     return true;
@@ -317,12 +311,6 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
 
     return true;
   }
-  if (sd->type == PRIMITIVE_LAMP) {
-    const Transform tfm = lamp_fetch_transform(kg, sd->lamp, false);
-    copy_matrix(result, tfm);
-
-    return true;
-  }
 
   return false;
 }
@@ -346,12 +334,6 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
   if (object != OBJECT_NONE) {
     const Transform tfm = object_get_inverse_transform(kg, sd);
     copy_matrix(result, tfm);
-
-    return true;
-  }
-  if (sd->type == PRIMITIVE_LAMP) {
-    const Transform itfm = lamp_fetch_transform(kg, sd->lamp, true);
-    copy_matrix(result, itfm);
 
     return true;
   }
@@ -754,10 +736,6 @@ bool OSLRenderServices::get_object_standard_attribute(
     const float f = object_random_number(kg, sd->object);
     return set_attribute(f, type, derivatives, val);
   }
-  if (name == u_light_random) {
-    const float f = lamp_random_number(kg, sd->lamp);
-    return set_attribute(f, type, derivatives, val);
-  }
 
   /* Particle Attributes */
   if (name == u_particle_index) {
@@ -978,6 +956,36 @@ bool OSLRenderServices::get_background_attribute(
   return false;
 }
 
+bool OSLRenderServices::get_camera_attribute(
+    ShaderGlobals *globals, OSLUStringHash name, TypeDesc type, bool derivatives, void *val)
+{
+  const ThreadKernelGlobalsCPU *kg = globals->kg;
+  if (name == u_sensor_size) {
+    const float2 sensor = make_float2(kernel_data.cam.sensorwidth, kernel_data.cam.sensorheight);
+    return set_attribute(sensor, type, derivatives, val);
+  }
+  else if (name == u_image_resolution) {
+    const float2 image = make_float2(kernel_data.cam.width, kernel_data.cam.height);
+    return set_attribute(image, type, derivatives, val);
+  }
+  else if (name == u_aperture_aspect_ratio) {
+    return set_attribute(1.0f / kernel_data.cam.inv_aperture_ratio, type, derivatives, val);
+  }
+  else if (name == u_aperture_size) {
+    return set_attribute(kernel_data.cam.aperturesize, type, derivatives, val);
+  }
+  else if (name == u_aperture_position) {
+    /* The random numbers for aperture sampling are packed into N. */
+    const float2 rand_lens = make_float2(globals->N.x, globals->N.y);
+    const float2 pos = camera_sample_aperture(&kernel_data.cam, rand_lens);
+    return set_attribute(pos * kernel_data.cam.aperturesize, type, derivatives, val);
+  }
+  else if (name == u_focal_distance) {
+    return set_attribute(kernel_data.cam.focaldistance, type, derivatives, val);
+  }
+  return false;
+}
+
 bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
                                       bool derivatives,
                                       OSLUStringHash object_name,
@@ -986,16 +994,19 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
                                       void *val)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-
-  if (globals == nullptr || globals->sd == nullptr) {
+  if (globals == nullptr) {
     return false;
   }
 
   ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
-  int object;
+  if (sd == nullptr) {
+    /* Camera shader. */
+    return get_camera_attribute(globals, name, type, derivatives, val);
+  }
 
   /* lookup of attribute on another object */
+  int object;
   if (object_name != u_empty) {
     const OSLGlobals::ObjectNameMap::iterator it = kg->osl.globals->object_name_map.find(
         object_name);
@@ -1011,8 +1022,7 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
   }
 
   /* find attribute on object */
-  const AttributeDescriptor desc = find_attribute(
-      kg, object, sd->prim, object == sd->object ? sd->type : PRIMITIVE_NONE, name.hash());
+  const AttributeDescriptor desc = find_attribute(kg, object, sd->prim, name.hash());
   if (desc.offset != ATTR_STD_NOT_FOUND) {
     return get_object_attribute(kg, sd, desc, type, derivatives, val);
   }
@@ -1485,19 +1495,26 @@ bool OSLRenderServices::get_texture_info(OSLUStringHash filename,
                                          OSLUStringHash * /*errormessage*/)
 {
   OSLTextureHandle *handle = (OSLTextureHandle *)texture_handle;
-
-  /* No texture info for other texture types. */
-  if (handle && handle->type != OSLTextureHandle::OIIO) {
-    return false;
-  }
-
-  /* Get texture info from OpenImageIO. */
   OSL::TextureSystem *ts = m_texturesys;
-  if (handle->oiio_handle) {
-    return ts->get_texture_info(
-        handle->oiio_handle, texture_thread_info, subimage, to_ustring(dataname), datatype, data);
+
+  if (handle) {
+    /* No texture info for other texture types. */
+    if (handle->type != OSLTextureHandle::OIIO) {
+      return false;
+    }
+
+    if (handle->oiio_handle) {
+      /* Get texture info from OpenImageIO. */
+      return ts->get_texture_info(handle->oiio_handle,
+                                  texture_thread_info,
+                                  subimage,
+                                  to_ustring(dataname),
+                                  datatype,
+                                  data);
+    }
   }
 
+  /* Get texture info from OpenImageIO, slower using filename. */
   return ts->get_texture_info(
       to_ustring(filename), subimage, to_ustring(dataname), datatype, data);
 }
@@ -1559,6 +1576,10 @@ bool OSLRenderServices::trace(TraceOpt &options,
   ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
 
+  if (sd == nullptr) {
+    return false;
+  }
+
   /* setup ray */
   Ray ray;
 
@@ -1571,7 +1592,6 @@ bool OSLRenderServices::trace(TraceOpt &options,
   ray.self.prim = PRIM_NONE;
   ray.self.light_object = OBJECT_NONE;
   ray.self.light_prim = PRIM_NONE;
-  ray.self.light = LAMP_NONE;
 
   if (options.mindist == 0.0f) {
     /* avoid self-intersections */

@@ -199,6 +199,12 @@ int FallbackImpl::configGetIndexForColorSpace(OCIO_ConstConfigRcPtr *config, con
   return -1;
 }
 
+const char *FallbackImpl::getColorSpaceFromFilepath(OCIO_ConstConfigRcPtr * /*config*/,
+                                                    const char * /*filepath*/)
+{
+  return nullptr;
+}
+
 const char *FallbackImpl::configGetDefaultDisplay(OCIO_ConstConfigRcPtr * /*config*/)
 {
   return "sRGB";
@@ -512,7 +518,7 @@ OCIO_PackedImageDesc *FallbackImpl::createOCIO_PackedImageDesc(float *data,
                                                                long xStrideBytes,
                                                                long yStrideBytes)
 {
-  OCIO_PackedImageDescription *desc = MEM_cnew<OCIO_PackedImageDescription>(
+  OCIO_PackedImageDescription *desc = MEM_callocN<OCIO_PackedImageDescription>(
       "OCIO_PackedImageDescription");
   desc->data = data;
   desc->width = width;

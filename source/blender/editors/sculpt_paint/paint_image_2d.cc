@@ -140,7 +140,7 @@ static BrushPainter *brush_painter_2d_new(Scene *scene,
                                           Brush *brush,
                                           bool invert)
 {
-  BrushPainter *painter = MEM_cnew<BrushPainter>(__func__);
+  BrushPainter *painter = MEM_callocN<BrushPainter>(__func__);
 
   painter->brush = brush;
   painter->scene = scene;
@@ -217,7 +217,7 @@ static ushort *brush_painter_mask_ibuf_new(BrushPainter *painter, const int size
   ushort *mask, *m;
   int x, y, thread = 0;
 
-  mask = static_cast<ushort *>(MEM_mallocN(sizeof(ushort) * size * size, __func__));
+  mask = MEM_malloc_arrayN<ushort>(size * size, __func__);
   m = mask;
 
   for (y = 0; y < size; y++) {
@@ -302,14 +302,12 @@ static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter,
 
   /* create brush image buffer if it didn't exist yet */
   if (!cache->tex_mask) {
-    cache->tex_mask = static_cast<ushort *>(
-        MEM_mallocN(sizeof(ushort) * diameter * diameter, __func__));
+    cache->tex_mask = MEM_malloc_arrayN<ushort>(diameter * diameter, __func__);
   }
 
   /* create new texture image buffer with coordinates relative to old */
   tex_mask_old = cache->tex_mask_old;
-  cache->tex_mask_old = static_cast<ushort *>(
-      MEM_mallocN(sizeof(ushort) * diameter * diameter, __func__));
+  cache->tex_mask_old = MEM_malloc_arrayN<ushort>(diameter * diameter, __func__);
 
   if (tex_mask_old) {
     ImBuf maskibuf;
@@ -392,7 +390,7 @@ static ImBuf *brush_painter_imbuf_new(
   float brush_rgb[3];
 
   /* allocate image buffer */
-  ImBuf *ibuf = IMB_allocImBuf(size, size, 32, (use_float) ? IB_rectfloat : IB_rect);
+  ImBuf *ibuf = IMB_allocImBuf(size, size, 32, (use_float) ? IB_float_data : IB_byte_data);
 
   /* get brush color */
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
@@ -587,7 +585,7 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter,
   int imbflag, destx, desty, srcx, srcy, w, h, x1, y1, x2, y2;
 
   /* create brush image buffer if it didn't exist yet */
-  imbflag = (cache->use_float) ? IB_rectfloat : IB_rect;
+  imbflag = (cache->use_float) ? IB_float_data : IB_byte_data;
   if (!cache->ibuf) {
     cache->ibuf = IMB_allocImBuf(diameter, diameter, 32, imbflag);
   }
@@ -1438,10 +1436,10 @@ static int paint_2d_canvas_set(ImagePaintState *s)
 
     /* temporarily add float rect for cloning */
     if (s->tiles[0].canvas->float_buffer.data && !s->clonecanvas->float_buffer.data) {
-      IMB_float_from_rect(s->clonecanvas);
+      IMB_float_from_byte(s->clonecanvas);
     }
     else if (!s->tiles[0].canvas->float_buffer.data && !s->clonecanvas->byte_buffer.data) {
-      IMB_rect_from_float(s->clonecanvas);
+      IMB_byte_from_float(s->clonecanvas);
     }
   }
 
@@ -1585,7 +1583,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   const Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
 
-  ImagePaintState *s = MEM_cnew<ImagePaintState>(__func__);
+  ImagePaintState *s = MEM_callocN<ImagePaintState>(__func__);
 
   s->sima = CTX_wm_space_image(C);
   s->v2d = &CTX_wm_region(C)->v2d;
@@ -1609,7 +1607,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   }
 
   s->num_tiles = BLI_listbase_count(&s->image->tiles);
-  s->tiles = MEM_cnew_array<ImagePaintTile>(s->num_tiles, __func__);
+  s->tiles = MEM_calloc_arrayN<ImagePaintTile>(s->num_tiles, __func__);
   for (int i = 0; i < s->num_tiles; i++) {
     s->tiles[i].iuser = sima->iuser;
   }

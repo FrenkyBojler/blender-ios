@@ -290,10 +290,12 @@ static void panel_draw(const bContext *C, Panel *panel)
                                                       layout,
                                                       ptr,
                                                       "open_relative_offset_panel",
+                                                      ptr,
                                                       "use_relative_offset",
-                                                      IFACE_("Relative Offset")))
+                                                      IFACE_("Relative Offset"))
+                          .body)
   {
-    uiLayout *col = uiLayoutColumn(sub, false);
+    uiLayout *col = &sub->column(false);
     uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_relative_offset"));
     uiItemR(col, ptr, "relative_offset", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
   }
@@ -302,10 +304,12 @@ static void panel_draw(const bContext *C, Panel *panel)
                                                       layout,
                                                       ptr,
                                                       "open_constant_offset_panel",
+                                                      ptr,
                                                       "use_constant_offset",
-                                                      IFACE_("Constant Offset")))
+                                                      IFACE_("Constant Offset"))
+                          .body)
   {
-    uiLayout *col = uiLayoutColumn(sub, false);
+    uiLayout *col = &sub->column(false);
     uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_constant_offset"));
     uiItemR(col, ptr, "constant_offset", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
   }
@@ -314,10 +318,12 @@ static void panel_draw(const bContext *C, Panel *panel)
                                                       layout,
                                                       ptr,
                                                       "open_object_offset_panel",
+                                                      ptr,
                                                       "use_object_offset",
-                                                      IFACE_("Object Offset")))
+                                                      IFACE_("Object Offset"))
+                          .body)
   {
-    uiLayout *col = uiLayoutColumn(sub, false);
+    uiLayout *col = &sub->column(false);
     uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_object_offset"));
     uiItemR(col, ptr, "offset_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
   }

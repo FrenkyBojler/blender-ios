@@ -10,6 +10,8 @@
 
 #include "DNA_vec_types.h"
 
+#include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_polyfill_2d.h"
 #include "BLI_sort_utils.h"
 #include "BLI_utildefines.h"
@@ -120,7 +122,7 @@ blender::gpu::Batch *GPU_batch_wire_from_poly_2d_encoded(const uchar *polys_flat
 
   /* Over alloc */
   /* Lines are pairs of (x, y) byte locations packed into an int32_t. */
-  int32_t *lines = static_cast<int32_t *>(MEM_mallocN(sizeof(*lines) * polys_len, __func__));
+  int32_t *lines = MEM_malloc_arrayN<int32_t>(polys_len, __func__);
   int32_t *lines_step = lines;
 
   const float range_uchar[2] = {

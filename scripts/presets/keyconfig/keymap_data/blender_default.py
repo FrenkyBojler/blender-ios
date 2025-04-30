@@ -259,7 +259,7 @@ def _fallback_id(text, fallback):
 
 
 def any_except(*args):
-    mod = {"ctrl": -1, "alt": -1, "shift": -1, "oskey": -1}
+    mod = {"ctrl": -1, "alt": -1, "shift": -1, "oskey": -1, "hyper": -1}
     for arg in args:
         del mod[arg]
     return mod
@@ -1923,10 +1923,6 @@ def km_graph_editor(params):
         ("graph.delete", {"type": 'DEL', "value": 'PRESS'}, {"properties": [("confirm", False)]}),
         ("graph.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
         ("graph.keyframe_insert", {"type": 'I', "value": 'PRESS'}, None),
-        ("graph.keyframe_jump", {"type": 'UP_ARROW', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", True)]}),
-        ("graph.keyframe_jump", {"type": 'DOWN_ARROW', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", False)]}),
         ("graph.click_insert", {"type": params.action_mouse, "value": 'CLICK', "ctrl": True}, None),
         ("graph.click_insert", {"type": params.action_mouse, "value": 'CLICK', "shift": True, "ctrl": True},
          {"properties": [("extend", True)]}),
@@ -2596,6 +2592,7 @@ def km_dopesheet(params):
         ("action.easing_type", {"type": 'E', "value": 'PRESS', "ctrl": True}, None),
         ("action.keyframe_type", {"type": 'R', "value": 'PRESS'}, None),
         ("action.bake_keys", {"type": 'O', "value": 'PRESS', "shift": True, "alt": True}, None),
+        ("grease_pencil.layer_isolate", {"type": 'NUMPAD_ASTERIX', "value": 'PRESS'}, None),
         op_menu("DOPESHEET_MT_delete", {"type": 'X', "value": 'PRESS'}),
         ("action.delete", {"type": 'DEL', "value": 'PRESS'}, {"properties": [("confirm", False)]}),
         ("action.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
@@ -2759,8 +2756,18 @@ def km_nla_editor(params):
          {"properties": [("mode", 'TIME_SCALE')]}),
         ("marker.add", {"type": 'M', "value": 'PRESS'}, None),
         *_template_items_context_menu("NLA_MT_context_menu", params.context_menu_event),
-        *_template_items_change_frame(params),
     ])
+
+    if params.select_mouse == 'LEFTMOUSE' and not params.legacy:
+        items.extend([
+            ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True},
+             {"properties": [("seq_solo_preview", True)]}),
+        ])
+    else:
+        items.extend([
+            ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'},
+             {"properties": [("seq_solo_preview", True)]}),
+        ])
 
     return keymap
 
@@ -2934,10 +2941,10 @@ def km_text(params):
 # Editor (Sequencer)
 
 
-def km_sequencercommon(params):
+def km_sequencer_generic(params):
     items = []
     keymap = (
-        "SequencerCommon",
+        "Video Sequence Editor",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": items},
     )
@@ -3106,7 +3113,8 @@ def km_sequencer(params):
 
 def _seq_preview_text_edit_cursor_move():
     items = []
-    map = [
+
+    for ty, mod, prop in (
         ('LEFT_ARROW', None, ("type", 'PREVIOUS_CHARACTER')),
         ('RIGHT_ARROW', None, ("type", 'NEXT_CHARACTER')),
         ('UP_ARROW', None, ("type", 'PREVIOUS_LINE')),
@@ -3117,30 +3125,32 @@ def _seq_preview_text_edit_cursor_move():
         ('RIGHT_ARROW', 'ctrl', ("type", 'NEXT_WORD')),
         ('PAGE_UP', None, ("type", 'TEXT_BEGIN')),
         ('PAGE_DOWN', None, ("type", 'TEXT_END')),
-    ]
-
-    for type, mod, prop in map:
-        if mod:
+    ):
+        if mod is not None:
             items.append(
-                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', **{mod: True}, "repeat": True},
+                ("sequencer.text_cursor_move",
+                 {"type": ty, "value": 'PRESS', mod: True, "repeat": True},
                  {"properties": [prop]}))
             items.append(
-                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', **{mod: True}, "shift": True, "repeat": True},
+                ("sequencer.text_cursor_move",
+                 {"type": ty, "value": 'PRESS', mod: True, "shift": True, "repeat": True},
                  {"properties": [prop, ('select_text', True)]}))
         else:
             items.append(
-                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', "repeat": True},
+                ("sequencer.text_cursor_move",
+                 {"type": ty, "value": 'PRESS', "repeat": True},
                  {"properties": [prop]}))
             items.append(
-                ("sequencer.text_cursor_move", {"type": type, "value": 'PRESS', "shift": True, "repeat": True},
+                ("sequencer.text_cursor_move",
+                 {"type": ty, "value": 'PRESS', "shift": True, "repeat": True},
                  {"properties": [prop, ('select_text', True)]}))
     return items
 
 
-def km_sequencerpreview(params):
+def km_sequencer_preview(params):
     items = []
     keymap = (
-        "SequencerPreview",
+        "Preview",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": items},
     )
@@ -3204,6 +3214,12 @@ def km_sequencerpreview(params):
          {"properties": [("property", 'ROTATION')]}),
 
         ("sequencer.preview_duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+        ("sequencer.mute", {"type": 'H', "value": 'PRESS'},
+         {"properties": [("unselected", False)]}),
+        ("sequencer.mute", {"type": 'H', "value": 'PRESS', "shift": True},
+         {"properties": [("unselected", True)]}),
+        ("sequencer.unmute", {"type": 'H', "value": 'PRESS', "alt": True},
+         {"properties": [("unselected", False)]}),
         ("sequencer.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("sequencer.delete", {"type": 'DEL', "value": 'PRESS'}, None),
 
@@ -3982,6 +3998,9 @@ def km_grease_pencil_edit_mode(params):
          {"properties": [("type", 'JOINCOPY')]}),
 
         ("grease_pencil.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+
+        # Split Stroke
+        ("grease_pencil.stroke_split", {"type": 'V', "value": 'PRESS', "shift": True}, None),
 
         # Extrude and move selected points
         op_tool_optional(
@@ -4793,8 +4812,12 @@ def km_image_paint(params):
          {"properties": [("mode", 'SMOOTH')]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         ("paint.grab_clone", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
-        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
-        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True, "ctrl": True}, {"properties": [("merged", True)]}),
+        ("paint.sample_color",
+         {"type": 'X', "value": 'PRESS', "shift": True},
+         {"properties": [("merged", False)]}),
+        ("paint.sample_color",
+         {"type": 'X', "value": 'PRESS', "shift": True, "ctrl": True},
+         {"properties": [("merged", True)]}),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
@@ -6533,6 +6556,32 @@ def km_node_resize_modal_map(_params):
 
     return keymap
 
+
+def km_sequencer_slip_modal_map(_params):
+    items = []
+    keymap = (
+        "Slip Modal",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'RELEASE', "any": True}, None),
+        ("CONFIRM", {"type": 'RET', "value": 'RELEASE', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'RELEASE', "any": True}, None),
+        ("CONFIRM", {"type": 'SPACE', "value": 'RELEASE', "any": True}, None),
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("PRECISION_ENABLE", {"type": 'LEFT_SHIFT', "value": 'PRESS', "any": True}, None),
+        ("PRECISION_DISABLE", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
+        ("PRECISION_ENABLE", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
+        ("PRECISION_DISABLE", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
+        ("CLAMP_TOGGLE", {"type": 'C', "value": 'RELEASE', "any": True}, None),
+    ])
+
+    return keymap
+
 # Fallback for gizmos that don't have custom a custom key-map.
 
 
@@ -8110,12 +8159,13 @@ def km_3d_view_tool_edit_grease_pencil_texture_gradient(params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Generic)
 
-def km_sequencer_editor_tool_generic_select_timeline_rcs(params):
+def km_sequencer_tool_generic_select_rcs(params):
     return [
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "alt": True}, {"properties": [("ignore_connections", True)]}),
-        *_template_items_change_frame(params),
+        ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'},
+         {"properties": [("seq_solo_preview", True)]}),
         # Change frame takes precedence over the sequence slide operator. If a
         # mouse press happens on a strip handle, it is canceled, and the sequence
         # slide below activates instead.
@@ -8124,25 +8174,26 @@ def km_sequencer_editor_tool_generic_select_timeline_rcs(params):
     ]
 
 
-def km_sequencer_editor_tool_generic_select_timeline_lcs(params):
+def km_sequencer_tool_generic_select_lcs(params):
     return [
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "shift": True}, {"properties": [("toggle", True)]}),
-        *_template_items_change_frame(params),
+        ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS',
+         "shift": True}, {"properties": [("seq_solo_preview", True)]}),
     ]
 
 
-def km_sequencer_editor_tool_generic_select_box_timeline(params, *, fallback):
+def km_sequencer_tool_generic_select_box(params, *, fallback):
     return (
-        _fallback_id("Sequencer Timeline Tool: Select Box", fallback),
+        _fallback_id("Sequencer Tool: Select Box", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             # Combine the tweak functionality into the select box tool.
             # This gives one standard tool for all selection and transform behavior.
-            *(km_sequencer_editor_tool_generic_select_timeline_rcs(params)
+            *(km_sequencer_tool_generic_select_rcs(params)
               if (params.select_mouse == 'RIGHTMOUSE') else
-              km_sequencer_editor_tool_generic_select_timeline_lcs(params)),
+              km_sequencer_tool_generic_select_lcs(params)),
             # Don't use `tool_maybe_tweak_event`, see comment for this slot.
             *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
                 "sequencer.select_box",
@@ -8153,9 +8204,9 @@ def km_sequencer_editor_tool_generic_select_box_timeline(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_select_preview(params, *, fallback):
+def km_sequencer_preview_tool_generic_select(params, *, fallback):
     return (
-        _fallback_id("Sequencer Preview Tool: Tweak", fallback),
+        _fallback_id("Preview Tool: Tweak", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("sequencer.text_cursor_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
@@ -8170,9 +8221,9 @@ def km_sequencer_editor_tool_generic_select_preview(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_select_box_preview(params, *, fallback):
+def km_sequencer_preview_tool_generic_select_box(params, *, fallback):
     return (
-        _fallback_id("Sequencer Preview Tool: Select Box", fallback),
+        _fallback_id("Preview Tool: Select Box", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("sequencer.text_cursor_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
@@ -8186,9 +8237,9 @@ def km_sequencer_editor_tool_generic_select_box_preview(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_cursor(params):
+def km_sequencer_preview_tool_generic_cursor(params):
     return (
-        "Sequencer Tool: Cursor",
+        "Preview Tool: Cursor",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("sequencer.cursor_set", {"type": params.tool_mouse, "value": 'PRESS'}, None),
@@ -8202,7 +8253,7 @@ def km_sequencer_editor_tool_generic_cursor(params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Timeline)
 
-def km_sequencer_editor_tool_blade(_params):
+def km_sequencer_tool_blade(_params):
     return (
         "Sequencer Tool: Blade",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8221,9 +8272,9 @@ def km_sequencer_editor_tool_blade(_params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Preview)
 
-def km_sequencer_editor_tool_sample(params):
+def km_sequencer_preview_tool_sample(params):
     return (
-        "Sequencer Tool: Sample",
+        "Preview Tool: Sample",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("sequencer.sample", {"type": params.tool_mouse, "value": 'PRESS'}, None),
@@ -8231,9 +8282,9 @@ def km_sequencer_editor_tool_sample(params):
     )
 
 
-def km_sequencer_editor_tool_move(params):
+def km_sequencer_preview_tool_move(params):
     return (
-        "Sequencer Tool: Move",
+        "Preview Tool: Move",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("transform.translate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
@@ -8242,9 +8293,9 @@ def km_sequencer_editor_tool_move(params):
     )
 
 
-def km_sequencer_editor_tool_rotate(params):
+def km_sequencer_preview_tool_rotate(params):
     return (
-        "Sequencer Tool: Rotate",
+        "Preview Tool: Rotate",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("transform.rotate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
@@ -8253,9 +8304,9 @@ def km_sequencer_editor_tool_rotate(params):
     )
 
 
-def km_sequencer_editor_tool_scale(params):
+def km_sequencer_preview_tool_scale(params):
     return (
-        "Sequencer Tool: Scale",
+        "Preview Tool: Scale",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("transform.resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
@@ -8330,9 +8381,9 @@ def generate_keymaps(params=None):
         km_nla_editor(params),
         km_text_generic(params),
         km_text(params),
-        km_sequencercommon(params),
+        km_sequencer_generic(params),
         km_sequencer(params),
-        km_sequencerpreview(params),
+        km_sequencer_preview(params),
         km_sequencer_channels(params),
         km_console(params),
         km_clip(params),
@@ -8412,6 +8463,7 @@ def generate_keymaps(params=None):
         km_grease_pencil_primitive_tool_modal_map(params),
         km_grease_pencil_fill_tool_modal_map(params),
         km_grease_pencil_interpolate_tool_modal_map(params),
+        km_sequencer_slip_modal_map(params),
 
         # Gizmos.
         km_generic_gizmo(params),
@@ -8532,20 +8584,20 @@ def generate_keymaps(params=None):
         km_3d_view_tool_paint_grease_pencil_primitive_circle(params),
         km_3d_view_tool_paint_grease_pencil_primitive_arc(params),
         km_3d_view_tool_paint_grease_pencil_primitive_curve(params),
-        *(km_sequencer_editor_tool_generic_select_box_timeline(params, fallback=fallback)
+        *(km_sequencer_tool_generic_select_box(params, fallback=fallback)
           for fallback in (False, True)),
-        *(km_sequencer_editor_tool_generic_select_preview(params, fallback=fallback)
+        *(km_sequencer_preview_tool_generic_select(params, fallback=fallback)
           for fallback in (False, True)),
-        *(km_sequencer_editor_tool_generic_select_box_preview(params, fallback=fallback)
+        *(km_sequencer_preview_tool_generic_select_box(params, fallback=fallback)
           for fallback in (False, True)),
         km_3d_view_tool_paint_grease_pencil_trim(params),
         km_3d_view_tool_edit_grease_pencil_texture_gradient(params),
-        km_sequencer_editor_tool_generic_cursor(params),
-        km_sequencer_editor_tool_blade(params),
-        km_sequencer_editor_tool_sample(params),
-        km_sequencer_editor_tool_move(params),
-        km_sequencer_editor_tool_rotate(params),
-        km_sequencer_editor_tool_scale(params),
+        km_sequencer_tool_blade(params),
+        km_sequencer_preview_tool_generic_cursor(params),
+        km_sequencer_preview_tool_sample(params),
+        km_sequencer_preview_tool_move(params),
+        km_sequencer_preview_tool_rotate(params),
+        km_sequencer_preview_tool_scale(params),
         km_3d_view_tool_edit_grease_pencil_interpolate(params),
         km_3d_view_tool_paint_grease_pencil_interpolate(params),
         km_3d_view_tool_paint_grease_pencil_eyedropper(params),

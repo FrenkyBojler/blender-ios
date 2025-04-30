@@ -167,6 +167,11 @@ bool GPU_stencil_clasify_buffer_workaround()
   return GCaps.stencil_clasify_buffer_workaround;
 }
 
+bool GPU_node_link_instancing_workaround()
+{
+  return GCaps.node_link_instancing_workaround;
+}
+
 bool GPU_vulkan_render_pass_workaround()
 {
   return GCaps.render_pass_workaround;
@@ -185,11 +190,6 @@ bool GPU_shader_draw_parameters_support()
 bool GPU_hdr_support()
 {
   return GCaps.hdr_viewport_support;
-}
-
-bool GPU_texture_view_support()
-{
-  return GCaps.texture_view_support;
 }
 
 bool GPU_stencil_export_support()

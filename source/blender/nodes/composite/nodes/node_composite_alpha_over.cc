@@ -45,14 +45,14 @@ static void cmp_node_alphaover_declare(NodeDeclarationBuilder &b)
 
 static void node_alphaover_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  node->storage = MEM_cnew<NodeTwoFloats>(__func__);
+  node->storage = MEM_callocN<NodeTwoFloats>(__func__);
 }
 
 static void node_composit_buts_alphaover(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayout *col;
 
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   uiItemR(col, ptr, "use_premultiply", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "premul", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }

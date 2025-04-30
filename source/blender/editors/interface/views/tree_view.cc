@@ -25,6 +25,7 @@
 #include "WM_types.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_multi_value_map.hh"
 
 #include "UI_tree_view.hh"
@@ -197,6 +198,10 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
     visible_item_index++;
 
     if (!item->is_collapsible() || item->is_collapsed()) {
+      continue;
+    }
+    if (item->children_.is_empty()) {
+      BLI_assert(item->is_always_collapsible_);
       continue;
     }
 
@@ -461,7 +466,7 @@ int AbstractTreeViewItem::indent_width() const
 void AbstractTreeViewItem::add_indent(uiLayout &row) const
 {
   uiBlock *block = uiLayoutGetBlock(&row);
-  uiLayout *subrow = uiLayoutRow(&row, true);
+  uiLayout *subrow = &row.row(true);
   uiLayoutSetFixedSize(subrow, true);
 
   uiDefBut(block, UI_BTYPE_SEPR, 0, "", 0, 0, this->indent_width(), 0, nullptr, 0.0, 0.0, "");
@@ -526,11 +531,11 @@ void AbstractTreeViewItem::add_collapse_chevron(uiBlock &block) const
 void AbstractTreeViewItem::add_rename_button(uiLayout &row)
 {
   uiBlock *block = uiLayoutGetBlock(&row);
-  eUIEmbossType previous_emboss = UI_block_emboss_get(block);
+  blender::ui::EmbossType previous_emboss = UI_block_emboss_get(block);
 
-  uiLayoutRow(&row, false);
+  row.row(false);
   /* Enable emboss for the text button. */
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   AbstractViewItem::add_rename_button(*block);
 
@@ -703,6 +708,9 @@ bool AbstractTreeViewItem::is_collapsible() const
 {
   BLI_assert_msg(get_tree_view().is_reconstructed(),
                  "State can't be queried until reconstruction is completed");
+  if (is_always_collapsible_) {
+    return true;
+  }
   if (children_.is_empty()) {
     return false;
   }
@@ -792,19 +800,19 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   uiLayout *col = nullptr;
   if (add_box_) {
     uiLayout *box = uiLayoutBox(&parent_layout);
-    col = uiLayoutColumn(box, true);
+    col = &box->column(true);
   }
   else {
-    col = uiLayoutColumn(&parent_layout, true);
+    col = &parent_layout.column(true);
   }
   /* Row for the tree-view and the scroll bar. */
-  uiLayout *row = uiLayoutRow(col, false);
+  uiLayout *row = &col->row(false);
 
   const std::optional<int> visible_row_count = tree_view.tot_visible_row_count();
   const int tot_items = count_visible_items(tree_view);
 
   /* Column for the tree view. */
-  uiLayoutColumn(row, true);
+  row->column(true);
 
   /* Clamp scroll-value to valid range. */
   if (tree_view.scroll_value_ && visible_row_count) {
@@ -826,7 +834,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
 
   if (tree_view.custom_height_) {
-    uiLayoutColumn(row, false);
 
     *tree_view.custom_height_ = visible_row_count.value_or(1) * padded_item_height();
     if (!tree_view.scroll_value_) {
@@ -834,6 +841,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     }
 
     if (visible_row_count && (tot_items > *visible_row_count)) {
+      row->column(false);
       uiBut *but = uiDefButI(block,
                              UI_BTYPE_SCROLL,
                              0,
@@ -873,7 +881,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   uiBlock &block_ = block();
 
   uiLayout &prev_layout = current_layout();
-  eUIEmbossType previous_emboss = UI_block_emboss_get(&block_);
+  blender::ui::EmbossType previous_emboss = UI_block_emboss_get(&block_);
 
   uiLayout *overlap = uiLayoutOverlap(&prev_layout);
 
@@ -881,22 +889,22 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
     uiLayoutSetActive(overlap, false);
   }
 
-  uiLayout *row = uiLayoutRow(overlap, false);
+  uiLayout *row = &overlap->row(false);
   /* Enable emboss for mouse hover highlight. */
-  uiLayoutSetEmboss(row, UI_EMBOSS);
+  uiLayoutSetEmboss(row, blender::ui::EmbossType::Emboss);
   /* Every item gets one! Other buttons can be overlapped on top. */
   item.add_treerow_button(block_);
 
   /* After adding tree-row button (would disable hover highlighting). */
-  UI_block_emboss_set(&block_, UI_EMBOSS_NONE_OR_STATUS);
+  UI_block_emboss_set(&block_, blender::ui::EmbossType::NoneOrStatus);
 
   /* Add little margin to align actual contents vertically. */
-  uiLayout *content_col = uiLayoutColumn(overlap, true);
+  uiLayout *content_col = &overlap->column(true);
   const int margin_top = (padded_item_height() - unpadded_item_height()) / 2;
   if (margin_top > 0) {
     uiDefBut(&block_, UI_BTYPE_LABEL, 0, "", 0, 0, UI_UNIT_X, margin_top, nullptr, 0, 0, "");
   }
-  row = uiLayoutRow(content_col, true);
+  row = &content_col->row(true);
 
   uiLayoutListItemAddPadding(row);
   item.add_indent(*row);

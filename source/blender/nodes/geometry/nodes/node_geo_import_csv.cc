@@ -17,8 +17,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("Path")
       .subtype(PROP_FILEPATH)
+      .path_filter("*.csv")
       .hide_label()
       .description("Path to a CSV file");
+  b.add_input<decl::String>("Delimiter").default_value(",");
 
   b.add_output<decl::Geometry>("Point Cloud");
 }
@@ -32,8 +34,21 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
+  const std::string delimiter = params.extract_input<std::string>("Delimiter");
+  if (delimiter.size() != 1) {
+    params.error_message_add(NodeWarningType::Error, TIP_("Delimiter must be a single character"));
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (ELEM(delimiter[0], '\n', '\r', '"', '\\')) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Delimiter must not be \\n, \\r, \" or \\"));
+    params.set_default_remaining_outputs();
+    return;
+  }
 
   blender::io::csv::CSVImportParams import_params{};
+  import_params.delimiter = delimiter[0];
   STRNCPY(import_params.filepath, path->c_str());
 
   ReportList reports;
@@ -74,7 +89,6 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  ntype.gather_link_search_ops = search_link_ops_for_import_node;
 
   blender::bke::node_register_type(ntype);
 }

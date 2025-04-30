@@ -694,6 +694,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_NODE_ZONE_FOREACH_GEOMETRY_ELEMENT:
           cp = ts->node_zone_foreach_geometry_element;
           break;
+        case TH_NODE_ZONE_CLOSURE:
+          cp = ts->node_zone_closure;
+          break;
         case TH_SIMULATED_FRAMES:
           cp = ts->simulated_frames;
           break;
@@ -1098,7 +1101,7 @@ void UI_theme_init_default()
   bTheme *btheme = static_cast<bTheme *>(
       BLI_findstring(&U.themes, U_theme_default.name, offsetof(bTheme, name)));
   if (btheme == nullptr) {
-    btheme = MEM_cnew<bTheme>(__func__);
+    btheme = MEM_callocN<bTheme>(__func__);
     STRNCPY(btheme->name, U_theme_default.name);
     BLI_addhead(&U.themes, btheme);
   }

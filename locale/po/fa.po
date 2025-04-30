@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'63c460d93d55')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'1f4cae0c4623')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-24 09:56+0000\n"
-"PO-Revision-Date: 2024-05-03 12:13+0000\n"
-"Last-Translator: Nooby Noober <iamanoobynoober@gmail.com>\n"
+"POT-Creation-Date: 2025-04-28 09:32+0000\n"
+"PO-Revision-Date: 2025-04-14 08:19+0000\n"
+"Last-Translator: soheil ali-pasha <sapachannel.ir@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
 "Language: fa\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.5.2\n"
+"X-Generator: Weblate 5.10.1\n"
 "X-Poedit-Country: IRAN, ISLAMIC REPUBLIC OF\n"
 "X-Poedit-Language: Persian\n"
 "X-Poedit-SourceCharset: utf-8"
@@ -60,6 +60,10 @@ msgstr "ﺎﻫAOV ﺖﺳﺮﻬﻓ"
 
 msgid "Collection of AOVs"
 msgstr "ﺎﻫAOV ﻪﻋﻮﻤﺠﻣ"
+
+
+msgid "F-Curves"
+msgstr "ﻑﺍ ﯽﻨﺤﻨﻣ"
 
 
 msgid "Action F-Curves"
@@ -373,14 +377,6 @@ msgstr "ﺎﻫ‌ﻩﺎﮕﺘﺳﺩ ﻦﯿﺑ ﻪﻈﻓﺎﺣ ﻊﯾﺯﻮﺗ"
 
 msgid "Make more room for large scenes to fit by distributing memory across interconnected devices (e.g. via NVLink) rather than duplicating it"
 msgstr "ﺪﯿﻨﮐ ﺩﺎﺠﯾﺍ ﮒﺭﺰﺑ ﯼﺎﻫ ﻪﻨﺤﺻ ﻥﺩﺍﺩ ﺎﺟ ﯼﺍﺮﺑ ﯼﺮﺘﺸﯿﺑ ﯼﺎﻀﻓ ،ﻥﺁ ﻥﺩﺮﮐ ﯽﭙﮐ ﯼﺎﺟ ﻪﺑ (NVLink ﻖﯾﺮﻃ ﺯﺍ ﻼً﻿ﺜﻣ) ﻢﻫ ﻪﺑ ﻞﺼﺘﻣ ﯼﺎﻫ ﻩﺎﮕﺘﺳﺩ ﺭﺩ ﻪﻈﻓﺎﺣ ﻊﯾﺯﻮﺗ ﺎﺑ"
-
-
-msgid "HIP RT (Experimental)"
-msgstr "HIP RT (ﯽﺸﯾﺎﻣﺯﺁ)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT ﯼﺭﺍﺰﻓﺍ‌ﺖﺨﺳ ﻮﺗﺮﭘ ﯼﺮﯿﮕﻫﺭ AMD ﺭﺩ ﺍﺭ RDNA2 ﺪﻧﻮﺷ ﺭﺪﻧﺭ ﺖﺳﺭﺩﺎﻧ ﺎﻫ ﻪﻨﺤﺻ ﺯﺍ ﯽﺧﺮﺑ ﺖﺳﺍ ﻦﮑﻤﻣ ﻭ ﺖﺳﺍ ﯽﺸﯾﺎﻣﺯﺁ ﯽﮔﮋﯾﻭ ﻦﯾﺍ .ﺪﻨﮐ‌ﯽﻣ ﻝﺎﻌﻓ ،ﺮﺗ‌ﯽﻤﯾﺪﻗ ﯼﺎﻫ‌ﮏﯿﻓﺍﺮﮔ ‌ﺕﺭﺎﮐ ﺭﺩ ﯽﺘﺸﮔﺯﺎﺑ ﻥﺯ‌ﻪﯾﺎﺳ ﺎﺑ ،ﺮﺗﻻ﻿ﺎﺑ ﻭ"
 
 
 msgid "Embree on GPU"
@@ -1032,7 +1028,7 @@ msgstr "ﺵﺮﺘﺴﮔ"
 
 
 msgid "Object"
-msgstr "ءﯽﺷ"
+msgstr "ﺊﺷ"
 
 
 msgid "None"
@@ -1085,6 +1081,10 @@ msgstr "ﺪﯾﺩ ﻥﺍﺪﯿﻣ ﺖﯿﻌﺿﻭ"
 
 msgid "Weight"
 msgstr "ﻥﺯﻭ"
+
+
+msgid "Cache Files"
+msgstr "ﺶﮐ ﯼﺎﻫ ﻞﯾﺎﻓ"
 
 
 msgid "Grease Pencil"
@@ -1900,10 +1900,6 @@ msgid "Uniform"
 msgstr "ﻥﺎﺴﮑﯾ"
 
 
-msgid "Script"
-msgstr "ﺖﭙﯾﺮﮑﺳﺍ"
-
-
 msgid "Front"
 msgstr "ﻮﻠﺟ"
 
@@ -2280,16 +2276,16 @@ msgid "Tools"
 msgstr "ﺭﺍﺰﺑﺍ"
 
 
+msgid "Ping Pong"
+msgstr "ﮓﻨﭘ ﮓﻨﯿﭘ"
+
+
 msgid "Local Matrix"
 msgstr "ﯽﻠﺤﻣ ﺲﮑﯾﺮﺗﺎﻣ"
 
 
 msgid "Parent Bone"
 msgstr "ﺪﻟﺍﻭ ﻥﺍﻮﺨﺘﺳﺍ"
-
-
-msgid "Ping Pong"
-msgstr "ﮓﻨﭘ ﮓﻨﯿﭘ"
 
 
 msgid "Red"
@@ -2306,6 +2302,10 @@ msgstr "ﯽﺑﺁ"
 
 msgid "Library"
 msgstr "ﻪﻧﺎﺨﺑﺎﺘﮐ"
+
+
+msgid "Library Override"
+msgstr "ﻪﻧﺎﺨﺑﺎﺘﮐ ﻮﻐﻟ"
 
 
 msgid "Layers"
@@ -2587,12 +2587,20 @@ msgid "Cube"
 msgstr "ﺐﻌﮑﻣ"
 
 
+msgid "Attribute"
+msgstr "ﯽﮔﮋﯾﻭ"
+
+
 msgid "Distort"
 msgstr "ﻥﺩﺮﮐ‌ﺞﮐ"
 
 
 msgid "Filter"
 msgstr "ﯽﻓﺎﺻ"
+
+
+msgid "Script"
+msgstr "ﺖﭙﯾﺮﮑﺳﺍ"
 
 
 msgid "Interface"
@@ -2945,6 +2953,18 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
+msgid "Apply"
+msgstr "ﻝﺎﻤﻋﺍ"
+
+
+msgid "Text"
+msgstr "ﻦﺘﻣ"
+
+
+msgid "Pivot Point"
+msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
+
+
 msgid "Mirror"
 msgstr "ﻪﻨﯾﺁ"
 
@@ -2957,20 +2977,8 @@ msgid "Relations"
 msgstr "ﻂﺑﺍﻭﺭ"
 
 
-msgid "Apply"
-msgstr "ﻝﺎﻤﻋﺍ"
-
-
 msgid "Convert"
 msgstr "ﻞﯾﺪﺒﺗ"
-
-
-msgid "Text"
-msgstr "ﻦﺘﻣ"
-
-
-msgid "Pivot Point"
-msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
 
 
 msgid "Key"
@@ -3807,13 +3815,13 @@ msgid "Constraint"
 msgstr "ﺖﯾﺩﻭﺪﺤﻣ"
 
 
-msgid "Less"
-msgstr "ﺮﺘﻤﮐ"
-
-
 msgctxt "Operator"
 msgid "Separate"
 msgstr "ﺍﺪﺟ"
+
+
+msgid "Less"
+msgstr "ﺮﺘﻤﮐ"
 
 
 msgid "Select shortest path between two selections"
@@ -4723,10 +4731,6 @@ msgid "Not Set"
 msgstr "ﻩﺪﺸﻧ ﺺﺨﺸﻣ"
 
 
-msgid "Endpoint"
-msgstr "ﯽﻧﺎﯾﺎﭘ ﻪﻄﻘﻧ"
-
-
 msgctxt "Operator"
 msgid "Search..."
 msgstr "...ﻮﺠﺘﺴﺟ"
@@ -4754,6 +4758,10 @@ msgstr "ﯼﺮﺑﺯ ﻥﺎﯾﺎﭘ"
 
 msgid "Random Order"
 msgstr "ﯽﻓﺩﺎﺼﺗ ﺕﺭﻮﺻ"
+
+
+msgid "Endpoint"
+msgstr "ﯽﻧﺎﯾﺎﭘ ﻪﻄﻘﻧ"
 
 
 msgid "Use Particle's Radius"
@@ -4891,10 +4899,6 @@ msgstr "ﺽﺮﻓ ﺶﯿﭘ ﺮﯾﺩﺎﻘﻣ ﻪﺑ ﻪﻤﻫ ﺩﺪﺠﻣ ﻢ
 msgctxt "Operator"
 msgid "Reset Single to Default Value"
 msgstr "ﺽﺮﻓ ﺶﯿﭘ ﺭﺍﺪﻘﻣ ﻪﺑ ﯽﮑﺗ ﺩﺪﺠﻣ ﻢﯿﻈﻨﺗ"
-
-
-msgid "Home"
-msgstr "Home"
 
 
 msgid "Esc"
@@ -5130,6 +5134,10 @@ msgid "File name"
 msgstr "ﻞﯾﺎﻓ ﻡﺎﻧ"
 
 
+msgid "Home"
+msgstr "Home"
+
+
 msgid "Update Dependencies"
 msgstr "ﺎﻫ‌ﯽﮕﺘﺴﺑﺍﻭ ﯽﻧﺎﺳﺭ ﺯﻭﺭ‌ﻪﺑ"
 
@@ -5200,10 +5208,6 @@ msgstr "ﯽﻤﯾﺪﻗ"
 
 msgid "Blender File View"
 msgstr "ﺭﺪﻨﻠﺑ ﻞﯾﺎﻓ ﺶﯾﺎﻤﻧ"
-
-
-msgid "English (English)"
-msgstr "(English) ﯽﺴﯿﻠﮕﻧﺍ"
 
 
 msgid "Japanese (日本語)"

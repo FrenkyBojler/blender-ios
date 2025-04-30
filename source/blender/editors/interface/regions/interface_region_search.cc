@@ -871,7 +871,7 @@ static ARegion *ui_searchbox_create_generic_ex(bContext *C,
   region->runtime->type = &type;
 
   /* Create search-box data. */
-  uiSearchboxData *data = MEM_cnew<uiSearchboxData>(__func__);
+  uiSearchboxData *data = MEM_callocN<uiSearchboxData>(__func__);
   data->search_arg = but->arg;
   data->search_but = but;
   data->butregion = butregion;
@@ -920,8 +920,8 @@ static ARegion *ui_searchbox_create_generic_ex(bContext *C,
   data->items.totitem = 0;
   data->items.names = (char **)MEM_callocN(data->items.maxitem * sizeof(void *), __func__);
   data->items.pointers = (void **)MEM_callocN(data->items.maxitem * sizeof(void *), __func__);
-  data->items.icons = (int *)MEM_callocN(data->items.maxitem * sizeof(int), __func__);
-  data->items.but_flags = (int *)MEM_callocN(data->items.maxitem * sizeof(int), __func__);
+  data->items.icons = MEM_calloc_arrayN<int>(data->items.maxitem, __func__);
+  data->items.but_flags = MEM_calloc_arrayN<int>(data->items.maxitem, __func__);
   data->items.name_prefix_offsets = nullptr; /* Lazy initialized as needed. */
   for (int i = 0; i < data->items.maxitem; i++) {
     data->items.names[i] = (char *)MEM_callocN(data->items.maxstrlen + 1, __func__);
@@ -1088,7 +1088,7 @@ void ui_but_search_refresh(uiButSearch *but)
     return;
   }
 
-  uiSearchItems *items = MEM_cnew<uiSearchItems>(__func__);
+  uiSearchItems *items = MEM_callocN<uiSearchItems>(__func__);
 
   /* setup search struct */
   items->maxitem = 10;

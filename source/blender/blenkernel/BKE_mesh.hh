@@ -9,6 +9,7 @@
  */
 
 #include "BLI_index_mask_fwd.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_string_ref.hh"
 
@@ -230,7 +231,7 @@ void normals_corner_custom_set_from_verts(Span<float3> vert_positions,
                                           MutableSpan<short2> r_clnors_data);
 
 /**
- * Define sharp edges as needed to mimic 'autosmooth' from angle threshold.
+ * Define sharp edges as needed to mimic "auto-smooth" from angle threshold.
  *
  * Used when defining an empty custom corner normals data layer,
  * to keep same shading as with auto-smooth!
@@ -363,6 +364,10 @@ Mesh *mesh_new_no_attributes(int verts_num, int edges_num, int faces_num, int co
 /** Calculate edges from faces. */
 void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, bool select_new_edges);
 
+void mesh_translate(Mesh &mesh, const float3 &translation, bool do_shape_keys);
+
+void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys);
+
 void mesh_flip_faces(Mesh &mesh, const IndexMask &selection);
 
 void mesh_ensure_required_data_layers(Mesh &mesh);
@@ -409,6 +414,9 @@ void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
                       Object &ob,
                       const CustomData_MeshMasks &dataMask);
+
+/** Remove strings referring to attributes if they no longer exist. */
+void mesh_remove_invalid_attribute_strings(Mesh &mesh);
 
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 

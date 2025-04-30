@@ -45,7 +45,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCollectionInfo *data = MEM_cnew<NodeGeometryCollectionInfo>(__func__);
+  NodeGeometryCollectionInfo *data = MEM_callocN<NodeGeometryCollectionInfo>(__func__);
   data->transform_space = GEO_NODE_TRANSFORM_SPACE_ORIGINAL;
   node->storage = data;
 }
@@ -58,7 +58,7 @@ struct InstanceListEntry {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Collection *collection = params.get_input<Collection *>("Collection");
+  Collection *collection = params.extract_input<Collection *>("Collection");
 
   if (collection == nullptr) {
     params.set_default_remaining_outputs();
@@ -87,9 +87,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
 
-  const bool separate_children = params.get_input<bool>("Separate Children");
+  const bool separate_children = params.extract_input<bool>("Separate Children");
   if (separate_children) {
-    const bool reset_children = params.get_input<bool>("Reset Children");
+    const bool reset_children = params.extract_input<bool>("Reset Children");
     Vector<Collection *> children_collections;
     LISTBASE_FOREACH (CollectionChild *, collection_child, &collection->children) {
       children_collections.append(collection_child->collection);

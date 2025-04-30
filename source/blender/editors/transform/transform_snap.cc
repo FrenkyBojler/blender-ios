@@ -9,6 +9,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_time.h"
 
 #include "DNA_userdef_types.h"
@@ -656,13 +657,31 @@ short *transform_snap_flag_from_spacetype_ptr(TransInfo *t, const PropertyRNA **
         *r_prop = &rna_ToolSettings_use_snap_sequencer;
       }
       return &ts->snap_flag_seq;
-    case SPACE_GRAPH:
     case SPACE_ACTION:
     case SPACE_NLA:
       if (r_prop) {
         *r_prop = &rna_ToolSettings_use_snap_anim;
       }
       return &ts->snap_flag_anim;
+    case SPACE_GRAPH: {
+      SpaceGraph *graph_editor = static_cast<SpaceGraph *>(t->area->spacedata.first);
+      switch (graph_editor->mode) {
+        case SIPO_MODE_DRIVERS:
+          /* The driver editor has a separate snapping flag so it can be kept disabled while
+           * keeping it enabled in the Graph Editor. */
+          return &ts->snap_flag_driver;
+
+        case SIPO_MODE_ANIMATION: {
+          if (r_prop) {
+            *r_prop = &rna_ToolSettings_use_snap_anim;
+          }
+          return &ts->snap_flag_anim;
+        }
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
+    }
   }
   /* #SPACE_EMPTY.
    * It can happen when the operator is called via a handle in `bpy.app.handlers`. */
@@ -693,7 +712,7 @@ static eSnapMode snap_mode_from_spacetype(TransInfo *t)
   }
 
   if (t->spacetype == SPACE_SEQ) {
-    return eSnapMode(SEQ_tool_settings_snap_mode_get(t->scene));
+    return eSnapMode(seq::tool_settings_snap_mode_get(t->scene));
   }
 
   if (t->spacetype == SPACE_VIEW3D) {
@@ -704,8 +723,25 @@ static eSnapMode snap_mode_from_spacetype(TransInfo *t)
     return eSnapMode(ts->snap_mode);
   }
 
-  if (ELEM(t->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_GRAPH)) {
+  if (ELEM(t->spacetype, SPACE_ACTION, SPACE_NLA)) {
     return eSnapMode(ts->snap_anim_mode);
+  }
+
+  if (t->spacetype == SPACE_GRAPH) {
+    SpaceGraph *graph_editor = static_cast<SpaceGraph *>(t->area->spacedata.first);
+    switch (graph_editor->mode) {
+      case SIPO_MODE_DRIVERS:
+        /* Snapping to full values is the only mode that currently makes
+         * sense for the driver editor. */
+        return SCE_SNAP_TO_FRAME;
+
+      case SIPO_MODE_ANIMATION:
+        return eSnapMode(ts->snap_anim_mode);
+
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
   }
 
   return SCE_SNAP_TO_INCREMENT;
@@ -1077,7 +1113,7 @@ void addSnapPoint(TransInfo *t)
 {
   /* Currently only 3D viewport works for snapping points. */
   if (t->tsnap.status & SNAP_TARGET_FOUND && t->spacetype == SPACE_VIEW3D) {
-    TransSnapPoint *p = MEM_cnew<TransSnapPoint>("SnapPoint");
+    TransSnapPoint *p = MEM_callocN<TransSnapPoint>("SnapPoint");
 
     t->tsnap.selectedPoint = p;
 
@@ -1693,6 +1729,11 @@ static void snap_increment_apply(const TransInfo *t,
 bool transform_snap_increment_ex(const TransInfo *t, bool use_local_space, float *r_val)
 {
   if (!transform_snap_is_active(t)) {
+    return false;
+  }
+
+  if (t->spacetype == SPACE_SEQ) {
+    /* Sequencer has its own dedicated enum for snap_mode with increment snap bit overridden.  */
     return false;
   }
 
