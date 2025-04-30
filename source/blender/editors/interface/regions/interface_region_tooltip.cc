@@ -914,12 +914,11 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                                 enum_label,
                                 UI_TIP_STYLE_HEADER,
                                 UI_TIP_LC_NORMAL);
-      UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
     }
-    else if (but_tip.empty()) {
+    else {
       UI_tooltip_text_field_add(*data, but_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
-      UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
     }
+    UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
   }
 
   /* Tip */
@@ -1209,6 +1208,11 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     /* Tooltip now owns a copy of the ImBuf, so we can delete ours. */
     IMB_freeImBuf(image_data.ibuf);
+  }
+
+  /* If the last field is a spacer, remove it. */
+  while (!data->fields.is_empty() && data->fields.last().format.style == UI_TIP_STYLE_SPACER) {
+    data->fields.pop_last();
   }
 
   return data->fields.is_empty() ? nullptr : std::move(data);
