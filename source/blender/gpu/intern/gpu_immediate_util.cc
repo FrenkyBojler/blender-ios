@@ -118,6 +118,23 @@ void immRecti_fast_with_color(
   immVertex2i(pos, x1, y2);
 }
 
+void immRectf_with_texco(const uint pos, const uint tex_coord, const rctf &p, const rctf &uv)
+{
+  immBegin(GPU_PRIM_TRI_FAN, 4);
+  immAttr2f(tex_coord, uv.xmin, uv.ymin);
+  immVertex2f(pos, p.xmin, p.ymin);
+
+  immAttr2f(tex_coord, uv.xmin, uv.ymax);
+  immVertex2f(pos, p.xmin, p.ymax);
+
+  immAttr2f(tex_coord, uv.xmax, uv.ymax);
+  immVertex2f(pos, p.xmax, p.ymax);
+
+  immAttr2f(tex_coord, uv.xmax, uv.ymin);
+  immVertex2f(pos, p.xmax, p.ymin);
+  immEnd();
+}
+
 #if 0 /* more complete version in case we want that */
 void immRecti_complete(int x1, int y1, int x2, int y2, const float color[4])
 {
