@@ -200,7 +200,6 @@ std::optional<StringRefNull> default_channel_group_for_path(const PointerRNA *an
 {
   if (animated_struct->type == &RNA_PoseBone) {
     bPoseChannel *pose_channel = static_cast<bPoseChannel *>(animated_struct->data);
-    BLI_assert(pose_channel->name != nullptr);
     return pose_channel->name;
   }
 
@@ -427,10 +426,9 @@ static Vector<float> get_keyframe_values(PointerRNA *ptr, PropertyRNA *prop, con
   Vector<float> values;
 
   if (visual_key && visualkey_can_use(ptr, prop)) {
-    /* Visual-keying is only available for object and pchan datablocks, as
-     * it works by keyframing using a value extracted from the final matrix
-     * instead of using the kt system to extract a value.
-     */
+    /* Visual-keying is only available for object data-blocks and pose-channels,
+     * as it works by key-framing using a value extracted from the final matrix
+     * instead of using the kt system to extract a value. */
     values = visualkey_get_values(ptr, prop);
   }
   else {

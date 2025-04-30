@@ -41,6 +41,7 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -60,6 +61,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "UI_interface.hh"
@@ -1792,7 +1794,8 @@ static void knife_join_edge(KnifeEdge *newkfe, KnifeEdge *kfe)
 static void knife_snap_curr(KnifeTool_OpData *kcd,
                             const float2 &mval,
                             const float3 &ray_orig,
-                            const float3 &ray_dir);
+                            const float3 &ray_dir,
+                            const float3 *fallback);
 
 /* User has just clicked for first time or first time after a restart (E key).
  * Copy the current position data into prev. */
@@ -1803,7 +1806,7 @@ static void knife_start_cut(KnifeTool_OpData *kcd, const float2 &mval)
   ED_view3d_win_to_ray_clipped(
       kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, ray_orig, ray_dir, false);
 
-  knife_snap_curr(kcd, mval, ray_orig, ray_dir);
+  knife_snap_curr(kcd, mval, ray_orig, ray_dir, nullptr);
   kcd->prev = kcd->curr;
   kcd->mdata.is_stored = false;
 }
@@ -3606,7 +3609,8 @@ static void knife_constrain_axis(const KnifeTool_OpData *kcd,
 static void knife_snap_curr(KnifeTool_OpData *kcd,
                             const float2 &mval,
                             const float3 &ray_orig,
-                            const float3 &ray_dir)
+                            const float3 &ray_dir,
+                            const float3 *fallback)
 {
   knife_pos_data_clear(&kcd->curr);
 
@@ -3635,12 +3639,18 @@ static void knife_snap_curr(KnifeTool_OpData *kcd,
     return;
   }
 
+  kcd->curr.mval = mval;
+  if (fallback) {
+    /* If no geometry was found, use the fallback point. */
+    kcd->curr.cage = *fallback;
+    return;
+  }
+
   /* If no hits are found this would normally default to (0, 0, 0) so instead
    * get a point at the mouse ray closest to the previous point.
    * Note that drawing lines in `free-space` isn't properly supported
    * but there's no guarantee (0, 0, 0) has any geometry either - campbell */
 
-  kcd->curr.mval = mval;
   if (!isect_line_plane_v3(
           kcd->curr.cage, ray_orig, ray_orig + ray_dir, kcd->prev.cage, kcd->vc.rv3d->viewinv[2]))
   {
@@ -3662,10 +3672,10 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
 {
   /* Mouse and ray with snapping applied. */
   float3 ray_orig;
-  float3 ray_dir_constrain;
+  float3 ray_dir;
   float2 mval_constrain = mval;
   ED_view3d_win_to_ray_clipped(
-      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, ray_orig, ray_dir_constrain, false);
+      kcd->vc.depsgraph, kcd->region, kcd->vc.v3d, mval, ray_orig, ray_dir, false);
 
   knife_pos_data_clear(&kcd->curr);
 
@@ -3678,14 +3688,13 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
     if (kcd->angle_snapping) {
       if (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_SCREEN) {
         kcd->is_angle_snapping = knife_snap_angle_screen(
-            kcd, ray_orig, ray_dir_constrain, kcd->curr.cage, kcd->angle);
+            kcd, ray_orig, ray_dir, kcd->curr.cage, kcd->angle);
       }
       else if (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) {
         kcd->is_angle_snapping = knife_snap_angle_relative(
-            kcd, ray_orig, ray_dir_constrain, kcd->curr.cage, kcd->angle);
+            kcd, ray_orig, ray_dir, kcd->curr.cage, kcd->angle);
         if (kcd->is_angle_snapping) {
-          kcd->snap_ref_edges_count = knife_calculate_snap_ref_edges(
-              kcd, ray_orig, ray_dir_constrain);
+          kcd->snap_ref_edges_count = knife_calculate_snap_ref_edges(kcd, ray_orig, ray_dir);
         }
       }
     }
@@ -3694,18 +3703,30 @@ static void knife_snap_update_from_mval(KnifeTool_OpData *kcd, const float2 &mva
       is_constrained = true;
     }
     else if (kcd->axis_constrained) {
-      knife_constrain_axis(kcd, ray_orig, ray_dir_constrain, kcd->curr.cage);
+      knife_constrain_axis(kcd, ray_orig, ray_dir, kcd->curr.cage);
       is_constrained = true;
     }
   }
 
+  float3 fallback;
   if (is_constrained) {
-    /* Update `ray_dir_constrain` and `mval_constrain`. */
-    ray_dir_constrain = math::normalize(kcd->curr.cage - ray_orig);
+    /* Update ray and `mval_constrain`. */
+    if (kcd->is_ortho) {
+      float3 l1 = kcd->curr.cage - ray_dir;
+      if (!isect_line_plane_v3(ray_orig, l1, kcd->curr.cage, ray_orig, ray_dir)) {
+        /* Should never fail! */
+        ray_orig = l1;
+        BLI_assert_unreachable();
+      }
+    }
+    else {
+      ray_dir = math::normalize(kcd->curr.cage - ray_orig);
+    }
     knife_project_v2(kcd, kcd->curr.cage, mval_constrain);
+    fallback = kcd->curr.cage;
   }
 
-  knife_snap_curr(kcd, mval_constrain, ray_orig, ray_dir_constrain);
+  knife_snap_curr(kcd, mval_constrain, ray_orig, ray_dir, is_constrained ? &fallback : nullptr);
 }
 
 /**
@@ -3800,22 +3821,30 @@ static void knifetool_init_obinfo(KnifeTool_OpData *kcd,
                                   int ob_index,
                                   bool use_tri_indices)
 {
-
-  Scene *scene_eval = (Scene *)DEG_get_evaluated_id(kcd->vc.depsgraph, &kcd->scene->id);
-  Object *obedit_eval = (Object *)DEG_get_evaluated_id(kcd->vc.depsgraph, &ob->id);
-  BMEditMesh *em_eval = BKE_editmesh_from_object(obedit_eval);
-
-  BM_mesh_elem_index_ensure(em_eval->bm, BM_VERT);
+  Scene *scene_eval = DEG_get_evaluated(kcd->vc.depsgraph, kcd->scene);
+  Object *obedit_eval = DEG_get_evaluated(kcd->vc.depsgraph, ob);
+  const Mesh &mesh_orig = *static_cast<const Mesh *>(ob->data);
+  const Mesh &mesh_eval = *static_cast<const Mesh *>(obedit_eval->data);
 
   KnifeObjectInfo *obinfo = &kcd->objects_info[ob_index];
-  obinfo->em = em_eval;
-  obinfo->positions_cage = BKE_editmesh_vert_coords_alloc(
-      kcd->vc.depsgraph, em_eval, scene_eval, obedit_eval);
+
+  if (BKE_editmesh_eval_orig_map_available(mesh_eval, &mesh_orig)) {
+    BMEditMesh &em_eval = *mesh_eval.runtime->edit_mesh;
+    obinfo->em = &em_eval;
+    obinfo->positions_cage = BKE_editmesh_vert_coords_alloc(
+        kcd->vc.depsgraph, &em_eval, scene_eval, obedit_eval);
+  }
+  else {
+    obinfo->em = mesh_orig.runtime->edit_mesh.get();
+    obinfo->positions_cage = BM_mesh_vert_coords_alloc(obinfo->em->bm);
+  }
+
+  BM_mesh_elem_index_ensure(obinfo->em->bm, BM_VERT);
 
   if (use_tri_indices) {
-    obinfo->tri_indices.reinitialize(em_eval->looptris.size());
-    for (int i = 0; i < em_eval->looptris.size(); i++) {
-      const std::array<BMLoop *, 3> &ltri = em_eval->looptris[i];
+    obinfo->tri_indices.reinitialize(obinfo->em->looptris.size());
+    for (int i = 0; i < obinfo->em->looptris.size(); i++) {
+      const std::array<BMLoop *, 3> &ltri = obinfo->em->looptris[i];
       obinfo->tri_indices[i][0] = BM_elem_index_get(ltri[0]->v);
       obinfo->tri_indices[i][1] = BM_elem_index_get(ltri[1]->v);
       obinfo->tri_indices[i][2] = BM_elem_index_get(ltri[2]->v);
@@ -4288,6 +4317,7 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
         break;
       case KNF_MODAL_CUT_THROUGH_TOGGLE:
         kcd->cut_through = !kcd->cut_through;
+        knife_update_active(kcd, mval);
         do_refresh = true;
         handled = true;
         break;
@@ -4418,6 +4448,9 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
         }
 
         break;
+      default: {
+        break;
+      }
     }
   }
 

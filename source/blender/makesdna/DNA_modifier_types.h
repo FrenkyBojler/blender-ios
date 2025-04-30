@@ -1004,6 +1004,7 @@ typedef enum {
 typedef enum {
   eBooleanModifierSolver_Float = 0,
   eBooleanModifierSolver_Mesh_Arr = 1,
+  eBooleanModifierSolver_Manifold = 2,
 } BooleanModifierSolver;
 
 /** #BooleanModifierData.flag */
@@ -2384,7 +2385,8 @@ enum {
 };
 
 #define MOD_MESHSEQ_READ_ALL \
-  (MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV | MOD_MESHSEQ_READ_COLOR)
+  (MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV | MOD_MESHSEQ_READ_COLOR | \
+   MOD_MESHSEQ_READ_ATTRIBUTES)
 
 typedef struct NodesModifierSettings {
   /* This stores data that is passed into the node group. */

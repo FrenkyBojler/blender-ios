@@ -3226,6 +3226,7 @@ NODE_DEFINE(EmissionNode)
   SOCKET_IN_COLOR(color, "Color", make_float3(0.8f, 0.8f, 0.8f));
   SOCKET_IN_FLOAT(strength, "Strength", 10.0f);
   SOCKET_IN_FLOAT(surface_mix_weight, "SurfaceMixWeight", 0.0f, SocketType::SVM_INTERNAL);
+  SOCKET_IN_FLOAT(volume_mix_weight, "VolumeMixWeight", 0.0f, SocketType::SVM_INTERNAL);
 
   SOCKET_OUT_CLOSURE(emission, "Emission");
 
@@ -4725,7 +4726,10 @@ void HairInfoNode::compile(SVMCompiler &compiler)
   out = output("Random");
   if (!out->links.empty()) {
     const int attr = compiler.attribute(ATTR_STD_CURVE_RANDOM);
-    compiler.add_node(NODE_ATTR, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT);
+    compiler.add_node(NODE_ATTR,
+                      attr,
+                      compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT),
+                      __float_as_uint(0.0f));
   }
 }
 
@@ -4777,7 +4781,10 @@ void PointInfoNode::compile(SVMCompiler &compiler)
   out = output("Random");
   if (!out->links.empty()) {
     const int attr = compiler.attribute(ATTR_STD_POINT_RANDOM);
-    compiler.add_node(NODE_ATTR, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT);
+    compiler.add_node(NODE_ATTR,
+                      attr,
+                      compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT),
+                      __float_as_uint(0.0f));
   }
 }
 
@@ -7471,6 +7478,26 @@ OSLNode::~OSLNode()
 ShaderNode *OSLNode::clone(ShaderGraph *graph) const
 {
   return OSLNode::create(graph, this->inputs.size(), this);
+}
+
+void OSLNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+  /* the added geometry node's attributes function unfortunately doesn't
+   * request the need for ATTR_STD_GENERATED in-time somehow, so we request it
+   * here if there are any sockets that have LINK_TANGENT or
+   * LINK_TEXTURE_GENERATED flags */
+  if (shader->has_surface_link()) {
+    for (const ShaderInput *in : inputs) {
+      if (!in->link && (in->flags() & SocketType::LINK_TANGENT ||
+                        in->flags() & SocketType::LINK_TEXTURE_GENERATED))
+      {
+        attributes->add(ATTR_STD_GENERATED);
+        break;
+      }
+    }
+  }
+
+  ShaderNode::attributes(shader, attributes);
 }
 
 OSLNode *OSLNode::create(ShaderGraph *graph, const size_t num_inputs, const OSLNode *from)

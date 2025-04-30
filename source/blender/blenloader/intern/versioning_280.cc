@@ -1875,8 +1875,8 @@ static void update_musgrave_node_dimensions(bNodeTree *ntree)
 }
 
 /* The Color output of the Musgrave node has been removed. Previously, this
- * output was just equal to the Fac output. To correct this, we move links
- * from the Color output to the Fac output if they exist.
+ * output was just equal to the `Fac` output. To correct this, we move links
+ * from the Color output to the `Fac` output if they exist.
  */
 static void update_musgrave_node_color_output(bNodeTree *ntree)
 {
@@ -1919,10 +1919,10 @@ static void update_voronoi_node_f3_and_f4(bNodeTree *ntree)
   }
 }
 
-/* The Fac output of the Voronoi node has been removed. Previously, this
+/* The `Fac` output of the Voronoi node has been removed. Previously, this
  * output was the voronoi distance in the Intensity mode and the Cell ID
  * in the Cell mode. To correct this, we update the identifier and name
- * of the Fac socket such that it gets mapped to the Distance socket.
+ * of the `Fac` socket such that it gets mapped to the Distance socket.
  * This is supposed to work with update_voronoi_node_coloring.
  */
 static void update_voronoi_node_fac_output(bNodeTree *ntree)
@@ -2051,7 +2051,7 @@ static void update_voronoi_node_crackle(bNodeTree *ntree)
  * The coloring property of the Voronoi node was removed. Previously,
  * if the coloring enum was set to Intensity (0), the voronoi distance
  * was returned in all outputs, otherwise, the Cell ID was returned.
- * Since we remapped the Fac output in update_voronoi_node_fac_output,
+ * Since we remapped the `Fac` output in update_voronoi_node_fac_output,
  * then to fix this, we relink the Color output to the Distance
  * output if coloring was set to 0, and the other way around otherwise.
  */
@@ -2482,7 +2482,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         }
 
         block->totelem = new_count;
-        block->data = MEM_calloc_arrayN<float[3]>(size_t(new_count), __func__);
+        block->data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
         float(*newptr)[3] = static_cast<float(*)[3]>(block->data);
@@ -3171,12 +3171,12 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       {
         LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
           /* sculpt brushes */
-          GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-          if ((gset) && (gset->cur_falloff == nullptr)) {
-            gset->cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-            BKE_curvemapping_init(gset->cur_falloff);
-            BKE_curvemap_reset(gset->cur_falloff->cm,
-                               &gset->cur_falloff->clipr,
+          GP_Sculpt_Settings &gset = scene->toolsettings->gp_sculpt;
+          if (gset.cur_falloff == nullptr) {
+            gset.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+            BKE_curvemapping_init(gset.cur_falloff);
+            BKE_curvemap_reset(gset.cur_falloff->cm,
+                               &gset.cur_falloff->clipr,
                                CURVE_PRESET_GAUSS,
                                CURVEMAP_SLOPE_POSITIVE);
           }
@@ -3251,19 +3251,6 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "intensity")) {
       LISTBASE_FOREACH (LightProbe *, probe, &bmain->lightprobes) {
         probe->intensity = 1.0f;
-      }
-    }
-
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      bConstraint *con = static_cast<bConstraint *>(ob->constraints.first);
-      while (con) {
-        bConstraint *con_next = static_cast<bConstraint *>(con->next);
-        if (con->type == 17) { /* CONSTRAINT_TYPE_RIGIDBODYJOINT */
-          BLI_remlink(&ob->constraints, con);
-          BKE_constraint_free_data(con);
-          MEM_freeN(con);
-        }
-        con = con_next;
       }
     }
 
@@ -3996,10 +3983,8 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "GP_Sculpt_Settings", "int", "lock_axis")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         /* lock axis */
-        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-        if (gset) {
-          gset->lock_axis = GP_LOCKAXIS_Y;
-        }
+        GP_Sculpt_Settings &gset = scene->toolsettings->gp_sculpt;
+        gset.lock_axis = GP_LOCKAXIS_Y;
       }
     }
 
@@ -4561,12 +4546,12 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             fd->filesdna, "GP_Sculpt_Settings", "CurveMapping", "cur_primitive"))
     {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-        if ((gset) && (gset->cur_primitive == nullptr)) {
-          gset->cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-          BKE_curvemapping_init(gset->cur_primitive);
-          BKE_curvemap_reset(gset->cur_primitive->cm,
-                             &gset->cur_primitive->clipr,
+        GP_Sculpt_Settings &gset = scene->toolsettings->gp_sculpt;
+        if (gset.cur_primitive == nullptr) {
+          gset.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+          BKE_curvemapping_init(gset.cur_primitive);
+          BKE_curvemap_reset(gset.cur_primitive->cm,
+                             &gset.cur_primitive->clipr,
                              CURVE_PRESET_BELL,
                              CURVEMAP_SLOPE_POSITIVE);
         }
@@ -4724,10 +4709,8 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "GP_Sculpt_Settings", "float", "isect_threshold"))
     {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-        if (gset) {
-          gset->isect_threshold = 0.1f;
-        }
+        GP_Sculpt_Settings &gset = scene->toolsettings->gp_sculpt;
+        gset.isect_threshold = 0.1f;
       }
     }
 
