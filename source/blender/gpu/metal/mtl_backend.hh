@@ -27,8 +27,6 @@ class MTLContext;
 class MTLBackend : public GPUBackend {
   friend class MTLContext;
 
-  ShaderCompiler *compiler_;
-
  public:
   /* Capabilities. */
   static MTLCapabilities capabilities;
@@ -51,11 +49,6 @@ class MTLBackend : public GPUBackend {
   static MTLBackend *get()
   {
     return static_cast<MTLBackend *>(GPUBackend::get());
-  }
-
-  ShaderCompiler *get_compiler()
-  {
-    return compiler_;
   }
 
   void samplers_update() override;

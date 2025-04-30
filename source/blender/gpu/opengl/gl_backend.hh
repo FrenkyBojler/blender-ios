@@ -40,8 +40,6 @@ class GLBackend : public GPUBackend {
   renderdoc::api::Renderdoc renderdoc_;
 #endif
 
-  ShaderCompiler *compiler_;
-
  public:
   GLBackend()
   {
@@ -76,11 +74,6 @@ class GLBackend : public GPUBackend {
   static GLBackend *get()
   {
     return static_cast<GLBackend *>(GPUBackend::get());
-  }
-
-  ShaderCompiler *get_compiler()
-  {
-    return compiler_;
   }
 
   void samplers_update() override
@@ -180,9 +173,9 @@ class GLBackend : public GPUBackend {
   }
 
   /* Render Frame Coordination */
-  void render_begin() override{};
-  void render_end() override{};
-  void render_step(bool /*force_resource_release*/) override{};
+  void render_begin() override {};
+  void render_end() override {};
+  void render_step(bool /*force_resource_release*/) override {};
 
   bool debug_capture_begin(const char *title);
   void debug_capture_end();

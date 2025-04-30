@@ -266,7 +266,7 @@ GPUShader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
 {
   using namespace blender::gpu::shader;
   const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
-  return wrap(Context::get()->get_compiler()->compile(info, false));
+  return wrap(GPUBackend::get()->get_compiler()->compile(info, false));
 }
 
 std::string GPU_shader_preprocess_source(StringRefNull original)
@@ -294,7 +294,7 @@ GPUShader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info)
   info.geometry_source_generated = GPU_shader_preprocess_source(info.geometry_source_generated);
   info.compute_source_generated = GPU_shader_preprocess_source(info.compute_source_generated);
 
-  GPUShader *result = wrap(Context::get()->get_compiler()->compile(info, false));
+  GPUShader *result = wrap(GPUBackend::get()->get_compiler()->compile(info, false));
 
   info.vertex_source_generated = vertex_source_original;
   info.fragment_source_generated = fragment_source_original;
@@ -366,17 +366,17 @@ BatchHandle GPU_shader_batch_create_from_infos(Span<const GPUShaderCreateInfo *>
   using namespace blender::gpu::shader;
   Span<const ShaderCreateInfo *> &infos_ = reinterpret_cast<Span<const ShaderCreateInfo *> &>(
       infos);
-  return Context::get()->get_compiler()->batch_compile(infos_);
+  return GPUBackend::get()->get_compiler()->batch_compile(infos_);
 }
 
 bool GPU_shader_batch_is_ready(BatchHandle handle)
 {
-  return Context::get()->get_compiler()->batch_is_ready(handle);
+  return GPUBackend::get()->get_compiler()->batch_is_ready(handle);
 }
 
 Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle)
 {
-  Vector<Shader *> result = Context::get()->get_compiler()->batch_finalize(handle);
+  Vector<Shader *> result = GPUBackend::get()->get_compiler()->batch_finalize(handle);
   return reinterpret_cast<Vector<GPUShader *> &>(result);
 }
 
@@ -544,12 +544,12 @@ void GPU_shader_constant_bool(GPUShader *sh, const char *name, bool value)
 SpecializationBatchHandle GPU_shader_batch_specializations(
     blender::Span<ShaderSpecialization> specializations)
 {
-  return Context::get()->get_compiler()->precompile_specializations(specializations);
+  return GPUBackend::get()->get_compiler()->precompile_specializations(specializations);
 }
 
 bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle)
 {
-  return Context::get()->get_compiler()->specialization_batch_is_ready(handle);
+  return GPUBackend::get()->get_compiler()->specialization_batch_is_ready(handle);
 }
 
 /** \} */
