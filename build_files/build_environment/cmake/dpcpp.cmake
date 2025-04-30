@@ -43,8 +43,8 @@ set(DPCPP_EXTRA_ARGS
   -DLEVEL_ZERO_LIBRARY=${LIBDIR}/level-zero/lib/${LIBPREFIX}ze_loader${SHAREDLIBEXT}
   -DLEVEL_ZERO_INCLUDE_DIR=${LIBDIR}/level-zero/include/level_zero
   -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=${BUILD_DIR}/spirvheaders/src/external_spirvheaders/
-  -DSYCL_PI_UR_USE_FETCH_CONTENT=OFF
-  -DSYCL_PI_UR_SOURCE_DIR=${BUILD_DIR}/unifiedruntime/src/external_unifiedruntime/
+  -DSYCL_UR_USE_FETCH_CONTENT=OFF
+  -DSYCL_UR_SOURCE_DIR=${BUILD_DIR}/unifiedruntime/src/external_unifiedruntime/
   -DFETCHCONTENT_SOURCE_DIR_UNIFIED-MEMORY-FRAMEWORK=${BUILD_DIR}/unifiedmemoryframework/src/external_unifiedmemoryframework/
   -DSYCL_UMF_DISABLE_HWLOC=ON
   -DUMF_DISABLE_HWLOC=ON
@@ -122,10 +122,7 @@ ExternalProject_Add(external_dpcpp
 
   PATCH_COMMAND ${PATCH_CMD} -p 1 -d
     ${BUILD_DIR}/dpcpp/src/external_dpcpp <
-    ${PATCH_DIR}/dpcpp.diff &&
-    ${PATCH_CMD} -p 1 -d
-    ${BUILD_DIR}/dpcpp/src/external_dpcpp <
-    ${PATCH_DIR}/dpcpp_15124.diff
+    ${PATCH_DIR}/dpcpp.diff
 
   INSTALL_DIR ${LIBDIR}/dpcpp
 )
