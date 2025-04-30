@@ -1172,7 +1172,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
                                    UI_UNIT_Y,
                                    "");
 
-  /* Fake button holds space for search items. */
+  /* Fake button, it holds space for search items. */
   uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
@@ -2020,7 +2020,7 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
 
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
-  /* Fake button holds space for search items. */
+  /* Fake button, it holds space for search items. */
   const int height = init_data->size[1] - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
            UI_BTYPE_LABEL,

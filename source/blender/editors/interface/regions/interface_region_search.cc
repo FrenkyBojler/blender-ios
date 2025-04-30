@@ -560,7 +560,6 @@ static void ui_searchbox_draw_clip_tri_down(rcti *rect, const float zoom)
   const float y = rect->ymin - (0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize) -
                   zoom * UI_ICON_SIZE;
   const float aspect = U.inv_scale_factor / zoom;
-
   GPU_blend(GPU_BLEND_ALPHA);
   UI_icon_draw_ex(x, y, ICON_TRIA_DOWN, aspect, 1.0f, 0.0f, NULL, false, UI_NO_ICON_OVERLAY_TEXT);
   GPU_blend(GPU_BLEND_NONE);
@@ -576,7 +575,6 @@ static void ui_searchbox_draw_clip_tri_up(rcti *rect, const float zoom)
   const float x = BLI_rcti_cent_x(rect) - (0.5f * zoom * UI_ICON_SIZE);
   const float y = rect->ymax + (0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize);
   const float aspect = U.inv_scale_factor / zoom;
-
   GPU_blend(GPU_BLEND_ALPHA);
   UI_icon_draw_ex(x, y, ICON_TRIA_UP, aspect, 1.0f, 0.0f, NULL, false, UI_NO_ICON_OVERLAY_TEXT);
   GPU_blend(GPU_BLEND_NONE);
@@ -617,7 +615,7 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
                              UI_STYLE_TEXT_LEFT);
       }
 
-      /* Indicate more. */
+      /* indicate more */
       if (data->items.more || data->items.offset) {
         rcti rect_first_item;
         ui_searchbox_butrect(&rect_first_item, data, 0);
@@ -812,13 +810,14 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
 
   /* compute position */
   if (but->block->flag & UI_BLOCK_SEARCH_MENU) {
+    /* this case is search menu inside other menu */
+    /* we copy region size */
+    region->winrct = butregion->winrct;
+
     /* Align menu items with the search button. */
     const float zoom = data->zoom;
     const int padding = zoom * UI_SEARCHBOX_BOUNDS - (data->preview ? 0 : U.pixelsize);
     const int search_but_h = BLI_rctf_size_y(&but->rect) + zoom * UI_SEARCHBOX_BOUNDS;
-
-    /* In this case, the search menu is inside another menu, so we copy the region size. */
-    region->winrct = butregion->winrct;
 
     /* widget rect, in region coords */
     data->bbox.xmin = margin + padding;
