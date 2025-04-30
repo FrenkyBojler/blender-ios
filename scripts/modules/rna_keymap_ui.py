@@ -198,7 +198,7 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
         else:
             subrow = sub.row()
             subrow.alert = not is_op_available
-            subrow.prop(kmi, "idname", text="")
+            subrow.prop(kmi, "idname", text="", placeholder="Operator")
 
         if map_type not in {'TEXTINPUT', 'TIMER'}:
             from sys import platform
