@@ -812,6 +812,7 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
   if (but->block->flag & UI_BLOCK_SEARCH_MENU) {
     /* this case is search menu inside other menu */
     /* we copy region size */
+
     region->winrct = butregion->winrct;
 
     /* Align menu items with the search button. */
@@ -942,13 +943,12 @@ static ARegion *ui_searchbox_create_generic_ex(bContext *C,
   data->butregion = butregion;
   data->size_set = false;
   data->search_listener = but->listen_fn;
+  data->zoom = 1.0f / aspect;
 
   /* Set font, get the bounding-box. */
   data->fstyle = style->widget; /* copy struct */
   ui_fontscale(&data->fstyle.points, aspect);
   UI_fontstyle_set(&data->fstyle);
-
-  data->zoom = 1.0f / aspect;
 
   region->regiondata = data;
 
