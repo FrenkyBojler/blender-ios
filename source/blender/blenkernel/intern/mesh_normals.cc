@@ -12,8 +12,6 @@
 
 #include <climits>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
@@ -31,8 +29,6 @@
 #include "BKE_global.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
-
-#include <iostream>
 
 // #define DEBUG_TIME
 
@@ -1219,16 +1215,6 @@ BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     fan_normal = corner_space_custom_data_to_normal(fan_space, short2(average_custom_normal));
   }
 
-  std::cout << "}, vec_ref: " << edge_dirs[local_edge_first]
-            << ", vec_other: " << edge_dirs[local_edge_last] << ", edge_vectors: {";
-  for (const float3 &vec : fan_edge_dirs.as_span().drop_back(1)) {
-    std::cout << vec << ", ";
-  }
-  if (!fan_edge_dirs.is_empty()) {
-    std::cout << fan_edge_dirs.as_span().last();
-  }
-  std::cout << "}" << std::endl;
-
   if (r_fan_spaces) {
     std::lock_guard lock(r_fan_spaces->build_mutex);
     r_fan_spaces->spaces.append(fan_space);
@@ -1327,17 +1313,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
       while (start_local_corner != -1) {
         corners_in_fan.clear();
         traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
-
-        std::cout << "vert: " << vert << " corners: {";
-        for (const int i : corners_in_fan.as_span().drop_back(1)) {
-          std::cout << corner_infos[i].corner << ", ";
-        }
-        std::cout << corner_infos[corners_in_fan.as_span().last()].corner;
-        std::cout << "}, faces: {";
-        for (const int i : corners_in_fan.as_span().drop_back(1)) {
-          std::cout << corner_infos[i].face << ", ";
-        }
-        std::cout << corner_infos[corners_in_fan.as_span().last()].face;
 
         float3 fan_normal = accumulate_fan_normal(
             corner_infos, edge_dirs, face_normals, corners_in_fan);
