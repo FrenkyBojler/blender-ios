@@ -15,11 +15,15 @@ struct IDProperty;
 
 namespace blender::nodes::socket_usage_inference {
 
+struct InferenceParams {
+  bool treat_menus_as_unknown = false;
+};
+
 /**
  * Get a boolean value for each input socket in the given tree that indicates whether that input is
  * used. It is assumed that all output sockets in the tree are used.
  */
-Array<bool> infer_all_input_sockets_usage(const bNodeTree &tree);
+Array<bool> infer_all_input_sockets_usage(const bNodeTree &tree, const InferenceParams &params);
 
 /**
  * Get a boolean value for each node group input that indicates whether that input is used by the
@@ -32,6 +36,7 @@ Array<bool> infer_all_input_sockets_usage(const bNodeTree &tree);
  * \param r_input_usages: The destination array where the inferred usages are written.
  */
 void infer_group_interface_inputs_usage(const bNodeTree &group,
+                                        const InferenceParams &params,
                                         Span<GPointer> group_input_values,
                                         MutableSpan<bool> r_input_usages);
 
@@ -40,6 +45,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
  * This is used for group nodes.
  */
 void infer_group_interface_inputs_usage(const bNodeTree &group,
+                                        const InferenceParams &params,
                                         Span<const bNodeSocket *> input_sockets,
                                         MutableSpan<bool> r_input_usages);
 
@@ -48,6 +54,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
  * This is used with the geometry nodes modifier and node tools.
  */
 void infer_group_interface_inputs_usage(const bNodeTree &group,
+                                        const InferenceParams &params,
                                         const PropertiesVectorSet &properties,
                                         MutableSpan<bool> r_input_usages);
 

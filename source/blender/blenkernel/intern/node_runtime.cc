@@ -673,8 +673,9 @@ bool bNodeSocket::affects_node_output() const
   const bNodeTree &tree = this->owner_tree();
 
   tree.runtime->inferenced_input_socket_usage_mutex.ensure([&]() {
+    blender::nodes::socket_usage_inference::InferenceParams params;
     tree.runtime->inferenced_input_socket_usage =
-        blender::nodes::socket_usage_inference::infer_all_input_sockets_usage(tree);
+        blender::nodes::socket_usage_inference::infer_all_input_sockets_usage(tree, params);
   });
 
   return tree.runtime->inferenced_input_socket_usage[this->index_in_all_inputs()];

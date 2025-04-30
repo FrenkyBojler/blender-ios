@@ -1959,6 +1959,7 @@ struct DrawGroupInputsContext {
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
   Array<bool> input_usages;
+  Array<bool> input_usages_ignoring_menus;
 };
 
 static NodesModifierData *get_modifier_data(Main &bmain,
@@ -2345,6 +2346,11 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
   const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+  if (!ctx.input_usages[input_index] && ctx.input_usages_ignoring_menus[input_index]) {
+    /* The input is not used currently, but it would be used if any menu input is changed.
+     * By convention, the input is hidden in this case instead of just grayed out. */
+    return;
+  }
 
   uiLayout *row = &layout->row(true);
   uiLayoutSetPropDecorate(row, true);
@@ -2761,9 +2767,19 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (nmd->node_group != nullptr && nmd->settings.properties != nullptr) {
     nmd->node_group->ensure_interface_cache();
-    ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
-    nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-        *nmd->node_group, ctx.properties, ctx.input_usages);
+    {
+      ctx.input_usages.reinitialize(nmd->node_group->interface_inputs().size());
+      nodes::socket_usage_inference::InferenceParams params;
+      nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+          *nmd->node_group, params, ctx.properties, ctx.input_usages);
+    }
+    {
+      ctx.input_usages_ignoring_menus.reinitialize(nmd->node_group->interface_inputs().size());
+      nodes::socket_usage_inference::InferenceParams params;
+      params.treat_menus_as_unknown = true;
+      nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+          *nmd->node_group, params, ctx.properties, ctx.input_usages_ignoring_menus);
+    }
     draw_interface_panel_content(ctx, layout, nmd->node_group->tree_interface.root_panel);
   }
 
