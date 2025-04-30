@@ -40,16 +40,14 @@ enum class ItemInternalFlag : uint8_t;
 enum class EmbossType : uint8_t;
 }  // namespace blender::ui
 
-enum class LayoutSuppressFlag : uint8_t;
-
 /**
  * NOTE: `uiItem` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
  * Meanwhile keep using `uiLayout*` functions to read/write this properties.
  */
 struct uiItem {
-  blender::ui::ItemType type;
-  blender::ui::ItemInternalFlag flag;
+  blender::ui::ItemType type_;
+  blender::ui::ItemInternalFlag flag_;
 
   uiItem() = default;
   uiItem(const uiItem &) = default;
@@ -62,36 +60,84 @@ struct uiItem {
  */
 struct uiLayout : uiItem {
   // protected:
-  uiLayoutRoot *root;
-  bContextStore *context;
-  uiLayout *parent;
-  blender::Vector<uiItem *> items;
+  uiLayoutRoot *root_;
+  bContextStore *context_;
+  uiLayout *parent_;
+  blender::Vector<uiItem *> items_;
 
-  char heading[UI_MAX_NAME_STR];
+  char heading_[UI_MAX_NAME_STR];
 
   /** Sub layout to add child items, if not the layout itself. */
-  uiLayout *child_items_layout;
+  uiLayout *child_items_layout_;
 
-  int x, y, w, h;
-  float scale[2];
-  short space;
-  bool align;
-  bool active;
-  bool active_default;
-  bool activate_init;
-  bool enabled;
-  bool redalert;
-  bool keepaspect;
+  int x_, y_, w_, h_;
+  float scale_[2];
+  short space_;
+  bool align_;
+  bool active_;
+  bool active_default_;
+  bool activate_init_;
+  bool enabled_;
+  bool redalert_;
+  bool keepaspect_;
   /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
-  bool variable_size;
-  char alignment;
-  blender::ui::EmbossType emboss;
+  bool variable_size_;
+  char alignment_;
+  blender::ui::EmbossType emboss_;
   /** for fixed width or height to avoid UI size changes */
-  float units[2];
+  float units_[2];
   /** Is copied to uiButs created in this layout. */
-  float search_weight;
+  float search_weight_;
 
-  LayoutSuppressFlag suppress_flag;
+ public:
+  /**
+   * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
+   * each other in a column.
+   */
+  uiLayout &column(bool align);
+  /**
+   * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
+   * each other in a column.
+   * \param heading: Heading label to set to the first child element added in the sub-layout
+   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * label column when there is no label defined.
+   */
+  uiLayout &column(bool align, blender::StringRef heading);
+
+  /**
+   * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
+   * other in row.
+   */
+  uiLayout &row(bool align);
+  /**
+   * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
+   * other in row.
+   * \param heading: Heading label to set to the first child element added in the sub-layout
+   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * label column when there is no label defined.
+   */
+  uiLayout &row(bool align, blender::StringRef heading);
+
+  /**
+   * Add a new column flow sub-layout, items placed in this sub-layout would be evenly distributed
+   * in columns.
+   * \param number: the number of columns in which items are distributed.
+   */
+  uiLayout &column_flow(int number, bool align);
+  /**
+   * Add a new grid flow sub-layout, items placed in this sub-layout would be distributed in a
+   * grid.
+   * \param row_major: When true items are distributed by rows, otherwise items are distributed by
+   * columns.
+   * \param columns_len: When positive is the fixed number of columns to show, when 0 its automatic
+   * defined, when negative its an automatic stepped number of columns/rows to show (e.g. when \a
+   * row_major is true -3 will automatically show (1,2,3,6,9,...) columns, or when \a row_major is
+   * false -3 will automatically show (3,6,9,...) rows).
+   * \param even_columns: All columns will have the same width.
+   * \param even_rows: All rows will have the same height.
+   */
+  uiLayout &grid_flow(
+      bool row_major, int columns_len, bool even_columns, bool even_rows, bool align);
 };
 
 enum {
@@ -258,19 +304,7 @@ float uiLayoutGetSearchWeight(uiLayout *layout);
 int uiLayoutListItemPaddingWidth();
 void uiLayoutListItemAddPadding(uiLayout *layout);
 
-/** Support suppressing checks typically performed to communicate issues to users. */
-enum class LayoutSuppressFlag : uint8_t {
-  PathSupportsBlendFileRelative = 1 << 0,
-};
-ENUM_OPERATORS(LayoutSuppressFlag, LayoutSuppressFlag::PathSupportsBlendFileRelative)
-
-LayoutSuppressFlag uiLayoutSuppressFlagGet(const uiLayout *layout);
-void uiLayoutSuppressFlagSet(uiLayout *layout, LayoutSuppressFlag flag);
-void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag);
-
 /* Layout create functions. */
-
-uiLayout *uiLayoutRow(uiLayout *layout, bool align);
 
 struct PanelLayout {
   uiLayout *header;
@@ -350,25 +384,6 @@ uiLayout *uiLayoutPanel(const bContext *C,
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
-/**
- * See #uiLayoutColumnWithHeading().
- */
-uiLayout *uiLayoutRowWithHeading(uiLayout *layout, bool align, blender::StringRef heading);
-uiLayout *uiLayoutColumn(uiLayout *layout, bool align);
-/**
- * Variant of #uiLayoutColumn() that sets a heading label for the layout if the first item is
- * added through #uiItemFullR(). If split layout is used and the item has no string to add to the
- * first split-column, the heading is added there instead. Otherwise the heading inserted with a
- * new row.
- */
-uiLayout *uiLayoutColumnWithHeading(uiLayout *layout, bool align, blender::StringRef heading);
-uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, bool align);
-uiLayout *uiLayoutGridFlow(uiLayout *layout,
-                           bool row_major,
-                           int columns_len,
-                           bool even_columns,
-                           bool even_rows,
-                           bool align);
 uiLayout *uiLayoutBox(uiLayout *layout);
 uiLayout *uiLayoutListBox(uiLayout *layout,
                           uiList *ui_list,

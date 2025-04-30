@@ -14,33 +14,29 @@ VERTEX_SHADER_CREATE_INFO(draw_modelmat)
 
 float4 color_from_id(float color_id)
 {
-  if (isTransform) {
-    return colorTransform;
+  if (is_transform) {
+    return theme.colors.transform;
   }
   else if (color_id == 1.0f) {
-    return colorActive;
+    return theme.colors.active_object;
   }
   else /* 2.0f */ {
-    return colorSelect;
+    return theme.colors.select;
   }
 
-  return colorTransform;
+  return theme.colors.transform;
 }
-
-/* Replace top 2 bits (of the 16bit output) by outlineId.
- * This leaves 16K different IDs to create outlines between objects.
- * SHIFT = (32 - (16 - 2)) */
-#define SHIFT 18u
 
 void main()
 {
   select_id_set(drw_custom_id());
-  float4x4 model_mat = gridModelMatrix;
+  float4x4 model_mat = grid_model_matrix;
   model_mat[0][3] = model_mat[1][3] = model_mat[2][3] = 0.0f;
   model_mat[3][3] = 1.0f;
-  float color_id = gridModelMatrix[3].w;
+  float color_id = grid_model_matrix[3].w;
 
-  int3 grid_resolution = int3(gridModelMatrix[0].w, gridModelMatrix[1].w, gridModelMatrix[2].w);
+  int3 grid_resolution = int3(
+      grid_model_matrix[0].w, grid_model_matrix[1].w, grid_model_matrix[2].w);
 
   float3 ls_cell_location;
   /* Keep in sync with update_irradiance_probe */
@@ -54,18 +50,18 @@ void main()
 
   float3 ws_cell_location = (model_mat * float4(ls_cell_location, 1.0f)).xyz;
   gl_Position = drw_point_world_to_homogenous(ws_cell_location);
-  gl_PointSize = sizeVertex * 2.0f;
+  gl_PointSize = theme.sizes.vert * 2.0f;
 
-  finalColor = color_from_id(color_id);
+  final_color = color_from_id(color_id);
 
   /* Shade occluded points differently. */
   float4 p = gl_Position / gl_Position.w;
-  float z_depth = texture(depthBuffer, p.xy * 0.5f + 0.5f).r * 2.0f - 1.0f;
+  float z_depth = texture(depth_buffer, p.xy * 0.5f + 0.5f).r * 2.0f - 1.0f;
   float z_delta = p.z - z_depth;
   if (z_delta > 0.0f) {
     float fac = 1.0f - z_delta * 10000.0f;
     /* Smooth blend to avoid flickering. */
-    finalColor = mix(colorBackground, finalColor, clamp(fac, 0.2f, 1.0f));
+    final_color = mix(theme.colors.background, final_color, clamp(fac, 0.2f, 1.0f));
   }
 
   view_clipping_distances(ws_cell_location);
