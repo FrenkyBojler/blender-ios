@@ -289,7 +289,7 @@ void BVHEmbree::add_instance(Object *ob, const int i)
         geom_id, 0, RTC_FORMAT_FLOAT3X4_ROW_MAJOR, (const float *)&ob->get_tfm());
   }
 
-  rtcSetGeometryUserData(geom_id, (void *)instance_bvh->scene);
+  rtcSetGeometryUserData(geom_id, (void *)rtcGetSceneTraversable(instance_bvh->scene));
   rtcSetGeometryMask(geom_id, ob->visibility_for_tracing());
 #  if EMBREE_MAJOR_VERSION >= 4
   rtcSetGeometryEnableFilterFunctionFromArguments(geom_id, true);
@@ -338,8 +338,15 @@ void BVHEmbree::add_triangles(const Object *ob, const Mesh *mesh, const int i)
      * happen on GPU, and we cannot use standard host pointers at this point. So instead
      * of making a shared geometry buffer - a new Embree buffer will be created and data
      * will be copied. */
-    int *triangles_buffer = (int *)rtcSetNewGeometryBuffer(
-        geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int) * 3, num_triangles);
+    int *triangles_buffer = nullptr;
+    rtcSetNewGeometryBufferHostDevice(geom_id,
+                                      RTC_BUFFER_TYPE_INDEX,
+                                      0,
+                                      RTC_FORMAT_UINT3,
+                                      sizeof(int) * 3,
+                                      num_triangles,
+                                      (void **)(&triangles_buffer),
+                                      nullptr);
     assert(triangles_buffer);
     if (triangles_buffer) {
       static_assert(sizeof(int) == sizeof(uint));
@@ -415,13 +422,15 @@ void BVHEmbree::set_tri_vertex_buffer(RTCGeometry geom_id, const Mesh *mesh, con
         /* As float3 is packed on GPU side, we map it to packed_float3. */
         /* There is no need for additional padding in rtcSetNewGeometryBuffer since Embree 3.6:
          * "Fixed automatic vertex buffer padding when using rtcSetNewGeometry API function". */
-        packed_float3 *verts_buffer = (packed_float3 *)rtcSetNewGeometryBuffer(
-            geom_id,
-            RTC_BUFFER_TYPE_VERTEX,
-            t,
-            RTC_FORMAT_FLOAT3,
-            sizeof(packed_float3),
-            num_verts);
+        packed_float3 *verts_buffer = nullptr;
+        rtcSetNewGeometryBufferHostDevice(geom_id,
+                                          RTC_BUFFER_TYPE_VERTEX,
+                                          t,
+                                          RTC_FORMAT_FLOAT3,
+                                          sizeof(packed_float3),
+                                          num_verts,
+                                          (void **)(&verts_buffer),
+                                          nullptr);
         assert(verts_buffer);
         if (verts_buffer) {
           for (size_t i = (size_t)0; i < num_verts; ++i) {
@@ -492,14 +501,20 @@ void BVHEmbree::set_curve_vertex_buffer(RTCGeometry geom_id, const Hair *hair, c
     // handled separately. Attributes are float4s where the radius is stored in w and
     // the middle motion vector is from the mesh points which are stored float3s with
     // the radius stored in another array.
-    float4 *rtc_verts = (update) ? (float4 *)rtcGetGeometryBufferData(
-                                       geom_id, RTC_BUFFER_TYPE_VERTEX, t) :
-                                   (float4 *)rtcSetNewGeometryBuffer(geom_id,
-                                                                     RTC_BUFFER_TYPE_VERTEX,
-                                                                     t,
-                                                                     RTC_FORMAT_FLOAT4,
-                                                                     sizeof(float) * 4,
-                                                                     num_keys_embree);
+    float4 *rtc_verts = nullptr;
+    if (update) {
+      rtc_verts = (float4 *)rtcGetGeometryBufferData(geom_id, RTC_BUFFER_TYPE_VERTEX, t);
+    }
+    else {
+      rtcSetNewGeometryBufferHostDevice(geom_id,
+                                        RTC_BUFFER_TYPE_VERTEX,
+                                        t,
+                                        RTC_FORMAT_FLOAT4,
+                                        sizeof(float) * 4,
+                                        num_keys_embree,
+                                        (void **)(&rtc_verts),
+                                        nullptr);
+    }
 
     assert(rtc_verts);
     if (rtc_verts) {
@@ -515,9 +530,9 @@ void BVHEmbree::set_curve_vertex_buffer(RTCGeometry geom_id, const Hair *hair, c
       }
     }
 
-    if (update) {
-      rtcUpdateGeometryBuffer(geom_id, RTC_BUFFER_TYPE_VERTEX, t);
-    }
+    /* We may need now an update here always, in case if data is needed
+     * to be copied to the device after modification */
+    rtcUpdateGeometryBuffer(geom_id, RTC_BUFFER_TYPE_VERTEX, t);
   }
 }
 
@@ -544,14 +559,21 @@ void BVHEmbree::set_point_vertex_buffer(RTCGeometry geom_id,
     // handled separately. Attributes are float4s where the radius is stored in w and
     // the middle motion vector is from the mesh points which are stored float3s with
     // the radius stored in another array.
-    float4 *rtc_verts = (update) ? (float4 *)rtcGetGeometryBufferData(
-                                       geom_id, RTC_BUFFER_TYPE_VERTEX, t) :
-                                   (float4 *)rtcSetNewGeometryBuffer(geom_id,
-                                                                     RTC_BUFFER_TYPE_VERTEX,
-                                                                     t,
-                                                                     RTC_FORMAT_FLOAT4,
-                                                                     sizeof(float) * 4,
-                                                                     num_points);
+
+    float4 *rtc_verts = nullptr;
+    if (update) {
+      rtc_verts = (float4 *)rtcGetGeometryBufferData(geom_id, RTC_BUFFER_TYPE_VERTEX, t);
+    }
+    else {
+      rtcSetNewGeometryBufferHostDevice(geom_id,
+                                        RTC_BUFFER_TYPE_VERTEX,
+                                        t,
+                                        RTC_FORMAT_FLOAT4,
+                                        sizeof(float) * 4,
+                                        num_points,
+                                        (void **)(&rtc_verts),
+                                        nullptr);
+    }
 
     assert(rtc_verts);
     if (rtc_verts) {
@@ -573,9 +595,9 @@ void BVHEmbree::set_point_vertex_buffer(RTCGeometry geom_id,
       }
     }
 
-    if (update) {
-      rtcUpdateGeometryBuffer(geom_id, RTC_BUFFER_TYPE_VERTEX, t);
-    }
+    /* We may need now an update here always, in case if data is needed
+     * to be copied to the device after modification */
+    rtcUpdateGeometryBuffer(geom_id, RTC_BUFFER_TYPE_VERTEX, t);
   }
 }
 
@@ -645,8 +667,15 @@ void BVHEmbree::add_curves(const Object *ob, const Hair *hair, const int i)
 
   RTCGeometry geom_id = rtcNewGeometry(rtc_device, type);
   rtcSetGeometryTessellationRate(geom_id, params.curve_subdivisions + 1);
-  unsigned *rtc_indices = (unsigned *)rtcSetNewGeometryBuffer(
-      geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT, sizeof(int), num_segments);
+  unsigned *rtc_indices = nullptr;
+  rtcSetNewGeometryBufferHostDevice(geom_id,
+                                    RTC_BUFFER_TYPE_INDEX,
+                                    0,
+                                    RTC_FORMAT_UINT,
+                                    sizeof(int),
+                                    num_segments,
+                                    (void **)(&rtc_indices),
+                                    nullptr);
   size_t rtc_index = 0;
   for (size_t j = 0; j < num_curves; ++j) {
     const Hair::Curve c = hair->get_curve(j);

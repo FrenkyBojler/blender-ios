@@ -1482,7 +1482,7 @@ struct ccl_align(16) KernelData
   void *device_bvh;
 #else
 #  ifdef __EMBREE__
-  RTCScene device_bvh;
+  RTCTraversable device_bvh;
 #    ifndef __KERNEL_64_BIT__
   int pad1;
 #    endif
