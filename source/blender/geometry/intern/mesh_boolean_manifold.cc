@@ -164,10 +164,12 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   }
 }
 
-/* Holds cumulative offsets for the given elements of a number
+/**
+ * Holds cumulative offsets for the given elements of a number
  * of concatenated Meshes. The sizes are one greater than the
  * number of meshes, so that the last value of each gives the
- * total number of elements. */
+ * total number of elements.
+ */
 struct MeshOffsets {
   Array<int> vert_start;
   Array<int> face_start;
@@ -200,7 +202,8 @@ MeshOffsets::MeshOffsets(Span<const Mesh *> meshes)
   this->corner_offsets = OffsetIndices<int>(this->corner_start);
 }
 
-/* Create and return the Manifold library's internal #Manifold class instance
+/**
+ * Create and return the Manifold library's internal #Manifold class instance
  * to represent the subset \a joined_mesh which came from the input
  * mesh with index \a mesh_index.  We can tell which elements are in the
  * subset using \a mesh_offsets.
@@ -239,6 +242,15 @@ static void get_manifold(Manifold &manifold,
   meshgl.vertProperties.resize(size_t(mesh.verts_num) * props_num);
   array_utils::copy(mesh.vert_positions(), MutableSpan(meshgl.vertProperties).cast<float3>());
 
+  /* Using separate a OriginalID for each input face will prevent coplanar
+   * faces from being merged.  (Maybe a better way is coming to Manifold
+   * in the future, but for now this will work.) */
+  constexpr bool use_runids = true;
+  if (use_runids) {
+    meshgl.runIndex.resize(mesh.faces_num);
+    meshgl.runOriginalID.resize(mesh.faces_num);
+  }
+
   const int face_start = mesh_offsets.face_start[mesh_index];
 
   meshgl.faceID.resize(corner_tris.size());
@@ -250,6 +262,10 @@ static void get_manifold(Manifold &manifold,
       const int start = poly_to_tri_count(int(i), int(face.start()));
       const int num = bke::mesh::face_triangles_num(int(face.size()));
       face_ids.slice(start, num).fill(uint32_t(i + face_start));
+      if (use_runids) {
+        meshgl.runOriginalID[i] = face_start + i;
+        meshgl.runIndex[i] = start * 3;
+      }
     }
   });
 
@@ -257,11 +273,13 @@ static void get_manifold(Manifold &manifold,
   MutableSpan vert_tris = MutableSpan(meshgl.triVerts).cast<int3>();
   bke::mesh::vert_tris_from_corner_tris(corner_verts, corner_tris, vert_tris);
 
-  meshgl.runIndex.resize(2);
-  meshgl.runOriginalID.resize(1);
-  meshgl.runIndex[0] = 0;
-  meshgl.runIndex[1] = corner_tris.size() * 3;
-  meshgl.runOriginalID[0] = mesh_index;
+  if (!use_runids) {
+    meshgl.runIndex.resize(2);
+    meshgl.runOriginalID.resize(1);
+    meshgl.runIndex[0] = 0;
+    meshgl.runIndex[1] = corner_tris.size() * 3;
+    meshgl.runOriginalID[0] = mesh_index;
+  }
   if (dbg_level > 0) {
     dump_meshgl(meshgl, "converted result for mesh " + std::to_string(mesh_index));
   }
@@ -273,8 +291,10 @@ static void get_manifold(Manifold &manifold,
   }
 }
 
-/* Get all the Manifold data structures for each Mesh subset of \a joined_mesh that is indicated
- * by a range of offsets in \a mesh_offsets. ß*/
+/**
+ * Get all the Manifold data structures for each Mesh subset of \a joined_mesh that is indicated
+ * by a range of offsets in \a mesh_offsets. ß
+ */
 static void get_manifolds(MutableSpan<Manifold> manifolds,
                           const Span<const Mesh *> meshes,
                           const Span<float4x4> transforms,
@@ -293,7 +313,7 @@ static void get_manifolds(MutableSpan<Manifold> manifolds,
 
   /* Transforming the original input meshes is a simple way to reuse the Mesh::corner_tris() cache
    * for un-transformed meshes. This should reduce memory usage and help to avoid unnecessary cache
-   * recomputations. */
+   * re-computations. */
   Array<const Mesh *> transformed_meshes(meshes_num);
   for (const int i : meshes.index_range()) {
     if (math::is_identity(transforms[i])) {
@@ -340,7 +360,7 @@ struct OutFace {
   }
 };
 
-/* Data needed to build the final output Mesh. */
+/** Data needed to build the final output Mesh. */
 struct MeshAssembly {
   /* Vertex positions, linearized (use vertpos_stride to multiply index). */
   Span<float> vertpos;
@@ -353,11 +373,12 @@ struct MeshAssembly {
   Vector<OutFace> new_faces;
 };
 
-/* Arrays to find, for each index of a given type in the output mesh,
+/**
+ * Arrays to find, for each index of a given type in the output mesh,
  * what is the corresponding index of a representative element in the joined mesh.
  * if there is no representative, a -1 is used.
- * These are created lazily - if their current length is zero, then need to be
- * created. */
+ * These are created lazily - if their current length is zero, then need to be created.
+ */
 class OutToInMaps {
   Array<int> vertex_map_;
   Array<int> face_map_;
@@ -620,7 +641,7 @@ Span<int> OutToInMaps::ensure_edge_map()
         }
       }
       /* It is possible that the output face and corresponding
-       * input face have opposite windings. So do all of the previous
+       * input face have opposite winding. So do all of the previous
        * again with the previous edge of input face but same edge of
        * output face.
        */
@@ -670,11 +691,12 @@ Span<int> OutToInMaps::ensure_edge_map()
   return edge_map_;
 }
 
-/* Most input faces should mape to face_group_inline or fewer output triangles. */
+/** Most input faces should map to face_group_inline or fewer output triangles. */
 constexpr int face_group_inline = 4;
 
-/* Return an array of length \a input_faces_num, where the ith entry
- * is a Vector of the \a mgl triangles that derive from the ith input
+/**
+ * Return an array of length \a input_faces_num, where the i'th entry
+ * is a Vector of the \a mgl triangles that derive from the i'th input
  * face (where i is an index in the concatenated input mesh face space.
  */
 static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
@@ -702,11 +724,13 @@ static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
 }
 
 #  if 0
-* TODO: later */
-/* Return 1 if \a group is just the same oas the original face \a face_index
+/* TODO: later */
+/**
+ * Return 1 if \a group is just the same as the original face \a face_index
  * in \a mesh.
- * Return 2 if it is the same but with the noraal reversed.
- * Return 0 otherwise. */
+ * Return 2 if it is the same but with the normal reversed.
+ * Return 0 otherwise.
+  */
 static uchar check_original_face(const Vector<int, face_group_inline> &group,
                                  const MeshGL &mgl,
                                  const Mesh *mesh,
@@ -727,7 +751,7 @@ static uchar check_original_face(const Vector<int, face_group_inline> &group,
   int stride = mgl.numProp;
   for (const int t : group) {
     /* face_vert_index[i] will hold the position in input face face_index
-     * where the ith vertex of triangle t is (assuming that no position
+     * where the i'th vertex of triangle t is (assuming that no position
      * is exactly repeated in an output face). -1 if there is no such. */
     Array<int, 3> face_vert_index(3);
     for (const int i : IndexRange(3)) {
@@ -779,7 +803,8 @@ static OutFace make_out_face(const MeshGL &mgl, int tri_index, int orig_face)
   return ans;
 }
 
-/* For face merging, there is this indexing space:
+/**
+ * For face merging, there is this indexing space:
  * "group edge" index:  linearized indices of edges in the
  * triangles in the group.
  * A SharedEdge has two such indices, with the assertion that
@@ -805,7 +830,7 @@ struct SharedEdge {
   }
 };
 
-/* Canonical SharedEdge has v1 < v2. */
+/** Canonical SharedEdge has v1 < v2. */
 static inline SharedEdge canon_shared_edge(int e1, int e2, int v1, int v2)
 {
   if (v1 < v2) {
@@ -814,9 +839,11 @@ static inline SharedEdge canon_shared_edge(int e1, int e2, int v1, int v2)
   return SharedEdge(e2, e1, v2, v1);
 }
 
-/* Special case of get_shared_edges when there are two faces.
+/**
+ * Special case of get_shared_edges when there are two faces.
  * Return the version of SharedEdge where 0 <= e1 < 3 and 3 <= e2 < 6.
- * If there is no shared edge, return SharedEdge(-1, -1, -1, -1). */
+ * If there is no shared edge, return SharedEdge(-1, -1, -1, -1).
+ */
 static SharedEdge get_shared_edge_from_pair(const OutFace &tri1, const OutFace &tri2)
 {
   /* There should be at most one shared edge between the tri1 and tri2. Find it. */
@@ -847,7 +874,8 @@ static SharedEdge get_shared_edge_from_pair(const OutFace &tri1, const OutFace &
   return shared_edge;
 }
 
-/* Given a span of OutFaces, all triangles, find as many SharedEdge's as possible.
+/**
+ * Given a span of OutFaces, all triangles, find as many SharedEdge's as possible.
  * A SharedEdge is one where it is in two triangles but with the vertices in opposite order.
  * The edge ids are given as indexes into all the edges of \a faces in order.
  */
@@ -873,7 +901,8 @@ static Vector<SharedEdge> get_shared_edges(Span<OutFace> faces)
   return ans;
 }
 
-/* Return true if the splice of faces \a f1 and \a f2 forms a legal face (no repeated verts).
+/**
+ * Return true if the splice of faces \a f1 and \a f2 forms a legal face (no repeated verts).
  * The splice will be between vertices \a v1 and \a v2, which are assumed to not be
  * repeated in the other face (since incoming faces are assumed legal).
  */
@@ -900,7 +929,8 @@ static bool is_legal_merge(const OutFace &f1, const OutFace &f2, int v1, int v2)
   return true;
 }
 
-/* Try merging OutFaces \a f1 and \a f2, which should have a \a se as a shared edge.
+/**
+ * Try merging OutFaces \a f1 and \a f2, which should have a \a se as a shared edge.
  * Assume the shared edge has v1,v2 in CCW order in f1, and in the opposite order in f2.
  * This involves splicing the two faces together and checking that there
  * is no repeated vertex if this is done.
@@ -967,7 +997,7 @@ static bool try_merge_out_face_pair(OutFace &f1, const OutFace &f2, const Shared
   return true;
 }
 
-/* Special case (for speed) merge_out_faces when faces has two triangles. */
+/** Special case (for speed) merge_out_faces when faces has two triangles. */
 static void merge_out_face_pair(Vector<OutFace> &faces)
 {
   constexpr int dbg_level = 0;
@@ -1015,7 +1045,8 @@ static void merge_out_face_pair(Vector<OutFace> &faces)
   faces.resize(1);
 }
 
-/* Give a group of #OutFace's that are all from a same original mesh face,
+/**
+ * Give a group of #OutFace's that are all from a same original mesh face,
  * remove as many dissolvable edges as possible while still keeping the faces legal.
  * A face is legal if it has no repeated vertices and has size at least 3.
  */
@@ -1117,7 +1148,8 @@ static void merge_out_faces(Vector<OutFace> &faces)
   }
 }
 
-/* Build the MeshAssembly corresponding to \a mgl.
+/**
+ * Build the MeshAssembly corresponding to \a mgl.
  * This involves:
  *  (1) Pointing at output vertices.
  *  (2) Making a map from output vertices to input vertices (using -1 if no match).
@@ -1234,6 +1266,8 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   Vector<bke::GAttributeReader> readers;
   Vector<GVArraySpan> srcs;
   Vector<GMutableSpan> dsts;
+  /* For each index of srcs and dest, we need to know if it is a "normal"-like attribute. */
+  Vector<bool> is_normal_attribute;
   input_attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != bke::AttrDomain::Corner || ELEM(iter.name, ".corner_vert", ".corner_edge"))
     {
@@ -1249,6 +1283,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
     readers.append(input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type));
     srcs.append(*readers.last());
     dsts.append(writers.last().span);
+    is_normal_attribute.append(iter.name == "custom_normal");
   });
   /* Loop per source face, as there is an expensive weight calculation that needs to be done per
    * face. */
@@ -1273,6 +1308,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                 return out_to_in_corner_map[c] == -1;
               }))
           {
+            /* We copied the attributes using the corner map before calling this function. */
             continue;
           }
           /* At least one output corner did not map to an input corner. */
@@ -1283,19 +1319,26 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
           const IndexRange in_face = input_faces[in_face_index];
           const Span<int> in_face_verts = input_corner_verts.slice(in_face);
           const int in_face_size = in_face.size();
+          const Span<int> out_face_verts = output_corner_verts.slice(out_face);
           weights.resize(in_face_size);
           cos_2d.resize(in_face_size);
           float(*cos_2d_p)[2] = reinterpret_cast<float(*)[2]>(cos_2d.data());
           const float3 axis_dominant = bke::mesh::face_normal_calc(input_vert_positions,
                                                                    in_face_verts);
           axis_dominant_v3_to_m3(axis_mat.ptr(), axis_dominant);
+          /* We also need to know if the output face has a flipped normal compared
+           * to the corresponding input face (used if we have custom normals).
+           */
+          const float3 out_face_normal = bke::mesh::face_normal_calc(output_vert_positions,
+                                                                     out_face_verts);
+          const bool face_is_flipped = math::dot(axis_dominant, out_face_normal) < 0.0;
           for (const int i : in_face_verts.index_range()) {
             const float3 &co = input_vert_positions[in_face_verts[i]];
             cos_2d[i] = (axis_mat * co).xy();
           }
           /* Now the loop to actually interpolate attributes of the new-vertex corners of the
            * output face. */
-          for (const int out_c : output_faces[out_face_index]) {
+          for (const int out_c : out_face) {
             const int in_c = out_to_in_corner_map[out_c];
             if (in_c != -1) {
               continue;
@@ -1308,6 +1351,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
             for (const int attr_index : dsts.index_range()) {
               const GSpan src = srcs[attr_index];
               GMutableSpan dst = dsts[attr_index];
+              const bool need_flip = face_is_flipped && is_normal_attribute[attr_index];
               const CPPType &type = dst.type();
               bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
                 using T = decltype(dummy);
@@ -1318,6 +1362,12 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                   mixer.mix_in(0, src_typed[in_face[i]], weights[i]);
                 }
                 mixer.finalize();
+                if (need_flip) {
+                  /* The joined mesh has converted custom normals to float3. */
+                  if (type.is<float3>()) {
+                    dst.typed<float3>()[out_c] = -dst.typed<float3>()[out_c];
+                  }
+                }
               });
             }
           }
@@ -1328,8 +1378,10 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   }
 }
 
-/* What mesh_id corresponds to a given face_id, assuming that the face_id
- * is in one of the ranges of mesh_offsets.face_offsets. */
+/**
+ * What mesh_id corresponds to a given face_id, assuming that the face_id
+ * is in one of the ranges of mesh_offsets.face_offsets.
+ */
 static inline int mesh_id_for_face(int face_id, const MeshOffsets &mesh_offsets)
 {
   for (const int mesh_id : mesh_offsets.face_offsets.index_range()) {
@@ -1340,8 +1392,10 @@ static inline int mesh_id_for_face(int face_id, const MeshOffsets &mesh_offsets)
   return -1;
 }
 
-/* Find the edges that are the result of interesecting one mesh with another,
- * and add their indices to \a r_intersecting_edges. */
+/**
+ * Find the edges that are the result of intersecting one mesh with another,
+ * and add their indices to \a r_intersecting_edges.
+ */
 static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
                                    const Mesh *mesh,
                                    OutToInMaps &out_to_in,
@@ -1377,9 +1431,11 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
   }
 }
 
-/* Return true if \a mesh is a plane. If it is, fill in *r_normal to be
+/**
+ * Return true if \a mesh is a plane. If it is, fill in *r_normal to be
  * the plane's normal, and *r_origin_offset to be the vector that goes
- * from the origin to the plane in the normal direction. */
+ * from the origin to the plane in the normal direction.
+ */
 static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
 {
   if (mesh->faces_num != 1 && mesh->verts_num != 4) {
@@ -1401,9 +1457,11 @@ static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
   return false;
 }
 
-/* Handle special case of one manifold mesh, which has been converted to
+/**
+ * Handle special case of one manifold mesh, which has been converted to
  * \a manifold 0, and one plane, which has normalized normal \a normal
- * and distance from origin \a origin_offset. */
+ * and distance from origin \a origin_offset.
+ */
 static MeshGL mesh_trim_manifold(Manifold &manifold0,
                                  float3 normal,
                                  float origin_offset,
@@ -1425,10 +1483,11 @@ static MeshGL mesh_trim_manifold(Manifold &manifold0,
   return meshgl;
 }
 
-/* Convert the meshgl that is the result of the boolean back into a
+/**
+ * Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
  * If \a r_intersecting_edges is not null, fill it with the edge indices
- * of edges that saparate two different meshes of the input.
+ * of edges that separate two different meshes of the input.
  */
 static Mesh *meshgl_to_mesh(MeshGL &mgl,
                             const Mesh *joined_mesh,
@@ -1519,7 +1578,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     /* Copy attributes from joined_mesh to elements they are mapped to
      * in the new mesh. For most attributes, if there is no input element
      * mapping to it, the attribute value is left at default.
-     * But for coerner attributes (most importantly, UV maps), missing
+     * But for corner attributes (most importantly, UV maps), missing
      * values are interpolated in their containing face.
      * We'll do corner interpolation in a separate pass so as to do
      * such attributes at once for a given face.
@@ -1580,6 +1639,10 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
       get_intersecting_edges(r_intersecting_edges, mesh, out_to_in, mesh_offsets);
     }
   }
+
+  mesh->tag_loose_verts_none();
+  mesh->tag_overlapping_none();
+
   return mesh;
 }
 
@@ -1609,7 +1672,6 @@ static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> mes
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const Span<float4x4> transforms,
-                            const float4x4 &target_transform,
                             const Span<Array<short>> /*material_remaps*/,
                             const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
@@ -1694,9 +1756,6 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
 #  endif
       mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets, r_intersecting_edges);
-    }
-    if (!math::is_identity(target_transform)) {
-      bke::mesh_transform(*mesh_result, target_transform, false);
     }
     return mesh_result;
   }
