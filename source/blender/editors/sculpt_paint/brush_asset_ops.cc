@@ -706,7 +706,7 @@ static bool brush_asset_essentials_override_revert_poll(bContext *C)
   return true;
 }
 
-static int brush_asset_essentials_override_revert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus brush_asset_essentials_override_revert_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -727,9 +727,9 @@ static int brush_asset_essentials_override_revert_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
-static int brush_asset_essentials_override_revert_invoke(bContext *C,
-                                                         wmOperator *op,
-                                                         const wmEvent * /*event*/)
+static wmOperatorStatus brush_asset_essentials_override_revert_invoke(bContext *C,
+                                                                      wmOperator *op,
+                                                                      const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
       C,

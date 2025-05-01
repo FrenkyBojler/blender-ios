@@ -43,7 +43,7 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
   if (asset.owner_asset_library().library_type() == ASSET_LIBRARY_CUSTOM) {
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
 
-    const std::string full_blend_path = asset.full_library_path();
+    const std::string full_blend_path = asset.full_library_path(false);
 
     char dir[FILE_MAX], file[FILE_MAX];
     BLI_path_split_dir_file(full_blend_path.c_str(), dir, sizeof(dir), file, sizeof(file));

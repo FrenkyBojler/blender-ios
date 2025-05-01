@@ -307,7 +307,7 @@ static int rna_ID_name_editable(const PointerRNA *ptr, const char **r_info)
     return 0;
   }
 
-  if (ID_IS_LINKED(id) && (id->lib->runtime.tag & LIBRARY_IDNAMES_READ_ONLY) != 0) {
+  if (ID_IS_LINKED(id) && (id->lib->runtime->tag & LIBRARY_IDNAMES_READ_ONLY) != 0) {
     if (r_info) {
       /* Add extra context for the disabled hint. */
       if (blender::asset_system::essentials_is_path_inside(id->lib->filepath) ||

@@ -7,6 +7,7 @@
  */
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -81,7 +82,7 @@ static ID *asset_link_id(Main &global_main,
     const bool is_essentials_override = asset_system::essentials_override_is_path_inside(filepath);
     /* Don't allow changing names of essentials. It would break override handling. */
     if (is_essentials_override || asset_system::essentials_is_path_inside(filepath)) {
-      local_asset->lib->runtime.tag |= LIBRARY_IDNAMES_READ_ONLY;
+      local_asset->lib->runtime->tag |= LIBRARY_IDNAMES_READ_ONLY;
     }
 
     if ((local_asset->lib->runtime->tag & LIBRARY_IS_ASSET_EDIT_FILE) &&
@@ -162,7 +163,7 @@ static std::string asset_essentials_library_id_blendfile_path_for_save(const ID 
   }
 
   std::string override_filepath = asset_system::essentials_asset_override_blend_path_resolve(
-      id.lib->runtime.filepath_abs, GS(id.name), id.name + 2);
+      id.lib->runtime->filepath_abs, GS(id.name), id.name + 2);
 
   char rootpath[PATH_MAX];
   BLI_path_split_dir_part(override_filepath.c_str(), rootpath, sizeof(rootpath));
@@ -335,7 +336,7 @@ bool asset_edit_id_save(Main &global_main, const ID &id, ReportList &reports)
 bool asset_edit_id_is_essentials_override(const ID &id)
 {
   return ID_IS_LINKED(&id) &&
-         asset_system::essentials_override_is_path_inside(id.lib->runtime.filepath_abs);
+         asset_system::essentials_override_is_path_inside(id.lib->runtime->filepath_abs);
 }
 
 bool asset_edit_id_essentials_override_remove_and_reload(Main &global_main,
@@ -346,10 +347,10 @@ bool asset_edit_id_essentials_override_remove_and_reload(Main &global_main,
     return false;
   }
 
-  const std::string override_path = id.lib->runtime.filepath_abs;
+  const std::string override_path = id.lib->runtime->filepath_abs;
   const std::string original_essentials_path =
       asset_system::essentials_asset_override_path_to_essentials_blend_path(
-          id.lib->runtime.filepath_abs);
+          id.lib->runtime->filepath_abs);
 
   if (original_essentials_path.empty()) {
     BKE_report(&reports, RPT_ERROR, "Failed to locate original essentials asset library file");
@@ -461,10 +462,10 @@ std::optional<AssetWeakReference> asset_edit_weak_reference_from_id(const ID &id
         *user_library, idcode, id.name + 2, id.lib->runtime->filepath_abs);
   }
 
-  if (asset_system::essentials_override_is_path_inside(id.lib->runtime.filepath_abs)) {
+  if (asset_system::essentials_override_is_path_inside(id.lib->runtime->filepath_abs)) {
     const std::string essentials_blend_path =
         asset_system::essentials_asset_override_path_to_essentials_blend_path(
-            id.lib->runtime.filepath_abs);
+            id.lib->runtime->filepath_abs);
     /* Couldn't re-locate the original asset from the overridden path. */
     if (essentials_blend_path.empty()) {
       return std::nullopt;
@@ -486,8 +487,8 @@ bool asset_edit_id_is_essential_or_override(const ID &id)
   }
 
   return BLI_path_contains(asset_system::essentials_directory_path().c_str(),
-                           id.lib->runtime.filepath_abs) ||
-         asset_system::essentials_override_is_path_inside(id.lib->runtime.filepath_abs);
+                           id.lib->runtime->filepath_abs) ||
+         asset_system::essentials_override_is_path_inside(id.lib->runtime->filepath_abs);
 }
 
 /**
@@ -501,7 +502,7 @@ bool asset_edit_id_is_essential_not_override(const ID &id)
   }
 
   return BLI_path_contains(asset_system::essentials_directory_path().c_str(),
-                           id.lib->runtime.filepath_abs);
+                           id.lib->runtime->filepath_abs);
 }
 
 bool asset_edit_id_is_editable(const ID &id)
@@ -567,7 +568,7 @@ std::optional<AssetLibraryReference> asset_edit_id_get_library_reference(const I
   }
 
   if (const bUserAssetLibrary *user_library = BKE_preferences_asset_library_containing_path(
-          &U, id.lib->runtime.filepath_abs))
+          &U, id.lib->runtime->filepath_abs))
   {
     AssetLibraryReference library_ref{};
     library_ref.custom_library_index = BLI_findindex(&U.asset_libraries, user_library);

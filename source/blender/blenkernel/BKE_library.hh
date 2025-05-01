@@ -75,6 +75,11 @@ enum eLibrary_Tag {
    * info).
    */
   LIBRARY_IS_ASSET_EDIT_FILE = 1 << 3,
+  /**
+   * Data-blocks from this library may not be renamed, even if the data-block is otherwise editable
+   * (e.g. #LIBRARY_ASSET_EDITABLE flag is set).
+   */
+  LIBRARY_IDNAMES_READ_ONLY = 1 << 4,
 };
 
 void BKE_library_filepath_set(Main *bmain, Library *lib, const char *filepath);
