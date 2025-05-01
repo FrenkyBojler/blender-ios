@@ -42,28 +42,28 @@ class TestData {
 
   TestData()
   {
-    if (bmain == nullptr) {
-      bmain = BKE_main_new();
-      G.main = bmain;
+    if (this->bmain == nullptr) {
+      this->bmain = BKE_main_new();
+      G.main = this->bmain;
     }
 
-    if (C == nullptr) {
-      C = CTX_create();
-      CTX_data_main_set(C, bmain);
+    if (this->C == nullptr) {
+      this->C = CTX_create();
+      CTX_data_main_set(this->C, this->bmain);
     }
   }
 
   ~TestData()
   {
-    if (bmain != nullptr) {
-      BKE_main_free(bmain);
-      bmain = nullptr;
+    if (this->bmain != nullptr) {
+      BKE_main_free(this->bmain);
+      this->bmain = nullptr;
       G.main = nullptr;
     }
 
-    if (C != nullptr) {
-      CTX_free(C);
-      C = nullptr;
+    if (this->C != nullptr) {
+      CTX_free(this->C);
+      this->C = nullptr;
     }
   }
 };
@@ -127,7 +127,7 @@ class IDSubDataTestData : public WholeIDTestData {
     /* Add a material that contains an embedded nodetree and assign a custom property to one of
      * its nodes. */
     this->material = BKE_material_add(this->bmain, "Material");
-    ED_node_shader_default(C, &this->material->id);
+    ED_node_shader_default(this->C, &this->material->id);
 
     BKE_object_material_assign(
         this->bmain, this->object, this->material, this->object->actcol, BKE_MAT_ASSIGN_OBJECT);
@@ -140,7 +140,7 @@ class IDSubDataTestData : public WholeIDTestData {
   }
   ~IDSubDataTestData()
   {
-    BKE_id_free(bmain, &material->id);
+    BKE_id_free(this->bmain, &this->material->id);
   }
 };
 
