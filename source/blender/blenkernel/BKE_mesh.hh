@@ -150,6 +150,10 @@ struct CornerNormalSpace {
  * Storage for corner fan coordinate spaces for an entire mesh.
  */
 struct CornerNormalSpaceArray {
+  /**
+   * Results are added from multiple threads. This faciliates building this in parallel. This means
+   * the output is nondeterministic.
+   */
   std::mutex build_mutex;
   /**
    * The normal coordinate spaces, potentially shared between multiple face corners in a smooth fan

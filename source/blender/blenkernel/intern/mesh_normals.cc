@@ -1013,9 +1013,9 @@ static void add_corner_to_edge(const Span<int> corner_edges,
     info = EdgeTwoCorners{info_one_edge->local_corner_1, local_corner};
   }
   else {
+    /* The edge is either already sharp, or we're trying to add a third corner. */
     info = EdgeSharp{};
   }
-  /* The edge is either already sharp, or we're trying to add a third corner. */
 }
 
 /** Use a custom VectorSet type to use int32 instead of int64 for the key indices. */
@@ -1102,9 +1102,9 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
   }
 
   if (result_fan.size() == corner_infos.size()) {
-    /* This is a cylic corner fan that goes all the way around the vertex. To match with behavior
-     * from the previous implementation of face corner normal calculation, the final fan is rotated
-     * so that the smallest face corner comes first. */
+    /* This is a cylic corner fan that goes all the way around the vertex. To match behavior from
+     * the previous implementation of face corner normal calculation, the final fan is rotated so
+     * that the smallest face corner index comes first. */
     int *fan_first_corner = std::min_element(
         result_fan.begin(), result_fan.end(), [&](const int a, const int b) {
           return corner_infos[a].corner < corner_infos[b].corner;
@@ -1143,7 +1143,7 @@ static void calc_edge_directions(const Span<float3> vert_positions,
 
 /**
  * This is the same as #normals_calc_vert, but uses our already-collected corner info and edge
- * directions. This case where all the edges aren't smooth is very common and likely worth handling
+ * directions. This case where all the edges are smooth is very common and likely worth handling
  * explicitly.
  */
 static float3 calc_smooth_vert_normal(const Span<VertCornerInfo> corner_infos,
@@ -1175,7 +1175,6 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
     const float factor = math::safe_acos_approx(math::dot(dir_prev, dir_next));
     fan_normal += face_normals[info.face] * factor;
   }
-
   return math::normalize(fan_normal);
 }
 
@@ -1246,7 +1245,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           CornerNormalSpaceArray *r_fan_spaces,
                           MutableSpan<float3> r_corner_normals)
 {
-if (r_fan_spaces) {
+  if (r_fan_spaces) {
     r_fan_spaces->corner_space_indices.reinitialize(corner_verts.size());
   }
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
@@ -1308,7 +1307,7 @@ if (r_fan_spaces) {
        * we can find the next start corner for each subsequent fan traversal. Keeping track of the
        * number of visited corners is a quick way to avoid this book keeping for the final fan (and
        * there are usually just two, so that should be worth it). */
-      int visited_corners = 0;
+      int visited_count = 0;
       local_corner_visited.resize(vert_faces.size());
       local_corner_visited.fill(false);
 
@@ -1330,14 +1329,14 @@ if (r_fan_spaces) {
           r_corner_normals[info.corner] = fan_normal;
         }
 
-        visited_corners += corners_in_fan.size();
-        if (visited_corners == corner_infos.size()) {
+        visited_count += corners_in_fan.size();
+        if (visited_count == corner_infos.size()) {
           break;
         }
         local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), true);
         start_local_corner = local_corner_visited.first_index_of_try(false);
       }
-      BLI_assert(visited_corners == corner_infos.size());
+      BLI_assert(visited_count == corner_infos.size());
     }
   });
 }
