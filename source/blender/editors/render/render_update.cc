@@ -134,8 +134,6 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool
     }
   }
 
-  // blender::seq::relations_invalidate_scene_strips(bmain, update_ctx->scene);
-
   recursive_check = false;
 }
 
@@ -311,6 +309,19 @@ static void scene_changed(Main *bmain, Scene *scene)
 
 static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bmain, ID *id)
 {
+  if (ELEM(id->recalc,
+           0,
+           ID_RECALC_SELECT,
+           ID_RECALC_FRAME_CHANGE,
+           ID_RECALC_AUDIO_FPS,
+           ID_RECALC_AUDIO_VOLUME,
+           ID_RECALC_AUDIO_MUTE,
+           ID_RECALC_AUDIO_LISTENER,
+           ID_RECALC_AUDIO))
+  {
+    return;
+  }
+
   if (GS(id->name) != ID_SCE) {
     blender::seq::relations_invalidate_scene_strips(bmain, update_ctx->scene);
   }
@@ -324,11 +335,6 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
   if (!BLI_thread_is_main()) {
     return;
   }
-
-  if (id->recalc & ID_RECALC_ALL) {
-    printf("%s: %s %s\n", __func__, id->name, DEG_stringify_recalc_flags(id->recalc).c_str());
-  }
-
   Main *bmain = update_ctx->bmain;
   /* Internal ID update handlers. */
   switch (GS(id->name)) {
