@@ -648,81 +648,79 @@ struct GPUSamplerState {
 enum eGPUTextureFormat {
   /* Formats texture & render-buffer. */
 
-  GPU_RGBA8UI,
-  GPU_RGBA8I,
-  GPU_RGBA8,
-  GPU_RGBA16UI,
-  GPU_RGBA16I,
-  GPU_RGBA16F,
-  GPU_RGBA16,
-  GPU_RGBA32UI,
-  GPU_RGBA32I,
-  GPU_RGBA32F,
+  GPU_RGBA8UI = uint8_t(blender::gpu::TextureFormat::UINT_8_8_8_8),
+  GPU_RGBA8I = uint8_t(blender::gpu::TextureFormat::SINT_8_8_8_8),
+  GPU_RGBA8 = uint8_t(blender::gpu::TextureFormat::UNORM_8_8_8_8),
+  GPU_RGBA16UI = uint8_t(blender::gpu::TextureFormat::UINT_16_16_16_16),
+  GPU_RGBA16I = uint8_t(blender::gpu::TextureFormat::SINT_16_16_16_16),
+  GPU_RGBA16F = uint8_t(blender::gpu::TextureFormat::SFLOAT_16_16_16_16),
+  GPU_RGBA16 = uint8_t(blender::gpu::TextureFormat::UNORM_16_16_16_16),
+  GPU_RGBA32UI = uint8_t(blender::gpu::TextureFormat::UINT_32_32_32_32),
+  GPU_RGBA32I = uint8_t(blender::gpu::TextureFormat::SINT_32_32_32_32),
+  GPU_RGBA32F = uint8_t(blender::gpu::TextureFormat::SFLOAT_32_32_32_32),
 
-  GPU_RG8UI,
-  GPU_RG8I,
-  GPU_RG8,
-  GPU_RG16UI,
-  GPU_RG16I,
-  GPU_RG16F,
-  GPU_RG16,
-  GPU_RG32UI,
-  GPU_RG32I,
-  GPU_RG32F,
+  GPU_RG8UI = uint8_t(blender::gpu::TextureFormat::UINT_8_8),
+  GPU_RG8I = uint8_t(blender::gpu::TextureFormat::SINT_8_8),
+  GPU_RG8 = uint8_t(blender::gpu::TextureFormat::UNORM_8_8),
+  GPU_RG16UI = uint8_t(blender::gpu::TextureFormat::UINT_16_16),
+  GPU_RG16I = uint8_t(blender::gpu::TextureFormat::SINT_16_16),
+  GPU_RG16F = uint8_t(blender::gpu::TextureFormat::SFLOAT_16_16),
+  GPU_RG16 = uint8_t(blender::gpu::TextureFormat::UNORM_16_16),
+  GPU_RG32UI = uint8_t(blender::gpu::TextureFormat::UINT_32_32),
+  GPU_RG32I = uint8_t(blender::gpu::TextureFormat::SINT_32_32),
+  GPU_RG32F = uint8_t(blender::gpu::TextureFormat::SFLOAT_32_32),
 
-  GPU_R8UI,
-  GPU_R8I,
-  GPU_R8,
-  GPU_R16UI,
-  GPU_R16I,
-  GPU_R16F,
-  GPU_R16,
-  GPU_R32UI,
-  GPU_R32I,
-  GPU_R32F,
+  GPU_R8UI = uint8_t(blender::gpu::TextureFormat::UINT_8),
+  GPU_R8I = uint8_t(blender::gpu::TextureFormat::SINT_8),
+  GPU_R8 = uint8_t(blender::gpu::TextureFormat::UNORM_8),
+  GPU_R16UI = uint8_t(blender::gpu::TextureFormat::UINT_16),
+  GPU_R16I = uint8_t(blender::gpu::TextureFormat::SINT_16),
+  GPU_R16F = uint8_t(blender::gpu::TextureFormat::SFLOAT_16),
+  GPU_R16 = uint8_t(blender::gpu::TextureFormat::UNORM_16),
+  GPU_R32UI = uint8_t(blender::gpu::TextureFormat::UINT_32),
+  GPU_R32I = uint8_t(blender::gpu::TextureFormat::SINT_32),
+  GPU_R32F = uint8_t(blender::gpu::TextureFormat::SFLOAT_32),
 
   /* Special formats texture & render-buffer. */
 
-  GPU_RGB10_A2,
-  GPU_RGB10_A2UI,
-  GPU_R11F_G11F_B10F,
-  GPU_DEPTH32F_STENCIL8,
-  GPU_DEPTH24_STENCIL8,
-  GPU_SRGB8_A8,
+  GPU_RGB10_A2 = uint8_t(blender::gpu::TextureFormat::UNORM_10_10_10_2),
+  GPU_RGB10_A2UI = uint8_t(blender::gpu::TextureFormat::UINT_10_10_10_2),
+  GPU_R11F_G11F_B10F = uint8_t(blender::gpu::TextureFormat::UFLOAT_11_11_10),
+  GPU_DEPTH32F_STENCIL8 = uint8_t(blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8),
+  GPU_DEPTH24_STENCIL8 = uint8_t(blender::gpu::TextureFormat::UNORM_24_DEPTH_UINT_8),
+  GPU_SRGB8_A8 = uint8_t(blender::gpu::TextureFormat::SRGBA_8_8_8_8),
 
   /* Texture only formats. */
 
-  GPU_RGBA8_SNORM,
-  GPU_RGBA16_SNORM,
+  GPU_RGBA8_SNORM = uint8_t(blender::gpu::TextureFormat::SNORM_8_8_8_8),
+  GPU_RGB8_SNORM = uint8_t(blender::gpu::TextureFormat::SNORM_8_8_8),
+  GPU_RG8_SNORM = uint8_t(blender::gpu::TextureFormat::SNORM_8_8),
+  GPU_R8_SNORM = uint8_t(blender::gpu::TextureFormat::SNORM_8),
+  GPU_RGBA16_SNORM = uint8_t(blender::gpu::TextureFormat::SNORM_16_16_16_16),
+  GPU_RGB16_SNORM = uint8_t(blender::gpu::TextureFormat::SNORM_16_16_16),
+  GPU_RG16_SNORM = uint8_t(blender::gpu::TextureFormat::SNORM_16_16),
+  GPU_R16_SNORM = uint8_t(blender::gpu::TextureFormat::SNORM_16),
 
-  GPU_RGB8UI,
-  GPU_RGB8I,
-  GPU_RGB8,
-  GPU_RGB8_SNORM,
-  GPU_RGB16UI,
-  GPU_RGB16I,
-  GPU_RGB16F,
-  GPU_RGB16,
-  GPU_RGB16_SNORM,
-  GPU_RGB32UI,
-  GPU_RGB32I,
-  GPU_RGB32F,
-
-  GPU_RG8_SNORM,
-  GPU_RG16_SNORM,
-
-  GPU_R8_SNORM,
-  GPU_R16_SNORM,
+  GPU_RGB8UI = uint8_t(blender::gpu::TextureFormat::UINT_8_8_8),
+  GPU_RGB8I = uint8_t(blender::gpu::TextureFormat::SINT_8_8_8),
+  GPU_RGB8 = uint8_t(blender::gpu::TextureFormat::UNORM_8_8_8),
+  GPU_RGB16UI = uint8_t(blender::gpu::TextureFormat::UINT_16_16_16),
+  GPU_RGB16I = uint8_t(blender::gpu::TextureFormat::SINT_16_16_16),
+  GPU_RGB16F = uint8_t(blender::gpu::TextureFormat::SFLOAT_16_16_16),
+  GPU_RGB16 = uint8_t(blender::gpu::TextureFormat::UNORM_16_16_16),
+  GPU_RGB32UI = uint8_t(blender::gpu::TextureFormat::UINT_32_32_32),
+  GPU_RGB32I = uint8_t(blender::gpu::TextureFormat::SINT_32_32_32),
+  GPU_RGB32F = uint8_t(blender::gpu::TextureFormat::SFLOAT_32_32_32),
 
   /* Special formats, texture only. */
-  GPU_SRGB8_A8_DXT1, /* BC1 */
-  GPU_SRGB8_A8_DXT3, /* BC2 */
-  GPU_SRGB8_A8_DXT5, /* BC3 */
-  GPU_RGBA8_DXT1,    /* BC1 */
-  GPU_RGBA8_DXT3,    /* BC2 */
-  GPU_RGBA8_DXT5,    /* BC3 */
-  GPU_SRGB8,
-  GPU_RGB9_E5,
+  GPU_SRGB8_A8_DXT1 = uint8_t(blender::gpu::TextureFormat::SRGB_DXT1),
+  GPU_SRGB8_A8_DXT3 = uint8_t(blender::gpu::TextureFormat::SRGB_DXT3),
+  GPU_SRGB8_A8_DXT5 = uint8_t(blender::gpu::TextureFormat::SRGB_DXT5),
+  GPU_RGBA8_DXT1 = uint8_t(blender::gpu::TextureFormat::SNORM_DXT1),
+  GPU_RGBA8_DXT3 = uint8_t(blender::gpu::TextureFormat::SNORM_DXT3),
+  GPU_RGBA8_DXT5 = uint8_t(blender::gpu::TextureFormat::SNORM_DXT5),
+  GPU_SRGB8 = uint8_t(blender::gpu::TextureFormat::SRGBA_8_8_8),
+  GPU_RGB9_E5 = uint8_t(blender::gpu::TextureFormat::UFLOAT_9_9_9_EXP_5),
 #if 0 /* TODO: Add support for them. */
   GPU_COMPRESSED_RG_RGTC2,
   GPU_COMPRESSED_SIGNED_RG_RGTC2,
@@ -731,9 +729,9 @@ enum eGPUTextureFormat {
 #endif
 
   /* Depth Formats. */
-  GPU_DEPTH_COMPONENT32F,
-  GPU_DEPTH_COMPONENT24,
-  GPU_DEPTH_COMPONENT16,
+  GPU_DEPTH_COMPONENT32F = uint8_t(blender::gpu::TextureFormat::SFLOAT_32_DEPTH),
+  GPU_DEPTH_COMPONENT24 = uint8_t(blender::gpu::TextureFormat::UNORM_24_DEPTH),
+  GPU_DEPTH_COMPONENT16 = uint8_t(blender::gpu::TextureFormat::UNORM_16_DEPTH),
 };
 
 /**
