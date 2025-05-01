@@ -38,6 +38,11 @@ class VKVertexBuffer : public VertBuf {
     return buffer_.vk_handle();
   }
 
+  inline VkDeviceAddress device_address_get() const
+  {
+    return buffer_.device_address_get();
+  }
+
   VkBufferView vk_buffer_view_get() const
   {
     BLI_assert(vk_buffer_view_ != VK_NULL_HANDLE);
