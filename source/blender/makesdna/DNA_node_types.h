@@ -2751,6 +2751,15 @@ typedef enum NodeCompareOperation {
   NODE_COMPARE_COLOR_DARKER = 7,
 } NodeCompareOperation;
 
+typedef enum NodeBitMathOperation {
+  NODE_BIT_MATH_AND = 0,
+  NODE_BIT_MATH_OR = 1,
+  NODE_BIT_MATH_XOR = 2,
+  NODE_BIT_MATH_NOT = 3,
+  NODE_BIT_MATH_SHIFT = 4,
+  NODE_BIT_MATH_ROTATE = 5,
+} NodeBitMathOperation;
+
 typedef enum NodeIntegerMathOperation {
   NODE_INTEGER_MATH_ADD = 0,
   NODE_INTEGER_MATH_SUBTRACT = 1,

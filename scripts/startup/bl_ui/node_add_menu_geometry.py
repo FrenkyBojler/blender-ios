@@ -730,6 +730,7 @@ class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "FunctionNodeBitMath")
         node_add_menu.add_node_type(layout, "FunctionNodeBooleanMath")
         node_add_menu.add_node_type(layout, "FunctionNodeIntegerMath")
         node_add_menu.add_node_type(layout, "ShaderNodeClamp")

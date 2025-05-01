@@ -313,6 +313,44 @@ const EnumPropertyItem rna_enum_node_float_compare_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_node_bit_math_items[] = {
+    RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Bitwise"), nullptr),
+    {NODE_BIT_MATH_AND,
+     "AND",
+     0,
+     "And",
+     "Compares bit values of A and B then returns a value where the bits are both set, A & B"},
+    {NODE_BIT_MATH_OR,
+     "OR",
+     0,
+     "Or",
+     "Compares bit values of A and B then returns a value where either bit is set, A | B"},
+    {NODE_BIT_MATH_XOR,
+     "XOR",
+     0,
+     "Exclusive Or",
+     "Compares bit values of A and B then returns a value where only one bit from A or B is set, "
+     "A ^ B"},
+    {NODE_BIT_MATH_NOT,
+     "NOT",
+     0,
+     "Not",
+     "Returns the opposite bit value of A, in decimal it is equivalent of A = -A - 1, ~ A"},
+    {NODE_BIT_MATH_SHIFT,
+     "SHIFT",
+     0,
+     "Shift",
+     "Shifts the bit values of A by the specified Shift amount. Positive values shift left, "
+     "negative values shift right."},
+    {NODE_BIT_MATH_ROTATE,
+     "ROTATE",
+     0,
+     "Rotate",
+     "Rotates the bit values of A by the specified Shift amount. Positive values rotate left, "
+     "negative values rotate right."},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_node_integer_math_items[] = {
     RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Functions"), nullptr),
     {NODE_INTEGER_MATH_ADD, "ADD", 0, "Add", "A + B"},
@@ -13685,6 +13723,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("FunctionNode", "FunctionNodeInputSpecialCharacters");
   define("FunctionNode", "FunctionNodeInputString", def_fn_input_string);
   define("FunctionNode", "FunctionNodeInputVector", def_fn_input_vector);
+  define("FunctionNode", "FunctionNodeBitMath");
   define("FunctionNode", "FunctionNodeIntegerMath");
   define("FunctionNode", "FunctionNodeInvertMatrix");
   define("FunctionNode", "FunctionNodeInvertRotation");
