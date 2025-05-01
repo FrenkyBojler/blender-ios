@@ -83,7 +83,6 @@ Exec=blender %f
 Icon=blender
 Terminal=false
 Type=Application
-PrefersNonDefaultGPU=true
 Categories=Graphics;3DGraphics;
 MimeType=application/x-blender;
 StartupWMClass=Blender
