@@ -460,6 +460,10 @@ static bool brush_asset_edit_metadata_poll(bContext *C)
     BLI_assert_unreachable();
     return false;
   }
+  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+    CTX_wm_operator_poll_msg_set(C, "Local asset metadata should be edited directly via the Asset Browser");
+    return false;
+  }
   if (!library_is_editable(*library_ref)) {
     CTX_wm_operator_poll_msg_set(C, "Asset library is not editable");
     return false;
@@ -632,11 +636,31 @@ static bool brush_asset_save_poll(bContext *C)
     return false;
   }
 
-  if (!bke::asset_edit_id_is_editable(brush->id)) {
+  if (!ID_IS_ASSET(&brush->id)) {
+    BLI_assert_unreachable();
     return false;
   }
 
-  if (!(paint->brush_asset_reference && ID_IS_ASSET(brush))) {
+  const AssetWeakReference *brush_weak_ref = paint->brush_asset_reference;
+  if (!brush_weak_ref) {
+    BLI_assert_unreachable();
+    return false;
+  }
+  const asset_system::AssetRepresentation *asset = asset::find_asset_from_weak_ref(
+      *C, *brush_weak_ref, CTX_wm_reports(C));
+  if (!asset) {
+    /* May happen if library loading hasn't finished. */
+    return false;
+  }
+  const std::optional<AssetLibraryReference> library_ref =
+      asset->owner_asset_library().library_reference();
+  if (!library_ref) {
+    BLI_assert_unreachable();
+    return false;
+  }
+
+  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+    CTX_wm_operator_poll_msg_set(C, "Local assets cannot be individually saved");
     return false;
   }
 
@@ -644,6 +668,11 @@ static bool brush_asset_save_poll(bContext *C)
     CTX_wm_operator_poll_msg_set(C, "Asset blend file is not editable");
     return false;
   }
+
+  if (!bke::asset_edit_id_is_editable(brush->id)) {
+    return false;
+  }
+
 
   return true;
 }
@@ -691,7 +720,32 @@ static bool brush_asset_revert_poll(bContext *C)
     return false;
   }
 
-  return paint->brush_asset_reference && bke::asset_edit_id_is_editable(brush->id);
+  if (!ID_IS_ASSET(&brush->id)) {
+    BLI_assert_unreachable();
+    return false;
+  }
+  const AssetWeakReference *brush_weak_ref = paint->brush_asset_reference;
+  if (!brush_weak_ref) {
+    return false;
+  }
+  const asset_system::AssetRepresentation *asset = asset::find_asset_from_weak_ref(
+      *C, *brush_weak_ref, CTX_wm_reports(C));
+  if (!asset) {
+    /* May happen if library loading hasn't finished. */
+    return false;
+  }
+  const std::optional<AssetLibraryReference> library_ref =
+      asset->owner_asset_library().library_reference();
+  if (!library_ref) {
+    BLI_assert_unreachable();
+    return false;
+  }
+  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+    CTX_wm_operator_poll_msg_set(C, "Local assets cannot be reverted");
+    return false;
+  }
+
+  return bke::asset_edit_id_is_editable(brush->id);
 }
 
 static wmOperatorStatus brush_asset_revert_exec(bContext *C, wmOperator *op)
