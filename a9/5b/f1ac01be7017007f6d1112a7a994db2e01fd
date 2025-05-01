@@ -6,3 +6,4 @@ Referenced by issue #105283, Regression: Match interface of custom group nodes a
 Referenced by issue #103338, Blender reported "CommandBuffer Failed: cycles_metal_integrator_queued_shadow_paths_array"
 Referenced by issue #103260, Cycles missing HIP support for gfx1036 devices
 Referenced by issue #103217, Freezing up in Geometry Nodes!
+Referenced by issue #138248, Holding enter while having the blender console toggled speeds most large operations up
