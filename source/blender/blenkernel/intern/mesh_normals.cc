@@ -1180,6 +1180,7 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
   return math::normalize(fan_normal);
 }
 
+/* Don't inline this function to simplify the code path without custom normals.*/
 BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     const Span<short2> custom_normals,
     const Span<VertCornerInfo> corner_infos,
