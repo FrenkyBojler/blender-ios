@@ -530,7 +530,7 @@ typedef struct GreasePencil {
   blender::bke::greasepencil::Layer *get_active_layer();
   void set_active_layer(blender::bke::greasepencil::Layer *layer);
   bool is_layer_active(const blender::bke::greasepencil::Layer *layer) const;
-  void autolock_inactive_layers();
+  void autolock_inactive_nodes();
 
   /* Active group functions. */
   bool has_active_group() const;

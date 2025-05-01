@@ -3504,7 +3504,7 @@ void GreasePencil::set_active_layer(blender::bke::greasepencil::Layer *layer)
   this->active_node = reinterpret_cast<GreasePencilLayerTreeNode *>(&layer->as_node());
 
   if (this->flag & GREASE_PENCIL_AUTOLOCK_LAYERS) {
-    this->autolock_inactive_layers();
+    this->autolock_inactive_nodes();
   }
 }
 
@@ -3516,7 +3516,7 @@ bool GreasePencil::is_layer_active(const blender::bke::greasepencil::Layer *laye
   return this->get_active_layer() == layer;
 }
 
-void GreasePencil::autolock_inactive_layers()
+void GreasePencil::autolock_inactive_nodes()
 {
   using namespace blender::bke::greasepencil;
 
@@ -3532,10 +3532,8 @@ void GreasePencil::autolock_inactive_layers()
 
   /* When the active node is a layer group, unlock all nodes within that group. */
   if (active_node->is_group()) {
-    for (TreeNode *node : this->nodes_for_write()) {
-      if (node->is_child_of(active_node->as_group())) {
-        node->set_locked(false);
-      }
+    for (TreeNode *node : active_node->as_group().nodes_for_write()) {
+      node->set_locked(false);
     }
   }
 
@@ -3592,7 +3590,7 @@ void GreasePencil::set_active_node(blender::bke::greasepencil::TreeNode *node)
   this->active_node = reinterpret_cast<GreasePencilLayerTreeNode *>(node);
 
   if (this->flag & GREASE_PENCIL_AUTOLOCK_LAYERS) {
-    this->autolock_inactive_layers();
+    this->autolock_inactive_nodes();
   }
 }
 

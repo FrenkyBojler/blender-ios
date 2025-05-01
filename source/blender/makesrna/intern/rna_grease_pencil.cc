@@ -68,7 +68,7 @@ static void rna_grease_pencil_autolock(Main * /*bmain*/, Scene * /*scene*/, Poin
   using namespace blender::bke::greasepencil;
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
   if (grease_pencil->flag & GREASE_PENCIL_AUTOLOCK_LAYERS) {
-    grease_pencil->autolock_inactive_layers();
+    grease_pencil->autolock_inactive_nodes();
   }
   else {
     for (TreeNode *node : grease_pencil->nodes_for_write()) {
