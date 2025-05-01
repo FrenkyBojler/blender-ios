@@ -212,7 +212,7 @@ static bool brush_type_matches_active_tool(bContext *C, const int brush_type)
 {
   const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
 
-  if (!(active_tool->runtime->flag & TOOLREF_FLAG_USE_BRUSHES)) {
+  if (active_tool->runtime && !(active_tool->runtime->flag & TOOLREF_FLAG_USE_BRUSHES)) {
     return false;
   }
 
