@@ -141,18 +141,17 @@ class GreasePencilStrokePointHandle:
 
     @property
     def position(self):
-        """Return the handle position (local-space)."""
         attribute_name = f"handle_{self._handle.name.lower()}"
         return self._point._get_attribute(attribute_name, "FLOAT_VECTOR", (0.0, 0.0, 0.0))
 
     @position.setter
     def position(self, value):
+        # build “handle_left” or “handle_right” from the enum
         attribute_name = f"handle_{self._handle.name.lower()}"
         self._point._set_attribute(attribute_name, "FLOAT_VECTOR", value, (0.0, 0.0, 0.0))
 
     @property
     def type(self):
-        """Return the handle type (read-only)."""
         attribute_name = f"handle_type_{self._handle.name.lower()}"
         return self._point._get_attribute(attribute_name, "INT", 0)
 
@@ -235,7 +234,9 @@ class GreasePencilStrokePoint(AttributeGetterSetter):
 
     @property
     def handle_left(self):
-        """Return the left Bézier handle, or **None** if the stroke type isn't Bézier."""
+        """
+        Return the left Bézier handle proxy, or None if this point's stroke isn't Bézier.
+        """
         stroke_curve_type = self._drawing.strokes[self._curve_index].curve_type
         if stroke_curve_type == 2:  # 2 == Bézier (enum value in Blender)
             return GreasePencilStrokePointHandle(self, BezierHandle.LEFT)
@@ -243,7 +244,9 @@ class GreasePencilStrokePoint(AttributeGetterSetter):
 
     @property
     def handle_right(self):
-        """Return the right Bézier handle, or **None** if the stroke type isn't Bézier."""
+        """
+        Return the right Bézier handle proxy, or None if this point's stroke isn't Bézier.
+        """
         stroke_curve_type = self._drawing.strokes[self._curve_index].curve_type
         if stroke_curve_type == 2:
             return GreasePencilStrokePointHandle(self, BezierHandle.RIGHT)
