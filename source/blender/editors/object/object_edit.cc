@@ -2120,7 +2120,7 @@ void OBJECT_OT_mode_set(wmOperatorType *ot)
 
   /* identifiers */
   ot->name = "Set Object Mode";
-  ot->description = "Sets the object interaction mode";
+  ot->description = "Set object interaction mode";
   ot->idname = "OBJECT_OT_mode_set";
 
   /* api callbacks */
