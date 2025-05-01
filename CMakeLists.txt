@@ -302,7 +302,7 @@ Use pre-compiled headers to speed up compilation."
   endif()
 endif()
 
-option(WITH_OPTIMIZED_BUILD_TOOLS "
+option(WITH_OPTIMIZED_BUILD_TOOLS "\
 Enable optimizations even on Debug builds for executables used for the build process"
   ON
 )
