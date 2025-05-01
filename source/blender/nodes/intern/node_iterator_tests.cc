@@ -1,6 +1,7 @@
 /* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+#define DNA_DEPRECATED_ALLOW
 
 #include "testing/testing.h"
 
@@ -160,6 +161,10 @@ TEST_F(NodeTest, tree_iterator_1mat_1scene)
   EXPECT_EQ(GS(all_ids[1]->name), ID_MA);
   EXPECT_EQ(GS(all_ids[0]->name), ID_SCE);
   EXPECT_STREQ(all_ids[0]->name + 2, SCENE_NAME);
+
+  bke::node_tree_free_embedded_tree(scene->nodetree);
+  MEM_freeN(scene->nodetree);
+  scene->nodetree = nullptr;
 }
 
 TEST_F(NodeTest, tree_iterator_1mat_3scenes)
@@ -197,6 +202,10 @@ TEST_F(NodeTest, tree_iterator_1mat_3scenes)
 
   EXPECT_EQ(GS(all_ids[1]->name), ID_MA);
   EXPECT_STREQ(all_trees[1]->id.name + 2, MATERIAL_NTREE_NAME);
+
+  bke::node_tree_free_embedded_tree(scene2->nodetree);
+  MEM_freeN(scene2->nodetree);
+  scene2->nodetree = nullptr;
 }
 
 }  // namespace blender::nodes::tests

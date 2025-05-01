@@ -1861,6 +1861,9 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
     /* Full copy of GreasePencil. */
     BKE_id_copy_for_duplicate(bmain, (ID *)sce->gpd, duplicate_flags, copy_flags);
 
+    /* Full copy of the compositing node tree. */
+    BKE_id_copy_for_duplicate(bmain, (ID *)sce->compositing_nodetree, duplicate_flags, copy_flags);
+
     /* Deep-duplicate collections and objects (using preferences' settings for which sub-data to
      * duplicate along the object itself). */
     BKE_collection_duplicate(bmain,

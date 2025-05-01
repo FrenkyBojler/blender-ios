@@ -691,7 +691,7 @@ void do_versions_after_setup(Main *new_bmain,
   }
 
   // todo(habib): update subversion number before merging
-  if (!blendfile_or_libraries_versions_atleast(new_bmain, 405, 53)) {
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 405, 60)) {
     LISTBASE_FOREACH (Scene *, scene, &new_bmain->scenes) {
       bNodeTree *ntree = scene->nodetree;
       if (!ntree) {
@@ -699,12 +699,12 @@ void do_versions_after_setup(Main *new_bmain,
       }
       ntree->id.flag &= ~ID_FLAG_EMBEDDED_DATA;
       ntree->owner_id = nullptr;
+      ntree->id.tag |= ID_TAG_NO_MAIN;
 
       scene->compositing_nodetree = ntree;
-      BLI_addtail(&new_bmain->nodetrees, ntree);
-
       scene->nodetree = nullptr;
-      BKE_main_namemap_validate_and_fix(*new_bmain);
+
+      BKE_libblock_management_main_add(new_bmain, ntree);
 
       /* Note: The user count remains zero at this point. It will get automatically updated after
        * blend file reading is done.*/

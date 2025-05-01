@@ -4930,20 +4930,10 @@ bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetre
     return true;
   }
   if (ntreeiter->scene) {
-    ID *iter = &ntreeiter->scene->id;
-    Scene *scene_iter = (Scene *)iter;
-
-    while (scene_iter) {
-      if (scene_iter->nodetree) {
-        *r_nodetree = reinterpret_cast<bNodeTree *>(scene_iter->nodetree);
-        *r_id = &ntreeiter->scene->id;
-        scene_iter = (Scene *)scene_iter->id.next;
-        ntreeiter->scene = scene_iter;
-        return true;
-      }
-      scene_iter = (Scene *)scene_iter->id.next;
-      ntreeiter->scene = (Scene *)ntreeiter->scene->id.next;
-    }
+    *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->scene->nodetree);
+    *r_id = &ntreeiter->scene->id;
+    ntreeiter->scene = reinterpret_cast<Scene *>(ntreeiter->scene->id.next);
+    return true;
   }
   if (ntreeiter->mat) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->mat->nodetree);
@@ -4973,12 +4963,10 @@ bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetre
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->linestyle->nodetree);
     *r_id = &ntreeiter->linestyle->id;
     ntreeiter->linestyle = reinterpret_cast<FreestyleLineStyle *>(ntreeiter->linestyle->id.next);
-  }
-  else {
-    return false;
+    return true;
   }
 
-  return true;
+  return false;
 }
 
 void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, const int layer_index)
