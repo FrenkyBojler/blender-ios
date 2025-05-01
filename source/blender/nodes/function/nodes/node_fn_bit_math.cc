@@ -15,7 +15,7 @@
 
 namespace blender::nodes::node_fn_bit_math_cc {
 
-constexpr static int max_shift = sizeof(int) * 8 - 1;
+constexpr static int max_shift = sizeof(int) * CHAR_BIT - 1;
 constexpr static int min_shift = -max_shift;
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -63,9 +63,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const int weight = is_integer ? 0 : -1;
 
   /* Add socket A operations. */
-  for (const EnumPropertyItem *item = rna_enum_node_bit_math_items; item->identifier != nullptr;
-       item++)
-  {
+  for (const auto *item = rna_enum_node_bit_math_items; item->identifier != nullptr; item++) {
     if (item->name != nullptr && item->identifier[0] != '\0') {
       params.add_item(
           IFACE_(item->name), SocketSearchOp{"Value", NodeBitMathOperation(item->value)}, weight);
