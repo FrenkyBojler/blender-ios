@@ -4010,6 +4010,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   }
 
   bool mball_converted = false;
+  int incompatible_count = 0;
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
@@ -4058,6 +4059,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_pointcloud(*base, target_type, info, &new_base);
           break;
         default:
+          incompatible_count++;
           continue;
       }
     }
@@ -4132,6 +4134,29 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
         WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
         WM_event_add_notifier(C, NC_OBJECT | ND_DATA, object);
       }
+    }
+  }
+
+  if (incompatible_count != 0) {
+    const char *target_type_name = "";
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target");
+    BLI_assert(prop != nullptr);
+    RNA_property_enum_name(C, op->ptr, prop, target, &target_type_name);
+    if (incompatible_count == selected_editable_bases.size()) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s \"%s\"",
+                  RPT_("None of the objects are compatible of conversion to"),
+                  IFACE_(target_type_name));
+    }
+    else {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s %d %s \"%s\"",
+                  RPT_("The selection included"),
+                  incompatible_count,
+                  RPT_("object(s) types which don't support conversion to"),
+                  IFACE_(target_type_name));
     }
   }
 
@@ -4822,66 +4847,70 @@ void OBJECT_OT_join(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Join as Shape Key Operator
+/** \name Join Key Data Operators
  * \{ */
 
-static bool join_shapes_poll(bContext *C)
+static bool active_shape_key_editable_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
-
-  if (ob == nullptr || ob->data == nullptr || !ID_IS_EDITABLE(ob) || ID_IS_OVERRIDE_LIBRARY(ob) ||
-      ID_IS_OVERRIDE_LIBRARY(ob->data))
-  {
+  if (!ob) {
+    return false;
+  }
+  if (ob->type != OB_MESH) {
     return false;
   }
 
-  /* only meshes supported at the moment */
-  if (ob->type == OB_MESH) {
-    return ED_operator_screenactive(C);
+  if (ob->mode & OB_MODE_EDIT) {
+    CTX_wm_operator_poll_msg_set(C, "This operation is not supported in edit mode");
+    return false;
   }
-  return false;
+  if (BKE_object_obdata_is_libdata(ob)) {
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit external library data");
+    return false;
+  }
+  Main &bmain = *CTX_data_main(C);
+  if (!BKE_lib_override_library_id_is_user_deletable(&bmain, &ob->id)) {
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit object used by override collections");
+    return false;
+  }
+  return true;
 }
 
 static wmOperatorStatus join_shapes_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Object *ob = CTX_data_active_object(C);
-
-  if (ob->mode & OB_MODE_EDIT) {
-    BKE_report(op->reports, RPT_ERROR, "This data does not support joining in edit mode");
-    return OPERATOR_CANCELLED;
-  }
-  if (BKE_object_obdata_is_libdata(ob)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot edit external library data");
-    return OPERATOR_CANCELLED;
-  }
-  if (!BKE_lib_override_library_id_is_user_deletable(bmain, &ob->id)) {
-    BKE_reportf(op->reports,
-                RPT_WARNING,
-                "Cannot edit object '%s' as it is used by override collections",
-                ob->id.name + 2);
-    return OPERATOR_CANCELLED;
-  }
-
-  if (ob->type == OB_MESH) {
-    return ED_mesh_shapes_join_objects_exec(C, op->reports);
-  }
-
-  return OPERATOR_CANCELLED;
+  return ED_mesh_shapes_join_objects_exec(C, true, op->reports);
 }
 
 void OBJECT_OT_join_shapes(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Join as Shapes";
-  ot->description = "Copy the current resulting shape of another selected object to this one";
+  ot->description =
+      "Add the vertex positions of selected objects as shape keys or update existing shape keys "
+      "with matching names";
   ot->idname = "OBJECT_OT_join_shapes";
 
-  /* api callbacks */
   ot->exec = join_shapes_exec;
-  ot->poll = join_shapes_poll;
+  ot->poll = active_shape_key_editable_poll;
 
-  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
+{
+  return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
+}
+
+void OBJECT_OT_update_shapes(wmOperatorType *ot)
+{
+  ot->name = "Update from Objects";
+  ot->description =
+      "Update existing shape keys with the vertex positions of selected objects with matching "
+      "names";
+  ot->idname = "OBJECT_OT_update_shapes";
+
+  ot->exec = update_all_shape_keys_exec;
+  ot->poll = active_shape_key_editable_poll;
+
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 

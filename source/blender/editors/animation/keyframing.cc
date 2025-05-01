@@ -120,7 +120,7 @@ void ED_keyframes_add(FCurve *fcu, int num_keys_to_add)
 
   fcu->bezt = static_cast<BezTriple *>(
       MEM_recallocN(fcu->bezt, sizeof(BezTriple) * (fcu->totvert + num_keys_to_add)));
-  BezTriple *bezt = fcu->bezt + fcu->totvert; /* Pointer to the first new one. '*/
+  BezTriple *bezt = fcu->bezt + fcu->totvert; /* Pointer to the first new one. */
 
   fcu->totvert += num_keys_to_add;
 
@@ -511,7 +511,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
   }
 
   if (free) {
-    MEM_freeN((void *)item_array);
+    MEM_freeN(item_array);
   }
 
   UI_popup_menu_end(C, pup);

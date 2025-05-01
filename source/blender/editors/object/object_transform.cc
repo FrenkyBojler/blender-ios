@@ -80,6 +80,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
 #include "object_intern.hh"
 
 namespace blender::ed::object {
@@ -813,6 +816,8 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
+  bool has_non_invertable_matrix = false;
+
   for (Object *ob : objects) {
     /* calculate rotation/scale matrix */
     if (apply_scale && apply_rot) {
@@ -829,7 +834,16 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
 
       /* correct for scale, note mul_m3_m3m3 has swapped args! */
       BKE_object_scale_to_mat3(ob, tmat);
-      invert_m3_m3(timat, tmat);
+      if (!invert_m3_m3(timat, tmat)) {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "%s \"%s\" %s",
+                    RPT_("Object"),
+                    ob->id.name + 2,
+                    RPT_("have non-invertable transformation matrix, not applying transform."));
+        has_non_invertable_matrix = true;
+        continue;
+      }
       mul_m3_m3m3(rsmat, timat, rsmat);
       mul_m3_m3m3(rsmat, rsmat, tmat);
     }
@@ -1083,6 +1097,9 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
   if (!changed) {
     BKE_report(reports, RPT_WARNING, "Objects have no data to transform");
     return OPERATOR_CANCELLED;
+  }
+  if (has_non_invertable_matrix) {
+    BKE_report(reports, RPT_WARNING, "Failed to apply rotation to some of the objects");
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
@@ -2320,6 +2337,25 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
   }
 
   if (is_finished) {
+    Scene *scene = CTX_data_scene(C);
+    /* Perform auto-keying for rotational changes for all objects. */
+    for (XFormAxisItem &item : xfd->object_data) {
+      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
+      const char *rotation_property = "rotation_euler";
+      switch (item.ob->rotmode) {
+        case ROT_MODE_QUAT:
+          rotation_property = "rotation_quaternion";
+          break;
+        case ROT_MODE_AXISANGLE:
+          rotation_property = "rotation_axis_angle";
+          break;
+        default:
+          break;
+      }
+      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+    }
+
     object_transform_axis_target_free_data(op);
     return OPERATOR_FINISHED;
   }
