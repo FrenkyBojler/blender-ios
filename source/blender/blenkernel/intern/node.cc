@@ -723,6 +723,12 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       property = input->default_value_typed<bNodeSocketValueFloat>()->value;
     };
 
+    auto write_input_to_property_float_vector =
+        [&](const char *identifier, const int index, float &property) {
+          const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+          property = input->default_value_typed<bNodeSocketValueVector>()->value[index];
+        };
+
     auto write_input_to_property_float_color =
         [&](const char *identifier, const int index, float &property) {
           const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
@@ -950,6 +956,52 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       write_input_to_property_bool_int16_flag("Apply On Red", node->custom1, 1 << 0);
       write_input_to_property_bool_int16_flag("Apply On Green", node->custom1, 1 << 1);
       write_input_to_property_bool_int16_flag("Apply On Blue", node->custom1, 1 << 2);
+    }
+
+    if (node->type_legacy == CMP_NODE_LENSDIST) {
+      NodeLensDist *storage = static_cast<NodeLensDist *>(node->storage);
+      write_input_to_property_bool_short("Jitter", storage->jit);
+      write_input_to_property_bool_short("Fit", storage->fit);
+      storage->proj = storage->distortion_type == CMP_NODE_LENS_DISTORTION_HORIZONTAL;
+    }
+
+    if (node->type_legacy == CMP_NODE_MASK_BOX) {
+      NodeBoxMask *storage = static_cast<NodeBoxMask *>(node->storage);
+      write_input_to_property_float_vector("Position", 0, storage->x);
+      write_input_to_property_float_vector("Position", 1, storage->y);
+      write_input_to_property_float_vector("Size", 0, storage->width);
+      write_input_to_property_float_vector("Size", 1, storage->height);
+      write_input_to_property_float("Rotation", storage->rotation);
+    }
+
+    if (node->type_legacy == CMP_NODE_MASK_ELLIPSE) {
+      NodeEllipseMask *storage = static_cast<NodeEllipseMask *>(node->storage);
+      write_input_to_property_float_vector("Position", 0, storage->x);
+      write_input_to_property_float_vector("Position", 1, storage->y);
+      write_input_to_property_float_vector("Size", 0, storage->width);
+      write_input_to_property_float_vector("Size", 1, storage->height);
+      write_input_to_property_float("Rotation", storage->rotation);
+    }
+
+    if (node->type_legacy == CMP_NODE_SUNBEAMS) {
+      NodeSunBeams *storage = static_cast<NodeSunBeams *>(node->storage);
+      write_input_to_property_float_vector("Source", 0, storage->source[0]);
+      write_input_to_property_float_vector("Source", 1, storage->source[1]);
+      write_input_to_property_float("Length", storage->ray_length);
+    }
+
+    if (node->type_legacy == CMP_NODE_DBLUR) {
+      NodeDBlurData *storage = static_cast<NodeDBlurData *>(node->storage);
+      write_input_to_property_short("Samples", storage->iter);
+      write_input_to_property_float_vector("Center", 0, storage->center_x);
+      write_input_to_property_float_vector("Center", 1, storage->center_y);
+      write_input_to_property_float("Translation Amount", storage->distance);
+      write_input_to_property_float("Translation Direction", storage->angle);
+      write_input_to_property_float("Rotation", storage->spin);
+
+      /* Scale was previously minus 1. */
+      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Scale");
+      storage->zoom = input->default_value_typed<bNodeSocketValueFloat>()->value - 1.0f;
     }
   }
 }
@@ -4456,7 +4508,7 @@ std::string node_label(const bNodeTree &ntree, const bNode &node)
     return label_buffer;
   }
 
-  return node.typeinfo->ui_name;
+  return IFACE_(node.typeinfo->ui_name);
 }
 
 std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
