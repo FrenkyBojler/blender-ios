@@ -2,16 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <bit>
-#include <bitset>
-#include <numeric>
-
 #include "BLI_string.h"
 
 #include "RNA_enum_types.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
