@@ -127,7 +127,7 @@ class LazyFunctionForRepeatZone : public LazyFunction {
   {
     debug_name_ = "Repeat Zone";
 
-    initialize_zone_wrapper(zone, zone_info, body_fn, inputs_, outputs_);
+    initialize_zone_wrapper(zone, zone_info, body_fn, true, inputs_, outputs_);
     /* Iterations input is always used. */
     inputs_[zone_info.indices.inputs.main[0]].usage = lf::ValueUsage::Used;
   }
@@ -200,6 +200,12 @@ class LazyFunctionForRepeatZone : public LazyFunction {
     /* Number of iterations to evaluate. */
     const int iterations = std::max<int>(
         0, params.get_input<SocketValueVariant>(zone_info_.indices.inputs.main[0]).get<int>());
+
+    if (iterations >= 10) {
+      /* Constructing and running the repeat zone has some overhead so that it's probably worth
+       * trying to do something else in the meantime already. */
+      lazy_threading::send_hint();
+    }
 
     /* Show a warning when the inspection index is out of range. */
     if (node_storage.inspection_index > 0) {
@@ -390,8 +396,7 @@ class LazyFunctionForRepeatZone : public LazyFunction {
         eval_storage.allocator);
 
     /* Log graph for debugging purposes. */
-    bNodeTree &btree_orig = *reinterpret_cast<bNodeTree *>(
-        DEG_get_original_id(const_cast<ID *>(&btree_.id)));
+    const bNodeTree &btree_orig = *DEG_get_original(&btree_);
     if (btree_orig.runtime->logged_zone_graphs) {
       std::lock_guard lock{btree_orig.runtime->logged_zone_graphs->mutex};
       btree_orig.runtime->logged_zone_graphs->graph_by_zone_id.lookup_or_add_cb(

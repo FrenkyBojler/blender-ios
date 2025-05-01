@@ -26,10 +26,6 @@ struct Scene;
 struct StampData;
 struct ViewLayer;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is what is exposed of render to outside world */
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
@@ -132,6 +128,14 @@ struct RenderResult {
   /* for render results in Image, verify validity for sequences */
   int framenr;
 
+  /**
+   * Pixels per meter (for image output).
+   * - Typically initialized via #BKE_scene_ppm_get.
+   * - May be zero which indicates the PPM being "unset".
+   *   Although in most cases a scene is available.
+   */
+  double ppm[2];
+
   /* for acquire image, to indicate if it there is a combined layer */
   bool have_combined;
 
@@ -193,6 +197,11 @@ void RE_FreeViewRender(struct ViewRender *view_render);
  * Only called on exit.
  */
 void RE_FreeAllRender(void);
+
+/**
+ * On file load, free all interactive compositor renders.
+ */
+void RE_FreeInteractiveCompositorRenders(void);
 
 /**
  * On file load, free render results.
@@ -515,7 +524,3 @@ struct ImBuf *RE_RenderViewEnsureImBuf(const RenderResult *render_result, Render
 
 /* Returns true if the pass is a color (as opposite of data) and needs to be color managed. */
 bool RE_RenderPassIsColor(const RenderPass *render_pass);
-
-#ifdef __cplusplus
-}
-#endif

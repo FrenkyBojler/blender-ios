@@ -10,6 +10,7 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
 #include "WM_types.hh"
@@ -335,7 +336,6 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen);
  */
 void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable);
 void ED_screen_animation_timer_update(bScreen *screen, int redraws);
-void ED_screen_animation_timer_reset(bScreen *screen, wmWindowManager *wm);
 void ED_screen_restore_temp_type(bContext *C, ScrArea *area);
 ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type);
 /**
@@ -509,7 +509,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph);
  * Toggle operator.
  */
 void ED_reset_audio_device(bContext *C);
-int ED_screen_animation_play(bContext *C, int sync, int mode);
+wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 /**
  * Find window that owns the animation timer.
  */
@@ -584,6 +584,8 @@ bool ED_operator_nla_active(bContext *C);
 bool ED_operator_info_active(bContext *C);
 bool ED_operator_console_active(bContext *C);
 
+/** Only check there is an active object (no visibility check). */
+bool ED_operator_object_active_only(bContext *C);
 bool ED_operator_object_active(bContext *C);
 bool ED_operator_object_active_editable_ex(bContext *C, const Object *ob);
 bool ED_operator_object_active_editable(bContext *C);

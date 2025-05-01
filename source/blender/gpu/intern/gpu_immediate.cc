@@ -123,7 +123,7 @@ static void wide_line_workaround_start(GPUPrimType prim_type)
 
   float line_width = GPU_line_width_get();
 
-  if (line_width == 1.0f) {
+  if (line_width == 1.0f && !GPU_line_smooth_get()) {
     /* No need to change the shader. */
     return;
   }
@@ -284,7 +284,7 @@ void Immediate::polyline_draw_workaround(uint64_t offset)
   /* Check compatible input primitive. */
   BLI_assert(ELEM(imm->prim_type, GPU_PRIM_LINES, GPU_PRIM_LINE_STRIP, GPU_PRIM_LINE_LOOP));
 
-  Batch *tri_batch = Context::get()->polyline_batch_get();
+  Batch *tri_batch = Context::get()->procedural_triangles_batch_get();
   GPU_batch_set_shader(tri_batch, imm->shader);
 
   BLI_assert(offset % 4 == 0);

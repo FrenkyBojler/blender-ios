@@ -18,10 +18,14 @@ namespace blender::nodes::node_geo_transform_geometry_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   auto enable_components = [](bNode &node) { node.custom1 = GEO_NODE_TRANSFORM_MODE_COMPONENTS; };
   auto enable_matrix = [](bNode &node) { node.custom1 = GEO_NODE_TRANSFORM_MODE_MATRIX; };
 
   b.add_input<decl::Geometry>("Geometry");
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   auto &translation = b.add_input<decl::Vector>("Translation")
                           .subtype(PROP_TRANSLATION)
                           .make_available(enable_components);
@@ -30,7 +34,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       b.add_input<decl::Vector>("Scale").default_value({1, 1, 1}).subtype(PROP_XYZ).make_available(
           enable_components);
   auto &transform = b.add_input<decl::Matrix>("Transform").make_available(enable_matrix);
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
 
   const bNode *node = b.node_or_null();
   if (node != nullptr) {
@@ -135,7 +138,7 @@ static void register_node()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -8,9 +8,9 @@
 # For anyone making their own library build, matching these exactly is not
 # needed but it can be a useful reference.
 
-set(RELEASE_GCC_VERSION 11.2.*)
-set(RELEASE_CUDA_VERSION 12.8.*)
-set(RELEASE_HIP_VERSION 5.7.*)
+set(RELEASE_GCC_VERSION 11.2)
+set(RELEASE_CUDA_VERSION 12.8)
+set(RELEASE_HIP_VERSION 6.3)
 
 # Libraries
 #
@@ -274,19 +274,6 @@ set(LLVM_HOMEPAGE https://github.com/llvm/llvm-project/)
 set(LLVM_LICENSE SPDX:Apache-2.0 WITH LLVM-exception)
 set(LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana-Champaign. All rights reserved.")
 
-if(APPLE)
-  # Cloth physics test is crashing due to this bug:
-  # https://bugs.llvm.org/show_bug.cgi?id=50579
-  set(OPENMP_VERSION 9.0.1)
-  set(OPENMP_HASH 6eade16057edbdecb3c4eef9daa2bfcf)
-else()
-  set(OPENMP_VERSION ${LLVM_VERSION})
-  set(OPENMP_HASH 5cc01d151821c546bb4ec6fb03d86c29)
-endif()
-set(OPENMP_URI https://github.com/llvm/llvm-project/releases/download/llvmorg-${OPENMP_VERSION}/openmp-${OPENMP_VERSION}.src.tar.xz)
-set(OPENMP_HASH_TYPE MD5)
-set(OPENMP_FILE openmp-${OPENMP_VERSION}.src.tar.xz)
-
 set(OPENIMAGEIO_VERSION v3.0.3.1)
 set(OPENIMAGEIO_NAME OpenImageIO)
 set(OPENIMAGEIO_URI https://github.com/AcademySoftwareFoundation/OpenImageIO/archive/refs/tags/${OPENIMAGEIO_VERSION}.tar.gz)
@@ -345,6 +332,17 @@ set(OSL_FILE OpenShadingLanguage-${OSL_VERSION}.tar.gz)
 set(OSL_HOMEPAGE https://github.com/AcademySoftwareFoundation/OpenShadingLanguage/)
 set(OSL_LICENSE SPDX:BSD-3-Clause)
 set(OSL_COPYRIGHT "Copyright Contributors to the Open Shading Language project.")
+
+set(MANIFOLD_VERSION 3.0.1)
+set(MANIFOLD_COMMIT "4edd442297e25bb1dc293559efc548bb0a89b053")
+set(MANIFOLD_NAME "Manifold")
+set(MANIFOLD_URI https://github.com/elalish/manifold/archive/${MANIFOLD_COMMIT}.tar.gz)
+set(MANIFOLD_HASH 4c2187839f30844be5dbfc394166e613)
+set(MANIFOLD_HASH_TYPE MD5)
+set(MANIFOLD_FILE Manifold-${MANIFOLD_VERSION}-${MANIFOLD_COMMIT}.tar.gz)
+set(MANIFOLD_HOMEPAGE https://github.com/elalish/manifold)
+set(MANIFOLD_LICENSE SPDX:Apache-2.0)
+set(MANIFOLD_COPYRIGHT "Copyright 2021 The Manifold Authors.")
 
 # NOTE: When updating the python version, it's required to check the versions of
 # it wants to use in PCbuild/get_externals.bat for the following dependencies:
@@ -435,6 +433,8 @@ set(PYCODESTYLE_VERSION 2.12.1)
 # Build system for other packages (not used by Blender at run-time).
 set(MESON_VERSION 0.63.0)
 
+# When this numpy version is bumped, please also change the limit value set for variable `install_requires`
+# in build_files/utils/make_bpy_wheel.py
 set(NUMPY_VERSION 1.26.4)
 set(NUMPY_SHORT_VERSION 1.26)
 set(NUMPY_URI https://github.com/numpy/numpy/releases/download/v${NUMPY_VERSION}/numpy-${NUMPY_VERSION}.tar.gz)
@@ -1150,7 +1150,7 @@ set(IGC_VERSION 2.1.14)
 set(IGC_URI https://github.com/intel/intel-graphics-compiler/archive/refs/tags/v${IGC_VERSION}.tar.gz)
 set(IGC_HASH ebc39f8238dec2983c227d9db204db333b439ba5cd100e0a819a0208ac8066ca)
 set(IGC_HASH_TYPE SHA256)
-set(IGC_FILE ${IGC_VERSION}.tar.gz)
+set(IGC_FILE intel-graphics-compiler-${IGC_VERSION}.tar.gz)
 set(IGC_NAME IGC)
 set(IGC_HOMEPAGE https://github.com/intel/intel-graphics-compiler)
 set(IGC_LICENSE SPDX:MIT)
@@ -1371,10 +1371,10 @@ set(PYBIND11_HOMEPAGE https://github.com/pybind/pybind11)
 set(PYBIND11_LICENSE SPDX:BSD-2-Clause)
 set(PYBIND11_COPYRIGHT "Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, All rights reserved.")
 
-set(HIPRT_VERSION 83e18cc9c3de8f2f9c48b663cf3189361e891054)
-set(HIPRT_LIBRARY_VERSION 02003)
+set(HIPRT_VERSION c4298933fe046e3f915977b5a69537a59aac8f47)
+set(HIPRT_LIBRARY_VERSION 02005)
 set(HIPRT_URI https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT/archive/${HIPRT_VERSION}.tar.gz)
-set(HIPRT_HASH b5639fa06bea45eff98bea2929516f7c)
+set(HIPRT_HASH 65b8a975d23db04d908c758f3fb7bae3)
 set(HIPRT_HASH_TYPE MD5)
 set(HIPRT_FILE hiprt-${HIPRT_VERSION}.tar.gz)
 set(HIPRT_HOMEPAGE https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT)

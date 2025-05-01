@@ -130,6 +130,7 @@ static const EnumPropertyItem blend_type_items[] = {
 #  include "BKE_main.hh"
 #  include "BKE_main_invariants.hh"
 #  include "BKE_node_legacy_types.hh"
+#  include "BKE_node_runtime.hh"
 #  include "BKE_node_tree_update.hh"
 #  include "BKE_texture.h"
 
@@ -198,7 +199,7 @@ static void rna_Texture_mapping_update(Main *bmain, Scene *scene, PointerRNA *pt
   if (GS(id->name) == ID_NT) {
     bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
     /* Try to find and tag the node that this #TexMapping belongs to. */
-    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    for (bNode *node : ntree->all_nodes()) {
       /* This assumes that the #TexMapping is stored at the beginning of the node storage. This is
        * generally true, see #NodeTexBase. If the assumption happens to be false, there might be a
        * missing update. */
@@ -612,11 +613,6 @@ static void rna_def_mtex(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem output_node_items[] = {
-      {0, "DUMMY", 0, "Dummy", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   srna = RNA_def_struct(brna, "TextureSlot", nullptr);
   RNA_def_struct_sdna(srna, "MTex");
   RNA_def_struct_ui_text(
@@ -686,7 +682,7 @@ static void rna_def_mtex(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "output_node", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "which_output");
-  RNA_def_property_enum_items(prop, output_node_items);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_enum_funcs(
       prop, "rna_TextureSlot_output_node_get", nullptr, "rna_TextureSlot_output_node_itemf");

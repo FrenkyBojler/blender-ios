@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -37,7 +38,7 @@ static SpaceLink *script_create(const ScrArea * /*area*/, const Scene * /*scene*
   ARegion *region;
   SpaceScript *sscript;
 
-  sscript = static_cast<SpaceScript *>(MEM_callocN(sizeof(SpaceScript), "initscript"));
+  sscript = MEM_callocN<SpaceScript>("initscript");
   sscript->spacetype = SPACE_SCRIPT;
 
   /* header */
@@ -187,7 +188,7 @@ void ED_spacetype_script()
   st->blend_write = script_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype script region"));
+  art = MEM_callocN<ARegionType>("spacetype script region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = script_main_region_init;
   art->draw = script_main_region_draw;
@@ -198,7 +199,7 @@ void ED_spacetype_script()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype script region"));
+  art = MEM_callocN<ARegionType>("spacetype script region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;

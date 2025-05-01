@@ -22,7 +22,7 @@ class DummyContext : public Context {
   }
   ~DummyContext() override
   {
-    free_framebuffers();
+    free_resources();
   }
   void activate() override {}
   void deactivate() override {}
@@ -31,6 +31,11 @@ class DummyContext : public Context {
 
   void flush() override {}
   void finish() override {}
+
+  ShaderCompiler *get_compiler() override
+  {
+    return nullptr;
+  }
 
   void memory_statistics_get(int * /*r_total_mem*/, int * /*r_free_mem*/) override {}
 

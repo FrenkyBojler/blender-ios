@@ -270,14 +270,12 @@
 
     switch (m_draggedObjectType) {
       case GHOST_kDragnDropTypeBitmap: {
-        if ([NSImage canInitWithPasteboard:draggingPBoard]) {
-          NSImage *droppedImg = [[[NSImage alloc] initWithPasteboard:draggingPBoard] autorelease];
-          data = droppedImg;  // [draggingPBoard dataForType:NSPasteboardTypeTIFF];
-        }
-        else {
+        if (![NSImage canInitWithPasteboard:draggingPBoard]) {
           return NO;
         }
-
+        /* Caller must [release] the returned data in this case. */
+        NSImage *droppedImg = [[NSImage alloc] initWithPasteboard:draggingPBoard];
+        data = droppedImg;
         break;
       }
       case GHOST_kDragnDropTypeFilenames:
@@ -1005,6 +1003,12 @@ static NSCursor *getImageCursor(GHOST_TStandardCursor shape, NSString *name, NSP
   return cursors[index];
 }
 
+/* busyButClickableCursor is an undocumented NSCursor API, but
+ * has been in use since at least OS X 10.4 and through 10.9. */
+@interface NSCursor (Undocumented)
++ (NSCursor *)busyButClickableCursor;
+@end
+
 NSCursor *GHOST_WindowCocoa::getStandardCursor(GHOST_TStandardCursor shape) const
 {
   @autoreleasepool {
@@ -1048,6 +1052,11 @@ NSCursor *GHOST_WindowCocoa::getStandardCursor(GHOST_TStandardCursor shape) cons
         return [NSCursor pointingHandCursor];
       case GHOST_kStandardCursorDefault:
         return [NSCursor arrowCursor];
+      case GHOST_kStandardCursorWait:
+        if ([NSCursor respondsToSelector:@selector(busyButClickableCursor)]) {
+          return [NSCursor busyButClickableCursor];
+        }
+        return nullptr;
       case GHOST_kStandardCursorKnife:
         return getImageCursor(shape, @"knife.pdf", NSMakePoint(6, 24));
       case GHOST_kStandardCursorEraser:

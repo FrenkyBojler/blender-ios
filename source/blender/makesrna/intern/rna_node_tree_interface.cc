@@ -265,8 +265,7 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
                                                        StructCallbackFunc call,
                                                        StructFreeFunc free)
 {
-  bNodeTreeInterfaceSocket dummy_socket;
-  memset(&dummy_socket, 0, sizeof(bNodeTreeInterfaceSocket));
+  bNodeTreeInterfaceSocket dummy_socket = {};
   /* Set #item_type so that refining the type ends up with RNA_NodeTreeInterfaceSocket. */
   dummy_socket.item.item_type = NODE_INTERFACE_SOCKET;
 
@@ -290,7 +289,7 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
     st = MEM_new<blender::bke::bNodeSocketType>(__func__);
     st->idname = dummy_socket.socket_type;
 
-    blender::bke::node_register_socket_type(st);
+    blender::bke::node_register_socket_type(*st);
   }
 
   st->free_self = [](blender::bke::bNodeSocketType *type) { MEM_delete(type); };
@@ -368,6 +367,12 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
   /* Only use basic socket types for this enum. */
   if (socket_type->subtype != PROP_NONE) {
     return false;
+  }
+
+  if (!U.experimental.use_bundle_and_closure_nodes) {
+    if (ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE)) {
+      return false;
+    }
   }
 
   return true;
@@ -1032,6 +1037,14 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Is Inspect Output",
                            "Take link out of node group to connect to root tree output node");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  prop = RNA_def_property(srna, "is_panel_toggle", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+                           "Is Panel Toggle",
+                           "This socket is meant to be used as the toggle in its panel header");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "layer_selection_field", PROP_BOOLEAN, PROP_NONE);

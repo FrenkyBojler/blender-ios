@@ -25,6 +25,8 @@
 
 #  include "kernel/device/hip/globals.h"
 
+#  include "session/display_driver.h"
+
 CCL_NAMESPACE_BEGIN
 
 class HIPDevice;
@@ -261,6 +263,11 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
 
   const char *const kernel_ext = "genco";
   std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math";
+  if (hipNeedPreciseMath(arch)) {
+    options.append(
+        " -fhip-fp32-correctly-rounded-divide-sqrt -fno-gpu-approx-transcendentals "
+        "-fgpu-flush-denormals-to-zero -ffp-contract=off");
+  }
 
 #  ifndef NDEBUG
   options.append(" -save-temps");
@@ -498,7 +505,7 @@ void HIPDevice::free_device(void *device_pointer)
   hip_assert(hipFree((hipDeviceptr_t)device_pointer));
 }
 
-bool HIPDevice::alloc_host(void *&shared_pointer, const size_t size)
+bool HIPDevice::shared_alloc(void *&shared_pointer, const size_t size)
 {
   HIPContextScope scope(this);
 
@@ -508,14 +515,14 @@ bool HIPDevice::alloc_host(void *&shared_pointer, const size_t size)
   return mem_alloc_result == hipSuccess;
 }
 
-void HIPDevice::free_host(void *shared_pointer)
+void HIPDevice::shared_free(void *shared_pointer)
 {
   HIPContextScope scope(this);
 
   hipHostFree(shared_pointer);
 }
 
-void *HIPDevice::transform_host_to_device_pointer(const void *shared_pointer)
+void *HIPDevice::shared_to_device_pointer(const void *shared_pointer)
 {
   HIPContextScope scope(this);
   void *device_pointer = nullptr;
@@ -608,7 +615,7 @@ void HIPDevice::mem_zero(device_memory &mem)
     return;
   }
 
-  if (!(mem.is_host_mapped(this) && mem.host_pointer == mem.shared_pointer)) {
+  if (!(mem.is_shared(this) && mem.host_pointer == mem.shared_pointer)) {
     const HIPContextScope scope(this);
     hip_assert(hipMemsetD8((hipDeviceptr_t)mem.device_pointer, 0, mem.memory_size()));
   }
@@ -1009,41 +1016,64 @@ unique_ptr<DeviceQueue> HIPDevice::gpu_queue_create()
   return make_unique<HIPDeviceQueue>(this);
 }
 
-bool HIPDevice::should_use_graphics_interop()
+bool HIPDevice::should_use_graphics_interop(const GraphicsInteropDevice &interop_device,
+                                            const bool log)
 {
-  /* Check whether this device is part of OpenGL context.
-   *
-   * Using HIP device for graphics interoperability which is not part of the OpenGL context is
-   * possible, but from the empiric measurements it can be considerably slower than using naive
-   * pixels copy. */
-
   if (headless) {
     /* Avoid any call which might involve interaction with a graphics backend when we know that
      * we don't have active graphics context. This avoids potential crash in the driver. */
     return false;
   }
 
-  /* Disable graphics interop for now, because of driver bug in 21.40. See #92972 */
-#  if 0
   HIPContextScope scope(this);
 
-  int num_all_devices = 0;
-  hip_assert(hipGetDeviceCount(&num_all_devices));
+  switch (interop_device.type) {
+    case GraphicsInteropDevice::OPENGL: {
+      /* Disable graphics interop for now, because of driver bug in 21.40. See #92972.
+       * Also missing Vulkan support which is needed now. */
+      return false;
 
-  if (num_all_devices == 0) {
-    return false;
-  }
+      /* Check whether this device is part of OpenGL context.
+       *
+       * Using HIP device for graphics interoperability which is not part of the OpenGL context is
+       * possible, but from the empiric measurements with CUDA it can be considerably slower than
+       * using naive pixels copy. */
+      int num_all_devices = 0;
+      hip_assert(hipGetDeviceCount(&num_all_devices));
 
-  vector<hipDevice_t> gl_devices(num_all_devices);
-  uint num_gl_devices = 0;
-  hipGLGetDevices(&num_gl_devices, gl_devices.data(), num_all_devices, hipGLDeviceListAll);
+      if (num_all_devices == 0) {
+        return false;
+      }
 
-  for (hipDevice_t gl_device : gl_devices) {
-    if (gl_device == hipDevice) {
-      return true;
+      vector<hipDevice_t> gl_devices(num_all_devices);
+      uint num_gl_devices = 0;
+      hipGLGetDevices(&num_gl_devices, gl_devices.data(), num_all_devices, hipGLDeviceListAll);
+
+      bool found = false;
+      for (hipDevice_t gl_device : gl_devices) {
+        if (gl_device == hipDevice) {
+          found = true;
+          break;
+        }
+      }
+
+      if (log) {
+        if (found) {
+          VLOG_INFO << "Graphics interop: found matching OpenGL device for HIP";
+        }
+        else {
+          VLOG_INFO << "Graphics interop: no matching OpenGL device for HIP";
+        }
+      }
+
+      return found;
     }
+    case GraphicsInteropDevice::VULKAN:
+    case GraphicsInteropDevice::METAL:
+    case GraphicsInteropDevice::NONE:
+      /* TODO: Implement Vulkan support. */
+      return false;
   }
-#  endif
 
   return false;
 }

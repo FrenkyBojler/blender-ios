@@ -17,6 +17,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -234,7 +235,7 @@ static void clip_init(wmWindowManager * /*wm*/, ScrArea *area)
 
 static SpaceLink *clip_duplicate(SpaceLink *sl)
 {
-  SpaceClip *scn = MEM_cnew("clip_duplicate", *reinterpret_cast<SpaceClip *>(sl));
+  SpaceClip *scn = MEM_dupallocN("clip_duplicate", *reinterpret_cast<SpaceClip *>(sl));
 
   /* clear or remove stuff from old */
   scn->scopes.track_search = nullptr;
@@ -845,13 +846,14 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   SpaceClip *sc = CTX_wm_space_clip(C);
   Scene *scene = CTX_data_scene(C);
   short cfra_flag = 0;
+  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
   if (sc->flag & SC_LOCK_TIMECURSOR) {
     ED_clip_graph_center_current_frame(scene, region);
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
@@ -871,10 +873,10 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
 
   /* current frame indicator */
-  ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS);
+  ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS, !minimized);
 
   /* scrollers */
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
     UI_view2d_scrollers_draw(v2d, &scroller_mask);
@@ -899,18 +901,22 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
   short cfra_flag = 0;
+  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
   if (clip) {
     BKE_tracking_dopesheet_update(&clip->tracking);
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
   /* time grid */
-  UI_view2d_draw_lines_x__discrete_frames_or_seconds(v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
+  if (!minimized) {
+    UI_view2d_draw_lines_x__discrete_frames_or_seconds(
+        v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
+  }
 
   /* data... */
   clip_draw_dopesheet_main(sc, region, scene);
@@ -928,10 +934,10 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
 
   /* current frame indicator */
-  ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS);
+  ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS, !minimized);
 
   /* scrollers */
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
     UI_view2d_scrollers_draw(v2d, nullptr);
   }
@@ -1240,7 +1246,7 @@ void ED_spacetype_clip()
   st->blend_write = clip_space_blend_write;
 
   /* regions: main window */
-  art = MEM_cnew<ARegionType>("spacetype clip region");
+  art = MEM_callocN<ARegionType>("spacetype clip region");
   art->regionid = RGN_TYPE_WINDOW;
   art->poll = clip_main_region_poll;
   art->init = clip_main_region_init;
@@ -1251,7 +1257,7 @@ void ED_spacetype_clip()
   BLI_addhead(&st->regiontypes, art);
 
   /* preview */
-  art = MEM_cnew<ARegionType>("spacetype clip region preview");
+  art = MEM_callocN<ARegionType>("spacetype clip region preview");
   art->regionid = RGN_TYPE_PREVIEW;
   art->prefsizey = 240;
   art->poll = clip_preview_region_poll;
@@ -1263,7 +1269,7 @@ void ED_spacetype_clip()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: properties */
-  art = MEM_cnew<ARegionType>("spacetype clip region properties");
+  art = MEM_callocN<ARegionType>("spacetype clip region properties");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
@@ -1275,7 +1281,7 @@ void ED_spacetype_clip()
   ED_clip_buttons_register(art);
 
   /* regions: tools */
-  art = MEM_cnew<ARegionType>("spacetype clip region tools");
+  art = MEM_callocN<ARegionType>("spacetype clip region tools");
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
@@ -1287,7 +1293,7 @@ void ED_spacetype_clip()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_cnew<ARegionType>("spacetype clip region");
+  art = MEM_callocN<ARegionType>("spacetype clip region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
@@ -1299,7 +1305,7 @@ void ED_spacetype_clip()
   BLI_addhead(&st->regiontypes, art);
 
   /* channels */
-  art = MEM_cnew<ARegionType>("spacetype clip channels region");
+  art = MEM_callocN<ARegionType>("spacetype clip channels region");
   art->regionid = RGN_TYPE_CHANNELS;
   art->prefsizex = UI_COMPACT_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;

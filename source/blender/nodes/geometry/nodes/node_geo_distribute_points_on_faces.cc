@@ -582,7 +582,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const GeometryNodeDistributePointsOnFacesMode method = GeometryNodeDistributePointsOnFacesMode(
       params.node().custom1);
 
-  const int seed = params.get_input<int>("Seed") * 5383843;
+  const int seed = params.extract_input<int>("Seed") * 5383843;
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
 
   AttributeOutputs attribute_outputs;
@@ -613,12 +613,12 @@ static void node_register()
   ntype.ui_description = "Generate points spread out on the surface of a mesh";
   ntype.enum_name_legacy = "DISTRIBUTE_POINTS_ON_FACES";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_size(&ntype, 170, 100, 320);
+  blender::bke::node_type_size(ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

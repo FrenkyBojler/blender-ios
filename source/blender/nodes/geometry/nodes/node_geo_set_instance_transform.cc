@@ -8,12 +8,14 @@ namespace blender::nodes::node_geo_set_instance_transform_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Instances").only_instances();
+  b.add_output<decl::Geometry>("Instances").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Matrix>("Transform")
       .field_on_all()
       .implicit_field(implicit_field_inputs::instance_transform);
-  b.add_output<decl::Geometry>("Instances").propagate_all();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -42,8 +44,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  bke::node_type_size(&ntype, 160, 100, 700);
-  node_register_type(&ntype);
+  bke::node_type_size(ntype, 160, 100, 700);
+  node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

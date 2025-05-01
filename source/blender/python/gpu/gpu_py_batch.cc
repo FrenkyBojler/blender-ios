@@ -185,7 +185,7 @@ static PyObject *pygpu_batch_program_set(BPyGPUBatch *self, BPyGPUShader *py_sha
 {
   static bool deprecation_warning_issued = false;
 
-  /* Deprecation warning raised when calling `gpu.types.GPUBatch.program_set`.  */
+  /* Deprecation warning raised when calling `gpu.types.GPUBatch.program_set`. */
   if (!deprecation_warning_issued) {
     PyErr_WarnEx(PyExc_DeprecationWarning,
                  "Calls to GPUBatch.program_set are deprecated."
@@ -435,9 +435,14 @@ static PyObject *pygpu_batch_program_use_end(BPyGPUBatch *self)
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_batch__tp_methods[] = {
@@ -457,8 +462,12 @@ static PyMethodDef pygpu_batch__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 #ifdef USE_GPU_PY_REFERENCES

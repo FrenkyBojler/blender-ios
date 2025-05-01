@@ -9,6 +9,8 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 
+#include "DNA_userdef_types.h"
+
 #include "WM_api.hh"
 
 #include "RNA_access.hh"
@@ -39,7 +41,7 @@ static const EnumPropertyItem prop_view_orbit_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int vieworbit_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vieworbit_exec(bContext *C, wmOperator *op)
 {
   float angle;
   {

@@ -76,7 +76,7 @@ void ED_clip_buttons_register(ARegionType *art)
 {
   PanelType *pt;
 
-  pt = MEM_cnew<PanelType>("spacetype clip panel metadata");
+  pt = MEM_callocN<PanelType>("spacetype clip panel metadata");
   STRNCPY(pt->idname, "CLIP_PT_metadata");
   STRNCPY(pt->label, N_("Metadata"));
   STRNCPY(pt->category, "Footage");
@@ -126,18 +126,18 @@ void uiTemplateMovieClip(uiLayout *layout,
   }
 
   if (clip) {
-    uiLayout *row = uiLayoutRow(layout, false);
+    uiLayout *row = &layout->row(false);
     uiBlock *block = uiLayoutGetBlock(row);
     uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("File Path:"), 0, 19, 145, 19, nullptr, 0, 0, "");
 
-    row = uiLayoutRow(layout, false);
+    row = &layout->row(false);
     uiLayout *split = uiLayoutSplit(row, 0.0f, false);
-    row = uiLayoutRow(split, true);
+    row = &split->row(true);
 
     uiItemR(row, &clipptr, "filepath", UI_ITEM_NONE, "", ICON_NONE);
     uiItemO(row, "", ICON_FILE_REFRESH, "clip.reload");
 
-    uiLayout *col = uiLayoutColumn(layout, false);
+    uiLayout *col = &layout->column(false);
     uiTemplateColorspaceSettings(col, &clipptr, "colorspace_settings");
   }
 }
@@ -177,7 +177,7 @@ void uiTemplateTrack(uiLayout *layout, PointerRNA *ptr, const StringRefNull prop
     scopes->track_preview_height = UI_UNIT_Y * 20;
   }
 
-  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *col = &layout->column(true);
   uiBlock *block = uiLayoutGetBlock(col);
 
   uiDefBut(block,
@@ -409,7 +409,7 @@ void uiTemplateMarker(uiLayout *layout,
   int clip_framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, user->framenr);
   MovieTrackingMarker *marker = BKE_tracking_marker_get(track, clip_framenr);
 
-  MarkerUpdateCb *cb = MEM_cnew<MarkerUpdateCb>("uiTemplateMarker update_cb");
+  MarkerUpdateCb *cb = MEM_callocN<MarkerUpdateCb>("uiTemplateMarker update_cb");
   cb->compact = compact;
   cb->clip = clip;
   cb->user = user;
@@ -419,9 +419,9 @@ void uiTemplateMarker(uiLayout *layout,
   cb->framenr = user->framenr;
 
   if (compact) {
-    const char *tip;
     uiBlock *block = uiLayoutGetBlock(layout);
 
+    blender::StringRef tip;
     if (cb->marker_flag & MARKER_DISABLED) {
       tip = TIP_("Marker is disabled at current frame");
     }
@@ -492,7 +492,7 @@ void uiTemplateMarker(uiLayout *layout,
     UI_block_func_handle_set(block, marker_block_handler, cb);
     UI_block_funcN_set(block, marker_update_cb, cb, nullptr);
 
-    const char *tip;
+    blender::StringRef tip;
     int step = 100;
     int digits = 2;
 
@@ -517,7 +517,7 @@ void uiTemplateMarker(uiLayout *layout,
                  0,
                  tip);
 
-    uiLayout *col = uiLayoutColumn(layout, true);
+    uiLayout *col = &layout->column(true);
     uiLayoutSetActive(col, (cb->marker_flag & MARKER_DISABLED) == 0);
 
     block = uiLayoutAbsoluteBlock(col);
@@ -751,7 +751,7 @@ void uiTemplateMovieclipInformation(uiLayout *layout,
   MovieClip *clip = static_cast<MovieClip *>(clipptr.data);
   MovieClipUser *user = static_cast<MovieClipUser *>(userptr->data);
 
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_RIGHT);
 
   /* NOTE: Put the frame to cache. If the panel is drawn, the display will also be shown, as well

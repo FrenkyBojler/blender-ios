@@ -29,30 +29,29 @@ BLOCKLIST_USD = [
 # retested with newer OpenUSD versions as there are improvements.
 BLOCKLIST_METAL = [
     # Thinfilm
-    "metallic.*physical.blend",
-    "metallic.*f82.blend",
     "principled.*thinfilm.*.blend",
     # Transparency
-    "ray_portal.blend",
     "transparent.blend",
     "transparent_shadow.blend",
+    "transparent_shadow_hair.blend",
+    "transparent_shadow_hair_blur.blend",
     "shadow_all_max_bounces.blend",
     "underwater_caustics.blend",
     "shadow_link_transparency.blend",
     "principled_bsdf_transmission.blend",
+    "light_path_is_shadow_ray.blend",
+    "light_path_is_transmission_ray.blend",
+    "light_path_ray_depth.blend",
+    "light_path_ray_length.blend",
+    "transparent_spatial_splits.blend",
     # Volume
     "light_link_surface_in_volume.blend",
     "openvdb.*.blend",
     "principled_bsdf_interior",
     # Other
-    "bump.*.blend",
-    "bevel.*.blend",
-    "principled_bsdf_coat.blend",
-    "principled_bsdf_emission.blend",
     "white_noise.*.blend",
     "musgrave_multifractal.*.blend",
     "autosmooth_custom_normals.blend",
-    "diffuse_normal_map.blend",
 ]
 
 
@@ -107,7 +106,6 @@ def create_argparse():
     parser.add_argument("--oiiotool", required=True)
     parser.add_argument("--export_method", required=True)
     parser.add_argument('--batch', default=False, action='store_true')
-    parser.add_argument('--fail-silently', default=False, action='store_true')
     return parser
 
 
@@ -143,7 +141,7 @@ def main():
 
     os.environ['BLENDER_HYDRA_EXPORT_METHOD'] = args.export_method
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch, fail_silently=args.fail_silently)
+    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
     sys.exit(not ok)
 

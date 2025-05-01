@@ -11,6 +11,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
@@ -185,7 +186,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
       BKE_volume_data_update(depsgraph, scene, ob);
       break;
     case OB_GREASE_PENCIL:
-      BKE_grease_pencil_data_update(depsgraph, scene, ob);
+      BKE_object_eval_grease_pencil(depsgraph, scene, ob);
       break;
   }
 
@@ -221,7 +222,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   }
 
   if (DEG_is_active(depsgraph)) {
-    Object *object_orig = DEG_get_original_object(ob);
+    Object *object_orig = DEG_get_original(ob);
     object_orig->runtime->bounds_eval = BKE_object_evaluated_geometry_bounds(ob);
   }
 }
@@ -231,7 +232,7 @@ void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
   if (!DEG_is_active(depsgraph)) {
     return;
   }
-  Object *object_orig = DEG_get_original_object(object);
+  Object *object_orig = DEG_get_original(object);
   /* Base flags. */
   object_orig->base_flag = object->base_flag;
   /* Transformation flags. */

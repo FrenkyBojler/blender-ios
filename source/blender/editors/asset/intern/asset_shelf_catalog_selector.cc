@@ -15,6 +15,8 @@
 
 #include "DNA_screen_types.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
@@ -137,9 +139,9 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
       AssetCatalogSelectorTree &tree = dynamic_cast<AssetCatalogSelectorTree &>(get_tree_view());
       uiBlock *block = uiLayoutGetBlock(&row);
 
-      uiLayoutSetEmboss(&row, UI_EMBOSS);
+      uiLayoutSetEmboss(&row, blender::ui::EmbossType::Emboss);
 
-      uiLayout *subrow = uiLayoutRow(&row, false);
+      uiLayout *subrow = &row.row(false);
       uiLayoutSetActive(subrow, catalog_path_enabled_);
       uiItemL(subrow, catalog_item_.get_name(), ICON_NONE);
       UI_block_layout_set_current(block, &row);
@@ -186,7 +188,7 @@ void library_selector_draw(const bContext *C, uiLayout *layout, AssetShelf &shel
   PointerRNA shelf_ptr = RNA_pointer_create_discrete(
       &CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   uiItemR(row, &shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
   if (shelf.settings.asset_library_reference.type != ASSET_LIBRARY_LOCAL) {
     uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
@@ -227,7 +229,7 @@ void catalog_selector_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_cnew<PanelType>(__func__);
+  PanelType *pt = MEM_callocN<PanelType>(__func__);
   STRNCPY(pt->idname, "ASSETSHELF_PT_catalog_selector");
   STRNCPY(pt->label, N_("Catalog Selector"));
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

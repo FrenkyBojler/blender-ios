@@ -199,15 +199,11 @@ static void simple_helper(void *__restrict userdata,
 {
   const DeformUserData *curr_deform_data = static_cast<const DeformUserData *>(userdata);
   float weight = BKE_defvert_array_find_weight_safe(
-      curr_deform_data->dvert, iter, curr_deform_data->vgroup);
+      curr_deform_data->dvert, iter, curr_deform_data->vgroup, curr_deform_data->invert_vgroup);
   const uint *axis_map = axis_map_table[(curr_deform_data->mode != MOD_SIMPLEDEFORM_MODE_BEND) ?
                                             curr_deform_data->deform_axis :
                                             2];
   const float base_limit[2] = {0.0f, 0.0f};
-
-  if (curr_deform_data->invert_vgroup) {
-    weight = 1.0f - weight;
-  }
 
   if (weight != 0.0f) {
     float co[3], dcut[3] = {0.0f, 0.0f, 0.0f};
@@ -449,7 +445,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int deform_method = RNA_enum_get(ptr, "deform_method");
 
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemR(row, ptr, "deform_method", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
@@ -489,7 +485,7 @@ static void restrictions_panel_draw(const bContext * /*C*/, Panel *panel)
   {
     int deform_axis = RNA_enum_get(ptr, "deform_axis");
 
-    row = uiLayoutRowWithHeading(layout, true, IFACE_("Lock"));
+    row = &layout->row(true, IFACE_("Lock"));
     if (deform_axis != 0) {
       uiItemR(row, ptr, "lock_x", toggles_flag, std::nullopt, ICON_NONE);
     }

@@ -40,12 +40,6 @@ if(WITH_TBB)
   list(INSERT LIB 0 bf_blenkernel)
 endif()
 
-if(WITH_OPENMP AND WITH_OPENMP_STATIC)
-  list(APPEND LIB
-    ${OpenMP_LIBRARIES}
-  )
-endif()
-
 if(WIN32)
   list(APPEND INC ../../intern/utfconv)
 endif()
@@ -1032,12 +1026,6 @@ elseif(WIN32)
     )
   endif()
 
-  if(WITH_OPENMP AND MSVC_CLANG)
-    windows_install_shared_manifest(
-      FILES ${CLANG_OPENMP_DLL}
-      ALL
-    )
-  endif()
   # 4.1 FFTW libs need to be installed, in 4.2 FFTW got turned into a static lib
   # and the files below no longer exist.
   if(EXISTS ${LIBDIR}/fftw3/lib/fftw3.dll)
@@ -1284,6 +1272,7 @@ elseif(WIN32)
       install(
         FILES
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}.dll
+          ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python3.dll
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python.exe
         DESTINATION ${BLENDER_VERSION}/python/bin
         CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
@@ -1291,6 +1280,7 @@ elseif(WIN32)
       install(
         FILES
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}_d.dll
+          ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python3_d.dll
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python_d.exe
         DESTINATION ${BLENDER_VERSION}/python/bin
         CONFIGURATIONS Debug
@@ -1389,23 +1379,28 @@ elseif(WIN32)
           CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
         )
       endif()
-      # MaterialX python bindings
-      install(
-        DIRECTORY ${LIBDIR}/materialx/python/Release/MaterialX
-        DESTINATION ${TARGETDIR_SITE_PACKAGES}/
-        CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-        PATTERN "__pycache__" EXCLUDE           # * any cache *
-        PATTERN "*.pyc" EXCLUDE                 # * any cache *
-        PATTERN "*.pyo" EXCLUDE                 # * any cache *
-      )
-      install(
-        DIRECTORY ${LIBDIR}/materialx/python/Debug/MaterialX
-        DESTINATION ${TARGETDIR_SITE_PACKAGES}/
-        CONFIGURATIONS Debug
-        PATTERN "__pycache__" EXCLUDE           # * any cache *
-        PATTERN "*.pyc" EXCLUDE                 # * any cache *
-        PATTERN "*.pyo" EXCLUDE                 # * any cache *
-      )
+      # MaterialX python bindings.
+      # Check they exist so building against non `LIBDIR` Python works as expected.
+      if(EXISTS ${LIBDIR}/materialx/python/Release/MaterialX)
+        install(
+          DIRECTORY ${LIBDIR}/materialx/python/Release/MaterialX
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}/
+          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+          PATTERN "__pycache__" EXCLUDE           # * any cache *
+          PATTERN "*.pyc" EXCLUDE                 # * any cache *
+          PATTERN "*.pyo" EXCLUDE                 # * any cache *
+        )
+      endif()
+      if(EXISTS ${LIBDIR}/materialx/python/Debug/MaterialX)
+        install(
+          DIRECTORY ${LIBDIR}/materialx/python/Debug/MaterialX
+          DESTINATION ${TARGETDIR_SITE_PACKAGES}/
+          CONFIGURATIONS Debug
+          PATTERN "__pycache__" EXCLUDE           # * any cache *
+          PATTERN "*.pyc" EXCLUDE                 # * any cache *
+          PATTERN "*.pyo" EXCLUDE                 # * any cache *
+        )
+      endif()
     endif()
 
     if(WITH_PYTHON_INSTALL)
@@ -1729,29 +1724,40 @@ endif()
 # Windows already installs these, for Unix we need to pick just the VFX libs from
 # the site-packages directory.
 if(WITH_PYTHON_MODULE AND LIBDIR AND NOT WIN32)
-  install(
-    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/MaterialX
-    DESTINATION ${TARGETDIR_SITE_PACKAGES})
-  install(
-    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/OpenImageIO
-    DESTINATION ${TARGETDIR_SITE_PACKAGES})
-  install(
-    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/PyOpenColorIO
-    DESTINATION ${TARGETDIR_SITE_PACKAGES})
-  install(
-    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/oslquery
-    DESTINATION ${TARGETDIR_SITE_PACKAGES} OPTIONAL)
-  install(
-    DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/pxr
-    DESTINATION ${TARGETDIR_SITE_PACKAGES})
-  if(APPLE)
-    set(_openvdb_filename openvdb.cpython-${PYTHON_VERSION_NO_DOTS}-darwin.so)
-  else()
-    set(_openvdb_filename openvdb.cpython-${PYTHON_VERSION_NO_DOTS}-${CMAKE_SYSTEM_PROCESSOR}-linux-gnu.so)
+  # It's possible for a build using LIBDIR to reference a non-standard Python installation.
+  path_is_prefix(LIBDIR PYTHON_INCLUDE_DIR _is_python_in_libdir)
+  if(_is_python_in_libdir)
+    install(
+      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/MaterialX
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+    )
+    install(
+      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/OpenImageIO
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+    )
+    install(
+      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/PyOpenColorIO
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+    )
+    install(
+      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/oslquery
+      DESTINATION ${TARGETDIR_SITE_PACKAGES} OPTIONAL
+    )
+    install(
+      DIRECTORY ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/pxr
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+    )
+    if(APPLE)
+      set(_openvdb_filename openvdb.cpython-${PYTHON_VERSION_NO_DOTS}-darwin.so)
+    else()
+      set(_openvdb_filename openvdb.cpython-${PYTHON_VERSION_NO_DOTS}-${CMAKE_SYSTEM_PROCESSOR}-linux-gnu.so)
+    endif()
+    install(
+      FILES ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/${_openvdb_filename}
+      DESTINATION ${TARGETDIR_SITE_PACKAGES}
+    )
   endif()
-  install(
-    FILES ${LIBDIR}/python/lib/python${PYTHON_VERSION}/site-packages/${_openvdb_filename}
-    DESTINATION ${TARGETDIR_SITE_PACKAGES})
+  unset(_is_python_in_libdir)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -1944,24 +1950,26 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB AND WITH_MATERIALX)
   )
 endif()
 
-if(WIN32 AND EXISTS ${BOOST_LIBPATH})
-  set(BOOST_COMPONENTS atomic chrono date_time filesystem
-    iostreams locale program_options regex
-    serialization system thread wave wserialization
-    python${_PYTHON_VERSION_NO_DOTS} numpy${_PYTHON_VERSION_NO_DOTS}
-  )
-  foreach(component ${BOOST_COMPONENTS})
-    if(EXISTS ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll)
-      windows_install_shared_manifest(
-        FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll
-        RELEASE
-      )
-      windows_install_shared_manifest(
-        FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_DEBUG_POSTFIX}.dll
-        DEBUG
-      )
-    endif()
-  endforeach()
+if(WIN32 AND DEFINED BOOST_LIBPATH)
+  if(EXISTS ${BOOST_LIBPATH})
+    set(BOOST_COMPONENTS atomic chrono date_time filesystem
+      iostreams locale program_options regex
+      serialization system thread wave wserialization
+      python${_PYTHON_VERSION_NO_DOTS} numpy${_PYTHON_VERSION_NO_DOTS}
+    )
+    foreach(component ${BOOST_COMPONENTS})
+      if(EXISTS ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll)
+        windows_install_shared_manifest(
+          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll
+          RELEASE
+        )
+        windows_install_shared_manifest(
+          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_DEBUG_POSTFIX}.dll
+          DEBUG
+        )
+      endif()
+    endforeach()
+  endif()
 endif()
 
 if(WIN32)

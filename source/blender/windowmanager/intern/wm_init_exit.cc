@@ -524,7 +524,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * Which can happen when the GPU backend fails to initialize.
    */
   if (C && CTX_py_init_get(C)) {
-    /* Calls `addon_utils.disable_all()` as well as unregistering all "startup" modules.  */
+    /* Calls `addon_utils.disable_all()` as well as unregistering all "startup" modules. */
     const char *imports[] = {"bpy", "bpy.utils", nullptr};
     BPY_run_string_eval(C, imports, "bpy.utils._on_exit()");
   }
@@ -596,7 +596,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   /* Free the GPU subdivision data after the database to ensure that subdivision structs used by
    * the modifiers were garbage collected. */
   if (gpu_is_init) {
-    blender::draw::DRW_subdiv_free();
+    blender::draw::DRW_cache_free_old_subdiv();
   }
 
   ANIM_fcurves_copybuf_free();
