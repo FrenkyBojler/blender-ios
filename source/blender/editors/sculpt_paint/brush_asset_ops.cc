@@ -172,7 +172,19 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
 
   if (is_local_library) {
     const Brush* original_brush = brush;
-    brush = reinterpret_cast<Brush *>(bke::asset_edit_id_ensure_local(*bmain, brush->id));
+    if (ID_IS_LINKED(&brush->id)) {
+      /* Duplicating from an asset library into the local library */
+      const bool success = BKE_lib_id_make_local(bmain,
+                            &brush->id,
+                            LIB_ID_MAKELOCAL_FORCE_COPY | LIB_ID_MAKELOCAL_INDIRECT |
+                                LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
+      BLI_assert(success && brush->id.newid);
+      brush = reinterpret_cast<Brush *>(brush->id.newid);
+    } else {
+      /* Duplicating from the local library into the local library */
+      brush = reinterpret_cast<Brush *>(BKE_id_copy(bmain, &brush->id));
+    }
+
     asset::mark_id(&brush->id);
     BLI_assert(brush->id.us != 0);
 
