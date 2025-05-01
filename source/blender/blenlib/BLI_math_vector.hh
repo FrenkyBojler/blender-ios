@@ -59,6 +59,9 @@ template<typename T, int Size>
   BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::min, a, b);
 }
 
+/**
+ * Element-wise minimum of the passed vectors.
+ */
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> min(Span<VecBase<T, Size>> values)
 {
@@ -72,6 +75,9 @@ template<typename T, int Size>
   return result;
 }
 
+/**
+ * Element-wise minimum of the passed vectors.
+ */
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> min(std::initializer_list<VecBase<T, Size>> values)
 {
@@ -84,6 +90,9 @@ template<typename T, int Size>
   BLI_UNROLL_MATH_VEC_FUNC_VEC_VEC(math::max, a, b);
 }
 
+/**
+ * Element-wise maximum of the passed vectors.
+ */
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> max(Span<VecBase<T, Size>> values)
 {
@@ -97,6 +106,9 @@ template<typename T, int Size>
   return result;
 }
 
+/**
+ * Element-wise maximum of the passed vectors.
+ */
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> max(std::initializer_list<VecBase<T, Size>> values)
 {
