@@ -171,16 +171,18 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
   BLI_assert(ID_IS_ASSET(&brush->id));
 
   if (is_local_library) {
-    const Brush* original_brush = brush;
+    const Brush *original_brush = brush;
     if (ID_IS_LINKED(&brush->id)) {
       /* Duplicating from an asset library into the local library */
       const bool success = BKE_lib_id_make_local(bmain,
-                            &brush->id,
-                            LIB_ID_MAKELOCAL_FORCE_COPY | LIB_ID_MAKELOCAL_INDIRECT |
-                                LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
+                                                 &brush->id,
+                                                 LIB_ID_MAKELOCAL_FORCE_COPY |
+                                                     LIB_ID_MAKELOCAL_INDIRECT |
+                                                     LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
       BLI_assert(success && brush->id.newid);
       brush = reinterpret_cast<Brush *>(brush->id.newid);
-    } else {
+    }
+    else {
       /* Duplicating from the local library into the local library */
       brush = reinterpret_cast<Brush *>(BKE_id_copy(bmain, &brush->id));
     }
@@ -222,7 +224,6 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
         bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
     brush->has_unsaved_changes = false;
   }
-
 
   asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
 
@@ -473,7 +474,8 @@ static bool brush_asset_edit_metadata_poll(bContext *C)
     return false;
   }
   if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
-    CTX_wm_operator_poll_msg_set(C, "Local asset metadata should be edited directly via the Asset Browser");
+    CTX_wm_operator_poll_msg_set(
+        C, "Local asset metadata should be edited directly via the Asset Browser");
     return false;
   }
   if (!library_is_editable(*library_ref)) {
@@ -684,7 +686,6 @@ static bool brush_asset_save_poll(bContext *C)
   if (!bke::asset_edit_id_is_editable(brush->id)) {
     return false;
   }
-
 
   return true;
 }
