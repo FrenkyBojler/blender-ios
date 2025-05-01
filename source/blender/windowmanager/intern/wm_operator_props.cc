@@ -469,7 +469,7 @@ void WM_operator_properties_select_operation(wmOperatorType *ot)
       {SEL_OP_AND, "AND", ICON_SELECT_INTERSECT, "Intersect", "Intersect existing selection"},
       {0, nullptr, 0, nullptr, nullptr},
   };
-  PropertyRNA *prop = RNA_def_enum(ot->srna, "mode", select_mode_items, SEL_OP_SET, "Mode", "");
+  PropertyRNA *prop = RNA_def_enum(ot->srna, "mode", select_mode_items, SEL_OP_SET, "Selection Mode", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
