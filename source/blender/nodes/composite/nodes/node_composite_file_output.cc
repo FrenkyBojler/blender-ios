@@ -343,12 +343,14 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   uiItemS(layout);
 
+  uiLayout *header = &layout->row(false);
   row = &layout->row(false);
   col = &row->column(true);
 
   const int active_index = RNA_int_get(ptr, "active_input_index");
   /* using different collection properties if multilayer format is enabled */
   if (multilayer) {
+    uiItemL(header, IFACE_("Layers"), ICON_NONE);
     uiTemplateList(col,
                    C,
                    "UI_UL_list",
@@ -367,6 +369,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
         ptr, RNA_struct_find_property(ptr, "layer_slots"), active_index, &active_input_ptr);
   }
   else {
+    uiItemL(header, IFACE_("File Subpaths"), ICON_NONE);
     uiTemplateList(col,
                    C,
                    "UI_UL_list",
