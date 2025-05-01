@@ -306,7 +306,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
     return;
   }
 
-  const float4x4 mat = clay_strips::calc_local_mat(
+  const float4x4 mat = clay_strips::calc_local_matrix(
       brush, *ss.cache, plane_normal, plane_center, flip);
   const float3 offset = plane_normal * ss.cache->bstrength * ss.cache->radius;
 
@@ -361,6 +361,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
 }
 
 namespace clay_strips {
+
 /**
  * Checks whether the node's bounding box overlaps with the region affected by the brush.
  * Clay Strips affects only vertices below the brush plane. The brush-local coordinate
@@ -370,19 +371,19 @@ namespace clay_strips {
  */
 static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds)
 {
-  const float3 brush_center = float3(0, 0, 0.5);
+  const float3 brush_center = float3(0.0f, 0.0f, 0.5f);
   const float3 node_center = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
   const float3 center_diff = brush_center - node_center;
 
-  const float3 brush_half_lengths = float3(1, 1, 0.5);
+  const float3 brush_half_lengths = float3(1.0f, 1.0f, 0.5f);
   const float3 node_half_lengths = (bounds.max - bounds.min) * 0.5f;
 
-  const float3 node_x_axis = mat.x_axis();
-  const float3 node_y_axis = mat.y_axis();
-  const float3 node_z_axis = mat.z_axis();
+  const float3 &node_x_axis = mat.x_axis();
+  const float3 &node_y_axis = mat.y_axis();
+  const float3 &node_z_axis = mat.z_axis();
 
   /* Tests if `axis` separates the boxes. */
-  auto test_axis = [&](const float3 &axis) {
+  auto axis_separates_boxes = [&](const float3 &axis) {
     const float radius1 = math::dot(math::abs(axis), brush_half_lengths);
     const float radius2 = math::abs(math::dot(axis, node_x_axis)) * node_half_lengths.x +
                           math::abs(math::dot(axis, node_y_axis)) * node_half_lengths.y +
@@ -393,7 +394,8 @@ static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds)
     return projection > radius1 + radius2;
   };
 
-  const std::array<float3, 3> brush_axes = {float3{1, 0, 0}, float3{0, 1, 0}, float3{0, 0, 1}};
+  const std::array<float3, 3> brush_axes = {
+      float3{1.0f, 0.0f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, float3{0.0f, 0.0f, 1.0f}};
   const std::array<float3, 3> node_axes = {node_x_axis, node_y_axis, node_z_axis};
 
   /**
@@ -404,14 +406,14 @@ static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds)
 
   /* 1. Test axes aligned with the region affected by the brush. */
   for (const float3 &axis : brush_axes) {
-    if (test_axis(axis)) {
+    if (axis_separates_boxes(axis)) {
       return false;
     }
   }
 
   /* 2. Test axes aligned with the node bounds. */
   for (const float3 &axis : node_axes) {
-    if (test_axis(axis)) {
+    if (axis_separates_boxes(axis)) {
       return false;
     }
   }
@@ -419,7 +421,7 @@ static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds)
   /* 3. Test all their cross products. */
   for (const float3 &brush_axis : brush_axes) {
     for (const float3 &node_axis : node_axes) {
-      if (test_axis(math::cross(brush_axis, node_axis))) {
+      if (axis_separates_boxes(math::cross(brush_axis, node_axis))) {
         return false;
       }
     }
@@ -429,11 +431,11 @@ static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds)
   return true;
 }
 
-float4x4 calc_local_mat(const Brush &brush,
-                        const StrokeCache &cache,
-                        const float3 &plane_normal,
-                        const float3 &plane_center,
-                        bool flip)
+float4x4 calc_local_matrix(const Brush &brush,
+                           const StrokeCache &cache,
+                           const float3 &plane_normal,
+                           const float3 &plane_center,
+                           const bool flip)
 {
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(plane_normal, cache.grab_delta_symm);
@@ -501,7 +503,7 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
     return {IndexMask(), plane_normal, plane_center};
   }
 
-  const float4x4 mat = calc_local_mat(brush, *ss.cache, plane_normal, plane_center, flip);
+  const float4x4 mat = calc_local_matrix(brush, *ss.cache, plane_normal, plane_center, flip);
 
   /* Calculate the node mask using both a box and a sphere test. The box test generally selects
    * fewer nodes, but in very rare cases the local matrix is degenerate and causes the box test to

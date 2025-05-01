@@ -54,11 +54,11 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
                           const float3 &plane_normal,
                           const float3 &plane_center);
 namespace clay_strips {
-float4x4 calc_local_mat(const Brush &brush,
-                        const StrokeCache &cache,
-                        const float3 &plane_normal,
-                        const float3 &plane_center,
-                        bool flip);
+float4x4 calc_local_matrix(const Brush &brush,
+                           const StrokeCache &cache,
+                           const float3 &plane_normal,
+                           const float3 &plane_center,
+                           const bool flip);
 CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
                                   Object &ob,
                                   const Brush &brush,
