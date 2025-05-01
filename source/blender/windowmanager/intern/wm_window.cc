@@ -82,8 +82,6 @@
 #include "ED_scene.hh"
 #include "ED_screen.hh"
 
-#include "BPY_extern_run.h"
-
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
