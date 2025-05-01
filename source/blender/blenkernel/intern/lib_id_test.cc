@@ -751,5 +751,4 @@ TEST(lib_id_make_local, brush)
   EXPECT_EQ(br_a->newid->us, 1);
 }
 
-
 }  // namespace blender::bke::tests
