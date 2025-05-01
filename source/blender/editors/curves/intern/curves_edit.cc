@@ -558,28 +558,30 @@ void separate_points(const bke::CurvesGeometry &curves,
           retained_cyclic.append(cyclic[curve]);
         }
       });
+  {
+    bke::MutableAttributeAccessor attributes = separated.attributes_for_write();
+    remove_selection_attributes(attributes);
 
-  bke::MutableAttributeAccessor attributes = separated.attributes_for_write();
-  remove_selection_attributes(attributes);
+    copy_data_to_geometry(curves,
+                          separated_curve_map,
+                          separated_offsets,
+                          separated_cyclic,
+                          separated_src_ranges,
+                          separated_dst_offsets.as_span(),
+                          separated);
+  }
+  {
+    bke::MutableAttributeAccessor attributes = retained.attributes_for_write();
+    remove_selection_attributes(attributes);
 
-  copy_data_to_geometry(curves,
-                        separated_curve_map,
-                        separated_offsets,
-                        separated_cyclic,
-                        separated_src_ranges,
-                        separated_dst_offsets.as_span(),
-                        separated);
-
-  attributes = retained.attributes_for_write();
-  remove_selection_attributes(attributes);
-
-  copy_data_to_geometry(curves,
-                        retained_curve_map,
-                        retained_offsets,
-                        retained_cyclic,
-                        retained_src_ranges,
-                        retained_dst_offsets.as_span(),
-                        retained);
+    copy_data_to_geometry(curves,
+                          retained_curve_map,
+                          retained_offsets,
+                          retained_cyclic,
+                          retained_src_ranges,
+                          retained_dst_offsets.as_span(),
+                          retained);
+  }
 
   foreach_selection_attribute_writer(
       retained, bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
