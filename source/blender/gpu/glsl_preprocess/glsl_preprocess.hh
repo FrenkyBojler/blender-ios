@@ -225,6 +225,7 @@ class Preprocessor {
       }
       str = remove_quotes(str);
       str = enum_macro_injection(str);
+      str = default_argument_mutation(str);
       str = argument_reference_mutation(str);
     }
     str = argument_decorator_macro_injection(str);
@@ -558,6 +559,90 @@ class Preprocessor {
     return str;
   }
 
+  std::string default_argument_mutation(const std::string &str)
+  {
+    std::vector<std::pair<std::string, std::string>> mutations;
+
+    int64_t line = 0;
+
+    std::regex regex_func(R"(\n((\w+)\s+(\w+)\s*\()([^{]+))");
+    regex_global_search(str, regex_func, [&](const std::smatch &match) {
+      const std::string prefix = match[1].str();
+      const std::string return_type = match[2].str();
+      const std::string func_name = match[3].str();
+      const std::string args = get_content_between_balanced_pair('(' + match[4].str(), '(', ')');
+      const std::string suffix = ")\n{";
+
+      int64_t lines_in_content = line_count(match[0].str());
+      line += line_count(match.prefix().str()) + lines_in_content;
+
+      if (args.find('=') == std::string::npos) {
+        return;
+      }
+
+      const bool has_non_void_return_type = return_type != "void";
+
+      std::string line_directive = "#line " + std::to_string(line - lines_in_content + 2) + "\n";
+
+      std::vector<std::string> args_split = split_string_not_between_balanced_pair(
+          args, ',', '(', ')');
+      std::string overloads;
+      std::string args_defined;
+      std::string args_called;
+
+      /* Rewrite original definition without defaults. */
+      std::string with_default = match[0].str();
+      std::string no_default = with_default;
+
+      for (const std::string &arg : args_split) {
+        std::regex regex(R"((\w+)\s+(\w+)( = (.+))?)");
+        std::smatch match;
+        regex_search(arg, match, regex);
+
+        std::string arg_type = match[1].str();
+        std::string arg_name = match[2].str();
+        std::string arg_assign = match[3].str();
+        std::string arg_value = match[4].str();
+
+        if (!arg_value.empty()) {
+          std::string body = func_name + "(" + args_called + arg_value + ");";
+          if (has_non_void_return_type) {
+            body = "  return " + body;
+          }
+          else {
+            body = "  " + body;
+          }
+
+          overloads = line_directive + prefix + args_defined + suffix + '\n' + line_directive +
+                      body + "\n}\n" + overloads;
+
+          replace_all(no_default, arg_assign, "");
+        }
+        if (!args_defined.empty()) {
+          args_defined += ", ";
+        }
+        args_defined += arg_type + ' ' + arg_name;
+        args_called += arg_name + ", ";
+      }
+
+      /* Get function body to put the overload after it. */
+      std::string body_content =
+          '{' + get_content_between_balanced_pair(match.suffix().str(), '{', '}') + "}\n";
+
+      std::string last_line_directive =
+          "#line " + std::to_string(line - lines_in_content + line_count(body_content) + 3) + "\n";
+
+      mutations.emplace_back(with_default + body_content,
+                             no_default + body_content + overloads + last_line_directive);
+    });
+
+    std::string out = str;
+    for (auto mutation : mutations) {
+      replace_all(out, mutation.first, mutation.second);
+    }
+    return out;
+  }
+
   /* To be run before `argument_decorator_macro_injection()`. */
   std::string argument_reference_mutation(const std::string &str)
   {
@@ -759,6 +844,111 @@ class Preprocessor {
 #endif
     suffix << "\n";
     return suffix.str();
+  }
+
+  void replace_all(std::string &str, const std::string &from, const std::string &to)
+  {
+    if (from.empty()) {
+      return;
+    }
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+      str.replace(start_pos, from.length(), to);
+      start_pos += to.length();
+    }
+  }
+
+  void replace_all(std::string &str, const char from, const char to)
+  {
+    for (char &string_char : str) {
+      if (string_char == from) {
+        string_char = to;
+      }
+    }
+  }
+
+  std::string get_content_between_balanced_pair(const std::string &input,
+                                                const char start_delimiter,
+                                                const char end_delimiter)
+  {
+    int balance = 0;
+    size_t start = std::string::npos;
+    size_t end = std::string::npos;
+
+    for (size_t i = 0; i < input.length(); ++i) {
+      if (input[i] == start_delimiter) {
+        if (balance == 0) {
+          start = i;
+        }
+        balance++;
+      }
+      else if (input[i] == end_delimiter) {
+        balance--;
+        if (balance == 0 && start != std::string::npos) {
+          end = i;
+          return input.substr(start + 1, end - start - 1);
+        }
+      }
+    }
+    return "";
+  }
+
+  std::string replace_char_between_balanced_pair(const std::string &input,
+                                                 const char start_delimiter,
+                                                 const char end_delimiter,
+                                                 const char from,
+                                                 const char to)
+  {
+    int depth = 0;
+
+    std::string str = input;
+    for (char &string_char : str) {
+      if (string_char == start_delimiter) {
+        depth++;
+      }
+      else if (string_char == end_delimiter) {
+        depth--;
+      }
+      else if (depth > 0 && string_char == from) {
+        string_char = to;
+      }
+    }
+    return str;
+  }
+
+  /* Function to split a string by a delimiter and return a vector of substrings. */
+  std::vector<std::string> split_string(const std::string &str, const char delimiter)
+  {
+    std::vector<std::string> substrings;
+    std::stringstream ss(str);
+    std::string item;
+
+    while (std::getline(ss, item, delimiter)) {
+      substrings.push_back(item);
+    }
+    return substrings;
+  }
+
+  /* Similar to split_string but only split if the delimiter is not between any pair_start and
+   * pair_end. */
+  std::vector<std::string> split_string_not_between_balanced_pair(const std::string &str,
+                                                                  const char delimiter,
+                                                                  const char pair_start,
+                                                                  const char pair_end)
+  {
+    const char safe_char = '@';
+    const std::string safe_str = replace_char_between_balanced_pair(
+        str, pair_start, pair_end, delimiter, safe_char);
+    std::vector<std::string> split = split_string(safe_str, delimiter);
+    for (std::string &str : split) {
+      replace_all(str, safe_char, delimiter);
+    }
+    return split;
+  }
+
+  int64_t line_count(const std::string &str)
+  {
+    return std::count(str.begin(), str.end(), '\n');
   }
 };
 
