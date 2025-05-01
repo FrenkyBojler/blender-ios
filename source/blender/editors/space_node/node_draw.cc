@@ -4994,6 +4994,15 @@ static void draw_nodetree(const bContext &C,
 
   Array<bNode *> nodes = tree_draw_order_calc_nodes(ntree);
 
+  const float viewer_padding = UI_UNIT_X;
+  for (bNode *node : nodes) {
+    if (node->type_legacy != GEO_NODE_VIEWER) {
+      continue;
+    }
+    node->location[0] = region.v2d.cur.xmax - NODE_WIDTH((*node)) - viewer_padding;
+    node->location[1] = region.v2d.cur.ymax - viewer_padding;
+  }
+
   Array<uiBlock *> blocks = node_uiblocks_init(C, nodes);
 
   TreeDrawContext tree_draw_ctx;
