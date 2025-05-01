@@ -1453,19 +1453,19 @@ static bool pose_channel_gizmo_use_localized_transform(const bArmature *arm,
 
 /* Get pchan's restspace matrix relative to its custom_tx. */
 static void pose_channel_gizmo_calculate_restspace_custom_tx_from_pchan(
-    const bArmature *arm, const bPoseChannel *pchan, float r_custom_tx_from_owner[3][3])
+    const bPoseChannel *pchan, float r_custom_tx_from_owner[3][3])
 {
   copy_m3_m4(r_custom_tx_from_owner, pchan->custom_tx->bone->arm_mat);
   invert_m3(r_custom_tx_from_owner);
-  mul_m3_m3m4(r_custom_tx_from_owner, custom_tx_from_owner, pchan->bone->arm_mat);
+  mul_m3_m3m4(r_custom_tx_from_owner, r_custom_tx_from_owner, pchan->bone->arm_mat);
 }
 
 void BKE_pose_channel_gizmo_get_pose_orientation(const bArmature *arm,
-                                                 const bPoseChannel *pchan,
+                                                 bPoseChannel *owner,
                                                  float r_pose_orientation[3][3])
 {
-  if (!pose_channel_gizmo_use_localized_transform(arm, pchan)) {
-    copy_m3_m4(r_pose_orientation, pchan->pose_mat);
+  if (!pose_channel_gizmo_use_localized_transform(arm, owner)) {
+    copy_m3_m4(r_pose_orientation, owner->pose_mat);
     return;
   }
 
@@ -1486,7 +1486,7 @@ void BKE_pose_channel_gizmo_get_pose_orientation(const bArmature *arm,
   }
 
   float custom_tx_from_owner[3][3];
-  pose_channel_gizmo_calculate_restspace_custom_tx_from_pchan(arm, owner, custom_tx_from_owner);
+  pose_channel_gizmo_calculate_restspace_custom_tx_from_pchan(owner, custom_tx_from_owner);
 
   /* Get owner's posed local channel.  */
   float animated_owner_local[3][3];
@@ -1524,23 +1524,22 @@ void BKE_pose_channel_gizmo_get_bone_parent_transform(const bArmature *arm,
   BKE_bone_parent_transform_calc_from_pchan(pchan->custom_tx, r_bpt);
 
   float custom_tx_from_pchan[3][3];
-  pose_channel_gizmo_calculate_restspace_custom_tx_from_pchan(arm, pchan, custom_tx_from_pchan);
+  pose_channel_gizmo_calculate_restspace_custom_tx_from_pchan(pchan, custom_tx_from_pchan);
 
-  mul_m4_m4m3(r_bpt.loc_mat, r_bpt.loc_mat, custom_tx_from_pchan);
-  mul_m4_m4m3(r_bpt.rotscale_mat, r_bpt.rotscale_mat, custom_tx_from_pchan);
+  mul_m4_m4m3(r_bpt->loc_mat, r_bpt->loc_mat, custom_tx_from_pchan);
+  mul_m4_m4m3(r_bpt->rotscale_mat, r_bpt->rotscale_mat, custom_tx_from_pchan);
 }
 
-bPoseChannel *BKE_pose_channel_gizmo_get_gimbal_pchan(const bArmature *arm,
-                                                      const bPoseChannel *pchan,
-                                                      float r_modified_local_mat[3][3])
+const bPoseChannel *BKE_pose_channel_gizmo_get_gimbal_pchan(const bArmature *arm,
+                                                            const bPoseChannel *pchan,
+                                                            float r_modified_local_mat[3][3])
 {
-  const bArmature *arm = static_cast<bArmature *>(ob->data);
   if (!pose_channel_gizmo_use_localized_transform(arm, pchan)) {
     return pchan;
   }
 
   float custom_tx_from_owner[3][3];
-  pose_channel_gizmo_calculate_restspace_custom_tx_from_pchan(arm, pchan, custom_tx_from_owner);
+  pose_channel_gizmo_calculate_restspace_custom_tx_from_pchan(pchan, custom_tx_from_owner);
   mul_m3_m3m3(r_modified_local_mat, custom_tx_from_owner, r_modified_local_mat);
 
   return pchan->custom_tx;
