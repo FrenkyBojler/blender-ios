@@ -43,6 +43,7 @@
 #include "BKE_callbacks.hh"
 #include "BKE_camera.h"
 #include "BKE_colortools.hh"
+#include "BKE_duplilist.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
@@ -1906,6 +1907,49 @@ static void update_physics_cache(Render *re,
   BKE_ptcache_bake(&baker);
 }
 
+/* True if all evaluated IDs can be rendered. */
+static bool validate_pipeline_depsgraph(Render *re)
+{
+  Depsgraph *depsgraph = re->pipeline_depsgraph;
+
+  bool has_invalid_cache = false;
+  auto check_pid = [&](const PTCacheID &pid) {
+    /* Any baked caches are valid. */
+    if ((pid.cache->flag & PTCACHE_BAKED) != 0) {
+      return;
+    }
+
+    BKE_reportf(re->reports, RPT_ERROR, "%s has unbaked point cache", pid.owner_id->name);
+    has_invalid_cache = true;
+  };
+
+  DEGIDIterData data = {nullptr};
+  data.graph = depsgraph;
+  data.only_updated = false;
+  ITER_BEGIN (DEG_iterator_ids_begin, DEG_iterator_ids_next, DEG_iterator_ids_end, &data, ID *, id)
+  {
+    if (GS(id->name) == ID_OB) {
+      Object *object = reinterpret_cast<Object *>(id);
+      ListBase pidlist;
+      BKE_ptcache_ids_from_object(&pidlist, object, nullptr, MAX_DUPLI_RECUR);
+      LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
+        check_pid(*pid);
+      }
+    }
+    else if (GS(id->name) == ID_SCE) {
+      Scene *scene = reinterpret_cast<Scene *>(id);
+      if (scene->rigidbody_world != nullptr) {
+        PTCacheID pid;
+        BKE_ptcache_id_from_rigidbody(&pid, nullptr, scene->rigidbody_world);
+        check_pid(pid);
+      }
+    }
+  }
+  ITER_END;
+
+  return !has_invalid_cache;
+}
+
 void RE_SetActiveRenderView(Render *re, const char *viewname)
 {
   STRNCPY(re->viewname, viewname);
@@ -1929,8 +1973,8 @@ static bool render_init_from_main(Render *re,
   int winx, winy;
   rcti disprect;
 
-  /* Reset the runtime flags before rendering, but only if this init is not an inter-animation
-   * init, since some flags needs to be kept across the entire animation. */
+  /* Reset the runtime flags before rendering, but only if this init is not an
+   * inter-animation init, since some flags needs to be kept across the entire animation. */
   if (!anim) {
     re->flag = 0;
   }
@@ -2059,7 +2103,8 @@ void RE_RenderFrame(Render *re,
   render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
 
   /* Ugly global still...
-   * is to prevent preview events and signal subdivision-surface etc to make full resolution. */
+   * is to prevent preview events and signal subdivision-surface etc to make full resolution.
+   */
   G.is_rendering = true;
 
   scene->r.cfra = frame;
@@ -2078,33 +2123,34 @@ void RE_RenderFrame(Render *re,
     RE_FreeGPUTextureCaches();
 
     render_init_depsgraph(re);
+    if (validate_pipeline_depsgraph(re)) {
+      do_render_full_pipeline(re);
 
-    do_render_full_pipeline(re);
-
-    const bool should_write = write_still && !(re->flag & R_SKIP_WRITE);
-    if (should_write && !G.is_break) {
-      if (BKE_imtype_is_movie(rd.im_format.imtype)) {
-        /* operator checks this but in case its called from elsewhere */
-        printf("Error: can't write single images with a movie format!\n");
+      const bool should_write = write_still && !(re->flag & R_SKIP_WRITE);
+      if (should_write && !G.is_break) {
+        if (BKE_imtype_is_movie(rd.im_format.imtype)) {
+          /* operator checks this but in case its called from elsewhere */
+          printf("Error: can't write single images with a movie format!\n");
+        }
+        else {
+          char filepath_override[FILE_MAX];
+          BKE_image_path_from_imformat(filepath_override,
+                                       rd.pic,
+                                       BKE_main_blendfile_path(bmain),
+                                       scene->r.cfra,
+                                       &rd.im_format,
+                                       (rd.scemode & R_EXTENSION) != 0,
+                                       false,
+                                       nullptr);
+          do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
+        }
       }
-      else {
-        char filepath_override[FILE_MAX];
-        BKE_image_path_from_imformat(filepath_override,
-                                     rd.pic,
-                                     BKE_main_blendfile_path(bmain),
-                                     scene->r.cfra,
-                                     &rd.im_format,
-                                     (rd.scemode & R_EXTENSION) != 0,
-                                     false,
-                                     nullptr);
-        do_write_image_or_movie(re, bmain, scene, 0, filepath_override);
-      }
-    }
 
-    /* keep after file save */
-    render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_POST);
-    if (should_write) {
-      render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE);
+      /* keep after file save */
+      render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_POST);
+      if (should_write) {
+        render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE);
+      }
     }
   }
 
@@ -2398,8 +2444,8 @@ void RE_RenderAnim(Render *re,
                    int efra,
                    int tfra)
 {
-  /* Call hooks before taking a copy of scene->r, so user can alter the render settings prior to
-   * copying (e.g. alter the output path). */
+  /* Call hooks before taking a copy of scene->r, so user can alter the render settings prior
+   * to copying (e.g. alter the output path). */
   render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
 
   RenderData rd;
