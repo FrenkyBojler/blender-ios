@@ -1270,7 +1270,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
       /* Because we're iterating over vertices in order to batch work for their connected face
        * corners, we have to handle loose vertices and vertices not used by faces. */
       if (vert_faces.is_empty()) {
-        r_corner_normals[vert] = math::normalize(vert_position);
         continue;
       }
 
