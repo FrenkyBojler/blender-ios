@@ -1246,6 +1246,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           CornerNormalSpaceArray *r_fan_spaces,
                           MutableSpan<float3> r_corner_normals)
 {
+if (r_fan_spaces) {
+    r_fan_spaces->corner_space_indices.reinitialize(corner_verts.size());
+  }
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
     LocalEdgeVectorSet local_edge_by_vert;
