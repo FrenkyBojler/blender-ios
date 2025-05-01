@@ -1408,7 +1408,7 @@ static bool vgroup_normalize_all(Object *ob,
  * If the currently active vertex group is for a deform bone, normalize all
  * vertex groups that are for deform bones.
  *
- * \param lock_active If true, the active vertex group will be left untouched,
+ * \param lock_active: If true, the active vertex group will be left untouched,
  * and the remaining deform groups will be normalized to occupy the remaining
  * weight not used by it.
  */
