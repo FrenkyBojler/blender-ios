@@ -1104,20 +1104,20 @@ typedef struct NodeBokehImage {
 } NodeBokehImage;
 
 typedef struct NodeBoxMask {
-  float x;
-  float y;
-  float rotation;
-  float height;
-  float width;
+  float x DNA_DEPRECATED;
+  float y DNA_DEPRECATED;
+  float rotation DNA_DEPRECATED;
+  float height DNA_DEPRECATED;
+  float width DNA_DEPRECATED;
   char _pad[4];
 } NodeBoxMask;
 
 typedef struct NodeEllipseMask {
-  float x;
-  float y;
-  float rotation;
-  float height;
-  float width;
+  float x DNA_DEPRECATED;
+  float y DNA_DEPRECATED;
+  float rotation DNA_DEPRECATED;
+  float height DNA_DEPRECATED;
+  float width DNA_DEPRECATED;
   char _pad[4];
 } NodeEllipseMask;
 
@@ -1142,14 +1142,20 @@ typedef struct NodeBlurData {
 } NodeBlurData;
 
 typedef struct NodeDBlurData {
-  float center_x, center_y, distance, angle, spin, zoom;
-  short iter;
+  float center_x DNA_DEPRECATED;
+  float center_y DNA_DEPRECATED;
+  float distance DNA_DEPRECATED;
+  float angle DNA_DEPRECATED;
+  float spin DNA_DEPRECATED;
+  float zoom DNA_DEPRECATED;
+  short iter DNA_DEPRECATED;
   char _pad[2];
 } NodeDBlurData;
 
 typedef struct NodeBilateralBlurData {
-  float sigma_color, sigma_space;
-  short iter;
+  float sigma_color DNA_DEPRECATED;
+  float sigma_space DNA_DEPRECATED;
+  short iter DNA_DEPRECATED;
   char _pad[2];
 } NodeBilateralBlurData;
 
@@ -1581,9 +1587,8 @@ typedef struct NodeShaderOutputAOV {
 } NodeShaderOutputAOV;
 
 typedef struct NodeSunBeams {
-  float source[2];
-
-  float ray_length;
+  float source[2] DNA_DEPRECATED;
+  float ray_length DNA_DEPRECATED;
 } NodeSunBeams;
 
 typedef struct CryptomatteEntry {
