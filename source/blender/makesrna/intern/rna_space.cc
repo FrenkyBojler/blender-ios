@@ -4046,20 +4046,20 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filter_text", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "search_string");
-  RNA_def_property_ui_text(prop, "Display Filter", "Live search filtering string");
+  RNA_def_property_ui_text(prop, "Display Filter", "Live search filtering text");
   RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   prop = RNA_def_property(srna, "use_filter_case_sensitive", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "search_flags", SO_FIND_CASE_SENSITIVE);
   RNA_def_property_ui_text(
-      prop, "Case Sensitive Matches Only", "Only use case sensitive matches of search string");
+      prop, "Case Sensitive Matches Only", "Only use case sensitive matches of search text");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   prop = RNA_def_property(srna, "use_filter_complete", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "search_flags", SO_FIND_COMPLETE);
   RNA_def_property_ui_text(
-      prop, "Complete Matches Only", "Only use complete matches of search string");
+      prop, "Complete Matches Only", "Only use complete matches of search text");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   prop = RNA_def_property(srna, "use_sort_alpha", PROP_BOOLEAN, PROP_NONE);
@@ -4664,7 +4664,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_cursor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "overlay.flag", V3D_OVERLAY_HIDE_CURSOR);
-  RNA_def_property_ui_text(prop, "Show 3D Cursor", "Display 3D Cursor Overlay");
+  RNA_def_property_ui_text(prop, "Show 3D Cursor", "Display 3D Cursor overlay");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "show_text", PROP_BOOLEAN, PROP_NONE);
