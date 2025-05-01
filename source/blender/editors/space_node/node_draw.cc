@@ -4996,7 +4996,7 @@ static void draw_nodetree(const bContext &C,
 
   const float viewer_padding = UI_UNIT_X;
   for (bNode *node : nodes) {
-    if (node->type_legacy != GEO_NODE_VIEWER) {
+    if (!ELEM(node->type_legacy, GEO_NODE_VIEWER, CMP_NODE_VIEWER)) {
       continue;
     }
     node->location[0] = region.v2d.cur.xmax - NODE_WIDTH((*node)) - viewer_padding;
