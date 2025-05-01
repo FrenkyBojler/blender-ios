@@ -1246,7 +1246,12 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           MutableSpan<float3> r_corner_normals)
 {
   if (r_fan_spaces) {
+/* These are potentially-wasteful over-allocations. */
+    r_fan_spaces->spaces.reserve(corner_verts.size());
     r_fan_spaces->corner_space_indices.reinitialize(corner_verts.size());
+if (r_fan_spaces->create_corners_by_space) {
+      r_fan_spaces->corners_by_space.reserve(corner_verts.size());
+    }
   }
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
