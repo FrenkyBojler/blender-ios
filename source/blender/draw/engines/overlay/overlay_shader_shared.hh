@@ -2,23 +2,23 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
-#  pragma once
+#pragma once
 
+#if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
 #  include "GPU_shader_shared_utils.hh"
 
 #  include "DNA_action_types.h"
 #  include "DNA_view3d_types.h"
 #endif
 
-/* TODO(fclem): Should eventually become OVERLAY_BackgroundType.
- * But there is no uint push constant functions at the moment. */
-#define BG_SOLID 0
-#define BG_GRADIENT 1
-#define BG_CHECKER 2
-#define BG_RADIAL 3
-#define BG_SOLID_CHECKER 4
-#define BG_MASK 5
+enum OVERLAY_BackgroundType : uint32_t {
+  BG_SOLID = 0u,
+  BG_GRADIENT = 1u,
+  BG_CHECKER = 2u,
+  BG_RADIAL = 3u,
+  BG_SOLID_CHECKER = 4u,
+  BG_MASK = 5u,
+};
 
 enum OVERLAY_UVLineStyle : uint32_t {
   OVERLAY_UV_LINE_STYLE_OUTLINE = 0u,
@@ -46,6 +46,75 @@ enum OVERLAY_GridBits : uint32_t {
 #ifndef GPU_SHADER
 ENUM_OPERATORS(OVERLAY_GridBits, CUSTOM_GRID)
 #endif
+
+enum VertexClass : uint32_t {
+  VCLASS_NONE = 0,
+
+  VCLASS_LIGHT_AREA_SHAPE = 1 << 0,
+  VCLASS_LIGHT_SPOT_SHAPE = 1 << 1,
+  VCLASS_LIGHT_SPOT_BLEND = 1 << 2,
+  VCLASS_LIGHT_SPOT_CONE = 1 << 3,
+  VCLASS_LIGHT_DIST = 1 << 4,
+
+  VCLASS_CAMERA_FRAME = 1 << 5,
+  VCLASS_CAMERA_DIST = 1 << 6,
+  VCLASS_CAMERA_VOLUME = 1 << 7,
+
+  VCLASS_SCREENSPACE = 1 << 8,
+  VCLASS_SCREENALIGNED = 1 << 9,
+
+  VCLASS_EMPTY_SCALED = 1 << 10,
+  VCLASS_EMPTY_AXES = 1 << 11,
+  VCLASS_EMPTY_AXES_NAME = 1 << 12,
+  VCLASS_EMPTY_AXES_SHADOW = 1 << 13,
+  VCLASS_EMPTY_SIZE = 1 << 14,
+};
+#ifndef GPU_SHADER
+ENUM_OPERATORS(VertexClass, VCLASS_EMPTY_SIZE)
+#endif
+
+enum StickBoneFlag {
+  COL_WIRE = (1u << 0u),
+  COL_HEAD = (1u << 1u),
+  COL_TAIL = (1u << 2u),
+  COL_BONE = (1u << 3u),
+  POS_HEAD = (1u << 4u),
+  POS_TAIL = (1u << 5u),
+  POS_BONE = (1u << 6u),
+};
+#ifndef GPU_SHADER
+ENUM_OPERATORS(StickBoneFlag, POS_BONE)
+#endif
+
+/* TODO(fclem): Convert into enum. */
+/* See: 'draw_cache_impl.hh' for matching includes. */
+#define VERT_GPENCIL_BEZT_HANDLE (1u << 30)
+/* data[0] (1st byte flags) */
+#define FACE_ACTIVE (1u << 0)
+#define FACE_SELECTED (1u << 1)
+#define FACE_FREESTYLE (1u << 2)
+#define VERT_UV_SELECT (1u << 3)
+#define VERT_UV_PINNED (1u << 4)
+#define EDGE_UV_SELECT (1u << 5)
+#define FACE_UV_ACTIVE (1u << 6)
+#define FACE_UV_SELECT (1u << 7)
+/* data[1] (2st byte flags) */
+#define VERT_ACTIVE (1u << 0)
+#define VERT_SELECTED (1u << 1)
+#define VERT_SELECTED_BEZT_HANDLE (1u << 2)
+#define EDGE_ACTIVE (1u << 3)
+#define EDGE_SELECTED (1u << 4)
+#define EDGE_SEAM (1u << 5)
+#define EDGE_SHARP (1u << 6)
+#define EDGE_FREESTYLE (1u << 7)
+
+static inline uint outline_id_pack(uint outline_id, uint object_id)
+{
+  /* Replace top 2 bits (of the 16bit output) by outline_id.
+   * This leaves 16K different IDs to create outlines between objects.
+   * 18 = (32 - (16 - 2)) */
+  return (outline_id << 14u) | ((object_id << 18u) >> 18u);
+}
 
 /* Match: #SI_GRID_STEPS_LEN */
 #define OVERLAY_GRID_STEPS_LEN 8
@@ -99,115 +168,158 @@ BLI_STATIC_ASSERT(MOTIONPATH_VERT_SEL == (1u << 0), "Ensure value is sync");
 BLI_STATIC_ASSERT(MOTIONPATH_VERT_KEY == (1u << 1), "Ensure value is sync");
 #endif
 
-struct ThemeColorData {
-  float4 color_wire;
-  float4 color_wire_edit;
-  float4 color_active;
-  float4 color_select;
-  float4 color_library_select;
-  float4 color_library;
-  float4 color_transform;
-  float4 color_light;
-  float4 color_speaker;
-  float4 color_camera;
-  float4 color_camera_path;
-  float4 color_empty;
-  float4 color_vertex;
-  float4 color_vertex_select;
-  float4 color_vertex_unreferenced;
-  float4 color_vertex_missing_data;
-  float4 color_edit_mesh_active;
-  /** For edge selection, not edge select mode. */
-  float4 color_edge_select;
-  /** For edge mode selection. */
-  float4 color_edge_mode_select;
-  float4 color_edge_seam;
-  float4 color_edge_sharp;
-  float4 color_edge_crease;
-  float4 color_edge_bweight;
-  float4 color_edge_face_select;
-  float4 color_edge_freestyle;
-  float4 color_face;
-  /** For face selection, not face select mode. */
-  float4 color_face_select;
-  /** For face mode selection. */
-  float4 color_face_mode_select;
-  float4 color_face_freestyle;
-  float4 color_gpencil_vertex;
-  float4 color_gpencil_vertex_select;
-  float4 color_normal;
-  float4 color_vnormal;
-  float4 color_lnormal;
-  float4 color_facedot;
-  float4 color_skinroot;
+/* All colors in this struct are converted to display linear RGB color-space. */
+struct ThemeColors {
+  /* UBOs data needs to be 16 byte aligned (size of float4) */
+  float4 wire;
+  float4 wire_edit;
+  float4 active_object; /* "active" is reserved keyword in GLSL. */
+  float4 select;
+  float4 library_select;
+  float4 library;
+  float4 transform;
+  float4 light;
+  float4 speaker;
+  float4 camera;
+  float4 camera_path;
+  float4 empty;
+  float4 vert; /* "vertex" is reserved keyword in MSL. */
+  float4 vert_select;
+  float4 vert_unreferenced;
+  float4 vert_missing_data;
+  float4 edit_mesh_active;
+  float4 edge_select;      /* Stands for edge selection, not edge select mode. */
+  float4 edge_mode_select; /* Stands for edge mode selection. */
+  float4 edge_seam;
+  float4 edge_sharp;
+  float4 edge_crease;
+  float4 edge_bweight;
+  float4 edge_face_select;
+  float4 edge_freestyle;
+  float4 face;
+  float4 face_select;      /* Stands for face selection, not face select mode. */
+  float4 face_mode_select; /* Stands for face mode selection. */
+  float4 face_retopology;
+  float4 face_freestyle;
+  float4 gpencil_vertex;
+  float4 gpencil_vertex_select;
+  float4 normal;
+  float4 vnormal;
+  float4 lnormal;
+  float4 facedot;
+  float4 skinroot;
 
-  float4 color_deselect;
-  float4 color_outline;
-  float4 color_light_no_alpha;
+  float4 deselect;
+  float4 outline;
+  float4 light_no_alpha;
 
-  float4 color_background;
-  float4 color_background_gradient;
-  float4 color_checker_primary;
-  float4 color_checker_secondary;
-  float4 color_clipping_border;
-  float4 color_edit_mesh_middle;
+  float4 background;
+  float4 background_gradient;
+  float4 checker_primary;
+  float4 checker_secondary;
+  float4 clipping_border;
+  float4 edit_mesh_middle;
 
-  float4 color_handle_free;
-  float4 color_handle_auto;
-  float4 color_handle_vect;
-  float4 color_handle_align;
-  float4 color_handle_autoclamp;
-  float4 color_handle_sel_free;
-  float4 color_handle_sel_auto;
-  float4 color_handle_sel_vect;
-  float4 color_handle_sel_align;
-  float4 color_handle_sel_autoclamp;
-  float4 color_nurb_uline;
-  float4 color_nurb_vline;
-  float4 color_nurb_sel_uline;
-  float4 color_nurb_sel_vline;
-  float4 color_active_spline;
+  float4 handle_free;
+  float4 handle_auto;
+  float4 handle_vect;
+  float4 handle_align;
+  float4 handle_autoclamp;
+  float4 handle_sel_free;
+  float4 handle_sel_auto;
+  float4 handle_sel_vect;
+  float4 handle_sel_align;
+  float4 handle_sel_autoclamp;
+  float4 nurb_uline;
+  float4 nurb_vline;
+  float4 nurb_sel_uline;
+  float4 nurb_sel_vline;
+  float4 active_spline;
 
-  float4 color_bone_pose;
-  float4 color_bone_pose_active;
-  float4 color_bone_pose_active_unsel;
-  float4 color_bone_pose_constraint;
-  float4 color_bone_pose_ik;
-  float4 color_bone_pose_spline_ik;
-  float4 color_bone_pose_no_target;
-  float4 color_bone_solid;
-  float4 color_bone_locked;
-  float4 color_bone_active;
-  float4 color_bone_active_unsel;
-  float4 color_bone_select;
-  float4 color_bone_ik_line;
-  float4 color_bone_ik_line_no_target;
-  float4 color_bone_ik_line_spline;
+  float4 bone_pose;
+  float4 bone_pose_active;
+  float4 bone_pose_active_unsel;
+  float4 bone_pose_constraint;
+  float4 bone_pose_ik;
+  float4 bone_pose_spline_ik;
+  float4 bone_pose_no_target;
+  float4 bone_solid;
+  float4 bone_locked;
+  float4 bone_active;
+  float4 bone_active_unsel;
+  float4 bone_select;
+  float4 bone_ik_line;
+  float4 bone_ik_line_no_target;
+  float4 bone_ik_line_spline;
 
-  float4 color_text;
-  float4 color_text_hi;
+  float4 text;
+  float4 text_hi;
 
-  float4 color_bundle_solid;
+  float4 bundle_solid;
 
-  float4 color_mball_radius;
-  float4 color_mball_radius_select;
-  float4 color_mball_stiffness;
-  float4 color_mball_stiffness_select;
+  float4 mball_radius;
+  float4 mball_radius_select;
+  float4 mball_stiffness;
+  float4 mball_stiffness_select;
 
-  float4 color_current_frame;
+  float4 current_frame;
+  float4 before_frame;
+  float4 after_frame;
 
-  float4 color_grid;
-  float4 color_grid_emphasis;
-  float4 color_grid_axis_x;
-  float4 color_grid_axis_y;
-  float4 color_grid_axis_z;
+  float4 grid;
+  float4 grid_emphasis;
+  float4 grid_axis_x;
+  float4 grid_axis_y;
+  float4 grid_axis_z;
 
-  float4 color_face_back;
-  float4 color_face_front;
+  float4 face_back;
+  float4 face_front;
 
-  float4 color_uv_shadow;
+  float4 uv_shadow;
 };
-BLI_STATIC_ASSERT_ALIGN(ThemeColorData, 16)
+BLI_STATIC_ASSERT_ALIGN(ThemeColors, 16)
+
+/* All values in this struct are premultiplied by U.pixelsize. */
+struct ThemeSizes {
+  float pixel; /* Equivalent to U.pixelsize. */
+
+  float object_center;
+
+  float light_center;
+  float light_circle;
+  float light_circle_shadow;
+
+  float vert; /* "vertex" is reserved keyword in MSL. */
+  float edge;
+  float face_dot;
+
+  float checker;
+  float vertex_gpencil;
+  float _pad1, _pad2;
+};
+BLI_STATIC_ASSERT_ALIGN(ThemeSizes, 16)
+
+struct UniformData {
+  ThemeColors colors;
+  ThemeSizes sizes;
+
+  /** Other global states. */
+
+  float2 size_viewport;
+  float2 size_viewport_inv;
+
+  float fresnel_mix_edit;
+  float pixel_fac;
+  bool32_t backface_culling;
+  float _pad1;
+};
+BLI_STATIC_ASSERT_ALIGN(UniformData, 16)
+
+#ifdef GPU_SHADER
+/* The uniform_buf mostly contains theme properties.
+ * This alias has better semantic and shorter syntax. */
+#  define theme uniform_buf
+#endif
 
 struct ExtraInstanceData {
   float4 color_;
@@ -257,10 +369,11 @@ BLI_STATIC_ASSERT_ALIGN(VertexData, 16)
 /* Limited by expand_prim_len bit count. */
 #define PARTICLE_SHAPE_CIRCLE_RESOLUTION 7
 
-/* TODO(fclem): This should be a enum, but it breaks compilation on Metal for some reason. */
-#define PART_SHAPE_AXIS 1
-#define PART_SHAPE_CIRCLE 2
-#define PART_SHAPE_CROSS 3
+enum OVERLAY_ParticleShape : uint32_t {
+  PART_SHAPE_AXIS = 1,
+  PART_SHAPE_CIRCLE = 2,
+  PART_SHAPE_CROSS = 3,
+};
 
 struct ParticlePointData {
   packed_float3 position;
@@ -311,17 +424,6 @@ struct BoneEnvelopeData {
 };
 BLI_STATIC_ASSERT_ALIGN(BoneEnvelopeData, 16)
 
-/* Keep in sync with armature_stick_vert.glsl. */
-enum StickBoneFlag {
-  COL_WIRE = (1u << 0u),
-  COL_HEAD = (1u << 1u),
-  COL_TAIL = (1u << 2u),
-  COL_BONE = (1u << 3u),
-  POS_HEAD = (1u << 4u),
-  POS_TAIL = (1u << 5u),
-  POS_BONE = (1u << 6u),
-};
-
 struct BoneStickData {
   float4 bone_start;
   float4 bone_end;
@@ -349,3 +451,21 @@ struct BoneStickData {
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneStickData, 16)
+
+/**
+ * We want to know how much of a pixel is covered by a line.
+ * Here, we imagine the square pixel is a circle with the same area and try to find the
+ * intersection area. The overlap area is a circular segment.
+ * https://en.wikipedia.org/wiki/Circular_segment The formula for the area uses inverse trig
+ * function and is quite complex. Instead, we approximate it by using the smoothstep function and
+ * a 1.05f factor to the disc radius.
+ *
+ * For an alternate approach, see:
+ * https://developer.nvidia.com/gpugems/gpugems2/part-iii-high-quality-rendering/chapter-22-fast-prefiltered-lines
+ */
+#define M_1_SQRTPI 0.5641895835477563f /* `1/sqrt(pi)`. */
+#define DISC_RADIUS (M_1_SQRTPI * 1.05f)
+#define LINE_SMOOTH_START (0.5f - DISC_RADIUS)
+#define LINE_SMOOTH_END (0.5f + DISC_RADIUS)
+/* Returns 0 before LINE_SMOOTH_START and 1 after LINE_SMOOTH_END. */
+#define LINE_STEP(dist) smoothstep(LINE_SMOOTH_START, LINE_SMOOTH_END, dist)

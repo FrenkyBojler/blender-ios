@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'1f4cae0c4623')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"POT-Creation-Date: 2025-04-28 09:32+0000\n"
 "PO-Revision-Date: 2025-04-14 08:41+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -8581,44 +8581,8 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Select Linked"
-msgstr "Izaberi povezano"
-
-
-msgid "Metaball"
-msgstr "Meta lopta"
-
-
-msgid "Light"
-msgstr "Svetlost"
-
-
-msgid "Relations"
-msgstr "Odnosi"
-
-
-msgid "Rigid Body"
-msgstr "Kruto telo"
-
-
-msgid "Apply"
-msgstr "Primeni"
-
-
-msgid "Track"
-msgstr "Staza"
-
-
-msgid "Quick Effects"
-msgstr "Brzi efekti"
-
-
 msgid "Show/Hide"
 msgstr "Prikaži/sakrij"
-
-
-msgid "Hooks"
-msgstr "Udice"
 
 
 msgid "Clear Transform"
@@ -8635,6 +8599,10 @@ msgstr "Prenesi"
 
 msgid "Names"
 msgstr "Imena"
+
+
+msgid "Apply"
+msgstr "Primeni"
 
 
 msgid "Toggle Bone Options"
@@ -8659,6 +8627,10 @@ msgstr "Sjedini"
 
 msgid "Special Characters"
 msgstr "Specijalni znaci"
+
+
+msgid "Metaball"
+msgstr "Meta lopta"
 
 
 msgid "Bone Roll"
@@ -8687,6 +8659,34 @@ msgstr "Navigacija"
 
 msgid "Align View"
 msgstr "Poravnaj pogled"
+
+
+msgid "Select Linked"
+msgstr "Izaberi povezano"
+
+
+msgid "Light"
+msgstr "Svetlost"
+
+
+msgid "Relations"
+msgstr "Odnosi"
+
+
+msgid "Rigid Body"
+msgstr "Kruto telo"
+
+
+msgid "Track"
+msgstr "Staza"
+
+
+msgid "Quick Effects"
+msgstr "Brzi efekti"
+
+
+msgid "Hooks"
+msgstr "Udice"
 
 
 msgid "Basic"
@@ -10759,10 +10759,6 @@ msgid "H"
 msgstr "T"
 
 
-msgid "Hue tolerance for colors to be considered a keying color"
-msgstr "Tolerancija tona za boje koje se smatraju ključne"
-
-
 msgid "S"
 msgstr "Z"
 
@@ -11027,10 +11023,6 @@ msgid "Use Minimum"
 msgstr "Koristi minimum"
 
 
-msgid "Number of motion blur samples"
-msgstr "Postavlja broj dodatnih bljesova"
-
-
 msgid "Size Source"
 msgstr "Izvorna veličina"
 
@@ -11041,10 +11033,6 @@ msgstr "Veličina scene"
 
 msgid "Fixed/Scene"
 msgstr "Fiksno/Scena"
-
-
-msgid "Use feather information from the mask"
-msgstr "Koristi informacije umekšavanja sa maske"
 
 
 msgid "Motion Blur"
@@ -11175,16 +11163,8 @@ msgid "Max Speed"
 msgstr "Maks. brzina"
 
 
-msgid "Maximum speed, or zero for none"
-msgstr "Maksimalna brzina ili nula za ništa"
-
-
 msgid "Min Speed"
 msgstr "Min. brzina"
-
-
-msgid "Minimum speed for a pixel to be blurred (used to separate background from foreground)"
-msgstr "Minimalna brzina piksela da bi bio zamućen (koristi se za razdvajanje prednjegi i zadnjeg plana)"
 
 
 msgid "Viewer"
@@ -15805,15 +15785,6 @@ msgstr "-Z do +Z"
 msgctxt "Operator"
 msgid "Snap to Symmetry"
 msgstr "Lepi za simetriju"
-
-
-msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Trouglovi u četvorouglove"
-
-
-msgid "Join triangles into quads"
-msgstr "Spaja trouglove u četvorouglove"
 
 
 msgctxt "Operator"
@@ -21286,10 +21257,6 @@ msgid "Number of vertical pixels in the rendered image"
 msgstr "Broj Vertikalnih piksela u renderovanoj slici"
 
 
-msgid "Display the object as wire edges"
-msgstr "Prikaži objekat sa žičanim ivicama"
-
-
 msgid "Simplify Subdivision"
 msgstr "Pojednostavljene podele"
 
@@ -26080,6 +26047,14 @@ msgid "Glare"
 msgstr "Bljesak"
 
 
+msgid "Use feather information from the mask"
+msgstr "Koristi informacije umekšavanja sa maske"
+
+
+msgid "Number of motion blur samples"
+msgstr "Postavlja broj dodatnih bljesova"
+
+
 msgid "Val"
 msgstr "Vr."
 
@@ -26329,10 +26304,6 @@ msgstr "Zbirka poza"
 
 msgid "Import-Export"
 msgstr "Uvoz-izvoz"
-
-
-msgid "English (English)"
-msgstr "Engleski (English)"
 
 
 msgid "Japanese (日本語)"

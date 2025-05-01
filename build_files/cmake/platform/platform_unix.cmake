@@ -518,7 +518,7 @@ endif()
 add_bundled_libraries(opencolorio/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
-  find_package(Embree 3.8.0 REQUIRED)
+  find_package(Embree 4.0.0 REQUIRED)
 endif()
 add_bundled_libraries(embree/lib)
 
@@ -589,6 +589,16 @@ endif()
 if(WITH_HARU)
   find_package_wrapper(Haru)
   set_and_warn_library_found("Haru" HARU_FOUND WITH_HARU)
+endif()
+
+if(WITH_MANIFOLD)
+  if(WITH_LIBS_PRECOMPILED OR WITH_STRICT_BUILD_OPTIONS)
+    find_package(manifold REQUIRED)
+  else()
+    # This isn't a common system library, so disable if it's not found.
+    find_package(manifold)
+    set_and_warn_library_found("MANIFOLD" MANIFOLD_FOUND WITH_MANIFOLD)
+  endif()
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
