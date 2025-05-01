@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
@@ -30,7 +30,7 @@
 
 #include <numeric>
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 inline namespace clay_thumb_cc {
 
@@ -259,4 +259,4 @@ float clay_thumb_get_stabilized_pressure(const StrokeCache &cache)
   return pressure_sum / cache.clay_thumb_brush.pressure_stabilizer.size();
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace blender::ed::sculpt_paint::brushes

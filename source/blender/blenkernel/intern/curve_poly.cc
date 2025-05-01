@@ -25,7 +25,7 @@ static bool delta_dir(const float3 &pos, const float3 &next, float3 &r_delta_dir
 
 /**
  * Computes an approximate tangent from the normalized sum from
- * the direction vectors to neighbouring points on the curve.
+ * the direction vectors to neighboring points on the curve.
  */
 static float3 direction_bisect(const float3 &pos,
                                const float3 &next,
@@ -56,6 +56,10 @@ void calculate_tangents(const Span<float3> positions,
                         MutableSpan<float3> tangents)
 {
   BLI_assert(positions.size() == tangents.size());
+
+  if (positions.is_empty()) {
+    return;
+  }
 
   if (positions.size() == 1) {
     tangents.first() = float3(0.0f, 0.0f, 1.0f);

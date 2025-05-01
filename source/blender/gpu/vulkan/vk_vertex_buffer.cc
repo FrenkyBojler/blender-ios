@@ -109,7 +109,7 @@ void VKVertexBuffer::acquire_data()
   /* Discard previous data if any. */
   /* TODO: Use mapped memory. */
   MEM_SAFE_FREE(data_);
-  data_ = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+  data_ = MEM_malloc_arrayN<uchar>(this->size_alloc_get(), __func__);
 }
 
 void VKVertexBuffer::resize_data()
@@ -181,11 +181,6 @@ void VKVertexBuffer::upload_data()
   }
 }
 
-void VKVertexBuffer::duplicate_data(VertBuf * /*dst*/)
-{
-  NOT_YET_IMPLEMENTED
-}
-
 void VKVertexBuffer::device_format_ensure()
 {
   if (!vertex_format_converter.is_initialized()) {
@@ -210,7 +205,7 @@ void VKVertexBuffer::allocate()
   buffer_.create(size_alloc_get(),
                  vk_buffer_usage,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                 0,
                  VmaAllocationCreateFlags(0));
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }

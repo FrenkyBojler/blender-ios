@@ -250,6 +250,7 @@ void VKDevice::init_memory_allocator()
                                          nullptr,
                                          VK_IMAGE_LAYOUT_UNDEFINED};
   VmaAllocationCreateInfo allocation_create_info = {};
+  allocation_create_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
   allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO;
   uint32_t memory_type_index;
   vmaFindMemoryTypeIndexForImageInfo(
@@ -463,6 +464,14 @@ void VKDevice::context_register(VKContext &context)
 
 void VKDevice::context_unregister(VKContext &context)
 {
+  if (context.render_graph_.has_value()) {
+    render_graph::VKRenderGraph &render_graph = context.render_graph();
+    context.render_graph_.reset();
+    BLI_assert_msg(render_graph.is_empty(),
+                   "Unregistering a context that still has an unsubmitted render graph.");
+    render_graph.reset();
+    BLI_thread_queue_push(unused_render_graphs_, &render_graph);
+  }
   orphaned_data.move_data(context.discard_pool, timeline_value_ + 1);
   contexts_.remove(contexts_.first_index_of(std::reference_wrapper(context)));
 }
@@ -505,8 +514,9 @@ void VKDevice::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) co
 void VKDevice::debug_print(std::ostream &os, const VKDiscardPool &discard_pool)
 {
   if (discard_pool.images_.is_empty() && discard_pool.buffers_.is_empty() &&
-      discard_pool.image_views_.is_empty() && discard_pool.shader_modules_.is_empty() &&
-      discard_pool.pipeline_layouts_.is_empty())
+      discard_pool.image_views_.is_empty() && discard_pool.buffer_views_.is_empty() &&
+      discard_pool.shader_modules_.is_empty() && discard_pool.pipeline_layouts_.is_empty() &&
+      discard_pool.descriptor_pools_.is_empty())
   {
     return;
   }
@@ -520,11 +530,17 @@ void VKDevice::debug_print(std::ostream &os, const VKDiscardPool &discard_pool)
   if (!discard_pool.buffers_.is_empty()) {
     os << "VkBuffer=" << discard_pool.buffers_.size() << " ";
   }
+  if (!discard_pool.buffer_views_.is_empty()) {
+    os << "VkBufferViews=" << discard_pool.buffer_views_.size() << " ";
+  }
   if (!discard_pool.shader_modules_.is_empty()) {
     os << "VkShaderModule=" << discard_pool.shader_modules_.size() << " ";
   }
   if (!discard_pool.pipeline_layouts_.is_empty()) {
-    os << "VkPipelineLayout=" << discard_pool.pipeline_layouts_.size();
+    os << "VkPipelineLayout=" << discard_pool.pipeline_layouts_.size() << " ";
+  }
+  if (!discard_pool.descriptor_pools_.is_empty()) {
+    os << "VkDescriptorPool=" << discard_pool.descriptor_pools_.size();
   }
   os << "\n";
 }
@@ -556,6 +572,11 @@ void VKDevice::debug_print()
   os << "Discard pool\n";
   debug_print(os, orphaned_data);
   os << "\n";
+
+  for (const std::reference_wrapper<VKContext> &context : contexts_) {
+    os << " VKContext \n";
+    debug_print(os, context.get().discard_pool);
+  }
 }
 
 /** \} */
