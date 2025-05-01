@@ -368,6 +368,80 @@ static void reverse_group_indices_in_groups(const OffsetIndices<int> groups,
   sort_small_groups(offsets, 1024, results);
 }
 
+GroupedSpan<int> gather_group_groups(const GroupedSpan<int> group_indices,
+                                     const int groups_num,
+                                     Array<int> &r_offsets,
+                                     Array<int> &r_indices)
+{
+  if (group_indices.is_empty()) {
+    return {};
+  }
+
+  BLI_assert(*std::max_element(group_indices.data.begin(), group_indices.data.end()) < groups_num);
+  BLI_assert(*std::min_element(group_indices.data.begin(), group_indices.data.end()) >= 0);
+
+  static const constexpr int begin = -1;
+  Array<std::atomic<int>> lists_ends(groups_num);
+  threading::parallel_for(lists_ends.index_range(), 1024, [&](const IndexRange range) {
+    for (auto &value : lists_ends.as_mutable_span().slice(range)) {
+      value.store(begin, std::memory_order_relaxed);
+    }
+  });
+
+  Array<int> group_lists(group_indices.offsets.total_size());
+  threading::parallel_for(group_indices.data.index_range(), 1024, [&](const IndexRange range) {
+    for (const int64_t i : range) {
+      const int group_index = group_indices.data[i];
+      const int previous_index = lists_ends[group_index].exchange(int(i));
+      group_lists[i] = previous_index;
+    }
+  });
+
+  BLI_assert(!lists_ends.as_span().contains(begin));
+
+  r_offsets.reinitialize(groups_num + 1);
+  threading::parallel_for(lists_ends.index_range(), 1024, [&](const IndexRange range) {
+    for (const int64_t group_i : range) {
+      int count = 0;
+      for (int index = lists_ends[group_i].load(std::memory_order_relaxed); index != begin;
+           index = group_lists[index])
+      {
+        count++;
+      }
+      r_offsets[group_i] = count;
+    }
+  });
+
+  r_indices.reinitialize(group_indices.offsets.total_size());
+  const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(r_offsets);
+
+  threading::parallel_for(
+      lists_ends.index_range(),
+      1024,
+      [&](const IndexRange range) {
+        for (const int64_t group_i : range) {
+          const IndexRange group_range = offsets[group_i];
+          BLI_assert(!group_range.is_empty());
+          MutableSpan<int> dst_results = r_indices.as_mutable_span().slice(group_range);
+          int next_index = lists_ends[group_i].load(std::memory_order_relaxed);
+          dst_results.first() = next_index;
+          for (const int64_t i : IndexRange(1, dst_results.size() - 1)) {
+            next_index = group_lists[next_index];
+            BLI_assert(next_index != begin);
+            dst_results[i] = next_index;
+          }
+
+          std::sort(dst_results.begin(), dst_results.end());
+        }
+      });
+
+  Array<int> group_numbers(group_indices.offsets.total_size());
+  offset_indices::build_reverse_map(group_indices.offsets, group_numbers.as_mutable_span());
+  array_utils::gather(group_numbers.as_span(), r_indices.as_span(), r_indices.as_mutable_span());
+
+  return {OffsetIndices<int>(r_offsets), r_indices};
+}
+
 static GroupedSpan<int> gather_groups(const Span<int> group_indices,
                                       const int groups_num,
                                       Array<int> &r_offsets,
