@@ -8,39 +8,41 @@
 
 namespace blender::bke::tests {
 
-[[maybe_unused]] static void debug_print_error(const TemplateError &error)
+using namespace blender::bke::path_templates;
+
+[[maybe_unused]] static void debug_print_error(const Error &error)
 {
   const char *type;
   switch (error.type) {
-    case TemplateErrorType::UNESCAPED_CURLY_BRACE:
+    case ErrorType::UNESCAPED_CURLY_BRACE:
       type = "UNESCAPED_CURLY_BRACE";
       break;
-    case TemplateErrorType::VARIABLE_SYNTAX:
+    case ErrorType::VARIABLE_SYNTAX:
       type = "VARIABLE_SYNTAX";
       break;
-    case TemplateErrorType::FORMAT_SPECIFIER:
+    case ErrorType::FORMAT_SPECIFIER:
       type = "FORMAT_SPECIFIER";
       break;
-    case TemplateErrorType::UNKNOWN_VARIABLE:
+    case ErrorType::UNKNOWN_VARIABLE:
       type = "UNKNOWN_VARIABLE";
       break;
   }
   printf("(%s, (%ld, %ld))", type, error.byte_range.start(), error.byte_range.size());
 }
 
-[[maybe_unused]] static void debug_print_errors(Span<TemplateError> errors)
+[[maybe_unused]] static void debug_print_errors(Span<Error> errors)
 {
   printf("[");
-  for (const TemplateError &error : errors) {
+  for (const Error &error : errors) {
     debug_print_error(error);
     printf(", ");
   }
   printf("]\n");
 }
 
-TEST(path_templates, TemplateVariableMap)
+TEST(path_templates, VariableMap)
 {
-  TemplateVariableMap map;
+  VariableMap map;
 
   /* With in empty variable map, these should all return false / fail. */
   EXPECT_EQ(false, map.contains("hello"));
@@ -105,7 +107,7 @@ TEST(path_templates, TemplateVariableMap)
 
 TEST(path_templates, path_apply_variables)
 {
-  TemplateVariableMap variables;
+  VariableMap variables;
   {
     variables.add_string("hi", "hello");
     variables.add_string("bye", "goodbye");
@@ -127,7 +129,7 @@ TEST(path_templates, path_apply_variables)
     char path[FILE_MAX] =
         "{hi}_{bye}_{the_answer}_{prime}_{i_negative}_{pi}_{e}_{ntsc}_{two}_{f_negative}_{huge}_{"
         "tiny}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path),
@@ -138,7 +140,7 @@ TEST(path_templates, path_apply_variables)
   /* Integer formatting. */
   {
     char path[FILE_MAX] = "{the_answer:#}_{the_answer:##}_{the_answer:####}_{i_negative:####}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), "42_42_0042_-007");
@@ -148,7 +150,7 @@ TEST(path_templates, path_apply_variables)
   {
     char path[FILE_MAX] =
         "{the_answer:.###}_{the_answer:#.##}_{the_answer:###.##}_{i_negative:###.####}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), "42.000_42.00_042.00_-07.0000");
@@ -158,7 +160,7 @@ TEST(path_templates, path_apply_variables)
   {
     char path[FILE_MAX] =
         "{pi:.####}_{e:.###}_{ntsc:.########}_{two:.##}_{f_negative:.##}_{huge:.##}_{tiny:.##}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path),
@@ -170,7 +172,7 @@ TEST(path_templates, path_apply_variables)
     char path[FILE_MAX] =
         "{pi:##.####}_{e:####.###}_{ntsc:#.########}_{two:###.##}_{f_negative:###.##}_{huge:###.##"
         "}_{tiny:###.##}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(
@@ -181,7 +183,7 @@ TEST(path_templates, path_apply_variables)
   /* Float formatting: format as integer. */
   {
     char path[FILE_MAX] = "{pi:##}_{e:####}_{ntsc:#}_{two:###}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), "03_0003_30_002");
@@ -190,7 +192,7 @@ TEST(path_templates, path_apply_variables)
   /* Escaping. "{{" and "}}" are the escape codes for literal "{" and "}". */
   {
     char path[FILE_MAX] = "{hi}_{{hi}}_{{{bye}}}_{bye}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), "hello_{hi}_{goodbye}_goodbye");
@@ -199,10 +201,10 @@ TEST(path_templates, path_apply_variables)
   /* Error: string variables do not support format specifiers. */
   {
     char path[FILE_MAX] = "{hi:##}_{bye:#}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
-    const Vector<TemplateError> expected_errors = {
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(0, 7)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(8, 7)},
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> expected_errors = {
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(0, 7)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(8, 7)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -214,15 +216,15 @@ TEST(path_templates, path_apply_variables)
   {
     char path[FILE_MAX] =
         "{pi:##.}_{e:####.}_{ntsc:#.}_{two:###.}_{f_negative:###.}_{huge:###.}_{tiny:###.}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
-    const Vector<TemplateError> expected_errors = {
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(19, 9)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(29, 10)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(40, 17)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(58, 11)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(70, 11)},
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> expected_errors = {
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(19, 9)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(29, 10)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(40, 17)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(58, 11)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(70, 11)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -233,9 +235,9 @@ TEST(path_templates, path_apply_variables)
   /* Error: missing variable. */
   {
     char path[FILE_MAX] = "{hi}_{missing}_{bye}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
-    const Vector<TemplateError> expected_errors = {
-        {TemplateErrorType::UNKNOWN_VARIABLE, IndexRange(5, 9)},
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> expected_errors = {
+        {ErrorType::UNKNOWN_VARIABLE, IndexRange(5, 9)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -245,9 +247,9 @@ TEST(path_templates, path_apply_variables)
   /* Error: incomplete variable expression. */
   {
     char path[FILE_MAX] = "foo{hi";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
-    const Vector<TemplateError> expected_errors = {
-        {TemplateErrorType::VARIABLE_SYNTAX, IndexRange(3, 3)},
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> expected_errors = {
+        {ErrorType::VARIABLE_SYNTAX, IndexRange(3, 3)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -257,13 +259,13 @@ TEST(path_templates, path_apply_variables)
   /* Error: invalid format specifiers. */
   {
     char path[FILE_MAX] = "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime::sup}_{prime}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
-    const Vector<TemplateError> expected_errors = {
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(19, 13)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(33, 11)},
-        {TemplateErrorType::FORMAT_SPECIFIER, IndexRange(45, 12)},
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> expected_errors = {
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(19, 13)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(33, 11)},
+        {ErrorType::FORMAT_SPECIFIER, IndexRange(45, 12)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -274,9 +276,9 @@ TEST(path_templates, path_apply_variables)
   /* Error: unclosed variable. */
   {
     char path[FILE_MAX] = "{hi_{hi}_{bye}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
-    const Vector<TemplateError> expected_errors = {
-        {TemplateErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> expected_errors = {
+        {ErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -286,9 +288,9 @@ TEST(path_templates, path_apply_variables)
   /* Error: escaped braces inside variable. */
   {
     char path[FILE_MAX] = "{hi_{{hi}}_{bye}";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
-    const Vector<TemplateError> expected_errors = {
-        {TemplateErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> expected_errors = {
+        {ErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
     };
 
     EXPECT_EQ(errors, expected_errors);
@@ -330,7 +332,7 @@ TEST(path_templates, path_apply_variables)
         "bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This string is "
         "exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 bytes.This "
         "string is exactly 32 bytes.This string is exactly 32 bytes.This string is exactly 32 by";
-    const Vector<TemplateError> errors = BKE_path_apply_template(path, FILE_MAX, variables);
+    const Vector<Error> errors = BKE_path_apply_template(path, FILE_MAX, variables);
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path), blender::StringRef(result));

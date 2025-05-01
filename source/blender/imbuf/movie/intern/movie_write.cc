@@ -1261,7 +1261,7 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
 
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
-  const blender::Vector<TemplateError> errors = BKE_path_apply_template(
+  const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
       filepath, FILE_MAX, BKE_build_template_variables(BKE_main_blendfile_path_from_global(), rd));
   if (!errors.is_empty()) {
     BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);

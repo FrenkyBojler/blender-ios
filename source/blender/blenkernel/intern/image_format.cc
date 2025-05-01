@@ -24,6 +24,8 @@
 #include "BKE_image_format.hh"
 #include "BKE_path_templates.hh"
 
+namespace path_templates = blender::bke::path_templates;
+
 /* Init/Copy/Free */
 
 void BKE_image_format_init(ImageFormatData *imf, const bool render)
@@ -598,11 +600,11 @@ int BKE_image_path_ext_from_imtype_ensure(char *filepath,
   return do_ensure_image_extension(filepath, filepath_maxncpy, imtype, nullptr);
 }
 
-static blender::Vector<TemplateError> do_makepicstring(
+static blender::Vector<path_templates::Error> do_makepicstring(
     char filepath[FILE_MAX],
     const char *base,
     const char *relbase,
-    const TemplateVariableMap *template_variables,
+    const path_templates::VariableMap *template_variables,
     int frame,
     const char imtype,
     const ImageFormatData *im_format,
@@ -616,7 +618,7 @@ static blender::Vector<TemplateError> do_makepicstring(
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
 
   if (template_variables) {
-    const blender::Vector<TemplateError> variable_errors = BKE_path_apply_template(
+    const blender::Vector<path_templates::Error> variable_errors = BKE_path_apply_template(
         filepath, FILE_MAX, *template_variables);
     if (!variable_errors.is_empty()) {
       return variable_errors;
@@ -640,11 +642,11 @@ static blender::Vector<TemplateError> do_makepicstring(
   return {};
 }
 
-blender::Vector<TemplateError> BKE_image_path_from_imformat(
+blender::Vector<path_templates::Error> BKE_image_path_from_imformat(
     char *filepath,
     const char *base,
     const char *relbase,
-    const TemplateVariableMap *template_variables,
+    const path_templates::VariableMap *template_variables,
     int frame,
     const ImageFormatData *im_format,
     const bool use_ext,
@@ -663,11 +665,11 @@ blender::Vector<TemplateError> BKE_image_path_from_imformat(
                           suffix);
 }
 
-blender::Vector<TemplateError> BKE_image_path_from_imtype(
+blender::Vector<path_templates::Error> BKE_image_path_from_imtype(
     char *filepath,
     const char *base,
     const char *relbase,
-    const TemplateVariableMap *template_variables,
+    const path_templates::VariableMap *template_variables,
     int frame,
     const char imtype,
     const bool use_ext,

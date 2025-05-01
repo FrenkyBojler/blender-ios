@@ -22,6 +22,8 @@
 
 #include "DNA_scene_types.h"
 
+namespace blender::bke::path_templates {
+
 /**
  * Variables (names and associated values) for use in template substitution.
  *
@@ -33,7 +35,7 @@
  * float. Names must be unique across all types: you can't have a string *and*
  * integer both with the name "bob".
  */
-class TemplateVariableMap {
+class VariableMap {
   blender::Map<std::string, std::string> strings;
   blender::Map<std::string, int64_t> integers;
   blender::Map<std::string, double> floats;
@@ -110,6 +112,22 @@ class TemplateVariableMap {
   std::optional<double> get_float(blender::StringRef name) const;
 };
 
+enum class ErrorType {
+  UNESCAPED_CURLY_BRACE,
+  VARIABLE_SYNTAX,
+  FORMAT_SPECIFIER,
+  UNKNOWN_VARIABLE,
+};
+
+struct Error {
+  ErrorType type;
+  blender::IndexRange byte_range;
+};
+
+bool operator==(const Error &left, const Error &right);
+
+}  // namespace blender::bke::path_templates
+
 /**
  * Build a template variable map based on available information.
  *
@@ -136,22 +154,8 @@ class TemplateVariableMap {
  *
  * \see BLI_path_abs()
  */
-TemplateVariableMap BKE_build_template_variables(const char *blend_file_path,
-                                                 const RenderData *render_data);
-
-enum class TemplateErrorType {
-  UNESCAPED_CURLY_BRACE,
-  VARIABLE_SYNTAX,
-  FORMAT_SPECIFIER,
-  UNKNOWN_VARIABLE,
-};
-
-struct TemplateError {
-  TemplateErrorType type;
-  blender::IndexRange byte_range;
-};
-
-bool operator==(const TemplateError &left, const TemplateError &right);
+blender::bke::path_templates::VariableMap BKE_build_template_variables(
+    const char *blend_file_path, const RenderData *render_data);
 
 /**
  * Validate the template syntax in the given path.
@@ -163,7 +167,8 @@ bool operator==(const TemplateError &left, const TemplateError &right);
  *
  * \return An empty vector if valid, or a vector of the parse errors if invalid.
  */
-blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef path);
+blender::Vector<blender::bke::path_templates::Error> BKE_validate_template_syntax(
+    blender::StringRef path);
 
 /**
  * Perform variable substitution and escaping on the given path.
@@ -204,12 +209,15 @@ blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef p
  * \return On success, an empty vector. If there are errors, a vector of all
  * errors encountered.
  */
-blender::Vector<TemplateError> BKE_path_apply_template(
-    char *path, int path_max_length, const TemplateVariableMap &template_variables);
+blender::Vector<blender::bke::path_templates::Error> BKE_path_apply_template(
+    char *path,
+    int path_max_length,
+    const blender::bke::path_templates::VariableMap &template_variables);
 /**
  * Produces a human-readable error message for the given template error.
  */
-std::string BKE_path_template_error_to_string(const TemplateError &error, blender::StringRef path);
+std::string BKE_path_template_error_to_string(const blender::bke::path_templates::Error &error,
+                                              blender::StringRef path);
 
 /**
  * Logs a report for the given template errors, with human-readable error
@@ -218,4 +226,4 @@ std::string BKE_path_template_error_to_string(const TemplateError &error, blende
 void BKE_report_path_template_errors(ReportList *reports,
                                      eReportType report_type,
                                      blender::StringRef path,
-                                     blender::Span<TemplateError> errors);
+                                     blender::Span<blender::bke::path_templates::Error> errors);

@@ -118,18 +118,19 @@ static void rna_SceneRender_get_frame_path(RenderData *rd,
   }
   else {
     const char *relbase = BKE_main_blendfile_path(bmain);
-    const TemplateVariableMap template_variables = BKE_build_template_variables(relbase, rd);
+    const blender::bke::path_templates::VariableMap template_variables =
+        BKE_build_template_variables(relbase, rd);
 
-    const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
-        filepath,
-        rd->pic,
-        relbase,
-        &template_variables,
-        (frame == INT_MIN) ? rd->cfra : frame,
-        &rd->im_format,
-        (rd->scemode & R_EXTENSION) != 0,
-        true,
-        suffix);
+    const blender::Vector<blender::bke::path_templates::Error> errors =
+        BKE_image_path_from_imformat(filepath,
+                                     rd->pic,
+                                     relbase,
+                                     &template_variables,
+                                     (frame == INT_MIN) ? rd->cfra : frame,
+                                     &rd->im_format,
+                                     (rd->scemode & R_EXTENSION) != 0,
+                                     true,
+                                     suffix);
 
     if (!errors.is_empty()) {
       BKE_report_path_template_errors(reports, RPT_ERROR, rd->pic, errors);

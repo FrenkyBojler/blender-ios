@@ -7,7 +7,9 @@
 #include "BKE_path_templates.hh"
 #include "BKE_scene.hh"
 
-bool TemplateVariableMap::contains(blender::StringRef name) const
+namespace blender::bke::path_templates {
+
+bool VariableMap::contains(blender::StringRef name) const
 {
   if (this->strings.contains(name)) {
     return true;
@@ -21,7 +23,7 @@ bool TemplateVariableMap::contains(blender::StringRef name) const
   return false;
 }
 
-bool TemplateVariableMap::remove(blender::StringRef name)
+bool VariableMap::remove(blender::StringRef name)
 {
   if (this->strings.remove(name)) {
     return true;
@@ -35,7 +37,7 @@ bool TemplateVariableMap::remove(blender::StringRef name)
   return false;
 }
 
-bool TemplateVariableMap::add_string(blender::StringRef name, blender::StringRef value)
+bool VariableMap::add_string(blender::StringRef name, blender::StringRef value)
 {
   if (this->contains(name)) {
     return false;
@@ -44,7 +46,7 @@ bool TemplateVariableMap::add_string(blender::StringRef name, blender::StringRef
   return true;
 }
 
-bool TemplateVariableMap::add_integer(blender::StringRef name, const int64_t value)
+bool VariableMap::add_integer(blender::StringRef name, const int64_t value)
 {
   if (this->contains(name)) {
     return false;
@@ -53,7 +55,7 @@ bool TemplateVariableMap::add_integer(blender::StringRef name, const int64_t val
   return true;
 }
 
-bool TemplateVariableMap::add_float(blender::StringRef name, const double value)
+bool VariableMap::add_float(blender::StringRef name, const double value)
 {
   if (this->contains(name)) {
     return false;
@@ -62,8 +64,7 @@ bool TemplateVariableMap::add_float(blender::StringRef name, const double value)
   return true;
 }
 
-std::optional<blender::StringRefNull> TemplateVariableMap::get_string(
-    blender::StringRef name) const
+std::optional<blender::StringRefNull> VariableMap::get_string(blender::StringRef name) const
 {
   const std::string *value = this->strings.lookup_ptr(name);
   if (value == nullptr) {
@@ -72,7 +73,7 @@ std::optional<blender::StringRefNull> TemplateVariableMap::get_string(
   return blender::StringRefNull(*value);
 }
 
-std::optional<int64_t> TemplateVariableMap::get_integer(blender::StringRef name) const
+std::optional<int64_t> VariableMap::get_integer(blender::StringRef name) const
 {
   const int64_t *value = this->integers.lookup_ptr(name);
   if (value == nullptr) {
@@ -81,7 +82,7 @@ std::optional<int64_t> TemplateVariableMap::get_integer(blender::StringRef name)
   return *value;
 }
 
-std::optional<double> TemplateVariableMap::get_float(blender::StringRef name) const
+std::optional<double> VariableMap::get_float(blender::StringRef name) const
 {
   const double *value = this->floats.lookup_ptr(name);
   if (value == nullptr) {
@@ -90,12 +91,19 @@ std::optional<double> TemplateVariableMap::get_float(blender::StringRef name) co
   return *value;
 }
 
-/* -------------------------------------------------------------------- */
-
-TemplateVariableMap BKE_build_template_variables(const char *blend_file_path,
-                                                 const RenderData *render_data)
+bool operator==(const Error &left, const Error &right)
 {
-  TemplateVariableMap variables;
+  return left.type == right.type && left.byte_range == right.byte_range;
+}
+
+}  // namespace blender::bke::path_templates
+
+using namespace blender::bke::path_templates;
+
+VariableMap BKE_build_template_variables(const char *blend_file_path,
+                                         const RenderData *render_data)
+{
+  VariableMap variables;
 
   /* Blend file name. */
   if (blend_file_path) {
@@ -137,11 +145,6 @@ TemplateVariableMap BKE_build_template_variables(const char *blend_file_path,
 }
 
 /* -------------------------------------------------------------------- */
-
-bool operator==(const TemplateError &left, const TemplateError &right)
-{
-  return left.type == right.type && left.byte_range == right.byte_range;
-}
 
 #define FORMAT_BUFFER_SIZE 128
 
@@ -566,20 +569,20 @@ static blender::Vector<Token> parse_template(blender::StringRef path)
 
 /* Convert a token to its corresponding syntax error. If the token doesn't have
  * an error, returns nullopt. */
-static std::optional<TemplateError> token_to_syntax_error(const Token &token)
+static std::optional<Error> token_to_syntax_error(const Token &token)
 {
   switch (token.type) {
     case TokenType::VARIABLE_SYNTAX_ERROR: {
       if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
-        return {{TemplateErrorType::FORMAT_SPECIFIER, token.byte_range}};
+        return {{ErrorType::FORMAT_SPECIFIER, token.byte_range}};
       }
       else {
-        return {{TemplateErrorType::VARIABLE_SYNTAX, token.byte_range}};
+        return {{ErrorType::VARIABLE_SYNTAX, token.byte_range}};
       }
     }
 
     case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {
-      return {{TemplateErrorType::UNESCAPED_CURLY_BRACE, token.byte_range}};
+      return {{ErrorType::UNESCAPED_CURLY_BRACE, token.byte_range}};
     }
 
     /* Non-errors. */
@@ -593,13 +596,13 @@ static std::optional<TemplateError> token_to_syntax_error(const Token &token)
   return std::nullopt;
 }
 
-blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef path)
+blender::Vector<Error> BKE_validate_template_syntax(blender::StringRef path)
 {
   const blender::Vector<Token> tokens = parse_template(path);
 
-  blender::Vector<TemplateError> errors;
+  blender::Vector<Error> errors;
   for (const Token &token : tokens) {
-    if (std::optional<TemplateError> error = token_to_syntax_error(token)) {
+    if (std::optional<Error> error = token_to_syntax_error(token)) {
       errors.append(*error);
     }
   }
@@ -607,8 +610,9 @@ blender::Vector<TemplateError> BKE_validate_template_syntax(blender::StringRef p
   return errors;
 }
 
-blender::Vector<TemplateError> BKE_path_apply_template(
-    char *path, int path_max_length, const TemplateVariableMap &template_variables)
+blender::Vector<Error> BKE_path_apply_template(char *path,
+                                               int path_max_length,
+                                               const VariableMap &template_variables)
 {
   const blender::Vector<Token> tokens = parse_template(path);
 
@@ -618,7 +622,7 @@ blender::Vector<TemplateError> BKE_path_apply_template(
   }
 
   /* Accumulates errors as we process the tokens. */
-  blender::Vector<TemplateError> errors;
+  blender::Vector<Error> errors;
 
   /* We work on a copy of the path, for two reasons:
    *
@@ -636,7 +640,7 @@ blender::Vector<TemplateError> BKE_path_apply_template(
 
   for (const Token &token : tokens) {
     /* Syntax errors. */
-    if (std::optional<TemplateError> error = token_to_syntax_error(token)) {
+    if (std::optional<Error> error = token_to_syntax_error(token)) {
       errors.append(*error);
       continue;
     }
@@ -670,7 +674,7 @@ blender::Vector<TemplateError> BKE_path_apply_template(
            * specifier: string variables do not support format specifiers. */
           if (token.format.type != FormatSpecifierType::NONE) {
             /* String variables don't take format specifiers: error. */
-            errors.append({TemplateErrorType::FORMAT_SPECIFIER, token.byte_range});
+            errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
           strcpy(replacement_string, string_value->c_str());
@@ -693,7 +697,7 @@ blender::Vector<TemplateError> BKE_path_apply_template(
         }
 
         /* No matching variable found: error. */
-        errors.append({TemplateErrorType::UNKNOWN_VARIABLE, token.byte_range});
+        errors.append({ErrorType::UNKNOWN_VARIABLE, token.byte_range});
         continue;
       }
     }
@@ -720,12 +724,12 @@ blender::Vector<TemplateError> BKE_path_apply_template(
   return errors;
 }
 
-std::string BKE_path_template_error_to_string(const TemplateError &error, blender::StringRef path)
+std::string BKE_path_template_error_to_string(const Error &error, blender::StringRef path)
 {
   blender::StringRef subpath = path.substr(error.byte_range.start(), error.byte_range.size());
 
   switch (error.type) {
-    case TemplateErrorType::UNESCAPED_CURLY_BRACE: {
+    case ErrorType::UNESCAPED_CURLY_BRACE: {
       std::string error_message;
       error_message.append("Unescaped curly brace '");
       error_message.append(subpath);
@@ -733,7 +737,7 @@ std::string BKE_path_template_error_to_string(const TemplateError &error, blende
       return error_message;
     }
 
-    case TemplateErrorType::VARIABLE_SYNTAX: {
+    case ErrorType::VARIABLE_SYNTAX: {
       std::string error_message;
       error_message.append("Invalid or incomplete template expression '");
       error_message.append(subpath);
@@ -741,7 +745,7 @@ std::string BKE_path_template_error_to_string(const TemplateError &error, blende
       return error_message;
     }
 
-    case TemplateErrorType::FORMAT_SPECIFIER: {
+    case ErrorType::FORMAT_SPECIFIER: {
       std::string error_message;
       error_message.append("Invalid format specifier in template expression '");
       error_message.append(subpath);
@@ -749,7 +753,7 @@ std::string BKE_path_template_error_to_string(const TemplateError &error, blende
       return error_message;
     }
 
-    case TemplateErrorType::UNKNOWN_VARIABLE: {
+    case ErrorType::UNKNOWN_VARIABLE: {
       std::string error_message;
       error_message.append("Unknown variable referenced in template expression '");
       error_message.append(subpath);
@@ -765,7 +769,7 @@ std::string BKE_path_template_error_to_string(const TemplateError &error, blende
 void BKE_report_path_template_errors(ReportList *reports,
                                      const eReportType report_type,
                                      blender::StringRef path,
-                                     blender::Span<TemplateError> errors)
+                                     blender::Span<Error> errors)
 {
   BLI_assert(!errors.is_empty());
 
@@ -775,7 +779,7 @@ void BKE_report_path_template_errors(ReportList *reports,
   error_message.append(path);
   error_message.append("':");
 
-  for (const TemplateError &error : errors) {
+  for (const Error &error : errors) {
     error_message.append("\n- ");
     error_message.append(BKE_path_template_error_to_string(error, path));
   }

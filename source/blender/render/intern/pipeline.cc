@@ -99,6 +99,8 @@
 #include "render_result.h"
 #include "render_types.h"
 
+namespace path_templates = blender::bke::path_templates;
+
 /* render flow
  *
  * 1) Initialize state
@@ -2087,9 +2089,9 @@ void RE_RenderFrame(Render *re,
       else {
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                    &scene->r);
-        const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
+        const path_templates::VariableMap template_variables = BKE_build_template_variables(
+            relbase, &scene->r);
+        const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath_override,
             rd.pic,
             relbase,
@@ -2319,9 +2321,9 @@ static bool do_write_image_or_movie(
       }
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const TemplateVariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                    &scene->r);
-        const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
+        const path_templates::VariableMap template_variables = BKE_build_template_variables(
+            relbase, &scene->r);
+        const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath,
             scene->r.pic,
             relbase,
@@ -2522,8 +2524,9 @@ void RE_RenderAnim(Render *re,
     /* Touch/NoOverwrite options are only valid for image's */
     if (is_movie == false && do_write_file) {
       const char *relbase = BKE_main_blendfile_path(bmain);
-      const TemplateVariableMap template_variables = BKE_build_template_variables(relbase, &rd);
-      const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
+      const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                          &rd);
+      const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
           filepath,
           rd.pic,
           BKE_main_blendfile_path(bmain),

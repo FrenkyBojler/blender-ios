@@ -80,6 +80,8 @@
 
 #include "render_intern.hh"
 
+namespace path_templates = blender::bke::path_templates;
+
 /* TODO(sergey): Find better approximation of the scheduled frames.
  * For really high-resolution renders it might fail still. */
 #define MAX_SCHEDULED_FRAMES 8
@@ -416,8 +418,9 @@ static void screen_opengl_render_write(OGLRender *oglrender)
   rr = RE_AcquireResultRead(oglrender->re);
 
   const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-  const TemplateVariableMap template_variables = BKE_build_template_variables(relbase, &scene->r);
-  const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
+  const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                      &scene->r);
+  const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
       filepath,
       scene->r.pic,
       relbase,
@@ -1044,9 +1047,9 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
      */
     char filepath[FILE_MAX];
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const TemplateVariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                &scene->r);
-    const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
+    const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                        &scene->r);
+    const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
         relbase,
@@ -1145,9 +1148,9 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
 
   if (!is_movie) {
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const TemplateVariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                &scene->r);
-    const blender::Vector<TemplateError> errors = BKE_image_path_from_imformat(
+    const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                        &scene->r);
+    const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
         relbase,
