@@ -993,13 +993,14 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     sce->cursor = View3DCursor{};
   }
 
-  bNodeTree *random = blender::bke::node_tree_add_tree(
-      nullptr, "Dummy name", "CompositorNodeTree");
+  /* We need a valid pointer to scene->nodetree to write to, so create a dummy node tree. */
+  bNodeTree *dummy_nodetree;
   if (sce->compositing_nodetree) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
      * writing the scene.*/
-    // sce->nodetree = sce->compositing_nodetree;
-    sce->nodetree = random;
+    dummy_nodetree = blender::bke::node_tree_add_tree(
+        nullptr, "Dummy Nodetree", "CompositorNodeTree");
+    sce->nodetree = dummy_nodetree;
   }
 
   /* write LibData */
@@ -1111,8 +1112,6 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (sce->compositing_nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_nodetree->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
-    // todo(habib): remove name
-    strcpy(temp_nodetree->id.name + 2, "Compositing Nodetree for Forward Compatibility");
     temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
     temp_nodetree->owner_id = &sce->id;
     temp_nodetree->id.lib = sce->id.lib;
@@ -1121,10 +1120,10 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
     sce->nodetree = nullptr;
+    blender::bke::node_tree_free_tree(*dummy_nodetree);
+    MEM_freeN(dummy_nodetree);
+    dummy_nodetree = nullptr;
   }
-  blender::bke::node_tree_free_tree(*random);
-  MEM_freeN(random);
-  random = nullptr;
 
   BKE_color_managed_view_settings_blend_write(writer, &sce->view_settings);
   BKE_image_format_blend_write(writer, &sce->r.im_format);

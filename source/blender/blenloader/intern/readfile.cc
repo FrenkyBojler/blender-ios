@@ -2127,9 +2127,9 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
   if (GS(id->name) == ID_SCE) {
     Scene *scene = (Scene *)id;
     if (scene->compositing_nodetree) {
-      /* If `scene->compositing_nodetree`, then this means the blend file was created by a version
-       * that wrote the compositing_nodetree as its own ID datablock. Since `scene->nodetree` was
-       * written for forward compatibility reasons only, we can ignore it. */
+      /* If `scene->compositing_nodetree != nullptr`, then this means the blend file was created by
+       * a version that wrote the compositing_nodetree as its own ID datablock. Since
+       * `scene->nodetree` was written for forward compatibility reasons only, we can ignore it. */
       scene->nodetree = nullptr;
     }
   }
