@@ -131,46 +131,37 @@ def DefAttributeGetterSetters(attributes_list):
     return wrapper
 
 class GreasePencilStrokePointHandle:
-    """
-    A helper class to get access to Bézier handle data.
-    """
+    """Proxy giving read-only/write access to Bézier handle data."""
+
     __slots__ = ("_point", "_handle")
 
     def __init__(self, point, handle: BezierHandle):
-        self._point  = point
+        self._point = point
         self._handle = handle
 
     @property
     def position(self):
-        # build “handle_left” or “handle_right” from the enum
-        attr = f"handle_{self._handle.name.lower()}"
-        return self._point._get_attribute(
-            attr, 'FLOAT_VECTOR', (0.0, 0.0, 0.0)
-        )
+        """Return the handle position (local-space)."""
+        attribute_name = f"handle_{self._handle.name.lower()}"
+        return self._point._get_attribute(attribute_name, "FLOAT_VECTOR", (0.0, 0.0, 0.0))
 
     @position.setter
     def position(self, value):
-        attr = f"handle_{self._handle.name.lower()}"
-        self._point._set_attribute(
-            attr, 'FLOAT_VECTOR', value, (0.0, 0.0, 0.0)
-        )
+        attribute_name = f"handle_{self._handle.name.lower()}"
+        self._point._set_attribute(attribute_name, "FLOAT_VECTOR", value, (0.0, 0.0, 0.0))
 
     @property
     def type(self):
-        # LEFT → handle_type_left, RIGHT → handle_type_right
-        key = f"handle_type_{self._handle.name.lower()}"
-        return self._point._get_attribute(key, 'INT', 0)
+        """Return the handle type (read-only)."""
+        attribute_name = f"handle_type_{self._handle.name.lower()}"
+        return self._point._get_attribute(attribute_name, "INT", 0)
 
-    @type.setter
-    def type(self, value):
-        key = f"handle_type_{self._handle.name.lower()}"
-        self._point._set_attribute(key, 'INT', value, 0)
+    # No setter – recomputing handle types isn’t exposed to Python yet.
 
     @property
     def select(self):
-        # “.selection_handle_left” or “.selection_handle_right”
-        key = f".selection_handle_{self._handle.name.lower()}"
-        return self._point._get_attribute(key, 'BOOLEAN', True)
+        attribute_name = f".selection_handle_{self._handle.name.lower()}"
+        return self._point._get_attribute(attribute_name, "BOOLEAN", True)
 
     @select.setter
     def select(self, value):
@@ -243,27 +234,18 @@ class GreasePencilStrokePoint(AttributeGetterSetter):
             attribute.data[self._point_index].value = value
 
     @property
-    def curve_type(self):
-        """
-        Return the parent stroke's curve_type
-        """
-        return self._drawing.strokes[self._curve_index].curve_type
-
-    @property
     def handle_left(self):
-        """
-        Return the left Bézier handle proxy, or None if this point's stroke isn't Bézier.
-        """
-        if self.curve_type == 2:
+        """Return the left Bézier handle, or **None** if the stroke type isn't Bézier."""
+        stroke_curve_type = self._drawing.strokes[self._curve_index].curve_type
+        if stroke_curve_type == 2:  # 2 == Bézier (enum value in Blender)
             return GreasePencilStrokePointHandle(self, BezierHandle.LEFT)
         return None
 
     @property
     def handle_right(self):
-        """
-        Return the right Bézier handle proxy, or None if this point's stroke isn't Bézier.
-        """
-        if self.curve_type == 2:
+        """Return the right Bézier handle, or **None** if the stroke type isn't Bézier."""
+        stroke_curve_type = self._drawing.strokes[self._curve_index].curve_type
+        if stroke_curve_type == 2:
             return GreasePencilStrokePointHandle(self, BezierHandle.RIGHT)
         return None
 
