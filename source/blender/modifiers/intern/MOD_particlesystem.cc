@@ -27,7 +27,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -202,7 +202,7 @@ static void deform_verts(ModifierData *md,
   }
 
   if (DEG_is_active(ctx->depsgraph)) {
-    Object *object_orig = DEG_get_original_object(ctx->object);
+    Object *object_orig = DEG_get_original(ctx->object);
     ModifierData *md_orig = BKE_modifiers_findby_name(object_orig, psmd->modifier.name);
     BLI_assert(md_orig != nullptr);
     ParticleSystemModifierData *psmd_orig = (ParticleSystemModifierData *)md_orig;

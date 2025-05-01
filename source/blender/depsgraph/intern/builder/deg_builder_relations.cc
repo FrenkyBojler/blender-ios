@@ -15,10 +15,10 @@
 #include <cstring> /* required for STREQ later on. */
 #include <optional>
 
+#include "BKE_global.hh"
 #include "DNA_modifier_types.h"
-#include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
@@ -57,7 +57,7 @@
 #include "DNA_volume_types.h"
 #include "DNA_world_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_armature.hh"
 #include "BKE_collection.hh"
@@ -69,13 +69,14 @@
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_modifier.hh"
+#include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
@@ -89,7 +90,7 @@
 #include "BKE_world.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 #include "RNA_types.hh"
 
 #include "ANIM_action.hh"
@@ -97,6 +98,7 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_debug.hh"
 
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_pchanmap.h"
@@ -242,14 +244,7 @@ OperationCode bone_target_opcode(ID *target,
 
 bool object_have_geometry_component(const Object *object)
 {
-  return ELEM(object->type,
-              OB_MESH,
-              OB_CURVES_LEGACY,
-              OB_FONT,
-              OB_SURF,
-              OB_MBALL,
-              OB_LATTICE,
-              OB_GPENCIL_LEGACY);
+  return ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_MBALL, OB_LATTICE);
 }
 
 }  // namespace
@@ -620,7 +615,7 @@ void DepsgraphRelationBuilder::build_id(ID *id)
 
 void DepsgraphRelationBuilder::build_generic_id(ID *id)
 {
-  if (built_map_.checkIsBuiltAndTag(id)) {
+  if (built_map_.check_is_built_and_tag(id)) {
     return;
   }
 
@@ -670,7 +665,7 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
     return;
   }
 
-  if (built_map_.checkIsBuiltAndTag(collection)) {
+  if (built_map_.check_is_built_and_tag(collection)) {
     return;
   }
 
@@ -690,9 +685,9 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
     const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
     add_relation(collection_hierarchy_key, object_hierarchy_key, "Collection -> Object hierarchy");
 
-    const OperationKey object_instance_key{
-        &object->id, NodeType::INSTANCING, OperationCode::INSTANCE};
-    add_relation(object_instance_key, collection_geometry_key, "Collection Geometry");
+    const OperationKey object_instance_geometry_key{
+        &object->id, NodeType::INSTANCING, OperationCode::INSTANCE_GEOMETRY};
+    add_relation(object_instance_geometry_key, collection_geometry_key, "Collection Geometry");
 
     /* An instance is part of the geometry of the collection. */
     if (object->type == OB_EMPTY) {
@@ -715,7 +710,7 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
 
 void DepsgraphRelationBuilder::build_object(Object *object)
 {
-  if (built_map_.checkIsBuiltAndTag(object)) {
+  if (built_map_.check_is_built_and_tag(object)) {
     return;
   }
 
@@ -750,9 +745,13 @@ void DepsgraphRelationBuilder::build_object(Object *object)
     add_relation(local_transform_key, parent_transform_key, "ObLocal -> ObParent");
   }
 
-  add_relation(ComponentKey(&object->id, NodeType::TRANSFORM),
+  add_relation(OperationKey{&object->id, NodeType::INSTANCING, OperationCode::INSTANCE_GEOMETRY},
                OperationKey{&object->id, NodeType::INSTANCING, OperationCode::INSTANCE},
-               "Transform -> Instance");
+               "Instance Geometry -> Geometry");
+
+  add_relation(ComponentKey(&object->id, NodeType::TRANSFORM),
+               OperationKey{&object->id, NodeType::INSTANCING, OperationCode::INSTANCE_GEOMETRY},
+               "Transform -> Instance Geometry");
 
   /* Modifiers. */
   build_object_modifiers(object);
@@ -966,7 +965,7 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
   }
   ID *obdata_id = (ID *)object->data;
   /* Object data animation. */
-  if (!built_map_.checkIsBuilt(obdata_id)) {
+  if (!built_map_.check_is_built(obdata_id)) {
     build_animdata(obdata_id);
   }
   /* type-specific data. */
@@ -977,7 +976,6 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
     case OB_SURF:
     case OB_MBALL:
     case OB_LATTICE:
-    case OB_GPENCIL_LEGACY:
     case OB_CURVES:
     case OB_POINTCLOUD:
     case OB_VOLUME:
@@ -1509,11 +1507,6 @@ void DepsgraphRelationBuilder::build_constraints(ID *id,
 
           /* Add dependency on normal layers if necessary. */
           if (ct->tar->type == OB_MESH && scon->shrinkType != MOD_SHRINKWRAP_NEAREST_VERTEX) {
-            bool track = (scon->flag & CON_SHRINKWRAP_TRACK_NORMAL) != 0;
-            if (track || BKE_shrinkwrap_needs_normals(scon->shrinkType, scon->shrinkMode)) {
-              add_customdata_mask(ct->tar,
-                                  DEGCustomDataMeshMasks::MaskLoop(CD_MASK_CUSTOMLOOPNORMAL));
-            }
             if (scon->shrinkType == MOD_SHRINKWRAP_TARGET_PROJECT) {
               add_special_eval_flag(&ct->tar->id, DAG_EVAL_NEED_SHRINKWRAP_BOUNDARY);
             }
@@ -1626,6 +1619,9 @@ void DepsgraphRelationBuilder::build_animdata_curves(ID *id)
     build_animdata_action_targets(id, adt->slot_handle, adt_key, operation_from, adt->action);
   }
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
+    if (!BKE_nlatrack_is_enabled(*adt, *nlt)) {
+      continue;
+    }
     build_animdata_nlastrip_targets(id, adt_key, operation_from, &nlt->strips);
   }
 }
@@ -1698,7 +1694,6 @@ void DepsgraphRelationBuilder::build_animdata_action_targets(ID *id,
     return;
   }
 
-#ifdef WITH_ANIM_BAKLAVA
   const animrig::Slot *slot = action.slot_for_handle(slot_handle);
   if (slot == nullptr) {
     /* If there's no matching slot, there's no Action dependency. */
@@ -1711,8 +1706,8 @@ void DepsgraphRelationBuilder::build_animdata_action_targets(ID *id,
     for (animrig::Strip *strip : layer->strips()) {
       switch (strip->type()) {
         case animrig::Strip::Type::Keyframe: {
-          animrig::KeyframeStrip &keyframe_strip = strip->as<animrig::KeyframeStrip>();
-          animrig::ChannelBag *channels = keyframe_strip.channelbag_for_slot(*slot);
+          animrig::StripKeyframeData &strip_data = strip->data<animrig::StripKeyframeData>(action);
+          animrig::Channelbag *channels = strip_data.channelbag_for_slot(*slot);
           if (channels == nullptr) {
             /* Go to next strip. */
             break;
@@ -1725,9 +1720,6 @@ void DepsgraphRelationBuilder::build_animdata_action_targets(ID *id,
       }
     }
   }
-#else
-  UNUSED_VARS(slot_handle);
-#endif
 }
 
 void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
@@ -1742,13 +1734,8 @@ void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
       ComponentKey action_key(&strip->act->id, NodeType::ANIMATION);
       add_relation(action_key, adt_key, "Action -> Animation");
 
-      if (!strip->act->wrap().is_action_legacy()) {
-        /* TODO: add NLA support for layered actions. */
-        continue;
-      }
-      /* TODO: get slot handle from the owning ID. */
-      const animrig::slot_handle_t slot_handle = animrig::Slot::unassigned;
-      build_animdata_action_targets(id, slot_handle, adt_key, operation_from, strip->act);
+      build_animdata_action_targets(
+          id, strip->action_slot_handle, adt_key, operation_from, strip->act);
     }
     else if (strip->strips.first != nullptr) {
       build_animdata_nlastrip_targets(id, adt_key, operation_from, &strip->strips);
@@ -1759,10 +1746,12 @@ void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
 void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
 {
   AnimData *adt = BKE_animdata_from_id(id);
-  if (adt == nullptr) {
+  if (adt == nullptr || BLI_listbase_is_empty(&adt->drivers)) {
     return;
   }
   ComponentKey adt_key(id, NodeType::ANIMATION);
+  OperationKey driver_unshare_key(id, NodeType::PARAMETERS, OperationCode::DRIVER_UNSHARE);
+
   LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
     OperationKey driver_key(id,
                             NodeType::PARAMETERS,
@@ -1777,6 +1766,10 @@ void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
     if (adt->action || adt->nla_tracks.first) {
       add_relation(adt_key, driver_key, "AnimData Before Drivers");
     }
+
+    if (data_path_maybe_shared(*id, fcu->rna_path)) {
+      add_relation(driver_unshare_key, driver_key, "Un-share shared data before drivers");
+    }
   }
 }
 
@@ -1785,7 +1778,7 @@ void DepsgraphRelationBuilder::build_animation_images(ID *id)
   /* See #DepsgraphNodeBuilder::build_animation_images. */
   bool has_image_animation = false;
   if (ELEM(GS(id->name), ID_MA, ID_WO)) {
-    bNodeTree *ntree = *bke::BKE_ntree_ptr_from_id(id);
+    bNodeTree *ntree = *bke::node_tree_ptr_from_id(id);
     if (ntree != nullptr && ntree->runtime->runtime_flag & NTREE_RUNTIME_FLAG_HAS_IMAGE_ANIMATION)
     {
       has_image_animation = true;
@@ -1835,7 +1828,7 @@ void DepsgraphRelationBuilder::build_animdata_force(ID *id)
 
 void DepsgraphRelationBuilder::build_action(bAction *dna_action)
 {
-  if (built_map_.checkIsBuiltAndTag(dna_action)) {
+  if (built_map_.check_is_built_and_tag(dna_action)) {
     return;
   }
 
@@ -1844,13 +1837,6 @@ void DepsgraphRelationBuilder::build_action(bAction *dna_action)
   build_idproperties(dna_action->id.properties);
 
   blender::animrig::Action &action = dna_action->wrap();
-#ifndef WITH_ANIM_BAKLAVA
-  /* Prevent evaluation of data introduced by Project Baklava. */
-  if (action.is_action_layered()) {
-    return;
-  }
-#endif
-
   if (!action.is_empty()) {
     TimeSourceKey time_src_key;
     ComponentKey animation_key(&dna_action->id, NodeType::ANIMATION);
@@ -2202,7 +2188,7 @@ void DepsgraphRelationBuilder::build_driver_id_property(const PointerRNA &target
   if (ptr.owner_id) {
     build_id(ptr.owner_id);
   }
-  const char *prop_identifier = RNA_property_identifier((PropertyRNA *)prop);
+  const char *prop_identifier = RNA_property_identifier(prop);
   /* Custom properties of bones are placed in their components to improve granularity. */
   OperationKey id_property_key;
   if (RNA_struct_is_a(ptr.type, &RNA_PoseBone)) {
@@ -2246,7 +2232,7 @@ void DepsgraphRelationBuilder::build_dimensions(Object *object)
 
 void DepsgraphRelationBuilder::build_world(World *world)
 {
-  if (built_map_.checkIsBuiltAndTag(world)) {
+  if (built_map_.check_is_built_and_tag(world)) {
     return;
   }
 
@@ -2479,7 +2465,7 @@ void DepsgraphRelationBuilder::build_particle_systems(Object *object)
 
 void DepsgraphRelationBuilder::build_particle_settings(ParticleSettings *part)
 {
-  if (built_map_.checkIsBuiltAndTag(part)) {
+  if (built_map_.check_is_built_and_tag(part)) {
     return;
   }
 
@@ -2540,7 +2526,7 @@ void DepsgraphRelationBuilder::build_particle_system_visualization_object(Object
 /* Shapekeys */
 void DepsgraphRelationBuilder::build_shapekeys(Key *key)
 {
-  if (built_map_.checkIsBuiltAndTag(key)) {
+  if (built_map_.check_is_built_and_tag(key)) {
     return;
   }
 
@@ -2600,27 +2586,8 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
   add_relation(scene_key, obdata_ubereval_key, "Copy-on-Eval Relation", RELATION_FLAG_NO_FLUSH);
   /* Relation to the instance, so that instancer can use geometry of this object. */
   add_relation(ComponentKey(&object->id, NodeType::GEOMETRY),
-               OperationKey(&object->id, NodeType::INSTANCING, OperationCode::INSTANCE),
-               "Transform -> Instance");
-  /* Grease Pencil Modifiers. */
-  if (object->greasepencil_modifiers.first != nullptr) {
-    ModifierUpdateDepsgraphContext ctx = {};
-    ctx.scene = scene_;
-    ctx.object = object;
-    LISTBASE_FOREACH (GpencilModifierData *, md, &object->greasepencil_modifiers) {
-      const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(
-          (GpencilModifierType)md->type);
-      if (mti->update_depsgraph) {
-        DepsNodeHandle handle = create_node_handle(obdata_ubereval_key);
-        ctx.node = reinterpret_cast<::DepsNodeHandle *>(&handle);
-        mti->update_depsgraph(md, &ctx, graph_->mode);
-      }
-      if (BKE_gpencil_modifier_depends_ontime(md)) {
-        TimeSourceKey time_src_key;
-        add_relation(time_src_key, obdata_ubereval_key, "Time Source");
-      }
-    }
-  }
+               OperationKey(&object->id, NodeType::INSTANCING, OperationCode::INSTANCE_GEOMETRY),
+               "Transform -> Instance Geometry");
   /* Shader FX. */
   if (object->shader_fx.first != nullptr) {
     ModifierUpdateDepsgraphContext ctx = {};
@@ -2713,7 +2680,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
 
 void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
 {
-  if (built_map_.checkIsBuiltAndTag(obdata)) {
+  if (built_map_.check_is_built_and_tag(obdata)) {
     return;
   }
 
@@ -2882,7 +2849,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
 
 void DepsgraphRelationBuilder::build_armature(bArmature *armature)
 {
-  if (built_map_.checkIsBuiltAndTag(armature)) {
+  if (built_map_.check_is_built_and_tag(armature)) {
     return;
   }
 
@@ -2913,7 +2880,7 @@ void DepsgraphRelationBuilder::build_armature_bone_collections(
 
 void DepsgraphRelationBuilder::build_camera(Camera *camera)
 {
-  if (built_map_.checkIsBuiltAndTag(camera)) {
+  if (built_map_.check_is_built_and_tag(camera)) {
     return;
   }
 
@@ -2940,7 +2907,7 @@ void DepsgraphRelationBuilder::build_camera(Camera *camera)
 /* Lights */
 void DepsgraphRelationBuilder::build_light(Light *lamp)
 {
-  if (built_map_.checkIsBuiltAndTag(lamp)) {
+  if (built_map_.check_is_built_and_tag(lamp)) {
     return;
   }
 
@@ -3007,7 +2974,7 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
   if (ntree == nullptr) {
     return;
   }
-  if (built_map_.checkIsBuiltAndTag(ntree)) {
+  if (built_map_.check_is_built_and_tag(ntree)) {
     return;
   }
 
@@ -3095,7 +3062,16 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       ComponentKey vfont_key(id, NodeType::GENERIC_DATABLOCK);
       add_relation(vfont_key, ntree_output_key, "VFont -> Node");
     }
-    else if (ELEM(bnode->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+    else if (id_type == ID_GR) {
+      /* Build relations in the collection itself, but don't hook it up to the tree.
+       * Relations from the collection to the tree are handled by the modifier's update_depsgraph()
+       * callback.
+       *
+       * Other node trees do not currently support references to collections. Once they do this
+       * code needs to be reconsidered. */
+      build_collection(nullptr, reinterpret_cast<Collection *>(id));
+    }
+    else if (bnode->is_group()) {
       bNodeTree *group_ntree = (bNodeTree *)id;
       build_nodetree(group_ntree);
       ComponentKey group_output_key(&group_ntree->id, NodeType::NTREE_OUTPUT);
@@ -3143,7 +3119,7 @@ void DepsgraphRelationBuilder::build_material(Material *material, ID *owner)
     add_relation(material_key, owner_shading_key, "Material -> Owner Shading");
   }
 
-  if (built_map_.checkIsBuiltAndTag(material)) {
+  if (built_map_.check_is_built_and_tag(material)) {
     return;
   }
 
@@ -3182,7 +3158,7 @@ void DepsgraphRelationBuilder::build_materials(ID *owner, Material **materials, 
 /* Recursively build graph for texture */
 void DepsgraphRelationBuilder::build_texture(Tex *texture)
 {
-  if (built_map_.checkIsBuiltAndTag(texture)) {
+  if (built_map_.check_is_built_and_tag(texture)) {
     return;
   }
 
@@ -3226,7 +3202,7 @@ void DepsgraphRelationBuilder::build_texture(Tex *texture)
 
 void DepsgraphRelationBuilder::build_image(Image *image)
 {
-  if (built_map_.checkIsBuiltAndTag(image)) {
+  if (built_map_.check_is_built_and_tag(image)) {
     return;
   }
 
@@ -3238,7 +3214,7 @@ void DepsgraphRelationBuilder::build_image(Image *image)
 
 void DepsgraphRelationBuilder::build_cachefile(CacheFile *cache_file)
 {
-  if (built_map_.checkIsBuiltAndTag(cache_file)) {
+  if (built_map_.check_is_built_and_tag(cache_file)) {
     return;
   }
 
@@ -3270,7 +3246,7 @@ void DepsgraphRelationBuilder::build_cachefile(CacheFile *cache_file)
 
 void DepsgraphRelationBuilder::build_mask(Mask *mask)
 {
-  if (built_map_.checkIsBuiltAndTag(mask)) {
+  if (built_map_.check_is_built_and_tag(mask)) {
     return;
   }
 
@@ -3310,7 +3286,7 @@ void DepsgraphRelationBuilder::build_mask(Mask *mask)
 
 void DepsgraphRelationBuilder::build_freestyle_linestyle(FreestyleLineStyle *linestyle)
 {
-  if (built_map_.checkIsBuiltAndTag(linestyle)) {
+  if (built_map_.check_is_built_and_tag(linestyle)) {
     return;
   }
 
@@ -3325,7 +3301,7 @@ void DepsgraphRelationBuilder::build_freestyle_linestyle(FreestyleLineStyle *lin
 
 void DepsgraphRelationBuilder::build_movieclip(MovieClip *clip)
 {
-  if (built_map_.checkIsBuiltAndTag(clip)) {
+  if (built_map_.check_is_built_and_tag(clip)) {
     return;
   }
 
@@ -3339,7 +3315,7 @@ void DepsgraphRelationBuilder::build_movieclip(MovieClip *clip)
 
 void DepsgraphRelationBuilder::build_lightprobe(LightProbe *probe)
 {
-  if (built_map_.checkIsBuiltAndTag(probe)) {
+  if (built_map_.check_is_built_and_tag(probe)) {
     return;
   }
 
@@ -3352,7 +3328,7 @@ void DepsgraphRelationBuilder::build_lightprobe(LightProbe *probe)
 
 void DepsgraphRelationBuilder::build_speaker(Speaker *speaker)
 {
-  if (built_map_.checkIsBuiltAndTag(speaker)) {
+  if (built_map_.check_is_built_and_tag(speaker)) {
     return;
   }
 
@@ -3371,7 +3347,7 @@ void DepsgraphRelationBuilder::build_speaker(Speaker *speaker)
 
 void DepsgraphRelationBuilder::build_sound(bSound *sound)
 {
-  if (built_map_.checkIsBuiltAndTag(sound)) {
+  if (built_map_.check_is_built_and_tag(sound)) {
     return;
   }
 
@@ -3393,34 +3369,34 @@ struct Seq_build_prop_cb_data {
   bool has_audio_strips;
 };
 
-static bool seq_build_prop_cb(Sequence *seq, void *user_data)
+static bool strip_build_prop_cb(Strip *strip, void *user_data)
 {
   Seq_build_prop_cb_data *cd = (Seq_build_prop_cb_data *)user_data;
 
-  cd->builder->build_idproperties(seq->prop);
-  if (seq->sound != nullptr) {
-    cd->builder->build_sound(seq->sound);
-    ComponentKey sound_key(&seq->sound->id, NodeType::AUDIO);
+  cd->builder->build_idproperties(strip->prop);
+  if (strip->sound != nullptr) {
+    cd->builder->build_sound(strip->sound);
+    ComponentKey sound_key(&strip->sound->id, NodeType::AUDIO);
     cd->builder->add_relation(sound_key, cd->sequencer_key, "Sound -> Sequencer");
     cd->has_audio_strips = true;
   }
-  if (seq->scene != nullptr) {
-    cd->builder->build_scene_parameters(seq->scene);
+  if (strip->scene != nullptr) {
+    cd->builder->build_scene_parameters(strip->scene);
     /* This is to support 3D audio. */
     cd->has_audio_strips = true;
   }
-  if (seq->type == SEQ_TYPE_SCENE && seq->scene != nullptr) {
-    if (seq->flag & SEQ_SCENE_STRIPS) {
-      cd->builder->build_scene_sequencer(seq->scene);
-      ComponentKey sequence_scene_audio_key(&seq->scene->id, NodeType::AUDIO);
+  if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
+    if (strip->flag & SEQ_SCENE_STRIPS) {
+      cd->builder->build_scene_sequencer(strip->scene);
+      ComponentKey sequence_scene_audio_key(&strip->scene->id, NodeType::AUDIO);
       cd->builder->add_relation(
           sequence_scene_audio_key, cd->sequencer_key, "Sequence Scene Audio -> Sequencer");
-      ComponentKey sequence_scene_key(&seq->scene->id, NodeType::SEQUENCER);
+      ComponentKey sequence_scene_key(&strip->scene->id, NodeType::SEQUENCER);
       cd->builder->add_relation(
           sequence_scene_key, cd->sequencer_key, "Sequence Scene -> Sequencer");
     }
-    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(seq->scene);
-    cd->builder->build_scene_speakers(seq->scene, sequence_view_layer);
+    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
+    cd->builder->build_scene_speakers(strip->scene, sequence_view_layer);
   }
   /* TODO(sergey): Movie clip, camera, mask. */
   return true;
@@ -3431,7 +3407,7 @@ void DepsgraphRelationBuilder::build_scene_sequencer(Scene *scene)
   if (scene->ed == nullptr) {
     return;
   }
-  if (built_map_.checkIsBuiltAndTag(scene, BuilderMap::TAG_SCENE_SEQUENCER)) {
+  if (built_map_.check_is_built_and_tag(scene, BuilderMap::TAG_SCENE_SEQUENCER)) {
     return;
   }
 
@@ -3444,7 +3420,7 @@ void DepsgraphRelationBuilder::build_scene_sequencer(Scene *scene)
 
   Seq_build_prop_cb_data cb_data = {this, sequencer_key, false};
 
-  SEQ_for_each_callback(&scene->ed->seqbase, seq_build_prop_cb, &cb_data);
+  seq::for_each_callback(&scene->ed->seqbase, strip_build_prop_cb, &cb_data);
   if (cb_data.has_audio_strips) {
     add_relation(sequencer_key, scene_audio_key, "Sequencer -> Audio");
   }
@@ -3478,7 +3454,7 @@ void DepsgraphRelationBuilder::build_scene_speakers(Scene *scene, ViewLayer *vie
 
 void DepsgraphRelationBuilder::build_vfont(VFont *vfont)
 {
-  if (built_map_.checkIsBuiltAndTag(vfont)) {
+  if (built_map_.check_is_built_and_tag(vfont)) {
     return;
   }
 
@@ -3677,7 +3653,7 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
 void DepsgraphRelationBuilder::modifier_walk(void *user_data,
                                              Object * /*object*/,
                                              ID **idpoin,
-                                             int /*cb_flag*/)
+                                             LibraryForeachIDCallbackFlag /*cb_flag*/)
 {
   BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
   ID *id = *idpoin;

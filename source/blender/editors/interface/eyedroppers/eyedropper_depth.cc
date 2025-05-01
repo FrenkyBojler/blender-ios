@@ -31,7 +31,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 
@@ -49,21 +49,21 @@
  * \note #DepthDropper is only internal name to avoid confusion with other kinds of eye-droppers.
  */
 struct DepthDropper {
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  bool is_undo;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  bool is_undo = false;
 
-  bool is_set;
-  float init_depth; /* For resetting on cancel. */
+  bool is_set = false;
+  float init_depth = 0.0f; /* For resetting on cancel. */
 
-  bool accum_start; /* Has mouse been pressed. */
-  float accum_depth;
-  int accum_tot;
+  bool accum_start = false; /* Has mouse been pressed. */
+  float accum_depth = 0.0f;
+  int accum_tot = 0;
 
-  ARegionType *art;
-  void *draw_handle_pixel;
-  int name_pos[2];
-  char name[200];
+  ARegionType *art = nullptr;
+  void *draw_handle_pixel = nullptr;
+  int name_pos[2] = {};
+  char name[200] = {};
 };
 
 static void depthdropper_draw_cb(const bContext * /*C*/, ARegion * /*region*/, void *arg)
@@ -148,7 +148,7 @@ static bool depthdropper_test(bContext *C, wmOperator *op)
 
 static int depthdropper_init(bContext *C, wmOperator *op)
 {
-  DepthDropper *ddr = MEM_cnew<DepthDropper>(__func__);
+  DepthDropper *ddr = MEM_new<DepthDropper>(__func__);
   PropertyRNA *prop;
   if ((prop = RNA_struct_find_property(op->ptr, "prop_data_path")) &&
       RNA_property_is_set(op->ptr, prop))
@@ -156,12 +156,12 @@ static int depthdropper_init(bContext *C, wmOperator *op)
     char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
     BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
     if (!prop_data_path) {
-      MEM_freeN(ddr);
+      MEM_delete(ddr);
       return false;
     }
-    PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
+    PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
     if (!depthdropper_get_path(&ctx_ptr, op, prop_data_path, &ddr->ptr, &ddr->prop)) {
-      MEM_freeN(ddr);
+      MEM_delete(ddr);
       return false;
     }
   }
@@ -177,7 +177,8 @@ static int depthdropper_init(bContext *C, wmOperator *op)
             BKE_id_is_editable(CTX_data_main(C), static_cast<const ID *>(v3d->camera->data)))
         {
           Camera *camera = (Camera *)v3d->camera->data;
-          ddr->ptr = RNA_pointer_create(&camera->id, &RNA_CameraDOFSettings, &camera->dof);
+          ddr->ptr = RNA_pointer_create_discrete(
+              &camera->id, &RNA_CameraDOFSettings, &camera->dof);
           ddr->prop = RNA_struct_find_property(&ddr->ptr, "focus_distance");
           ddr->is_undo = true;
         }
@@ -192,7 +193,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
       (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
       (RNA_property_type(ddr->prop) != PROP_FLOAT))
   {
-    MEM_freeN(ddr);
+    MEM_delete(ddr);
     return false;
   }
   op->customdata = ddr;
@@ -218,10 +219,8 @@ static void depthdropper_exit(bContext *C, wmOperator *op)
     if (ddr->art) {
       ED_region_draw_cb_exit(ddr->art, ddr->draw_handle_pixel);
     }
-
-    MEM_freeN(op->customdata);
-
     op->customdata = nullptr;
+    MEM_delete(ddr);
   }
 }
 
@@ -267,10 +266,11 @@ static void depthdropper_depth_sample_pt(bContext *C,
         /* Unfortunately it's necessary to always draw otherwise we leave stale text. */
         ED_region_tag_redraw(region);
 
-        view3d_operator_needs_opengl(C);
+        view3d_operator_needs_gpu(C);
 
         /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
-        ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+        ED_view3d_depth_override(
+            depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, nullptr);
 
         if (ED_view3d_autodist(region, v3d, mval, co, nullptr)) {
           const float mval_center_fl[2] = {float(region->winx) / 2, float(region->winy) / 2};
@@ -286,7 +286,7 @@ static void depthdropper_depth_sample_pt(bContext *C,
                                    double(*r_depth),
                                    4,
                                    B_UNIT_LENGTH,
-                                   &scene->unit,
+                                   scene->unit,
                                    false);
         }
         else {
@@ -348,7 +348,7 @@ static void depthdropper_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static int depthdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus depthdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   DepthDropper *ddr = static_cast<DepthDropper *>(op->customdata);
 
@@ -395,7 +395,7 @@ static int depthdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* Modal Operator init */
-static int depthdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus depthdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   if (!depthdropper_test(C, op)) {
     /* If the operator can't be executed, make sure to not consume the event. */
@@ -417,7 +417,7 @@ static int depthdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*ev
 }
 
 /* Repeat operator */
-static int depthdropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus depthdropper_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (depthdropper_init(C, op)) {

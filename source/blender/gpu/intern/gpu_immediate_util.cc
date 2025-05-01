@@ -8,10 +8,11 @@
  * GPU immediate mode drawing utilities
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
 #include "GPU_immediate.hh"
@@ -116,6 +117,23 @@ void immRecti_fast_with_color(
   immVertex2i(pos, x2, y2);
   immAttr4fv(col, color);
   immVertex2i(pos, x1, y2);
+}
+
+void immRectf_with_texco(const uint pos, const uint tex_coord, const rctf &p, const rctf &uv)
+{
+  immBegin(GPU_PRIM_TRI_FAN, 4);
+  immAttr2f(tex_coord, uv.xmin, uv.ymin);
+  immVertex2f(pos, p.xmin, p.ymin);
+
+  immAttr2f(tex_coord, uv.xmin, uv.ymax);
+  immVertex2f(pos, p.xmin, p.ymax);
+
+  immAttr2f(tex_coord, uv.xmax, uv.ymax);
+  immVertex2f(pos, p.xmax, p.ymax);
+
+  immAttr2f(tex_coord, uv.xmax, uv.ymin);
+  immVertex2f(pos, p.xmax, p.ymin);
+  immEnd();
 }
 
 #if 0 /* more complete version in case we want that */
@@ -674,7 +692,7 @@ void imm_draw_cylinder_fill_3d(
 }
 
 /* Circle Drawing - Tables for Optimized Drawing Speed */
-#define CIRCLE_RESOL 32
+constexpr static int CIRCLE_RESOL = 32;
 
 static void circball_array_fill(const float verts[CIRCLE_RESOL][3],
                                 const float cent[3],
