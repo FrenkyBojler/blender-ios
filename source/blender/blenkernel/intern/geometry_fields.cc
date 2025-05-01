@@ -389,7 +389,7 @@ GVArray InstancesFieldInput::get_varray_for_context(const fn::FieldContext &cont
 }
 
 GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &context,
-                                                    const IndexMask & mask) const
+                                                    const IndexMask &mask) const
 {
   const eCustomDataType data_type = cpp_type_to_custom_data_type(*type_);
   const AttrDomain domain = context.domain();
