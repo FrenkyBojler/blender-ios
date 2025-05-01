@@ -206,12 +206,12 @@ GPU_SHADER_CREATE_END()
   DEFINE(gpu_comp_type) \
   DEFINE(dimension) \
   COMPUTE_SOURCE("subdiv_custom_data_interp_comp.glsl") \
-  STORAGE_BUF(CUSTOM_DATA_FACE_PTEX_OFFSET_BUF_SLOT, read, uint, face_ptex_offset[])
-STORAGE_BUF(CUSTOM_DATA_PATCH_COORDS_BUF_SLOT, read, BlenderPatchCoord, patch_coords[])
-STORAGE_BUF(CUSTOM_DATA_EXTRA_COARSE_FACE_DATA_BUF_SLOT, read, uint, extra_coarse_face_data[])
-STORAGE_BUF(CUSTOM_DATA_SOURCE_DATA_BUF_SLOT, read, data_type, src_data[])
-STORAGE_BUF(CUSTOM_DATA_DESTINATION_DATA_BUF_SLOT, write, data_type, dst_data[])
-ADDITIONAL_INFO(subdiv_polygon_offset_base)
+  STORAGE_BUF(CUSTOM_DATA_FACE_PTEX_OFFSET_BUF_SLOT, read, uint, face_ptex_offset[]) \
+  STORAGE_BUF(CUSTOM_DATA_PATCH_COORDS_BUF_SLOT, read, BlenderPatchCoord, patch_coords[]) \
+  STORAGE_BUF(CUSTOM_DATA_EXTRA_COARSE_FACE_DATA_BUF_SLOT, read, uint, extra_coarse_face_data[]) \
+  STORAGE_BUF(CUSTOM_DATA_SOURCE_DATA_BUF_SLOT, read, data_type, src_data[]) \
+  STORAGE_BUF(CUSTOM_DATA_DESTINATION_DATA_BUF_SLOT, write, data_type, dst_data[]) \
+  ADDITIONAL_INFO(subdiv_polygon_offset_base)
 
 SUBDIV_CUSTOM_DATA_VARIANT(4d_u16, "GPU_COMP_U16", uint, "DIMENSIONS_4")
 GPU_SHADER_CREATE_END()
