@@ -38,10 +38,65 @@ enum class TextureFormat : uint8_t {
 #define DECLARE(a, b, c, blender_enum, d, e, f, g, h) blender_enum = int(DataFormat::blender_enum),
 
 #define GPU_TEXTURE_FORMAT_EXPAND(impl) \
-  VEC_X_(impl) \
-  VEC_X_X_(impl) \
-  VEC_X_X_X_(impl) /* TODO(fclem): Incompatible with metal, likely to be emulated. To remove. */ \
-  VEC_X_X_X_X_(impl) \
+  SNORM_8_(impl) \
+  SNORM_8_8_(impl) \
+  SNORM_8_8_8_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  SNORM_8_8_8_8_(impl) \
+\
+  SNORM_16_(impl) \
+  SNORM_16_16_(impl) \
+  SNORM_16_16_16_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  SNORM_16_16_16_16_(impl) \
+\
+  UNORM_8_(impl) \
+  UNORM_8_8_(impl) \
+  UNORM_8_8_8_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  UNORM_8_8_8_8_(impl) \
+\
+  UNORM_16_(impl) \
+  UNORM_16_16_(impl) \
+  UNORM_16_16_16_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  UNORM_16_16_16_16_(impl) \
+\
+  SINT_8_(impl) \
+  SINT_8_8_(impl) \
+  SINT_8_8_8_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  SINT_8_8_8_8_(impl) \
+\
+  SINT_16_(impl) \
+  SINT_16_16_(impl) \
+  SINT_16_16_16_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  SINT_16_16_16_16_(impl) \
+\
+  SINT_32_(impl) \
+  SINT_32_32_(impl) \
+  SINT_32_32_32_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  SINT_32_32_32_32_(impl) \
+\
+  UINT_8_(impl) \
+  UINT_8_8_(impl) \
+  UINT_8_8_8_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  UINT_8_8_8_8_(impl) \
+\
+  UINT_16_(impl) \
+  UINT_16_16_(impl) \
+  UINT_16_16_16_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  UINT_16_16_16_16_(impl) \
+\
+  UINT_32_(impl) \
+  UINT_32_32_(impl) \
+  UINT_32_32_32_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  UINT_32_32_32_32_(impl) \
+\
+  SFLOAT_16_(impl) \
+  SFLOAT_16_16_(impl) \
+  SFLOAT_16_16_16_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  SFLOAT_16_16_16_16_(impl) \
+\
+  SFLOAT_32_(impl) \
+  SFLOAT_32_32_(impl) \
+  SFLOAT_32_32_32_(impl) /* TODO(fclem): Incompatible with metal, to remove. */ \
+  SFLOAT_32_32_32_32_(impl) \
 \
   UNORM_10_10_10_2_(impl) \
   UINT_10_10_10_2_(impl) \
@@ -85,9 +140,45 @@ enum class TextureTargetFormat : uint8_t {
   blender_enum = int(TextureFormat::blender_enum),
 
 #define GPU_TEXTURE_TARGET_FORMAT_EXPAND(impl) \
-  VEC_X_(impl) \
-  VEC_X_X_(impl) \
-  VEC_X_X_X_X_(impl) \
+  UNORM_8_(impl) \
+  UNORM_8_8_(impl) \
+  UNORM_8_8_8_8_(impl) \
+\
+  UNORM_16_(impl) \
+  UNORM_16_16_(impl) \
+  UNORM_16_16_16_16_(impl) \
+\
+  SINT_8_(impl) \
+  SINT_8_8_(impl) \
+  SINT_8_8_8_8_(impl) \
+\
+  SINT_16_(impl) \
+  SINT_16_16_(impl) \
+  SINT_16_16_16_16_(impl) \
+\
+  SINT_32_(impl) \
+  SINT_32_32_(impl) \
+  SINT_32_32_32_32_(impl) \
+\
+  UINT_8_(impl) \
+  UINT_8_8_(impl) \
+  UINT_8_8_8_8_(impl) \
+\
+  UINT_16_(impl) \
+  UINT_16_16_(impl) \
+  UINT_16_16_16_16_(impl) \
+\
+  UINT_32_(impl) \
+  UINT_32_32_(impl) \
+  UINT_32_32_32_32_(impl) \
+\
+  SFLOAT_16_(impl) \
+  SFLOAT_16_16_(impl) \
+  SFLOAT_16_16_16_16_(impl) \
+\
+  SFLOAT_32_(impl) \
+  SFLOAT_32_32_(impl) \
+  SFLOAT_32_32_32_32_(impl) \
 \
   UNORM_10_10_10_2_(impl) \
   UINT_10_10_10_2_(impl) \
@@ -122,9 +213,45 @@ enum class TextureWriteFormat : uint8_t {
   blender_enum = int(TextureFormat::blender_enum),
 
 #define GPU_TEXTURE_WRITE_FORMAT_EXPAND(impl) \
-  VEC_X_(impl) \
-  VEC_X_X_(impl) \
-  VEC_X_X_X_X_(impl) \
+  UNORM_8_(impl) \
+  UNORM_8_8_(impl) \
+  UNORM_8_8_8_8_(impl) \
+\
+  UNORM_16_(impl) \
+  UNORM_16_16_(impl) \
+  UNORM_16_16_16_16_(impl) \
+\
+  SINT_8_(impl) \
+  SINT_8_8_(impl) \
+  SINT_8_8_8_8_(impl) \
+\
+  SINT_16_(impl) \
+  SINT_16_16_(impl) \
+  SINT_16_16_16_16_(impl) \
+\
+  SINT_32_(impl) \
+  SINT_32_32_(impl) \
+  SINT_32_32_32_32_(impl) \
+\
+  UINT_8_(impl) \
+  UINT_8_8_(impl) \
+  UINT_8_8_8_8_(impl) \
+\
+  UINT_16_(impl) \
+  UINT_16_16_(impl) \
+  UINT_16_16_16_16_(impl) \
+\
+  UINT_32_(impl) \
+  UINT_32_32_(impl) \
+  UINT_32_32_32_32_(impl) \
+\
+  SFLOAT_16_(impl) \
+  SFLOAT_16_16_(impl) \
+  SFLOAT_16_16_16_16_(impl) \
+\
+  SFLOAT_32_(impl) \
+  SFLOAT_32_32_(impl) \
+  SFLOAT_32_32_32_32_(impl) \
 \
   UNORM_10_10_10_2_(impl) \
   UINT_10_10_10_2_(impl) \
