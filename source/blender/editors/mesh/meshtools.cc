@@ -471,8 +471,7 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
       LISTBASE_FOREACH (bDeformGroup *, dg, &mesh->vertex_group_names) {
         /* See if this group exists in the object (if it doesn't, add it to the end) */
         if (!BKE_object_defgroup_find_name(ob, dg->name)) {
-          bDeformGroup *odg = static_cast<bDeformGroup *>(
-              MEM_mallocN(sizeof(bDeformGroup), __func__));
+          bDeformGroup *odg = MEM_mallocN<bDeformGroup>(__func__);
           memcpy(odg, dg, sizeof(bDeformGroup));
           BLI_addtail(&mesh_active->vertex_group_names, odg);
         }
@@ -490,10 +489,8 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
          * check if destination mesh already has matching entries too. */
         if (mesh->key && key) {
           /* for remapping KeyBlock.relative */
-          int *index_map = static_cast<int *>(
-              MEM_mallocN(sizeof(int) * mesh->key->totkey, __func__));
-          KeyBlock **kb_map = static_cast<KeyBlock **>(
-              MEM_mallocN(sizeof(KeyBlock *) * mesh->key->totkey, __func__));
+          int *index_map = MEM_malloc_arrayN<int>(mesh->key->totkey, __func__);
+          KeyBlock **kb_map = MEM_malloc_arrayN<KeyBlock *>(mesh->key->totkey, __func__);
 
           LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &mesh->key->block, i) {
             BLI_assert(i < mesh->key->totkey);
@@ -548,7 +545,7 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
       &ldata, CD_PROP_INT32, CD_CONSTRUCT, totloop, ".corner_vert");
   int *corner_edges = (int *)CustomData_add_layer_named(
       &ldata, CD_PROP_INT32, CD_CONSTRUCT, totloop, ".corner_edge");
-  int *face_offsets = static_cast<int *>(MEM_malloc_arrayN(faces_num + 1, sizeof(int), __func__));
+  int *face_offsets = MEM_malloc_arrayN<int>(faces_num + 1, __func__);
   face_offsets[faces_num] = totloop;
 
   vertofs = 0;
@@ -678,10 +675,10 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
 
   const int totcol = matar.size();
   if (totcol) {
-    mesh->mat = static_cast<Material **>(MEM_callocN(sizeof(*mesh->mat) * totcol, __func__));
+    mesh->mat = MEM_calloc_arrayN<Material *>(totcol, __func__);
     std::copy_n(matar.data(), totcol, mesh->mat);
-    ob->mat = static_cast<Material **>(MEM_callocN(sizeof(*ob->mat) * totcol, __func__));
-    ob->matbits = static_cast<char *>(MEM_callocN(sizeof(*ob->matbits) * totcol, __func__));
+    ob->mat = MEM_calloc_arrayN<Material *>(totcol, __func__);
+    ob->matbits = MEM_calloc_arrayN<char>(totcol, __func__);
   }
 
   ob->totcol = mesh->totcol = totcol;
@@ -720,7 +717,9 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
  * Add vertex positions of selected meshes as shape keys to the active mesh.
  * \{ */
 
-wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *reports)
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
+                                                  const bool ensure_keys_exist,
+                                                  ReportList *reports)
 {
   using namespace blender;
   Main *bmain = CTX_data_main(C);
@@ -728,6 +727,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
   Mesh &active_mesh = *static_cast<Mesh *>(active_object.data);
 
+  bool found_object = false;
   bool found_non_equal_verts_num = false;
   Vector<Object *> compatible_objects;
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
@@ -737,6 +737,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
     if (ob_iter->type != OB_MESH) {
       continue;
     }
+    found_object = true;
     const Mesh &mesh = *static_cast<Mesh *>(ob_iter->data);
     if (mesh.verts_num != active_mesh.verts_num) {
       found_non_equal_verts_num = true;
@@ -745,6 +746,11 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
     compatible_objects.append(ob_iter);
   }
   CTX_DATA_END;
+
+  if (!found_object) {
+    BKE_report(reports, RPT_WARNING, "No source mesh objects selected");
+    return OPERATOR_CANCELLED;
+  }
 
   if (found_non_equal_verts_num) {
     BKE_report(reports, RPT_WARNING, "Selected meshes must have equal numbers of vertices");
@@ -765,6 +771,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
         &active_mesh, active_mesh.key, BKE_keyblock_add(active_mesh.key, nullptr));
   }
 
+  int keys_changed = 0;
   Scene *scene_eval = DEG_get_evaluated_scene(&depsgraph);
   for (Object *object : compatible_objects) {
     Object *object_eval = DEG_get_evaluated_object(&depsgraph, object);
@@ -773,8 +780,23 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
     if (!deformed_mesh) {
       continue;
     }
-    KeyBlock *kb = BKE_keyblock_add(active_mesh.key, object->id.name + 2);
-    BKE_keyblock_convert_from_mesh(deformed_mesh, active_mesh.key, kb);
+    const char *name = BKE_id_name(object->id);
+    if (ensure_keys_exist) {
+      KeyBlock *kb = BKE_keyblock_add(active_mesh.key, name);
+      BKE_keyblock_convert_from_mesh(deformed_mesh, active_mesh.key, kb);
+    }
+    else if (KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, name)) {
+      keys_changed++;
+      BKE_keyblock_update_from_mesh(deformed_mesh, kb);
+    }
+  }
+
+  if (!ensure_keys_exist) {
+    if (keys_changed == 0) {
+      BKE_report(reports, RPT_ERROR, "No name matches between selected objects and shape keys");
+      return OPERATOR_CANCELLED;
+    }
+    BKE_reportf(reports, RPT_INFO, "Updated %d shape key(s)", keys_changed);
   }
 
   DEG_id_tag_update(&active_mesh.id, ID_RECALC_GEOMETRY);
@@ -1080,8 +1102,8 @@ int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em, Mesh *mesh_eval)
   const int totface = mesh_eval ? mesh_eval->totface_legacy : mesh->totface_legacy;
   int a;
 
-  mirrorverts = static_cast<int *>(MEM_callocN(sizeof(int) * totvert, "MirrorVerts"));
-  mirrorfaces = static_cast<int *>(MEM_callocN(sizeof(int[2]) * totface, "MirrorFaces"));
+  mirrorverts = MEM_calloc_arrayN<int>(totvert, "MirrorVerts");
+  mirrorfaces = MEM_calloc_arrayN<int>(2 * totface, "MirrorFaces");
 
   const Span<float3> vert_positions = mesh_eval ? mesh_eval->vert_positions() :
                                                   mesh->vert_positions();

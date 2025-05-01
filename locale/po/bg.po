@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'1f4cae0c4623')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"POT-Creation-Date: 2025-04-28 09:32+0000\n"
 "PO-Revision-Date: 2025-04-14 08:10+0000\n"
 "Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
@@ -1140,28 +1140,12 @@ msgid "Mask"
 msgstr "Маскиране"
 
 
-msgid "Light"
-msgstr "Светлина"
-
-
-msgid "Rigid Body"
-msgstr "Твърдо тяло"
+msgid "In-Betweens"
+msgstr "Междинни Кадри"
 
 
 msgid "Apply"
 msgstr "Прилагане"
-
-
-msgid "Make Single User"
-msgstr "Направи с Единствен Потребител"
-
-
-msgid "Hooks"
-msgstr "Куки"
-
-
-msgid "In-Betweens"
-msgstr "Междинни Кадри"
 
 
 msgid "Merge"
@@ -1174,6 +1158,22 @@ msgstr "Текст"
 
 msgid "UV Mapping"
 msgstr "UV Картиране"
+
+
+msgid "Light"
+msgstr "Светлина"
+
+
+msgid "Rigid Body"
+msgstr "Твърдо тяло"
+
+
+msgid "Make Single User"
+msgstr "Направи с Единствен Потребител"
+
+
+msgid "Hooks"
+msgstr "Куки"
 
 
 msgid "Languages..."
@@ -1654,11 +1654,6 @@ msgstr "Създава копия от избраните върхове в кр
 
 msgid "Fractal"
 msgstr "Фрактално"
-
-
-msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Триъгълници към Четириъгълници"
 
 
 msgid "Smooth along the X axis"
@@ -2384,10 +2379,6 @@ msgstr "Засенчване"
 
 msgid "Pose Library"
 msgstr "Библиотека с Пози"
-
-
-msgid "English (English)"
-msgstr "Английски (English)"
 
 
 msgid "Japanese (日本語)"

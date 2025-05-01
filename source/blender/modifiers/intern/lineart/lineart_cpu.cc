@@ -471,8 +471,7 @@ static void lineart_occlusion_worker(TaskPool *__restrict /*pool*/, LineartRende
 void lineart_main_occlusion_begin(LineartData *ld)
 {
   int thread_count = ld->thread_count;
-  LineartRenderTaskInfo *rti = MEM_calloc_arrayN<LineartRenderTaskInfo>(size_t(thread_count),
-                                                                        __func__);
+  LineartRenderTaskInfo *rti = MEM_calloc_arrayN<LineartRenderTaskInfo>(thread_count, __func__);
   int i;
 
   TaskPool *tp = BLI_task_pool_create(nullptr, TASK_PRIORITY_HIGH);
@@ -2555,7 +2554,7 @@ void lineart_main_load_geometries(Depsgraph *depsgraph,
     float sensor = BKE_camera_sensor_size(cam->sensor_fit, cam->sensor_x, cam->sensor_y);
     int fit = BKE_camera_sensor_fit(cam->sensor_fit, ld->w, ld->h);
     double asp = (double(ld->w) / double(ld->h));
-    if (cam->type == CAM_PERSP) {
+    if (ELEM(cam->type, CAM_PERSP, CAM_PANO, CAM_CUSTOM)) {
       if (fit == CAMERA_SENSOR_FIT_VERT && asp > 1) {
         sensor *= asp;
       }
@@ -2568,6 +2567,10 @@ void lineart_main_load_geometries(Depsgraph *depsgraph,
     else if (cam->type == CAM_ORTHO) {
       const double w = cam->ortho_scale / 2;
       lineart_matrix_ortho_44d(proj, -w, w, -w / asp, w / asp, cam->clip_start, cam->clip_end);
+    }
+    else {
+      BLI_assert(!"Unsupported camera type in lineart_main_load_geometries");
+      unit_m4_db(proj);
     }
 
     invert_m4_m4(inv, ld->conf.cam_obmat);
@@ -3387,7 +3390,7 @@ static bool lineart_schedule_new_triangle_task(LineartIsecThread *th)
  */
 static void lineart_init_isec_thread(LineartIsecData *d, LineartData *ld, int thread_count)
 {
-  d->threads = MEM_calloc_arrayN<LineartIsecThread>(size_t(thread_count), "LineartIsecThread arr");
+  d->threads = MEM_calloc_arrayN<LineartIsecThread>(thread_count, "LineartIsecThread arr");
   d->ld = ld;
   d->thread_count = thread_count;
 
@@ -4387,7 +4390,7 @@ static void lineart_main_remove_unused_lines_recursive(LineartBoundingArea *ba,
     return;
   }
 
-  LineartEdge **new_array = MEM_calloc_arrayN<LineartEdge *>(size_t(usable_count),
+  LineartEdge **new_array = MEM_calloc_arrayN<LineartEdge *>(usable_count,
                                                              "cleaned lineart edge array");
 
   int new_i = 0;
