@@ -55,7 +55,7 @@ float compute_line_factor(uint corner_index, float3 face_normal)
 
   uint start_corner_index_other = quad_other * 4;
   float3 v0 = subdiv_position_to_float3(positions[start_corner_index_other + 0]);
-  float3 v1 = subdiv_position_to_float3(positions[start_corner_index_other + 1);
+  float3 v1 = subdiv_position_to_float3(positions[start_corner_index_other + 1]);
   float3 v2 = subdiv_position_to_float3(positions[start_corner_index_other + 2]);
   float3 face_normal_other = normalize(cross(v1 - v0, v2 - v0));
 
@@ -74,9 +74,9 @@ void main()
   uint start_loop_index = quad_index * 4;
 
   /* First compute the face normal, we need it to compute the bihedral edge angle. */
-  float3 v0 = subdiv_position_to_float3(positions(start_loop_index + 0));
-  float3 v1 = subdiv_position_to_float3(positions(start_loop_index + 1));
-  float3 v2 = subdiv_position_to_float3(positions(start_loop_index + 2));
+  float3 v0 = subdiv_position_to_float3(positions[start_loop_index + 0]);
+  float3 v1 = subdiv_position_to_float3(positions[start_loop_index + 1]);
+  float3 v2 = subdiv_position_to_float3(positions[start_loop_index + 2]);
   float3 face_normal = normalize(cross(v1 - v0, v2 - v0));
 
   float4 edge_facs = float4(0.0f);

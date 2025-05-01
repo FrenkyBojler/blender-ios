@@ -45,19 +45,25 @@ void main()
     return;
   }
 
+  uint coarse_quad_index = coarse_face_index_from_subdiv_quad_index(quad_index,
+                                                                  shader_data.coarse_face_count);
+
+
   uint start_loop_index = quad_index * 4;
 
   for (int i = 0; i < 4; i++) {
     Normal custom_normal = custom_normals[start_loop_index + i];
+    float3 nor = float3(custom_normal.x, custom_normal.y, custom_normal.z);
+    nor = normalize(nor);
 
     LoopNormal lnor;
-    lnor.x = custom_normal.x;
-    lnor.y = custom_normal.y;
-    lnor.z = custom_normal.z;
+    lnor.nx = nor.x;
+    lnor.ny = nor.y;
+    lnor.nz = nor.z;
 
     int origindex = input_vert_origindex[start_loop_index + i];
     lnor.flag = get_loop_flag(coarse_quad_index, origindex);
 
-    output_lnor[start_loop_index + i] = subdiv_set_vertex_nor(vertex_data, normalize(nor));
+    output_lnor[start_loop_index + i] = lnor;
   }
 }
