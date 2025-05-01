@@ -3391,7 +3391,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "proportional_objects", 0);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
-      prop, "Proportional Editing Objects", "Proportional editing object mode");
+      prop, "Proportional Editing Objects", "Toggle proportional editing");
   RNA_def_property_ui_icon(prop, ICON_PROP_OFF, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
@@ -3535,7 +3535,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_snap", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SCE_SNAP);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
-  RNA_def_property_ui_text(prop, "Snap", "Snap during transform");
+  RNA_def_property_ui_text(prop, "Toggle Snapping", "Snap during transform");
   RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
@@ -4066,7 +4066,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Layered",
-      "Add a new NLA Track + Strip for every loop/pass made over the animation "
+      "Add a new NLA track and strip for every loop/pass made over the animation "
       "to allow non-destructive tweaking");
 
   prop = RNA_def_property(srna, "use_keyframe_insert_keyingset", PROP_BOOLEAN, PROP_NONE);
@@ -8740,7 +8740,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Current Frame",
-      "Current frame, to update animation data from Python frame_set() instead");
+      "Current playback/rendering frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, "rna_Scene_frame_update");
 
   prop = RNA_def_property(srna, "frame_subframe", PROP_FLOAT, PROP_TIME);
@@ -8810,7 +8810,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Use Preview Range",
-      "Use an alternative start/end frame range for animation playback and view renders");
+      "Use a temporary start/end frame range for animation playback and view renders");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
   RNA_def_property_ui_icon(prop, ICON_PREVIEW_RANGE, 0);
 
@@ -9029,7 +9029,7 @@ void RNA_def_scene(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_audio", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_Scene_use_audio_get", "rna_Scene_use_audio_set");
   RNA_def_property_ui_text(
-      prop, "Play Audio", "Play back of audio from Sequence Editor, otherwise mute audio");
+      prop, "Play Audio", "Play audio from Video Sequencer, otherwise mute audio");
   RNA_def_property_update(prop, NC_SCENE, "rna_Scene_use_audio_update");
 
 #  if 0 /* XXX: Is this actually needed? */
@@ -9045,7 +9045,7 @@ void RNA_def_scene(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_audio_scrub", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "audio.flag", AUDIO_SCRUB);
   RNA_def_property_ui_text(
-      prop, "Audio Scrubbing", "Play audio from Sequence Editor while scrubbing");
+      prop, "Audio Scrubbing", "Play audio from Video Sequencer while scrubbing");
   RNA_def_property_update(prop, NC_SCENE, nullptr);
 
   prop = RNA_def_property(srna, "audio_doppler_speed", PROP_FLOAT, PROP_NONE);
