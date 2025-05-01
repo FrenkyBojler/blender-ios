@@ -220,6 +220,31 @@ static void node_update(bNodeTree *ntree, bNode *node)
       *ntree, *diagonal_star_input, glare_type == CMP_NODE_GLARE_SIMPLE_STAR);
 }
 
+class SocketSearchOp {
+ public:
+  CMPNodeGlareType type = CMP_NODE_GLARE_SIMPLE_STAR;
+  void operator()(LinkSearchOpParams &params)
+  {
+    bNode &node = params.add_node("CompositorNodeGlare");
+    node_storage(node).type = this->type;
+    params.update_and_connect_available_socket(node, "Image");
+  }
+};
+
+static void gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const eNodeSocketDatatype from_socket_type = eNodeSocketDatatype(params.other_socket().type);
+  if (!params.node_tree().typeinfo->validate_link(from_socket_type, SOCK_RGBA)) {
+    return;
+  }
+
+  params.add_item(IFACE_("Simple Star"), SocketSearchOp{CMP_NODE_GLARE_SIMPLE_STAR});
+  params.add_item(IFACE_("Fog Glow"), SocketSearchOp{CMP_NODE_GLARE_FOG_GLOW});
+  params.add_item(IFACE_("Streaks"), SocketSearchOp{CMP_NODE_GLARE_STREAKS});
+  params.add_item(IFACE_("Ghost"), SocketSearchOp{CMP_NODE_GLARE_GHOST});
+  params.add_item(IFACE_("Bloom"), SocketSearchOp{CMP_NODE_GLARE_BLOOM});
+}
+
 using namespace blender::compositor;
 
 class GlareOperation : public NodeOperation {
@@ -2199,7 +2224,8 @@ class GlareOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      /* Make sure the input is not negative to avoid a subtractive effect when adding the glare.*/
+      /* Make sure the input is not negative
+       * to avoid a subtractive effect when adding the glare. */
       float4 input_color = math::max(float4(0.0f), input.load_pixel<float4>(texel));
 
       float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(input.domain().size);
@@ -2397,6 +2423,7 @@ void register_node_type_cmp_glare()
   ntype.declare = file_ns::cmp_node_glare_declare;
   ntype.updatefunc = file_ns::node_update;
   ntype.initfunc = file_ns::node_composit_init_glare;
+  ntype.gather_link_search_ops = file_ns::gather_link_searches;
   blender::bke::node_type_storage(
       ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
