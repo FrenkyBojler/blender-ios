@@ -104,10 +104,10 @@ class MaterialTestData : public TestData {
     this->material_nodetree = this->material->nodetree;
   }
 
-  ~MaterialTestData()
-  {
-    BKE_id_free(this->bmain, &this->material->id);
-  }
+  // ~MaterialTestData()
+  // {
+  //   BKE_id_free(this->bmain, &this->material->id);
+  // }
 };
 
 class MeshTestData : public TestData {
