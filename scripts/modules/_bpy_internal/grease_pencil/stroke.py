@@ -156,7 +156,7 @@ class GreasePencilStrokePointHandle:
         attribute_name = f"handle_type_{self._handle.name.lower()}"
         return self._point._get_attribute(attribute_name, "INT", 0)
 
-    # No setter – recomputing handle types isn’t exposed to Python yet.
+    # No setter – recomputing handle types isn't exposed to Python yet.
 
     @property
     def select(self):
