@@ -75,7 +75,7 @@ static void store_transform_properties(const Scene *scene,
   tdseq->orig_rotation = transform->rotation;
   tdseq->orig_flag = strip->flag;
   tdseq->orig_mirror = seq::image_transform_mirror_factor_get(strip);
-  tdseq->active_seq_orig_rotation = ed->act_seq->data->transform->rotation;
+  tdseq->active_seq_orig_rotation = ed->act_strip->data->transform->rotation;
   tdseq->strip = strip;
   td->extra = static_cast<void *>(tdseq);
 }
@@ -283,7 +283,7 @@ static void image_transform_set(TransInfo *t)
       transform->yofs *= t->values_final[1];
 
       if (t->orient_curr == O_SET) {
-        if (strip == ed->act_seq) {
+        if (strip == ed->act_strip) {
           transform->rotation = -tdseq->orig_rotation;
         }
         else {
