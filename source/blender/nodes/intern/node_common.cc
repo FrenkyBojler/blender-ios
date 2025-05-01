@@ -212,7 +212,7 @@ static std::function<ID *(const bNode &node)> get_default_id_getter(
     const bNodeTreeInterfaceItem *io_item = ntree.tree_interface.get_item_at_index(item_index);
     const bNodeTreeInterfaceSocket *io_socket =
         node_interface::get_item_as<bNodeTreeInterfaceSocket>(io_item);
-    if (!io_socket){
+    if (!io_socket) {
       return nullptr;
     }
     return *static_cast<ID **>(io_socket->socket_data);
