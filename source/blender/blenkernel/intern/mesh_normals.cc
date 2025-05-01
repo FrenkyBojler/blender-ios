@@ -1005,8 +1005,10 @@ static void add_corner_to_edge(const Span<int> corner_edges,
   else if (const EdgeOneCorner *info_one_edge = std::get_if<EdgeOneCorner>(&info)) {
     /* If the edge ends up being used by faces, we still have to check if the winding direction
      * changes. Though it's an undesireable situation for the mesh to be in, we shouldn't propogate
-     * smooth normals across edges facing opposite directions.*/
-    if (info_one_edge->winding_torwards_vert && winding_torwards_vert) {
+     * smooth normals across edges facing opposite directions. Breaking the flow on these winding
+     * direction changes also simplifies the fan traversal later on; without it the we couldn't
+     * traverse by just continuing to use the next/previous corner. */
+    if (info_one_edge->winding_torwards_vert == winding_torwards_vert) {
       info = EdgeSharp{};
       return;
     }
@@ -1246,10 +1248,10 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           MutableSpan<float3> r_corner_normals)
 {
   if (r_fan_spaces) {
-/* These are potentially-wasteful over-allocations. */
+    /* These are potentially-wasteful over-allocations. */
     r_fan_spaces->spaces.reserve(corner_verts.size());
     r_fan_spaces->corner_space_indices.reinitialize(corner_verts.size());
-if (r_fan_spaces->create_corners_by_space) {
+    if (r_fan_spaces->create_corners_by_space) {
       r_fan_spaces->corners_by_space.reserve(corner_verts.size());
     }
   }
