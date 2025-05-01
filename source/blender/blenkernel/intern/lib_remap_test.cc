@@ -103,11 +103,6 @@ class MaterialTestData : public TestData {
     ED_node_shader_default(this->C, &this->material->id);
     this->material_nodetree = this->material->nodetree;
   }
-
-  ~MaterialTestData()
-  {
-    BKE_id_free(this->bmain, &this->material->id);
-  }
 };
 
 class MeshTestData : public TestData {
