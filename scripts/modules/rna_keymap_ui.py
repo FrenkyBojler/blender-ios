@@ -19,7 +19,7 @@ from bpy.app.translations import (
 )
 
 
-def is_operator_available(idname):
+def _is_operator_available(idname):
     module, _, operator = idname.partition(".")
 
     # Check if the module and operator exist.
@@ -121,7 +121,7 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
 
 def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
     map_type = kmi.map_type
-    is_op_available = is_operator_available(kmi.idname)
+    is_op_available = _is_operator_available(kmi.idname)
 
     col = _indented_layout(layout, level)
 
@@ -145,7 +145,9 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
     else:
         if is_op_available:
             row.label(text=kmi.name)
-        elif kmi.name in ["none", ""]:
+        # The default item when adding a new item is "none"
+        # so consider this unassigned along with an empty string.
+        elif kmi.idname in {"none", ""}:
             row.alert = True
             row.label(text="(Unassigned)")
         else:
