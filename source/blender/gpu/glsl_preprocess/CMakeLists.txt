@@ -17,3 +17,6 @@ endif()
 
 # `SRC_DNA_INC` is defined in the parent directory.
 add_executable(glsl_preprocess ${SRC})
+# Force compiler optimization to avoid very bad processing time on MSVC.
+# Can be disabled for debugging and making change to the executable.
+target_compile_options(glsl_preprocess PRIVATE -O3)
