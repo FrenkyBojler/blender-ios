@@ -1,3 +1,4 @@
 Referenced by issue #72904, When changing the width of frame, it also changes frame location.
 Referenced by issue #135643, Geometry Nodes: ungrouped node tree is stretched out in space due to frame layout
 Referenced by commit c52da69dfb53882950763d894e04339ce86f41aa, Fix #135643: Node ungroup operator doesn't move frame nodes
+Referenced by issue #138206, Frames break copy/pasting in Shading nodes
