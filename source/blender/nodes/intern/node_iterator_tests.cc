@@ -1,12 +1,14 @@
 /* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
-
 #include "testing/testing.h"
 
 #include "CLG_log.h"
 
+/* Allow using `Scene->nodetree` because it's still relevant for backward compatibility. */
+#define DNA_DEPRECATED_ALLOW
 #include "DNA_material_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
@@ -163,6 +165,10 @@ TEST_F(NodeTest, tree_iterator_1mat_1scene)
   EXPECT_EQ(GS(iter_result.ids[1]->name), ID_MA);
   EXPECT_EQ(GS(iter_result.ids[0]->name), ID_SCE);
   EXPECT_STREQ(iter_result.ids[0]->name + 2, SCENE_NAME);
+
+  bke::node_tree_free_embedded_tree(scene->nodetree);
+  MEM_freeN(scene->nodetree);
+  scene->nodetree = nullptr;
 }
 
 TEST_F(NodeTest, tree_iterator_1mat_3scenes)
@@ -200,6 +206,10 @@ TEST_F(NodeTest, tree_iterator_1mat_3scenes)
 
   EXPECT_EQ(GS(iter_result.ids[1]->name), ID_MA);
   EXPECT_STREQ(iter_result.node_trees[1]->id.name + 2, MATERIAL_NTREE_NAME);
+
+  bke::node_tree_free_embedded_tree(scene2->nodetree);
+  MEM_freeN(scene2->nodetree);
+  scene2->nodetree = nullptr;
 }
 
 }  // namespace blender::nodes::tests
