@@ -146,7 +146,6 @@ class GreasePencilStrokePointHandle:
 
     @position.setter
     def position(self, value):
-        # build “handle_left” or “handle_right” from the enum
         attribute_name = f"handle_{self._handle.name.lower()}"
         self._point._set_attribute(attribute_name, "FLOAT_VECTOR", value, (0.0, 0.0, 0.0))
 
@@ -155,7 +154,7 @@ class GreasePencilStrokePointHandle:
         attribute_name = f"handle_type_{self._handle.name.lower()}"
         return self._point._get_attribute(attribute_name, "INT", 0)
 
-    # No setter – recomputing handle types isn't exposed to Python yet.
+    # Note: Setting the handle type is not allowed because recomputing the handle types isn't exposed to Python yet.
 
     @property
     def select(self):
@@ -164,8 +163,8 @@ class GreasePencilStrokePointHandle:
 
     @select.setter
     def select(self, value):
-        key = f".selection_handle_{self._handle.name.lower()}"
-        self._point._set_attribute(key, 'BOOLEAN', value, True)
+        attribute_name = f".selection_handle_{self._handle.name.lower()}"
+        self._point._set_attribute(attribute_name, 'BOOLEAN', value, True)
 
 # Define the list of attributes that should be exposed as read/write properties on the class.
 @DefAttributeGetterSetters([
