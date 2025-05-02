@@ -103,8 +103,7 @@ enum eGPUBlend {
   GPU_BLEND_CUSTOM,
   GPU_BLEND_ALPHA_UNDER_PREMUL,
   /** Multiplies every channel (alpha included) by `1 - SRC.a`. Used for piercing a hole using an
-   * image alpha channel.
-   */
+   * image alpha channel. */
   GPU_BLEND_OVERLAY_MASK_FROM_ALPHA,
 };
 
