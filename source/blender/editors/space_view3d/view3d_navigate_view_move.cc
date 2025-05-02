@@ -96,9 +96,7 @@ static wmOperatorStatus viewmove_invoke_impl(bContext *C,
     int my = 2 * event->xy[1] - event->prev_xy[1];
     viewmove_apply(vod, mx, my);
 
-    if (ED_view3d_camera_lock_check(vod->v3d, vod->rv3d)) {
-      ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, true);
-    }
+    ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
     return OPERATOR_FINISHED;
   }
 

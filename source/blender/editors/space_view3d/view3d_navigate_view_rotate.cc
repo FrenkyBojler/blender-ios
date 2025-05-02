@@ -358,9 +358,7 @@ static wmOperatorStatus viewrotate_invoke_impl(bContext *C,
     }
     viewrotate_apply(vod, m_xy);
 
-    if (ED_view3d_camera_lock_check(vod->v3d, vod->rv3d)) {
-      ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, true);
-    }
+    ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, true);
     return OPERATOR_FINISHED;
   }
 
