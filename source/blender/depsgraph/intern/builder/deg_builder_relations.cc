@@ -648,14 +648,15 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
                                            BuilderMap::TAG_COLLECTION_CHILDREN_HIERARCHY))
     {
       const ComponentKey collection_hierarchy_key{&collection->id, NodeType::HIERARCHY};
-      Node *collection_hierarchy_node = this->find_node(collection_hierarchy_key);
+      OperationNode *collection_hierarchy_exit =
+          this->find_node(collection_hierarchy_key)->get_exit_operation();
       LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
         Object *object = cob->ob;
         const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
         /* Check whether the object hierarchy node exists, because the view layer builder can skip
          * bases if they are constantly excluded from the collections. */
         if (Node *object_hierarchy_node = this->find_node(object_hierarchy_key)) {
-          this->add_operation_relation(collection_hierarchy_node->get_exit_operation(),
+          this->add_operation_relation(collection_hierarchy_exit,
                                        object_hierarchy_node->get_entry_operation(),
                                        "Collection -> Object hierarchy");
         }
@@ -678,7 +679,8 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
       &collection->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_DONE};
 
   const ComponentKey collection_hierarchy_key{&collection->id, NodeType::HIERARCHY};
-  Node *collection_hierarchy_node = this->find_node(collection_hierarchy_key);
+  OperationNode *collection_hierarchy_exit =
+      this->find_node(collection_hierarchy_key)->get_exit_operation();
 
   LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
     Object *object = cob->ob;
@@ -690,7 +692,7 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
      * where an object may not be built yet in the layer collection case. */
     const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
     Node *object_hierarchy_node = this->find_node(object_hierarchy_key);
-    this->add_operation_relation(collection_hierarchy_node->get_exit_operation(),
+    this->add_operation_relation(collection_hierarchy_exit,
                                  object_hierarchy_node->get_entry_operation(),
                                  "Collection -> Object hierarchy");
 
