@@ -144,6 +144,7 @@ Depsgraph *DEG_get_depsgraph_by_id(const ID &id);
  * are not out-of-main localized data-blocks.
  */
 bool DEG_is_original_id(const ID *id);
+
 template<typename T> bool DEG_is_original(const T *id)
 {
   static_assert(blender::dna::is_ID_v<T>);
@@ -155,6 +156,7 @@ template<typename T> bool DEG_is_original(const T *id)
  * If the data-block is not original it must be evaluated, and vice versa. */
 
 bool DEG_is_evaluated_id(const ID *id);
+
 template<typename T> bool DEG_is_evaluated(const T *id)
 {
   static_assert(blender::dna::is_ID_v<T>);
