@@ -1,1 +1,2 @@
 Referenced by issue #134810, Grease Pencil - Keyframing Layer "Hide" option doesn't reliably toggle visibility
+Referenced by issue #138325, Inconsistent `selected_objects` with `context.temp_override` (`None` values)
