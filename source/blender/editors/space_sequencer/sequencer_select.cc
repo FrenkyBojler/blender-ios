@@ -2446,11 +2446,11 @@ static bool select_grouped_effect(blender::Span<Strip *> strips,
 
   for (Strip *strip : strips) {
     if (STRIP_CHANNEL_CHECK(strip, channel) && effects[strip->type]) {
-      if (strip->seq1) {
-        strip->seq1->flag |= SELECT;
+      if (strip->input1) {
+        strip->input1->flag |= SELECT;
       }
-      if (strip->seq2) {
-        strip->seq2->flag |= SELECT;
+      if (strip->input2) {
+        strip->input2->flag |= SELECT;
       }
       changed = true;
     }
