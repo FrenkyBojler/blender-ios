@@ -5,7 +5,7 @@
 bl_info = {
     'name': 'glTF 2.0 format',
     'author': 'Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (4, 5, 24),
+    "version": (4, 5, 32),
     'blender': (4, 4, 0),
     'location': 'File > Import-Export',
     'description': 'Import-Export as glTF 2.0',
@@ -1313,6 +1313,8 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
 
         export_settings['warning_joint_weight_exceed_already_displayed'] = False
 
+        export_settings['image_names'] = []
+
         user_extensions = []
         pre_export_callbacks = []
         post_export_callbacks = []
@@ -1726,13 +1728,16 @@ def export_panel_animation_armature(layout, operator):
 
 def export_panel_animation_shapekeys(layout, operator):
     header, body = layout.panel("GLTF_export_animation_shapekeys", default_closed=True)
+    header.active = operator.export_animations and operator.export_morph
     header.use_property_split = False
     header.prop(operator, "export_morph_animation", text="")
     header.label(text="Shape Keys Animation")
     if body:
-        body.active = operator.export_animations
+        body.active = operator.export_animations and operator.export_morph
 
-        body.prop(operator, 'export_morph_reset_sk_data')
+        row = body.row()
+        row.active = operator.export_morph_animation
+        row.prop(operator, 'export_morph_reset_sk_data')
 
 
 def export_panel_animation_sampling(layout, operator):
