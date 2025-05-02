@@ -36,9 +36,9 @@ namespace blender::bke::path_templates {
  * integer both with the name "bob".
  */
 class VariableMap {
-  blender::Map<std::string, std::string> strings;
-  blender::Map<std::string, int64_t> integers;
-  blender::Map<std::string, double> floats;
+  blender::Map<std::string, std::string> strings_;
+  blender::Map<std::string, int64_t> integers_;
+  blender::Map<std::string, double> floats_;
 
  public:
   /**

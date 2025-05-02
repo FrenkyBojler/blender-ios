@@ -11,13 +11,13 @@ namespace blender::bke::path_templates {
 
 bool VariableMap::contains(blender::StringRef name) const
 {
-  if (this->strings.contains(name)) {
+  if (this->strings_.contains(name)) {
     return true;
   }
-  if (this->integers.contains(name)) {
+  if (this->integers_.contains(name)) {
     return true;
   }
-  if (this->floats.contains(name)) {
+  if (this->floats_.contains(name)) {
     return true;
   }
   return false;
@@ -25,13 +25,13 @@ bool VariableMap::contains(blender::StringRef name) const
 
 bool VariableMap::remove(blender::StringRef name)
 {
-  if (this->strings.remove(name)) {
+  if (this->strings_.remove(name)) {
     return true;
   }
-  if (this->integers.remove(name)) {
+  if (this->integers_.remove(name)) {
     return true;
   }
-  if (this->floats.remove(name)) {
+  if (this->floats_.remove(name)) {
     return true;
   }
   return false;
@@ -42,7 +42,7 @@ bool VariableMap::add_string(blender::StringRef name, blender::StringRef value)
   if (this->contains(name)) {
     return false;
   }
-  this->strings.add_new(name, value);
+  this->strings_.add_new(name, value);
   return true;
 }
 
@@ -51,7 +51,7 @@ bool VariableMap::add_integer(blender::StringRef name, const int64_t value)
   if (this->contains(name)) {
     return false;
   }
-  this->integers.add_new(name, value);
+  this->integers_.add_new(name, value);
   return true;
 }
 
@@ -60,13 +60,13 @@ bool VariableMap::add_float(blender::StringRef name, const double value)
   if (this->contains(name)) {
     return false;
   }
-  this->floats.add_new(name, value);
+  this->floats_.add_new(name, value);
   return true;
 }
 
 std::optional<blender::StringRefNull> VariableMap::get_string(blender::StringRef name) const
 {
-  const std::string *value = this->strings.lookup_ptr(name);
+  const std::string *value = this->strings_.lookup_ptr(name);
   if (value == nullptr) {
     return std::nullopt;
   }
@@ -75,7 +75,7 @@ std::optional<blender::StringRefNull> VariableMap::get_string(blender::StringRef
 
 std::optional<int64_t> VariableMap::get_integer(blender::StringRef name) const
 {
-  const int64_t *value = this->integers.lookup_ptr(name);
+  const int64_t *value = this->integers_.lookup_ptr(name);
   if (value == nullptr) {
     return std::nullopt;
   }
@@ -84,7 +84,7 @@ std::optional<int64_t> VariableMap::get_integer(blender::StringRef name) const
 
 std::optional<double> VariableMap::get_float(blender::StringRef name) const
 {
-  const double *value = this->floats.lookup_ptr(name);
+  const double *value = this->floats_.lookup_ptr(name);
   if (value == nullptr) {
     return std::nullopt;
   }
