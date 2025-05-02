@@ -110,8 +110,10 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
   static auto shift_fn = mf::build::SI2_SO<int, int, int>(
       "Shift",
       [](int a, int b) {
+        unsigned int u = *reinterpret_cast<unsigned int *>(&a);
         const int shift = math::abs(math::clamp(b, min_shift, max_shift));
-        return b >= 0 ? a << shift : a >> shift;
+        u = b >= 0 ? (u << shift) : (u >> shift);
+        return *reinterpret_cast<int *>(&u);
       },
       exec_preset);
   static auto rotate_fn = mf::build::SI2_SO<int, int, int>(
