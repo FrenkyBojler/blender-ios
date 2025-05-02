@@ -201,12 +201,22 @@ void VKVertexBuffer::allocate()
                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                        VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-  buffer_.create(size_alloc_get(),
-                 vk_buffer_usage,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 0,
-                 VmaAllocationCreateFlags(0));
+  size_t size = size_alloc_get();
+  /* Keep large buffer inside CPU ram. */
+  if (size > 4 * 1024 * 1024) {
+    buffer_.create(size,
+                   vk_buffer_usage,
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                   0,
+                   VmaAllocationCreateFlags(0));
+  }
+  else {
+    buffer_.create(size,
+                   vk_buffer_usage,
+                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                   0,
+                   VmaAllocationCreateFlags(0));
+  }
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }
 
