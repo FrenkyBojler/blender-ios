@@ -236,7 +236,7 @@ class Object(_types.ID):
         """
         A list of all children from this object.
 
-        :type: tuple of :class:`Object`
+        :type: list of :class:`Object`
 
         .. note:: Takes ``O(len(bpy.data.objects))`` time."""
         import bpy
