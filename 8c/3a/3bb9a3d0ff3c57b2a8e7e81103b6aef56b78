@@ -1,1 +1,2 @@
 Referenced by issue #128767, Regression: Batch Rename failed to rename bones
+Referenced by pull request #138287, Fix #137299: Exception with batch rename of nodes outside node editor
