@@ -257,7 +257,6 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
 
   MDeformVert *dv = &curves.deform_verts_for_write()[deform_vert_idx];
 
-  // BEGIN exact copy of part of object_vgroup.cc vgroup_nr_vert_add():
   /* Lets first check to see if this vert is already in the weight group - if so lets update it. */
   MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr);
 
@@ -268,18 +267,12 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
         break;
       case WEIGHT_ADD:
         dw->weight += weight;
-        if (dw->weight >= 1.0f) {
-          dw->weight = 1.0f;
-        }
         break;
       case WEIGHT_SUBTRACT:
         dw->weight -= weight;
-        /* If the weight is zero or less than remove the vert from the deform group. */
-        if (dw->weight <= 0.0f) {
-          BKE_defvert_remove_group(dv, dw);
-        }
         break;
     }
+    dw->weight = std::clamp(dw->weight, 0.0f, 1.0f);
   }
   else {
     /* If the vert wasn't in the deform group then we must take a different form of action. */
@@ -298,8 +291,6 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
         break;
     }
   }
-
-  // END
 
   DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
 }
@@ -774,7 +765,7 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
   };
 
   func = RNA_def_function(srna, "add_vertex_weight", "rna_GreasePencilDrawing_add_vertex_weight");
-  RNA_def_function_ui_description(func, "Set the active stroke index.");
+  RNA_def_function_ui_description(func, "Set the weight of a vertex in a grease pencil object");
 
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
 
