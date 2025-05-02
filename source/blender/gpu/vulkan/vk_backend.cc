@@ -450,13 +450,13 @@ void VKBackend::platform_exit()
 
 void VKBackend::init_resources()
 {
-  shader_compiler = MEM_new<ShaderCompiler>(
+  compiler_ = MEM_new<ShaderCompiler>(
       __func__, GPU_max_parallel_compilations(), GPUWorker::ContextType::Main);
 }
 
 void VKBackend::delete_resources()
 {
-  MEM_delete(shader_compiler);
+  MEM_delete(compiler_);
 }
 
 void VKBackend::samplers_update()

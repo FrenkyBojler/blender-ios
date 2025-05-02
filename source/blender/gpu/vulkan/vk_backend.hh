@@ -31,7 +31,6 @@ class VKBackend : public GPUBackend {
 #endif
 
  public:
-  ShaderCompiler *shader_compiler;
   /* Global instance to device handles. */
   VKDevice device;
 
