@@ -1940,7 +1940,7 @@ void LayerGroup::update_from_dna_read()
   }
 }
 
-void rename_layers_with_empty_name(Main &bmain, GreasePencil &grease_pencil)
+void ensure_non_empty_layer_names(Main &bmain, GreasePencil &grease_pencil)
 {
   for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
     if (layer->name().is_empty()) {

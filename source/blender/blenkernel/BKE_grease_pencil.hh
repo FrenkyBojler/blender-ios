@@ -904,7 +904,7 @@ const AttributeAccessorFunctions &get_attribute_accessor_functions();
  * \note While original data should not have layers with empty names, we allow layer names to be
  * empty in evaluated geometry.
  */
-void rename_layers_with_empty_name(Main &bmain, GreasePencil &grease_pencil);
+void ensure_non_empty_layer_names(Main &bmain, GreasePencil &grease_pencil);
 
 }  // namespace greasepencil
 

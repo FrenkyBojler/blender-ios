@@ -393,7 +393,7 @@ static void store_result_geometry(const bContext &C,
             *new_grease_pencil, eval_frame, editable_layers, grease_pencil);
 
         /* There might be layers with empty names after evaluation. Make sure to rename them. */
-        bke::greasepencil::rename_layers_with_empty_name(bmain, grease_pencil);
+        bke::greasepencil::ensure_non_empty_layer_names(bmain, grease_pencil);
         BKE_object_material_from_eval_data(&bmain, &object, &new_grease_pencil->id);
       }
 
