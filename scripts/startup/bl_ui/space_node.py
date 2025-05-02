@@ -191,14 +191,10 @@ class NODE_HT_header(Header):
             layout.template_ID(snode, "node_tree", new="node.new_node_tree")
 
         # Put pin next to ID block
-        if not is_compositor and display_pin:
+        if display_pin:
             layout.prop(snode, "pin", text="", emboss=False)
 
         layout.separator_spacer()
-
-        # Put pin on the right for Compositing
-        if is_compositor:
-            layout.prop(snode, "pin", text="", emboss=False)
 
         if len(snode.path) > 1:
             layout.operator("node.tree_path_parent", text="", icon='FILE_PARENT')
