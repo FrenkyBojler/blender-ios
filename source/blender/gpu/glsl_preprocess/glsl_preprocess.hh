@@ -376,33 +376,32 @@ class Preprocessor {
                                     std::string::npos;
     using namespace metadata;
     /* TODO: This can trigger false positive caused by disabled #if blocks. */
-    std::regex regex(
-        "("
-        "gl_FragCoord|"
-        "gl_FrontFacing|"
-        "gl_GlobalInvocationID|"
-        "gl_InstanceID|"
-        "gl_LocalInvocationID|"
-        "gl_LocalInvocationIndex|"
-        "gl_NumWorkGroup|"
-        "gl_PointCoord|"
-        "gl_PointSize|"
-        "gl_PrimitiveID|"
-        "gl_VertexID|"
-        "gl_WorkGroupID|"
-        "gl_WorkGroupSize|"
-        "drw_debug_|"
+    std::string tokens[] = {"gl_FragCoord",
+                            "gl_FrontFacing",
+                            "gl_GlobalInvocationID",
+                            "gl_InstanceID",
+                            "gl_LocalInvocationID",
+                            "gl_LocalInvocationIndex",
+                            "gl_NumWorkGroup",
+                            "gl_PointCoord",
+                            "gl_PointSize",
+                            "gl_PrimitiveID",
+                            "gl_VertexID",
+                            "gl_WorkGroupID",
+                            "gl_WorkGroupSize",
+                            "drw_debug_",
 #ifdef WITH_GPU_SHADER_ASSERT
-        "assert|"
+                            "assert",
 #endif
-        "printf"
-        ")");
-    regex_global_search(str, regex, [&](const std::smatch &match) {
-      if (skip_drw_debug && match[0].str() == "drw_debug_") {
-        return;
+                            "printf"};
+    for (auto &token : tokens) {
+      if (skip_drw_debug && token == "drw_debug_") {
+        continue;
       }
-      metadata.builtins.emplace_back(Builtin(hash(match[0].str())));
-    });
+      if (str.find(token) != std::string::npos) {
+        metadata.builtins.emplace_back(Builtin(hash(token)));
+      }
+    }
   }
 
   template<typename ReportErrorF>
@@ -561,6 +560,27 @@ class Preprocessor {
   /* To be run before `argument_decorator_macro_injection()`. */
   std::string argument_reference_mutation(const std::string &str)
   {
+    /* Next two regexes are expensive. Check if they are needed at all. */
+    size_t pos = 1;
+    while ((pos = str.find('&', pos)) != std::string::npos) {
+      if (pos <= str.length() - 2) {
+        /* This is made safe by the previous check and by starting at pos = 1. */
+        char prev_char = str[pos - 1];
+        char next_char = str[pos + 1];
+        /* Validate it is not an operator (`&`, `&&`, `&=`). */
+        if (prev_char == ' ' || prev_char == '(') {
+          if (next_char != ' ' && next_char != '&' && next_char != '=') {
+            /* There will be a valid match. */
+            break;
+          }
+        }
+      }
+      pos++;
+    }
+    /* If we finished scanning the string without valid match, then early out. */
+    if (pos == std::string::npos) {
+      return str;
+    }
     /* Remove parenthesis first. */
     /* Example: `float (&var)[2]` > `float &var[2]` */
     std::regex regex_parenthesis(R"((\w+ )\(&(\w+)\))");
@@ -587,6 +607,10 @@ class Preprocessor {
   /* TODO(fclem): Too many false positive and false negative to be applied to python shaders. */
   void matrix_constructor_linting(const std::string &str, report_callback report_error)
   {
+    /* The following regex is expensive. Do a quick early out scan. */
+    if (str.find("mat") == std::string::npos) {
+      return;
+    }
     /* Example: `mat4(other_mat)`. */
     std::regex regex(R"(\s+(mat(\d|\dx\d)|float\dx\d)\([^,\s\d]+\))");
     regex_global_search(str, regex, [&](const std::smatch &match) {
