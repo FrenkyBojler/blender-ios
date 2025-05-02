@@ -372,12 +372,9 @@ static bool rna_NodeSocket_is_output_get(PointerRNA *ptr)
 
 static bool rna_NodeSocket_is_selected_get(PointerRNA *ptr)
 {
-  bNodeSocket *socket = static_cast<bNodeSocket *>(ptr->data);
-  if (socket->flag & SELECT) {
-    return true;
-  }
+  const bNodeSocket *socket = ptr->data_as<bNodeSocket>();
 
-  return false;
+  return (socket->flag & SELECT) != 0;
 }
 
 static int rna_NodeSocket_link_limit_get(PointerRNA *ptr)
