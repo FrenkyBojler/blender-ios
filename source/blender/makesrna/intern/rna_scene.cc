@@ -40,7 +40,7 @@
 
 #include "BLI_threads.h"
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
 const EnumPropertyItem rna_enum_exr_codec_items[] = {
     {R_IMF_EXR_CODEC_NONE, "NONE", 0, "None", "No compression"},
     {R_IMF_EXR_CODEC_ZIP, "ZIP", 0, "ZIP", "Lossless zip compression of 16 row image blocks"},
@@ -273,7 +273,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
     {R_IMF_IMTYPE_DDS, "DDS", ICON_FILE_IMAGE, "DDS", "Output image in DDS format"},
 #endif
 
-#ifdef WITH_OPENJPEG
+#ifdef WITH_IMAGE_OPENJPEG
 #  define R_IMF_ENUM_JPEG2K \
     {R_IMF_IMTYPE_JP2, \
      "JPEG2000", \
@@ -284,7 +284,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 #  define R_IMF_ENUM_JPEG2K
 #endif
 
-#ifdef WITH_CINEON
+#ifdef WITH_IMAGE_CINEON
 #  define R_IMF_ENUM_CINEON \
     {R_IMF_IMTYPE_CINEON, "CINEON", ICON_FILE_IMAGE, "Cineon", "Output image in Cineon format"},
 #  define R_IMF_ENUM_DPX \
@@ -294,7 +294,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 #  define R_IMF_ENUM_DPX
 #endif
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
 #  define R_IMF_ENUM_EXR_MULTILAYER \
     {R_IMF_IMTYPE_MULTILAYER, \
      "OPEN_EXR_MULTILAYER", \
@@ -322,7 +322,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 #define R_IMF_ENUM_TIFF \
   {R_IMF_IMTYPE_TIFF, "TIFF", ICON_FILE_IMAGE, "TIFF", "Output image in TIFF format"},
 
-#ifdef WITH_WEBP
+#ifdef WITH_IMAGE_WEBP
 #  define R_IMF_ENUM_WEBP \
     {R_IMF_IMTYPE_WEBP, "WEBP", ICON_FILE_IMAGE, "WebP", "Output image in WebP format"},
 #else
@@ -1393,8 +1393,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
    * where 'BW' will force grayscale even if the output format writes
    * as RGBA, this is age old blender convention and not sure how useful
    * it really is but keep it for now. */
-  char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
-                   (is_render ? IMA_CHAN_FLAG_BW : 0);
+  char chan_flag = BKE_imtype_valid_channels(imf->imtype) | (is_render ? IMA_CHAN_FLAG_BW : 0);
 
   /* a WAY more crappy case than B&W flag: depending on codec, file format MIGHT support
    * alpha channel. for example MPEG format with h264 codec can't do alpha channel, but
@@ -1525,7 +1524,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_views_format_itemf(bConte
   }
 }
 
-#  ifdef WITH_OPENEXR
+#  ifdef WITH_IMAGE_OPENEXR
 /* OpenEXR */
 
 static const EnumPropertyItem *rna_ImageFormatSettings_exr_codec_itemf(bContext * /*C*/,
@@ -2052,6 +2051,12 @@ static void rna_Scene_uv_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
   ED_uvedit_selectmode_clean_multi(C);
 }
 
+static void rna_Scene_uv_sticky_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
+{
+  /* Some changes to sticky select mode require rebuilding. */
+  ED_uvedit_sticky_selectmode_update(C);
+}
+
 static void object_simplify_update(Scene *scene,
                                    Object *ob,
                                    bool update_normals,
@@ -2068,7 +2073,7 @@ static void object_simplify_update(Scene *scene,
 
   for (md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
     if (md->type == eModifierType_Nodes && depsgraph != nullptr) {
-      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+      Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
       const blender::bke::GeometrySet *geometry_set = ob_eval->runtime->geometry_set_eval;
       if (geometry_set != nullptr && geometry_set->has_volume()) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -3267,7 +3272,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Weight Paint Auto-Normalize",
                            "Ensure all bone-deforming vertex groups add up "
-                           "to 1.0 while weight painting");
+                           "to 1.0 while weight painting or assigning to vertices");
   RNA_def_property_update(prop, 0, "rna_Scene_update_active_object_data");
 
   prop = RNA_def_property(srna, "use_lock_relative", PROP_BOOLEAN, PROP_NONE);
@@ -3662,11 +3667,25 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
+  prop = RNA_def_property(srna, "use_snap_driver", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag_driver", SCE_SNAP);
+  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_ui_text(
+      prop, "Snap", "Enable snapping when transforming keys in the Driver Editor");
+  RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
+
   prop = RNA_def_property(srna, "use_snap_time_absolute", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag_anim", SCE_SNAP_ABS_TIME_STEP);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "Absolute Time Snap", "Absolute time alignment when transforming keyframes");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
+
+  prop = RNA_def_property(srna, "use_snap_driver_absolute", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag_driver", SCE_SNAP_ABS_TIME_STEP);
+  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_ui_text(prop, "Absolute Snap", "Snap to full values");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_anim_element", PROP_ENUM, PROP_NONE);
@@ -4092,7 +4111,9 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, uv_sticky_mode_items);
   RNA_def_property_ui_text(
       prop, "Sticky Selection Mode", "Method for extending UV vertex selection");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_sticky_select_mode_update");
 
   prop = RNA_def_property(srna, "use_uv_select_sync", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_SYNC_SELECTION);
@@ -5063,6 +5084,16 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
     RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   }
 
+  prop = RNA_def_property(srna, "use_grease_pencil", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "layflag", SCE_LAY_GREASE_PENCIL);
+  RNA_def_property_ui_text(prop, "Grease Pencil", "Render Grease Pencil on this layer");
+  if (scene) {
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+  }
+  else {
+    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  }
+
   /* passes */
   prop = RNA_def_property(srna, "use_pass_combined", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_COMBINED);
@@ -5868,6 +5899,7 @@ static void rna_def_bake_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File Path", "Image filepath to use when saving externally");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "width", PROP_INT, PROP_PIXEL);
@@ -6232,7 +6264,7 @@ static void rna_def_image_format_stereo3d_format(BlenderRNA *brna)
 static void rna_def_scene_image_format_data(BlenderRNA *brna)
 {
 
-#  ifdef WITH_OPENJPEG
+#  ifdef WITH_IMAGE_OPENJPEG
   static const EnumPropertyItem jp2_codec_items[] = {
       {R_IMF_JP2_CODEC_JP2, "JP2", 0, "JP2", ""},
       {R_IMF_JP2_CODEC_J2K, "J2K", 0, "J2K", ""},
@@ -6320,7 +6352,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
 
   /* format specific */
 
-#  ifdef WITH_OPENEXR
+#  ifdef WITH_IMAGE_OPENEXR
   /* OpenEXR */
 
   prop = RNA_def_property(srna, "exr_codec", PROP_ENUM, PROP_NONE);
@@ -6331,7 +6363,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 #  endif
 
-#  ifdef WITH_OPENJPEG
+#  ifdef WITH_IMAGE_OPENJPEG
   /* JPEG 2000 */
   prop = RNA_def_property(srna, "use_jpeg2k_ycc", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "jp2_flag", R_IMF_JP2_FLAG_YCC);
@@ -6947,7 +6979,11 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 1e-5f, 1e6f);
   RNA_def_property_ui_range(prop, 0.0001f, 10000.0f, 2, 2);
-  RNA_def_property_ui_text(prop, "PPM Factor", "The unit multiplier for pixels per meter");
+  RNA_def_property_ui_text(prop,
+                           "PPM Factor",
+                           "The pixel density meta-data written to supported image formats. "
+                           "This value is multiplied by the PPM-base which defines the unit "
+                           "(typically inches or meters)");
 
   prop = RNA_def_property(srna, "ppm_base", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "ppm_base");
@@ -7210,11 +7246,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "pic");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop,
                            "Output Path",
                            "Directory/name to save animations, # characters define the position "
                            "and padding of frame numbers");
-  RNA_def_property_flag(prop, PROP_PATH_OUTPUT);
+  RNA_def_property_flag(prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   /* Render result EXR cache. */

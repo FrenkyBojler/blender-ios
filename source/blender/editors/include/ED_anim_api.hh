@@ -693,7 +693,7 @@ struct bAnimChannelType {
   /**
    * Called after a setting was changed via ANIM_channel_setting_set().
    *
-   * \param ale is marked as 'const', as it could have been duplicated and taken out of context.
+   * \param ale: is marked as `const`, as it could have been duplicated and taken out of context.
    * This means that any hypothetical changes to `ale->update`, for example, will not be seen by
    * any `ANIM_animdata_update()` call. So better to keep this `const` and avoid any manipulation.
    * Also, because of the duplications, the ale's `prev` and `next` pointers will be dangling.
@@ -731,7 +731,7 @@ const bAnimChannelType *ANIM_channel_get_typeinfo(const bAnimListElem *ale);
 /**
  * Print debug info string for the given channel.
  */
-void ANIM_channel_debug_print_info(bAnimListElem *ale, short indent_level);
+void ANIM_channel_debug_print_info(bAnimContext &ac, bAnimListElem *ale, short indent_level);
 
 /**
  * Retrieves the Action associated with this animation channel.

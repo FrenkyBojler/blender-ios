@@ -131,7 +131,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
     KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
     Vector<Object *> objects_eval = BKE_object_pose_array_get(scene, view_layer_eval, v3d);
     for (Object *ob_eval : objects_eval) {
-      Object *ob = DEG_get_original_object(ob_eval);
+      Object *ob = DEG_get_original(ob_eval);
       bArmature *arm_eval = static_cast<bArmature *>(ob_eval->data);
 
       invert_m4_m4(ob_eval->runtime->world_to_object.ptr(), ob_eval->object_to_world().ptr());
@@ -192,7 +192,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
     {
       FOREACH_SELECTED_EDITABLE_OBJECT_BEGIN (view_layer_eval, v3d, ob_eval) {
         objects_eval.append(ob_eval);
-        objects_orig.append(DEG_get_original_object(ob_eval));
+        objects_orig.append(DEG_get_original(ob_eval));
       }
       FOREACH_SELECTED_EDITABLE_OBJECT_END;
     }
@@ -202,7 +202,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
 
       Vector<Object *> objects(objects_eval.size());
       for (Object *ob_eval : objects_eval) {
-        objects.append_unchecked(DEG_get_original_object(ob_eval));
+        objects.append_unchecked(DEG_get_original(ob_eval));
       }
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xcs = object::xform_skip_child_container_create();
@@ -219,7 +219,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
     }
 
     for (Object *ob_eval : objects_eval) {
-      Object *ob = DEG_get_original_object(ob_eval);
+      Object *ob = DEG_get_original(ob_eval);
       vec[0] = -ob_eval->object_to_world().location()[0] +
                gridf * floorf(0.5f + ob_eval->object_to_world().location()[0] / gridf);
       vec[1] = -ob_eval->object_to_world().location()[1] +
@@ -584,7 +584,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
         /* Use the evaluated object here because sometimes
          * `ob->parent->runtime->curve_cache` is required. */
         BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-        Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+        Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
 
         BKE_object_get_parent_matrix(ob_eval, ob_eval->parent, parentmat);
         mul_m3_m4m4(originmat, parentmat, ob->parentinv);
@@ -921,7 +921,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
 
       count += tvs.transverts_tot;
       if (tvs.transverts_tot != 0) {
-        Object *obedit_eval = DEG_get_evaluated_object(depsgraph, obedit);
+        Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
         copy_m3_m4(bmat, obedit_eval->object_to_world().ptr());
 
         tv = tvs.transverts;
@@ -940,7 +940,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
     Object *obact = CTX_data_active_object(C);
 
     if (obact && (obact->mode & OB_MODE_POSE)) {
-      Object *obact_eval = DEG_get_evaluated_object(depsgraph, obact);
+      Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
       bArmature *arm = static_cast<bArmature *>(obact_eval->data);
       LISTBASE_FOREACH (bPoseChannel *, pchan, &obact_eval->pose->chanbase) {
         if (ANIM_bonecoll_is_visible_pchan(arm, pchan)) {
@@ -962,7 +962,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
         if (ob_eval->type == OB_CAMERA) {
           /* snap to bundles should happen only when bundles are visible */
           if (v3d->flag2 & V3D_SHOW_RECONSTRUCTION) {
-            bundle_midpoint(scene, DEG_get_original_object(ob_eval), vec);
+            bundle_midpoint(scene, DEG_get_original(ob_eval), vec);
           }
         }
 
@@ -1152,7 +1152,7 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
     return changed;
   }
   if (obedit->type == OB_POINTCLOUD) {
-    const Object &ob_orig = *DEG_get_original_object(obedit);
+    const Object &ob_orig = *DEG_get_original(obedit);
     const PointCloud &pointcloud = *static_cast<const PointCloud *>(ob_orig.data);
 
     IndexMaskMemory memory;
@@ -1169,7 +1169,7 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
     return false;
   }
   if (obedit->type == OB_CURVES) {
-    const Object &ob_orig = *DEG_get_original_object(obedit);
+    const Object &ob_orig = *DEG_get_original(obedit);
     const Curves &curves_id = *static_cast<const Curves *>(ob_orig.data);
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
 
@@ -1190,7 +1190,7 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
     return false;
   }
   if (obedit->type == OB_GREASE_PENCIL) {
-    Object &ob_orig = *DEG_get_original_object(obedit);
+    Object &ob_orig = *DEG_get_original(obedit);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 
     std::optional<Bounds<float3>> bounds = std::nullopt;
