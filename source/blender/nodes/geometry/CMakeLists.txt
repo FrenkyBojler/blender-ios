@@ -78,6 +78,9 @@ set(SRC
   nodes/node_geo_evaluate_closure.cc
   nodes/node_geo_evaluate_on_domain.cc
   nodes/node_geo_extrude_mesh.cc
+  nodes/node_geo_field_average.cc
+  nodes/node_geo_field_min_and_max.cc
+  nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
@@ -105,6 +108,7 @@ set(SRC
   nodes/node_geo_input_face_smooth.cc
   nodes/node_geo_input_id.cc
   nodes/node_geo_input_index.cc
+  nodes/node_geo_input_instance_bounds.cc
   nodes/node_geo_input_instance_rotation.cc
   nodes/node_geo_input_instance_scale.cc
   nodes/node_geo_input_instance_transform.cc
@@ -195,10 +199,13 @@ set(SRC
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_name.cc
+  nodes/node_geo_set_grease_pencil_color.cc
+  nodes/node_geo_set_grease_pencil_depth_mode.cc
   nodes/node_geo_set_id.cc
   nodes/node_geo_set_instance_transform.cc
   nodes/node_geo_set_material.cc
   nodes/node_geo_set_material_index.cc
+  nodes/node_geo_set_mesh_normal.cc
   nodes/node_geo_set_point_radius.cc
   nodes/node_geo_set_position.cc
   nodes/node_geo_set_shade_smooth.cc
@@ -318,7 +325,7 @@ if(WITH_TBB)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_OPENSUBDIV)

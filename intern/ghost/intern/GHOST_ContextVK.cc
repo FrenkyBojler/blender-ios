@@ -691,11 +691,13 @@ GHOST_TSuccess GHOST_ContextVK::setVulkanSwapBuffersCallbacks(
 
 GHOST_TSuccess GHOST_ContextVK::activateDrawingContext()
 {
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_ContextVK::releaseDrawingContext()
 {
+  active_context_ = nullptr;
   return GHOST_kSuccess;
 }
 
@@ -881,7 +883,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   }
 
   /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
-   * actions that require low latency (paint cursor, UI resizing). MAILBOX prefers tripple
+   * actions that require low latency (paint cursor, UI resizing). MAILBOX prefers triple
    * buffering. */
   uint32_t image_count_requested = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 3 : 2;
   /* NOTE: maxImageCount == 0 means no limit. */
@@ -1064,6 +1066,15 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
+
+  /* External memory extensions. */
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
+#ifdef _WIN32
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+#elif not defined(__APPLE__)
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+#endif
+
 #ifdef __APPLE__
   optional_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
 #else
@@ -1075,12 +1086,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   optional_device_extensions.push_back(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-
-  /* Enable MoltenVK required instance extensions. */
-#ifdef __APPLE__
-  requireExtension(
-      extensions_available, extensions_enabled, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-#endif
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {
@@ -1182,6 +1187,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     recreateSwapchain();
   }
 
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 

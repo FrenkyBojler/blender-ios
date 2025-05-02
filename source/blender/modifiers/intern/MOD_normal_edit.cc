@@ -314,7 +314,7 @@ static void normalEditModifier_do_radial(NormalEditModifierData *enmd,
   }
 
   if (do_facenors_fix) {
-    faces_check_flip(*mesh, nos, mesh->face_normals());
+    faces_check_flip(*mesh, nos, mesh->face_normals_true());
   }
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
@@ -323,8 +323,8 @@ static void normalEditModifier_do_radial(NormalEditModifierData *enmd,
                                        faces,
                                        corner_verts,
                                        corner_edges,
-                                       mesh->vert_normals(),
-                                       mesh->face_normals(),
+                                       mesh->vert_normals_true(),
+                                       mesh->face_normals_true(),
                                        sharp_faces,
                                        sharp_edges,
                                        nos,
@@ -419,7 +419,7 @@ static void normalEditModifier_do_directional(NormalEditModifierData *enmd,
   }
 
   if (do_facenors_fix) {
-    faces_check_flip(*mesh, nos, mesh->face_normals());
+    faces_check_flip(*mesh, nos, mesh->face_normals_true());
   }
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
@@ -428,8 +428,8 @@ static void normalEditModifier_do_directional(NormalEditModifierData *enmd,
                                        faces,
                                        corner_verts,
                                        corner_edges,
-                                       mesh->vert_normals(),
-                                       mesh->face_normals(),
+                                       mesh->vert_normals_true(),
+                                       mesh->face_normals_true(),
                                        sharp_faces,
                                        sharp_edges,
                                        nos,
@@ -512,7 +512,7 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd,
                                              corner_verts,
                                              corner_edges,
                                              result->corner_to_face_map(),
-                                             result->face_normals(),
+                                             result->face_normals_true(),
                                              sharp_edges.span,
                                              sharp_faces,
                                              custom_nors_dst.span,
@@ -634,7 +634,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiItemR(layout, ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiLayoutSetActive(col, mode == MOD_NORMALEDIT_MODE_DIRECTIONAL);
   uiItemR(col, ptr, "use_direction_parallel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -657,7 +657,7 @@ static void mix_mode_panel_draw(const bContext * /*C*/, Panel *panel)
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiItemR(row, ptr, "mix_limit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(row,
           ptr,

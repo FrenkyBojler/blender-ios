@@ -14,9 +14,9 @@
 
 GPU_SHADER_CREATE_INFO(eevee_lut)
 LOCAL_GROUP_SIZE(LUT_WORKGROUP_SIZE, LUT_WORKGROUP_SIZE, 1)
-PUSH_CONSTANT(INT, table_type)
-PUSH_CONSTANT(IVEC3, table_extent)
-IMAGE(0, GPU_RGBA32F, READ_WRITE, FLOAT_3D, table_img)
+PUSH_CONSTANT(int, table_type)
+PUSH_CONSTANT(int3, table_extent)
+IMAGE(0, GPU_RGBA32F, read_write, image3D, table_img)
 ADDITIONAL_INFO(eevee_shared)
 COMPUTE_SOURCE("eevee_lut_comp.glsl")
 DO_STATIC_COMPILATION()
