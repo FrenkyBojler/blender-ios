@@ -1881,14 +1881,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     if (!eval_material) {
       return;
     }
-    /* Note: For node tools, the materials might be original IDs. */
-    /* TODO: Might be better to provide `material_indices_map` as an agrument to this function. */
-    if (DEG_is_original_id(&eval_material->id)) {
-      original_materials.add_new(eval_material);
-    }
-    else if (eval_material->id.orig_id != nullptr) {
-      original_materials.add_new(reinterpret_cast<Material *>(eval_material->id.orig_id));
-    }
+    original_materials.add(DEG_get_original<Material>(eval_material));
   }
 
   /* Build material indices mapping. This maps the materials indices on the original geometry to
