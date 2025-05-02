@@ -1,1 +1,2 @@
 Referenced by issue #138329, Workbench Material color type broken for meshes with no material
+Referenced by commit b1fd91c2c0b23b13bb51dea013f8b047603988ee, Fix #138329:  Workbench Material color type broken for meshes with no material.
