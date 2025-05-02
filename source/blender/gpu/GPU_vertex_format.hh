@@ -138,6 +138,9 @@ enum GPUVertFetchMode {
 };
 
 struct GPUVertAttr {
+  /* To replace fetch_mode, comp_type, comp_len, size. */
+  blender::gpu::VertAttrType format;
+#ifndef NO_LEGACY_VERT_TYPE
   /* GPUVertFetchMode */
   uint fetch_mode : 2;
   /* GPUVertCompType */
@@ -146,10 +149,11 @@ struct GPUVertAttr {
   uint comp_len : 5;
   /* size in bytes, 1 to 64 */
   uint size : 7;
+#endif
   /* from beginning of vertex, in bytes */
-  uint offset : 11;
+  uint8_t offset;
   /* up to GPU_VERT_ATTR_MAX_NAMES */
-  uint name_len : 3;
+  uint8_t name_len;
   uchar names[GPU_VERT_ATTR_MAX_NAMES];
 };
 

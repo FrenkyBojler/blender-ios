@@ -30,6 +30,178 @@
 #  include <stdio.h>
 #endif
 
+namespace blender::gpu {
+
+/* Used to combine legacy enums into new vertex attribute type. */
+static VertAttrType vertex_format_combine(GPUVertCompType component_type,
+                                          GPUVertFetchMode fetch_mode,
+                                          uint32_t component_len)
+{
+#define COMPONENT_SWITCH(prefix, bits) \
+  switch (component_len) { \
+    case 1: \
+      return VertAttrType::prefix##_##bits; \
+    case 2: \
+      return VertAttrType::prefix##_##bits##_##bits; \
+    case 3: \
+      return VertAttrType::prefix##_##bits##_##bits##_##bits; \
+    case 4: \
+      return VertAttrType::prefix##_##bits##_##bits##_##bits##_##bits; \
+  }
+
+  switch (component_type) {
+    case GPU_COMP_I8: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          COMPONENT_SWITCH(SNORM, 8)
+          break;
+        case GPU_FETCH_INT:
+          COMPONENT_SWITCH(SINT, 8)
+          break;
+        default:
+          break;
+      }
+    }
+    case GPU_COMP_U8: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          COMPONENT_SWITCH(UNORM, 8)
+          break;
+        case GPU_FETCH_INT:
+          COMPONENT_SWITCH(UINT, 8)
+          break;
+        default:
+          break;
+      }
+    }
+    case GPU_COMP_I16: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          COMPONENT_SWITCH(SNORM, 16)
+          break;
+        case GPU_FETCH_INT:
+          COMPONENT_SWITCH(SINT, 16)
+          break;
+        default:
+          break;
+      }
+    }
+    case GPU_COMP_U16: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          COMPONENT_SWITCH(UNORM, 16)
+          break;
+        case GPU_FETCH_INT:
+          COMPONENT_SWITCH(UINT, 16)
+          break;
+        default:
+          break;
+      }
+    }
+    case GPU_COMP_I32: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT:
+          COMPONENT_SWITCH(SINT, 32)
+          break;
+        case GPU_FETCH_INT_TO_FLOAT:
+          COMPONENT_SWITCH(SINT_TO_FLT, 32)
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_U32: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT:
+          COMPONENT_SWITCH(UINT, 32)
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_F32: {
+      switch (fetch_mode) {
+        case GPU_FETCH_FLOAT:
+          COMPONENT_SWITCH(SFLOAT, 32)
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_I10: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          return VertAttrType::SNORM_10_10_10_2;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_MAX:
+      break;
+  }
+#undef COMPONENT_SWITCH
+  return VertAttrType::Invalid;
+};
+
+bool is_normalized_int(VertAttrType attr_type)
+{
+  switch (attr_type) {
+    case VertAttrType::SNORM_8:
+    case VertAttrType::SNORM_8_8:
+    case VertAttrType::SNORM_8_8_8:
+    case VertAttrType::SNORM_8_8_8_8:
+    case VertAttrType::SNORM_16:
+    case VertAttrType::SNORM_16_16:
+    case VertAttrType::SNORM_16_16_16:
+    case VertAttrType::SNORM_16_16_16_16:
+    case VertAttrType::UNORM_8:
+    case VertAttrType::UNORM_8_8:
+    case VertAttrType::UNORM_8_8_8:
+    case VertAttrType::UNORM_8_8_8_8:
+    case VertAttrType::UNORM_16:
+    case VertAttrType::UNORM_16_16:
+    case VertAttrType::UNORM_16_16_16:
+    case VertAttrType::UNORM_16_16_16_16:
+    case VertAttrType::SNORM_10_10_10_2:
+    case VertAttrType::UNORM_10_10_10_2:
+      return true;
+    default:
+      return false;
+  }
+};
+
+bool is_fetch_int_to_float(VertAttrType attr_type)
+{
+  switch (attr_type) {
+    case VertAttrType::SINT_TO_FLT_32:
+    case VertAttrType::SINT_TO_FLT_32_32:
+    case VertAttrType::SINT_TO_FLT_32_32_32:
+    case VertAttrType::SINT_TO_FLT_32_32_32_32:
+      return true;
+    default:
+      return false;
+  }
+};
+
+bool is_fetch_float(VertAttrType attr_type)
+{
+  switch (attr_type) {
+    case VertAttrType::SFLOAT_32:
+    case VertAttrType::SFLOAT_32_32:
+    case VertAttrType::SFLOAT_32_32_32:
+    case VertAttrType::SFLOAT_32_32_32_32:
+      return true;
+    default:
+      return false;
+  }
+};
+
+}  // namespace blender::gpu
+
 using blender::StringRef;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
@@ -154,6 +326,8 @@ uint GPU_vertformat_attr_add(GPUVertFormat *format,
   attr->size = attr_size(attr);
   attr->offset = 0; /* offsets & stride are calculated later (during pack) */
   attr->fetch_mode = fetch_mode;
+  attr->format = vertex_format_combine(comp_type, fetch_mode, comp_len);
+  BLI_assert(attr->format != blender::gpu::VertAttrType::Invalid);
 
   return attr_id;
 }
