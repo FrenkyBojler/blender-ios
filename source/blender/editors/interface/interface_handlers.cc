@@ -4908,6 +4908,20 @@ static int ui_do_but_TEX(
         return WM_UI_HANDLER_BREAK;
       }
     }
+    else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
+      char head[1024], tail[1024];
+      ushort digits;
+      int num = BLI_path_sequence_decode(
+          but->drawstr.c_str(), head, sizeof(head), tail, sizeof(tail), &digits);
+      if (num == 0 && digits == 0) {
+        BLI_str_rstrip_digits(head);
+      }
+      num += (event->type == WHEELUPMOUSE) ? 1 : -1;
+      char string[1024];
+      BLI_path_sequence_encode(string, sizeof(string), head, tail, digits, num);
+      ui_but_set_string_interactive(C, but, string);
+      return WM_UI_HANDLER_BREAK;
+    }
   }
   else if (data->state == BUTTON_STATE_TEXT_EDITING) {
     return ui_do_but_textedit(C, block, but, data, event);
@@ -4966,8 +4980,21 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
       return WM_UI_HANDLER_BREAK;
     }
     if (ELEM(event->type, MOUSEPAN, WHEELDOWNMOUSE, WHEELUPMOUSE) && (event->modifier & KM_CTRL)) {
-      /* Support Ctrl-Wheel to cycle values on expanded enum rows. */
-      if (but->type == UI_BTYPE_ROW) {
+      if (ELEM(but->type,
+               UI_BTYPE_TOGGLE,
+               UI_BTYPE_TOGGLE_N,
+               UI_BTYPE_ICON_TOGGLE,
+               UI_BTYPE_ICON_TOGGLE_N,
+               UI_BTYPE_BUT_TOGGLE,
+               UI_BTYPE_CHECKBOX,
+               UI_BTYPE_CHECKBOX_N))
+      {
+        /* Support Ctrl-Wheel to cycle toggles and checkboxes. */
+        button_activate_state(C, but, BUTTON_STATE_EXIT);
+        return WM_UI_HANDLER_BREAK;
+      }
+      else if (but->type == UI_BTYPE_ROW) {
+        /* Support Ctrl-Wheel to cycle values on expanded enum rows. */
         int type = event->type;
         int val = event->val;
 
