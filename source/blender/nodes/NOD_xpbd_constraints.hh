@@ -638,8 +638,8 @@ inline void apply_position_stretch_shear(const float weight_pos1,
 }
 
 template<bool linearized_quaternion>
-inline void eval_position_bend_twist(const float weight_rot1,
-                                     const float weight_rot2,
+inline void eval_position_bend_twist(const float3 &weight_rot1,
+                                     const float3 &weight_rot2,
                                      const float3 &darboux_vector,
                                      const float3 &alpha,
                                      const float3 &gamma,
@@ -669,9 +669,9 @@ inline void eval_position_bend_twist(const float weight_rot1,
   r_delta_lambda = weight_norm * (-r_residual - alpha * lambda - gamma * velocity);
 
   if constexpr (linearized_quaternion) {
-    r_delta_rotation1 = weight_rot1 * float4(rotation2 * math::conjugate(math::Quaternion(
-                                                             0.0f, r_delta_lambda)));
-    r_delta_rotation2 = weight_rot2 * float4(rotation1 * math::Quaternion(0.0f, r_delta_lambda));
+    r_delta_rotation1 = float4(
+        rotation2 * math::conjugate(math::Quaternion(0.0f, r_delta_lambda * weight_rot1)));
+    r_delta_rotation2 = float4(rotation1 * math::Quaternion(0.0f, r_delta_lambda * weight_rot2));
   }
   else {
     // TODO
@@ -700,8 +700,8 @@ inline void eval_bend_twist_elements(const float3 &darboux_vector,
 }
 
 template<bool linearized_quaternion>
-inline void apply_position_bend_twist(const float weight_rot1,
-                                      const float weight_rot2,
+inline void apply_position_bend_twist(const float3 &weight_rot1,
+                                      const float3 &weight_rot2,
                                       const float3 &darboux_vector,
                                       const float3 &alpha,
                                       float3 &lambda,
@@ -781,8 +781,8 @@ inline void eval_rotation_goal2(const math::Quaternion &goal_rotation,
   /* TODO account for root animation. */
   const math::Quaternion old_goal_rotation = goal_rotation;
   float4 delta_root_rotation;
-  eval_position_bend_twist<linearized_quaternion>(0.0f,
-                                                  1.0f,
+  eval_position_bend_twist<linearized_quaternion>(float3(0.0f),
+                                                  float3(1.0f),
                                                   darboux_vector,
                                                   alpha,
                                                   gamma,

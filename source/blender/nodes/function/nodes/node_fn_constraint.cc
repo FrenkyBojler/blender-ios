@@ -108,8 +108,8 @@ template<typename ExecPreset> static auto bend_twist_multifunction(ExecPreset ex
                                            mf_input<float3>,
                                            mf_input<math::Quaternion>,
                                            mf_input<math::Quaternion>,
-                                           mf_input<float>,
-                                           mf_input<float>,
+                                           mf_input<float3>,
+                                           mf_input<float3>,
                                            mf_input<float3>,
                                            mf_input<float3>,
                                            mf_output<float3>,
@@ -120,8 +120,8 @@ template<typename ExecPreset> static auto bend_twist_multifunction(ExecPreset ex
          float3 lambda,
          math::Quaternion rotation1,
          math::Quaternion rotation2,
-         const float weight_rot1,
-         const float weight_rot2,
+         const float3 weight_rot1,
+         const float3 weight_rot2,
          const float3 &darboux_vector,
          const float3 &alpha,
          float3 &lambda_out,
@@ -278,8 +278,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       b.add_input<decl::Rotation>("Rotation 2").hide_value();
       b.add_output<decl::Rotation>("Rotation 2").align_with_previous();
       b.add_separator();
-      b.add_input<decl::Float>("Rotation Weight 1").default_value(1.0f);
-      b.add_input<decl::Float>("Rotation Weight 2").default_value(1.0f);
+      b.add_input<decl::Vector>("Rotation Weight 1").default_value(float3(1.0f));
+      b.add_input<decl::Vector>("Rotation Weight 2").default_value(float3(1.0f));
       b.add_separator();
       b.add_input<decl::Float>("Edge Length");
       b.add_input<decl::Vector>("Darboux Vector");

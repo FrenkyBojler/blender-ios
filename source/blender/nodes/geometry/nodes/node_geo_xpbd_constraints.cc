@@ -1071,8 +1071,8 @@ static void eval_positions(const ConstraintEvalParams &params,
     if (!points_range.contains(point1) || !points_range.contains(point2)) {
       return;
     }
-    const float weight_rot1 = math::safe_divide(2.0f, trace(params.local_inertia[point1]));
-    const float weight_rot2 = math::safe_divide(2.0f, trace(params.local_inertia[point2]));
+    const float3 weight_rot1 = math::safe_rcp(params.local_inertia[point1]);
+    const float3 weight_rot2 = math::safe_rcp(params.local_inertia[point2]);
     const float3 &darboux_vector = darboux_vectors[index];
     float3 &lambda = lambda_writer.span[index];
     float &delta_rotation1_w = delta_rotation1_w_writer.span[index];
