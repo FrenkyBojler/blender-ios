@@ -75,8 +75,7 @@ static void wpaint_prev_create(WPaintPrev *wpp, MDeformVert *dverts, int dcount)
   wpaint_prev_init(wpp);
 
   if (dverts && dcount) {
-    wpp->wpaint_prev = static_cast<MDeformVert *>(
-        MEM_malloc_arrayN(dcount, sizeof(MDeformVert), __func__));
+    wpp->wpaint_prev = MEM_malloc_arrayN<MDeformVert>(dcount, __func__);
     wpp->tot = dcount;
     BKE_defvert_array_copy(wpp->wpaint_prev, dverts, dcount);
   }
@@ -830,7 +829,7 @@ static wmOperatorStatus paint_weight_gradient_exec(bContext *C, wmOperator *op)
 
   ED_view3d_init_mats_rv3d(ob, static_cast<RegionView3D *>(region->regiondata));
 
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   if (data.is_init) {
     data.vert_visit = BLI_BITMAP_NEW(mesh->verts_num, __func__);

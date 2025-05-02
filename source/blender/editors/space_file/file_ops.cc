@@ -189,11 +189,11 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
       }
       else {
         if (is_parent_dir) {
-          /* avoids /../../ */
+          /* Avoids `/../../`. */
           BLI_path_parent_dir(params->dir);
 
           if (params->recursion_level > 1) {
-            /* Disable 'dirtree' recursion when going up in tree. */
+            /* Disable `dirtree` recursion when going up in tree. */
             params->recursion_level = 0;
             filelist_setrecursion(sfile->files, params->recursion_level);
           }
@@ -2040,8 +2040,7 @@ void file_external_operations_menu_register()
 {
   MenuType *mt;
 
-  mt = static_cast<MenuType *>(
-      MEM_callocN(sizeof(MenuType), "spacetype file menu file operations"));
+  mt = MEM_callocN<MenuType>("spacetype file menu file operations");
   STRNCPY(mt->idname, "FILEBROWSER_MT_operations_menu");
   STRNCPY(mt->label, N_("External"));
   STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
@@ -2275,7 +2274,7 @@ static wmOperatorStatus file_parent_exec(bContext *C, wmOperator * /*unused*/)
       BLI_path_normalize_dir(params->dir, sizeof(params->dir));
       ED_file_change_dir(C);
       if (params->recursion_level > 1) {
-        /* Disable 'dirtree' recursion when going up in tree. */
+        /* Disable `dirtree` recursion when going up in tree. */
         params->recursion_level = 0;
         filelist_setrecursion(sfile->files, params->recursion_level);
       }

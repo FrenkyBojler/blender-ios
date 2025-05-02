@@ -383,7 +383,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
   ListBase edges = {nullptr, nullptr};
 
   /* get boundary edges */
-  edge_users = MEM_calloc_arrayN<int>(size_t(mesh_edges.size()), __func__);
+  edge_users = MEM_calloc_arrayN<int>(mesh_edges.size(), __func__);
   for (const int i : polys.index_range()) {
     for (const int edge : corner_edges.slice(polys[i])) {
       edge_users[edge]++;
@@ -482,7 +482,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
         nu->flagu = CU_NURB_ENDPOINT | (closed ? CU_NURB_CYCLIC : 0); /* endpoint */
         nu->resolu = 12;
 
-        nu->bp = MEM_calloc_arrayN<BPoint>(size_t(faces_num), "bpoints");
+        nu->bp = MEM_calloc_arrayN<BPoint>(faces_num, "bpoints");
 
         /* add points */
         vl = (VertLink *)polyline.first;
@@ -504,7 +504,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
 
 void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
     return;
   }
@@ -535,7 +535,7 @@ void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Obj
 void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
   BLI_assert(ob->type == OB_MESH);
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
     return;
   }
@@ -564,7 +564,7 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 {
   BLI_assert(ob->type == OB_POINTCLOUD);
 
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   const blender::bke::GeometrySet geometry = blender::bke::object_get_evaluated_geometry_set(
       *ob_eval);
 
@@ -717,7 +717,7 @@ static Mesh *mesh_new_from_curve_type_object(const Object *object)
 {
   /* If the object is evaluated, it should either have an evaluated mesh or curve data already.
    * The mesh can be duplicated, or the curve converted to wire mesh edges. */
-  if (DEG_is_evaluated_object(object)) {
+  if (DEG_is_evaluated(object)) {
     return mesh_new_from_evaluated_curve_type_object(object);
   }
 
@@ -754,7 +754,7 @@ static Mesh *mesh_new_from_mball_object(Object *object)
    * ball).
    *
    * Create empty mesh so script-authors don't run into None objects. */
-  if (!DEG_is_evaluated_object(object)) {
+  if (!DEG_is_evaluated(object)) {
     return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
   }
 
@@ -790,7 +790,7 @@ static Mesh *mesh_new_from_mesh_object_with_layers(Depsgraph *depsgraph,
                                                    const bool preserve_origindex,
                                                    const bool ensure_subdivision)
 {
-  if (DEG_is_original_id(&object->id)) {
+  if (DEG_is_original(object)) {
     return mesh_new_from_mesh(object, (Mesh *)object->data, ensure_subdivision);
   }
 
@@ -1035,7 +1035,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
     MEM_SAFE_FREE(kb->data);
 
     kb->totelem = mesh.verts_num;
-    kb->data = MEM_malloc_arrayN(size_t(kb->totelem), sizeof(float3), __func__);
+    kb->data = MEM_malloc_arrayN<float3>(size_t(kb->totelem), __func__);
     MutableSpan<float3> kb_coords(static_cast<float3 *>(kb->data), kb->totelem);
     if (kb->uid == actshape_uid) {
       mesh.attributes().lookup<float3>("position").varray.materialize(kb_coords);
@@ -1049,7 +1049,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
     if (kb->totelem != mesh.verts_num) {
       MEM_SAFE_FREE(kb->data);
       kb->totelem = mesh.verts_num;
-      kb->data = MEM_calloc_arrayN<float3>(size_t(kb->totelem), __func__);
+      kb->data = MEM_calloc_arrayN<float3>(kb->totelem, __func__);
       CLOG_ERROR(&LOG, "Data for shape key '%s' on mesh missing from evaluated mesh ", kb->name);
     }
   }
