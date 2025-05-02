@@ -243,6 +243,44 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
   return math::clamp(best_channel, 0, seq::MAX_CHANNELS);
 }
 
+static bool have_free_channels(bContext *C,
+                               wmOperator *op,
+                               int need_channels,
+                               const char **r_error_msg)
+{
+  const int channel = RNA_int_get(op->ptr, "channel");
+  const int frame_start = RNA_int_get(op->ptr, "frame_start");
+
+  /* First check simple case - strip is added to very top of timeline. */
+  const int max_channel = seq::MAX_CHANNELS - need_channels + 1;
+  if (channel > max_channel) {
+    *r_error_msg = "No available channel for the current frame.";
+    return false;
+  }
+
+  /* When adding strip(s) to lower channels, we must count number of free channels. There can be
+   * gaps. */
+  Set<int> used_channels;
+  for (Strip *strip : all_strips_from_context(C)) {
+    if (seq::time_strip_intersects_frame(CTX_data_scene(C), strip, frame_start)) {
+      used_channels.add(strip->machine);
+    }
+  }
+
+  int free_channels = 0;
+  for (int i : IndexRange(channel, seq::MAX_CHANNELS - channel + 1)) {
+    if (!used_channels.contains(i)) {
+      free_channels++;
+    }
+    if (free_channels == need_channels) {
+      return true;
+    }
+  }
+
+  *r_error_msg = "No available channel for the current frame.";
+  return false;
+}
+
 /* Sets `channel` and `frame_start` properties when the operator is likely to have been invoked
  * with drag-and-drop data. */
 static void sequencer_file_drop_channel_frame_set(bContext *C,
@@ -493,6 +531,12 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
+  const char *error_msg;
+  if (!have_free_channels(C, op, 1, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
+    return OPERATOR_CANCELLED;
+  }
+
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
     deselect_all_strips(scene);
   }
@@ -587,6 +631,12 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext *C, wmOperat
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   const Editing *ed = seq::editing_ensure(scene);
+
+  const char *error_msg;
+  if (!have_free_channels(C, op, 1, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
+    return OPERATOR_CANCELLED;
+  }
 
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
     deselect_all_strips(scene);
@@ -694,6 +744,12 @@ static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperat
     return OPERATOR_CANCELLED;
   }
 
+  const char *error_msg;
+  if (!have_free_channels(C, op, 1, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
+    return OPERATOR_CANCELLED;
+  }
+
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
     deselect_all_strips(scene);
   }
@@ -759,6 +815,12 @@ static wmOperatorStatus sequencer_add_mask_strip_exec(bContext *C, wmOperator *o
 
   if (mask == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Mask not found");
+    return OPERATOR_CANCELLED;
+  }
+
+  const char *error_msg;
+  if (!have_free_channels(C, op, 1, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
 
@@ -1056,6 +1118,14 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
+  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_MOVIE);
+
+  const char *error_msg;
+  if (!have_free_channels(C, op, 2, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
+    return OPERATOR_CANCELLED;
+  }
+
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
     deselect_all_strips(scene);
   }
@@ -1125,6 +1195,13 @@ static wmOperatorStatus sequencer_add_movie_strip_invoke(bContext *C,
       RNA_struct_property_is_set(op->ptr, "filepath"))
   {
     sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_MOVIE, event);
+
+    const char *error_msg;
+    if (!have_free_channels(C, op, 2, &error_msg)) {
+      BKE_report(op->reports, RPT_ERROR, error_msg);
+      return OPERATOR_CANCELLED;
+    }
+
     return sequencer_add_movie_strip_exec(C, op);
   }
 
@@ -1251,6 +1328,12 @@ static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *
   seq::LoadData load_data;
   load_data_init_from_operator(&load_data, C, op);
 
+  const char *error_msg;
+  if (!have_free_channels(C, op, 1, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
+    return OPERATOR_CANCELLED;
+  }
+
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
     deselect_all_strips(scene);
   }
@@ -1286,6 +1369,13 @@ static wmOperatorStatus sequencer_add_sound_strip_invoke(bContext *C,
       RNA_struct_property_is_set(op->ptr, "filepath"))
   {
     sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_SOUND_RAM, event);
+
+    const char *error_msg;
+    if (!have_free_channels(C, op, 1, &error_msg)) {
+      BKE_report(op->reports, RPT_ERROR, error_msg);
+      return OPERATOR_CANCELLED;
+    }
+
     return sequencer_add_sound_strip_exec(C, op);
   }
 
@@ -1436,6 +1526,12 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
+  const char *error_msg;
+  if (!have_free_channels(C, op, 1, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
+    return OPERATOR_CANCELLED;
+  }
+
   int minframe, numdigits;
   load_data.image.len = sequencer_add_image_strip_calculate_length(
       op, load_data.start_frame, &minframe, &numdigits);
@@ -1495,6 +1591,13 @@ static wmOperatorStatus sequencer_add_image_strip_invoke(bContext *C,
   if (RNA_struct_property_is_set(op->ptr, "files") && !RNA_collection_is_empty(op->ptr, "files")) {
     sequencer_generic_invoke_xy__internal(
         C, op, SEQPROP_ENDFRAME | SEQPROP_NOPATHS, STRIP_TYPE_IMAGE, event);
+
+    const char *error_msg;
+    if (!have_free_channels(C, op, 1, &error_msg)) {
+      BKE_report(op->reports, RPT_ERROR, error_msg);
+      return OPERATOR_CANCELLED;
+    }
+
     return sequencer_add_image_strip_exec(C, op);
   }
 
@@ -1549,6 +1652,12 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_ensure(scene);
+
+  const char *error;
+  if (!have_free_channels(C, op, 1, &error)) {
+    BKE_report(op->reports, RPT_ERROR, error);
+    return OPERATOR_CANCELLED;
+  }
 
   seq::LoadData load_data;
   load_data_init_from_operator(&load_data, C, op);
