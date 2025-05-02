@@ -15,6 +15,7 @@ from bl_operators.io.io_curve_svg.svg_util import (
 
 args = None
 
+
 class ParseArrayOfFloatsTest(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(parse_array_of_floats(""), [])

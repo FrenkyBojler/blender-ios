@@ -26,7 +26,6 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
         type=bpy.types.OperatorFileListElement,
     )
 
-
     def execute(self, context):
         from . import import_svg
 
@@ -40,6 +39,7 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
             return ret
         else:
             return import_svg.load(self, context, filepath=self.filepath)
+
 
 classes = (
     ImportSVG,

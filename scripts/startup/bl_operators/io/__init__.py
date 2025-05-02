@@ -1,5 +1,5 @@
 from bl_operators.io import curve_svg
-    
+
 io_operator_modules = (
     curve_svg,
 )

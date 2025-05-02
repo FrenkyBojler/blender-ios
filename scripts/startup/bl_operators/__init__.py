@@ -67,6 +67,7 @@ def register():
 
     bone_selection_sets.register()
 
+
 def unregister():
     from bpy.utils import unregister_class
     from . import bone_selection_sets

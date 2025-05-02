@@ -13,10 +13,10 @@ from bpy.app.translations import pgettext_tip as tip_
 
 from bl_operators.io.curve_svg import svg_colors
 from bl_operators.io.curve_svg.svg_util import (units,
-                       srgb_to_linearrgb,
-                       check_points_equal,
-                       parse_array_of_floats,
-                       read_float)
+                                                srgb_to_linearrgb,
+                                                check_points_equal,
+                                                parse_array_of_floats,
+                                                read_float)
 
 #### Common utilities ####
 
