@@ -4374,6 +4374,10 @@ static void do_version_bright_contrast_remove_premultiplied(bNodeTree *node_tree
       continue;
     }
 
+    if (blender::StringRef(link->tosock->identifier) != "Image") {
+      continue;
+    }
+
     bNode *convert_alpha_node = blender::bke::node_add_static_node(
         nullptr, *node_tree, CMP_NODE_PREMULKEY);
     convert_alpha_node->parent = link->tonode->parent;
