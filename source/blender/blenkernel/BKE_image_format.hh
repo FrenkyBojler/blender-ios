@@ -39,6 +39,13 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 /* File Paths */
 
+/**
+ * \param template_variables: the map of variables to use for template
+ * substitution. Optional: if null, template substitution will not be performed.
+ *
+ * \return If any template errors are encountered, returns those errors. On
+ * success, returns an empty Vector.
+ */
 blender::Vector<blender::bke::path_templates::Error> BKE_image_path_from_imformat(
     char *filepath,
     const char *base,
