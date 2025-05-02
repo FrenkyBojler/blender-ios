@@ -563,11 +563,18 @@ void separate_points(const bke::CurvesGeometry &curves,
                                      retained_dst_offsets,
                                      retained_curve_map);
       },
-      [&](const IndexRange curves, const IndexRange points) {
-        retained_src_ranges.append(points);
-        retained_dst_offsets.append(retained_dst_offsets.last() + points.size());
+      [&](const IndexRange curves, [[maybe_unused]] const IndexRange points) {
         int last_offset = retained_offsets.last();
+        int last_dst_offset = retained_dst_offsets.last();
         for (const int curve : curves) {
+          /* Point ranges to `src_ranges` and `dst_offsets` have to be appended curve by curve to
+           * ease custom knots are copying. It gives better mapping between `src_ranges` and
+           * `curve_map`. */
+          const IndexRange points = points_by_curve[curve];
+          retained_src_ranges.append(points);
+          last_dst_offset += points.size();
+          retained_dst_offsets.append(last_dst_offset);
+
           last_offset += points_by_curve[curve].size();
           retained_offsets.append(last_offset);
           retained_curve_map.append(curve);
