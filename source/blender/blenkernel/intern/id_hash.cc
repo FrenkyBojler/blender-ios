@@ -111,6 +111,18 @@ static void compute_deep_hash_recursive(const Main &bmain,
       const_cast<Main *>(&bmain),
       const_cast<ID *>(&id),
       [&](LibraryIDLinkCallbackData *cb_data) {
+        if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
+          /* Loopback pointer (e.g. from a shapekey to its owner geometry ID, or from a collection
+           * to its parents) should always be ignored, as they do not represent an actual
+           * dependency. The dependency relationship should already have been processed from the
+           * owner to its dependency anyway (if applicable). */
+          return IDWALK_RET_NOP;
+        }
+        if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
+          /* Embedded data are part of their owner's internal data, and as such already computed as
+           * part of the owner's shallow hash. */
+          return IDWALK_RET_NOP;
+        }
         ID *referenced_id = *cb_data->id_pointer;
         if (!referenced_id) {
           /* Need to update the hash even if there is no id. There is a difference between the case
@@ -119,9 +131,8 @@ static void compute_deep_hash_recursive(const Main &bmain,
           XXH3_128bits_update(hash_state, &random_data, sizeof(int));
           return IDWALK_RET_NOP;
         }
-        if (referenced_id->flag & ID_FLAG_EMBEDDED_DATA) {
-          return IDWALK_RET_NOP;
-        }
+        /* All embedded ID usages should already have been excluded above. */
+        BLI_assert((referenced_id->flag & ID_FLAG_EMBEDDED_DATA) == 0);
         if (current_stack.contains(referenced_id)) {
           /* Somehow encode that we had a circular reference here. */
           const int random_data = 234632342;
