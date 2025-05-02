@@ -42,7 +42,7 @@ static bool set_knots(const pxr::VtDoubleArray &knots, float *&nu_knots)
 
 namespace blender::io::usd {
 
-void USDNurbsReader::create_object(Main *bmain, const double /*motionSampleTime*/)
+void USDNurbsReader::create_object(Main *bmain)
 {
   Curve *cu = BKE_curve_add(bmain, name_.c_str(), OB_CURVES_LEGACY);
 
@@ -137,7 +137,7 @@ void USDNurbsReader::read_curve_sample(Curve *cu, const double motionSampleTime)
 
     float weight = 1.0f;
 
-    nu->bp = MEM_calloc_arrayN<BPoint>(size_t(nu->pntsu), __func__);
+    nu->bp = MEM_calloc_arrayN<BPoint>(nu->pntsu, __func__);
     BPoint *bp = nu->bp;
 
     for (int j = 0; j < nu->pntsu; j++, bp++, idx++) {

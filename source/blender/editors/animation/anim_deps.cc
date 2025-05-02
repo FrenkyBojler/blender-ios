@@ -198,7 +198,7 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
      * strip, or even the sequencer itself. */
     return;
   }
-  strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
+  strip = blender::seq::get_strip_by_name(ed->seqbasep, strip_name, false);
   if (strip == nullptr) {
     return;
   }
@@ -240,7 +240,7 @@ static void animchan_sync_gplayer(bAnimListElem *ale)
   bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
   /* Make sure the selection flags agree with the "active" flag.
-   * The selection flags are used in the Dopesheet only, whereas
+   * The selection flags are used in the Dope-sheet only, whereas
    * the active flag is used everywhere else. Hence, we try to
    * sync these here so that it all seems to be have as the user
    * expects - #50184
