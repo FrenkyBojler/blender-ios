@@ -636,7 +636,16 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
   Image *image = ED_space_image(sima);
-  const bool show_viewer = (image && image->source == IMA_SRC_VIEWER);
+  const bool show_viewer = (image && image->source == IMA_SRC_VIEWER &&
+                            image->type == IMA_TYPE_COMPOSITE);
+  const bool show_text_info = (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
+                               sima->overlay.flag & SI_OVERLAY_DRAW_TEXT_INFO &&
+                               (sima->mode == SI_MODE_MASK || sima->mode == SI_MODE_VIEW)) &&
+                              show_viewer;
+  const bool show_render_region = (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
+                                   sima->overlay.flag & SI_OVERLAY_DRAW_RENDER_REGION &&
+                                   (sima->mode == SI_MODE_MASK || sima->mode == SI_MODE_VIEW)) &&
+                                  show_viewer;
 
   /* XXX not supported yet, disabling for now */
   scene->r.scemode &= ~R_COMP_CROP;
@@ -659,9 +668,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     BLI_thread_unlock(LOCK_DRAW_IMAGE);
   }
 
-  if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
-      sima->overlay.flag & SI_OVERLAY_DRAW_RENDER_REGION)
-  {
+  if (show_render_region) {
     int render_size_x, render_size_y;
 
     BKE_render_resolution(&scene->r, true, &render_size_x, &render_size_y);
@@ -704,9 +711,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     ED_space_image_release_buffer(sima, ibuf, lock);
   }
 
-  if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
-      sima->overlay.flag & SI_OVERLAY_DRAW_TEXT_INFO)
-  {
+  if (show_text_info) {
 
     int render_size_x, render_size_y;
     BKE_render_resolution(&scene->r, true, &render_size_x, &render_size_y);
@@ -714,7 +719,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     /* Use same positioning convention as in 3D View. */
     const rcti *rect = ED_region_visible_rect(region);
     int xoffset = rect->xmin + (0.5f * U.widget_unit);
-    int yoffset = rect->ymax - (0.7f * U.widget_unit);
+    int yoffset = rect->ymax - (0.1f * U.widget_unit);
 
     int viewer_size_x, viewer_size_y;
     ED_space_image_get_size(sima, &viewer_size_x, &viewer_size_y);
