@@ -21,7 +21,7 @@ uint vertex_buffer_size(const GPUVertFormat *format, uint vertex_len);
 
 namespace blender::gpu {
 
-bool is_normalized_int(VertAttrType attr_type);
+bool is_fetch_normalized(VertAttrType attr_type);
 bool is_fetch_int_to_float(VertAttrType attr_type);
 bool is_fetch_float(VertAttrType attr_type);
 

@@ -25,34 +25,19 @@ enum class VertAttrType : uint8_t {
 #define DECLARE(a, b, c, blender_enum, d, e, f, g, h) blender_enum = int(DataFormat::blender_enum),
 
 #define GPU_VERTEX_FORMAT_EXPAND(impl) \
-  SNORM_8_(impl) \
-  SNORM_8_8_(impl) \
-  SNORM_8_8_8_(impl) \
   SNORM_8_8_8_8_(impl) \
 \
-  SNORM_16_(impl) \
   SNORM_16_16_(impl) \
-  SNORM_16_16_16_(impl) \
   SNORM_16_16_16_16_(impl) \
 \
-  UNORM_8_(impl) \
-  UNORM_8_8_(impl) \
-  UNORM_8_8_8_(impl) \
   UNORM_8_8_8_8_(impl) \
 \
-  UNORM_16_(impl) \
   UNORM_16_16_(impl) \
-  UNORM_16_16_16_(impl) \
   UNORM_16_16_16_16_(impl) \
 \
-  SINT_8_(impl) \
-  SINT_8_8_(impl) \
-  SINT_8_8_8_(impl) \
   SINT_8_8_8_8_(impl) \
 \
-  SINT_16_(impl) \
   SINT_16_16_(impl) \
-  SINT_16_16_16_(impl) \
   SINT_16_16_16_16_(impl) \
 \
   SINT_32_(impl) \
@@ -60,14 +45,9 @@ enum class VertAttrType : uint8_t {
   SINT_32_32_32_(impl) \
   SINT_32_32_32_32_(impl) \
 \
-  UINT_8_(impl) \
-  UINT_8_8_(impl) \
-  UINT_8_8_8_(impl) \
   UINT_8_8_8_8_(impl) \
 \
-  UINT_16_(impl) \
   UINT_16_16_(impl) \
-  UINT_16_16_16_(impl) \
   UINT_16_16_16_16_(impl) \
 \
   UINT_32_(impl) \
