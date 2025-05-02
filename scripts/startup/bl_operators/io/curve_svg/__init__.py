@@ -41,10 +41,6 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
         else:
             return import_svg.load(self, context, filepath=self.filepath)
 
-
-def register():
-    bpy.utils.register_class(ImportSVG)
-
-def unregister():
-    bpy.utils.unregister_class(ImportSVG)
-
+classes = (
+    ImportSVG,
+)

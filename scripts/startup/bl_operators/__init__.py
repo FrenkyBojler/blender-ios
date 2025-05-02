@@ -4,10 +4,6 @@
 
 from __future__ import annotations
 
-from bl_operators.io import curve_svg
-
-io_operators = (curve_svg, )
-
 # support reloading sub-modules
 if "bpy" in locals():
     from importlib import reload
@@ -28,6 +24,7 @@ _modules = [
     "grease_pencil",
     "image",
     "image_as_planes",
+    "io",
     "mesh",
     "node",
     "object",
@@ -70,10 +67,6 @@ def register():
 
     bone_selection_sets.register()
 
-    for io_operator in io_operators:
-        io_operator.register()
-
-
 def unregister():
     from bpy.utils import unregister_class
     from . import bone_selection_sets
@@ -84,6 +77,3 @@ def unregister():
         for cls in reversed(mod.classes):
             if cls.is_registered:
                 unregister_class(cls)
-
-    for io_operator in io_operators:
-        io_operator.unregister()
