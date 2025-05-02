@@ -470,23 +470,6 @@ void immAttr4fv(uint attr_id, const float data[4])
   immAttr4f(attr_id, data[0], data[1], data[2], data[3]);
 }
 
-void immAttr3ub(uint attr_id, uchar r, uchar g, uchar b)
-{
-  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
-  BLI_assert(attr_id < imm->vertex_format.attr_len);
-  BLI_assert(ELEM(attr->format, VertAttrType::UINT_8_8_8, VertAttrType::UNORM_8_8_8));
-  BLI_assert(imm->vertex_idx < imm->vertex_len);
-  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-  setAttrValueBit(attr_id);
-
-  uchar *data = imm->vertex_data + attr->offset;
-  // printf("%s %td %p\n", __FUNCTION__, data - imm->buffer_data, data);
-
-  data[0] = r;
-  data[1] = g;
-  data[2] = b;
-}
-
 void immAttr4ub(uint attr_id, uchar r, uchar g, uchar b, uchar a)
 {
   GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
@@ -503,11 +486,6 @@ void immAttr4ub(uint attr_id, uchar r, uchar g, uchar b, uchar a)
   data[1] = g;
   data[2] = b;
   data[3] = a;
-}
-
-void immAttr3ubv(uint attr_id, const uchar data[3])
-{
-  immAttr3ub(attr_id, data[0], data[1], data[2]);
 }
 
 void immAttr4ubv(uint attr_id, const uchar data[4])
