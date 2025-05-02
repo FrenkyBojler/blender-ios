@@ -922,7 +922,7 @@ bool OCIOImpl::gpuToLinearShaderBind(OCIO_ConstConfigRcPtr *config,
                                 use_predivide,
                                 false /* use_overlay */,
                                 true, /* use_hdr */
-                                false /*use_white_balance*/);
+                                false /* use_white_balance */);
 }
 
 void OCIOImpl::gpuShaderUnbind()
