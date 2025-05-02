@@ -900,9 +900,9 @@ bool OCIOImpl::gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                        use_white_balance);
 }
 
-bool OCIOImpl::gpuToLinearShaderBind(OCIO_ConstConfigRcPtr *config,
-                                     const char *from_colorspace_name,
-                                     const bool use_predivide)
+bool OCIOImpl::gpuToSceneLinearShaderBind(OCIO_ConstConfigRcPtr *config,
+                                          const char *from_colorspace_name,
+                                          const bool use_predivide)
 {
   /* Get GPU shader from cache or create new one. */
   OCIO_GPUDisplayShader &display_shader = getGPUToLinearDisplayShader(config,

@@ -128,9 +128,9 @@ class IOCIOImpl {
   {
     return false;
   }
-  virtual bool gpuToLinearShaderBind(OCIO_ConstConfigRcPtr * /*config*/,
-                                     const char * /*from_colorspace_name*/,
-                                     const bool /*use_predivide*/)
+  virtual bool gpuToSceneLinearShaderBind(OCIO_ConstConfigRcPtr * /*config*/,
+                                          const char * /*from_colorspace_name*/,
+                                          const bool /*use_predivide*/)
   {
     return false;
   }
@@ -382,9 +382,9 @@ class OCIOImpl : public IOCIOImpl {
    * When all drawing is finished, gpuShaderUnbind must be called to restore GPU context to its
    * previous state.
    */
-  bool gpuToLinearShaderBind(OCIO_ConstConfigRcPtr *config,
-                             const char *from_colorspace_name,
-                             bool use_predivide) override;
+  bool gpuToSceneLinearShaderBind(OCIO_ConstConfigRcPtr *config,
+                                  const char *from_colorspace_name,
+                                  bool use_predivide) override;
 
   void gpuShaderUnbind() override;
   void gpuCacheFree() override;
