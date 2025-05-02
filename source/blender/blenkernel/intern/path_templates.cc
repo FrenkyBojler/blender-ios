@@ -730,35 +730,19 @@ std::string BKE_path_template_error_to_string(const Error &error, blender::Strin
 
   switch (error.type) {
     case ErrorType::UNESCAPED_CURLY_BRACE: {
-      std::string error_message;
-      error_message.append("Unescaped curly brace '");
-      error_message.append(subpath);
-      error_message.append("'.");
-      return error_message;
+      return std::string("Unescaped curly brace '") + subpath + "'.";
     }
 
     case ErrorType::VARIABLE_SYNTAX: {
-      std::string error_message;
-      error_message.append("Invalid or incomplete template expression '");
-      error_message.append(subpath);
-      error_message.append("'.");
-      return error_message;
+      return std::string("Invalid or incomplete template expression '") + subpath + "'.";
     }
 
     case ErrorType::FORMAT_SPECIFIER: {
-      std::string error_message;
-      error_message.append("Invalid format specifier in template expression '");
-      error_message.append(subpath);
-      error_message.append("'.");
-      return error_message;
+      return std::string("Invalid format specifier in template expression '") + subpath + "'.";
     }
 
     case ErrorType::UNKNOWN_VARIABLE: {
-      std::string error_message;
-      error_message.append("Unknown variable referenced in template expression '");
-      error_message.append(subpath);
-      error_message.append("'.");
-      return error_message;
+      return std::string("Unknown variable referenced in template expression '") + subpath + "'.";
     }
   }
 
@@ -773,12 +757,7 @@ void BKE_report_path_template_errors(ReportList *reports,
 {
   BLI_assert(!errors.is_empty());
 
-  std::string error_message;
-
-  error_message.append("Parse errors in path '");
-  error_message.append(path);
-  error_message.append("':");
-
+  std::string error_message = "Parse errors in path '" + path + "':";
   for (const Error &error : errors) {
     error_message.append("\n- ");
     error_message.append(BKE_path_template_error_to_string(error, path));

@@ -1062,11 +1062,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
               BKE_validate_template_syntax(path);
 
           if (!errors.is_empty()) {
-            std::string error_message;
-            error_message.append("Syntax error(s):");
+            std::string error_message("Syntax error(s):");
             for (const blender::bke::path_templates::Error &error : errors) {
-              error_message.append("\n  - ");
-              error_message.append(BKE_path_template_error_to_string(error, path));
+              error_message.append("\n  - " + BKE_path_template_error_to_string(error, path));
             }
             UI_tooltip_text_field_add(
                 *data, error_message, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_ALERT);
