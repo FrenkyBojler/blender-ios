@@ -1239,9 +1239,6 @@ static wmOperatorStatus node_add_group_node_with_socket_invoke(bContext *C, wmOp
   snode->runtime->cursor[0] /= UI_SCALE_FAC;
   snode->runtime->cursor[1] /= UI_SCALE_FAC;
 
-  /* Rename node to match socket name if Shift is held. */
-  RNA_boolean_set(op->ptr, "rename_node", event->modifier & KM_SHIFT);
-
   return node_add_group_node_with_socket_exec(C, op);
 }
 
@@ -1268,7 +1265,6 @@ void NODE_OT_add_group_node_with_socket(wmOperatorType *ot)
   /* properties */
   RNA_def_boolean(
       ot->srna, "collapse_node", false, "Collapse Node", "Collapse the added node");
-  /* Controlled by the Shift modifier. */
   RNA_def_boolean(
       ot->srna, "rename_node", false, "Rename Node", "Rename the added node to match the included socket");
 
@@ -1324,15 +1320,6 @@ static wmOperatorStatus node_add_group_node_with_panel_exec(bContext *C, wmOpera
     }
   }
 
-  /* Check whether we need to create a Group Output node for the panel's outputs. */
-  bool has_outputs = false;
-  for (bNodeTreeInterfaceSocket *socket : ntree->interface_outputs()) {
-    if (panel->contains_recursive(socket->item)) {
-      has_outputs = true;
-      break;
-    }
-  }
-
   /* Add Group Input node. */
   bNode *group_input_node = nullptr;
   if (has_inputs) {
@@ -1371,51 +1358,6 @@ static wmOperatorStatus node_add_group_node_with_panel_exec(bContext *C, wmOpera
     }
   }
 
-  /* Add Group Output node. */
-  if (has_outputs) {
-    bNode *group_output_node = bke::node_add_node(C, *ntree, "NodeGroupOutput");
-    if (!group_output_node) {
-      BKE_report(op->reports, RPT_WARNING, "Could not add group output node");
-      return OPERATOR_CANCELLED;
-    }
-
-    /* Place node at mouse position by default. */
-    position_node_based_on_mouse(*group_output_node, snode->runtime->cursor);
-
-    /* If both input and output nodes were added, offset the output node to the right. */
-    if (group_input_node) {
-      group_output_node->location[0] += group_input_node->width + 160.0f;
-    }
-
-    if (rename_node) {
-      STRNCPY(group_output_node->label, panel->name);
-    }
-
-    if (collapse_node) {
-      group_output_node->flag |= NODE_HIDDEN;
-    }
-
-    /* Initially hide all sockets. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_output_node->inputs) {
-      socket->flag |= SOCK_HIDDEN;
-    }
-    /* Show only sockets contained in the dragged panel. */
-    for (bNodeTreeInterfaceSocket *iface_socket : ntree->interface_outputs()) {
-      if (panel->contains_recursive(iface_socket->item)) {
-        bNodeSocket *socket = bke::node_find_socket(
-            *group_output_node, SOCK_IN, iface_socket->identifier);
-        if (socket) {
-          socket->flag &= ~SOCK_HIDDEN;
-        } else {
-          BLI_assert_unreachable("Group node missing interface socket");
-        }
-      }
-    }
-
-    /* Select output node. */
-    bke::node_set_active(*ntree, *group_output_node);
-  }
-
   /* Select input node last, if added. */
   if (group_input_node) {
     bke::node_set_active(*ntree, *group_input_node);
@@ -1440,9 +1382,6 @@ static wmOperatorStatus node_add_group_node_with_panel_invoke(bContext *C, wmOpe
 
   snode->runtime->cursor[0] /= UI_SCALE_FAC;
   snode->runtime->cursor[1] /= UI_SCALE_FAC;
-
-  /* Rename node to match panel name if Shift is held. */
-  RNA_boolean_set(op->ptr, "rename_node", event->modifier & KM_SHIFT);
 
   return node_add_group_node_with_panel_exec(C, op);
 }
@@ -1470,7 +1409,6 @@ void NODE_OT_add_group_node_with_panel(wmOperatorType *ot)
   /* properties */
   RNA_def_boolean(
       ot->srna, "collapse_node", false, "Collapse Node", "Collapse the added node");
-  /* Controlled by the Shift modifier. */
   RNA_def_boolean(
       ot->srna, "rename_node", false, "Rename Node", "Rename the added node to match the included panel");
 

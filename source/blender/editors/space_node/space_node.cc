@@ -1143,7 +1143,7 @@ static bool node_socket_drop_poll(bContext *C, wmDrag *drag, const wmEvent *even
 
   /* Accept only socket items. */
   const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(drag_data->item);
-  if (socket) {
+  if (socket && socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
     return true;
   }
 
@@ -1186,17 +1186,18 @@ static bool node_panel_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
       }
     }
 
-    /* Ensure the panel has at least one socket. */
-    bool has_any_socket = false;
-    panel->foreach_item([&has_any_socket] (bNodeTreeInterfaceItem item) {
-      if (item.item_type == NODE_INTERFACE_SOCKET) {
-        has_any_socket = true;
+    /* Ensure the panel has at least one input socket. */
+    bool has_any_input_socket = false;
+    panel->foreach_item([&has_any_input_socket] (const bNodeTreeInterfaceItem &item) {
+      const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(&item);
+      if (socket && socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
+        has_any_input_socket = true;
         return false; // break
       }
       return true; // continue
     });
 
-    return has_any_socket;
+    return has_any_input_socket;
   }
   return false;
 }
@@ -1277,10 +1278,10 @@ static std::string node_socket_drop_tooltip(bContext * /*C*/, wmDrag *drag, cons
 
   if (socket) {
     if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-      return BLI_sprintfN(TIP_("Add \"%s\" Input (Shift to label)"), socket->name);
+      return BLI_sprintfN(TIP_("Add \"%s\" Input"), socket->name);
     }
     if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-      return BLI_sprintfN( TIP_("Add \"%s\" Output (Shift to label)"), socket->name);
+      return BLI_sprintfN( TIP_("Add \"%s\" Output"), socket->name);
     }
   } else {
     const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
@@ -1289,10 +1290,10 @@ static std::string node_socket_drop_tooltip(bContext * /*C*/, wmDrag *drag, cons
     /* Dragging a panel with toggle defaults to dragging the toggle socket. Offer shortcut to drag panel. */
     if (socket) {
       if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-        return BLI_sprintfN(TIP_("Add \"%s\" Input (Shift to label, Ctrl to add panel)"), socket->name);
+        return BLI_sprintfN(TIP_("Add \"%s\" Input (Ctrl to add panel)"), socket->name);
       }
       if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-        return BLI_sprintfN(TIP_("Add \"%s\" Output (Shift to label, Ctrl to add panel)"), socket->name);
+        return BLI_sprintfN(TIP_("Add \"%s\" Output (Ctrl to add panel)"), socket->name);
       }
     }
   }
@@ -1305,7 +1306,7 @@ static std::string node_panel_drop_tooltip(bContext * /*C*/, wmDrag *drag, const
   bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
   const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
   if (panel) {
-    return BLI_sprintfN(TIP_("Add \"%s\" Panel (Shift to label)"), panel->name);
+    return BLI_sprintfN(TIP_("Add \"%s\" Panel"), panel->name);
   }
   BLI_assert_unreachable();
   return "Error: Unsupported panel.";
