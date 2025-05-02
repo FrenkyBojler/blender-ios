@@ -10550,6 +10550,20 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 64)) {
+    /* Clear unused darw flag (used to be SEQ_DRAW_BACKDROP). */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_SEQ) {
+            SpaceSeq *space_sequencer = (SpaceSeq *)sl;
+            space_sequencer->draw_flag &= ~SEQ_DRAW_UNUSED_0;
+          }
+        }
+      }
+    }
+  }
+
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */
@@ -10557,19 +10571,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
     rename_mesh_uv_seam_attribute(*mesh);
-  }
-
-  /* Clear unused darw flag (used to be SEQ_DRAW_BACKDROP). */
-  // TODO: Move into a dedicated subversion check.
-  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-        if (sl->spacetype == SPACE_SEQ) {
-          SpaceSeq *space_sequencer = (SpaceSeq *)sl;
-          space_sequencer->draw_flag &= ~SEQ_DRAW_UNUSED_0;
-        }
-      }
-    }
   }
 
   /**
