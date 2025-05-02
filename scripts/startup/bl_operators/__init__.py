@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from bl_operators.io import io_curve_svg
+from bl_operators.io import curve_svg
 
-io_operators = (io_curve_svg, )
+io_operators = (curve_svg, )
 
 # support reloading sub-modules
 if "bpy" in locals():

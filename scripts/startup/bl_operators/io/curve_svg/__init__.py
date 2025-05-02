@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+# SPDX-FileCopyrightText: 2011-2022 JM Soler, Sergey Sharybin
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
