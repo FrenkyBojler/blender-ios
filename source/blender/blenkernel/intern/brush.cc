@@ -1520,9 +1520,7 @@ bool supports_accumulate(const Brush &brush)
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
               SCULPT_BRUSH_TYPE_CLAY_THUMB,
               SCULPT_BRUSH_TYPE_ROTATE,
-              SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_SCRAPE,
-              SCULPT_BRUSH_TYPE_FLATTEN);
+              SCULPT_BRUSH_TYPE_PLANE);
 }
 bool supports_topology_rake(const Brush &brush)
 {
@@ -1593,10 +1591,7 @@ bool supports_plane_offset(const Brush &brush)
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
               SCULPT_BRUSH_TYPE_CLAY_THUMB,
-              SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_SCRAPE);
+              SCULPT_BRUSH_TYPE_PLANE);
 }
 bool supports_random_texture_angle(const Brush &brush)
 {
@@ -1632,9 +1627,6 @@ bool supports_secondary_cursor_color(const Brush &brush)
               SCULPT_BRUSH_TYPE_PINCH,
               SCULPT_BRUSH_TYPE_CREASE,
               SCULPT_BRUSH_TYPE_LAYER,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_MASK);
 }
 bool supports_smooth_stroke(const Brush &brush)
@@ -1673,9 +1665,6 @@ bool supports_inverted_direction(const Brush &brush)
               SCULPT_BRUSH_TYPE_BLOB,
               SCULPT_BRUSH_TYPE_CREASE,
               SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_PINCH,
               SCULPT_BRUSH_TYPE_MASK);
@@ -1698,9 +1687,6 @@ bool supports_tilt(const Brush &brush)
   return ELEM(brush.sculpt_brush_type,
               SCULPT_BRUSH_TYPE_DRAW,
               SCULPT_BRUSH_TYPE_DRAW_SHARP,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_PLANE,
               SCULPT_BRUSH_TYPE_CLAY_STRIPS);
 }
