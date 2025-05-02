@@ -1079,7 +1079,7 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
 /**
  * From a starting corner, follow the connected edges to find the other corners "fanning" arount
  * the vertex. Crucially, we've removed ambiguity from the process already by marking edges
- * connected to three faces sharp.
+ * connected to three faces and edges between faces with opposite winding direction sharp.
  */
 static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
                                        const Span<VertEdgeInfo> edge_infos,
@@ -1088,12 +1088,17 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
 {
   result_fan.append(start_local_corner);
   {
-    /* Travel around the vertex in a right-handed clockwise direction (based on the normal). */
+    /* Travel around the vertex in a right-handed clockwise direction (based on the normal). The
+     * corners found in this traversal are reversed so the direction matches with the next
+     * traversal (or so that the next traversal doesn't have to be added at the beginning of the
+     * vector). */
     int current = start_local_corner;
     int local_edge = corner_infos[current].local_edge_next;
+    bool found_cyclic_fan = false;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
       current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
       if (current == start_local_corner) {
+        found_cyclic_fan = true;
         break;
       }
       result_fan.append(current);
@@ -1101,18 +1106,17 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
     }
     /* Reverse the corners added so the final order is consistent with the next traversal. */
     result_fan.as_mutable_span().reverse();
-  }
 
-  if (result_fan.size() == corner_infos.size()) {
-    /* This is a cylic corner fan that goes all the way around the vertex. To match behavior from
-     * the previous implementation of face corner normal calculation, the final fan is rotated so
-     * that the smallest face corner index comes first. */
-    int *fan_first_corner = std::min_element(
-        result_fan.begin(), result_fan.end(), [&](const int a, const int b) {
-          return corner_infos[a].corner < corner_infos[b].corner;
-        });
-    std::rotate(result_fan.begin(), fan_first_corner, result_fan.end());
-    return;
+    if (found_cyclic_fan) {
+      /* To match behavior from the previous implementation of face corner normal calculation, the
+       * final fan is rotated so that the smallest face corner index comes first. */
+      int *fan_first_corner = std::min_element(
+          result_fan.begin(), result_fan.end(), [&](const int a, const int b) {
+            return corner_infos[a].corner < corner_infos[b].corner;
+          });
+      std::rotate(result_fan.begin(), fan_first_corner, result_fan.end());
+      return;
+    }
   }
 
   /* Travel in the other direction. */
@@ -1120,9 +1124,7 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
   int local_edge = corner_infos[current].local_edge_prev;
   while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
     current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
-    if (current == start_local_corner) {
-      break;
-    }
+    /* Cyclic fans have already been found, so there's no need to check for them here. */
     result_fan.append(current);
     local_edge = corner_infos[current].local_edge_prev;
   }
@@ -1283,15 +1285,16 @@ void normals_calc_corners(const Span<float3> vert_positions,
       edge_infos.resize(local_edge_by_vert.size());
       calc_connecting_edge_info(corner_edges, sharp_edges, sharp_faces, corner_infos, edge_infos);
 
-      const int sharp_edges_num = std::count_if(
+      const int manifold_edges_num = std::count_if(
           edge_infos.begin(), edge_infos.end(), [](const auto &info) {
-            return std::holds_alternative<EdgeSharp>(info);
+            return std::holds_alternative<EdgeTwoCorners>(info);
           });
 
-      /* Check whether all faces are sharp. This situation might be common on meshes that are
-       * mostly sharp shaded, and just copying the face normals is so much faster that it's likely
-       * worth handling it explicitly. */
-      if (sharp_edges_num == edge_infos.size() && custom_normals.is_empty() && !r_fan_spaces) {
+      /* Check when there is no connectivity between corners, either because edges are boundaries
+       * or because they are sharp. This situation might be common on meshes that are mostly sharp
+       * shaded, and just copying the face normals is so much simpler that it's likely worth
+       * handling it explicitly. */
+      if (manifold_edges_num == 0 && custom_normals.is_empty() && !r_fan_spaces) {
         for (const VertCornerInfo &info : corner_infos) {
           r_corner_normals[info.corner] = face_normals[info.face];
         }
@@ -1301,7 +1304,10 @@ void normals_calc_corners(const Span<float3> vert_positions,
       edge_dirs.resize(edge_infos.size());
       calc_edge_directions(vert_positions, local_edge_by_vert, vert_position, edge_dirs);
 
-      if (sharp_edges_num == 0 && custom_normals.is_empty() && !r_fan_spaces) {
+      /* Skip traversal when there is only one cyclic corner fan. */
+      // TODO: THIS CHECK IS NOT QUITE RIGHT!
+      if (manifold_edges_num == corner_infos.size() && custom_normals.is_empty() && !r_fan_spaces)
+      {
         const float3 normal = calc_smooth_vert_normal(corner_infos, edge_dirs, face_normals);
         for (const VertCornerInfo &info : corner_infos) {
           r_corner_normals[info.corner] = normal;
