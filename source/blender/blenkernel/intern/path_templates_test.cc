@@ -45,34 +45,34 @@ TEST(path_templates, VariableMap)
   VariableMap map;
 
   /* With in empty variable map, these should all return false / fail. */
-  EXPECT_EQ(false, map.contains("hello"));
-  EXPECT_EQ(false, map.remove("hello"));
+  EXPECT_FALSE(map.contains("hello"));
+  EXPECT_FALSE(map.remove("hello"));
   EXPECT_EQ(std::nullopt, map.get_string("hello"));
   EXPECT_EQ(std::nullopt, map.get_integer("hello"));
   EXPECT_EQ(std::nullopt, map.get_float("hello"));
 
   /* Populate the map. */
-  EXPECT_EQ(true, map.add_string("hello", "What a wonderful world."));
-  EXPECT_EQ(true, map.add_integer("bye", 42));
-  EXPECT_EQ(true, map.add_float("what", 3.14159));
+  EXPECT_TRUE(map.add_string("hello", "What a wonderful world."));
+  EXPECT_TRUE(map.add_integer("bye", 42));
+  EXPECT_TRUE(map.add_float("what", 3.14159));
 
   /* Attempting to add variables with those names again should fail, since they
    * already exist now. */
-  EXPECT_EQ(false, map.add_string("hello", "Sup."));
-  EXPECT_EQ(false, map.add_string("bye", "Sup."));
-  EXPECT_EQ(false, map.add_string("what", "Sup."));
-  EXPECT_EQ(false, map.add_integer("hello", 2));
-  EXPECT_EQ(false, map.add_integer("bye", 2));
-  EXPECT_EQ(false, map.add_integer("what", 2));
-  EXPECT_EQ(false, map.add_float("hello", 2.71828));
-  EXPECT_EQ(false, map.add_float("bye", 2.71828));
-  EXPECT_EQ(false, map.add_float("what", 2.71828));
+  EXPECT_FALSE(map.add_string("hello", "Sup."));
+  EXPECT_FALSE(map.add_string("bye", "Sup."));
+  EXPECT_FALSE(map.add_string("what", "Sup."));
+  EXPECT_FALSE(map.add_integer("hello", 2));
+  EXPECT_FALSE(map.add_integer("bye", 2));
+  EXPECT_FALSE(map.add_integer("what", 2));
+  EXPECT_FALSE(map.add_float("hello", 2.71828));
+  EXPECT_FALSE(map.add_float("bye", 2.71828));
+  EXPECT_FALSE(map.add_float("what", 2.71828));
 
   /* Confirm that the right variables exist. */
-  EXPECT_EQ(true, map.contains("hello"));
-  EXPECT_EQ(true, map.contains("bye"));
-  EXPECT_EQ(true, map.contains("what"));
-  EXPECT_EQ(false, map.contains("not here"));
+  EXPECT_TRUE(map.contains("hello"));
+  EXPECT_TRUE(map.contains("bye"));
+  EXPECT_TRUE(map.contains("what"));
+  EXPECT_FALSE(map.contains("not here"));
 
   /* Fetch the variables we added. */
   EXPECT_EQ("What a wonderful world.", map.get_string("hello"));
@@ -89,20 +89,20 @@ TEST(path_templates, VariableMap)
   EXPECT_EQ(std::nullopt, map.get_integer("what"));
 
   /* Remove the variables. */
-  EXPECT_EQ(true, map.remove("hello"));
-  EXPECT_EQ(true, map.remove("bye"));
-  EXPECT_EQ(true, map.remove("what"));
+  EXPECT_TRUE(map.remove("hello"));
+  EXPECT_TRUE(map.remove("bye"));
+  EXPECT_TRUE(map.remove("what"));
 
   /* The variables shouldn't exist anymore. */
-  EXPECT_EQ(false, map.contains("hello"));
-  EXPECT_EQ(false, map.contains("bye"));
-  EXPECT_EQ(false, map.contains("what"));
+  EXPECT_FALSE(map.contains("hello"));
+  EXPECT_FALSE(map.contains("bye"));
+  EXPECT_FALSE(map.contains("what"));
   EXPECT_EQ(std::nullopt, map.get_string("hello"));
   EXPECT_EQ(std::nullopt, map.get_integer("bye"));
   EXPECT_EQ(std::nullopt, map.get_float("what"));
-  EXPECT_EQ(false, map.remove("hello"));
-  EXPECT_EQ(false, map.remove("bye"));
-  EXPECT_EQ(false, map.remove("what"));
+  EXPECT_FALSE(map.remove("hello"));
+  EXPECT_FALSE(map.remove("bye"));
+  EXPECT_FALSE(map.remove("what"));
 }
 
 TEST(path_templates, path_apply_variables)
