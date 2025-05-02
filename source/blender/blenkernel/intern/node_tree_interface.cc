@@ -699,6 +699,39 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
   return true;
 }
 
+bool bNodeTreeInterfaceSocket::set_socket_sybtype(const int new_subtype)
+{
+  const blender::bke::bNodeSocketType *static_type = blender::bke::node_socket_type_find(
+      this->socket_type);
+  BLI_assert(static_type != nullptr);
+  const std::optional<blender::StringRefNull> new_static_type =
+      blender::bke::node_static_socket_type(static_type->type, new_subtype);
+
+  if (!new_static_type.has_value()) {
+    return false;
+  }
+
+  MEM_SAFE_FREE(this->socket_type);
+  this->socket_type = BLI_strdupn(new_static_type->c_str(), new_static_type->size());
+
+  switch (static_type->type) {
+    case SOCK_FLOAT: {
+      static_cast<bNodeSocketValueFloat *>(this->socket_data)->subtype = new_subtype;
+      return true;
+    }
+    case SOCK_INT: {
+      static_cast<bNodeSocketValueInt *>(this->socket_data)->subtype = new_subtype;
+      return true;
+    }
+    case SOCK_VECTOR: {
+      static_cast<bNodeSocketValueVector *>(this->socket_data)->subtype = new_subtype;
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
 void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *socket)
 {
   const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(

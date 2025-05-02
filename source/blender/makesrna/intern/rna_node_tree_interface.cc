@@ -340,10 +340,35 @@ static int rna_NodeTreeInterfaceSocket_identifier_length(PointerRNA *ptr)
   return strlen(socket->identifier);
 }
 
+static int node_socket_idname_to_real_type_index(const char *idname)
+{
+  using namespace blender;
+  Span<const bke::bNodeSocketType *> types = bke::node_socket_types_get();
+  for (const int i : types.index_range()) {
+    const bke::bNodeSocketType *socket_type = types[i];
+    if (socket_type->idname != idname) {
+      continue;
+    }
+
+    const std::optional<blender::StringRefNull> static_type =
+        blender::bke::node_static_socket_type(socket_type->type, socket_type->subtype);
+    if (!static_type.has_value()) {
+      return i;
+    }
+
+    /* Hide indices of tybtype socket type instance. */
+    const std::optional<blender::StringRefNull> no_subtype_socket_type =
+        blender::bke::node_static_socket_type(socket_type->type, PROP_NONE);
+
+    return rna_node_socket_idname_to_enum(no_subtype_socket_type->c_str());
+  }
+  return -1;
+}
+
 static int rna_NodeTreeInterfaceSocket_socket_type_get(PointerRNA *ptr)
 {
   bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
-  return rna_node_socket_idname_to_enum(socket->socket_type);
+  return node_socket_idname_to_real_type_index(socket->socket_type);
 }
 
 static void rna_NodeTreeInterfaceSocket_socket_type_set(PointerRNA *ptr, int value)
@@ -682,6 +707,18 @@ static void rna_NodeTreeInterfaceItems_move_to_parent(ID *id,
 }
 
 /* ******** Node Socket Subtypes ******** */
+
+static int rna_NodeTreeInterfaceSocket_subtype_get(PointerRNA *ptr)
+{
+  const bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  return static_cast<const bNodeSocketValueFloat *>(socket->socket_data)->subtype;
+}
+
+static void rna_NodeTreeInterfaceSocket_subtype_set(PointerRNA *ptr, int value)
+{
+  bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  socket->set_socket_sybtype(value);
+}
 
 static const EnumPropertyItem *rna_subtype_filter_itemf(const blender::Set<int> &subtypes,
                                                         bool *r_free)

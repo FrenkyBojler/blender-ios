@@ -100,9 +100,16 @@ typedef struct bNodeTreeInterfaceSocket {
 
   /**
    * Set the \a socket_type and replace the \a socket_data.
+   * Subtype of the socket will be reset to default value.
    * \param new_socket_type: Socket type idname, e.g. "NodeSocketFloat"
    */
   bool set_socket_type(blender::StringRef new_socket_type);
+
+  /**
+   * Set the \a socket_type.
+   * \param new_subtype: internal subtype acceptable for current socket type.
+   */
+  bool set_socket_sybtype(int new_subtype);
 
   /**
    * Use an existing socket to define an interface socket.

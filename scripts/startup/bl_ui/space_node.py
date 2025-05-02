@@ -966,10 +966,23 @@ class NODE_PT_node_tree_interface(Panel):
                 if tree.type == 'GEOMETRY':
                     field_socket_types = {
                         "NodeSocketInt",
+                        "NodeSocketIntUnsigned",
+                        "NodeSocketIntPercentage",
+                        "NodeSocketIntFactor",
                         "NodeSocketColor",
                         "NodeSocketVector",
                         "NodeSocketBool",
                         "NodeSocketFloat",
+                        "NodeSocketFloatUnsigned",
+                        "NodeSocketFloatPercentage",
+                        "NodeSocketFloatFactor",
+                        "NodeSocketFloatAngle",
+                        "NodeSocketFloatTime",
+                        "NodeSocketFloatTimeAbsolute",
+                        "NodeSocketFloatDistance",
+                        "NodeSocketFloatWavelength",
+                        "NodeSocketFloatColorTemperature",
+                        "NodeSocketFloatFrequency",
                     }
                     if active_item.socket_type in field_socket_types:
                         if 'OUTPUT' in active_item.in_out:

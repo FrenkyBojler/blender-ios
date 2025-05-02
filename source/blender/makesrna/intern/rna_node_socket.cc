@@ -974,16 +974,17 @@ static void rna_def_node_socket_interface_float(BlenderRNA *brna,
       srna, "Float Node Socket Interface", "Floating-point number socket of a node");
   RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
 
-  RNA_def_struct_sdna_from(srna, "bNodeSocketValueFloat", "socket_data");
-
   prop = RNA_def_property(srna, "subtype", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
-  RNA_def_property_enum_sdna(prop, nullptr, "subtype");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketFloat_subtype_itemf");
+  RNA_def_property_enum_funcs(prop,
+                              "rna_NodeTreeInterfaceSocket_subtype_get",
+                              "rna_NodeTreeInterfaceSocket_subtype_set",
+                              "rna_NodeTreeInterfaceSocketFloat_subtype_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocketValueFloat", "socket_data");
 
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "value");
@@ -994,13 +995,13 @@ static void rna_def_node_socket_interface_float(BlenderRNA *brna,
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
-  prop = RNA_def_property(srna, "min_value", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "min_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "min");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Minimum Value", "Minimum value");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
-  prop = RNA_def_property(srna, "max_value", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "max_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "max");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Maximum Value", "Maximum value");
@@ -1062,16 +1063,17 @@ static void rna_def_node_socket_interface_int(BlenderRNA *brna,
   RNA_def_struct_ui_text(srna, "Integer Node Socket Interface", "Integer number socket of a node");
   RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
 
-  RNA_def_struct_sdna_from(srna, "bNodeSocketValueInt", "socket_data");
-
   prop = RNA_def_property(srna, "subtype", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
-  RNA_def_property_enum_sdna(prop, nullptr, "subtype");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketInt_subtype_itemf");
+  RNA_def_property_enum_funcs(prop,
+                              "rna_NodeTreeInterfaceSocket_subtype_get",
+                              "rna_NodeTreeInterfaceSocket_subtype_set",
+                              "rna_NodeTreeInterfaceSocketInt_subtype_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocketValueInt", "socket_data");
 
   prop = RNA_def_property(srna, "default_value", PROP_INT, subtype);
   RNA_def_property_int_sdna(prop, nullptr, "value");
@@ -1081,13 +1083,13 @@ static void rna_def_node_socket_interface_int(BlenderRNA *brna,
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
-  prop = RNA_def_property(srna, "min_value", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "min_value", PROP_INT, subtype);
   RNA_def_property_int_sdna(prop, nullptr, "min");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Minimum Value", "Minimum value");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
-  prop = RNA_def_property(srna, "max_value", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "max_value", PROP_INT, subtype);
   RNA_def_property_int_sdna(prop, nullptr, "max");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Maximum Value", "Maximum value");
@@ -1248,16 +1250,17 @@ static void rna_def_node_socket_interface_vector(BlenderRNA *brna,
   RNA_def_struct_ui_text(srna, "Vector Node Socket Interface", "3D vector socket of a node");
   RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
 
-  RNA_def_struct_sdna_from(srna, "bNodeSocketValueVector", "socket_data");
-
   prop = RNA_def_property(srna, "subtype", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
-  RNA_def_property_enum_sdna(prop, nullptr, "subtype");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketVector_subtype_itemf");
+  RNA_def_property_enum_funcs(prop,
+                              "rna_NodeTreeInterfaceSocket_subtype_get",
+                              "rna_NodeTreeInterfaceSocket_subtype_set",
+                              "rna_NodeTreeInterfaceSocketVector_subtype_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocketValueVector", "socket_data");
 
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "value");
@@ -1267,13 +1270,13 @@ static void rna_def_node_socket_interface_vector(BlenderRNA *brna,
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
-  prop = RNA_def_property(srna, "min_value", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "min_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "min");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Minimum Value", "Minimum value");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
-  prop = RNA_def_property(srna, "max_value", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "max_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "max");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Maximum Value", "Maximum value");
