@@ -4908,7 +4908,9 @@ static int ui_do_but_TEX(
         return WM_UI_HANDLER_BREAK;
       }
     }
-    else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
+    else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL) &&
+             !but->drawstr.empty())
+    {
       char head[1024], tail[1024];
       ushort digits;
       int num = BLI_path_sequence_decode(
