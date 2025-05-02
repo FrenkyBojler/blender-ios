@@ -306,6 +306,7 @@ option(WITH_OPTIMIZED_BUILD_TOOLS "\
 Enable optimizations even on Debug builds for executables used for the build process"
   ON
 )
+mark_as_advanced(WITH_OPTIMIZED_BUILD_TOOLS)
 
 option(WITH_IK_ITASC "\
 Enable ITASC IK solver (only disable for development & for incompatible C++ compilers)"
