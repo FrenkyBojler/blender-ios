@@ -25,10 +25,65 @@ enum class VertexFormat : uint8_t {
 #define DECLARE(a, b, c, blender_enum, d, e, f, g, h) blender_enum = int(DataFormat::blender_enum),
 
 #define GPU_VERTEX_FORMAT_EXPAND(impl) \
-  VEC_X_(impl) \
-  VEC_X_X_(impl) \
-  VEC_X_X_X_(impl) \
-  VEC_X_X_X_X_(impl) \
+  SNORM_8_(impl) \
+  SNORM_8_8_(impl) \
+  SNORM_8_8_8_(impl) \
+  SNORM_8_8_8_8_(impl) \
+\
+  SNORM_16_(impl) \
+  SNORM_16_16_(impl) \
+  SNORM_16_16_16_(impl) \
+  SNORM_16_16_16_16_(impl) \
+\
+  UNORM_8_(impl) \
+  UNORM_8_8_(impl) \
+  UNORM_8_8_8_(impl) \
+  UNORM_8_8_8_8_(impl) \
+\
+  UNORM_16_(impl) \
+  UNORM_16_16_(impl) \
+  UNORM_16_16_16_(impl) \
+  UNORM_16_16_16_16_(impl) \
+\
+  SINT_8_(impl) \
+  SINT_8_8_(impl) \
+  SINT_8_8_8_(impl) \
+  SINT_8_8_8_8_(impl) \
+\
+  SINT_16_(impl) \
+  SINT_16_16_(impl) \
+  SINT_16_16_16_(impl) \
+  SINT_16_16_16_16_(impl) \
+\
+  SINT_32_(impl) \
+  SINT_32_32_(impl) \
+  SINT_32_32_32_(impl) \
+  SINT_32_32_32_32_(impl) \
+\
+  UINT_8_(impl) \
+  UINT_8_8_(impl) \
+  UINT_8_8_8_(impl) \
+  UINT_8_8_8_8_(impl) \
+\
+  UINT_16_(impl) \
+  UINT_16_16_(impl) \
+  UINT_16_16_16_(impl) \
+  UINT_16_16_16_16_(impl) \
+\
+  UINT_32_(impl) \
+  UINT_32_32_(impl) \
+  UINT_32_32_32_(impl) \
+  UINT_32_32_32_32_(impl) \
+\
+  SFLOAT_16_(impl) \
+  SFLOAT_16_16_(impl) \
+  SFLOAT_16_16_16_(impl) \
+  SFLOAT_16_16_16_16_(impl) \
+\
+  SFLOAT_32_(impl) \
+  SFLOAT_32_32_(impl) \
+  SFLOAT_32_32_32_(impl) \
+  SFLOAT_32_32_32_32_(impl) \
 \
   SNORM_10_10_10_2_(impl) \
   UNORM_10_10_10_2_(impl) \
@@ -36,7 +91,7 @@ enum class VertexFormat : uint8_t {
   /* UFLOAT_11_11_10_(impl) Available on Metal (and maybe VK) but not on GL. */ \
   /* UFLOAT_9_9_9_EXP_5_(impl) Available on Metal (and maybe VK) but not on GL. */
 
-  GPU_DATA_FORMAT_EXPAND(DECLARE)
+  GPU_VERTEX_FORMAT_EXPAND(DECLARE)
 
 #undef DECLARE
 };
