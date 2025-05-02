@@ -18,3 +18,4 @@ Referenced by issue #121709, crash after python bpy.ops.object.mode_set(mode='OB
 Referenced by issue #121619, code marked as unreachable has been executed. Please report this as a bug.
 Referenced by issue #120960, EXCEPTION_ACCESS_VIOLATION
 Referenced by issue #120465, Crash when using certain tools in viewport on Wayland
+Referenced by issue #138338, Portable (zip) Blender no longer recognizing Config Folder symbolic links (Junction) directing to selected Parent Config Folder during start up.
