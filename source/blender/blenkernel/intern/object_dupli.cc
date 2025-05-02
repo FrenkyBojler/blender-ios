@@ -856,7 +856,7 @@ static void make_duplis_font(const DupliContext *ctx)
 
     if (is_eval_curve) {
       /* Workaround for the above hack. */
-      ob = DEG_get_evaluated_object(ctx->depsgraph, ob);
+      ob = DEG_get_evaluated(ctx->depsgraph, ob);
     }
 
     if (ob) {

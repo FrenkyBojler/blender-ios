@@ -89,10 +89,6 @@ Scene *DEG_get_evaluated_scene(const Depsgraph *graph);
  */
 ViewLayer *DEG_get_evaluated_view_layer(const Depsgraph *graph);
 
-/** Get evaluated version of object for given original one. */
-Object *DEG_get_evaluated_object(const Depsgraph *depsgraph, Object *object);
-const Object *DEG_get_evaluated_object(const Depsgraph *depsgraph, const Object *object);
-
 /** Get evaluated version of given ID data-block. */
 ID *DEG_get_evaluated_id(const Depsgraph *depsgraph, ID *id);
 const ID *DEG_get_evaluated_id(const Depsgraph *depsgraph, const ID *id);
