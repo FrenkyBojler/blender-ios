@@ -323,19 +323,9 @@ bool DEG_is_original_id(const ID *id)
   return true;
 }
 
-bool DEG_is_original_object(const Object *object)
-{
-  return DEG_is_original_id(&object->id);
-}
-
 bool DEG_is_evaluated_id(const ID *id)
 {
   return !DEG_is_original_id(id);
-}
-
-bool DEG_is_evaluated_object(const Object *object)
-{
-  return !DEG_is_original_object(object);
 }
 
 bool DEG_is_fully_evaluated(const Depsgraph *depsgraph)

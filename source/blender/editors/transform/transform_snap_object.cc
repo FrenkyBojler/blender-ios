@@ -484,7 +484,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
     {
       ListBase *lb = object_duplilist(sctx->runtime.depsgraph, sctx->scene, obj_eval);
       LISTBASE_FOREACH (DupliObject *, dupli_ob, lb) {
-        BLI_assert(DEG_is_evaluated_object(dupli_ob->ob));
+        BLI_assert(DEG_is_evaluated(dupli_ob->ob));
         if ((tmp = sob_callback(sctx,
                                 dupli_ob->ob,
                                 dupli_ob->ob_data,

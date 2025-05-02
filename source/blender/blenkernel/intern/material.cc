@@ -746,7 +746,7 @@ Material *BKE_object_material_get_eval(Object *ob, short act)
 
 const Material *BKE_object_material_get_eval(const Object &ob, const ID &data, const short act)
 {
-  BLI_assert(DEG_is_evaluated_object(&ob));
+  BLI_assert(DEG_is_evaluated(&ob));
 
   const int slots_num = BKE_object_material_count_eval(ob, data);
 
@@ -786,7 +786,7 @@ const Material *BKE_object_material_get_eval(const Object &ob, const ID &data, c
 
 int BKE_object_material_count_eval(const Object *ob)
 {
-  BLI_assert(DEG_is_evaluated_object(ob));
+  BLI_assert(DEG_is_evaluated(ob));
   if (ob->type == OB_EMPTY) {
     return 0;
   }
@@ -798,7 +798,7 @@ int BKE_object_material_count_eval(const Object *ob)
 
 int BKE_object_material_count_eval(const Object &ob, const ID &data)
 {
-  BLI_assert(DEG_is_evaluated_object(&ob));
+  BLI_assert(DEG_is_evaluated(&ob));
   if (ob.type == OB_EMPTY) {
     return 0;
   }

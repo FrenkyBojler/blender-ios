@@ -1060,7 +1060,7 @@ void Tree::update_normals(Object &object_orig, Object &object_eval)
 
 void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 {
-  BLI_assert(DEG_is_original_object(&object_orig));
+  BLI_assert(DEG_is_original(&object_orig));
   Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
   pbvh.update_normals(object_orig, object_eval);
 }
@@ -2410,7 +2410,7 @@ Span<float3> vert_positions_eval(const Depsgraph &depsgraph, const Object &objec
 
 Span<float3> vert_positions_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return vert_positions_eval(object_orig, object_eval);
 }
@@ -2429,14 +2429,14 @@ Span<float3> vert_normals_eval(const Depsgraph &depsgraph, const Object &object_
 
 Span<float3> vert_normals_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> face_normals_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return face_normals_cache_eval(object_orig, object_eval).data();
 }

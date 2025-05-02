@@ -148,14 +148,22 @@ Depsgraph *DEG_get_depsgraph_by_id(const ID &id);
  * are not out-of-main localized data-blocks.
  */
 bool DEG_is_original_id(const ID *id);
-bool DEG_is_original_object(const Object *object);
+template<typename T> bool DEG_is_original(const T *id)
+{
+  static_assert(blender::dna::is_ID_v<T>);
+  return DEG_is_original_id(reinterpret_cast<const ID *>(id));
+}
 
 /* Opposite of the above (`DEG_is_original_*`).
  *
  * If the data-block is not original it must be evaluated, and vice versa. */
 
 bool DEG_is_evaluated_id(const ID *id);
-bool DEG_is_evaluated_object(const Object *object);
+template<typename T> bool DEG_is_evaluated(const T *id)
+{
+  static_assert(blender::dna::is_ID_v<T>);
+  return DEG_is_evaluated_id(reinterpret_cast<const ID *>(id));
+}
 
 /**
  * Check whether depsgraph is fully evaluated. This includes the following checks:

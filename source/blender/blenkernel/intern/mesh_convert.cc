@@ -717,7 +717,7 @@ static Mesh *mesh_new_from_curve_type_object(const Object *object)
 {
   /* If the object is evaluated, it should either have an evaluated mesh or curve data already.
    * The mesh can be duplicated, or the curve converted to wire mesh edges. */
-  if (DEG_is_evaluated_object(object)) {
+  if (DEG_is_evaluated(object)) {
     return mesh_new_from_evaluated_curve_type_object(object);
   }
 
@@ -754,7 +754,7 @@ static Mesh *mesh_new_from_mball_object(Object *object)
    * ball).
    *
    * Create empty mesh so script-authors don't run into None objects. */
-  if (!DEG_is_evaluated_object(object)) {
+  if (!DEG_is_evaluated(object)) {
     return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
   }
 
@@ -790,7 +790,7 @@ static Mesh *mesh_new_from_mesh_object_with_layers(Depsgraph *depsgraph,
                                                    const bool preserve_origindex,
                                                    const bool ensure_subdivision)
 {
-  if (DEG_is_original_id(&object->id)) {
+  if (DEG_is_original(object)) {
     return mesh_new_from_mesh(object, (Mesh *)object->data, ensure_subdivision);
   }
 

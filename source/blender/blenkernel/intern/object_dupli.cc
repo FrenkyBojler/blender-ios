@@ -844,7 +844,7 @@ static void make_duplis_font(const DupliContext *ctx)
   family_gh = BLI_ghash_int_new_ex(__func__, 256);
 
   /* Safety check even if it might fail badly when called for original object. */
-  const bool is_eval_curve = DEG_is_evaluated_id(&cu->id);
+  const bool is_eval_curve = DEG_is_evaluated(cu);
 
   /* Advance matching BLI_str_utf8_as_utf32. */
   for (a = 0; a < text_len; a++, ct++) {
