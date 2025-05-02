@@ -1,2 +1,2 @@
 Referenced by issue #138236, Vulkan: Using Bokeh Blur node and GPU composing results in artifacts/crashes
-Referenced by issue #138279, Geometry Nodes: Realize Instance on multiple nested Collections / Instances causes freeze
+Referenced by issue #138279, Geometry Nodes: Realize Instance on nested Collections / Instances with vertex groups causes freeze
