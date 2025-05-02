@@ -1145,26 +1145,6 @@ static void calc_edge_directions(const Span<float3> vert_positions,
   }
 }
 
-/**
- * This is the same as #normals_calc_vert, but uses our already-collected corner info and edge
- * directions. This case where all the edges are smooth is very common and likely worth handling
- * explicitly.
- */
-static float3 calc_smooth_vert_normal(const Span<VertCornerInfo> corner_infos,
-                                      const Span<float3> edge_dirs,
-                                      const Span<float3> face_normals)
-{
-  float3 vert_normal(0);
-  for (const int i : corner_infos.index_range()) {
-    const VertCornerInfo &info = corner_infos[i];
-    const float3 &dir_prev = edge_dirs[info.local_edge_prev];
-    const float3 &dir_next = edge_dirs[info.local_edge_next];
-    const float factor = math::safe_acos_approx(math::dot(dir_prev, dir_next));
-    vert_normal += face_normals[info.face] * factor;
-  }
-  return math::normalize(vert_normal);
-}
-
 /** The normal for all the corners in the fan is a weighted combination of their face normals. */
 static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
                                     const Span<float3> edge_dirs,
@@ -1285,35 +1265,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
       edge_infos.resize(local_edge_by_vert.size());
       calc_connecting_edge_info(corner_edges, sharp_edges, sharp_faces, corner_infos, edge_infos);
 
-      const int manifold_edges_num = std::count_if(
-          edge_infos.begin(), edge_infos.end(), [](const auto &info) {
-            return std::holds_alternative<EdgeTwoCorners>(info);
-          });
-
-      /* Check when there is no connectivity between corners, either because edges are boundaries
-       * or because they are sharp. This situation might be common on meshes that are mostly sharp
-       * shaded, and just copying the face normals is so much simpler that it's likely worth
-       * handling it explicitly. */
-      if (manifold_edges_num == 0 && custom_normals.is_empty() && !r_fan_spaces) {
-        for (const VertCornerInfo &info : corner_infos) {
-          r_corner_normals[info.corner] = face_normals[info.face];
-        }
-        continue;
-      }
-
       edge_dirs.resize(edge_infos.size());
       calc_edge_directions(vert_positions, local_edge_by_vert, vert_position, edge_dirs);
-
-      /* Skip traversal when there is only one cyclic corner fan. */
-      // TODO: THIS CHECK IS NOT QUITE RIGHT!
-      if (manifold_edges_num == corner_infos.size() && custom_normals.is_empty() && !r_fan_spaces)
-      {
-        const float3 normal = calc_smooth_vert_normal(corner_infos, edge_dirs, face_normals);
-        for (const VertCornerInfo &info : corner_infos) {
-          r_corner_normals[info.corner] = normal;
-        }
-        continue;
-      }
 
       /* Though we are protected from traversing to the same corner twice by the fact that 3-way
        * connections are marked sharp, we need to maintain the "visited" status of each corner so
