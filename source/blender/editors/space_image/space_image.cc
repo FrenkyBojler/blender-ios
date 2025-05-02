@@ -636,16 +636,19 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
   Image *image = ED_space_image(sima);
-  const bool show_viewer = (image && image->source == IMA_SRC_VIEWER &&
-                            image->type == IMA_TYPE_COMPOSITE);
+  /* Typically a render result or viewer image from the compositor. */
+  const bool show_viewer = (image && image->source == IMA_SRC_VIEWER);
+  const bool show_compositor_viewer = show_viewer && image->type == IMA_TYPE_COMPOSITE;
+
+  /* Text info and render region are only relevant for the compositor. */
   const bool show_text_info = (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
                                sima->overlay.flag & SI_OVERLAY_DRAW_TEXT_INFO &&
                                (sima->mode == SI_MODE_MASK || sima->mode == SI_MODE_VIEW)) &&
-                              show_viewer;
+                              show_compositor_viewer;
   const bool show_render_region = (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
                                    sima->overlay.flag & SI_OVERLAY_DRAW_RENDER_REGION &&
                                    (sima->mode == SI_MODE_MASK || sima->mode == SI_MODE_VIEW)) &&
-                                  show_viewer;
+                                  show_compositor_viewer;
 
   /* XXX not supported yet, disabling for now */
   scene->r.scemode &= ~R_COMP_CROP;
