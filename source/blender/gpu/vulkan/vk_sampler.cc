@@ -41,11 +41,9 @@ void VKSampler::create(const GPUSamplerState &sampler_state)
       sampler_info.minFilter = VK_FILTER_LINEAR;
     }
     if (sampler_state.filtering & GPU_SAMPLER_FILTERING_MIPMAP) {
-      sampler_info.minLod = -1000;
+      sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+      sampler_info.minLod = 0;
       sampler_info.maxLod = 1000;
-      sampler_info.mipmapMode = bool(sampler_state.filtering & GPU_SAMPLER_FILTERING_LINEAR) ?
-                                    VK_SAMPLER_MIPMAP_MODE_LINEAR :
-                                    VK_SAMPLER_MIPMAP_MODE_NEAREST;
     }
     if ((sampler_state.filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC) &&
         (U.anisotropic_filter > 1) &&
