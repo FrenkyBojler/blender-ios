@@ -759,8 +759,7 @@ void BKE_report_path_template_errors(ReportList *reports,
 
   std::string error_message = "Parse errors in path '" + path + "':";
   for (const Error &error : errors) {
-    error_message.append("\n- ");
-    error_message.append(BKE_path_template_error_to_string(error, path));
+    error_message += "\n- " + BKE_path_template_error_to_string(error, path);
   }
 
   BKE_report(reports, report_type, error_message.c_str());
