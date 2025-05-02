@@ -796,19 +796,24 @@ static OCIO_GPUDisplayShader &getGPUToLinearDisplayShader(OCIO_ConstConfigRcPtr 
   return display_shader;
 }
 
-static bool gpuDisplayShaderDoBind(OCIO_ConstConfigRcPtr *config,
-                                   OCIO_GPUDisplayShader &display_shader,
-                                   OCIO_CurveMappingSettings *curve_mapping_settings,
-                                   const float scale,
-                                   const float exponent,
-                                   const float dither,
-                                   const float temperature,
-                                   const float tint,
-                                   const bool use_predivide,
-                                   const bool use_overlay,
-                                   const bool use_hdr,
-                                   const bool use_white_balance)
+/* Bind the shader and update parameters and uniforms. */
+static bool gpuShaderBind(OCIO_ConstConfigRcPtr *config,
+                          OCIO_GPUDisplayShader &display_shader,
+                          OCIO_CurveMappingSettings *curve_mapping_settings,
+                          const float scale,
+                          const float exponent,
+                          const float dither,
+                          const float temperature,
+                          const float tint,
+                          const bool use_predivide,
+                          const bool use_overlay,
+                          const bool use_hdr,
+                          const bool use_white_balance)
 {
+  if (!display_shader.valid) {
+    return false;
+  }
+
   /* Verify the shader is valid. */
   OCIO_GPUTextures &textures = display_shader.textures;
   OCIO_GPUShader &shader = display_shader.shader;
@@ -880,23 +885,19 @@ bool OCIOImpl::gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
   /* Get GPU shader from cache or create new one. */
   OCIO_GPUDisplayShader &display_shader = getGPUDisplayShader(
       config, input, view, display, look, curve_mapping_settings);
-  if (!display_shader.valid) {
-    return false;
-  }
 
-  /* Bind the shader and update parameters and uniforms. */
-  return gpuDisplayShaderDoBind(config,
-                                display_shader,
-                                curve_mapping_settings,
-                                scale,
-                                exponent,
-                                dither,
-                                temperature,
-                                tint,
-                                use_predivide,
-                                use_overlay,
-                                use_hdr,
-                                use_white_balance);
+  return gpuShaderBind(config,
+                       display_shader,
+                       curve_mapping_settings,
+                       scale,
+                       exponent,
+                       dither,
+                       temperature,
+                       tint,
+                       use_predivide,
+                       use_overlay,
+                       use_hdr,
+                       use_white_balance);
 }
 
 bool OCIOImpl::gpuToLinearShaderBind(OCIO_ConstConfigRcPtr *config,
@@ -906,23 +907,19 @@ bool OCIOImpl::gpuToLinearShaderBind(OCIO_ConstConfigRcPtr *config,
   /* Get GPU shader from cache or create new one. */
   OCIO_GPUDisplayShader &display_shader = getGPUToLinearDisplayShader(config,
                                                                       from_colorspace_name);
-  if (!display_shader.valid) {
-    return false;
-  }
 
-  /* Bind the shader and update parameters and uniforms. */
-  return gpuDisplayShaderDoBind(config,
-                                display_shader,
-                                nullptr, /* curve_mapping_settings */
-                                1.0f,    /* scale */
-                                1.0f,    /* exponent */
-                                0.0f,    /* dither */
-                                6500.0f, /* temperature */
-                                10.0f,   /* tint */
-                                use_predivide,
-                                false /* use_overlay */,
-                                true, /* use_hdr */
-                                false /* use_white_balance */);
+  return gpuShaderBind(config,
+                       display_shader,
+                       nullptr, /* curve_mapping_settings */
+                       1.0f,    /* scale */
+                       1.0f,    /* exponent */
+                       0.0f,    /* dither */
+                       6500.0f, /* temperature */
+                       10.0f,   /* tint */
+                       use_predivide,
+                       false /* use_overlay */,
+                       true, /* use_hdr */
+                       false /* use_white_balance */);
 }
 
 void OCIOImpl::gpuShaderUnbind()

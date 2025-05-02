@@ -489,7 +489,7 @@ bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext *C,
 
 /**
  * Configures GPU shader for conversion from the given space to scene linear.
- * Drawing happens in the same as when GPU_SHADER_3D_IMAGE_COLOR immediate mode shader is used.
+ * Drawing happens in the same immediate mode as when GPU_SHADER_3D_IMAGE_COLOR shader is used.
  *
  * Returns true if the PGU shader was successfully bound.
  */
