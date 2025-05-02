@@ -19,7 +19,7 @@
 
 namespace blender::gpu {
 
-enum class VertexFormat : uint8_t {
+enum class VertAttrType : uint8_t {
   Invalid = 0,
 
 #define DECLARE(a, b, c, blender_enum, d, e, f, g, h) blender_enum = int(DataFormat::blender_enum),
@@ -97,7 +97,7 @@ enum class VertexFormat : uint8_t {
 #undef DECLARE
 };
 
-inline constexpr DataFormat to_data_format(VertexFormat format)
+inline constexpr DataFormat to_data_format(VertAttrType format)
 {
   return DataFormat(int(format));
 }
