@@ -362,7 +362,7 @@ static void store_result_geometry(const bContext &C,
         editable_layer_indices.append(layer_i);
       }
 
-      bool inserted_new_keyframe;
+      bool inserted_new_keyframe = false;
       for (const int layer_i : editable_layer_indices) {
         bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
         /* TODO: For now, we always create a blank keyframe, but it might be good to expose this as
