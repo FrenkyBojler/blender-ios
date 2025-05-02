@@ -75,11 +75,6 @@ enum class VertexFormat : uint8_t {
   UINT_32_32_32_(impl) \
   UINT_32_32_32_32_(impl) \
 \
-  SFLOAT_16_(impl) \
-  SFLOAT_16_16_(impl) \
-  SFLOAT_16_16_16_(impl) \
-  SFLOAT_16_16_16_16_(impl) \
-\
   SFLOAT_32_(impl) \
   SFLOAT_32_32_(impl) \
   SFLOAT_32_32_32_(impl) \
@@ -87,6 +82,12 @@ enum class VertexFormat : uint8_t {
 \
   SNORM_10_10_10_2_(impl) \
   UNORM_10_10_10_2_(impl) \
+\
+  /* Legacy format unsupported by Metal and Vulkan. To be phased out. */ \
+  SINT_TO_FLT_32_(impl) \
+  SINT_TO_FLT_32_32_(impl) \
+  SINT_TO_FLT_32_32_32_(impl) \
+  SINT_TO_FLT_32_32_32_32_(impl) \
 \
   /* UFLOAT_11_11_10_(impl) Available on Metal (and maybe VK) but not on GL. */ \
   /* UFLOAT_9_9_9_EXP_5_(impl) Available on Metal (and maybe VK) but not on GL. */
