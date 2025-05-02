@@ -499,7 +499,7 @@ class NODE_PT_geometry_node_tool_mode(Panel):
             row = col.row(align=True)
             row.label(text=name, icon=icon)
             row.prop(group, prop, text="")
-        
+
         if group.is_type_grease_pencil:
             row = col.row(align=True)
             row.label(text="Draw Mode", icon='GREASEPENCIL')
