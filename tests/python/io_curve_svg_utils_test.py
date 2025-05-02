@@ -9,7 +9,7 @@ import unittest
 
 sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 
-from bl_operators.io.io_curve_svg.svg_util import (
+from bl_operators.io.curve_svg.svg_util import (
     parse_array_of_floats, read_float, parse_coord,
 )
 
