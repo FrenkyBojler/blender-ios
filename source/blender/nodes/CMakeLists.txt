@@ -154,7 +154,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::intern::optional::openvdb
   bf_nodes_composite
   bf_nodes_function
   bf_nodes_geometry

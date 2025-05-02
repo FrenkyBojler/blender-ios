@@ -53,7 +53,6 @@ set(LIB
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::intern::optional::openvdb
   PRIVATE bf::nodes
   PRIVATE bf::windowmanager
 )

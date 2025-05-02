@@ -574,7 +574,7 @@ set(LIB
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::intern::optional::openvdb
+  PUBLIC bf::intern::optional::openvdb  # Contains intern-openvdb items in public headers
   bf_intern_libmv  # Uses stub when disabled.
   bf_intern_mikktspace
   bf_intern_opensubdiv  # Uses stub when disabled.

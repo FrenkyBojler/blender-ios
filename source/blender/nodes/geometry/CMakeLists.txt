@@ -265,7 +265,6 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::intern::optional::openvdb
   bf_nodes
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib

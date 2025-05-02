@@ -128,7 +128,6 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::intern::optional::openvdb
   PRIVATE bf::animrig
   bf_python_gpu
 

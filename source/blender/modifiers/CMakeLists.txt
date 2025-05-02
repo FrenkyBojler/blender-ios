@@ -142,7 +142,6 @@ set(LIB
   PRIVATE bf::functions
   PRIVATE bf::geometry
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::intern::optional::openvdb
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::render

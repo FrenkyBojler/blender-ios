@@ -108,7 +108,6 @@ set(LIB
   PRIVATE bf::functions
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::intern::optional::openvdb
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::dependencies::optional::manifold
 )
