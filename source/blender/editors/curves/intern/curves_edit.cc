@@ -563,7 +563,7 @@ void separate_points(const bke::CurvesGeometry &curves,
                                      retained_dst_offsets,
                                      retained_curve_map);
       },
-      [&](const IndexRange curves, [[maybe_unused]] const IndexRange points) {
+      [&](const IndexRange curves, [[maybe_unused]] const IndexRange unselected_points) {
         int last_offset = retained_offsets.last();
         int last_dst_offset = retained_dst_offsets.last();
         for (const int curve : curves) {
@@ -575,7 +575,7 @@ void separate_points(const bke::CurvesGeometry &curves,
           last_dst_offset += points.size();
           retained_dst_offsets.append(last_dst_offset);
 
-          last_offset += points_by_curve[curve].size();
+          last_offset += points.size();
           retained_offsets.append(last_offset);
           retained_curve_map.append(curve);
           retained_cyclic.append(cyclic[curve]);
