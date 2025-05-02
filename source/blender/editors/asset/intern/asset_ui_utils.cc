@@ -71,10 +71,6 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
       /* Intentionally empty. */
       break;
   }
-  else if (asset.owner_asset_library().library_type() == ASSET_LIBRARY_LOCAL) {
-    UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
-    UI_tooltip_text_field_add(tip, "Local Asset", {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_MAIN);
-  }
 }
 
 BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
