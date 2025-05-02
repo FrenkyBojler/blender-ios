@@ -1048,14 +1048,14 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
                                       const Span<bool> sharp_edges,
                                       const Span<bool> sharp_faces,
                                       const Span<VertCornerInfo> corner_infos,
-                                      MutableSpan<VertEdgeInfo> vert_edge_infos)
+                                      MutableSpan<VertEdgeInfo> edge_infos)
 {
   for (const int local_corner : corner_infos.index_range()) {
     const VertCornerInfo &info = corner_infos[local_corner];
     if (!sharp_faces.is_empty() && sharp_faces[info.face]) {
       /* Sharp faces implicitly cause sharp edges. */
-      vert_edge_infos[info.local_edge_prev] = EdgeSharp{};
-      vert_edge_infos[info.local_edge_next] = EdgeSharp{};
+      edge_infos[info.local_edge_prev] = EdgeSharp{};
+      edge_infos[info.local_edge_next] = EdgeSharp{};
       continue;
     }
     /* The "previous" edge is winding towards the vertex, the "next" edge is winding away. */
@@ -1065,14 +1065,14 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
                        info.corner,
                        info.corner_prev,
                        true,
-                       vert_edge_infos[info.local_edge_prev]);
+                       edge_infos[info.local_edge_prev]);
     add_corner_to_edge(corner_edges,
                        sharp_edges,
                        local_corner,
                        info.corner,
                        info.corner_next,
                        false,
-                       vert_edge_infos[info.local_edge_next]);
+                       edge_infos[info.local_edge_next]);
   }
 }
 
