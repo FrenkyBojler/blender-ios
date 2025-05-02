@@ -73,7 +73,7 @@ static void grease_pencil_export_common_props_definition(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna,
                           "frame_mode",
                           frame_mode_items,
-                          int(ExportParams::FrameMode::Active),
+                          int(FrameMode::Active),
                           "Frames",
                           "Which frames to include in the export");
   RNA_def_float(ot->srna,
