@@ -562,13 +562,13 @@ class Preprocessor {
   /* To be run before `argument_decorator_macro_injection()`. */
   std::string argument_reference_mutation(std::string str)
   {
-    size_t pos = 1;
+    size_t pos = 0;
     int parenthesis_depth = 0;
     int bracket_depth = 0;
     int valid_match = 0;
     for (char &c : str) {
       if (c == '&') {
-        if (pos <= str.length() - 2) {
+        if (pos > 0 && pos <= str.length() - 2) {
           /* This is made safe by the previous check and by starting at pos = 1. */
           char prev_char = str[pos - 1];
           char next_char = str[pos + 1];
@@ -583,6 +583,12 @@ class Preprocessor {
                  * below. @ being forbidden in the shader language, it is safe to use a temp
                  * character. */
                 c = '@';
+              }
+              else if (bracket_depth > 0) {
+                /* Modify the & into ` (backtick) to make sure we only match these references in
+                 * variable_reference_mutation (and do early out scan). ` being forbidden in the
+                 * shader language, it is safe to use a temp character. */
+                c = '`';
               }
             }
           }
@@ -618,50 +624,56 @@ class Preprocessor {
   /* To be run after `argument_reference_mutation()`. */
   std::string variable_reference_mutation(const std::string &str, report_callback report_error)
   {
-    std::string out = str;
-    /* WORKAROUND: Allow to get the whole prefix and not only the part between matches. */
-    std::string total_prefix;
+    using namespace std;
+    /* See `argument_reference_mutation` for explanation. */
+    if (str.find('`') == string::npos) {
+      return str;
+    }
+    string out_str;
+    string next_str = str;
     /* Example: `const float &var = value;` */
-    std::regex regex(R"((?:const)?\s*\w+\s+\&(\w+) =\s*([^;]+);)");
-    regex_global_search(str, regex, [&](const std::smatch &match) {
-      const std::string definition = match[0].str();
-      const std::string name = match[1].str();
-      const std::string value = match[2].str();
+    regex regex_ref(R"((?:const)?\s*\w+\s+\`(\w+) =\s*([^;]+);)");
 
-      total_prefix += match.prefix().str() + definition;
+    for (smatch match; regex_search(next_str, match, regex_ref);) {
+      const string definition = match[0].str();
+      const string name = match[1].str();
+      const string value = match[2].str();
+
+      out_str += match.prefix().str();
+      next_str = definition + match.suffix().str();
+
       /* Assert definition doesn't contain any side effect. */
-      if (value.find("++") != std::string::npos || value.find("--") != std::string::npos) {
+      if (value.find("++") != string::npos || value.find("--") != string::npos) {
         report_error(match, "Reference definitions cannot have side effects.");
       }
-      if (value.find("(") != std::string::npos) {
+      if (value.find("(") != string::npos) {
         report_error(match, "Reference definitions cannot contain function calls.");
       }
-      if (value.find("[") != std::string::npos) {
-        const std::string index_var = get_content_between_balanced_pair(value, '[', ']');
+      if (value.find("[") != string::npos) {
+        const string index_var = get_content_between_balanced_pair(value, '[', ']');
 
-        if (index_var.find(' ') != std::string::npos) {
+        if (index_var.find(' ') != string::npos) {
           report_error(match,
                        "Array subscript inside reference declaration must be a single variable.");
-          return;
+          return str;
         }
 
         /* Add a space to avoid empty scope breaking the loop. */
-        std::string scope_depth = " }";
+        string scope_depth = " }";
         bool found_var = false;
         while (!found_var) {
-          std::string scope = get_content_between_balanced_pair(
-              total_prefix + scope_depth, '{', '}', true);
+          string scope = get_content_between_balanced_pair(out_str + scope_depth, '{', '}', true);
           scope_depth += '}';
 
           if (scope.empty()) {
             break;
           }
           /* Remove nested scopes. Avoid variable shadowing to mess with the detection. */
-          scope = std::regex_replace(scope, std::regex(R"(\{[^\}]*\})"), "{}");
+          scope = regex_replace(scope, regex(R"(\{[^\}]*\})"), "{}");
           /* Search if index variable definition qualifies it as `const`. */
-          std::regex regex_definition(R"((const)? \w+ )" + index_var + " =");
-          std::smatch match_definition;
-          if (std::regex_search(scope, match_definition, regex_definition)) {
+          regex regex_definition(R"((const)? \w+ )" + index_var + " =");
+          smatch match_definition;
+          if (regex_search(scope, match_definition, regex_definition)) {
             found_var = true;
             if (match_definition[1].matched == false) {
               report_error(match, "Array subscript variable must be declared as const qualified.");
@@ -675,36 +687,25 @@ class Preprocessor {
                        "indexing inside the reference.");
         }
       }
+
       /* Find scope this definition is active in. */
-      const std::string scope = get_content_between_balanced_pair(
-          '{' + match.suffix().str(), '{', '}');
+      const string scope = get_content_between_balanced_pair('{' + match.suffix().str(), '{', '}');
       if (scope.empty()) {
         report_error(match, "Reference is defined inside a global or unterminated scope.");
       }
-      const std::string original = definition + scope;
-      std::string modified = original;
-      {
-        /* Replace definition by nothing. Keep number of lines. */
-        std::string newlines;
-        for (size_t i = 0; i < line_count(definition) - 1; i++) {
-          newlines += '\n';
-        }
-        replace_all(modified, definition, newlines);
-      }
-      {
-        std::string name_fn_safe = name;
-        name_fn_safe.back() = '@';
-        /* Make function calls not match the next replacement. */
-        replace_all(modified, name + '(', name_fn_safe);
-        /* Replace occurrences by definition. */
-        replace_all(modified, name, value);
-        /* Reintroduce function calls. */
-        replace_all(modified, name_fn_safe, name + '(');
-      }
+      string original = definition + scope;
+      string modified = original;
+
+      /* Replace definition by nothing. Keep number of lines. */
+      string newlines(line_count(definition), '\n');
+      replace_all(modified, definition, newlines);
+
+      modified = regex_replace(modified, regex(R"(\b)" + name + R"(\b([^(]))"), value + "$1");
       /* Replace whole modified scope in output string. */
-      replace_all(out, original, modified);
-    });
-    return out;
+      replace_all(next_str, original, modified);
+    }
+    out_str += next_str;
+    return out_str;
   }
 
   std::string argument_decorator_macro_injection(const std::string &str)
