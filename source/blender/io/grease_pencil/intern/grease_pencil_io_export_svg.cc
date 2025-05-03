@@ -164,8 +164,8 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 
       IndexMaskMemory memory;
       if (selection_only) {
-        Object &ob_eval = *DEG_get_evaluated_object(context_.depsgraph, params_.object);
-        GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
+        const Object &ob_eval = *DEG_get_evaluated_object(context_.depsgraph, params_.object);
+        const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
         frames = IndexMask::from_predicate(
             frames, GrainSize(1024), memory, [&](const int frame_number) {
               return this->is_selected_frame(grease_pencil, frame_number);
