@@ -1848,11 +1848,11 @@ void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float st
   }
 }
 
-blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
-                                          const blender::float3 &initial_hsv_jitter,
-                                          const float distance,
-                                          const float pressure,
-                                          const blender::float3 &color)
+float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
+                                 const float3 &initial_hsv_jitter,
+                                 const float distance,
+                                 const float pressure,
+                                 const float3 &color)
 {
   constexpr float noise_scale = 1 / 20.0f;
 
@@ -1884,7 +1884,7 @@ blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_
     val_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_val_jitter, 0, pressure);
   }
 
-  blender::float3 hsv;
+  float3 hsv;
   rgb_to_hsv_v(color, hsv);
 
   hsv[0] += blender::math::interpolate(0.5f, random_hue, hue_jitter_scale) - 0.5f;
@@ -1899,7 +1899,7 @@ blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_
   hsv[1] *= blender::math::interpolate(1.0f, random_sat * 2.0f, sat_jitter_scale);
   hsv[2] *= blender::math::interpolate(1.0f, random_val * 2.0f, val_jitter_scale);
 
-  blender::float3 random_color;
+  float3 random_color;
   hsv_to_rgb_v(hsv, random_color);
   return random_color;
 }

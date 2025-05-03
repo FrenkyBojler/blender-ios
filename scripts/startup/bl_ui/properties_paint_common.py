@@ -1217,7 +1217,8 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         layout.separator()
         layout.label(text="Advanced")
 
-        color_jitter_panel(layout, context, brush, default_closed=False)
+        if brush.sculpt_capabilities.has_color:
+            color_jitter_panel(layout, context, brush, default_closed=False)
 
     # These options are shared across many modes.
     use_accumulate = False
