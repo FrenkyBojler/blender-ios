@@ -226,6 +226,7 @@ class Preprocessor {
       str = remove_quotes(str);
       str = enum_macro_injection(str);
       str = argument_reference_mutation(str);
+      str = variable_reference_mutation(str, report_error);
     }
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
@@ -559,15 +560,115 @@ class Preprocessor {
   }
 
   /* To be run before `argument_decorator_macro_injection()`. */
-  std::string argument_reference_mutation(const std::string &str)
+  std::string argument_reference_mutation(std::string str)
   {
+    size_t pos = 1;
+    int parenthesis_depth = 0;
+    int bracket_depth = 0;
+    int valid_match = 0;
+    for (char &c : str) {
+      if (c == '&') {
+        if (pos <= str.length() - 2) {
+          /* This is made safe by the previous check and by starting at pos = 1. */
+          char prev_char = str[pos - 1];
+          char next_char = str[pos + 1];
+          /* Validate it is not an operator (`&`, `&&`, `&=`). */
+          if (prev_char == ' ' || prev_char == '(') {
+            if (next_char != ' ' && next_char != '&' && next_char != '=') {
+              /* Check if inside a function signature.
+               * Check parenthesis_depth == 2 for array references. */
+              if ((parenthesis_depth == 1 || parenthesis_depth == 2) && bracket_depth == 0) {
+                valid_match += 1;
+                /* Modify the & into @ to make sure we only match these references in the regex
+                 * below. @ being forbidden in the shader language, it is safe to use a temp
+                 * character. */
+                c = '@';
+              }
+            }
+          }
+        }
+      }
+      else if (c == '(') {
+        parenthesis_depth++;
+      }
+      else if (c == ')') {
+        parenthesis_depth--;
+      }
+      else if (c == '{') {
+        bracket_depth++;
+      }
+      else if (c == '}') {
+        bracket_depth--;
+      }
+      pos++;
+    }
+    /* If we finished scanning the string without valid match, then early out. */
+    if (valid_match == 0) {
+      return str;
+    }
     /* Remove parenthesis first. */
     /* Example: `float (&var)[2]` > `float &var[2]` */
-    std::regex regex_parenthesis(R"((\w+ )\(&(\w+)\))");
+    std::regex regex_parenthesis(R"((\w+ )\(@(\w+)\))");
     std::string out = std::regex_replace(str, regex_parenthesis, "$1&$2");
     /* Example: `const float &var[2]` > `inout float var[2]` */
-    std::regex regex(R"((?:const)?(\s*)(\w+)\s+\&(\w+)(\[\d*\])?)");
+    std::regex regex(R"((?:const)?(\s*)(\w+)\s+\@(\w+)(\[\d*\])?)");
     return std::regex_replace(out, regex, "$1 inout $2 $3$4");
+  }
+
+  /* To be run after `argument_reference_mutation()`. */
+  std::string variable_reference_mutation(const std::string &str, report_callback report_error)
+  {
+    std::string out = str;
+    /* Example: `const float &var = value;` */
+    std::regex regex(R"((?:const)?\s*\w+\s+\&(\w+) =\s*([^;]+);)");
+    regex_global_search(str, regex, [&](const std::smatch &match) {
+      const std::string definition = match[0].str();
+      const std::string name = match[1].str();
+      const std::string value = match[2].str();
+      /* Assert definition doesn't contain any side effect. */
+      if (value.find("++") != std::string::npos || value.find("--") != std::string::npos) {
+        report_error(match, "Reference definitions cannot have side effects.");
+      }
+      if (value.find("(") != std::string::npos) {
+        report_error(match, "Reference definitions cannot contain function calls.");
+      }
+      if (value.find("[") != std::string::npos) {
+        /* TODO(fclem): Would be nice to support this as it would make this feature much more
+         * helpful. For that, we need to check all extraction operators calls and make sure they
+         * only reference const qualified index variable. This way we guarantee the index cannot
+         * change between two expansions. */
+        report_error(match, "Reference definitions cannot contain array subscript operator.");
+      }
+      /* Find scope this definition is active in. */
+      const std::string scope = get_content_between_balanced_pair(
+          '{' + match.suffix().str(), '{', '}');
+      if (scope.empty()) {
+        report_error(match, "Reference is defined inside a global or unterminated scope.");
+      }
+      const std::string original = definition + scope;
+      std::string modified = original;
+      {
+        /* Replace definition by nothing. Keep number of lines. */
+        std::string newlines;
+        for (size_t i = 0; i < line_count(definition) - 1; i++) {
+          newlines += '\n';
+        }
+        replace_all(modified, definition, newlines);
+      }
+      {
+        std::string name_fn_safe = name;
+        name_fn_safe.back() = '@';
+        /* Make function calls not match the next replacement. */
+        replace_all(modified, name + '(', name_fn_safe);
+        /* Replace occurrences by definition. */
+        replace_all(modified, name, value);
+        /* Reintroduce function calls. */
+        replace_all(modified, name_fn_safe, name + '(');
+      }
+      /* Replace whole modified scope in output string. */
+      replace_all(out, original, modified);
+    });
+    return out;
   }
 
   std::string argument_decorator_macro_injection(const std::string &str)
@@ -599,8 +700,7 @@ class Preprocessor {
   }
 
   /* Assume formatted source with our code style. Cannot be applied to python shaders. */
-  template<typename ReportErrorF>
-  void global_scope_constant_linting(const std::string &str, const ReportErrorF &report_error)
+  void global_scope_constant_linting(const std::string &str, report_callback report_error)
   {
     /* Example: `const uint global_var = 1u;`. Matches if not indented (i.e. inside a scope). */
     std::regex regex(R"(const \w+ \w+ =)");
@@ -625,8 +725,7 @@ class Preprocessor {
     });
   }
 
-  template<typename ReportErrorF>
-  void array_constructor_linting(const std::string &str, const ReportErrorF &report_error)
+  void array_constructor_linting(const std::string &str, report_callback report_error)
   {
     std::regex regex(R"(=\s*(\w+)\s*\[[^\]]*\]\s*\()");
     regex_global_search(str, regex, [&](const std::smatch &match) {
@@ -759,6 +858,58 @@ class Preprocessor {
 #endif
     suffix << "\n";
     return suffix.str();
+  }
+
+  void replace_all(std::string &str, const std::string &from, const std::string &to)
+  {
+    if (from.empty()) {
+      return;
+    }
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+      str.replace(start_pos, from.length(), to);
+      start_pos += to.length();
+    }
+  }
+
+  void replace_all(std::string &str, const char from, const char to)
+  {
+    for (char &string_char : str) {
+      if (string_char == from) {
+        string_char = to;
+      }
+    }
+  }
+
+  std::string get_content_between_balanced_pair(const std::string &input,
+                                                const char start_delimiter,
+                                                const char end_delimiter)
+  {
+    int balance = 0;
+    size_t start = std::string::npos;
+    size_t end = std::string::npos;
+
+    for (size_t i = 0; i < input.length(); ++i) {
+      if (input[i] == start_delimiter) {
+        if (balance == 0) {
+          start = i;
+        }
+        balance++;
+      }
+      else if (input[i] == end_delimiter) {
+        balance--;
+        if (balance == 0 && start != std::string::npos) {
+          end = i;
+          return input.substr(start + 1, end - start - 1);
+        }
+      }
+    }
+    return "";
+  }
+
+  int64_t line_count(const std::string &str)
+  {
+    return std::count(str.begin(), str.end(), '\n');
   }
 };
 
