@@ -6562,13 +6562,13 @@ class VIEW3D_PT_shading_lighting(Panel):
         shading = VIEW3D_PT_shading.get_shading(context)
 
         col = layout.column()
-        split = col.split(factor=0.9)
+        split = col.split(factor=0.95)
 
         if shading.type == 'SOLID':
             col.row().prop(shading, "light", expand=True)
             col = split.column()
 
-            split = layout.split(factor=0.9)
+            split = layout.split(factor=0.95)
             col = split.column()
             sub = col.row()
 
@@ -6591,12 +6591,12 @@ class VIEW3D_PT_shading_lighting(Panel):
                 col = split.column()
                 col.operator("screen.userpref_show", emboss=False, text="", icon='PREFERENCES').section = 'LIGHTS'
 
-                split = layout.split(factor=0.9)
+                split = layout.split(factor=0.95)
                 col = split.column()
 
-                row = col.row()
+                row = col.row(align=True)
                 row.prop(shading, "use_world_space_lighting", text="", icon='WORLD', toggle=True)
-                row = row.row()
+                row = row.row(align=True)
                 row.active = shading.use_world_space_lighting
                 row.prop(shading, "studiolight_rotate_z", text="Rotation")
                 col = split.column()  # to align properly with above
@@ -6645,7 +6645,7 @@ class VIEW3D_PT_shading_lighting(Panel):
 
             if not shading.use_scene_world_render:
                 col = layout.column()
-                split = col.split(factor=0.9)
+                split = col.split(factor=0.95)
 
                 col = split.column()
                 sub = col.row()
@@ -6655,7 +6655,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 col = split.column()
                 col.operator("screen.userpref_show", emboss=False, text="", icon='PREFERENCES').section = 'LIGHTS'
 
-                split = layout.split(factor=0.9)
+                split = layout.split(factor=0.95)
                 col = split.column()
                 col.prop(shading, "studiolight_rotate_z", text="Rotation")
                 col.prop(shading, "studiolight_intensity")
