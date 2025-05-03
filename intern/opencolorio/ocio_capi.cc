@@ -75,6 +75,11 @@ int OCIO_configGetIndexForColorSpace(OCIO_ConstConfigRcPtr *config, const char *
   return impl->configGetIndexForColorSpace(config, name);
 }
 
+const char *OCIO_getColorSpaceFromFilepath(OCIO_ConstConfigRcPtr *config, const char *filepath)
+{
+  return impl->getColorSpaceFromFilepath(config, filepath);
+}
+
 const char *OCIO_configGetDefaultDisplay(OCIO_ConstConfigRcPtr *config)
 {
   return impl->configGetDefaultDisplay(config);
@@ -328,9 +333,16 @@ bool OCIO_gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                                     use_white_balance);
 }
 
-void OCIO_gpuDisplayShaderUnbind()
+bool OCIO_gpuToSceneLinearShaderBind(OCIO_ConstConfigRcPtr *config,
+                                     const char *from_colorspace_name,
+                                     const bool use_predivide)
 {
-  impl->gpuDisplayShaderUnbind();
+  return impl->gpuToSceneLinearShaderBind(config, from_colorspace_name, use_predivide);
+}
+
+void OCIO_gpuShaderUnbind()
+{
+  impl->gpuShaderUnbind();
 }
 
 void OCIO_gpuCacheFree()

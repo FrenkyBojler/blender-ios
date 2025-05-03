@@ -214,8 +214,16 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   color_blend_f3_f3(alert_color, main_color, 0.3f);
 
   /* Draw text. */
-  BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
-  BLF_wordwrap(blf_mono_font, data->wrap_width);
+
+  /* Wrap most text typographically with hard width limit. */
+  BLF_wordwrap(data->fstyle.uifont_id,
+               data->wrap_width,
+               BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
+
+  /* Wrap paths with path-specific wrapping with hard width limit. */
+  BLF_wordwrap(blf_mono_font,
+               data->wrap_width,
+               BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
 
   bbox.xmin += 0.5f * pad_x; /* add padding to the text */
   bbox.ymax -= 0.5f * pad_y;
@@ -600,7 +608,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
                                 {},
                                 UI_TIP_STYLE_NORMAL,
                                 (is_error) ? UI_TIP_LC_ALERT : UI_TIP_LC_MAIN,
-                                true);
+                                false);
       MEM_freeN(expr_result);
     }
   }
@@ -891,6 +899,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
    * Otherwise fallback to the regular label. */
   if (!but_tip_label.empty()) {
     UI_tooltip_text_field_add(*data, but_tip_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+    UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
   }
   /* Regular (non-custom) label. Only show when the button doesn't already show the label. Check
    * prefix instead of comparing because the button may include the shortcut. Buttons with dynamic
@@ -899,14 +908,25 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   else if (!but_label.empty() && !blender::StringRef(but->drawstr).startswith(but_label) &&
            !but->tip_func)
   {
-    UI_tooltip_text_field_add(*data, but_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+    if (!enum_label.empty()) {
+      UI_tooltip_text_field_add(*data,
+                                fmt::format("{}: ", but_label),
+                                enum_label,
+                                UI_TIP_STYLE_HEADER,
+                                UI_TIP_LC_NORMAL);
+    }
+    else {
+      UI_tooltip_text_field_add(*data, but_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+    }
+    UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
   }
 
   /* Tip */
   if (!but_tip.empty()) {
-    if (!enum_label.empty()) {
+    if (!enum_label.empty() && enum_label == but_label) {
       UI_tooltip_text_field_add(
           *data, fmt::format("{}: ", but_tip), enum_label, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+      UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     }
     else {
       const bool add_period = ui_tooltip_period_needed(but_tip);
@@ -915,6 +935,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                                 {},
                                 UI_TIP_STYLE_HEADER,
                                 UI_TIP_LC_NORMAL);
+      if (but_label.empty()) {
+        UI_tooltip_text_field_add(*data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+      }
     }
 
     /* special case enum rna buttons */
@@ -950,7 +973,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                               {},
                               UI_TIP_STYLE_NORMAL,
                               UI_TIP_LC_VALUE,
-                              true);
+                              !data->fields.is_empty());
   }
 
   /* Property context-toggle shortcut. */
@@ -1020,6 +1043,28 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     }
   }
 
+  /* Warn if relative paths are used when unsupported (will already display red-alert). */
+  if (ELEM(but->type, UI_BTYPE_TEXT) &&
+      /* Check red-alert, if the flag is not set, then this was suppressed. */
+      (but->flag & UI_BUT_REDALERT))
+  {
+    if (rnaprop) {
+      PropertySubType subtype = RNA_property_subtype(rnaprop);
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
+        if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
+          if (BLI_path_is_rel(but->drawstr.c_str())) {
+            UI_tooltip_text_field_add(*data,
+                                      "Warning: the blend-file relative path prefix \"//\" "
+                                      "is not supported for this property.",
+                                      {},
+                                      UI_TIP_STYLE_NORMAL,
+                                      UI_TIP_LC_ALERT);
+          }
+        }
+      }
+    }
+  }
+
   /* Button is disabled, we may be able to tell user why. */
   if ((but->flag & UI_BUT_DISABLED) || extra_icon) {
     const char *disabled_msg_orig = nullptr;
@@ -1051,7 +1096,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                                 UI_TIP_LC_ALERT);
     }
     if (disabled_msg_free) {
-      MEM_freeN((void *)disabled_msg_orig);
+      MEM_freeN(disabled_msg_orig);
     }
   }
 
@@ -1170,6 +1215,11 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     /* Tooltip now owns a copy of the ImBuf, so we can delete ours. */
     IMB_freeImBuf(image_data.ibuf);
+  }
+
+  /* If the last field is a spacer, remove it. */
+  while (!data->fields.is_empty() && data->fields.last().format.style == UI_TIP_STYLE_SPACER) {
+    data->fields.pop_last();
   }
 
   return data->fields.is_empty() ? nullptr : std::move(data);
@@ -1300,8 +1350,12 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   font_flag |= BLF_WORD_WRAP;
   BLF_enable(data->fstyle.uifont_id, font_flag);
   BLF_enable(blf_mono_font, font_flag);
-  BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
-  BLF_wordwrap(blf_mono_font, data->wrap_width);
+  BLF_wordwrap(data->fstyle.uifont_id,
+               data->wrap_width,
+               BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
+  BLF_wordwrap(blf_mono_font,
+               data->wrap_width,
+               BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
 
   int i, fonth, fontw;
   for (i = 0, fontw = 0, fonth = 0; i < data->fields.size(); i++) {
@@ -1647,7 +1701,7 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
   }
 
   if (BKE_image_has_anim(&ima)) {
-    MovieReader *anim = static_cast<MovieReader *>(ima.anims.first);
+    MovieReader *anim = static_cast<ImageAnim *>(ima.anims.first)->anim;
     if (anim) {
       int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       UI_tooltip_text_field_add(

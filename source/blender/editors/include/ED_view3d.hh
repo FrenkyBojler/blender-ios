@@ -319,7 +319,7 @@ ENUM_OPERATORS(eV3DProjTest, V3D_PROJ_TEST_CLIP_CONTENT);
 
 bool ED_view3d_snap_selected_to_location(bContext *C,
                                          wmOperator *op,
-                                         const float snap_target_global[3],
+                                         const float target_loc_global[3],
                                          int pivot_point);
 
 /* `view3d_cursor_snap.cc` */
@@ -371,8 +371,10 @@ V3DSnapCursorState *ED_view3d_cursor_snap_state_create();
 void ED_view3d_cursor_snap_state_free(V3DSnapCursorState *state);
 void ED_view3d_cursor_snap_state_prevpoint_set(V3DSnapCursorState *state,
                                                const float prev_point[3]);
-void ED_view3d_cursor_snap_data_update(
-    V3DSnapCursorState *state, const bContext *C, const ARegion *region, int x, int y);
+void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state,
+                                       const bContext *C,
+                                       const ARegion *region,
+                                       const blender::int2 &mval);
 V3DSnapCursorData *ED_view3d_cursor_snap_data_get();
 blender::ed::transform::SnapObjectContext *ED_view3d_cursor_snap_context_ensure(Scene *scene);
 void ED_view3d_cursor_snap_draw_util(RegionView3D *rv3d,

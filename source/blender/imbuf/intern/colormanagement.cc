@@ -68,6 +68,7 @@ static char global_role_texture_painting[MAX_COLORSPACE_NAME];
 static char global_role_default_byte[MAX_COLORSPACE_NAME];
 static char global_role_default_float[MAX_COLORSPACE_NAME];
 static char global_role_default_sequencer[MAX_COLORSPACE_NAME];
+static char global_role_aces_interchange[MAX_COLORSPACE_NAME];
 
 static ListBase global_colorspaces = {nullptr, nullptr};
 static ListBase global_displays = {nullptr, nullptr};
@@ -464,7 +465,8 @@ static void colormanage_cache_handle_release(void *cache_handle)
 static bool colormanage_role_color_space_name_get(OCIO_ConstConfigRcPtr *config,
                                                   char *colorspace_name,
                                                   const char *role,
-                                                  const char *backup_role)
+                                                  const char *backup_role,
+                                                  const bool optional = false)
 {
   OCIO_ConstColorSpaceRcPtr *ociocs;
 
@@ -480,9 +482,10 @@ static bool colormanage_role_color_space_name_get(OCIO_ConstConfigRcPtr *config,
   }
 
   if (ociocs == nullptr) {
-    if (!G.quiet) {
+    if (!optional && !G.quiet) {
       printf("Color management: Error, could not find role \"%s\"\n", role);
     }
+    colorspace_name[0] = '\0';
     return false;
   }
 
@@ -512,6 +515,9 @@ static bool colormanage_load_config(OCIO_ConstConfigRcPtr *config)
       config, global_role_default_byte, OCIO_ROLE_DEFAULT_BYTE, OCIO_ROLE_TEXTURE_PAINT);
   ok &= colormanage_role_color_space_name_get(
       config, global_role_default_float, OCIO_ROLE_DEFAULT_FLOAT, OCIO_ROLE_SCENE_LINEAR);
+
+  colormanage_role_color_space_name_get(
+      config, global_role_aces_interchange, OCIO_ROLE_ACES_INTERCHANGE, nullptr, true);
 
   /* load colorspaces */
   const int tot_colorspace = OCIO_configGetNumColorSpaces(config);
@@ -1104,17 +1110,6 @@ static void curve_mapping_apply_pixel(const CurveMapping *curve_mapping,
   }
 }
 
-void colorspace_set_default_role(char *colorspace, int size, int role)
-{
-  if (colorspace && colorspace[0] == '\0') {
-    const char *role_colorspace;
-
-    role_colorspace = IMB_colormanagement_role_colorspace_name_get(role);
-
-    BLI_strncpy(colorspace, role_colorspace, size);
-  }
-}
-
 void colormanage_imbuf_set_default_spaces(ImBuf *ibuf)
 {
   ibuf->byte_buffer.colorspace = colormanage_colorspace_get_named(global_role_default_byte);
@@ -1367,6 +1362,8 @@ const char *IMB_colormanagement_role_colorspace_name_get(int role)
       return global_role_default_float;
     case COLOR_ROLE_DEFAULT_BYTE:
       return global_role_default_byte;
+    case COLOR_ROLE_ACES_INTERCHANGE:
+      return global_role_aces_interchange;
     default:
       if (!G.quiet) {
         printf("Unknown role was passed to %s\n", __func__);
@@ -1453,6 +1450,19 @@ const char *IMB_colormanagement_get_rect_colorspace(ImBuf *ibuf)
   return IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE);
 }
 
+const char *IMB_colormanagement_space_from_filepath_rules(const char *filepath)
+{
+  OCIO_ConstConfigRcPtr *config = OCIO_getCurrentConfig();
+  const char *colorspace = OCIO_getColorSpaceFromFilepath(config, filepath);
+  OCIO_configRelease(config);
+  return colorspace;
+}
+
+ColorSpace *IMB_colormanagement_space_get_named(const char *name)
+{
+  return colormanage_colorspace_get_named(name);
+}
+
 bool IMB_colormanagement_space_is_data(ColorSpace *colorspace)
 {
   return (colorspace && colorspace->is_data);
@@ -1505,6 +1515,33 @@ bool IMB_colormanagement_space_name_is_srgb(const char *name)
 {
   ColorSpace *colorspace = colormanage_colorspace_get_named(name);
   return (colorspace && IMB_colormanagement_space_is_srgb(colorspace));
+}
+
+const char *IMB_colormanagement_srgb_colorspace_name_get()
+{
+  LISTBASE_FOREACH (ColorSpace *, colorspace, &global_colorspaces) {
+    colormanage_ensure_srgb_scene_linear_info(colorspace);
+    if (colorspace->info.is_srgb) {
+      return colorspace->name;
+    }
+  }
+
+  /* Make a best effort to find by common names. First two are from the ColorInterop forum. */
+  const char *names[] = {"sRGB Encoded Rec.709 (sRGB)",
+                         "srgb_rec709_scene",
+                         "Utility - sRGB - Texture",
+                         "sRGB - Texture",
+                         "sRGB",
+                         nullptr};
+  for (int i = 0; names[i]; i++) {
+    ColorSpace *colorspace = colormanage_colorspace_get_named(names[i]);
+    if (colorspace) {
+      return colorspace->name;
+    }
+  }
+
+  /* Fallback if nothing can be found. */
+  return global_role_default_byte;
 }
 
 blender::float3x3 IMB_colormanagement_get_xyz_to_scene_linear()
@@ -2799,7 +2836,7 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
 
   /* ensure color management bit fields exists */
   if (!ibuf->display_buffer_flags) {
-    ibuf->display_buffer_flags = MEM_calloc_arrayN<uint>(size_t(global_tot_display),
+    ibuf->display_buffer_flags = MEM_calloc_arrayN<uint>(global_tot_display,
                                                          "imbuf display_buffer_flags");
   }
   else if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) {
@@ -4275,10 +4312,23 @@ bool IMB_colormanagement_setup_glsl_draw_ctx(const bContext *C, float dither, bo
   return IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, nullptr, dither, predivide);
 }
 
+bool IMB_colormanagement_setup_glsl_draw_to_scene_linear(const char *from_colorspace_name,
+                                                         const bool predivide)
+{
+  OCIO_ConstConfigRcPtr *config = OCIO_getCurrentConfig();
+
+  global_gpu_state.gpu_shader_bound = OCIO_gpuToSceneLinearShaderBind(
+      config, from_colorspace_name, predivide);
+
+  OCIO_configRelease(config);
+
+  return global_gpu_state.gpu_shader_bound;
+}
+
 void IMB_colormanagement_finish_glsl_draw()
 {
   if (global_gpu_state.gpu_shader_bound) {
-    OCIO_gpuDisplayShaderUnbind();
+    OCIO_gpuShaderUnbind();
     global_gpu_state.gpu_shader_bound = false;
   }
 }

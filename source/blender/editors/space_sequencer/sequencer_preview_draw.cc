@@ -88,36 +88,11 @@ Strip *special_preview_get()
   return special_seq_update;
 }
 
-/**
- * Similar to `mouseover_strips_sorted_get`, but disregards padded strip handles. This allows for
- * precision when previewing strips through a scrubbing operation.
- */
-static Strip *mouseover_strip_get(const Scene *scene, const View2D *v2d, const int mval[2])
-{
-  float mouse_co[2];
-  UI_view2d_region_to_view(v2d, mval[0], mval[1], &mouse_co[0], &mouse_co[1]);
-
-  blender::Vector<Strip *> visible = sequencer_visible_strips_get(scene, v2d);
-  int mouse_channel = int(mouse_co[1]);
-  for (Strip *strip : visible) {
-    if (strip->machine != mouse_channel) {
-      continue;
-    }
-    rctf body;
-    strip_rectf(scene, strip, &body);
-    if (BLI_rctf_isect_pt_v(&body, mouse_co)) {
-      return strip;
-    }
-  }
-
-  return nullptr;
-}
-
 void special_preview_set(bContext *C, const int mval[2])
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
-  Strip *strip = mouseover_strip_get(scene, &region->v2d, mval);
+  Strip *strip = strip_under_mouse_get(scene, &region->v2d, mval);
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
     sequencer_special_update_set(strip);
   }
@@ -510,8 +485,6 @@ static void sequencer_draw_display_buffer(const bContext *C,
     immUniformColor3f(1.0f, 1.0f, 1.0f);
   }
 
-  immBegin(GPU_PRIM_TRI_FAN, 4);
-
   rctf preview;
   rctf canvas;
   sequencer_preview_get_rect(&preview, scene, region, sseq, draw_overlay, draw_backdrop);
@@ -523,19 +496,7 @@ static void sequencer_draw_display_buffer(const bContext *C,
     BLI_rctf_init(&canvas, 0.0f, 1.0f, 0.0f, 1.0f);
   }
 
-  immAttr2f(texCoord, canvas.xmin, canvas.ymin);
-  immVertex2f(pos, preview.xmin, preview.ymin);
-
-  immAttr2f(texCoord, canvas.xmin, canvas.ymax);
-  immVertex2f(pos, preview.xmin, preview.ymax);
-
-  immAttr2f(texCoord, canvas.xmax, canvas.ymax);
-  immVertex2f(pos, preview.xmax, preview.ymax);
-
-  immAttr2f(texCoord, canvas.xmax, canvas.ymin);
-  immVertex2f(pos, preview.xmax, preview.ymin);
-
-  immEnd();
+  immRectf_with_texco(pos, texCoord, preview, canvas);
 
   GPU_texture_unbind(texture);
   GPU_texture_free(texture);

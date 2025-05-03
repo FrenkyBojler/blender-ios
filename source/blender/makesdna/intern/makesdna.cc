@@ -38,8 +38,8 @@
 #include "BLI_ghash.h"
 #include "BLI_memarena.h"
 #include "BLI_string.h"
-#include "BLI_sys_types.h" /* for intptr_t support */
-#include "BLI_system.h"    /* for 'BLI_system_backtrace' stub. */
+#include "BLI_sys_types.h" /* For `intptr_t` support. */
+#include "BLI_system.h"    /* For #BLI_system_backtrace stub. */
 #include "BLI_utildefines.h"
 
 #include "DNA_sdna_types.h"
@@ -1275,18 +1275,18 @@ static int make_structDNA(const char *base_directory,
   mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
 
   /* the longest known struct is 50k, so we assume 100k is sufficient! */
-  structdata = MEM_calloc_arrayN<short>(size_t(max_data_size), "structdata");
+  structdata = MEM_calloc_arrayN<short>(max_data_size, "structdata");
 
   /* a maximum of 5000 variables, must be sufficient? */
-  members = MEM_calloc_arrayN<char *>(size_t(max_array_len), "names");
-  types = MEM_calloc_arrayN<char *>(size_t(max_array_len), "types");
-  types_size_native = MEM_calloc_arrayN<short>(size_t(max_array_len), "types_size_native");
-  types_size_32 = MEM_calloc_arrayN<short>(size_t(max_array_len), "types_size_32");
-  types_size_64 = MEM_calloc_arrayN<short>(size_t(max_array_len), "types_size_64");
-  types_align_32 = MEM_calloc_arrayN<short>(size_t(max_array_len), "types_size_32");
-  types_align_64 = MEM_calloc_arrayN<short>(size_t(max_array_len), "types_size_64");
+  members = MEM_calloc_arrayN<char *>(max_array_len, "names");
+  types = MEM_calloc_arrayN<char *>(max_array_len, "types");
+  types_size_native = MEM_calloc_arrayN<short>(max_array_len, "types_size_native");
+  types_size_32 = MEM_calloc_arrayN<short>(max_array_len, "types_size_32");
+  types_size_64 = MEM_calloc_arrayN<short>(max_array_len, "types_size_64");
+  types_align_32 = MEM_calloc_arrayN<short>(max_array_len, "types_size_32");
+  types_align_64 = MEM_calloc_arrayN<short>(max_array_len, "types_size_64");
 
-  structs = MEM_calloc_arrayN<short *>(size_t(max_array_len), "structs");
+  structs = MEM_calloc_arrayN<short *>(max_array_len, "structs");
 
   /* Build versioning data */
   DNA_alias_maps(DNA_RENAME_ALIAS_FROM_STATIC,

@@ -318,7 +318,7 @@ Object *spreadsheet_get_object_eval(const SpaceSpreadsheet *sspreadsheet,
     return nullptr;
   }
 
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, object_orig);
+  Object *object_eval = DEG_get_evaluated(depsgraph, object_orig);
   if (object_eval == nullptr) {
     return nullptr;
   }
@@ -608,7 +608,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
 
   UI_ThemeClearColor(TH_BACK);
 
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   const uiStyle *style = UI_style_get_dpi();
   uiLayout *layout = UI_block_layout(block,
                                      UI_LAYOUT_HORIZONTAL,

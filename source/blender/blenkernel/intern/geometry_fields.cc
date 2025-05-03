@@ -718,7 +718,8 @@ GVArray NormalFieldInput::get_varray_for_context(const GeometryFieldContext &con
                                                  const IndexMask &mask) const
 {
   if (const Mesh *mesh = context.mesh()) {
-    return mesh_normals_varray(*mesh, mask, context.domain(), legacy_corner_normals_);
+    return mesh_normals_varray(
+        *mesh, mask, context.domain(), legacy_corner_normals_, true_normals_);
   }
   if (const CurvesGeometry *curves = context.curves_or_strokes()) {
     return curve_normals_varray(*curves, context.domain());
@@ -728,17 +729,21 @@ GVArray NormalFieldInput::get_varray_for_context(const GeometryFieldContext &con
 
 std::string NormalFieldInput::socket_inspection_name() const
 {
-  return TIP_("Normal");
+  return true_normals_ ? TIP_("True Normal") : TIP_("Normal");
 }
 
 uint64_t NormalFieldInput::hash() const
 {
-  return 213980475983;
+  return get_default_hash(2980541, legacy_corner_normals_, true_normals_);
 }
 
 bool NormalFieldInput::is_equal_to(const fn::FieldNode &other) const
 {
-  return dynamic_cast<const NormalFieldInput *>(&other) != nullptr;
+  if (const NormalFieldInput *other_typed = dynamic_cast<const NormalFieldInput *>(&other)) {
+    return legacy_corner_normals_ == other_typed->legacy_corner_normals_ &&
+           true_normals_ == other_typed->true_normals_;
+  }
+  return false;
 }
 
 static std::optional<StringRefNull> try_get_field_direct_attribute_id(const fn::GField &any_field)
@@ -837,12 +842,25 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   };
   Vector<AddResult> results_to_add;
 
+  bool success = true;
+
   for (const int input_index : attribute_ids.index_range()) {
     const StringRef id = attribute_ids[input_index];
+    const CPPType &type = fields[input_index].cpp_type();
+    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(type);
+
+    /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
+    if (const std::optional<AttributeDomainAndType> meta_data =
+            attributes.get_builtin_domain_and_type(id))
+    {
+      if (*meta_data != AttributeDomainAndType{domain, data_type}) {
+        success = false;
+        continue;
+      }
+    }
+
     const AttributeValidator validator = attributes.lookup_validator(id);
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
-    const CPPType &type = field.cpp_type();
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(type);
 
     /* We are writing to an attribute that exists already with the correct domain and type. */
     if (const GAttributeReader dst = attributes.lookup(id)) {
@@ -861,7 +879,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
 
     /* Could avoid allocating a new buffer if:
      * - The field does not depend on that attribute (we can't easily check for that yet). */
-    void *buffer = MEM_mallocN_aligned(type.size() * domain_size, type.alignment(), __func__);
+    void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
     if (!selection_is_full) {
       const GAttributeReader old_attribute = attributes.lookup_or_default(id, domain, data_type);
       old_attribute.varray.materialize(buffer);
@@ -886,7 +904,6 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     }
   }
 
-  bool success = true;
   for (const AddResult &result : results_to_add) {
     const StringRef id = attribute_ids[result.input_index];
     attributes.remove(id);

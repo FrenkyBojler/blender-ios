@@ -1253,7 +1253,7 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
   ChannelDriver *cdriver;
 
   /* allocate memory for new driver */
-  cdriver = static_cast<ChannelDriver *>(MEM_callocN(sizeof(ChannelDriver), "ChannelDriver"));
+  cdriver = MEM_callocN<ChannelDriver>("ChannelDriver");
 
   /* If `pydriver`, just copy data across. */
   if (idriver->type == IPO_DRIVER_TYPE_PYTHON) {
@@ -1338,11 +1338,10 @@ static void fcurve_add_to_list(
     /* wrap the pointers given into a dummy action that we pass to the API func
      * and extract the resultant lists...
      */
-    bAction tmp_act;
+    bAction tmp_act = {};
     bActionGroup *agrp = nullptr;
 
     /* init the temp action */
-    memset(&tmp_act, 0, sizeof(bAction)); /* XXX: Only enable this line if we get errors. */
     tmp_act.groups.first = groups->first;
     tmp_act.groups.last = groups->last;
     tmp_act.curves.first = list->first;
@@ -1354,7 +1353,7 @@ static void fcurve_add_to_list(
     /* no matching group, so add one */
     if (agrp == nullptr) {
       /* Add a new group, and make it active */
-      agrp = static_cast<bActionGroup *>(MEM_callocN(sizeof(bActionGroup), "bActionGroup"));
+      agrp = MEM_callocN<bActionGroup>("bActionGroup");
 
       agrp->flag = AGRP_SELECTED;
       if (muteipo) {
@@ -1520,8 +1519,7 @@ static void icu_to_fcurves(ID *id,
         BezTriple *dst, *src;
 
         /* allocate new array for keyframes/beztriples */
-        fcurve->bezt = static_cast<BezTriple *>(
-            MEM_callocN(sizeof(BezTriple) * fcurve->totvert, "BezTriples"));
+        fcurve->bezt = MEM_calloc_arrayN<BezTriple>(fcurve->totvert, "BezTriples");
 
         /* loop through copying all BezTriples individually, as we need to modify a few things */
         for (dst = fcurve->bezt, src = icu->bezt, i = 0; i < fcurve->totvert; i++, dst++, src++) {
@@ -1587,8 +1585,7 @@ static void icu_to_fcurves(ID *id,
       BezTriple *dst, *src;
 
       /* allocate new array for keyframes/beztriples */
-      fcu->bezt = static_cast<BezTriple *>(
-          MEM_callocN(sizeof(BezTriple) * fcu->totvert, "BezTriples"));
+      fcu->bezt = MEM_calloc_arrayN<BezTriple>(fcu->totvert, "BezTriples");
 
       /* loop through copying all BezTriples individually, as we need to modify a few things */
       for (dst = fcu->bezt, src = icu->bezt, i = 0; i < fcu->totvert; i++, dst++, src++) {
@@ -2023,7 +2020,7 @@ static void nlastrips_to_animdata(ID *id, ListBase *strips)
          * - no need to muck around with the user-counts, since this is just
          *   passing over the ref to the new owner, not creating an additional ref
          */
-        strip = static_cast<NlaStrip *>(MEM_callocN(sizeof(NlaStrip), "NlaStrip"));
+        strip = MEM_callocN<NlaStrip>("NlaStrip");
         strip->act = as->act;
 
         /* endpoints */

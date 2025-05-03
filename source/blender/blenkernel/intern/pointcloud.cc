@@ -284,9 +284,8 @@ PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
 
 PointCloud *BKE_pointcloud_add_default(Main *bmain, const char *name)
 {
-  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(bmain, ID_PT, name, 0));
+  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_id_new(bmain, ID_PT, name));
 
-  pointcloud_init_data(&pointcloud->id);
   pointcloud_random(pointcloud);
 
   return pointcloud;
@@ -297,7 +296,7 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
   PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(
       nullptr, ID_PT, BKE_idtype_idcode_to_name(ID_PT), LIB_ID_CREATE_LOCALIZE));
 
-  pointcloud_init_data(&pointcloud->id);
+  BKE_libblock_init_empty(&pointcloud->id);
 
   CustomData_realloc(&pointcloud->pdata, 0, totpoint);
   pointcloud->totpoint = totpoint;
@@ -315,6 +314,8 @@ void BKE_pointcloud_nomain_to_pointcloud(PointCloud *pointcloud_src, PointCloud 
   CustomData_init_from(&pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, totpoint);
 
   pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;
+  pointcloud_dst->runtime->bounds_with_radius_cache =
+      pointcloud_src->runtime->bounds_with_radius_cache;
   pointcloud_dst->runtime->bvh_cache = pointcloud_src->runtime->bvh_cache;
   BKE_id_free(nullptr, pointcloud_src);
 }
@@ -351,10 +352,14 @@ std::optional<int> PointCloud::material_index_max() const
   if (this->totpoint == 0) {
     return std::nullopt;
   }
-  return blender::bounds::max<int>(
+  std::optional<int> max_material_index = blender::bounds::max<int>(
       this->attributes()
           .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Point, 0)
           .varray);
+  if (max_material_index.has_value()) {
+    max_material_index = std::clamp(*max_material_index, 0, MAXMAT);
+  }
+  return max_material_index;
 }
 
 void PointCloud::count_memory(blender::MemoryCounter &memory) const
@@ -384,7 +389,7 @@ void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
 {
   dst.flag = src.flag;
   MEM_SAFE_FREE(dst.mat);
-  dst.mat = static_cast<Material **>(MEM_malloc_arrayN(src.totcol, sizeof(Material *), __func__));
+  dst.mat = MEM_malloc_arrayN<Material *>(src.totcol, __func__);
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
 }
