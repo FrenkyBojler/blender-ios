@@ -3485,6 +3485,8 @@ static wmOperatorStatus wm_recover_last_session_impl(bContext *C,
       WM_operator_properties_create_ptr(props_ptr, ot);
       RNA_boolean_set(props_ptr, "use_scripts", true);
       wm_test_autorun_revert_action_set(ot, props_ptr);
+      /* Clear path so we are forced to save as. */
+      G_MAIN->filepath[0] = '\0';
     }
     return OPERATOR_FINISHED;
   }
@@ -3561,6 +3563,8 @@ static wmOperatorStatus wm_recover_auto_save_exec(bContext *C, wmOperator *op)
       WM_operator_properties_create_ptr(props_ptr, ot);
       RNA_boolean_set(props_ptr, "use_scripts", true);
       wm_test_autorun_revert_action_set(ot, props_ptr);
+      /* Clear path so we are forced to save as. */
+      G_MAIN->filepath[0] = '\0';
     }
     return OPERATOR_FINISHED;
   }
@@ -3889,6 +3893,14 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
   /* Cancel if no active window. */
   if (CTX_wm_window(C) == nullptr) {
     return OPERATOR_CANCELLED;
+  }
+
+  if (G_MAIN->recovered) {
+    /* Discourage saving back into the temp folder. */
+    std::string filepath = BKE_appdir_folder_default_or_root();
+    filepath.append(1, SEP).append(DATA_("Untitled"));
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "filepath");
+    RNA_property_string_set(op->ptr, prop, filepath.c_str());
   }
 
   save_set_compress(op);
