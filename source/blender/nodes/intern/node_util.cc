@@ -192,7 +192,7 @@ void node_image_label(const bNodeTree * /*ntree*/,
                       int label_maxncpy)
 {
   if (node->id == nullptr) {
-    BLI_strncpy(label, node->typeinfo->ui_name.c_str(), label_maxncpy);
+    BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
     return;
   }
   BLI_strncpy(label, node->id->name + 2, label_maxncpy);
