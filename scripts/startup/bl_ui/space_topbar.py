@@ -169,7 +169,7 @@ class TOPBAR_MT_file(Menu):
 
         layout.separator()
 
-        layout.operator_context = 'EXEC_AREA' if context.blend_data.is_saved else 'INVOKE_AREA'
+        layout.operator_context = 'EXEC_AREA' if context.blend_data.is_saved and not context.blend_data.is_recovered else 'INVOKE_AREA'
         layout.operator("wm.save_mainfile", text="Save", icon='FILE_TICK')
 
         layout.operator_context = 'INVOKE_AREA'
@@ -178,7 +178,7 @@ class TOPBAR_MT_file(Menu):
         layout.operator("wm.save_as_mainfile", text="Save Copy...").copy = True
 
         sub = layout.row()
-        sub.enabled = context.blend_data.is_saved
+        sub.enabled = context.blend_data.is_saved and not context.blend_data.is_recovered
         sub.operator_context = 'EXEC_AREA'
         sub.operator("wm.save_mainfile", text="Save Incremental").incremental = True
 
