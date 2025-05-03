@@ -94,3 +94,11 @@ enum {
  * deprecated. This reduces the amount of variation we have to deal with when reading .blend files.
  */
 #define SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 (ENDIAN_ORDER == L_ENDIAN && sizeof(void *) == 8)
+
+#define MIN_SIZEOFBLENDERHEADER 12
+#define MAX_SIZEOFBLENDERHEADER 17
+
+/** See #BLEND_FILE_FORMAT_VERSION_0 for the structure. */
+#define SIZEOFBLENDERHEADER_VERSION_0 12
+/** See #BLEND_FILE_FORMAT_VERSION_1 for the structure. */
+#define SIZEOFBLENDERHEADER_VERSION_1 17
