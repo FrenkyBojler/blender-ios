@@ -555,7 +555,6 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
     const OffsetIndices points_by_curve = this->points_by_curve();
     const VArray<int8_t> knot_modes = this->nurbs_knots_modes();
     const VArray<int8_t> orders = this->nurbs_orders();
-    const VArray<bool> cyclic = this->cyclic();
 
     int knot_count = 0;
     for (const int curve : this->curves_range()) {
@@ -1491,7 +1490,8 @@ void CurvesGeometry::remove_points(const IndexMask &points_to_delete,
     return;
   }
   if (points_to_delete.size() == this->points_num()) {
-    *this = {};
+    this->resize(0, 0);
+    this->update_curve_types();
     return;
   }
   IndexMaskMemory memory;
@@ -1570,7 +1570,8 @@ void CurvesGeometry::remove_curves(const IndexMask &curves_to_delete,
     return;
   }
   if (curves_to_delete.size() == this->curves_num()) {
-    *this = {};
+    this->resize(0, 0);
+    this->update_curve_types();
     return;
   }
   IndexMaskMemory memory;

@@ -564,8 +564,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 
   const bNodeTree *node_tree = nullptr;
   if (depsgraphs.extra) {
-    node_tree = reinterpret_cast<const bNodeTree *>(
-        DEG_get_evaluated_id(depsgraphs.extra, const_cast<ID *>(&node_tree_orig->id)));
+    node_tree = DEG_get_evaluated(depsgraphs.extra, node_tree_orig);
   }
   else {
     node_tree = node_tree_orig;
@@ -745,8 +744,8 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
   /* We're handling this manually in this case. */
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
-  uiLayout *name_row = uiLayoutRow(split, false);
+  uiLayout *split = &layout->split(0.4f, false);
+  uiLayout *name_row = &split->row(false);
   uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
 
   const bool use_attribute = RNA_boolean_get(md_ptr, rna_path_use_attribute.c_str());
@@ -757,7 +756,7 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
     uiItemL(name_row, socket.name ? socket.name : "", ICON_NONE);
   }
 
-  uiLayout *prop_row = uiLayoutRow(split, true);
+  uiLayout *prop_row = &split->row(true);
   if (socket_type == SOCK_BOOLEAN) {
     uiLayoutSetPropSep(prop_row, false);
     uiLayoutSetAlignment(prop_row, UI_LAYOUT_ALIGN_EXPAND);
@@ -802,7 +801,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   char rna_path[sizeof(socket_id_esc) + 4];
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   uiLayoutSetActive(row, affects_output);
   uiLayoutSetPropDecorate(row, false);
 
@@ -1447,7 +1446,7 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
   if (!all_library) {
     return;
   }
-  uiLayout *col = uiLayoutColumn(&layout, false);
+  uiLayout *col = &layout.column(false);
   uiLayoutSetContextString(col, "asset_catalog_path", item->catalog_path().str());
   uiItemMContents(col, "GEO_MT_node_operator_catalog_assets");
 }

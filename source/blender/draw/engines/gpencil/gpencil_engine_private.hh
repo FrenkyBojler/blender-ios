@@ -23,9 +23,9 @@
 
 #define GP_LIGHT
 
-#include "gpencil_defines.h"
+#include "gpencil_defines.hh"
 #include "gpencil_shader.hh"
-#include "gpencil_shader_shared.h"
+#include "gpencil_shader_shared.hh"
 
 struct GpencilBatchCache;
 struct Object;
@@ -256,6 +256,8 @@ struct Instance final : public DrawEngine {
 
   /* Display onion skinning */
   bool do_onion;
+  /* Show only the onion skins of the active object. */
+  bool do_onion_only_active_object;
   /* Playing animation */
   bool playing;
   /* simplify settings */

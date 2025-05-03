@@ -844,7 +844,7 @@ static void make_duplis_font(const DupliContext *ctx)
   family_gh = BLI_ghash_int_new_ex(__func__, 256);
 
   /* Safety check even if it might fail badly when called for original object. */
-  const bool is_eval_curve = DEG_is_evaluated_id(&cu->id);
+  const bool is_eval_curve = DEG_is_evaluated(cu);
 
   /* Advance matching BLI_str_utf8_as_utf32. */
   for (a = 0; a < text_len; a++, ct++) {
@@ -856,7 +856,7 @@ static void make_duplis_font(const DupliContext *ctx)
 
     if (is_eval_curve) {
       /* Workaround for the above hack. */
-      ob = DEG_get_evaluated_object(ctx->depsgraph, ob);
+      ob = DEG_get_evaluated(ctx->depsgraph, ob);
     }
 
     if (ob) {
@@ -883,7 +883,7 @@ static void make_duplis_font(const DupliContext *ctx)
   }
 
   if (text_free) {
-    MEM_freeN((void *)text);
+    MEM_freeN(text);
   }
 
   BLI_ghash_free(family_gh, nullptr, nullptr);
@@ -1495,7 +1495,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
       }
 
-      oblist = MEM_calloc_arrayN<Object *>(size_t(totcollection), "dupcollection object list");
+      oblist = MEM_calloc_arrayN<Object *>(totcollection, "dupcollection object list");
 
       if (use_collection_count) {
         a = 0;
@@ -1813,7 +1813,7 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
   init_context(&ctx, depsgraph, sce, ob_eval, nullptr, instance_stack, dupli_gen_type_stack);
   ctx.duplilist = duplilist;
 
-  Object *ob_orig = DEG_get_original_object(ob_eval);
+  Object *ob_orig = DEG_get_original(ob_eval);
 
   LISTBASE_FOREACH (ModifierData *, md_orig, &ob_orig->modifiers) {
     if (md_orig->type != eModifierType_Nodes) {

@@ -218,7 +218,7 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_visible(Depsgraph *dep
   LISTBASE_FOREACH (Base *, base_eval, BKE_view_layer_object_bases_get(view_layer_eval)) {
     if (BASE_VISIBLE(v3d, base_eval)) {
       bool only_center = false;
-      Object *ob = DEG_get_original_object(base_eval->object);
+      Object *ob = DEG_get_original(base_eval->object);
       if (view3d_object_skip_minmax(v3d, rv3d, ob, skip_camera, &only_center)) {
         continue;
       }
@@ -317,8 +317,10 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
     {
       const std::optional<blender::Bounds<float3>> bounds = BKE_pose_minmax(ob_eval_iter, true);
       if (bounds) {
-        minmax_v3v3_v3(min, max, bounds->min);
-        minmax_v3v3_v3(min, max, bounds->max);
+        const blender::Bounds<float3> world_bounds = blender::bounds::transform_bounds(
+            ob_eval->object_to_world(), *bounds);
+        minmax_v3v3_v3(min, max, world_bounds.min);
+        minmax_v3v3_v3(min, max, world_bounds.max);
         changed = true;
       }
     }
@@ -350,7 +352,7 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
     LISTBASE_FOREACH (Base *, base_eval, BKE_view_layer_object_bases_get(view_layer_eval)) {
       if (BASE_SELECTED(v3d, base_eval)) {
         bool only_center = false;
-        Object *ob = DEG_get_original_object(base_eval->object);
+        Object *ob = DEG_get_original(base_eval->object);
         if (view3d_object_skip_minmax(v3d, rv3d, ob, skip_camera, &only_center)) {
           continue;
         }
@@ -386,7 +388,7 @@ bool view3d_calc_point_in_selected_bounds(Depsgraph *depsgraph,
       continue;
     }
     Object *ob = base->object;
-    BLI_assert(!DEG_is_original_id(&ob->id));
+    BLI_assert(!DEG_is_original(ob));
 
     float3 min, max;
     view3d_object_calc_minmax(depsgraph, scene, ob, false, min, max);

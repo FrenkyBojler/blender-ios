@@ -275,7 +275,7 @@ struct MeshNormalInfo {
     }
     if (custom_normal->data_type == CD_PROP_FLOAT3) {
       if (custom_normal->domain == bke::AttrDomain::Edge) {
-        /* Skip invalid storage on the edge domain.*/
+        /* Skip invalid storage on the edge domain. */
         this->add_no_custom_normals(mesh.normals_domain());
         return;
       }
@@ -998,8 +998,14 @@ static Map<StringRef, AttributeDomainAndType> gather_attributes_to_propagate(
       if (component_type != bke::GeometryComponent::Type::Instance &&
           dst_domain == AttrDomain::Instance)
       {
-        /* Instance attributes are realized on the point domain currently. */
-        dst_domain = AttrDomain::Point;
+        if (component_type == bke::GeometryComponent::Type::GreasePencil) {
+          /* For Grease Pencil, we want to propagate the instance attributes to the layers. */
+          dst_domain = AttrDomain::Layer;
+        }
+        else {
+          /* Other instance attributes are realized on the point domain currently. */
+          dst_domain = AttrDomain::Point;
+        }
       }
       auto add = [&](AttributeDomainAndType *kind) {
         kind->domain = dst_domain;
@@ -1041,9 +1047,9 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
 
 static void execute_instances_tasks(
     const Span<bke::GeometryComponentPtr> src_components,
-    Span<blender::float4x4> src_base_transforms,
-    OrderedAttributes all_instances_attributes,
-    Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
+    const Span<blender::float4x4> src_base_transforms,
+    const OrderedAttributes &all_instances_attributes,
+    const Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
     bke::GeometrySet &r_realized_geometry)
 {
   BLI_assert(src_components.size() == src_base_transforms.size() &&

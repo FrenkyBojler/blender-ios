@@ -340,7 +340,7 @@ endif()
 add_bundled_libraries(osl/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
-  find_package(Embree 3.8.0 REQUIRED)
+  find_package(Embree 4.0.0 REQUIRED)
 endif()
 add_bundled_libraries(embree/lib)
 
@@ -373,6 +373,10 @@ endif()
 
 if(WITH_HARU)
   find_package(Haru REQUIRED)
+endif()
+
+if(WITH_MANIFOLD)
+  find_package(manifold REQUIRED)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
@@ -427,8 +431,10 @@ string(APPEND PLATFORM_LINKFLAGS
 )
 
 if(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
-  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
+  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64" AND WITH_LEGACY_MACOS_X64_LINKER)
     # Silence "no platform load command found in <static library>, assuming: macOS".
+    #
+    # NOTE: Using ld_classic costs minutes of extra linking time.
     string(APPEND PLATFORM_LINKFLAGS " -Wl,-ld_classic")
   else()
     # Silence "ld: warning: ignoring duplicate libraries".
