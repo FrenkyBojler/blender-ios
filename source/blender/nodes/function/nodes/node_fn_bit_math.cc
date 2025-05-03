@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Foundation
+/* SPDX-FileCopyrightText: 2025 Blender Foundation
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -13,10 +13,12 @@
 
 #include "node_function_util.hh"
 
+static_assert(-1 == ~0, "Two's complement must be used for bitwise operations.");
+
 namespace blender::nodes::node_fn_bit_math_cc {
 
-constexpr static int max_shift = sizeof(int) * CHAR_BIT - 1;
-constexpr static int min_shift = -max_shift;
+constexpr static int32_t max_shift = sizeof(int32_t) * CHAR_BIT - 1;
+constexpr static int32_t min_shift = -max_shift;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -81,16 +83,16 @@ static void node_label(const bNodeTree * /*ntree*/, const bNode *node, char *lab
   BLI_strncpy(label, IFACE_(name), maxlen);
 }
 
-static inline unsigned int rotate_left(unsigned int n, unsigned int c)
+static inline uint32_t rotate_left(uint32_t n, uint32_t c)
 {
-  const unsigned int mask = (CHAR_BIT * sizeof(n) - 1);
+  const uint32_t mask = CHAR_BIT * sizeof(n) - 1;
   c &= mask;
   return (n << c) | (n >> ((-c) & mask));
 }
 
-static inline unsigned int rotate_right(unsigned int n, unsigned int c)
+static inline uint32_t rotate_right(uint32_t n, uint32_t c)
 {
-  const unsigned int mask = (CHAR_BIT * sizeof(n) - 1);
+  const uint32_t mask = CHAR_BIT * sizeof(n) - 1;
   c &= mask;
   return (n >> c) | (n << ((-c) & mask));
 }
@@ -110,8 +112,11 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
   static auto shift_fn = mf::build::SI2_SO<int, int, int>(
       "Shift",
       [](int a, int b) {
-        unsigned int u = *reinterpret_cast<unsigned int *>(&a);
-        const int shift = math::abs(math::clamp(b, min_shift, max_shift));
+        if (math::abs(b) > max_shift) {
+          return 0;
+        }
+        const int32_t shift = math::abs(b) % (sizeof(uint32_t) * CHAR_BIT);
+        uint32_t u = *reinterpret_cast<uint32_t *>(&a);
         u = b >= 0 ? (u << shift) : (u >> shift);
         return *reinterpret_cast<int *>(&u);
       },
@@ -119,8 +124,8 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
   static auto rotate_fn = mf::build::SI2_SO<int, int, int>(
       "Rotate",
       [](int a, int b) {
-        unsigned int u = *reinterpret_cast<unsigned int *>(&a);
-        unsigned int shift = math::abs(b) % (sizeof(unsigned int) * CHAR_BIT);
+        const uint32_t shift = math::abs(b) % (sizeof(uint32_t) * CHAR_BIT);
+        uint32_t u = *reinterpret_cast<uint32_t *>(&a);
         u = b >= 0 ? rotate_left(u, shift) : rotate_right(u, shift);
         return *reinterpret_cast<int *>(&u);
       },
