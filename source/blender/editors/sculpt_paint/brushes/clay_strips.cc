@@ -497,19 +497,14 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
   plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
   plane_center += plane_normal * ss.cache->scale * displace;
 
-  if (math::is_zero(ss.cache->grab_delta_symm)) {
-    /* The brush local matrix is degenerate: return an empty index mask. This happens on
-     * the first step of the stroke. */
+  if (math::is_zero(ss.cache->grab_delta_symm) || math::is_zero(plane_normal)) {
+    /* The brush local matrix is degenerate: return an empty index mask. */
     return {IndexMask(), plane_normal, plane_center};
   }
 
   const float4x4 mat = calc_local_matrix(brush, *ss.cache, plane_normal, plane_center, flip);
 
-  /* Calculate the node mask using both a box and a sphere test. The box test generally selects
-   * fewer nodes, but in very rare cases the local matrix is degenerate and causes the box test to
-   * select every leaf node. The sphere test is used as a safety net. */
-
-  const IndexMask box_plane_mask = bke::pbvh::search_nodes(
+  const IndexMask plane_mask = bke::pbvh::search_nodes(
       pbvh, memory, [&](const bke::pbvh::Node &node) {
         if (node_fully_masked_or_hidden(node)) {
           return false;
@@ -517,22 +512,7 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
         return node_in_box(mat, node.bounds());
       });
 
-  /* With a cube influence area, this brush needs slightly more than the radius.
-   *
-   * SQRT3 because the cube circumscribes the spherical brush area, so the current radius is equal
-   * to half of the length of a side of the cube. */
-  const float radius_squared = math::square(ss.cache->radius * math::numbers::sqrt3);
-  const IndexMask sphere_plane_mask = bke::pbvh::search_nodes(
-      pbvh, memory, [&](const bke::pbvh::Node &node) {
-        if (node_fully_masked_or_hidden(node)) {
-          return false;
-        }
-        return node_in_sphere(node, plane_center, radius_squared, use_original);
-      });
-
-  return {box_plane_mask.size() < sphere_plane_mask.size() ? box_plane_mask : sphere_plane_mask,
-          plane_center,
-          plane_normal};
+  return {plane_mask, plane_center, plane_normal};
 }
 }  // namespace clay_strips
 
