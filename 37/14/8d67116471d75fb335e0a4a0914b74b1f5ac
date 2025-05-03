@@ -1,2 +1,3 @@
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by pull request #137442, [4.4x backport] Fix: crash saving large WebP images
+Referenced by issue #128183, Silently failure to export large webp images
