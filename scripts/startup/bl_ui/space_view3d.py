@@ -6683,7 +6683,7 @@ class VIEW3D_PT_shading_color(Panel):
         layout = self.layout
         shading = VIEW3D_PT_shading.get_shading(context)
 
-        layout.row().label(text="Background Color")
+        layout.row().label(text="Background")
         layout.row().prop(shading, "background_type", expand=True)
         if shading.background_type == 'VIEWPORT':
             layout.row().prop(shading, "background_color", text="")
