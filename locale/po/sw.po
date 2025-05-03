@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'1f4cae0c4623')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"POT-Creation-Date: 2025-04-28 09:32+0000\n"
 "PO-Revision-Date: 2025-04-14 08:50+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -17619,6 +17619,10 @@ msgid "Camera near clipping distance"
 msgstr "Kamera karibu na umbali wa kunasa"
 
 
+msgid "Use internal text data-block"
+msgstr "Tumia kizuizi cha data ya maandishi ya ndani"
+
+
 msgid "Apparent size of the Camera object in the 3D View"
 msgstr "Ukubwa unaoonekana wa kitu cha Kamera katika Mwonekano wa 3D"
 
@@ -22071,6 +22075,22 @@ msgstr "Athari za Shader"
 
 msgid "Effects affecting display of object"
 msgstr "Athari zinazoathiri onyesho la kitu"
+
+
+msgid "Shadow Terminator Geometry Offset"
+msgstr "Kisimamishaji Kivuli cha Jiometri"
+
+
+msgid "Offset rays from the surface to reduce shadow terminator artifact on low poly geometry. Only affects triangles at grazing angles to light"
+msgstr "Kukabiliana na miale kutoka kwenye uso ili kupunguza vizalia vya kisimamisha kivuli kwenye jiometri ya aina nyingi ya chini."
+
+
+msgid "Shadow Terminator Shading Offset"
+msgstr "Kisimamisha Kivuli cha Kivuli cha Kivuli"
+
+
+msgid "Push the shadow terminator towards the light to hide artifacts on low poly geometry"
+msgstr "Sukuma kisimamisha kivuli kuelekea kwenye nuru ili kuficha mabaki kwenye jiometri ya aina nyingi ya chini"
 
 
 msgid "Display All Edges"
@@ -28724,40 +28744,20 @@ msgid "Editor menu containing buttons"
 msgstr "Menyu ya mhariri iliyo na vitufe"
 
 
-msgid "Select Linked"
-msgstr "Chagua Imeunganishwa"
+msgid "Show/Hide"
+msgstr "Onyesha/Ficha"
 
 
-msgid "Metaball"
-msgstr "Mpira wa miguu"
-
-
-msgid "Light"
-msgstr "Mwanga"
-
-
-msgid "Light Probe"
-msgstr "Uchunguzi wa Mwanga"
+msgid "Bone Collections"
+msgstr "Mikusanyo ya Mifupa"
 
 
 msgid "Apply"
 msgstr "Tumia"
 
 
-msgid "Show/Hide"
-msgstr "Onyesha/Ficha"
-
-
 msgid "Clean Up"
 msgstr "Safisha"
-
-
-msgid "Asset"
-msgstr "Mali"
-
-
-msgid "Bone Collections"
-msgstr "Mikusanyo ya Mifupa"
 
 
 msgid "Merge"
@@ -28766,6 +28766,10 @@ msgstr "Unganisha"
 
 msgid "Text"
 msgstr "Maandishi"
+
+
+msgid "Metaball"
+msgstr "Mpira wa miguu"
 
 
 msgid "Pivot Point"
@@ -28782,6 +28786,22 @@ msgstr "Kioo"
 
 msgid "Navigation"
 msgstr "Urambazaji"
+
+
+msgid "Select Linked"
+msgstr "Chagua Imeunganishwa"
+
+
+msgid "Light"
+msgstr "Mwanga"
+
+
+msgid "Light Probe"
+msgstr "Uchunguzi wa Mwanga"
+
+
+msgid "Asset"
+msgstr "Mali"
 
 
 msgid "Keyframe Insert Pie"
@@ -30829,16 +30849,8 @@ msgid "Method for calculating booleans"
 msgstr "Njia ya kuhesabu booleans"
 
 
-msgid "Simple solver for the best performance, without support for overlapping geometry"
-msgstr "Kitatuzi rahisi kwa utendakazi bora, bila usaidizi wa jiometri inayopishana"
-
-
 msgid "Exact"
 msgstr "Hasa"
-
-
-msgid "Advanced solver for the best result"
-msgstr "Kitatuzi cha hali ya juu kwa matokeo bora"
 
 
 msgid "Hole Tolerant"
@@ -37462,20 +37474,8 @@ msgid "Contrast Limit"
 msgstr "Kikomo cha Tofauti"
 
 
-msgid "How much to eliminate spurious edges to avoid artifacts (the larger value makes less active; the value 2.0, for example, means discard a detected edge if there is a neighboring edge that has 2.0 times bigger contrast than the current one)"
-msgstr "Ni kiasi gani cha kuondoa kingo za uwongo ili kuepuka vizalia vya programu (thamani kubwa hufanya isifanye kazi kidogo; thamani 2.0, kwa mfano, inamaanisha kutupa ukingo uliotambuliwa ikiwa kuna ukingo wa jirani ambao una tofauti kubwa mara 2.0 kuliko ya sasa)"
-
-
 msgid "Corner Rounding"
 msgstr "Kuzungusha Kona"
-
-
-msgid "How much sharp corners will be rounded"
-msgstr "Ni pembe ngapi zenye ncha kali zitazungushwa"
-
-
-msgid "Threshold to detect edges (smaller threshold makes more sensitive detection)"
-msgstr "Kizingiti cha kugundua kingo (kizingiti kidogo hufanya ugunduzi nyeti zaidi)"
 
 
 msgid "Bilateral Blur"
@@ -37649,10 +37649,6 @@ msgid "High"
 msgstr "Juu"
 
 
-msgid "Values higher than this setting are 100% opaque"
-msgstr "Thamani za juu kuliko mpangilio huu hazijafunuliwa kwa 100%."
-
-
 msgid "Algorithm"
 msgstr "Kanuni"
 
@@ -37677,10 +37673,6 @@ msgid "Low"
 msgstr "Chini"
 
 
-msgid "Values lower than this setting are 100% keyed"
-msgstr "Thamani za chini kuliko mpangilio huu zimewekwa 100%."
-
-
 msgid "Channel used to determine matte"
 msgstr "Chaneli inayotumika kubainisha matte"
 
@@ -37689,36 +37681,16 @@ msgid "Chroma Key"
 msgstr "Ufunguo wa Chroma"
 
 
-msgid "Alpha falloff"
-msgstr "Kuanguka kwa alfa"
-
-
 msgid "Lift"
 msgstr "Inua"
-
-
-msgid "Alpha lift"
-msgstr "Kiinua cha Alfa"
 
 
 msgid "Shadow Adjust"
 msgstr "Kurekebisha Kivuli"
 
 
-msgid "Adjusts the brightness of any shadows captured"
-msgstr "Hurekebisha mwangaza wa vivuli vyovyote vilivyotekwa"
-
-
-msgid "Tolerance below which colors will be considered as exact matches"
-msgstr "Uvumilivu ambao chini yake rangi zitazingatiwa kuwa zinazolingana kabisa"
-
-
 msgid "Acceptance"
 msgstr "Kukubalika"
-
-
-msgid "Tolerance for a color to be considered a keying color"
-msgstr "Uvumilivu wa rangi kuchukuliwa kuwa rangi muhimu"
 
 
 msgid "Color Balance"
@@ -37957,18 +37929,6 @@ msgid "H"
 msgstr "H"
 
 
-msgid "Hue tolerance for colors to be considered a keying color"
-msgstr "Uvumilivu wa hue kwa rangi kuchukuliwa kuwa rangi muhimu"
-
-
-msgid "Saturation tolerance for the color"
-msgstr "Uvumilivu wa kueneza kwa rangi"
-
-
-msgid "Value tolerance for the color"
-msgstr "Uvumilivu wa thamani kwa rangi"
-
-
 msgid "Color Spill"
 msgstr "Kumwagika kwa Rangi"
 
@@ -38005,28 +37965,8 @@ msgid "Average limit algorithm"
 msgstr "Kiwango cha wastani cha kanuni"
 
 
-msgid "Scale limit by value"
-msgstr "Kikomo cha kipimo kwa thamani"
-
-
-msgid "Blue spillmap scale"
-msgstr "Kipimo cha ramani ya samawati"
-
-
-msgid "Green spillmap scale"
-msgstr "Kipimo cha ramani ya kijani kibichi"
-
-
-msgid "Red spillmap scale"
-msgstr "Mizani nyekundu ya kumwagika"
-
-
 msgid "Unspill"
 msgstr "Ondoa"
-
-
-msgid "Compensate all channels (differently) by hand"
-msgstr "Fidia njia zote (tofauti) kwa mkono"
 
 
 msgid "Combine Color"
@@ -38301,45 +38241,21 @@ msgid "Process HDR images"
 msgstr "Chakata picha za HDR"
 
 
-msgid "Threshold for detecting pixels to despeckle"
-msgstr "Kizingiti cha kugundua saizi za kupunguka"
-
-
 msgid "Neighbor"
 msgstr "Jirani"
-
-
-msgid "Threshold for the number of neighbor pixels that must match"
-msgstr "Kizingiti cha idadi ya saizi za jirani ambazo lazima zilingane"
 
 
 msgid "Difference Key"
 msgstr "Ufunguo wa Tofauti"
 
 
-msgid "Color distances below this additional threshold are partially keyed"
-msgstr "Umbali wa rangi chini ya kizingiti hiki cha ziada umewekwa kwa sehemu"
-
-
-msgid "Color distances below this threshold are keyed"
-msgstr "Umbali wa rangi chini ya kizingiti hiki ni muhimu"
-
-
 msgid "Dilate/Erode"
 msgstr "Panua/Orodhesha"
-
-
-msgid "Distance to grow/shrink (number of iterations)"
-msgstr "Umbali wa kukua/kupungua (idadi ya marudio)"
 
 
 msgctxt "Image"
 msgid "Edge"
 msgstr "Ukingo"
-
-
-msgid "Edge to inset"
-msgstr "Ukingo wa kuingiza"
 
 
 msgid "Growing/shrinking mode"
@@ -38478,14 +38394,6 @@ msgid "ID Mask"
 msgstr "Kinyago cha kitambulisho"
 
 
-msgid "Pass index number to convert to alpha"
-msgstr "Pitisha nambari ya faharasa ili kubadilisha kuwa alpha"
-
-
-msgid "Apply an anti-aliasing filter to the mask"
-msgstr "Weka kichujio cha kuzuia kutengwa kwa mask"
-
-
 msgid "Straight Alpha Output"
 msgstr "Pato Sahihi la Alpha"
 
@@ -38502,10 +38410,6 @@ msgid "Inpaint"
 msgstr "Rangi"
 
 
-msgid "Distance to inpaint (number of iterations)"
-msgstr "Umbali hadi kupaka rangi (idadi ya marudio)"
-
-
 msgid "Invert Color"
 msgstr "Geuza Rangi"
 
@@ -38514,76 +38418,32 @@ msgid "Post Blur"
 msgstr "Ukungu wa Chapisho"
 
 
-msgid "Matte blur size which applies after clipping and dilate/eroding"
-msgstr "Ukubwa wa ukungu wa Matte ambao hutumika baada ya kukatwa na kupanua/kumomonyoka"
-
-
 msgid "Pre Blur"
 msgstr "Ukungu wa Kabla"
-
-
-msgid "Chroma pre-blur size which applies before running keyer"
-msgstr "Ukubwa wa ukungu wa awali wa Chroma ambao hutumika kabla ya kuendesha keyyer"
 
 
 msgid "Clip Black"
 msgstr "Klipu Nyeusi"
 
 
-msgid "Value of non-scaled matte pixel which considers as fully background pixel"
-msgstr "Thamani ya pikseli matte isiyo na mizani ambayo inachukuliwa kuwa pikseli ya mandharinyuma kikamilifu"
-
-
 msgid "Clip White"
 msgstr "Klipu Nyeupe"
-
-
-msgid "Value of non-scaled matte pixel which considers as fully foreground pixel"
-msgstr "Thamani ya pikseli matte isiyo na mizani ambayo inachukuliwa kuwa pikseli ya mandhari ya mbele kabisa"
 
 
 msgid "Despill Balance"
 msgstr "Ondoa Mizani"
 
 
-msgid "Balance between non-key colors used to detect amount of key color to be removed"
-msgstr "Usawa kati ya rangi zisizo za ufunguo zinazotumiwa kutambua kiasi cha rangi muhimu ya kuondolewa"
-
-
-msgid "Factor of despilling screen color from image"
-msgstr "Sababu ya kuharibu rangi ya skrini kutoka kwa picha"
-
-
-msgid "Distance to grow/shrink the matte"
-msgstr "Umbali wa kukua/kupunguza matte"
-
-
-msgid "Radius of kernel used to detect whether pixel belongs to edge"
-msgstr "Radius ya kernel ilitumika kugundua ikiwa pikseli ni ya ukingo"
-
-
 msgid "Edge Kernel Tolerance"
 msgstr "Uvumilivu wa Kernel ya Edge"
-
-
-msgid "Tolerance to pixels inside kernel which are treating as belonging to the same plane"
-msgstr "Uvumilivu kwa saizi ndani ya kernel ambayo inachukuliwa kuwa ya ndege moja."
 
 
 msgid "Feather Distance"
 msgstr "Umbali wa Manyoya"
 
 
-msgid "Distance to grow/shrink the feather"
-msgstr "Umbali wa kukuza/kupunguza manyoya"
-
-
 msgid "Screen Balance"
 msgstr "Mizani ya Skrini"
-
-
-msgid "Balance between two non-primary channels primary channel is comparing against"
-msgstr "Usawa kati ya njia mbili zisizo za msingi chaneli ya msingi inalinganishwa dhidi ya"
 
 
 msgid "Keying Screen"
@@ -38666,6 +38526,14 @@ msgid "Luminance Key"
 msgstr "Ufunguo wa Mwangaza"
 
 
+msgid "Values higher than this setting are 100% opaque"
+msgstr "Thamani za juu kuliko mpangilio huu hazijafunuliwa kwa 100%."
+
+
+msgid "Values lower than this setting are 100% keyed"
+msgstr "Thamani za chini kuliko mpangilio huu zimewekwa 100%."
+
+
 msgid "Map Range"
 msgstr "Msururu wa Ramani"
 
@@ -38695,14 +38563,6 @@ msgid "Use Minimum"
 msgstr "Tumia Kima cha Chini"
 
 
-msgid "Number of motion blur samples"
-msgstr "Idadi ya sampuli za ukungu wa mwendo"
-
-
-msgid "Exposure for motion blur as a factor of FPS"
-msgstr "Mfiduo kwa ukungu wa mwendo kama kipengele cha FPS"
-
-
 msgid "Size Source"
 msgstr "Chanzo cha Ukubwa"
 
@@ -38727,16 +38587,8 @@ msgid "Pixel size scaled by scene percentage"
 msgstr "Ukubwa wa pikseli hupimwa kwa asilimia ya eneo"
 
 
-msgid "Use feather information from the mask"
-msgstr "Tumia maelezo ya manyoya kutoka kwenye barakoa"
-
-
 msgid "Motion Blur"
 msgstr "Ukungu wa Mwendo"
-
-
-msgid "Use multi-sampled motion blur of the mask"
-msgstr "Tumia ukungu wa mwendo wa sampuli nyingi za kinyago"
 
 
 msgid "Perform math operations"
@@ -39085,10 +38937,6 @@ msgid "Pixel Size"
 msgstr "Ukubwa wa Pixel"
 
 
-msgid "Pixel size of the output image"
-msgstr "Ukubwa wa pikseli ya picha ya pato"
-
-
 msgid "Plane Track Deform"
 msgstr "Urekebishaji wa Wimbo wa Ndege"
 
@@ -39193,10 +39041,6 @@ msgid "Method to use to filter stabilization"
 msgstr "Njia ya kutumia kuchuja uimarishaji"
 
 
-msgid "Invert stabilization to re-introduce motion to the frame"
-msgstr "Geuza uthabiti ili kutambulisha tena mwendo kwenye fremu"
-
-
 msgid "Sun Beams"
 msgstr "Miale ya Jua"
 
@@ -39217,10 +39061,6 @@ msgid "Switch"
 msgstr "Badili"
 
 
-msgid "Off: first socket, On: second socket"
-msgstr "Zima: soketi ya kwanza, Imewashwa: tundu la pili"
-
-
 msgid "Switch View"
 msgstr "Badili Mwonekano"
 
@@ -39239,22 +39079,6 @@ msgstr "Mviringo wa Wakati"
 
 msgid "Adaptation"
 msgstr "Kubadilika"
-
-
-msgid "Set to 0 to use estimate from input image"
-msgstr "Weka hadi 0 ili kutumia makadirio kutoka kwa taswira ya ingizo"
-
-
-msgid "If not used, set to 1"
-msgstr "Ikiwa haijatumika, weka 1"
-
-
-msgid "The value the average luminance is mapped to"
-msgstr "Thamani ambayo mwangaza wa wastani umepangwa"
-
-
-msgid "Normally always 1, but can be used as an extra control to alter the brightness curve"
-msgstr "Kwa kawaida kila mara 1, lakini inaweza kutumika kama kidhibiti cha ziada ili kubadilisha curve ya mwangaza."
 
 
 msgid "Tonemap Type"
@@ -39349,28 +39173,12 @@ msgid "Blur Factor"
 msgstr "Kipengele cha Ukungu"
 
 
-msgid "Scaling factor for motion vectors (actually, 'shutter speed', in frames)"
-msgstr "Kipengele cha kuongeza vidhibiti vya mwendo (kwa kweli, 'kasi ya shutter', katika fremu)"
-
-
 msgid "Max Speed"
 msgstr "Kasi ya Juu"
 
 
-msgid "Maximum speed, or zero for none"
-msgstr "Kasi ya juu zaidi, au sifuri kwa hakuna"
-
-
 msgid "Min Speed"
 msgstr "Kasi ndogo"
-
-
-msgid "Minimum speed for a pixel to be blurred (used to separate background from foreground)"
-msgstr "Kiwango cha chini cha kasi ya pikseli kutiwa ukungu (inatumika kutenganisha mandharinyuma na mandhari ya mbele)"
-
-
-msgid "Interpolate between frames in a Bézier curve, rather than linearly"
-msgstr "Ingiza kati ya viunzi katika mkunjo wa Bézier, badala ya kimstari"
 
 
 msgid "Viewer"
@@ -39381,16 +39189,8 @@ msgid "Z Combine"
 msgstr "Z Unganisha"
 
 
-msgid "Take alpha channel into account when doing the Z operation"
-msgstr "Zingatia kituo cha alpha unapofanya operesheni ya Z"
-
-
 msgid "Anti-Alias Z"
 msgstr "Anti-Alias Z"
-
-
-msgid "Anti-alias the z-buffer to try to avoid artifacts, mostly useful for Blender renders"
-msgstr "Anti-alias the z-buffer kujaribu kuzuia mabaki, muhimu zaidi kwa Blender renders"
 
 
 msgid "Function Node"
@@ -42331,10 +42131,6 @@ msgstr "Njia ya hati ya Shader"
 
 msgid "Script Source"
 msgstr "Chanzo cha Hati"
-
-
-msgid "Use internal text data-block"
-msgstr "Tumia kizuizi cha data ya maandishi ya ndani"
 
 
 msgid "Use external .osl or .oso file"
@@ -57786,14 +57582,6 @@ msgid "Which Intersect solver to use"
 msgstr "Kisuluhishi kipi cha Intersect cha kutumia"
 
 
-msgid "Faster solver, some limitations"
-msgstr "Kitatuzi cha haraka, mapungufu kadhaa"
-
-
-msgid "Exact solver, slower, handles more cases"
-msgstr "Kitatuzi halisi, polepole, hushughulikia kesi nyingi zaidi"
-
-
 msgid "Cut solid geometry from selected to unselected"
 msgstr "Kata jiometri thabiti kutoka iliyochaguliwa hadi isiyochaguliwa"
 
@@ -57808,6 +57596,14 @@ msgstr "Ni operesheni gani ya boolean itatumika"
 
 msgid "Which Boolean solver to use"
 msgstr "Kifumbuzi kipi cha Boolean cha kutumia"
+
+
+msgid "Faster solver, some limitations"
+msgstr "Kitatuzi cha haraka, mapungufu kadhaa"
+
+
+msgid "Exact solver, slower, handles more cases"
+msgstr "Kitatuzi halisi, polepole, hushughulikia kesi nyingi zaidi"
 
 
 msgid "Do self-union or self-intersection"
@@ -59332,15 +59128,6 @@ msgstr "Umbali ambao wima zinazolingana hutafutwa"
 
 msgid "Snap middle vertices to the axis center"
 msgstr "Piga wima katikati hadi katikati ya mhimili"
-
-
-msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Safari hadi Quads"
-
-
-msgid "Join triangles into quads"
-msgstr "Unganisha pembetatu kuwa quadi"
 
 
 msgctxt "Operator"
@@ -73528,6 +73315,14 @@ msgid "Operator that allows file handlers to receive file drops"
 msgstr "Opereta ambayo inaruhusu vidhibiti vya faili kupokea matone ya faili"
 
 
+msgid "Vertex colors in the file are in sRGB color space"
+msgstr "Rangi za Vertex kwenye faili ziko kwenye nafasi ya rangi ya sRGB"
+
+
+msgid "Vertex colors in the file are in linear color space"
+msgstr "Rangi za kipeo kwenye faili ziko katika nafasi ya rangi ya mstari"
+
+
 msgctxt "Operator"
 msgid "Export to PDF"
 msgstr "Hamisha kwa PDF"
@@ -73932,14 +73727,6 @@ msgstr "Hamisha Rangi za Kipeo"
 
 msgid "Do not import/export color attributes"
 msgstr "Usiingize/uhamishe sifa za rangi"
-
-
-msgid "Vertex colors in the file are in sRGB color space"
-msgstr "Rangi za Vertex kwenye faili ziko kwenye nafasi ya rangi ya sRGB"
-
-
-msgid "Vertex colors in the file are in linear color space"
-msgstr "Rangi za kipeo kwenye faili ziko katika nafasi ya rangi ya mstari"
 
 
 msgid "Export Vertex Normals"
@@ -75736,34 +75523,6 @@ msgid "Panel containing UI elements"
 msgstr "Paneli iliyo na vipengele vya UI"
 
 
-msgid "Quad View"
-msgstr "Mtazamo wa Quad"
-
-
-msgid "Multi Frame"
-msgstr "Fremu nyingi"
-
-
-msgid "Auto-Masking"
-msgstr "Kufunika Masking Kiotomatiki"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Mchoro wa Mikunjo Ongeza Chaguzi za Mviringo"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Curves Sculpt Parameta Falloff"
-
-
-msgid "Viewport Debug"
-msgstr "Utatuzi wa kituo cha kutazama"
-
-
-msgid "Drawing Plane"
-msgstr "Ndege ya Kuchora"
-
-
 msgid "View Lock"
 msgstr "Kufuli ya Tazama"
 
@@ -75820,12 +75579,36 @@ msgid "Stroke Placement"
 msgstr "Uwekaji wa Kiharusi"
 
 
+msgid "Drawing Plane"
+msgstr "Ndege ya Kuchora"
+
+
+msgid "Quad View"
+msgstr "Mtazamo wa Quad"
+
+
+msgid "Multi Frame"
+msgstr "Fremu nyingi"
+
+
+msgid "Auto-Masking"
+msgstr "Kufunika Masking Kiotomatiki"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Mchoro wa Mikunjo Ongeza Chaguzi za Mviringo"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Curves Sculpt Parameta Falloff"
+
+
+msgid "Viewport Debug"
+msgstr "Utatuzi wa kituo cha kutazama"
+
+
 msgid "Fast GI Approximation"
 msgstr "Ukadiriaji wa GI wa Haraka"
-
-
-msgid "Shadow Terminator"
-msgstr "Terminator Kivuli"
 
 
 msgid "Ray Visibility"
@@ -75999,6 +75782,10 @@ msgstr "Tiles za UDIM"
 
 msgid "Shadow Linking"
 msgstr "Kuunganisha Kivuli"
+
+
+msgid "Shadow Terminator"
+msgstr "Terminator Kivuli"
 
 
 msgid "Collisions"
@@ -78090,14 +77877,6 @@ msgstr "Zana Mpya za Curves"
 
 msgid "Enable additional features for the new curves data block"
 msgstr "Washa vipengele vya ziada kwa kizuizi kipya cha data cha curves"
-
-
-msgid "New Point Cloud Type"
-msgstr "Aina Mpya ya Wingu la Pointi"
-
-
-msgid "Enable the new point cloud type in the ui"
-msgstr "Washa aina mpya ya wingu ya nukta kwenye ui"
 
 
 msgid "New Volume Nodes"
@@ -80405,22 +80184,6 @@ msgid "Control accuracy of motion blur, more steps gives more memory usage (actu
 msgstr "Kudhibiti usahihi wa ukungu wa mwendo, hatua zaidi hutoa utumiaji zaidi wa kumbukumbu (idadi halisi ya hatua ni 2^(hatua - 1))"
 
 
-msgid "Shadow Terminator Geometry Offset"
-msgstr "Kisimamishaji Kivuli cha Jiometri"
-
-
-msgid "Offset rays from the surface to reduce shadow terminator artifact on low poly geometry. Only affects triangles at grazing angles to light"
-msgstr "Kukabiliana na miale kutoka kwenye uso ili kupunguza vizalia vya kisimamisha kivuli kwenye jiometri ya aina nyingi ya chini."
-
-
-msgid "Shadow Terminator Shading Offset"
-msgstr "Kisimamisha Kivuli cha Kivuli cha Kivuli"
-
-
-msgid "Push the shadow terminator towards the light to hide artifacts on low poly geometry"
-msgstr "Sukuma kisimamisha kivuli kuelekea kwenye nuru ili kuficha mabaki kwenye jiometri ya aina nyingi ya chini"
-
-
 msgid "Use Adaptive Subdivision"
 msgstr "Tumia Kigawanyo Kinachobadilika"
 
@@ -82471,22 +82234,6 @@ msgstr "Utiaji Muhtasari wa Onyesho la Kufuatilia Kifuatiliaji"
 
 msgid "Display method used in the sequencer view"
 msgstr "Mbinu ya onyesho inayotumika katika mwonekano wa mpangilio"
-
-
-msgid "Display the object as wire edges"
-msgstr "Onyesha kitu kama kingo za waya"
-
-
-msgid "Display in solid mode"
-msgstr "Onyesha katika hali thabiti"
-
-
-msgid "Display in Material Preview mode"
-msgstr "Onyesha katika hali ya Onyesho la Kuchungulia Nyenzo"
-
-
-msgid "Display render preview"
-msgstr "Onyesha onyesha onyesho la kukagua"
 
 
 msgid "Simplify Child Particles"
@@ -88565,6 +88312,22 @@ msgstr "Kirekebishaji cha kusahihisha hue kwa ukanda wa mfuatano"
 
 msgid "Tone mapping modifier"
 msgstr "Kirekebishaji cha ramani ya toni"
+
+
+msgid "Set to 0 to use estimate from input image"
+msgstr "Weka hadi 0 ili kutumia makadirio kutoka kwa taswira ya ingizo"
+
+
+msgid "If not used, set to 1"
+msgstr "Ikiwa haijatumika, weka 1"
+
+
+msgid "The value the average luminance is mapped to"
+msgstr "Thamani ambayo mwangaza wa wastani umepangwa"
+
+
+msgid "Normally always 1, but can be used as an extra control to alter the brightness curve"
+msgstr "Kwa kawaida kila mara 1, lakini inaweza kutumika kama kidhibiti cha ziada ili kubadilisha curve ya mwangaza."
 
 
 msgid "Tone mapping algorithm"
@@ -96240,14 +96003,6 @@ msgid "Focus on Object"
 msgstr "Zingatia Kitu"
 
 
-msgid "Geometry Offset"
-msgstr "Kukabiliana na Jiometri"
-
-
-msgid "Shading Offset"
-msgstr "Kuweka Kivuli"
-
-
 msgid "Show In"
 msgstr "Onyesha Ndani"
 
@@ -98284,6 +98039,10 @@ msgid "Override Crease"
 msgstr "Batilisha Crease"
 
 
+msgid "Geometry Offset"
+msgstr "Kukabiliana na Jiometri"
+
+
 msgid "All Edges"
 msgstr "Mipaka yote"
 
@@ -98294,6 +98053,10 @@ msgstr "Pangilia kwa Kipeo cha Kawaida"
 
 msgid "Show Instancer"
 msgstr "Onyesha Kisakinishi"
+
+
+msgid "Shading Offset"
+msgstr "Kuweka Kivuli"
 
 
 msgctxt "Time"
@@ -100534,11 +100297,6 @@ msgstr "Mfano kwa Onyesho"
 
 
 msgctxt "Operator"
-msgid "ID Data"
-msgstr "Data ya kitambulisho"
-
-
-msgctxt "Operator"
 msgid "Paste Data-Blocks"
 msgstr "Bandika Vitalu vya Data"
 
@@ -101850,6 +101608,11 @@ msgstr "Tupu"
 
 
 msgctxt "Operator"
+msgid "Point Cloud"
+msgstr "Wingu la uhakika"
+
+
+msgctxt "Operator"
 msgid "Speaker"
 msgstr "Msemaji"
 
@@ -102466,11 +102229,6 @@ msgstr "Block Iliyopita"
 msgctxt "Operator"
 msgid "Next Block"
 msgstr "Block Inayofuata"
-
-
-msgctxt "Operator"
-msgid "Point Cloud"
-msgstr "Wingu la uhakika"
 
 
 msgctxt "Operator"
@@ -109991,10 +109749,6 @@ msgid " Named Attributes"
 msgstr " Sifa Zilizotajwa"
 
 
-msgid "Text not used by any node, no update done"
-msgstr "Maandishi hayatumiwi na nodi yoyote, hakuna sasisho lililofanywa"
-
-
 msgid "Not inside node group"
 msgstr "Sio ndani ya kikundi cha nodi"
 
@@ -110613,6 +110367,10 @@ msgstr "Python imezimwa katika muundo huu"
 
 msgid "File path property not set"
 msgstr "Sifa ya njia ya faili haijawekwa"
+
+
+msgid "Text not used by any node, no update done"
+msgstr "Maandishi hayatumiwi na nodi yoyote, hakuna sasisho lililofanywa"
 
 
 msgid "No file path for \"%s\""
@@ -111736,10 +111494,6 @@ msgstr "Isipokuwa ni tukio la kutumia ndoano ya USD '%s'"
 
 msgid "%s: Error: Couldn't get input socket %s for node %s"
 msgstr "%s: Hitilafu: Haikuweza kupata soketi ya kuingiza %s ya nodi %s"
-
-
-msgid "%s: Couldn't create SH_NODE_MAPPING for node input %s"
-msgstr "%s: Haikuweza kuunda SH_NODE_MAPPING kwa uingizaji wa nodi %s"
 
 
 msgid "USD Import: UV attribute value '%s' count inconsistent with interpolation type"
@@ -113249,10 +113003,6 @@ msgid "Cannot execute, intersect only available using exact solver"
 msgstr "Haiwezi kutekeleza, pita kati inapatikana tu kwa kutumia kisuluhishi halisi"
 
 
-msgid "Cannot execute, fast solver and empty collection"
-msgstr "Haiwezi kutekeleza, kisuluhishi cha haraka na mkusanyiko tupu"
-
-
 msgid "Cannot execute, the selected collection contains non mesh objects"
 msgstr "Haiwezi kutekeleza, mkusanyiko uliochaguliwa una vitu visivyo vya matundu"
 
@@ -114035,6 +113785,22 @@ msgid "To Max"
 msgstr "Hadi Max"
 
 
+msgid "Use feather information from the mask"
+msgstr "Tumia maelezo ya manyoya kutoka kwenye barakoa"
+
+
+msgid "Use multi-sampled motion blur of the mask"
+msgstr "Tumia ukungu wa mwendo wa sampuli nyingi za kinyago"
+
+
+msgid "Number of motion blur samples"
+msgstr "Idadi ya sampuli za ukungu wa mwendo"
+
+
+msgid "Exposure for motion blur as a factor of FPS"
+msgstr "Mfiduo kwa ukungu wa mwendo kama kipengele cha FPS"
+
+
 msgid "Offset Y"
 msgstr "Kupunguza Y"
 
@@ -114178,10 +113944,6 @@ msgstr "Mara ngapi ya kutia ukungu thamani za vipengele vyote"
 
 msgid "Relative mix weight of neighboring elements"
 msgstr "Uzito wa mchanganyiko wa vitu vya jirani"
-
-
-msgid "Disabled, Blender was compiled without GMP"
-msgstr "Imezimwa, Blender iliundwa bila GMP"
 
 
 msgid "Mesh 1"
@@ -117051,10 +116813,6 @@ msgstr "Nyongeza Zote Zimesakinishwa na Mtumiaji"
 
 msgid "Import-Export"
 msgstr "Leta-Hamisha"
-
-
-msgid "English (English)"
-msgstr "Kiingereza (Kiingereza)"
 
 
 msgid "Japanese (日本語)"

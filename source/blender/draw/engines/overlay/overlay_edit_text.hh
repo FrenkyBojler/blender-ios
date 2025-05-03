@@ -31,7 +31,10 @@ class EditText : Overlay {
 
   LinePrimitiveBuf box_line_buf_;
 
+  /** A solid quad. */
   gpu::Batch *quad = nullptr;
+  /** A wire quad. */
+  gpu::Batch *quad_wire = nullptr;
 
  public:
   EditText(SelectionType selection_type) : box_line_buf_(selection_type, "box_line_buf_") {}
@@ -46,6 +49,7 @@ class EditText : Overlay {
     }
 
     quad = res.shapes.quad_solid.get();
+    quad_wire = res.shapes.quad_wire.get();
 
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
@@ -199,7 +203,12 @@ class EditText : Overlay {
     float4x4 mat;
     v2_quad_corners_to_mat4(cursor, mat);
     ResourceHandle res_handle = manager.resource_handle(ob_to_world * mat);
+
     cursor_ps_->draw(quad, res_handle);
+
+    /* Draw both wire and solid so the cursor is always at least with width of a line,
+     * otherwise it may become invisible, see: #137940. */
+    cursor_ps_->draw(quad_wire, res_handle);
   }
 
   void add_boxes(const Resources &res, const Curve &cu, const float4x4 &ob_to_world)
@@ -207,8 +216,7 @@ class EditText : Overlay {
     for (const int i : IndexRange(cu.totbox)) {
       const TextBox &tb = cu.tb[i];
       const bool is_active = (i == (cu.actbox - 1));
-      const float4 &color = is_active ? res.theme_settings.color_active :
-                                        res.theme_settings.color_wire;
+      const float4 &color = is_active ? res.theme.colors.active_object : res.theme.colors.wire;
 
       if ((tb.w != 0.0f) || (tb.h != 0.0f)) {
         const float3 top_left = float3(cu.xof + tb.x, cu.yof + tb.y + cu.fsize_realtime, 0.001);

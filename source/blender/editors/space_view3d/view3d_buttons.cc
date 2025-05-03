@@ -293,8 +293,7 @@ static void apply_scale_factor_clamp(float *val,
 static TransformProperties *v3d_transform_props_ensure(View3D *v3d)
 {
   if (v3d->runtime.properties_storage == nullptr) {
-    TransformProperties *tfp = static_cast<TransformProperties *>(
-        MEM_callocN(sizeof(TransformProperties), "TransformProperties"));
+    TransformProperties *tfp = MEM_new<TransformProperties>("TransformProperties");
     /* Construct C++ structures in otherwise zero initialized struct. */
     new (tfp) TransformProperties();
 
@@ -1461,13 +1460,13 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 
     UI_block_func_handle_set(block, do_view3d_vgroup_buttons, nullptr);
 
-    bcol = uiLayoutColumn(panel->layout, true);
-    row = uiLayoutRow(bcol, true); /* The filter button row */
+    bcol = &panel->layout->column(true);
+    row = &bcol->row(true); /* The filter button row */
 
     PointerRNA tools_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ToolSettings, ts);
     uiItemR(row, &tools_ptr, "vertex_group_subset", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-    col = uiLayoutColumn(bcol, true);
+    col = &bcol->column(true);
 
     vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
         ob, subset_type, &vgroup_tot, &subset_count);
@@ -1483,7 +1482,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           int x, xco = 0;
           int icon;
           uiLayout *split = uiLayoutSplit(col, 0.45, true);
-          row = uiLayoutRow(split, true);
+          row = &split->row(true);
 
           /* The Weight Group Name */
 
@@ -1506,7 +1505,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           }
           xco += x;
 
-          row = uiLayoutRow(split, true);
+          row = &split->row(true);
           uiLayoutSetEnabled(row, !locked);
 
           /* The weight group value */
@@ -1562,12 +1561,12 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
         }
       }
     }
-    MEM_freeN((void *)vgroup_validmap);
+    MEM_freeN(vgroup_validmap);
 
     yco -= 2;
 
-    col = uiLayoutColumn(panel->layout, true);
-    row = uiLayoutRow(col, true);
+    col = &panel->layout->column(true);
+    row = &col->row(true);
 
     ot = WM_operatortype_find("OBJECT_OT_vertex_weight_normalize_active_vertex", true);
     but = uiDefButO_ptr(
@@ -1614,9 +1613,9 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
     bone = static_cast<Bone *>(boneptr.data);
     uiLayoutSetActive(split, !(bone->parent && bone->flag & BONE_CONNECTED));
   }
-  colsub = uiLayoutColumn(split, true);
+  colsub = &split->column(true);
   uiItemR(colsub, ptr, "location", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  colsub = uiLayoutColumn(split, true);
+  colsub = &split->column(true);
   uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
   uiItemL(colsub, "", ICON_NONE);
   uiItemR(colsub,
@@ -1630,9 +1629,9 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
 
   switch (RNA_enum_get(ptr, "rotation_mode")) {
     case ROT_MODE_QUAT: /* quaternion */
-      colsub = uiLayoutColumn(split, true);
+      colsub = &split->column(true);
       uiItemR(colsub, ptr, "rotation_quaternion", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
-      colsub = uiLayoutColumn(split, true);
+      colsub = &split->column(true);
       uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
       uiItemR(colsub, ptr, "lock_rotations_4d", UI_ITEM_R_TOGGLE, IFACE_("4L"), ICON_NONE);
       if (RNA_boolean_get(ptr, "lock_rotations_4d")) {
@@ -1654,9 +1653,9 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
               ICON_DECORATE_UNLOCKED);
       break;
     case ROT_MODE_AXISANGLE: /* axis angle */
-      colsub = uiLayoutColumn(split, true);
+      colsub = &split->column(true);
       uiItemR(colsub, ptr, "rotation_axis_angle", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
-      colsub = uiLayoutColumn(split, true);
+      colsub = &split->column(true);
       uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
       uiItemR(colsub, ptr, "lock_rotations_4d", UI_ITEM_R_TOGGLE, IFACE_("4L"), ICON_NONE);
       if (RNA_boolean_get(ptr, "lock_rotations_4d")) {
@@ -1678,9 +1677,9 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
               ICON_DECORATE_UNLOCKED);
       break;
     default: /* euler rotations */
-      colsub = uiLayoutColumn(split, true);
+      colsub = &split->column(true);
       uiItemR(colsub, ptr, "rotation_euler", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
-      colsub = uiLayoutColumn(split, true);
+      colsub = &split->column(true);
       uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
       uiItemL(colsub, "", ICON_NONE);
       uiItemR(colsub,
@@ -1694,9 +1693,9 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
   uiItemR(layout, ptr, "rotation_mode", UI_ITEM_NONE, "", ICON_NONE);
 
   split = uiLayoutSplit(layout, 0.8f, false);
-  colsub = uiLayoutColumn(split, true);
+  colsub = &split->column(true);
   uiItemR(colsub, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  colsub = uiLayoutColumn(split, true);
+  colsub = &split->column(true);
   uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
   uiItemL(colsub, "", ICON_NONE);
   uiItemR(colsub,
@@ -1721,7 +1720,7 @@ static void v3d_posearmature_buts(uiLayout *layout, Object *ob)
 
   PointerRNA pchanptr = RNA_pointer_create_discrete(&ob->id, &RNA_PoseBone, pchan);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
 
   /* XXX: RNA buts show data in native types (i.e. quaternion, 4-component axis/angle, etc.)
    * but old-school UI shows in eulers always. Do we want to be able to still display in Eulers?
@@ -1744,7 +1743,7 @@ static void v3d_editarmature_buts(uiLayout *layout, Object *ob)
 
   PointerRNA eboneptr = RNA_pointer_create_discrete(&arm->id, &RNA_EditBone, ebone);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, &eboneptr, "head", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (ebone->parent && ebone->flag & BONE_CONNECTED) {
     PointerRNA parptr = RNA_pointer_get(&eboneptr, "parent");
@@ -1774,7 +1773,7 @@ static void v3d_editmetaball_buts(uiLayout *layout, Object *ob)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&mball->id, &RNA_MetaElement, mball->lastelem);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, &ptr, "co", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemR(col, &ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1782,7 +1781,7 @@ static void v3d_editmetaball_buts(uiLayout *layout, Object *ob)
 
   uiItemR(col, &ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   switch (RNA_enum_get(&ptr, "type")) {
     case MB_BALL:
       break;
@@ -1862,7 +1861,7 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
   block = uiLayoutGetBlock(panel->layout);
   UI_block_func_handle_set(block, do_view3d_region_buttons, nullptr);
 
-  col = uiLayoutColumn(panel->layout, false);
+  col = &panel->layout->column(false);
 
   if (ob == obedit) {
     if (ob->type == OB_ARMATURE) {
@@ -1901,7 +1900,7 @@ void view3d_buttons_register(ARegionType *art)
 {
   PanelType *pt;
 
-  pt = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), "spacetype view3d panel object"));
+  pt = MEM_callocN<PanelType>("spacetype view3d panel object");
   STRNCPY(pt->idname, "VIEW3D_PT_transform");
   STRNCPY(pt->label, N_("Transform")); /* XXX C panels unavailable through RNA bpy.types! */
   STRNCPY(pt->category, "Item");
@@ -1910,7 +1909,7 @@ void view3d_buttons_register(ARegionType *art)
   pt->poll = view3d_panel_transform_poll;
   BLI_addtail(&art->paneltypes, pt);
 
-  pt = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), "spacetype view3d panel vgroup"));
+  pt = MEM_callocN<PanelType>("spacetype view3d panel vgroup");
   STRNCPY(pt->idname, "VIEW3D_PT_vgroup");
   STRNCPY(pt->label, N_("Vertex Weights")); /* XXX C panels unavailable through RNA bpy.types! */
   STRNCPY(pt->category, "Item");
@@ -1921,7 +1920,7 @@ void view3d_buttons_register(ARegionType *art)
 
   MenuType *mt;
 
-  mt = static_cast<MenuType *>(MEM_callocN(sizeof(MenuType), "spacetype view3d menu collections"));
+  mt = MEM_callocN<MenuType>("spacetype view3d menu collections");
   STRNCPY(mt->idname, "VIEW3D_MT_collection");
   STRNCPY(mt->label, N_("Collection"));
   STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
