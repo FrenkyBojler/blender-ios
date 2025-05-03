@@ -619,12 +619,16 @@ class Preprocessor {
   std::string variable_reference_mutation(const std::string &str, report_callback report_error)
   {
     std::string out = str;
+    /* WORKAROUND: Allow to get the whole prefix and not only the part between matches. */
+    std::string total_prefix;
     /* Example: `const float &var = value;` */
     std::regex regex(R"((?:const)?\s*\w+\s+\&(\w+) =\s*([^;]+);)");
     regex_global_search(str, regex, [&](const std::smatch &match) {
       const std::string definition = match[0].str();
       const std::string name = match[1].str();
       const std::string value = match[2].str();
+
+      total_prefix += match.prefix().str() + definition;
       /* Assert definition doesn't contain any side effect. */
       if (value.find("++") != std::string::npos || value.find("--") != std::string::npos) {
         report_error(match, "Reference definitions cannot have side effects.");
@@ -633,11 +637,43 @@ class Preprocessor {
         report_error(match, "Reference definitions cannot contain function calls.");
       }
       if (value.find("[") != std::string::npos) {
-        /* TODO(fclem): Would be nice to support this as it would make this feature much more
-         * helpful. For that, we need to check all extraction operators calls and make sure they
-         * only reference const qualified index variable. This way we guarantee the index cannot
-         * change between two expansions. */
-        report_error(match, "Reference definitions cannot contain array subscript operator.");
+        const std::string index_var = get_content_between_balanced_pair(value, '[', ']');
+
+        if (index_var.find(' ') != std::string::npos) {
+          report_error(match,
+                       "Array subscript inside reference declaration must be a single variable.");
+          return;
+        }
+
+        /* Add a space to avoid empty scope breaking the loop. */
+        std::string scope_depth = " }";
+        bool found_var = false;
+        while (!found_var) {
+          std::string scope = get_content_between_balanced_pair(
+              total_prefix + scope_depth, '{', '}', true);
+          scope_depth += '}';
+
+          if (scope.empty()) {
+            break;
+          }
+          /* Remove nested scopes. Avoid variable shadowing to mess with the detection. */
+          scope = std::regex_replace(scope, std::regex(R"(\{[^\}]*\})"), "{}");
+          /* Search if index variable definition qualifies it as `const`. */
+          std::regex regex_definition(R"((const)? \w+ )" + index_var + " =");
+          std::smatch match_definition;
+          if (std::regex_search(scope, match_definition, regex_definition)) {
+            found_var = true;
+            if (match_definition[1].matched == false) {
+              report_error(match, "Array subscript variable must be declared as const qualified.");
+            }
+          }
+        }
+        if (!found_var) {
+          report_error(match,
+                       "Cannot locate array subscript variable declaration. "
+                       "If it is a global variable, assign it to a temporary const variable for "
+                       "indexing inside the reference.");
+        }
       }
       /* Find scope this definition is active in. */
       const std::string scope = get_content_between_balanced_pair(
@@ -882,24 +918,33 @@ class Preprocessor {
   }
 
   std::string get_content_between_balanced_pair(const std::string &input,
-                                                const char start_delimiter,
-                                                const char end_delimiter)
+                                                char start_delimiter,
+                                                char end_delimiter,
+                                                const bool backwards = false)
   {
     int balance = 0;
     size_t start = std::string::npos;
     size_t end = std::string::npos;
 
+    if (backwards) {
+      std::swap(start_delimiter, end_delimiter);
+    }
+
     for (size_t i = 0; i < input.length(); ++i) {
-      if (input[i] == start_delimiter) {
+      size_t idx = backwards ? (input.length() - 1) - i : i;
+      if (input[idx] == start_delimiter) {
         if (balance == 0) {
-          start = i;
+          start = idx;
         }
         balance++;
       }
-      else if (input[i] == end_delimiter) {
+      else if (input[idx] == end_delimiter) {
         balance--;
         if (balance == 0 && start != std::string::npos) {
-          end = i;
+          end = idx;
+          if (backwards) {
+            std::swap(start, end);
+          }
           return input.substr(start + 1, end - start - 1);
         }
       }
