@@ -6,6 +6,7 @@
  * \ingroup obj
  */
 
+#include "BKE_curves.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
@@ -161,6 +162,13 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
                                           const Span<float> knots,
                                           const float2 range)
 {
+  const int8_t order = degree + 1;
+  if (knots.size() != bke::curves::nurbs::knots_num(indices.size(), order, false)) {
+    /* Avoid parsing knot mode when knot vector is of invalid length.
+     */
+    return 0;
+  }
+
   short knot_mode = 0;
 
   if (import_params.close_spline_loops && indices.size() > degree) {
@@ -171,7 +179,6 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
    * the parameters should have at least (degree+1) values on each end,
    * and their values should match curve range. */
   bool do_endpoints = false;
-  const int8_t order = degree + 1;
   if (knots.size() >= order * 2) {
     do_endpoints = true;
     for (int i = 0; i < order; ++i) {
