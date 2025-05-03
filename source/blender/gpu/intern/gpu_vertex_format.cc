@@ -252,6 +252,68 @@ using blender::StringRef;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
+GPUVertFetchMode GPUVertAttr::Type::fetch_mode() const
+{
+  if (is_fetch_float(this->format)) {
+    return GPU_FETCH_FLOAT;
+  }
+  if (is_fetch_normalized(this->format)) {
+    return GPU_FETCH_INT_TO_FLOAT_UNIT;
+  }
+  if (is_fetch_int_to_float(this->format)) {
+    return GPU_FETCH_INT_TO_FLOAT;
+  }
+  return GPU_FETCH_INT;
+}
+
+GPUVertCompType GPUVertAttr::Type::comp_type() const
+{
+  switch (this->format) {
+    case VertAttrType::SNORM_8_8_8_8:
+    case VertAttrType::SINT_8_8_8_8:
+      return GPU_COMP_I8;
+    case VertAttrType::SNORM_16_16:
+    case VertAttrType::SNORM_16_16_16_16:
+    case VertAttrType::SINT_16_16:
+    case VertAttrType::SINT_16_16_16_16:
+      return GPU_COMP_I16;
+    case VertAttrType::SINT_32:
+    case VertAttrType::SINT_32_32:
+    case VertAttrType::SINT_32_32_32:
+    case VertAttrType::SINT_32_32_32_32:
+    case VertAttrType::SINT_TO_FLT_32:
+    case VertAttrType::SINT_TO_FLT_32_32:
+    case VertAttrType::SINT_TO_FLT_32_32_32:
+    case VertAttrType::SINT_TO_FLT_32_32_32_32:
+      return GPU_COMP_I32;
+    case VertAttrType::UNORM_8_8_8_8:
+    case VertAttrType::UINT_8_8_8_8:
+      return GPU_COMP_U8;
+    case VertAttrType::UNORM_16_16:
+    case VertAttrType::UNORM_16_16_16_16:
+    case VertAttrType::UINT_16_16:
+    case VertAttrType::UINT_16_16_16_16:
+      return GPU_COMP_U16;
+    case VertAttrType::UINT_32:
+    case VertAttrType::UINT_32_32:
+    case VertAttrType::UINT_32_32_32:
+    case VertAttrType::UINT_32_32_32_32:
+      return GPU_COMP_U32;
+    case VertAttrType::SFLOAT_32:
+    case VertAttrType::SFLOAT_32_32:
+    case VertAttrType::SFLOAT_32_32_32:
+    case VertAttrType::SFLOAT_32_32_32_32:
+      return GPU_COMP_F32;
+    case VertAttrType::SNORM_10_10_10_2:
+    case VertAttrType::UNORM_10_10_10_2:
+      return GPU_COMP_I10;
+    case VertAttrType::Invalid:
+      break;
+  }
+  BLI_assert_unreachable();
+  return GPU_COMP_I8;
+}
+
 void GPU_vertformat_clear(GPUVertFormat *format)
 {
 #ifndef NDEBUG
@@ -273,37 +335,6 @@ void GPU_vertformat_copy(GPUVertFormat *dest, const GPUVertFormat &src)
 {
   /* copy regular struct fields */
   memcpy(dest, &src, sizeof(GPUVertFormat));
-}
-
-static uint comp_size(GPUVertCompType type)
-{
-  BLI_assert(type <= GPU_COMP_F32); /* other types have irregular sizes (not bytes) */
-  const uint sizes[] = {1, 1, 2, 2, 4, 4, 4};
-  return sizes[type];
-}
-
-static uint attr_size(const GPUVertAttr *a)
-{
-  if (a->comp_type == GPU_COMP_I10) {
-    return 4; /* always packed as 10_10_10_2 */
-  }
-  return a->comp_len * comp_size(static_cast<GPUVertCompType>(a->comp_type));
-}
-
-static uint attr_align(const GPUVertAttr *a, uint minimum_stride)
-{
-  if (a->comp_type == GPU_COMP_I10) {
-    return 4; /* always packed as 10_10_10_2 */
-  }
-  uint c = comp_size(static_cast<GPUVertCompType>(a->comp_type));
-  if (a->comp_len == 3 && c <= 2) {
-    return 4 * c; /* AMD HW can't fetch these well, so pad it out (other vendors too?) */
-  }
-
-  /* Most fetches are ok if components are naturally aligned.
-   * However, in Metal,the minimum supported per-vertex stride is 4,
-   * so we must query the GPU and pad out the size accordingly. */
-  return max_ii(minimum_stride, c);
 }
 
 uint vertex_buffer_size(const GPUVertFormat *format, uint vertex_len)
@@ -335,29 +366,6 @@ uint GPU_vertformat_attr_add(GPUVertFormat *format,
   BLI_assert(format->name_len < GPU_VERT_FORMAT_MAX_NAMES); /* there's room for more */
   BLI_assert(format->attr_len < GPU_VERT_ATTR_MAX_LEN);     /* there's room for more */
   BLI_assert(!format->packed);                              /* packed means frozen/locked */
-  BLI_assert((comp_len >= 1 && comp_len <= 4) || comp_len == 8 || comp_len == 12 ||
-             comp_len == 16);
-
-  switch (comp_type) {
-    case GPU_COMP_F32:
-      /* float type can only kept as float */
-      BLI_assert(fetch_mode == GPU_FETCH_FLOAT);
-      break;
-    case GPU_COMP_I10:
-      /* 10_10_10 format intended for normals (XYZ) or colors (RGB)
-       * extra component packed.w can be manually set to { -2, -1, 0, 1 } */
-      BLI_assert(ELEM(comp_len, 3, 4));
-
-      /* Not strictly required, may relax later. */
-      BLI_assert(fetch_mode == GPU_FETCH_INT_TO_FLOAT_UNIT);
-
-      break;
-    default:
-      /* integer types can be kept as int or converted/normalized to float */
-      BLI_assert(fetch_mode != GPU_FETCH_FLOAT);
-      /* only support float matrices (see Batch_update_program_bindings) */
-      BLI_assert(!ELEM(comp_len, 8, 12, 16));
-  }
 
   format->name_len++; /* Multi-name support. */
 
@@ -365,15 +373,9 @@ uint GPU_vertformat_attr_add(GPUVertFormat *format,
   GPUVertAttr *attr = &format->attrs[attr_id];
 
   attr->names[attr->name_len++] = copy_attr_name(format, name);
-  attr->comp_type = comp_type;
-  attr->comp_len = (comp_type == GPU_COMP_I10) ?
-                       4 :
-                       comp_len; /* system needs 10_10_10_2 to be 4 or BGRA */
-  attr->size = attr_size(attr);
   attr->offset = 0; /* offsets & stride are calculated later (during pack) */
-  attr->fetch_mode = fetch_mode;
-  attr->format = vertex_format_combine(comp_type, fetch_mode, comp_len);
-  BLI_assert(attr->format != blender::gpu::VertAttrType::Invalid);
+  attr->type.format = vertex_format_combine(comp_type, fetch_mode, comp_len);
+  BLI_assert(attr->type.format != blender::gpu::VertAttrType::Invalid);
 
   return attr_id;
 }
@@ -527,63 +529,16 @@ static void show_pack(uint a_idx, uint size, uint pad)
 }
 #endif
 
-static void VertexFormat_pack_impl(GPUVertFormat *format, uint minimum_stride)
-{
-  GPUVertAttr *a0 = &format->attrs[0];
-  a0->offset = 0;
-  uint offset = a0->size;
-
-#if PACK_DEBUG
-  show_pack(0, a0->size, 0);
-#endif
-
-  for (uint a_idx = 1; a_idx < format->attr_len; a_idx++) {
-    GPUVertAttr *a = &format->attrs[a_idx];
-    uint mid_padding = padding(offset, attr_align(a, minimum_stride));
-    offset += mid_padding;
-    a->offset = offset;
-    offset += a->size;
-
-#if PACK_DEBUG
-    show_pack(a_idx, a->size, mid_padding);
-#endif
-  }
-
-  uint end_padding = padding(offset, attr_align(a0, minimum_stride));
-
-#if PACK_DEBUG
-  show_pack(0, 0, end_padding);
-  putchar('\n');
-#endif
-  format->stride = offset + end_padding;
-  format->packed = true;
-}
-
 void VertexFormat_pack(GPUVertFormat *format)
 {
-  /* Perform standard vertex packing, ensuring vertex format satisfies
-   * minimum stride requirements for vertex assembly. */
-  VertexFormat_pack_impl(format, GPU_minimum_per_vertex_stride());
-}
-
-void VertexFormat_texture_buffer_pack(GPUVertFormat *format)
-{
-  /* Validates packing for vertex formats used with texture buffers.
-   * In these cases, there must only be a single vertex attribute.
-   * This attribute should be tightly packed without padding, to ensure
-   * it aligns with the backing texture data format, skipping
-   * minimum per-vertex stride, which mandates 4-byte alignment in Metal.
-   * This additional alignment padding caused smaller data types, e.g. U16,
-   * to mis-align. */
-  for (int i = 0; i < format->attr_len; i++) {
-    /* The buffer texture setup uses the first attribute for type and size.
-     * Make sure all attributes use the same size. */
-    BLI_assert_msg(format->attrs[i].size == format->attrs[0].size,
-                   "Texture buffer mode should only use a attributes with the same size.");
+  uint offset = 0;
+  for (uint a_idx = 0; a_idx < format->attr_len; a_idx++) {
+    GPUVertAttr *a = &format->attrs[a_idx];
+    a->offset = offset;
+    offset += a->type.size();
   }
-
-  /* Pack vertex format without minimum stride, as this is not required by texture buffers. */
-  VertexFormat_pack_impl(format, 1);
+  format->stride = offset;
+  format->packed = true;
 }
 
 static uint component_size_get(const Type gpu_type)

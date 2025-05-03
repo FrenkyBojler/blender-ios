@@ -257,7 +257,7 @@ inline int to_bytesize(const DataFormat format)
   return -1;
 }
 
-inline int format_component_len(const DataFormat format)
+inline int to_component_len(const DataFormat format)
 {
 #define CASE(a, b, comp, blender_enum, d, e, f, g, h) \
   case DataFormat::blender_enum: \
