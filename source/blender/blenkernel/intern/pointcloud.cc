@@ -284,9 +284,8 @@ PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
 
 PointCloud *BKE_pointcloud_add_default(Main *bmain, const char *name)
 {
-  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(bmain, ID_PT, name, 0));
+  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_id_new(bmain, ID_PT, name));
 
-  pointcloud_init_data(&pointcloud->id);
   pointcloud_random(pointcloud);
 
   return pointcloud;
@@ -297,7 +296,7 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
   PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(
       nullptr, ID_PT, BKE_idtype_idcode_to_name(ID_PT), LIB_ID_CREATE_LOCALIZE));
 
-  pointcloud_init_data(&pointcloud->id);
+  BKE_libblock_init_empty(&pointcloud->id);
 
   CustomData_realloc(&pointcloud->pdata, 0, totpoint);
   pointcloud->totpoint = totpoint;
@@ -315,6 +314,8 @@ void BKE_pointcloud_nomain_to_pointcloud(PointCloud *pointcloud_src, PointCloud 
   CustomData_init_from(&pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, totpoint);
 
   pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;
+  pointcloud_dst->runtime->bounds_with_radius_cache =
+      pointcloud_src->runtime->bounds_with_radius_cache;
   pointcloud_dst->runtime->bvh_cache = pointcloud_src->runtime->bvh_cache;
   BKE_id_free(nullptr, pointcloud_src);
 }
@@ -388,7 +389,7 @@ void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
 {
   dst.flag = src.flag;
   MEM_SAFE_FREE(dst.mat);
-  dst.mat = MEM_malloc_arrayN<Material *>(size_t(src.totcol), __func__);
+  dst.mat = MEM_malloc_arrayN<Material *>(src.totcol, __func__);
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
 }

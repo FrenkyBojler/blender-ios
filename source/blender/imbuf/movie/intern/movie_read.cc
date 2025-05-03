@@ -108,13 +108,15 @@ MovieReader *MOV_open_file(const char *filepath,
 
   anim = MEM_new<MovieReader>("anim struct");
   if (anim != nullptr) {
-    const char *byte_colorspace = IMB_colormanagement_role_colorspace_name_get(
+    /* Initialize colorspace to default if not yet set. */
+    const char *default_colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_DEFAULT_BYTE);
-    STRNCPY(anim->colorspace, byte_colorspace);
-
-    if (colorspace) {
-      BLI_strncpy(colorspace, anim->colorspace, IM_MAX_SPACE);
+    if (colorspace && colorspace[0] == '\0') {
+      BLI_strncpy(colorspace, default_colorspace, IM_MAX_SPACE);
     }
+
+    /* Inherit colorspace from argument if provided. */
+    STRNCPY(anim->colorspace, colorspace ? colorspace : default_colorspace);
 
     STRNCPY(anim->filepath, filepath);
     anim->ib_flags = ib_flags;
@@ -445,10 +447,10 @@ static int startffmpeg(MovieReader *anim)
     av_image_fill_arrays(
         anim->pFrameDeinterlaced->data,
         anim->pFrameDeinterlaced->linesize,
-        static_cast<const uint8_t *>(MEM_callocN(
+        MEM_calloc_arrayN<uint8_t>(
             av_image_get_buffer_size(
                 anim->pCodecCtx->pix_fmt, anim->pCodecCtx->width, anim->pCodecCtx->height, 1),
-            "ffmpeg deinterlace")),
+            "ffmpeg deinterlace"),
         anim->pCodecCtx->pix_fmt,
         anim->pCodecCtx->width,
         anim->pCodecCtx->height,

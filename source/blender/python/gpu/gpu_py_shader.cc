@@ -109,6 +109,11 @@ static PyObject *pygpu_shader__tp_new(PyTypeObject * /*type*/, PyObject *args, P
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
+  PyErr_WarnEx(PyExc_DeprecationWarning,
+               "Direct shader creation is deprecated. "
+               "Use gpu.shader.create_from_info(shader_info) instead.",
+               1);
+
   struct {
     const char *vertexcode;
     const char *fragcode;
@@ -734,7 +739,9 @@ static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*ar
         continue;
       }
 
-      type = STREQ(name, "pos") ? int(Type::VEC3) : STREQ(name, "color") ? int(Type::VEC4) : -1;
+      type = STREQ(name, "pos")   ? int(Type::float3_t) :
+             STREQ(name, "color") ? int(Type::float4_t) :
+                                    -1;
       PyObject *py_type;
       if (type != -1) {
         py_type = PyUnicode_InternFromString(

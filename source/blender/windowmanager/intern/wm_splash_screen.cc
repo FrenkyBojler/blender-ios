@@ -229,7 +229,7 @@ static ImBuf *wm_block_splash_banner_image(int *r_width,
   IMB_premultiply_alpha(ibuf);
 
 #else
-  UNUSED_VARS(width);
+  UNUSED_VARS(max_height);
 #endif
   *r_height = height;
   *r_width = width;
@@ -296,7 +296,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   int splash_width = style->widget.points * 45 * UI_SCALE_FAC;
-  CLAMP_MAX(splash_width, CTX_wm_window(C)->sizex * 0.7f);
+  CLAMP_MAX(splash_width, WM_window_native_pixel_x(CTX_wm_window(C)) * 0.7f);
   int splash_height;
 
   /* Would be nice to support caching this, so it only has to be re-read (and likely resized) on
@@ -372,8 +372,8 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
     uiItemS_ex(layout, 2.0f, LayoutSeparatorType::Line);
 
     uiLayout *split = uiLayoutSplit(layout, 0.725, true);
-    uiLayout *row1 = uiLayoutRow(split, true);
-    uiLayout *row2 = uiLayoutRow(split, true);
+    uiLayout *row1 = &split->row(true);
+    uiLayout *row2 = &split->row(true);
 
     uiItemL(row1, RPT_("Intel binary detected. Expect reduced performance."), ICON_ERROR);
 
@@ -434,7 +434,6 @@ void WM_OT_splash(wmOperatorType *ot)
 
 static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg*/)
 {
-  constexpr bool show_color = false;
   const uiStyle *style = UI_style_get_dpi();
   const int dialog_width = style->widget.points * 42 * UI_SCALE_FAC;
 
@@ -448,8 +447,8 @@ static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg
 
 /* Blender logo. */
 #ifndef WITH_HEADLESS
-
-  float size = 0.2f * dialog_width;
+  constexpr bool show_color = false;
+  const float size = 0.2f * dialog_width;
 
   ImBuf *ibuf = UI_svg_icon_bitmap(ICON_BLENDER_LOGO_LARGE, size, show_color);
 
@@ -458,21 +457,21 @@ static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg
     const uchar *color = btheme->tui.wcol_menu_back.text_sel;
 
     /* The top margin. */
-    uiLayout *row = uiLayoutRow(layout, false);
+    uiLayout *row = &layout->row(false);
     uiItemS_ex(row, 0.2f);
 
     /* The logo image. */
-    row = uiLayoutRow(layout, false);
+    row = &layout->row(false);
     uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_LEFT);
     uiDefButImage(block, ibuf, 0, U.widget_unit, ibuf->x, ibuf->y, show_color ? nullptr : color);
 
     /* Padding below the logo. */
-    row = uiLayoutRow(layout, false);
+    row = &layout->row(false);
     uiItemS_ex(row, 2.7f);
   }
 #endif /* !WITH_HEADLESS */
 
-  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *col = &layout->column(true);
 
   uiItemL_ex(col, IFACE_("Blender"), ICON_NONE, true, false);
 

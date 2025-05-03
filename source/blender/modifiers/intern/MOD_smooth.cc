@@ -69,12 +69,12 @@ static void smoothModifier_do(
     return;
   }
 
-  float(*accumulated_vecs)[3] = MEM_calloc_arrayN<float[3]>(size_t(verts_num), __func__);
+  float(*accumulated_vecs)[3] = MEM_calloc_arrayN<float[3]>(verts_num, __func__);
   if (!accumulated_vecs) {
     return;
   }
 
-  uint *accumulated_vecs_count = MEM_calloc_arrayN<uint>(size_t(verts_num), __func__);
+  uint *accumulated_vecs_count = MEM_calloc_arrayN<uint>(verts_num, __func__);
   if (!accumulated_vecs_count) {
     MEM_freeN(accumulated_vecs);
     return;
@@ -185,12 +185,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Axis"));
+  row = &layout->row(true, IFACE_("Axis"));
   uiItemR(row, ptr, "use_x", toggles_flag, std::nullopt, ICON_NONE);
   uiItemR(row, ptr, "use_y", toggles_flag, std::nullopt, ICON_NONE);
   uiItemR(row, ptr, "use_z", toggles_flag, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

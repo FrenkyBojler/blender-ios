@@ -226,7 +226,7 @@ static void object_add_drop_xy_props(wmOperatorType *ot)
                      "X-coordinate (screen space) to place the new object under",
                      INT_MIN,
                      INT_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_int(ot->srna,
                      "drop_y",
                      0,
@@ -236,7 +236,7 @@ static void object_add_drop_xy_props(wmOperatorType *ot)
                      "Y-coordinate (screen space) to place the new object under",
                      INT_MIN,
                      INT_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 static bool object_add_drop_xy_is_set(const wmOperator *op)
@@ -424,7 +424,7 @@ void add_generic_props(wmOperatorType *ot, bool do_editmode)
                            false,
                            "Enter Edit Mode",
                            "Enter edit mode when adding this object");
-    RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+    RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   }
   /* NOTE: this property gets hidden for add-camera operator. */
   prop = RNA_def_enum(
@@ -464,7 +464,7 @@ void add_generic_props(wmOperatorType *ot, bool do_editmode)
                                   "Scale for the newly added object",
                                   -1000.0f,
                                   1000.0f);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 void add_mesh_props(wmOperatorType *ot)
@@ -1345,12 +1345,12 @@ void OBJECT_OT_empty_image_add(wmOperatorType *ot)
                          false,
                          "Put in Background",
                          "Make the image render behind all objects");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   /* Hide the filepath and relative path prop */
   prop = RNA_struct_type_find_property(ot->srna, "filepath");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_PRESET));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_PRESET);
   prop = RNA_struct_type_find_property(ot->srna, "relative_path");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /** \} */
@@ -1876,7 +1876,7 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
 
   prop = RNA_def_enum(ot->srna, "collection", rna_enum_dummy_NULL_items, 0, "Collection", "");
   RNA_def_enum_funcs(prop, RNA_collection_itemf);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE | PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
 }
 
@@ -2115,22 +2115,13 @@ void OBJECT_OT_curves_empty_hair_add(wmOperatorType *ot)
 /** \name Add Point Cloud Operator
  * \{ */
 
-static bool object_pointcloud_add_poll(bContext *C)
-{
-  if (!USER_EXPERIMENTAL_TEST(&U, use_new_point_cloud_type)) {
-    return false;
-  }
-  return ED_operator_objectmode(C);
-}
-
 static wmOperatorStatus object_pointcloud_add_exec(bContext *C, wmOperator *op)
 {
   ushort local_view_bits;
   float loc[3], rot[3];
   add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  Object *object = add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
-  object->dtx |= OB_DRAWBOUNDOX; /* TODO: remove once there is actual drawing. */
+  add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
 
   return OPERATOR_FINISHED;
 }
@@ -2144,7 +2135,7 @@ void OBJECT_OT_pointcloud_add(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = object_pointcloud_add_exec;
-  ot->poll = object_pointcloud_add_poll;
+  ot->poll = ED_operator_objectmode;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2311,7 +2302,7 @@ void OBJECT_OT_delete(wmOperatorType *ot)
   PropertyRNA *prop;
   prop = RNA_def_boolean(
       ot->srna, "use_global", false, "Delete Globally", "Remove object from all scenes");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   WM_operator_properties_confirm_or_exec(ot);
 }
 
@@ -2471,7 +2462,7 @@ static void make_object_duplilist_real(bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   GHash *parent_gh = nullptr, *instancer_gh = nullptr;
 
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, base->object);
+  Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
 
   if (!(base->object->transflag & OB_DUPLI) &&
       !bke::object_has_geometry_set_instances(*object_eval))
@@ -2497,7 +2488,7 @@ static void make_object_duplilist_real(bContext *C,
   }
 
   LISTBASE_FOREACH (DupliObject *, dob, lb_duplis) {
-    Object *ob_src = DEG_get_original_object(dob->ob);
+    Object *ob_src = DEG_get_original(dob->ob);
     Object *ob_dst = static_cast<Object *>(ID_NEW_SET(ob_src, BKE_id_copy(bmain, &ob_src->id)));
     id_us_min(&ob_dst->id);
 
@@ -2762,9 +2753,7 @@ static const EnumPropertyItem *convert_target_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_MESH);
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_CURVES_LEGACY);
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_CURVES);
-  if (USER_EXPERIMENTAL_TEST(&U, use_new_point_cloud_type)) {
-    RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_POINTCLOUD);
-  }
+  RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_POINTCLOUD);
   RNA_enum_items_add_value(&item, &totitem, convert_target_items, OB_GREASE_PENCIL);
 
   RNA_enum_item_end(&item, &totitem);
@@ -2776,7 +2765,7 @@ static const EnumPropertyItem *convert_target_itemf(bContext *C,
 
 static void object_data_convert_curve_to_mesh(Main *bmain, Depsgraph *depsgraph, Object *ob)
 {
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *object_eval = DEG_get_evaluated(depsgraph, ob);
   Curve *curve = static_cast<Curve *>(ob->data);
 
   Mesh *mesh = BKE_mesh_new_from_object_to_bmain(bmain, depsgraph, object_eval, true);
@@ -2942,7 +2931,7 @@ static Object *convert_curves_component_to_curves(Base &base,
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -2980,7 +2969,7 @@ static Object *convert_grease_pencil_component_to_curves(Base &base,
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3065,7 +3054,7 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
   /* NOTE: get the mesh from the original, not from the copy in some
    * cases this doesn't give correct results (when MDEF is used for eg)
    */
-  const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   Mesh *new_mesh = mesh_eval ? BKE_mesh_copy_for_eval(*mesh_eval) :
                                BKE_mesh_new_nomain(0, 0, 0, 0);
@@ -3279,11 +3268,11 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const int thickness = RNA_int_get(info.op_props, "thickness");
   const float offset = RNA_float_get(info.op_props, "offset");
 
-  /* To be compatible with the thickness value prior to Grease Pencil v3. */
+  /* To be compatible with the thickness value of legacy Grease Pencil. */
   const float stroke_radius = float(thickness) / 2 *
                               bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
   VectorSet<FillColorRecord> fill_colors;
@@ -3357,7 +3346,7 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3409,7 +3398,7 @@ static Object *convert_curves_to_grease_pencil(Base &base,
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3449,6 +3438,8 @@ static Object *convert_curves_to_grease_pencil(Base &base,
     bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, frame_number);
     BLI_assert(drawing != nullptr);
     drawing->strokes_for_write() = curves_eval->geometry.wrap();
+    /* Default radius (1.0 unit) is too thick for converted strokes. */
+    drawing->radii_for_write().fill(0.01f);
 
     BKE_grease_pencil_nomain_to_grease_pencil(grease_pencil, new_grease_pencil);
     BKE_object_material_from_eval_data(info.bmain, newob, &curves_eval->id);
@@ -3484,7 +3475,7 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
 
   /* Mostly same as converting to OB_CURVES, the mesh will be converted from Curves afterwards. */
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3591,7 +3582,7 @@ static Object *convert_font_to_curve_legacy_generic(Object *ob,
 {
   Curve *cu = static_cast<Curve *>(newob->data);
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   BKE_vfont_to_curve_ex(ob_eval,
                         static_cast<Curve *>(ob_eval->data),
                         FO_EDIT,
@@ -3862,7 +3853,7 @@ static Object *convert_mball_to_mesh(Base &base,
     id_us_min(&mb->id);
 
     /* Find the evaluated mesh of the basis metaball object. */
-    Object *object_eval = DEG_get_evaluated_object(info.depsgraph, baseob);
+    Object *object_eval = DEG_get_evaluated(info.depsgraph, baseob);
     Mesh *mesh = BKE_mesh_new_from_object_to_bmain(info.bmain, info.depsgraph, object_eval, true);
 
     id_us_plus(&mesh->id);
@@ -4019,6 +4010,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   }
 
   bool mball_converted = false;
+  int incompatible_count = 0;
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
@@ -4067,6 +4059,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_pointcloud(*base, target_type, info, &new_base);
           break;
         default:
+          incompatible_count++;
           continue;
       }
     }
@@ -4141,6 +4134,29 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
         WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
         WM_event_add_notifier(C, NC_OBJECT | ND_DATA, object);
       }
+    }
+  }
+
+  if (incompatible_count != 0) {
+    const char *target_type_name = "";
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target");
+    BLI_assert(prop != nullptr);
+    RNA_property_enum_name(C, op->ptr, prop, target, &target_type_name);
+    if (incompatible_count == selected_editable_bases.size()) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s \"%s\"",
+                  RPT_("None of the objects are compatible of conversion to"),
+                  IFACE_(target_type_name));
+    }
+    else {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s %d %s \"%s\"",
+                  RPT_("The selection included"),
+                  incompatible_count,
+                  RPT_("object(s) types which don't support conversion to"),
+                  IFACE_(target_type_name));
     }
   }
 
@@ -4588,7 +4604,7 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
 
   prop = RNA_def_float_matrix(
       ot->srna, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "Matrix", "", 0.0f, 0.0f);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   object_add_drop_xy_props(ot);
 }
@@ -4695,7 +4711,7 @@ void OBJECT_OT_transform_to_mouse(wmOperatorType *ot)
       MAX_ID_NAME - 2,
       "Name",
       "Object name to place (uses the active object when this and 'session_uid' are unset)");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE | PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
   prop = RNA_def_int(ot->srna,
                      "session_uid",
                      0,
@@ -4706,11 +4722,11 @@ void OBJECT_OT_transform_to_mouse(wmOperatorType *ot)
                      "'name' are unset)",
                      INT32_MIN,
                      INT32_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE | PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 
   prop = RNA_def_float_matrix(
       ot->srna, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "Matrix", "", 0.0f, 0.0f);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   object_add_drop_xy_props(ot);
 }
@@ -4831,66 +4847,70 @@ void OBJECT_OT_join(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Join as Shape Key Operator
+/** \name Join Key Data Operators
  * \{ */
 
-static bool join_shapes_poll(bContext *C)
+static bool active_shape_key_editable_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
-
-  if (ob == nullptr || ob->data == nullptr || !ID_IS_EDITABLE(ob) || ID_IS_OVERRIDE_LIBRARY(ob) ||
-      ID_IS_OVERRIDE_LIBRARY(ob->data))
-  {
+  if (!ob) {
+    return false;
+  }
+  if (ob->type != OB_MESH) {
     return false;
   }
 
-  /* only meshes supported at the moment */
-  if (ob->type == OB_MESH) {
-    return ED_operator_screenactive(C);
+  if (ob->mode & OB_MODE_EDIT) {
+    CTX_wm_operator_poll_msg_set(C, "This operation is not supported in edit mode");
+    return false;
   }
-  return false;
+  if (BKE_object_obdata_is_libdata(ob)) {
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit external library data");
+    return false;
+  }
+  Main &bmain = *CTX_data_main(C);
+  if (!BKE_lib_override_library_id_is_user_deletable(&bmain, &ob->id)) {
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit object used by override collections");
+    return false;
+  }
+  return true;
 }
 
 static wmOperatorStatus join_shapes_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Object *ob = CTX_data_active_object(C);
-
-  if (ob->mode & OB_MODE_EDIT) {
-    BKE_report(op->reports, RPT_ERROR, "This data does not support joining in edit mode");
-    return OPERATOR_CANCELLED;
-  }
-  if (BKE_object_obdata_is_libdata(ob)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot edit external library data");
-    return OPERATOR_CANCELLED;
-  }
-  if (!BKE_lib_override_library_id_is_user_deletable(bmain, &ob->id)) {
-    BKE_reportf(op->reports,
-                RPT_WARNING,
-                "Cannot edit object '%s' as it is used by override collections",
-                ob->id.name + 2);
-    return OPERATOR_CANCELLED;
-  }
-
-  if (ob->type == OB_MESH) {
-    return ED_mesh_shapes_join_objects_exec(C, op->reports);
-  }
-
-  return OPERATOR_CANCELLED;
+  return ED_mesh_shapes_join_objects_exec(C, true, op->reports);
 }
 
 void OBJECT_OT_join_shapes(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Join as Shapes";
-  ot->description = "Copy the current resulting shape of another selected object to this one";
+  ot->description =
+      "Add the vertex positions of selected objects as shape keys or update existing shape keys "
+      "with matching names";
   ot->idname = "OBJECT_OT_join_shapes";
 
-  /* api callbacks */
   ot->exec = join_shapes_exec;
-  ot->poll = join_shapes_poll;
+  ot->poll = active_shape_key_editable_poll;
 
-  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
+{
+  return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
+}
+
+void OBJECT_OT_update_shapes(wmOperatorType *ot)
+{
+  ot->name = "Update from Objects";
+  ot->description =
+      "Update existing shape keys with the vertex positions of selected objects with matching "
+      "names";
+  ot->idname = "OBJECT_OT_update_shapes";
+
+  ot->exec = update_all_shape_keys_exec;
+  ot->poll = active_shape_key_editable_poll;
+
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 

@@ -699,7 +699,7 @@ static void workbench_render_to_image(RenderEngine *engine, RenderLayer *layer, 
   workbench::Instance instance;
 
   /* TODO(sergey): Shall render hold pointer to an evaluated camera instead? */
-  Object *camera_ob = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
+  Object *camera_ob = DEG_get_evaluated(depsgraph, RE_GetCamera(engine->re));
 
   /* Set the perspective, view and window matrix. */
   float4x4 winmat, viewmat, viewinv;
@@ -773,6 +773,7 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
     /*view_draw*/ nullptr,
     /*update_script_node*/ nullptr,
     /*update_render_passes*/ &workbench_render_update_passes,
+    /*update_custom_camera*/ nullptr,
     /*draw_engine*/ nullptr,
     /*rna_ext*/
     {
