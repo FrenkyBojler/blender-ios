@@ -1,1 +1,2 @@
 Referenced by issue #137724, Compositor: Assert when updating node editor during rendering
+Referenced by issue #138354, UI elements can flicker while rendering
