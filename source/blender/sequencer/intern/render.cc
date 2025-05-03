@@ -1246,10 +1246,6 @@ static ImBuf *seq_render_movieclip_strip(const RenderData *context,
     ibuf = seq_get_movieclip_ibuf(strip, user);
   }
 
-  if (ibuf != nullptr && (ibuf->x != context->rectx || ibuf->y != context->recty)) {
-    ibuf->planes = R_IMF_PLANES_RGBA;
-  }
-
   return ibuf;
 }
 
