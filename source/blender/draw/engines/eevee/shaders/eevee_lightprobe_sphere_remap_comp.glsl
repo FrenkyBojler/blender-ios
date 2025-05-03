@@ -167,12 +167,15 @@ void main()
     barrier();
 
     /* Reusing local_radiance for directions. */
-    local_radiance[local_index] = float4(normalize(direction), 1.0f) * sample_weight *
-                                  length(radiance_sun.xyz);
+    auto &local_direction = local_radiance;
+
+    local_direction[local_index] = float4(normalize(direction), 1.0f) * sample_weight *
+                                   length(radiance_sun.xyz);
+
     PARALLEL_SUM
 
     if (gl_LocalInvocationIndex == 0u) {
-      out_sun[work_group_index].direction = local_radiance[0];
+      out_sun[work_group_index].direction = local_direction[0];
     }
     barrier();
   }

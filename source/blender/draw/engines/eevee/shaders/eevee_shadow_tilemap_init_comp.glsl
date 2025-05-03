@@ -33,40 +33,41 @@ ShadowTileDataPacked init_tile_data(ShadowTileDataPacked tile, bool do_update)
 
 void main()
 {
-  uint tilemap_index = gl_GlobalInvocationID.z;
-  ShadowTileMapData tilemap = tilemaps_buf[tilemap_index];
+  const uint tilemap_index = gl_GlobalInvocationID.z;
+  ShadowTileMapData &tilemap = tilemaps_buf[tilemap_index];
 
   barrier();
 
   if (gl_LocalInvocationIndex == 0u) {
     /* Reset shift to not tag for update more than once per sync cycle. */
-    tilemaps_buf[tilemap_index].grid_shift = int2(0);
-    tilemaps_buf[tilemap_index].is_dirty = false;
+    tilemap.grid_shift = int2(0);
+    tilemap.is_dirty = false;
 
     directional_range_changed = 0;
 
-    int clip_index = tilemap.clip_data_index;
+    const int clip_index = tilemap.clip_data_index;
     if (clip_index == -1) {
       /* NOP. This is the case for unused tile-maps that are getting pushed to the free heap. */
     }
     else if (tilemap.projection_type != SHADOW_PROJECTION_CUBEFACE) {
-      ShadowTileMapClip clip_data = tilemaps_clip_buf[clip_index];
+      ShadowTileMapClip &clip_data = tilemaps_clip_buf[clip_index];
       float clip_near_new = orderedIntBitsToFloat(clip_data.clip_near);
       float clip_far_new = orderedIntBitsToFloat(clip_data.clip_far);
       bool near_changed = clip_near_new != clip_data.clip_near_stored;
       bool far_changed = clip_far_new != clip_data.clip_far_stored;
       directional_range_changed = int(near_changed || far_changed);
       /* NOTE(fclem): This assumes clip near/far are computed each time the initial phase runs. */
-      tilemaps_clip_buf[clip_index].clip_near_stored = clip_near_new;
-      tilemaps_clip_buf[clip_index].clip_far_stored = clip_far_new;
+      clip_data.clip_near_stored = clip_near_new;
+      clip_data.clip_far_stored = clip_far_new;
       /* Reset for next update. */
-      tilemaps_clip_buf[clip_index].clip_near = floatBitsToOrderedInt(FLT_MAX);
-      tilemaps_clip_buf[clip_index].clip_far = floatBitsToOrderedInt(-FLT_MAX);
+      clip_data.clip_near = floatBitsToOrderedInt(FLT_MAX);
+      clip_data.clip_far = floatBitsToOrderedInt(-FLT_MAX);
     }
     else {
       /* For cube-faces, simply use the light near and far distances. */
-      tilemaps_clip_buf[clip_index].clip_near_stored = tilemap.clip_near;
-      tilemaps_clip_buf[clip_index].clip_far_stored = tilemap.clip_far;
+      ShadowTileMapClip &clip_data = tilemaps_clip_buf[clip_index];
+      clip_data.clip_near_stored = tilemap.clip_near;
+      clip_data.clip_far_stored = tilemap.clip_far;
     }
   }
 
