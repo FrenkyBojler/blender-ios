@@ -21,7 +21,7 @@ def gather_object_sampled_animation_sampler(
         obj_uuid: str,
         channel: str,
         action_name: str,
-        slot_handle: int,
+        slot_identifier: str,
         node_channel_is_animated: bool,
         node_channel_interpolation: str,
         export_settings
@@ -31,7 +31,7 @@ def gather_object_sampled_animation_sampler(
         obj_uuid,
         channel,
         action_name,
-        slot_handle,
+        slot_identifier,
         node_channel_is_animated,
         export_settings)
 
@@ -63,7 +63,7 @@ def __gather_keyframes(
         obj_uuid: str,
         channel: str,
         action_name: str,
-        slot_handle: int,
+        slot_identifier: int,
         node_channel_is_animated: bool,
         export_settings
 ):
@@ -72,7 +72,7 @@ def __gather_keyframes(
         obj_uuid,
         channel,
         action_name,
-        slot_handle,
+        slot_identifier,
         node_channel_is_animated,
         export_settings
     )
@@ -127,19 +127,15 @@ def __convert_keyframes(obj_uuid: str, channel: str, keyframes, action_name: str
     component_type = gltf2_io_constants.ComponentType.Float
     data_type = gltf2_io_constants.DataType.vec_type_from_num(len(keyframes[0].value))
 
-    output = gltf2_io.Accessor(
-        buffer_view=gltf2_io_binary_data.BinaryData.from_list(values, component_type),
-        byte_offset=None,
-        component_type=component_type,
-        count=len(values) // gltf2_io_constants.DataType.num_elements(data_type),
-        extensions=None,
-        extras=None,
-        max=None,
-        min=None,
-        name=None,
-        normalized=None,
-        sparse=None,
-        type=data_type
+
+    output = gather_accessor(
+        gltf2_io_binary_data.BinaryData.from_list(values, component_type),
+        component_type,
+        len(values) // gltf2_io_constants.DataType.num_elements(data_type),
+        None,
+        None,
+        data_type,
+        export_settings
     )
 
     return input, output

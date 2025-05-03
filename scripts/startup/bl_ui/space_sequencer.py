@@ -584,7 +584,10 @@ class SEQUENCER_MT_select(Menu):
             context.scene.sequence_editor is not None and
             context.scene.sequence_editor.selected_retiming_keys
         )
-
+        if has_preview:
+            layout.operator_context = 'INVOKE_REGION_PREVIEW'
+        else:
+            layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("sequencer.select_all", text="All").action = 'SELECT'
         layout.operator("sequencer.select_all", text="None").action = 'DESELECT'
         layout.operator("sequencer.select_all", text="Invert").action = 'INVERT'
@@ -653,7 +656,7 @@ class SEQUENCER_MT_change(Menu):
             del bpy_data_scenes_len
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.operator_menu_enum("sequencer.change_effect_input", "swap")
+        layout.operator("sequencer.change_effect_input")
         layout.operator_menu_enum("sequencer.change_effect_type", "type")
         props = layout.operator("sequencer.change_path", text="Path/Files")
 
@@ -866,11 +869,6 @@ class SEQUENCER_MT_add_effect(Menu):
         ).type = 'MULTIPLY'
         col.operator(
             "sequencer.effect_strip_add",
-            text="Over Drop",
-            text_ctxt=i18n_contexts.id_sequence,
-        ).type = 'OVER_DROP'
-        col.operator(
-            "sequencer.effect_strip_add",
             text="Alpha Over",
             text_ctxt=i18n_contexts.id_sequence,
         ).type = 'ALPHA_OVER'
@@ -946,6 +944,18 @@ class SEQUENCER_MT_strip_text(Menu):
         layout.operator("sequencer.text_deselect_all")
 
 
+class SEQUENCER_MT_strip_show_hide(Menu):
+    bl_label = "Show/Hide"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_PREVIEW'
+        layout.operator("sequencer.unmute", text="Show Hidden Strips").unselected = False
+        layout.separator()
+        layout.operator("sequencer.mute", text="Hide Selected").unselected = False
+        layout.operator("sequencer.mute", text="Hide Unselected").unselected = True
+
+
 class SEQUENCER_MT_strip_input(Menu):
     bl_label = "Inputs"
 
@@ -992,7 +1002,7 @@ class SEQUENCER_MT_strip_effect(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator_menu_enum("sequencer.change_effect_input", "swap")
+        layout.operator("sequencer.change_effect_input")
         layout.operator_menu_enum("sequencer.change_effect_type", "type")
         layout.operator("sequencer.reassign_inputs")
         layout.operator("sequencer.swap_inputs")
@@ -1066,6 +1076,8 @@ class SEQUENCER_MT_strip(Menu):
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
             layout.separator()
+            layout.menu("SEQUENCER_MT_strip_show_hide")
+            layout.separator()
             if strip and strip.type == 'TEXT':
                 layout.menu("SEQUENCER_MT_strip_text")
 
@@ -1102,7 +1114,7 @@ class SEQUENCER_MT_strip(Menu):
 
                 if strip_type in {
                         'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-                        'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP', 'WIPE', 'GLOW',
+                        'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
                         'TRANSFORM', 'COLOR', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
                         'GAUSSIAN_BLUR',
                 }:
@@ -1286,7 +1298,7 @@ class SEQUENCER_MT_context_menu(Menu):
 
             if strip_type in {
                     'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-                    'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP', 'WIPE', 'GLOW',
+                    'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
                     'TRANSFORM', 'COLOR', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
                     'GAUSSIAN_BLUR',
             }:
@@ -1334,7 +1346,7 @@ class SEQUENCER_MT_context_menu(Menu):
             layout.operator("sequencer.retiming_segment_speed_set")
             layout.separator()
 
-            layout.operator("sequencer.delete", text="Delete Retiming Keys")
+            layout.operator("sequencer.retiming_key_delete", text="Delete Retiming Keys")
 
     def draw(self, context):
         ed = context.scene.sequence_editor
@@ -1483,7 +1495,7 @@ class SEQUENCER_PT_strip(SequencerButtonsPanel, Panel):
 
         if strip_type in {
                 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER', 'MULTIPLY',
-                'OVER_DROP', 'GLOW', 'TRANSFORM', 'SPEED', 'MULTICAM',
+                'GLOW', 'TRANSFORM', 'SPEED', 'MULTICAM',
                 'GAUSSIAN_BLUR', 'COLORMIX',
         }:
             icon_header = 'SHADERFX'
@@ -1575,7 +1587,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
 
         return strip.type in {
             'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-            'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
+            'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
             'WIPE', 'GLOW', 'TRANSFORM', 'COLOR', 'SPEED',
             'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT', 'COLORMIX',
         }
@@ -1708,7 +1720,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             layout.prop(strip, "wrap_width", text="Wrap Width")
 
         col = layout.column(align=True)
-        if strip_type in {'CROSS', 'GAMMA_CROSS', 'WIPE', 'ALPHA_OVER', 'ALPHA_UNDER', 'OVER_DROP'}:
+        if strip_type in {'CROSS', 'GAMMA_CROSS', 'WIPE', 'ALPHA_OVER', 'ALPHA_UNDER'}:
             col.prop(strip, "use_default_fade", text="Default Fade")
             if not strip.use_default_fade:
                 col.prop(strip, "effect_fader", text="Effect Fader")
@@ -2255,6 +2267,13 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
             split.label(text="End")
             split.prop(strip, "animation_offset_end", text=smpte_from_frame(strip.animation_offset_end))
 
+            if strip.type == 'SOUND':
+                sub2 = layout.column(align=True)
+                split = sub2.split(factor=factor + max_factor, align=True)
+                split.alignment = 'RIGHT'
+                split.label(text="Sound Offset", text_ctxt=i18n_contexts.id_sound)
+                split.prop(strip, "sound_offset", text="")
+
         col = layout.column(align=True)
         col = col.box()
         col.active = (
@@ -2317,11 +2336,6 @@ class SEQUENCER_PT_adjust_sound(SequencerButtonsPanel, Panel):
             split.alignment = 'RIGHT'
             split.label(text="Volume", text_ctxt=i18n_contexts.id_sound)
             split.prop(strip, "volume", text="")
-
-            split = col.split(factor=0.4)
-            split.alignment = 'RIGHT'
-            split.label(text="Offset", text_ctxt=i18n_contexts.id_sound)
-            split.prop(strip, "sound_offset", text="")
 
             layout.use_property_split = False
             col = layout.column()
@@ -2453,7 +2467,7 @@ class SEQUENCER_PT_adjust_video(SequencerButtonsPanel, Panel):
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'OVER_DROP', 'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
+            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
             'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
         }
 
@@ -2490,7 +2504,7 @@ class SEQUENCER_PT_adjust_color(SequencerButtonsPanel, Panel):
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'OVER_DROP', 'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
+            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
             'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
         }
 
@@ -3027,6 +3041,7 @@ class SEQUENCER_PT_snapping(Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = ""
+    bl_ui_units_x = 11
 
     def draw(self, _context):
         pass
@@ -3077,6 +3092,7 @@ class SEQUENCER_PT_sequencer_snapping(Panel):
         layout.use_property_decorate = False
 
         col = layout.column(heading="Snap to", align=True)
+        col.prop(sequencer_tool_settings, "snap_to_frame_range")
         col.prop(sequencer_tool_settings, "snap_to_current_frame")
         col.prop(sequencer_tool_settings, "snap_to_hold_offset")
         col.prop(sequencer_tool_settings, "snap_to_markers")
@@ -3115,6 +3131,7 @@ classes = (
     SEQUENCER_MT_strip_transform,
     SEQUENCER_MT_strip_retiming,
     SEQUENCER_MT_strip_text,
+    SEQUENCER_MT_strip_show_hide,
     SEQUENCER_MT_strip_input,
     SEQUENCER_MT_strip_lock_mute,
     SEQUENCER_MT_image,

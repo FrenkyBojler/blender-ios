@@ -6,6 +6,10 @@ set(INC
   ../include
   ../io
   ../../compositor
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/derived_resources
+  ../../compositor/utilities
   ../../makesrna
 
   # RNA_prototypes.hh
@@ -25,6 +29,7 @@ set(SRC
   node_draw.cc
   node_edit.cc
   node_geometry_attribute_search.cc
+  node_geometry_layer_search.cc
   node_gizmo.cc
   node_group.cc
   node_ops.cc

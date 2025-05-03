@@ -842,7 +842,7 @@ ccl_device
       const AttributeDescriptor attr_descr_random = find_attribute(kg, sd, data_node2.y);
       float random = 0.0f;
       if (attr_descr_random.offset != ATTR_STD_NOT_FOUND) {
-        random = primitive_surface_attribute_float(kg, sd, attr_descr_random, nullptr, nullptr);
+        random = primitive_surface_attribute<float>(kg, sd, attr_descr_random, nullptr, nullptr);
       }
       else {
         random = stack_load_float_default(stack, random_ofs, data_node3.y);
@@ -974,7 +974,7 @@ ccl_device
           if (bsdf->aspect_ratio != 1.0f) {
             /* Align ellipse major axis with the curve normal direction. */
             const AttributeDescriptor attr_descr_normal = find_attribute(kg, sd, shared_ofs2);
-            bsdf->N = curve_attribute_float3(kg, sd, attr_descr_normal, nullptr, nullptr);
+            bsdf->N = curve_attribute<float3>(kg, sd, attr_descr_normal, nullptr, nullptr);
           }
 
           bsdf->roughness = roughness;
@@ -1196,16 +1196,17 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
   }
 
   /* Compute density. */
+  const float weight = mix_weight * object_volume_density(kg, sd->object);
   float primitive_density = 1.0f;
   float density = (stack_valid(density_offset)) ? stack_load_float(stack, density_offset) :
                                                   __uint_as_float(value_node.x);
-  density = mix_weight * fmaxf(density, 0.0f) * object_volume_density(kg, sd->object);
+  density = weight * fmaxf(density, 0.0f);
 
   if (density > 0.0f) {
     /* Density and color attribute lookup if available. */
     const AttributeDescriptor attr_density = find_attribute(kg, sd, attr_node.x);
     if (attr_density.offset != ATTR_STD_NOT_FOUND) {
-      primitive_density = primitive_volume_attribute_float(kg, sd, attr_density);
+      primitive_density = primitive_volume_attribute<float>(kg, sd, attr_density);
       density = fmaxf(density * primitive_density, 0.0f);
     }
   }
@@ -1216,7 +1217,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
 
     const AttributeDescriptor attr_color = find_attribute(kg, sd, attr_node.y);
     if (attr_color.offset != ATTR_STD_NOT_FOUND) {
-      color *= rgb_to_spectrum(primitive_volume_attribute_float3(kg, sd, attr_color));
+      color *= rgb_to_spectrum(primitive_volume_attribute<float3>(kg, sd, attr_color));
     }
 
     /* Add closure for volume scattering. */
@@ -1262,8 +1263,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
 
   if (emission > 0.0f) {
     const float3 emission_color = stack_load_float3(stack, emission_color_offset);
-    emission_setup(
-        sd, rgb_to_spectrum(emission * emission_color * object_volume_density(kg, sd->object)));
+    emission_setup(sd, rgb_to_spectrum(emission * emission_color * weight));
   }
 
   if (blackbody > 0.0f) {
@@ -1272,7 +1272,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
     /* Add flame temperature from attribute if available. */
     const AttributeDescriptor attr_temperature = find_attribute(kg, sd, attr_node.z);
     if (attr_temperature.offset != ATTR_STD_NOT_FOUND) {
-      const float temperature = primitive_volume_attribute_float(kg, sd, attr_temperature);
+      const float temperature = primitive_volume_attribute<float>(kg, sd, attr_temperature);
       T *= fmaxf(temperature, 0.0f);
     }
 
@@ -1287,7 +1287,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
       const float3 blackbody_tint = stack_load_float3(stack, node.w);
       const float3 bb = blackbody_tint * intensity *
                         rec709_to_rgb(kg, svm_math_blackbody_color_rec709(T));
-      emission_setup(sd, rgb_to_spectrum(bb * object_volume_density(kg, sd->object)));
+      emission_setup(sd, rgb_to_spectrum(bb * weight));
     }
   }
 #endif

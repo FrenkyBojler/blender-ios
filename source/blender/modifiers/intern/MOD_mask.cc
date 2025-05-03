@@ -6,8 +6,6 @@
  * \ingroup modifiers
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_utildefines.h"
 
 #include "BLI_array_utils.hh"
@@ -772,9 +770,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   if (mode == MOD_MASK_MODE_ARM) {
-    row = uiLayoutRow(layout, true);
+    row = &layout->row(true);
     uiItemR(row, ptr, "armature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    sub = uiLayoutRow(row, true);
+    sub = &row->row(true);
     uiLayoutSetPropDecorate(sub, false);
     uiItemR(sub, ptr, "invert_vertex_group", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   }
@@ -801,8 +799,8 @@ ModifierTypeInfo modifierType_Mask = {
     /*srna*/ &RNA_MaskModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/
-    (ModifierTypeFlag)(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
-                       eModifierTypeFlag_SupportsEditmode),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
+     eModifierTypeFlag_SupportsEditmode),
     /*icon*/ ICON_MOD_MASK,
 
     /*copy_data*/ BKE_modifier_copydata_generic,

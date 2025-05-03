@@ -6,6 +6,7 @@
 #include "BKE_attribute_filters.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
+#include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
@@ -343,6 +344,7 @@ bke::CurvesGeometry reorder_curves_geometry(const bke::CurvesGeometry &src_curve
 {
   bke::CurvesGeometry dst_curves = bke::curves_new_no_attributes(src_curves.points_num(),
                                                                  src_curves.curves_num());
+  BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
   copy_and_reorder_curves(src_curves, old_by_new_map, attribute_filter, dst_curves);
   return dst_curves;
 }
@@ -381,22 +383,22 @@ bke::GeometryComponentPtr reordered_component(const bke::GeometryComponent &src_
         *src_mesh_component->get(), old_by_new_map, domain, attribute_filter);
     return bke::GeometryComponentPtr(new bke::MeshComponent(result_mesh));
   }
-  else if (const bke::PointCloudComponent *src_points_component =
-               dynamic_cast<const bke::PointCloudComponent *>(&src_component))
+  if (const bke::PointCloudComponent *src_points_component =
+          dynamic_cast<const bke::PointCloudComponent *>(&src_component))
   {
-    PointCloud *result_point_cloud = reorder_points(
+    PointCloud *result_pointcloud = reorder_points(
         *src_points_component->get(), old_by_new_map, attribute_filter);
-    return bke::GeometryComponentPtr(new bke::PointCloudComponent(result_point_cloud));
+    return bke::GeometryComponentPtr(new bke::PointCloudComponent(result_pointcloud));
   }
-  else if (const bke::CurveComponent *src_curves_component =
-               dynamic_cast<const bke::CurveComponent *>(&src_component))
+  if (const bke::CurveComponent *src_curves_component = dynamic_cast<const bke::CurveComponent *>(
+          &src_component))
   {
     Curves *result_curves = reorder_curves(
         *src_curves_component->get(), old_by_new_map, attribute_filter);
     return bke::GeometryComponentPtr(new bke::CurveComponent(result_curves));
   }
-  else if (const bke::InstancesComponent *src_instances_component =
-               dynamic_cast<const bke::InstancesComponent *>(&src_component))
+  if (const bke::InstancesComponent *src_instances_component =
+          dynamic_cast<const bke::InstancesComponent *>(&src_component))
   {
     bke::Instances *result_instances = reorder_instaces(
         *src_instances_component->get(), old_by_new_map, attribute_filter);

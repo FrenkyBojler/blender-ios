@@ -4,10 +4,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later AND BSD-3-Clause */
 
-#include <limits>
+#include <cstring>
 #include <list>
 #include <sstream>
-#include <string.h>
 #include <vector>
 
 #ifdef _MSC_VER
@@ -27,11 +26,8 @@
 
 using namespace OCIO_NAMESPACE;
 
-#include "BLI_math_color.h"
 #include "BLI_math_color.hh"
 #include "BLI_math_matrix.hh"
-
-#include "MEM_guardedalloc.h"
 
 #include "ocio_impl.h"
 #include "ocio_shader_shared.hh"
@@ -143,9 +139,19 @@ struct OCIO_GPUDisplayShader {
 
   /** Error checking. */
   bool valid = false;
+
+  bool equals(const char *input,
+              const char *view,
+              const char *display,
+              const char *look,
+              const bool use_curve_mapping) const
+  {
+    return (this->input == input && this->view == view && this->display == display &&
+            this->look == look && this->use_curve_mapping == use_curve_mapping);
+  }
 };
 
-static const int SHADER_CACHE_MAX_SIZE = 4;
+static const int SHADER_CACHE_MAX_SIZE = 8;
 std::list<OCIO_GPUDisplayShader> SHADER_CACHE;
 
 /* -------------------------------------------------------------------- */
@@ -191,6 +197,8 @@ static bool createGPUShader(OCIO_GPUShader &shader,
     }
   }
 
+  source = GPU_shader_preprocess_source(source);
+
   /* Comparison operator in Metal returns per-element comparison and returns a vector of booleans.
    * Need a special syntax to see if two vec3 are matched.
    *
@@ -203,7 +211,7 @@ static bool createGPUShader(OCIO_GPUShader &shader,
       source, "if ( gamma != vec3(1., 1., 1.) )", "if (! all(equal(gamma, vec3(1., 1., 1.))) )");
 
   StageInterfaceInfo iface("OCIO_Interface", "");
-  iface.smooth(Type::VEC2, "texCoord_interp");
+  iface.smooth(Type::float2_t, "texCoord_interp");
 
   ShaderCreateInfo info("OCIO_Display");
   /* Work around OpenColorIO not supporting latest GLSL yet. */
@@ -215,14 +223,14 @@ static bool createGPUShader(OCIO_GPUShader &shader,
   info.define("in", "");
 #endif
   info.typedef_source("ocio_shader_shared.hh");
-  info.sampler(TEXTURE_SLOT_IMAGE, ImageType::FLOAT_2D, "image_texture");
-  info.sampler(TEXTURE_SLOT_OVERLAY, ImageType::FLOAT_2D, "overlay_texture");
+  info.sampler(TEXTURE_SLOT_IMAGE, ImageType::Float2D, "image_texture");
+  info.sampler(TEXTURE_SLOT_OVERLAY, ImageType::Float2D, "overlay_texture");
   info.uniform_buf(UNIFORMBUF_SLOT_DISPLAY, "OCIO_GPUParameters", "parameters");
-  info.push_constant(Type::MAT4, "ModelViewProjectionMatrix");
-  info.vertex_in(0, Type::VEC2, "pos");
-  info.vertex_in(1, Type::VEC2, "texCoord");
+  info.push_constant(Type::float4x4_t, "ModelViewProjectionMatrix");
+  info.vertex_in(0, Type::float2_t, "pos");
+  info.vertex_in(1, Type::float2_t, "texCoord");
   info.vertex_out(iface);
-  info.fragment_out(0, Type::VEC4, "fragColor");
+  info.fragment_out(0, Type::float4_t, "fragColor");
   info.vertex_source("gpu_shader_display_transform_vert.glsl");
   info.fragment_source("gpu_shader_display_transform_frag.glsl");
   info.fragment_source_generated = source;
@@ -235,16 +243,16 @@ static bool createGPUShader(OCIO_GPUShader &shader,
   if (use_curve_mapping) {
     info.define("USE_CURVE_MAPPING");
     info.uniform_buf(UNIFORMBUF_SLOT_CURVEMAP, "OCIO_GPUCurveMappingParameters", "curve_mapping");
-    info.sampler(TEXTURE_SLOT_CURVE_MAPPING, ImageType::FLOAT_1D, "curve_mapping_texture");
+    info.sampler(TEXTURE_SLOT_CURVE_MAPPING, ImageType::Float1D, "curve_mapping_texture");
   }
 
   /* Set LUT textures. */
   int slot = TEXTURE_SLOT_LUTS_OFFSET;
   for (OCIO_GPULutTexture &texture : textures.luts) {
     const int dimensions = GPU_texture_dimensions(texture.texture);
-    ImageType type = (dimensions == 1) ? ImageType::FLOAT_1D :
-                     (dimensions == 2) ? ImageType::FLOAT_2D :
-                                         ImageType::FLOAT_3D;
+    ImageType type = (dimensions == 1) ? ImageType::Float1D :
+                     (dimensions == 2) ? ImageType::Float2D :
+                                         ImageType::Float3D;
 
     info.sampler(slot++, type, texture.sampler_name.c_str());
   }
@@ -607,32 +615,33 @@ bool OCIOImpl::supportGPUShader()
   return true;
 }
 
-static OCIO_GPUDisplayShader &getGPUDisplayShader(
-    OCIO_ConstConfigRcPtr *config,
-    const char *input,
-    const char *view,
-    const char *display,
-    const char *look,
-    OCIO_CurveMappingSettings *curve_mapping_settings)
+static OCIO_GPUDisplayShader *getGPUDisplayShaderFromCache(const char *input,
+                                                           const char *view,
+                                                           const char *display,
+                                                           const char *look,
+                                                           const bool use_curve_mapping)
 {
-  /* Find existing shader in cache. */
-  const bool use_curve_mapping = (curve_mapping_settings != nullptr);
   for (std::list<OCIO_GPUDisplayShader>::iterator it = SHADER_CACHE.begin();
        it != SHADER_CACHE.end();
        it++)
   {
-    if (it->input == input && it->view == view && it->display == display && it->look == look &&
-        it->use_curve_mapping == use_curve_mapping)
-    {
+    if (it->equals(input, view, display, look, use_curve_mapping)) {
       /* Move to front of the cache to mark as most recently used. */
       if (it != SHADER_CACHE.begin()) {
         SHADER_CACHE.splice(SHADER_CACHE.begin(), SHADER_CACHE, it);
       }
-
-      return *it;
+      return &(*it);
     }
   }
+  return nullptr;
+}
 
+/**
+ * Create default-initialized OCIO_GPUDisplayShader and put it to cache.
+ * The function ensures the cache has up to SHADER_CACHE_MAX_SIZE entries.
+ */
+static OCIO_GPUDisplayShader &gpuDisplayShaderCreateAndCache()
+{
   /* Remove least recently used element from cache. */
   if (SHADER_CACHE.size() >= SHADER_CACHE_MAX_SIZE) {
     SHADER_CACHE.pop_back();
@@ -642,6 +651,60 @@ static OCIO_GPUDisplayShader &getGPUDisplayShader(
   SHADER_CACHE.emplace_front();
   OCIO_GPUDisplayShader &display_shader = SHADER_CACHE.front();
 
+  return display_shader;
+}
+
+static void createGPUShaderDescriptors(OCIO_GPUDisplayShader &display_shader,
+                                       ConstProcessorRcPtr processor_to_scene_linear,
+                                       ConstProcessorRcPtr processor_to_display,
+                                       const bool use_curve_mapping)
+{
+  GpuShaderDescRcPtr shaderdesc_to_scene_linear = GpuShaderDesc::CreateShaderDesc();
+  shaderdesc_to_scene_linear->setLanguage(GPU_LANGUAGE_GLSL_1_3);
+  shaderdesc_to_scene_linear->setFunctionName("OCIO_to_scene_linear");
+  shaderdesc_to_scene_linear->setResourcePrefix("to_scene");
+  processor_to_scene_linear->getDefaultGPUProcessor()->extractGpuShaderInfo(
+      shaderdesc_to_scene_linear);
+  shaderdesc_to_scene_linear->finalize();
+
+  GpuShaderDescRcPtr shaderdesc_to_display = GpuShaderDesc::CreateShaderDesc();
+  shaderdesc_to_display->setLanguage(GPU_LANGUAGE_GLSL_1_3);
+  shaderdesc_to_display->setFunctionName("OCIO_to_display");
+  shaderdesc_to_display->setResourcePrefix("to_display");
+  processor_to_display->getDefaultGPUProcessor()->extractGpuShaderInfo(shaderdesc_to_display);
+  shaderdesc_to_display->finalize();
+
+  /* Create GPU shader and textures. */
+  if (createGPUTextures(
+          display_shader.textures, shaderdesc_to_scene_linear, shaderdesc_to_display) &&
+      createGPUShader(display_shader.shader,
+                      display_shader.textures,
+                      shaderdesc_to_scene_linear,
+                      shaderdesc_to_display,
+                      use_curve_mapping))
+  {
+    display_shader.valid = true;
+  }
+}
+
+static OCIO_GPUDisplayShader &getGPUDisplayShader(
+    OCIO_ConstConfigRcPtr *config,
+    const char *input,
+    const char *view,
+    const char *display,
+    const char *look,
+    OCIO_CurveMappingSettings *curve_mapping_settings)
+{
+  const bool use_curve_mapping = (curve_mapping_settings != nullptr);
+
+  /* Find existing shader in cache. */
+  OCIO_GPUDisplayShader *cached_shader = getGPUDisplayShaderFromCache(
+      input, view, display, look, use_curve_mapping);
+  if (cached_shader) {
+    return *cached_shader;
+  }
+
+  OCIO_GPUDisplayShader &display_shader = gpuDisplayShaderCreateAndCache();
   display_shader.input = input;
   display_shader.view = view;
   display_shader.display = display;
@@ -670,35 +733,13 @@ static OCIO_GPUDisplayShader &getGPUDisplayShader(
 
   /* Create shader descriptions. */
   if (processor_to_scene_linear && processor_to_display) {
-    GpuShaderDescRcPtr shaderdesc_to_scene_linear = GpuShaderDesc::CreateShaderDesc();
-    shaderdesc_to_scene_linear->setLanguage(GPU_LANGUAGE_GLSL_1_3);
-    shaderdesc_to_scene_linear->setFunctionName("OCIO_to_scene_linear");
-    shaderdesc_to_scene_linear->setResourcePrefix("to_scene");
-    (*(ConstProcessorRcPtr *)processor_to_scene_linear)
-        ->getDefaultGPUProcessor()
-        ->extractGpuShaderInfo(shaderdesc_to_scene_linear);
-    shaderdesc_to_scene_linear->finalize();
-
-    GpuShaderDescRcPtr shaderdesc_to_display = GpuShaderDesc::CreateShaderDesc();
-    shaderdesc_to_display->setLanguage(GPU_LANGUAGE_GLSL_1_3);
-    shaderdesc_to_display->setFunctionName("OCIO_to_display");
-    shaderdesc_to_display->setResourcePrefix("to_display");
-    (*(ConstProcessorRcPtr *)processor_to_display)
-        ->getDefaultGPUProcessor()
-        ->extractGpuShaderInfo(shaderdesc_to_display);
-    shaderdesc_to_display->finalize();
-
-    /* Create GPU shader and textures. */
-    if (createGPUTextures(
-            display_shader.textures, shaderdesc_to_scene_linear, shaderdesc_to_display) &&
-        createGPUCurveMapping(display_shader.curvemap, curve_mapping_settings) &&
-        createGPUShader(display_shader.shader,
-                        display_shader.textures,
-                        shaderdesc_to_scene_linear,
-                        shaderdesc_to_display,
-                        use_curve_mapping))
-    {
-      display_shader.valid = true;
+    createGPUShaderDescriptors(display_shader,
+                               *(ConstProcessorRcPtr *)processor_to_scene_linear,
+                               *(ConstProcessorRcPtr *)processor_to_display,
+                               use_curve_mapping);
+    if (display_shader.valid) {
+      display_shader.valid &= createGPUCurveMapping(display_shader.curvemap,
+                                                    curve_mapping_settings);
     }
   }
 
@@ -713,35 +754,62 @@ static OCIO_GPUDisplayShader &getGPUDisplayShader(
   return display_shader;
 }
 
-/**
- * Setup GPU contexts for a transform defined by processor using GLSL.
- * All LUT allocating baking and shader compilation happens here.
- *
- * Once this function is called, callee could start drawing images
- * using regular 2D texture.
- *
- * When all drawing is finished, gpuDisplayShaderUnbind must be called to
- * restore GPU context to its previous state.
- */
-bool OCIOImpl::gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
-                                    const char *input,
-                                    const char *view,
-                                    const char *display,
-                                    const char *look,
-                                    OCIO_CurveMappingSettings *curve_mapping_settings,
-                                    const float scale,
-                                    const float exponent,
-                                    const float dither,
-                                    const float temperature,
-                                    const float tint,
-                                    const bool use_predivide,
-                                    const bool use_overlay,
-                                    const bool use_hdr,
-                                    const bool use_white_balance)
+static OCIO_GPUDisplayShader &getGPUToLinearDisplayShader(OCIO_ConstConfigRcPtr *config,
+                                                          const char *input)
 {
-  /* Get GPU shader from cache or create new one. */
-  OCIO_GPUDisplayShader &display_shader = getGPUDisplayShader(
-      config, input, view, display, look, curve_mapping_settings);
+  /* Find existing shader in cache.
+   * Assume that empty names for display, view, and look are not valid for OCIO configuration, and
+   * so they can be used to indicate that the processor is used to convert from the given space to
+   * the linear. */
+  /* TODO(sergey): Using separate storage for to-linear processor caches might be better. */
+  OCIO_GPUDisplayShader *cached_shader = getGPUDisplayShaderFromCache(input, "", "", "", false);
+  if (cached_shader) {
+    return *cached_shader;
+  }
+
+  OCIO_GPUDisplayShader &display_shader = gpuDisplayShaderCreateAndCache();
+  display_shader.input = input;
+  display_shader.use_curve_mapping = false;
+  display_shader.valid = false;
+
+  OCIO_ConstProcessorRcPtr *processor_to_scene_linear = OCIO_configGetProcessorWithNames(
+      config, input, ROLE_SCENE_LINEAR);
+  OCIO_ConstProcessorRcPtr *processor_to_display = OCIO_configGetProcessorWithNames(
+      config, input, input);
+
+  /* Create shader descriptions. */
+  if (processor_to_scene_linear && processor_to_display) {
+    createGPUShaderDescriptors(display_shader,
+                               *(ConstProcessorRcPtr *)processor_to_scene_linear,
+                               *(ConstProcessorRcPtr *)processor_to_display,
+                               false);
+  }
+
+  /* Free processors. */
+  if (processor_to_scene_linear) {
+    OCIO_processorRelease(processor_to_scene_linear);
+  }
+  if (processor_to_display) {
+    OCIO_processorRelease(processor_to_display);
+  }
+
+  return display_shader;
+}
+
+/* Bind the shader and update parameters and uniforms. */
+static bool gpuShaderBind(OCIO_ConstConfigRcPtr *config,
+                          OCIO_GPUDisplayShader &display_shader,
+                          OCIO_CurveMappingSettings *curve_mapping_settings,
+                          const float scale,
+                          const float exponent,
+                          const float dither,
+                          const float temperature,
+                          const float tint,
+                          const bool use_predivide,
+                          const bool use_overlay,
+                          const bool use_hdr,
+                          const bool use_white_balance)
+{
   if (!display_shader.valid) {
     return false;
   }
@@ -776,7 +844,7 @@ bool OCIOImpl::gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
   if (use_white_balance) {
     /* Compute white point of the scene space in XYZ.*/
     float3x3 xyz_to_scene;
-    configGetXYZtoSceneLinear(config, xyz_to_scene.ptr());
+    OCIO_configGetXYZtoSceneLinear(config, xyz_to_scene.ptr());
     float3x3 scene_to_xyz = blender::math::invert(xyz_to_scene);
     float3 target = scene_to_xyz * float3(1.0f);
 
@@ -798,7 +866,63 @@ bool OCIOImpl::gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
   return true;
 }
 
-void OCIOImpl::gpuDisplayShaderUnbind()
+bool OCIOImpl::gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
+                                    const char *input,
+                                    const char *view,
+                                    const char *display,
+                                    const char *look,
+                                    OCIO_CurveMappingSettings *curve_mapping_settings,
+                                    const float scale,
+                                    const float exponent,
+                                    const float dither,
+                                    const float temperature,
+                                    const float tint,
+                                    const bool use_predivide,
+                                    const bool use_overlay,
+                                    const bool use_hdr,
+                                    const bool use_white_balance)
+{
+  /* Get GPU shader from cache or create new one. */
+  OCIO_GPUDisplayShader &display_shader = getGPUDisplayShader(
+      config, input, view, display, look, curve_mapping_settings);
+
+  return gpuShaderBind(config,
+                       display_shader,
+                       curve_mapping_settings,
+                       scale,
+                       exponent,
+                       dither,
+                       temperature,
+                       tint,
+                       use_predivide,
+                       use_overlay,
+                       use_hdr,
+                       use_white_balance);
+}
+
+bool OCIOImpl::gpuToSceneLinearShaderBind(OCIO_ConstConfigRcPtr *config,
+                                          const char *from_colorspace_name,
+                                          const bool use_predivide)
+{
+  /* Get GPU shader from cache or create new one. */
+  OCIO_GPUDisplayShader &display_shader = getGPUToLinearDisplayShader(config,
+                                                                      from_colorspace_name);
+
+  return gpuShaderBind(config,
+                       display_shader,
+                       nullptr, /* curve_mapping_settings */
+                       1.0f,    /* scale */
+                       1.0f,    /* exponent */
+                       0.0f,    /* dither */
+                       6500.0f, /* temperature */
+                       10.0f,   /* tint */
+                       use_predivide,
+                       false /* use_overlay */,
+                       true, /* use_hdr */
+                       false /* use_white_balance */);
+}
+
+void OCIOImpl::gpuShaderUnbind()
 {
   immUnbindProgram();
 }

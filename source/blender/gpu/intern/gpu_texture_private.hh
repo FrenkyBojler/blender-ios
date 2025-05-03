@@ -344,7 +344,7 @@ class PixelBuffer {
 
   virtual void *map() = 0;
   virtual void unmap() = 0;
-  virtual int64_t get_native_handle() = 0;
+  virtual GPUPixelBufferNativeHandle get_native_handle() = 0;
   virtual size_t get_size() = 0;
 };
 
@@ -766,8 +766,7 @@ inline size_t to_bytesize(eGPUTextureFormat tex_format, eGPUDataFormat data_form
 }
 
 /* Definitely not complete, edit according to the gl specification. */
-constexpr inline bool validate_data_format(eGPUTextureFormat tex_format,
-                                           eGPUDataFormat data_format)
+constexpr bool validate_data_format(eGPUTextureFormat tex_format, eGPUDataFormat data_format)
 {
   switch (tex_format) {
     /* Formats texture & render-buffer */

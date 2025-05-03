@@ -11,7 +11,6 @@
  */
 
 #include <algorithm>
-#include <memory>
 
 #include "oiio/openimageio_support.hh"
 
@@ -44,17 +43,17 @@ void imb_init_dds()
   }
 }
 
-bool imb_is_a_dds(const uchar *buf, size_t size)
+bool imb_is_a_dds(const uchar *mem, size_t size)
 {
-  return imb_oiio_check(buf, size, "dds");
+  return imb_oiio_check(mem, size, "dds");
 }
 
-ImBuf *imb_load_dds(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_dds(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
   ReadContext ctx{mem, size, "dds", IMB_FTYPE_DDS, flags};
 
-  ImBuf *ibuf = imb_oiio_read(ctx, config, colorspace, spec);
+  ImBuf *ibuf = imb_oiio_read(ctx, config, r_colorspace, spec);
 
   /* Load compressed DDS information if available. */
   if (ibuf && (flags & IB_test) == 0) {

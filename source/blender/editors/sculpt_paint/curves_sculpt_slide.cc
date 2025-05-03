@@ -172,7 +172,7 @@ struct SlideOperationExecutor {
       report_missing_uv_map_on_original_surface(stroke_extension.reports);
       return;
     }
-    surface_ob_eval_ = DEG_get_evaluated_object(ctx_.depsgraph, surface_ob_orig_);
+    surface_ob_eval_ = DEG_get_evaluated(ctx_.depsgraph, surface_ob_orig_);
     if (surface_ob_eval_ == nullptr) {
       return;
     }
@@ -438,7 +438,7 @@ struct SlideOperationExecutor {
           if (hit.index < 0) {
             return;
           }
-          const float3 &hit_pos_su = hit.co;
+          const float3 hit_pos_su = hit.co;
           const float dist_sq_su = math::distance_squared(hit_pos_su, point_su);
           if (dist_sq_su < best_dist_sq_su) {
             best_dist_sq_su = dist_sq_su;

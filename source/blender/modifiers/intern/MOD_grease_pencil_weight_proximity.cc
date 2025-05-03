@@ -8,7 +8,6 @@
 
 #include "BLI_index_mask.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_string.h" /* For #STRNCPY. */
 
 #include "BLT_translation.hh"
 
@@ -127,7 +126,7 @@ static float get_distance_factor(float3 target_pos,
     }
     return 0.0f;
   }
-  else if (dist_max < dist_min) {
+  if (dist_max < dist_min) {
     if (dist > dist_min) {
       return 0.0f;
     }
@@ -253,10 +252,10 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   uiLayoutSetPropSep(layout, true);
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiItemPointerR(
       row, ptr, "target_vertex_group", &ob_ptr, "vertex_groups", std::nullopt, ICON_NONE);
-  sub = uiLayoutRow(row, true);
+  sub = &row->row(true);
   bool has_output = RNA_string_length(ptr, "target_vertex_group") != 0;
   uiLayoutSetPropDecorate(sub, false);
   uiLayoutSetActive(sub, has_output);
@@ -264,7 +263,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  sub = uiLayoutColumn(layout, true);
+  sub = &layout->column(true);
   uiItemR(sub, ptr, "distance_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(sub, ptr, "distance_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

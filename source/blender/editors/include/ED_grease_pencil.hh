@@ -39,12 +39,12 @@ struct ViewContext;
 struct BVHTree;
 struct GreasePencilLineartModifierData;
 struct RV3DMatrixStore;
+
 namespace blender {
+class RandomNumberGenerator;
 namespace bke {
 enum class AttrDomain : int8_t;
 class CurvesGeometry;
-namespace crazyspace {
-}
 }  // namespace bke
 }  // namespace blender
 
@@ -60,7 +60,7 @@ enum {
 /**
  * Join selected objects. Called from #OBJECT_OT_join.
  */
-int ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op);
 
 void ED_operatortypes_grease_pencil();
 void ED_operatortypes_grease_pencil_draw();
@@ -86,7 +86,7 @@ void ED_interpolatetool_modal_keymap(wmKeyConfig *keyconf);
 
 void GREASE_PENCIL_OT_stroke_trim(wmOperatorType *ot);
 
-void ED_undosys_type_grease_pencil(UndoType *undo_type);
+void ED_undosys_type_grease_pencil(UndoType *ut);
 
 /**
  * Get the selection mode for Grease Pencil selection operators: point, stroke, segment.
@@ -161,7 +161,6 @@ class DrawingPlacement {
   DrawingPlacement &operator=(DrawingPlacement &&other);
   ~DrawingPlacement();
 
- public:
   bool use_project_to_surface() const;
   bool use_project_to_stroke() const;
 
@@ -318,7 +317,9 @@ bool grease_pencil_context_poll(bContext *C);
 bool active_grease_pencil_poll(bContext *C);
 bool active_grease_pencil_material_poll(bContext *C);
 bool editable_grease_pencil_poll(bContext *C);
+bool editable_grease_pencil_with_region_view3d_poll(bContext *C);
 bool active_grease_pencil_layer_poll(bContext *C);
+bool active_grease_pencil_layer_group_poll(bContext *C);
 bool editable_grease_pencil_point_selection_poll(bContext *C);
 bool grease_pencil_selection_poll(bContext *C);
 bool grease_pencil_painting_poll(bContext *C);
@@ -337,9 +338,9 @@ float radius_from_input_sample(const RegionView3D *rv3d,
                                float3 location,
                                float4x4 to_world,
                                const BrushGpencilSettings *settings);
-int grease_pencil_draw_operator_invoke(bContext *C,
-                                       wmOperator *op,
-                                       bool use_duplicate_previous_key);
+wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    bool use_duplicate_previous_key);
 float4x2 calculate_texture_space(const Scene *scene,
                                  const ARegion *region,
                                  const float2 &mouse,
@@ -563,19 +564,15 @@ void add_armature_envelope_weights(Scene &scene, Object &object, const Object &o
 void add_armature_automatic_weights(Scene &scene, Object &object, const Object &ob_armature);
 
 void clipboard_free();
-const bke::CurvesGeometry &clipboard_curves();
 /**
- * Paste curves from the clipboard into the drawing.
- * \param paste_back: Render behind existing curves by inserting curves at the front.
- * \param keep_world_transform: Keep the world transform of clipboard strokes unchanged.
- * \return Index range of the new curves in the drawing after pasting.
+ * Paste all the strokes in the clipboard layers into \a drawing.
  */
-IndexRange clipboard_paste_strokes(Main &bmain,
-                                   Object &object,
-                                   bke::greasepencil::Drawing &drawing,
-                                   const float4x4 &transform,
-                                   bool keep_world_transform,
-                                   bool paste_back);
+IndexRange paste_all_strokes_from_clipboard(Main &bmain,
+                                            Object &object,
+                                            const float4x4 &object_to_paste_layer,
+                                            bool keep_world_transform,
+                                            bool paste_back,
+                                            bke::greasepencil::Drawing &drawing);
 
 /**
  * Method used by the Fill tool to fit the render buffer to strokes.
@@ -920,14 +917,94 @@ GreasePencilLineartModifierData *get_first_lineart_modifier(const Object &ob);
 
 GreasePencil *from_context(bContext &C);
 
-/**
- * Remove the points in the \a point_mask and split each curve at the points that are removed (if
- * necessary).
- */
-bke::CurvesGeometry remove_points_and_split(const bke::CurvesGeometry &curves,
-                                            const IndexMask &point_mask);
-
 /* Make sure selection domain is updated to match the current selection mode. */
 bool ensure_selection_domain(ToolSettings *ts, Object *object);
+
+/**
+ * Creates a new curve with one point at the beginning or end.
+ * \note Does not initialize the new curve or points.
+ */
+void add_single_curve(bke::CurvesGeometry &curves, bool at_end);
+
+/**
+ * Resize the first or last curve to `new_points_num` number of points.
+ * \note Does not initialize the new points.
+ */
+void resize_single_curve(bke::CurvesGeometry &curves, bool at_end, int new_points_num);
+
+/**
+ * Calculate a randomized radius value for a point.
+ * \param stroke_factor: Random seed value in [-1, 1] per stroke.
+ * \param distance: Screen-space length in pixels along the curve.
+ * \param radius: Base radius to be randomized.
+ * \param pressure: Pressure factor.
+ */
+float randomize_radius(const BrushGpencilSettings &settings,
+                       float stroke_factor,
+                       float distance,
+                       float radius,
+                       float pressure);
+/**
+ * Calculate a randomized opacity value for a point.
+ * \param stroke_factor: Random seed value in [-1, 1] per stroke.
+ * \param distance: Screen-space length in pixels along the curve.
+ * \param opacity: Base opacity to be randomized.
+ * \param pressure: Pressure factor.
+ */
+float randomize_opacity(const BrushGpencilSettings &settings,
+                        float stroke_factor,
+                        float distance,
+                        float opacity,
+                        float pressure);
+/**
+ * Calculate a randomized rotation for a point.
+ * \param stroke_factor: Random seed value in [-1, 1] per stroke.
+ * \param distance: Screen-space length in pixels along the curve.
+ * \param pressure: Pressure factor.
+ */
+float randomize_rotation(const BrushGpencilSettings &settings,
+                         float stroke_factor,
+                         float distance,
+                         float pressure);
+/**
+ * Calculate a randomized rotation for a point.
+ * \param rng: Random number generator instance.
+ * \param stroke_factor: Random seed value in [-1, 1] per stroke.
+ * \param pressure: Pressure factor.
+ */
+float randomize_rotation(const BrushGpencilSettings &settings,
+                         blender::RandomNumberGenerator &rng,
+                         float stroke_factor,
+                         float pressure);
+/**
+ * Calculate a randomized opacity value for a point.
+ * \param stroke_hue_factor: Random seed value in [-1, 1] per stroke for color hue.
+ * \param stroke_saturation_factor: Random seed value in [-1, 1] per stroke for color saturation.
+ * \param stroke_value_factor: Random seed value in [-1, 1] per stroke for color value.
+ * \param distance: Screen-space length in pixels along the curve.
+ * \param color: Base color to be randomized.
+ * \param pressure: Pressure factor.
+ */
+ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
+                                float stroke_hue_factor,
+                                float stroke_saturation_factor,
+                                float stroke_value_factor,
+                                float distance,
+                                ColorGeometry4f color,
+                                float pressure);
+
+/**
+ * Applies the \a eval_grease_pencil onto the \a orig_grease_pencil at the \a eval_frame.
+ * The \a orig_grease_pencil is modified in-place.
+ * The mapping between the layers is created based on the layer name.
+ * \param eval_grease_pencil: The source Grease Pencil data.
+ * \param eval_frame: The frame at which to apply the data.
+ * \param orig_layers: Selection of original layers to modify.
+ * \param orig_grease_pencil: The destination Grease Pencil data.
+ */
+void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
+                                   int eval_frame,
+                                   const IndexMask &orig_layers,
+                                   GreasePencil &orig_grease_pencil);
 
 }  // namespace blender::ed::greasepencil

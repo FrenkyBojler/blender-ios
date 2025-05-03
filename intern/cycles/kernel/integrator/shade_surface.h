@@ -23,6 +23,7 @@
 #include "kernel/integrator/subsurface.h"
 #include "kernel/integrator/volume_stack.h"
 
+#include "kernel/types.h"
 #include "util/math_intersect.h"
 
 CCL_NAMESPACE_BEGIN
@@ -238,6 +239,8 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
 
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, transparent_bounce) = INTEGRATOR_STATE(
       state, path, transparent_bounce);
+  INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, volume_bounds_bounce) = INTEGRATOR_STATE(
+      state, path, volume_bounds_bounce);
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, glossy_bounce) = INTEGRATOR_STATE(
       state, path, glossy_bounce);
 
@@ -348,9 +351,9 @@ ccl_device
 #ifdef __MNEE__
   IF_KERNEL_FEATURE(MNEE)
   {
-    if (ls.lamp != LAMP_NONE) {
+    if (ls.type != LIGHT_TRIANGLE) {
       /* Is this a caustic light? */
-      const bool use_caustics = kernel_data_fetch(lights, ls.lamp).use_caustics;
+      const bool use_caustics = kernel_data_fetch(lights, ls.prim).use_caustics;
       if (use_caustics) {
         /* Are we on a caustic caster? */
         if (is_transmission && (sd->object_flag & SD_OBJECT_CAUSTICS_CASTER)) {
@@ -647,7 +650,6 @@ ccl_device_forceinline void integrate_surface_ao(KernelGlobals kg,
   ray.self.prim = (skip_self) ? sd->prim : PRIM_NONE;
   ray.self.light_object = OBJECT_NONE;
   ray.self.light_prim = PRIM_NONE;
-  ray.self.light = LAMP_NONE;
   ray.dP = differential_zero_compact();
   ray.dD = differential_zero_compact();
 
@@ -682,6 +684,8 @@ ccl_device_forceinline void integrate_surface_ao(KernelGlobals kg,
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, flag) = shadow_flag;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, bounce) = bounce;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, transparent_bounce) = transparent_bounce;
+  INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, volume_bounds_bounce) = INTEGRATOR_STATE(
+      state, path, volume_bounds_bounce);
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, throughput) = throughput;
 
   if (kernel_data.kernel_features & KERNEL_FEATURE_AO_ADDITIVE) {

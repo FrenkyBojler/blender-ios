@@ -6,25 +6,17 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_geom.h"
-#include "BLI_utildefines.h"
 
 #include "RNA_define.hh"
 
 #include "DNA_constraint_types.h"
-#include "DNA_layer_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
-
-#include "BKE_layer.hh"
-
-#include "DEG_depsgraph.hh"
 
 #include "ED_outliner.hh"
 
@@ -350,7 +342,7 @@ static void rna_Object_calc_matrix_camera(Object *ob,
                                           float scalex,
                                           float scaley)
 {
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   CameraParams params;
 
   /* setup parameters */
@@ -502,7 +494,7 @@ static void rna_Object_shape_key_remove(Object *ob,
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 
-  RNA_POINTER_INVALIDATE(kb_ptr);
+  kb_ptr->invalidate();
 }
 
 static void rna_Object_shape_key_clear(Object *ob, Main *bmain)
@@ -577,7 +569,7 @@ static Object *eval_object_ensure(Object *ob,
       depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     }
     if (depsgraph != nullptr) {
-      ob = DEG_get_evaluated_object(depsgraph, ob);
+      ob = DEG_get_evaluated(depsgraph, ob);
     }
     if (ob == nullptr || BKE_object_get_evaluated_mesh(ob) == nullptr) {
       BKE_reportf(
@@ -707,13 +699,14 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
       copy_v3_v3(r_normal, nearest.no);
       *r_index = mesh_corner_tri_to_face_index(mesh_eval, nearest.index);
     }
+    else {
+      *r_success = false;
+
+      zero_v3(r_location);
+      zero_v3(r_normal);
+      *r_index = -1;
+    }
   }
-
-  *r_success = false;
-
-  zero_v3(r_location);
-  zero_v3(r_normal);
-  *r_index = -1;
 }
 
 static bool rna_Object_is_modified(Object *ob, Scene *scene, int settings)
