@@ -190,7 +190,7 @@ static void grease_pencil_import_svg_draw(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiLayout *box = uiLayoutBox(layout);
+  uiLayout *box = &layout->box();
   uiLayout *col = &box->column(false);
   uiItemR(col, op->ptr, "resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -359,7 +359,7 @@ static void ui_gpencil_export_settings(uiLayout *layout,
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  box = uiLayoutBox(layout);
+  box = &layout->box();
 
   row = &box->row(false);
   uiItemL(row, IFACE_("Scene Options"), ICON_NONE);
@@ -367,7 +367,7 @@ static void ui_gpencil_export_settings(uiLayout *layout,
   row = &box->row(false);
   uiItemR(row, imfptr, "selected_object_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  box = uiLayoutBox(layout);
+  box = &layout->box();
   row = &box->row(false);
   uiItemL(row, IFACE_("Export Options"), ICON_NONE);
 
