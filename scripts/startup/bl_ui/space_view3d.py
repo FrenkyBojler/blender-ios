@@ -6774,6 +6774,7 @@ class VIEW3D_PT_shading_options_shadow(Panel):
     bl_label = "Shadow Settings"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
+    bl_ui_units_x = 12
 
     def draw(self, context):
         layout = self.layout
@@ -6781,9 +6782,9 @@ class VIEW3D_PT_shading_options_shadow(Panel):
         scene = context.scene
 
         col = layout.column()
-        col.prop(scene.display, "light_direction")
-        col.prop(scene.display, "shadow_shift")
-        col.prop(scene.display, "shadow_focus")
+        col.prop(scene.display, "light_direction", text="Direction")
+        col.prop(scene.display, "shadow_shift", text="Offset")
+        col.prop(scene.display, "shadow_focus", text="Focus")
 
 
 class VIEW3D_PT_shading_options_ssao(Panel):
