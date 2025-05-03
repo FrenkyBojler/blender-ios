@@ -6725,6 +6725,20 @@ class VIEW3D_PT_shading_options(Panel):
         if shading.type == 'SOLID':
             col.prop(shading, "show_backface_culling")
 
+        if shading.type in {'WIREFRAME', 'SOLID'}:
+            row = col.split()
+            row.prop(shading, "show_object_outline")
+            sub = row.row()
+            sub.active = shading.show_object_outline
+            sub.prop(shading, "object_outline_color", text="")
+
+        if shading.type == 'SOLID':
+            col = col.column()
+            if shading.light in {'STUDIO', 'MATCAP'}:
+                studio_light = shading.selected_studio_light
+                col.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
+                col.prop(shading, "show_specular_highlight", text="Specular Lighting")
+
         row = col.row(align=True)
 
         if shading.type == 'WIREFRAME':
@@ -6755,20 +6769,6 @@ class VIEW3D_PT_shading_options(Panel):
             row = col.row()
             row.active = not xray_active
             row.prop(shading, "use_dof", text="Depth of Field")
-
-        if shading.type in {'WIREFRAME', 'SOLID'}:
-            row = col.split()
-            row.prop(shading, "show_object_outline")
-            sub = row.row()
-            sub.active = shading.show_object_outline
-            sub.prop(shading, "object_outline_color", text="")
-
-        if shading.type == 'SOLID':
-            col = col.column()
-            if shading.light in {'STUDIO', 'MATCAP'}:
-                studio_light = shading.selected_studio_light
-                col.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
-                col.prop(shading, "show_specular_highlight", text="Specular Lighting")
 
 
 class VIEW3D_PT_shading_options_shadow(Panel):
