@@ -1,1 +1,1 @@
-Referenced by pull request #138372, Fix: Limit NURBS .obj import to only valid degrees and knot vectors
+Referenced by pull request #138372, Fix: Only parse knot mode for reasonable knot vectors
