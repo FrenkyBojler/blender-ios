@@ -4,8 +4,9 @@
 
 from enum import Enum
 
+
 class BezierHandle(Enum):
-    LEFT  = 1
+    LEFT = 1
     RIGHT = 2
 
 
@@ -130,6 +131,7 @@ def DefAttributeGetterSetters(attributes_list):
         return cls
     return wrapper
 
+
 class GreasePencilStrokePointHandle:
     """Proxy giving read-only/write access to Bézier handle data."""
 
@@ -167,6 +169,8 @@ class GreasePencilStrokePointHandle:
         self._point._set_attribute(attribute_name, 'BOOLEAN', value, True)
 
 # Define the list of attributes that should be exposed as read/write properties on the class.
+
+
 @DefAttributeGetterSetters([
     # Property Name, Attribute Name, Type, Default Value, Doc-string.
     ("radius", "radius", 'FLOAT', 0.01, "The radius of the point."),
@@ -250,6 +254,7 @@ class GreasePencilStrokePoint(AttributeGetterSetter):
         if stroke_curve_type == 2:
             return GreasePencilStrokePointHandle(self, BezierHandle.RIGHT)
         return None
+
 
 class GreasePencilStrokePointSlice(SliceHelper):
     """
