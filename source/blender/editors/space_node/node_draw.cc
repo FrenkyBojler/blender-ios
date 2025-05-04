@@ -708,9 +708,6 @@ static void add_flat_items_for_socket(bNode &node,
   if (!socket.is_visible()) {
     return;
   }
-  if (socket.is_input() && !socket.inferred_input_socket_visibility()) {
-    return;
-  }
   if (socket_decl.align_with_previous_socket) {
     if (!prev_socket_decl || !node.socket_by_decl(*prev_socket_decl).is_visible()) {
       r_items.append({flat_item::Socket()});

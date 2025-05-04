@@ -949,7 +949,7 @@ inline int bNodeSocket::index_in_all_outputs() const
   return this->runtime->index_in_inout_sockets;
 }
 
-inline bool bNodeSocket::is_hidden() const
+inline bool bNodeSocket::is_user_hidden() const
 {
   return (this->flag & SOCK_HIDDEN) != 0;
 }
@@ -966,7 +966,8 @@ inline bool bNodeSocket::is_panel_collapsed() const
 
 inline bool bNodeSocket::is_visible() const
 {
-  return !this->is_hidden() && this->is_available();
+  return !this->is_user_hidden() && this->is_available() &&
+         (this->is_output() || this->inferred_input_socket_visibility());
 }
 
 inline bNode &bNodeSocket::owner_node()
