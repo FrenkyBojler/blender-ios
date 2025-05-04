@@ -1022,9 +1022,10 @@ struct SocketUsageInferencer {
     }
   }
 
-  bool treat_socket_as_unknown(const bNodeSocket &socket) const
+  bool treat_socket_as_unknown(const bNodeSocket & /*socket*/) const
   {
-    return params_.treat_menus_as_unknown && socket.type == SOCK_MENU;
+    return false;
+    // return params_.treat_menus_as_unknown && socket.type == SOCK_MENU;
   }
 };
 
@@ -1051,17 +1052,62 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         const Span<GPointer> group_input_values,
                                         const MutableSpan<SocketUsage> r_input_usages)
 {
-  SocketUsageInferencer inferencer{group, group_input_values, params};
 
   SocketUsage default_usage;
   default_usage.is_used = false;
   default_usage.is_visible = true;
-
   r_input_usages.fill(default_usage);
+
+  {
+    /* Detect actually used inputs. */
+    SocketUsageInferencer inferencer{group, group_input_values, params};
+    for (const bNode *node : group.group_input_nodes()) {
+      for (const int i : group.interface_inputs().index_range()) {
+        const bNodeSocket &socket = node->output_socket(i);
+        r_input_usages[i].is_used |= inferencer.is_socket_used({nullptr, &socket});
+      }
+    }
+  }
+  if (std::all_of(r_input_usages.begin(), r_input_usages.end(), [](const SocketUsage &usage) {
+        return usage.is_used;
+      }))
+  {
+    /* If all inputs are used, there is no need to infer visibility because all inputs should be
+     * visible. */
+    return;
+  }
+  /* An input becomes invisible if its visibility is controlled by a menu input. */
+  bool has_menu_input = false;
+  Array<GPointer, 32> modified_input_values = group_input_values;
+  for (const int i : group.interface_inputs().index_range()) {
+    const bNodeTreeInterfaceSocket &io_socket = *group.interface_inputs()[i];
+    const bool is_menu = io_socket.socket_type == StringRef("NodeSocketMenu");
+    if (is_menu) {
+      has_menu_input = true;
+    }
+    if (is_menu || !r_input_usages[i].is_used) {
+      /* Treat this input as unknown. Making an input unknown may result in more other inputs to
+       * become used which is will tell us which inputs depend on menus. */
+      modified_input_values[i] = {};
+    }
+  }
+  if (!has_menu_input) {
+    /* If there is no menu input, all inputs are always visible. */
+    return;
+  }
+  SocketUsageInferencer inferencer{group, modified_input_values, params};
   for (const bNode *node : group.group_input_nodes()) {
     for (const int i : group.interface_inputs().index_range()) {
       const bNodeSocket &socket = node->output_socket(i);
-      r_input_usages[i].is_used |= inferencer.is_socket_used({nullptr, &socket});
+      if (r_input_usages[i].is_used) {
+        /* Used inputs are always visible. */
+        continue;
+      }
+      if (inferencer.is_socket_used({nullptr, &socket})) {
+        /* If the input is used now, it means that its usage has dependend on a menu input, so it
+         * should not be visible. */
+        r_input_usages[i].is_visible = false;
+      }
     }
   }
 }
