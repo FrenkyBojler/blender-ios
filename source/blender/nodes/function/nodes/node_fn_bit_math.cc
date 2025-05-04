@@ -26,43 +26,43 @@ enum BitMathOperation : int16_t {
   Rotate = 5,
 };
 
-const EnumPropertyItem bit_math_operation_items[] = {
+const std::array<EnumPropertyItem, 8> bit_math_operation_items = {{
     RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Bitwise"), nullptr),
-    {BitMathOperation::And,
+    {int(BitMathOperation::And),
      "AND",
      0,
      "And",
      "Compares bit values of A and B then returns a value where the bits are both set, A & B"},
-    {BitMathOperation::Or,
+    {int(BitMathOperation::Or),
      "OR",
      0,
      "Or",
      "Compares bit values of A and B then returns a value where either bit is set, A | B"},
-    {BitMathOperation::Xor,
+    {int(BitMathOperation::Xor),
      "XOR",
      0,
      "Exclusive Or",
      "Compares bit values of A and B then returns a value where only one bit from A or B is set, "
      "A ^ B"},
-    {BitMathOperation::Not,
+    {int(BitMathOperation::Not),
      "NOT",
      0,
      "Not",
      "Returns the opposite bit value of A, in decimal it is equivalent of A = -A - 1, ~ A"},
-    {BitMathOperation::Shift,
+    {int(BitMathOperation::Shift),
      "SHIFT",
      0,
      "Shift",
      "Shifts the bit values of A by the specified Shift amount. Positive values shift left, "
      "negative values shift right."},
-    {BitMathOperation::Rotate,
+    {int(BitMathOperation::Rotate),
      "ROTATE",
      0,
      "Rotate",
      "Rotates the bit values of A by the specified Shift amount. Positive values rotate left, "
      "negative values rotate right."},
     {0, nullptr, 0, nullptr, nullptr},
-};
+}};
 
 constexpr static int32_t max_shift = sizeof(int32_t) * CHAR_BIT - 1;
 constexpr static int32_t min_shift = -max_shift;
@@ -95,7 +95,7 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("FunctionNodeBitMath");
-    node.custom1 = static_cast<int16_t>(operation);
+    node.custom1 = int16_t(operation);
     params.update_and_connect_available_socket(node, socket_name);
   }
 };
@@ -111,10 +111,10 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const bool is_integer = params.other_socket().type == SOCK_INT;
   const int weight = is_integer ? 0 : -1;
 
-  for (const auto *item = bit_math_operation_items; item->identifier != nullptr; item++) {
-    if (item->name != nullptr && item->identifier[0] != '\0') {
+  for (const auto &item : bit_math_operation_items) {
+    if (item.name != nullptr && item.identifier[0] != '\0') {
       params.add_item(
-          IFACE_(item->name), SocketSearchOp{"Value", BitMathOperation(item->value)}, weight);
+          IFACE_(item.name), SocketSearchOp{"Value", BitMathOperation(item.value)}, weight);
     }
   }
 }
@@ -122,21 +122,21 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 static void node_label(const bNodeTree * /*ntree*/, const bNode *node, char *label, int maxlen)
 {
   const char *name;
-  const bool enum_label = RNA_enum_name(bit_math_operation_items, node->custom1, &name);
+  const bool enum_label = RNA_enum_name(bit_math_operation_items.data(), node->custom1, &name);
   if (!enum_label) {
     name = "Unknown";
   }
   BLI_strncpy(label, IFACE_(name), maxlen);
 }
 
-static inline uint32_t rotate_left(uint32_t n, uint32_t c)
+static inline uint32_t rotate_left(const uint32_t n, uint32_t c)
 {
   const uint32_t mask = CHAR_BIT * sizeof(n) - 1;
   c &= mask;
   return (n << c) | (n >> ((-c) & mask));
 }
 
-static inline uint32_t rotate_right(uint32_t n, uint32_t c)
+static inline uint32_t rotate_right(const uint32_t n, uint32_t c)
 {
   const uint32_t mask = CHAR_BIT * sizeof(n) - 1;
   c &= mask;
@@ -158,22 +158,19 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
   static auto shift_fn = mf::build::SI2_SO<int, int, int>(
       "Shift",
       [](int a, int b) {
-        if (math::abs(b) > max_shift) {
-          return 0;
-        }
-        const int32_t shift = math::abs(b) % (sizeof(uint32_t) * CHAR_BIT);
-        uint32_t u = *reinterpret_cast<uint32_t *>(&a);
-        u = b >= 0 ? (u << shift) : (u >> shift);
-        return *reinterpret_cast<int *>(&u);
+        const uint32_t value = a;
+        const int shift = math::clamp(b, -32, 32);
+        const uint64_t wide_value = uint64_t(value) << 16;
+        const uint64_t wide_result = shift > 0 ? wide_value << shift : wide_value >> -shift;
+        return uint32_t(wide_result >> 16);
       },
       exec_preset);
   static auto rotate_fn = mf::build::SI2_SO<int, int, int>(
       "Rotate",
       [](int a, int b) {
-        const uint32_t shift = math::abs(b) % (sizeof(uint32_t) * CHAR_BIT);
-        uint32_t u = *reinterpret_cast<uint32_t *>(&a);
-        u = b >= 0 ? rotate_left(u, shift) : rotate_right(u, shift);
-        return *reinterpret_cast<int *>(&u);
+        const uint32_t shift = math::abs(b) % 32;
+        const uint32_t value = b >= 0 ? rotate_left(a, shift) : rotate_right(a, shift);
+        return int32_t(value);
       },
       exec_preset);
 
@@ -203,15 +200,13 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_rna(StructRNA *srna)
 {
-  PropertyRNA *prop;
-
-  prop = RNA_def_node_enum(srna,
-                           "operation",
-                           "Operation",
-                           "",
-                           bit_math_operation_items,
-                           NOD_inline_enum_accessors(custom1),
-                           BitMathOperation::And);
+  PropertyRNA *prop = RNA_def_node_enum(srna,
+                                        "operation",
+                                        "Operation",
+                                        "",
+                                        bit_math_operation_items.data(),
+                                        NOD_inline_enum_accessors(custom1),
+                                        BitMathOperation::And);
   RNA_def_property_update_runtime(prop, rna_Node_socket_update);
 }
 
