@@ -71,7 +71,6 @@ class GPENCIL_UL_matslots(UIList):
         row.prop(gpcolor, "lock", text="", emboss=False)
 
 
-
 class GPMaterialButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'

@@ -36,6 +36,7 @@ class GREASE_PENCIL_UL_masks(UIList):
         row.prop(mask, "invert", text="", emboss=False)
         row.prop(mask, "hide", text="", emboss=False)
 
+
 class GreasePencil_LayerMaskPanel:
     def draw_header(self, context):
         grease_pencil = context.grease_pencil
