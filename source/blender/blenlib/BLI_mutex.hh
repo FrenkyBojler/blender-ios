@@ -5,7 +5,7 @@
 #pragma once
 
 /* Always include that so that `BLI_mutex.hh` can be used as replacement to including <mutex>.
- * Otherwise it might be confusing if both are included explicitly in a file. Also making the
+ * Otherwise it might be confusing if both are included explicitly in a file. That also makes the
  * difference between compiling with and without TBB smaller. */
 #include <mutex>  // IWYU pragma: export
 
