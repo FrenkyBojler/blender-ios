@@ -190,9 +190,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     asset::mark_id(&brush->id);
     BLI_assert(brush->id.us != 0);
 
-    BLI_assert(brush->id.asset_data != nullptr);
     BKE_asset_metadata_free(&brush->id.asset_data);
-    BLI_assert(brush->id.asset_data == nullptr);
     brush->id.asset_data = BKE_asset_metadata_copy(original_brush->id.asset_data);
     BLI_assert(brush->id.asset_data != nullptr);
   }
@@ -303,7 +301,6 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
   const EnumPropertyItem *items = asset::library_reference_to_rna_enum_itemf(
       /* Only get writable libraries. */
       /*include_readonly=*/false,
-      /* Saving brushes to the current file isn't working correctly yet. */
       /*include_current_file=*/true);
   if (!items) {
     *r_free = false;
