@@ -669,9 +669,8 @@ bNodeSocket &bNode::socket_by_decl(const blender::nodes::SocketDeclaration &decl
 static void ensure_inference_usage_cache(const bNodeTree &tree)
 {
   tree.runtime->inferenced_input_socket_usage_mutex.ensure([&]() {
-    blender::nodes::socket_usage_inference::InferenceParams params;
     tree.runtime->inferenced_input_socket_usage =
-        blender::nodes::socket_usage_inference::infer_all_input_sockets_usage(tree, params);
+        blender::nodes::socket_usage_inference::infer_all_input_sockets_usage(tree);
   });
 }
 

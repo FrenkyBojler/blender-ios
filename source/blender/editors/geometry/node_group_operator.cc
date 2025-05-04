@@ -858,20 +858,22 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
 
   Array<nodes::socket_usage_inference::SocketUsage> input_usages(
       node_tree->interface_inputs().size());
-  nodes::socket_usage_inference::InferenceParams params;
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      *node_tree, params, properties_set, input_usages);
+      *node_tree, properties_set, input_usages);
 
   int input_index = 0;
   for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {
-    draw_property_for_socket(*node_tree,
-                             layout,
-                             properties_set,
-                             &bmain_ptr,
-                             op->ptr,
-                             *io_socket,
-                             input_index,
-                             input_usages[input_index].is_used);
+    const nodes::socket_usage_inference::SocketUsage &usage = input_usages[input_index];
+    if (usage.is_visible) {
+      draw_property_for_socket(*node_tree,
+                               layout,
+                               properties_set,
+                               &bmain_ptr,
+                               op->ptr,
+                               *io_socket,
+                               input_index,
+                               usage.is_used);
+    }
     ++input_index;
   }
 }
