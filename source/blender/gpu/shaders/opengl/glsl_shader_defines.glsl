@@ -160,3 +160,8 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define _enum_type(name) uint
 #define _enum_decl(name) constexpr uint
 #define _enum_end _enum_dummy;
+
+#define TEMPLATE_GLUE1(name, arg1) name##_##arg1##_
+#define TEMPLATE_GLUE2(name, arg1, arg2) name##_##arg1##__##arg2##_
+#define TEMPLATE_GLUE3(name, arg1, arg2, arg3) name##_##arg1##__##arg2##__##arg3##_
+#define TEMPLATE_GLUE4(name, arg1, arg2, arg3, arg4) name##_##arg1##__##arg2##__##arg3##__##arg4##_

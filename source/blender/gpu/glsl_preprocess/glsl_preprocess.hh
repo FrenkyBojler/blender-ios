@@ -226,7 +226,8 @@ class Preprocessor {
       str = remove_quotes(str);
       str = enum_macro_injection(str);
       str = argument_reference_mutation(str);
-      str = template_macro_replacement(str, filename, report_error);
+      str = template_definition_mutation(str, report_error);
+      str = template_call_mutation(str);
     }
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
@@ -306,14 +307,8 @@ class Preprocessor {
     return std::regex_replace(out_str, regex, "\n");
   }
 
-  std::string template_macro_replacement(const std::string &str,
-                                         const std::string &filename,
-                                         report_callback &report_error)
+  std::string template_definition_mutation(const std::string &str, report_callback &report_error)
   {
-    if (filename.find(".msl") != std::string::npos) {
-      /* MSL supports template and some file uses them fully. */
-      return str;
-    }
     if (str.find("template<") == std::string::npos) {
       return str;
     }
@@ -321,20 +316,19 @@ class Preprocessor {
     std::string out_str = str;
     {
       /* Transform template definition into macro declaration. */
-      std::regex regex(R"(template<([\w+ ,]+)>(\s\w+\s(\w+)\())");
-      out_str = std::regex_replace(out_str, regex, "#define $3_TEMPLATE($1) $2");
+      std::regex regex(R"(template<([\w\d\n, ]+)>(\s\w+\s)(\w+)\()");
+      out_str = std::regex_replace(out_str, regex, "#define $3_TEMPLATE($1) $2$3@(");
     }
     {
       /* Add backslash for each newline in template macro. */
       size_t start, end = 0;
       while ((start = out_str.find("_TEMPLATE(", end)) != std::string::npos) {
-        {
-          /* Remove parameter type from macro argument list. */
-          end = out_str.find(")", start);
-          std::string arg_list = out_str.substr(start, end - start);
-          arg_list = std::regex_replace(arg_list, std::regex(R"(\w+ (\w+))"), "$1");
-          out_str.replace(start, end - start, arg_list);
-        }
+        /* Remove parameter type from macro argument list. */
+        end = out_str.find(")", start);
+        std::string arg_list = out_str.substr(start, end - start);
+        arg_list = std::regex_replace(arg_list, std::regex(R"(\w+ (\w+))"), "$1");
+        out_str.replace(start, end - start, arg_list);
+
         /* Find last closing bracket. */
         end = out_str.find("\n}", start);
         if (end == std::string::npos) {
@@ -345,6 +339,31 @@ class Preprocessor {
         end += 1;
         std::string macro_body = out_str.substr(start, end - start);
         macro_body = std::regex_replace(macro_body, std::regex(R"(\n)"), " \\\n");
+
+        std::string macro_args = get_content_between_balanced_pair(macro_body, '(', ')');
+        /* Find function arg list. Skip first 10 chars to skip "_TEMPLATE" and the arg list. */
+        std::string fn_args = get_content_between_balanced_pair(
+            macro_body.substr(10 + macro_args.length() + 1), '(', ')');
+        /* Remove whitespaces. */
+        macro_args = std::regex_replace(macro_args, std::regex(R"(\s)"), "");
+        std::vector<std::string> macro_args_split = split_string(macro_args, ',');
+        /* Append arguments inside the function name. */
+        std::string fn_name_suffix;
+        bool all_args_in_function_signature = true;
+        for (std::string macro_arg : macro_args_split) {
+          fn_name_suffix += "_##" + macro_arg + "##_";
+          /* Search macro arguments inside the function arguments types. */
+          if (std::regex_search(fn_args, std::regex(R"(\b)" + macro_arg + R"(\b)")) == false) {
+            all_args_in_function_signature = false;
+          }
+        }
+        if (all_args_in_function_signature) {
+          /* No need for suffix. Use overload for type deduction.
+           * Otherwise, we require full explicit template call. */
+          fn_name_suffix = "";
+        }
+        size_t end_of_fn_name = macro_body.find("@");
+        macro_body.replace(end_of_fn_name, 1, fn_name_suffix);
 
         out_str.replace(start, end - start, macro_body);
       }
@@ -373,6 +392,25 @@ class Preprocessor {
       }
     }
     return out_str;
+  }
+
+  std::string template_call_mutation(std::string &str)
+  {
+    while (true) {
+      std::smatch match;
+      if (std::regex_search(str, match, std::regex(R"(([\w\d]+)<([\w\d\n, ]+)>)")) == false) {
+        break;
+      }
+      const std::string template_name = match[1].str();
+      const std::string template_args = match[2].str();
+
+      std::string replacement = "TEMPLATE_GLUE" +
+                                std::to_string(char_count(template_args, ',') + 1) + "(" +
+                                template_name + "," + template_args + ")";
+
+      replace_all(str, match[0].str(), replacement);
+    }
+    return str;
   }
 
   std::string remove_quotes(const std::string &str)
@@ -829,6 +867,115 @@ class Preprocessor {
 #endif
     suffix << "\n";
     return suffix.str();
+  }
+
+  void replace_all(std::string &str, const std::string &from, const std::string &to)
+  {
+    if (from.empty()) {
+      return;
+    }
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+      str.replace(start_pos, from.length(), to);
+      start_pos += to.length();
+    }
+  }
+
+  void replace_all(std::string &str, const char from, const char to)
+  {
+    for (char &string_char : str) {
+      if (string_char == from) {
+        string_char = to;
+      }
+    }
+  }
+
+  std::string get_content_between_balanced_pair(const std::string &input,
+                                                const char start_delimiter,
+                                                const char end_delimiter)
+  {
+    int balance = 0;
+    size_t start = std::string::npos;
+    size_t end = std::string::npos;
+
+    for (size_t i = 0; i < input.length(); ++i) {
+      if (input[i] == start_delimiter) {
+        if (balance == 0) {
+          start = i;
+        }
+        balance++;
+      }
+      else if (input[i] == end_delimiter) {
+        balance--;
+        if (balance == 0 && start != std::string::npos) {
+          end = i;
+          return input.substr(start + 1, end - start - 1);
+        }
+      }
+    }
+    return "";
+  }
+
+  std::string replace_char_between_balanced_pair(const std::string &input,
+                                                 const char start_delimiter,
+                                                 const char end_delimiter,
+                                                 const char from,
+                                                 const char to)
+  {
+    int depth = 0;
+
+    std::string str = input;
+    for (char &string_char : str) {
+      if (string_char == start_delimiter) {
+        depth++;
+      }
+      else if (string_char == end_delimiter) {
+        depth--;
+      }
+      else if (depth > 0 && string_char == from) {
+        string_char = to;
+      }
+    }
+    return str;
+  }
+
+  /* Function to split a string by a delimiter and return a vector of substrings. */
+  std::vector<std::string> split_string(const std::string &str, const char delimiter)
+  {
+    std::vector<std::string> substrings;
+    std::stringstream ss(str);
+    std::string item;
+
+    while (std::getline(ss, item, delimiter)) {
+      substrings.push_back(item);
+    }
+    return substrings;
+  }
+
+  /* Similar to split_string but only split if the delimiter is not between any pair_start and
+   * pair_end. */
+  std::vector<std::string> split_string_not_between_balanced_pair(const std::string &str,
+                                                                  const char delimiter,
+                                                                  const char pair_start,
+                                                                  const char pair_end)
+  {
+    const char safe_char = '@';
+    const std::string safe_str = replace_char_between_balanced_pair(
+        str, pair_start, pair_end, delimiter, safe_char);
+    std::vector<std::string> split = split_string(safe_str, delimiter);
+    for (std::string &str : split) {
+      replace_all(str, safe_char, delimiter);
+    }
+    return split;
+  }
+
+  int64_t char_count(const std::string &str, char c)
+  {
+    return std::count(str.begin(), str.end(), c);
+  }
+  int64_t line_count(const std::string &str)
+  {
+    return std::count(str.begin(), str.end(), '\n');
   }
 };
 
