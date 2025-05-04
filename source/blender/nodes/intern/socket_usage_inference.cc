@@ -69,11 +69,14 @@ struct SocketUsageInferencer {
   /** Additional parameters affecting the inferencing. */
   const InferenceParams &params_;
 
+  std::optional<Span<bool>> top_level_ignored_inputs_;
+
  public:
   SocketUsageInferencer(const bNodeTree &tree,
                         const std::optional<Span<GPointer>> tree_input_values,
-                        const InferenceParams &params)
-      : root_tree_(tree), params_(params)
+                        const InferenceParams &params,
+                        const std::optional<Span<bool>> top_level_ignored_inputs = std::nullopt)
+      : root_tree_(tree), params_(params), top_level_ignored_inputs_(top_level_ignored_inputs)
   {
     scope_.allocator().provide_buffer(scope_buffer_);
     root_tree_.ensure_topology_cache();
@@ -83,13 +86,14 @@ struct SocketUsageInferencer {
     for (const bNode *node : root_tree_.group_input_nodes()) {
       for (const int i : root_tree_.interface_inputs().index_range()) {
         const bNodeSocket &socket = node->output_socket(i);
+        const SocketInContext socket_in_context{nullptr, &socket};
         const void *input_value = nullptr;
-        if (!this->treat_socket_as_unknown(socket)) {
+        if (!this->treat_socket_as_unknown(socket_in_context)) {
           if (tree_input_values.has_value()) {
             input_value = (*tree_input_values)[i].get();
           }
         }
-        all_socket_values_.add_new({nullptr, &socket}, input_value);
+        all_socket_values_.add_new(socket_in_context, input_value);
       }
     }
   }
@@ -816,7 +820,7 @@ struct SocketUsageInferencer {
 
   void value_task__input__unlinked(const SocketInContext &socket)
   {
-    if (this->treat_socket_as_unknown(*socket)) {
+    if (this->treat_socket_as_unknown(socket)) {
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
@@ -1022,10 +1026,18 @@ struct SocketUsageInferencer {
     }
   }
 
-  bool treat_socket_as_unknown(const bNodeSocket & /*socket*/) const
+  bool treat_socket_as_unknown(const SocketInContext &socket) const
   {
-    return false;
-    // return params_.treat_menus_as_unknown && socket.type == SOCK_MENU;
+    if (!top_level_ignored_inputs_.has_value()) {
+      return false;
+    }
+    if (socket.context) {
+      return false;
+    }
+    if (socket->is_output()) {
+      return false;
+    }
+    return (*top_level_ignored_inputs_)[socket->index_in_all_inputs()];
   }
 };
 
@@ -1036,12 +1048,36 @@ Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree,
   const Span<const bNodeSocket *> all_input_sockets = tree.all_input_sockets();
   Array<SocketUsage> all_usages(all_input_sockets.size());
 
-  SocketUsageInferencer inferencer{tree, std::nullopt, params};
-  inferencer.mark_top_level_node_outputs_as_used();
+  {
+    /* Find actual socket usages. */
+    SocketUsageInferencer inferencer{tree, std::nullopt, params};
+    inferencer.mark_top_level_node_outputs_as_used();
+    for (const int i : all_input_sockets.index_range()) {
+      const bNodeSocket &socket = *all_input_sockets[i];
+      all_usages[i].is_used = inferencer.is_socket_used({nullptr, &socket});
+    }
+  }
 
+  /* Find input sockets that should be hidden. */
+  Array<bool> top_level_ignored_inputs(all_input_sockets.size(), NoInitialization{});
+  threading::parallel_for(all_input_sockets.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      const bNodeSocket &socket = *all_input_sockets[i];
+      top_level_ignored_inputs[i] = !all_usages[i].is_used || socket.type == SOCK_MENU;
+    }
+  });
+  SocketUsageInferencer inferencer{tree, std::nullopt, params, top_level_ignored_inputs};
+  inferencer.mark_top_level_node_outputs_as_used();
   for (const int i : all_input_sockets.index_range()) {
     const bNodeSocket &socket = *all_input_sockets[i];
-    all_usages[i].is_used = inferencer.is_socket_used({nullptr, &socket});
+    if (all_usages[i].is_used) {
+      /* Used sockets are always visible. */
+      continue;
+    }
+    if (inferencer.is_socket_used({nullptr, &socket})) {
+      /* The socket is used now but was not used before. So its usage depends on a menu socket. */
+      all_usages[i].is_visible = false;
+    }
   }
 
   return all_usages;

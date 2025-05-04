@@ -208,6 +208,12 @@ typedef struct bNodeSocket {
    * False when this input socket definitely does not affect the output.
    */
   bool affects_node_output() const;
+  /**
+   * This becomes false when it is detected that the input socket is currently not used and its
+   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whoose
+   * visibility is controlled by a menu should be hidden.
+   */
+  bool inferred_input_socket_visibility() const;
 
   /** Utility to access the value of the socket. */
   template<typename T> T *default_value_typed();
