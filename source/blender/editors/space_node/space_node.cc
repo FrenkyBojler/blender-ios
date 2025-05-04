@@ -1143,7 +1143,9 @@ static bool node_socket_drop_poll(bContext *C, wmDrag *drag, const wmEvent *even
 
   /* Accept only socket items. */
   const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(drag_data->item);
-  if (socket && socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
+  if (socket) {
+    /* The check to avoid dragging output sockets is deferred to the
+     * operator's poll in order to display a hint tooltip. */
     return true;
   }
 
@@ -1186,18 +1188,9 @@ static bool node_panel_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
       }
     }
 
-    /* Ensure the panel has at least one input socket. */
-    bool has_any_input_socket = false;
-    panel->foreach_item([&has_any_input_socket] (const bNodeTreeInterfaceItem &item) {
-      const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(&item);
-      if (socket && socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-        has_any_input_socket = true;
-        return false; // break
-      }
-      return true; // continue
-    });
-
-    return has_any_input_socket;
+    /* The check for whether the panel contains at least one input socket is
+     * deferred to the operator's poll in order to display a hint tooltip. */
+    return true;
   }
   return false;
 }

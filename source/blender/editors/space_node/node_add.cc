@@ -1229,7 +1229,25 @@ static wmOperatorStatus node_add_group_input_node_with_socket_invoke(bContext *C
 
 static bool node_add_group_input_node_with_socket_poll(bContext *C)
 {
-  return ED_operator_node_editable(C);
+  if (!ED_operator_node_editable(C)) {
+    return false;
+  }
+
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  bNodeTree *ntree = snode->edittree;
+
+  bNodeTreeInterface interface = ntree->tree_interface;
+  bNodeTreeInterfaceItem *active_item = interface.active_item();
+  auto *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(active_item);
+
+  if (socket) {
+    if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+      CTX_wm_operator_poll_msg_set(C, "Cannot drag an output socket");
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 void NODE_OT_add_group_input_node_with_socket(wmOperatorType *ot)
@@ -1347,7 +1365,34 @@ static wmOperatorStatus node_add_group_input_node_with_panel_invoke(bContext *C,
 
 static bool node_add_group_input_node_with_panel_poll(bContext *C)
 {
-  return ED_operator_node_editable(C);
+  if (!ED_operator_node_editable(C)) {
+    return false;
+  }
+
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  bNodeTree *ntree = snode->edittree;
+
+  bNodeTreeInterface interface = ntree->tree_interface;
+  bNodeTreeInterfaceItem *active_item = interface.active_item();
+  auto *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(active_item);
+  if (panel) {
+    bool has_any_input_socket = false;
+    panel->foreach_item([&has_any_input_socket] (const bNodeTreeInterfaceItem &item) {
+      const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(&item);
+      if (socket && socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
+        has_any_input_socket = true;
+        return false; // break
+      }
+      return true; // continue
+    });
+
+    if (!has_any_input_socket) {
+      CTX_wm_operator_poll_msg_set(C, "Cannot drag panel with no inputs");
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 void NODE_OT_add_group_input_node_with_panel(wmOperatorType *ot)
