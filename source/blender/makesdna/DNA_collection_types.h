@@ -124,6 +124,10 @@ typedef struct Collection_Runtime {
 } Collection_Runtime;
 
 typedef struct Collection {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_GR;
+#endif
+
   ID id;
 
   /** The ID owning this collection, in case it is an embedded one. */

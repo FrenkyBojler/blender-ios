@@ -14,6 +14,10 @@ struct Ipo;
 struct PackedFile;
 
 typedef struct bSound {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_SO;
+#endif
+
   ID id;
 
   /**

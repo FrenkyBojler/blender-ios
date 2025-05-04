@@ -2031,7 +2031,7 @@ static Material **default_materials[] = {&default_material_empty,
 
 static Material *material_default_create(Material **ma_p, const char *name)
 {
-  *ma_p = static_cast<Material *>(BKE_id_new_nomain(ID_MA, name));
+  *ma_p = BKE_id_new_nomain<Material>(name);
   return *ma_p;
 }
 

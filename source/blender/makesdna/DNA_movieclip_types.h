@@ -55,6 +55,10 @@ typedef struct MovieClip_Runtime {
 } MovieClip_Runtime;
 
 typedef struct MovieClip {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_MC;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;

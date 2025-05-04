@@ -758,6 +758,10 @@ typedef enum eActionGroup_Flag {
  * \see blender::animrig::Action for more detailed documentation.
  */
 typedef struct bAction {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_AC;
+#endif
+
   /** ID-serialization for relinking. */
   ID id;
 

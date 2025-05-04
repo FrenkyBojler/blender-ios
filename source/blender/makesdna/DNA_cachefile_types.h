@@ -60,6 +60,10 @@ enum {
 };
 
 typedef struct CacheFile {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_CF;
+#endif
+
   ID id;
   struct AnimData *adt;
 

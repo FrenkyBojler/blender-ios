@@ -40,6 +40,10 @@ typedef struct VolumeRender {
 } VolumeRender;
 
 typedef struct Volume {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_VO;
+#endif
+
   ID id;
   struct AnimData *adt; /* animation data (must be immediately after id) */
 

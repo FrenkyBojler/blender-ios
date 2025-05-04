@@ -639,7 +639,10 @@ enum {
 };
 
 typedef struct FreestyleLineStyle {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(FreestyleLineStyle)
+  static constexpr ID_Type id_type = ID_LS;
+#endif
 
   ID id;
   struct AnimData *adt;

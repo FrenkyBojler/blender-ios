@@ -17,6 +17,10 @@ struct PackedFile;
 struct VFontData;
 
 typedef struct VFont {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_VF;
+#endif
+
   ID id;
 
   /** 1024 = FILE_MAX. */

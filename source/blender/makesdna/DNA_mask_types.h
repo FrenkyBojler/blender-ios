@@ -22,6 +22,10 @@ typedef struct Mask_Runtime {
 } Mask_Runtime;
 
 typedef struct Mask {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_MSK;
+#endif
+
   ID id;
   struct AnimData *adt;
   /** Mask layers. */

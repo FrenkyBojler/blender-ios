@@ -153,6 +153,10 @@ typedef struct wmXrData {
 
 /** Window-manager is saved, tag WMAN. */
 typedef struct wmWindowManager {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_WM;
+#endif
+
   ID id;
 
   /** Separate active from drawable. */

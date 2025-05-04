@@ -717,6 +717,10 @@ typedef struct bNestedNodeRef {
  * materials and textures allocate their own tree struct.
  */
 typedef struct bNodeTree {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_NT;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;

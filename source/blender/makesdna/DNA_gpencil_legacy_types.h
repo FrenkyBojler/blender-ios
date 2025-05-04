@@ -611,7 +611,10 @@ typedef struct bGPgrid {
 
 /** Grease-Pencil Annotations - 'DataBlock'. */
 typedef struct bGPdata {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(bGPdata)
+  static constexpr ID_Type id_type = ID_GD_LEGACY;
+#endif
 
   /** Grease Pencil data is a data-block. */
   ID id;

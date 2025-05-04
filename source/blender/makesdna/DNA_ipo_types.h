@@ -83,6 +83,10 @@ typedef struct IpoCurve {
 
 /* IPO Data-Block */
 typedef struct Ipo {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_IP;
+#endif
+
   ID id;
 
   /** A list of IpoCurve structs in a linked list. */

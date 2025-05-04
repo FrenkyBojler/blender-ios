@@ -155,6 +155,10 @@ typedef struct bArmature_Runtime {
 } bArmature_Runtime;
 
 typedef struct bArmature {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_AR;
+#endif
+
   ID id;
   struct AnimData *adt;
 

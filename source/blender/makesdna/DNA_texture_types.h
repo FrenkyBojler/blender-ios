@@ -162,7 +162,10 @@ typedef struct Tex_Runtime {
 } Tex_Runtime;
 
 typedef struct Tex {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Tex)
+  static constexpr ID_Type id_type = ID_TE;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */

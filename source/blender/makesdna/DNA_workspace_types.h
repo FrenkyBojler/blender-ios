@@ -142,6 +142,10 @@ typedef struct wmOwnerID {
 } wmOwnerID;
 
 typedef struct WorkSpace {
+#ifdef __cplusplus
+  static constexpr ID_Type id_type = ID_WS;
+#endif
+
   ID id;
 
   /** WorkSpaceLayout. */
