@@ -232,7 +232,7 @@ struct StrokeCache {
 
   /* Store initial starting points for perlin noise on the beginning of each stroke when using
    * color jitter. */
-  std::optional<float3> initial_hsv_jitter;
+  std::optional<blender::float3> initial_hsv_jitter;
   /* Beginning of stroke may do some things special. */
   bool first_time = false;
 
