@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "CLG_log.h"
+
 #include "BLI_assert.h"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_resource_scope.hh"
@@ -17,6 +19,8 @@
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_attribute_storage_blend_write.hh"
+
+static CLG_LogRef LOG = {"bke.attribute_storage"};
 
 namespace blender::bke {
 
@@ -350,10 +354,12 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
     attribute->type_ = AttrType(dna_attr.data_type);
     attribute->data_ = std::move(*data);
 
+    if (!this->runtime->attributes.add(std::move(attribute))) {
+      CLOG_ERROR(&LOG, "Ignoring attribute with duplicate name: \"%s\"", dna_attr.name);
+    }
+
     MEM_SAFE_FREE(dna_attr.name);
     MEM_SAFE_FREE(dna_attr.data);
-
-    this->runtime->attributes.add_new(std::move(attribute));
   }
 
   /* These fields are not used at runtime. */
@@ -417,7 +423,7 @@ void attribute_storage_blend_write_prepare(
     AttributeStorage::BlendWriteData &write_data)
 {
   Set<std::string, 16> all_names_written;
-for (Vector<CustomDataLayer, 16> *const layers : layers_to_write.values()) {
+  for (Vector<CustomDataLayer, 16> *const layers : layers_to_write.values()) {
     for (const CustomDataLayer &layer : *layers) {
       all_names_written.add(layer.name);
     }
@@ -452,7 +458,7 @@ for (Vector<CustomDataLayer, 16> *const layers : layers_to_write.values()) {
       return;
     }
 
-/* Names within an AttributeStorage are unique. */
+    /* Names within an AttributeStorage are unique. */
     all_names_written.add(attr.name());
     AttributeDNA attribute_dna{};
     attribute_dna.name = attr.name().c_str();
