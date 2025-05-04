@@ -688,7 +688,12 @@ bool bNodeSocket::inferred_input_socket_visibility() const
 {
   BLI_assert(this->is_input());
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  const bNode &node = this->owner_node();
+  if (node.typeinfo->ignore_inferred_input_socket_visibility) {
+    return true;
+  }
   const bNodeTree &tree = this->owner_tree();
+
   ensure_inference_usage_cache(tree);
   return tree.runtime->inferenced_input_socket_usage[this->index_in_all_inputs()].is_visible;
 }

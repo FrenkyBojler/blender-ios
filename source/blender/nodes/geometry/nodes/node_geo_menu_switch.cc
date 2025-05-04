@@ -427,6 +427,7 @@ static void register_node()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.insert_link = node_insert_link;
+  ntype.ignore_inferred_input_socket_visibility = true;
   blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
