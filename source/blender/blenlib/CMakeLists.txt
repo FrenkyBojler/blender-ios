@@ -116,6 +116,7 @@ set(SRC
   intern/math_vector.cc
   intern/math_vector_inline.cc
   intern/memory_cache.cc
+  intern/memory_cache_file_load.cc
   intern/memory_counter.cc
   intern/memory_utils.cc
   intern/mesh_boolean.cc
@@ -325,6 +326,7 @@ set(SRC
   BLI_memblock.h
   BLI_memiter.h
   BLI_memory_cache.hh
+  BLI_memory_cache_file_load.hh
   BLI_memory_counter.hh
   BLI_memory_counter_fwd.hh
   BLI_memory_utils.h
