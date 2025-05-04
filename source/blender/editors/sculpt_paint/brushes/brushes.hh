@@ -113,14 +113,6 @@ void do_enhance_details_brush(const Depsgraph &depsgraph,
                               const Sculpt &sd,
                               Object &object,
                               const IndexMask &node_mask);
-void do_fill_brush(const Depsgraph &depsgraph,
-                   const Sculpt &sd,
-                   Object &object,
-                   const IndexMask &node_mask);
-void do_flatten_brush(const Depsgraph &depsgraph,
-                      const Sculpt &sd,
-                      Object &ob,
-                      const IndexMask &node_mask);
 void do_plane_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
@@ -182,14 +174,14 @@ void do_rotate_brush(const Depsgraph &depsgraph,
                      const Sculpt &sd,
                      Object &object,
                      const IndexMask &node_mask);
-void do_scene_project_brush(const Depsgraph &depsgraph,
-                            const Sculpt &sd,
-                            Object &object,
-                            const IndexMask &node_mask);
 void do_scrape_brush(const Depsgraph &depsgraph,
                      const Sculpt &sd,
                      Object &object,
                      const IndexMask &node_mask);
+void do_scene_project_brush(const Depsgraph &depsgraph,
+                            const Sculpt &sd,
+                            Object &object,
+                            const IndexMask &node_mask);
 /** Smooth positions with neighboring vertices. */
 void do_smooth_brush(const Depsgraph &depsgraph,
                      const Sculpt &sd,

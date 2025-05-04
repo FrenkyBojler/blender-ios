@@ -206,8 +206,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 
     side = kernel->side = 2;
     kernel->side_squared = kernel->side * kernel->side;
-    kernel->wdata = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data"));
+    kernel->wdata = MEM_malloc_arrayN<float>(kernel->side_squared, "blur kernel data");
     kernel->pixel_len = radius;
   }
   else {
@@ -219,8 +218,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 
     side = kernel->side = radius * 2 + 1;
     kernel->side_squared = kernel->side * kernel->side;
-    kernel->wdata = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data"));
+    kernel->wdata = MEM_malloc_arrayN<float>(kernel->side_squared, "blur kernel data");
     kernel->pixel_len = br->blur_kernel_radius;
   }
 
@@ -941,7 +939,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
   BKE_scene_graph_evaluated_ensure(&depsgraph, &bmain);
 
   /* Set pivot to bounding box center. */
-  Object *ob_eval = DEG_get_evaluated_object(&depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated(&depsgraph, &ob);
   paint_init_pivot(ob_eval ? ob_eval : &ob, &scene);
 
   WM_main_add_notifier(NC_SCENE | ND_MODE, &scene);

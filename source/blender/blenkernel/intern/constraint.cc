@@ -2773,6 +2773,10 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
 {
   bActionConstraint *data = static_cast<bActionConstraint *>(con->data);
 
+  /* Initialize return matrix. This needs to happen even when there is no
+   * Action, to avoid returning an all-zeroes matrix. */
+  unit_m4(ct->matrix);
+
   if (!data->act) {
     /* Without an Action, this constraint cannot do anything. */
     return false;
@@ -2786,9 +2790,6 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
   float tempmat[4][4], vec[3];
   float s, t;
   short axis;
-
-  /* initialize return matrix */
-  unit_m4(ct->matrix);
 
   /* Skip targets if we're using local float property to set action time */
   if (use_eval_time) {
@@ -5635,7 +5636,7 @@ bool BKE_constraint_apply_for_object(Depsgraph *depsgraph,
   /* Do this all in the evaluated domain (e.g. shrinkwrap needs to access evaluated constraint
    * target mesh). */
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   bConstraint *con_eval = BKE_constraints_find_name(&ob_eval->constraints, con->name);
 
   bConstraint *new_con = BKE_constraint_duplicate_ex(con_eval, 0, ID_IS_EDITABLE(ob));
@@ -5687,7 +5688,7 @@ bool BKE_constraint_apply_for_pose(
   /* Do this all in the evaluated domain (e.g. shrinkwrap needs to access evaluated constraint
    * target mesh). */
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
   bConstraint *con_eval = BKE_constraints_find_name(&pchan_eval->constraints, con->name);
 

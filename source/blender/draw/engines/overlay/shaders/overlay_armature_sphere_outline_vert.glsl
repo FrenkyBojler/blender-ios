@@ -14,7 +14,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_armature_sphere_outline)
 /* project to screen space */
 float2 proj(float4 pos)
 {
-  return (0.5f * (pos.xy / pos.w) + 0.5f) * sizeViewport;
+  return (0.5f * (pos.xy / pos.w) + 0.5f) * uniform_buf.size_viewport;
 }
 
 void main()
@@ -25,7 +25,7 @@ void main()
   float4x4 model_mat = extract_matrix_packed_data(inst_obmat, state_color, bone_color);
 
   float4x4 model_view_matrix = drw_view().viewmat * model_mat;
-  float4x4 sphereMatrix = inverse(model_view_matrix);
+  float4x4 sphere_matrix = inverse(model_view_matrix);
 
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
 
@@ -33,14 +33,14 @@ void main()
    * In perspective mode it's also the view-space position
    * of the sphere center. */
   float3 cam_ray = (is_persp) ? model_view_matrix[3].xyz : float3(0.0f, 0.0f, -1.0f);
-  cam_ray = to_float3x3(sphereMatrix) * cam_ray;
+  cam_ray = to_float3x3(sphere_matrix) * cam_ray;
 
   /* Sphere center distance from the camera (persp) in local space. */
   float cam_dist = length(cam_ray);
 
   /* Compute view aligned orthonormal space. */
   float3 z_axis = cam_ray / cam_dist;
-  float3 x_axis = normalize(cross(sphereMatrix[1].xyz, z_axis));
+  float3 x_axis = normalize(cross(sphere_matrix[1].xyz, z_axis));
   float3 y_axis = cross(z_axis, x_axis);
   float z_ofs = 0.0f;
 
@@ -74,11 +74,11 @@ void main()
 
   /* Offset away from the center to avoid overlap with solid shape. */
   float2 ofs_dir = normalize(proj(gl_Position) - proj(center));
-  gl_Position.xy += ofs_dir * sizeViewportInv * gl_Position.w;
+  gl_Position.xy += ofs_dir * uniform_buf.size_viewport_inv * gl_Position.w;
 
-  edgeStart = edgePos = proj(gl_Position);
+  edge_start = edge_pos = proj(gl_Position);
 
-  finalColor = float4(bone_color.rgb, 1.0f);
+  final_color = float4(bone_color.rgb, 1.0f);
 
   float4 world_pos = model_mat * float4(cam_pos0, 1.0f);
   view_clipping_distances(world_pos.xyz);
