@@ -1375,14 +1375,12 @@ static void std_node_socket_draw(
           uiItemL(row, IFACE_("No Items"), ICON_NONE);
         }
         else {
-          if (sock->runtime->declaration) {
-            if (const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
-                    sock->runtime->declaration))
-            {
-              if (socket_decl->is_expanded) {
-                uiItemR(layout, ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-                break;
-              }
+          if (const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
+                  sock->runtime->declaration))
+          {
+            if (socket_decl->is_expanded) {
+              uiItemR(layout, ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+              break;
             }
           }
           uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
