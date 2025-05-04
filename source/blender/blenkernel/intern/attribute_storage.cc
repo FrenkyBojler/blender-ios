@@ -433,7 +433,10 @@ void attribute_storage_blend_write_prepare(
       /* In version 4.5, all attribute data is written in the #CustomData format (at least when the
        * debug option is not enabled), so the #Attribute needs to be converted to a
        * #CustomDataLayer in the proper list. This is only relevant when #AttributeStorage is
-       * actually used at runtime. */
+       * actually used at runtime.
+       *
+       * When removing this option to always write the new format in 5.0, #BLENDER_FILE_MIN_VERSION
+       * must be increased. */
       if (const std::optional data_type = attr_type_to_custom_data_type(attr.data_type())) {
         if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attr.data())) {
           CustomDataLayer layer{};
