@@ -238,6 +238,7 @@ class MenuBuilder : public SocketDeclarationBuilder<Menu> {
  public:
   MenuBuilder &default_value(int32_t value);
 
+  /** Draw the menu items next to each other instead of as a drop-down menu. */
   MenuBuilder &expanded(bool value = true);
 };
 
