@@ -1170,15 +1170,18 @@ static wmOperatorStatus node_add_group_input_node_with_socket_exec(bContext *C, 
   RNA_string_get(op->ptr, "socket_identifier", socket_identifier);
 
   /* Ensure the requested socket exists in the node interface. */
-  bNodeTreeInterfaceSocket* interface_socket = nullptr;
-  for (bNodeTreeInterfaceSocket* tsocket : ntree->interface_inputs()) {
+  bNodeTreeInterfaceSocket *interface_socket = nullptr;
+  for (bNodeTreeInterfaceSocket *tsocket : ntree->interface_inputs()) {
     if (STREQ(socket_identifier, tsocket->identifier)) {
       interface_socket = tsocket;
       break;
     }
   }
   if (!interface_socket) {
-    BKE_report(op->reports, RPT_ERROR, fmt::format("Invalid socket_identifier: Socket \"%s\" not found", socket_identifier).c_str());
+    BKE_report(op->reports,
+               RPT_ERROR,
+               fmt::format("Invalid socket_identifier: Socket \"%s\" not found", socket_identifier)
+                   .c_str());
     return OPERATOR_CANCELLED;
   }
 
@@ -1209,7 +1212,9 @@ static wmOperatorStatus node_add_group_input_node_with_socket_exec(bContext *C, 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus node_add_group_input_node_with_socket_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_group_input_node_with_socket_invoke(bContext *C,
+                                                                     wmOperator *op,
+                                                                     const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1262,8 +1267,12 @@ void NODE_OT_add_group_input_node_with_socket(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-  PropertyRNA *prop = RNA_def_string(
-      ot->srna, "socket_identifier", nullptr, int(sizeof(bNodeSocket::idname)), "Socket Identifier", "Socket to include in the added group input/output node");
+  PropertyRNA *prop = RNA_def_string(ot->srna,
+                                     "socket_identifier",
+                                     nullptr,
+                                     int(sizeof(bNodeSocket::idname)),
+                                     "Socket Identifier",
+                                     "Socket to include in the added group input/output node");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
@@ -1283,7 +1292,8 @@ static wmOperatorStatus node_add_group_input_node_with_panel_exec(bContext *C, w
 
   bNodeTreeInterfacePanel *panel = nullptr;
   for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
-    bNodeTreeInterfacePanel *tpanel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(item);
+    bNodeTreeInterfacePanel *tpanel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(
+        item);
     if (tpanel && tpanel->identifier == panel_identifier) {
       panel = tpanel;
       break;
@@ -1311,7 +1321,7 @@ static wmOperatorStatus node_add_group_input_node_with_panel_exec(bContext *C, w
   /* Add Group Input node. */
   bNode *group_input_node = nullptr;
   if (has_inputs) {
-    group_input_node = bke::node_add_node(C, *ntree,  "NodeGroupInput");
+    group_input_node = bke::node_add_node(C, *ntree, "NodeGroupInput");
     if (!group_input_node) {
       BKE_report(op->reports, RPT_WARNING, "Could not add Group Input node");
       return OPERATOR_CANCELLED;
@@ -1345,7 +1355,9 @@ static wmOperatorStatus node_add_group_input_node_with_panel_exec(bContext *C, w
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus node_add_group_input_node_with_panel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_group_input_node_with_panel_invoke(bContext *C,
+                                                                    wmOperator *op,
+                                                                    const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1377,13 +1389,14 @@ static bool node_add_group_input_node_with_panel_poll(bContext *C)
   auto *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(active_item);
   if (panel) {
     bool has_any_input_socket = false;
-    panel->foreach_item([&has_any_input_socket] (const bNodeTreeInterfaceItem &item) {
-      const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(&item);
+    panel->foreach_item([&has_any_input_socket](const bNodeTreeInterfaceItem &item) {
+      const bNodeTreeInterfaceSocket *socket =
+          bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(&item);
       if (socket && socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
         has_any_input_socket = true;
-        return false; // break
+        return false;  // break
       }
-      return true; // continue
+      return true;  // continue
     });
 
     if (!has_any_input_socket) {
@@ -1398,7 +1411,8 @@ static bool node_add_group_input_node_with_panel_poll(bContext *C)
 void NODE_OT_add_group_input_node_with_panel(wmOperatorType *ot)
 {
   ot->name = "Add Group Input Node with Panel";
-  ot->description = "Add a group input node with only sockets from a certain panel to the current node editor";
+  ot->description =
+      "Add a group input node with only sockets from a certain panel to the current node editor";
   ot->idname = "NODE_OT_add_group_input_node_with_panel";
 
   ot->exec = node_add_group_input_node_with_panel_exec;
@@ -1408,7 +1422,15 @@ void NODE_OT_add_group_input_node_with_panel(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
   PropertyRNA *prop = RNA_def_int(
-      ot->srna, "panel_identifier", 0, INT_MIN, INT_MAX, "Panel Identifier", "Panel from which to add sockets to the added group input/output node", INT_MIN, INT_MAX);
+      ot->srna,
+      "panel_identifier",
+      0,
+      INT_MIN,
+      INT_MAX,
+      "Panel Identifier",
+      "Panel from which to add sockets to the added group input/output node",
+      INT_MIN,
+      INT_MAX);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
