@@ -40,8 +40,6 @@ enum class ItemInternalFlag : uint8_t;
 enum class EmbossType : uint8_t;
 }  // namespace blender::ui
 
-enum class LayoutSuppressFlag : uint8_t;
-
 /**
  * NOTE: `uiItem` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -91,9 +89,12 @@ struct uiLayout : uiItem {
   /** Is copied to uiButs created in this layout. */
   float search_weight_;
 
-  LayoutSuppressFlag suppress_flag_;
-
  public:
+  /**
+   * Add a new box sub-layout, items placed in this sub-layout are added vertically one under
+   * each other in a column and are surrounded by a box.
+   */
+  uiLayout &box();
   /**
    * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
    * each other in a column.
@@ -142,6 +143,13 @@ struct uiLayout : uiItem {
    */
   uiLayout &grid_flow(
       bool row_major, int columns_len, bool even_columns, bool even_rows, bool align);
+
+  /**
+   * Add a new split sub-layout, items placed in this sub-layout are added horizontally next to
+   * each other in row, but width is splitted between the first item and remaining items.
+   * \param percentage: Width percent to split.
+   */
+  uiLayout &split(float percentage, bool align);
 };
 
 enum {
@@ -308,16 +316,6 @@ float uiLayoutGetSearchWeight(uiLayout *layout);
 int uiLayoutListItemPaddingWidth();
 void uiLayoutListItemAddPadding(uiLayout *layout);
 
-/** Support suppressing checks typically performed to communicate issues to users. */
-enum class LayoutSuppressFlag : uint8_t {
-  PathSupportsBlendFileRelative = 1 << 0,
-};
-ENUM_OPERATORS(LayoutSuppressFlag, LayoutSuppressFlag::PathSupportsBlendFileRelative)
-
-LayoutSuppressFlag uiLayoutSuppressFlagGet(const uiLayout *layout);
-void uiLayoutSuppressFlagSet(uiLayout *layout, LayoutSuppressFlag flag);
-void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag);
-
 /* Layout create functions. */
 
 struct PanelLayout {
@@ -398,13 +396,11 @@ uiLayout *uiLayoutPanel(const bContext *C,
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
-uiLayout *uiLayoutBox(uiLayout *layout);
 uiLayout *uiLayoutListBox(uiLayout *layout,
                           uiList *ui_list,
                           PointerRNA *actptr,
                           PropertyRNA *actprop);
 uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align);
-uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, bool align);
 uiLayout *uiLayoutOverlap(uiLayout *layout);
 uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout);
 /** Pie menu layout: Buttons are arranged around a center. */
