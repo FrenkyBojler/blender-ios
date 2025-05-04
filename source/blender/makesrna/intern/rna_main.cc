@@ -48,12 +48,6 @@ static bool rna_Main_is_saved_get(PointerRNA *ptr)
   return (bmain->filepath[0] != '\0');
 }
 
-static bool rna_Main_is_recovered_get(PointerRNA *ptr)
-{
-  const Main *bmain = (Main *)ptr->data;
-  return bmain->recovered;
-}
-
 static bool rna_Main_is_dirty_get(PointerRNA *ptr)
 {
   /* XXX, not totally nice to do it this way, should store in main ? */
@@ -433,12 +427,6 @@ void RNA_def_main(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, "rna_Main_is_saved_get", nullptr);
   RNA_def_property_ui_text(
       prop, "File is Saved", "Has the current session been saved to disk as a .blend file");
-
-  prop = RNA_def_property(srna, "is_recovered", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_funcs(prop, "rna_Main_is_recovered_get", nullptr);
-  RNA_def_property_ui_text(
-      prop, "File is Recovered", "Has the current session been recovered from a backup file");
 
   prop = RNA_def_property(srna, "use_autopack", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_Main_use_autopack_get", "rna_Main_use_autopack_set");

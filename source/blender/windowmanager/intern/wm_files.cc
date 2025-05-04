@@ -3892,12 +3892,15 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
   }
 
   if (G_MAIN->recovered) {
-    G_MAIN->filepath[0] = '\0';
-    /* Discourage saving back into the temp folder. */
-    std::string filepath = BKE_appdir_folder_default_or_root();
-    filepath.append(1, SEP).append(DATA_("Untitled"));
-    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "filepath");
-    RNA_property_string_set(op->ptr, prop, filepath.c_str());
+    const char *tempdir_base = BKE_tempdir_base();
+    if (BLI_str_startswith(G_MAIN->filepath, tempdir_base)) {
+      G_MAIN->filepath[0] = '\0';
+      /* Discourage saving back into the temp folder. */
+      std::string filepath = BKE_appdir_folder_default_or_root();
+      filepath.append(1, SEP).append(DATA_("Untitled"));
+      PropertyRNA *prop = RNA_struct_find_property(op->ptr, "filepath");
+      RNA_property_string_set(op->ptr, prop, filepath.c_str());
+    }
   }
 
   save_set_compress(op);
