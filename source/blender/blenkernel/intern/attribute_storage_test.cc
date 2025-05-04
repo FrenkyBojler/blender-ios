@@ -90,7 +90,7 @@ TEST(attribute_storage, MultipleShared)
   storage.add("more", AttrDomain::Face, AttrType::Float, data);
   storage.add("data", AttrDomain::Edge, AttrType::Float, data);
 
-  /* The same data is shared among 4 attributes. */
+  /* The same data is shared among 4 attributes (as well as the original `data`). */
   EXPECT_EQ(sharing_info->strong_users(), 5);
   storage.add("final!", AttrDomain::Edge, AttrType::Float, std::move(data));
   EXPECT_EQ(sharing_info->strong_users(), 5);
