@@ -267,18 +267,21 @@ void FbxImportContext::setup_hierarchy()
   }
 }
 
-static void fbx_task_run_fn(
-    void *user, ufbx_thread_pool_context ctx, uint32_t group, uint32_t start_index, uint32_t count)
+static void fbx_task_run_fn(void * /* user */,
+                            ufbx_thread_pool_context ctx,
+                            uint32_t /* group */,
+                            uint32_t start_index,
+                            uint32_t count)
 {
   threading::parallel_for_each(IndexRange(start_index, count), [&](const int64_t index) {
     ufbx_thread_pool_run_task(ctx, index);
   });
 }
 
-static void fbx_task_wait_fn(void *user,
-                             ufbx_thread_pool_context ctx,
-                             uint32_t group,
-                             uint32_t max_index)
+static void fbx_task_wait_fn(void * /* user */,
+                             ufbx_thread_pool_context /* ctx */,
+                             uint32_t /* group */,
+                             uint32_t /* max_index */)
 {
   /* Empty implementation; #fbx_task_run_fn already waits for the tasks. */
 }
