@@ -6613,7 +6613,7 @@ class VIEW3D_PT_shading_lighting(Panel):
             col.prop(shading, "use_scene_lights")
             col.prop(shading, "use_scene_world")
             col = layout.column()
-            split = col.split(factor=0.9)
+            split = col.split(factor=0.95)
 
             if not shading.use_scene_world:
                 col = split.column()
@@ -6624,7 +6624,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 col = split.column()
                 col.operator("screen.userpref_show", emboss=False, text="", icon='PREFERENCES').section = 'LIGHTS'
 
-                split = layout.split(factor=0.9)
+                split = layout.split(factor=0.95)
                 col = split.column()
 
                 engine = context.scene.render.engine
