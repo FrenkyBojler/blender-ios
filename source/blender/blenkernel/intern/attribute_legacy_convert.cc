@@ -184,7 +184,7 @@ struct CustomDataAndSizeMutable {
 };
 
 static void convert_storage_to_customdata(
-    const AttributeStorage &storage,
+    AttributeStorage &storage,
     const Map<AttrDomain, CustomDataAndSizeMutable> &custom_data_domains)
 {
   /* Name uniqueness is handled by the #CustomData API. */
@@ -213,6 +213,7 @@ static void convert_storage_to_customdata(
           &custom_data, *data_type, value->data.data(), domain_size, attribute.name(), value);
     }
   });
+  storage = {};
 }
 
 void mesh_convert_storage_to_customdata(Mesh &mesh)
