@@ -129,20 +129,6 @@ static void node_label(const bNodeTree * /*ntree*/, const bNode *node, char *lab
   BLI_strncpy(label, IFACE_(name), maxlen);
 }
 
-static inline uint32_t rotate_left(const uint32_t n, uint32_t c)
-{
-  const uint32_t mask = CHAR_BIT * sizeof(n) - 1;
-  c &= mask;
-  return (n << c) | (n >> ((-c) & mask));
-}
-
-static inline uint32_t rotate_right(const uint32_t n, uint32_t c)
-{
-  const uint32_t mask = CHAR_BIT * sizeof(n) - 1;
-  c &= mask;
-  return (n >> c) | (n << ((-c) & mask));
-}
-
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
   BitMathOperation operation = BitMathOperation(bnode.custom1);
@@ -168,9 +154,11 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
   static auto rotate_fn = mf::build::SI2_SO<int, int, int>(
       "Rotate",
       [](int a, int b) {
-        const uint32_t shift = math::abs(b) % 32;
-        const uint32_t value = b >= 0 ? rotate_left(a, shift) : rotate_right(a, shift);
-        return int32_t(value);
+        const uint32_t value = a;
+        const int shift = math::mod_periodic(b, 32);
+        const uint64_t wide_value = uint64_t(value) | (uint64_t(value) << 32);
+        const uint64_t double_result = (wide_value << shift);
+        return uint32_t((double_result | (double_result >> 32)) & ((uint64_t(1) << 33) - 1));
       },
       exec_preset);
 
