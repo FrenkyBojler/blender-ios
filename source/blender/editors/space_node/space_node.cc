@@ -1133,7 +1133,7 @@ static bool node_socket_drop_poll(bContext *C, wmDrag *drag, const wmEvent *even
   }
   const bNodeTree* target_ntree = snode->edittree;
 
-  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  auto *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
 
   /* Drag only onto node editors of the same node tree. */
   const bNodeTree* source_ntree = drag_data->tree;
@@ -1168,7 +1168,7 @@ static bool node_panel_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
   }
   const bNodeTree* target_ntree = snode->edittree;
 
-  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  auto *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
 
   /* Drag only onto node editors of the same node. */
   const bNodeTree* source_ntree = drag_data->tree;
@@ -1239,21 +1239,15 @@ static void node_socket_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *dro
     return;
   }
 
-  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  auto *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
   const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(drag_data->item);
   if (!socket) {
     const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
     socket = panel->header_toggle_socket();
   }
 
-  if (socket) {
-    RNA_string_set(drop->ptr, "socket_identifier", socket->identifier);
-
-    bool is_output_socket = socket->flag & NODE_INTERFACE_SOCKET_OUTPUT;
-    RNA_boolean_set(drop->ptr, "output_socket", is_output_socket);
-  } else {
-    BLI_assert_unreachable();
-  }
+  BLI_assert(socket);
+  RNA_string_set(drop->ptr, "socket_identifier", socket->identifier);
 }
 
 static void node_panel_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
@@ -1262,18 +1256,15 @@ static void node_panel_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop
     return;
   }
 
-  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  auto *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
   const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
-  if (panel) {
-    RNA_int_set(drop->ptr, "panel_identifier", panel->identifier);
-  } else {
-    BLI_assert_unreachable();
-  }
+  BLI_assert(panel);
+  RNA_int_set(drop->ptr, "panel_identifier", panel->identifier);
 }
 
 static std::string node_socket_drop_tooltip(bContext * /*C*/, wmDrag *drag, const int /*xy*/[2], wmDropBox * /*drop*/)
 {
-  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  auto *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
   const bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(drag_data->item);
 
   if (socket) {
@@ -1303,13 +1294,10 @@ static std::string node_socket_drop_tooltip(bContext * /*C*/, wmDrag *drag, cons
 
 static std::string node_panel_drop_tooltip(bContext * /*C*/, wmDrag *drag, const int /*xy*/[2], wmDropBox * /*drop*/)
 {
-  bke::node_interface::bNodeTreeInterfaceItemReference *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
+  auto *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(drag->poin);
   const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(drag_data->item);
-  if (panel) {
-    return BLI_sprintfN(TIP_("Add \"%s\" Panel"), panel->name);
-  }
-  BLI_assert_unreachable();
-  return "Error: Unsupported panel.";
+  BLI_assert(panel);
+  return BLI_sprintfN(TIP_("Add \"%s\" Panel"), panel->name);
 }
 
 /* this region dropbox definition */
@@ -1362,13 +1350,13 @@ static void node_dropboxes()
                  nullptr,
                  nullptr);
   WM_dropbox_add(lb,
-                 "NODE_OT_add_group_node_with_socket",
+                 "NODE_OT_add_group_input_node_with_socket",
                  node_socket_drop_poll,
                  node_socket_drop_copy,
                  nullptr,
                  node_socket_drop_tooltip);
   WM_dropbox_add(lb,
-                 "NODE_OT_add_group_node_with_panel",
+                 "NODE_OT_add_group_input_node_with_panel",
                  node_panel_drop_poll,
                  node_panel_drop_copy,
                  nullptr,

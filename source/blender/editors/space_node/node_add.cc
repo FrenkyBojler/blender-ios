@@ -1153,10 +1153,10 @@ void NODE_OT_add_import_node(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Add Group Node with Socket Operator
+/** \name Add Group Input Node with Socket Operator
  * \{ */
 
-static wmOperatorStatus node_add_group_node_with_socket_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_group_input_node_with_socket_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1168,15 +1168,10 @@ static wmOperatorStatus node_add_group_node_with_socket_exec(bContext *C, wmOper
   }
   char socket_identifier[int(sizeof(bNodeSocket::idname))];
   RNA_string_get(op->ptr, "socket_identifier", socket_identifier);
-  bool is_output_socket = RNA_boolean_get(op->ptr, "output_socket");
-  bool rename_node = RNA_boolean_get(op->ptr, "rename_node");
-  bool collapse_node = RNA_boolean_get(op->ptr, "collapse_node");
 
   /* Ensure the requested socket exists in the node interface. */
   bNodeTreeInterfaceSocket* interface_socket = nullptr;
-  Span<bNodeTreeInterfaceSocket *> interface_sockets =
-    is_output_socket ? ntree->interface_outputs() : ntree->interface_inputs();
-  for (bNodeTreeInterfaceSocket* tsocket : interface_sockets) {
+  for (bNodeTreeInterfaceSocket* tsocket : ntree->interface_inputs()) {
     if (STREQ(socket_identifier, tsocket->identifier)) {
       interface_socket = tsocket;
       break;
@@ -1192,25 +1187,15 @@ static wmOperatorStatus node_add_group_node_with_socket_exec(bContext *C, wmOper
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
   /* Add node under mouse position. */
-  bNode *added_node = bke::node_add_node(
-      C, *ntree, is_output_socket ? "NodeGroupOutput" : "NodeGroupInput");
+  bNode *added_node = bke::node_add_node(C, *ntree, "NodeGroupInput");
   if (!added_node) {
-    BKE_report(op->reports, RPT_WARNING, "Could not add group input/output node");
+    BKE_report(op->reports, RPT_WARNING, "Could not add Group Input node");
     return OPERATOR_CANCELLED;
   }
   position_node_based_on_mouse(*added_node, snode->runtime->cursor);
 
-  if (rename_node) {
-    STRNCPY(added_node->label, interface_socket->name);
-  }
-
-  if (collapse_node) {
-    added_node->flag |= NODE_HIDDEN;
-  }
-
-  /* Hide all other sockets in the new group input/output node, to only display the dragged one. */
-  const ListBase *sockets = is_output_socket? &added_node->inputs : &added_node->outputs;
-  LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {
+  /* Hide all other sockets in the new group input node, to only display the dragged one. */
+  LISTBASE_FOREACH (bNodeSocket *, socket, &added_node->outputs) {
     if (!STREQ(socket->identifier, socket_identifier)) {
       socket->flag |= SOCK_HIDDEN;
     }
@@ -1224,7 +1209,7 @@ static wmOperatorStatus node_add_group_node_with_socket_exec(bContext *C, wmOper
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus node_add_group_node_with_socket_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_group_input_node_with_socket_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1239,59 +1224,44 @@ static wmOperatorStatus node_add_group_node_with_socket_invoke(bContext *C, wmOp
   snode->runtime->cursor[0] /= UI_SCALE_FAC;
   snode->runtime->cursor[1] /= UI_SCALE_FAC;
 
-  return node_add_group_node_with_socket_exec(C, op);
+  return node_add_group_input_node_with_socket_exec(C, op);
 }
 
-static bool node_add_group_node_with_socket_poll(bContext *C)
+static bool node_add_group_input_node_with_socket_poll(bContext *C)
 {
   return ED_operator_node_editable(C);
 }
 
-void NODE_OT_add_group_node_with_socket(wmOperatorType *ot)
+void NODE_OT_add_group_input_node_with_socket(wmOperatorType *ot)
 {
-  /* identifiers */
-  ot->name = "Add Group Node with Socket";
-  ot->description = "Add a group input/output node with a single socket to the current node editor";
-  ot->idname = "NODE_OT_add_group_node_with_socket";
+  ot->name = "Add Group Input Node with Socket";
+  ot->description = "Add a Group Input node with a single socket to the current node editor";
+  ot->idname = "NODE_OT_add_group_input_node_with_socket";
 
-  /* callbacks */
-  ot->exec = node_add_group_node_with_socket_exec;
-  ot->invoke = node_add_group_node_with_socket_invoke;
-  ot->poll = node_add_group_node_with_socket_poll;
+  ot->exec = node_add_group_input_node_with_socket_exec;
+  ot->invoke = node_add_group_input_node_with_socket_invoke;
+  ot->poll = node_add_group_input_node_with_socket_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-  /* properties */
-  RNA_def_boolean(
-      ot->srna, "collapse_node", false, "Collapse Node", "Collapse the added node");
-  RNA_def_boolean(
-      ot->srna, "rename_node", false, "Rename Node", "Rename the added node to match the included socket");
-
-  /* internal */
   PropertyRNA *prop = RNA_def_string(
       ot->srna, "socket_identifier", nullptr, int(sizeof(bNodeSocket::idname)), "Socket Identifier", "Socket to include in the added group input/output node");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
-  prop = RNA_def_boolean(
-      ot->srna, "output_socket", false, "Output Socket", "Create a Group Output node, rather than a Group Input node");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Add Group Node with Panel Operator
+/** \name Add Group Input Node with Panel Operator
  * \{ */
 
-static wmOperatorStatus node_add_group_node_with_panel_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_add_group_input_node_with_panel_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *ntree = snode->edittree;
 
   int panel_identifier = RNA_int_get(op->ptr, "panel_identifier");
-  bool rename_node = RNA_boolean_get(op->ptr, "rename_node");
-  bool collapse_node = RNA_boolean_get(op->ptr, "collapse_node");
 
   bNodeTreeInterfacePanel *panel = nullptr;
   for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
@@ -1325,20 +1295,12 @@ static wmOperatorStatus node_add_group_node_with_panel_exec(bContext *C, wmOpera
   if (has_inputs) {
     group_input_node = bke::node_add_node(C, *ntree,  "NodeGroupInput");
     if (!group_input_node) {
-      BKE_report(op->reports, RPT_WARNING, "Could not add group input node");
+      BKE_report(op->reports, RPT_WARNING, "Could not add Group Input node");
       return OPERATOR_CANCELLED;
     }
 
     /* Place node at mouse position. */
     position_node_based_on_mouse(*group_input_node, snode->runtime->cursor);
-
-    if (rename_node) {
-      STRNCPY(group_input_node->label, panel->name);
-    }
-
-    if (collapse_node) {
-      group_input_node->flag |= NODE_HIDDEN;
-    }
 
     /* Initially hide all sockets. */
     LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
@@ -1349,16 +1311,13 @@ static wmOperatorStatus node_add_group_node_with_panel_exec(bContext *C, wmOpera
       if (panel->contains_recursive(iface_socket->item)) {
         bNodeSocket *socket = bke::node_find_socket(
             *group_input_node, SOCK_OUT, iface_socket->identifier);
-        if (socket) {
-          socket->flag &= ~SOCK_HIDDEN;
-        } else {
-          BLI_assert_unreachable("Group node missing interface socket");
-        }
+        BLI_assert(socket);
+        socket->flag &= ~SOCK_HIDDEN;
       }
     }
   }
 
-  /* Select input node last, if added. */
+  /* Select added node. */
   if (group_input_node) {
     bke::node_set_active(*ntree, *group_input_node);
   }
@@ -1368,7 +1327,7 @@ static wmOperatorStatus node_add_group_node_with_panel_exec(bContext *C, wmOpera
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus node_add_group_node_with_panel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_add_group_input_node_with_panel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1383,36 +1342,26 @@ static wmOperatorStatus node_add_group_node_with_panel_invoke(bContext *C, wmOpe
   snode->runtime->cursor[0] /= UI_SCALE_FAC;
   snode->runtime->cursor[1] /= UI_SCALE_FAC;
 
-  return node_add_group_node_with_panel_exec(C, op);
+  return node_add_group_input_node_with_panel_exec(C, op);
 }
 
-static bool node_add_group_node_with_panel_poll(bContext *C)
+static bool node_add_group_input_node_with_panel_poll(bContext *C)
 {
   return ED_operator_node_editable(C);
 }
 
-void NODE_OT_add_group_node_with_panel(wmOperatorType *ot)
+void NODE_OT_add_group_input_node_with_panel(wmOperatorType *ot)
 {
-  /* identifiers */
-  ot->name = "Add Group Node with Panel";
-  ot->description = "Add a group input/output node with only sockets from a certain panel to the current node editor";
-  ot->idname = "NODE_OT_add_group_node_with_panel";
+  ot->name = "Add Group Input Node with Panel";
+  ot->description = "Add a group input node with only sockets from a certain panel to the current node editor";
+  ot->idname = "NODE_OT_add_group_input_node_with_panel";
 
-  /* callbacks */
-  ot->exec = node_add_group_node_with_panel_exec;
-  ot->invoke = node_add_group_node_with_panel_invoke;
-  ot->poll = node_add_group_node_with_panel_poll;
+  ot->exec = node_add_group_input_node_with_panel_exec;
+  ot->invoke = node_add_group_input_node_with_panel_invoke;
+  ot->poll = node_add_group_input_node_with_panel_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-  /* properties */
-  RNA_def_boolean(
-      ot->srna, "collapse_node", false, "Collapse Node", "Collapse the added node");
-  RNA_def_boolean(
-      ot->srna, "rename_node", false, "Rename Node", "Rename the added node to match the included panel");
-
-  /* internal */
   PropertyRNA *prop = RNA_def_int(
       ot->srna, "panel_identifier", 0, INT_MIN, INT_MAX, "Panel Identifier", "Panel from which to add sockets to the added group input/output node", INT_MIN, INT_MAX);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);

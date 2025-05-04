@@ -43,12 +43,12 @@ class NodeTreeInterfaceView;
 class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
  private:
   bNodeTreeInterfaceItem &item_;
-  bNodeTree &nodetree_;
+  bNodeTree &tree_;
 
  public:
   explicit NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
-                                           bNodeTree &tree,
-                                           bNodeTreeInterfaceItem &item);
+                                           bNodeTreeInterfaceItem &item,
+                                           bNodeTree &tree);
   ~NodeTreeInterfaceDragController() override = default;
 
   eWM_DragDataType get_drag_type() const override;
@@ -305,7 +305,7 @@ class NodeTreeInterfaceView : public AbstractTreeView {
 std::unique_ptr<AbstractViewItemDragController> NodeSocketViewItem::create_drag_controller() const
 {
   return std::make_unique<NodeTreeInterfaceDragController>(
-      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), nodetree_, socket_.item);
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), socket_.item, nodetree_);
 }
 
 std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
@@ -316,7 +316,7 @@ std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
 std::unique_ptr<AbstractViewItemDragController> NodePanelViewItem::create_drag_controller() const
 {
   return std::make_unique<NodeTreeInterfaceDragController>(
-      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), nodetree_, panel_.item);
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), panel_.item, nodetree_);
 }
 
 std::unique_ptr<TreeViewItemDropTarget> NodePanelViewItem::create_drop_target()
@@ -325,9 +325,9 @@ std::unique_ptr<TreeViewItemDropTarget> NodePanelViewItem::create_drop_target()
 }
 
 NodeTreeInterfaceDragController::NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
-                                                                 bNodeTree &tree,
-                                                                 bNodeTreeInterfaceItem &item)
-    : AbstractViewItemDragController(view), nodetree_(tree), item_(item)
+                                                                 bNodeTreeInterfaceItem &item,
+                                                                 bNodeTree &tree)
+    : AbstractViewItemDragController(view), item_(item), tree_(tree)
 {
 }
 
@@ -340,7 +340,7 @@ void *NodeTreeInterfaceDragController::create_drag_data() const
 {
   bNodeTreeInterfaceItemReference *drag_data = MEM_callocN<bNodeTreeInterfaceItemReference>(__func__);
   drag_data->item = &item_;
-  drag_data->tree = &nodetree_;
+  drag_data->tree = &tree_;
   return drag_data;
 }
 
