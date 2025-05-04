@@ -634,10 +634,6 @@ static bool brush_asset_save_poll(bContext *C)
     return false;
   }
 
-  if (!bke::asset_edit_id_is_editable(brush->id)) {
-    return false;
-  }
-
   return true;
 }
 
