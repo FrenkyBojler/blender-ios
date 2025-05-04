@@ -232,7 +232,13 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
 
   asset::refresh_asset_library(C, library_reference);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
-  WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
+  if (is_local_library) {
+    WM_main_add_notifier(NC_BRUSH | NA_ADDED, brush);
+    WM_file_tag_modified();
+  }
+  else {
+    WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
+  }
 
   return OPERATOR_FINISHED;
 }
