@@ -302,6 +302,12 @@ Use pre-compiled headers to speed up compilation."
   endif()
 endif()
 
+option(WITH_OPTIMIZED_BUILD_TOOLS "\
+Enable optimizations even on Debug builds for executables used for the build process"
+  ON
+)
+mark_as_advanced(WITH_OPTIMIZED_BUILD_TOOLS)
+
 option(WITH_IK_ITASC "\
 Enable ITASC IK solver (only disable for development & for incompatible C++ compilers)"
   ON
@@ -1263,13 +1269,13 @@ endif()
 
 
 # Apple
-
 if(APPLE)
   include(platform_apple_xcode)
-endif()
 
-if(APPLE)
-  option(WITH_LEGACY_MACOS_X64_LINKER "Use legacy macOS linker. Only on x64 platform. Minutes slower, but emits fewer warnings." OFF)
+  option(WITH_LEGACY_MACOS_X64_LINKER "\
+Use legacy macOS linker on x64 platform. Minutes slower, but emits fewer warnings."
+    OFF
+  )
   mark_as_advanced(WITH_LEGACY_MACOS_X64_LINKER)
 endif()
 
@@ -2757,6 +2763,7 @@ if(FIRST_RUN)
 
   info_cfg_text("Compiler Options:")
   info_cfg_option(WITH_BUILDINFO)
+  info_cfg_option(WITH_OPTIMIZED_BUILD_TOOLS)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)
