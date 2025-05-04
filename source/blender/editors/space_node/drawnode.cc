@@ -1507,6 +1507,7 @@ static void std_node_socket_interface_draw(ID *id,
     }
     case SOCK_MENU: {
       uiItemR(col, &ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      uiItemR(col, &ptr, "menu_expanded", DEFAULT_FLAGS, IFACE_("Expanded"), ICON_NONE);
       break;
     }
     case SOCK_SHADER:
