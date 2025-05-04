@@ -77,7 +77,8 @@ static int8_t get_valid_nurbs_degree(const NurbsElement &element)
 {
   /* Use max(1, min()) to avoid undefined clamp behavior when curve_indices.size() == 0 */
   const int degree = std::max(1, std::min<int>(element.degree, element.curv_indices.size() - 1));
-  return degree + 1 > _I8_MAX ? 3 : int8_t(degree);
+  return degree + 1 > std::numeric_limits<int8_t>::max() ? std::numeric_limits<int8_t>::max() - 1 :
+                                                           int8_t(degree);
 }
 
 void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import_params)
