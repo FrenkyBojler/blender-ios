@@ -1881,7 +1881,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     if (!eval_material) {
       return;
     }
-    original_materials.add(DEG_get_original<Material>(eval_material));
+    original_materials.add(DEG_get_original(eval_material));
   }
 
   /* Build material indices mapping. This maps the materials indices on the original geometry to
