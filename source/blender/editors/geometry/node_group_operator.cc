@@ -856,7 +856,8 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
 
   node_tree->ensure_interface_cache();
 
-  Array<bool> input_usages(node_tree->interface_inputs().size());
+  Array<nodes::socket_usage_inference::SocketUsage> input_usages(
+      node_tree->interface_inputs().size());
   nodes::socket_usage_inference::InferenceParams params;
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
       *node_tree, params, properties_set, input_usages);
@@ -870,7 +871,7 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
                              op->ptr,
                              *io_socket,
                              input_index,
-                             input_usages[input_index]);
+                             input_usages[input_index].is_used);
     ++input_index;
   }
 }

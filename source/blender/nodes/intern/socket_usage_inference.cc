@@ -1028,18 +1028,19 @@ struct SocketUsageInferencer {
   }
 };
 
-Array<bool> infer_all_input_sockets_usage(const bNodeTree &tree, const InferenceParams &params)
+Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree,
+                                                 const InferenceParams &params)
 {
   tree.ensure_topology_cache();
   const Span<const bNodeSocket *> all_input_sockets = tree.all_input_sockets();
-  Array<bool> all_usages(all_input_sockets.size());
+  Array<SocketUsage> all_usages(all_input_sockets.size());
 
   SocketUsageInferencer inferencer{tree, std::nullopt, params};
   inferencer.mark_top_level_node_outputs_as_used();
 
   for (const int i : all_input_sockets.index_range()) {
     const bNodeSocket &socket = *all_input_sockets[i];
-    all_usages[i] = inferencer.is_socket_used({nullptr, &socket});
+    all_usages[i].is_used = inferencer.is_socket_used({nullptr, &socket});
   }
 
   return all_usages;
@@ -1048,15 +1049,19 @@ Array<bool> infer_all_input_sockets_usage(const bNodeTree &tree, const Inference
 void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         const InferenceParams &params,
                                         const Span<GPointer> group_input_values,
-                                        const MutableSpan<bool> r_input_usages)
+                                        const MutableSpan<SocketUsage> r_input_usages)
 {
   SocketUsageInferencer inferencer{group, group_input_values, params};
 
-  r_input_usages.fill(false);
+  SocketUsage default_usage;
+  default_usage.is_used = false;
+  default_usage.is_visible = true;
+
+  r_input_usages.fill(default_usage);
   for (const bNode *node : group.group_input_nodes()) {
     for (const int i : group.interface_inputs().index_range()) {
       const bNodeSocket &socket = node->output_socket(i);
-      r_input_usages[i] |= inferencer.is_socket_used({nullptr, &socket});
+      r_input_usages[i].is_used |= inferencer.is_socket_used({nullptr, &socket});
     }
   }
 }
@@ -1064,7 +1069,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
 void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         const InferenceParams &params,
                                         Span<const bNodeSocket *> input_sockets,
-                                        MutableSpan<bool> r_input_usages)
+                                        MutableSpan<SocketUsage> r_input_usages)
 {
   BLI_assert(group.interface_inputs().size() == input_sockets.size());
 
@@ -1101,7 +1106,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
 void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         const InferenceParams &params,
                                         const PropertiesVectorSet &properties,
-                                        MutableSpan<bool> r_input_usages)
+                                        MutableSpan<SocketUsage> r_input_usages)
 {
   const int inputs_num = group.interface_inputs().size();
   Array<GPointer> input_values(inputs_num);

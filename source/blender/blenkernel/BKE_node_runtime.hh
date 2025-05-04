@@ -24,6 +24,8 @@
 #include "BKE_node.hh"
 #include "BKE_node_tree_interface.hh"
 
+#include "NOD_socket_usage_inference_fwd.hh"
+
 struct bNode;
 struct bNodeSocket;
 struct bNodeTree;
@@ -150,7 +152,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * socket is used by the node it belongs to. Sockets for which this is false may e.g. be grayed
    * out.
    */
-  blender::Array<bool> inferenced_input_socket_usage;
+  blender::Array<nodes::socket_usage_inference::SocketUsage> inferenced_input_socket_usage;
   CacheMutex inferenced_input_socket_usage_mutex;
 
   /**

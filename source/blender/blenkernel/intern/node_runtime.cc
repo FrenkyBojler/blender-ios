@@ -678,5 +678,5 @@ bool bNodeSocket::affects_node_output() const
         blender::nodes::socket_usage_inference::infer_all_input_sockets_usage(tree, params);
   });
 
-  return tree.runtime->inferenced_input_socket_usage[this->index_in_all_inputs()];
+  return tree.runtime->inferenced_input_socket_usage[this->index_in_all_inputs()].is_used;
 }
