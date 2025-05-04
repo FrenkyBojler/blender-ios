@@ -325,7 +325,9 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
       }
       case SOCK_MENU: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueMenu>(io_socket);
-        decl = &b.add_socket<decl::Menu>(name, identifier, in_out).default_value(value.value);
+        decl = &b.add_socket<decl::Menu>(name, identifier, in_out)
+                    .default_value(value.value)
+                    .expanded();
         break;
       }
       case SOCK_OBJECT: {

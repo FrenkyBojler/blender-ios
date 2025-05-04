@@ -222,6 +222,7 @@ class Menu : public SocketDeclaration {
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_MENU;
 
   int32_t default_value;
+  bool is_expanded = false;
 
   friend MenuBuilder;
 
@@ -236,6 +237,8 @@ class Menu : public SocketDeclaration {
 class MenuBuilder : public SocketDeclarationBuilder<Menu> {
  public:
   MenuBuilder &default_value(int32_t value);
+
+  MenuBuilder &expanded(bool value = true);
 };
 
 class BundleBuilder;
@@ -558,6 +561,12 @@ inline StringBuilder &StringBuilder::subtype(PropertySubType subtype)
 inline MenuBuilder &MenuBuilder::default_value(const int32_t value)
 {
   decl_->default_value = value;
+  return *this;
+}
+
+inline MenuBuilder &MenuBuilder::expanded(const bool value)
+{
+  decl_->is_expanded = value;
   return *this;
 }
 
