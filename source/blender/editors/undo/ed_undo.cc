@@ -401,38 +401,42 @@ bool ED_undo_is_memfile_compatible(const bContext *C)
   return true;
 }
 
-bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &ptr)
+bool ED_undo_is_legacy_compatible_for_property(const bContext &C,
+                                               const ID &id,
+                                               const PointerRNA &ptr)
 {
   if (!RNA_struct_undo_check(ptr.type)) {
     return false;
   }
   /* If the whole ID type doesn't support undo there is no need to check the current context. */
-  if (id && !ID_CHECK_UNDO(id)) {
+  if (!ID_CHECK_UNDO(&id)) {
     return false;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  if (view_layer != nullptr) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    Object *obact = BKE_view_layer_active_object_get(view_layer);
-    if (obact != nullptr) {
-      if (obact->mode & (OB_MODE_ALL_PAINT & ~(OB_MODE_WEIGHT_PAINT | OB_MODE_VERTEX_PAINT))) {
-        /* For all non-weight-paint paint modes: Don't store property changes when painting.
-         * Weight Paint and Vertex Paint use global undo, and thus don't need to be special-cased
-         * here. */
-        CLOG_INFO(&LOG, 1, "skipping undo for paint-mode");
-        return false;
-      }
-      if (obact->mode & OB_MODE_EDIT) {
-        if ((id == nullptr) || (obact->data == nullptr) ||
-            (GS(id->name) != GS(((ID *)obact->data)->name)))
-        {
-          /* No undo push on id type mismatch in edit-mode. */
-          CLOG_INFO(&LOG, 1, "skipping undo for edit-mode");
-          return false;
-        }
-      }
+  const Scene *scene = CTX_data_scene(&C);
+  ViewLayer *view_layer = CTX_data_view_layer(&C);
+  if (view_layer == nullptr) {
+    return true;
+  }
+
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *obact = BKE_view_layer_active_object_get(view_layer);
+  if (obact == nullptr) {
+    return true;
+  }
+
+  if (obact->mode & (OB_MODE_ALL_PAINT & ~(OB_MODE_WEIGHT_PAINT | OB_MODE_VERTEX_PAINT))) {
+    /* For all non-weight-paint paint modes: Don't store property changes when painting.
+     * Weight Paint and Vertex Paint use global undo, and thus don't need to be special-cased
+     * here. */
+    CLOG_INFO(&LOG, 1, "skipping undo for paint-mode");
+    return false;
+  }
+  if (obact->mode & OB_MODE_EDIT) {
+    if ((obact->data == nullptr) || (GS(id.name) != GS(((ID *)obact->data)->name))) {
+      /* No undo push on id type mismatch in edit-mode. */
+      CLOG_INFO(&LOG, 1, "skipping undo for edit-mode");
+      return false;
     }
   }
   return true;
