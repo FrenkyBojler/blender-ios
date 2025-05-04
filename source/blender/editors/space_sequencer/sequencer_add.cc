@@ -80,7 +80,7 @@ struct SequencerAddData {
 #define SEQPROP_FIT_METHOD (1 << 4)
 #define SEQPROP_VIEW_TRANSFORM (1 << 5)
 #define SEQPROP_PLAYBACK_RATE (1 << 6)
-#define SEQPROP_MOVE (1 << 6)
+#define SEQPROP_MOVE (1 << 7)
 
 static const EnumPropertyItem scale_fit_methods[] = {
     {SEQ_SCALE_TO_FIT, "FIT", 0, "Scale to Fit", "Scale image to fit within the canvas"},
