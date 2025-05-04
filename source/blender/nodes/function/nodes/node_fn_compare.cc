@@ -199,7 +199,7 @@ static void node_label(const bNodeTree * /*tree*/,
   if (!enum_label) {
     name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
-  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
 
 static float component_average(float3 a)
