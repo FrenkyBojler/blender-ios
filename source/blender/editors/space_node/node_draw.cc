@@ -5059,11 +5059,23 @@ static void draw_background_color(const SpaceNode &snode)
   GPU_clear_color(color[0], color[1], color[2], 1.0);
 }
 
+static void update_view_center_if_needed(SpaceNode &snode, View2D &v2d)
+{
+  if (snode.runtime->need_update_view_center_from_path) {
+    if (bNodeTreePath *path = static_cast<bNodeTreePath *>(snode.treepath.last)) {
+      UI_view2d_center_set(&v2d, path->view_center[0], path->view_center[1]);
+    }
+    snode.runtime->need_update_view_center_from_path = false;
+  }
+}
+
 void node_draw_space(const bContext &C, ARegion &region)
 {
   wmWindow *win = CTX_wm_window(&C);
   SpaceNode &snode = *CTX_wm_space_node(&C);
   View2D &v2d = region.v2d;
+
+  update_view_center_if_needed(snode, v2d);
 
   /* Setup off-screen buffers. */
   GPUViewport *viewport = WM_draw_region_get_viewport(&region);

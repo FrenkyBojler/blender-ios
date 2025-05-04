@@ -109,6 +109,7 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 
   ED_node_set_active_viewer_key(snode);
 
+  snode->runtime->need_update_view_center_from_path = true;
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
 
@@ -145,6 +146,7 @@ void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 
   ED_node_set_active_viewer_key(snode);
 
+  snode->runtime->need_update_view_center_from_path = true;
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
 
@@ -166,7 +168,7 @@ void ED_node_tree_pop(SpaceNode *snode)
 
   ED_node_set_active_viewer_key(snode);
 
-  /* listener updates the View2D center from edittree */
+  snode->runtime->need_update_view_center_from_path = true;
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
 
@@ -777,13 +779,6 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
     case NC_SCENE:
       switch (wmn->data) {
         case ND_NODES: {
-          ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
-          bNodeTreePath *path = (bNodeTreePath *)snode->treepath.last;
-          /* shift view to node tree center */
-          if (region && path) {
-            UI_view2d_center_set(&region->v2d, path->view_center[0], path->view_center[1]);
-          }
-
           node_area_tag_tree_recalc(snode, area);
           break;
         }
