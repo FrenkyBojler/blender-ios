@@ -416,7 +416,12 @@ void attribute_storage_blend_write_prepare(
     const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
     AttributeStorage::BlendWriteData &write_data)
 {
-  Set<StringRef, 16> all_names_written;
+  Set<std::string, 16> all_names_written;
+for (Vector<CustomDataLayer, 16> *const layers : layers_to_write.values()) {
+    for (const CustomDataLayer &layer : *layers) {
+      all_names_written.add(layer.name);
+    }
+  }
   data.foreach([&](Attribute &attr) {
     if (!U.experimental.use_attribute_storage_write_debug) {
       /* In version 4.5, all attribute data is written in the #CustomData format (at least when the
@@ -447,6 +452,7 @@ void attribute_storage_blend_write_prepare(
       return;
     }
 
+/* Names within an AttributeStorage are unique. */
     all_names_written.add(attr.name());
     AttributeDNA attribute_dna{};
     attribute_dna.name = attr.name().c_str();
