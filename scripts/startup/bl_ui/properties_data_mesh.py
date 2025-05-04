@@ -109,13 +109,9 @@ class MESH_UL_vgroups(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data_, _active_propname, _index):
         # assert(isinstance(item, bpy.types.VertexGroup))
         vgroup = item
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
-            icon = 'LOCKED' if vgroup.lock_weight else 'UNLOCKED'
-            layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="", icon_value=icon)
+        layout.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
+        icon = 'LOCKED' if vgroup.lock_weight else 'UNLOCKED'
+        layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
 
 
 class MESH_UL_shape_keys(UIList):
@@ -124,37 +120,29 @@ class MESH_UL_shape_keys(UIList):
         obj = active_data
         # key = data
         key_block = item
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            split = layout.split(factor=0.5, align=True)
-            split.prop(key_block, "name", text="", emboss=False, icon_value=icon)
-            row = split.row(align=True)
-            row.emboss = 'NONE_OR_STATUS'
-            row.alignment = 'RIGHT'
-            if key_block.mute or (obj.mode == 'EDIT' and not (obj.use_shape_key_edit_mode and obj.type == 'MESH')):
-                split.active = False
-            if not item.id_data.use_relative:
-                row.prop(key_block, "frame", text="")
-            elif index > 0:
-                row.prop(key_block, "value", text="")
-            else:
-                row.label(text="")
-            row.prop(key_block, "mute", text="", emboss=False)
-            row.prop(key_block, "lock_shape", text="", emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="", icon_value=icon)
+        split = layout.split(factor=0.5, align=True)
+        split.prop(key_block, "name", text="", emboss=False, icon_value=icon)
+        row = split.row(align=True)
+        row.emboss = 'NONE_OR_STATUS'
+        row.alignment = 'RIGHT'
+        if key_block.mute or (obj.mode == 'EDIT' and not (obj.use_shape_key_edit_mode and obj.type == 'MESH')):
+            split.active = False
+        if not item.id_data.use_relative:
+            row.prop(key_block, "frame", text="")
+        elif index > 0:
+            row.prop(key_block, "value", text="")
+        else:
+            row.label(text="")
+        row.prop(key_block, "mute", text="", emboss=False)
+        row.prop(key_block, "lock_shape", text="", emboss=False)
 
 
 class MESH_UL_uvmaps(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         # assert(isinstance(item, (bpy.types.MeshTexturePolyLayer, bpy.types.MeshLoopColorLayer)))
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(item, "name", text="", emboss=False, icon='GROUP_UVS')
-            icon = 'RESTRICT_RENDER_OFF' if item.active_render else 'RESTRICT_RENDER_ON'
-            layout.prop(item, "active_render", text="", icon=icon, emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="", icon_value=icon)
+        layout.prop(item, "name", text="", emboss=False, icon='GROUP_UVS')
+        icon = 'RESTRICT_RENDER_OFF' if item.active_render else 'RESTRICT_RENDER_ON'
+        layout.prop(item, "active_render", text="", icon=icon, emboss=False)
 
 
 class MeshButtonsPanel:
