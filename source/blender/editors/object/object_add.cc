@@ -1486,6 +1486,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
     }
   }
 
+  SET_FLAG_FROM_TEST(object->dtx, use_in_front, OB_DRAW_IN_FRONT);
   SET_FLAG_FROM_TEST(object->dtx, use_lights, OB_USE_GPENCIL_LIGHTS);
 
   for (blender::bke::greasepencil::Layer *layer : grease_pencil_id.layers_for_write()) {
@@ -1493,8 +1494,6 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
                        use_lights,
                        GP_LAYER_TREE_NODE_USE_LIGHTS);
   }
-
-  SET_FLAG_FROM_TEST(object->dtx, use_in_front, OB_DRAW_IN_FRONT);
 
   /* Set the draw type. */
 
