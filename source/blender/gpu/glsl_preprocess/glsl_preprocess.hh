@@ -801,14 +801,15 @@ class Preprocessor {
   }
 
   /* To be run after `argument_reference_mutation()`. */
-  std::string variable_reference_mutation(std::string &str, report_callback report_error)
+  std::string variable_reference_mutation(const std::string &str, report_callback report_error)
   {
     using namespace std;
     /* Processing regex and logic is expensive. Check if they are needed at all. */
     bool valid_match = false;
-    reference_search(str, [&](int parenthesis_depth, int bracket_depth, char &c) {
+    string next_str = str;
+    reference_search(next_str, [&](int parenthesis_depth, int /*bracket_depth*/, char &c) {
       /* Check if inside a function body.  */
-      if (bracket_depth > 0 && parenthesis_depth == 0) {
+      if (parenthesis_depth == 0) {
         valid_match = true;
         /* Modify the & into @ to make sure we only match these references in the regex
          * below. @ being forbidden in the shader language, it is safe to use a temp
@@ -820,31 +821,37 @@ class Preprocessor {
       return str;
     }
     string out_str;
-    string next_str = str;
     /* Example: `const float &var = value;` */
-    regex regex_ref(R"((?:const)?\s*\w+\s+\@(\w+) =\s*([^;]+);)");
+    regex regex_ref(R"(\ ?(?:const)?\s*\w+\s+\@(\w+) =\s*([^;]+);)");
 
-    for (smatch match; regex_search(next_str, match, regex_ref);) {
+    smatch match;
+    while (regex_search(next_str, match, regex_ref)) {
       const string definition = match[0].str();
       const string name = match[1].str();
       const string value = match[2].str();
+      const string prefix = match.prefix().str();
+      const string suffix = match.suffix().str();
 
-      out_str += match.prefix().str();
-      next_str = definition + match.suffix().str();
+      out_str += prefix;
+      /** IMPORTANT: `match` is invalid after the assignment. */
+      next_str = definition + suffix;
 
       /* Assert definition doesn't contain any side effect. */
       if (value.find("++") != string::npos || value.find("--") != string::npos) {
         report_error(match, "Reference definitions cannot have side effects.");
+        return str;
       }
       if (value.find("(") != string::npos) {
         report_error(match, "Reference definitions cannot contain function calls.");
+        return str;
       }
       if (value.find("[") != string::npos) {
         const string index_var = get_content_between_balanced_pair(value, '[', ']');
 
         if (index_var.find(' ') != string::npos) {
           report_error(match,
-                       "Array subscript inside reference declaration must be a single variable.");
+                       "Array subscript inside reference declaration must be a single variable or "
+                       "a constant, not an expression.");
           return str;
         }
 
@@ -867,6 +874,7 @@ class Preprocessor {
             found_var = true;
             if (match_definition[1].matched == false) {
               report_error(match, "Array subscript variable must be declared as const qualified.");
+              return str;
             }
           }
         }
@@ -875,13 +883,15 @@ class Preprocessor {
                        "Cannot locate array subscript variable declaration. "
                        "If it is a global variable, assign it to a temporary const variable for "
                        "indexing inside the reference.");
+          return str;
         }
       }
 
       /* Find scope this definition is active in. */
-      const string scope = get_content_between_balanced_pair('{' + match.suffix().str(), '{', '}');
+      const string scope = get_content_between_balanced_pair('{' + suffix, '{', '}');
       if (scope.empty()) {
         report_error(match, "Reference is defined inside a global or unterminated scope.");
+        return str;
       }
       string original = definition + scope;
       string modified = original;
@@ -889,8 +899,11 @@ class Preprocessor {
       /* Replace definition by nothing. Keep number of lines. */
       string newlines(line_count(definition), '\n');
       replace_all(modified, definition, newlines);
+      /* Replace every occurrence of the reference. Avoid matching other symbols like class members
+       * and functions with the same name. */
+      modified = regex_replace(
+          modified, regex(R"(([^\.])\b)" + name + R"(\b([^(]))"), "$1" + value + "$2");
 
-      modified = regex_replace(modified, regex(R"(\b)" + name + R"(\b([^(]))"), value + "$1");
       /* Replace whole modified scope in output string. */
       replace_all(next_str, original, modified);
     }
