@@ -62,7 +62,7 @@ void clear();
  * guarantee that there are no elements for which the predicate is true after the function
  * returned. This is because another thread may have added a new element right after the removal.
  */
-void invalidate_if(FunctionRef<bool(const GenericKey &)> predicate);
+void remove_if(FunctionRef<bool(const GenericKey &)> predicate);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions

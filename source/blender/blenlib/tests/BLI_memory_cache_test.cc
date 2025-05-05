@@ -93,7 +93,7 @@ TEST(memory_cache, RemoveIf)
   memory_cache::get<CachedInt>(GenericIntKey(1), []() { return std::make_unique<CachedInt>(1); });
   memory_cache::get<CachedInt>(GenericIntKey(2), []() { return std::make_unique<CachedInt>(2); });
 
-  memory_cache::invalidate_if([](const GenericKey &key) {
+  memory_cache::remove_if([](const GenericKey &key) {
     return dynamic_cast<const GenericIntKey *>(&key)->value() == 1;
   });
 

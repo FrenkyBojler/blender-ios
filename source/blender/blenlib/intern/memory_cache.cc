@@ -138,10 +138,10 @@ void set_approximate_size_limit(const int64_t limit_in_bytes)
 
 void clear()
 {
-  memory_cache::invalidate_if([](const GenericKey &) { return true; });
+  memory_cache::remove_if([](const GenericKey &) { return true; });
 }
 
-void invalidate_if(const FunctionRef<bool(const GenericKey &)> predicate)
+void remove_if(const FunctionRef<bool(const GenericKey &)> predicate)
 {
   Cache &cache = get_cache();
   std::lock_guard lock{cache.global_mutex};
