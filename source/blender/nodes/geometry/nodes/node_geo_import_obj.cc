@@ -29,14 +29,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class LoadObjCache : public memory_cache::CachedValue {
  public:
-  Vector<GeometrySet> geometries;
+  GeometrySet geometry;
   Vector<geo_eval_log::NodeWarning> warnings;
 
   void count_memory(MemoryCounter &counter) const override
   {
-    for (const GeometrySet &geometry : this->geometries) {
-      geometry.count_memory(counter);
-    }
+    this->geometry.count_memory(counter);
   }
 };
 
@@ -63,8 +61,14 @@ static void node_geo_exec(GeoNodeExecParams params)
         Vector<bke::GeometrySet> geometries;
         OBJ_import_geometries(&import_params, geometries);
 
+        bke::Instances *instances = new bke::Instances();
+        for (GeometrySet geometry : geometries) {
+          const int handle = instances->add_reference(bke::InstanceReference{std::move(geometry)});
+          instances->add_instance(handle, float4x4::identity());
+        }
+
         auto cached_value = std::make_unique<LoadObjCache>();
-        cached_value->geometries = std::move(geometries);
+        cached_value->geometry = GeometrySet::from_instances(instances);
 
         LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
           cached_value->warnings.append_as(*report);
@@ -73,21 +77,11 @@ static void node_geo_exec(GeoNodeExecParams params)
         return cached_value;
       });
 
-  if (cached_value->geometries.is_empty()) {
-    params.set_default_remaining_outputs();
-    return;
-  }
   for (const geo_eval_log::NodeWarning &warning : cached_value->warnings) {
     params.error_message_add(warning.type, warning.message);
   }
 
-  bke::Instances *instances = new bke::Instances();
-  for (GeometrySet geometry : cached_value->geometries) {
-    const int handle = instances->add_reference(bke::InstanceReference{std::move(geometry)});
-    instances->add_instance(handle, float4x4::identity());
-  }
-
-  params.set_output("Instances", GeometrySet::from_instances(instances));
+  params.set_output("Instances", cached_value->geometry);
 #else
   params.error_message_add(NodeWarningType::Error,
                            TIP_("Disabled, Blender was compiled without OBJ I/O"));
