@@ -193,6 +193,7 @@ typedef struct LightLinking {
 typedef struct Object {
 #ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Object)
+  /** See #ID_Type comment for why this is here. */
   static constexpr ID_Type id_type = ID_OB;
 #endif
 

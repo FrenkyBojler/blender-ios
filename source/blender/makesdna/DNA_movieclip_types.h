@@ -56,6 +56,7 @@ typedef struct MovieClip_Runtime {
 
 typedef struct MovieClip {
 #ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
   static constexpr ID_Type id_type = ID_MC;
 #endif
 

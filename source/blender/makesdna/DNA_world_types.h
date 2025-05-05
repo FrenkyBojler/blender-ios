@@ -26,6 +26,7 @@ struct bNodeTree;
 typedef struct World {
 #ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(World)
+  /** See #ID_Type comment for why this is here. */
   static constexpr ID_Type id_type = ID_WO;
 #endif
 

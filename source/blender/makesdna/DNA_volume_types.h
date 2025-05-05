@@ -41,6 +41,7 @@ typedef struct VolumeRender {
 
 typedef struct Volume {
 #ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
   static constexpr ID_Type id_type = ID_VO;
 #endif
 

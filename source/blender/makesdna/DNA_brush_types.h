@@ -163,6 +163,7 @@ typedef struct BrushCurvesSculptSettings {
 typedef struct Brush {
 #ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Brush)
+  /** See #ID_Type comment for why this is here. */
   static constexpr ID_Type id_type = ID_BR;
 #endif
 
@@ -430,6 +431,7 @@ typedef struct PaletteColor {
 
 typedef struct Palette {
 #ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
   static constexpr ID_Type id_type = ID_PAL;
 #endif
 
@@ -451,6 +453,7 @@ typedef struct PaintCurvePoint {
 
 typedef struct PaintCurve {
 #ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
   static constexpr ID_Type id_type = ID_PC;
 #endif
 
