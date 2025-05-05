@@ -131,9 +131,12 @@ static Vector<ElementAnimations> gather_animated_properties(const FbxElementMapp
     else {
       /* Animating Object property. */
       Object *obj = mapping.el_to_object.lookup_default(fprop.element, nullptr);
+      if (obj == nullptr) {
+        continue;
+      }
       /* Ignore animation of rigged meshes (very hard to handle; matches behavior of python fbx
        * importer). */
-      if (obj && obj->type == OB_MESH && obj->parent && obj->parent->type == OB_ARMATURE) {
+      if (obj->type == OB_MESH && obj->parent && obj->parent->type == OB_ARMATURE) {
         continue;
       }
       target_id = &obj->id;

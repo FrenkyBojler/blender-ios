@@ -283,7 +283,8 @@ static void fbx_task_wait_fn(void * /* user */,
                              uint32_t /* group */,
                              uint32_t /* max_index */)
 {
-  /* Empty implementation; #fbx_task_run_fn already waits for the tasks. */
+  /* Empty implementation; #fbx_task_run_fn already waits for the tasks.
+   * This means that only one fbx "task group" is effectively scheduled at once. */
 }
 
 void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXImportParams &params)
