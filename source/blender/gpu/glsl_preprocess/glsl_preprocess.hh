@@ -817,12 +817,19 @@ class Preprocessor {
   void matrix_constructor_linting(const std::string &str, report_callback report_error)
   {
     /* The following regex is expensive. Do a quick early out scan. */
-    if (str.find("mat") == std::string::npos) {
+    if (str.find("mat") == std::string::npos && str.find("float") == std::string::npos) {
       return;
     }
     /* Example: `mat4(other_mat)`. */
-    std::regex regex(R"(\s+(mat(\d|\dx\d)|float\dx\d)\([^,\s\d]+\))");
+    std::regex regex(R"(\s(?:mat(?:\d|\dx\d)|float\dx\d)\()");
     regex_global_search(str, regex, [&](const std::smatch &match) {
+      std::string args = get_content_between_balanced_pair("(" + match.suffix().str(), '(', ')');
+      int arg_count = split_string_not_between_balanced_pair(args, ',', '(', ')').size();
+      bool has_floating_point_arg = args.find('.') != std::string::npos;
+      /* TODO(fclem): Check if arg count matches matrix type.  */
+      if (arg_count != 1 || has_floating_point_arg) {
+        return;
+      }
       /* This only catches some invalid usage. For the rest, the CI will catch them. */
       const char *msg =
           "Matrix constructor is not cross API compatible. "
