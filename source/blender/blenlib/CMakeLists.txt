@@ -240,6 +240,7 @@ set(SRC
   BLI_function_ref.hh
   BLI_generic_array.hh
   BLI_generic_key.hh
+  BLI_generic_key_string.hh
   BLI_generic_pointer.hh
   BLI_generic_span.hh
   BLI_generic_value_map.hh
