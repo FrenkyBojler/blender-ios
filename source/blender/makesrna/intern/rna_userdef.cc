@@ -6963,6 +6963,12 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
        "typically heavy data. For example the textures of a material asset, or the mesh of an "
        "object asset, don't have to be copied every time this asset is imported. The instances of "
        "the asset share the data instead."},
+      {ASSET_IMPORT_LINK_EMBED,
+       "LINK_EMBED",
+       0,
+       "Link and Embed",
+       "Import the assets as linked data-block, but also embed it in the current file to keep it "
+       "working even if the source file is not available anymore"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);

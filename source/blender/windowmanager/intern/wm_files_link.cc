@@ -706,6 +706,7 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
                                             const char *id_name,
                                             const int flag)
 {
+  const bool do_embed = (flag & BLO_LIBLINK_LINK_EMBED) != 0;
   const bool do_append = (flag & FILE_LINK) == 0;
   /* Tag everything so we can make local only the new datablock. */
   BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
@@ -728,7 +729,19 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
   /* Link datablock. */
   BKE_blendfile_link(lapp_context, nullptr);
 
-  if (do_append) {
+  if (do_embed) {
+    blender::Set<ID *> ids_to_embed;
+    for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
+      ID *id = item.new_id;
+      BLI_assert(ID_IS_LINKED(id));
+      if (ID_IS_LINKED_EMBEDDED(id)) {
+        /* Embedded already. */
+        continue;
+      }
+      blender::bke::library::embed_linked_id_hierarchy(*bmain, *id);
+    }
+  }
+  else if (do_append) {
     BKE_blendfile_append(lapp_context, nullptr);
   }
 

@@ -1119,7 +1119,21 @@ static void template_ID(const bContext *C,
     if (!hide_buttons && !(idfrom && ID_IS_LINKED(idfrom))) {
       if (ID_IS_LINKED(id)) {
         const bool disabled = !BKE_idtype_idcode_is_localizable(GS(id->name));
-        if (id->tag & ID_TAG_INDIRECT) {
+        if (ID_IS_LINKED_EMBEDDED(id)) {
+          but = uiDefIconBut(block,
+                             UI_BTYPE_BUT,
+                             0,
+                             ICON_LIBRARY_DATA_EMBEDDED,
+                             0,
+                             0,
+                             UI_UNIT_X,
+                             UI_UNIT_Y,
+                             nullptr,
+                             0,
+                             0,
+                             TIP_("Embedded library data-block, click to make local"));
+        }
+        else if (id->tag & ID_TAG_INDIRECT) {
           but = uiDefIconBut(block,
                              UI_BTYPE_BUT,
                              0,
