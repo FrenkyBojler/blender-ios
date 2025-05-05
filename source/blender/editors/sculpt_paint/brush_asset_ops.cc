@@ -115,11 +115,6 @@ static bool brush_asset_save_as_poll(bContext *C)
     return false;
   }
 
-  if (BLI_listbase_is_empty(&U.asset_libraries)) {
-    CTX_wm_operator_poll_msg_set(C, "No asset library available to save to");
-    return false;
-  }
-
   return true;
 }
 
