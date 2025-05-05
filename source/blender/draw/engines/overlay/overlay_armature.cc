@@ -1937,8 +1937,11 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
       draw_bone_relations(ctx, bone, boneflag);
     }
 
-    bone_draw_update_display_matrix(arm_drawtype, false, bone);
-    bone_draw(arm_drawtype, false, ctx, bone, boneflag, select_id);
+    const eArmature_Drawtype drawtype = eBone->drawtype == ARM_BONE_DEFAULT ?
+                                            arm_drawtype :
+                                            eArmature_Drawtype(eBone->drawtype);
+    bone_draw_update_display_matrix(drawtype, false, bone);
+    bone_draw(drawtype, false, ctx, bone, boneflag, select_id);
 
     if (!is_select) {
       if (show_text && (arm.flag & ARM_DRAWNAMES)) {
@@ -2068,8 +2071,11 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
       draw_bone_relations(ctx, bone_ptr, boneflag);
     }
 
-    bone_draw_update_display_matrix(arm_drawtype, use_custom_shape, bone_ptr);
-    bone_draw(arm_drawtype, use_custom_shape, ctx, bone_ptr, boneflag, select_id);
+    const eArmature_Drawtype drawtype = bone->drawtype == ARM_BONE_DEFAULT ?
+                                            arm_drawtype :
+                                            eArmature_Drawtype(bone->drawtype);
+    bone_draw_update_display_matrix(drawtype, use_custom_shape, bone_ptr);
+    bone_draw(drawtype, use_custom_shape, ctx, bone_ptr, boneflag, select_id);
 
     /* Below this point nothing is used for selection queries. */
     if (is_pose_select) {
