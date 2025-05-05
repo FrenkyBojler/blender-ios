@@ -11,16 +11,16 @@ namespace blender::memory_cache {
 
 template<typename T>
 std::shared_ptr<const T> get_loaded(const GenericKey &loader_key,
-                                    Span<StringRef> file_paths,
+                                    Span<StringRefNull> file_paths,
                                     FunctionRef<std::unique_ptr<T>()> load_fn);
 
 std::shared_ptr<CachedValue> get_loaded_base(const GenericKey &loader_key,
-                                             Span<StringRef> file_paths,
+                                             Span<StringRefNull> file_paths,
                                              FunctionRef<std::unique_ptr<CachedValue>()> load_fn);
 
 template<typename T>
 inline std::shared_ptr<const T> get_loaded(const GenericKey &loader_key,
-                                           Span<StringRef> file_paths,
+                                           Span<StringRefNull> file_paths,
                                            FunctionRef<std::unique_ptr<T>()> load_fn)
 {
   return std::dynamic_pointer_cast<const T>(get_loaded_base(loader_key, file_paths, load_fn));

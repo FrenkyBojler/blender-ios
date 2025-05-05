@@ -51,7 +51,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   std::shared_ptr<const CachedGeometrySetVector> cached_value = memory_cache::get_loaded<
-      CachedGeometrySetVector>(GenericStringKey{"import_obj_node"}, {StringRef(*path)}, [&]() {
+      CachedGeometrySetVector>(GenericStringKey{"import_obj_node"}, {StringRefNull(*path)}, [&]() {
     OBJImportParams import_params;
     STRNCPY(import_params.filepath, path->c_str());
 
