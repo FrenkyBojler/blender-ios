@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Mesh");
 }
 
-class CachedLoadedSTL : public memory_cache::CachedValue, NonCopyable, NonMovable {
+class LoadStlCache : public memory_cache::CachedValue, NonCopyable, NonMovable {
  public:
   GeometrySet geometry;
   Vector<geo_eval_log::NodeWarning> warnings;
@@ -50,7 +50,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  std::shared_ptr<const CachedLoadedSTL> cached_value = memory_cache::get_loaded<CachedLoadedSTL>(
+  std::shared_ptr<const LoadStlCache> cached_value = memory_cache::get_loaded<LoadStlCache>(
       GenericStringKey{"import_stl_node"}, {StringRefNull(*path)}, [&]() {
         STLImportParams import_params;
         STRNCPY(import_params.filepath, path->c_str());
@@ -65,7 +65,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
         Mesh *mesh = STL_import_mesh(&import_params);
 
-        auto cached_value = std::make_unique<CachedLoadedSTL>();
+        auto cached_value = std::make_unique<LoadStlCache>();
         cached_value->geometry = GeometrySet::from_mesh(mesh);
 
         LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {

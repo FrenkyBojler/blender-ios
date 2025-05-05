@@ -27,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Instances");
 }
 
-class CachedLoadedOBJ : public memory_cache::CachedValue {
+class LoadObjCache : public memory_cache::CachedValue {
  public:
   Vector<bke::GeometrySet> geometries;
   Vector<geo_eval_log::NodeWarning> warnings;
@@ -50,7 +50,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  std::shared_ptr<const CachedLoadedOBJ> cached_value = memory_cache::get_loaded<CachedLoadedOBJ>(
+  std::shared_ptr<const LoadObjCache> cached_value = memory_cache::get_loaded<LoadObjCache>(
       GenericStringKey{"import_obj_node"}, {StringRefNull(*path)}, [&]() {
         OBJImportParams import_params;
         STRNCPY(import_params.filepath, path->c_str());
@@ -63,7 +63,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         Vector<bke::GeometrySet> geometries;
         OBJ_import_geometries(&import_params, geometries);
 
-        auto cached_value = std::make_unique<CachedLoadedOBJ>();
+        auto cached_value = std::make_unique<LoadObjCache>();
         cached_value->geometries = std::move(geometries);
 
         LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
