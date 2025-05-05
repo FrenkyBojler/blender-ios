@@ -56,7 +56,9 @@ static std::string process_test_string(std::string str,
     *r_metadata = metadata;
   }
 
-  return result;
+  /* Strip first line directive as they are platform dependent. */
+  size_t newline = result.find('\n');
+  return result.substr(newline + 1);
 }
 
 static void test_preprocess_unroll()
@@ -66,8 +68,7 @@ static void test_preprocess_unroll()
 
   {
     string input = R"([[gpu::unroll]] for (int i = 2; i < 4; i++, y++) { content += i; })";
-    string expect = R"(#line 1 1962565771
-{ int i = 2;
+    string expect = R"({ int i = 2;
 #line 1
 { content += i; }
 #line 1
@@ -85,8 +86,7 @@ i++, y++;
   }
   {
     string input = R"([[gpu::unroll]] for (int i = 2; i < 4 && i < y; i++, y++) { cont += i; })";
-    string expect = R"(#line 1 1962565771
-{ int i = 2;
+    string expect = R"({ int i = 2;
 #line 1
 if (i < y) { cont += i; }
 #line 1
@@ -104,8 +104,7 @@ i++, y++;
   }
   {
     string input = R"([[gpu::unroll(2)]] for (; i < j;) { content += i; })";
-    string expect = R"(#line 1 1962565771
-{ ;
+    string expect = R"({ ;
 #line 1
 if (i < j) { content += i; }
 #line 1
@@ -123,8 +122,7 @@ if (i < j) { content += i; }
   }
   {
     string input = R"([[gpu::unroll(2)]] for (; i < j;) { [[gpu::unroll(2)]] for (; j < k;) {} })";
-    string expect = R"(#line 1 1962565771
-{ ;
+    string expect = R"({ ;
 #line 1
 if (i < j) { { ;
 #line 1
@@ -174,8 +172,7 @@ if (i < j) { { ;
   }
   {
     string input = R"([[gpu::unroll(2)]] for (; i < j;) { for (; j < k;) {break;continue;} })";
-    string expect = R"(#line 1 1962565771
-{ ;
+    string expect = R"({ ;
 #line 1
 if (i < j) { for (; j < k;) {break;continue;} }
 #line 1
