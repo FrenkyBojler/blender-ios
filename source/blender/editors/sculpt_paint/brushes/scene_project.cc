@@ -63,15 +63,15 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-BLI_INLINE float absolute_min_distance(float d1, float d2)
+static inline float absolute_min_distance(float d1, float d2)
 {
   return math::abs(d1) < math::abs(d2) ? d1 : d2;
 }
 
-BLI_INLINE void raycast(const float3 &ray_origin,
-                        const float3 &ray_normal,
-                        bke::BVHTreeFromMesh &tree_data,
-                        BVHTreeRayHit &hit)
+static inline void raycast(const float3 &ray_origin,
+                           const float3 &ray_normal,
+                           bke::BVHTreeFromMesh &tree_data,
+                           BVHTreeRayHit &hit)
 {
   hit.dist = BVH_RAYCAST_DIST_MAX;
   BLI_bvhtree_ray_cast(
