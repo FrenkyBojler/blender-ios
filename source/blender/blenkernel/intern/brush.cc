@@ -172,7 +172,10 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
   else if (force_copy) {
     Brush *brush_new = (Brush *)BKE_id_copy(bmain, &brush->id); /* Ensures FAKE_USER is set */
 
-    brush_new->id.us = 0;
+    id_us_min(&brush_new->id);
+
+    BLI_assert(brush_new->id.flag & ID_FLAG_FAKEUSER);
+    BLI_assert(brush_new->id.us == 1);
 
     /* Setting `newid` is mandatory for complex #make_lib_local logic. */
     ID_NEW_SET(brush, brush_new);
@@ -1519,9 +1522,7 @@ bool supports_accumulate(const Brush &brush)
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
               SCULPT_BRUSH_TYPE_CLAY_THUMB,
               SCULPT_BRUSH_TYPE_ROTATE,
-              SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_SCRAPE,
-              SCULPT_BRUSH_TYPE_FLATTEN);
+              SCULPT_BRUSH_TYPE_PLANE);
 }
 bool supports_topology_rake(const Brush &brush)
 {
@@ -1592,10 +1593,7 @@ bool supports_plane_offset(const Brush &brush)
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
               SCULPT_BRUSH_TYPE_CLAY_THUMB,
-              SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_SCRAPE);
+              SCULPT_BRUSH_TYPE_PLANE);
 }
 bool supports_random_texture_angle(const Brush &brush)
 {
@@ -1631,9 +1629,6 @@ bool supports_secondary_cursor_color(const Brush &brush)
               SCULPT_BRUSH_TYPE_PINCH,
               SCULPT_BRUSH_TYPE_CREASE,
               SCULPT_BRUSH_TYPE_LAYER,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_MASK);
 }
 bool supports_smooth_stroke(const Brush &brush)
@@ -1672,9 +1667,6 @@ bool supports_inverted_direction(const Brush &brush)
               SCULPT_BRUSH_TYPE_BLOB,
               SCULPT_BRUSH_TYPE_CREASE,
               SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_PINCH,
               SCULPT_BRUSH_TYPE_MASK);
@@ -1697,9 +1689,6 @@ bool supports_tilt(const Brush &brush)
   return ELEM(brush.sculpt_brush_type,
               SCULPT_BRUSH_TYPE_DRAW,
               SCULPT_BRUSH_TYPE_DRAW_SHARP,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_PLANE,
               SCULPT_BRUSH_TYPE_CLAY_STRIPS);
 }

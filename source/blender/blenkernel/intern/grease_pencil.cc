@@ -112,7 +112,7 @@ static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &gre
 {
   using namespace blender::bke;
 
-  if (!DEG_is_evaluated_id(&id_dst) || !grease_pencil.adt) {
+  if (!DEG_is_evaluated(&id_dst) || !grease_pencil.adt) {
     return;
   }
 
@@ -1940,6 +1940,15 @@ void LayerGroup::update_from_dna_read()
   }
 }
 
+void ensure_non_empty_layer_names(Main &bmain, GreasePencil &grease_pencil)
+{
+  for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+    if (layer->name().is_empty()) {
+      grease_pencil.rename_node(bmain, layer->as_node(), DATA_("Layer"));
+    }
+  }
+}
+
 }  // namespace blender::bke::greasepencil
 
 namespace blender::bke {
@@ -2589,6 +2598,8 @@ Material *BKE_grease_pencil_object_material_ensure_from_brush(Main *bmain,
   }
 
   /* Fall back to default material. */
+  /* XXX FIXME This is critical abuse of the 'default material' feature, these IDs should never be
+   * used/returned as 'regular' data. */
   return BKE_material_default_gpencil();
 }
 

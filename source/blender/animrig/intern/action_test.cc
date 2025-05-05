@@ -31,7 +31,7 @@ namespace blender::animrig::tests {
 
 TEST(action, low_level_initialisation)
 {
-  bAction *action = static_cast<bAction *>(BKE_id_new_nomain(ID_AC, "ACNewAction"));
+  bAction *action = static_cast<bAction *>(BKE_id_new_nomain(ID_AC, "NewAction"));
 
   EXPECT_NE(action->last_slot_handle, 0)
       << "bAction::last_slot_handle should not be initialised to 0";
@@ -677,7 +677,7 @@ TEST_F(ActionLayersTest, slot_identifier_ensure_prefix)
   slot.identifier_ensure_prefix();
   EXPECT_STREQ("XXSlot", slot.identifier);
 
-  /* idtype CA, default name.  */
+  /* idtype CA, default name. */
   slot.idtype = ID_CA;
   slot.identifier_ensure_prefix();
   EXPECT_STREQ("CASlot", slot.identifier);
@@ -867,8 +867,8 @@ TEST_F(ActionLayersTest, assign_action_ensure_slot_for_keying)
     EXPECT_STREQ("OBKüüübus", chosen_slot->identifier);
   }
 
-  { /* Single slot with same name as ID, Action not yet assigned. Should assign the Action and the
-       slot. */
+  { /* Single slot with same name as ID, Action not yet assigned.
+     * Should assign the Action and the slot. */
     Action &action = action_add(*this->bmain, "ACAction");
     const Slot &slot_for_id = action.slot_add_for_id(cube->id);
     Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
@@ -878,8 +878,8 @@ TEST_F(ActionLayersTest, assign_action_ensure_slot_for_keying)
     EXPECT_EQ(cube->adt->slot_handle, chosen_slot->handle) << "The chosen slot should be assigned";
   }
 
-  { /* Single slot with same name as ID, Action already assigned but not the slot. Should create
-     * new slot. */
+  { /* Single slot with same name as ID, Action already assigned but not the slot.
+     * Should create new slot. */
     Action &action = action_add(*this->bmain, "ACAction");
     const Slot &slot_for_id = action.slot_add_for_id(cube->id);
     ASSERT_EQ(ActionSlotAssignmentResult::OK, assign_action_and_slot(&action, nullptr, cube->id));
