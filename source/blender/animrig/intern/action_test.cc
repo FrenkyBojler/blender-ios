@@ -31,7 +31,7 @@ namespace blender::animrig::tests {
 
 TEST(action, low_level_initialisation)
 {
-  bAction *action = BKE_id_new_nomain<bAction>("ACNewAction");
+  bAction *action = BKE_id_new_nomain<bAction>("NewAction");
 
   EXPECT_NE(action->last_slot_handle, 0)
       << "bAction::last_slot_handle should not be initialised to 0";
