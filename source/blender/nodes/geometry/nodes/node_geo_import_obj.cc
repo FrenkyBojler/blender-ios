@@ -27,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Instances");
 }
 
-class CachedGeometrySetVector : public memory_cache::CachedValue {
+class CachedLoadedOBJ : public memory_cache::CachedValue {
  public:
   Vector<bke::GeometrySet> geometries;
   Vector<geo_eval_log::NodeWarning> warnings;
@@ -50,37 +50,37 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  std::shared_ptr<const CachedGeometrySetVector> cached_value = memory_cache::get_loaded<
-      CachedGeometrySetVector>(GenericStringKey{"import_obj_node"}, {StringRefNull(*path)}, [&]() {
-    OBJImportParams import_params;
-    STRNCPY(import_params.filepath, path->c_str());
+  std::shared_ptr<const CachedLoadedOBJ> cached_value = memory_cache::get_loaded<CachedLoadedOBJ>(
+      GenericStringKey{"import_obj_node"}, {StringRefNull(*path)}, [&]() {
+        OBJImportParams import_params;
+        STRNCPY(import_params.filepath, path->c_str());
 
-    ReportList reports;
-    BKE_reports_init(&reports, RPT_STORE);
-    BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); });
-    import_params.reports = &reports;
+        ReportList reports;
+        BKE_reports_init(&reports, RPT_STORE);
+        BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); });
+        import_params.reports = &reports;
 
-    Vector<bke::GeometrySet> geometries;
-    OBJ_import_geometries(&import_params, geometries);
+        Vector<bke::GeometrySet> geometries;
+        OBJ_import_geometries(&import_params, geometries);
 
-    auto cached_value = std::make_unique<CachedGeometrySetVector>();
-    cached_value->geometries = std::move(geometries);
+        auto cached_value = std::make_unique<CachedLoadedOBJ>();
+        cached_value->geometries = std::move(geometries);
 
-    LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
-      NodeWarningType type;
-      switch (report->type) {
-        case RPT_ERROR:
-          type = NodeWarningType::Error;
-          break;
-        default:
-          type = NodeWarningType::Info;
-          break;
-      }
-      cached_value->warnings.append(geo_eval_log::NodeWarning{type, TIP_(report->message)});
-    }
+        LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
+          NodeWarningType type;
+          switch (report->type) {
+            case RPT_ERROR:
+              type = NodeWarningType::Error;
+              break;
+            default:
+              type = NodeWarningType::Info;
+              break;
+          }
+          cached_value->warnings.append(geo_eval_log::NodeWarning{type, TIP_(report->message)});
+        }
 
-    return cached_value;
-  });
+        return cached_value;
+      });
 
   if (cached_value->geometries.is_empty()) {
     params.set_default_remaining_outputs();

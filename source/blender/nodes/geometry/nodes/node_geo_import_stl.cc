@@ -4,9 +4,14 @@
 
 #include "node_geometry_util.hh"
 
+#include "BLI_generic_key_string.hh"
 #include "BLI_listbase.h"
+#include "BLI_memory_cache_file_load.hh"
 #include "BLI_string.h"
 
+#include "DNA_mesh_types.h"
+
+#include "BKE_lib_id.hh"
 #include "BKE_report.hh"
 
 #include "IO_stl.hh"
@@ -24,6 +29,17 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Mesh");
 }
 
+class CachedLoadedSTL : public memory_cache::CachedValue, NonCopyable, NonMovable {
+ public:
+  GeometrySet geometry;
+  Vector<geo_eval_log::NodeWarning> warnings;
+
+  void count_memory(MemoryCounter &counter) const override
+  {
+    this->geometry.count_memory(counter);
+  }
+};
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_IO_STL
@@ -40,27 +56,39 @@ static void node_geo_exec(GeoNodeExecParams params)
   import_params.forward_axis = IO_AXIS_NEGATIVE_Z;
   import_params.up_axis = IO_AXIS_Y;
 
-  ReportList reports;
-  BKE_reports_init(&reports, RPT_STORE);
-  BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); })
-  import_params.reports = &reports;
+  std::shared_ptr<const CachedLoadedSTL> cached_value = memory_cache::get_loaded<CachedLoadedSTL>(
+      GenericStringKey{"import_stl_node"}, {StringRefNull(*path)}, [&]() {
+        ReportList reports;
+        BKE_reports_init(&reports, RPT_STORE);
+        BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); })
+        import_params.reports = &reports;
 
-  Mesh *mesh = STL_import_mesh(&import_params);
+        Mesh *mesh = STL_import_mesh(&import_params);
 
-  LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
-    NodeWarningType type;
-    switch (report->type) {
-      case RPT_ERROR:
-        type = NodeWarningType::Error;
-        break;
-      default:
-        type = NodeWarningType::Info;
-        break;
-    }
-    params.error_message_add(type, TIP_(report->message));
+        auto cached_value = std::make_unique<CachedLoadedSTL>();
+        cached_value->geometry = GeometrySet::from_mesh(mesh);
+
+        LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
+          NodeWarningType type;
+          switch (report->type) {
+            case RPT_ERROR:
+              type = NodeWarningType::Error;
+              break;
+            default:
+              type = NodeWarningType::Info;
+              break;
+          }
+          cached_value->warnings.append(geo_eval_log::NodeWarning{type, TIP_(report->message)});
+        }
+
+        return cached_value;
+      });
+
+  for (const geo_eval_log::NodeWarning &warning : cached_value->warnings) {
+    params.error_message_add(warning.type, warning.message);
   }
 
-  params.set_output("Mesh", GeometrySet::from_mesh(mesh));
+  params.set_output("Mesh", cached_value->geometry);
 
 #else
   params.error_message_add(NodeWarningType::Error,
