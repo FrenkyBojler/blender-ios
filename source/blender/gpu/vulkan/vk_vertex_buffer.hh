@@ -21,6 +21,7 @@ class VKVertexBuffer : public VertBuf {
   VkBufferView vk_buffer_view_ = VK_NULL_HANDLE;
 
   VertexFormatConverter vertex_format_converter;
+  bool data_uploaded_ = false;
 
  public:
   ~VKVertexBuffer();
@@ -54,7 +55,6 @@ class VKVertexBuffer : public VertBuf {
   void resize_data() override;
   void release_data() override;
   void upload_data() override;
-  void duplicate_data(VertBuf *dst) override;
 
  private:
   void allocate();

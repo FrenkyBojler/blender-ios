@@ -8,16 +8,16 @@
 
 #pragma once
 
+#include "BLI_map.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 
 #include "GPU_shader.hh"
+#include "GPU_worker.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_interface.hh"
 
-#include "BLI_map.hh"
-
-#include <mutex>
+#include <deque>
 #include <string>
 
 namespace blender::gpu {
@@ -44,6 +44,8 @@ class Shader {
  public:
   /** Uniform & attribute locations for shader. */
   ShaderInterface *interface = nullptr;
+  /** Bit-set indicating the frame-buffer color attachments that this shader writes to. */
+  uint16_t fragment_output_bits = 0;
 
   /**
    * Specialization constants as a Struct-of-Arrays. Allow simpler comparison and reset.
@@ -63,6 +65,10 @@ class Shader {
      */
     bool is_dirty;
   } constants;
+
+  /* WORKAROUND: True if this shader is a polyline shader and needs an appropriate setup to render.
+   * Eventually, in the future, we should modify the user code instead of relying on such hacks. */
+  bool is_polyline = false;
 
  protected:
   /** For debugging purpose. */
@@ -93,11 +99,6 @@ class Shader {
    * See `GPU_shader_warm_cache(..)` in `GPU_shader.hh` for more information. */
   virtual void warm_cache(int limit) = 0;
 
-  virtual void transform_feedback_names_set(Span<const char *> name_list,
-                                            eGPUShaderTFBType geom_type) = 0;
-  virtual bool transform_feedback_enable(VertBuf *) = 0;
-  virtual void transform_feedback_disable() = 0;
-
   virtual void bind() = 0;
   virtual void unbind() = 0;
 
@@ -115,24 +116,17 @@ class Shader {
   virtual std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const = 0;
   virtual std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const = 0;
 
-  /* DEPRECATED: Kept only because of BGL API. */
-  virtual int program_handle_get() const = 0;
-
-  /* Only used by SSBO Vertex fetch. */
-  virtual bool get_uses_ssbo_vertex_fetch() const = 0;
-  virtual int get_ssbo_vertex_fetch_output_num_verts() const = 0;
-
-  inline StringRefNull name_get() const
+  StringRefNull name_get() const
   {
     return name;
   }
 
-  inline void parent_set(Shader *parent)
+  void parent_set(Shader *parent)
   {
     parent_shader_ = parent;
   }
 
-  inline Shader *parent_get() const
+  Shader *parent_get() const
   {
     return parent_shader_;
   }
@@ -184,7 +178,7 @@ class ShaderCompiler {
   virtual SpecializationBatchHandle precompile_specializations(
       Span<ShaderSpecialization> /*specializations*/)
   {
-    /* No-op.*/
+    /* No-op. */
     return 0;
   };
 
@@ -195,19 +189,25 @@ class ShaderCompiler {
   };
 };
 
-/* Generic (fully synchronous) implementation for backends that don't implement their own
- * ShaderCompiler. Used by Vulkan and Metal. */
+/* Generic implementation used as fallback. */
 class ShaderCompilerGeneric : public ShaderCompiler {
  private:
   struct Batch {
     Vector<Shader *> shaders;
     Vector<const shader::ShaderCreateInfo *> infos;
-    bool is_ready = false;
+    std::atomic_bool is_ready = false;
   };
-  BatchHandle next_batch_handle = 1;
-  Map<BatchHandle, Batch> batches;
+  BatchHandle next_batch_handle_ = 1;
+  Map<BatchHandle, std::unique_ptr<Batch>> batches_;
+  std::mutex mutex_;
+
+  std::deque<Batch *> compilation_queue_;
+  std::unique_ptr<GPUWorker> compilation_thread_;
+
+  void run_thread();
 
  public:
+  ShaderCompilerGeneric();
   ~ShaderCompilerGeneric() override;
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;

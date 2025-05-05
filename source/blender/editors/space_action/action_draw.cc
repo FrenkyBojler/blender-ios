@@ -9,11 +9,11 @@
 /* System includes ----------------------------------------------------- */
 
 #include <cfloat>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_math_color.h"
+#include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 /* Types --------------------------------------------------------------- */
@@ -84,7 +84,7 @@ void draw_channel_names(bContext *C,
     }
   }
   { /* second pass: widgets */
-    uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+    uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t channel_index = 0;
     float ymax = ANIM_UI_get_first_channel_top(v2d);
 
@@ -220,6 +220,7 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
           immUniformThemeColor(TH_ANIM_ACTIVE);
           break;
         }
+        case ANIMTYPE_ACTION_SLOT:
         case ANIMTYPE_SCENE:
         case ANIMTYPE_OBJECT: {
           immUniformColor3ubvAlpha(col1b, sel ? col1[3] : col1b[3]);
@@ -348,8 +349,6 @@ static void draw_keyframes(bAnimContext *ac,
       continue;
     }
 
-    AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-
     /* Add channels to list to draw later. */
     switch (ale->datatype) {
       case ALE_ALL:
@@ -374,7 +373,8 @@ static void draw_keyframes(bAnimContext *ac,
         break;
       case ALE_ACTION_LAYERED:
         ED_add_action_layered_channel(draw_list,
-                                      adt,
+                                      ac,
+                                      ale,
                                       static_cast<bAction *>(ale->key_data),
                                       ycenter,
                                       scale_factor,
@@ -382,7 +382,8 @@ static void draw_keyframes(bAnimContext *ac,
         break;
       case ALE_ACTION_SLOT:
         ED_add_action_slot_channel(draw_list,
-                                   adt,
+                                   ac,
+                                   ale,
                                    static_cast<bAction *>(ale->key_data)->wrap(),
                                    *static_cast<animrig::Slot *>(ale->data),
                                    ycenter,
@@ -391,7 +392,7 @@ static void draw_keyframes(bAnimContext *ac,
         break;
       case ALE_ACT:
         ED_add_action_channel(draw_list,
-                              adt,
+                              ale,
                               static_cast<bAction *>(ale->key_data),
                               ycenter,
                               scale_factor,
@@ -399,20 +400,21 @@ static void draw_keyframes(bAnimContext *ac,
         break;
       case ALE_GROUP:
         ED_add_action_group_channel(draw_list,
-                                    adt,
+                                    ale,
                                     static_cast<bActionGroup *>(ale->data),
                                     ycenter,
                                     scale_factor,
                                     action_flag);
         break;
-      case ALE_FCURVE:
+      case ALE_FCURVE: {
         ED_add_fcurve_channel(draw_list,
-                              adt,
+                              ale,
                               static_cast<FCurve *>(ale->key_data),
                               ycenter,
                               scale_factor,
                               action_flag);
         break;
+      }
       case ALE_GREASE_PENCIL_CEL:
         ED_add_grease_pencil_cels_channel(draw_list,
                                           ads,
@@ -433,7 +435,7 @@ static void draw_keyframes(bAnimContext *ac,
       case ALE_GREASE_PENCIL_DATA:
         ED_add_grease_pencil_datablock_channel(draw_list,
                                                ac,
-                                               ale->adt,
+                                               ale,
                                                static_cast<const GreasePencil *>(ale->data),
                                                ycenter,
                                                scale_factor,
@@ -473,7 +475,7 @@ void draw_channel_strips(bAnimContext *ac,
 {
   View2D *v2d = &region->v2d;
 
-  /* Draw the manual frame ranges for actions in the background of the dopesheet.
+  /* Draw the manual frame ranges for actions in the background of the dope-sheet.
    * The action editor has already drawn the range for its action so it's not needed. */
   if (ac->datatype == ANIMCONT_DOPESHEET) {
     draw_channel_action_ranges(anim_data, v2d);

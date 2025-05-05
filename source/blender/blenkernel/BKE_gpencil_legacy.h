@@ -8,15 +8,10 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct BlendDataReader;
 struct Brush;
 struct CurveMapping;
 struct Depsgraph;
-struct GHash;
 struct ListBase;
 struct MDeformVert;
 struct Main;
@@ -292,7 +287,3 @@ void BKE_gpencil_stroke_weights_duplicate(struct bGPDstroke *gps_src, struct bGP
 void BKE_gpencil_palette_ensure(struct Main *bmain, struct Scene *scene);
 
 void BKE_gpencil_blend_read_data(struct BlendDataReader *reader, struct bGPdata *gpd);
-
-#ifdef __cplusplus
-}
-#endif

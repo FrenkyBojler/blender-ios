@@ -7,6 +7,7 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_shader_builtin.hh"
+#include "GPU_state.hh"
 #include "gpu_testing.hh"
 
 #include "BLI_math_vector.hh"
@@ -52,6 +53,8 @@ static void test_immediate_one_plane()
   }
 
   GPU_offscreen_free(offscreen);
+
+  immUnbindProgram();
 }
 GPU_TEST(immediate_one_plane)
 
@@ -120,6 +123,8 @@ static void test_immediate_two_planes()
   EXPECT_TRUE(color2_num > 0);
 
   GPU_offscreen_free(offscreen);
+
+  immUnbindProgram();
 }
 GPU_TEST(immediate_two_planes)
 

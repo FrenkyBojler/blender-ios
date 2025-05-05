@@ -162,14 +162,14 @@ bool GPU_use_hq_normals_workaround()
   return GCaps.use_hq_normals_workaround;
 }
 
-bool GPU_clear_viewport_workaround()
-{
-  return GCaps.clear_viewport_workaround;
-}
-
 bool GPU_stencil_clasify_buffer_workaround()
 {
   return GCaps.stencil_clasify_buffer_workaround;
+}
+
+bool GPU_node_link_instancing_workaround()
+{
+  return GCaps.node_link_instancing_workaround;
 }
 
 bool GPU_vulkan_render_pass_workaround()
@@ -192,11 +192,6 @@ bool GPU_hdr_support()
   return GCaps.hdr_viewport_support;
 }
 
-bool GPU_texture_view_support()
-{
-  return GCaps.texture_view_support;
-}
-
 bool GPU_stencil_export_support()
 {
   return GCaps.stencil_export_support;
@@ -217,14 +212,14 @@ int GPU_minimum_per_vertex_stride()
   return GCaps.minimum_per_vertex_stride;
 }
 
-bool GPU_transform_feedback_support()
-{
-  return GCaps.transform_feedback_support;
-}
-
 size_t GPU_max_storage_buffer_size()
 {
   return GCaps.max_storage_buffer_size;
+}
+
+size_t GPU_storage_buffer_alignment()
+{
+  return GCaps.storage_buffer_alignment;
 }
 
 /** \} */
