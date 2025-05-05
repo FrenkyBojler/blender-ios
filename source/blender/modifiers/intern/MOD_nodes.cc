@@ -2444,20 +2444,27 @@ static NodesModifierPanel *find_panel_by_id(NodesModifierData &nmd, const int id
   return nullptr;
 }
 
-static bool interface_panel_has_socket(const bNodeTreeInterfacePanel &interface_panel)
+static bool interface_panel_has_socket(DrawGroupInputsContext &ctx,
+                                       const bNodeTreeInterfacePanel &interface_panel)
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
     if (item->item_type == NODE_INTERFACE_SOCKET) {
       const bNodeTreeInterfaceSocket &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(
           item);
-      if ((socket.flag &
-           (NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER | NODE_INTERFACE_SOCKET_OUTPUT)) == 0)
-      {
-        return true;
+      if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
+        continue;
+      }
+      if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
+        const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+        if (ctx.input_usages[input_index].is_visible) {
+          return true;
+        }
       }
     }
-    if (item->item_type == NODE_INTERFACE_PANEL) {
-      if (interface_panel_has_socket(*reinterpret_cast<const bNodeTreeInterfacePanel *>(item))) {
+    else if (item->item_type == NODE_INTERFACE_PANEL) {
+      if (interface_panel_has_socket(ctx,
+                                     *reinterpret_cast<const bNodeTreeInterfacePanel *>(item)))
+      {
         return true;
       }
     }
@@ -2501,7 +2508,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
   {
     if (item->item_type == NODE_INTERFACE_PANEL) {
       const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
-      if (!interface_panel_has_socket(sub_interface_panel)) {
+      if (!interface_panel_has_socket(ctx, sub_interface_panel)) {
         continue;
       }
       NodesModifierPanel *panel = find_panel_by_id(ctx.nmd, sub_interface_panel.identifier);
