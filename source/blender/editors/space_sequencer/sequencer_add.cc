@@ -293,6 +293,7 @@ static void move_strips(bContext *C)
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
+  RNA_boolean_set(&ptr, "remove_on_cancel", true);
   WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
