@@ -418,7 +418,7 @@ static void text_update_edited(bContext *C, Object *obedit, const eEditFontMode 
     /* depsgraph runs above, but since we're not tagging for update, call direct */
     /* We need evaluated data here. */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    BKE_vfont_to_curve(DEG_get_evaluated_object(depsgraph, obedit), mode);
+    BKE_vfont_to_curve(DEG_get_evaluated(depsgraph, obedit), mode);
   }
 
   cu->curinfo = ef->textbufinfo[ef->pos ? ef->pos - 1 : 0];
@@ -512,10 +512,10 @@ static bool font_paste_wchar(Object *obedit,
               ef->textbufinfo + ef->pos,
               (ef->len - ef->pos + 1) * sizeof(CharInfo));
       if (str_info) {
-        memcpy(ef->textbufinfo + ef->pos, str_info, str_len * sizeof(CharInfo));
+        std::copy_n(str_info, str_len, ef->textbufinfo + ef->pos);
       }
       else {
-        memset(ef->textbufinfo + ef->pos, '\0', str_len * sizeof(CharInfo));
+        std::fill_n(ef->textbufinfo + ef->pos, str_len, CharInfo{});
       }
 
       ef->len += str_len;
@@ -535,7 +535,7 @@ static bool font_paste_utf8(bContext *C, const char *str, const size_t str_len)
 
   int tmplen;
 
-  char32_t *mem = static_cast<char32_t *>(MEM_mallocN((sizeof(*mem) * (str_len + 1)), __func__));
+  char32_t *mem = MEM_malloc_arrayN<char32_t>(str_len + 1, __func__);
 
   tmplen = BLI_str_utf8_as_utf32(mem, str, str_len + 1);
 
@@ -564,7 +564,7 @@ static char *font_select_to_buffer(Object *obedit)
   const size_t text_buf_len = selend - selstart;
 
   const size_t len_utf8 = BLI_str_utf32_as_utf8_len_ex(text_buf, text_buf_len + 1);
-  char *buf = static_cast<char *>(MEM_mallocN(len_utf8 + 1, __func__));
+  char *buf = MEM_malloc_arrayN<char>(len_utf8 + 1, __func__);
   BLI_str_utf32_as_utf8(buf, text_buf, len_utf8);
   return buf;
 }
@@ -734,20 +734,20 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
 
   uiBut *confirm = nullptr;
   uiBut *cancel = nullptr;
-  uiLayout *split = uiLayoutSplit(layout, 0.0f, true);
-  uiLayoutColumn(split, false);
+  uiLayout *split = &layout->split(0.0f, true);
+  split->column(false);
 
   if (windows_layout) {
     confirm = uiDefIconTextBut(
         block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
-    uiLayoutColumn(split, false);
+    split->column(false);
   }
 
   cancel = uiDefIconTextBut(
       block, UI_BTYPE_BUT, 0, 0, "Cancel", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
 
   if (!windows_layout) {
-    uiLayoutColumn(split, false);
+    split->column(false);
     confirm = uiDefIconTextBut(
         block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
   }
@@ -771,7 +771,7 @@ static wmOperatorStatus text_insert_unicode_invoke(bContext *C,
                                                    wmOperator * /*op*/,
                                                    const wmEvent * /*event*/)
 {
-  char *edit_string = static_cast<char *>(MEM_mallocN(24, __func__));
+  char *edit_string = MEM_malloc_arrayN<char>(24, __func__);
   edit_string[0] = 0;
   UI_popup_block_invoke_ex(C, wm_block_insert_unicode_create, edit_string, MEM_freeN, false);
   return OPERATOR_FINISHED;
@@ -845,8 +845,8 @@ static void txt_add_object(bContext *C,
     MEM_freeN(cu->strinfo);
   }
 
-  cu->str = static_cast<char *>(MEM_mallocN(nbytes + 4, "str"));
-  cu->strinfo = static_cast<CharInfo *>(MEM_callocN((nchars + 4) * sizeof(CharInfo), "strinfo"));
+  cu->str = MEM_malloc_arrayN<char>(nbytes + 4, "str");
+  cu->strinfo = MEM_calloc_arrayN<CharInfo>((nchars + 4), "strinfo");
 
   cu->len = 0;
   cu->len_char32 = nchars - 1;
@@ -1095,7 +1095,7 @@ static void copy_selection(Object *obedit)
     BKE_vfont_clipboard_get(&text_buf, nullptr, &len_utf8, nullptr);
 
     /* system clipboard */
-    buf = static_cast<char *>(MEM_mallocN(len_utf8 + 1, __func__));
+    buf = MEM_malloc_arrayN<char>(len_utf8 + 1, __func__);
     if (buf) {
       BLI_str_utf32_as_utf8(buf, text_buf, len_utf8 + 1);
       WM_clipboard_text_set(buf, false);
@@ -1211,7 +1211,7 @@ static wmOperatorStatus paste_text_exec(bContext *C, wmOperator *op)
   BKE_vfont_clipboard_get(&text_buf, nullptr, &len_utf8, nullptr);
 
   if (text_buf) {
-    clipboard_vfont.buf = static_cast<char *>(MEM_mallocN(len_utf8 + 1, __func__));
+    clipboard_vfont.buf = MEM_malloc_arrayN<char>(len_utf8 + 1, __func__);
 
     if (clipboard_vfont.buf == nullptr) {
       MEM_freeN(clipboard_system.buf);
@@ -1462,14 +1462,14 @@ static wmOperatorStatus move_cursor(bContext *C, int type, const bool select)
   /* apply vertical cursor motion to position immediately
    * otherwise the selection will lag behind */
   if (FO_CURS_IS_MOTION(cursmove)) {
-    BKE_vfont_to_curve(DEG_get_evaluated_object(depsgraph, obedit), eEditFontMode(cursmove));
+    BKE_vfont_to_curve(DEG_get_evaluated(depsgraph, obedit), eEditFontMode(cursmove));
     cursmove = FO_CURS;
   }
 
   if (select == 0) {
     if (ef->selstart) {
       ef->selstart = ef->selend = 0;
-      BKE_vfont_to_curve(DEG_get_evaluated_object(depsgraph, obedit), FO_SELCHANGE);
+      BKE_vfont_to_curve(DEG_get_evaluated(depsgraph, obedit), FO_SELCHANGE);
     }
   }
 
@@ -1879,8 +1879,7 @@ static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
   inserted_utf8 = RNA_string_get_alloc(op->ptr, "text", nullptr, 0, nullptr);
   len = BLI_strlen_utf8(inserted_utf8);
 
-  inserted_text = static_cast<char32_t *>(
-      MEM_callocN(sizeof(char32_t) * (len + 1), "FONT_insert_text"));
+  inserted_text = MEM_calloc_arrayN<char32_t>((len + 1), "FONT_insert_text");
   len = BLI_str_utf8_as_utf32(inserted_text, inserted_utf8, MAXTEXT);
 
   for (a = 0; a < len; a++) {
@@ -2032,7 +2031,7 @@ static int font_cursor_text_index_from_event(bContext *C, Object *obedit, const 
 static void font_cursor_set_apply(bContext *C, const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object *ob = DEG_get_evaluated_object(depsgraph, CTX_data_active_object(C));
+  Object *ob = DEG_get_evaluated(depsgraph, CTX_data_active_object(C));
   Curve *cu = static_cast<Curve *>(ob->data);
   EditFont *ef = cu->editfont;
   BLI_assert(ef->len >= 0);
@@ -2254,12 +2253,11 @@ void ED_curve_editfont_make(Object *obedit)
   int len_char32;
 
   if (ef == nullptr) {
-    ef = cu->editfont = static_cast<EditFont *>(MEM_callocN(sizeof(EditFont), "editfont"));
+    ef = cu->editfont = MEM_callocN<EditFont>("editfont");
 
     ef->textbuf = static_cast<char32_t *>(
         MEM_callocN((MAXTEXT + 4) * sizeof(*ef->textbuf), "texteditbuf"));
-    ef->textbufinfo = static_cast<CharInfo *>(
-        MEM_callocN((MAXTEXT + 4) * sizeof(CharInfo), "texteditbufinfo"));
+    ef->textbufinfo = MEM_calloc_arrayN<CharInfo>((MAXTEXT + 4), "texteditbufinfo");
   }
 
   /* Convert the original text to chat32_t. */
@@ -2299,7 +2297,7 @@ void ED_curve_editfont_load(Object *obedit)
   cu->len = BLI_str_utf32_as_utf8_len(ef->textbuf);
 
   /* Alloc memory for UTF-8 variable char length string */
-  cu->str = static_cast<char *>(MEM_mallocN(cu->len + sizeof(char32_t), "str"));
+  cu->str = MEM_malloc_arrayN<char>(cu->len + sizeof(char32_t), "str");
 
   /* Copy the wchar to UTF-8 */
   BLI_str_utf32_as_utf8(cu->str, ef->textbuf, cu->len + 1);
@@ -2307,8 +2305,7 @@ void ED_curve_editfont_load(Object *obedit)
   if (cu->strinfo) {
     MEM_freeN(cu->strinfo);
   }
-  cu->strinfo = static_cast<CharInfo *>(
-      MEM_callocN((cu->len_char32 + 4) * sizeof(CharInfo), "texteditinfo"));
+  cu->strinfo = MEM_calloc_arrayN<CharInfo>((cu->len_char32 + 4), "texteditinfo");
   memcpy(cu->strinfo, ef->textbufinfo, cu->len_char32 * sizeof(CharInfo));
 
   /* Other vars */
@@ -2450,7 +2447,7 @@ static wmOperatorStatus font_open_exec(bContext *C, wmOperator *op)
 
   if (!font) {
     if (op->customdata) {
-      MEM_freeN(op->customdata);
+      MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
     }
     return OPERATOR_CANCELLED;
   }
@@ -2507,6 +2504,7 @@ static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent *
   else {
     STRNCPY(filepath, U.fontdir);
     BLI_path_slash_ensure(filepath, sizeof(filepath));
+    /* The file selector will expand the blend-file relative prefix. */
   }
   RNA_property_string_set(op->ptr, prop_filepath, filepath);
 

@@ -6,12 +6,14 @@
  * \ingroup edcurves
  */
 
+#include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "ED_curves.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
@@ -20,12 +22,14 @@
 #include "WM_api.hh"
 
 #include "BKE_asset.hh"
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -156,11 +160,13 @@ static void find_socket_log_contexts(const Main &bmain,
         if (snode.edittree == nullptr) {
           continue;
         }
-        ComputeContextBuilder compute_context_builder;
-        compute_context_builder.push<bke::OperatorComputeContext>();
+        if (snode.geometry_nodes_type != SNODE_GEOMETRY_TOOL) {
+          continue;
+        }
+        bke::ComputeContextCache compute_context_cache;
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
             geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(
-                snode, compute_context_builder);
+                snode, compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_socket_log_contexts.add(hash);
         }
@@ -250,12 +256,22 @@ static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
       orig_mesh_states.append_as(*mesh_copy);
       return bke::GeometrySet::from_mesh(mesh_copy);
     }
+    case OB_GREASE_PENCIL: {
+      const GreasePencil *grease_pencil = static_cast<const GreasePencil *>(object.data);
+      if (const bke::greasepencil::Layer *active_layer = grease_pencil->get_active_layer()) {
+        operator_data.active_layer_index = *grease_pencil->get_layer_index(*active_layer);
+      }
+      GreasePencil *grease_pencil_copy = BKE_grease_pencil_copy_for_eval(grease_pencil);
+      grease_pencil_copy->runtime->eval_frame = int(DEG_get_ctime(&depsgraph));
+      return bke::GeometrySet::from_grease_pencil(grease_pencil_copy);
+    }
     default:
       return {};
   }
 }
 
-static void store_result_geometry(const wmOperator &op,
+static void store_result_geometry(const bContext &C,
+                                  const wmOperator &op,
                                   const Depsgraph &depsgraph,
                                   Main &bmain,
                                   Scene &scene,
@@ -332,6 +348,59 @@ static void store_result_geometry(const wmOperator &op,
         BKE_report(op.reports, RPT_WARNING, "Mesh shape key data removed");
       }
       break;
+    }
+    case OB_GREASE_PENCIL: {
+      const int eval_frame = int(DEG_get_ctime(&depsgraph));
+
+      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+      Vector<int> editable_layer_indices;
+      for (const int layer_i : grease_pencil.layers().index_range()) {
+        const bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+        if (!layer.is_editable()) {
+          continue;
+        }
+        editable_layer_indices.append(layer_i);
+      }
+
+      bool inserted_new_keyframe = false;
+      for (const int layer_i : editable_layer_indices) {
+        bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+        /* TODO: For now, we always create a blank keyframe, but it might be good to expose this as
+         * an option and allow to duplicate the previous key. */
+        const bool duplicate_previous_key = false;
+        ed::greasepencil::ensure_active_keyframe(
+            scene, grease_pencil, layer, duplicate_previous_key, inserted_new_keyframe);
+      }
+      GreasePencil *new_grease_pencil =
+          geometry.get_component_for_write<bke::GreasePencilComponent>().get_for_write();
+      if (!new_grease_pencil) {
+        /* Clear the Grease Pencil geometry. */
+        for (const int layer_i : editable_layer_indices) {
+          bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+          if (bke::greasepencil::Drawing *drawing_orig = grease_pencil.get_drawing_at(layer,
+                                                                                      eval_frame))
+          {
+            drawing_orig->strokes_for_write() = {};
+            drawing_orig->tag_topology_changed();
+          }
+        }
+      }
+      else {
+        IndexMaskMemory memory;
+        const IndexMask editable_layers = IndexMask::from_indices(editable_layer_indices.as_span(),
+                                                                  memory);
+        ed::greasepencil::apply_eval_grease_pencil_data(
+            *new_grease_pencil, eval_frame, editable_layers, grease_pencil);
+
+        /* There might be layers with empty names after evaluation. Make sure to rename them. */
+        bke::greasepencil::ensure_non_empty_layer_names(bmain, grease_pencil);
+        BKE_object_material_from_eval_data(&bmain, &object, &new_grease_pencil->id);
+      }
+
+      DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+      if (inserted_new_keyframe) {
+        WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+      }
     }
   }
 }
@@ -470,7 +539,7 @@ static void replace_inputs_evaluated_data_blocks(
 
 static bool object_has_editable_data(const Main &bmain, const Object &object)
 {
-  if (!ELEM(object.type, OB_CURVES, OB_POINTCLOUD, OB_MESH)) {
+  if (!ELEM(object.type, OB_CURVES, OB_POINTCLOUD, OB_MESH, OB_GREASE_PENCIL)) {
     return false;
   }
   if (!BKE_id_is_editable(&bmain, static_cast<const ID *>(object.data))) {
@@ -561,8 +630,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 
   const bNodeTree *node_tree = nullptr;
   if (depsgraphs.extra) {
-    node_tree = reinterpret_cast<const bNodeTree *>(
-        DEG_get_evaluated_id(depsgraphs.extra, const_cast<ID *>(&node_tree_orig->id)));
+    node_tree = DEG_get_evaluated(depsgraphs.extra, node_tree_orig);
   }
   else {
     node_tree = node_tree_orig;
@@ -633,12 +701,12 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
         std::move(geometry_orig));
 
     store_result_geometry(
-        *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
+        *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
-  tree_log.ensure_node_warnings(node_tree);
+  tree_log.ensure_node_warnings(*bmain);
   for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
     if (warning.type == geo_log::NodeWarningType::Info) {
       BKE_report(op->reports, RPT_INFO, warning.message.c_str());
@@ -742,8 +810,8 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
   /* We're handling this manually in this case. */
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
-  uiLayout *name_row = uiLayoutRow(split, false);
+  uiLayout *split = &layout->split(0.4f, false);
+  uiLayout *name_row = &split->row(false);
   uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
 
   const bool use_attribute = RNA_boolean_get(md_ptr, rna_path_use_attribute.c_str());
@@ -754,7 +822,7 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
     uiItemL(name_row, socket.name ? socket.name : "", ICON_NONE);
   }
 
-  uiLayout *prop_row = uiLayoutRow(split, true);
+  uiLayout *prop_row = &split->row(true);
   if (socket_type == SOCK_BOOLEAN) {
     uiLayoutSetPropSep(prop_row, false);
     uiLayoutSetAlignment(prop_row, UI_LAYOUT_ALIGN_EXPAND);
@@ -799,7 +867,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   char rna_path[sizeof(socket_id_esc) + 4];
   SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   uiLayoutSetActive(row, affects_output);
   uiLayoutSetPropDecorate(row, false);
 
@@ -1064,6 +1132,20 @@ static GeometryNodeAssetTraitFlag asset_flag_for_context(const ObjectType type,
       }
       break;
     }
+    case OB_GREASE_PENCIL: {
+      switch (mode) {
+        case OB_MODE_OBJECT:
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_OBJECT | GEO_NODE_ASSET_GREASE_PENCIL);
+        case OB_MODE_EDIT:
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_EDIT | GEO_NODE_ASSET_GREASE_PENCIL);
+        case OB_MODE_SCULPT_GREASE_PENCIL:
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_SCULPT | GEO_NODE_ASSET_GREASE_PENCIL);
+        case OB_MODE_PAINT_GREASE_PENCIL:
+          return (GEO_NODE_ASSET_TOOL | GEO_NODE_ASSET_PAINT | GEO_NODE_ASSET_GREASE_PENCIL);
+        default:
+          break;
+      }
+    }
     default:
       break;
   }
@@ -1129,6 +1211,28 @@ static asset::AssetItemTree *get_static_item_tree(const ObjectType type, const e
           return nullptr;
       }
     }
+    case OB_GREASE_PENCIL: {
+      switch (mode) {
+        case OB_MODE_OBJECT: {
+          static asset::AssetItemTree tree;
+          return &tree;
+        }
+        case OB_MODE_EDIT: {
+          static asset::AssetItemTree tree;
+          return &tree;
+        }
+        case OB_MODE_SCULPT_GREASE_PENCIL: {
+          static asset::AssetItemTree tree;
+          return &tree;
+        }
+        case OB_MODE_PAINT_GREASE_PENCIL: {
+          static asset::AssetItemTree tree;
+          return &tree;
+        }
+        default:
+          return nullptr;
+      }
+    }
     default:
       return nullptr;
   }
@@ -1141,9 +1245,13 @@ static asset::AssetItemTree *get_static_item_tree(const Object &active_object)
 
 void clear_operator_asset_trees()
 {
-  for (const ObjectType type : {OB_MESH, OB_CURVES, OB_POINTCLOUD}) {
-    for (const eObjectMode mode :
-         {OB_MODE_OBJECT, OB_MODE_EDIT, OB_MODE_SCULPT, OB_MODE_SCULPT_CURVES})
+  for (const ObjectType type : {OB_MESH, OB_CURVES, OB_POINTCLOUD, OB_GREASE_PENCIL}) {
+    for (const eObjectMode mode : {OB_MODE_OBJECT,
+                                   OB_MODE_EDIT,
+                                   OB_MODE_SCULPT,
+                                   OB_MODE_SCULPT_CURVES,
+                                   OB_MODE_SCULPT_GREASE_PENCIL,
+                                   OB_MODE_PAINT_GREASE_PENCIL})
     {
       if (asset::AssetItemTree *tree = get_static_item_tree(type, mode)) {
         tree->dirty = true;
@@ -1241,6 +1349,36 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
         default:
           break;
       }
+      break;
+    case OB_GREASE_PENCIL: {
+      switch (mode) {
+        case OB_MODE_OBJECT:
+          menus.add_new("View");
+          menus.add_new("Select");
+          menus.add_new("Add");
+          menus.add_new("Object");
+          menus.add_new("Object/Apply");
+          menus.add_new("Object/Convert");
+          menus.add_new("Object/Quick Effects");
+          break;
+        case OB_MODE_EDIT:
+          menus.add_new("View");
+          menus.add_new("Select");
+          menus.add_new("Grease Pencil");
+          menus.add_new("Stroke");
+          menus.add_new("Point");
+          break;
+        case OB_MODE_SCULPT_GREASE_PENCIL:
+          menus.add_new("View");
+          break;
+        case OB_MODE_PAINT_GREASE_PENCIL:
+          menus.add_new("View");
+          menus.add_new("Draw");
+          break;
+        default:
+          break;
+      }
+    }
     default:
       break;
   }
@@ -1444,7 +1582,7 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
   if (!all_library) {
     return;
   }
-  uiLayout *col = uiLayoutColumn(&layout, false);
+  uiLayout *col = &layout.column(false);
   uiLayoutSetContextString(col, "asset_catalog_path", item->catalog_path().str());
   uiItemMContents(col, "GEO_MT_node_operator_catalog_assets");
 }

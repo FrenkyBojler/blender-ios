@@ -156,7 +156,6 @@ set(SRC
   brushes/multires_displacement_smear.cc
   brushes/pinch.cc
   brushes/plane.cc
-  brushes/plane_legacy.cc
   brushes/relax.cc
   brushes/rotate.cc
   brushes/smooth.cc
@@ -166,7 +165,7 @@ set(SRC
   brushes/thumb.cc
   brushes/topology_slide.cc
 
-  brushes/types.hh
+  brushes/brushes.hh
 )
 
 set(LIB

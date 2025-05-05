@@ -15,6 +15,7 @@
 #include "GPU_compute.hh"
 
 #include "draw_context_private.hh"
+#include "draw_debug.hh"
 #include "draw_defines.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
@@ -32,7 +33,7 @@ Manager::~Manager()
   }
 }
 
-void Manager::begin_sync()
+void Manager::begin_sync(Object *object_active)
 {
   /* Add 2 to always have a non-null number even in case of overflow. */
   sync_counter_ = (global_sync_counter_ += 2);
@@ -74,7 +75,7 @@ void Manager::begin_sync()
   attribute_len_ = 0;
   /* TODO(fclem): Resize buffers if too big, but with an hysteresis threshold. */
 
-  object_active = drw_get().obact;
+  this->object_active = object_active;
 
   /* Init the 0 resource. */
   resource_handle(float4x4::identity());
@@ -146,15 +147,14 @@ void Manager::end_sync()
 
 void Manager::debug_bind()
 {
-#ifdef WITH_DRAW_DEBUG
-  if (drw_get().debug == nullptr) {
+  GPUStorageBuf *gpu_buf = DebugDraw::get().gpu_draw_buf_get();
+  if (gpu_buf == nullptr) {
     return;
   }
-  GPU_storagebuf_bind(drw_debug_gpu_draw_buf_get(), DRW_DEBUG_DRAW_SLOT);
-#  ifndef DISABLE_DEBUG_SHADER_PRINT_BARRIER
+  GPU_storagebuf_bind(gpu_buf, DRW_DEBUG_DRAW_SLOT);
+#ifndef DISABLE_DEBUG_SHADER_PRINT_BARRIER
   /* Add a barrier to allow multiple shader writing to the same buffer. */
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-#  endif
 #endif
 }
 
