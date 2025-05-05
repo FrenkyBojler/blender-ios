@@ -10,3 +10,4 @@ Referenced by issue #101348, Regression: Smooth Brush leaves artifacts when face
 Referenced by issue #101203, Regression: Issues with undoing the visibility of face sets in sculpt mode
 Referenced by issue #101031, Regression: Sculpt: Crash when running Initialize Face Sets operators
 Referenced by issue #101027, Regression: Sculpt: Many operations not respecting the visibility anymore (probably everything that uses `BKE_pbvh_vertex_iter_begin`)
+Referenced by pull request #123888, Fix #123859: Multiresolution breaks mask when subdividing in Object Mode
