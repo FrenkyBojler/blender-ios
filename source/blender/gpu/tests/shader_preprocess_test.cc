@@ -215,4 +215,41 @@ if (i < j) { for (; j < k;) {break;continue;} }
 }
 GPU_TEST(preprocess_unroll);
 
+static void test_preprocess_reference()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(void func() { auto &a = b; a.a = 0; c = a(a); })";
+    string expect = R"(void func() { b.a = 0; c = a(b); })";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(input, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(void func() { auto &a = b(0); })";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Reference definitions cannot contain function calls.");
+  }
+  {
+    string input = R"(void func() { auto &a = b[0 + 1]; })";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Array subscript inside reference declaration must be a single variable.");
+  }
+  {
+    string input = R"(void func() { const int c = 0; auto &a = b[c]; })";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Cannot locate array subscript variable declaration. "
+              "If it is a global variable, assign it to a temporary const variable for "
+              "indexing inside the reference.");
+  }
+}
+GPU_TEST(preprocess_reference);
+
 }  // namespace blender::gpu::tests
