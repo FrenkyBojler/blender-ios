@@ -1486,29 +1486,15 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
     }
   }
 
+  SET_FLAG_FROM_TEST(object->dtx, use_lights, OB_USE_GPENCIL_LIGHTS);
+
   for (blender::bke::greasepencil::Layer *layer : grease_pencil_id.layers_for_write()) {
-    if (use_lights) {
-      layer->as_node().flag |= GP_LAYER_TREE_NODE_USE_LIGHTS;
-    }
-    else {
-      layer->as_node().flag &= ~GP_LAYER_TREE_NODE_USE_LIGHTS;
-    }
+    SET_FLAG_FROM_TEST(layer->as_node().flag,
+                       use_lights,
+                       GP_LAYER_TREE_NODE_USE_LIGHTS);
   }
 
-  if (use_lights) {
-    object->dtx |= OB_USE_GPENCIL_LIGHTS;
-  }
-  else {
-    object->dtx &= ~OB_USE_GPENCIL_LIGHTS;
-  }
-
-  /* Stroke object is drawn in front of meshes by default. */
-  if (use_in_front) {
-    object->dtx |= OB_DRAW_IN_FRONT;
-  }
-  else {
-    object->dtx &= ~OB_DRAW_IN_FRONT;
-  }
+  SET_FLAG_FROM_TEST(object->dtx, use_in_front, OB_DRAW_IN_FRONT);
 
   /* Set the draw type. */
 
