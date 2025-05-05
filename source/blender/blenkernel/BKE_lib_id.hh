@@ -148,6 +148,12 @@ void *BKE_id_new_in_lib(Main *bmain,
  */
 void *BKE_id_new_nomain(short type, const char *name);
 
+template<typename T> inline T *BKE_id_new_nomain(const char *name)
+{
+  const ID_Type id_type = T::id_type;
+  return static_cast<T *>(BKE_id_new_nomain(id_type, name));
+}
+
 /**
  * New ID creation/copying options.
  */
@@ -165,7 +171,7 @@ enum {
    */
   LIB_ID_CREATE_NO_USER_REFCOUNT = 1 << 1,
   /**
-   * Assume given 'newid' already points to allocated memory for whole data-block
+   * Assume given `newid` already points to allocated memory for whole data-block
    * (ID + data) - USE WITH CAUTION!
    * Implies LIB_ID_CREATE_NO_MAIN.
    */
@@ -776,7 +782,7 @@ void BKE_main_lib_objects_recalc_all(Main *bmain);
 void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBase *lb);
 
 #define MAX_ID_FULL_NAME (64 + 64 + 3 + 1)         /* 64 is MAX_ID_NAME - 2 */
-#define MAX_ID_FULL_NAME_UI (MAX_ID_FULL_NAME + 3) /* Adds 'keycode' two letters at beginning. */
+#define MAX_ID_FULL_NAME_UI (MAX_ID_FULL_NAME + 3) /* Adds `keycode` two letters at beginning. */
 /**
  * Generate full name of the data-block (without ID code, but with library if any).
  *

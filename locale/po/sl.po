@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-05 08:47+0000\n"
 "PO-Revision-Date: 2025-04-18 18:56+0000\n"
 "Last-Translator: Gorazd Gorup <gorupgorazd@gmail.com>\n"
 "Language-Team: Slovenian <https://translate.blender.org/projects/blender-ui/ui/sl/>\n"
@@ -16418,16 +16418,6 @@ msgstr "Pregibanje"
 
 
 msgctxt "Brush"
-msgid "Flatten"
-msgstr "Ravnanje"
-
-
-msgctxt "Brush"
-msgid "Scrape"
-msgstr "Strganje"
-
-
-msgctxt "Brush"
 msgid "Plane"
 msgstr "Ravnina"
 
@@ -23678,52 +23668,16 @@ msgid "Mask"
 msgstr "Maska"
 
 
-msgid "Mirror"
-msgstr "Zrcali"
-
-
-msgid "Snap"
-msgstr "Pritrdi"
-
-
-msgid "UV Mapping"
-msgstr "Preslikanje UV"
-
-
-msgid "Local View"
-msgstr "Krajevni pogled"
-
-
-msgid "Viewpoint"
-msgstr "Gledišče"
-
-
-msgid "Navigation"
-msgstr "Navigacija"
-
-
-msgid "Align View"
-msgstr "Poravnava pogleda"
-
-
-msgid "Align View to Active"
-msgstr "Poravnaj pogled na aktivno"
-
-
-msgid "View Regions"
-msgstr "Področja pogleda"
-
-
-msgid "Select More/Less"
-msgstr "Izberi več / manj"
-
-
 msgid "Select Similar"
 msgstr "Izberi sorodne"
 
 
 msgid "Select All by Trait"
 msgstr "Izberi vse po značilnosti"
+
+
+msgid "Select More/Less"
+msgstr "Izberi več / manj"
 
 
 msgid "Select Linked"
@@ -23866,12 +23820,48 @@ msgid "Pivot Point"
 msgstr "Osišče"
 
 
+msgid "Snap"
+msgstr "Pritrdi"
+
+
 msgid "Mask Edit"
 msgstr "Urejanje maske"
 
 
 msgid "Automasking"
 msgstr "Samodejno maskiranje"
+
+
+msgid "Mirror"
+msgstr "Zrcali"
+
+
+msgid "UV Mapping"
+msgstr "Preslikanje UV"
+
+
+msgid "Local View"
+msgstr "Krajevni pogled"
+
+
+msgid "Viewpoint"
+msgstr "Gledišče"
+
+
+msgid "Navigation"
+msgstr "Navigacija"
+
+
+msgid "Align View"
+msgstr "Poravnava pogleda"
+
+
+msgid "Align View to Active"
+msgstr "Poravnaj pogled na aktivno"
+
+
+msgid "View Regions"
+msgstr "Področja pogleda"
 
 
 msgid "Animals"
@@ -27909,16 +27899,8 @@ msgid "Chroma Key"
 msgstr "Kromatični ključ"
 
 
-msgid "Alpha falloff"
-msgstr "Alfa slabljenje"
-
-
 msgid "Lift"
 msgstr "Privzdig"
-
-
-msgid "Alpha lift"
-msgstr "Alfa privzdig"
 
 
 msgid "Shadow Adjust"
@@ -27966,15 +27948,7 @@ msgid "Highlights Contrast"
 msgstr "Kontrast svetlih tonov"
 
 
-msgid "Highlights contrast"
-msgstr "Kontrast svetlih tonov"
-
-
 msgid "Highlights Gain"
-msgstr "Ojačanje svetlih tonov"
-
-
-msgid "Highlights gain"
 msgstr "Ojačanje svetlih tonov"
 
 
@@ -27982,15 +27956,7 @@ msgid "Highlights Gamma"
 msgstr "Gama svetlih tonov"
 
 
-msgid "Highlights gamma"
-msgstr "Gama svetlih tonov"
-
-
 msgid "Highlights Lift"
-msgstr "Privzdig svetlih tonov"
-
-
-msgid "Highlights lift"
 msgstr "Privzdig svetlih tonov"
 
 
@@ -27998,15 +27964,7 @@ msgid "Highlights Saturation"
 msgstr "Nasičenje svetlih tonov"
 
 
-msgid "Highlights saturation"
-msgstr "Nasičenje svetlih tonov"
-
-
 msgid "Master Contrast"
-msgstr "Glavni kontrast"
-
-
-msgid "Master contrast"
 msgstr "Glavni kontrast"
 
 
@@ -28014,15 +27972,7 @@ msgid "Master Gain"
 msgstr "Glavno ojačanje"
 
 
-msgid "Master gain"
-msgstr "Glavno ojačanje"
-
-
 msgid "Master Gamma"
-msgstr "Glavna gama"
-
-
-msgid "Master gamma"
 msgstr "Glavna gama"
 
 
@@ -28030,23 +27980,11 @@ msgid "Master Lift"
 msgstr "Glavni privzdig"
 
 
-msgid "Master lift"
-msgstr "Glavni privzdig"
-
-
 msgid "Master Saturation"
 msgstr "Glavno nasičenje"
 
 
-msgid "Master saturation"
-msgstr "Glavno nasičenje"
-
-
 msgid "Midtones Contrast"
-msgstr "Kontrast srednjih tonov"
-
-
-msgid "Midtones contrast"
 msgstr "Kontrast srednjih tonov"
 
 
@@ -28058,15 +27996,7 @@ msgid "Midtones Gain"
 msgstr "Ojačanje srednjih tonov"
 
 
-msgid "Midtones gain"
-msgstr "Ojačanje srednjih tonov"
-
-
 msgid "Midtones Gamma"
-msgstr "Gama srednjih tonov"
-
-
-msgid "Midtones gamma"
 msgstr "Gama srednjih tonov"
 
 
@@ -28074,15 +28004,7 @@ msgid "Midtones Lift"
 msgstr "Privzdig srednjih tonov"
 
 
-msgid "Midtones lift"
-msgstr "Privzdig srednjih tonov"
-
-
 msgid "Midtones Saturation"
-msgstr "Nasičenje srednjih tonov"
-
-
-msgid "Midtones saturation"
 msgstr "Nasičenje srednjih tonov"
 
 
@@ -28094,15 +28016,7 @@ msgid "Shadows Contrast"
 msgstr "Kontrast senc"
 
 
-msgid "Shadows contrast"
-msgstr "Kontrast senc"
-
-
 msgid "Shadows Gain"
-msgstr "Ojačanje senc"
-
-
-msgid "Shadows gain"
 msgstr "Ojačanje senc"
 
 
@@ -28110,23 +28024,11 @@ msgid "Shadows Gamma"
 msgstr "Gama senc"
 
 
-msgid "Shadows gamma"
-msgstr "Gama senc"
-
-
 msgid "Shadows Lift"
 msgstr "Privzdig senc"
 
 
-msgid "Shadows lift"
-msgstr "Privzdig senc"
-
-
 msgid "Shadows Saturation"
-msgstr "Nasičenje senc"
-
-
-msgid "Shadows saturation"
 msgstr "Nasičenje senc"
 
 
@@ -28681,16 +28583,8 @@ msgid "Jitter"
 msgstr "Tresenje"
 
 
-msgid "Enable/disable jittering (faster, but also noisier)"
-msgstr "Omogoči/onemogoči tresenje (hitrejše, vendar tudi bolj šumno)"
-
-
 msgid "Projector"
 msgstr "Projektor"
-
-
-msgid "Enable/disable projector mode (the effect is applied in horizontal direction only)"
-msgstr "Omogoči/onemogoči način projektorja (učinek deluje le v vodoravni smeri)"
 
 
 msgid "Compute average and standard deviation of pixel values"
@@ -29235,10 +29129,6 @@ msgstr "Velikost piksla"
 
 msgid "Plane Track Deform"
 msgstr "Deformacija ravnine"
-
-
-msgid "Number of motion blur samples"
-msgstr "Količina vzorcev zabrisa gibanja"
 
 
 msgid "Posterize"
@@ -32489,11 +32379,6 @@ msgstr "Dodaj predlogo vozliščnih barv"
 msgctxt "Operator"
 msgid "Add UV map"
 msgstr "Doda preslikavo UV"
-
-
-msgctxt "Operator"
-msgid "Open Selected Images"
-msgstr "Odpri izbrane slike"
 
 
 msgctxt "Operator"
@@ -39266,11 +39151,6 @@ msgstr "+Z do -Z"
 msgctxt "Operator"
 msgid "Snap to Symmetry"
 msgstr "Pritrdi na simetrijo"
-
-
-msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Trikotnike v štirikotnike"
 
 
 msgctxt "Operator"
@@ -46961,34 +46841,6 @@ msgid "Panel containing UI elements"
 msgstr "Plošča, ki vsebuje elemente uporabniškega vmesnika"
 
 
-msgid "Mesh Edit Mode"
-msgstr "Mrežni urejevalni način"
-
-
-msgid "Measurement"
-msgstr "Meritev"
-
-
-msgid "Curve Edit Mode"
-msgstr "Krivuljni urejevalni način"
-
-
-msgid "Curves Edit Mode"
-msgstr "Urejevalni način za krivulje"
-
-
-msgid "Snapping"
-msgstr "Pritrjevanje"
-
-
-msgid "Transform Orientations"
-msgstr "Usmerjenost transformacij"
-
-
-msgid "Stroke Placement"
-msgstr "Postavitev poteze"
-
-
 msgid "Drawing Plane"
 msgstr "Risalna ravnina"
 
@@ -47021,12 +46873,12 @@ msgid "Auto-Masking"
 msgstr "Samodejno maskiranje"
 
 
-msgid "Motion Tracking"
-msgstr "Obrisovanje gibanja"
-
-
 msgid "Viewport Debug"
 msgstr "Razhroščevanje 3D pogleda"
+
+
+msgid "Stroke Placement"
+msgstr "Postavitev poteze"
 
 
 msgid "VR"
@@ -47087,6 +46939,34 @@ msgstr "Pomagala"
 
 msgid "Viewer Node"
 msgstr "Predogledno vozlišče"
+
+
+msgid "Motion Tracking"
+msgstr "Obrisovanje gibanja"
+
+
+msgid "Mesh Edit Mode"
+msgstr "Mrežni urejevalni način"
+
+
+msgid "Measurement"
+msgstr "Meritev"
+
+
+msgid "Curve Edit Mode"
+msgstr "Krivuljni urejevalni način"
+
+
+msgid "Curves Edit Mode"
+msgstr "Urejevalni način za krivulje"
+
+
+msgid "Snapping"
+msgstr "Pritrjevanje"
+
+
+msgid "Transform Orientations"
+msgstr "Usmerjenost transformacij"
 
 
 msgid "Import Settings"
@@ -47248,10 +47128,6 @@ msgstr "Kavstika"
 
 msgid "Fast GI Approximation"
 msgstr "Hitri približek GO"
-
-
-msgid "Shadow Terminator"
-msgstr "Senčni prehod"
 
 
 msgid "Ray Visibility"
@@ -47649,6 +47525,10 @@ msgstr "Skaliraj z velikostjo lica"
 
 msgid "Shadow Linking"
 msgstr "Povezovanje senc"
+
+
+msgid "Shadow Terminator"
+msgstr "Senčni prehod"
 
 
 msgid "Boid Brain"
@@ -49511,10 +49391,6 @@ msgstr "OpenGL"
 
 msgid "Metal"
 msgstr "Metal"
-
-
-msgid "Vulkan (experimental)"
-msgstr "Vulkan (poskusno)"
 
 
 msgid "Device"
@@ -56506,14 +56382,6 @@ msgid "Focus on Object"
 msgstr "Fokus na objekt"
 
 
-msgid "Geometry Offset"
-msgstr "Odmik geometrije"
-
-
-msgid "Shading Offset"
-msgstr "Odmik senčenja"
-
-
 msgid "Show In"
 msgstr "Pokaži v"
 
@@ -58245,6 +58113,10 @@ msgid "Move to Bottom"
 msgstr "Premakni na dno"
 
 
+msgid "Auto Normalize"
+msgstr "Samodejno normaliziraj"
+
+
 msgid "Name collisions: "
 msgstr "Sovpadajoča imena: "
 
@@ -58554,6 +58426,10 @@ msgid "Override Crease"
 msgstr "Povozi pregib"
 
 
+msgid "Geometry Offset"
+msgstr "Odmik geometrije"
+
+
 msgid "All Edges"
 msgstr "Vsi robovi"
 
@@ -58564,6 +58440,10 @@ msgstr "Poravnaj z ogliščno normalo"
 
 msgid "Show Instancer"
 msgstr "Pokaži vodjo primerkov"
+
+
+msgid "Shading Offset"
+msgstr "Odmik senčenja"
 
 
 msgid "Parent Vertex"
@@ -59202,10 +59082,6 @@ msgid "Is Resumable"
 msgstr "Se lahko nadaljuje"
 
 
-msgid "Format Volumes"
-msgstr "Format za volumne"
-
-
 msgid "Resolution Divisions"
 msgstr "Ločljivostne delitve"
 
@@ -59236,14 +59112,6 @@ msgstr "Spodnje"
 
 msgid "Guide Parent"
 msgstr "Vodniški starš"
-
-
-msgid "Compression Volumes"
-msgstr "Stiskanje za volumne"
-
-
-msgid "Precision Volumes"
-msgstr "Natančnost za volumne"
 
 
 msgid "Enable Guides first! Defaulting to Fluid Velocity"
@@ -62406,10 +62274,6 @@ msgid "A restart of Blender is required"
 msgstr "Blender je treba ponovno zagnati"
 
 
-msgid "The Vulkan backend is experimental:"
-msgstr "Zaledje Vulkan je v poskusni fazi:"
-
-
 msgid "Open blend files with this Blender version"
 msgstr "Odpri datoteke blend s to različico Blenderja"
 
@@ -64728,10 +64592,6 @@ msgstr "Ploščični odmik"
 
 msgid "Symmetrize"
 msgstr "Uveljavi simetrijo"
-
-
-msgid "Auto Normalize"
-msgstr "Samodejno normaliziraj"
 
 
 msgid "Lock-Relative"
@@ -67810,10 +67670,6 @@ msgid "Select (Linked Time)"
 msgstr "Izberi (povezan čas)"
 
 
-msgid "No active sequence!"
-msgstr "Ni aktivne sekvence!"
-
-
 msgid "Rows:"
 msgstr "Vrstice:"
 
@@ -69132,10 +68988,6 @@ msgid "Image 2"
 msgstr "Slika 2"
 
 
-msgid "Center:"
-msgstr "Središče:"
-
-
 msgid "Inner Edge:"
 msgstr "Notranji rob:"
 
@@ -69210,6 +69062,10 @@ msgstr "Uporabi natančnejšo, a počasnejšo metodo. Vklopite, če siceršnji i
 
 msgid "Dispersion"
 msgstr "Razklon"
+
+
+msgid "Number of motion blur samples"
+msgstr "Količina vzorcev zabrisa gibanja"
 
 
 msgid "Offset Y"

@@ -2462,7 +2462,7 @@ static void make_object_duplilist_real(bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   GHash *parent_gh = nullptr, *instancer_gh = nullptr;
 
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, base->object);
+  Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
 
   if (!(base->object->transflag & OB_DUPLI) &&
       !bke::object_has_geometry_set_instances(*object_eval))
@@ -2765,7 +2765,7 @@ static const EnumPropertyItem *convert_target_itemf(bContext *C,
 
 static void object_data_convert_curve_to_mesh(Main *bmain, Depsgraph *depsgraph, Object *ob)
 {
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *object_eval = DEG_get_evaluated(depsgraph, ob);
   Curve *curve = static_cast<Curve *>(ob->data);
 
   Mesh *mesh = BKE_mesh_new_from_object_to_bmain(bmain, depsgraph, object_eval, true);
@@ -2931,7 +2931,7 @@ static Object *convert_curves_component_to_curves(Base &base,
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -2969,7 +2969,7 @@ static Object *convert_grease_pencil_component_to_curves(Base &base,
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -2992,7 +2992,7 @@ static Object *convert_grease_pencil_component_to_curves(Base &base,
       if (drawings.size() > 0) {
         Array<bke::GeometrySet> geometries(drawings.size());
         for (const int i : drawings.index_range()) {
-          Curves *curves_id = static_cast<Curves *>(BKE_id_new_nomain(ID_CV, nullptr));
+          Curves *curves_id = BKE_id_new_nomain<Curves>(nullptr);
           curves_id->geometry.wrap() = drawings[i].drawing.strokes();
           geometries[i] = bke::GeometrySet::from_curves(curves_id);
         }
@@ -3054,7 +3054,7 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
   /* NOTE: get the mesh from the original, not from the copy in some
    * cases this doesn't give correct results (when MDEF is used for eg)
    */
-  const Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   Mesh *new_mesh = mesh_eval ? BKE_mesh_copy_for_eval(*mesh_eval) :
                                BKE_mesh_new_nomain(0, 0, 0, 0);
@@ -3272,7 +3272,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   const float stroke_radius = float(thickness) / 2 *
                               bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
   VectorSet<FillColorRecord> fill_colors;
@@ -3346,7 +3346,7 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3398,7 +3398,7 @@ static Object *convert_curves_to_grease_pencil(Base &base,
   Object *ob = base.object, *newob = nullptr;
   ob->flag |= OB_DONE;
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3475,7 +3475,7 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
 
   /* Mostly same as converting to OB_CURVES, the mesh will be converted from Curves afterwards. */
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   bke::GeometrySet geometry;
   if (ob_eval->runtime->geometry_set_eval != nullptr) {
     geometry = *ob_eval->runtime->geometry_set_eval;
@@ -3500,7 +3500,7 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
     newob = get_object_for_conversion(base, info, r_new_base);
 
     /* Do not link `new_curves` to `bmain` since it's temporary. */
-    Curves *new_curves = static_cast<Curves *>(BKE_id_new_nomain(ID_CV, newob->id.name + 2));
+    Curves *new_curves = BKE_id_new_nomain<Curves>(newob->id.name + 2);
 
     newob->data = new_curves;
     newob->type = OB_CURVES;
@@ -3514,7 +3514,7 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
           ed::greasepencil::retrieve_visible_drawings(*info.scene, *grease_pencil, false);
       Array<bke::GeometrySet> geometries(drawings.size());
       for (const int i : drawings.index_range()) {
-        Curves *curves_id = static_cast<Curves *>(BKE_id_new_nomain(ID_CV, nullptr));
+        Curves *curves_id = BKE_id_new_nomain<Curves>(nullptr);
         curves_id->geometry.wrap() = drawings[i].drawing.strokes();
         const int layer_index = drawings[i].layer_index;
         const bke::greasepencil::Layer *layer = grease_pencil->layers()[layer_index];
@@ -3582,7 +3582,7 @@ static Object *convert_font_to_curve_legacy_generic(Object *ob,
 {
   Curve *cu = static_cast<Curve *>(newob->data);
 
-  Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   BKE_vfont_to_curve_ex(ob_eval,
                         static_cast<Curve *>(ob_eval->data),
                         FO_EDIT,
@@ -3853,7 +3853,7 @@ static Object *convert_mball_to_mesh(Base &base,
     id_us_min(&mb->id);
 
     /* Find the evaluated mesh of the basis metaball object. */
-    Object *object_eval = DEG_get_evaluated_object(info.depsgraph, baseob);
+    Object *object_eval = DEG_get_evaluated(info.depsgraph, baseob);
     Mesh *mesh = BKE_mesh_new_from_object_to_bmain(info.bmain, info.depsgraph, object_eval, true);
 
     id_us_plus(&mesh->id);
@@ -4010,6 +4010,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   }
 
   bool mball_converted = false;
+  int incompatible_count = 0;
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
@@ -4058,6 +4059,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_pointcloud(*base, target_type, info, &new_base);
           break;
         default:
+          incompatible_count++;
           continue;
       }
     }
@@ -4132,6 +4134,29 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
         WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
         WM_event_add_notifier(C, NC_OBJECT | ND_DATA, object);
       }
+    }
+  }
+
+  if (incompatible_count != 0) {
+    const char *target_type_name = "";
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target");
+    BLI_assert(prop != nullptr);
+    RNA_property_enum_name(C, op->ptr, prop, target, &target_type_name);
+    if (incompatible_count == selected_editable_bases.size()) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s \"%s\"",
+                  RPT_("None of the objects are compatible of conversion to"),
+                  IFACE_(target_type_name));
+    }
+    else {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%s %d %s \"%s\"",
+                  RPT_("The selection included"),
+                  incompatible_count,
+                  RPT_("object(s) types which don't support conversion to"),
+                  IFACE_(target_type_name));
     }
   }
 
@@ -4822,66 +4847,70 @@ void OBJECT_OT_join(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Join as Shape Key Operator
+/** \name Join Key Data Operators
  * \{ */
 
-static bool join_shapes_poll(bContext *C)
+static bool active_shape_key_editable_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
-
-  if (ob == nullptr || ob->data == nullptr || !ID_IS_EDITABLE(ob) || ID_IS_OVERRIDE_LIBRARY(ob) ||
-      ID_IS_OVERRIDE_LIBRARY(ob->data))
-  {
+  if (!ob) {
+    return false;
+  }
+  if (ob->type != OB_MESH) {
     return false;
   }
 
-  /* only meshes supported at the moment */
-  if (ob->type == OB_MESH) {
-    return ED_operator_screenactive(C);
+  if (ob->mode & OB_MODE_EDIT) {
+    CTX_wm_operator_poll_msg_set(C, "This operation is not supported in edit mode");
+    return false;
   }
-  return false;
+  if (BKE_object_obdata_is_libdata(ob)) {
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit external library data");
+    return false;
+  }
+  Main &bmain = *CTX_data_main(C);
+  if (!BKE_lib_override_library_id_is_user_deletable(&bmain, &ob->id)) {
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit object used by override collections");
+    return false;
+  }
+  return true;
 }
 
 static wmOperatorStatus join_shapes_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Object *ob = CTX_data_active_object(C);
-
-  if (ob->mode & OB_MODE_EDIT) {
-    BKE_report(op->reports, RPT_ERROR, "This data does not support joining in edit mode");
-    return OPERATOR_CANCELLED;
-  }
-  if (BKE_object_obdata_is_libdata(ob)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot edit external library data");
-    return OPERATOR_CANCELLED;
-  }
-  if (!BKE_lib_override_library_id_is_user_deletable(bmain, &ob->id)) {
-    BKE_reportf(op->reports,
-                RPT_WARNING,
-                "Cannot edit object '%s' as it is used by override collections",
-                ob->id.name + 2);
-    return OPERATOR_CANCELLED;
-  }
-
-  if (ob->type == OB_MESH) {
-    return ED_mesh_shapes_join_objects_exec(C, op->reports);
-  }
-
-  return OPERATOR_CANCELLED;
+  return ED_mesh_shapes_join_objects_exec(C, true, op->reports);
 }
 
 void OBJECT_OT_join_shapes(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Join as Shapes";
-  ot->description = "Copy the current resulting shape of another selected object to this one";
+  ot->description =
+      "Add the vertex positions of selected objects as shape keys or update existing shape keys "
+      "with matching names";
   ot->idname = "OBJECT_OT_join_shapes";
 
-  /* api callbacks */
   ot->exec = join_shapes_exec;
-  ot->poll = join_shapes_poll;
+  ot->poll = active_shape_key_editable_poll;
 
-  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
+{
+  return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
+}
+
+void OBJECT_OT_update_shapes(wmOperatorType *ot)
+{
+  ot->name = "Update from Objects";
+  ot->description =
+      "Update existing shape keys with the vertex positions of selected objects with matching "
+      "names";
+  ot->idname = "OBJECT_OT_update_shapes";
+
+  ot->exec = update_all_shape_keys_exec;
+  ot->poll = active_shape_key_editable_poll;
+
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 

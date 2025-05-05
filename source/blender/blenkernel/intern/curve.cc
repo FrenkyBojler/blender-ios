@@ -268,7 +268,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_CU_LEGACY = {
-    /*id_code*/ ID_CU_LEGACY,
+    /*id_code*/ Curve::id_type,
     /*id_filter*/ FILTER_ID_CU_LEGACY,
     /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_MA | FILTER_ID_VF | FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_CU_LEGACY,
@@ -365,7 +365,8 @@ void BKE_curve_init(Curve *cu, const short curve_type)
     size_t len_char32 = BLI_strlen_utf8_ex(str, &len_bytes);
 
     cu->str = MEM_malloc_arrayN<char>(len_bytes + 1, "str");
-    BLI_strncpy(cu->str, str, len_bytes + 1);
+    memcpy(cu->str, str, len_bytes + 1);
+    BLI_assert(cu->str[len_bytes] == '\0');
 
     cu->len = len_bytes;
     cu->len_char32 = cu->pos = len_char32;
