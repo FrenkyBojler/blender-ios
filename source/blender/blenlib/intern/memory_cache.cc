@@ -181,12 +181,6 @@ void invalidate_if(const FunctionRef<bool(const GenericKey &)> predicate)
   cache.size_in_bytes = cache.memory.total_bytes;
 }
 
-void invalidate(const GenericKey &key)
-{
-  /* This can likely be implemented more efficiently. */
-  invalidate_if([&](const GenericKey &k) { return k == key; });
-}
-
 static void try_enforce_limit()
 {
   Cache &cache = get_cache();

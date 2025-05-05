@@ -9,7 +9,9 @@
 #include "BLI_hash.hh"
 #include "BLI_map.hh"
 #include "BLI_memory_cache_file_load.hh"
+#include "BLI_task.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 namespace blender::memory_cache {
 
@@ -30,6 +32,11 @@ class LoadFileKey : public GenericKey {
   LoadFileKey(Vector<std::string> file_paths, std::shared_ptr<const GenericKey> loader_key)
       : file_paths_(std::move(file_paths)), loader_key_(std::move(loader_key))
   {
+  }
+
+  Span<std::string> file_paths() const
+  {
+    return this->file_paths_;
   }
 
   uint64_t hash() const override
@@ -79,36 +86,57 @@ static FileStatMap &get_file_stat_map()
   return file_stat_map;
 }
 
+static void invalidate_outdated_caches_if_necessary(const Span<StringRefNull> file_paths)
+{
+  FileStatMap &file_stat_map = get_file_stat_map();
+
+  /* Retrieve the file modification times before the lock because there is no need for the lock
+   * yet. While not guaranteed, retrieving the modification time is often optimized by the OS so
+   * that no actual access to the hard drive is necessary. */
+  Vector<std::optional<int64_t>> new_times;
+  for (const StringRefNull path : file_paths) {
+    new_times.append(get_file_modification_time(path));
+  }
+
+  std::lock_guard lock{file_stat_map.mutex};
+
+  /* Find all paths that have changed on disk. */
+  blender::VectorSet<StringRefNull> outdated_paths;
+  for (const int i : file_paths.index_range()) {
+    const StringRefNull path = file_paths[i];
+    const std::optional<int64_t> new_time = new_times[i];
+    const std::optional<int64_t> old_time = file_stat_map.map.lookup_or_add_as(path, new_time);
+    if (old_time != new_time) {
+      outdated_paths.add(path);
+      file_stat_map.map.add_overwrite_as(path, new_time);
+    }
+  }
+  /* If any referenced file was changed, invalidate the caches that use it. */
+  if (!outdated_paths.is_empty()) {
+    /* Isolate because a mutex is locked. */
+    threading::isolate_task([&]() {
+      /* Invalidation is done while the mutex is locked so that other threads won't see the old
+       * cached value anymore after we've detected that it's oudated. */
+      memory_cache::invalidate_if([&](const GenericKey &other_key) {
+        if (const auto *other_key_typed = dynamic_cast<const LoadFileKey *>(&other_key)) {
+          const Span<std::string> other_key_paths = other_key_typed->file_paths();
+          return std::any_of(
+              other_key_paths.begin(), other_key_paths.end(), [&](const StringRefNull path) {
+                return outdated_paths.contains(path);
+              });
+        }
+        return false;
+      });
+    });
+  }
+}
+
 std::shared_ptr<CachedValue> get_loaded_base(const GenericKey &loader_key,
                                              Span<StringRefNull> file_paths,
                                              FunctionRef<std::unique_ptr<CachedValue>()> load_fn)
 {
-  FileStatMap &file_stat_map = get_file_stat_map();
-
-  bool found_outdated = false;
-  {
-    // TODO: Properly handle case when there are multiple loaders for the same file. Currently,
-    // some of these loaders may miss a file modification.
-    Vector<std::optional<int64_t>> new_times;
-    for (const StringRefNull path : file_paths) {
-      new_times.append(get_file_modification_time(path));
-    }
-    std::lock_guard lock{file_stat_map.mutex};
-    for (const int i : file_paths.index_range()) {
-      const StringRefNull path = file_paths[i];
-      const std::optional<int64_t> new_time = new_times[i];
-      const std::optional<int64_t> old_time = file_stat_map.map.lookup_or_add_as(path, new_time);
-      if (old_time != new_time) {
-        found_outdated = true;
-        file_stat_map.map.add_overwrite_as(path, new_time);
-      }
-    }
-  }
-
+  invalidate_outdated_caches_if_necessary(file_paths);
   const LoadFileKey key{file_paths, loader_key.to_storable()};
-  if (found_outdated) {
-    memory_cache::invalidate(key);
-  }
   return memory_cache::get_base(key, load_fn);
 }
 

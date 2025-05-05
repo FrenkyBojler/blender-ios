@@ -64,11 +64,6 @@ void clear();
  */
 void invalidate_if(FunctionRef<bool(const GenericKey &)> predicate);
 
-/**
- * Invalidate the cache for the given key.
- */
-void invalidate(const GenericKey &key);
-
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
  * \{ */
