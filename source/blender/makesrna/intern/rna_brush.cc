@@ -569,6 +569,16 @@ static bool rna_BrushCapabilitiesSculpt_has_tilt_get(PointerRNA *ptr)
   return blender::bke::brush::supports_tilt(*br);
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_node_group_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return !ELEM(br->sculpt_brush_type,
+               SCULPT_BRUSH_TYPE_BOUNDARY,
+               SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
+               SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
+               SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR);
+}
+
 static bool rna_BrushCapabilitiesImagePaint_has_accumulate_get(PointerRNA *ptr)
 {
   /* only support for draw brush */
@@ -594,13 +604,29 @@ static bool rna_BrushCapabilitiesImagePaint_has_radius_get(PointerRNA *ptr)
   return (br->image_brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL);
 }
 
-static bool rna_Brush_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
+static bool rna_BrushCapabilitiesImagePaint_has_space_attenuation_get(PointerRNA *ptr)
 {
-  bNodeTree *ntree = static_cast<bNodeTree *>(value.data);
-  if (ntree->type != NTREE_GEOMETRY) {
-    return false;
-  }
-  return true;
+  Brush *br = (Brush *)ptr->data;
+  return (br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE)) &&
+         br->image_brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL;
+}
+
+static bool rna_BrushCapabilitiesImagePaint_has_color_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return ELEM(br->image_brush_type, IMAGE_PAINT_BRUSH_TYPE_DRAW, IMAGE_PAINT_BRUSH_TYPE_FILL);
+}
+
+static bool rna_BrushCapabilitiesVertexPaint_has_color_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return ELEM(br->vertex_brush_type, VPAINT_BRUSH_TYPE_DRAW);
+}
+
+static bool rna_BrushCapabilitiesWeightPaint_has_weight_get(PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->data;
+  return ELEM(br->weight_brush_type, WPAINT_BRUSH_TYPE_DRAW);
 }
 
 static PointerRNA rna_Sculpt_brush_capabilities_get(PointerRNA *ptr)
@@ -631,6 +657,15 @@ static PointerRNA rna_Brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
   return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilities, ptr->data);
+}
+
+static bool rna_Brush_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  bNodeTree *ntree = static_cast<bNodeTree *>(value.data);
+  if (ntree->type != NTREE_GEOMETRY) {
+    return false;
+  }
+  return true;
 }
 
 static void rna_Brush_reset_icon(Brush *br)

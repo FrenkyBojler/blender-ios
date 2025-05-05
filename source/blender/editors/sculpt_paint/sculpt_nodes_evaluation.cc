@@ -186,7 +186,7 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
   user_data.call_data = &call_data;
   user_data.compute_context = &compute_context;
 
-  LinearAllocator<> &allocator = output->scope.linear_allocator();
+  LinearAllocator<> &allocator = output->scope.allocator();
   Vector<GMutablePointer> inputs_to_destruct;
 
   tree->ensure_interface_cache();
@@ -198,7 +198,7 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
 
     const CPPType *type = typeinfo->geometry_nodes_cpp_type;
     BLI_assert(type != nullptr);
-    void *value = allocator.allocate(type->size(), type->alignment());
+    void *value = allocator.allocate(*type);
 
     /* Initialiaze with default values, Group Input is not supported for now. */
     typeinfo->get_geometry_nodes_cpp_value(interface_socket.socket_data, value);
@@ -217,8 +217,7 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
   for (const int i : IndexRange(num_outputs)) {
     const lf::Output &lf_output = lazy_function.outputs()[i];
     const CPPType &type = *lf_output.type;
-    void *buffer = allocator.allocate(type.size(), type.alignment());
-    param_outputs[i] = {type, buffer};
+    param_outputs[i] = {type, allocator.allocate(type)};
   }
 
   nodes::GeoNodesLFLocalUserData local_user_data(user_data);
