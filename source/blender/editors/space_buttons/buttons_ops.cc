@@ -346,6 +346,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   fbo->prop = prop;
   fbo->is_undo = is_undo;
   fbo->is_userdef = is_userdef;
+
   op->customdata = fbo;
 
   /* NOTE(@ideasman42): Normally #ED_fileselect_get_params would handle this
