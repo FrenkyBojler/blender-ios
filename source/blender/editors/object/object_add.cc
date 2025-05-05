@@ -1411,18 +1411,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
 
   Object *object = add_type(C, OB_GREASE_PENCIL, ob_name, loc, rot, false, local_view_bits);
   GreasePencil &grease_pencil_id = *static_cast<GreasePencil *>(object->data);
-  bool use_in_front = RNA_boolean_get(op->ptr, "use_in_front");
-
-  /* If the user didn’t explicitly set it, apply our type-based default. */
-  if (!RNA_struct_property_is_set(op->ptr, "use_in_front")) {
-    if (ELEM(type, GP_EMPTY, GP_STROKE, GP_MONKEY)) {
-      use_in_front = false;
-    }
-    else {
-      use_in_front = true;
-    }
-  }
-  
+  const bool use_in_front = RNA_boolean_get(op->ptr, "use_in_front");
   const bool use_lights = RNA_boolean_get(op->ptr, "use_lights");
 
   switch (type) {
