@@ -50,14 +50,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  STLImportParams import_params;
-  STRNCPY(import_params.filepath, path->c_str());
-
-  import_params.forward_axis = IO_AXIS_NEGATIVE_Z;
-  import_params.up_axis = IO_AXIS_Y;
-
   std::shared_ptr<const CachedLoadedSTL> cached_value = memory_cache::get_loaded<CachedLoadedSTL>(
       GenericStringKey{"import_stl_node"}, {StringRefNull(*path)}, [&]() {
+        STLImportParams import_params;
+        STRNCPY(import_params.filepath, path->c_str());
+
+        import_params.forward_axis = IO_AXIS_NEGATIVE_Z;
+        import_params.up_axis = IO_AXIS_Y;
+
         ReportList reports;
         BKE_reports_init(&reports, RPT_STORE);
         BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); })
@@ -69,16 +69,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         cached_value->geometry = GeometrySet::from_mesh(mesh);
 
         LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
-          NodeWarningType type;
-          switch (report->type) {
-            case RPT_ERROR:
-              type = NodeWarningType::Error;
-              break;
-            default:
-              type = NodeWarningType::Info;
-              break;
-          }
-          cached_value->warnings.append(geo_eval_log::NodeWarning{type, TIP_(report->message)});
+          cached_value->warnings.append_as(*report);
         }
 
         return cached_value;

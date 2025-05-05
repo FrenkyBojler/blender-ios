@@ -67,16 +67,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         cached_value->geometries = std::move(geometries);
 
         LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
-          NodeWarningType type;
-          switch (report->type) {
-            case RPT_ERROR:
-              type = NodeWarningType::Error;
-              break;
-            default:
-              type = NodeWarningType::Info;
-              break;
-          }
-          cached_value->warnings.append(geo_eval_log::NodeWarning{type, TIP_(report->message)});
+          cached_value->warnings.append_as(*report);
         }
 
         return cached_value;
