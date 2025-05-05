@@ -1375,3 +1375,57 @@ void PARTICLE_OT_duplicate_particle_system(wmOperatorType *ot)
                   "Duplicate Settings",
                   "Duplicate settings as well, so the new particle system uses its own settings");
 }
+
+static wmOperatorStatus particle_system_remove_all_exec(bContext *C, wmOperator * /*op*/)
+{
+  Main *bmain = CTX_data_main(C);
+  Object *ob = blender::ed::object::context_object(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  int mode_orig;
+
+  if (!scene || !ob) {
+    return OPERATOR_CANCELLED;
+  }
+
+  mode_orig = ob->mode;
+  LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
+    object_remove_particle_system(bmain, scene, ob, psys);
+  }
+
+  /* possible this isn't the active object
+   * object_remove_particle_system() clears the mode on the last psys
+   */
+  if (mode_orig & OB_MODE_PARTICLE_EDIT) {
+    if ((ob->mode & OB_MODE_PARTICLE_EDIT) == 0) {
+      BKE_view_layer_synced_ensure(scene, view_layer);
+      if (BKE_view_layer_active_object_get(view_layer) == ob) {
+        WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
+      }
+    }
+  }
+
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
+
+  return OPERATOR_FINISHED;
+}
+
+void PARTICLE_OT_remove_all_particle_system(wmOperatorType *ot)
+{
+  ot->name = "Remove All Particle Systems";
+  ot->description = "Remove all particle system within the active object";
+  ot->idname = "PARTICLE_OT_remove_all_particle_system";
+
+  ot->poll = ED_operator_object_active_local_editable;
+  ot->exec = particle_system_remove_all_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "use_duplicate_settings",
+                  false,
+                  "Duplicate Settings",
+                  "Duplicate settings as well, so the new particle system uses its own settings");
+}
