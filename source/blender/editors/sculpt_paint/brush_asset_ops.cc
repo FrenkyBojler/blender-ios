@@ -187,6 +187,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
       brush = reinterpret_cast<Brush *>(BKE_id_copy(bmain, &brush->id));
     }
 
+    BKE_libblock_rename(*bmain, brush->id, name);
     asset::mark_id(&brush->id);
     BLI_assert(brush->id.us != 0);
 
