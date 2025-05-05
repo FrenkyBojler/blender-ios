@@ -257,7 +257,7 @@ static void sequencer_generic_invoke_xy__internal(
   Scene *scene = CTX_data_scene(C);
 
   int timeline_frame = scene->r.cfra;
-  if ((flag & SEQPROP_NOPATHS) && event) {
+  if (event && event->type == EVT_DROP) {
     sequencer_file_drop_channel_frame_set(C, op, event);
   }
 
@@ -284,18 +284,6 @@ static void sequencer_generic_invoke_xy__internal(
   if (event == nullptr || region == nullptr || region->regiontype != RGN_TYPE_WINDOW) {
     RNA_boolean_set(op->ptr, "move", false);
     return;
-  }
-
-  // xxx decisions...
-  /*  if (!ELEM(type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT, STRIP_TYPE_ADJUSTMENT)) {
-      RNA_boolean_set(op->ptr, "move", false);
-    }*/
-
-  if (RNA_boolean_get(op->ptr, "move")) {
-    float frame_start, channel;
-    UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &frame_start, &channel);
-    RNA_int_set(op->ptr, "frame_start", frame_start);
-    RNA_int_set(op->ptr, "channel", channel);
   }
 }
 
@@ -409,6 +397,22 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
       load_data->stereo3d_format = &imf->stereo3d_format;
     }
   }
+
+  /* Override strip position by current mouse position. */
+  if (RNA_boolean_get(op->ptr, "move")) {
+    const wmWindow *win = CTX_wm_window(C);
+    const ARegion *region = CTX_wm_region(C);
+
+    float2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
+                        win->eventstate->xy[1] - region->winrct.ymin);
+    float2 mouse_view;
+    UI_view2d_region_to_view(
+        &region->v2d, mouse_region.x, mouse_region.y, &mouse_view.x, &mouse_view.y);
+    load_data->start_frame = mouse_view.x;
+    load_data->channel = mouse_view.y;
+    load_data->image.end_frame = load_data->start_frame + DEFAULT_IMG_STRIP_LENGTH;
+    load_data->effect.end_frame = load_data->image.end_frame;
+  }
   return true;
 }
 
@@ -427,7 +431,7 @@ static void seq_load_apply_generic_options(bContext *C, wmOperator *op, Strip *s
   }
 
   if (RNA_boolean_get(op->ptr, "overlap") == true ||
-      !seq::transform_test_overlap(scene, ed->seqbasep, strip))
+      !seq::transform_test_overlap(scene, ed->seqbasep, strip) || RNA_boolean_get(op->ptr, "move"))
   {
     /* No overlap should be handled or the strip is not overlapping, exit early. */
     return;
@@ -1157,7 +1161,8 @@ static bool sequencer_add_draw_check_fn(PointerRNA * /*ptr*/,
 {
   const char *prop_id = RNA_property_identifier(prop);
 
-  return !STR_ELEM(prop_id, "filepath", "directory", "filename", "frame_start", "channel");
+  return !STR_ELEM(
+      prop_id, "filepath", "directory", "filename", "frame_start", "channel", "frame_end");
 }
 
 static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
@@ -1170,6 +1175,7 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
   if (!RNA_boolean_get(op->ptr, "move")) {
     uiItemR(op->layout, op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(op->layout, op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(op->layout, op->ptr, "frame_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   uiItemS(op->layout);
@@ -1663,6 +1669,11 @@ static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
   }
 
   sequencer_generic_invoke_xy__internal(C, op, prop_flag, type, event);
+
+  /* It's reasonable to add effects with inputs directly above the input. */
+  if (!ELEM(type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT, STRIP_TYPE_ADJUSTMENT, STRIP_TYPE_MULTICAM)) {
+    RNA_boolean_set(op->ptr, "move", false);
+  }
 
   return sequencer_add_effect_strip_exec(C, op);
 }
