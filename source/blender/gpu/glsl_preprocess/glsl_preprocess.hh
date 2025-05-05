@@ -309,7 +309,7 @@ class Preprocessor {
 
   std::string template_definition_mutation(const std::string &str, report_callback &report_error)
   {
-    if (str.find("template<") == std::string::npos) {
+    if (str.find("template") == std::string::npos) {
       return str;
     }
 
@@ -317,7 +317,7 @@ class Preprocessor {
     {
       /* Transform template definition into macro declaration. */
       std::regex regex(R"(template<([\w\d\n, ]+)>(\s\w+\s)(\w+)\()");
-      out_str = std::regex_replace(out_str, regex, "#define $3_TEMPLATE($1) $2$3@(");
+      out_str = std::regex_replace(out_str, regex, "#define $3_TEMPLATE($1)$2$3@(");
     }
     {
       /* Add backslash for each newline in template macro. */
@@ -329,15 +329,20 @@ class Preprocessor {
         arg_list = std::regex_replace(arg_list, std::regex(R"(\w+ (\w+))"), "$1");
         out_str.replace(start, end - start, arg_list);
 
-        /* Find last closing bracket. */
-        end = out_str.find("\n}", start);
-        if (end == std::string::npos) {
-          report_error(std::smatch(), "Template function declaration is missing closing bracket");
+        std::string template_body = get_content_between_balanced_pair(
+            out_str.substr(start), '{', '}');
+        if (template_body.empty()) {
+          /* Empty body is unlikely to happen. This limitation can be worked-around by using a noop
+           * comment inside the function body. */
+          report_error(
+              std::smatch(),
+              "Template function declaration is missing closing bracket or has empty body.");
           break;
         }
-        /* Still process the last `\n`. */
-        end += 1;
-        std::string macro_body = out_str.substr(start, end - start);
+        size_t body_end = out_str.find('{', start) + 1 + template_body.size();
+        /* Contains "_TEMPLATE(macro_args) void fn@(fn_args) { body;". */
+        std::string macro_body = out_str.substr(start, body_end - start);
+
         macro_body = std::regex_replace(macro_body, std::regex(R"(\n)"), " \\\n");
 
         std::string macro_args = get_content_between_balanced_pair(macro_body, '(', ')');
@@ -365,7 +370,7 @@ class Preprocessor {
         size_t end_of_fn_name = macro_body.find("@");
         macro_body.replace(end_of_fn_name, 1, fn_name_suffix);
 
-        out_str.replace(start, end - start, macro_body);
+        out_str.replace(start, body_end - start, macro_body);
       }
     }
     {
@@ -379,13 +384,13 @@ class Preprocessor {
     {
       /* Check if there is no remaining declaration and instantiation that were not processed. */
       if (out_str.find("template<") != std::string::npos) {
-        std::regex regex_instance(R"(template<)");
-        regex_global_search(out_str, regex_instance, [&](const std::smatch &match) {
+        std::regex regex_declaration(R"(\btemplate<)");
+        regex_global_search(out_str, regex_declaration, [&](const std::smatch &match) {
           report_error(match, "Template declaration unsupported syntax");
         });
       }
       if (out_str.find("template ") != std::string::npos) {
-        std::regex regex_instance(R"(template )");
+        std::regex regex_instance(R"(\btemplate )");
         regex_global_search(out_str, regex_instance, [&](const std::smatch &match) {
           report_error(match, "Template instantiation unsupported syntax");
         });
@@ -406,7 +411,7 @@ class Preprocessor {
 
       std::string replacement = "TEMPLATE_GLUE" +
                                 std::to_string(char_count(template_args, ',') + 1) + "(" +
-                                template_name + "," + template_args + ")";
+                                template_name + ", " + template_args + ")";
 
       replace_all(str, match[0].str(), replacement);
     }
