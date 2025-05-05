@@ -7,13 +7,15 @@
 #include "BLI_generic_key.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_struct_equality_utils.hh"
+#include "BLI_utility_mixins.hh"
 
 namespace blender {
 
 /** Utility class that to easy create a #GenericKey from a string. */
-class GenericStringKey : public GenericKey {
+class GenericStringKey : public GenericKey, NonMovable {
  private:
   std::string value_;
+  /** This may reference the string stored in value_. */
   StringRef value_ref_;
 
  public:
