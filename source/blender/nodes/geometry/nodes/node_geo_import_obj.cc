@@ -29,12 +29,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class LoadObjCache : public memory_cache::CachedValue {
  public:
-  Vector<bke::GeometrySet> geometries;
+  Vector<GeometrySet> geometries;
   Vector<geo_eval_log::NodeWarning> warnings;
 
   void count_memory(MemoryCounter &counter) const override
   {
-    for (const bke::GeometrySet &geometry : this->geometries) {
+    for (const GeometrySet &geometry : this->geometries) {
       geometry.count_memory(counter);
     }
   }

@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Mesh");
 }
 
-class LoadStlCache : public memory_cache::CachedValue, NonCopyable, NonMovable {
+class LoadStlCache : public memory_cache::CachedValue {
  public:
   GeometrySet geometry;
   Vector<geo_eval_log::NodeWarning> warnings;
