@@ -105,10 +105,10 @@ static void invalidate_outdated_caches_if_necessary(const Span<StringRefNull> fi
   for (const int i : file_paths.index_range()) {
     const StringRefNull path = file_paths[i];
     const std::optional<int64_t> new_time = new_times[i];
-    const std::optional<int64_t> old_time = file_stat_map.map.lookup_or_add_as(path, new_time);
+    std::optional<int64_t> &old_time = file_stat_map.map.lookup_or_add_as(path, new_time);
     if (old_time != new_time) {
       outdated_paths.add(path);
-      file_stat_map.map.add_overwrite_as(path, new_time);
+      old_time = new_time;
     }
   }
   /* If any referenced file was changed, invalidate the caches that use it. */
