@@ -59,7 +59,7 @@ class LoadFileKey : public GenericKey {
 
   std::unique_ptr<GenericKey> to_storable() const override
   {
-    /* Currently, #LoadFileKey is always storable, i.e. it owns all the data it references. A
+    /* Currently #LoadFileKey is always storable, i.e. it owns all the data it references. A
      * potential future optimization could be to support just referencing the paths and loader key,
      * but that causes some boilerplate now that is not worth it. */
     return std::make_unique<LoadFileKey>(*this);
