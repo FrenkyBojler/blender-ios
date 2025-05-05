@@ -65,7 +65,7 @@ static std::optional<int64_t> get_file_modification_time(const StringRefNull pat
   if (BLI_stat(path.c_str(), &stat) == -1) {
     return std::nullopt;
   }
-  return stat.st_mtim.tv_sec;
+  return stat.st_mtime;
 }
 
 struct FileStatMap {
