@@ -36,12 +36,12 @@ class LoadFileKey : public GenericKey {
 
   Span<std::string> file_paths() const
   {
-    return this->file_paths_;
+    return file_paths_;
   }
 
   uint64_t hash() const override
   {
-    return get_default_hash(this->file_paths_, *this->loader_key_);
+    return get_default_hash(file_paths_, *loader_key_);
   }
 
   friend bool operator==(const LoadFileKey &a, const LoadFileKey &b)
