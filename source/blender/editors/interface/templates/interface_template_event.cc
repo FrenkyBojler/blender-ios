@@ -110,6 +110,44 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
     }
   }
 
+  /* Try to merge some known paired items to save horizontal space. */
+  if (kmi_y && keymap_item_can_collapse(kmi, kmi_y)) {
+    const char *ab_label = nullptr;
+
+    if (STREQ(item->identifier, "PROPORTIONAL_SIZE_UP") &&
+        STREQ(item_y->identifier, "PROPORTIONAL_SIZE_DOWN"))
+    {
+      ab_label = IFACE_("Proportional Size");
+    }
+
+    if (ab_label) {
+      int icon_mod[KM_MOD_NUM] = {0};
+#ifdef WITH_HEADLESS
+      int icon = 0;
+#else
+      int icon = UI_icon_from_keymap_item(kmi, icon_mod);
+#endif
+      for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
+        uiItemL(layout, "", icon_mod[j]);
+        const float offset = ui_event_icon_offset(icon_mod[j]);
+        if (offset != 0.0f) {
+          uiItemS_ex(layout, offset);
+        }
+      }
+      uiItemL(layout, "", icon);
+      uiItemS_ex(layout, -0.4f);
+
+#ifndef WITH_HEADLESS
+      icon = UI_icon_from_keymap_item(kmi_y, icon_mod);
+#endif
+      uiItemL(layout, "", icon);
+      uiItemS_ex(layout, -0.18f);
+      uiItemL(layout, ab_label, ICON_NONE);
+      uiItemS_ex(layout, 0.6f);
+      return 2;
+    }
+  }
+
   /* Single item without merging. */
   return uiTemplateEventFromKeymapItem(layout, item->name, kmi, false) ? 1 : 0;
 }
