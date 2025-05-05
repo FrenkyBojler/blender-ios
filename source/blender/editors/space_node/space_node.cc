@@ -73,7 +73,7 @@ using blender::float2;
 
 /* ******************** tree path ********************* */
 
-void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
+void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 {
   LISTBASE_FOREACH_MUTABLE (bNodeTreePath *, path, &snode->treepath) {
     MEM_freeN(path);
@@ -85,8 +85,11 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
     path->nodetree = ntree;
     path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
 
-    /* copy initial offset from bNodeTree */
+    /* Set initial view center from node tree. */
     copy_v2_v2(path->view_center, ntree->view_center);
+    if (region) {
+      UI_view2d_center_set(&region->v2d, ntree->view_center[0], ntree->view_center[1]);
+    }
 
     if (id) {
       STRNCPY(path->display_name, id->name + 2);
@@ -109,11 +112,10 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 
   ED_node_set_active_viewer_key(snode);
 
-  snode->runtime->need_update_view_center_from_path = true;
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
 
-void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
+void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 {
   bNodeTreePath *path = MEM_callocN<bNodeTreePath>("node tree path");
   bNodeTreePath *prev_path = (bNodeTreePath *)snode->treepath.last;
@@ -134,8 +136,11 @@ void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
     path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
   }
 
-  /* copy initial offset from bNodeTree */
+  /* Set initial view center from node tree. */
   copy_v2_v2(path->view_center, ntree->view_center);
+  if (region) {
+    UI_view2d_center_set(&region->v2d, ntree->view_center[0], ntree->view_center[1]);
+  }
 
   BLI_addtail(&snode->treepath, path);
 
@@ -146,11 +151,10 @@ void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 
   ED_node_set_active_viewer_key(snode);
 
-  snode->runtime->need_update_view_center_from_path = true;
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
 
-void ED_node_tree_pop(SpaceNode *snode)
+void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
 {
   bNodeTreePath *path = (bNodeTreePath *)snode->treepath.last;
 
@@ -166,9 +170,13 @@ void ED_node_tree_pop(SpaceNode *snode)
   path = (bNodeTreePath *)snode->treepath.last;
   snode->edittree = path->nodetree;
 
+  /* Set view center from node tree path. */
+  if (region) {
+    UI_view2d_center_set(&region->v2d, path->view_center[0], path->view_center[1]);
+  }
+
   ED_node_set_active_viewer_key(snode);
 
-  snode->runtime->need_update_view_center_from_path = true;
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
 

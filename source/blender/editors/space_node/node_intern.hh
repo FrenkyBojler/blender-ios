@@ -87,13 +87,6 @@ struct SpaceNode_Runtime {
   float2 cursor;
 
   /**
-   * When showing a new node tree, the view center needs to be updated. This can't always be done
-   * eagerly, because region, and therefore the View2D is not always accessible when changing the
-   * visible tree. Therefore, this is done lazily on redraw.
-   */
-  bool need_update_view_center_from_path = false;
-
-  /**
    * Indicates that the compositing int the space tree needs to be re-evaluated using
    * regular compositing pipeline.
    */
