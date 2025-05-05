@@ -353,10 +353,10 @@ class Preprocessor {
         macro_args = std::regex_replace(macro_args, std::regex(R"(\s)"), "");
         std::vector<std::string> macro_args_split = split_string(macro_args, ',');
         /* Append arguments inside the function name. */
-        std::string fn_name_suffix;
+        std::string fn_name_suffix = "_";
         bool all_args_in_function_signature = true;
         for (std::string macro_arg : macro_args_split) {
-          fn_name_suffix += "_##" + macro_arg + "##_";
+          fn_name_suffix += "##" + macro_arg + "##_";
           /* Search macro arguments inside the function arguments types. */
           if (std::regex_search(fn_args, std::regex(R"(\b)" + macro_arg + R"(\b)")) == false) {
             all_args_in_function_signature = false;

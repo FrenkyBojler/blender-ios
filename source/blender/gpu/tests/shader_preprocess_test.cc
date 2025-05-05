@@ -243,7 +243,7 @@ void func(T a) {
 template void func<float, 1>(float a);)";
     string expect = R"(
 #define func_TEMPLATE(T, i) \
-void func_##T##__##i##_(T a) { \
+void func_##T##_##i##_(T a) { \
   a; \
 }
 func_TEMPLATE(float, 1)/*float a*/)";
