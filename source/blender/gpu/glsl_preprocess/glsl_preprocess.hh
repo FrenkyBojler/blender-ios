@@ -793,7 +793,7 @@ class Preprocessor {
     /* Remove parenthesis first. */
     /* Example: `float (&var)[2]` > `float &var[2]` */
     std::regex regex_parenthesis(R"((\w+ )\(@(\w+)\))");
-    std::string out = std::regex_replace(str, regex_parenthesis, "$1&$2");
+    std::string out = std::regex_replace(str, regex_parenthesis, "$1@$2");
     /* Example: `const float &var[2]` > `inout float var[2]` */
     std::regex regex(R"((?:const)?(\s*)(\w+)\s+\@(\w+)(\[\d*\])?)");
     return std::regex_replace(out, regex, "$1 inout $2 $3$4");
