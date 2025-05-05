@@ -63,7 +63,7 @@ class Origins : Overlay {
     else if (ob->base_flag & BASE_SELECTED) {
       select_buf_.select_append(res.select_id(ob_ref));
       point_buf_.append(VertexData{
-          location, is_library ? res.theme.colors.library_select : res.theme.colors.select});
+          location, is_library ? res.theme.colors.library_select : res.theme.colors.object_select});
     }
     else if (state.v3d_flag & V3D_DRAW_CENTERS) {
       select_buf_.select_append(res.select_id(ob_ref));
