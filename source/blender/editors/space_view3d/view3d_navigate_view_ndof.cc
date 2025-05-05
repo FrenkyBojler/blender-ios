@@ -760,7 +760,10 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
       {
         negate_v3_v3(rv3d->ndof_ofs, center_test.value());
         if(rv3d->is_persp) {
-          ED_view3d_distance_set_from_location(rv3d, center_test.value(), 1e-6f);
+          const float dist_min = 1e-6f;
+          if (!ED_view3d_distance_set_from_location(rv3d, center_test.value(), dist_min)) {
+            rv3d->dist = dist_min;
+          }
         }
         rv3d->ndof_flag |= RV3D_NDOF_OFS_IS_VALID;
       }
