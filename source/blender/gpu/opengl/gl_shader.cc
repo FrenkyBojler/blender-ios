@@ -328,30 +328,30 @@ static void print_image_type(std::ostream &os,
                              const ShaderCreateInfo::Resource::BindType bind_type)
 {
   switch (type) {
-    case ImageType::INT_BUFFER:
-    case ImageType::INT_1D:
-    case ImageType::INT_1D_ARRAY:
-    case ImageType::INT_2D:
-    case ImageType::INT_2D_ARRAY:
-    case ImageType::INT_3D:
-    case ImageType::INT_CUBE:
-    case ImageType::INT_CUBE_ARRAY:
-    case ImageType::INT_2D_ATOMIC:
-    case ImageType::INT_2D_ARRAY_ATOMIC:
-    case ImageType::INT_3D_ATOMIC:
+    case ImageType::IntBuffer:
+    case ImageType::Int1D:
+    case ImageType::Int1DArray:
+    case ImageType::Int2D:
+    case ImageType::Int2DArray:
+    case ImageType::Int3D:
+    case ImageType::IntCube:
+    case ImageType::IntCubeArray:
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicInt2DArray:
+    case ImageType::AtomicInt3D:
       os << "i";
       break;
-    case ImageType::UINT_BUFFER:
-    case ImageType::UINT_1D:
-    case ImageType::UINT_1D_ARRAY:
-    case ImageType::UINT_2D:
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_3D:
-    case ImageType::UINT_CUBE:
-    case ImageType::UINT_CUBE_ARRAY:
-    case ImageType::UINT_2D_ATOMIC:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_3D_ATOMIC:
+    case ImageType::UintBuffer:
+    case ImageType::Uint1D:
+    case ImageType::Uint1DArray:
+    case ImageType::Uint2D:
+    case ImageType::Uint2DArray:
+    case ImageType::Uint3D:
+    case ImageType::UintCube:
+    case ImageType::UintCubeArray:
+    case ImageType::AtomicUint2D:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::AtomicUint3D:
       os << "u";
       break;
     default:
@@ -366,52 +366,52 @@ static void print_image_type(std::ostream &os,
   }
 
   switch (type) {
-    case ImageType::FLOAT_BUFFER:
-    case ImageType::INT_BUFFER:
-    case ImageType::UINT_BUFFER:
+    case ImageType::FloatBuffer:
+    case ImageType::IntBuffer:
+    case ImageType::UintBuffer:
       os << "Buffer";
       break;
-    case ImageType::FLOAT_1D:
-    case ImageType::FLOAT_1D_ARRAY:
-    case ImageType::INT_1D:
-    case ImageType::INT_1D_ARRAY:
-    case ImageType::UINT_1D:
-    case ImageType::UINT_1D_ARRAY:
+    case ImageType::Float1D:
+    case ImageType::Float1DArray:
+    case ImageType::Int1D:
+    case ImageType::Int1DArray:
+    case ImageType::Uint1D:
+    case ImageType::Uint1DArray:
       os << "1D";
       break;
-    case ImageType::FLOAT_2D:
-    case ImageType::FLOAT_2D_ARRAY:
-    case ImageType::INT_2D:
-    case ImageType::INT_2D_ARRAY:
-    case ImageType::INT_2D_ATOMIC:
-    case ImageType::INT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_2D:
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_2D_ATOMIC:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
-    case ImageType::SHADOW_2D:
-    case ImageType::SHADOW_2D_ARRAY:
-    case ImageType::DEPTH_2D:
-    case ImageType::DEPTH_2D_ARRAY:
+    case ImageType::Float2D:
+    case ImageType::Float2DArray:
+    case ImageType::Int2D:
+    case ImageType::Int2DArray:
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicInt2DArray:
+    case ImageType::Uint2D:
+    case ImageType::Uint2DArray:
+    case ImageType::AtomicUint2D:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::Shadow2D:
+    case ImageType::Shadow2DArray:
+    case ImageType::Depth2D:
+    case ImageType::Depth2DArray:
       os << "2D";
       break;
-    case ImageType::FLOAT_3D:
-    case ImageType::INT_3D:
-    case ImageType::UINT_3D:
-    case ImageType::INT_3D_ATOMIC:
-    case ImageType::UINT_3D_ATOMIC:
+    case ImageType::Float3D:
+    case ImageType::Int3D:
+    case ImageType::Uint3D:
+    case ImageType::AtomicInt3D:
+    case ImageType::AtomicUint3D:
       os << "3D";
       break;
-    case ImageType::FLOAT_CUBE:
-    case ImageType::FLOAT_CUBE_ARRAY:
-    case ImageType::INT_CUBE:
-    case ImageType::INT_CUBE_ARRAY:
-    case ImageType::UINT_CUBE:
-    case ImageType::UINT_CUBE_ARRAY:
-    case ImageType::SHADOW_CUBE:
-    case ImageType::SHADOW_CUBE_ARRAY:
-    case ImageType::DEPTH_CUBE:
-    case ImageType::DEPTH_CUBE_ARRAY:
+    case ImageType::FloatCube:
+    case ImageType::FloatCubeArray:
+    case ImageType::IntCube:
+    case ImageType::IntCubeArray:
+    case ImageType::UintCube:
+    case ImageType::UintCubeArray:
+    case ImageType::ShadowCube:
+    case ImageType::ShadowCubeArray:
+    case ImageType::DepthCube:
+    case ImageType::DepthCubeArray:
       os << "Cube";
       break;
     default:
@@ -419,20 +419,20 @@ static void print_image_type(std::ostream &os,
   }
 
   switch (type) {
-    case ImageType::FLOAT_1D_ARRAY:
-    case ImageType::FLOAT_2D_ARRAY:
-    case ImageType::FLOAT_CUBE_ARRAY:
-    case ImageType::INT_1D_ARRAY:
-    case ImageType::INT_2D_ARRAY:
-    case ImageType::INT_CUBE_ARRAY:
-    case ImageType::UINT_1D_ARRAY:
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_CUBE_ARRAY:
-    case ImageType::SHADOW_2D_ARRAY:
-    case ImageType::SHADOW_CUBE_ARRAY:
-    case ImageType::DEPTH_2D_ARRAY:
-    case ImageType::DEPTH_CUBE_ARRAY:
+    case ImageType::Float1DArray:
+    case ImageType::Float2DArray:
+    case ImageType::FloatCubeArray:
+    case ImageType::Int1DArray:
+    case ImageType::Int2DArray:
+    case ImageType::IntCubeArray:
+    case ImageType::Uint1DArray:
+    case ImageType::Uint2DArray:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::UintCubeArray:
+    case ImageType::Shadow2DArray:
+    case ImageType::ShadowCubeArray:
+    case ImageType::Depth2DArray:
+    case ImageType::DepthCubeArray:
       os << "Array";
       break;
     default:
@@ -440,10 +440,10 @@ static void print_image_type(std::ostream &os,
   }
 
   switch (type) {
-    case ImageType::SHADOW_2D:
-    case ImageType::SHADOW_2D_ARRAY:
-    case ImageType::SHADOW_CUBE:
-    case ImageType::SHADOW_CUBE_ARRAY:
+    case ImageType::Shadow2D:
+    case ImageType::Shadow2DArray:
+    case ImageType::ShadowCube:
+    case ImageType::ShadowCubeArray:
       os << "Shadow";
       break;
     default:
@@ -454,13 +454,13 @@ static void print_image_type(std::ostream &os,
 
 static std::ostream &print_qualifier(std::ostream &os, const Qualifier &qualifiers)
 {
-  if (bool(qualifiers & Qualifier::NO_RESTRICT) == false) {
+  if (bool(qualifiers & Qualifier::no_restrict) == false) {
     os << "restrict ";
   }
-  if (bool(qualifiers & Qualifier::READ) == false) {
+  if (bool(qualifiers & Qualifier::read) == false) {
     os << "writeonly ";
   }
-  if (bool(qualifiers & Qualifier::WRITE) == false) {
+  if (bool(qualifiers & Qualifier::write) == false) {
     os << "readonly ";
   }
   return os;
@@ -800,10 +800,8 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
       /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
        * built-in flag. */
       bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
-      bool is_layered_input = ELEM(input.img_type,
-                                   ImageType::UINT_2D_ARRAY,
-                                   ImageType::INT_2D_ARRAY,
-                                   ImageType::FLOAT_2D_ARRAY);
+      bool is_layered_input = ELEM(
+          input.img_type, ImageType::Uint2DArray, ImageType::Int2DArray, ImageType::Float2DArray);
 
       /* Declare image. */
       using Resource = ShaderCreateInfo::Resource;
@@ -1018,18 +1016,13 @@ bool GLShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info
 /** \name Shader stage creation
  * \{ */
 
-static StringRefNull glsl_patch_default_get()
+static StringRefNull glsl_patch_vertex_get()
 {
   /** Used for shader patching. Init once. */
   static std::string patch = []() {
     std::stringstream ss;
     /* Version need to go first. */
-    if (epoxy_gl_version() >= 43) {
-      ss << "#version 430\n";
-    }
-    else {
-      ss << "#version 330\n";
-    }
+    ss << "#version 430\n";
 
     /* Enable extensions for features that are not part of our base GLSL version
      * don't use an extension for something already available! */
@@ -1044,13 +1037,6 @@ static StringRefNull glsl_patch_default_get()
     if (GLContext::native_barycentric_support) {
       ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
     }
-    if (GLContext::framebuffer_fetch_support) {
-      ss << "#extension GL_EXT_shader_framebuffer_fetch: enable\n";
-    }
-    if (GPU_stencil_export_support()) {
-      ss << "#extension GL_ARB_shader_stencil_export: enable\n";
-      ss << "#define GPU_ARB_shader_stencil_export\n";
-    }
 
     /* Fallbacks. */
     if (!GLContext::shader_draw_parameters_support) {
@@ -1059,11 +1045,75 @@ static StringRefNull glsl_patch_default_get()
 
     /* Vulkan GLSL compatibility. */
     ss << "#define gpu_InstanceIndex (gl_InstanceID + gpu_BaseInstance)\n";
-    ss << "#define gpu_EmitVertex EmitVertex\n";
 
     /* Array compatibility. */
     ss << "#define gpu_Array(_type) _type[]\n";
 
+    /* Needs to have this defined upfront for configuring shader defines. */
+    ss << "#define GPU_VERTEX_SHADER\n";
+    /* GLSL Backend Lib. */
+    ss << datatoc_glsl_shader_defines_glsl;
+
+    return ss.str();
+  }();
+  return patch;
+}
+
+static StringRefNull glsl_patch_geometry_get()
+{
+  /** Used for shader patching. Init once. */
+  static std::string patch = []() {
+    std::stringstream ss;
+    /* Version need to go first. */
+    ss << "#version 430\n";
+
+    if (GLContext::layered_rendering_support) {
+      ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
+    }
+    if (GLContext::native_barycentric_support) {
+      ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
+    }
+
+    /* Array compatibility. */
+    ss << "#define gpu_Array(_type) _type[]\n";
+
+    /* Needs to have this defined upfront for configuring shader defines. */
+    ss << "#define GPU_GEOMETRY_SHADER\n";
+    /* GLSL Backend Lib. */
+    ss << datatoc_glsl_shader_defines_glsl;
+
+    return ss.str();
+  }();
+  return patch;
+}
+
+static StringRefNull glsl_patch_fragment_get()
+{
+  /** Used for shader patching. Init once. */
+  static std::string patch = []() {
+    std::stringstream ss;
+    /* Version need to go first. */
+    ss << "#version 430\n";
+
+    if (GLContext::layered_rendering_support) {
+      ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
+    }
+    if (GLContext::native_barycentric_support) {
+      ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
+    }
+    if (GLContext::framebuffer_fetch_support) {
+      ss << "#extension GL_EXT_shader_framebuffer_fetch: enable\n";
+    }
+    if (GPU_stencil_export_support()) {
+      ss << "#extension GL_ARB_shader_stencil_export: enable\n";
+      ss << "#define GPU_ARB_shader_stencil_export\n";
+    }
+
+    /* Array compatibility. */
+    ss << "#define gpu_Array(_type) _type[]\n";
+
+    /* Needs to have this defined upfront for configuring shader defines. */
+    ss << "#define GPU_FRAGMENT_SHADER\n";
     /* GLSL Backend Lib. */
     ss << datatoc_glsl_shader_defines_glsl;
 
@@ -1079,10 +1129,12 @@ static StringRefNull glsl_patch_compute_get()
     std::stringstream ss;
     /* Version need to go first. */
     ss << "#version 430\n";
-    ss << "#extension GL_ARB_compute_shader :enable\n";
 
     /* Array compatibility. */
     ss << "#define gpu_Array(_type) _type[]\n";
+
+    /* Needs to have this defined upfront for configuring shader defines. */
+    ss << "#define GPU_COMPUTE_SHADER\n";
 
     ss << datatoc_glsl_shader_defines_glsl;
 
@@ -1093,10 +1145,20 @@ static StringRefNull glsl_patch_compute_get()
 
 StringRefNull GLShader::glsl_patch_get(GLenum gl_stage)
 {
+  if (gl_stage == GL_VERTEX_SHADER) {
+    return glsl_patch_vertex_get();
+  }
+  if (gl_stage == GL_GEOMETRY_SHADER) {
+    return glsl_patch_geometry_get();
+  }
+  if (gl_stage == GL_FRAGMENT_SHADER) {
+    return glsl_patch_fragment_get();
+  }
   if (gl_stage == GL_COMPUTE_SHADER) {
     return glsl_patch_compute_get();
   }
-  return glsl_patch_default_get();
+  BLI_assert_unreachable();
+  return "";
 }
 
 GLuint GLShader::create_shader_stage(GLenum gl_stage,

@@ -32,7 +32,6 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "GHOST_DisplayManagerWin32.hh"
 #include "GHOST_EventButton.hh"
 #include "GHOST_EventCursor.hh"
 #include "GHOST_EventKey.hh"
@@ -165,10 +164,6 @@ typedef BOOL(API *GHOST_WIN32_EnableNonClientDpiScaling)(HWND);
 
 GHOST_SystemWin32::GHOST_SystemWin32() : m_hasPerformanceCounter(false), m_freq(0)
 {
-  m_displayManager = new GHOST_DisplayManagerWin32();
-  GHOST_ASSERT(m_displayManager, "GHOST_SystemWin32::GHOST_SystemWin32(): m_displayManager==0\n");
-  m_displayManager->initialize();
-
   m_consoleStatus = true;
 
   /* Tell Windows we are per monitor DPI aware. This disables the default
@@ -246,10 +241,7 @@ static uint64_t getMessageTime(GHOST_SystemWin32 *system)
 
 uint8_t GHOST_SystemWin32::getNumDisplays() const
 {
-  GHOST_ASSERT(m_displayManager, "GHOST_SystemWin32::getNumDisplays(): m_displayManager==0\n");
-  uint8_t numDisplays;
-  m_displayManager->getNumDisplays(numDisplays);
-  return numDisplays;
+  return ::GetSystemMetrics(SM_CMONITORS);
 }
 
 void GHOST_SystemWin32::getMainDisplayDimensions(uint32_t &width, uint32_t &height) const
@@ -285,7 +277,6 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
       state,
       gpuSettings.context_type,
       ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
-      false,
       (GHOST_WindowWin32 *)parentWindow,
       ((gpuSettings.flags & GHOST_gpuDebugContext) != 0),
       is_dialog,
@@ -618,11 +609,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
       ::LoadIcon(nullptr, IDI_APPLICATION);
     }
     wc.hCursor = ::LoadCursor(0, IDC_ARROW);
-    wc.hbrBackground =
-#ifdef INW32_COMPISITING
-        (HBRUSH)CreateSolidBrush
-#endif
-        (0x00000000);
+    wc.hbrBackground = (HBRUSH)GetStockObject(DKGRAY_BRUSH);
     wc.lpszMenuName = 0;
     wc.lpszClassName = L"GHOST_WindowClass";
 
@@ -2245,6 +2232,18 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
           /* An application sends the WM_ERASEBKGND message when the window background must be
            * erased (for example, when a window is resized). The message is sent to prepare an
            * invalidated portion of a window for painting. */
+          {
+            HBRUSH bgBrush = (HBRUSH)GetClassLongPtr(hwnd, GCLP_HBRBACKGROUND);
+            if (bgBrush) {
+              RECT rect;
+              GetClientRect(hwnd, &rect);
+              FillRect((HDC)(wParam), &rect, bgBrush);
+              /* Clear the background brush after the initial fill as we don't
+               * need or want any default Windows fill behavior on redraw. */
+              SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR) nullptr);
+            }
+            break;
+          }
         case WM_NCPAINT:
           /* An application sends the WM_NCPAINT message to a window
            * when its frame must be painted. */

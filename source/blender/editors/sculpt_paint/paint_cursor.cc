@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -36,6 +37,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_screen.hh"
 
 #include "NOD_texture.h"
 
@@ -71,6 +73,8 @@
 
 /* Needed for determining tool material/vertex-color pinning. */
 #include "grease_pencil_intern.hh"
+
+#include "brushes/brushes.hh"
 
 /* TODOs:
  *
@@ -314,10 +318,10 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
       target->old_col = col;
     }
     if (col) {
-      buffer = static_cast<uchar *>(MEM_mallocN(sizeof(uchar) * size * size * 4, "load_tex"));
+      buffer = MEM_malloc_arrayN<uchar>(size * size * 4, "load_tex");
     }
     else {
-      buffer = static_cast<uchar *>(MEM_mallocN(sizeof(uchar) * size * size, "load_tex"));
+      buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
     }
 
     pool = BKE_image_pool_new();
@@ -452,7 +456,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 
       cursor_snap.size = size;
     }
-    buffer = static_cast<uchar *>(MEM_mallocN(sizeof(uchar) * size * size, "load_tex"));
+    buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
 
     BKE_curvemapping_init(br->curve);
 
@@ -1241,6 +1245,7 @@ struct PaintCursorContext {
   ARegion *region;
   wmWindow *win;
   wmWindowManager *wm;
+  bScreen *screen;
   Depsgraph *depsgraph;
   Scene *scene;
   UnifiedPaintSettings *ups;
@@ -1294,10 +1299,8 @@ struct PaintCursorContext {
 };
 
 static bool paint_cursor_context_init(bContext *C,
-                                      const int x,
-                                      const int y,
-                                      const float x_tilt,
-                                      const float y_tilt,
+                                      const blender::int2 &xy,
+                                      const blender::float2 &tilt,
                                       PaintCursorContext &pcontext)
 {
   ARegion *region = CTX_wm_region(C);
@@ -1309,6 +1312,7 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.region = region;
   pcontext.wm = CTX_wm_manager(C);
   pcontext.win = CTX_wm_window(C);
+  pcontext.screen = CTX_wm_screen(C);
   pcontext.depsgraph = CTX_data_depsgraph_pointer(C);
   pcontext.scene = CTX_data_scene(C);
   pcontext.ups = &pcontext.scene->toolsettings->unified_paint_settings;
@@ -1334,9 +1338,9 @@ static bool paint_cursor_context_init(bContext *C,
     pcontext.cursor_type = PaintCursorDrawingType::Cursor3D;
   }
 
-  pcontext.mval = {x, y};
-  pcontext.translation = {float(x), float(y)};
-  pcontext.tilt = {x_tilt, y_tilt};
+  pcontext.mval = xy;
+  pcontext.translation = {float(xy[0]), float(xy[1])};
+  pcontext.tilt = tilt;
 
   float zoomx, zoomy;
   get_imapaint_zoom(C, &zoomx, &zoomy);
@@ -1448,11 +1452,21 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
 
 static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
 {
-  if (pcontext.win->grabcursor != 0) {
+  if (pcontext.win->grabcursor != 0 || pcontext.win->modalcursor != 0) {
     /* Don't set the cursor while it's grabbed, since this will show the cursor when interacting
-     * with the UI (dragging a number button for e.g.), see: #102792. */
+     * with the UI (dragging a number button for e.g.), see: #102792.
+     * And don't overwrite a modal cursor, allowing modal operators to set a cursor temporarily. */
     return;
   }
+
+  /* Don't set the cursor when a temporary popup is opened (e.g. a context menu, pie menu or
+   * dialog), see: #137386. */
+  if (!BLI_listbase_is_empty(&pcontext.screen->regionbase) &&
+      (BKE_screen_find_region_type(pcontext.screen, RGN_TYPE_TEMPORARY) != nullptr))
+  {
+    return;
+  }
+
   if (ELEM(pcontext.mode, PaintMode::GPencil, PaintMode::VertexGPencil)) {
     WM_cursor_set(pcontext.win, WM_CURSOR_DOT);
   }
@@ -1569,7 +1583,9 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
         const bke::greasepencil::Layer *layer = grease_pencil->get_active_layer();
         const ed::greasepencil::DrawingPlacement placement(
             *pcontext.scene, *pcontext.region, *pcontext.vc.v3d, *object, layer);
-        const float3 location = placement.project(float2(pcontext.mval.x, pcontext.mval.y));
+        const float3 location = math::transform_point(
+            placement.to_world_space(),
+            placement.project(float2(pcontext.mval.x, pcontext.mval.y)));
         pcontext.pixel_radius = project_brush_radius(
             &pcontext.vc, brush->unprojected_radius, location);
         brush->size = std::max(pcontext.pixel_radius, 1);
@@ -1997,7 +2013,7 @@ static void paint_cursor_cursor_draw_3d_view_brush_cursor_active(PaintCursorCont
   }
 
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE) {
-    multiplane_scrape_preview_draw(
+    brushes::multiplane_scrape_preview_draw(
         pcontext.pos, brush, ss, pcontext.outline_col, pcontext.outline_alpha);
   }
 
@@ -2132,19 +2148,22 @@ static void paint_cursor_restore_drawing_state()
   GPU_line_smooth(false);
 }
 
-static void paint_draw_cursor(
-    bContext *C, int x, int y, float x_tilt, float y_tilt, void * /*unused*/)
+static void paint_draw_cursor(bContext *C,
+                              const blender::int2 &xy,
+                              const blender::float2 &tilt,
+                              void * /*unused*/)
 {
   PaintCursorContext pcontext;
-  if (!paint_cursor_context_init(C, x, y, x_tilt, y_tilt, pcontext)) {
+  if (!paint_cursor_context_init(C, xy, tilt, pcontext)) {
     return;
   }
 
   if (!paint_cursor_is_brush_cursor_enabled(pcontext)) {
     /* For Grease Pencil draw mode, we want to we only render a small mouse cursor (dot) if the
      * paint cursor is disabled so that the default mouse cursor doesn't get in the way of tablet
-     * users. See #130089. */
-    if (pcontext.mode == PaintMode::GPencil) {
+     * users. See #130089. But don't overwrite a modal cursor, allowing modal operators to set one
+     * temporarily. */
+    if (pcontext.mode == PaintMode::GPencil && pcontext.win->modalcursor == 0) {
       WM_cursor_set(pcontext.win, WM_CURSOR_DOT);
     }
     return;

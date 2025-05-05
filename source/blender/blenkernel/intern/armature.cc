@@ -273,7 +273,7 @@ static void write_bone(BlendWriter *writer, Bone *bone)
 
   /* Write this bone, except for its runtime data. */
   const Bone_Runtime runtime_backup = bone->runtime;
-  memset(&bone->runtime, 0, sizeof(bone->runtime));
+  bone->runtime = Bone_Runtime{};
   BLO_write_struct(writer, Bone, bone);
   bone->runtime = runtime_backup;
 
@@ -315,7 +315,7 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
   arm->act_edbone = nullptr;
 
   const bArmature_Runtime runtime_backup = arm->runtime;
-  memset(&arm->runtime, 0, sizeof(arm->runtime));
+  arm->runtime = bArmature_Runtime{};
 
   /* Convert BoneCollections over to a listbase for writing. */
   BoneCollection **collection_array_backup = arm->collection_array;
@@ -369,7 +369,7 @@ static void direct_link_bones(BlendDataReader *reader, Bone *bone)
     direct_link_bones(reader, child);
   }
 
-  memset(&bone->runtime, 0, sizeof(bone->runtime));
+  bone->runtime = Bone_Runtime{};
 }
 
 static void direct_link_bone_collection(BlendDataReader *reader, BoneCollection *bcoll)
@@ -456,7 +456,7 @@ static void armature_blend_read_data(BlendDataReader *reader, ID *id)
 
   BKE_armature_bone_hash_make(arm);
 
-  memset(&arm->runtime, 0, sizeof(arm->runtime));
+  arm->runtime = bArmature_Runtime{};
   ANIM_armature_runtime_refresh(arm);
 }
 
@@ -3094,18 +3094,7 @@ void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
 std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const Object *ob)
 {
-  std::optional<blender::Bounds<blender::float3>> bounds_world = BKE_pose_minmax(ob, false);
-
-  if (!bounds_world) {
-    return std::nullopt;
-  }
-
-  /* NOTE: this is not correct (after rotation the AABB may not be the smallest enclosing AABB any
-   * more), but acceptable because this is called via BKE_object_boundbox_get(), which is called by
-   * BKE_object_minmax(), which does the opposite transform. */
-  return blender::Bounds<blender::float3>{
-      math::transform_point(ob->world_to_object(), bounds_world->min),
-      math::transform_point(ob->world_to_object(), bounds_world->max)};
+  return BKE_pose_minmax(ob, false);
 }
 
 void BKE_pchan_minmax(const Object *ob,
@@ -3142,17 +3131,14 @@ void BKE_pchan_minmax(const Object *ob,
                  pchan->custom_translation[0],
                  pchan->custom_translation[1],
                  pchan->custom_translation[2]);
-    mul_m4_series(mat.ptr(), ob->object_to_world().ptr(), tmp.ptr(), rmat.ptr(), smat.ptr());
+    mul_m4_series(mat.ptr(), tmp.ptr(), rmat.ptr(), smat.ptr());
     BoundBox bb;
     BKE_boundbox_init_from_minmax(&bb, bb_custom->min, bb_custom->max);
     BKE_boundbox_minmax(bb, mat, r_min, r_max);
   }
   else {
-    float vec[3];
-    mul_v3_m4v3(vec, ob->object_to_world().ptr(), pchan_tx->pose_head);
-    minmax_v3v3_v3(r_min, r_max, vec);
-    mul_v3_m4v3(vec, ob->object_to_world().ptr(), pchan_tx->pose_tail);
-    minmax_v3v3_v3(r_min, r_max, vec);
+    minmax_v3v3_v3(r_min, r_max, pchan_tx->pose_head);
+    minmax_v3v3_v3(r_min, r_max, pchan_tx->pose_tail);
   }
 }
 

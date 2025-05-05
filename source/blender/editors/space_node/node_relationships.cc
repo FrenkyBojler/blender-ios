@@ -1212,7 +1212,7 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
 
     /* Before actually adding the link let nodes perform special link insertion handling. */
 
-    bNodeLink *new_link = static_cast<bNodeLink *>(MEM_mallocN(sizeof(bNodeLink), __func__));
+    bNodeLink *new_link = MEM_mallocN<bNodeLink>(__func__);
     *new_link = link;
     if (link.fromnode->typeinfo->insert_link) {
       if (!link.fromnode->typeinfo->insert_link(&ntree, link.fromnode, new_link)) {
@@ -2042,7 +2042,7 @@ static wmOperatorStatus node_join_exec(bContext *C, wmOperator * /*op*/)
 
   const VectorSet<bNode *> selected_nodes = get_selected_nodes(ntree);
 
-  bNode *frame_node = bke::node_add_static_node(C, ntree, NODE_FRAME);
+  bNode *frame_node = add_static_node(*C, NODE_FRAME, snode.runtime->cursor);
   bke::node_set_active(ntree, *frame_node);
   frame_node->parent = const_cast<bNode *>(find_common_parent_node(selected_nodes.as_span()));
 
@@ -2063,6 +2063,24 @@ static wmOperatorStatus node_join_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus node_join_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  /* Convert mouse coordinates to v2d space. */
+  UI_view2d_region_to_view(&region->v2d,
+                           event->mval[0],
+                           event->mval[1],
+                           &snode->runtime->cursor[0],
+                           &snode->runtime->cursor[1]);
+
+  snode->runtime->cursor[0] /= UI_SCALE_FAC;
+  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+
+  return node_join_exec(C, op);
+}
+
 void NODE_OT_join(wmOperatorType *ot)
 {
   /* identifiers */
@@ -2072,6 +2090,7 @@ void NODE_OT_join(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = node_join_exec;
+  ot->invoke = node_join_invoke;
   ot->poll = ED_operator_node_editable;
 
   /* flags */

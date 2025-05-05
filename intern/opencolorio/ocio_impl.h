@@ -128,7 +128,14 @@ class IOCIOImpl {
   {
     return false;
   }
-  virtual void gpuDisplayShaderUnbind() {}
+  virtual bool gpuToSceneLinearShaderBind(OCIO_ConstConfigRcPtr * /*config*/,
+                                          const char * /*from_colorspace_name*/,
+                                          const bool /*use_predivide*/)
+  {
+    return false;
+  }
+
+  virtual void gpuShaderUnbind() {}
   virtual void gpuCacheFree() {}
 
   virtual const char *getVersionString() = 0;
@@ -339,6 +346,17 @@ class OCIOImpl : public IOCIOImpl {
   void OCIO_PackedImageDescRelease(OCIO_PackedImageDesc *id) override;
 
   bool supportGPUShader() override;
+
+  /**
+   * Setup GPU contexts for a transform defined by processor using GLSL.
+   * All LUT allocating baking and shader compilation happens here.
+   *
+   * Once this function is called, callee could start drawing images
+   * using regular 2D texture.
+   *
+   * When all drawing is finished, gpuShaderUnbind must be called to
+   * restore GPU context to its previous state.
+   */
   bool gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                             const char *input,
                             const char *view,
@@ -354,7 +372,21 @@ class OCIOImpl : public IOCIOImpl {
                             const bool use_overlay,
                             const bool use_hdr,
                             const bool use_white_balance) override;
-  void gpuDisplayShaderUnbind() override;
+
+  /**
+   * Setup GPU contexts for a GPU-side transform form the given space to scene linear.
+   *
+   * Once this function is called, callee could start drawing images using regular 2D texture
+   * (in the same way as GPU_SHADER_3D_IMAGE_COLOR immediate mode shader).
+   *
+   * When all drawing is finished, gpuShaderUnbind must be called to restore GPU context to its
+   * previous state.
+   */
+  bool gpuToSceneLinearShaderBind(OCIO_ConstConfigRcPtr *config,
+                                  const char *from_colorspace_name,
+                                  bool use_predivide) override;
+
+  void gpuShaderUnbind() override;
   void gpuCacheFree() override;
 
   const char *getVersionString() override;
