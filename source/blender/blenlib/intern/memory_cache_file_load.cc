@@ -93,9 +93,9 @@ static void invalidate_outdated_caches_if_necessary(const Span<StringRefNull> fi
   /* Retrieve the file modification times before the lock because there is no need for the lock
    * yet. While not guaranteed, retrieving the modification time is often optimized by the OS so
    * that no actual access to the hard drive is necessary. */
-  Vector<std::optional<int64_t>> new_times;
-  for (const StringRefNull path : file_paths) {
-    new_times.append(get_file_modification_time(path));
+  Array<std::optional<int64_t>> new_times(file_paths.size());
+  for (const int i : file_paths.index_range()) {
+    new_times[i] = get_file_modification_time(file_paths[i]);
   }
 
   std::lock_guard lock{file_stat_map.mutex};
