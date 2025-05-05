@@ -1018,6 +1018,10 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       storage->sigma_color = threshold_input->default_value_typed<bNodeSocketValueFloat>()->value *
                              3.0f;
     }
+
+    if (node->type_legacy == CMP_NODE_ALPHAOVER) {
+      write_input_to_property_bool_short("Straight Alpha", node->custom1);
+    }
   }
 }
 
@@ -1759,7 +1763,7 @@ static AssetTypeInfo AssetType_NT = {
 };
 
 IDTypeInfo IDType_ID_NT = {
-    /*id_code*/ ID_NT,
+    /*id_code*/ bNodeTree::id_type,
     /*id_filter*/ FILTER_ID_NT,
     /* IDProps of nodes, and #bNode.id, can use any type of ID. */
     /*dependencies_id_types*/ FILTER_ID_ALL,
