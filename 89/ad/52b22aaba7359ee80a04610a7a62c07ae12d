@@ -1,2 +1,2 @@
-Referenced by issue #138236, Vulkan: Using compositor (CPU or GPU) results in artifacts/crash
+Referenced by issue #138236, Vulkan: Using compositor results in artifacts
 Referenced by issue #138279, Geometry Nodes: Realize Instance on nested Collections / Instances with vertex groups causes freeze
