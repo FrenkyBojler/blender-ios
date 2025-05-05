@@ -1151,6 +1151,11 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
                                     const Span<float3> face_normals,
                                     const Span<int> local_corners_in_fan)
 {
+  if (local_corners_in_fan.size() == 1) {
+    /* Logically this special case is unnecessary, but due to floating point precision it is
+     * required for the output to be the same as previous versions of the algorithm.*/
+    return face_normals[corner_infos[local_corners_in_fan.first()].face];
+  }
   float3 fan_normal(0);
   for (const int local_corner : local_corners_in_fan) {
     const VertCornerInfo &info = corner_infos[local_corner];
