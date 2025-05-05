@@ -215,4 +215,60 @@ if (i < j) { for (; j < k;) {break;continue;} }
 }
 GPU_TEST(preprocess_unroll);
 
+static void test_preprocess_template()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+template<typename T>
+void func(T a) {}
+template void func<float>(float a);)";
+    string expect = R"(
+#define func_TEMPLATE(T) \
+void func(T a) {}
+func_TEMPLATE(float)/*(float a);*/)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+template<typename T, int i>
+void func(T a) {}
+template void func<float>(float a);)";
+    string expect = R"(
+#define func_TEMPLATE(T, i) \
+void func_##T#__##i##_(T a) {}
+func_TEMPLATE(float, 1)/*(float a);*/)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(template<typename T, int i = 0> void func(T a) {})";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Template declaration unsupported syntax");
+  }
+  {
+    string input = R"(template void func(float a);)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Template instantiation unsupported syntax");
+  }
+  {
+    string input = R"(func<float, 1>(a);)";
+    string expect = R"(TEMPLATE_GLUE(func, float, 1)(a);)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_template);
+
 }  // namespace blender::gpu::tests
