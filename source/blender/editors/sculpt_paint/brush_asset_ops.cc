@@ -631,7 +631,7 @@ static bool brush_asset_save_poll(bContext *C)
   }
 
   if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
-    CTX_wm_operator_poll_msg_set(C, "Local assets cannot be individually saved");
+    CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be individually saved");
     return false;
   }
 
@@ -693,7 +693,7 @@ static bool brush_asset_revert_poll(bContext *C)
     return false;
   }
   if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
-    CTX_wm_operator_poll_msg_set(C, "Local assets cannot be reverted");
+    CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be reverted");
     return false;
   }
 
