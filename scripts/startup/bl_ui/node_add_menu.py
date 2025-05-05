@@ -35,6 +35,7 @@ def draw_node_group_add_menu(context, layout):
         layout.separator()
         add_node_type(layout, "NodeGroupInput")
         add_node_type(layout, "NodeGroupOutput")
+        add_empty_group(layout)
 
     if node_tree:
         from nodeitems_builtins import node_tree_group_type
@@ -91,6 +92,12 @@ def add_foreach_geometry_element_zone(layout, label):
 def add_closure_zone(layout, label):
     props = layout.operator(
         "node.add_closure_zone", text=label, text_ctxt=i18n_contexts.default)
+    props.use_transform = True
+    return props
+
+
+def add_empty_group(layout):
+    props = layout.operator("node.add_empty_group", text=iface_("New Group"), text_ctxt=i18n_contexts.default)
     props.use_transform = True
     return props
 
