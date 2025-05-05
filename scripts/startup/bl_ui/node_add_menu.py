@@ -35,7 +35,8 @@ def draw_node_group_add_menu(context, layout):
         layout.separator()
         add_node_type(layout, "NodeGroupInput")
         add_node_type(layout, "NodeGroupOutput")
-        add_empty_group(layout)
+
+    add_empty_group(layout)
 
     if node_tree:
         from nodeitems_builtins import node_tree_group_type
