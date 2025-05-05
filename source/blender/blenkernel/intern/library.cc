@@ -448,6 +448,8 @@ void blender::bke::library::embed_linked_ids(Main &bmain, const blender::Set<ID 
       }
       /* Check if current archive library already contains an ID of same type and name. */
       if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id->name), BKE_id_name(*id))) {
+        // TODO: If the ID in that library has the same deep hash as the ID we want to embed, they
+        // need to be deduplicated.
         continue;
       }
       archive_lib = lib_iter;
