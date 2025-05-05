@@ -118,6 +118,10 @@ typedef struct RegionView3D {
   char _pad8[4];
 
   char ndof_flag;
+  /**
+   * Center of Rotation used for Auto orbit, any modification should be followed by adjusting
+   * #RegionView3D::dist to prevent #134732.
+   */
   float ndof_ofs[3];
 
   /** Active rotation from NDOF (run-time only). */
