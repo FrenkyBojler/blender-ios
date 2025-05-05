@@ -465,7 +465,7 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_ME = {
-    /*id_code*/ ID_ME,
+    /*id_code*/ Mesh::id_type,
     /*id_filter*/ FILTER_ID_ME,
     /*dependencies_id_types*/ FILTER_ID_ME | FILTER_ID_MA | FILTER_ID_IM | FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_ME,
