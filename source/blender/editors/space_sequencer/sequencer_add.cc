@@ -293,7 +293,6 @@ static void sequencer_generic_invoke_xy__internal(
 static void move_strips(bContext *C)
 {
   wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_seq_slide", true);
-  BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
   RNA_boolean_set(&ptr, "remove_on_cancel", true);
@@ -419,8 +418,8 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
     const wmWindow *win = CTX_wm_window(C);
     const ARegion *region = CTX_wm_region(C);
 
-    float2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
-                        win->eventstate->xy[1] - region->winrct.ymin);
+    const float2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
+                              win->eventstate->xy[1] - region->winrct.ymin);
     float2 mouse_view;
     UI_view2d_region_to_view(
         &region->v2d, mouse_region.x, mouse_region.y, &mouse_view.x, &mouse_view.y);
@@ -1680,6 +1679,7 @@ static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
 
   if (!is_type_set) {
     BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "Strip type is not set.");
+    return OPERATOR_CANCELLED;
   }
 
   type = RNA_enum_get(op->ptr, "type");
