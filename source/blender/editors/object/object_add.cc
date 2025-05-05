@@ -1495,8 +1495,6 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
                        GP_LAYER_TREE_NODE_USE_LIGHTS);
   }
 
-  /* Set the draw type. */
-
   DEG_id_tag_update(&grease_pencil_id.id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, &grease_pencil_id.id);
 
