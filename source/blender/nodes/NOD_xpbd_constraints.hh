@@ -767,7 +767,8 @@ inline void apply_position_bend_twist(const float weight_rot1,
 }
 
 template<bool linearized_quaternion>
-inline void eval_rotation_goal2(const math::Quaternion &goal_rotation,
+inline void eval_rotation_goal2(const float3 &weight_rot,
+                                const math::Quaternion &goal_rotation,
                                 const float3 &alpha,
                                 const float3 &gamma,
                                 const float3 &lambda,
@@ -782,7 +783,7 @@ inline void eval_rotation_goal2(const math::Quaternion &goal_rotation,
   const math::Quaternion old_goal_rotation = goal_rotation;
   float4 delta_root_rotation;
   eval_position_bend_twist<linearized_quaternion>(float3(0.0f),
-                                                  float3(1.0f),
+                                                  weight_rot,
                                                   darboux_vector,
                                                   alpha,
                                                   gamma,

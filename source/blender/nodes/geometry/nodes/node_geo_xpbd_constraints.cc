@@ -417,9 +417,11 @@ static void eval_positions(const ConstraintEvalParams &params,
     float3 delta_lambda;
     float4 delta_rotation;
     if constexpr (use_damping) {
+      const float3 weight_rot = math::safe_rcp(params.local_inertia[point]);
       const float3 alpha = alphas[index] * params.inv_delta_time_squared;
       const float3 gamma = alphas[index] * betas[index] * params.inv_delta_time;
-      xpbd_constraints::eval_rotation_goal2<linearized_quaternion>(goal,
+      xpbd_constraints::eval_rotation_goal2<linearized_quaternion>(weight_rot,
+                                                                   goal,
                                                                    alpha,
                                                                    gamma,
                                                                    lambda,
@@ -430,8 +432,10 @@ static void eval_positions(const ConstraintEvalParams &params,
                                                                    delta_rotation);
     }
     else {
+      const float3 weight_rot = math::safe_rcp(params.local_inertia[point]);
       const float alpha = alphas[index] * params.inv_delta_time_squared;
-      xpbd_constraints::eval_rotation_goal2<linearized_quaternion>(goal,
+      xpbd_constraints::eval_rotation_goal2<linearized_quaternion>(weight_rot,
+                                                                   goal,
                                                                    alpha,
                                                                    0.0f,
                                                                    lambda,
