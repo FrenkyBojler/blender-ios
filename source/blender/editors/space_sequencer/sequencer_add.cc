@@ -95,8 +95,11 @@ static void sequencer_generic_props__internal(wmOperatorType *ot, int flag)
   PropertyRNA *prop;
 
   if (flag & SEQPROP_MOVE) {
-    prop = RNA_def_boolean(
-        ot->srna, "move", true, "Move Strips", "Move strips after adding them to the timeline");
+    prop = RNA_def_boolean(ot->srna,
+                           "move_strips",
+                           true,
+                           "Move Strips",
+                           "Move strips after adding them to the timeline");
     RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   }
 
@@ -232,7 +235,7 @@ static void sequencer_file_drop_channel_frame_set(bContext *C,
               !RNA_collection_is_empty(op->ptr, "files")) ||
              RNA_struct_property_is_set(op->ptr, "filepath"));
 
-  RNA_boolean_set(op->ptr, "move", false);
+  RNA_boolean_set(op->ptr, "move_strips", false);
 
   if (RNA_struct_property_is_set(op->ptr, "channel") ||
       RNA_struct_property_is_set(op->ptr, "frame_start"))
@@ -259,6 +262,7 @@ static void sequencer_generic_invoke_xy__internal(
   int timeline_frame = scene->r.cfra;
   if (event && event->type == EVT_DROP) {
     sequencer_file_drop_channel_frame_set(C, op, event);
+    RNA_boolean_set(op->ptr, "move_strips", false);
   }
 
   /* Effect strips don't need a channel initialized from the mouse. */
@@ -282,7 +286,7 @@ static void sequencer_generic_invoke_xy__internal(
 
   ARegion *region = CTX_wm_region(C);
   if (event == nullptr || region == nullptr || region->regiontype != RGN_TYPE_WINDOW) {
-    RNA_boolean_set(op->ptr, "move", false);
+    RNA_boolean_set(op->ptr, "move_strips", false);
     return;
   }
 }
@@ -400,7 +404,7 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
   }
 
   /* Override strip position by current mouse position. */
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     const wmWindow *win = CTX_wm_window(C);
     const ARegion *region = CTX_wm_region(C);
 
@@ -432,7 +436,8 @@ static void seq_load_apply_generic_options(bContext *C, wmOperator *op, Strip *s
   }
 
   if (RNA_boolean_get(op->ptr, "overlap") == true ||
-      !seq::transform_test_overlap(scene, ed->seqbasep, strip) || RNA_boolean_get(op->ptr, "move"))
+      !seq::transform_test_overlap(scene, ed->seqbasep, strip) ||
+      RNA_boolean_get(op->ptr, "move_strips"))
   {
     /* No overlap should be handled or the strip is not overlapping, exit early. */
     return;
@@ -522,7 +527,7 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     move_strips(C);
   }
 
@@ -627,7 +632,7 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext *C, wmOperat
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     move_strips(C);
   }
 
@@ -732,7 +737,7 @@ static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperat
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     move_strips(C);
   }
 
@@ -802,7 +807,7 @@ static wmOperatorStatus sequencer_add_mask_strip_exec(bContext *C, wmOperator *o
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     move_strips(C);
   }
 
@@ -1117,7 +1122,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
   /* Free custom data. */
   sequencer_add_cancel(C, op);
 
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     move_strips(C);
   }
 
@@ -1172,11 +1177,13 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
   SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
   ImageFormatData *imf = &sad->im_format;
 
-  uiItemR(op->layout, op->ptr, "move", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (!RNA_boolean_get(op->ptr, "move")) {
+  uiItemR(op->layout, op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (!RNA_boolean_get(op->ptr, "move_strips")) {
     uiItemR(op->layout, op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiItemR(op->layout, op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(op->layout, op->ptr, "frame_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    if (RNA_struct_find_property(op->ptr, "frame_end")) {
+      uiItemR(op->layout, op->ptr, "frame_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    }
   }
 
   uiItemS(op->layout);
@@ -1312,7 +1319,7 @@ static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     move_strips(C);
   }
 
@@ -1520,7 +1527,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
   /* Free custom data. */
   sequencer_add_cancel(C, op);
 
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     move_strips(C);
   }
 
@@ -1642,7 +1649,7 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move")) {
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
     move_strips(C);
   }
 
@@ -1673,7 +1680,7 @@ static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
 
   /* It's reasonable to add effects with inputs directly above the input. */
   if (!ELEM(type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT, STRIP_TYPE_ADJUSTMENT, STRIP_TYPE_MULTICAM)) {
-    RNA_boolean_set(op->ptr, "move", false);
+    RNA_boolean_set(op->ptr, "move_strips", false);
   }
 
   return sequencer_add_effect_strip_exec(C, op);
