@@ -1520,9 +1520,8 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
 
 static wmOperatorStatus object_grease_pencil_add_invoke(bContext *C,
                                                         wmOperator *op,
-                                                        const wmEvent *event)
+                                                        const wmEvent * /*event*/)
 {
-  (void)event;
   const int type = RNA_enum_get(op->ptr, "type");
 
   /* Only disable "use_in_front" if it's one of the non-LineArt types */
