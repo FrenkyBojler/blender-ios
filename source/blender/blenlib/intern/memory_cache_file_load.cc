@@ -101,7 +101,7 @@ static void invalidate_outdated_caches_if_necessary(const Span<StringRefNull> fi
   std::lock_guard lock{file_stat_map.mutex};
 
   /* Find all paths that have changed on disk. */
-  blender::VectorSet<StringRefNull> outdated_paths;
+  VectorSet<StringRefNull> outdated_paths;
   for (const int i : file_paths.index_range()) {
     const StringRefNull path = file_paths[i];
     const std::optional<int64_t> new_time = new_times[i];
