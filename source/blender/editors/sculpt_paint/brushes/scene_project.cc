@@ -63,7 +63,7 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-static inline float absolute_min_distance(float d1, float d2)
+static inline float absolute_min_distance(const float d1, const float d2)
 {
   return math::abs(d1) < math::abs(d2) ? d1 : d2;
 }
