@@ -91,11 +91,14 @@ static void append_point_knots(const Span<IndexRange> src_ranges,
   const Span<int> src_points_by_curve = src_curves.points_by_curve().data();
   const Span<int> src_knots_by_curve = src_curves.nurbs_custom_knots_by_curve().data();
   const VArray<int8_t> src_orders = src_curves.nurbs_orders();
-  const Span<float> src_knots = src_curves.nurbs_custom_knots();
   const VArray<int8_t> knot_modes = curves.nurbs_knots_modes();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const OffsetIndices<int> knots_by_curve = curves.nurbs_custom_knots_by_curve();
   MutableSpan<float> dst_knots = curves.nurbs_custom_knots_for_write();
+  /* Source knots must be defined after destination knots, because when `src_curves` == `curves`
+   * call to `nurbs_custom_knots_for_write()` might invalidate the result of previously called
+   * `nurbs_custom_knots()`. */
+  const Span<float> src_knots = src_curves.nurbs_custom_knots();
 
   const int old_curves_num = curves.curves_num() - dst_to_src_curve.size();
 
@@ -469,13 +472,13 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
                                      curve_map);
         deselect.append(IndexRange::from_begin_end(size_before, curve_map.size()));
       },
-      [&](const IndexRange curves, [[maybe_unused]] const IndexRange unselected_points) {
+      [&](const IndexRange curves, const IndexRange /*unselected_points*/) {
         deselect.append(IndexRange::from_begin_size(curve_map.size(), curves.size()));
         int last_offset = new_offsets.last();
         int last_dst_offset = dst_offsets.last();
         for (const int curve : curves) {
           /* Point ranges to `src_ranges` and `dst_offsets` have to be appended curve by curve to
-           * ease custom knots are copying. It gives better mapping between `src_ranges` and
+           * ease custom knots copying. It gives better mapping between `src_ranges` and
            * `curve_map`. */
           const IndexRange points = points_by_curve[curve];
           src_ranges.append(points);
@@ -563,12 +566,12 @@ void separate_points(const bke::CurvesGeometry &curves,
                                      retained_dst_offsets,
                                      retained_curve_map);
       },
-      [&](const IndexRange curves, [[maybe_unused]] const IndexRange unselected_points) {
+      [&](const IndexRange curves, const IndexRange /*unselected_points*/) {
         int last_offset = retained_offsets.last();
         int last_dst_offset = retained_dst_offsets.last();
         for (const int curve : curves) {
           /* Point ranges to `retained_src_ranges` and `retained_dst_offsets` have to be appended
-           * curve by curve to ease custom knots are copying. It gives better mapping between
+           * curve by curve to ease custom knots copying. It gives better mapping between
            * `retained_src_ranges` and `retained_curve_map`. */
           const IndexRange points = points_by_curve[curve];
           retained_src_ranges.append(points);
