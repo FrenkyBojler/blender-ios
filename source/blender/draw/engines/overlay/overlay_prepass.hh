@@ -78,8 +78,11 @@ class Prepass : Overlay {
       /* Not used. But release the data. */
       ps_.init();
       mesh_ps_ = nullptr;
+      mesh_flat_ps_ = nullptr;
+      hair_ps_ = nullptr;
       curves_ps_ = nullptr;
       pointcloud_ps_ = nullptr;
+      grease_pencil_ps_ = nullptr;
       return;
     }
 
@@ -94,33 +97,40 @@ class Prepass : Overlay {
     ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | backface_cull_state,
                   state.clipping_plane_count);
     res.select_bind(ps_);
-    {
+    mesh_ps_ = nullptr;
+    if (state.has_mesh || state.has_volume) {
       auto &sub = ps_.sub("Mesh");
       sub.shader_set(res.is_selection() ? res.shaders->depth_mesh_conservative.get() :
                                           res.shaders->depth_mesh.get());
       mesh_ps_ = &sub;
     }
-    {
+    mesh_flat_ps_ = nullptr;
+    if (state.has_mesh) {
       auto &sub = ps_.sub("MeshFlat");
       sub.shader_set(res.shaders->depth_mesh.get());
       mesh_flat_ps_ = &sub;
     }
-    {
+    hair_ps_ = nullptr;
+    if (state.has_particles) {
+      /* TODO: This is not used anywhere ? */
       auto &sub = ps_.sub("Hair");
       sub.shader_set(res.shaders->depth_mesh.get());
       hair_ps_ = &sub;
     }
-    {
+    curves_ps_ = nullptr;
+    if (state.has_curve) {
       auto &sub = ps_.sub("Curves");
       sub.shader_set(res.shaders->depth_curves.get());
       curves_ps_ = &sub;
     }
-    {
+    pointcloud_ps_ = nullptr;
+    if (state.has_ptcloud) {
       auto &sub = ps_.sub("PointCloud");
       sub.shader_set(res.shaders->depth_pointcloud.get());
       pointcloud_ps_ = &sub;
     }
-    {
+    grease_pencil_ps_ = nullptr;
+    if (state.has_gpencil) {
       auto &sub = ps_.sub("GreasePencil");
       sub.shader_set(res.shaders->depth_grease_pencil.get());
       grease_pencil_ps_ = &sub;
