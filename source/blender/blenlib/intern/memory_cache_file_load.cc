@@ -13,19 +13,22 @@
 
 namespace blender::memory_cache {
 
+/**
+ * A key used to identify data loaded from one or more files.
+ */
 class LoadFileKey : public GenericKey {
  private:
+  /** The files to load from. */
   Vector<std::string> file_paths_;
-  std::unique_ptr<GenericKey> loader_key_;
+  /**
+   * The key used to identify the loader. The same files might be loaded with different loaders
+   * which can result in different data that needs to be cached separately.
+   */
+  std::shared_ptr<const GenericKey> loader_key_;
 
  public:
-  LoadFileKey(Vector<std::string> file_paths, std::unique_ptr<GenericKey> loader_key)
+  LoadFileKey(Vector<std::string> file_paths, std::shared_ptr<const GenericKey> loader_key)
       : file_paths_(std::move(file_paths)), loader_key_(std::move(loader_key))
-  {
-  }
-
-  LoadFileKey(const LoadFileKey &other)
-      : file_paths_(other.file_paths_), loader_key_(other.loader_key_->to_storable())
   {
   }
 
@@ -49,6 +52,9 @@ class LoadFileKey : public GenericKey {
 
   std::unique_ptr<GenericKey> to_storable() const override
   {
+    /* Currently, #LoadFileKey is always storable, i.e. it owns all the data it references. A
+     * potential future optimization could be to support just referencing the paths and loader key,
+     * but that causes some boilerplate now that is not worth it. */
     return std::make_unique<LoadFileKey>(*this);
   }
 };
@@ -62,37 +68,44 @@ static std::optional<int64_t> get_file_modification_time(const StringRefNull pat
   return stat.st_mtim.tv_sec;
 }
 
-struct FileModificationTimesMap {
+struct FileStatMap {
   std::mutex mutex;
   Map<std::string, std::optional<int64_t>> map;
 };
 
-static FileModificationTimesMap &get_file_modification_times_map()
+static FileStatMap &get_file_stat_map()
 {
-  static FileModificationTimesMap file_modification_times_map;
-  return file_modification_times_map;
+  static FileStatMap file_stat_map;
+  return file_stat_map;
 }
 
 std::shared_ptr<CachedValue> get_loaded_base(const GenericKey &loader_key,
                                              Span<StringRefNull> file_paths,
                                              FunctionRef<std::unique_ptr<CachedValue>()> load_fn)
 {
-  const LoadFileKey key{file_paths, loader_key.to_storable()};
+  FileStatMap &file_stat_map = get_file_stat_map();
 
-  FileModificationTimesMap &file_modification_times_map = get_file_modification_times_map();
   bool found_outdated = false;
   {
-    std::lock_guard lock{file_modification_times_map.mutex};
+    // TODO: Properly handle case when there are multiple loaders for the same file. Currently,
+    // some of these loaders may miss a file modification.
+    Vector<std::optional<int64_t>> new_times;
     for (const StringRefNull path : file_paths) {
-      const std::optional<int64_t> new_time = get_file_modification_time(path);
-      const std::optional<int64_t> old_time = file_modification_times_map.map.lookup_or_add_as(
-          path, new_time);
+      new_times.append(get_file_modification_time(path));
+    }
+    std::lock_guard lock{file_stat_map.mutex};
+    for (const int i : file_paths.index_range()) {
+      const StringRefNull path = file_paths[i];
+      const std::optional<int64_t> new_time = new_times[i];
+      const std::optional<int64_t> old_time = file_stat_map.map.lookup_or_add_as(path, new_time);
       if (old_time != new_time) {
         found_outdated = true;
-        file_modification_times_map.map.add_overwrite_as(path, new_time);
+        file_stat_map.map.add_overwrite_as(path, new_time);
       }
     }
   }
+
+  const LoadFileKey key{file_paths, loader_key.to_storable()};
   if (found_outdated) {
     memory_cache::invalidate(key);
   }

@@ -9,6 +9,11 @@
 
 namespace blender::memory_cache {
 
+/**
+ * Call the given loader function if its result has not been cached yet. The cache key is a
+ * combination of loader_key and file_paths. load_fn is responsible for still producing a valid
+ * cache value even if a file is not found.
+ */
 template<typename T>
 std::shared_ptr<const T> get_loaded(const GenericKey &loader_key,
                                     Span<StringRefNull> file_paths,

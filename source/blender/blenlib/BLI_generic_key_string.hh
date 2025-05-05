@@ -10,6 +10,7 @@
 
 namespace blender {
 
+/** Utility class that to easy create a #GenericKey from a string. */
 class GenericStringKey : public GenericKey {
  private:
   std::string value_;

@@ -62,10 +62,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  /* Encode delimiter in key because it affects the result. */
+  const std::string loader_key = fmt::format("import_csv_node_{}", delimiter[0]);
   std::shared_ptr<const LoadCsvCache> cached_value = memory_cache::get_loaded<LoadCsvCache>(
-      GenericStringKey{fmt::format("import_csv_node_{}", delimiter[0])},
-      {StringRefNull(*path)},
-      [&]() {
+      GenericStringKey{loader_key}, {StringRefNull(*path)}, [&]() {
         blender::io::csv::CSVImportParams import_params{};
         import_params.delimiter = delimiter[0];
         STRNCPY(import_params.filepath, path->c_str());
