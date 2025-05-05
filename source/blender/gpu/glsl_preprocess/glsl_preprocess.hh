@@ -772,35 +772,30 @@ class Preprocessor {
   }
 
   /* To be run before `argument_decorator_macro_injection()`. */
-  std::string argument_reference_mutation(const std::string &str)
+  std::string argument_reference_mutation(std::string &str)
   {
     /* Next two regexes are expensive. Check if they are needed at all. */
-    size_t pos = 1;
-    while ((pos = str.find('&', pos)) != std::string::npos) {
-      if (pos <= str.length() - 2) {
-        /* This is made safe by the previous check and by starting at pos = 1. */
-        char prev_char = str[pos - 1];
-        char next_char = str[pos + 1];
-        /* Validate it is not an operator (`&`, `&&`, `&=`). */
-        if (prev_char == ' ' || prev_char == '(') {
-          if (next_char != ' ' && next_char != '&' && next_char != '=') {
-            /* There will be a valid match. */
-            break;
-          }
-        }
+    bool valid_match = false;
+    reference_search(str, [&](int parenthesis_depth, int bracket_depth, char &c) {
+      /* Check if inside a function signature.
+       * Check parenthesis_depth == 2 for array references. */
+      if ((parenthesis_depth == 1 || parenthesis_depth == 2) && bracket_depth == 0) {
+        valid_match = true;
+        /* Modify the & into @ to make sure we only match these references in the regex
+         * below. @ being forbidden in the shader language, it is safe to use a temp
+         * character. */
+        c = '@';
       }
-      pos++;
-    }
-    /* If we finished scanning the string without valid match, then early out. */
-    if (pos == std::string::npos) {
+    });
+    if (!valid_match) {
       return str;
     }
     /* Remove parenthesis first. */
     /* Example: `float (&var)[2]` > `float &var[2]` */
-    std::regex regex_parenthesis(R"((\w+ )\(&(\w+)\))");
+    std::regex regex_parenthesis(R"((\w+ )\(@(\w+)\))");
     std::string out = std::regex_replace(str, regex_parenthesis, "$1&$2");
     /* Example: `const float &var[2]` > `inout float var[2]` */
-    std::regex regex(R"((?:const)?(\s*)(\w+)\s+\&(\w+)(\[\d*\])?)");
+    std::regex regex(R"((?:const)?(\s*)(\w+)\s+\@(\w+)(\[\d*\])?)");
     return std::regex_replace(out, regex, "$1 inout $2 $3$4");
   }
 
