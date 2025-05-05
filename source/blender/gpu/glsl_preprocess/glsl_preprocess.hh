@@ -1250,7 +1250,7 @@ class Preprocessor {
           char next_char = str[pos + 1];
           /* Validate it is not an operator (`&`, `&&`, `&=`). */
           if (prev_char == ' ' || prev_char == '(') {
-            if (next_char != ' ' && next_char != '&' && next_char != '=') {
+            if (next_char != ' ' && next_char != '\n' && next_char != '&' && next_char != '=') {
               callback(parenthesis_depth, bracket_depth, c);
             }
           }
