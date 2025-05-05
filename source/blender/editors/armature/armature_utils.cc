@@ -456,6 +456,7 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
     STRNCPY(eBone->name, curBone->name);
     eBone->flag = curBone->flag;
     eBone->inherit_scale_mode = curBone->inherit_scale_mode;
+    eBone->drawtype = curBone->drawtype;
 
     /* fix selection flags */
     if (eBone->flag & BONE_SELECTED) {
@@ -687,6 +688,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
 
     newBone->flag = eBone->flag;
     newBone->inherit_scale_mode = eBone->inherit_scale_mode;
+    newBone->drawtype = eBone->drawtype;
 
     if (eBone == arm->act_edbone) {
       /* Don't change active selection, this messes up separate which uses

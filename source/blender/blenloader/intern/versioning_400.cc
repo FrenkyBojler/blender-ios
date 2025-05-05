@@ -7737,6 +7737,19 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
   }
 }
 
+static void version_set_default_bone_drawtype(Main *bmain)
+{
+  LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+    blender::animrig::ANIM_armature_foreach_bone(
+        &arm->bonebase, [](Bone *bone) { bone->drawtype = ARM_BONE_DEFAULT; });
+    if (arm->edbo) {
+      LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
+        ebone->drawtype = ARM_BONE_DEFAULT;
+      }
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -10548,6 +10561,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 64)) {
+    version_set_default_bone_drawtype(bmain);
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
