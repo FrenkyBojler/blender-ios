@@ -1065,8 +1065,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "context path", false, IFACE_("Context Path")))
-    {
+    if (uiLayout *panel = layout->panel(C, "context path", false, IFACE_("Context Path"))) {
       draw_context_path_panel(*C, *panel);
     }
   }
