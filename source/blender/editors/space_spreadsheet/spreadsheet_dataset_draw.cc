@@ -922,7 +922,7 @@ class DataSourceTreeView : public ui::AbstractTreeView {
 
   void add_viewer_path_elem(const ViewerPathElem &elem)
   {
-    switch (elem.type) {
+    switch (ViewerPathElemType(elem.type)) {
       case VIEWER_PATH_ELEM_TYPE_ID: {
         this->add_tree_item<IDViewerPathItem>(reinterpret_cast<const IDViewerPathElem &>(elem));
         break;
