@@ -192,7 +192,7 @@ class NODE_OT_connect_to_output(Operator, NodeEditorBase):
         out_i = None
         valid_outputs = []
         for i, out in enumerate(node.outputs):
-            if out.is_selected:
+            if out.select:
                 return i
             if is_visible_socket(out) and (not check_type or out.type == socket_type):
                 valid_outputs.append(i)

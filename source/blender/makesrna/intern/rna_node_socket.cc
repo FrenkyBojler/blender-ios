@@ -370,7 +370,7 @@ static bool rna_NodeSocket_is_output_get(PointerRNA *ptr)
   return sock->in_out == SOCK_OUT;
 }
 
-static bool rna_NodeSocket_is_selected_get(PointerRNA *ptr)
+static bool rna_NodeSocket_select_get(PointerRNA *ptr)
 {
   const bNodeSocket *socket = ptr->data_as<bNodeSocket>();
 
@@ -680,10 +680,10 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Is Output", "True if the socket is an output, otherwise input");
 
-  prop = RNA_def_property(srna, "is_selected", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_funcs(prop, "rna_NodeSocket_is_selected_get", nullptr);
+  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop, "rna_NodeSocket_select_get", nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Is Selected", "True if the socket is selected");
+  RNA_def_property_ui_text(prop, "Select", "True if the socket is selected");
 
   prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SOCK_HIDDEN);
