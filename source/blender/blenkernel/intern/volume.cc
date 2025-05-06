@@ -986,6 +986,11 @@ blender::bke::VolumeGridData *BKE_volume_grid_add_vdb(Volume &volume,
   grids.emplace_back(GVolumeGrid(std::move(vdb_grid)));
   return &grids.back().get_for_write();
 }
+
+void BKE_volume_metadata_set(Volume &volume, openvdb::MetaMap::Ptr metadata)
+{
+  volume.runtime->grids->metadata = metadata;
+}
 #endif
 
 void BKE_volume_grid_remove(Volume *volume, const blender::bke::VolumeGridData *grid)
@@ -1022,6 +1027,16 @@ bool BKE_volume_grid_determinant_valid(const double determinant)
   UNUSED_VARS(determinant);
   return true;
 #endif
+}
+
+bool BKE_volume_voxel_size_valid(const float3 &voxel_size)
+{
+  return BKE_volume_grid_determinant_valid(voxel_size[0] * voxel_size[1] * voxel_size[2]);
+}
+
+bool BKE_volume_grid_transform_valid(const float4x4 &transform)
+{
+  return BKE_volume_grid_determinant_valid(blender::math::determinant(transform));
 }
 
 int BKE_volume_simplify_level(const Depsgraph *depsgraph)
