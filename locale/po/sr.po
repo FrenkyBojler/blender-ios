@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-05 08:47+0000\n"
 "PO-Revision-Date: 2025-04-14 08:40+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8581,30 +8581,6 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Mirror"
-msgstr "Огледало"
-
-
-msgid "Snap"
-msgstr "Лепљење"
-
-
-msgid "UV Mapping"
-msgstr "UV Мапирање"
-
-
-msgid "Local View"
-msgstr "Локални поглед"
-
-
-msgid "Navigation"
-msgstr "Навигација"
-
-
-msgid "Align View"
-msgstr "Поравнај поглед"
-
-
 msgid "Select Linked"
 msgstr "Изабери повезано"
 
@@ -8687,6 +8663,30 @@ msgstr "Специјални знаци"
 
 msgid "Bone Roll"
 msgstr "Ролна костију"
+
+
+msgid "Snap"
+msgstr "Лепљење"
+
+
+msgid "Mirror"
+msgstr "Огледало"
+
+
+msgid "UV Mapping"
+msgstr "UV Мапирање"
+
+
+msgid "Local View"
+msgstr "Локални поглед"
+
+
+msgid "Navigation"
+msgstr "Навигација"
+
+
+msgid "Align View"
+msgstr "Поравнај поглед"
 
 
 msgid "Basic"
@@ -10667,20 +10667,8 @@ msgid "Box Mask"
 msgstr "Маска кутије"
 
 
-msgid "Height of the box"
-msgstr "Висина кутије"
-
-
 msgid "Not"
 msgstr "Не"
-
-
-msgid "Width of the box"
-msgstr "Ширина кутије"
-
-
-msgid "Rotation angle of the box"
-msgstr "Угао ротације кутије"
 
 
 msgid "Channel Key"
@@ -10731,23 +10719,11 @@ msgid "Shadows Contrast"
 msgstr "Контраст сенки"
 
 
-msgid "Shadows contrast"
-msgstr "Контраст сенки"
-
-
 msgid "Shadows Gamma"
 msgstr "Гама сенки"
 
 
-msgid "Shadows gamma"
-msgstr "Гама сенки"
-
-
 msgid "Shadows Saturation"
-msgstr "Засићеност сенки"
-
-
-msgid "Shadows saturation"
 msgstr "Засићеност сенки"
 
 
@@ -10757,10 +10733,6 @@ msgstr "Кључ боје"
 
 msgid "H"
 msgstr "Т"
-
-
-msgid "Hue tolerance for colors to be considered a keying color"
-msgstr "Толеранција тона за боје које се сматрају кључне"
 
 
 msgid "S"
@@ -10901,18 +10873,6 @@ msgstr "Задржи у"
 
 msgid "Ellipse Mask"
 msgstr "Елиптична маска"
-
-
-msgid "Height of the ellipse"
-msgstr "Висина елипсе"
-
-
-msgid "Width of the ellipse"
-msgstr "Ширина елипсе"
-
-
-msgid "Rotation angle of the ellipse"
-msgstr "Угао ротације елипсе"
 
 
 msgid "Filter Type"
@@ -11073,10 +11033,6 @@ msgstr "Тачкасто"
 
 msgid "Pixel Size"
 msgstr "Величина пиксела"
-
-
-msgid "Number of motion blur samples"
-msgstr "Поставља број додатних бљесова"
 
 
 msgid "Alpha Convert"
@@ -15796,15 +15752,6 @@ msgstr "Лепи за симетрију"
 
 
 msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Троуглови у четвороуглове"
-
-
-msgid "Join triangles into quads"
-msgstr "Спаја троуглове у четвороуглове"
-
-
-msgctxt "Operator"
 msgid "Remove UV Map"
 msgstr "Уклони UV мапу"
 
@@ -19771,12 +19718,12 @@ msgid "Restrict"
 msgstr "Ограничи"
 
 
-msgid "Transform Orientations"
-msgstr "Трансформација оријентација"
-
-
 msgid "Motion Tracking"
 msgstr "Праћење покрета"
+
+
+msgid "Transform Orientations"
+msgstr "Трансформација оријентација"
 
 
 msgid "Bone Constraints"
@@ -21272,10 +21219,6 @@ msgstr "Број хоризонталних пиксела у рендерова
 
 msgid "Number of vertical pixels in the rendered image"
 msgstr "Број Вертикалних пиксела у рендерованој слици"
-
-
-msgid "Display the object as wire edges"
-msgstr "Прикажи објекат са жичаним ивицама"
 
 
 msgid "Simplify Subdivision"
@@ -23631,6 +23574,10 @@ msgid "Lock Invert All"
 msgstr "Закључај све обрнуто"
 
 
+msgid "Auto Normalize"
+msgstr "Ауто-нормализација"
+
+
 msgid "Detail"
 msgstr "Детаљност"
 
@@ -24697,10 +24644,6 @@ msgid "Parents"
 msgstr "Родитељи"
 
 
-msgid "Auto Normalize"
-msgstr "Ауто-нормализација"
-
-
 msgid "Multi-Paint"
 msgstr "Вишеструко бојење"
 
@@ -25754,10 +25697,6 @@ msgid "Mask not found"
 msgstr "Маскирај позадину"
 
 
-msgid "No active sequence!"
-msgstr "Без активне секвенце!"
-
-
 msgid "unknown error writing file"
 msgstr "Непозната грешака приликом уписа датотеке"
 
@@ -26070,6 +26009,10 @@ msgstr "Бљесак"
 
 msgid "Use feather information from the mask"
 msgstr "Користи информације умекшавања са маске"
+
+
+msgid "Number of motion blur samples"
+msgstr "Поставља број додатних бљесова"
 
 
 msgid "Val"

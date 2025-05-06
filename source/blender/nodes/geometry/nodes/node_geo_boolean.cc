@@ -107,8 +107,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   bool use_self = false;
   bool hole_tolerant = false;
   if (solver == geometry::boolean::Solver::MeshArr) {
-    use_self = params.get_input<bool>("Self Intersection");
-    hole_tolerant = params.get_input<bool>("Hole Tolerant");
+    use_self = params.extract_input<bool>("Self Intersection");
+    hole_tolerant = params.extract_input<bool>("Hole Tolerant");
   }
 
   Vector<const Mesh *> meshes;
@@ -274,17 +274,17 @@ static void node_rna(StructRNA *srna)
        "EXACT",
        0,
        "Exact",
-       "Exact solver for the best results"},
+       "Slower solver with the best results for coplanar faces"},
       {int(geometry::boolean::Solver::Float),
        "FLOAT",
        0,
        "Float",
-       "Simple solver for the best performance, without support for overlapping geometry"},
+       "Simple solver with good performance, without support for overlapping geometry"},
       {int(geometry::boolean::Solver::Manifold),
        "MANIFOLD",
        0,
        "Manifold",
-       "Very fast and robust solver (best with manifold input)"},
+       "Fastest solver that works only on manifold meshes but gives better results"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

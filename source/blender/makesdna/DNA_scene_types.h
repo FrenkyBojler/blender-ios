@@ -10,9 +10,6 @@
 
 #include "DNA_defs.h"
 
-/* XXX(@ideasman42): temp feature. */
-#define DURIAN_CAMERA_SWITCH
-
 /**
  * Check for cyclic set-scene.
  * Libraries can cause this case which is normally prevented, see (#42009).
@@ -114,7 +111,7 @@ typedef enum eFFMpegProresProfile {
   FFM_PRORES_PROFILE_422_PROXY = 0, /* FF_PROFILE_PRORES_PROXY */
   FFM_PRORES_PROFILE_422_LT = 1,    /* FF_PROFILE_PRORES_LT */
   FFM_PRORES_PROFILE_422_STD = 2,   /* FF_PROFILE_PRORES_STANDARD */
-  FFM_PRORES_PROFILE_422_HQ = 3,    /* FF_PROFILE_PRORES_HQ*/
+  FFM_PRORES_PROFILE_422_HQ = 3,    /* FF_PROFILE_PRORES_HQ */
   FFM_PRORES_PROFILE_4444 = 4,      /* FF_PROFILE_PRORES_4444 */
   FFM_PRORES_PROFILE_4444_XQ = 5,   /* FF_PROFILE_PRORES_XQ */
 } eFFMpegProresProfile;
@@ -218,6 +215,7 @@ enum {
   SCE_LAY_AO = 1 << 7,
   SCE_LAY_VOLUMES = 1 << 8,
   SCE_LAY_MOTION_BLUR = 1 << 9,
+  SCE_LAY_GREASE_PENCIL = 1 << 10,
 
   /* Flags between (1 << 9) and (1 << 15) are set to 1 already, for future options. */
 
@@ -305,6 +303,8 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_CRYPTOMATTE_OBJECT "CryptoObject"
 #define RE_PASSNAME_CRYPTOMATTE_ASSET "CryptoAsset"
 #define RE_PASSNAME_CRYPTOMATTE_MATERIAL "CryptoMaterial"
+
+#define RE_PASSNAME_GREASE_PENCIL "GreasePencil"
 
 /** \} */
 
@@ -1496,15 +1496,14 @@ typedef struct UnifiedPaintSettings {
 typedef enum {
   UNIFIED_PAINT_SIZE = (1 << 0),
   UNIFIED_PAINT_ALPHA = (1 << 1),
+  /** Only used if unified size is enabled, mirrors the brush flag #BRUSH_LOCK_SIZE. */
+  UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1 << 2),
+  UNIFIED_PAINT_FLAG_UNUSED_0 = (1 << 3),
+  UNIFIED_PAINT_FLAG_UNUSED_1 = (1 << 4),
   UNIFIED_PAINT_WEIGHT = (1 << 5),
   UNIFIED_PAINT_COLOR = (1 << 6),
   UNIFIED_PAINT_INPUT_SAMPLES = (1 << 7),
 
-  /** Only used if unified size is enabled, mirrors the brush flag #BRUSH_LOCK_SIZE. */
-  UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1 << 2),
-  UNIFIED_PAINT_FLAG_UNUSED_0 = (1 << 3),
-
-  UNIFIED_PAINT_FLAG_UNUSED_1 = (1 << 4),
 } eUnifiedPaintSettingsFlags;
 
 typedef struct CurvePaintSettings {
@@ -2055,6 +2054,11 @@ enum {
  * \{ */
 
 typedef struct Scene {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_SCE;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
@@ -2211,9 +2215,8 @@ enum {
   R_BORDER = 1 << 9,
   R_MODE_UNUSED_10 = 1 << 10, /* cleared */
   R_CROP = 1 << 11,
-  /** Disable camera switching: runtime (DURIAN_CAMERA_SWITCH) */
-  R_NO_CAMERA_SWITCH = 1 << 12,
-  R_MODE_UNUSED_13 = 1 << 13, /* cleared */
+  R_NO_CAMERA_SWITCH = 1 << 12, /* Disable cache switching */
+  R_MODE_UNUSED_13 = 1 << 13,   /* cleared */
   R_MBLUR = 1 << 14,
   /* unified was here */
   R_MODE_UNUSED_16 = 1 << 16, /* cleared */
