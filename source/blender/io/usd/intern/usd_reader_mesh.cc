@@ -428,14 +428,15 @@ void USDMeshReader::read_vertex_creases(Mesh *mesh, const double motionSampleTim
 
   /* It is fine to have fewer indices than vertices, but never the other way other. */
   if (usd_corner_indices.size() > mesh->verts_num) {
-    CLOG_WARN(&LOG, "Too many vertex creases for mesh %s", prim_path_.GetAsString().c_str());
+    CLOG_WARN(
+        &LOG, "Too many vertex creases for mesh %s", this->prim_path().GetAsString().c_str());
     return;
   }
 
   if (usd_corner_indices.size() != usd_corner_sharpnesses.size()) {
     CLOG_WARN(&LOG,
               "Vertex crease and sharpness count mismatch for mesh %s",
-              prim_path_.GetAsString().c_str());
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
@@ -475,12 +476,13 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
   if (usd_crease_lengths.size() != usd_crease_sharpness.size()) {
     CLOG_WARN(&LOG,
               "Edge crease and sharpness count mismatch for mesh %s",
-              prim_path_.GetAsString().c_str());
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
   /* Build mapping from vert pairs to edge index. */
   using EdgeMap = VectorSet<OrderedEdge,
+                            16,
                             DefaultProbingStrategy,
                             DefaultHash<OrderedEdge>,
                             DefaultEquality<OrderedEdge>,
@@ -512,14 +514,14 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
       CLOG_WARN(&LOG,
                 "Edge crease length %d is invalid for mesh %s",
                 length,
-                prim_path_.GetAsString().c_str());
+                this->prim_path().GetAsString().c_str());
       break;
     }
 
     if (index_start + length > crease_indices.size()) {
       CLOG_WARN(&LOG,
                 "Edge crease lengths are out of bounds for mesh %s",
-                prim_path_.GetAsString().c_str());
+                this->prim_path().GetAsString().c_str());
       break;
     }
 
@@ -569,7 +571,7 @@ void USDMeshReader::process_normals_vertex_varying(Mesh *mesh)
   if (normals_.size() != mesh->verts_num) {
     CLOG_WARN(&LOG,
               "Vertex varying normals count mismatch for mesh '%s'",
-              prim_path_.GetAsString().c_str());
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
@@ -586,7 +588,8 @@ void USDMeshReader::process_normals_face_varying(Mesh *mesh) const
 
   /* Check for normals count mismatches to prevent crashes. */
   if (normals_.size() != mesh->corners_num) {
-    CLOG_WARN(&LOG, "Loop normal count mismatch for mesh '%s'", prim_path_.GetAsString().c_str());
+    CLOG_WARN(
+        &LOG, "Loop normal count mismatch for mesh '%s'", this->prim_path().GetAsString().c_str());
     return;
   }
 
@@ -621,8 +624,9 @@ void USDMeshReader::process_normals_uniform(Mesh *mesh) const
 
   /* Check for normals count mismatches to prevent crashes. */
   if (normals_.size() != mesh->faces_num) {
-    CLOG_WARN(
-        &LOG, "Uniform normal count mismatch for mesh '%s'", prim_path_.GetAsString().c_str());
+    CLOG_WARN(&LOG,
+              "Uniform normal count mismatch for mesh '%s'",
+              this->prim_path().GetAsString().c_str());
     return;
   }
 

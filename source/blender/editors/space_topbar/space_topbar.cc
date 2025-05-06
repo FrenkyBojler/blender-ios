@@ -226,7 +226,7 @@ static void undo_history_draw_menu(const bContext *C, Menu *menu)
     undo_step_count += 1;
   }
 
-  uiLayout *split = uiLayoutSplit(menu->layout, 0.0f, false);
+  uiLayout *split = &menu->layout->split(0.0f, false);
   uiLayout *column = nullptr;
 
   const int col_size = 20 + (undo_step_count / 12);
@@ -241,7 +241,7 @@ static void undo_history_draw_menu(const bContext *C, Menu *menu)
       continue;
     }
     if (!(undo_step_count % col_size)) {
-      column = uiLayoutColumn(split, false);
+      column = &split->column(false);
     }
     const bool is_active = (us == wm->undo_stack->step_active);
     uiLayout *row = &column->row(false);

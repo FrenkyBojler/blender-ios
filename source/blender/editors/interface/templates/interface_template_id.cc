@@ -621,7 +621,7 @@ ID *ui_template_id_liboverride_hierarchy_make(
     /* In theory we could rely on setting/updating the RNA ID pointer property (as done by calling
      * code) to be enough.
      *
-     * However, some rare ID pointers properties (like the 'active object in viewlayer' one used
+     * However, some rare ID pointers properties (like the "active object in view-layer" one used
      * for the Object templateID in the Object properties) use notifiers that do not enforce a
      * rebuild of outliner trees, leading to crashes.
      *
@@ -1785,7 +1785,7 @@ void uiTemplateAnyID(uiLayout *layout,
   /* Start drawing UI Elements using standard defines */
 
   /* NOTE: split amount here needs to be synced with normal labels */
-  uiLayout *split = uiLayoutSplit(layout, 0.33f, false);
+  uiLayout *split = &layout->split(0.33f, false);
 
   /* FIRST PART ................................................ */
   uiLayout *row = &split->row(false);
