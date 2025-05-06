@@ -4911,17 +4911,24 @@ static int ui_do_but_TEX(
     else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL) &&
              !but->drawstr.empty())
     {
-      char head[1024], tail[1024];
+      const size_t str_len = but->drawstr.length() + 2;
+      char *head = new char[str_len];
+      char *tail = new char[str_len];
       ushort digits;
+
       int num = BLI_path_sequence_decode(
-          but->drawstr.c_str(), head, sizeof(head), tail, sizeof(tail), &digits);
+          but->drawstr.c_str(), head, str_len, tail, str_len, &digits);
       if (num == 0 && digits == 0) {
         BLI_str_rstrip_digits(head);
       }
       num += (event->type == WHEELUPMOUSE) ? 1 : -1;
-      char string[1024];
-      BLI_path_sequence_encode(string, sizeof(string), head, tail, digits, num);
+      char *string = new char[str_len];
+      BLI_path_sequence_encode(string, str_len, head, tail, digits, num);
       ui_but_set_string_interactive(C, but, string);
+      delete[] string;
+      delete[] head;
+      delete[] tail;
+
       return WM_UI_HANDLER_BREAK;
     }
   }
