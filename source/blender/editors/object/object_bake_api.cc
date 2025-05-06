@@ -6,6 +6,7 @@
  * \ingroup edobj
  */
 
+#include <cmath>
 #include <sys/stat.h>
 
 #include "MEM_guardedalloc.h"
@@ -1018,8 +1019,8 @@ static bool bake_targets_init_vertex_colors(Main *bmain,
   targets->materials_num = ob->totcol;
 
   BakeImage *bk_image = &targets->images[0];
-  bk_image->width = mesh->corners_num;
-  bk_image->height = 1;
+  bk_image->width = std::ceil(std::sqrt(mesh->corners_num));
+  bk_image->height = bk_image->width;
   bk_image->offset = 0;
   bk_image->image = nullptr;
 
@@ -1081,8 +1082,7 @@ static void bake_targets_populate_pixels_color_attributes(BakeTargets *targets,
 
   /* Populate through adjacent triangles, first triangle wins. */
   const int corner_tris_num = poly_to_tri_count(mesh_eval->faces_num, mesh_eval->corners_num);
-  int3 *corner_tris = static_cast<int3 *>(
-      MEM_mallocN(sizeof(*corner_tris) * corner_tris_num, __func__));
+  int3 *corner_tris = MEM_malloc_arrayN<int3>(corner_tris_num, __func__);
 
   const Span<int> corner_verts = mesh_eval->corner_verts();
   bke::mesh::corner_tris_calc(mesh_eval->vert_positions(),
@@ -1474,7 +1474,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
         goto cleanup;
       }
       else {
-        ob_cage_eval = DEG_get_evaluated_object(depsgraph, ob_cage);
+        ob_cage_eval = DEG_get_evaluated(depsgraph, ob_cage);
         if (ob_cage_eval->id.orig_id != &ob_cage->id) {
           BKE_reportf(reports,
                       RPT_ERROR,
@@ -1502,7 +1502,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
 
   /* Make sure depsgraph is up to date. */
   BKE_scene_graph_update_tagged(depsgraph, bmain);
-  ob_low_eval = DEG_get_evaluated_object(depsgraph, ob_low);
+  ob_low_eval = DEG_get_evaluated(depsgraph, ob_low);
 
   /* get the mesh as it arrives in the renderer */
   me_low_eval = bake_mesh_new_from_object(depsgraph, ob_low_eval, preserve_origindex);
@@ -1514,8 +1514,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
 
   /* Populate the pixel array with the face data. Except if we use a cage, then
    * it is populated later with the cage mesh (smoothed version of the mesh). */
-  pixel_array_low = static_cast<BakePixel *>(
-      MEM_mallocN(sizeof(BakePixel) * targets.pixels_num, "bake pixels low poly"));
+  pixel_array_low = MEM_malloc_arrayN<BakePixel>(targets.pixels_num, "bake pixels low poly");
   if ((bkr->is_selected_to_active && (ob_cage == nullptr) && bkr->is_cage) == false) {
     if (!CustomData_has_layer(&me_low_eval->corner_data, CD_PROP_FLOAT2)) {
       BKE_reportf(reports,
@@ -1597,7 +1596,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
         continue;
       }
 
-      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_iter);
+      Object *ob_eval = DEG_get_evaluated(depsgraph, ob_iter);
       if (ob_eval->id.orig_id != &ob_iter->id) {
         BKE_reportf(reports,
                     RPT_ERROR,
@@ -1653,8 +1652,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
     ob_low_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT | BASE_ENABLED_RENDER);
 
     /* populate the pixel arrays with the corresponding face data for each high poly object */
-    pixel_array_high = static_cast<BakePixel *>(
-        MEM_mallocN(sizeof(BakePixel) * targets.pixels_num, "bake pixels high poly"));
+    pixel_array_high = MEM_malloc_arrayN<BakePixel>(targets.pixels_num, "bake pixels high poly");
 
     if (!RE_bake_pixels_populate_from_objects(
             me_low_eval,

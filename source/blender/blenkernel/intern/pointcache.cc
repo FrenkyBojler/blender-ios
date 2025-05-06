@@ -1512,7 +1512,7 @@ static int ptcache_file_compressed_read(PTCacheFile *pf, uchar *result, uint len
   size_t out_len = len;
 #endif
   uchar *in;
-  uchar *props = static_cast<uchar *>(MEM_callocN(sizeof(char[16]), "tmp"));
+  uchar *props = MEM_calloc_arrayN<uchar>(16, "tmp");
 
   ptcache_file_read(pf, &compressed, 1, sizeof(uchar));
   if (compressed) {
@@ -1557,7 +1557,7 @@ static int ptcache_file_compressed_write(
   int r = 0;
   uchar compressed = 0;
   size_t out_len = 0;
-  uchar *props = static_cast<uchar *>(MEM_callocN(sizeof(char[16]), "tmp"));
+  uchar *props = MEM_calloc_arrayN<uchar>(16, "tmp");
   size_t sizeOfIt = 5;
 
   (void)mode; /* unused when building w/o compression */
@@ -3358,7 +3358,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
            * PTCacheID is in a fully evaluated state. */
           PTCacheID pid_eval;
           Object *ob = reinterpret_cast<Object *>(pid->owner_id);
-          Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+          Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
           ParticleSystem *psys = static_cast<ParticleSystem *>(pid->calldata);
           ParticleSystem *psys_eval = psys_eval_get(depsgraph, ob, psys);
           BKE_ptcache_id_from_particles(&pid_eval, ob_eval, psys_eval);
@@ -3401,7 +3401,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
                * PTCacheID is in a fully evaluated state. */
               PTCacheID pid_eval;
               Object *ob = reinterpret_cast<Object *>(pid->owner_id);
-              Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+              Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
               ParticleSystem *psys = static_cast<ParticleSystem *>(pid->calldata);
               ParticleSystem *psys_eval = psys_eval_get(depsgraph, ob, psys);
               BKE_ptcache_id_from_particles(&pid_eval, ob_eval, psys_eval);

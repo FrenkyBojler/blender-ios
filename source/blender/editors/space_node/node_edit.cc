@@ -31,6 +31,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_scene_runtime.hh"
+#include "BKE_screen.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -737,7 +738,9 @@ void snode_set_context(const bContext &C)
   if (snode->nodetree != ntree || snode->id != id || snode->from != from ||
       (snode->treepath.last == nullptr && ntree))
   {
-    ED_node_tree_start(snode, ntree, id, from);
+    ScrArea *area = CTX_wm_area(&C);
+    ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+    ED_node_tree_start(region, snode, ntree, id, from);
   }
 }
 
@@ -1244,7 +1247,8 @@ bool node_is_previewable(const SpaceNode &snode, const bNodeTree &ntree, const b
     return false;
   }
   if (ntree.type == NTREE_SHADER) {
-    return USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) && !node.is_frame();
+    return USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) && !node.is_frame() &&
+           snode.shaderfrom == SNODE_SHADER_OBJECT;
   }
   return node.typeinfo->flag & NODE_PREVIEW;
 }
@@ -2369,8 +2373,7 @@ void NODE_OT_node_copy_color(wmOperatorType *ot)
 
 static bool node_shader_script_update_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  const RenderEngineType *type = RE_engines_find(scene->r.engine);
+  RenderEngineType *type = CTX_data_engine_type(C);
   SpaceNode *snode = CTX_wm_space_node(C);
 
   /* Test if we have a render engine that supports shaders scripts. */
@@ -2393,55 +2396,16 @@ static bool node_shader_script_update_poll(bContext *C)
     }
   }
 
-  /* See if we have a text datablock in context. */
-  Text *text = (Text *)CTX_data_pointer_get_type(C, "edit_text", &RNA_Text).data;
-  if (text) {
-    return true;
-  }
-
-  /* We don't check if text datablock is actually in use, too slow for poll. */
-
   return false;
-}
-
-/* recursively check for script nodes in groups using this text and update */
-static bool node_shader_script_update_text_recursive(RenderEngine *engine,
-                                                     RenderEngineType *type,
-                                                     bNodeTree *ntree,
-                                                     Text *text,
-                                                     VectorSet<bNodeTree *> &done_trees)
-{
-  bool found = false;
-
-  done_trees.add_new(ntree);
-
-  /* Update each script that is using this text datablock. */
-  for (bNode *node : ntree->all_nodes()) {
-    if (node->type_legacy == NODE_GROUP) {
-      bNodeTree *ngroup = (bNodeTree *)node->id;
-      if (ngroup && !done_trees.contains(ngroup)) {
-        found |= node_shader_script_update_text_recursive(engine, type, ngroup, text, done_trees);
-      }
-    }
-    else if (node->type_legacy == SH_NODE_SCRIPT && node->id == &text->id) {
-      type->update_script_node(engine, ntree, node);
-      found = true;
-    }
-  }
-
-  return found;
 }
 
 static wmOperatorStatus node_shader_script_update_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  RenderEngineType *type = CTX_data_engine_type(C);
   SpaceNode *snode = CTX_wm_space_node(C);
   PointerRNA nodeptr = CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript);
-  bool found = false;
 
   /* setup render engine */
-  RenderEngineType *type = RE_engines_find(scene->r.engine);
   RenderEngine *engine = RE_engine_create(type);
   engine->reports = op->reports;
 
@@ -2456,39 +2420,12 @@ static wmOperatorStatus node_shader_script_update_exec(bContext *C, wmOperator *
     node = bke::node_get_active(*snode->edittree);
   }
 
-  if (node) {
-    /* Update single node. */
-    type->update_script_node(engine, ntree_base, node);
-
-    found = true;
-  }
-  else {
-    /* Update all nodes using text datablock. */
-    Text *text = (Text *)CTX_data_pointer_get_type(C, "edit_text", &RNA_Text).data;
-
-    if (text) {
-
-      VectorSet<bNodeTree *> done_trees;
-
-      FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-        if (ntree->type == NTREE_SHADER) {
-          if (!done_trees.contains(ntree)) {
-            found |= node_shader_script_update_text_recursive(
-                engine, type, ntree, text, done_trees);
-          }
-        }
-      }
-      FOREACH_NODETREE_END;
-
-      if (!found) {
-        BKE_report(op->reports, RPT_INFO, "Text not used by any node, no update done");
-      }
-    }
-  }
+  /* Update node. */
+  type->update_script_node(engine, ntree_base, node);
 
   RE_engine_free(engine);
 
-  return (found) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  return OPERATOR_FINISHED;
 }
 
 void NODE_OT_shader_script_update(wmOperatorType *ot)

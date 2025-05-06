@@ -277,7 +277,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropSep(layout, true);
   uiItemR(layout, ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *col = &layout->column(true);
 
   if (RNA_enum_get(ptr, "mode") == GP_LENGTH_RELATIVE) {
     uiItemR(col, ptr, "start_factor", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
@@ -295,7 +295,7 @@ static void panel_draw(const bContext *C, Panel *panel)
               C, layout, ptr, "open_random_panel", ptr, "use_random", IFACE_("Randomize"))
               .body)
   {
-    uiLayout *subcol = uiLayoutColumn(random_layout, false);
+    uiLayout *subcol = &random_layout->column(false);
     uiLayoutSetPropSep(subcol, true);
     uiLayoutSetActive(subcol, RNA_boolean_get(ptr, "use_random"));
 
@@ -312,7 +312,7 @@ static void panel_draw(const bContext *C, Panel *panel)
               C, layout, ptr, "open_curvature_panel", ptr, "use_curvature", IFACE_("Curvature"))
               .body)
   {
-    uiLayout *subcol = uiLayoutColumn(curvature_layout, false);
+    uiLayout *subcol = &curvature_layout->column(false);
     uiLayoutSetPropSep(subcol, true);
     uiLayoutSetActive(subcol, RNA_boolean_get(ptr, "use_curvature"));
 
@@ -322,8 +322,8 @@ static void panel_draw(const bContext *C, Panel *panel)
     uiItemR(subcol, ptr, "invert_curvature", UI_ITEM_NONE, IFACE_("Invert"), ICON_NONE);
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

@@ -514,7 +514,7 @@ static bool node_update_basis_socket(const bContext &C,
     uiLayoutSetActive(layout, false);
   }
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
   uiLayoutSetContextPointer(row, "node", &nodeptr);
 
@@ -3151,7 +3151,8 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_SIMULATION_OUTPUT,
             GEO_NODE_REPEAT_OUTPUT,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
-            GEO_NODE_EVALUATE_CLOSURE)))
+            GEO_NODE_EVALUATE_CLOSURE) ||
+       StringRef(node.idname).startswith("GeometryNodeImport")))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
         tree_draw_ctx, snode, node);
@@ -3617,18 +3618,23 @@ static void node_draw_basis(const bContext &C,
     iconofs -= iconbutw;
     const bool is_active = node.flag & NODE_DO_OUTPUT;
     UI_block_emboss_set(&block, blender::ui::EmbossType::None);
-    uiDefIconBut(&block,
-                 UI_BTYPE_BUT,
-                 0,
-                 is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
-                 iconofs,
-                 rct.ymax - NODE_DY,
-                 iconbutw,
-                 UI_UNIT_Y,
-                 nullptr,
-                 0,
-                 0,
-                 "");
+    uiBut *but = uiDefIconBut(&block,
+                              UI_BTYPE_BUT,
+                              0,
+                              is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
+                              iconofs,
+                              rct.ymax - NODE_DY,
+                              iconbutw,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              "");
+
+    UI_but_func_set(but,
+                    node_toggle_button_cb,
+                    POINTER_FROM_INT(node.identifier),
+                    (void *)"NODE_OT_activate_viewer");
 
     uiDefIconBut(&block,
                  UI_BTYPE_BUT,

@@ -247,18 +247,18 @@ static void panel_draw(const bContext *C, Panel *panel)
     uiItemR(layout, ptr, "use_uniform_opacity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     const char *text = (use_uniform_opacity) ? IFACE_("Opacity") : IFACE_("Opacity Factor");
 
-    uiLayout *row = uiLayoutRow(layout, true);
+    uiLayout *row = &layout->row(true);
     uiLayoutSetActive(row, !use_weight_as_factor || use_uniform_opacity);
     uiItemR(row, ptr, "color_factor", UI_ITEM_NONE, text, ICON_NONE);
     if (!use_uniform_opacity) {
-      uiLayout *sub = uiLayoutRow(row, true);
+      uiLayout *sub = &row->row(true);
       uiLayoutSetActive(sub, true);
       uiItemR(row, ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
     }
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

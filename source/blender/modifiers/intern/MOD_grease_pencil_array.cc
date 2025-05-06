@@ -295,7 +295,7 @@ static void panel_draw(const bContext *C, Panel *panel)
                                                       IFACE_("Relative Offset"))
                           .body)
   {
-    uiLayout *col = uiLayoutColumn(sub, false);
+    uiLayout *col = &sub->column(false);
     uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_relative_offset"));
     uiItemR(col, ptr, "relative_offset", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
   }
@@ -309,7 +309,7 @@ static void panel_draw(const bContext *C, Panel *panel)
                                                       IFACE_("Constant Offset"))
                           .body)
   {
-    uiLayout *col = uiLayoutColumn(sub, false);
+    uiLayout *col = &sub->column(false);
     uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_constant_offset"));
     uiItemR(col, ptr, "constant_offset", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
   }
@@ -323,14 +323,12 @@ static void panel_draw(const bContext *C, Panel *panel)
                                                       IFACE_("Object Offset"))
                           .body)
   {
-    uiLayout *col = uiLayoutColumn(sub, false);
+    uiLayout *col = &sub->column(false);
     uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_object_offset"));
     uiItemR(col, ptr, "offset_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
   }
 
-  if (uiLayout *sub = uiLayoutPanelProp(
-          C, layout, ptr, "open_randomize_panel", IFACE_("Randomize")))
-  {
+  if (uiLayout *sub = layout->panel_prop(C, ptr, "open_randomize_panel", IFACE_("Randomize"))) {
     uiLayoutSetPropSep(sub, true);
     uiItemR(sub, ptr, "random_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
     uiItemR(sub, ptr, "random_rotation", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
@@ -339,8 +337,8 @@ static void panel_draw(const bContext *C, Panel *panel)
     uiItemR(sub, ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

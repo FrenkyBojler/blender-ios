@@ -278,7 +278,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, ptr, "factor", UI_ITEM_NONE, IFACE_("Position"), ICON_NONE);
   uiItemR(col,
           ptr,
@@ -297,7 +297,7 @@ static void panel_draw(const bContext *C, Panel *panel)
               C, layout, ptr, "open_random_panel", ptr, "use_random", IFACE_("Random"))
               .body)
   {
-    uiLayout *random_col = uiLayoutColumn(random_layout, false);
+    uiLayout *random_col = &random_layout->column(false);
     uiLayoutSetActive(random_col, RNA_boolean_get(ptr, "use_random"));
 
     uiItemR(random_col, ptr, "random_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -307,8 +307,8 @@ static void panel_draw(const bContext *C, Panel *panel)
     }
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);

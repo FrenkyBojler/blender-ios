@@ -532,7 +532,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 
 static bool PE_create_shape_tree(PEData *data, Object *shapeob)
 {
-  Object *shapeob_eval = DEG_get_evaluated_object(data->depsgraph, shapeob);
+  Object *shapeob_eval = DEG_get_evaluated(data->depsgraph, shapeob);
   const Mesh *mesh = BKE_object_get_evaluated_mesh(shapeob_eval);
 
   if (!mesh) {
@@ -2357,7 +2357,7 @@ static void pe_select_cache_free_generic_userdata(void *data)
 
 static void pe_select_cache_init_with_generic_userdata(bContext *C, wmGenericUserData *wm_userdata)
 {
-  PEData *data = static_cast<PEData *>(MEM_callocN(sizeof(*data), __func__));
+  PEData *data = MEM_callocN<PEData>(__func__);
   wm_userdata->data = data;
   wm_userdata->free_fn = pe_select_cache_free_generic_userdata;
   wm_userdata->use_free = true;
@@ -2778,8 +2778,7 @@ static void rekey_particle(PEData *data, int pa_index)
 
   pa->flag |= PARS_REKEY;
 
-  key = new_keys = static_cast<HairKey *>(
-      MEM_callocN(data->totrekey * sizeof(HairKey), "Hair re-key keys"));
+  key = new_keys = MEM_calloc_arrayN<HairKey>(data->totrekey, "Hair re-key keys");
 
   okey = pa->hair;
   /* root and tip stay the same */
@@ -2944,10 +2943,9 @@ static int remove_tagged_particles(Object *ob, ParticleSystem *psys, int mirror)
 
   if (new_totpart != psys->totpart) {
     if (new_totpart) {
-      npa = new_pars = static_cast<ParticleData *>(
-          MEM_callocN(new_totpart * sizeof(ParticleData), "ParticleData array"));
-      npoint = new_points = static_cast<PTCacheEditPoint *>(
-          MEM_callocN(new_totpart * sizeof(PTCacheEditPoint), "PTCacheEditKey array"));
+      npa = new_pars = MEM_calloc_arrayN<ParticleData>(new_totpart, "ParticleData array");
+      npoint = new_points = MEM_calloc_arrayN<PTCacheEditPoint>(new_totpart,
+                                                                "PTCacheEditKey array");
 
       if (ELEM(nullptr, new_pars, new_points)) {
         /* allocation error! */
@@ -3049,10 +3047,8 @@ static void remove_tagged_keys(Depsgraph *depsgraph, Object *ob, ParticleSystem 
     }
 
     if (new_totkey != pa->totkey) {
-      nhkey = new_hkeys = static_cast<HairKey *>(
-          MEM_callocN(new_totkey * sizeof(HairKey), "HairKeys"));
-      nkey = new_keys = static_cast<PTCacheEditKey *>(
-          MEM_callocN(new_totkey * sizeof(PTCacheEditKey), "particle edit keys"));
+      nhkey = new_hkeys = MEM_calloc_arrayN<HairKey>(new_totkey, "HairKeys");
+      nkey = new_keys = MEM_calloc_arrayN<PTCacheEditKey>(new_totkey, "particle edit keys");
 
       hkey = pa->hair;
       LOOP_KEYS {
@@ -3138,10 +3134,9 @@ static void subdivide_particle(PEData *data, int pa_index)
 
   pa->flag |= PARS_REKEY;
 
-  nkey = new_keys = static_cast<HairKey *>(
-      MEM_callocN((pa->totkey + totnewkey) * sizeof(HairKey), "Hair subdivide keys"));
-  nekey = new_ekeys = static_cast<PTCacheEditKey *>(
-      MEM_callocN((pa->totkey + totnewkey) * sizeof(PTCacheEditKey), "Hair subdivide edit keys"));
+  nkey = new_keys = MEM_calloc_arrayN<HairKey>((pa->totkey + totnewkey), "Hair subdivide keys");
+  nekey = new_ekeys = MEM_calloc_arrayN<PTCacheEditKey>((pa->totkey + totnewkey),
+                                                        "Hair subdivide edit keys");
 
   key = pa->hair;
   endtime = key[pa->totkey - 1].time;
@@ -3398,8 +3393,10 @@ void PARTICLE_OT_weight_set(wmOperatorType *ot)
 /** \name Cursor Drawing
  * \{ */
 
-static void brush_drawcursor(
-    bContext *C, int x, int y, float /*x_tilt*/, float /*y_tilt*/, void * /*customdata*/)
+static void brush_drawcursor(bContext *C,
+                             const blender::int2 &xy,
+                             const blender::float2 & /*tilt*/,
+                             void * /*customdata*/)
 {
   Scene *scene = CTX_data_scene(C);
   ParticleEditSettings *pset = PE_settings(scene);
@@ -3420,7 +3417,7 @@ static void brush_drawcursor(
     GPU_line_smooth(true);
     GPU_blend(GPU_BLEND_ALPHA);
 
-    imm_draw_circle_wire_2d(pos, float(x), float(y), pe_brush_size_get(scene, brush), 40);
+    imm_draw_circle_wire_2d(pos, float(xy.x), float(xy.y), pe_brush_size_get(scene, brush), 40);
 
     GPU_blend(GPU_BLEND_NONE);
     GPU_line_smooth(false);
@@ -3593,10 +3590,8 @@ static void PE_mirror_x(Depsgraph *depsgraph, Scene *scene, Object *ob, int tagg
                                                                      CD_MFACE);
 
     /* allocate new arrays and copy existing */
-    new_pars = static_cast<ParticleData *>(
-        MEM_callocN(newtotpart * sizeof(ParticleData), "ParticleData new"));
-    new_points = static_cast<PTCacheEditPoint *>(
-        MEM_callocN(newtotpart * sizeof(PTCacheEditPoint), "PTCacheEditPoint new"));
+    new_pars = MEM_calloc_arrayN<ParticleData>(newtotpart, "ParticleData new");
+    new_points = MEM_calloc_arrayN<PTCacheEditPoint>(newtotpart, "PTCacheEditPoint new");
 
     if (psys->particles) {
       memcpy(new_pars, psys->particles, totpart * sizeof(ParticleData));
@@ -4175,7 +4170,7 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
   if (mesh == nullptr) {
     psys_disable_all(ob);
 
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     mesh = BKE_object_get_evaluated_mesh(ob_eval);
     if (mesh == nullptr) {
       return 0;
@@ -4442,8 +4437,7 @@ static int brush_add(const bContext *C, PEData *data, short number)
     return 0;
   }
 
-  add_pars = static_cast<ParticleData *>(
-      MEM_callocN(number * sizeof(ParticleData), "ParticleData add"));
+  add_pars = MEM_calloc_arrayN<ParticleData>(number, "ParticleData add");
 
   rng = BLI_rng_new_srandom(psys->seed + data->mval[0] + data->mval[1]);
 
@@ -4510,11 +4504,9 @@ static int brush_add(const bContext *C, PEData *data, short number)
     int newtotpart = totpart + n;
     float hairmat[4][4], cur_co[3];
     KDTree_3d *tree = nullptr;
-    ParticleData *pa, *new_pars = static_cast<ParticleData *>(
-                          MEM_callocN(newtotpart * sizeof(ParticleData), "ParticleData new"));
-    PTCacheEditPoint *point,
-        *new_points = static_cast<PTCacheEditPoint *>(
-            MEM_callocN(newtotpart * sizeof(PTCacheEditPoint), "PTCacheEditPoint array new"));
+    ParticleData *pa, *new_pars = MEM_calloc_arrayN<ParticleData>(newtotpart, "ParticleData new");
+    PTCacheEditPoint *point, *new_points = MEM_calloc_arrayN<PTCacheEditPoint>(
+                                 newtotpart, "PTCacheEditPoint array new");
     PTCacheEditKey *key;
     HairKey *hkey;
 
@@ -4565,10 +4557,8 @@ static int brush_add(const bContext *C, PEData *data, short number)
 
     for (i = totpart; i < newtotpart; i++, pa++, point++) {
       memcpy(pa, add_pars + i - totpart, sizeof(ParticleData));
-      pa->hair = static_cast<HairKey *>(
-          MEM_callocN(pset->totaddkey * sizeof(HairKey), "BakeKey key add"));
-      key = point->keys = static_cast<PTCacheEditKey *>(
-          MEM_callocN(pset->totaddkey * sizeof(PTCacheEditKey), "PTCacheEditKey add"));
+      pa->hair = MEM_calloc_arrayN<HairKey>(pset->totaddkey, "BakeKey key add");
+      key = point->keys = MEM_calloc_arrayN<PTCacheEditKey>(pset->totaddkey, "PTCacheEditKey add");
       point->totkey = pa->totkey = pset->totaddkey;
 
       for (k = 0, hkey = pa->hair; k < pa->totkey; k++, hkey++, key++) {
@@ -5316,7 +5306,7 @@ void PARTICLE_OT_shape_cut(wmOperatorType *ot)
 void PE_create_particle_edit(
     Depsgraph *depsgraph, Scene *scene, Object *ob, PointCache *cache, ParticleSystem *psys)
 {
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   PTCacheEdit *edit;
   ParticleSystemModifierData *psmd = (psys) ? psys_get_modifier(ob, psys) : nullptr;
   ParticleSystemModifierData *psmd_eval = nullptr;
@@ -5494,7 +5484,7 @@ void ED_object_particle_edit_mode_enter_ex(Depsgraph *depsgraph, Scene *scene, O
     /* Make sure pointer to the evaluated modifier data is up to date,
      * with possible changes applied when object was outside of the
      * edit mode. */
-    Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *object_eval = DEG_get_evaluated(depsgraph, ob);
     edit->psmd_eval = (ParticleSystemModifierData *)BKE_modifiers_findby_name(
         object_eval, edit->psmd->modifier.name);
     recalc_emitter_field(depsgraph, ob, edit->psys);
