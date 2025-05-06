@@ -43,7 +43,7 @@ static_assert(sizeof(Mutex) == 1);
 
 #else
 
-/** Use std::mutex as fallback when compiling without TBB. */
+/** Use std::mutex as a fallback when compiling without TBB. */
 using Mutex = std::mutex;
 
 #endif
