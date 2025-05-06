@@ -86,32 +86,32 @@ struct LoggedZoneGraphs {
  */
 class UpdateCounter {
  private:
-  uint32_t updateCount = 0;
+  uint32_t update_counter_ = 0;
 
  public:
-  bool operator==(const UpdateCounter &other) const
+  friend bool operator==(const UpdateCounter &a, const UpdateCounter &b)
   {
-    return this->updateCount == other.updateCount;
+    return a.update_counter_ == b.update_counter_;
   }
-
-  bool operator!=(const UpdateCounter &other) const
+  
+  friend bool operator!=(const UpdateCounter &a, const UpdateCounter &b)
   {
-    return !(*this == other);
+    return !(a == b);
   }
 
   void operator=(const UpdateCounter &other)
   {
-    this->updateCount = other.updateCount;
+    this->update_counter_ = other.update_counter_;
   }
 
   void merge(const UpdateCounter &other)
   {
-    this->updateCount += other.updateCount;
+    this->update_counter_ += other.update_counter_;
   }
 
   void count_update()
   {
-    updateCount++;
+    this->update_counter_++;
   }
 };
 
@@ -143,11 +143,11 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
 
   /**
    * Tracks updates to the node tree for shader node previews, by incrementing a counter
-   * on every update. Modifications migth be needed to adapt for other cases.
+   * on every update. Modifications might be needed to adapt for other cases.
 
    * `whole_tree_update_counter` is changed when the previews of the whole tree needs to be updated
    * `any_node_updatecounter` is changed when at least one node preview needs to be updated (to
-   avoid checking all nodes every times)
+   * avoid checking all nodes every times)
    */
   UpdateCounter whole_tree_update_counter;
   UpdateCounter any_node_updatecounter;

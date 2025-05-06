@@ -350,7 +350,9 @@ class NodeTreeMainUpdater {
         if (result.output_changed) {
           for (const TreeNodePair &pair : dependent_trees) {
             add_node_tag(pair.first, pair.second, NTREE_CHANGED_NODE_OUTPUT);
-            nodes_preview_mark_dirty(*pair.first, Span<bNode *>(&pair.second, 1));
+            if (pair.first->type == NTREE_SHADER && !params_.disable_update_counting) {
+              this->nodes_preview_mark_dirty(*pair.first, Span<bNode *>(&pair.second, 1));
+            }
           }
         }
         if (result.interface_changed) {
@@ -536,7 +538,10 @@ class NodeTreeMainUpdater {
     if (ntree.tree_interface.is_changed()) {
       result.interface_changed = true;
     }
-    this->update_nodetree_previews_update_counter(ntree);
+    if (ntree.type == NTREE_SHADER && !params_.disable_update_counting) {
+      /* Those preview dirty states are only used for shader previews. */
+      this->update_nodetree_previews_update_counter(ntree);
+    }
 
 #ifndef NDEBUG
     /* Check the uniqueness of node identifiers. */
@@ -795,29 +800,8 @@ class NodeTreeMainUpdater {
     blender::bke::node_preview_remove_unused(&ntree);
   }
 
-  void shader_node_previews_mark_dirty()
-  {
-    if (params_.disable_update_counting) {
-      return;
-    }
-    for (const bNodeTree *ntree : update_result_by_tree_.keys()) {
-      ntree->runtime->any_node_updatecounter.count_update();
-      LISTBASE_FOREACH (bNode *, node_iter, &ntree->nodes) {
-        if (node_iter->runtime->outputs.size() > 0 &&
-            node_iter->runtime->outputs[0]->type == SOCK_SHADER)
-        {
-          node_iter->runtime->updatecounter.count_update();
-        }
-      }
-    }
-  }
-
   void nodes_preview_mark_dirty(bNodeTree &ntree, Stack<bNode *> nodes_to_visit)
   {
-    if (ntree.type != NTREE_SHADER || params_.disable_update_counting) {
-      /* Those preview dirty states are only used for shader previews. */
-      return;
-    }
     ntree.runtime->any_node_updatecounter.count_update();
 
     /* Avoid visiting the same node twice. */
@@ -841,7 +825,7 @@ class NodeTreeMainUpdater {
           {
             /* If the displacement changed in the output, then all shader nodes needs to be
              * redrawn. */
-            shader_node_previews_mark_dirty();
+            child_node->owner_tree().runtime->whole_tree_update_counter.count_update();
           }
         }
       }
@@ -850,10 +834,6 @@ class NodeTreeMainUpdater {
 
   void update_nodetree_previews_update_counter(bNodeTree &ntree)
   {
-    if (ntree.type != NTREE_SHADER || params_.disable_update_counting) {
-      /* Those preview dirty states are only used for shader previews. */
-      return;
-    }
     Stack<bNode *> nodes_to_visit;
     const uint32_t allowed_flags = NTREE_CHANGED_NOTHING;
     LISTBASE_FOREACH (bNode *, node_iter, &ntree.nodes) {
