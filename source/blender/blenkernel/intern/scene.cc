@@ -993,7 +993,10 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     sce->cursor = View3DCursor{};
   }
 
-  /* We need a valid pointer to scene->nodetree to write to, so create a dummy node tree. */
+  /* We need a valid pointer to scene->nodetree to write to, so allocate a dummy byte to get a
+   * valid pointer address. */
+  /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not initialize the
+   * address of `scene->nodetree` anymore. */
   bNodeTree *dummy_nodetree;
   if (sce->compositing_nodetree) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
@@ -1109,6 +1112,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BLO_write_struct(writer, SceneRenderView, srv);
   }
 
+  /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not write an embedded
+   * nodetree at `scene->nodetree` anymore. */
   if (sce->compositing_nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_nodetree->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
@@ -1861,7 +1866,8 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
     BKE_id_copy_for_duplicate(bmain, (ID *)sce->gpd, duplicate_flags, copy_flags);
 
     /* Full copy of the compositing node tree. */
-    BKE_id_copy_for_duplicate(bmain, (ID *)sce->compositing_nodetree, duplicate_flags, copy_flags);
+    BKE_id_copy_for_duplicate(
+        bmain, reinterpret_cast<ID *>(sce->compositing_nodetree), duplicate_flags, copy_flags);
 
     /* Deep-duplicate collections and objects (using preferences' settings for which sub-data to
      * duplicate along the object itself). */

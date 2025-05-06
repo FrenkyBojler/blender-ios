@@ -26,6 +26,7 @@ from bpy.app.translations import (
     pgettext_tip as tip_,
     pgettext_rpt as rpt_,
 )
+from bpy.app.translations import pgettext_data as data_
 
 
 class NodeSetting(PropertyGroup):
@@ -665,7 +666,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
         return {'FINISHED'}
 
 
-class NODE_OT_Compositor_new_nodetree_assign(Operator):
+class NODE_OT_compositor_new_nodetree_assign(Operator):
     """Create a new compositor node tree and assign it to the active scene"""
 
     bl_idname = "node.new_compositor_node_tree_assign"
@@ -673,7 +674,7 @@ class NODE_OT_Compositor_new_nodetree_assign(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        ntree = bpy.data.node_groups.new("Compositing Nodetree", "CompositorNodeTree")
+        ntree = bpy.data.node_groups.new(data_("Compositing Nodetree"), "CompositorNodeTree")
         context.scene.compositing_node_tree = ntree
 
         render_layers = ntree.nodes.new(type="CompositorNodeRLayers")
@@ -721,5 +722,5 @@ classes = (
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,
     NODE_OT_viewer_shortcut_set,
-    NODE_OT_Compositor_new_nodetree_assign,
+    NODE_OT_compositor_new_nodetree_assign,
 )

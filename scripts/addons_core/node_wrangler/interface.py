@@ -430,8 +430,8 @@ def bgreset_menu_func(self, context):
 def save_viewer_menu_func(self, context):
     space = context.space_data
     if (space.type == 'NODE_EDITOR'
-            and space.compositing_node_tree is not None
-            and space.compositing_node_tree.library is None
+            and space.node_tree is not None
+            and space.node_tree.library is None
             and space.tree_type == 'CompositorNodeTree'
             and context.scene.compositing_node_tree.nodes.active
             and context.scene.compositing_node_tree.nodes.active.type == "VIEWER"):

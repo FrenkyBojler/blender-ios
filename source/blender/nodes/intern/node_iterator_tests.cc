@@ -166,6 +166,8 @@ TEST_F(NodeTest, tree_iterator_1mat_1scene)
   EXPECT_EQ(GS(iter_result.ids[0]->name), ID_SCE);
   EXPECT_STREQ(iter_result.ids[0]->name + 2, SCENE_NAME);
 
+  /* `scene->nodetree` is not managed by the scene anymore, i.e. `scene_free_data()` doesn't free
+   * its embedded nodetrees, so we need to free it manually here.  */
   bke::node_tree_free_embedded_tree(scene->nodetree);
   MEM_freeN(scene->nodetree);
   scene->nodetree = nullptr;
@@ -207,6 +209,8 @@ TEST_F(NodeTest, tree_iterator_1mat_3scenes)
   EXPECT_EQ(GS(iter_result.ids[1]->name), ID_MA);
   EXPECT_STREQ(iter_result.node_trees[1]->id.name + 2, MATERIAL_NTREE_NAME);
 
+  /* `scene->nodetree` is not managed by the scene anymore, i.e. `scene_free_data()` doesn't free
+   * its embedded nodetrees, so we need to free it manually here.  */
   bke::node_tree_free_embedded_tree(scene2->nodetree);
   MEM_freeN(scene2->nodetree);
   scene2->nodetree = nullptr;

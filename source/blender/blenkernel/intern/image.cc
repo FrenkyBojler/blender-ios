@@ -3031,13 +3031,6 @@ static void image_walk_id_all_users(
       }
       break;
     }
-    case ID_SCE: {
-      Scene *scene = (Scene *)id;
-      if (scene->compositing_nodetree && scene->use_nodes && !skip_nested_nodes) {
-        image_walk_ntree_all_users(scene->compositing_nodetree, &scene->id, customdata, callback);
-      }
-      break;
-    }
     default:
       break;
   }
