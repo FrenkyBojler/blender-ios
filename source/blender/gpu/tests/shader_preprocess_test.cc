@@ -281,8 +281,8 @@ static void test_preprocess_reference()
   using namespace std;
 
   {
-    string input = R"(void func() { auto &a = b; a.a = 0; c = a(a); })";
-    string expect = R"(void func() { b.a = 0; c = a(b); })";
+    string input = R"(void func() { auto &a = b; a.a = 0; c = a(a); a_c_a = a; })";
+    string expect = R"(void func() { b.a = 0; c = a(b); a_c_a = b; })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
