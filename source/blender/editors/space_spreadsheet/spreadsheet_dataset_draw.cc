@@ -995,41 +995,6 @@ std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
   return tree_view.sspreadsheet_.active_viewer_path_index == viewer_path_index_;
 }
 
-static void draw_active_viewer_path_item(const bContext &C, uiLayout &layout)
-{
-  bScreen *screen = CTX_wm_screen(&C);
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
-  ViewerPath &viewer_path = sspreadsheet.viewer_path;
-  ViewerPathElem *active_elem = static_cast<ViewerPathElem *>(
-      BLI_findlink(&viewer_path.path, sspreadsheet.active_viewer_path_index));
-  if (!active_elem) {
-    return;
-  }
-
-  PointerRNA active_elem_ptr = RNA_pointer_create_discrete(
-      &screen->id, &RNA_ViewerPathElem, active_elem);
-
-  uiLayout &col = layout.column(false);
-
-  /* Settings on viewer path can only be modified when it is pinned currently. Otherwise, the
-   * viewer path is derived from context. */
-  uiLayoutSetEnabled(&col, sspreadsheet.flag & SPREADSHEET_FLAG_PINNED);
-
-  switch (ViewerPathElemType(active_elem->type)) {
-    case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
-      uiItemR(&col, &active_elem_ptr, "iteration", UI_ITEM_NONE, IFACE_("Iteration"), ICON_NONE);
-      break;
-    }
-    case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
-      uiItemR(&col, &active_elem_ptr, "index", UI_ITEM_NONE, IFACE_("Index"), ICON_NONE);
-      break;
-    }
-    default: {
-      break;
-    }
-  }
-}
-
 static void data_source_panel_draw_without_context(uiLayout &layout)
 {
   uiItemL(&layout, IFACE_("No active context"), ICON_NONE);
@@ -1048,11 +1013,9 @@ static void draw_context_path_panel(const bContext &C, uiLayout &layout)
 {
   uiBlock *block = uiLayoutGetBlock(&layout);
   ui::AbstractTreeView *tree_view = UI_block_add_view(
-      *block, "Data Source", std::make_unique<ViewerPathTreeView>(C));
-  tree_view->set_context_menu_title("Data Source");
+      *block, "Context Path", std::make_unique<ViewerPathTreeView>(C));
+  tree_view->set_context_menu_title("Context Path");
   ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
-
-  draw_active_viewer_path_item(C, layout);
 }
 
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
