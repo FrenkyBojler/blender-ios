@@ -10,7 +10,6 @@
 #include "BLI_filereader.h"
 
 #include "BLO_bhead.hh"
-#include "BLO_blend_defs.hh"
 #include "BLO_blend_header.hh"
 
 BHeadType BlenderHeader::bhead_type() const

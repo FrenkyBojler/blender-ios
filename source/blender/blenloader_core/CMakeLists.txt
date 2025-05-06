@@ -12,7 +12,6 @@ set(SRC
   intern/blo_blend_header.cc
 
   BLO_bhead.hh
-  BLO_blend_defs.hh
   BLO_blend_header.hh
 )
 
