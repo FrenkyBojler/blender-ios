@@ -183,7 +183,8 @@ PointerRNA RNA_id_pointer_create(ID *id)
   return PointerRNA_NULL;
 }
 
-PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, void *data)
+namespace detail {
+PointerRNA rna_pointer_create_discrete(ID *id, StructRNA *type, void *data)
 {
   PointerRNA ptr{id, type, data};
 
@@ -193,6 +194,7 @@ PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, void *data)
 
   return ptr;
 }
+}  // namespace detail
 
 PointerRNA RNA_pointer_create_with_parent(const PointerRNA &parent, StructRNA *type, void *data)
 {

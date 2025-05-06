@@ -53,6 +53,10 @@ PointerRNA RNA_main_pointer_create(Main *main);
  * #PointerRNA::ancestors for details.
  */
 PointerRNA RNA_id_pointer_create(ID *id);
+
+namespace detail {
+PointerRNA rna_pointer_create_discrete(ID *id, StructRNA *type, void *data);
+}
 /**
  * Create a 'discrete', isolated PointerRNA of some data. It won't have any ancestor information
  * available.
@@ -60,7 +64,14 @@ PointerRNA RNA_id_pointer_create(ID *id);
  * \param id: The owner ID, may be null, in which case the PointerRNA won't have any ownership
  * information at all.
  */
-PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, void *data);
+template<typename T> PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, T &&data)
+{
+  /* Make sure we don't pass pointer-pointers (like `Object **`) to this function. This can easily
+   * happen accidentally when changing code to use pointers instead of references. */
+  static_assert(!std::is_pointer_v<std::remove_pointer_t<std::decay_t<T>>>);
+  return detail::rna_pointer_create_discrete(id, type, data);
+}
+
 /**
  * Create a PointerRNA of some data, using the given `parent` as immediate ancestor.
  *
