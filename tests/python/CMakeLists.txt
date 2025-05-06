@@ -4,11 +4,7 @@
 
 # Use '--write-blend=/tmp/test.blend' to view output
 
-# Some tests are interesting but take too long to run
-# and don't give deterministic results
-set(USE_EXPERIMENTAL_TESTS FALSE)
-
-set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/data)
+set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/files)
 set(TEST_PYTHON_DIR ${CMAKE_SOURCE_DIR}/tests/python)
 set(TEST_OUT_DIR ${CMAKE_BINARY_DIR}/tests)
 
@@ -228,7 +224,7 @@ add_blender_test(
 )
 
 # test running operators doesn't segfault under various conditions
-if(USE_EXPERIMENTAL_TESTS)
+if(WITH_TESTS_EXPERIMENTAL)
   add_blender_test(
     script_run_operators
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_run_operators.py
@@ -756,10 +752,10 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     if(WITH_OPENGL_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_opengl_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_opengl_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_opengl"
+          --outdir "${TEST_OUT_DIR}/eevee_opengl"
           --gpu-backend opengl
           ${_gpu_render_tests_arguments}
         )
@@ -769,10 +765,10 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     if(WITH_METAL_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_metal_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_metal_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_metal"
+          --outdir "${TEST_OUT_DIR}/eevee_metal"
           --gpu-backend metal
           ${_gpu_render_tests_arguments}
         )
@@ -782,10 +778,10 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_vulkan_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_vulkan_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_vulkan"
+          --outdir "${TEST_OUT_DIR}/eevee_vulkan"
           --gpu-backend vulkan
           ${_gpu_render_tests_arguments}
         )
@@ -1081,7 +1077,7 @@ if(WITH_GPU_RENDER_TESTS AND TEST_SRC_DIR_EXISTS)
   set(render_tests
   )
 
-  if(USE_EXPERIMENTAL_TESTS)
+  if(WITH_TESTS_EXPERIMENTAL)
     # The viewport tests are flakey and difficult to keep up to date for use
     # in a CI environment due to constantly changing UI, but may still be helpful
     # for local development.
@@ -1140,6 +1136,7 @@ if(WITH_USD AND TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_usd_import_test.py
     --
     --testdir "${TEST_SRC_DIR}/usd"
+    --outdir "${TEST_OUT_DIR}/io_usd"
   )
 endif()
 

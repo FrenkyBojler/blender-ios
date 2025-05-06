@@ -867,13 +867,23 @@ static const EnumPropertyItem *rna_uiTemplateAssetView_filter_id_types_itemf(
   return items;
 }
 
+static uiLayout *rna_uiLayoutBox(uiLayout *layout)
+{
+  return &layout->box();
+}
+
+static uiLayout *rna_uiLayoutSplit(uiLayout *layout, float factor, bool align)
+{
+  return &layout->split(factor, align);
+}
+
 static uiLayout *rna_uiLayoutRowWithHeading(
     uiLayout *layout, bool align, const char *heading, const char *heading_ctxt, bool translate)
 {
   /* Get translated heading. */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       heading, heading_ctxt, nullptr, nullptr, translate);
-  return uiLayoutRowWithHeading(layout, align, text.value_or(""));
+  return &layout->row(align, text.value_or(""));
 }
 
 static uiLayout *rna_uiLayoutColumnWithHeading(
@@ -882,7 +892,22 @@ static uiLayout *rna_uiLayoutColumnWithHeading(
   /* Get translated heading. */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       heading, heading_ctxt, nullptr, nullptr, translate);
-  return uiLayoutColumnWithHeading(layout, align, text.value_or(""));
+  return &layout->column(align, text.value_or(""));
+}
+
+static uiLayout *rna_uiLayoutColumnFlow(uiLayout *layout, int number, bool align)
+{
+  return &layout->column_flow(number, align);
+}
+
+static uiLayout *rna_uiLayoutGridFlow(uiLayout *layout,
+                                      bool row_major,
+                                      int columns_len,
+                                      bool even_columns,
+                                      bool even_rows,
+                                      bool align)
+{
+  return &layout->grid_flow(row_major, columns_len, even_columns, even_rows, align);
 }
 
 void rna_uiLayoutPanelProp(uiLayout *layout,
@@ -921,7 +946,7 @@ void rna_uiLayoutPanel(uiLayout *layout,
     *r_layout_body = nullptr;
     return;
   }
-  PanelLayout panel_layout = uiLayoutPanel(C, layout, idname, default_closed);
+  PanelLayout panel_layout = layout->panel(C, idname, default_closed);
   *r_layout_header = panel_layout.header;
   *r_layout_body = panel_layout.body;
 }
@@ -1325,13 +1350,13 @@ void RNA_api_ui_layout(StructRNA *srna)
                          "Sub-layout to put items in. Will be none if the panel is collapsed.");
   RNA_def_function_output(func, parm);
 
-  func = RNA_def_function(srna, "column_flow", "uiLayoutColumnFlow");
+  func = RNA_def_function(srna, "column_flow", "rna_uiLayoutColumnFlow");
   RNA_def_int(func, "columns", 0, 0, INT_MAX, "", "Number of columns, 0 is automatic", 0, INT_MAX);
   parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
   RNA_def_function_return(func, parm);
   RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
 
-  func = RNA_def_function(srna, "grid_flow", "uiLayoutGridFlow");
+  func = RNA_def_function(srna, "grid_flow", "rna_uiLayoutGridFlow");
   RNA_def_boolean(func, "row_major", false, "", "Fill row by row, instead of column by column");
   RNA_def_int(
       func,
@@ -1352,7 +1377,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_return(func, parm);
 
   /* box layout */
-  func = RNA_def_function(srna, "box", "uiLayoutBox");
+  func = RNA_def_function(srna, "box", "rna_uiLayoutBox");
   parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
   RNA_def_function_return(func, parm);
   RNA_def_function_ui_description(func,
@@ -1360,7 +1385,7 @@ void RNA_api_ui_layout(StructRNA *srna)
                                   "under each other in a column and are surrounded by a box)");
 
   /* split layout */
-  func = RNA_def_function(srna, "split", "uiLayoutSplit");
+  func = RNA_def_function(srna, "split", "rna_uiLayoutSplit");
   parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
   RNA_def_function_return(func, parm);
   RNA_def_float(func,

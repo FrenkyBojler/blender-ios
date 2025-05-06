@@ -72,8 +72,8 @@ static void test_framebuffer_clear_color_multiple_attachments()
   }
   MEM_freeN(read_data1);
 
-#ifndef __APPLE__ /* FIXME: Behavior is not the same on all backend. Current expected value is \
-                     broken. */
+#ifndef __APPLE__ /* FIXME: Behavior is not the same on all backend. \
+                   * Current expected value is broken. */
   uint4 *read_data2 = static_cast<uint4 *>(GPU_texture_read(texture2, GPU_DATA_UINT, 0));
   uint4 clear_color_uint(1036831949, 1045220557, 1056964608, 1065353216);
   for (uint4 pixel_color : Span<uint4>(read_data2, size.x * size.y)) {
@@ -361,7 +361,7 @@ static void test_framebuffer_subpass_input()
   create_info_read.define("READ");
   create_info_read.vertex_source("gpu_framebuffer_subpass_input_test.glsl");
   create_info_read.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
-  create_info_read.subpass_in(0, Type::int_t, ImageType::INT_2D, "in_value", 0);
+  create_info_read.subpass_in(0, Type::int_t, ImageType::Int2D, "in_value", 0);
   create_info_read.fragment_out(1, Type::int_t, "out_value");
 
   GPUShader *shader_read = GPU_shader_create_from_info(
