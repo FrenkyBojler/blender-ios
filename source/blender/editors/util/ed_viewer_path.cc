@@ -125,7 +125,7 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
 
   ViewerNodeViewerPathElem *viewer_node_elem = BKE_viewer_path_elem_new_viewer_node();
   viewer_node_elem->node_id = node.identifier;
-  viewer_node_elem->base.ui_name = BLI_strdup(node.name);
+  viewer_node_elem->base.ui_name = BLI_strdup(bke::node_label(*snode.edittree, node).c_str());
   BLI_addtail(&r_dst.path, viewer_node_elem);
 }
 
@@ -456,6 +456,13 @@ UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const 
           std::swap(viewer_path, tmp_viewer_path);
           /* Make sure the viewed data becomes available. */
           DEG_id_tag_update(snode.id, ID_RECALC_GEOMETRY);
+          return UpdateActiveGeometryNodesViewerResult::Updated;
+        }
+        if (!BKE_viewer_path_equal(
+                &viewer_path, &tmp_viewer_path, VIEWER_PATH_EQUAL_FLAG_CONSIDER_UI_NAME))
+        {
+          /* Only swap, without triggering a depsgraph update.*/
+          std::swap(viewer_path, tmp_viewer_path);
           return UpdateActiveGeometryNodesViewerResult::Updated;
         }
         return UpdateActiveGeometryNodesViewerResult::StillActive;
