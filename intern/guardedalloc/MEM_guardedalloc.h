@@ -368,6 +368,27 @@ inline T *MEM_new(const char *allocation_name, Args &&...args)
   return new (buffer) T(std::forward<Args>(args)...);
 }
 
+/*
+ * Allocate new memory for an array of objects with type #T, and construct them.
+ *
+ * See #MEM_callocN for initialization logic.
+ *
+ * This is only supported for trivially destructible types. For other types, use
+ * a data structure like Vector instead.
+ */
+template<typename T, typename... Args>
+inline T *MEM_new_array(const size_t length, const char *allocation_name)
+{
+  static_assert(std::is_trivially_destructible_v<T>,
+                "For non-trivially destructible types, use higher level types like Vector.");
+  T *buffer = static_cast<T *>(
+      MEM_malloc_arrayN_aligned(length, sizeof(T), alignof(T), allocation_name));
+  for (size_t i = 0; i < length; i++) {
+    new (buffer + i) T();
+  }
+  return buffer;
+}
+
 /**
  * Destruct and deallocate an object previously allocated and constructed with #MEM_new, or some
  * type-overloaded `new` operators using MEM_guardedalloc as backend.
