@@ -43,6 +43,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -4292,5 +4293,24 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
         driver_orig->flag |= DRIVER_FLAG_INVALID;
       }
     }
+  }
+}
+
+void BKE_time_markers_blend_write(BlendWriter *writer, ListBase /* TimeMarker */ &markers)
+{
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
+    BLO_write_struct(writer, TimeMarker, marker);
+
+    if (marker->prop != nullptr) {
+      IDP_BlendWrite(writer, marker->prop);
+    }
+  }
+}
+
+void BKE_time_markers_blend_read(BlendDataReader *reader, ListBase /* TimeMarker */ &markers)
+{
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
+    BLO_read_struct(reader, IDProperty, &marker->prop);
+    IDP_BlendDataRead(reader, &marker->prop);
   }
 }
