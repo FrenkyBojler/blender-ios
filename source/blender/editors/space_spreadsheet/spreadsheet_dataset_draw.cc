@@ -759,13 +759,32 @@ class RepeatZoneItem : public ui::AbstractTreeViewItem {
  public:
   RepeatZoneItem(const RepeatZoneViewerPathElem &repeat_zone) : repeat_zone_(repeat_zone)
   {
-    label_ = IFACE_("Repeat Zone");
+    label_ = IFACE_("Repeat");
   }
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, IFACE_("Repeat Zone"), ICON_BLANK1);
+    uiItemL(&row, label_, ICON_BLANK1);
     draw_row_suffix(*this, std::to_string(repeat_zone_.iteration));
+  }
+};
+
+class ForeachGeometryElementZoneItem : public ui::AbstractTreeViewItem {
+ private:
+  const ForeachGeometryElementZoneViewerPathElem &foreach_geo_elem_zone_;
+
+ public:
+  ForeachGeometryElementZoneItem(
+      const ForeachGeometryElementZoneViewerPathElem &foreach_geo_elem_zone)
+      : foreach_geo_elem_zone_(foreach_geo_elem_zone)
+  {
+    label_ = IFACE_("Foreach Element");
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    uiItemL(&row, label_, ICON_BLANK1);
+    draw_row_suffix(*this, std::to_string(foreach_geo_elem_zone_.index));
   }
 };
 
@@ -833,7 +852,7 @@ class DataSourceTreeView : public ui::AbstractTreeView {
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE: {
-        this->add_tree_item<ui::BasicTreeViewItem>("Simulation Zone", ICON_BLANK1);
+        this->add_tree_item<ui::BasicTreeViewItem>("Simulation", ICON_BLANK1);
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
@@ -842,7 +861,8 @@ class DataSourceTreeView : public ui::AbstractTreeView {
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
-        this->add_tree_item<ui::BasicTreeViewItem>("Foreach Element Zone", ICON_BLANK1);
+        this->add_tree_item<ForeachGeometryElementZoneItem>(
+            reinterpret_cast<const ForeachGeometryElementZoneViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {
