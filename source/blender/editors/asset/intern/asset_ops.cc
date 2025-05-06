@@ -31,6 +31,7 @@
 #include "ED_fileselect.hh"
 #include "ED_render.hh"
 #include "ED_util.hh"
+#include "ED_view3d_offscreen.hh"
 
 #include "BLT_translation.hh"
 
@@ -1093,8 +1094,50 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
-  ImBuf *image_buffer = take_screenshot_crop(C, crop_rect);
+  ImBuf *image_buffer;
+
+  ScrArea *area_p1 = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, p1);
+  ScrArea *area_p2 = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, p2);
+  /* Special case for taking a screenshot from a 3D viewport. In that case we do an offscreen
+   * render to support transparency. Render settings are used as currently set up in the viewport
+   * to comply with WYSIWYG as much as possible. One limitation is that GUI elements will not be
+   * visible in the render. */
+  if (area_p1 == area_p2 && area_p1->spacetype == SPACE_VIEW3D) {
+    View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
+    ARegion *region = BKE_area_find_region_type(area_p1, RGN_TYPE_WINDOW);
+    if (!region) {
+      /* Unlikely to be hit, but just being cautious. */
+      BLI_assert_unreachable();
+      return OPERATOR_CANCELLED;
+    }
+    char err_out[256] = "unknown";
+    Scene *scene = CTX_data_scene(C);
+    image_buffer = ED_view3d_draw_offscreen_imbuf(CTX_data_ensure_evaluated_depsgraph(C),
+                                                  scene,
+                                                  eDrawType(v3d->shading.type),
+                                                  v3d,
+                                                  region,
+                                                  region->winx,
+                                                  region->winy,
+                                                  IB_byte_data,
+                                                  scene->r.alphamode,
+                                                  nullptr,
+                                                  false,
+                                                  nullptr,
+                                                  nullptr,
+                                                  err_out);
+
+    /* Convert crop rect into the space relative to the area. */
+    const rcti crop_rect = {p1.x - area_p1->totrct.xmin,
+                            p2.x - area_p1->totrct.xmin,
+                            p1.y - area_p1->totrct.ymin,
+                            p2.y - area_p1->totrct.ymin};
+    IMB_rect_crop(image_buffer, &crop_rect);
+  }
+  else {
+    const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
+    image_buffer = take_screenshot_crop(C, crop_rect);
+  }
 
   const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
   BLI_assert_msg(asset_handle != nullptr, "This is ensured by poll");
