@@ -21,20 +21,20 @@ typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 #endif
 
 /** DNA data for bke::Attribute::ArrayData. */
-struct AttributeArrayDNA {
+struct AttributeArray {
   void *data;
   const ImplicitSharingInfoHandle *sharing_info;
   int64_t size;
 };
 
 /** DNA data for bke::Attribute::SingleData. */
-struct AttributeSingleDNA {
+struct AttributeSingle {
   void *data;
   const ImplicitSharingInfoHandle *sharing_info;
 };
 
 /** DNA data for bke::Attribute. */
-struct AttributeDNA {
+struct Attribute {
   const char *name;
   /* bke::AttrType. */
   int16_t data_type;
@@ -54,7 +54,7 @@ struct AttributeDNA {
  */
 struct AttributeStorage {
   /* Array only used in files, otherwise #AttributeStorageRuntime::attributes is used. */
-  struct AttributeDNA *dna_attributes;
+  struct Attribute *dna_attributes;
   int dna_attributes_num;
 
   char _pad[4];

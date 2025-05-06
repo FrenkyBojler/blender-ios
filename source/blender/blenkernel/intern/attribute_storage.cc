@@ -285,12 +285,12 @@ static void read_shared_array(BlendDataReader &reader,
 static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &reader,
                                                             const int8_t dna_storage_type,
                                                             const int8_t dna_attr_type,
-                                                            AttributeDNA &dna_attr)
+                                                            ::Attribute &dna_attr)
 {
   switch (dna_storage_type) {
     case int8_t(AttrStorageType::Array): {
-      BLO_read_struct(&reader, AttributeArrayDNA, &dna_attr.data);
-      auto &data = *static_cast<AttributeArrayDNA *>(dna_attr.data);
+      BLO_read_struct(&reader, AttributeArray, &dna_attr.data);
+      auto &data = *static_cast<::AttributeArray *>(dna_attr.data);
       read_shared_array(reader, dna_attr_type, data.size, &data.data, &data.sharing_info);
       if (!data.data) {
         return std::nullopt;
@@ -298,8 +298,8 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       return Attribute::ArrayData{data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
     }
     case int8_t(AttrStorageType::Single): {
-      BLO_read_struct(&reader, AttributeSingleDNA, &dna_attr.data);
-      auto &data = *static_cast<AttributeSingleDNA *>(dna_attr.data);
+      BLO_read_struct(&reader, AttributeSingle, &dna_attr.data);
+      auto &data = *static_cast<::AttributeSingle *>(dna_attr.data);
       read_shared_array(reader, dna_attr_type, 1, &data.data, &data.sharing_info);
       if (!data.data) {
         return std::nullopt;
@@ -332,9 +332,9 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
   this->runtime->attributes.reserve(this->dna_attributes_num);
 
-  BLO_read_struct_array(&reader, AttributeDNA, this->dna_attributes_num, &this->dna_attributes);
+  BLO_read_struct_array(&reader, Attribute, this->dna_attributes_num, &this->dna_attributes);
   for (const int i : IndexRange(this->dna_attributes_num)) {
-    AttributeDNA &dna_attr = this->dna_attributes[i];
+    ::Attribute &dna_attr = this->dna_attributes[i];
     BLO_read_string(&reader, &dna_attr.name);
 
     const std::optional<AttrDomain> domain = read_attr_domain(dna_attr.domain);
@@ -463,7 +463,7 @@ void attribute_storage_blend_write_prepare(
 
     /* Names within an AttributeStorage are unique. */
     all_names_written.add(attr.name());
-    AttributeDNA attribute_dna{};
+    ::Attribute attribute_dna{};
     attribute_dna.name = attr.name().c_str();
     attribute_dna.data_type = int16_t(attr.data_type());
     attribute_dna.domain = int8_t(attr.domain());
@@ -477,14 +477,14 @@ void attribute_storage_blend_write_prepare(
      * array for every storage type. */
 
     if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
-      auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();
+      auto &array_dna = write_data.scope.construct<::AttributeArray>();
       array_dna.data = data->data;
       array_dna.sharing_info = data->sharing_info.get();
       array_dna.size = data->size;
       attribute_dna.data = &array_dna;
     }
     else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data())) {
-      auto &single_dna = write_data.scope.construct<AttributeSingleDNA>();
+      auto &single_dna = write_data.scope.construct<::AttributeSingle>();
       single_dna.data = data->value;
       single_dna.sharing_info = data->sharing_info.get();
       attribute_dna.data = &single_dna;
@@ -510,20 +510,20 @@ void AttributeStorage::blend_write(BlendWriter &writer,
                                    const AttributeStorage::BlendWriteData &write_data)
 {
   BLO_write_struct_array(
-      &writer, AttributeDNA, write_data.attributes.size(), write_data.attributes.data());
-  for (const AttributeDNA &attr_dna : write_data.attributes) {
+      &writer, Attribute, write_data.attributes.size(), write_data.attributes.data());
+  for (const ::Attribute &attr_dna : write_data.attributes) {
     BLO_write_string(&writer, attr_dna.name);
     switch (AttrStorageType(attr_dna.storage_type)) {
       case AttrStorageType::Single: {
-        AttributeSingleDNA *single_dna = static_cast<AttributeSingleDNA *>(attr_dna.data);
-        BLO_write_struct(&writer, AttributeSingleDNA, single_dna);
+        ::AttributeSingle *single_dna = static_cast<::AttributeSingle *>(attr_dna.data);
+        BLO_write_struct(&writer, AttributeSingle, single_dna);
         write_shared_array(
             writer, AttrType(attr_dna.data_type), single_dna->data, 1, *single_dna->sharing_info);
         break;
       }
       case AttrStorageType::Array: {
-        AttributeArrayDNA *array_dna = static_cast<AttributeArrayDNA *>(attr_dna.data);
-        BLO_write_struct(&writer, AttributeArrayDNA, array_dna);
+        ::AttributeArray *array_dna = static_cast<::AttributeArray *>(attr_dna.data);
+        BLO_write_struct(&writer, AttributeArray, array_dna);
         write_shared_array(writer,
                            AttrType(attr_dna.data_type),
                            array_dna->data,

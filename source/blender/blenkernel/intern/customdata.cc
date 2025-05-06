@@ -636,7 +636,7 @@ static void layerSwap_mdisps(void *data, const int *ci)
       return;
     }
 
-    float(*d)[3] = MEM_calloc_arrayN<float[3]>(s->totdisp, "mdisps swap");
+    float (*d)[3] = MEM_calloc_arrayN<float[3]>(s->totdisp, "mdisps swap");
 
     for (int S = 0; S < corners; S++) {
       memcpy(d + cornersize * S, s->disps + cornersize * ci[S], sizeof(float[3]) * cornersize);
@@ -654,7 +654,7 @@ static void layerCopy_mdisps(const void *source, void *dest, const int count)
 
   for (int i = 0; i < count; i++) {
     if (s[i].disps) {
-      d[i].disps = static_cast<float(*)[3]>(MEM_dupallocN(s[i].disps));
+      d[i].disps = static_cast<float (*)[3]>(MEM_dupallocN(s[i].disps));
       d[i].hidden = static_cast<uint *>(MEM_dupallocN(s[i].hidden));
     }
     else {
@@ -1202,7 +1202,7 @@ static void layerInterp_mvert_skin(const void **sources,
 
 static void layerSwap_flnor(void *data, const int *corner_indices)
 {
-  short(*flnors)[4][3] = static_cast<short(*)[4][3]>(data);
+  short (*flnors)[4][3] = static_cast<short (*)[4][3]>(data);
   short nors[4][3];
   int i = 4;
 
@@ -5138,17 +5138,17 @@ void CustomData_blend_write_prepare(CustomData &data,
        * block should be removed when the new format is used at runtime. */
       const eCustomDataType data_type = eCustomDataType(layer.type);
       if (const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type)) {
-        AttributeDNA attribute_dna{};
+        ::Attribute attribute_dna{};
         attribute_dna.name = layer.name;
         attribute_dna.data_type = int16_t(*type);
         attribute_dna.domain = int8_t(domain);
         attribute_dna.storage_type = int8_t(AttrStorageType::Array);
 
-        /* Do not increase the user count; #AttributeArrayDNA does not act as an owner of the
+        /* Do not increase the user count; #::AttributeArray does not act as an owner of the
          * attribute data, since it's only used temporarily for writing files. Changing the user
          * count would be okay too, but it's unnecessary because none of this data should be
          * modified while it's being written anyway. */
-        auto &array_dna = write_data.scope.construct<AttributeArrayDNA>();
+        auto &array_dna = write_data.scope.construct<::AttributeArray>();
         array_dna.data = layer.data;
         array_dna.sharing_info = layer.sharing_info;
         array_dna.size = domain_size;

@@ -168,7 +168,7 @@ class AttributeStorage : public ::AttributeStorage {
    */
   struct BlendWriteData {
     ResourceScope &scope;
-    Vector<AttributeDNA, 16> attributes;
+    Vector<::Attribute, 16> attributes;
   };
   /**
    * Write the prepared data and the data stored in the DNA fields in
