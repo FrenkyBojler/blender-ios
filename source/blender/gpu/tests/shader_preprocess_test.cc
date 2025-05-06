@@ -551,16 +551,74 @@ int func(int a)
   {
     string input = R"(
 namespace A {
+int test(int a) {}
 int func(int a)
 {
-  using B::func;
-  return func(a);
+  using B::test;
+  return test(a);
 }
+}
+)";
+    string expect = R"(
+
+int A_test(int a) {}
+int A_func(int a)
+{
+  
+  return B_test(a);
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+int func(int a)
+{
+  using B = A::S;
+  B b;
+  using C = A::F;
+  C f = A::B();
+  f = B();
+  B d;
+}
+)";
+    string expect = R"(
+int func(int a)
+{
+  
+  A_S b;
+  
+  A_F f = A_B();
+  f = B();
+  A_S d;
 }
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "The `using` keyword is not supported yet but is reserved.");
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+using B = A::T;
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "The `using` keyword is not allowed in global or namespace scope.");
+  }
+  {
+    string input = R"(
+namespace A {
+using B = A::T;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "The `using` keyword is not allowed in global or namespace scope.");
   }
 }
 GPU_TEST(preprocess_namespace);

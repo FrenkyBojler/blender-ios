@@ -225,9 +225,9 @@ class Preprocessor {
       }
       str = remove_quotes(str);
       if (language == BLENDER_GLSL) {
+        str = using_mutation(str, report_error);
         str = namespace_mutation(str, report_error);
         str = namespace_separator_mutation(str);
-        str = using_mutation(str, report_error);
       }
       str = enum_macro_injection(str);
       str = default_argument_mutation(str);
@@ -701,30 +701,71 @@ class Preprocessor {
     return out;
   }
 
+  /* Needs to run before namespace mutation so that `using` have more precedence. */
   std::string using_mutation(const std::string &str, report_callback report_error)
   {
     using namespace std;
 
-    std::string out = str;
-
-    if (str.find("using ") == std::string::npos) {
+    if (str.find("using ") == string::npos) {
       return str;
     }
 
-    regex_global_search(str, std::regex(R"(\busing\s([\w:]+))"), [&](const std::smatch &match) {
-      if (match.prefix().str().back() == '\n') {
-        report_error(match, "The `using` keyword is not allowed in global or namespace scope.");
-      }
+    if (str.find("using namespace ") != string::npos) {
+      regex_global_search(str, regex(R"(\busing namespace\b)"), [&](const smatch &match) {
+        report_error(match,
+                     "Unsupported `using namespace`. "
+                     "Add individual `using` directives for each needed symbol.");
+      });
+      return str;
+    }
 
-      size_t name_start = match[1].str().rfind(':');
-      string symbol = match[1].str();
-      string scope = get_content_between_balanced_pair('{' + match.suffix().str(), '{', '}');
+    string next_str = str;
+
+    string out_str;
+    /* Using namespace symbol. Example: `using A::B;` */
+    /* Using as type alias. Example: `using S = A::B;` */
+    regex regex_using(R"(\busing (?:(\w+) = )?([\w\:\<\>]+::(\w+));)");
+
+    smatch match;
+    while (regex_search(next_str, match, regex_using)) {
+      const string using_definition = match[0].str();
+      const string alias = match[1].str();
+      const string to = match[2].str();
+      const string symbol = match[3].str();
+      const string prefix = match.prefix().str();
+      const string suffix = match.suffix().str();
+
+      out_str += prefix;
+
+      if (prefix.back() == '\n') {
+        report_error(match, "The `using` keyword is not allowed in global or namespace scope.");
+        break;
+      }
+      /** IMPORTANT: `match` is invalid after the assignment. */
+      next_str = using_definition + suffix;
+      /* Assignments do not allow to alias functions symbols. */
+      const bool replace_fn = alias.empty();
+      /* Replace the alias (the left part of the assignment) or the last symbol. */
+      const string from = !alias.empty() ? alias : symbol;
       /* Replace all occurrences of the non-namespace specified symbol.
        * Reject symbols that contain the target symbol name. */
-      std::regex regex(R"(([^:\w]))" + symbol + R"(([\s\(]))");
-      // out = std::regex_replace(out, regex, "$1" + namespace_name + "::" + function + "$2");
-    });
-    return str;
+      /** IMPORTANT: If replace_fn is true, this can replace any symbol type if there are functions
+       * and types with the same name. We could support being more explicit about the type of
+       * symbol to replace using an optional attribute [[gpu::using_function]]. */
+      regex regex(R"(([^:\w]))" + from + R"(([\s)" + (replace_fn ? R"(\()" : "") + "])");
+      string in_scope = get_content_between_balanced_pair('{' + suffix, '{', '}');
+      string out_scope = regex_replace(in_scope, regex, "$1" + to + "$2");
+      replace_all(next_str, using_definition + in_scope, out_scope);
+    }
+    out_str += next_str;
+
+    /* Verify all using were processed. */
+    if (out_str.find("using ") != string::npos) {
+      regex_global_search(out_str, regex(R"(\busing\b)"), [&](const smatch &match) {
+        report_error(match, "Unsupported `using` keyword usage.");
+      });
+    }
+    return out_str;
   }
 
   std::string namespace_separator_mutation(const std::string &str)
