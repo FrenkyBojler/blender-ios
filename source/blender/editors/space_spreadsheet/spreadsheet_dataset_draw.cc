@@ -765,7 +765,72 @@ class DataSourceTreeView : public ui::AbstractTreeView {
 
   void build_tree() override
   {
-    this->add_tree_item<ui::BasicTreeViewItem>("Hello World");
+    const ViewerPath &viewer_path = sspreadsheet_.viewer_path;
+    Vector<const ViewerPathElem *> path_elems;
+    switch (sspreadsheet_.object_eval_state) {
+      case SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED:
+      case SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE: {
+        LISTBASE_FOREACH (const ViewerPathElem *, elem, &viewer_path.path) {
+          path_elems.append(elem);
+        }
+        break;
+      }
+      case SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL: {
+        path_elems.append(static_cast<const ViewerPathElem *>(viewer_path.path.first));
+        break;
+      }
+    }
+    for (const ViewerPathElem *elem : path_elems) {
+      this->add_viewer_path_elem(*elem);
+    }
+  }
+
+  void add_viewer_path_elem(const ViewerPathElem &elem)
+  {
+    switch (elem.type) {
+      case VIEWER_PATH_ELEM_TYPE_ID: {
+        const IDViewerPathElem &id_elem = reinterpret_cast<const IDViewerPathElem &>(elem);
+        // TODO: Add icon.
+        this->add_tree_item<ui::BasicTreeViewItem>(
+            id_elem.id ? id_elem.id->name + 2 : "Invalid data-block", ICON_OBJECT_DATA);
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_MODIFIER: {
+        const ModifierViewerPathElem &modifier_elem =
+            reinterpret_cast<const ModifierViewerPathElem &>(elem);
+        this->add_tree_item<ui::BasicTreeViewItem>(modifier_elem.modifier_name, ICON_MODIFIER);
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_GROUP_NODE: {
+        const GroupNodeViewerPathElem &group_node_elem =
+            reinterpret_cast<const GroupNodeViewerPathElem &>(elem);
+        this->add_tree_item<ui::BasicTreeViewItem>(group_node_elem.base.ui_name, ICON_NODE);
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_VIEWER_NODE: {
+        const ViewerNodeViewerPathElem &viewer_node_elem =
+            reinterpret_cast<const ViewerNodeViewerPathElem &>(elem);
+        this->add_tree_item<ui::BasicTreeViewItem>(viewer_node_elem.base.ui_name,
+                                                   ICON_RESTRICT_VIEW_OFF);
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE: {
+        this->add_tree_item<ui::BasicTreeViewItem>("Simulation Zone", ICON_BLANK1);
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
+        this->add_tree_item<ui::BasicTreeViewItem>("Repeat Zone", ICON_BLANK1);
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
+        this->add_tree_item<ui::BasicTreeViewItem>("Foreach Element Zone", ICON_BLANK1);
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {
+        this->add_tree_item<ui::BasicTreeViewItem>("Evaluate Closure", ICON_BLANK1);
+        break;
+      }
+    }
   }
 };
 
