@@ -361,6 +361,7 @@ set(SRC
   BLI_set_slots.hh
   BLI_shared_cache.hh
   BLI_simd.hh
+  BLI_single_pointer.hh
   BLI_smaa_textures.h
   BLI_sort.h
   BLI_sort.hh
