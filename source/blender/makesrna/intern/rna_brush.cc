@@ -2144,6 +2144,11 @@ static void rna_def_mesh_paint_options(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "BrushMeshPaintSettings");
   RNA_def_struct_ui_text(srna, "Mesh Paint Brush Settings", "");
 
+  prop = RNA_def_property(srna, "dyntopo_settings", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "DyntopoSettings");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Dyntopo Brush Settings", "");
+
   srna = RNA_def_struct(brna, "DyntopoSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_DyntopoSettings_path");
   RNA_def_struct_sdna(srna, "DyntopoSettings");
@@ -3917,6 +3922,11 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "BrushCurvesSculptSettings");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Curves Sculpt Settings", "");
+
+  prop = RNA_def_property(srna, "mesh_paint_settings", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "BrushMeshPaintSettings");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Mesh Paint Brush Settings", "");
 }
 
 /**
