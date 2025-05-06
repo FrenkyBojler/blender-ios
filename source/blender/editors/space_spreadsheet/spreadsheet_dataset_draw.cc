@@ -761,6 +761,7 @@ class DataSourceTreeView : public ui::AbstractTreeView {
   DataSourceTreeView(const bContext &C)
       : sspreadsheet_(*CTX_wm_space_spreadsheet(&C)), screen_(*CTX_wm_screen(&C))
   {
+    is_flat_ = true;
   }
 
   void build_tree() override
