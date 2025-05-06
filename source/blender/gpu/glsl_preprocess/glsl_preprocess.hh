@@ -724,22 +724,47 @@ class Preprocessor {
     string out_str;
     /* Using namespace symbol. Example: `using A::B;` */
     /* Using as type alias. Example: `using S = A::B;` */
-    regex regex_using(R"(\busing (?:(\w+) = )?([\w\:\<\>]+::(\w+));)");
+    regex regex_using(R"(\busing (?:(\w+) = )?(([\w\:\<\>]+)::(\w+));)");
 
     smatch match;
     while (regex_search(next_str, match, regex_using)) {
       const string using_definition = match[0].str();
       const string alias = match[1].str();
       const string to = match[2].str();
-      const string symbol = match[3].str();
+      const string namespace_prefix = match[3].str();
+      const string symbol = match[4].str();
       const string prefix = match.prefix().str();
       const string suffix = match.suffix().str();
 
       out_str += prefix;
-
+      /* Assumes formatted input. */
       if (prefix.back() == '\n') {
-        report_error(match, "The `using` keyword is not allowed in global or namespace scope.");
-        break;
+        /* Using the keyword in global or at namespace scope. */
+        const string parent_scope = get_content_between_balanced_pair(
+            out_str + '}', '{', '}', true);
+        if (parent_scope.empty()) {
+          report_error(match, "The `using` keyword is not allowed in global scope.");
+          break;
+        }
+        /* Ensure we are bringing symbols from the same namespace.
+         * Otherwise we can have different shadowing outcome between shader and C++. */
+        const string ns_keyword = "namespace ";
+        size_t pos = out_str.rfind(ns_keyword, out_str.size() - parent_scope.size());
+        if (pos == string::npos) {
+          report_error(match, "Couldn't find `namespace` keyword at begining of scope.");
+          break;
+        }
+        size_t start = pos + ns_keyword.size();
+        size_t end = out_str.size() - parent_scope.size() - start - 2;
+        const string namespace_scope = out_str.substr(start, end);
+        if (namespace_scope != namespace_prefix) {
+          report_error(
+              match,
+              "The `using` keyword is only allowed in namespace scope to make visible symbols "
+              "from the same namespace declared in another scope, potentially from another "
+              "file.");
+          break;
+        }
       }
       /** IMPORTANT: `match` is invalid after the assignment. */
       next_str = using_definition + suffix;
@@ -752,9 +777,9 @@ class Preprocessor {
       /** IMPORTANT: If replace_fn is true, this can replace any symbol type if there are functions
        * and types with the same name. We could support being more explicit about the type of
        * symbol to replace using an optional attribute [[gpu::using_function]]. */
-      regex regex(R"(([^:\w]))" + from + R"(([\s)" + (replace_fn ? R"(\()" : "") + "])");
-      string in_scope = get_content_between_balanced_pair('{' + suffix, '{', '}');
-      string out_scope = regex_replace(in_scope, regex, "$1" + to + "$2");
+      const regex regex(R"(([^:\w]))" + from + R"(([\s)" + (replace_fn ? R"(\()" : "") + "])");
+      const string in_scope = get_content_between_balanced_pair('{' + suffix, '{', '}');
+      const string out_scope = regex_replace(in_scope, regex, "$1" + to + "$2");
       replace_all(next_str, using_definition + in_scope, out_scope);
     }
     out_str += next_str;

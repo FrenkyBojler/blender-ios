@@ -604,21 +604,45 @@ int func(int a)
   }
   {
     string input = R"(
-using B = A::T;
+namespace A::B {
+void func() {}
+struct S {};
+}
+namespace A::B {
+using A::B::func;
+using S = A::B::S;
+void test() {
+  S s;
+  func();
+}
+}
+)";
+    string expect = R"(
+
+void A_B_func() {}
+struct A_B_S {};
+
+
+
+
+void A_B_test() {
+  A_B_S s;
+  A_B_func();
+}
+
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "The `using` keyword is not allowed in global or namespace scope.");
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
   }
   {
     string input = R"(
-namespace A {
 using B = A::T;
-}
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "The `using` keyword is not allowed in global or namespace scope.");
+    EXPECT_EQ(error, "The `using` keyword is not allowed in global scope.");
   }
   {
     string input = R"(
@@ -631,6 +655,32 @@ using namespace B;
     EXPECT_EQ(error,
               "Unsupported `using namespace`. "
               "Add individual `using` directives for each needed symbol.");
+  }
+  {
+    string input = R"(
+namespace A {
+using B::func;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "The `using` keyword is only allowed in namespace scope to make visible symbols "
+              "from the same namespace declared in another scope, potentially from another "
+              "file.");
+  }
+  {
+    string input = R"(
+namespace A {
+using C = B::func;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "The `using` keyword is only allowed in namespace scope to make visible symbols "
+              "from the same namespace declared in another scope, potentially from another "
+              "file.");
   }
 }
 GPU_TEST(preprocess_namespace);
