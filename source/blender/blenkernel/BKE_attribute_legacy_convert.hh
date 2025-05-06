@@ -28,15 +28,13 @@ std::optional<AttrType> custom_data_type_to_attr_type(eCustomDataType data_type)
 
 /**
  * Convert an attribute type to a legacy custom data type.
- *
- * Currently all attribute types are convertable, that may not be true as more are added.
  */
 std::optional<eCustomDataType> attr_type_to_custom_data_type(AttrType attr_type);
 
 /**
- * Duplicate attributes from the #AttributeStorage to be stored on the mesh's #CustomData structs.
- * Used for foward compatibility: converting newer files written with #AttributeStorage while
- * #CustomData is still used at runtime.
+ * Move attributes from the #AttributeStorage to the mesh's #CustomData structs. Used for forward
+ * compatibility: converting newer files written with #AttributeStorage while #CustomData is still
+ * used at runtime.
  */
 void mesh_convert_storage_to_customdata(Mesh &mesh);
 

@@ -65,7 +65,7 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_MLOOPTANGENT:
     case CD_TESSLOOPNORMAL:
       /* These types are not generic. They will either be moved to some generic data type or
-       * #AttributeStorage will be extended to be able to support a similar format.*/
+       * #AttributeStorage will be extended to be able to support a similar format. */
       return std::nullopt;
     case CD_PROP_FLOAT:
       return AttrType::Float;
