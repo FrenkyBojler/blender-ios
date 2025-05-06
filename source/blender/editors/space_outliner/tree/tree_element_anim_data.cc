@@ -37,7 +37,7 @@ void TreeElementAnimData::expand(SpaceOutliner & /*space_outliner*/) const
                 reinterpret_cast<ID *>(anim_data_.action),
                 nullptr,
                 &legacy_te_,
-                TSE_ACTION,
+                TSE_SOME_ID,
                 0);
   }
 

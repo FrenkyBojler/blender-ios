@@ -8,17 +8,17 @@
 
 #pragma once
 
-#include "tree_element.hh"
+#include "tree_element_id.hh"
 
 struct bAction;
 
 namespace blender::ed::outliner {
 
-class TreeElementAction final : public AbstractTreeElement {
+class TreeElementIDAction final : public TreeElementID {
   bAction &action_;
 
  public:
-  TreeElementAction(TreeElement &legacy_te, bAction &action);
+  TreeElementIDAction(TreeElement &legacy_te, bAction &action);
 
   void expand(SpaceOutliner &space_outliner) const override;
 };

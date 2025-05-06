@@ -11,21 +11,18 @@
 
 #include "../outliner_intern.hh"
 
-#include "tree_element_action.hh"
+#include "tree_element_id_action.hh"
 
 #include "ANIM_action.hh"
 
 namespace blender::ed::outliner {
 
-TreeElementAction::TreeElementAction(TreeElement &legacy_te, bAction &action)
-    : AbstractTreeElement(legacy_te), action_(action)
+TreeElementIDAction::TreeElementIDAction(TreeElement &legacy_te, bAction &action)
+    : TreeElementID(legacy_te, action.id), action_(action)
 {
-  legacy_te.name = action.id.name + 2;
-  legacy_te.directdata = &action;
-  legacy_te.idcode = ID_AC;
 }
 
-void TreeElementAction::expand(SpaceOutliner & /* space_outliner */) const
+void TreeElementIDAction::expand(SpaceOutliner & /* space_outliner */) const
 {
   blender::animrig::Action &action = action_.wrap();
   if (!action.is_action_layered()) {

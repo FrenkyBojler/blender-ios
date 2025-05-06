@@ -932,6 +932,12 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           undo_str = "Rename Bone Collection";
           break;
         }
+
+        case TSE_ACTION_SLOT: {
+          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          undo_str = "Rename Action Slot";
+          break;
+        }
       }
     }
     tselem->flag &= ~TSE_TEXTBUT;
@@ -2603,10 +2609,10 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 
   if (tselem->type != TSE_SOME_ID) {
     switch (tselem->type) {
-      case TSE_ACTION:
+      /* case TSE_ACTION:
         data.icon = ICON_ACTION;
         data.drag_id = tselem->id;
-        break;
+        break; */
       case TSE_ACTION_SLOT:
         data.icon = ICON_ACTION_SLOT;
         break;
