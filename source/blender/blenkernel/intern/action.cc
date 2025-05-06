@@ -133,7 +133,7 @@ static void action_copy_data(Main * /*bmain*/,
 
   /* Duplicate the lists of groups and markers. */
   BLI_duplicatelist(&action_dst.groups, &action_src.groups);
-  BLI_duplicatelist(&action_dst.markers, &action_src.markers);
+  BKE_copy_time_markers(action_dst.markers, action_src.markers, flag);
 
   /* Copy F-Curves, fixing up the links as we go. */
   BLI_listbase_clear(&action_dst.curves);

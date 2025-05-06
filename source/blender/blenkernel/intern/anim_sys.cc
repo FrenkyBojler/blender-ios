@@ -4315,3 +4315,15 @@ void BKE_time_markers_blend_read(BlendDataReader *reader, ListBase /* TimeMarker
     IDP_BlendDataRead(reader, &marker->prop);
   }
 }
+
+void BKE_copy_time_markers(ListBase /* TimeMarker */ &markers_dst,
+                           const ListBase /* TimeMarker */ &markers_src,
+                           const int flag)
+{
+  BLI_duplicatelist(&markers_dst, &markers_src);
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers_dst) {
+    if (marker->prop != nullptr) {
+      marker->prop = IDP_CopyProperty_ex(marker->prop, flag);
+    }
+  }
+}
