@@ -255,7 +255,9 @@ static void sample_detail_dyntopo(bContext *C, ViewContext *vc, const int mval[2
 {
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   Object &ob = *vc->obact;
-  const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
+  Brush &brush = *BKE_paint_brush(&sd.paint);
+  const Settings settings = get_settings(sd, brush);
+  BLI_assert(ELEM(settings.mode, DetailMode::Constant, DetailMode::Manual));
 
   SCULPT_stroke_modifiers_check(C, ob, brush);
 
@@ -283,7 +285,10 @@ static void sample_detail_dyntopo(bContext *C, ViewContext *vc, const int mval[2
 
   if (srd.hit && srd.edge_length > 0.0f) {
     /* Convert edge length to world space detail resolution. */
-    sd.constant_detail = 1 / (srd.edge_length * mat4_to_scale(ob.object_to_world().ptr()));
+    set_detail_value(sd,
+                     brush,
+                     settings.mode,
+                     1 / (srd.edge_length * mat4_to_scale(ob.object_to_world().ptr())));
   }
 }
 
@@ -455,17 +460,11 @@ void SCULPT_OT_sample_detail_size(wmOperatorType *ot)
 #define DETAIL_SIZE_DELTA_SPEED 0.08f
 #define DETAIL_SIZE_DELTA_ACCURATE_SPEED 0.004f
 
-enum eDyntopoDetailingMode {
-  DETAILING_MODE_RESOLUTION = 0,
-  DETAILING_MODE_BRUSH_PERCENT = 1,
-  DETAILING_MODE_DETAIL_SIZE = 2
-};
-
 struct DyntopoDetailSizeEditCustomData {
   void *draw_handle;
   Object *active_object;
 
-  eDyntopoDetailingMode mode;
+  DetailMode mode;
 
   float init_mval[2];
   float accurate_mval[2];
@@ -500,17 +499,19 @@ static void dyntopo_detail_size_parallel_lines_draw(uint pos3d,
                                                     const float angle)
 {
   float object_space_constant_detail;
-  if (cd->mode == DETAILING_MODE_RESOLUTION) {
-    object_space_constant_detail = detail_size::constant_to_detail_size(cd->current_value,
-                                                                        *cd->active_object);
-  }
-  else if (cd->mode == DETAILING_MODE_BRUSH_PERCENT) {
-    object_space_constant_detail = detail_size::brush_to_detail_size(cd->current_value,
-                                                                     cd->brush_radius);
-  }
-  else {
-    object_space_constant_detail = detail_size::relative_to_detail_size(
-        cd->current_value, cd->brush_radius, cd->pixel_radius, U.pixelsize);
+  switch (cd->mode) {
+    case DetailMode::Relative:
+      object_space_constant_detail = detail_size::relative_to_detail_size(
+          cd->current_value, cd->brush_radius, cd->pixel_radius, U.pixelsize);
+      break;
+    case DetailMode::Constant:
+    case DetailMode::Manual:
+      object_space_constant_detail = detail_size::constant_to_detail_size(cd->current_value, *cd->active_object);
+      break;
+    case DetailMode::Brush:
+      object_space_constant_detail = detail_size::brush_to_detail_size(cd->current_value,
+                                                                       cd->brush_radius);
+      break;
   }
 
   /* The constant detail represents the maximum edge length allowed before subdividing it. If the
@@ -616,17 +617,20 @@ static void dyntopo_detail_size_edit_cancel(bContext *C, wmOperator *op)
 static void dyntopo_detail_size_bounds(DyntopoDetailSizeEditCustomData *cd)
 {
   /* TODO: Get range from RNA for these values? */
-  if (cd->mode == DETAILING_MODE_RESOLUTION) {
-    cd->min_value = 1.0f;
-    cd->max_value = 500.0f;
-  }
-  else if (cd->mode == DETAILING_MODE_BRUSH_PERCENT) {
-    cd->min_value = 0.5f;
-    cd->max_value = 100.0f;
-  }
-  else {
-    cd->min_value = 0.5f;
-    cd->max_value = 40.0f;
+  switch (cd->mode) {
+    case DetailMode::Relative:
+      cd->min_value = 0.5f;
+      cd->max_value = 40.0f;
+      break;
+    case DetailMode::Constant:
+    case DetailMode::Manual:
+      cd->min_value = 1.0f;
+      cd->max_value = 500.0f;
+      break;
+    case DetailMode::Brush:
+      cd->min_value = 0.5f;
+      cd->max_value = 100.0f;
+      break;
   }
 }
 
@@ -649,16 +653,19 @@ static void dyntopo_detail_size_sample_from_surface(Object &ob,
     const float detail_size = 0.7f / (avg_edge_len *
                                       mat4_to_scale(cd->active_object->object_to_world().ptr()));
     float sampled_value;
-    if (cd->mode == DETAILING_MODE_RESOLUTION) {
-      sampled_value = detail_size;
-    }
-    else if (cd->mode == DETAILING_MODE_BRUSH_PERCENT) {
-      sampled_value = detail_size::constant_to_brush_detail(
-          detail_size, cd->brush_radius, *cd->active_object);
-    }
-    else {
-      sampled_value = detail_size::constant_to_relative_detail(
-          detail_size, cd->brush_radius, cd->pixel_radius, U.pixelsize, *cd->active_object);
+    switch (cd->mode) {
+      case DetailMode::Relative:
+        sampled_value = detail_size;
+        break;
+      case DetailMode::Constant:
+      case DetailMode::Manual:
+        sampled_value = detail_size::constant_to_relative_detail(
+            detail_size, cd->brush_radius, cd->pixel_radius, U.pixelsize, *cd->active_object);
+        break;
+      case DetailMode::Brush:
+        sampled_value = detail_size::constant_to_brush_detail(
+            detail_size, cd->brush_radius, *cd->active_object);
+        break;
     }
     cd->current_value = clamp_f(sampled_value, cd->min_value, cd->max_value);
   }
@@ -670,7 +677,7 @@ static void dyntopo_detail_size_update_from_mouse_delta(DyntopoDetailSizeEditCus
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
 
   float detail_size_delta;
-  float invert = cd->mode == DETAILING_MODE_RESOLUTION ? 1.0f : -1.0f;
+  float invert = ELEM(cd->mode, DetailMode::Constant, DetailMode::Manual) ? 1.0f : -1.0f;
   if (cd->accurate_mode) {
     detail_size_delta = mval[0] - cd->accurate_mval[0];
     cd->current_value = cd->accurate_value +
@@ -705,17 +712,20 @@ static void dyntopo_detail_size_update_header(bContext *C,
   char msg[UI_MAX_DRAW_STR];
   const char *format_string;
   const char *property_name;
-  if (cd->mode == DETAILING_MODE_RESOLUTION) {
-    property_name = "constant_detail_resolution";
-    format_string = "%s: %0.4f";
-  }
-  else if (cd->mode == DETAILING_MODE_BRUSH_PERCENT) {
-    property_name = "detail_percent";
-    format_string = "%s: %3.1f%%";
-  }
-  else {
-    property_name = "detail_size";
-    format_string = "%s: %0.4f";
+  switch (cd->mode) {
+    case DetailMode::Relative:
+      property_name = "detail_size";
+      format_string = "%s: %0.4f";
+      break;
+    case DetailMode::Constant:
+    case DetailMode::Manual:
+      property_name = "constant_detail_resolution";
+      format_string = "%s: %0.4f";
+      break;
+    case DetailMode::Brush:
+      property_name = "detail_percent";
+      format_string = "%s: %3.1f%%";
+      break;
   }
   const PropertyRNA *prop = RNA_struct_find_property(&sculpt_ptr, property_name);
   const char *ui_name = RNA_property_ui_name(prop);
@@ -741,6 +751,7 @@ static wmOperatorStatus dyntopo_detail_size_edit_modal(bContext *C,
   DyntopoDetailSizeEditCustomData *cd = static_cast<DyntopoDetailSizeEditCustomData *>(
       op->customdata);
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+  Brush *brush = BKE_paint_brush(&sd->paint);
 
   /* Cancel modal operator */
   if ((event->type == EVT_ESCKEY && event->val == KM_PRESS) ||
@@ -757,15 +768,7 @@ static wmOperatorStatus dyntopo_detail_size_edit_modal(bContext *C,
       (event->type == EVT_PADENTER && event->val == KM_PRESS))
   {
     ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
-    if (cd->mode == DETAILING_MODE_RESOLUTION) {
-      sd->constant_detail = cd->current_value;
-    }
-    else if (cd->mode == DETAILING_MODE_BRUSH_PERCENT) {
-      sd->detail_percent = cd->current_value;
-    }
-    else {
-      sd->detail_size = cd->current_value;
-    }
+    set_detail_value(*sd, *brush, cd->mode, cd->current_value);
 
     ss.draw_faded_cursor = false;
     MEM_freeN(cd);
@@ -801,17 +804,6 @@ static wmOperatorStatus dyntopo_detail_size_edit_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static float dyntopo_detail_size_initial_value(const Sculpt *sd, const eDyntopoDetailingMode mode)
-{
-  if (mode == DETAILING_MODE_RESOLUTION) {
-    return sd->constant_detail;
-  }
-  if (mode == DETAILING_MODE_BRUSH_PERCENT) {
-    return sd->detail_percent;
-  }
-  return sd->detail_size;
-}
-
 static wmOperatorStatus dyntopo_detail_size_edit_invoke(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent *event)
@@ -831,17 +823,10 @@ static wmOperatorStatus dyntopo_detail_size_edit_invoke(bContext *C,
   cd->active_object = &active_object;
   cd->init_mval[0] = event->mval[0];
   cd->init_mval[1] = event->mval[1];
-  if (sd->flags & (SCULPT_DYNTOPO_DETAIL_CONSTANT | SCULPT_DYNTOPO_DETAIL_MANUAL)) {
-    cd->mode = DETAILING_MODE_RESOLUTION;
-  }
-  else if (sd->flags & SCULPT_DYNTOPO_DETAIL_BRUSH) {
-    cd->mode = DETAILING_MODE_BRUSH_PERCENT;
-  }
-  else {
-    cd->mode = DETAILING_MODE_DETAIL_SIZE;
-  }
+  const Settings settings = get_settings(*sd, *brush);
+  cd->mode = settings.mode;
 
-  const float initial_detail_size = dyntopo_detail_size_initial_value(sd, cd->mode);
+  const float initial_detail_size = settings.value;
   cd->current_value = initial_detail_size;
   cd->init_value = initial_detail_size;
   copy_v4_v4(cd->outline_col, brush->add_col);

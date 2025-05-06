@@ -52,7 +52,11 @@ struct Settings {
   DetailMode mode;
 };
 
-Settings get_settings(const Sculpt& sculpt, const Brush& brush);
+/**
+ * Retrieves relevant dyntopo settings, preferring data from the brush over the data in the scene.
+ */
+Settings get_settings(const Sculpt &sculpt, const Brush &brush);
+void set_detail_value(Sculpt& sculpt, Brush& brush, DetailMode mode, float value);
 
 /** Enable dynamic topology; mesh will be triangulated */
 void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob);

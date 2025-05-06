@@ -44,8 +44,8 @@ namespace blender::ed::sculpt_paint::dyntopo {
 
 Settings get_settings(const Sculpt &sculpt, const Brush &brush)
 {
-  if (brush.mesh_paint_settings->dyntopo_settings.flag & SCULPT_BRUSH_DYNTOPO_SETTINGS_ENABLED) {
-    DyntopoSettings settings = brush.mesh_paint_settings->dyntopo_settings;
+  const DyntopoSettings settings = brush.mesh_paint_settings->dyntopo_settings;
+  if (settings.flag & SCULPT_BRUSH_DYNTOPO_SETTINGS_ENABLED) {
     DetailFlags flag = DetailFlags::None;
     if (settings.flag & SCULPT_BRUSH_DYNTOPO_COLLAPSE) {
       flag |= DetailFlags::Collapse;
@@ -105,6 +105,42 @@ Settings get_settings(const Sculpt &sculpt, const Brush &brush)
   }
 
   return {value, flag, mode};
+}
+
+void set_detail_value(Sculpt &sculpt, Brush &brush, const DetailMode mode, const float value)
+{
+  const DyntopoSettings brush_settings = brush.mesh_paint_settings->dyntopo_settings;
+  if (brush_settings.flag & SCULPT_BRUSH_DYNTOPO_SETTINGS_ENABLED) {
+    switch (mode) {
+      case DetailMode::Relative:
+        brush.mesh_paint_settings->dyntopo_settings.detail_size = value;
+        break;
+      case DetailMode::Brush:
+        brush.mesh_paint_settings->dyntopo_settings.detail_percent = value;
+        break;
+      case DetailMode::Manual:
+        brush.mesh_paint_settings->dyntopo_settings.constant_detail_resolution = value;
+        break;
+      case DetailMode::Constant:
+        brush.mesh_paint_settings->dyntopo_settings.constant_detail_resolution = value;
+        break;
+    }
+    return;
+  }
+  switch (mode) {
+    case DetailMode::Relative:
+      sculpt.detail_size = value;
+      break;
+    case DetailMode::Brush:
+      sculpt.detail_percent = value;
+      break;
+    case DetailMode::Manual:
+      sculpt.constant_detail = value;
+      break;
+    case DetailMode::Constant:
+      sculpt.constant_detail = value;
+      break;
+  }
 }
 
 void triangulate(BMesh *bm)
