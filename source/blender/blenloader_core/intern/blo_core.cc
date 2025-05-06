@@ -6,8 +6,9 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLO_bhead.hh"
 #include "BLO_blend_defs.hh"
-#include "BLO_core.hh"
+#include "BLO_blend_header.hh"
 
 #include "BLI_assert.h"
 #include "BLI_endian_defines.h"

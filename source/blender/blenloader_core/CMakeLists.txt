@@ -10,7 +10,9 @@ set(INC
 set(SRC
   intern/blo_core.cc
 
-  BLO_core.hh
+  BLO_bhead.hh
+  BLO_blend_defs.hh
+  BLO_blend_header.hh
 )
 
 set(LIB

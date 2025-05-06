@@ -5,14 +5,13 @@
 #pragma once
 
 #include <optional>
-#include <variant>
 
 #include "BLI_endian_switch.h"
 #include "BLI_sys_types.h"
 
 struct FileReader;
 
-typedef struct BHead {
+struct BHead {
   /** Identifier for this #BHead. Can be any of BLO_CODE_* or an ID code like ID_OB.  */
   int code;
   /** Identifier of the struct type that is stored in this block. */
@@ -28,27 +27,27 @@ typedef struct BHead {
   int64_t len;
   /** Number of structs in the array (1 for simple structs). */
   int64_t nr;
-} BHead;
+};
 
-typedef struct BHead4 {
+struct BHead4 {
   int code, len;
   uint old;
   int SDNAnr, nr;
-} BHead4;
+};
 
-typedef struct SmallBHead8 {
+struct SmallBHead8 {
   int code, len;
   uint64_t old;
   int SDNAnr, nr;
-} SmallBHead8;
+};
 
-typedef struct LargeBHead8 {
+struct LargeBHead8 {
   int code;
   int SDNAnr;
   uint64_t old;
   int64_t len;
   int64_t nr;
-} LargeBHead8;
+};
 
 enum class BHeadType {
   BHead4,
@@ -56,32 +55,12 @@ enum class BHeadType {
   LargeBHead8,
 };
 
-/** A header that has been parsed successfully. */
-struct BlenderHeader {
-  /** 4 or 8. */
-  int pointer_size;
-  /** L_ENDIAN or B_ENDIAN. */
-  int endian;
-  /** #BLENDER_FILE_VERSION. */
-  int file_version;
-  /** #BLEND_FILE_FORMAT_VERSION. */
-  int file_format_version;
-
-  BHeadType bhead_type() const;
-};
-
-/** The file is detected to be a Blender file, but it could not be decoded successfully. */
-struct BlenderHeaderUnknown {};
-
-/** The file is not a Blender file. */
-struct BlenderHeaderInvalid {};
-
-using BlenderHeaderVariant =
-    std::variant<BlenderHeaderInvalid, BlenderHeaderUnknown, BlenderHeader>;
-
-BlenderHeaderVariant BLO_readfile_blender_header_decode(FileReader *file);
-
-/** Returns #std::nullopt if the file is exhausted. */
+/**
+ * Parse the next #BHead in the file, increasing the file reader to after the #BHead.
+ * This automaticaly converts the stored BHead (one of #BHeadType) to the runtime #BHead type.
+ *
+ * \return The next #BHEad or #std::nullopt if the file is exhausted.
+ */
 std::optional<BHead> BLO_readfile_read_bhead(FileReader *file,
                                              BHeadType type,
                                              bool do_endian_swap);
