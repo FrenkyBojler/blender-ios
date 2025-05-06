@@ -1009,7 +1009,7 @@ static bool viewer_path_ends_with_viewer_node(const ViewerPath &viewer_path)
   return ViewerPathElemType(last_elem.type) == VIEWER_PATH_ELEM_TYPE_VIEWER_NODE;
 }
 
-static void draw_context_path_panel(const bContext &C, uiLayout &layout)
+static void draw_viewer_path_panel(const bContext &C, uiLayout &layout)
 {
   uiBlock *block = uiLayoutGetBlock(&layout);
   ui::AbstractTreeView *tree_view = UI_block_add_view(
@@ -1065,8 +1065,8 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
-    if (uiLayout *panel = layout->panel(C, "viewer path", false, IFACE_("Viewer Path"))) {
-      draw_context_path_panel(*C, *panel);
+    if (uiLayout *panel = layout->panel(C, "viewer path", true, IFACE_("Viewer Path"))) {
+      draw_viewer_path_panel(*C, *panel);
     }
   }
 
