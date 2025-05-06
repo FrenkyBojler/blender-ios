@@ -752,6 +752,32 @@ std::optional<bool> DataSetViewItem::should_be_active() const
   return true;
 }
 
+class DataSourceTreeView : public ui::AbstractTreeView {
+ private:
+  SpaceSpreadsheet &sspreadsheet_;
+  bScreen &screen_;
+
+ public:
+  DataSourceTreeView(const bContext &C)
+      : sspreadsheet_(*CTX_wm_space_spreadsheet(&C)), screen_(*CTX_wm_screen(&C))
+  {
+  }
+
+  void build_tree() override
+  {
+    this->add_tree_item<ui::BasicTreeViewItem>("Hello World");
+  }
+};
+
+static void spreadsheet_data_source_list_draw(const bContext &C, uiLayout &layout)
+{
+  uiBlock *block = uiLayoutGetBlock(&layout);
+  ui::AbstractTreeView *tree_view = UI_block_add_view(
+      *block, "Data Source", std::make_unique<DataSourceTreeView>(C));
+  tree_view->set_context_menu_title("Data Source");
+  ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
+}
+
 static void data_source_panel_draw_without_context(uiLayout &layout)
 {
   uiItemL(&layout, IFACE_("No active context"), ICON_NONE);
@@ -785,6 +811,7 @@ static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layo
     return;
   }
   uiItemR(&layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
+  spreadsheet_data_source_list_draw(C, layout);
 }
 
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
