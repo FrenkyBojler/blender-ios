@@ -61,27 +61,27 @@
  * \{ */
 
 /* Persistent data to re-use during frame change modal operations. */
-struct ChangeFrameData {
+struct FrameChangeModalData {
   /* Used for keyframe snapping. Is populated when needed and re-used so it doesn't have to be
    * created on every modal call. */
   AnimKeylist *keylist;
 };
 
-/* Points the playhead can snap to. */
+/* Point the playhead can snap to. */
 struct SnapTarget {
   float pos;
   /* If true, only snap if close to the point. */
   bool use_snap_treshold;
 };
 
-static ChangeFrameData *allocate_change_frame_data()
+static FrameChangeModalData *allocate_change_frame_data()
 {
-  ChangeFrameData *op_data = MEM_callocN<ChangeFrameData>("change frame data");
+  FrameChangeModalData *op_data = MEM_callocN<FrameChangeModalData>("change frame data");
   op_data->keylist = nullptr;
   return op_data;
 }
 
-static void free_change_frame_data(ChangeFrameData *op_data)
+static void free_change_frame_data(FrameChangeModalData *op_data)
 {
   if (op_data->keylist) {
     ED_keylist_free(op_data->keylist);
@@ -137,7 +137,7 @@ static float get_snap_threshold(const ToolSettings *tool_settings, const ARegion
          UI_view2d_region_to_view_x(&region->v2d, 0);
 }
 
-static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
+static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_data)
 {
   /* Only populate data once. */
   if (op_data.keylist != nullptr) {
@@ -200,7 +200,7 @@ static void ensure_change_frame_keylist(bContext *C, ChangeFrameData &op_data)
 }
 
 static float get_keyframe_snap_target(bContext *C,
-                                      ChangeFrameData &op_data,
+                                      FrameChangeModalData &op_data,
                                       const float timeline_frame)
 {
   ensure_change_frame_keylist(C, op_data);
@@ -211,14 +211,14 @@ static float get_keyframe_snap_target(bContext *C,
   return closest_column->cfra;
 }
 
-static float get_marker_snap_target(Scene *scene, const float frame)
+static float get_marker_snap_target(Scene *scene, const float timeline_frame)
 {
   if (BLI_listbase_is_empty(&scene->markers)) {
     /* This check needs to be here because `ED_markers_find_nearest_marker_time` returns the
      * current frame if there are no markers. */
     return FLT_MAX;
   }
-  return ED_markers_find_nearest_marker_time(&scene->markers, frame);
+  return ED_markers_find_nearest_marker_time(&scene->markers, timeline_frame);
 }
 
 static float get_second_snap_target(Scene *scene, const float timeline_frame, const int step)
@@ -269,7 +269,7 @@ static float get_sequencer_strip_snap_target(blender::Span<Strip *> strips,
   return best_frame;
 }
 
-static float get_nla_strip_snap_target(bContext *C, const int timeline_frame)
+static float get_nla_strip_snap_target(bContext *C, const float timeline_frame)
 {
 
   bAnimContext ac;
@@ -376,7 +376,7 @@ static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const float
 }
 
 static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
-                                                           ChangeFrameData &op_data,
+                                                           FrameChangeModalData &op_data,
                                                            const float timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
@@ -410,7 +410,7 @@ static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
 }
 
 static blender::Vector<SnapTarget> graph_get_snap_targets(bContext *C,
-                                                          ChangeFrameData &op_data,
+                                                          FrameChangeModalData &op_data,
                                                           const float timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
@@ -447,7 +447,7 @@ static blender::Vector<SnapTarget> graph_get_snap_targets(bContext *C,
 
 /* Returns a frame that is snapped to the closest point of interest defined by the area. If no
  * point of interest is nearby, the frame is returned unmodified. */
-static float apply_frame_snap(bContext *C, ChangeFrameData &op_data, const float frame)
+static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const float frame)
 {
   ScrArea *area = CTX_wm_area(C);
 
@@ -514,7 +514,7 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
   const float old_subframe = scene->r.subframe;
 
   if (do_snap) {
-    ChangeFrameData *op_data = static_cast<ChangeFrameData *>(op->customdata);
+    FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
     frame = apply_frame_snap(C, *op_data, frame);
   }
 
@@ -585,7 +585,7 @@ static void change_frame_seq_preview_end(SpaceSeq *sseq)
   }
 }
 
-static bool use_snapping(bContext *C)
+static bool use_playhead_snapping(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   ScrArea *area = CTX_wm_area(C);
@@ -628,7 +628,7 @@ static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *ev
 static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
-  ChangeFrameData *op_data = allocate_change_frame_data();
+  FrameChangeModalData *op_data = allocate_change_frame_data();
   op->customdata = op_data;
 
   /* This check is done in case scrubbing and strip tweaking in the sequencer are bound to the same
@@ -644,7 +644,7 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
    */
   RNA_float_set(op->ptr, "frame", frame_from_event(C, event));
 
-  if (use_snapping(C)) {
+  if (use_playhead_snapping(C)) {
     RNA_boolean_set(op->ptr, "snap", true);
   }
 
@@ -724,7 +724,7 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     case EVT_LEFTCTRLKEY:
     case EVT_RIGHTCTRLKEY:
       /* Use Ctrl key to invert snapping in sequencer. */
-      if (use_snapping(C)) {
+      if (use_playhead_snapping(C)) {
         if (event->val == KM_RELEASE) {
           RNA_boolean_set(op->ptr, "snap", true);
         }
@@ -754,7 +754,7 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     bScreen *screen = CTX_wm_screen(C);
     screen->scrubbing = false;
 
-    ChangeFrameData *op_data = static_cast<ChangeFrameData *>(op->customdata);
+    FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
     free_change_frame_data(op_data);
     op->customdata = nullptr;
 
