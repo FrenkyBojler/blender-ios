@@ -980,6 +980,15 @@ static void data_source_panel_draw_without_context(uiLayout &layout)
   uiItemL(&layout, IFACE_("No active context"), ICON_NONE);
 }
 
+static bool viewer_path_ends_with_viewer_node(const ViewerPath &viewer_path)
+{
+  if (BLI_listbase_is_empty(&viewer_path.path)) {
+    return false;
+  }
+  const ViewerPathElem &last_elem = *static_cast<const ViewerPathElem *>(viewer_path.path.last);
+  return ViewerPathElemType(last_elem.type) == VIEWER_PATH_ELEM_TYPE_VIEWER_NODE;
+}
+
 static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layout)
 {
   bScreen &screen = *CTX_wm_screen(&C);
@@ -1010,9 +1019,8 @@ static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layo
   uiItemR(&layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
   spreadsheet_data_source_list_draw(C, layout);
 
-  const int viewer_path_len = BLI_listbase_count(&viewer_path.path);
   if (sspreadsheet.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
-      viewer_path_len < 3)
+      !viewer_path_ends_with_viewer_node(viewer_path))
   {
     uiItemL(&layout, IFACE_("No active viewer node"), ICON_INFO);
   }
@@ -1045,7 +1053,19 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   const bke::GeometrySet root_geometry = spreadsheet_get_display_geometry_set(sspreadsheet,
                                                                               object);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "instance tree", false, IFACE_("Geometry"))) {
+  /* Add some contextual information to the panel name which is useful when the Data Source panel
+   * is closed. */
+  std::string geometry_panel_name = IFACE_("Geometry");
+  if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
+      viewer_path_ends_with_viewer_node(sspreadsheet->viewer_path))
+  {
+    geometry_panel_name = IFACE_("Geometry (Viewer)");
+  }
+  else if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
+    geometry_panel_name = IFACE_("Geometry (Original)");
+  }
+
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "instance tree", false, geometry_panel_name)) {
     ui::AbstractTreeView *tree_view = UI_block_add_view(
         *block,
         "Instances Tree View",
