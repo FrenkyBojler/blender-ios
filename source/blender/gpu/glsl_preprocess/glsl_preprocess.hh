@@ -701,6 +701,32 @@ class Preprocessor {
     return out;
   }
 
+  std::string using_mutation(const std::string &str, report_callback report_error)
+  {
+    using namespace std;
+
+    std::string out = str;
+
+    if (str.find("using ") == std::string::npos) {
+      return str;
+    }
+
+    regex_global_search(str, std::regex(R"(\busing\s([\w:]+))"), [&](const std::smatch &match) {
+      if (match.prefix().str().back() == '\n') {
+        report_error(match, "The `using` keyword is not allowed in global or namespace scope.");
+      }
+
+      size_t name_start = match[1].str().rfind(':');
+      string symbol = match[1].str();
+      string scope = get_content_between_balanced_pair('{' + match.suffix().str(), '{', '}');
+      /* Replace all occurrences of the non-namespace specified symbol.
+       * Reject symbols that contain the target symbol name. */
+      std::regex regex(R"(([^:\w]))" + symbol + R"(([\s\(]))");
+      // out = std::regex_replace(out, regex, "$1" + namespace_name + "::" + function + "$2");
+    });
+    return str;
+  }
+
   std::string namespace_separator_mutation(const std::string &str)
   {
     std::string out = str;
@@ -711,16 +737,6 @@ class Preprocessor {
      * Cannot use `__` because of some compilers complaining about reserved symbols. */
     replace_all(out, "::", "_");
     return out;
-  }
-
-  std::string using_mutation(const std::string &str, report_callback report_error)
-  {
-    if (str.find("using") != std::string::npos) {
-      regex_global_search(str, std::regex(R"(\busing\b)"), [&](const std::smatch &match) {
-        report_error(match, "The `using` keyword is not supported yet but is reserved.");
-      });
-    }
-    return str;
   }
 
   std::string preprocessor_directive_mutation(const std::string &str)
