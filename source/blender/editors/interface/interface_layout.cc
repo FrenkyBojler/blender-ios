@@ -1050,13 +1050,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
         if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
           if (BLI_path_is_rel(but->drawstr.c_str())) {
-
-            /* Finally check that this isn't suppressed, see: #137507 & #137856. */
-            if ((uiLayoutSuppressFlagGet(layout) &
-                 LayoutSuppressFlag::PathSupportsBlendFileRelative) != LayoutSuppressFlag(0))
-            {
-              UI_but_flag_enable(but, UI_BUT_REDALERT);
-            }
+            UI_but_flag_enable(but, UI_BUT_REDALERT);
           }
         }
       }
@@ -1137,18 +1131,15 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C,
                                                 PointerRNA *r_ptr,
                                                 PropertyRNA **r_prop,
                                                 bool *r_is_undo,
-                                                bool *r_is_userdef,
-                                                bool *r_override_path_supports_blend_relative)
+                                                bool *r_is_userdef)
 {
   ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
   uiBut *prevbut = nullptr;
-  bool override_path_supports_blend_relative = false;
 
   *r_ptr = {};
   *r_prop = nullptr;
   *r_is_undo = false;
   *r_is_userdef = false;
-  *r_override_path_supports_blend_relative = false;
 
   if (!region) {
     return;
@@ -1161,24 +1152,12 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C,
           prevbut = but.get();
         }
       }
-
-      /* Allow forcing relative paths to be considered supported
-       * even when the property doesn't support related paths.
-       *
-       * Needed because the `COLLECTION_OT_export_all` and associated functions
-       * use the operators file-path property for storage and expand the path
-       * before passing it to the operator, see #137856 & #137507. */
-      if (but->optype && STREQ(but->optype->idname, "COLLECTION_OT_export_all")) {
-        override_path_supports_blend_relative = true;
-      }
-
       /* find the button before the active one */
       if ((but->flag & UI_BUT_LAST_ACTIVE) && prevbut) {
         *r_ptr = prevbut->rnapoin;
         *r_prop = prevbut->rnaprop;
         *r_is_undo = (prevbut->flag & UI_BUT_UNDO) != 0;
         *r_is_userdef = UI_but_is_userdef(prevbut);
-        *r_override_path_supports_blend_relative = override_path_supports_blend_relative;
         return;
       }
     }
@@ -1528,7 +1507,7 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                  std::nullopt);
   }
   else {
-    split = uiLayoutSplit(layout, 0.0f, false);
+    split = &layout->split(0.0f, false);
     target = &split->column(layout->align_);
   }
 
@@ -2264,8 +2243,8 @@ void uiItemFullR(uiLayout *layout,
       }
     }
     else {
-      uiLayout *layout_split = uiLayoutSplit(
-          layout_row ? layout_row : layout, UI_ITEM_PROP_SEP_DIVIDE, true);
+      uiLayout *layout_split =
+          &(layout_row ? layout_row : layout)->split(UI_ITEM_PROP_SEP_DIVIDE, true);
       bool label_added = false;
       uiLayout *layout_sub = &layout_split->column(true);
       layout_sub->space_ = 0;
@@ -2731,7 +2710,7 @@ void uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, const StringRefNull propnam
     return;
   }
 
-  uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
+  uiLayout *split = &layout->split(0.0f, false);
   uiLayout *column = &split->column(false);
 
   int totitem;
@@ -3353,7 +3332,7 @@ uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout)
   uiPropertySplitWrapper split_wrapper = {nullptr};
 
   uiLayout *layout_row = &parent_layout->row(true);
-  uiLayout *layout_split = uiLayoutSplit(layout_row, UI_ITEM_PROP_SEP_DIVIDE, true);
+  uiLayout *layout_split = &layout_row->split(UI_ITEM_PROP_SEP_DIVIDE, true);
 
   split_wrapper.label_column = &layout_split->column(true);
   split_wrapper.label_column->alignment_ = UI_LAYOUT_ALIGN_RIGHT;
@@ -4983,10 +4962,9 @@ uiLayout &uiLayout::row(bool align)
   return *litem;
 }
 
-PanelLayout uiLayoutPanelProp(const bContext *C,
-                              uiLayout *layout,
-                              PointerRNA *open_prop_owner,
-                              const StringRefNull open_prop_name)
+PanelLayout uiLayout::panel_prop(const bContext *C,
+                                 PointerRNA *open_prop_owner,
+                                 const StringRefNull open_prop_name)
 {
   const ARegion *region = CTX_wm_region(C);
 
@@ -4997,7 +4975,7 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
   PanelLayout panel_layout{};
   {
     uiLayoutItemPanelHeader *header_litem = MEM_new<uiLayoutItemPanelHeader>(__func__);
-    ui_litem_init_from_parent(header_litem, layout, false);
+    ui_litem_init_from_parent(header_litem, this, false);
     header_litem->type_ = uiItemType::LayoutPanelHeader;
 
     header_litem->open_prop_owner = *open_prop_owner;
@@ -5008,7 +4986,7 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
 
     uiBlock *block = uiLayoutGetBlock(row);
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
-    const int width = ui_text_icon_width(layout, "", icon, false);
+    const int width = ui_text_icon_width(this, "", icon, false);
     uiDefIconTextBut(
         block, UI_BTYPE_LABEL, 0, icon, "", 0, 0, width, UI_UNIT_Y, nullptr, 0.0f, 0.0f, "");
 
@@ -5021,9 +4999,9 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
 
   uiLayoutItemPanelBody *body_litem = MEM_new<uiLayoutItemPanelBody>(__func__);
   body_litem->type_ = uiItemType::LayoutPanelBody;
-  body_litem->space_ = layout->root_->style->templatespace;
-  ui_litem_init_from_parent(body_litem, layout, false);
-  UI_block_layout_set_current(layout->root_->block, body_litem);
+  body_litem->space_ = root_->style->templatespace;
+  ui_litem_init_from_parent(body_litem, this, false);
+  UI_block_layout_set_current(root_->block, body_litem);
   panel_layout.body = body_litem;
 
   return panel_layout;
@@ -5037,7 +5015,7 @@ PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
                                             const StringRefNull bool_prop_name,
                                             const std::optional<StringRefNull> label)
 {
-  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
+  PanelLayout panel = layout->panel_prop(C, open_prop_owner, open_prop_name);
 
   uiLayout *panel_header = panel.header;
   panel_header->flag_ &= ~(uiItemInternalFlag::PropSep | uiItemInternalFlag::PropDecorate |
@@ -5047,42 +5025,38 @@ PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
   return panel;
 }
 
-uiLayout *uiLayoutPanelProp(const bContext *C,
-                            uiLayout *layout,
-                            PointerRNA *open_prop_owner,
-                            const StringRefNull open_prop_name,
-                            const StringRef label)
+uiLayout *uiLayout::panel_prop(const bContext *C,
+                               PointerRNA *open_prop_owner,
+                               const StringRefNull open_prop_name,
+                               const StringRef label)
 {
-  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
-  uiItemL(panel.header, label, ICON_NONE);
+  PanelLayout panel_layout = panel_prop(C, open_prop_owner, open_prop_name);
+  uiItemL(panel_layout.header, label, ICON_NONE);
 
-  return panel.body;
+  return panel_layout.body;
 }
 
-PanelLayout uiLayoutPanel(const bContext *C,
-                          uiLayout *layout,
-                          const StringRef idname,
-                          const bool default_closed)
+PanelLayout uiLayout::panel(const bContext *C, const StringRef idname, const bool default_closed)
 {
-  Panel *panel = uiLayoutGetRootPanel(layout);
-  BLI_assert(panel != nullptr);
+  Panel *root_panel = uiLayoutGetRootPanel(this);
+  BLI_assert(root_panel != nullptr);
 
-  LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(panel, idname, default_closed);
+  LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
+      root_panel, idname, default_closed);
   PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
 
-  return uiLayoutPanelProp(C, layout, &state_ptr, "is_open");
+  return panel_prop(C, &state_ptr, "is_open");
 }
 
-uiLayout *uiLayoutPanel(const bContext *C,
-                        uiLayout *layout,
-                        const StringRef idname,
-                        const bool default_closed,
-                        const StringRef label)
+uiLayout *uiLayout::panel(const bContext *C,
+                          const StringRef idname,
+                          const bool default_closed,
+                          const StringRef label)
 {
-  PanelLayout panel = uiLayoutPanel(C, layout, idname, default_closed);
-  uiItemL(panel.header, label, ICON_NONE);
+  PanelLayout panel_layout = panel(C, idname, default_closed);
+  uiItemL(panel_layout.header, label, ICON_NONE);
 
-  return panel.body;
+  return panel_layout.body;
 }
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout)
@@ -5121,40 +5095,36 @@ uiLayout &uiLayout::column(bool align, const StringRef heading)
   return litem;
 }
 
-uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, bool align)
+uiLayout &uiLayout::column_flow(int number, bool align)
 {
   uiLayoutItemFlow *flow = MEM_new<uiLayoutItemFlow>(__func__);
-  ui_litem_init_from_parent(flow, layout, align);
+  ui_litem_init_from_parent(flow, this, align);
 
   flow->type_ = uiItemType::LayoutColumnFlow;
-  flow->space_ = (flow->align_) ? 0 : layout->root_->style->columnspace;
+  flow->space_ = (flow->align_) ? 0 : this->root_->style->columnspace;
   flow->number = number;
 
-  UI_block_layout_set_current(layout->root_->block, flow);
+  UI_block_layout_set_current(this->root_->block, flow);
 
-  return flow;
+  return *flow;
 }
 
-uiLayout *uiLayoutGridFlow(uiLayout *layout,
-                           bool row_major,
-                           int columns_len,
-                           bool even_columns,
-                           bool even_rows,
-                           bool align)
+uiLayout &uiLayout::grid_flow(
+    bool row_major, int columns_len, bool even_columns, bool even_rows, bool align)
 {
   uiLayoutItemGridFlow *flow = MEM_new<uiLayoutItemGridFlow>(__func__);
   flow->type_ = uiItemType::LayoutGridFlow;
-  ui_litem_init_from_parent(flow, layout, align);
+  ui_litem_init_from_parent(flow, this, align);
 
-  flow->space_ = (flow->align_) ? 0 : layout->root_->style->columnspace;
+  flow->space_ = (flow->align_) ? 0 : this->root_->style->columnspace;
   flow->row_major = row_major;
   flow->columns_len = columns_len;
   flow->even_columns = even_columns;
   flow->even_rows = even_rows;
 
-  UI_block_layout_set_current(layout->root_->block, flow);
+  UI_block_layout_set_current(this->root_->block, flow);
 
-  return flow;
+  return *flow;
 }
 
 static uiLayoutItemBx *ui_layout_box(uiLayout *layout, int type)
@@ -5198,9 +5168,9 @@ uiLayout *uiLayoutRadial(uiLayout *layout)
   return litem;
 }
 
-uiLayout *uiLayoutBox(uiLayout *layout)
+uiLayout &uiLayout::box()
 {
-  return (uiLayout *)ui_layout_box(layout, UI_BTYPE_ROUNDBOX);
+  return *ui_layout_box(this, UI_BTYPE_ROUNDBOX);
 }
 
 void ui_layout_list_set_labels_active(uiLayout *layout)
@@ -5271,18 +5241,18 @@ uiLayout *uiLayoutOverlap(uiLayout *layout)
   return litem;
 }
 
-uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, bool align)
+uiLayout &uiLayout::split(float percentage, bool align)
 {
   uiLayoutItemSplit *split = MEM_new<uiLayoutItemSplit>(__func__);
-  ui_litem_init_from_parent(split, layout, align);
+  ui_litem_init_from_parent(split, this, align);
 
   split->type_ = uiItemType::LayoutSplit;
-  split->space_ = layout->root_->style->columnspace;
+  split->space_ = root_->style->columnspace;
   split->percentage = percentage;
 
-  UI_block_layout_set_current(layout->root_->block, split);
+  UI_block_layout_set_current(root_->block, split);
 
-  return split;
+  return *split;
 }
 
 void uiLayoutSetActive(uiLayout *layout, bool active)
@@ -5464,21 +5434,6 @@ void uiLayoutListItemAddPadding(uiLayout *layout)
 
   /* Restore. */
   UI_block_layout_set_current(block, layout);
-}
-
-LayoutSuppressFlag uiLayoutSuppressFlagGet(const uiLayout *layout)
-{
-  return layout->suppress_flag_;
-}
-
-void uiLayoutSuppressFlagSet(uiLayout *layout, LayoutSuppressFlag flag)
-{
-  layout->suppress_flag_ |= flag;
-}
-
-void uiLayoutSuppressFlagClear(uiLayout *layout, LayoutSuppressFlag flag)
-{
-  layout->suppress_flag_ &= ~flag;
 }
 
 /** \} */
@@ -6514,7 +6469,7 @@ uiLayout *uiItemsAlertBox(uiBlock *block,
       block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, dialog_width, 0, 0, style);
 
   /* Split layout to put alert icon on left side. */
-  uiLayout *split_block = uiLayoutSplit(block_layout, split_factor, false);
+  uiLayout *split_block = &block_layout->split(split_factor, false);
 
   /* Alert icon on the left. */
   uiLayout *layout = &split_block->row(false);

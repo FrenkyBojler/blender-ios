@@ -118,6 +118,11 @@ typedef struct RegionView3D {
   char _pad8[4];
 
   char ndof_flag;
+  /**
+   * Rotation center used for for "Auto Orbit" (see #NDOF_ORBIT_CENTER_AUTO).
+   * Any modification should be followed by adjusting #RegionView3D::dist
+   * to prevent problems zooming in after navigation. See: #134732.
+   */
   float ndof_ofs[3];
 
   /** Active rotation from NDOF (run-time only). */
@@ -556,6 +561,8 @@ enum {
   V3D_GP_SHOW_GRID_XRAY = 1 << 9,
   /** Force 3D depth rendering and ignore per-object stroke depth mode. */
   V3D_GP_FORCE_STROKE_ORDER_3D = 1 << 10,
+  /** Onion skin for active object only. */
+  V3D_GP_ONION_SKIN_ACTIVE_OBJECT = 1 << 11,
 };
 
 /** #View3DShading.flag */

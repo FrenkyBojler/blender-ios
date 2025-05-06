@@ -710,6 +710,7 @@ if(WITH_METAL_BACKEND)
 endif()
 
 blender_add_lib(bf_gpu_shaders "${SHADER_C}" "" "" "")
+blender_set_target_unity_build(bf_gpu_shaders 10)
 
 list(APPEND LIB
   bf_gpu_shaders
@@ -801,6 +802,7 @@ if(WITH_GTESTS)
       tests/push_constants_test.cc
       tests/shader_create_info_test.cc
       tests/shader_test.cc
+      tests/shader_preprocess_test.cc
       tests/specialization_constants_test.cc
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc

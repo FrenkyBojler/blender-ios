@@ -592,7 +592,7 @@ static void build_drawing(const GreasePencilBuildModifierData &mmd,
   IndexMask selection = modifier::greasepencil::get_filtered_stroke_mask(
       &ob, curves, mmd.influence, memory);
 
-  /* Remove a count of #prev_strokes.  */
+  /* Remove a count of #prev_strokes. */
   if (mmd.mode == MOD_GREASE_PENCIL_BUILD_MODE_ADDITIVE && previous_drawing != nullptr) {
     const bke::CurvesGeometry &prev_curves = previous_drawing->strokes();
     const int prev_strokes = prev_curves.curves_num();
@@ -831,8 +831,8 @@ static void panel_draw(const bContext *C, Panel *panel)
                    ICON_NONE);
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
