@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "DNA_curves_types.h"
@@ -751,18 +752,52 @@ std::optional<bool> DataSetViewItem::should_be_active() const
   return true;
 }
 
+static void data_source_panel_draw_without_context(uiLayout &layout)
+{
+  uiItemL(&layout, IFACE_("No active context"), ICON_NONE);
+}
+
+static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layout)
+{
+  const SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  const ViewerPath &viewer_path = sspreadsheet.viewer_path;
+  if (BLI_listbase_is_empty(&viewer_path.path)) {
+    data_source_panel_draw_without_context(layout);
+    return;
+  }
+  const ViewerPathElem &root_elem = *static_cast<const ViewerPathElem *>(viewer_path.path.first);
+  if (root_elem.type != VIEWER_PATH_ELEM_TYPE_ID) {
+    data_source_panel_draw_without_context(layout);
+    return;
+  }
+  const IDViewerPathElem &root_id_elem = *reinterpret_cast<const IDViewerPathElem *>(&root_elem);
+  if (!root_id_elem.id) {
+    data_source_panel_draw_without_context(layout);
+    return;
+  }
+  if (GS(root_id_elem.id->name) != ID_OB) {
+    data_source_panel_draw_without_context(layout);
+    return;
+  }
+}
+
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
 {
   const SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+
+  uiLayout *layout = panel->layout;
+  uiBlock *block = uiLayoutGetBlock(layout);
+  UI_block_layout_set_current(block, layout);
+
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "data source", false, IFACE_("Data Source"))) {
+    spreadsheet_data_source_panel_draw(*C, *panel);
+  }
+
   Object *object = spreadsheet_get_object_eval(sspreadsheet, CTX_data_depsgraph_pointer(C));
   if (!object) {
     return;
   }
-  uiLayout *layout = panel->layout;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
-
-  UI_block_layout_set_current(block, layout);
   const bke::GeometrySet root_geometry = spreadsheet_get_display_geometry_set(sspreadsheet,
                                                                               object);
 
