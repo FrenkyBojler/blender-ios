@@ -774,6 +774,69 @@ class IDViewerPathItem : public ui::AbstractTreeViewItem {
   }
 };
 
+class ModifierViewerPathItem : public ui::AbstractTreeViewItem {
+  const ModifierViewerPathElem &modifier_elem_;
+
+ public:
+  ModifierViewerPathItem(const ModifierViewerPathElem &modifier_elem)
+      : modifier_elem_(modifier_elem)
+  {
+    label_ = modifier_elem.modifier_name;
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    uiItemL(&row, modifier_elem_.modifier_name, ICON_MODIFIER);
+  }
+};
+
+class GroupNodeViewerPathItem : public ui::AbstractTreeViewItem {
+  const GroupNodeViewerPathElem &group_node_elem_;
+
+ public:
+  GroupNodeViewerPathItem(const GroupNodeViewerPathElem &group_node_elem)
+      : group_node_elem_(group_node_elem)
+  {
+    label_ = group_node_elem.base.ui_name;
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    uiItemL(&row, group_node_elem_.base.ui_name, ICON_NODE);
+  }
+};
+
+class ViewerNodeViewerPathItem : public ui::AbstractTreeViewItem {
+  const ViewerNodeViewerPathElem &viewer_node_elem_;
+
+ public:
+  ViewerNodeViewerPathItem(const ViewerNodeViewerPathElem &viewer_node_elem)
+      : viewer_node_elem_(viewer_node_elem)
+  {
+    label_ = viewer_node_elem.base.ui_name;
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    uiItemL(&row, viewer_node_elem_.base.ui_name, ICON_RESTRICT_VIEW_OFF);
+  }
+};
+
+class SimulationViewerPathPathItem : public ui::AbstractTreeViewItem {
+
+ public:
+  SimulationViewerPathPathItem(const SimulationZoneViewerPathElem & /*simulation_zone_elem*/)
+  {
+    // TODO: Give unique identifiers.
+    label_ = IFACE_("Simulation");
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    uiItemL(&row, "Simulation", ICON_BLANK1);
+  }
+};
+
 class RepeatViewerPathItem : public ui::AbstractTreeViewItem {
  private:
   const RepeatZoneViewerPathElem &repeat_zone_;
@@ -807,6 +870,19 @@ class ForeachElementViewerPathItem : public ui::AbstractTreeViewItem {
   {
     uiItemL(&row, label_, ICON_BLANK1);
     draw_row_suffix(*this, std::to_string(foreach_geo_elem_zone_.index));
+  }
+};
+
+class EvaluteClosureViewerPathItem : public ui::AbstractTreeViewItem {
+ public:
+  EvaluteClosureViewerPathItem(const EvaluateClosureNodeViewerPathElem & /*evalute_closure_elem*/)
+  {
+    label_ = IFACE_("Evaluate Closure");
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    uiItemL(&row, label_, ICON_BLANK1);
   }
 };
 
@@ -852,26 +928,23 @@ class DataSourceTreeView : public ui::AbstractTreeView {
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_MODIFIER: {
-        const ModifierViewerPathElem &modifier_elem =
-            reinterpret_cast<const ModifierViewerPathElem &>(elem);
-        this->add_tree_item<ui::BasicTreeViewItem>(modifier_elem.modifier_name, ICON_MODIFIER);
+        this->add_tree_item<ModifierViewerPathItem>(
+            reinterpret_cast<const ModifierViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_GROUP_NODE: {
-        const GroupNodeViewerPathElem &group_node_elem =
-            reinterpret_cast<const GroupNodeViewerPathElem &>(elem);
-        this->add_tree_item<ui::BasicTreeViewItem>(group_node_elem.base.ui_name, ICON_NODE);
+        this->add_tree_item<GroupNodeViewerPathItem>(
+            reinterpret_cast<const GroupNodeViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_VIEWER_NODE: {
-        const ViewerNodeViewerPathElem &viewer_node_elem =
-            reinterpret_cast<const ViewerNodeViewerPathElem &>(elem);
-        this->add_tree_item<ui::BasicTreeViewItem>(viewer_node_elem.base.ui_name,
-                                                   ICON_RESTRICT_VIEW_OFF);
+        this->add_tree_item<ViewerNodeViewerPathItem>(
+            reinterpret_cast<const ViewerNodeViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE: {
-        this->add_tree_item<ui::BasicTreeViewItem>("Simulation", ICON_BLANK1);
+        this->add_tree_item<SimulationViewerPathPathItem>(
+            reinterpret_cast<const SimulationZoneViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
@@ -885,7 +958,8 @@ class DataSourceTreeView : public ui::AbstractTreeView {
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {
-        this->add_tree_item<ui::BasicTreeViewItem>("Evaluate Closure", ICON_BLANK1);
+        this->add_tree_item<EvaluteClosureViewerPathItem>(
+            reinterpret_cast<const EvaluateClosureNodeViewerPathElem &>(elem));
         break;
       }
     }
