@@ -458,4 +458,111 @@ void func()
 }
 GPU_TEST(preprocess_default_arguments);
 
+static void test_preprocess_namespace()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+namespace A {
+struct S {};
+int func(int a)
+{
+  S s;
+  return B::func(int a);
+}
+int func2(int a)
+{
+  T s;
+  s.S;
+  s.func;
+  return func(int a);
+}
+}
+)";
+    string expect = R"(
+
+struct A_S {};
+int A_func(int a)
+{
+  A_S s;
+  return B_func(int a);
+}
+int A_func2(int a)
+{
+  T s;
+  s.S;
+  s.func;
+  return A_func(int a);
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+namespace A::B {
+int func(int a)
+{
+  return a;
+}
+int func2(int a)
+{
+  return func(int a);
+}
+}
+)";
+    string expect = R"(
+
+int A_B_func(int a)
+{
+  return a;
+}
+int A_B_func2(int a)
+{
+  return A_B_func(int a);
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+namespace A {
+namespace B {
+int func(int a)
+{
+  return a;
+}
+}
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Nested namespaces are unsupported.");
+  }
+  {
+    string input = R"(
+namespace A {
+int func(int a)
+{
+  using B::func;
+  return func(a);
+}
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "The `using` keyword is not supported yet but is reserved.");
+  }
+}
+GPU_TEST(preprocess_namespace);
+
 }  // namespace blender::gpu::tests

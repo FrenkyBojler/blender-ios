@@ -227,6 +227,7 @@ class Preprocessor {
       if (language == BLENDER_GLSL) {
         str = namespace_mutation(str, report_error);
         str = namespace_separator_mutation(str);
+        str = using_mutation(str, report_error);
       }
       str = enum_macro_injection(str);
       str = default_argument_mutation(str);
@@ -677,7 +678,7 @@ class Preprocessor {
       std::string content = get_content_between_balanced_pair(match.suffix().str(), '{', '}');
 
       if (content.find("namespace") != std::string::npos) {
-        report_error(match, "Nested namespace are unsupported.");
+        report_error(match, "Nested namespaces are unsupported.");
         return;
       }
 
@@ -694,7 +695,7 @@ class Preprocessor {
             out_content, regex, "$1" + namespace_name + "::" + function + "$2");
       });
 
-      replace_all(out, "namespace " + namespace_name + " {" + content + "}", '\n' + out_content);
+      replace_all(out, "namespace " + namespace_name + " {" + content + "}", out_content);
     });
 
     return out;
@@ -706,9 +707,20 @@ class Preprocessor {
 
     /* Global namespace reference. */
     replace_all(out, " ::", "   ");
-    /* Specific namespace reference. */
-    replace_all(out, "::", "__");
+    /* Specific namespace reference.
+     * Cannot use `__` because of some compilers complaining about reserved symbols. */
+    replace_all(out, "::", "_");
     return out;
+  }
+
+  std::string using_mutation(const std::string &str, report_callback report_error)
+  {
+    if (str.find("using") != std::string::npos) {
+      regex_global_search(str, std::regex(R"(\busing\b)"), [&](const std::smatch &match) {
+        report_error(match, "The `using` keyword is not supported yet but is reserved.");
+      });
+    }
+    return str;
   }
 
   std::string preprocessor_directive_mutation(const std::string &str)
