@@ -795,8 +795,15 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   uiBlock *block = uiLayoutGetBlock(layout);
   UI_block_layout_set_current(block, layout);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "data source", false, IFACE_("Data Source"))) {
-    spreadsheet_data_source_panel_draw(*C, *panel);
+  PanelLayout data_source_panel = uiLayoutPanel(C, layout, "data source", false);
+  uiItemL(data_source_panel.header, IFACE_("Data Source"), ICON_NONE);
+  uiLayoutSetEmboss(data_source_panel.header, ui::EmbossType::None);
+  uiItemO(data_source_panel.header,
+          "",
+          sspreadsheet->flag & SPREADSHEET_FLAG_PINNED ? ICON_PINNED : ICON_UNPINNED,
+          "spreadsheet.toggle_pin");
+  if (data_source_panel.body) {
+    spreadsheet_data_source_panel_draw(*C, *data_source_panel.body);
   }
 
   Object *object = spreadsheet_get_object_eval(sspreadsheet, CTX_data_depsgraph_pointer(C));
