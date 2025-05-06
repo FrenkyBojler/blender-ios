@@ -905,7 +905,7 @@ class EvaluteClosureViewerPathItem : public ViewerPathTreeViewItem {
   }
 };
 
-class DataSourceTreeView : public ui::AbstractTreeView {
+class ViewerPathTreeView : public ui::AbstractTreeView {
  private:
   SpaceSpreadsheet &sspreadsheet_;
   bScreen &screen_;
@@ -913,7 +913,7 @@ class DataSourceTreeView : public ui::AbstractTreeView {
   friend ViewerPathTreeViewItem;
 
  public:
-  DataSourceTreeView(const bContext &C)
+  ViewerPathTreeView(const bContext &C)
       : sspreadsheet_(*CTX_wm_space_spreadsheet(&C)), screen_(*CTX_wm_screen(&C))
   {
     /* This tree view contains only a flat list of items without. */
@@ -923,22 +923,14 @@ class DataSourceTreeView : public ui::AbstractTreeView {
   void build_tree() override
   {
     const ViewerPath &viewer_path = sspreadsheet_.viewer_path;
-    Vector<const ViewerPathElem *> path_elems;
-    switch (sspreadsheet_.object_eval_state) {
-      case SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED:
-      case SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE: {
-        LISTBASE_FOREACH (const ViewerPathElem *, elem, &viewer_path.path) {
-          path_elems.append(elem);
-        }
-        break;
+
+    int index;
+    LISTBASE_FOREACH_INDEX (const ViewerPathElem *, elem, &viewer_path.path, index) {
+      if (elem == viewer_path.path.first) {
+        /* The root item is drawn above the tree view already. */
+        continue;
       }
-      case SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL: {
-        path_elems.append(static_cast<const ViewerPathElem *>(viewer_path.path.first));
-        break;
-      }
-    }
-    for (const int i : path_elems.index_range()) {
-      this->add_viewer_path_elem(i, *path_elems[i]);
+      this->add_viewer_path_elem(index, *elem);
     }
   }
 
@@ -998,18 +990,9 @@ void ViewerPathTreeViewItem::on_activate(bContext &C)
 
 std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
 {
-  const DataSourceTreeView &tree_view = dynamic_cast<const DataSourceTreeView &>(
+  const ViewerPathTreeView &tree_view = dynamic_cast<const ViewerPathTreeView &>(
       this->get_tree_view());
   return tree_view.sspreadsheet_.active_viewer_path_index == viewer_path_index_;
-}
-
-static void spreadsheet_data_source_list_draw(const bContext &C, uiLayout &layout)
-{
-  uiBlock *block = uiLayoutGetBlock(&layout);
-  ui::AbstractTreeView *tree_view = UI_block_add_view(
-      *block, "Data Source", std::make_unique<DataSourceTreeView>(C));
-  tree_view->set_context_menu_title("Data Source");
-  ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
 }
 
 static void draw_active_viewer_path_item(const bContext &C, uiLayout &layout)
@@ -1047,6 +1030,17 @@ static void draw_active_viewer_path_item(const bContext &C, uiLayout &layout)
   }
 }
 
+static void draw_viewer_path_list(const bContext &C, uiLayout &layout)
+{
+  uiBlock *block = uiLayoutGetBlock(&layout);
+  ui::AbstractTreeView *tree_view = UI_block_add_view(
+      *block, "Data Source", std::make_unique<ViewerPathTreeView>(C));
+  tree_view->set_context_menu_title("Data Source");
+  ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
+
+  draw_active_viewer_path_item(C, layout);
+}
+
 static void data_source_panel_draw_without_context(uiLayout &layout)
 {
   uiItemL(&layout, IFACE_("No active context"), ICON_NONE);
@@ -1069,35 +1063,42 @@ static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layo
   PointerRNA sspreadsheet_ptr = RNA_pointer_create_discrete(
       &screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
 
-  const ViewerPath &viewer_path = sspreadsheet.viewer_path;
+  ViewerPath &viewer_path = sspreadsheet.viewer_path;
   if (BLI_listbase_is_empty(&viewer_path.path)) {
     data_source_panel_draw_without_context(layout);
     return;
   }
-  const ViewerPathElem &root_elem = *static_cast<const ViewerPathElem *>(viewer_path.path.first);
+  ViewerPathElem &root_elem = *static_cast<ViewerPathElem *>(viewer_path.path.first);
   if (root_elem.type != VIEWER_PATH_ELEM_TYPE_ID) {
     data_source_panel_draw_without_context(layout);
     return;
   }
-  const IDViewerPathElem &root_id_elem = *reinterpret_cast<const IDViewerPathElem *>(&root_elem);
+  IDViewerPathElem &root_id_elem = *reinterpret_cast<IDViewerPathElem *>(&root_elem);
   if (!root_id_elem.id) {
     data_source_panel_draw_without_context(layout);
     return;
   }
-  if (GS(root_id_elem.id->name) != ID_OB) {
+  ID &root_id = *root_id_elem.id;
+  if (GS(root_id.name) != ID_OB) {
     data_source_panel_draw_without_context(layout);
     return;
   }
   uiItemR(&layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
+  uiItemL(&layout, BKE_id_name(root_id), ICON_OBJECT_DATA);
 
-  if (sspreadsheet.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
-      !viewer_path_ends_with_viewer_node(viewer_path))
-  {
-    uiItemL(&layout, IFACE_("No active viewer node"), ICON_INFO);
+  switch (eSpaceSpreadsheet_ObjectEvalState(sspreadsheet.object_eval_state)) {
+    case SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED:
+    case SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL: {
+      break;
+    }
+    case SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE: {
+      if (!viewer_path_ends_with_viewer_node(viewer_path)) {
+        uiItemL(&layout, IFACE_("No active viewer node"), ICON_INFO);
+      }
+      draw_viewer_path_list(C, layout);
+      break;
+    }
   }
-
-  spreadsheet_data_source_list_draw(C, layout);
-  draw_active_viewer_path_item(C, layout);
 }
 
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
