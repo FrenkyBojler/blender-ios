@@ -759,7 +759,12 @@ static void data_source_panel_draw_without_context(uiLayout &layout)
 
 static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layout)
 {
-  const SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  bScreen &screen = *CTX_wm_screen(&C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+
+  PointerRNA sspreadsheet_ptr = RNA_pointer_create_discrete(
+      &screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
+
   const ViewerPath &viewer_path = sspreadsheet.viewer_path;
   if (BLI_listbase_is_empty(&viewer_path.path)) {
     data_source_panel_draw_without_context(layout);
@@ -779,6 +784,7 @@ static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layo
     data_source_panel_draw_without_context(layout);
     return;
   }
+  uiItemR(&layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
