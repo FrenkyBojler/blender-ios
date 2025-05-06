@@ -28,6 +28,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_ordered_edge.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector_set.hh"
 
@@ -253,13 +254,14 @@ bool USDMeshReader::topology_changed(const Mesh *existing_mesh, const double mot
          face_indices_.size() != existing_mesh->corners_num;
 }
 
-void USDMeshReader::read_mpolys(Mesh *mesh) const
+bool USDMeshReader::read_faces(Mesh *mesh) const
 {
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
   int loop_index = 0;
 
+  bool ok_faces = true;
   for (int i = 0; i < face_counts_.size(); i++) {
     const int face_size = face_counts_[i];
 
@@ -268,20 +270,31 @@ void USDMeshReader::read_mpolys(Mesh *mesh) const
     /* Polygons are always assumed to be smooth-shaded. If the mesh should be flat-shaded,
      * this is encoded in custom loop normals. */
 
+    Set<int, 32> used_verts;
     if (is_left_handed_) {
       int loop_end_index = loop_index + (face_size - 1);
       for (int f = 0; f < face_size; ++f, ++loop_index) {
-        corner_verts[loop_index] = face_indices_[loop_end_index - f];
+        const int vert_index = face_indices_[loop_end_index - f];
+        if (!used_verts.add(vert_index)) {
+          ok_faces = false;
+        }
+        corner_verts[loop_index] = vert_index;
       }
     }
     else {
       for (int f = 0; f < face_size; ++f, ++loop_index) {
-        corner_verts[loop_index] = face_indices_[loop_index];
+        const int vert_index = face_indices_[loop_index];
+        if (!used_verts.add(vert_index)) {
+          ok_faces = false;
+        }
+        corner_verts[loop_index] = vert_index;
       }
     }
   }
 
   bke::mesh_calc_edges(*mesh, false, false);
+
+  return ok_faces;
 }
 
 void USDMeshReader::read_uv_data_primvar(Mesh *mesh,
@@ -645,23 +658,10 @@ void USDMeshReader::read_mesh_sample(ImportSettings *settings,
     read_vertex_creases(mesh, motionSampleTime);
   }
 
+  bool ok_faces = true;
   if (new_mesh || (settings->read_flag & MOD_MESHSEQ_READ_POLY) != 0) {
-    read_mpolys(mesh);
+    ok_faces = read_faces(mesh);
     read_edge_creases(mesh, motionSampleTime);
-
-    if (normal_interpolation_ == pxr::UsdGeomTokens->faceVarying) {
-      process_normals_face_varying(mesh);
-    }
-    else if (normal_interpolation_ == pxr::UsdGeomTokens->uniform) {
-      process_normals_uniform(mesh);
-    }
-  }
-
-  /* Process point normals after reading faces. */
-  if ((settings->read_flag & MOD_MESHSEQ_READ_VERT) != 0 &&
-      normal_interpolation_ == pxr::UsdGeomTokens->vertex)
-  {
-    process_normals_vertex_varying(mesh);
   }
 
   /* Custom Data layers. */
@@ -671,6 +671,34 @@ void USDMeshReader::read_mesh_sample(ImportSettings *settings,
   {
     read_velocities(mesh, motionSampleTime);
     read_custom_data(settings, mesh, motionSampleTime, new_mesh);
+  }
+
+  /* If we detect bad faces it would be unsafe to continue beyond this point without first
+   * performing a destructive validate. Edit mode, and the custom normal calculations, will either
+   * assert or crash if the problem isn't addressed. Performing the check here, after most of the
+   * data has been loaded, allows more of the data to remain. However, the normals will be lost for
+   * the entire mesh as the incoming data indices and sizes will no longer match. */
+  if (!ok_faces) {
+    CLOG_WARN(&LOG,
+              "Invalid face data detected for mesh '%s'. Correction will be attempted.",
+              this->prim_path().GetAsString().c_str());
+    BKE_mesh_validate(mesh, false, false);
+  }
+
+  /* Process normals after reading faces and potentially fixing invalid meshes. */
+  if (new_mesh || (settings->read_flag & MOD_MESHSEQ_READ_POLY) != 0) {
+    if (normal_interpolation_ == pxr::UsdGeomTokens->faceVarying) {
+      process_normals_face_varying(mesh);
+    }
+    else if (normal_interpolation_ == pxr::UsdGeomTokens->uniform) {
+      process_normals_uniform(mesh);
+    }
+  }
+
+  if ((settings->read_flag & MOD_MESHSEQ_READ_VERT) != 0 &&
+      normal_interpolation_ == pxr::UsdGeomTokens->vertex)
+  {
+    process_normals_vertex_varying(mesh);
   }
 }
 
