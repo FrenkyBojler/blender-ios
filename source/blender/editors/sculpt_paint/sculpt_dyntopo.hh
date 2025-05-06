@@ -17,6 +17,7 @@ struct Depsgraph;
 struct Main;
 struct Object;
 struct Scene;
+struct Sculpt;
 namespace blender::ed::sculpt_paint::undo {
 struct StepData;
 }
@@ -30,6 +31,28 @@ enum WarnFlag {
   MODIFIER = (1 << 3),
 };
 ENUM_OPERATORS(WarnFlag, MODIFIER);
+
+enum class DetailFlags: uint8_t {
+  None = 0,
+  Subdivide = (1 << 0),
+  Collapse = (1 << 1),
+};
+ENUM_OPERATORS(DetailFlags, DetailFlags::Collapse);
+
+enum class DetailMode : uint8_t {
+  Relative = 0,
+  Constant = 1,
+  Brush = 2,
+  Manual = 3,
+};
+
+struct Settings {
+  float value;
+  DetailFlags flag;
+  DetailMode mode;
+};
+
+Settings get_settings(const Sculpt& sculpt, const Brush& brush);
 
 /** Enable dynamic topology; mesh will be triangulated */
 void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob);

@@ -3020,13 +3020,14 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
 
   PBVHTopologyUpdateMode mode = PBVHTopologyUpdateMode(0);
   float location[3];
+  const dyntopo::Settings settings = dyntopo::get_settings(sd, brush);
 
-  if (!(sd.flags & SCULPT_DYNTOPO_DETAIL_MANUAL)) {
-    if (sd.flags & SCULPT_DYNTOPO_SUBDIVIDE) {
+  if ((settings.mode != dyntopo::DetailMode::Manual)) {
+    if (uint8_t(settings.flag & dyntopo::DetailFlags::Subdivide)) {
       mode |= PBVH_Subdivide;
     }
 
-    if ((sd.flags & SCULPT_DYNTOPO_COLLAPSE) ||
+    if ((uint8_t(settings.flag & dyntopo::DetailFlags::Collapse)) ||
         (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SIMPLIFY))
     {
       mode |= PBVH_Collapse;
@@ -3047,15 +3048,15 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   });
 
   float max_edge_len;
-  if (sd.flags & (SCULPT_DYNTOPO_DETAIL_CONSTANT | SCULPT_DYNTOPO_DETAIL_MANUAL)) {
-    max_edge_len = dyntopo::detail_size::constant_to_detail_size(sd.constant_detail, ob);
+  if (ELEM(settings.mode, dyntopo::DetailMode::Constant, dyntopo::DetailMode::Manual)) {
+    max_edge_len = dyntopo::detail_size::constant_to_detail_size(settings.value, ob);
   }
-  else if (sd.flags & SCULPT_DYNTOPO_DETAIL_BRUSH) {
-    max_edge_len = dyntopo::detail_size::brush_to_detail_size(sd.detail_percent, ss.cache->radius);
+  else if (settings.mode == dyntopo::DetailMode::Brush) {
+    max_edge_len = dyntopo::detail_size::brush_to_detail_size(settings.value, ss.cache->radius);
   }
   else {
     max_edge_len = dyntopo::detail_size::relative_to_detail_size(
-        sd.detail_size, ss.cache->radius, ss.cache->dyntopo_pixel_radius, U.pixelsize);
+        settings.value, ss.cache->radius, ss.cache->dyntopo_pixel_radius, U.pixelsize);
   }
   const float min_edge_len = max_edge_len * dyntopo::detail_size::EDGE_LENGTH_MIN_FACTOR;
 

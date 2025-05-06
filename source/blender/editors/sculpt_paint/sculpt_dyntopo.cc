@@ -42,6 +42,71 @@
 
 namespace blender::ed::sculpt_paint::dyntopo {
 
+Settings get_settings(const Sculpt &sculpt, const Brush &brush)
+{
+  if (brush.mesh_paint_settings->dyntopo_settings.flag & SCULPT_BRUSH_DYNTOPO_SETTINGS_ENABLED) {
+    DyntopoSettings settings = brush.mesh_paint_settings->dyntopo_settings;
+    DetailFlags flag = DetailFlags::None;
+    if (settings.flag & SCULPT_BRUSH_DYNTOPO_COLLAPSE) {
+      flag |= DetailFlags::Collapse;
+    }
+    if (settings.flag & SCULPT_BRUSH_DYNTOPO_SUBDIVIDE) {
+      flag |= DetailFlags::Subdivide;
+    }
+
+    DetailMode mode = DetailMode::Relative;
+    float value = 0.0f;
+    const eBrushSculptDyntopoDetailType brush_mode = (eBrushSculptDyntopoDetailType)settings.mode;
+    switch (brush_mode) {
+      case SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_RELATIVE:
+        mode = DetailMode::Relative;
+        value = settings.detail_size;
+        break;
+      case SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_MANUAL:
+        mode = DetailMode::Manual;
+        value = settings.constant_detail_resolution;
+        break;
+      case SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_BRUSH:
+        mode = DetailMode::Brush;
+        value = settings.detail_percent;
+        break;
+      case SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_CONSTANT:
+        mode = DetailMode::Constant;
+        value = settings.constant_detail_resolution;
+        break;
+      default:
+        BLI_assert_unreachable();
+    }
+
+    return {value, flag, mode};
+  }
+
+  DetailFlags flag = DetailFlags::None;
+  if (sculpt.flags & SCULPT_DYNTOPO_COLLAPSE) {
+    flag |= DetailFlags::Collapse;
+  }
+  if (sculpt.flags & SCULPT_BRUSH_DYNTOPO_SUBDIVIDE) {
+    flag |= DetailFlags::Subdivide;
+  }
+
+  DetailMode mode = DetailMode::Relative;
+  float value = sculpt.detail_size;
+  if (sculpt.flags & SCULPT_DYNTOPO_DETAIL_CONSTANT) {
+    mode = DetailMode::Constant;
+    value = sculpt.constant_detail;
+  }
+  else if (sculpt.flags & SCULPT_DYNTOPO_DETAIL_MANUAL) {
+    mode = DetailMode::Manual;
+    value = sculpt.constant_detail;
+  }
+  else if (sculpt.flags & SCULPT_DYNTOPO_DETAIL_BRUSH) {
+    mode = DetailMode::Brush;
+    value = sculpt.detail_percent;
+  }
+
+  return {value, flag, mode};
+}
+
 void triangulate(BMesh *bm)
 {
   if (bm->totloop != bm->totface * 3) {
