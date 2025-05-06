@@ -136,7 +136,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
 
   const eAssetLibraryType enum_value = (eAssetLibraryType)RNA_enum_get(op->ptr,
                                                                        "asset_library_reference");
-  bool is_local_library = enum_value == ASSET_LIBRARY_LOCAL;
+  const bool is_local_library = enum_value == ASSET_LIBRARY_LOCAL;
 
   AssetLibraryReference library_reference;
   const bUserAssetLibrary *user_library = nullptr;
@@ -175,6 +175,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
                                                      LIB_ID_MAKELOCAL_INDIRECT |
                                                      LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
       BLI_assert(success && brush->id.newid);
+      UNUSED_VARS_NDEBUG(success);
       brush = reinterpret_cast<Brush *>(brush->id.newid);
     }
     else {
