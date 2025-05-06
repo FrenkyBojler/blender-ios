@@ -4580,402 +4580,354 @@ static bool all_scenes_use(Main *bmain, const blender::Span<const char *> engine
   return true;
 }
 
-void do_versions_after_linking_400(FileData *fd, Main *bmain)
+static void version_area_light_scaling(Main *bmain)
 {
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
-    /* Fix area light scaling. */
-    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-      light->energy = light->energy_deprecated;
-      if (light->type == LA_AREA) {
-        light->energy *= M_PI_4;
-      }
+  /* Fix area light scaling. */
+  LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+    light->energy = light->energy_deprecated;
+    if (light->type == LA_AREA) {
+      light->energy *= M_PI_4;
     }
+  }
+}
 
-    /* XXX This was added several years ago in 'lib_link` code of Scene... Should be safe enough
-     * here. */
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->nodetree) {
-        version_composite_nodetree_null_id(scene->nodetree, scene);
-      }
+static void version_ntree_null_id(Main *bmain)
+{
+  /* XXX This was added several years ago in 'lib_link` code of Scene... Should be safe enough
+   * here. */
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->nodetree) {
+      version_composite_nodetree_null_id(scene->nodetree, scene);
     }
+  }
+}
 
-    /* XXX This was added many years ago (1c19940198) in 'lib_link` code of particles as a bug-fix.
-     * But this is actually versioning. Should be safe enough here. */
-    LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
-      if (!part->effector_weights) {
-        part->effector_weights = BKE_effector_add_weights(part->force_group);
-      }
+static void version_particle_effector_add_weights(Main *bmain)
+{
+  /* XXX This was added many years ago (1c19940198) in 'lib_link` code of particles as a bug-fix.
+   * But this is actually versioning. Should be safe enough here. */
+  LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
+    if (!part->effector_weights) {
+      part->effector_weights = BKE_effector_add_weights(part->force_group);
     }
+  }
+}
 
-    /* Object proxies have been deprecated sine 3.x era, so their update & sanity check can now
-     * happen in do_versions code. */
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      if (ob->proxy) {
-        /* Paranoia check, actually a proxy_from pointer should never be written... */
-        if (!ID_IS_LINKED(ob->proxy)) {
-          ob->proxy->proxy_from = nullptr;
-          ob->proxy = nullptr;
+static void version_warn_proxies(Main *bmain, FileData *fd)
+{
+  /* Object proxies have been deprecated sine 3.x era, so their update & sanity check can now
+   * happen in do_versions code. */
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    if (ob->proxy) {
+      /* Paranoia check, actually a proxy_from pointer should never be written... */
+      if (!ID_IS_LINKED(ob->proxy)) {
+        ob->proxy->proxy_from = nullptr;
+        ob->proxy = nullptr;
 
-          if (ob->id.lib) {
-            BLO_reportf_wrap(fd->reports,
-                             RPT_INFO,
-                             RPT_("Proxy lost from object %s lib %s\n"),
-                             ob->id.name + 2,
-                             ob->id.lib->filepath);
-          }
-          else {
-            BLO_reportf_wrap(fd->reports,
-                             RPT_INFO,
-                             RPT_("Proxy lost from object %s lib <NONE>\n"),
-                             ob->id.name + 2);
-          }
-          fd->reports->count.missing_obproxies++;
+        if (ob->id.lib) {
+          BLO_reportf_wrap(fd->reports,
+                           RPT_INFO,
+                           RPT_("Proxy lost from object %s lib %s\n"),
+                           ob->id.name + 2,
+                           ob->id.lib->filepath);
         }
         else {
-          /* This triggers object_update to always use a copy. */
-          ob->proxy->proxy_from = ob;
+          BLO_reportf_wrap(fd->reports,
+                           RPT_INFO,
+                           RPT_("Proxy lost from object %s lib <NONE>\n"),
+                           ob->id.name + 2);
         }
+        fd->reports->count.missing_obproxies++;
+      }
+      else {
+        /* This triggers object_update to always use a copy. */
+        ob->proxy->proxy_from = ob;
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 21)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "bPoseChannel", "BoneColor", "color")) {
-      version_bonegroup_migrate_color(bmain);
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "bArmature", "ListBase", "collections")) {
-      version_bonelayers_to_bonecollections(bmain);
-      version_bonegroups_to_bonecollections(bmain);
-    }
+static void version_bone_migrate_color(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "bPoseChannel", "BoneColor", "color")) {
+    version_bonegroup_migrate_color(bmain);
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 24)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_SHADER) {
-        /* Convert animdata on the Principled BSDF sockets. */
-        version_principled_bsdf_update_animdata(id, ntree);
-      }
-    }
-    FOREACH_NODETREE_END;
+static void version_bone_migrate_to_collections(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "bArmature", "ListBase", "collections")) {
+    version_bonelayers_to_bonecollections(bmain);
+    version_bonegroups_to_bonecollections(bmain);
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 27)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      Editing *ed = blender::seq::editing_get(scene);
-      if (ed != nullptr) {
-        blender::seq::for_each_callback(
-            &ed->seqbase, versioning_convert_strip_speed_factor, scene);
-      }
+static void version_shader_animdata(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_SHADER) {
+      /* Convert animdata on the Principled BSDF sockets. */
+      version_principled_bsdf_update_animdata(id, ntree);
     }
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 34)) {
-    BKE_mesh_legacy_face_map_to_generic(bmain);
+static void version_sequencer_speed_factor(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    Editing *ed = blender::seq::editing_get(scene);
+    if (ed != nullptr) {
+      blender::seq::for_each_callback(&ed->seqbase, versioning_convert_strip_speed_factor, scene);
+    }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 23)) {
-    version_nla_tweakmode_incomplete(bmain);
-  }
+static void version_bone_collection_anim(Main *bmain)
+{
+  /* Change drivers and animation on "armature.collections" to
+   * ".collections_all", so that they are drawn correctly in the tree view,
+   * and keep working when the collection is moved around in the hierarchy. */
+  LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+    AnimData *adt = BKE_animdata_from_id(&arm->id);
+    if (!adt) {
+      continue;
+    }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 15)) {
-    /* Change drivers and animation on "armature.collections" to
-     * ".collections_all", so that they are drawn correctly in the tree view,
-     * and keep working when the collection is moved around in the hierarchy. */
-    LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      AnimData *adt = BKE_animdata_from_id(&arm->id);
-      if (!adt) {
-        continue;
-      }
-
-      LISTBASE_FOREACH (FCurve *, fcurve, &adt->drivers) {
+    LISTBASE_FOREACH (FCurve *, fcurve, &adt->drivers) {
+      version_bonecollection_anim(fcurve);
+    }
+    if (adt->action) {
+      LISTBASE_FOREACH (FCurve *, fcurve, &adt->action->curves) {
         version_bonecollection_anim(fcurve);
       }
-      if (adt->action) {
-        LISTBASE_FOREACH (FCurve *, fcurve, &adt->action->curves) {
-          version_bonecollection_anim(fcurve);
-        }
-      }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 23)) {
-    /* Shift animation data to accommodate the new Roughness input. */
-    version_node_socket_index_animdata(
-        bmain, NTREE_SHADER, SH_NODE_SUBSURFACE_SCATTERING, 4, 1, 5);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 50)) {
-    if (all_scenes_use(bmain, {RE_engine_id_BLENDER_EEVEE})) {
-      LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-        versioning_eevee_shadow_settings(object);
-      }
+static void version_eevee_shadow_settings(Main *bmain)
+{
+  if (all_scenes_use(bmain, {RE_engine_id_BLENDER_EEVEE})) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      versioning_eevee_shadow_settings(object);
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 51)) {
-    /* Convert blend method to math nodes. */
-    if (all_scenes_use(bmain, {RE_engine_id_BLENDER_EEVEE})) {
-      LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-        if (!material->use_nodes || material->nodetree == nullptr) {
-          /* Nothing to version. */
-        }
-        else if (ELEM(material->blend_method, MA_BM_HASHED, MA_BM_BLEND)) {
-          /* Compatible modes. Nothing to change. */
-        }
-        else if (material->blend_shadow == MA_BS_NONE) {
-          /* No need to match the surface since shadows are disabled. */
-        }
-        else if (material->blend_shadow == MA_BS_SOLID) {
-          /* This is already versioned an transferred to `transparent_shadows`. */
-        }
-        else if ((material->blend_shadow == MA_BS_CLIP && material->blend_method != MA_BM_CLIP) ||
-                 (material->blend_shadow == MA_BS_HASHED))
-        {
-          BLO_reportf_wrap(
-              fd->reports,
-              RPT_WARNING,
-              RPT_("Material %s could not be converted because of different Blend Mode "
-                   "and Shadow Mode (need manual adjustment)\n"),
-              material->id.name + 2);
-        }
-        else {
-          /* TODO(fclem): Check if threshold is driven or has animation. Bail out if needed? */
-
-          float threshold = (material->blend_method == MA_BM_CLIP) ? material->alpha_threshold :
-                                                                     2.0f;
-
-          if (!versioning_eevee_material_blend_mode_settings(material->nodetree, threshold)) {
-            BLO_reportf_wrap(fd->reports,
-                             RPT_WARNING,
-                             RPT_("Material %s could not be converted because of non-trivial "
-                                  "alpha blending (need manual adjustment)\n"),
-                             material->id.name + 2);
-          }
-        }
-
-        if (material->blend_shadow == MA_BS_NONE) {
-          versioning_eevee_material_shadow_none(material);
-        }
-        /* Set blend_mode & blend_shadow for forward compatibility. */
-        material->blend_method = (material->blend_method != MA_BM_BLEND) ? MA_BM_HASHED :
-                                                                           MA_BM_BLEND;
-        material->blend_shadow = (material->blend_shadow == MA_BS_SOLID) ? MA_BS_SOLID :
-                                                                           MA_BS_HASHED;
+static void version_material_blend_method_to_nodes(Main *bmain, FileData *fd)
+{
+  /* Convert blend method to math nodes. */
+  if (all_scenes_use(bmain, {RE_engine_id_BLENDER_EEVEE})) {
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      if (!material->use_nodes || material->nodetree == nullptr) {
+        /* Nothing to version. */
       }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 52)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE)) {
-        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
+      else if (ELEM(material->blend_method, MA_BM_HASHED, MA_BM_BLEND)) {
+        /* Compatible modes. Nothing to change. */
       }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 6)) {
-    /* Shift animation data to accommodate the new Diffuse Roughness input. */
-    version_node_socket_index_animdata(bmain, NTREE_SHADER, SH_NODE_BSDF_PRINCIPLED, 7, 1, 30);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 2)) {
-    blender::animrig::versioning::convert_legacy_animato_actions(*bmain);
-    blender::animrig::versioning::tag_action_users_for_slotted_actions_conversion(*bmain);
-    blender::animrig::versioning::convert_legacy_action_assignments(*bmain, fd->reports->reports);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 7)) {
-    constexpr char SCE_SNAP_TO_NODE_X = (1 << 0);
-    constexpr char SCE_SNAP_TO_NODE_Y = (1 << 1);
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->toolsettings->snap_node_mode & SCE_SNAP_TO_NODE_X ||
-          scene->toolsettings->snap_node_mode & SCE_SNAP_TO_NODE_Y)
+      else if (material->blend_shadow == MA_BS_NONE) {
+        /* No need to match the surface since shadows are disabled. */
+      }
+      else if (material->blend_shadow == MA_BS_SOLID) {
+        /* This is already versioned an transferred to `transparent_shadows`. */
+      }
+      else if ((material->blend_shadow == MA_BS_CLIP && material->blend_method != MA_BM_CLIP) ||
+               (material->blend_shadow == MA_BS_HASHED))
       {
-        scene->toolsettings->snap_node_mode = SCE_SNAP_TO_GRID;
+        BLO_reportf_wrap(fd->reports,
+                         RPT_WARNING,
+                         RPT_("Material %s could not be converted because of different Blend Mode "
+                              "and Shadow Mode (need manual adjustment)\n"),
+                         material->id.name + 2);
       }
-    }
-  }
+      else {
+        /* TODO(fclem): Check if threshold is driven or has animation. Bail out if needed? */
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 18)) {
-    blender::Set<bNodeTree *> node_trees_already_versioned;
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      bNodeTree *node_tree = scene->nodetree;
-      if (!node_tree) {
-        continue;
-      }
-      do_version_glare_node_options_to_inputs_recursive(
-          scene, node_tree, node_trees_already_versioned);
-    }
+        float threshold = (material->blend_method == MA_BM_CLIP) ? material->alpha_threshold :
+                                                                   2.0f;
 
-    /* The above loop versioned all node trees used in a scene, but other node trees might exist
-     * that are not used in a scene. For those, assume the first scene in the file, as this is
-     * better than not doing versioning at all. */
-    Scene *scene = static_cast<Scene *>(bmain->scenes.first);
-    LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain->nodetrees) {
-      if (node_trees_already_versioned.contains(node_tree)) {
-        continue;
-      }
-
-      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-        if (node->type_legacy == CMP_NODE_GLARE) {
-          do_version_glare_node_options_to_inputs(scene, node_tree, node);
+        if (!versioning_eevee_material_blend_mode_settings(material->nodetree, threshold)) {
+          BLO_reportf_wrap(fd->reports,
+                           RPT_WARNING,
+                           RPT_("Material %s could not be converted because of non-trivial "
+                                "alpha blending (need manual adjustment)\n"),
+                           material->id.name + 2);
         }
       }
-      node_trees_already_versioned.add_new(node_tree);
+
+      if (material->blend_shadow == MA_BS_NONE) {
+        versioning_eevee_material_shadow_none(material);
+      }
+      /* Set blend_mode & blend_shadow for forward compatibility. */
+      material->blend_method = (material->blend_method != MA_BM_BLEND) ? MA_BM_HASHED :
+                                                                         MA_BM_BLEND;
+      material->blend_shadow = (material->blend_shadow == MA_BS_SOLID) ? MA_BS_SOLID :
+                                                                         MA_BS_HASHED;
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 19)) {
-    /* Two new inputs were added, Saturation and Tint. */
-    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 3, 2, 11);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 20)) {
-    /* Two new inputs were added, Highlights Smoothness and Highlights suppression. */
-    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 2, 2, 13);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 21)) {
-    blender::Set<bNodeTree *> node_trees_already_versioned;
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      bNodeTree *node_tree = scene->nodetree;
-      if (!node_tree) {
-        continue;
-      }
-      do_version_glare_node_bloom_strength_recursive(
-          scene, node_tree, node_trees_already_versioned);
-    }
-
-    /* The above loop versioned all node trees used in a scene, but other node trees might exist
-     * that are not used in a scene. For those, assume the first scene in the file, as this is
-     * better than not doing versioning at all. */
-    Scene *scene = static_cast<Scene *>(bmain->scenes.first);
-    LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain->nodetrees) {
-      if (node_trees_already_versioned.contains(node_tree)) {
-        continue;
-      }
-
-      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-        if (node->type_legacy == CMP_NODE_GLARE) {
-          do_version_glare_node_bloom_strength(scene, node_tree, node);
-        }
-      }
-      node_trees_already_versioned.add_new(node_tree);
+static void version_eevee_next_switch(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE)) {
+      STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 25)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (!scene->adt) {
-        continue;
-      }
-      using namespace blender;
-      auto replace_rna_path_prefix =
-          [](FCurve &fcurve, const StringRef old_prefix, const StringRef new_prefix) {
-            const StringRef rna_path = fcurve.rna_path;
-            if (!rna_path.startswith(old_prefix)) {
-              return;
-            }
-            const StringRef tail = rna_path.drop_prefix(old_prefix.size());
-            char *new_rna_path = BLI_strdupcat(new_prefix.data(), tail.data());
-            MEM_freeN(fcurve.rna_path);
-            fcurve.rna_path = new_rna_path;
-          };
-      if (scene->adt->action) {
-        animrig::foreach_fcurve_in_action(scene->adt->action->wrap(), [&](FCurve &fcurve) {
-          replace_rna_path_prefix(fcurve, "sequence_editor.sequences", "sequence_editor.strips");
-        });
-      }
-      LISTBASE_FOREACH (FCurve *, driver, &scene->adt->drivers) {
-        replace_rna_path_prefix(*driver, "sequence_editor.sequences", "sequence_editor.strips");
-      }
+static void version_tool_settings_snap_to_node_remove(Main *bmain)
+{
+  constexpr char SCE_SNAP_TO_NODE_X = (1 << 0);
+  constexpr char SCE_SNAP_TO_NODE_Y = (1 << 1);
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->toolsettings->snap_node_mode & SCE_SNAP_TO_NODE_X ||
+        scene->toolsettings->snap_node_mode & SCE_SNAP_TO_NODE_Y)
+    {
+      scene->toolsettings->snap_node_mode = SCE_SNAP_TO_GRID;
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 27)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        do_version_color_to_float_conversion(ntree);
-      }
-      else if (ntree->type == NTREE_SHADER) {
-        do_version_bump_filter_width(ntree);
-      }
+static void version_glare_options_to_inputs(Main *bmain)
+{
+  blender::Set<bNodeTree *> node_trees_already_versioned;
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    bNodeTree *node_tree = scene->nodetree;
+    if (!node_tree) {
+      continue;
     }
-    FOREACH_NODETREE_END;
+    do_version_glare_node_options_to_inputs_recursive(
+        scene, node_tree, node_trees_already_versioned);
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        do_version_convert_to_generic_nodes_after_linking(bmain, ntree, id);
+  /* The above loop versioned all node trees used in a scene, but other node trees might exist
+   * that are not used in a scene. For those, assume the first scene in the file, as this is
+   * better than not doing versioning at all. */
+  Scene *scene = static_cast<Scene *>(bmain->scenes.first);
+  LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain->nodetrees) {
+    if (node_trees_already_versioned.contains(node_tree)) {
+      continue;
+    }
+
+    LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+      if (node->type_legacy == CMP_NODE_GLARE) {
+        do_version_glare_node_options_to_inputs(scene, node_tree, node);
       }
     }
-    FOREACH_NODETREE_END;
+    node_trees_already_versioned.add_new(node_tree);
+  }
+}
+
+static void version_glare_bloom_strength(Main *bmain)
+{
+  blender::Set<bNodeTree *> node_trees_already_versioned;
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    bNodeTree *node_tree = scene->nodetree;
+    if (!node_tree) {
+      continue;
+    }
+    do_version_glare_node_bloom_strength_recursive(scene, node_tree, node_trees_already_versioned);
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 12)) {
-    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 3, 1, 14);
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        do_version_new_glare_suppress_input(ntree);
+  /* The above loop versioned all node trees used in a scene, but other node trees might exist
+   * that are not used in a scene. For those, assume the first scene in the file, as this is
+   * better than not doing versioning at all. */
+  Scene *scene = static_cast<Scene *>(bmain->scenes.first);
+  LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain->nodetrees) {
+    if (node_trees_already_versioned.contains(node_tree)) {
+      continue;
+    }
+
+    LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+      if (node->type_legacy == CMP_NODE_GLARE) {
+        do_version_glare_node_bloom_strength(scene, node_tree, node);
       }
     }
-    FOREACH_NODETREE_END;
+    node_trees_already_versioned.add_new(node_tree);
   }
+}
 
-  /* For each F-Curve, set the F-Curve flags based on the property type it animates. This is to
-   * correct F-Curves created while the bug (#136347) was in active use. Since this bug did not
-   * appear before 4.4, and this versioning code has a bit of a performance impact (going over all
-   * F-Curves of all Actions, and resolving them all to their RNA properties), it will be skipped
-   * if the blend file is old enough to not be affected. */
-  if (MAIN_VERSION_FILE_ATLEAST(bmain, 404, 0) && !MAIN_VERSION_FILE_ATLEAST(bmain, 405, 13)) {
-    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
-      blender::animrig::Action &action = dna_action->wrap();
-      for (const blender::animrig::Slot *slot : action.slots()) {
-        blender::Span<ID *> slot_users = slot->users(*bmain);
-        if (slot_users.is_empty()) {
-          /* If nothing is using this slot, the RNA paths cannot be resolved, and so there
-           * is no way to find the animated property type. */
-          continue;
-        }
-        blender::animrig::foreach_fcurve_in_action_slot(action, slot->handle, [&](FCurve &fcurve) {
-          /* Loop over all slot users, because when the slot is shared, not all F-Curves may
-           * resolve on all users. For example, a custom property might only exist on a subset of
-           * the users.*/
-          for (ID *slot_user : slot_users) {
-            PointerRNA slot_user_ptr = RNA_id_pointer_create(slot_user);
-            PointerRNA ptr;
-            PropertyRNA *prop;
-            if (!RNA_path_resolve_property(&slot_user_ptr, fcurve.rna_path, &ptr, &prop)) {
-              continue;
-            }
-
-            blender::animrig::update_autoflags_fcurve_direct(&fcurve, RNA_property_type(prop));
-            break;
+static void version_sequencer_fcurve_paths(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (!scene->adt) {
+      continue;
+    }
+    using namespace blender;
+    auto replace_rna_path_prefix =
+        [](FCurve &fcurve, const StringRef old_prefix, const StringRef new_prefix) {
+          const StringRef rna_path = fcurve.rna_path;
+          if (!rna_path.startswith(old_prefix)) {
+            return;
           }
-        });
-      }
+          const StringRef tail = rna_path.drop_prefix(old_prefix.size());
+          char *new_rna_path = BLI_strdupcat(new_prefix.data(), tail.data());
+          MEM_freeN(fcurve.rna_path);
+          fcurve.rna_path = new_rna_path;
+        };
+    if (scene->adt->action) {
+      animrig::foreach_fcurve_in_action(scene->adt->action->wrap(), [&](FCurve &fcurve) {
+        replace_rna_path_prefix(fcurve, "sequence_editor.sequences", "sequence_editor.strips");
+      });
+    }
+    LISTBASE_FOREACH (FCurve *, driver, &scene->adt->drivers) {
+      replace_rna_path_prefix(*driver, "sequence_editor.sequences", "sequence_editor.strips");
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
-    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
-      blender::animrig::Action &action = dna_action->wrap();
-      blender::animrig::foreach_fcurve_in_action(
-          action, [&](FCurve &fcurve) { version_fix_fcurve_noise_offset(fcurve); });
+static void version_fcurve_flags_property_type(Main *bmain)
+{
+  LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+    blender::animrig::Action &action = dna_action->wrap();
+    for (const blender::animrig::Slot *slot : action.slots()) {
+      blender::Span<ID *> slot_users = slot->users(*bmain);
+      if (slot_users.is_empty()) {
+        /* If nothing is using this slot, the RNA paths cannot be resolved, and so there
+         * is no way to find the animated property type. */
+        continue;
+      }
+      blender::animrig::foreach_fcurve_in_action_slot(action, slot->handle, [&](FCurve &fcurve) {
+        /* Loop over all slot users, because when the slot is shared, not all F-Curves may
+         * resolve on all users. For example, a custom property might only exist on a subset of
+         * the users.*/
+        for (ID *slot_user : slot_users) {
+          PointerRNA slot_user_ptr = RNA_id_pointer_create(slot_user);
+          PointerRNA ptr;
+          PropertyRNA *prop;
+          if (!RNA_path_resolve_property(&slot_user_ptr, fcurve.rna_path, &ptr, &prop)) {
+            continue;
+          }
+
+          blender::animrig::update_autoflags_fcurve_direct(&fcurve, RNA_property_type(prop));
+          break;
+        }
+      });
     }
+  }
+}
 
-    BKE_animdata_main_cb(bmain, [](ID * /* id */, AnimData *adt) {
-      LISTBASE_FOREACH (FCurve *, fcurve, &adt->drivers) {
-        version_fix_fcurve_noise_offset(*fcurve);
-      }
-      LISTBASE_FOREACH (NlaTrack *, track, &adt->nla_tracks) {
-        nlastrips_apply_fcurve_versioning(track->strips);
-      }
-    });
+static void version_fcurve_noise_offset(Main *bmain)
+{
+  LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+    blender::animrig::Action &action = dna_action->wrap();
+    blender::animrig::foreach_fcurve_in_action(
+        action, [&](FCurve &fcurve) { version_fix_fcurve_noise_offset(fcurve); });
   }
 
+  BKE_animdata_main_cb(bmain, [](ID * /* id */, AnimData *adt) {
+    LISTBASE_FOREACH (FCurve *, fcurve, &adt->drivers) {
+      version_fix_fcurve_noise_offset(*fcurve);
+    }
+    LISTBASE_FOREACH (NlaTrack *, track, &adt->nla_tracks) {
+      nlastrips_apply_fcurve_versioning(track->strips);
+    }
+  });
+}
+
+static void version_compositor_options_to_inputs_animation(Main *bmain)
+{
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
@@ -5456,6 +5408,140 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
+}
+
+void do_versions_after_linking_400(FileData *fd, Main *bmain)
+{
+  /* 4.0 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
+    version_area_light_scaling(bmain);
+    version_ntree_null_id(bmain);
+    version_particle_effector_add_weights(bmain);
+    version_warn_proxies(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 21)) {
+    version_bone_migrate_color(bmain, fd);
+    version_bone_migrate_to_collections(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 24)) {
+    version_shader_animdata(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 27)) {
+    version_sequencer_speed_factor(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 34)) {
+    BKE_mesh_legacy_face_map_to_generic(bmain);
+  }
+
+  /* 4.1 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 23)) {
+    version_nla_tweakmode_incomplete(bmain);
+  }
+
+  /* 4.2 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 15)) {
+    version_bone_collection_anim(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 23)) {
+    /* Shift animation data to accommodate the new Roughness input. */
+    version_node_socket_index_animdata(
+        bmain, NTREE_SHADER, SH_NODE_SUBSURFACE_SCATTERING, 4, 1, 5);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 50)) {
+    version_eevee_shadow_settings(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 51)) {
+    version_material_blend_method_to_nodes(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 52)) {
+    version_eevee_next_switch(bmain);
+  }
+
+  /* 4.3 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 6)) {
+    /* Shift animation data to accommodate the new Diffuse Roughness input. */
+    version_node_socket_index_animdata(bmain, NTREE_SHADER, SH_NODE_BSDF_PRINCIPLED, 7, 1, 30);
+  }
+
+  /* 4.4 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 2)) {
+    blender::animrig::versioning::convert_legacy_animato_actions(*bmain);
+    blender::animrig::versioning::tag_action_users_for_slotted_actions_conversion(*bmain);
+    blender::animrig::versioning::convert_legacy_action_assignments(*bmain, fd->reports->reports);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 7)) {
+    version_tool_settings_snap_to_node_remove(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 18)) {
+    version_glare_options_to_inputs(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 19)) {
+    /* Two new inputs were added, Saturation and Tint. */
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 3, 2, 11);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 20)) {
+    /* Two new inputs were added, Highlights Smoothness and Highlights suppression. */
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 2, 2, 13);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 21)) {
+    version_glare_bloom_strength(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 25)) {
+    version_sequencer_fcurve_paths(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 27)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        do_version_color_to_float_conversion(ntree);
+      }
+      else if (ntree->type == NTREE_SHADER) {
+        do_version_bump_filter_width(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  /* 4.5 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        do_version_convert_to_generic_nodes_after_linking(bmain, ntree, id);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 12)) {
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 3, 1, 14);
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        do_version_new_glare_suppress_input(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  /* For each F-Curve, set the F-Curve flags based on the property type it animates. This is to
+   * correct F-Curves created while the bug (#136347) was in active use. Since this bug did not
+   * appear before 4.4, and this versioning code has a bit of a performance impact (going over all
+   * F-Curves of all Actions, and resolving them all to their RNA properties), it will be skipped
+   * if the blend file is old enough to not be affected. */
+  if (MAIN_VERSION_FILE_ATLEAST(bmain, 404, 0) && !MAIN_VERSION_FILE_ATLEAST(bmain, 405, 13)) {
+    version_fcurve_flags_property_type(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
+    version_fcurve_noise_offset(bmain);
+  }
+
+  /* Encompasses multiple version checks. */
+  version_compositor_options_to_inputs_animation(bmain);
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
