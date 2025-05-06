@@ -1,2 +1,3 @@
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by commit c7def2bb5eb1e5866a9a54b3997138488f701d7c, Revert "Fix #136668: Curve to mesh crash with fill caps and no faces in output"
+Referenced by issue #137983, Release note tools: List of bug fixes per release override
