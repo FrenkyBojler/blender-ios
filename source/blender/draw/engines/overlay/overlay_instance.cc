@@ -124,9 +124,7 @@ void Instance::init()
 
   state.has_mesh = DEG_id_type_any_exists(state.depsgraph, ID_ME);
   state.has_curve = DEG_id_type_any_exists(state.depsgraph, ID_CV) ||
-                    DEG_id_type_any_exists(state.depsgraph, ID_CU_LEGACY) ||
-                    DEG_id_type_any_exists(state.depsgraph, ID_VF);
-  /* TODO: OB_SURF ? */
+                    DEG_id_type_any_exists(state.depsgraph, ID_CU_LEGACY);
   state.has_volume = DEG_id_type_any_exists(state.depsgraph, ID_VO);
   state.has_gpencil = DEG_id_type_any_exists(state.depsgraph, ID_GP);
   state.has_armature = DEG_id_type_any_exists(state.depsgraph, ID_AR);
