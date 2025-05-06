@@ -33,15 +33,15 @@ ShadowTileDataPacked init_tile_data(ShadowTileDataPacked tile, bool do_update)
 
 void main()
 {
-  const uint tilemap_index = gl_GlobalInvocationID.z;
-  ShadowTileMapData &tilemap = tilemaps_buf[tilemap_index];
+  uint tilemap_index = gl_GlobalInvocationID.z;
+  ShadowTileMapData tilemap = tilemaps_buf[tilemap_index];
 
   barrier();
 
   if (gl_LocalInvocationIndex == 0u) {
     /* Reset shift to not tag for update more than once per sync cycle. */
-    tilemap.grid_shift = int2(0);
-    tilemap.is_dirty = false;
+    tilemaps_buf[tilemap_index].grid_shift = int2(0);
+    tilemaps_buf[tilemap_index].is_dirty = false;
 
     directional_range_changed = 0;
 
