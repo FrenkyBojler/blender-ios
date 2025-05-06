@@ -270,7 +270,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
 
   Tex *tex_target = dmd->texture;
   if (tex_target != nullptr) {
-    tex_co = MEM_calloc_arrayN<float[3]>(size_t(positions.size()), "displaceModifier_do tex_co");
+    tex_co = MEM_calloc_arrayN<float[3]>(positions.size(), "displaceModifier_do tex_co");
     MOD_get_texture_coords((MappingInfoModifierData *)dmd,
                            ctx,
                            ob,
@@ -350,7 +350,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiLayoutSetActive(col, has_texture);
   uiItemR(col, ptr, "texture_coords", UI_ITEM_NONE, IFACE_("Coordinates"), ICON_NONE);
   if (texture_coords == MOD_DISP_MAP_OBJECT) {
@@ -375,7 +375,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiItemS(layout);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, ptr, "direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (ELEM(RNA_enum_get(ptr, "direction"),
            MOD_DISP_DIR_X,
@@ -388,7 +388,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiItemS(layout);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiItemR(col, ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, ptr, "mid_level", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

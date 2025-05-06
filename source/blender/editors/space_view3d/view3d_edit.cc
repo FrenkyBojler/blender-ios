@@ -129,7 +129,7 @@ static wmOperatorStatus view_lock_to_active_exec(bContext *C, wmOperator * /*op*
     if (obact && obact->type == OB_ARMATURE) {
       if (obact->mode & OB_MODE_POSE) {
         Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-        Object *obact_eval = DEG_get_evaluated_object(depsgraph, obact);
+        Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
         bPoseChannel *pcham_act = BKE_pose_channel_active_if_bonecoll_visible(obact_eval);
         if (pcham_act) {
           STRNCPY(v3d->ob_center_bone, pcham_act->name);
@@ -782,7 +782,7 @@ static wmOperatorStatus view3d_clipping_exec(bContext *C, wmOperator *op)
   WM_operator_properties_border_to_rcti(op, &rect);
 
   rv3d->rflag |= RV3D_CLIPPING;
-  rv3d->clipbb = static_cast<BoundBox *>(MEM_callocN(sizeof(BoundBox), "clipbb"));
+  rv3d->clipbb = MEM_callocN<BoundBox>("clipbb");
 
   /* nullptr object because we don't want it in object space */
   ED_view3d_clipping_calc(rv3d->clipbb, rv3d->clip, region, nullptr, &rect);

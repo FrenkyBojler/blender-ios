@@ -66,6 +66,7 @@
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
 #include "ED_sequencer.hh"
+#include "ED_space_graph.hh"
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
@@ -1059,7 +1060,11 @@ AZone *ED_area_azones_update(ScrArea *area, const int xy[2])
 
 static void actionzone_exit(wmOperator *op)
 {
-  MEM_SAFE_FREE(op->customdata);
+  sActionzoneData *sad = static_cast<sActionzoneData *>(op->customdata);
+  if (sad) {
+    MEM_freeN(sad);
+  }
+  op->customdata = nullptr;
 
   G.moving &= ~G_TRANSFORM_WM;
 }
@@ -1365,8 +1370,7 @@ static bool area_swap_init(wmOperator *op, const wmEvent *event)
     return false;
   }
 
-  sAreaSwapData *sd = static_cast<sAreaSwapData *>(
-      MEM_callocN(sizeof(sAreaSwapData), "sAreaSwapData"));
+  sAreaSwapData *sd = MEM_callocN<sAreaSwapData>("sAreaSwapData");
   sd->sa1 = sad->sa1;
   sd->sa2 = sad->sa2;
   op->customdata = sd;
@@ -1376,8 +1380,11 @@ static bool area_swap_init(wmOperator *op, const wmEvent *event)
 
 static void area_swap_exit(bContext *C, wmOperator *op)
 {
+  sAreaSwapData *sd = static_cast<sAreaSwapData *>(op->customdata);
+  MEM_freeN(sd);
+  op->customdata = nullptr;
+
   WM_cursor_modal_restore(CTX_wm_window(C));
-  MEM_SAFE_FREE(op->customdata);
   ED_workspace_status_text(C, nullptr);
 }
 
@@ -1489,7 +1496,7 @@ static void area_dupli_fn(bScreen * /*screen*/, ScrArea *area, void *user_data)
   ScrArea *area_src = static_cast<ScrArea *>(user_data);
   ED_area_data_copy(area, area_src, true);
   ED_area_tag_redraw(area);
-};
+}
 
 /* operator callback */
 static bool area_dupli_open(bContext *C, ScrArea *area, const blender::int2 position)
@@ -1792,8 +1799,7 @@ static bool area_move_init(bContext *C, wmOperator *op)
     return false;
   }
 
-  sAreaMoveData *md = static_cast<sAreaMoveData *>(
-      MEM_callocN(sizeof(sAreaMoveData), "sAreaMoveData"));
+  sAreaMoveData *md = MEM_callocN<sAreaMoveData>("sAreaMoveData");
   op->customdata = md;
 
   md->dir_axis = screen_geom_edge_is_horizontal(actedge) ? SCREEN_AXIS_H : SCREEN_AXIS_V;
@@ -2023,7 +2029,8 @@ static void area_move_exit(bContext *C, wmOperator *op)
     WM_draw_cb_exit(CTX_wm_window(C), md->draw_callback);
   }
 
-  MEM_SAFE_FREE(op->customdata);
+  MEM_freeN(md);
+  op->customdata = nullptr;
 
   /* this makes sure aligned edges will result in aligned grabbing */
   BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
@@ -2244,7 +2251,7 @@ static void area_split_draw_cb(const wmWindow * /*win*/, void *userdata)
 static bool area_split_menu_init(bContext *C, wmOperator *op)
 {
   /* custom data */
-  sAreaSplitData *sd = (sAreaSplitData *)MEM_callocN(sizeof(sAreaSplitData), "op_area_split");
+  sAreaSplitData *sd = MEM_callocN<sAreaSplitData>("op_area_split");
   op->customdata = sd;
 
   sd->sarea = CTX_wm_area(C);
@@ -2266,7 +2273,7 @@ static bool area_split_init(bContext *C, wmOperator *op)
   const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
 
   /* custom data */
-  sAreaSplitData *sd = (sAreaSplitData *)MEM_callocN(sizeof(sAreaSplitData), "op_area_split");
+  sAreaSplitData *sd = MEM_callocN<sAreaSplitData>("op_area_split");
   op->customdata = sd;
 
   sd->sarea = area;
@@ -2377,7 +2384,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
       WM_draw_cb_exit(CTX_wm_window(C), sd->draw_callback);
     }
 
-    MEM_freeN(op->customdata);
+    MEM_freeN(sd);
     op->customdata = nullptr;
   }
 
@@ -2844,7 +2851,7 @@ static void region_scale_exit(wmOperator *op)
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
   WM_draw_cb_exit(rmd->win, rmd->draw_callback);
 
-  MEM_freeN(op->customdata);
+  MEM_freeN(rmd);
   op->customdata = nullptr;
 
   G.moving &= ~G_TRANSFORM_WM;
@@ -2862,8 +2869,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
   AZone *az = sad->az;
 
   if (az->region) {
-    RegionMoveData *rmd = static_cast<RegionMoveData *>(
-        MEM_callocN(sizeof(RegionMoveData), "RegionMoveData"));
+    RegionMoveData *rmd = MEM_callocN<RegionMoveData>("RegionMoveData");
 
     op->customdata = rmd;
 
@@ -3326,24 +3332,45 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /** \name Jump to Key-Frame Operator
  * \{ */
 
-/* function to be called outside UI context, or for redo */
-static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
+static void keylist_from_dopesheet(bContext &C, AnimKeylist &keylist)
 {
-  Scene *scene = CTX_data_scene(C);
-  Object *ob = CTX_data_active_object(C);
-  bDopeSheet ads = {nullptr};
-  const bool next = RNA_boolean_get(op->ptr, "next");
-  bool done = false;
+  bAnimContext ac;
 
-  /* sanity checks */
-  if (scene == nullptr) {
-    return OPERATOR_CANCELLED;
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+    return;
+  }
+  BLI_assert(ac.area->spacetype == SPACE_ACTION);
+  summary_to_keylist(&ac, &keylist, 0, {-FLT_MAX, FLT_MAX});
+}
+
+static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
+{
+  bAnimContext ac;
+
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+    return;
   }
 
-  const float cfra = BKE_scene_frame_get(scene);
+  ListBase anim_data = blender::ed::graph::get_editable_fcurves(ac);
 
-  /* Initialize binary-tree-list for getting keyframes. */
-  AnimKeylist *keylist = ED_keylist_create();
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
+    if (!fcu->bezt) {
+      continue;
+    }
+
+    const bool use_nla_mapping = true;
+    fcurve_to_keylist(ale->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, use_nla_mapping);
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
+/* This is used for all editors where a more specific function isn't implemented. */
+static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
+{
+  bDopeSheet ads = {nullptr};
+  Scene *scene = CTX_data_scene(&C);
 
   /* Speed up dummy dope-sheet context with flags to perform necessary filtering. */
   if ((scene->flag & SCE_KEYS_NO_SELONLY) == 0) {
@@ -3352,27 +3379,62 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   /* populate tree with keyframe nodes */
-  scene_to_keylist(&ads, scene, keylist, 0, {-FLT_MAX, FLT_MAX});
+  scene_to_keylist(&ads, scene, &keylist, 0, {-FLT_MAX, FLT_MAX});
 
+  Object *ob = CTX_data_active_object(&C);
   if (ob) {
-    ob_to_keylist(&ads, ob, keylist, 0, {-FLT_MAX, FLT_MAX});
+    ob_to_keylist(&ads, ob, &keylist, 0, {-FLT_MAX, FLT_MAX});
 
     if (ob->type == OB_GREASE_PENCIL) {
       const bool active_layer_only = !(scene->flag & SCE_KEYS_NO_SELONLY);
       grease_pencil_data_block_to_keylist(
-          nullptr, static_cast<const GreasePencil *>(ob->data), keylist, 0, active_layer_only);
+          nullptr, static_cast<const GreasePencil *>(ob->data), &keylist, 0, active_layer_only);
     }
   }
 
   {
-    Mask *mask = CTX_data_edit_mask(C);
+    Mask *mask = CTX_data_edit_mask(&C);
     if (mask) {
       MaskLayer *masklay = BKE_mask_layer_active(mask);
-      mask_to_keylist(&ads, masklay, keylist);
+      mask_to_keylist(&ads, masklay, &keylist);
     }
   }
+}
+
+/* function to be called outside UI context, or for redo */
+static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  const bool next = RNA_boolean_get(op->ptr, "next");
+  bool done = false;
+
+  /* sanity checks */
+  if (scene == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ScrArea *area = CTX_wm_area(C);
+  AnimKeylist *keylist = ED_keylist_create();
+
+  switch (area->spacetype) {
+    case SPACE_ACTION: {
+      keylist_from_dopesheet(*C, *keylist);
+      break;
+    }
+
+    case SPACE_GRAPH:
+      keylist_from_graph_editor(*C, *keylist);
+      break;
+
+    default:
+      keylist_fallback_for_keyframe_jump(*C, *keylist);
+      break;
+  }
+
+  /* Initialize binary-tree-list for getting keyframes. */
   ED_keylist_prepare_for_direct_access(keylist);
 
+  const float cfra = BKE_scene_frame_get(scene);
   /* find matching keyframe in the right direction */
   const ActKeyColumn *ak;
 
@@ -3423,8 +3485,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 
 static bool keyframe_jump_poll(bContext *C)
 {
-  /* There is a keyframe jump operator specifically for the Graph Editor. */
-  return operator_screenactive_norender(C) && !ED_operator_graphedit_active(C);
+  return operator_screenactive_norender(C);
 }
 
 static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
@@ -3737,8 +3798,7 @@ static bool area_join_init(bContext *C, wmOperator *op, ScrArea *sa1, ScrArea *s
     return false;
   }
 
-  sAreaJoinData *jd = static_cast<sAreaJoinData *>(
-      MEM_callocN(sizeof(sAreaJoinData), "op_area_join"));
+  sAreaJoinData *jd = MEM_callocN<sAreaJoinData>("op_area_join");
   jd->sa1 = sa1;
   jd->sa2 = sa2;
   jd->dir = area_getorientation(sa1, sa2);
@@ -5159,7 +5219,7 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
     }
 
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-    uiLayout *col = uiLayoutColumn(layout, false);
+    uiLayout *col = &layout->column(false);
     uiLayoutSetActive(col, (region_header->flag & RGN_FLAG_HIDDEN) == 0);
 
     if (BKE_area_find_region_type(area, RGN_TYPE_TOOL_HEADER)) {
@@ -6381,8 +6441,7 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 
     region_blend_end(C, region, true);
   }
-  RegionAlphaInfo *rgi = static_cast<RegionAlphaInfo *>(
-      MEM_callocN(sizeof(RegionAlphaInfo), "RegionAlphaInfo"));
+  RegionAlphaInfo *rgi = MEM_callocN<RegionAlphaInfo>("RegionAlphaInfo");
 
   rgi->hidden = region->flag & RGN_FLAG_HIDDEN;
   rgi->area = area;
@@ -6496,7 +6555,7 @@ static wmOperatorStatus space_type_set_or_cycle_exec(bContext *C, wmOperator *op
       }
     }
     if (free) {
-      MEM_freeN((void *)item);
+      MEM_freeN(item);
     }
   }
 

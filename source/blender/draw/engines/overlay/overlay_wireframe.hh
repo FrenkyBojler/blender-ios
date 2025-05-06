@@ -87,23 +87,35 @@ class Wireframe : Overlay {
               sub.specialize_constant(shader, "use_custom_depth_bias", do_smooth_lines);
             }
             sub.shader_set(shader);
-            sub.bind_texture("depthTex", depth_tex);
-            sub.push_constant("wireOpacity", state.overlay.wireframe_opacity);
-            sub.push_constant("isTransform", is_transform);
-            sub.push_constant("colorType", state.v3d->shading.wire_color_type);
-            sub.push_constant("useColoring", use_coloring);
-            sub.push_constant("wireStepParam", wire_threshold);
+            sub.bind_texture("depth_tx", depth_tex);
+            sub.push_constant("wire_opacity", state.overlay.wireframe_opacity);
+            sub.push_constant("is_transform", is_transform);
+            sub.push_constant("color_type", state.v3d->shading.wire_color_type);
+            sub.push_constant("use_coloring", use_coloring);
+            sub.push_constant("wire_step_param", wire_threshold);
             sub.push_constant("ndc_offset_factor", &state.ndc_offset_factor);
-            sub.push_constant("isHair", false);
+            sub.push_constant("is_hair", false);
             return &sub;
           };
 
       auto coloring_pass = [&](ColoringPass &ps, bool use_color) {
         overlay::ShaderModule &sh = *res.shaders;
-        ps.mesh_ps_ = shader_pass(sh.wireframe_mesh.get(), "Mesh", use_color, wire_threshold);
-        ps.mesh_all_edges_ps_ = shader_pass(sh.wireframe_mesh.get(), "Wire", use_color, 1.0f);
-        ps.pointcloud_ps_ = shader_pass(sh.wireframe_points.get(), "PtCloud", use_color, 1.0f);
-        ps.curves_ps_ = shader_pass(sh.wireframe_curve.get(), "Curve", use_color, 1.0f);
+        ps.mesh_ps_ = nullptr;
+        if (state.has_mesh) {
+          ps.mesh_ps_ = shader_pass(sh.wireframe_mesh.get(), "Mesh", use_color, wire_threshold);
+        }
+        ps.mesh_all_edges_ps_ = nullptr;
+        if (state.has_mesh || state.has_volume) {
+          ps.mesh_all_edges_ps_ = shader_pass(sh.wireframe_mesh.get(), "Wire", use_color, 1.0f);
+        }
+        ps.pointcloud_ps_ = nullptr;
+        if (state.has_ptcloud || state.has_volume || state.has_mesh) {
+          ps.pointcloud_ps_ = shader_pass(sh.wireframe_points.get(), "PtCloud", use_color, 1.0f);
+        }
+        ps.curves_ps_ = nullptr;
+        if (state.has_curve) {
+          ps.curves_ps_ = shader_pass(sh.wireframe_curve.get(), "Curve", use_color, 1.0f);
+        }
       };
 
       coloring_pass(non_colored, false);

@@ -162,7 +162,7 @@ static void ipo_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_IP = {
-    /*id_code*/ ID_IP,
+    /*id_code*/ Ipo::id_type,
     /*id_filter*/ FILTER_ID_IP,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_IP,
@@ -1338,11 +1338,10 @@ static void fcurve_add_to_list(
     /* wrap the pointers given into a dummy action that we pass to the API func
      * and extract the resultant lists...
      */
-    bAction tmp_act;
+    bAction tmp_act = {};
     bActionGroup *agrp = nullptr;
 
     /* init the temp action */
-    memset(&tmp_act, 0, sizeof(bAction)); /* XXX: Only enable this line if we get errors. */
     tmp_act.groups.first = groups->first;
     tmp_act.groups.last = groups->last;
     tmp_act.curves.first = list->first;
