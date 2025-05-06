@@ -8652,6 +8652,10 @@ static void rna_def_repeat_zone_viewer_path_elem(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "repeat_output_node_id", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Repeat Output Node ID", "");
+
+  prop = RNA_def_property(srna, "iteration", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, INT_MAX);
+  RNA_def_property_ui_text(prop, "Iteration", "Iteration of the repeat zone");
 }
 
 static void rna_def_foreach_geometry_element_zone_viewer_path_elem(BlenderRNA *brna)
@@ -8663,6 +8667,10 @@ static void rna_def_foreach_geometry_element_zone_viewer_path_elem(BlenderRNA *b
 
   prop = RNA_def_property(srna, "zone_output_node_id", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Zone Output Node ID", "");
+
+  prop = RNA_def_property(srna, "index", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, INT_MAX);
+  RNA_def_property_ui_text(prop, "Index", "Index in the for-each zone");
 }
 
 static void rna_def_evaluate_closure_node_viewer_path_elem(BlenderRNA *brna)

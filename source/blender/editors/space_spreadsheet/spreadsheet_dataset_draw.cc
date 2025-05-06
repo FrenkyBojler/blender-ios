@@ -1011,6 +1011,41 @@ static void spreadsheet_data_source_list_draw(const bContext &C, uiLayout &layou
   ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
 }
 
+static void draw_active_viewer_path_item(const bContext &C, uiLayout &layout)
+{
+  bScreen *screen = CTX_wm_screen(&C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  ViewerPath &viewer_path = sspreadsheet.viewer_path;
+  ViewerPathElem *active_elem = static_cast<ViewerPathElem *>(
+      BLI_findlink(&viewer_path.path, sspreadsheet.active_viewer_path_index));
+  if (!active_elem) {
+    return;
+  }
+
+  PointerRNA active_elem_ptr = RNA_pointer_create_discrete(
+      &screen->id, &RNA_ViewerPathElem, active_elem);
+
+  uiLayout &col = layout.column(false);
+
+  /* Settings on viewer path can only be modified when it is pinned currently. Otherwise, the
+   * viewer path is derived from context. */
+  uiLayoutSetEnabled(&col, sspreadsheet.flag & SPREADSHEET_FLAG_PINNED);
+
+  switch (ViewerPathElemType(active_elem->type)) {
+    case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
+      uiItemR(&col, &active_elem_ptr, "iteration", UI_ITEM_NONE, IFACE_("Iteration"), ICON_NONE);
+      break;
+    }
+    case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
+      uiItemR(&col, &active_elem_ptr, "index", UI_ITEM_NONE, IFACE_("Index"), ICON_NONE);
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+}
+
 static void data_source_panel_draw_without_context(uiLayout &layout)
 {
   uiItemL(&layout, IFACE_("No active context"), ICON_NONE);
@@ -1053,13 +1088,15 @@ static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layo
     return;
   }
   uiItemR(&layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
-  spreadsheet_data_source_list_draw(C, layout);
 
   if (sspreadsheet.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       !viewer_path_ends_with_viewer_node(viewer_path))
   {
     uiItemL(&layout, IFACE_("No active viewer node"), ICON_INFO);
   }
+
+  spreadsheet_data_source_list_draw(C, layout);
+  draw_active_viewer_path_item(C, layout);
 }
 
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
