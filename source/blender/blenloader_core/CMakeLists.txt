@@ -8,7 +8,8 @@ set(INC
 
 
 set(SRC
-  intern/blo_core.cc
+  intern/blo_bhead.cc
+  intern/blo_blend_header.cc
 
   BLO_bhead.hh
   BLO_blend_defs.hh
