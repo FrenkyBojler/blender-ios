@@ -183,9 +183,8 @@ PointerRNA RNA_id_pointer_create(ID *id)
   return PointerRNA_NULL;
 }
 
-PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, blender::SinglePointer data_)
+PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, blender::SinglePointer data)
 {
-  void *data = data_.data();
   PointerRNA ptr{id, type, data};
 
   if (data) {
@@ -200,7 +199,7 @@ PointerRNA RNA_pointer_create_with_parent(const PointerRNA &parent,
                                           blender::SinglePointer data)
 {
   PointerRNA result;
-  rna_pointer_create_with_ancestors(parent, type, data.data(), result);
+  rna_pointer_create_with_ancestors(parent, type, data, result);
   return result;
 }
 
@@ -208,7 +207,7 @@ PointerRNA RNA_pointer_create_id_subdata(ID &id, StructRNA *type, blender::Singl
 {
   PointerRNA parent = RNA_id_pointer_create(&id);
   PointerRNA result;
-  rna_pointer_create_with_ancestors(parent, type, data.data(), result);
+  rna_pointer_create_with_ancestors(parent, type, data, result);
   return result;
 }
 

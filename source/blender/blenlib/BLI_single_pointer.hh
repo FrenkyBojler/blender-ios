@@ -22,15 +22,17 @@ struct SinglePointer {
 
   template<typename T> SinglePointer(T *value) : data_(value)
   {
+    /** Only single pointers are allowed, but not e.g. double-pointers like `int **`. */
     static_assert(!std::is_pointer_v<std::decay_t<T>>);
   }
 
-  void *data() const
+  operator void *() const
   {
     return data_;
   }
 };
 
+/** Same as #SinglePointer but for const pointers. */
 struct ConstSinglePointer {
  private:
   const void *data_;
@@ -40,10 +42,11 @@ struct ConstSinglePointer {
 
   template<typename T> ConstSinglePointer(T *value) : data_(value)
   {
+    /** Only single pointers are allowed, but not e.g. double-pointers like `int **`. */
     static_assert(!std::is_pointer_v<std::decay_t<T>>);
   }
 
-  const void *data() const
+  operator const void *() const
   {
     return data_;
   }
