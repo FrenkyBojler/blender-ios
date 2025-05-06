@@ -159,7 +159,7 @@ typedef struct DyntopoSettings {
   float detail_size;
 
   /* Constant Mode */
-  float constant_detail;
+  float constant_detail_resolution;
 
   /* Brush & Manual Mode */
   float detail_percent;

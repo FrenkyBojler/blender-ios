@@ -2118,6 +2118,45 @@ static void rna_def_curves_sculpt_options(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_BrushCurvesSculptSettings_update");
 }
 
+static void rna_def_mesh_paint_options(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "BrushMeshPaintSettings", nullptr);
+  RNA_def_struct_path_func(srna, "rna_BrushMeshPaintSettings_path");
+  RNA_def_struct_sdna(srna, "BrushMeshPaintSettings");
+  RNA_def_struct_ui_text(srna, "Mesh Paint Brush Settings", "");
+
+  srna = RNA_def_struct(brna, "DyntopoSettings", nullptr);
+  RNA_def_struct_path_func(srna, "rna_DyntopoSettings_path");
+  RNA_def_struct_sdna(srna, "DyntopoSettings");
+  RNA_def_struct_ui_text(srna, "Dyntopo Brush Settings", "");
+
+  prop = RNA_def_property(srna, "detail_size", PROP_FLOAT, PROP_PIXEL);
+  RNA_def_property_range(prop, 0.5, 40.0);
+  RNA_def_property_ui_range(prop, 0.5, 40.0, 0.1, 2);
+  RNA_def_property_ui_scale_type(prop, PROP_SCALE_CUBIC);
+  RNA_def_property_ui_text(
+      prop, "Detail Size", "Maximum edge length for dynamic topology sculpting (in pixels)");
+
+  prop = RNA_def_property(srna, "detail_percent", PROP_FLOAT, PROP_PERCENTAGE);
+  RNA_def_property_range(prop, 0.5, 100.0);
+  RNA_def_property_ui_range(prop, 0.5, 100.0, 10, 2);
+  RNA_def_property_ui_text(
+      prop,
+      "Detail Percentage",
+      "Maximum edge length for dynamic topology sculpting (in brush percentage)");
+
+  prop = RNA_def_property(srna, "constant_detail_resolution", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 0.0001, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.001, 1000.0, 10, 2);
+  RNA_def_property_ui_text(prop,
+                           "Resolution",
+                           "Maximum edge length for dynamic topology sculpting (as divisor "
+                           "of Blender unit - higher value means smaller edge length)");
+}
+
 static void rna_def_brush(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -3941,6 +3980,7 @@ void RNA_def_brush(BlenderRNA *brna)
   rna_def_weight_paint_capabilities(brna);
   rna_def_gpencil_options(brna);
   rna_def_curves_sculpt_options(brna);
+  rna_def_mesh_paint_options(brna);
   rna_def_brush_texture_slot(brna);
   rna_def_operator_stroke_element(brna);
 }

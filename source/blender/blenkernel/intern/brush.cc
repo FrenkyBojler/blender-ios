@@ -112,6 +112,10 @@ static void brush_copy_data(Main * /*bmain*/,
     brush_dst->curves_sculpt_settings->curve_parameter_falloff = BKE_curvemapping_copy(
         brush_src->curves_sculpt_settings->curve_parameter_falloff);
   }
+  if (brush_src->mesh_paint_settings != nullptr) {
+    brush_dst->mesh_paint_settings = MEM_dupallocN<BrushMeshPaintSettings>(
+        __func__, *(brush_src->mesh_paint_settings));
+  }
 
   /* enable fake user by default */
   id_fake_user_set(&brush_dst->id);
@@ -350,6 +354,8 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
+  BLO_read_struct(reader, BrushMeshPaintSettings, &brush->mesh_paint_settings);
+
   BLO_read_struct(reader, PreviewImage, &brush->preview);
   BKE_previewimg_blend_read(reader, brush->preview);
 
@@ -544,6 +550,9 @@ Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
   {
     BKE_brush_init_gpencil_settings(brush);
   }
+  else if (ELEM(ob_mode, OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT)) {
+    BKE_brush_init_mesh_paint_settings(*brush);
+  }
 
   return brush;
 }
@@ -604,6 +613,25 @@ void BKE_brush_init_curves_sculpt_settings(Brush *brush)
   settings->curve_radius = 0.01f;
   settings->density_add_attempts = 100;
   settings->curve_parameter_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+}
+
+void BKE_brush_init_mesh_paint_settings(Brush &brush)
+{
+  if (brush.mesh_paint_settings == nullptr) {
+    brush.mesh_paint_settings = MEM_callocN<BrushMeshPaintSettings>(__func__);
+  }
+
+  // TODO: Is any of this needed, or correct? Shouldn't this be set elsewhere?
+  BrushMeshPaintSettings &settings = *brush.mesh_paint_settings;
+
+  DyntopoSettings dyntopo_settings;;
+  dyntopo_settings.detail_size = 12.0f;
+  dyntopo_settings.detail_percent = 25;
+  dyntopo_settings.constant_detail_resolution = 3.0f;
+  dyntopo_settings.flag = SCULPT_BRUSH_DYNTOPO_SUBDIVIDE | SCULPT_BRUSH_DYNTOPO_COLLAPSE;
+  dyntopo_settings.mode = SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_RELATIVE;
+
+  settings.dyntopo_settings = dyntopo_settings;
 }
 
 void BKE_brush_tag_unsaved_changes(Brush *brush)

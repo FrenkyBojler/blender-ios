@@ -50,6 +50,7 @@ bool BKE_brush_delete(Main *bmain, Brush *brush);
 void BKE_brush_init_gpencil_settings(Brush *brush);
 
 void BKE_brush_init_curves_sculpt_settings(Brush *brush);
+void BKE_brush_init_mesh_paint_settings(Brush &brush);
 
 /**
  * Tag a linked brush as having changed settings so an indicator can be displayed to the user,
