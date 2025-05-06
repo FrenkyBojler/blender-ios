@@ -24,15 +24,12 @@ static CLG_LogRef LOG = {"bke.attribute_storage"};
 
 namespace blender::bke {
 
-/**
- * \note There is a possibility to support some caches here, like the min and max values of the
- * array.
- */
 class ArrayDataImplicitSharing : public ImplicitSharingInfo {
  private:
   void *data_;
   int64_t size_;
   const CPPType &type_;
+  /* This struct could also store caches about the array data, like the min and max values. */
 
  public:
   ArrayDataImplicitSharing(void *data, const int64_t size, const CPPType &type)
