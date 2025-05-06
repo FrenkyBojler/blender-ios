@@ -13,6 +13,7 @@ class SPREADSHEET_HT_header(bpy.types.Header):
         space = context.space_data
 
         layout.template_header()
+        SPREADSHEET_MT_editor_menus.draw_collapsible(context, layout)
         layout.separator_spacer()
 
         row = layout.row(align=True)
@@ -39,8 +40,35 @@ class SPREADSHEET_HT_header(bpy.types.Header):
         return False
 
 
+class SPREADSHEET_MT_editor_menus(bpy.types.Menu):
+    bl_idname = "SPREADSHEET_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        layout = self.layout
+        layout.menu("SPREADSHEET_MT_view")
+
+
+class SPREADSHEET_MT_view(bpy.types.Menu):
+    bl_label = "View"
+
+    def draw(self, context):
+        layout = self.layout
+        sspreadsheet = context.space_data
+
+        layout.prop(sspreadsheet, "show_region_toolbar")
+        layout.prop(sspreadsheet, "show_region_ui")
+
+        layout.separator()
+
+        layout.menu("INFO_MT_area")
+
+
 classes = (
     SPREADSHEET_HT_header,
+
+    SPREADSHEET_MT_editor_menus,
+    SPREADSHEET_MT_view,
 )
 
 if __name__ == "__main__":  # Only for live edit.
