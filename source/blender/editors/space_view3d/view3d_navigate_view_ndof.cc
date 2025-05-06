@@ -763,9 +763,9 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
          * distance to ndof_ofs to prevent weird behaviour like being unable to zoom
          * to the ndof_ofs point. (#134732) */
         if(rv3d->is_persp) {
-          const float dist_min = 1e-6f;
+          const float dist_min = v3d->clip_start * 1.5f;
           if (!ED_view3d_distance_set_from_location(rv3d, center_test.value(), dist_min)) {
-            rv3d->dist = dist_min;
+            ED_view3d_distance_set(rv3d, dist_min);
           }
         }
         rv3d->ndof_flag |= RV3D_NDOF_OFS_IS_VALID;
