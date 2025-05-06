@@ -412,8 +412,15 @@ class CommitInfo:
         formatted_string = (
             f" * {title} [[{self.hash[:11]}](https://projects.blender.org/blender/blender/commit/{self.hash})]"
         )
+
         if len(self.backport_list) > 0:
-            formatted_string += f" - Backported to {' & '.join(self.backport_list)}"
+            if len(self.backport_list) > 2:
+                # In case of three backports, create a list that looks like:
+                # "Backported to 3.6, 4.2, and 4.3"
+                backport_list_text = f"{', '.join(self.backport_list[:-1])}, and {self.backport_list[-1]}"
+            else:
+                backport_list_text = " and ".join(self.backport_list)
+            formatted_string += f" - Backported to {backport_list_text}"
         formatted_string += "\n"
 
         return formatted_string
