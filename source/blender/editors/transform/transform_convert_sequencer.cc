@@ -447,7 +447,7 @@ static void query_time_dependent_strips_strips(TransInfo *t,
 
   /* Remove all non-effects. */
   time_dependent_strips.remove_if(
-      [&](Strip *strip) { return seq::transform_sequence_can_be_translated(strip); });
+      [&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
 }
 
 static void createTransSeqData(bContext * /*C*/, TransInfo *t)
@@ -488,12 +488,9 @@ static void createTransSeqData(bContext * /*C*/, TransInfo *t)
 
   tc->custom.type.data = ts = MEM_new<TransSeq>(__func__);
   tc->custom.type.use_free = true;
-  td = tc->data = static_cast<TransData *>(
-      MEM_callocN(tc->data_len * sizeof(TransData), "TransSeq TransData"));
-  td2d = tc->data_2d = static_cast<TransData2D *>(
-      MEM_callocN(tc->data_len * sizeof(TransData2D), "TransSeq TransData2D"));
-  ts->tdseq = tdsq = static_cast<TransDataSeq *>(
-      MEM_callocN(tc->data_len * sizeof(TransDataSeq), "TransSeq TransDataSeq"));
+  td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransSeq TransData");
+  td2d = tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransSeq TransData2D");
+  ts->tdseq = tdsq = MEM_calloc_arrayN<TransDataSeq>(tc->data_len, "TransSeq TransDataSeq");
 
   /* Custom data to enable edge panning during transformation. */
   UI_view2d_edge_pan_init(t->context,
@@ -593,9 +590,9 @@ static void flushTransSeq(TransInfo *t)
 
     switch (tdsq->sel_flag) {
       case SELECT: {
-        if (seq::transform_sequence_can_be_translated(strip)) {
+        if (seq::transform_strip_can_be_translated(strip)) {
           offset = new_frame - tdsq->start_offset - strip->start;
-          seq::transform_translate_sequence(scene, strip, offset);
+          seq::transform_translate_strip(scene, strip, offset);
           if (abs(offset) > abs(max_offset)) {
             max_offset = offset;
           }
