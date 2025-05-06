@@ -17,6 +17,7 @@ void main()
   TEST(eevee_occupancy, Occupancy)
   {
     using occupancy::bit_from_depth;
+    using occupancy::bits_from_depth;
     using occupancy::bitwise_or;
     using occupancy::find_lsb;
     using occupancy::occupancy_new;
@@ -28,23 +29,23 @@ void main()
 
     Bits occup;
 
-    /* bit_from_depth */
-    occup = bit_from_depth(0.1f, 1);
+    /* bits_from_depth */
+    occup = bits_from_depth(0.1f, 1);
     EXPECT_EQ(to_uint4(occup), uint4(0xFFFFFFFFu, ~0u, ~0u, ~0u));
 
-    occup = bit_from_depth(0.6f, 1);
+    occup = bits_from_depth(0.6f, 1);
     EXPECT_EQ(to_uint4(occup), uint4(0xFFFFFFFEu, ~0u, ~0u, ~0u));
 
-    occup = bit_from_depth(0.5f, 32);
+    occup = bits_from_depth(0.5f, 32);
     EXPECT_EQ(to_uint4(occup), uint4(0xFFFF0000u, ~0u, ~0u, ~0u));
 
-    occup = bit_from_depth(0.5f, 64);
+    occup = bits_from_depth(0.5f, 64);
     EXPECT_EQ(to_uint4(occup), uint4(0u, ~0u, ~0u, ~0u));
 
-    occup = bit_from_depth(0.5f, 128);
+    occup = bits_from_depth(0.5f, 128);
     EXPECT_EQ(to_uint4(occup), uint4(0u, 0u, ~0u, ~0u));
 
-    occup = bit_from_depth(33.0f / 64.0f, 64);
+    occup = bits_from_depth(33.0f / 64.0f, 64);
     EXPECT_EQ(to_uint4(occup), uint4(0u, 0xFFFFFFFEu, ~0u, ~0u));
 
     /* bit_from_depth */
