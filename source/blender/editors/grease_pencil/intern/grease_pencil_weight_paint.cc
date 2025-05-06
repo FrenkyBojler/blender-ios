@@ -56,11 +56,12 @@ Set<std::string> get_bone_deformed_vertex_group_names(const Object &object)
   ModifierData *md = BKE_modifiers_get_virtual_modifierlist(&object, &virtual_modifier_data);
   for (; md; md = md->next) {
     if (!(md->mode & (eModifierMode_Realtime | eModifierMode_Virtual)) ||
-        md->type != eModifierType_Armature)
+        md->type != eModifierType_GreasePencilArmature)
     {
       continue;
     }
-    ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
+    GreasePencilArmatureModifierData *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(
+        md);
     if (!amd->object || !amd->object->pose) {
       continue;
     }
