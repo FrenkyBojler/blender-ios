@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-05 08:47+0000\n"
 "PO-Revision-Date: 2025-04-14 08:41+0000\n"
 "Last-Translator: Marcus Edmark Lindh <marcus.lindh@outlook.com>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -3726,6 +3726,10 @@ msgid "Clip Start"
 msgstr "Beskärningsstart"
 
 
+msgid "Use internal text data-block"
+msgstr "Använd internt text-datablock"
+
+
 msgid "Depth Of Field"
 msgstr "Skärpdjup"
 
@@ -5189,26 +5193,6 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Mirror"
-msgstr "Spegla"
-
-
-msgid "Snap"
-msgstr "Snäpp"
-
-
-msgid "Local View"
-msgstr "Lokal vy"
-
-
-msgid "Align View"
-msgstr "Justera vy"
-
-
-msgid "Align View to Active"
-msgstr "Justera vy till aktiv"
-
-
 msgid "Select More/Less"
 msgstr "Markera mera/mindre"
 
@@ -5267,6 +5251,26 @@ msgstr "Text"
 
 msgid "Pivot Point"
 msgstr "Fast punkt"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgid "Mirror"
+msgstr "Spegla"
+
+
+msgid "Local View"
+msgstr "Lokal vy"
+
+
+msgid "Align View"
+msgstr "Justera vy"
+
+
+msgid "Align View to Active"
+msgstr "Justera vy till aktiv"
 
 
 msgid "Catalog"
@@ -6405,10 +6409,6 @@ msgstr "Konvertera en färgs luminans till ett gråskalevärde"
 
 msgid "Script Source"
 msgstr "Skriptkälla"
-
-
-msgid "Use internal text data-block"
-msgstr "Använd internt text-datablock"
 
 
 msgid "Use external .osl or .oso file"
@@ -9910,11 +9910,6 @@ msgstr "-Z till +Z"
 
 msgid "+Z to -Z"
 msgstr "+Z till -Z"
-
-
-msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Trianglar till fyrhörningar"
 
 
 msgctxt "Operator"
@@ -16476,10 +16471,6 @@ msgstr "Spara som..."
 
 msgid "Don't Save"
 msgstr "Spara inte"
-
-
-msgid "This file was saved by a newer version of Blender (%s)"
-msgstr "Denna fil har sparats av en nyare version av Blender (%s)"
 
 
 msgid "Save changes before closing?"

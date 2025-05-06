@@ -6,7 +6,6 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "draw_common_shader_shared.hh"
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 #  include "overlay_common_info.hh"
@@ -51,7 +50,7 @@ VERTEX_SOURCE("overlay_viewer_attribute_pointcloud_vert.glsl")
 FRAGMENT_SOURCE("overlay_viewer_attribute_frag.glsl")
 FRAGMENT_OUT(0, float4, out_color)
 FRAGMENT_OUT(1, float4, line_output)
-SAMPLER(3, FLOAT_BUFFER, attribute_tx)
+SAMPLER(3, samplerBuffer, attribute_tx)
 VERTEX_OUT(overlay_viewer_attribute_iface)
 ADDITIONAL_INFO(overlay_viewer_attribute_common)
 ADDITIONAL_INFO(draw_pointcloud)
@@ -85,7 +84,7 @@ VERTEX_SOURCE("overlay_viewer_attribute_curves_vert.glsl")
 FRAGMENT_SOURCE("overlay_viewer_attribute_frag.glsl")
 FRAGMENT_OUT(0, float4, out_color)
 FRAGMENT_OUT(1, float4, line_output)
-SAMPLER(1, FLOAT_BUFFER, color_tx)
+SAMPLER(1, samplerBuffer, color_tx)
 PUSH_CONSTANT(bool, is_point_domain)
 VERTEX_OUT(overlay_viewer_attribute_iface)
 ADDITIONAL_INFO(overlay_viewer_attribute_common)

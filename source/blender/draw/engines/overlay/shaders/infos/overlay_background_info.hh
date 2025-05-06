@@ -6,7 +6,6 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "draw_common_shader_shared.hh"
 #  include "draw_view_info.hh"
 #  include "gpu_shader_fullscreen_info.hh"
 
@@ -19,8 +18,8 @@
 GPU_SHADER_CREATE_INFO(overlay_background)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.hh")
-SAMPLER(0, FLOAT_2D, color_buffer)
-SAMPLER(1, DEPTH_2D, depth_buffer)
+SAMPLER(0, sampler2D, color_buffer)
+SAMPLER(1, sampler2DDepth, depth_buffer)
 PUSH_CONSTANT(int, bg_type)
 PUSH_CONSTANT(float4, color_override)
 FRAGMENT_SOURCE("overlay_background_frag.glsl")
