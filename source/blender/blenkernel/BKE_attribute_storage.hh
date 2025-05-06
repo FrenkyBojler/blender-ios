@@ -37,6 +37,7 @@ class Attribute {
      * stores the size and type itself. It may be possible to make use of that fact to avoid
      * storing it here, or even vice versa. */
     void *data;
+    /* The number of elements in the array. */
     int64_t size;
     ImplicitSharingPtr<> sharing_info;
   };

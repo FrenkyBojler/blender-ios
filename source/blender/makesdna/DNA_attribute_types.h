@@ -24,6 +24,7 @@ typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 struct AttributeArray {
   void *data;
   const ImplicitSharingInfoHandle *sharing_info;
+  /* The number of elements in the array. */
   int64_t size;
 };
 
