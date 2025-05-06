@@ -569,6 +569,12 @@ static bool rna_BrushCapabilitiesSculpt_has_tilt_get(PointerRNA *ptr)
   return blender::bke::brush::supports_tilt(*br);
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_dyntopo_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_dyntopo(*br);
+}
+
 static bool rna_BrushCapabilitiesImagePaint_has_accumulate_get(PointerRNA *ptr)
 {
   /* only support for draw brush */
@@ -1208,6 +1214,7 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
   SCULPT_BRUSH_CAPABILITY(has_direction, "Has Direction");
   SCULPT_BRUSH_CAPABILITY(has_gravity, "Has Gravity");
   SCULPT_BRUSH_CAPABILITY(has_tilt, "Has Tilt");
+  SCULPT_BRUSH_CAPABILITY(has_dyntopo, "Has Dyntopo");
 
 #  undef SCULPT_CAPABILITY
 }
@@ -2136,6 +2143,49 @@ static void rna_def_curves_sculpt_options(BlenderRNA *brna)
 
 static void rna_def_mesh_paint_options(BlenderRNA *brna)
 {
+  static const EnumPropertyItem detail_refine_items[] = {
+      {SCULPT_BRUSH_DYNTOPO_SUBDIVIDE,
+       "SUBDIVIDE",
+       0,
+       "Subdivide Edges",
+       "Subdivide long edges to add mesh detail where needed"},
+      {SCULPT_BRUSH_DYNTOPO_COLLAPSE,
+       "COLLAPSE",
+       0,
+       "Collapse Edges",
+       "Collapse short edges to remove mesh detail where possible"},
+      {SCULPT_BRUSH_DYNTOPO_SUBDIVIDE | SCULPT_BRUSH_DYNTOPO_COLLAPSE,
+       "SUBDIVIDE_COLLAPSE",
+       0,
+       "Subdivide Collapse",
+       "Both subdivide long edges and collapse short edges to refine mesh detail"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem detail_type_items[] = {
+      {SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_RELATIVE,
+       "RELATIVE",
+       0,
+       "Relative Detail",
+       "Mesh detail is relative to the brush size and detail size"},
+      {SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_CONSTANT,
+       "CONSTANT",
+       0,
+       "Constant Detail",
+       "Mesh detail is constant in world space according to detail size"},
+      {SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_BRUSH,
+       "BRUSH",
+       0,
+       "Brush Detail",
+       "Mesh detail is relative to brush radius"},
+      {SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_MANUAL,
+       "MANUAL",
+       0,
+       "Manual Detail",
+       "Mesh detail does not change on each stroke, only when using Flood Fill"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   StructRNA *srna;
   PropertyRNA *prop;
 
@@ -2153,6 +2203,26 @@ static void rna_def_mesh_paint_options(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_DyntopoSettings_path");
   RNA_def_struct_sdna(srna, "DyntopoSettings");
   RNA_def_struct_ui_text(srna, "Dyntopo Brush Settings", "");
+
+  prop = RNA_def_property(srna, "use_brush_settings", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCULPT_BRUSH_DYNTOPO_SETTINGS_ENABLED);
+  RNA_def_property_ui_text(
+      prop, "Use Brush Settings", "Use the brush settings instead of the scene level properties.");
+  RNA_def_property_update(prop, 0, "rna_BrushMeshPaintSettings_update");
+
+  prop = RNA_def_property(srna, "detail_refine_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
+  RNA_def_property_enum_items(prop, detail_refine_items);
+  RNA_def_property_ui_text(
+      prop, "Refine Method", "In dynamic-topology mode, how to add or remove mesh detail");
+  RNA_def_property_update(prop, 0, "rna_BrushMeshPaintSettings_update");
+
+  prop = RNA_def_property(srna, "detail_type_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "mode");
+  RNA_def_property_enum_items(prop, detail_type_items);
+  RNA_def_property_ui_text(
+      prop, "Detailing", "In dynamic-topology mode, how mesh detail size is calculated");
+  RNA_def_property_update(prop, 0, "rna_BrushMeshPaintSettings_update");
 
   prop = RNA_def_property(srna, "detail_size", PROP_FLOAT, PROP_PIXEL);
   RNA_def_property_range(prop, 0.5, 40.0);

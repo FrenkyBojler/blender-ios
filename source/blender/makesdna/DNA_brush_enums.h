@@ -476,8 +476,9 @@ typedef enum eBrushCurvesSculptType {
 /* See eSculptFlags for corresponding options
  * Brush.mesh_paint_settings.dyntopo_settings.flag */
 typedef enum eBrushSculptDyntopoFlags {
-  SCULPT_BRUSH_DYNTOPO_SUBDIVIDE = (1 << 0),
-  SCULPT_BRUSH_DYNTOPO_COLLAPSE = (1 << 1),
+  SCULPT_BRUSH_DYNTOPO_SETTINGS_ENABLED = (1 << 0),
+  SCULPT_BRUSH_DYNTOPO_SUBDIVIDE = (1 << 1),
+  SCULPT_BRUSH_DYNTOPO_COLLAPSE = (1 << 2),
 } eBrushSculptDyntopoFlags;
 
 /* See eSculptFlags for corresponding options

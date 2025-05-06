@@ -1193,7 +1193,26 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
 
         capabilities = brush.sculpt_capabilities
         use_accumulate = capabilities.has_accumulate
+        use_dyntopo = capabilities.has_dyntopo
         use_frontface = True
+
+        if use_dyntopo:
+            dyntopo_settings = brush.mesh_paint_settings.dyntopo_settings
+            detail_type = dyntopo_settings.detail_type_method
+            col = layout.column(heading="Dyntopo", align=True)
+            col.prop(dyntopo_settings, "use_brush_settings")
+
+            col.prop(dyntopo_settings, "detail_refine_method")
+            col.prop(dyntopo_settings, "detail_type_method")
+
+            layout.separator()
+
+            if detail_type == 'RELATIVE':
+                col.prop(dyntopo_settings, "detail_size")
+            elif detail_type == 'BRUSH':
+                col.prop(dyntopo_settings, "detail_percent")
+            elif detail_type in {'MANUAL', 'CONSTANT'}:
+                col.prop(dyntopo_settings, "constant_detail_resolution")
 
         col = layout.column(heading="Auto-Masking", align=True)
 
