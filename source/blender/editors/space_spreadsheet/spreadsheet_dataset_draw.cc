@@ -1013,8 +1013,8 @@ static void draw_context_path_panel(const bContext &C, uiLayout &layout)
 {
   uiBlock *block = uiLayoutGetBlock(&layout);
   ui::AbstractTreeView *tree_view = UI_block_add_view(
-      *block, "Context Path", std::make_unique<ViewerPathTreeView>(C));
-  tree_view->set_context_menu_title("Context Path");
+      *block, "Viewer Path", std::make_unique<ViewerPathTreeView>(C));
+  tree_view->set_context_menu_title("Viewer Path");
   ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
 }
 
@@ -1065,7 +1065,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
-    if (uiLayout *panel = layout->panel(C, "context path", false, IFACE_("Context Path"))) {
+    if (uiLayout *panel = layout->panel(C, "viewer path", false, IFACE_("Viewer Path"))) {
       draw_context_path_panel(*C, *panel);
     }
   }
