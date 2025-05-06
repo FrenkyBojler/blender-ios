@@ -1,22 +1,34 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+
 #include "BLI_array_utils.hh"
+
 #include "DEG_depsgraph.hh"
+
 #include "DNA_modifier_types.h"
+
 #include "ED_curves.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 #include "ED_view3d.hh"
+
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
 #include "UI_resources.hh"
+
 #include "WM_api.hh"
 
 namespace blender::ed::curves {
