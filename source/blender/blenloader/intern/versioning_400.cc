@@ -7790,6 +7790,33 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
   }
 }
 
+static void version_mesh_paint_brushes_add_settings_struct(Main *bmain)
+{
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    if (!ELEM(brush->ob_mode,
+              OB_MODE_SCULPT,
+              OB_MODE_VERTEX_PAINT,
+              OB_MODE_TEXTURE_PAINT,
+              OB_MODE_WEIGHT_PAINT))
+    {
+      continue;
+    }
+    if (brush->mesh_paint_settings != nullptr) {
+      continue;
+    }
+
+    brush->mesh_paint_settings = MEM_callocN<BrushMeshPaintSettings>(__func__);
+    DyntopoSettings dyntopo_settings;
+    dyntopo_settings.detail_size = 12.0f;
+    dyntopo_settings.detail_percent = 25;
+    dyntopo_settings.constant_detail_resolution = 3.0f;
+    dyntopo_settings.flag = SCULPT_BRUSH_DYNTOPO_SUBDIVIDE | SCULPT_BRUSH_DYNTOPO_COLLAPSE;
+    dyntopo_settings.mode = SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_RELATIVE;
+
+    brush->mesh_paint_settings->dyntopo_settings = dyntopo_settings;
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -10614,6 +10641,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 65)) {
+    version_mesh_paint_brushes_add_settings_struct(bmain);
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the

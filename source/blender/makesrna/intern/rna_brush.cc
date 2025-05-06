@@ -1077,6 +1077,22 @@ static std::optional<std::string> rna_BrushCurvesSculptSettings_path(const Point
   return "curves_sculpt_settings";
 }
 
+static void rna_BrushMeshPaintSettings_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+{
+  Brush *br = (Brush *)ptr->owner_id;
+  BKE_brush_tag_unsaved_changes(br);
+}
+
+static std::optional<std::string> rna_BrushMeshPaintSettings_path(const PointerRNA * /*ptr*/)
+{
+  return "mesh_paint_settings";
+}
+
+static std::optional<std::string> rna_DyntopoSettings_path(const PointerRNA * /*ptr*/)
+{
+  return "dyntopo_settings";
+}
+
 #else
 
 static void rna_def_brush_texture_slot(BlenderRNA *brna)
@@ -2139,6 +2155,7 @@ static void rna_def_mesh_paint_options(BlenderRNA *brna)
   RNA_def_property_ui_scale_type(prop, PROP_SCALE_CUBIC);
   RNA_def_property_ui_text(
       prop, "Detail Size", "Maximum edge length for dynamic topology sculpting (in pixels)");
+  RNA_def_property_update(prop, 0, "rna_BrushMeshPaintSettings_update");
 
   prop = RNA_def_property(srna, "detail_percent", PROP_FLOAT, PROP_PERCENTAGE);
   RNA_def_property_range(prop, 0.5, 100.0);
@@ -2147,6 +2164,7 @@ static void rna_def_mesh_paint_options(BlenderRNA *brna)
       prop,
       "Detail Percentage",
       "Maximum edge length for dynamic topology sculpting (in brush percentage)");
+  RNA_def_property_update(prop, 0, "rna_BrushMeshPaintSettings_update");
 
   prop = RNA_def_property(srna, "constant_detail_resolution", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0001, FLT_MAX);
@@ -2155,6 +2173,7 @@ static void rna_def_mesh_paint_options(BlenderRNA *brna)
                            "Resolution",
                            "Maximum edge length for dynamic topology sculpting (as divisor "
                            "of Blender unit - higher value means smaller edge length)");
+  RNA_def_property_update(prop, 0, "rna_BrushMeshPaintSettings_update");
 }
 
 static void rna_def_brush(BlenderRNA *brna)
