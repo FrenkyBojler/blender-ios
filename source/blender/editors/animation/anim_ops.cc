@@ -233,10 +233,10 @@ static float get_frame_snap_target(const Scene *scene, const float timeline_fram
   return (round((timeline_frame - start_frame) / float(step)) * step) + start_frame;
 }
 
-static void seq_frame_snap_update_best(const int position,
-                                       const int timeline_frame,
-                                       int *r_best_frame,
-                                       int *r_best_distance)
+static void seq_frame_snap_update_best(const float position,
+                                       const float timeline_frame,
+                                       float *r_best_frame,
+                                       float *r_best_distance)
 {
   if (abs(position - timeline_frame) < *r_best_distance) {
     *r_best_distance = abs(position - timeline_frame);
@@ -248,8 +248,9 @@ static float get_sequencer_strip_snap_target(blender::Span<Strip *> strips,
                                              const Scene *scene,
                                              const float timeline_frame)
 {
-  int best_frame = 0;
-  int best_distance = MAXFRAME;
+  /* Since  */
+  float best_frame = FLT_MAX;
+  float best_distance = FLT_MAX;
 
   for (Strip *strip : strips) {
     seq_frame_snap_update_best(blender::seq::time_left_handle_frame_get(scene, strip),
@@ -262,7 +263,7 @@ static float get_sequencer_strip_snap_target(blender::Span<Strip *> strips,
                                &best_distance);
   }
 
-  if (best_distance == MAXFRAME) {
+  if (best_distance == FLT_MAX) {
     /* No snap target was found. */
     return FLT_MAX;
   }
