@@ -1089,6 +1089,7 @@ bool BKE_image_render_write(ReportList *reports,
                              image_format.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);
   const float dither = scene->r.dither_intensity;
+  const bool is_views_individual = (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL);
 
   if (image_format.views_format == R_IMF_VIEWS_MULTIVIEW && is_exr_rr) {
     ok = BKE_image_render_write_exr(
@@ -1097,12 +1098,14 @@ bool BKE_image_render_write(ReportList *reports,
   }
 
   /* mono, legacy code */
-  else if (is_mono || (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL)) {
+  else if (is_mono || is_views_individual) {
     int view_id = 0;
     for (const RenderView *rv = (const RenderView *)rr->views.first; rv; rv = rv->next, view_id++)
     {
       char filepath[FILE_MAX];
-      if (is_mono) {
+      /* For multiview individual files we still want the multiview filenames (even if only a
+       * single view is enabled). */
+      if (is_mono && !is_views_individual) {
         STRNCPY(filepath, filepath_basis);
       }
       else {
