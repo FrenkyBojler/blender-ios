@@ -944,8 +944,8 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
         row = col.row()
         row.enabled = sndparticle_combined_export in {'OFF', 'FOAM + BUBBLES'}
         row.prop(domain, "use_spray_particles", text="Spray")
-        row.prop(domain, "use_foam_particles", text="Foam")
         row.prop(domain, "use_bubble_particles", text="Bubbles")
+        row.prop(domain, "use_foam_particles", text="Foam")
 
         col.separator()
 
