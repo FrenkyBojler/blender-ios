@@ -620,6 +620,18 @@ using B = A::T;
     string output = process_test_string(input, error);
     EXPECT_EQ(error, "The `using` keyword is not allowed in global or namespace scope.");
   }
+  {
+    string input = R"(
+namespace A {
+using namespace B;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Unsupported `using namespace`. "
+              "Add individual `using` directives for each needed symbol.");
+  }
 }
 GPU_TEST(preprocess_namespace);
 
