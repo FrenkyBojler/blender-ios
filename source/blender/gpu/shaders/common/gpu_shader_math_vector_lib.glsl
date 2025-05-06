@@ -317,9 +317,6 @@ float4 safe_mod(float4 a, float b)
 {
   return (b != 0.0f) ? mod(a, float4(b)) : float4(0);
 }
-template bool almost_equal_relative<vec2, 2>(vec2 a, vec2 b, const float epsilon_factor);
-template bool almost_equal_relative<vec3, 3>(vec3 a, vec3 b, const float epsilon_factor);
-template bool almost_equal_relative<vec4, 4>(vec4 a, vec4 b, const float epsilon_factor);
 
 float2 compatible_mod(float2 a, float b)
 {

@@ -121,7 +121,7 @@ int find_lsb(Bits occupancy)
 /**
  * Converts the first four occupancy words to a uint4.
  */
-uint4 to_uint4(OccupancyBits occupancy)
+uint4 to_uint4(Bits occupancy)
 {
   return uint4(occupancy.bits[0], occupancy.bits[1], occupancy.bits[2], occupancy.bits[3]);
 }

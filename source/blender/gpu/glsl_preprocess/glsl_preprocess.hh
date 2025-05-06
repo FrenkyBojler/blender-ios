@@ -10,7 +10,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <iostream>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -225,8 +224,10 @@ class Preprocessor {
         small_type_linting(str, report_error);
       }
       str = remove_quotes(str);
-      str = namespace_mutation(str, filename);
-      str = namespace_separator_mutation(str, filename);
+      if (language == BLENDER_GLSL) {
+        str = namespace_mutation(str, report_error);
+        str = namespace_separator_mutation(str);
+      }
       str = enum_macro_injection(str);
       str = argument_reference_mutation(str);
       str = variable_reference_mutation(str, report_error);
@@ -660,11 +661,9 @@ class Preprocessor {
     return out;
   }
 
-  std::string namespace_mutation(const std::string &str, const std::string &filename)
+  std::string namespace_mutation(const std::string &str, report_callback report_error)
   {
-    if (str.find("namespace") == std::string::npos || filename.find(".msl") != std::string::npos ||
-        filename.find(".hh") != std::string::npos)
-    {
+    if (str.find("namespace") == std::string::npos) {
       return str;
     }
 
@@ -677,7 +676,7 @@ class Preprocessor {
       std::string content = get_content_between_balanced_pair(match.suffix().str(), '{', '}');
 
       if (content.find("namespace") != std::string::npos) {
-        std::cout << "Nested namespace are unsupported." << std::endl;
+        report_error(match, "Nested namespace are unsupported.");
         return;
       }
 
@@ -700,12 +699,8 @@ class Preprocessor {
     return out;
   }
 
-  std::string namespace_separator_mutation(const std::string &str, const std::string &filename)
+  std::string namespace_separator_mutation(const std::string &str)
   {
-    if (filename.find(".msl") != std::string::npos || filename.find(".hh") != std::string::npos) {
-      return str;
-    }
-
     std::string out = str;
 
     /* Global namespace reference. */
