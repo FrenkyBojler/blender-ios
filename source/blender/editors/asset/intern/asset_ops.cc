@@ -1000,15 +1000,19 @@ static inline void sort_points(int2 &p1, int2 &p2)
   }
 }
 
-static inline void square_points(int2 &p1, int2 &p2)
+/* Ensures that the x and y distance to from p1 to p2 is equal. Does not change the fact that p1 is
+ * the top-left corner. */
+static inline void square_points(const int2 &p1, int2 &p2)
 {
   int2 delta = p2 - p1;
 
-  if (std::abs(delta.x) < std::abs(delta.y)) {
-    delta.x = std::copysignf(std::abs(delta.y), delta.x);
+  const int size_x = std::abs(delta.x);
+  const int size_y = std::abs(delta.y);
+  if (size_x < size_y) {
+    delta.x = std::copysignf(size_y, delta.x);
   }
-  else if (std::abs(delta.y) < std::abs(delta.x)) {
-    delta.y = std::copysign(std::abs(delta.x), delta.y);
+  else if (size_y < size_x) {
+    delta.y = std::copysign(size_x, delta.y);
   }
   p2.x = p1.x + delta.x;
   p2.y = p1.y + delta.y;
@@ -1024,6 +1028,8 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
     int width = image_buffer->x;
     int height = image_buffer->y;
     if (size_type == ICON_SIZE_ICON) {
+      /* Scales down the image to `ICON_RENDER_DEFAULT_HEIGHT` while maintaining the
+       * aspect ratio. */
       if (image_buffer->x > image_buffer->y) {
         width = ICON_RENDER_DEFAULT_HEIGHT;
         height = image_buffer->y * (width / float(image_buffer->x));
@@ -1079,7 +1085,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 
   sort_points(p1, p2);
 
-  const int min_side = 16;
+  /* The min side is chosen arbitrarily to avoid accidental creations of very small screenshots. */
+  constexpr int min_side = 16;
   if (p2.x - p1.x < min_side || p2.y - p1.y < min_side) {
     BKE_reportf(
         op->reports, RPT_ERROR, "Screenshot cannot be smaller than %i pixels on a side", min_side);
