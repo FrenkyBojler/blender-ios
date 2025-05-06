@@ -112,7 +112,6 @@ class Prepass : Overlay {
     }
     hair_ps_ = nullptr;
     if (state.has_particles) {
-      /* TODO: This is not used anywhere ? */
       auto &sub = ps_.sub("Hair");
       sub.shader_set(res.shaders->depth_mesh.get());
       hair_ps_ = &sub;
@@ -165,7 +164,7 @@ class Prepass : Overlay {
                                        res.select_id(ob_ref);
 
             gpu::Batch *geom = DRW_cache_particles_get_hair(ob, psys, nullptr);
-            mesh_ps_->draw(geom, handle, select_id.get());
+            hair_ps_->draw(geom, handle, select_id.get());
             break;
           }
           break;
