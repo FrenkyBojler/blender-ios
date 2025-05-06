@@ -291,8 +291,9 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiItemR(layout, ptr, "overshoot_factor", UI_ITEM_R_SLIDER, IFACE_("Used Length"), ICON_NONE);
 
   if (uiLayout *random_layout =
-          uiLayoutPanelPropWithBoolHeader(
-              C, layout, ptr, "open_random_panel", ptr, "use_random", IFACE_("Randomize"))
+          layout
+              ->panel_prop_with_bool_header(
+                  C, ptr, "open_random_panel", ptr, "use_random", IFACE_("Randomize"))
               .body)
   {
     uiLayout *subcol = &random_layout->column(false);
@@ -308,8 +309,9 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (uiLayout *curvature_layout =
-          uiLayoutPanelPropWithBoolHeader(
-              C, layout, ptr, "open_curvature_panel", ptr, "use_curvature", IFACE_("Curvature"))
+          layout
+              ->panel_prop_with_bool_header(
+                  C, ptr, "open_curvature_panel", ptr, "use_curvature", IFACE_("Curvature"))
               .body)
   {
     uiLayout *subcol = &curvature_layout->column(false);

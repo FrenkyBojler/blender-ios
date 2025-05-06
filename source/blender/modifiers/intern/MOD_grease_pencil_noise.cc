@@ -293,8 +293,9 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiItemR(col, ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (uiLayout *random_layout =
-          uiLayoutPanelPropWithBoolHeader(
-              C, layout, ptr, "open_random_panel", ptr, "use_random", IFACE_("Random"))
+          layout
+              ->panel_prop_with_bool_header(
+                  C, ptr, "open_random_panel", ptr, "use_random", IFACE_("Random"))
               .body)
   {
     uiLayout *random_col = &random_layout->column(false);
