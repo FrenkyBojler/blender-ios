@@ -154,6 +154,25 @@ typedef struct BrushCurvesSculptSettings {
   struct CurveMapping *curve_parameter_falloff;
 } BrushCurvesSculptSettings;
 
+typedef struct DyntopoSettings {
+  /* Relative Mode */
+  float detail_size;
+
+  /* Constant Mode */
+  float constant_detail;
+
+  /* Brush & Manual Mode */
+  float detail_percent;
+
+  uint8_t flag;
+  uint8_t mode;
+  char _pad[2];
+} DyntopoSettings;
+
+typedef struct BrushMeshPaintSettings {
+  struct DyntopoSettings dyntopo_settings;
+} BrushMeshPaintSettings;
+
 /** Max number of propagation steps for automasking settings. */
 #define AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS 20
 /**
@@ -406,6 +425,7 @@ typedef struct Brush {
 
   struct BrushGpencilSettings *gpencil_settings;
   struct BrushCurvesSculptSettings *curves_sculpt_settings;
+  struct BrushMeshPaintSettings *mesh_paint_settings;
 
   int automasking_cavity_blur_steps;
   float automasking_cavity_factor;

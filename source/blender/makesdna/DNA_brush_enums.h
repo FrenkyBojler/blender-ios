@@ -473,6 +473,24 @@ typedef enum eBrushCurvesSculptType {
   CURVES_SCULPT_BRUSH_TYPE_SLIDE = 10,
 } eBrushCurvesSculptType;
 
+/* See eSculptFlags for corresponding options
+ * Brush.mesh_paint_settings.dyntopo_settings.flag */
+typedef enum eBrushSculptDyntopoFlags {
+  SCULPT_BRUSH_DYNTOPO_SUBDIVIDE = (1 << 0),
+  SCULPT_BRUSH_DYNTOPO_COLLAPSE = (1 << 1),
+} eBrushSculptDyntopoFlags;
+
+/* See eSculptFlags for corresponding options
+ * Brush.mesh_paint_settings.dyntopo_settings.mode */
+typedef enum eBrushSculptDyntopoDetailType {
+  /* Note: The relative mode does not have an explicit option in the corresponding
+   * scene settings, it is simply implied by none of the other flags being set. */
+  SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_RELATIVE = 0,
+  SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_CONSTANT = 1,
+  SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_BRUSH = 2,
+  SCULPT_BRUSH_DYNTOPO_DETAIL_MODE_MANUAL = 3,
+} eBrushSculptDyntopoDetailType;
+
 /** #Brush.image_brush_type */
 typedef enum eBrushImagePaintType {
   IMAGE_PAINT_BRUSH_TYPE_DRAW = 0,
