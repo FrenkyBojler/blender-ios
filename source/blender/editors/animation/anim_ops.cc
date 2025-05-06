@@ -61,10 +61,23 @@
  * \{ */
 
 /* Persistent data to re-use during frame change modal operations. */
-struct FrameChangeModalData {
+class FrameChangeModalData {
   /* Used for keyframe snapping. Is populated when needed and re-used so it doesn't have to be
    * created on every modal call. */
+ public:
   AnimKeylist *keylist;
+
+  FrameChangeModalData()
+  {
+    keylist = nullptr;
+  }
+
+  ~FrameChangeModalData()
+  {
+    if (keylist) {
+      ED_keylist_free(keylist);
+    }
+  }
 };
 
 /* Point the playhead can snap to. */
@@ -73,22 +86,6 @@ struct SnapTarget {
   /* If true, only snap if close to the point. */
   bool use_snap_treshold;
 };
-
-static FrameChangeModalData *allocate_change_frame_data()
-{
-  FrameChangeModalData *op_data = MEM_callocN<FrameChangeModalData>("change frame data");
-  op_data->keylist = nullptr;
-  return op_data;
-}
-
-static void free_change_frame_data(FrameChangeModalData *op_data)
-{
-  if (op_data->keylist) {
-    ED_keylist_free(op_data->keylist);
-  }
-
-  MEM_freeN(op_data);
-}
 
 /* Check if the operator can be run from the current context */
 static bool change_frame_poll(bContext *C)
@@ -629,7 +626,7 @@ static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *ev
 static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
-  FrameChangeModalData *op_data = allocate_change_frame_data();
+  FrameChangeModalData *op_data = MEM_new<FrameChangeModalData>(__func__);
   op->customdata = op_data;
 
   /* This check is done in case scrubbing and strip tweaking in the sequencer are bound to the same
@@ -756,7 +753,7 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     screen->scrubbing = false;
 
     FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
-    free_change_frame_data(op_data);
+    MEM_delete(op_data);
     op->customdata = nullptr;
 
     if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
