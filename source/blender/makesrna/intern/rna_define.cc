@@ -2952,6 +2952,17 @@ void RNA_def_property_pointer_sdna(PropertyRNA *prop, const char *structname, co
   }
 }
 
+void RNA_def_property_pointer_level(PropertyRNA *prop, const int pointer_level)
+{
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  PropertyDefRNA *dp = rna_find_struct_property_def(DefRNA.laststruct, prop);
+  dp->dnapointerlevel = pointer_level;
+}
+
 void RNA_def_property_collection_sdna(PropertyRNA *prop,
                                       const char *structname,
                                       const char *propname,

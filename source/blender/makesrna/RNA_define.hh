@@ -404,6 +404,8 @@ void RNA_def_property_collection_sdna(PropertyRNA *prop,
                                       const char *propname,
                                       const char *lengthpropname);
 
+void RNA_def_property_pointer_level(PropertyRNA *prop, int pointer_level);
+
 void RNA_def_property_flag(PropertyRNA *prop, PropertyFlag flag);
 void RNA_def_property_clear_flag(PropertyRNA *prop, PropertyFlag flag);
 void RNA_def_property_override_flag(PropertyRNA *prop, PropertyOverrideFlag flag);

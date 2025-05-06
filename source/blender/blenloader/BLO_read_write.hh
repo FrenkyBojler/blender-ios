@@ -38,6 +38,7 @@
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_memory_utils.hh"
+#include "BLI_single_pointer.hh"
 
 namespace blender {
 class ImplicitSharingInfo;
@@ -92,8 +93,12 @@ int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name
 /**
  * Write single struct.
  */
-void BLO_write_struct_by_name(BlendWriter *writer, const char *struct_name, const void *data_ptr);
-void BLO_write_struct_by_id(BlendWriter *writer, int struct_id, const void *data_ptr);
+void BLO_write_struct_by_name(BlendWriter *writer,
+                              const char *struct_name,
+                              blender::ConstSinglePointer data_ptr);
+void BLO_write_struct_by_id(BlendWriter *writer,
+                            int struct_id,
+                            blender::ConstSinglePointer data_ptr);
 #define BLO_write_struct(writer, struct_name, data_ptr) \
   BLO_write_struct_by_id(writer, BLO_get_struct_id(writer, struct_name), data_ptr)
 
@@ -103,7 +108,7 @@ void BLO_write_struct_by_id(BlendWriter *writer, int struct_id, const void *data
 void BLO_write_struct_at_address_by_id(BlendWriter *writer,
                                        int struct_id,
                                        const void *address,
-                                       const void *data_ptr);
+                                       blender::ConstSinglePointer data_ptr);
 #define BLO_write_struct_at_address(writer, struct_name, address, data_ptr) \
   BLO_write_struct_at_address_by_id( \
       writer, BLO_get_struct_id(writer, struct_name), address, data_ptr)
@@ -111,8 +116,11 @@ void BLO_write_struct_at_address_by_id(BlendWriter *writer,
 /**
  * Write single struct at address and specify a file-code.
  */
-void BLO_write_struct_at_address_by_id_with_filecode(
-    BlendWriter *writer, int filecode, int struct_id, const void *address, const void *data_ptr);
+void BLO_write_struct_at_address_by_id_with_filecode(BlendWriter *writer,
+                                                     int filecode,
+                                                     int struct_id,
+                                                     const void *address,
+                                                     blender::ConstSinglePointer data_ptr);
 #define BLO_write_struct_at_address_with_filecode( \
     writer, filecode, struct_name, address, data_ptr) \
   BLO_write_struct_at_address_by_id_with_filecode( \
@@ -124,11 +132,11 @@ void BLO_write_struct_at_address_by_id_with_filecode(
 void BLO_write_struct_array_by_name(BlendWriter *writer,
                                     const char *struct_name,
                                     int64_t array_size,
-                                    const void *data_ptr);
+                                    blender::ConstSinglePointer data_ptr);
 void BLO_write_struct_array_by_id(BlendWriter *writer,
                                   int struct_id,
                                   int64_t array_size,
-                                  const void *data_ptr);
+                                  blender::ConstSinglePointer data_ptr);
 #define BLO_write_struct_array(writer, struct_name, array_size, data_ptr) \
   BLO_write_struct_array_by_id( \
       writer, BLO_get_struct_id(writer, struct_name), array_size, data_ptr)
@@ -140,7 +148,7 @@ void BLO_write_struct_array_at_address_by_id(BlendWriter *writer,
                                              int struct_id,
                                              int64_t array_size,
                                              const void *address,
-                                             const void *data_ptr);
+                                             blender::ConstSinglePointer data_ptr);
 #define BLO_write_struct_array_at_address(writer, struct_name, array_size, address, data_ptr) \
   BLO_write_struct_array_at_address_by_id( \
       writer, BLO_get_struct_id(writer, struct_name), array_size, address, data_ptr)

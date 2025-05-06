@@ -195,18 +195,20 @@ PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, blender::SingleP
   return ptr;
 }
 
-PointerRNA RNA_pointer_create_with_parent(const PointerRNA &parent, StructRNA *type, void *data)
+PointerRNA RNA_pointer_create_with_parent(const PointerRNA &parent,
+                                          StructRNA *type,
+                                          blender::SinglePointer data)
 {
   PointerRNA result;
-  rna_pointer_create_with_ancestors(parent, type, data, result);
+  rna_pointer_create_with_ancestors(parent, type, data.data(), result);
   return result;
 }
 
-PointerRNA RNA_pointer_create_id_subdata(ID &id, StructRNA *type, void *data)
+PointerRNA RNA_pointer_create_id_subdata(ID &id, StructRNA *type, blender::SinglePointer data)
 {
   PointerRNA parent = RNA_id_pointer_create(&id);
   PointerRNA result;
-  rna_pointer_create_with_ancestors(parent, type, data, result);
+  rna_pointer_create_with_ancestors(parent, type, data.data(), result);
   return result;
 }
 

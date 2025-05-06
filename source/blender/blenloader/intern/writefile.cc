@@ -1889,7 +1889,9 @@ void BLO_write_raw(BlendWriter *writer, const size_t size_in_bytes, const void *
   writedata(writer->wd, BLO_CODE_DATA, size_in_bytes, data_ptr);
 }
 
-void BLO_write_struct_by_name(BlendWriter *writer, const char *struct_name, const void *data_ptr)
+void BLO_write_struct_by_name(BlendWriter *writer,
+                              const char *struct_name,
+                              const blender::ConstSinglePointer data_ptr)
 {
   BLO_write_struct_array_by_name(writer, struct_name, 1, data_ptr);
 }
@@ -1897,7 +1899,7 @@ void BLO_write_struct_by_name(BlendWriter *writer, const char *struct_name, cons
 void BLO_write_struct_array_by_name(BlendWriter *writer,
                                     const char *struct_name,
                                     const int64_t array_size,
-                                    const void *data_ptr)
+                                    const blender::ConstSinglePointer data_ptr)
 {
   int struct_id = BLO_get_struct_id_by_name(writer, struct_name);
   if (UNLIKELY(struct_id == -1)) {
@@ -1907,15 +1909,17 @@ void BLO_write_struct_array_by_name(BlendWriter *writer,
   BLO_write_struct_array_by_id(writer, struct_id, array_size, data_ptr);
 }
 
-void BLO_write_struct_by_id(BlendWriter *writer, const int struct_id, const void *data_ptr)
+void BLO_write_struct_by_id(BlendWriter *writer,
+                            const int struct_id,
+                            const blender::ConstSinglePointer data_ptr)
 {
-  writestruct_nr(writer->wd, BLO_CODE_DATA, struct_id, 1, data_ptr);
+  writestruct_nr(writer->wd, BLO_CODE_DATA, struct_id, 1, data_ptr.data());
 }
 
 void BLO_write_struct_at_address_by_id(BlendWriter *writer,
                                        const int struct_id,
                                        const void *address,
-                                       const void *data_ptr)
+                                       const blender::ConstSinglePointer data_ptr)
 {
   BLO_write_struct_at_address_by_id_with_filecode(
       writer, BLO_CODE_DATA, struct_id, address, data_ptr);
@@ -1925,26 +1929,27 @@ void BLO_write_struct_at_address_by_id_with_filecode(BlendWriter *writer,
                                                      const int filecode,
                                                      const int struct_id,
                                                      const void *address,
-                                                     const void *data_ptr)
+                                                     const blender::ConstSinglePointer data_ptr)
 {
-  writestruct_at_address_nr(writer->wd, filecode, struct_id, 1, address, data_ptr);
+  writestruct_at_address_nr(writer->wd, filecode, struct_id, 1, address, data_ptr.data());
 }
 
 void BLO_write_struct_array_by_id(BlendWriter *writer,
                                   const int struct_id,
                                   const int64_t array_size,
-                                  const void *data_ptr)
+                                  const blender::ConstSinglePointer data_ptr)
 {
-  writestruct_nr(writer->wd, BLO_CODE_DATA, struct_id, array_size, data_ptr);
+  writestruct_nr(writer->wd, BLO_CODE_DATA, struct_id, array_size, data_ptr.data());
 }
 
 void BLO_write_struct_array_at_address_by_id(BlendWriter *writer,
                                              const int struct_id,
                                              const int64_t array_size,
                                              const void *address,
-                                             const void *data_ptr)
+                                             const blender::ConstSinglePointer data_ptr)
 {
-  writestruct_at_address_nr(writer->wd, BLO_CODE_DATA, struct_id, array_size, address, data_ptr);
+  writestruct_at_address_nr(
+      writer->wd, BLO_CODE_DATA, struct_id, array_size, address, data_ptr.data());
 }
 
 void BLO_write_struct_list_by_id(BlendWriter *writer, const int struct_id, const ListBase *list)

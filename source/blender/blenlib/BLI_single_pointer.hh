@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 #include <type_traits>
 
 namespace blender {
@@ -24,6 +26,24 @@ struct SinglePointer {
   }
 
   void *data() const
+  {
+    return data_;
+  }
+};
+
+struct ConstSinglePointer {
+ private:
+  const void *data_;
+
+ public:
+  ConstSinglePointer(std::nullptr_t) : data_(nullptr) {}
+
+  template<typename T> ConstSinglePointer(T *value) : data_(value)
+  {
+    static_assert(!std::is_pointer_v<std::decay_t<T>>);
+  }
+
+  const void *data() const
   {
     return data_;
   }

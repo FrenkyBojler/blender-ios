@@ -2617,6 +2617,7 @@ static void rna_def_library(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "runtime->parent");
+  RNA_def_property_pointer_level(prop, 1);
   RNA_def_property_struct_type(prop, "Library");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Parent", "");
