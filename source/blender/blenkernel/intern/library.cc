@@ -152,7 +152,7 @@ static void library_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id
 }
 
 IDTypeInfo IDType_ID_LI = {
-    /*id_code*/ ID_LI,
+    /*id_code*/ Library::id_type,
     /*id_filter*/ FILTER_ID_LI,
     /*dependencies_id_types*/ FILTER_ID_LI,
     /*main_listbase_index*/ INDEX_ID_LI,
