@@ -248,12 +248,11 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Strip *
   strip_ctx.missing_media = media_presence_is_missing(scene, strip);
   strip_ctx.is_connected = seq::is_strip_connected(strip);
   if (strip->type == STRIP_TYPE_META) {
-    const ListBase *seqbase = &strip->seqbase;
-    LISTBASE_FOREACH (const Strip *, sub, seqbase) {
-      if (!strip_has_valid_data(sub)) {
+    for (const Strip &sub : strip->seqbase) {
+      if (!strip_has_valid_data(&sub)) {
         strip_ctx.missing_data_block = true;
       }
-      if (media_presence_is_missing(scene, sub)) {
+      if (media_presence_is_missing(scene, &sub)) {
         strip_ctx.missing_media = true;
       }
     }

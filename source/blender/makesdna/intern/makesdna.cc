@@ -601,6 +601,7 @@ static int preprocess_include(char *maindata, const int maindata_len)
   comment = 0;
   a = maindata_len;
   bool skip_until_closing_brace = false;
+  bool skip_until_closing_angle = false;
   while (a--) {
 
     if (cp[0] == '/' && cp[1] == '*') {
@@ -648,6 +649,14 @@ static int preprocess_include(char *maindata, const int maindata_len)
         const int skip_offset = end_ptr - cp + strlen(cpp_block_end);
         a -= skip_offset;
         cp += skip_offset;
+      }
+    }
+    else if (cp[0] == 'T' && cp[1] == '<') {
+      skip_until_closing_angle = true;
+    }
+    else if (skip_until_closing_angle) {
+      if (cp[0] == '>') {
+        skip_until_closing_angle = false;
       }
     }
     else {

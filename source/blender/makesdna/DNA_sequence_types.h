@@ -21,6 +21,8 @@
 #include "DNA_session_uid_types.h" /* for #SessionUID */
 #include "DNA_vec_types.h"         /* for #rctf */
 
+#include "BLI_listbase_typed.hh"
+
 struct Ipo;
 struct MovieClip;
 struct Scene;
@@ -245,8 +247,8 @@ typedef struct Strip {
   int _pad8[2];
 
   /** List of strips for meta-strips. */
-  ListBase seqbase;
-  ListBase channels; /* SeqTimelineChannel */
+  ListBaseT<Strip> seqbase;
+  ListBaseT<struct SeqTimelineChannel> channels;
 
   /* List of strip connections (one-way, not bidirectional). */
   ListBase connections; /* StripConnection */
@@ -295,7 +297,7 @@ typedef struct Strip {
   struct IDProperty *prop;
 
   /* modifiers */
-  ListBase modifiers;
+  ListBaseT<struct StripModifierData> modifiers;
 
   /* Playback rate of strip content in frames per second. */
   float media_playback_rate;
