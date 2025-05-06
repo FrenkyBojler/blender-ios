@@ -307,6 +307,28 @@ void AbstractTreeView::draw_drop_linehint() const
     return;
   }
 
+  int start_x = drop_linehint_start_.x;
+  int end_y = drop_linehint_end_.y;
+
+  /* Draw a rectangle around the group when the drop location is into a group. */
+  if (drop_linehint_start_.y != drop_linehint_end_.y) {
+    rctf rect{};
+    BLI_rctf_init(&rect,
+                  drop_linehint_start_.x,
+                  drop_linehint_end_.x,
+                  drop_linehint_start_.y,
+                  drop_linehint_end_.y);
+    float color[4];
+    UI_GetThemeColor3fv(TH_TEXT, color);
+    color[3] = 0.15f;
+    UI_draw_roundbox_corner_set(UI_CNR_ALL);
+    UI_draw_roundbox_4fv(&rect, true, 3.0f, color);
+
+    start_x += UI_ICON_SIZE;
+    end_y = drop_linehint_start_.y;
+  }
+
+  /* Draw line. */
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -315,8 +337,8 @@ void AbstractTreeView::draw_drop_linehint() const
   GPU_line_width(2.0f);
   GPU_blend(GPU_BLEND_ALPHA);
   immBegin(GPU_PRIM_LINES, 2);
-  immVertex2f(pos, drop_linehint_start_.x, drop_linehint_start_.y);
-  immVertex2f(pos, drop_linehint_end_.x, drop_linehint_end_.y);
+  immVertex2f(pos, start_x, drop_linehint_start_.y);
+  immVertex2f(pos, drop_linehint_end_.x, end_y);
   immEnd();
 
   GPU_line_width(1.0f);
@@ -346,25 +368,27 @@ void AbstractTreeView::set_drop_linehint(ARegion &region,
   rcti but_rect;
   ui_but_to_pixelrect(&but_rect, &region, block, but);
 
-  /* Get the x identation. */
-  int indent_x = item.indent_width();
-  if (location == DropLocation::Into) {
-    /* When dropping into a group, add one indentation level. */
-    indent_x += UI_TREEVIEW_INDENT;
-  }
-  const int start_x = but_rect.xmin + indent_x + uiLayoutListItemPaddingWidth() + UI_ICON_SIZE;
+  /* Get the position of the line. */
+  int start_x = but_rect.xmin + item.indent_width() + uiLayoutListItemPaddingWidth() +
+                UI_ICON_SIZE;
+  int start_y = (location == DropLocation::Before) ? but_rect.ymax : but_rect.ymin;
+  int end_y = start_y;
 
-  /* Get the y position. */
-  const int y = (location == DropLocation::Before) ? but_rect.ymax : but_rect.ymin;
+  /* When the drop location is into a group, highlight the group with a rectangle. */
+  if (location == DropLocation::Into) {
+    start_x += UI_TREEVIEW_INDENT - UI_ICON_SIZE;
+    end_y = but_rect.ymax;
+  }
 
   /* Store the line hint position and trigger a #draw_overlays() when the line changed. */
-  const bool changed = (drop_linehint_start_.y != y || drop_linehint_start_.x != start_x ||
+  const bool changed = (drop_linehint_start_.y != start_y || drop_linehint_end_.y != end_y ||
+                        drop_linehint_start_.x != start_x ||
                         drop_linehint_end_.x != but_rect.xmax);
   has_drop_linehint_ = true;
   drop_linehint_start_.x = start_x;
-  drop_linehint_start_.y = y;
+  drop_linehint_start_.y = start_y;
   drop_linehint_end_.x = but_rect.xmax;
-  drop_linehint_end_.y = y;
+  drop_linehint_end_.y = end_y;
 
   if (changed) {
     ED_region_tag_redraw_no_rebuild(&region);
