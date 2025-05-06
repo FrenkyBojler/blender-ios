@@ -1037,6 +1037,8 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
   Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Instance, options, varied_depth_option);
   attributes_to_propagate.pop_try("id");
+  attributes_to_propagate.pop_try("instance_transform");
+  attributes_to_propagate.pop_try(".reference_index");
   OrderedAttributes ordered_attributes;
   for (const auto item : attributes_to_propagate.items()) {
     ordered_attributes.ids.add_new(item.key);
@@ -1047,9 +1049,9 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
 
 static void execute_instances_tasks(
     const Span<bke::GeometryComponentPtr> src_components,
-    Span<blender::float4x4> src_base_transforms,
-    OrderedAttributes all_instances_attributes,
-    Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
+    const Span<blender::float4x4> src_base_transforms,
+    const OrderedAttributes &all_instances_attributes,
+    const Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
     bke::GeometrySet &r_realized_geometry)
 {
   BLI_assert(src_components.size() == src_base_transforms.size() &&
