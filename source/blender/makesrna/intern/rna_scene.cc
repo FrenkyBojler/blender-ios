@@ -3724,7 +3724,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "snap_playhead_frame_step", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "snap_step_frames");
   RNA_def_property_range(prop, 1, 32768);
-  RNA_def_property_int_default(prop, 2);
   RNA_def_property_ui_text(prop, "Frame Step", "At which interval to snap to frames");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
@@ -3732,12 +3731,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "snap_step_seconds");
   RNA_def_property_ui_text(prop, "Second Step", "At which interval to snap to seconds");
   RNA_def_property_range(prop, 1, 32768);
-  RNA_def_property_int_default(prop, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
   prop = RNA_def_property(srna, "playhead_snap_distance", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, nullptr, "playhead_snap_distance");
-  RNA_def_property_int_default(prop, 20);
   RNA_def_property_ui_range(prop, 1, 100, 1, 1);
   RNA_def_property_ui_text(prop, "Snap Distance", "Maximum distance for snapping in pixels");
 

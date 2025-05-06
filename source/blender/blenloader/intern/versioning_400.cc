@@ -5458,11 +5458,12 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 65)) {
+    ToolSettings toolsettings_default = *DNA_struct_default_get(ToolSettings);
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->toolsettings->snap_playhead_mode |= SCE_SNAP_TO_STRIPS | SCE_SNAP_TO_KEYS;
-      scene->toolsettings->snap_step_frames = 2;
-      scene->toolsettings->snap_step_seconds = 1;
-      scene->toolsettings->playhead_snap_distance = 20;
+      scene->toolsettings->snap_playhead_mode = toolsettings_default.snap_playhead_mode;
+      scene->toolsettings->snap_step_frames = toolsettings_default.snap_step_frames;
+      scene->toolsettings->snap_step_seconds = toolsettings_default.snap_step_seconds;
+      scene->toolsettings->playhead_snap_distance = toolsettings_default.playhead_snap_distance;
     }
   }
 

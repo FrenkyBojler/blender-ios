@@ -380,6 +380,9 @@
     .snap_uv_mode = SCE_SNAP_TO_INCREMENT, \
     .snap_anim_mode = SCE_SNAP_TO_FRAME, \
     .snap_playhead_mode = SCE_SNAP_TO_KEYS | SCE_SNAP_TO_STRIPS, \
+    .snap_step_frames = 2, \
+    .snap_step_seconds = 1, \
+    .playhead_snap_distance = 20, \
     .snap_flag = SCE_SNAP_TO_INCLUDE_EDITED | SCE_SNAP_TO_INCLUDE_NONEDITED, \
     .snap_flag_anim = SCE_SNAP, \
     .snap_flag_playhead = 0, \
