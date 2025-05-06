@@ -486,6 +486,22 @@ void rna_NodeSocketStandard_vector_range(
   *softmax = dval->max;
 }
 
+void rna_NodeSocketStandard_color_range(
+    PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+{
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  bNodeSocketValueRGBA *dval = static_cast<bNodeSocketValueRGBA *>(sock->default_value);
+
+  if (dval->max < dval->min) {
+    dval->max = dval->min;
+  }
+
+  *min = -FLT_MAX;
+  *max = FLT_MAX;
+  *softmin = dval->min;
+  *softmax = dval->max;
+}
+
 float rna_NodeSocketStandard_float_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
@@ -1284,7 +1300,9 @@ static void rna_def_node_socket_interface_vector(BlenderRNA *brna,
   rna_def_node_tree_interface_socket_builtin(srna);
 }
 
-static void rna_def_node_socket_color(BlenderRNA *brna, const char *identifier)
+static void rna_def_node_socket_color(BlenderRNA *brna,
+                                      const char *identifier,
+                                      PropertySubType subtype)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -1296,17 +1314,20 @@ static void rna_def_node_socket_color(BlenderRNA *brna, const char *identifier)
 
   RNA_def_struct_sdna_from(srna, "bNodeSocketValueRGBA", "default_value");
 
-  prop = RNA_def_property(srna, "default_value", PROP_FLOAT, PROP_COLOR);
+  prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "value");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
   RNA_def_property_float_default_func(prop, "rna_NodeSocketStandard_color_default");
+  RNA_def_property_float_funcs(prop, nullptr, nullptr, "rna_NodeSocketStandard_color_range");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 
   RNA_def_struct_sdna_from(srna, "bNodeSocket", nullptr);
 }
 
-static void rna_def_node_socket_interface_color(BlenderRNA *brna, const char *identifier)
+static void rna_def_node_socket_interface_color(BlenderRNA *brna,
+                                                const char *identifier,
+                                                PropertySubType subtype)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -1317,10 +1338,33 @@ static void rna_def_node_socket_interface_color(BlenderRNA *brna, const char *id
 
   RNA_def_struct_sdna_from(srna, "bNodeSocketValueRGBA", "socket_data");
 
-  prop = RNA_def_property(srna, "default_value", PROP_FLOAT, PROP_COLOR);
+  prop = RNA_def_property(srna, "subtype", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
+  RNA_def_property_enum_sdna(prop, nullptr, "subtype");
+  RNA_def_property_enum_funcs(
+      prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketRGBA_subtype_itemf");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+
+  prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
   RNA_def_property_float_sdna(prop, nullptr, "value");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_float_funcs(
+      prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketRGBA_default_value_range");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+
+  prop = RNA_def_property(srna, "min_value", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "min");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Minimum Value", "Minimum value");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+
+  prop = RNA_def_property(srna, "max_value", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "max");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Maximum Value", "Maximum value");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
   RNA_def_struct_sdna_from(srna, "bNodeTreeInterfaceSocket", nullptr);
@@ -1816,7 +1860,8 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler", "NodeTreeInterfaceSocketVectorEuler", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ", "NodeTreeInterfaceSocketVectorXYZ", SOCK_VECTOR, PROP_XYZ},
-    {"NodeSocketColor", "NodeTreeInterfaceSocketColor", SOCK_RGBA, PROP_NONE},
+    {"NodeSocketColor", "NodeTreeInterfaceSocketColor", SOCK_RGBA, PROP_COLOR},
+    {"NodeSocketColorGamma", "NodeTreeInterfaceSocketColorGamma", SOCK_RGBA, PROP_COLOR_GAMMA},
     {"NodeSocketString", "NodeTreeInterfaceSocketString", SOCK_STRING, PROP_NONE},
     {"NodeSocketStringFilePath",
      "NodeTreeInterfaceSocketStringFilePath",
@@ -1859,7 +1904,7 @@ static void rna_def_node_socket_subtypes(BlenderRNA *brna)
         rna_def_node_socket_vector(brna, identifier, info.subtype);
         break;
       case SOCK_RGBA:
-        rna_def_node_socket_color(brna, identifier);
+        rna_def_node_socket_color(brna, identifier, info.subtype);
         break;
       case SOCK_STRING:
         rna_def_node_socket_string(brna, identifier, info.subtype);
@@ -1932,7 +1977,7 @@ void rna_def_node_socket_interface_subtypes(BlenderRNA *brna)
         rna_def_node_socket_interface_vector(brna, identifier, info.subtype);
         break;
       case SOCK_RGBA:
-        rna_def_node_socket_interface_color(brna, identifier);
+        rna_def_node_socket_interface_color(brna, identifier, info.subtype);
         break;
       case SOCK_STRING:
         rna_def_node_socket_interface_string(brna, identifier, info.subtype);

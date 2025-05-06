@@ -966,7 +966,10 @@ typedef struct bNodeSocketValueRotation {
 } bNodeSocketValueRotation;
 
 typedef struct bNodeSocketValueRGBA {
+  /** RNA subtype. */
+  int subtype;
   float value[4];
+  float min, max;
 } bNodeSocketValueRGBA;
 
 typedef struct bNodeSocketValueString {

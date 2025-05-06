@@ -152,7 +152,10 @@ template<> void socket_data_init_impl(bNodeSocketValueVector &data)
 template<> void socket_data_init_impl(bNodeSocketValueRGBA &data)
 {
   static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
+  data.subtype = PROP_COLOR;
   copy_v4_v4(data.value, default_value);
+  data.min = 0.0f;
+  data.max = 1.0f;
 }
 template<> void socket_data_init_impl(bNodeSocketValueString &data)
 {

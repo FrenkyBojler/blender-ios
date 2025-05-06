@@ -131,6 +131,9 @@ class Color : public SocketDeclaration {
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_RGBA;
 
   ColorGeometry4f default_value{0.8f, 0.8f, 0.8f, 1.0f};
+  float soft_min_value = 0.0f;
+  float soft_max_value = 1.0f;
+  PropertySubType subtype = PROP_COLOR;
 
   friend ColorBuilder;
 
@@ -145,6 +148,9 @@ class Color : public SocketDeclaration {
 class ColorBuilder : public SocketDeclarationBuilder<Color> {
  public:
   ColorBuilder &default_value(const ColorGeometry4f value);
+  ColorBuilder &subtype(PropertySubType subtype);
+  ColorBuilder &min(float min);
+  ColorBuilder &max(float max);
 };
 
 class RotationBuilder;
@@ -528,6 +534,24 @@ inline BoolBuilder &BoolBuilder::default_value(const bool value)
 inline ColorBuilder &ColorBuilder::default_value(const ColorGeometry4f value)
 {
   decl_->default_value = value;
+  return *this;
+}
+
+inline ColorBuilder &ColorBuilder::subtype(PropertySubType subtype)
+{
+  decl_->subtype = subtype;
+  return *this;
+}
+
+inline ColorBuilder &ColorBuilder::min(const float min)
+{
+  decl_->soft_min_value = min;
+  return *this;
+}
+
+inline ColorBuilder &ColorBuilder::max(const float max)
+{
+  decl_->soft_max_value = max;
   return *this;
 }
 

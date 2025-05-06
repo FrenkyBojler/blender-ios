@@ -800,6 +800,28 @@ void rna_NodeTreeInterfaceSocketVector_default_value_range(
   *softmax = dval->max;
 }
 
+static const EnumPropertyItem *rna_NodeTreeInterfaceSocketRGBA_subtype_itemf(
+    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+{
+  return rna_subtype_filter_itemf({PROP_COLOR_GAMMA, PROP_COLOR}, r_free);
+}
+
+void rna_NodeTreeInterfaceSocketRGBA_default_value_range(
+    PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+{
+  bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  bNodeSocketValueRGBA *dval = static_cast<bNodeSocketValueRGBA *>(socket->socket_data);
+
+  if (dval->max < dval->min) {
+    dval->max = dval->min;
+  }
+
+  *min = -FLT_MAX;
+  *max = FLT_MAX;
+  *softmin = dval->min;
+  *softmax = dval->max;
+}
+
 static const EnumPropertyItem *rna_NodeTreeInterfaceSocketString_subtype_itemf(
     bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
 {

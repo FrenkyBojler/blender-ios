@@ -342,12 +342,14 @@ bNodeSocket &Color::build(bNodeTree &ntree, bNode &node) const
                                                      node,
                                                      this->in_out,
                                                      SOCK_RGBA,
-                                                     PROP_NONE,
+                                                     this->subtype,
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
   this->set_common_flags(socket);
   bNodeSocketValueRGBA &value = *(bNodeSocketValueRGBA *)socket.default_value;
   copy_v4_v4(value.value, this->default_value);
+  value.min = this->soft_min_value;
+  value.max = this->soft_max_value;
   return socket;
 }
 
@@ -357,6 +359,17 @@ bool Color::matches(const bNodeSocket &socket) const
     return false;
   }
   if (socket.type != SOCK_RGBA) {
+    return false;
+  }
+  if (socket.typeinfo->subtype != this->subtype) {
+    return false;
+  }
+  const bNodeSocketValueRGBA &value = *static_cast<const bNodeSocketValueRGBA *>(
+      socket.default_value);
+  if (value.min != this->soft_min_value) {
+    return false;
+  }
+  if (value.max != this->soft_max_value) {
     return false;
   }
   return true;
@@ -376,7 +389,14 @@ bNodeSocket &Color::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
+  if (socket.typeinfo->subtype != this->subtype) {
+    modify_subtype_except_for_storage(socket, this->subtype);
+  }
   this->set_common_flags(socket);
+  bNodeSocketValueRGBA &value = *(bNodeSocketValueRGBA *)socket.default_value;
+  value.subtype = this->subtype;
+  value.min = this->soft_min_value;
+  value.max = this->soft_max_value;
   return socket;
 }
 

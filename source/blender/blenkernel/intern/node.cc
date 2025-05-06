@@ -2637,7 +2637,13 @@ std::optional<StringRefNull> node_static_socket_type(const int type, const int s
           return "NodeSocketVector";
       }
     case SOCK_RGBA:
-      return "NodeSocketColor";
+      switch (PropertySubType(subtype)) {
+        case PROP_COLOR_GAMMA:
+          return "NodeSocketColorGamma";
+        case PROP_COLOR:
+        default:
+          return "NodeSocketColor";
+      }
     case SOCK_STRING:
       switch (PropertySubType(subtype)) {
         case PROP_FILEPATH:
@@ -2738,7 +2744,13 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(const int typ
           return "NodeTreeInterfaceSocketVector";
       }
     case SOCK_RGBA:
-      return "NodeTreeInterfaceSocketColor";
+      switch (PropertySubType(subtype)) {
+        case PROP_COLOR_GAMMA:
+          return "NodeTreeInterfaceSocketColorGamma";
+        case PROP_COLOR:
+        default:
+          return "NodeTreeInterfaceSocketColor";
+      }
     case SOCK_STRING:
       switch (PropertySubType(subtype)) {
         case PROP_FILEPATH:

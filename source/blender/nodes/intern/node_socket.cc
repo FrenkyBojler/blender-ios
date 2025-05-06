@@ -89,6 +89,8 @@ bNodeSocket *node_add_socket_from_template(bNodeTree *ntree,
       dval->value[1] = stemp->val2;
       dval->value[2] = stemp->val3;
       dval->value[3] = stemp->val4;
+      dval->min = stemp->min;
+      dval->max = stemp->max;
       break;
     }
   }
@@ -620,7 +622,10 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
     case SOCK_RGBA: {
       static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
       bNodeSocketValueRGBA *dval = MEM_callocN<bNodeSocketValueRGBA>("node socket value color");
+      dval->subtype = subtype;
       copy_v4_v4(dval->value, default_value);
+      dval->min = 0.0f;
+      dval->max = 1.0f;
 
       *data = dval;
       break;
@@ -1068,9 +1073,9 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype)
   return socktype;
 }
 
-static bke::bNodeSocketType *make_socket_type_rgba()
+static bke::bNodeSocketType *make_socket_type_rgba(PropertySubType subtype)
 {
-  bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_RGBA, PROP_NONE);
+  bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_RGBA, subtype);
   socktype->base_cpp_type = &blender::CPPType::get<blender::ColorGeometry4f>();
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
     *(blender::ColorGeometry4f *)r_value = ((bNodeSocketValueRGBA *)socket_value)->value;
@@ -1224,7 +1229,8 @@ void register_standard_node_socket_types()
   bke::node_register_socket_type(*make_socket_type_vector(PROP_EULER));
   bke::node_register_socket_type(*make_socket_type_vector(PROP_XYZ));
 
-  bke::node_register_socket_type(*make_socket_type_rgba());
+  bke::node_register_socket_type(*make_socket_type_rgba(PROP_NONE));
+  bke::node_register_socket_type(*make_socket_type_rgba(PROP_COLOR_GAMMA));
 
   bke::node_register_socket_type(*make_socket_type_string(PROP_NONE));
   bke::node_register_socket_type(*make_socket_type_string(PROP_FILEPATH));
