@@ -6,7 +6,7 @@
 
 #include <variant>
 
-#include "BLO_bhead.hh"
+#include "BLO_core_bhead.hh"
 
 /**
  * A low level blend file version number. Also see #decode_blender_header for how the first few

@@ -21,7 +21,7 @@
  *
  * data-blocks: (also see struct #BHead).
  * <pre>
- * `bh.code`       `char[4]` see `BLO_bhead.hh` for a list of known types.
+ * `bh.code`       `char[4]` see `BLO_core_bhead.hh` for a list of known types.
  * `bh.len`        `int32` length data after #BHead in bytes.
  * `bh.old`        `void *` old pointer (the address at the time of writing the file).
  * `bh.SDNAnr`     `int32` struct index of structs stored in #DNA1 data.

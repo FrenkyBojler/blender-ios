@@ -9,8 +9,8 @@
 #include "BLI_endian_defines.h"
 #include "BLI_filereader.h"
 
-#include "BLO_bhead.hh"
-#include "BLO_blend_header.hh"
+#include "BLO_core_bhead.hh"
+#include "BLO_core_blend_header.hh"
 
 BHeadType BlenderHeader::bhead_type() const
 {

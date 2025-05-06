@@ -4,7 +4,7 @@
 
 #include "BLI_filereader.h"
 
-#include "BLO_bhead.hh"
+#include "BLO_core_bhead.hh"
 
 static void switch_endian_bh4(BHead4 *bhead)
 {

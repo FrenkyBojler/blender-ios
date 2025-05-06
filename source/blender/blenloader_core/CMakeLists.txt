@@ -8,11 +8,11 @@ set(INC
 
 
 set(SRC
-  intern/blo_bhead.cc
-  intern/blo_blend_header.cc
+  intern/blo_core_bhead.cc
+  intern/blo_core_blend_header.cc
 
-  BLO_bhead.hh
-  BLO_blend_header.hh
+  BLO_core_bhead.hh
+  BLO_core_blend_header.hh
 )
 
 set(LIB

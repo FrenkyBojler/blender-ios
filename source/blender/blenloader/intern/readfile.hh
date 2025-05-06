@@ -22,8 +22,8 @@
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
 
-#include "BLO_bhead.hh"
-#include "BLO_blend_header.hh"
+#include "BLO_core_bhead.hh"
+#include "BLO_core_blend_header.hh"
 #include "BLO_readfile.hh"
 
 struct BlendFileData;
