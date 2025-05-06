@@ -753,11 +753,23 @@ std::optional<bool> DataSetViewItem::should_be_active() const
   return true;
 }
 
-class IDViewerPathItem : public ui::AbstractTreeViewItem {
+class ViewerPathTreeViewItem : public ui::AbstractTreeViewItem {
+ private:
+  int viewer_path_index_;
+
+ public:
+  ViewerPathTreeViewItem(int viewer_path_index) : viewer_path_index_(viewer_path_index) {}
+
+  void on_activate(bContext &C) override;
+  std::optional<bool> should_be_active() const override;
+};
+
+class IDViewerPathItem : public ViewerPathTreeViewItem {
   const IDViewerPathElem &id_elem_;
 
  public:
-  IDViewerPathItem(const IDViewerPathElem &id_elem) : id_elem_(id_elem)
+  IDViewerPathItem(const int viewer_path_index, const IDViewerPathElem &id_elem)
+      : ViewerPathTreeViewItem(viewer_path_index), id_elem_(id_elem)
   {
     label_ = id_elem.id ? id_elem.id->name + 2 : "No data-block";
   }
@@ -774,12 +786,12 @@ class IDViewerPathItem : public ui::AbstractTreeViewItem {
   }
 };
 
-class ModifierViewerPathItem : public ui::AbstractTreeViewItem {
+class ModifierViewerPathItem : public ViewerPathTreeViewItem {
   const ModifierViewerPathElem &modifier_elem_;
 
  public:
-  ModifierViewerPathItem(const ModifierViewerPathElem &modifier_elem)
-      : modifier_elem_(modifier_elem)
+  ModifierViewerPathItem(const int viewer_path_index, const ModifierViewerPathElem &modifier_elem)
+      : ViewerPathTreeViewItem(viewer_path_index), modifier_elem_(modifier_elem)
   {
     label_ = modifier_elem.modifier_name;
   }
@@ -790,12 +802,13 @@ class ModifierViewerPathItem : public ui::AbstractTreeViewItem {
   }
 };
 
-class GroupNodeViewerPathItem : public ui::AbstractTreeViewItem {
+class GroupNodeViewerPathItem : public ViewerPathTreeViewItem {
   const GroupNodeViewerPathElem &group_node_elem_;
 
  public:
-  GroupNodeViewerPathItem(const GroupNodeViewerPathElem &group_node_elem)
-      : group_node_elem_(group_node_elem)
+  GroupNodeViewerPathItem(const int viewer_path_index,
+                          const GroupNodeViewerPathElem &group_node_elem)
+      : ViewerPathTreeViewItem(viewer_path_index), group_node_elem_(group_node_elem)
   {
     label_ = group_node_elem.base.ui_name;
   }
@@ -806,12 +819,13 @@ class GroupNodeViewerPathItem : public ui::AbstractTreeViewItem {
   }
 };
 
-class ViewerNodeViewerPathItem : public ui::AbstractTreeViewItem {
+class ViewerNodeViewerPathItem : public ViewerPathTreeViewItem {
   const ViewerNodeViewerPathElem &viewer_node_elem_;
 
  public:
-  ViewerNodeViewerPathItem(const ViewerNodeViewerPathElem &viewer_node_elem)
-      : viewer_node_elem_(viewer_node_elem)
+  ViewerNodeViewerPathItem(const int viewer_path_index,
+                           const ViewerNodeViewerPathElem &viewer_node_elem)
+      : ViewerPathTreeViewItem(viewer_path_index), viewer_node_elem_(viewer_node_elem)
   {
     label_ = viewer_node_elem.base.ui_name;
   }
@@ -822,12 +836,13 @@ class ViewerNodeViewerPathItem : public ui::AbstractTreeViewItem {
   }
 };
 
-class SimulationViewerPathPathItem : public ui::AbstractTreeViewItem {
+class SimulationViewerPathPathItem : public ViewerPathTreeViewItem {
 
  public:
-  SimulationViewerPathPathItem(const SimulationZoneViewerPathElem & /*simulation_zone_elem*/)
+  SimulationViewerPathPathItem(const int viewer_path_index,
+                               const SimulationZoneViewerPathElem & /*simulation_zone_elem*/)
+      : ViewerPathTreeViewItem(viewer_path_index)
   {
-    // TODO: Give unique identifiers.
     label_ = IFACE_("Simulation");
   }
 
@@ -837,12 +852,13 @@ class SimulationViewerPathPathItem : public ui::AbstractTreeViewItem {
   }
 };
 
-class RepeatViewerPathItem : public ui::AbstractTreeViewItem {
+class RepeatViewerPathItem : public ViewerPathTreeViewItem {
  private:
   const RepeatZoneViewerPathElem &repeat_zone_;
 
  public:
-  RepeatViewerPathItem(const RepeatZoneViewerPathElem &repeat_zone) : repeat_zone_(repeat_zone)
+  RepeatViewerPathItem(const int viewer_path_index, const RepeatZoneViewerPathElem &repeat_zone)
+      : ViewerPathTreeViewItem(viewer_path_index), repeat_zone_(repeat_zone)
   {
     label_ = IFACE_("Repeat");
   }
@@ -854,14 +870,15 @@ class RepeatViewerPathItem : public ui::AbstractTreeViewItem {
   }
 };
 
-class ForeachElementViewerPathItem : public ui::AbstractTreeViewItem {
+class ForeachElementViewerPathItem : public ViewerPathTreeViewItem {
  private:
   const ForeachGeometryElementZoneViewerPathElem &foreach_geo_elem_zone_;
 
  public:
   ForeachElementViewerPathItem(
+      const int viewer_path_index,
       const ForeachGeometryElementZoneViewerPathElem &foreach_geo_elem_zone)
-      : foreach_geo_elem_zone_(foreach_geo_elem_zone)
+      : ViewerPathTreeViewItem(viewer_path_index), foreach_geo_elem_zone_(foreach_geo_elem_zone)
   {
     label_ = IFACE_("Foreach Element");
   }
@@ -873,9 +890,11 @@ class ForeachElementViewerPathItem : public ui::AbstractTreeViewItem {
   }
 };
 
-class EvaluteClosureViewerPathItem : public ui::AbstractTreeViewItem {
+class EvaluteClosureViewerPathItem : public ViewerPathTreeViewItem {
  public:
-  EvaluteClosureViewerPathItem(const EvaluateClosureNodeViewerPathElem & /*evalute_closure_elem*/)
+  EvaluteClosureViewerPathItem(const int viewer_path_index,
+                               const EvaluateClosureNodeViewerPathElem & /*evalute_closure_elem*/)
+      : ViewerPathTreeViewItem(viewer_path_index)
   {
     label_ = IFACE_("Evaluate Closure");
   }
@@ -890,6 +909,8 @@ class DataSourceTreeView : public ui::AbstractTreeView {
  private:
   SpaceSpreadsheet &sspreadsheet_;
   bScreen &screen_;
+
+  friend ViewerPathTreeViewItem;
 
  public:
   DataSourceTreeView(const bContext &C)
@@ -915,56 +936,71 @@ class DataSourceTreeView : public ui::AbstractTreeView {
         break;
       }
     }
-    for (const ViewerPathElem *elem : path_elems) {
-      this->add_viewer_path_elem(*elem);
+    for (const int i : path_elems.index_range()) {
+      this->add_viewer_path_elem(i, *path_elems[i]);
     }
   }
 
-  void add_viewer_path_elem(const ViewerPathElem &elem)
+  void add_viewer_path_elem(const int index, const ViewerPathElem &elem)
   {
     switch (ViewerPathElemType(elem.type)) {
       case VIEWER_PATH_ELEM_TYPE_ID: {
-        this->add_tree_item<IDViewerPathItem>(reinterpret_cast<const IDViewerPathElem &>(elem));
+        this->add_tree_item<IDViewerPathItem>(index,
+                                              reinterpret_cast<const IDViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_MODIFIER: {
         this->add_tree_item<ModifierViewerPathItem>(
-            reinterpret_cast<const ModifierViewerPathElem &>(elem));
+            index, reinterpret_cast<const ModifierViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_GROUP_NODE: {
         this->add_tree_item<GroupNodeViewerPathItem>(
-            reinterpret_cast<const GroupNodeViewerPathElem &>(elem));
+            index, reinterpret_cast<const GroupNodeViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_VIEWER_NODE: {
         this->add_tree_item<ViewerNodeViewerPathItem>(
-            reinterpret_cast<const ViewerNodeViewerPathElem &>(elem));
+            index, reinterpret_cast<const ViewerNodeViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE: {
         this->add_tree_item<SimulationViewerPathPathItem>(
-            reinterpret_cast<const SimulationZoneViewerPathElem &>(elem));
+            index, reinterpret_cast<const SimulationZoneViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
         this->add_tree_item<RepeatViewerPathItem>(
-            reinterpret_cast<const RepeatZoneViewerPathElem &>(elem));
+            index, reinterpret_cast<const RepeatZoneViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
         this->add_tree_item<ForeachElementViewerPathItem>(
-            reinterpret_cast<const ForeachGeometryElementZoneViewerPathElem &>(elem));
+            index, reinterpret_cast<const ForeachGeometryElementZoneViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {
         this->add_tree_item<EvaluteClosureViewerPathItem>(
-            reinterpret_cast<const EvaluateClosureNodeViewerPathElem &>(elem));
+            index, reinterpret_cast<const EvaluateClosureNodeViewerPathElem &>(elem));
         break;
       }
     }
   }
 };
+
+void ViewerPathTreeViewItem::on_activate(bContext &C)
+{
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  sspreadsheet.active_viewer_path_index = viewer_path_index_;
+  WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+}
+
+std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
+{
+  const DataSourceTreeView &tree_view = dynamic_cast<const DataSourceTreeView &>(
+      this->get_tree_view());
+  return tree_view.sspreadsheet_.active_viewer_path_index == viewer_path_index_;
+}
 
 static void spreadsheet_data_source_list_draw(const bContext &C, uiLayout &layout)
 {
