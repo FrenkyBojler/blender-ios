@@ -6,7 +6,7 @@
 
 void main()
 {
-  ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
 
   float matte = texture_load(input_matte_tx, texel).x;
 
@@ -24,7 +24,7 @@ void main()
     int count = 0;
     for (int j = -edge_search_radius; j <= edge_search_radius; j++) {
       for (int i = -edge_search_radius; i <= edge_search_radius; i++) {
-        float neighbor_matte = texture_load(input_matte_tx, texel + ivec2(i, j)).x;
+        float neighbor_matte = texture_load(input_matte_tx, texel + int2(i, j)).x;
         count += int(distance(matte, neighbor_matte) < edge_tolerance);
       }
     }
@@ -46,19 +46,15 @@ void main()
 
   /* Exclude unwanted areas using the provided garbage matte, 1 means unwanted, so invert the
    * garbage matte and take the minimum. */
-  if (apply_garbage_matte) {
-    float garbage_matte = texture_load(garbage_matte_tx, texel).x;
-    tweaked_matte = min(tweaked_matte, 1.0f - garbage_matte);
-  }
+  float garbage_matte = texture_load(garbage_matte_tx, texel).x;
+  tweaked_matte = min(tweaked_matte, 1.0f - garbage_matte);
 
   /* Include wanted areas that were incorrectly keyed using the provided core matte. */
-  if (apply_core_matte) {
-    float core_matte = texture_load(core_matte_tx, texel).x;
-    tweaked_matte = max(tweaked_matte, core_matte);
-  }
+  float core_matte = texture_load(core_matte_tx, texel).x;
+  tweaked_matte = max(tweaked_matte, core_matte);
 
-  imageStore(output_matte_img, texel, vec4(tweaked_matte));
+  imageStore(output_matte_img, texel, float4(tweaked_matte));
 #if defined(COMPUTE_EDGES)
-  imageStore(output_edges_img, texel, vec4(is_edge ? 1.0f : 0.0f));
+  imageStore(output_edges_img, texel, float4(is_edge ? 1.0f : 0.0f));
 #endif
 }

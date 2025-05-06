@@ -119,11 +119,11 @@ int find_lsb(Bits occupancy)
 }
 
 /**
- * Converts the first four occupancy words to a uvec4.
+ * Converts the first four occupancy words to a uint4.
  */
-uvec4 to_uint4(Bits occupancy)
+uint4 to_uint4(OccupancyBits occupancy)
 {
-  return uvec4(occupancy.bits[0], occupancy.bits[1], occupancy.bits[2], occupancy.bits[3]);
+  return uint4(occupancy.bits[0], occupancy.bits[1], occupancy.bits[2], occupancy.bits[3]);
 }
 
 /**

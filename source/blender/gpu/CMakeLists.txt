@@ -99,7 +99,7 @@ set(SRC
   intern/gpu_vertex_format_normals.cc
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
-  
+
   GPU_attribute_convert.hh
   GPU_batch.hh
   GPU_batch_presets.hh
@@ -377,7 +377,7 @@ set(METAL_SRC
   metal/mtl_shader_interface.hh
   metal/mtl_shader_interface_type.hh
   metal/mtl_shader_log.hh
-  metal/mtl_shader_shared.h
+  metal/mtl_shader_shared.hh
   metal/mtl_state.hh
   metal/mtl_storage_buffer.hh
   metal/mtl_texture.hh
@@ -452,20 +452,6 @@ if(WITH_VULKAN_BACKEND)
 
   add_definitions(-DWITH_VULKAN_BACKEND)
 endif()
-
-set(MSL_SRC
-  shaders/metal/mtl_shader_defines.msl
-  shaders/metal/mtl_shader_common.msl
-
-  metal/kernels/compute_texture_update.msl
-  metal/kernels/compute_texture_read.msl
-  metal/kernels/depth_2d_update_float_frag.glsl
-  metal/kernels/depth_2d_update_int24_frag.glsl
-  metal/kernels/depth_2d_update_int32_frag.glsl
-  metal/kernels/depth_2d_update_vert.glsl
-  metal/kernels/gpu_shader_fullscreen_blit_vert.glsl
-  metal/kernels/gpu_shader_fullscreen_blit_frag.glsl
-)
 
 set(GLSL_SRC
   GPU_shader_shared.hh
@@ -542,6 +528,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_common_math_utils.glsl
   shaders/common/gpu_shader_common_mix_rgb.glsl
   shaders/common/gpu_shader_debug_gradients_lib.glsl
+  shaders/common/gpu_shader_fullscreen_vert.glsl
   shaders/common/gpu_shader_index_load_lib.glsl
   shaders/common/gpu_shader_math_base_lib.glsl
   shaders/common/gpu_shader_math_fast_lib.glsl
@@ -678,8 +665,6 @@ set(GLSL_SRC_TEST
 )
 
 set(MTL_BACKEND_GLSL_SRC
-  metal/kernels/compute_texture_update.msl
-  metal/kernels/compute_texture_read.msl
   metal/kernels/depth_2d_update_float_frag.glsl
   metal/kernels/depth_2d_update_int24_frag.glsl
   metal/kernels/depth_2d_update_int32_frag.glsl
@@ -689,9 +674,13 @@ set(MTL_BACKEND_GLSL_SRC
 )
 
 set(MSL_SRC
+  metal/mtl_shader_shared.hh
+
+  metal/kernels/compute_texture_update.msl
+  metal/kernels/compute_texture_read.msl
+
   shaders/metal/mtl_shader_defines.msl
   shaders/metal/mtl_shader_common.msl
-  metal/mtl_shader_shared.h
 )
 
 if(WITH_GTESTS)
@@ -721,21 +710,27 @@ if(WITH_METAL_BACKEND)
 endif()
 
 blender_add_lib(bf_gpu_shaders "${SHADER_C}" "" "" "")
+blender_set_target_unity_build(bf_gpu_shaders 10)
 
 list(APPEND LIB
   bf_gpu_shaders
 )
 
 set(GLSL_SOURCE_CONTENT "")
+set(GLSL_METADATA_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
-  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(datatoc_${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+  string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
 endforeach()
 
 set(glsl_source_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_gpu_source_list.h")
 file(GENERATE OUTPUT ${glsl_source_list_file} CONTENT "${GLSL_SOURCE_CONTENT}")
 list(APPEND SRC ${glsl_source_list_file})
+set(glsl_metadata_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_gpu_metadata_list.hh")
+file(GENERATE OUTPUT ${glsl_metadata_list_file} CONTENT "${GLSL_METADATA_CONTENT}")
+list(APPEND SRC ${glsl_metadata_list_file})
 list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 if(WITH_MOD_FLUID)
@@ -807,6 +802,7 @@ if(WITH_GTESTS)
       tests/push_constants_test.cc
       tests/shader_create_info_test.cc
       tests/shader_test.cc
+      tests/shader_preprocess_test.cc
       tests/specialization_constants_test.cc
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc

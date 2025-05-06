@@ -302,7 +302,7 @@ void Scene::device_update(Device *device_, Progress &progress)
   }
 
   /* Images last, as they should be more likely to use host memory fallback than geometry.
-   * Some images may have been uploaded early for displacemnet already at this point. */
+   * Some images may have been uploaded early for displacement already at this point. */
   progress.set_status("Updating Images");
   image_manager->device_update(device, this, progress);
 
@@ -346,7 +346,7 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
-  /* Update lookup tabes a second time for film tables. */
+  /* Update lookup tables a second time for film tables. */
   progress.set_status("Updating Lookup Tables");
   lookup_tables->device_update(device, &dscene, this);
 
@@ -564,6 +564,7 @@ void Scene::update_kernel_features()
 
   kernel_features |= film->get_kernel_features(this);
   kernel_features |= integrator->get_kernel_features();
+  kernel_features |= camera->get_kernel_features();
 
   dscene.data.kernel_features = kernel_features;
 

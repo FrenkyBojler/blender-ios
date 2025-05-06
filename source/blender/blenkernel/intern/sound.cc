@@ -105,7 +105,8 @@ static void sound_free_data(ID *id)
 
   if (sound->spinlock) {
     BLI_spin_end(static_cast<SpinLock *>(sound->spinlock));
-    MEM_freeN(sound->spinlock);
+    /* The void cast is needed when building without TBB. */
+    MEM_freeN((void *)static_cast<SpinLock *>(sound->spinlock));
     sound->spinlock = nullptr;
   }
 }
@@ -195,7 +196,7 @@ static void sound_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_SO = {
-    /*id_code*/ ID_SO,
+    /*id_code*/ bSound::id_type,
     /*id_filter*/ FILTER_ID_SO,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_SO,

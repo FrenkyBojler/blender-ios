@@ -321,7 +321,7 @@ static void object_free_data(ID *id)
   if (ob->runtime->curve_cache) {
     BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
     if (ob->runtime->curve_cache->anim_path_accum_length) {
-      MEM_freeN((void *)ob->runtime->curve_cache->anim_path_accum_length);
+      MEM_freeN(ob->runtime->curve_cache->anim_path_accum_length);
     }
     MEM_freeN(ob->runtime->curve_cache);
     ob->runtime->curve_cache = nullptr;
@@ -1062,7 +1062,7 @@ static AssetTypeInfo AssetType_OB = {
 };
 
 IDTypeInfo IDType_ID_OB = {
-    /*id_code*/ ID_OB,
+    /*id_code*/ Object::id_type,
     /*id_filter*/ FILTER_ID_OB,
     /* Could be more specific, but simpler to just always say 'yes' here. */
     /*dependencies_id_types*/ FILTER_ID_ALL,
@@ -1119,7 +1119,7 @@ void BKE_object_free_curve_cache(Object *ob)
     BKE_displist_free(&ob->runtime->curve_cache->disp);
     BKE_curve_bevelList_free(&ob->runtime->curve_cache->bev);
     if (ob->runtime->curve_cache->anim_path_accum_length) {
-      MEM_freeN((void *)ob->runtime->curve_cache->anim_path_accum_length);
+      MEM_freeN(ob->runtime->curve_cache->anim_path_accum_length);
     }
     BKE_nurbList_free(&ob->runtime->curve_cache->deformed_nurbs);
     MEM_freeN(ob->runtime->curve_cache);
@@ -1532,7 +1532,7 @@ static void object_update_from_subsurf_ccg(Object *object)
     return;
   }
   const int tot_level = mesh_eval->runtime->subdiv_ccg_tot_level;
-  Object *object_orig = DEG_get_original_object(object);
+  Object *object_orig = DEG_get_original(object);
   Mesh *mesh_orig = (Mesh *)object_orig->data;
   multiresModifier_reshapeFromCCG(tot_level, mesh_orig, subdiv_ccg);
   /* NOTE: we need to reshape into an original mesh from main database,
@@ -3359,7 +3359,7 @@ blender::float4x4 BKE_object_calc_parent(Depsgraph *depsgraph, Scene *scene, Obj
 
   /* Since this is used while calculating parenting,
    * at this moment ob_eval->parent is still nullptr. */
-  workob.parent = DEG_get_evaluated_object(depsgraph, ob->parent);
+  workob.parent = DEG_get_evaluated(depsgraph, ob->parent);
 
   workob.trackflag = ob->trackflag;
   workob.upflag = ob->upflag;
@@ -3546,7 +3546,8 @@ std::optional<Bounds<float3>> BKE_object_boundbox_eval_cached_get(const Object *
 std::optional<Bounds<float3>> BKE_object_evaluated_geometry_bounds(const Object *ob)
 {
   if (const blender::bke::GeometrySet *geometry = ob->runtime->geometry_set_eval) {
-    return geometry->compute_boundbox_without_instances();
+    const bool use_radius = ob->type != OB_CURVES_LEGACY;
+    return geometry->compute_boundbox_without_instances(use_radius);
   }
   if (const CurveCache *curve_cache = ob->runtime->curve_cache) {
     float3 min(std::numeric_limits<float>::max());
@@ -4229,7 +4230,7 @@ Mesh *BKE_object_get_original_mesh(const Object *object)
 
 const Mesh *BKE_object_get_editmesh_eval_final(const Object *object)
 {
-  BLI_assert(!DEG_is_original_id(&object->id));
+  BLI_assert(!DEG_is_original(object));
   BLI_assert(object->type == OB_MESH);
 
   const Mesh *mesh = static_cast<const Mesh *>(object->data);
@@ -4244,7 +4245,7 @@ const Mesh *BKE_object_get_editmesh_eval_final(const Object *object)
 
 const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
 {
-  BLI_assert(!DEG_is_original_id(&object->id));
+  BLI_assert(!DEG_is_original(object));
   BLI_assert(object->type == OB_MESH);
 
   return object->runtime->editmesh_eval_cage;
@@ -4252,7 +4253,7 @@ const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
 
 const Mesh *BKE_object_get_mesh_deform_eval(const Object *object)
 {
-  BLI_assert(!DEG_is_original_id(&object->id));
+  BLI_assert(!DEG_is_original(object));
   BLI_assert(object->type == OB_MESH);
   return object->runtime->mesh_deform_eval;
 }
@@ -4566,9 +4567,7 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
       switch (ob->type) {
         case OB_MESH: {
           Mesh *mesh = (Mesh *)ob->data;
-          MutableSpan<float3> positions = mesh->vert_positions_for_write();
-          BKE_keyblock_convert_to_mesh(
-              key->refkey, reinterpret_cast<float(*)[3]>(positions.data()), mesh->verts_num);
+          BKE_keyblock_convert_to_mesh(key->refkey, mesh->vert_positions_for_write());
           break;
         }
         case OB_CURVES_LEGACY:
@@ -4647,7 +4646,7 @@ int BKE_object_is_modified(Scene *scene, Object *ob)
 {
   /* Always test on original object since evaluated object may no longer
    * have shape keys or modifiers that were used to evaluate it. */
-  ob = DEG_get_original_object(ob);
+  ob = DEG_get_original(ob);
 
   int flag = 0;
 
@@ -4778,7 +4777,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 {
   /* Always test on original object since evaluated object may no longer
    * have shape keys or modifiers that were used to evaluate it. */
-  ob = DEG_get_original_object(ob);
+  ob = DEG_get_original(ob);
 
   ModifierData *md;
   VirtualModifierData virtual_modifier_data;

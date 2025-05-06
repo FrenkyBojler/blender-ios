@@ -82,7 +82,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "input_items", false, IFACE_("Input Items"))) {
+  if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureInputItemsAccessor>(
@@ -90,7 +90,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
           uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "output_items", false, IFACE_("Output Items"))) {
+  if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureOutputItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureOutputItemsAccessor>(
@@ -158,6 +158,33 @@ void EvaluateClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, c
 void EvaluateClosureOutputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
   BLO_read_string(reader, &item.name);
+}
+
+const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSocket &output_socket)
+{
+  const bNode &node = output_socket.owner_node();
+  const bNodeTree &tree = node.owner_tree();
+  BLI_assert(node.is_type("GeometryNodeEvaluateClosure"));
+  const auto &storage = *static_cast<const NodeGeometryEvaluateClosure *>(node.storage);
+  if (output_socket.index() >= storage.output_items.items_num) {
+    return nullptr;
+  }
+  const NodeGeometryEvaluateClosureOutputItem &output_item =
+      storage.output_items.items[output_socket.index()];
+  const SocketInterfaceKey output_key{output_item.name};
+  for (const int i : IndexRange(storage.input_items.items_num)) {
+    const NodeGeometryEvaluateClosureInputItem &input_item = storage.input_items.items[i];
+    const SocketInterfaceKey input_key{input_item.name};
+    if (output_key.matches(input_key)) {
+      if (!tree.typeinfo->validate_link ||
+          tree.typeinfo->validate_link(eNodeSocketDatatype(input_item.socket_type),
+                                       eNodeSocketDatatype(output_item.socket_type)))
+      {
+        return &node.input_socket(i + 1);
+      }
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace blender::nodes

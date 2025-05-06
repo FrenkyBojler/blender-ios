@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
-#include <iostream>
 
 #ifdef _MSC_VER
 #  pragma warning(push)
@@ -25,14 +24,9 @@ using namespace OCIO_NAMESPACE;
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 
-#include "ocio_impl.h"
+#include "CLG_log.h"
 
-#if !defined(WITH_ASSERT_ABORT)
-#  define OCIO_abort()
-#else
-#  include <cstdlib>
-#  define OCIO_abort() abort()
-#endif
+#include "ocio_impl.h"
 
 #if defined(_MSC_VER)
 #  define __func__ __FUNCTION__
@@ -42,16 +36,11 @@ using blender::double4x4;
 using blender::float3;
 using blender::float3x3;
 
-static void OCIO_reportError(const char *err)
-{
-  std::cerr << "OpenColorIO Error: " << err << std::endl;
-
-  OCIO_abort();
-}
+static CLG_LogRef LOG = {"imbuf.color_management"};
 
 static void OCIO_reportException(Exception &exception)
 {
-  OCIO_reportError(exception.what());
+  CLOG_ERROR(&LOG, "OpenColorIO Error: %s", exception.what());
 }
 
 OCIO_ConstConfigRcPtr *OCIOImpl::getCurrentConfig()
@@ -126,7 +115,7 @@ OCIO_ConstConfigRcPtr *OCIOImpl::configCreateFromFile(const char *filename)
 
 void OCIOImpl::configRelease(OCIO_ConstConfigRcPtr *config)
 {
-  MEM_delete((ConstConfigRcPtr *)config);
+  MEM_delete(reinterpret_cast<ConstConfigRcPtr *>(config));
 }
 
 int OCIOImpl::configGetNumColorSpaces(OCIO_ConstConfigRcPtr *config)
@@ -417,7 +406,7 @@ const char *OCIOImpl::lookGetProcessSpace(OCIO_ConstLookRcPtr *look)
 
 void OCIOImpl::lookRelease(OCIO_ConstLookRcPtr *look)
 {
-  MEM_delete((ConstLookRcPtr *)look);
+  MEM_delete(reinterpret_cast<ConstLookRcPtr *>(look));
 }
 
 int OCIOImpl::colorSpaceIsInvertible(OCIO_ConstColorSpaceRcPtr *cs_)
@@ -536,7 +525,7 @@ void OCIOImpl::colorSpaceIsBuiltin(OCIO_ConstConfigRcPtr *config_,
 
 void OCIOImpl::colorSpaceRelease(OCIO_ConstColorSpaceRcPtr *cs)
 {
-  MEM_delete((ConstColorSpaceRcPtr *)cs);
+  MEM_delete(reinterpret_cast<ConstColorSpaceRcPtr *>(cs));
 }
 
 OCIO_ConstProcessorRcPtr *OCIOImpl::configGetProcessorWithNames(OCIO_ConstConfigRcPtr *config,
@@ -563,7 +552,7 @@ OCIO_ConstProcessorRcPtr *OCIOImpl::configGetProcessorWithNames(OCIO_ConstConfig
 
 void OCIOImpl::processorRelease(OCIO_ConstProcessorRcPtr *processor)
 {
-  MEM_delete(processor);
+  MEM_delete(reinterpret_cast<ConstProcessorRcPtr *>(processor));
 }
 
 OCIO_ConstCPUProcessorRcPtr *OCIOImpl::processorGetCPUProcessor(
@@ -671,7 +660,7 @@ void OCIOImpl::cpuProcessorApplyRGBA_predivide(OCIO_ConstCPUProcessorRcPtr *cpu_
 
 void OCIOImpl::cpuProcessorRelease(OCIO_ConstCPUProcessorRcPtr *cpu_processor)
 {
-  MEM_delete(cpu_processor);
+  MEM_delete(reinterpret_cast<ConstCPUProcessorRcPtr *>(cpu_processor));
 }
 
 const char *OCIOImpl::colorSpaceGetName(OCIO_ConstColorSpaceRcPtr *cs)
@@ -841,7 +830,7 @@ OCIO_PackedImageDesc *OCIOImpl::createOCIO_PackedImageDesc(float *data,
 
 void OCIOImpl::OCIO_PackedImageDescRelease(OCIO_PackedImageDesc *id)
 {
-  MEM_delete((PackedImageDesc *)id);
+  MEM_delete(reinterpret_cast<PackedImageDesc *>(id));
 }
 
 const char *OCIOImpl::getVersionString()

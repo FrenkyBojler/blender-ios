@@ -202,7 +202,7 @@ void VKTexture::read_sub(
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                         VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
                         /* Although we are only reading, we need to set the host access random bit
-                           to improve the performance on AMD GPUs. */
+                         * to improve the performance on AMD GPUs. */
                         VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
                             VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
@@ -227,7 +227,6 @@ void VKTexture::read_sub(
   VKContext &context = *VKContext::get();
   context.rendering_end();
   context.render_graph().add_node(copy_image_to_buffer);
-  context.descriptor_set_get().upload_descriptor_sets();
 
   context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                              RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
