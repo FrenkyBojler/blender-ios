@@ -7790,1296 +7790,1389 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
   }
 }
 
-void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
+static void version_mesh_legacy_format(Main *bmain)
 {
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
-    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-      version_mesh_legacy_to_struct_of_array_format(*mesh);
-    }
-    version_movieclips_legacy_camera_object(bmain);
+  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+    version_mesh_legacy_to_struct_of_array_format(*mesh);
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 2)) {
-    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-      BKE_mesh_legacy_bevel_weight_to_generic(mesh);
-    }
+static void version_mesh_legacy_bevel_weight(Main *bmain)
+{
+  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+    BKE_mesh_legacy_bevel_weight_to_generic(mesh);
   }
+}
 
-  /* 400 4 did not require any do_version here. */
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 5)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *ts = scene->toolsettings;
-      if (ts->snap_mode_tools != SCE_SNAP_TO_NONE) {
-        ts->snap_mode_tools = SCE_SNAP_TO_GEOM;
-      }
+static void version_tool_settings_snap_modes(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    ToolSettings *ts = scene->toolsettings;
+    if (ts->snap_mode_tools != SCE_SNAP_TO_NONE) {
+      ts->snap_mode_tools = SCE_SNAP_TO_GEOM;
+    }
 
 #define SCE_SNAP_PROJECT (1 << 3)
-      if (ts->snap_flag & SCE_SNAP_PROJECT) {
-        ts->snap_mode &= ~(1 << 2); /* SCE_SNAP_TO_FACE */
-        ts->snap_mode |= (1 << 8);  /* SCE_SNAP_INDIVIDUAL_PROJECT */
-      }
+    if (ts->snap_flag & SCE_SNAP_PROJECT) {
+      ts->snap_mode &= ~(1 << 2); /* SCE_SNAP_TO_FACE */
+      ts->snap_mode |= (1 << 8);  /* SCE_SNAP_INDIVIDUAL_PROJECT */
+    }
 #undef SCE_SNAP_PROJECT
+  }
+}
+
+static void version_ntree_glossy_nodes(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    versioning_replace_legacy_glossy_node(ntree);
+    versioning_remove_microfacet_sharp_distribution(ntree);
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_action_frame_bounds(Main *bmain)
+{
+  LISTBASE_FOREACH (bAction *, act, &bmain->actions) {
+    act->frame_start = max_ff(act->frame_start, MINAFRAMEF);
+    act->frame_end = min_ff(act->frame_end, MAXFRAMEF);
+  }
+}
+
+static void version_light_ntree_texcoord_normal(Main *bmain)
+{
+  LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+    if (light->type == LA_SPOT && light->nodetree) {
+      version_replace_texcoord_normal_socket(light->nodetree);
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 6)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      versioning_replace_legacy_glossy_node(ntree);
-      versioning_remove_microfacet_sharp_distribution(ntree);
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 7)) {
-    version_mesh_crease_generic(*bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 8)) {
-    LISTBASE_FOREACH (bAction *, act, &bmain->actions) {
-      act->frame_start = max_ff(act->frame_start, MINAFRAMEF);
-      act->frame_end = min_ff(act->frame_end, MAXFRAMEF);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
-    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-      if (light->type == LA_SPOT && light->nodetree) {
-        version_replace_texcoord_normal_socket(light->nodetree);
-      }
-    }
-  }
-
+static void version_brush_tip_scale_zeroes(Main *bmain)
+{
   /* Fix brush->tip_scale_x which should never be zero. */
   LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
     if (brush->tip_scale_x == 0.0f) {
       brush->tip_scale_x = 1.0f;
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 10)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, space, &area->spacedata) {
-          if (space->spacetype == SPACE_NODE) {
-            SpaceNode *snode = reinterpret_cast<SpaceNode *>(space);
-            snode->overlay.flag |= SN_OVERLAY_SHOW_PREVIEWS;
+static void version_space_node_show_previews(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, space, &area->spacedata) {
+        if (space->spacetype == SPACE_NODE) {
+          SpaceNode *snode = reinterpret_cast<SpaceNode *>(space);
+          snode->overlay.flag |= SN_OVERLAY_SHOW_PREVIEWS;
+        }
+      }
+    }
+  }
+}
+
+static void version_light_probe_grid(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "int", "grid_bake_samples")) {
+    LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
+      lightprobe->grid_bake_samples = 2048;
+      lightprobe->grid_normal_bias = 0.3f;
+      lightprobe->grid_view_bias = 0.0f;
+      lightprobe->grid_facing_bias = 0.5f;
+      lightprobe->grid_dilation_threshold = 0.5f;
+      lightprobe->grid_dilation_radius = 1.0f;
+    }
+  }
+
+  /* Set default bake resolution. */
+  if (!DNA_struct_member_exists(fd->filesdna, "World", "int", "probe_resolution")) {
+    LISTBASE_FOREACH (World *, world, &bmain->worlds) {
+      world->probe_resolution = LIGHT_PROBE_RESOLUTION_1024;
+    }
+  }
+
+  if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "grid_surface_bias")) {
+    LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
+      lightprobe->grid_surface_bias = 0.05f;
+      lightprobe->grid_escape_bias = 0.1f;
+    }
+  }
+}
+
+static void version_remove_zbuffer_flag(Main *bmain)
+{
+  /* Clear removed "Z Buffer" flag. */
+  const int R_IMF_FLAG_ZBUF_LEGACY = 1 << 0;
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->r.im_format.flag &= ~R_IMF_FLAG_ZBUF_LEGACY;
+  }
+}
+
+static void version_gpencil_layer_opacity(Main *bmain)
+{
+  /* Reset the layer opacity for all layers to 1. */
+  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+    for (blender::bke::greasepencil::Layer *layer : grease_pencil->layers_for_write()) {
+      layer->opacity = 1.0f;
+    }
+  }
+}
+
+static void version_shader_roughness_sheen(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_SHADER) {
+      /* Remove Transmission Roughness from Principled BSDF. */
+      version_principled_transmission_roughness(ntree);
+      /* Convert legacy Velvet BSDF nodes into the new Sheen BSDF node. */
+      version_replace_velvet_sheen_node(ntree);
+      /* Convert sheen inputs on the Principled BSDF. */
+      version_principled_bsdf_sheen(ntree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_region_resize_flags(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
+
+        /* Layout based regions used to also disallow resizing, now these are separate flags.
+         * Make sure they are set together for old regions. */
+        LISTBASE_FOREACH (ARegion *, region, regionbase) {
+          if (region->flag & RGN_FLAG_DYNAMIC_SIZE) {
+            region->flag |= RGN_FLAG_NO_USER_RESIZE;
           }
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 11)) {
-    version_vertex_weight_edit_preserve_threshold_exclusivity(bmain);
+static void version_scene_color_management_none(Main *bmain)
+{
+  /* For the scenes configured to use the "None" display disable the color management
+   * again. This will handle situation when the "None" display is removed and is replaced with
+   * a "Raw" view instead.
+   *
+   * Note that this versioning will do nothing if the "None" display exists in the OCIO
+   * configuration. */
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    const ColorManagedDisplaySettings &display_settings = scene->display_settings;
+    if (STREQ(display_settings.display_device, "None")) {
+      BKE_scene_disable_color_management(scene);
+    }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 12)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "int", "grid_bake_samples")) {
-      LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
-        lightprobe->grid_bake_samples = 2048;
-        lightprobe->grid_normal_bias = 0.3f;
-        lightprobe->grid_view_bias = 0.0f;
-        lightprobe->grid_facing_bias = 0.5f;
-        lightprobe->grid_dilation_threshold = 0.5f;
-        lightprobe->grid_dilation_radius = 1.0f;
-      }
+static void version_eevee_default_ray_tracing_method(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "ray_tracing_method")) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->eevee.ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
     }
+  }
+}
 
-    /* Set default bake resolution. */
-    if (!DNA_struct_member_exists(fd->filesdna, "World", "int", "probe_resolution")) {
-      LISTBASE_FOREACH (World *, world, &bmain->worlds) {
-        world->probe_resolution = LIGHT_PROBE_RESOLUTION_1024;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "grid_surface_bias")) {
-      LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
-        lightprobe->grid_surface_bias = 0.05f;
-        lightprobe->grid_escape_bias = 0.1f;
-      }
-    }
-
-    /* Clear removed "Z Buffer" flag. */
-    {
-      const int R_IMF_FLAG_ZBUF_LEGACY = 1 << 0;
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->r.im_format.flag &= ~R_IMF_FLAG_ZBUF_LEGACY;
-      }
-    }
-
-    /* Reset the layer opacity for all layers to 1. */
-    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
-      for (blender::bke::greasepencil::Layer *layer : grease_pencil->layers_for_write()) {
-        layer->opacity = 1.0f;
-      }
-    }
-
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_SHADER) {
-        /* Remove Transmission Roughness from Principled BSDF. */
-        version_principled_transmission_roughness(ntree);
-        /* Convert legacy Velvet BSDF nodes into the new Sheen BSDF node. */
-        version_replace_velvet_sheen_node(ntree);
-        /* Convert sheen inputs on the Principled BSDF. */
-        version_principled_bsdf_sheen(ntree);
-      }
-    }
-    FOREACH_NODETREE_END;
-
+static void version_add_asset_shelf(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_exists(fd->filesdna, "RegionAssetShelf")) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_VIEW3D) {
+            continue;
+          }
+
           ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
                                                                  &sl->regionbase;
 
-          /* Layout based regions used to also disallow resizing, now these are separate flags.
-           * Make sure they are set together for old regions. */
-          LISTBASE_FOREACH (ARegion *, region, regionbase) {
-            if (region->flag & RGN_FLAG_DYNAMIC_SIZE) {
-              region->flag |= RGN_FLAG_NO_USER_RESIZE;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 13)) {
-    /* For the scenes configured to use the "None" display disable the color management
-     * again. This will handle situation when the "None" display is removed and is replaced with
-     * a "Raw" view instead.
-     *
-     * Note that this versioning will do nothing if the "None" display exists in the OCIO
-     * configuration. */
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      const ColorManagedDisplaySettings &display_settings = scene->display_settings;
-      if (STREQ(display_settings.display_device, "None")) {
-        BKE_scene_disable_color_management(scene);
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 14)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "ray_tracing_method")) {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
-      }
-    }
-
-    if (!DNA_struct_exists(fd->filesdna, "RegionAssetShelf")) {
-      LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-            if (sl->spacetype != SPACE_VIEW3D) {
-              continue;
-            }
-
-            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                   &sl->regionbase;
-
-            if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
-                    regionbase,
-                    RGN_TYPE_ASSET_SHELF,
-                    "asset shelf for view3d (versioning)",
-                    RGN_TYPE_TOOL_HEADER))
-            {
-              new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
-            }
-            if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
-                    regionbase,
-                    RGN_TYPE_ASSET_SHELF_HEADER,
-                    "asset shelf header for view3d (versioning)",
-                    RGN_TYPE_ASSET_SHELF))
-            {
-              new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 16)) {
-    /* Set Normalize property of Noise Texture node to true. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_CUSTOM) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == SH_NODE_TEX_NOISE) {
-            if (!node->storage) {
-              NodeTexNoise *tex = MEM_callocN<NodeTexNoise>(__func__);
-              BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
-              BKE_texture_colormapping_default(&tex->base.color_mapping);
-              tex->dimensions = 3;
-              tex->type = SHD_NOISE_FBM;
-              node->storage = tex;
-            }
-            ((NodeTexNoise *)node->storage)->normalize = true;
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 17)) {
-    if (!DNA_struct_exists(fd->filesdna, "NodeShaderHairPrincipled")) {
-      FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-        if (ntree->type == NTREE_SHADER) {
-          version_replace_principled_hair_model(ntree);
-        }
-      }
-      FOREACH_NODETREE_END;
-    }
-
-    /* Panorama properties shared with Eevee. */
-    if (!DNA_struct_member_exists(fd->filesdna, "Camera", "float", "fisheye_fov")) {
-      Camera default_cam = *DNA_struct_default_get(Camera);
-      LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
-        IDProperty *ccam = version_cycles_properties_from_ID(&camera->id);
-        if (ccam) {
-          camera->panorama_type = version_cycles_property_int(
-              ccam, "panorama_type", default_cam.panorama_type);
-          camera->fisheye_fov = version_cycles_property_float(
-              ccam, "fisheye_fov", default_cam.fisheye_fov);
-          camera->fisheye_lens = version_cycles_property_float(
-              ccam, "fisheye_lens", default_cam.fisheye_lens);
-          camera->latitude_min = version_cycles_property_float(
-              ccam, "latitude_min", default_cam.latitude_min);
-          camera->latitude_max = version_cycles_property_float(
-              ccam, "latitude_max", default_cam.latitude_max);
-          camera->longitude_min = version_cycles_property_float(
-              ccam, "longitude_min", default_cam.longitude_min);
-          camera->longitude_max = version_cycles_property_float(
-              ccam, "longitude_max", default_cam.longitude_max);
-          /* Fit to match default projective camera with focal_length 50 and sensor_width 36. */
-          camera->fisheye_polynomial_k0 = version_cycles_property_float(
-              ccam, "fisheye_polynomial_k0", default_cam.fisheye_polynomial_k0);
-          camera->fisheye_polynomial_k1 = version_cycles_property_float(
-              ccam, "fisheye_polynomial_k1", default_cam.fisheye_polynomial_k1);
-          camera->fisheye_polynomial_k2 = version_cycles_property_float(
-              ccam, "fisheye_polynomial_k2", default_cam.fisheye_polynomial_k2);
-          camera->fisheye_polynomial_k3 = version_cycles_property_float(
-              ccam, "fisheye_polynomial_k3", default_cam.fisheye_polynomial_k3);
-          camera->fisheye_polynomial_k4 = version_cycles_property_float(
-              ccam, "fisheye_polynomial_k4", default_cam.fisheye_polynomial_k4);
-        }
-        else {
-          camera->panorama_type = default_cam.panorama_type;
-          camera->fisheye_fov = default_cam.fisheye_fov;
-          camera->fisheye_lens = default_cam.fisheye_lens;
-          camera->latitude_min = default_cam.latitude_min;
-          camera->latitude_max = default_cam.latitude_max;
-          camera->longitude_min = default_cam.longitude_min;
-          camera->longitude_max = default_cam.longitude_max;
-          /* Fit to match default projective camera with focal_length 50 and sensor_width 36. */
-          camera->fisheye_polynomial_k0 = default_cam.fisheye_polynomial_k0;
-          camera->fisheye_polynomial_k1 = default_cam.fisheye_polynomial_k1;
-          camera->fisheye_polynomial_k2 = default_cam.fisheye_polynomial_k2;
-          camera->fisheye_polynomial_k3 = default_cam.fisheye_polynomial_k3;
-          camera->fisheye_polynomial_k4 = default_cam.fisheye_polynomial_k4;
-        }
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "grid_flag")) {
-      LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
-        /* Keep old behavior of baking the whole lighting. */
-        lightprobe->grid_flag = LIGHTPROBE_GRID_CAPTURE_WORLD | LIGHTPROBE_GRID_CAPTURE_INDIRECT |
-                                LIGHTPROBE_GRID_CAPTURE_EMISSION;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "gi_irradiance_pool_size")) {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.gi_irradiance_pool_size = 16;
-      }
-    }
-
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->toolsettings->snap_flag_anim |= SCE_SNAP;
-      scene->toolsettings->snap_anim_mode |= (1 << 10); /* SCE_SNAP_TO_FRAME */
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 20)) {
-    /* Convert old socket lists into new interface items. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      versioning_convert_node_tree_socket_lists_to_interface(ntree);
-      /* Clear legacy sockets after conversion.
-       * Internal data pointers have been moved or freed already. */
-      BLI_freelistN(&ntree->inputs_legacy);
-      BLI_freelistN(&ntree->outputs_legacy);
-    }
-    FOREACH_NODETREE_END;
-  }
-  else {
-    /* Legacy node tree sockets are created for forward compatibility,
-     * but have to be freed after loading and versioning. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      LISTBASE_FOREACH_MUTABLE (bNodeSocket *, legacy_socket, &ntree->inputs_legacy) {
-        MEM_SAFE_FREE(legacy_socket->default_attribute_name);
-        MEM_SAFE_FREE(legacy_socket->default_value);
-        if (legacy_socket->prop) {
-          IDP_FreeProperty(legacy_socket->prop);
-        }
-        MEM_delete(legacy_socket->runtime);
-        MEM_freeN(legacy_socket);
-      }
-      LISTBASE_FOREACH_MUTABLE (bNodeSocket *, legacy_socket, &ntree->outputs_legacy) {
-        MEM_SAFE_FREE(legacy_socket->default_attribute_name);
-        MEM_SAFE_FREE(legacy_socket->default_value);
-        if (legacy_socket->prop) {
-          IDP_FreeProperty(legacy_socket->prop);
-        }
-        MEM_delete(legacy_socket->runtime);
-        MEM_freeN(legacy_socket);
-      }
-      BLI_listbase_clear(&ntree->inputs_legacy);
-      BLI_listbase_clear(&ntree->outputs_legacy);
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 22)) {
-    /* Initialize root panel flags in files created before these flags were added. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      ntree->tree_interface.root_panel.flag |= NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS_LEGACY;
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 23)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type == NTREE_GEOMETRY) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == GEO_NODE_SET_SHADE_SMOOTH) {
-            node->custom1 = int8_t(blender::bke::AttrDomain::Face);
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 24)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_SHADER) {
-        /* Convert coat inputs on the Principled BSDF. */
-        version_principled_bsdf_coat(ntree);
-        /* Convert subsurface inputs on the Principled BSDF. */
-        version_principled_bsdf_subsurface(ntree);
-        /* Convert emission on the Principled BSDF. */
-        version_principled_bsdf_emission(ntree);
-      }
-    }
-    FOREACH_NODETREE_END;
-
-    {
-      LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-            const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                         &sl->regionbase;
-            LISTBASE_FOREACH (ARegion *, region, regionbase) {
-              if (region->regiontype != RGN_TYPE_ASSET_SHELF) {
-                continue;
-              }
-
-              RegionAssetShelf *shelf_data = static_cast<RegionAssetShelf *>(region->regiondata);
-              if (shelf_data && shelf_data->active_shelf &&
-                  (shelf_data->active_shelf->preferred_row_count == 0))
-              {
-                shelf_data->active_shelf->preferred_row_count = 1;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    /* Convert sockets with both input and output flag into two separate sockets. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      blender::Vector<bNodeTreeInterfaceSocket *> sockets_to_split;
-      ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
-        if (item.item_type == NODE_INTERFACE_SOCKET) {
-          bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-          if ((socket.flag & NODE_INTERFACE_SOCKET_INPUT) &&
-              (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT))
+          if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF,
+                  "asset shelf for view3d (versioning)",
+                  RGN_TYPE_TOOL_HEADER))
           {
-            sockets_to_split.append(&socket);
+            new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
+          }
+          if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF_HEADER,
+                  "asset shelf header for view3d (versioning)",
+                  RGN_TYPE_ASSET_SHELF))
+          {
+            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
           }
         }
-        return true;
-      });
-
-      for (bNodeTreeInterfaceSocket *socket : sockets_to_split) {
-        const int position = ntree->tree_interface.find_item_position(socket->item);
-        bNodeTreeInterfacePanel *parent = ntree->tree_interface.find_item_parent(socket->item);
-        version_node_group_split_socket(ntree->tree_interface, *socket, parent, position + 1);
       }
     }
-    FOREACH_NODETREE_END;
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 25)) {
+static void version_set_noise_texture_normalize(Main *bmain)
+{
+  /* Set Normalize property of Noise Texture node to true. */
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_CUSTOM) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == SH_NODE_TEX_NOISE) {
+          if (!node->storage) {
+            NodeTexNoise *tex = MEM_callocN<NodeTexNoise>(__func__);
+            BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
+            BKE_texture_colormapping_default(&tex->base.color_mapping);
+            tex->dimensions = 3;
+            tex->type = SHD_NOISE_FBM;
+            node->storage = tex;
+          }
+          ((NodeTexNoise *)node->storage)->normalize = true;
+        }
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_replace_shader_principled_hair(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_exists(fd->filesdna, "NodeShaderHairPrincipled")) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_SHADER) {
-        /* Convert specular tint on the Principled BSDF. */
-        version_principled_bsdf_specular_tint(ntree);
-        /* Rename some sockets. */
-        version_principled_bsdf_rename_sockets(ntree);
+        version_replace_principled_hair_model(ntree);
       }
     }
     FOREACH_NODETREE_END;
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 26)) {
-    enable_geometry_nodes_is_modifier(*bmain);
-
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->simulation_frame_start = scene->r.sfra;
-      scene->simulation_frame_end = scene->r.efra;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 27)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_SEQ) {
-            SpaceSeq *sseq = (SpaceSeq *)sl;
-            sseq->timeline_overlay.flag |= SEQ_TIMELINE_SHOW_STRIP_RETIMING;
-          }
-        }
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "shadow_step_count")) {
-      SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.shadow_ray_count = default_scene_eevee.shadow_ray_count;
-        scene->eevee.shadow_step_count = default_scene_eevee.shadow_step_count;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 28)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                       &sl->regionbase;
-          LISTBASE_FOREACH (ARegion *, region, regionbase) {
-            if (region->regiontype != RGN_TYPE_ASSET_SHELF) {
-              continue;
-            }
-
-            RegionAssetShelf *shelf_data = static_cast<RegionAssetShelf *>(region->regiondata);
-            if (shelf_data && shelf_data->active_shelf) {
-              AssetShelfSettings &settings = shelf_data->active_shelf->settings;
-              settings.asset_library_reference.custom_library_index = -1;
-              settings.asset_library_reference.type = ASSET_LIBRARY_ALL;
-            }
-
-            region->flag |= RGN_FLAG_HIDDEN;
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 29)) {
-    /* Unhide all Reroute nodes. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->is_reroute()) {
-          static_cast<bNodeSocket *>(node->inputs.first)->flag &= ~SOCK_HIDDEN;
-          static_cast<bNodeSocket *>(node->outputs.first)->flag &= ~SOCK_HIDDEN;
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 30)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *ts = scene->toolsettings;
-      enum { IS_DEFAULT = 0, IS_UV, IS_NODE, IS_ANIM };
-      auto versioning_snap_to = [](short snap_to_old, int type) {
-        eSnapMode snap_to_new = SCE_SNAP_TO_NONE;
-        if (snap_to_old & (1 << 0)) {
-          snap_to_new |= type == IS_NODE ? SCE_SNAP_TO_NONE :
-                         type == IS_ANIM ? SCE_SNAP_TO_FRAME :
-                                           SCE_SNAP_TO_VERTEX;
-        }
-        if (snap_to_old & (1 << 1)) {
-          snap_to_new |= type == IS_NODE ? SCE_SNAP_TO_NONE :
-                         type == IS_ANIM ? SCE_SNAP_TO_SECOND :
-                                           SCE_SNAP_TO_EDGE;
-        }
-        if (ELEM(type, IS_DEFAULT, IS_ANIM) && snap_to_old & (1 << 2)) {
-          snap_to_new |= type == IS_DEFAULT ? SCE_SNAP_TO_FACE : SCE_SNAP_TO_MARKERS;
-        }
-        if (type == IS_DEFAULT && snap_to_old & (1 << 3)) {
-          snap_to_new |= SCE_SNAP_TO_VOLUME;
-        }
-        if (type == IS_DEFAULT && snap_to_old & (1 << 4)) {
-          snap_to_new |= SCE_SNAP_TO_EDGE_MIDPOINT;
-        }
-        if (type == IS_DEFAULT && snap_to_old & (1 << 5)) {
-          snap_to_new |= SCE_SNAP_TO_EDGE_PERPENDICULAR;
-        }
-        if (ELEM(type, IS_DEFAULT, IS_UV, IS_NODE) && snap_to_old & (1 << 6)) {
-          snap_to_new |= SCE_SNAP_TO_INCREMENT;
-        }
-        if (ELEM(type, IS_DEFAULT, IS_UV, IS_NODE) && snap_to_old & (1 << 7)) {
-          snap_to_new |= SCE_SNAP_TO_GRID;
-        }
-        if (type == IS_DEFAULT && snap_to_old & (1 << 8)) {
-          snap_to_new |= SCE_SNAP_INDIVIDUAL_NEAREST;
-        }
-        if (type == IS_DEFAULT && snap_to_old & (1 << 9)) {
-          snap_to_new |= SCE_SNAP_INDIVIDUAL_PROJECT;
-        }
-        if (snap_to_old & (1 << 10)) {
-          snap_to_new |= SCE_SNAP_TO_FRAME;
-        }
-        if (snap_to_old & (1 << 11)) {
-          snap_to_new |= SCE_SNAP_TO_SECOND;
-        }
-        if (snap_to_old & (1 << 12)) {
-          snap_to_new |= SCE_SNAP_TO_MARKERS;
-        }
-
-        if (!snap_to_new) {
-          snap_to_new = eSnapMode(1 << 0);
-        }
-
-        return snap_to_new;
-      };
-
-      ts->snap_mode = versioning_snap_to(ts->snap_mode, IS_DEFAULT);
-      ts->snap_uv_mode = versioning_snap_to(ts->snap_uv_mode, IS_UV);
-      ts->snap_node_mode = versioning_snap_to(ts->snap_node_mode, IS_NODE);
-      ts->snap_anim_mode = versioning_snap_to(ts->snap_anim_mode, IS_ANIM);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 31)) {
-    LISTBASE_FOREACH (Curve *, curve, &bmain->curves) {
-      const int curvetype = BKE_curve_type_get(curve);
-      if (curvetype == OB_FONT) {
-        CharInfo *info = curve->strinfo;
-        if (info != nullptr) {
-          for (int i = curve->len_char32 - 1; i >= 0; i--, info++) {
-            if (info->mat_nr > 0) {
-              /** CharInfo mat_nr used to start at 1, unlike mesh & nurbs, now zero-based. */
-              info->mat_nr--;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 33)) {
-    /* Fix node group socket order by sorting outputs and inputs. */
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      versioning_node_group_sort_sockets_recursive(ntree->tree_interface.root_panel);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 1)) {
-    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
-      versioning_grease_pencil_stroke_radii_scaling(grease_pencil);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 4)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_CUSTOM) {
-        /* versioning_update_noise_texture_node must be done before
-         * versioning_replace_musgrave_texture_node. */
-        versioning_update_noise_texture_node(ntree);
-
-        /* Convert Musgrave Texture nodes to Noise Texture nodes. */
-        versioning_replace_musgrave_texture_node(ntree);
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 5)) {
-    /* Unify Material::blend_shadow and Cycles.use_transparent_shadows into the
-     * Material::blend_flag. */
-    bool is_eevee = all_scenes_use(bmain,
-                                   {RE_engine_id_BLENDER_EEVEE, RE_engine_id_BLENDER_EEVEE_NEXT});
-    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-      bool transparent_shadows = true;
-      if (is_eevee) {
-        transparent_shadows = material->blend_shadow != MA_BS_SOLID;
-      }
-      else if (IDProperty *cmat = version_cycles_properties_from_ID(&material->id)) {
-        transparent_shadows = version_cycles_property_boolean(
-            cmat, "use_transparent_shadow", true);
-      }
-      SET_FLAG_FROM_TEST(material->blend_flag, transparent_shadows, MA_BL_TRANSPARENT_SHADOW);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 5)) {
-    /** NOTE: This versioning code didn't update the subversion number. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        versioning_replace_splitviewer(ntree);
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  /* 401 6 did not require any do_version here. */
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 7)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "volumetric_ray_depth")) {
-      SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.volumetric_ray_depth = default_eevee.volumetric_ray_depth;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "surface_render_method")) {
-      LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
-        mat->surface_render_method = (mat->blend_method == MA_BM_BLEND) ?
-                                         MA_SURFACE_METHOD_FORWARD :
-                                         MA_SURFACE_METHOD_DEFERRED;
-      }
-    }
-
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                       &sl->regionbase;
-          LISTBASE_FOREACH (ARegion *, region, regionbase) {
-            if (region->regiontype != RGN_TYPE_ASSET_SHELF_HEADER) {
-              continue;
-            }
-            region->alignment &= ~RGN_SPLIT_PREV;
-            region->alignment |= RGN_ALIGN_HIDE_WITH_PREV;
-          }
-        }
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "gtao_thickness")) {
-      SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.gtao_thickness = default_eevee.gtao_thickness;
-        scene->eevee.gtao_focus = default_eevee.gtao_focus;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "data_display_size")) {
-      LightProbe default_probe = *DNA_struct_default_get(LightProbe);
-      LISTBASE_FOREACH (LightProbe *, probe, &bmain->lightprobes) {
-        probe->data_display_size = default_probe.data_display_size;
-      }
-    }
-
-    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-      mesh->flag &= ~ME_NO_OVERLAPPING_TOPOLOGY;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 8)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type != NTREE_GEOMETRY) {
-        continue;
-      }
-      versioning_nodes_dynamic_sockets(*ntree);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 9)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "displacement_method")) {
-      /* Replace Cycles.displacement_method by Material::displacement_method. */
-      LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-        int displacement_method = MA_DISPLACEMENT_BUMP;
-        if (IDProperty *cmat = version_cycles_properties_from_ID(&material->id)) {
-          displacement_method = version_cycles_property_int(
-              cmat, "displacement_method", MA_DISPLACEMENT_BUMP);
-        }
-        material->displacement_method = displacement_method;
-      }
-    }
-
-    /* Prevent custom bone colors from having alpha zero.
-     * Part of the fix for issue #115434. */
-    LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      blender::animrig::ANIM_armature_foreach_bone(&arm->bonebase, [](Bone *bone) {
-        bone->color.custom.solid[3] = 255;
-        bone->color.custom.select[3] = 255;
-        bone->color.custom.active[3] = 255;
-      });
-      if (arm->edbo) {
-        LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-          ebone->color.custom.solid[3] = 255;
-          ebone->color.custom.select[3] = 255;
-          ebone->color.custom.active[3] = 255;
-        }
-      }
-    }
-    LISTBASE_FOREACH (Object *, obj, &bmain->objects) {
-      if (obj->pose == nullptr) {
-        continue;
-      }
-      LISTBASE_FOREACH (bPoseChannel *, pchan, &obj->pose->chanbase) {
-        pchan->color.custom.solid[3] = 255;
-        pchan->color.custom.select[3] = 255;
-        pchan->color.custom.active[3] = 255;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 10)) {
-    if (!DNA_struct_member_exists(
-            fd->filesdna, "SceneEEVEE", "RaytraceEEVEE", "ray_tracing_options"))
-    {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.ray_tracing_options.flag = RAYTRACE_EEVEE_USE_DENOISE;
-        scene->eevee.ray_tracing_options.denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL |
-                                                          RAYTRACE_EEVEE_DENOISE_TEMPORAL |
-                                                          RAYTRACE_EEVEE_DENOISE_BILATERAL;
-        scene->eevee.ray_tracing_options.screen_trace_quality = 0.25f;
-        scene->eevee.ray_tracing_options.screen_trace_thickness = 0.2f;
-        scene->eevee.ray_tracing_options.trace_max_roughness = 0.5f;
-        scene->eevee.ray_tracing_options.resolution_scale = 2;
-      }
-    }
-
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type == NTREE_GEOMETRY) {
-        version_geometry_nodes_use_rotation_socket(*ntree);
-        versioning_nodes_dynamic_sockets_2(*ntree);
-        fix_geometry_nodes_object_info_scale(*ntree);
-      }
-    }
-  }
-
-  if (MAIN_VERSION_FILE_ATLEAST(bmain, 400, 20) && !MAIN_VERSION_FILE_ATLEAST(bmain, 401, 11)) {
-    /* Convert old socket lists into new interface items. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      versioning_fix_socket_subtype_idnames(ntree);
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 12)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == CMP_NODE_PIXELATE) {
-            node->custom1 = 1;
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 13)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == CMP_NODE_MAP_UV) {
-            node->custom2 = CMP_NODE_MAP_UV_FILTERING_ANISOTROPIC;
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 14)) {
-    const Brush *default_brush = DNA_struct_default_get(Brush);
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      brush->automasking_start_normal_limit = default_brush->automasking_start_normal_limit;
-      brush->automasking_start_normal_falloff = default_brush->automasking_start_normal_falloff;
-
-      brush->automasking_view_normal_limit = default_brush->automasking_view_normal_limit;
-      brush->automasking_view_normal_falloff = default_brush->automasking_view_normal_falloff;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 15)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == CMP_NODE_KEYING) {
-            NodeKeyingData &keying_data = *static_cast<NodeKeyingData *>(node->storage);
-            keying_data.edge_kernel_radius = max_ii(keying_data.edge_kernel_radius - 1, 0);
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 16)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      Sculpt *sculpt = scene->toolsettings->sculpt;
-      if (sculpt != nullptr) {
-        Sculpt default_sculpt = *DNA_struct_default_get(Sculpt);
-        sculpt->automasking_boundary_edges_propagation_steps =
-            default_sculpt.automasking_boundary_edges_propagation_steps;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 17)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *ts = scene->toolsettings;
-      int input_sample_values[9];
-
-      input_sample_values[0] = ts->imapaint.paint.num_input_samples_deprecated;
-      input_sample_values[1] = ts->sculpt != nullptr ?
-                                   ts->sculpt->paint.num_input_samples_deprecated :
-                                   1;
-      input_sample_values[2] = ts->curves_sculpt != nullptr ?
-                                   ts->curves_sculpt->paint.num_input_samples_deprecated :
-                                   1;
-
-      input_sample_values[3] = ts->gp_paint != nullptr ?
-                                   ts->gp_paint->paint.num_input_samples_deprecated :
-                                   1;
-      input_sample_values[4] = ts->gp_vertexpaint != nullptr ?
-                                   ts->gp_vertexpaint->paint.num_input_samples_deprecated :
-                                   1;
-      input_sample_values[5] = ts->gp_sculptpaint != nullptr ?
-                                   ts->gp_sculptpaint->paint.num_input_samples_deprecated :
-                                   1;
-      input_sample_values[6] = ts->gp_weightpaint != nullptr ?
-                                   ts->gp_weightpaint->paint.num_input_samples_deprecated :
-                                   1;
-
-      input_sample_values[7] = ts->vpaint != nullptr ?
-                                   ts->vpaint->paint.num_input_samples_deprecated :
-                                   1;
-      input_sample_values[8] = ts->wpaint != nullptr ?
-                                   ts->wpaint->paint.num_input_samples_deprecated :
-                                   1;
-
-      int unified_value = 1;
-      for (int i = 0; i < 9; i++) {
-        if (input_sample_values[i] != 1) {
-          if (unified_value == 1) {
-            unified_value = input_sample_values[i];
-          }
-          else {
-            /* In the case of a user having multiple tools with different num_input_value values
-             * set we cannot support this in the single UnifiedPaintSettings value, so fallback
-             * to 1 instead of deciding that one value is more canonical than the other.
-             */
-            break;
-          }
-        }
-      }
-
-      ts->unified_paint_settings.input_samples = unified_value;
-    }
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      brush->input_samples = 1;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 18)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_filter_bilinear_to_auto, nullptr);
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 19)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type == NTREE_GEOMETRY) {
-        version_node_socket_name(ntree, FN_NODE_ROTATE_ROTATION, "Rotation 1", "Rotation");
-        version_node_socket_name(ntree, FN_NODE_ROTATE_ROTATION, "Rotation 2", "Rotate By");
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 20)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      int uid = 1;
-      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-        /* These identifiers are not necessarily stable for linked data. If the linked data has a
-         * new modifier inserted, the identifiers of other modifiers can change. */
-        md->persistent_uid = uid++;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 21)) {
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      /* The `sculpt_flag` was used to store the `BRUSH_DIR_IN`
-       * With the fix for #115313 this is now just using the `brush->flag`. */
-      if (brush->gpencil_settings && (brush->gpencil_settings->sculpt_flag & BRUSH_DIR_IN) != 0) {
-        brush->flag |= BRUSH_DIR_IN;
-      }
-    }
-  }
-
-  /* Keep point/spot light soft falloff for files created before 4.0. */
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 0)) {
-    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-      if (ELEM(light->type, LA_LOCAL, LA_SPOT)) {
-        light->mode |= LA_USE_SOFT_FALLOFF;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 1)) {
-    using namespace blender::bke::greasepencil;
-    /* Initialize newly added scale layer transform to one. */
-    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
-      for (Layer *layer : grease_pencil->layers_for_write()) {
-        copy_v3_fl(layer->scale, 1.0f);
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 2)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      bool is_cycles = scene && STREQ(scene->r.engine, RE_engine_id_CYCLES);
-      if (is_cycles) {
-        if (IDProperty *cscene = version_cycles_properties_from_ID(&scene->id)) {
-          int cposition = version_cycles_property_int(cscene, "motion_blur_position", 1);
-          BLI_assert(cposition >= 0 && cposition < 3);
-          int order_conversion[3] = {SCE_MB_START, SCE_MB_CENTER, SCE_MB_END};
-          scene->r.motion_blur_position = order_conversion[std::clamp(cposition, 0, 2)];
-        }
+static void version_camera_panorama_properties(Main *bmain, FileData *fd)
+{
+  /* Panorama properties shared with Eevee. */
+  if (!DNA_struct_member_exists(fd->filesdna, "Camera", "float", "fisheye_fov")) {
+    Camera default_cam = *DNA_struct_default_get(Camera);
+    LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
+      IDProperty *ccam = version_cycles_properties_from_ID(&camera->id);
+      if (ccam) {
+        camera->panorama_type = version_cycles_property_int(
+            ccam, "panorama_type", default_cam.panorama_type);
+        camera->fisheye_fov = version_cycles_property_float(
+            ccam, "fisheye_fov", default_cam.fisheye_fov);
+        camera->fisheye_lens = version_cycles_property_float(
+            ccam, "fisheye_lens", default_cam.fisheye_lens);
+        camera->latitude_min = version_cycles_property_float(
+            ccam, "latitude_min", default_cam.latitude_min);
+        camera->latitude_max = version_cycles_property_float(
+            ccam, "latitude_max", default_cam.latitude_max);
+        camera->longitude_min = version_cycles_property_float(
+            ccam, "longitude_min", default_cam.longitude_min);
+        camera->longitude_max = version_cycles_property_float(
+            ccam, "longitude_max", default_cam.longitude_max);
+        /* Fit to match default projective camera with focal_length 50 and sensor_width 36. */
+        camera->fisheye_polynomial_k0 = version_cycles_property_float(
+            ccam, "fisheye_polynomial_k0", default_cam.fisheye_polynomial_k0);
+        camera->fisheye_polynomial_k1 = version_cycles_property_float(
+            ccam, "fisheye_polynomial_k1", default_cam.fisheye_polynomial_k1);
+        camera->fisheye_polynomial_k2 = version_cycles_property_float(
+            ccam, "fisheye_polynomial_k2", default_cam.fisheye_polynomial_k2);
+        camera->fisheye_polynomial_k3 = version_cycles_property_float(
+            ccam, "fisheye_polynomial_k3", default_cam.fisheye_polynomial_k3);
+        camera->fisheye_polynomial_k4 = version_cycles_property_float(
+            ccam, "fisheye_polynomial_k4", default_cam.fisheye_polynomial_k4);
       }
       else {
-        SET_FLAG_FROM_TEST(
-            scene->r.mode, scene->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED_DEPRECATED, R_MBLUR);
-        scene->r.motion_blur_position = scene->eevee.motion_blur_position_deprecated;
-        scene->r.motion_blur_shutter = scene->eevee.motion_blur_shutter_deprecated;
+        camera->panorama_type = default_cam.panorama_type;
+        camera->fisheye_fov = default_cam.fisheye_fov;
+        camera->fisheye_lens = default_cam.fisheye_lens;
+        camera->latitude_min = default_cam.latitude_min;
+        camera->latitude_max = default_cam.latitude_max;
+        camera->longitude_min = default_cam.longitude_min;
+        camera->longitude_max = default_cam.longitude_max;
+        /* Fit to match default projective camera with focal_length 50 and sensor_width 36. */
+        camera->fisheye_polynomial_k0 = default_cam.fisheye_polynomial_k0;
+        camera->fisheye_polynomial_k1 = default_cam.fisheye_polynomial_k1;
+        camera->fisheye_polynomial_k2 = default_cam.fisheye_polynomial_k2;
+        camera->fisheye_polynomial_k3 = default_cam.fisheye_polynomial_k3;
+        camera->fisheye_polynomial_k4 = default_cam.fisheye_polynomial_k4;
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 3)) {
-    constexpr int NTREE_EXECUTION_MODE_CPU = 0;
-    constexpr int NTREE_EXECUTION_MODE_FULL_FRAME = 1;
+static void version_light_probe_grid_flag(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "grid_flag")) {
+    LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
+      /* Keep old behavior of baking the whole lighting. */
+      lightprobe->grid_flag = LIGHTPROBE_GRID_CAPTURE_WORLD | LIGHTPROBE_GRID_CAPTURE_INDIRECT |
+                              LIGHTPROBE_GRID_CAPTURE_EMISSION;
+    }
+  }
+}
 
-    constexpr int NTREE_COM_GROUPNODE_BUFFER = 1 << 3;
-    constexpr int NTREE_COM_OPENCL = 1 << 1;
+static void version_eevee_default_gi_size(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "gi_irradiance_pool_size")) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->eevee.gi_irradiance_pool_size = 16;
+    }
+  }
+}
 
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
-        continue;
+static void version_tool_settings_snap_anim(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->toolsettings->snap_flag_anim |= SCE_SNAP;
+    scene->toolsettings->snap_anim_mode |= (1 << 10); /* SCE_SNAP_TO_FRAME */
+  }
+}
+
+static void version_ntree_socket_lists_to_interface(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    versioning_convert_node_tree_socket_lists_to_interface(ntree);
+    /* Clear legacy sockets after conversion.
+     * Internal data pointers have been moved or freed already. */
+    BLI_freelistN(&ntree->inputs_legacy);
+    BLI_freelistN(&ntree->outputs_legacy);
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_ntree_free_socket_lists(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    LISTBASE_FOREACH_MUTABLE (bNodeSocket *, legacy_socket, &ntree->inputs_legacy) {
+      MEM_SAFE_FREE(legacy_socket->default_attribute_name);
+      MEM_SAFE_FREE(legacy_socket->default_value);
+      if (legacy_socket->prop) {
+        IDP_FreeProperty(legacy_socket->prop);
       }
+      MEM_delete(legacy_socket->runtime);
+      MEM_freeN(legacy_socket);
+    }
+    LISTBASE_FOREACH_MUTABLE (bNodeSocket *, legacy_socket, &ntree->outputs_legacy) {
+      MEM_SAFE_FREE(legacy_socket->default_attribute_name);
+      MEM_SAFE_FREE(legacy_socket->default_value);
+      if (legacy_socket->prop) {
+        IDP_FreeProperty(legacy_socket->prop);
+      }
+      MEM_delete(legacy_socket->runtime);
+      MEM_freeN(legacy_socket);
+    }
+    BLI_listbase_clear(&ntree->inputs_legacy);
+    BLI_listbase_clear(&ntree->outputs_legacy);
+  }
+  FOREACH_NODETREE_END;
+}
 
-      ntree->flag &= ~(NTREE_COM_GROUPNODE_BUFFER | NTREE_COM_OPENCL);
+static void version_ntree_root_panel_flags(Main *bmain)
+{
+  /* Initialize root panel flags in files created before these flags were added. */
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    ntree->tree_interface.root_panel.flag |= NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS_LEGACY;
+  }
+  FOREACH_NODETREE_END;
+}
 
-      if (ntree->execution_mode == NTREE_EXECUTION_MODE_FULL_FRAME) {
-        ntree->execution_mode = NTREE_EXECUTION_MODE_CPU;
+static void version_geonode_shade_smooth_face(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    if (ntree->type == NTREE_GEOMETRY) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == GEO_NODE_SET_SHADE_SMOOTH) {
+          node->custom1 = int8_t(blender::bke::AttrDomain::Face);
+        }
       }
     }
-    FOREACH_NODETREE_END;
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 4)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "SpaceImage", "float", "stretch_opacity")) {
-      LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-            if (sl->spacetype == SPACE_IMAGE) {
-              SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
-              sima->stretch_opacity = 0.9f;
-            }
+static void version_shader_coat_ss_emission(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_SHADER) {
+      /* Convert coat inputs on the Principled BSDF. */
+      version_principled_bsdf_coat(ntree);
+      /* Convert subsurface inputs on the Principled BSDF. */
+      version_principled_bsdf_subsurface(ntree);
+      /* Convert emission on the Principled BSDF. */
+      version_principled_bsdf_emission(ntree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_asset_shelf_preferred_row_count(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                     &sl->regionbase;
+        LISTBASE_FOREACH (ARegion *, region, regionbase) {
+          if (region->regiontype != RGN_TYPE_ASSET_SHELF) {
+            continue;
+          }
+
+          RegionAssetShelf *shelf_data = static_cast<RegionAssetShelf *>(region->regiondata);
+          if (shelf_data && shelf_data->active_shelf &&
+              (shelf_data->active_shelf->preferred_row_count == 0))
+          {
+            shelf_data->active_shelf->preferred_row_count = 1;
           }
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 5)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      image_settings_avi_to_ffmpeg(scene);
+static void version_ntree_split_inout_sockets(Main *bmain)
+{
+  /* Convert sockets with both input and output flag into two separate sockets. */
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    blender::Vector<bNodeTreeInterfaceSocket *> sockets_to_split;
+    ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+      if (item.item_type == NODE_INTERFACE_SOCKET) {
+        bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+        if ((socket.flag & NODE_INTERFACE_SOCKET_INPUT) &&
+            (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT))
+        {
+          sockets_to_split.append(&socket);
+        }
+      }
+      return true;
+    });
+
+    for (bNodeTreeInterfaceSocket *socket : sockets_to_split) {
+      const int position = ntree->tree_interface.find_item_position(socket->item);
+      bNodeTreeInterfacePanel *parent = ntree->tree_interface.find_item_parent(socket->item);
+      version_node_group_split_socket(ntree->tree_interface, *socket, parent, position + 1);
     }
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 6)) {
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if (BrushCurvesSculptSettings *settings = brush->curves_sculpt_settings) {
-        settings->flag |= BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_RADIUS;
-        settings->curve_radius = 0.01f;
+static void version_shader_specular_tint_renames(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_SHADER) {
+      /* Convert specular tint on the Principled BSDF. */
+      version_principled_bsdf_specular_tint(ntree);
+      /* Rename some sockets. */
+      version_principled_bsdf_rename_sockets(ntree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_set_simulation_frame_range(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->simulation_frame_start = scene->r.sfra;
+    scene->simulation_frame_end = scene->r.efra;
+  }
+}
+
+static void version_sequencer_show_retiming(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_SEQ) {
+          SpaceSeq *sseq = (SpaceSeq *)sl;
+          sseq->timeline_overlay.flag |= SEQ_TIMELINE_SHOW_STRIP_RETIMING;
+        }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 8)) {
-    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-      light->shadow_filter_radius = 1.0f;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 9)) {
-    const float default_snap_angle_increment = DEG2RADF(5.0f);
-    const float default_snap_angle_increment_precision = DEG2RADF(1.0f);
+static void version_eevee_shadow_step_count(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "shadow_step_count")) {
+    SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->toolsettings->snap_angle_increment_2d = default_snap_angle_increment;
-      scene->toolsettings->snap_angle_increment_3d = default_snap_angle_increment;
-      scene->toolsettings->snap_angle_increment_2d_precision =
-          default_snap_angle_increment_precision;
-      scene->toolsettings->snap_angle_increment_3d_precision =
-          default_snap_angle_increment_precision;
+      scene->eevee.shadow_ray_count = default_scene_eevee.shadow_ray_count;
+      scene->eevee.shadow_step_count = default_scene_eevee.shadow_step_count;
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 10)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "gtao_resolution")) {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.gtao_resolution = 2;
+static void version_asset_shelf_library_reference(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                     &sl->regionbase;
+        LISTBASE_FOREACH (ARegion *, region, regionbase) {
+          if (region->regiontype != RGN_TYPE_ASSET_SHELF) {
+            continue;
+          }
+
+          RegionAssetShelf *shelf_data = static_cast<RegionAssetShelf *>(region->regiondata);
+          if (shelf_data && shelf_data->active_shelf) {
+            AssetShelfSettings &settings = shelf_data->active_shelf->settings;
+            settings.asset_library_reference.custom_library_index = -1;
+            settings.asset_library_reference.type = ASSET_LIBRARY_ALL;
+          }
+
+          region->flag |= RGN_FLAG_HIDDEN;
+        }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 12)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      versioning_node_hue_correct_set_wrappng(ntree);
-    }
-    FOREACH_NODETREE_END;
-
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_hue_correct_set_wrapping, nullptr);
+static void version_ntree_unhide_reroute_nodes(Main *bmain)
+{
+  /* Unhide all Reroute nodes. */
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      if (node->is_reroute()) {
+        static_cast<bNodeSocket *>(node->inputs.first)->flag &= ~SOCK_HIDDEN;
+        static_cast<bNodeSocket *>(node->outputs.first)->flag &= ~SOCK_HIDDEN;
       }
     }
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 14)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      if (bMotionPath *mpath = ob->mpath) {
+static void version_tool_settings_snap_to_new(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    ToolSettings *ts = scene->toolsettings;
+    enum { IS_DEFAULT = 0, IS_UV, IS_NODE, IS_ANIM };
+    auto versioning_snap_to = [](short snap_to_old, int type) {
+      eSnapMode snap_to_new = SCE_SNAP_TO_NONE;
+      if (snap_to_old & (1 << 0)) {
+        snap_to_new |= type == IS_NODE ? SCE_SNAP_TO_NONE :
+                       type == IS_ANIM ? SCE_SNAP_TO_FRAME :
+                                         SCE_SNAP_TO_VERTEX;
+      }
+      if (snap_to_old & (1 << 1)) {
+        snap_to_new |= type == IS_NODE ? SCE_SNAP_TO_NONE :
+                       type == IS_ANIM ? SCE_SNAP_TO_SECOND :
+                                         SCE_SNAP_TO_EDGE;
+      }
+      if (ELEM(type, IS_DEFAULT, IS_ANIM) && snap_to_old & (1 << 2)) {
+        snap_to_new |= type == IS_DEFAULT ? SCE_SNAP_TO_FACE : SCE_SNAP_TO_MARKERS;
+      }
+      if (type == IS_DEFAULT && snap_to_old & (1 << 3)) {
+        snap_to_new |= SCE_SNAP_TO_VOLUME;
+      }
+      if (type == IS_DEFAULT && snap_to_old & (1 << 4)) {
+        snap_to_new |= SCE_SNAP_TO_EDGE_MIDPOINT;
+      }
+      if (type == IS_DEFAULT && snap_to_old & (1 << 5)) {
+        snap_to_new |= SCE_SNAP_TO_EDGE_PERPENDICULAR;
+      }
+      if (ELEM(type, IS_DEFAULT, IS_UV, IS_NODE) && snap_to_old & (1 << 6)) {
+        snap_to_new |= SCE_SNAP_TO_INCREMENT;
+      }
+      if (ELEM(type, IS_DEFAULT, IS_UV, IS_NODE) && snap_to_old & (1 << 7)) {
+        snap_to_new |= SCE_SNAP_TO_GRID;
+      }
+      if (type == IS_DEFAULT && snap_to_old & (1 << 8)) {
+        snap_to_new |= SCE_SNAP_INDIVIDUAL_NEAREST;
+      }
+      if (type == IS_DEFAULT && snap_to_old & (1 << 9)) {
+        snap_to_new |= SCE_SNAP_INDIVIDUAL_PROJECT;
+      }
+      if (snap_to_old & (1 << 10)) {
+        snap_to_new |= SCE_SNAP_TO_FRAME;
+      }
+      if (snap_to_old & (1 << 11)) {
+        snap_to_new |= SCE_SNAP_TO_SECOND;
+      }
+      if (snap_to_old & (1 << 12)) {
+        snap_to_new |= SCE_SNAP_TO_MARKERS;
+      }
+
+      if (!snap_to_new) {
+        snap_to_new = eSnapMode(1 << 0);
+      }
+
+      return snap_to_new;
+    };
+
+    ts->snap_mode = versioning_snap_to(ts->snap_mode, IS_DEFAULT);
+    ts->snap_uv_mode = versioning_snap_to(ts->snap_uv_mode, IS_UV);
+    ts->snap_node_mode = versioning_snap_to(ts->snap_node_mode, IS_NODE);
+    ts->snap_anim_mode = versioning_snap_to(ts->snap_anim_mode, IS_ANIM);
+  }
+}
+
+static void version_font_curve_mat_nr(Main *bmain)
+{
+  LISTBASE_FOREACH (Curve *, curve, &bmain->curves) {
+    const int curvetype = BKE_curve_type_get(curve);
+    if (curvetype == OB_FONT) {
+      CharInfo *info = curve->strinfo;
+      if (info != nullptr) {
+        for (int i = curve->len_char32 - 1; i >= 0; i--, info++) {
+          if (info->mat_nr > 0) {
+            /** CharInfo mat_nr used to start at 1, unlike mesh & nurbs, now zero-based. */
+            info->mat_nr--;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void version_ntree_sort_sockets(Main *bmain)
+{
+  /* Fix node group socket order by sorting outputs and inputs. */
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    versioning_node_group_sort_sockets_recursive(ntree->tree_interface.root_panel);
+  }
+}
+
+static void version_grease_pencil_radii(Main *bmain)
+{
+  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+    versioning_grease_pencil_stroke_radii_scaling(grease_pencil);
+  }
+}
+
+static void version_convert_musgrave_noise(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_CUSTOM) {
+      /* versioning_update_noise_texture_node must be done before
+       * versioning_replace_musgrave_texture_node. */
+      versioning_update_noise_texture_node(ntree);
+
+      /* Convert Musgrave Texture nodes to Noise Texture nodes. */
+      versioning_replace_musgrave_texture_node(ntree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_material_shadow_blend_flags(Main *bmain)
+{
+  /* Unify Material::blend_shadow and Cycles.use_transparent_shadows into the
+   * Material::blend_flag. */
+  bool is_eevee = all_scenes_use(bmain,
+                                 {RE_engine_id_BLENDER_EEVEE, RE_engine_id_BLENDER_EEVEE_NEXT});
+  LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+    bool transparent_shadows = true;
+    if (is_eevee) {
+      transparent_shadows = material->blend_shadow != MA_BS_SOLID;
+    }
+    else if (IDProperty *cmat = version_cycles_properties_from_ID(&material->id)) {
+      transparent_shadows = version_cycles_property_boolean(cmat, "use_transparent_shadow", true);
+    }
+    SET_FLAG_FROM_TEST(material->blend_flag, transparent_shadows, MA_BL_TRANSPARENT_SHADOW);
+  }
+}
+
+static void version_compositor_replace_split_viewer(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
+      versioning_replace_splitviewer(ntree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_eevee_volume_ray_depth(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "volumetric_ray_depth")) {
+    SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->eevee.volumetric_ray_depth = default_eevee.volumetric_ray_depth;
+    }
+  }
+}
+
+static void version_material_surface_render_method(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "surface_render_method")) {
+    LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
+      mat->surface_render_method = (mat->blend_method == MA_BM_BLEND) ? MA_SURFACE_METHOD_FORWARD :
+                                                                        MA_SURFACE_METHOD_DEFERRED;
+    }
+  }
+}
+
+static void version_asset_shelf_alignment(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                     &sl->regionbase;
+        LISTBASE_FOREACH (ARegion *, region, regionbase) {
+          if (region->regiontype != RGN_TYPE_ASSET_SHELF_HEADER) {
+            continue;
+          }
+          region->alignment &= ~RGN_SPLIT_PREV;
+          region->alignment |= RGN_ALIGN_HIDE_WITH_PREV;
+        }
+      }
+    }
+  }
+}
+
+static void version_eevee_gtao_thickness(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "gtao_thickness")) {
+    SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->eevee.gtao_thickness = default_eevee.gtao_thickness;
+      scene->eevee.gtao_focus = default_eevee.gtao_focus;
+    }
+  }
+}
+
+static void version_light_probe_data_display_size(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "data_display_size")) {
+    LightProbe default_probe = *DNA_struct_default_get(LightProbe);
+    LISTBASE_FOREACH (LightProbe *, probe, &bmain->lightprobes) {
+      probe->data_display_size = default_probe.data_display_size;
+    }
+  }
+}
+
+static void version_mesh_clear_no_overlap_topology(Main *bmain)
+{
+  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+    mesh->flag &= ~ME_NO_OVERLAPPING_TOPOLOGY;
+  }
+}
+
+static void version_geonode_dynamic_sockets(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    if (ntree->type != NTREE_GEOMETRY) {
+      continue;
+    }
+    versioning_nodes_dynamic_sockets(*ntree);
+  }
+}
+
+static void version_material_displacement_method(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "displacement_method")) {
+    /* Replace Cycles.displacement_method by Material::displacement_method. */
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      int displacement_method = MA_DISPLACEMENT_BUMP;
+      if (IDProperty *cmat = version_cycles_properties_from_ID(&material->id)) {
+        displacement_method = version_cycles_property_int(
+            cmat, "displacement_method", MA_DISPLACEMENT_BUMP);
+      }
+      material->displacement_method = displacement_method;
+    }
+  }
+}
+
+static void version_bone_custom_color_opaque(Main *bmain)
+{
+  /* Prevent custom bone colors from having alpha zero.
+   * Part of the fix for issue #115434. */
+  LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+    blender::animrig::ANIM_armature_foreach_bone(&arm->bonebase, [](Bone *bone) {
+      bone->color.custom.solid[3] = 255;
+      bone->color.custom.select[3] = 255;
+      bone->color.custom.active[3] = 255;
+    });
+    if (arm->edbo) {
+      LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
+        ebone->color.custom.solid[3] = 255;
+        ebone->color.custom.select[3] = 255;
+        ebone->color.custom.active[3] = 255;
+      }
+    }
+  }
+  LISTBASE_FOREACH (Object *, obj, &bmain->objects) {
+    if (obj->pose == nullptr) {
+      continue;
+    }
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &obj->pose->chanbase) {
+      pchan->color.custom.solid[3] = 255;
+      pchan->color.custom.select[3] = 255;
+      pchan->color.custom.active[3] = 255;
+    }
+  }
+}
+
+static void version_eevee_ray_tracing_options(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "SceneEEVEE", "RaytraceEEVEE", "ray_tracing_options"))
+  {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->eevee.ray_tracing_options.flag = RAYTRACE_EEVEE_USE_DENOISE;
+      scene->eevee.ray_tracing_options.denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL |
+                                                        RAYTRACE_EEVEE_DENOISE_TEMPORAL |
+                                                        RAYTRACE_EEVEE_DENOISE_BILATERAL;
+      scene->eevee.ray_tracing_options.screen_trace_quality = 0.25f;
+      scene->eevee.ray_tracing_options.screen_trace_thickness = 0.2f;
+      scene->eevee.ray_tracing_options.trace_max_roughness = 0.5f;
+      scene->eevee.ray_tracing_options.resolution_scale = 2;
+    }
+  }
+}
+
+static void version_geonode_rotation_dynamic_info_scale(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    if (ntree->type == NTREE_GEOMETRY) {
+      version_geometry_nodes_use_rotation_socket(*ntree);
+      versioning_nodes_dynamic_sockets_2(*ntree);
+      fix_geometry_nodes_object_info_scale(*ntree);
+    }
+  }
+}
+
+static void version_ntree_socket_subtype_idnames(Main *bmain)
+{
+  /* Convert old socket lists into new interface items. */
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    versioning_fix_socket_subtype_idnames(ntree);
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_compositor_pixelate(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == CMP_NODE_PIXELATE) {
+          node->custom1 = 1;
+        }
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_compositor_map_uv_aniso(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == CMP_NODE_MAP_UV) {
+          node->custom2 = CMP_NODE_MAP_UV_FILTERING_ANISOTROPIC;
+        }
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_brush_automasking(Main *bmain)
+{
+  const Brush *default_brush = DNA_struct_default_get(Brush);
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    brush->automasking_start_normal_limit = default_brush->automasking_start_normal_limit;
+    brush->automasking_start_normal_falloff = default_brush->automasking_start_normal_falloff;
+
+    brush->automasking_view_normal_limit = default_brush->automasking_view_normal_limit;
+    brush->automasking_view_normal_falloff = default_brush->automasking_view_normal_falloff;
+  }
+}
+
+static void version_compositor_keying_radius(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == CMP_NODE_KEYING) {
+          NodeKeyingData &keying_data = *static_cast<NodeKeyingData *>(node->storage);
+          keying_data.edge_kernel_radius = max_ii(keying_data.edge_kernel_radius - 1, 0);
+        }
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_sculpt_boundary_propagation(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    Sculpt *sculpt = scene->toolsettings->sculpt;
+    if (sculpt != nullptr) {
+      Sculpt default_sculpt = *DNA_struct_default_get(Sculpt);
+      sculpt->automasking_boundary_edges_propagation_steps =
+          default_sculpt.automasking_boundary_edges_propagation_steps;
+    }
+  }
+}
+
+static void version_tool_settings_input_samples(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    ToolSettings *ts = scene->toolsettings;
+    int input_sample_values[9];
+
+    input_sample_values[0] = ts->imapaint.paint.num_input_samples_deprecated;
+    input_sample_values[1] = ts->sculpt != nullptr ?
+                                 ts->sculpt->paint.num_input_samples_deprecated :
+                                 1;
+    input_sample_values[2] = ts->curves_sculpt != nullptr ?
+                                 ts->curves_sculpt->paint.num_input_samples_deprecated :
+                                 1;
+
+    input_sample_values[3] = ts->gp_paint != nullptr ?
+                                 ts->gp_paint->paint.num_input_samples_deprecated :
+                                 1;
+    input_sample_values[4] = ts->gp_vertexpaint != nullptr ?
+                                 ts->gp_vertexpaint->paint.num_input_samples_deprecated :
+                                 1;
+    input_sample_values[5] = ts->gp_sculptpaint != nullptr ?
+                                 ts->gp_sculptpaint->paint.num_input_samples_deprecated :
+                                 1;
+    input_sample_values[6] = ts->gp_weightpaint != nullptr ?
+                                 ts->gp_weightpaint->paint.num_input_samples_deprecated :
+                                 1;
+
+    input_sample_values[7] = ts->vpaint != nullptr ?
+                                 ts->vpaint->paint.num_input_samples_deprecated :
+                                 1;
+    input_sample_values[8] = ts->wpaint != nullptr ?
+                                 ts->wpaint->paint.num_input_samples_deprecated :
+                                 1;
+
+    int unified_value = 1;
+    for (int i = 0; i < 9; i++) {
+      if (input_sample_values[i] != 1) {
+        if (unified_value == 1) {
+          unified_value = input_sample_values[i];
+        }
+        else {
+          /* In the case of a user having multiple tools with different num_input_value values
+           * set we cannot support this in the single UnifiedPaintSettings value, so fallback
+           * to 1 instead of deciding that one value is more canonical than the other.
+           */
+          break;
+        }
+      }
+    }
+
+    ts->unified_paint_settings.input_samples = unified_value;
+  }
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    brush->input_samples = 1;
+  }
+}
+
+static void version_sequencer_default_filter(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      blender::seq::for_each_callback(&scene->ed->seqbase, strip_filter_bilinear_to_auto, nullptr);
+    }
+  }
+}
+
+static void version_geonode_rotation_name(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    if (ntree->type == NTREE_GEOMETRY) {
+      version_node_socket_name(ntree, FN_NODE_ROTATE_ROTATION, "Rotation 1", "Rotation");
+      version_node_socket_name(ntree, FN_NODE_ROTATE_ROTATION, "Rotation 2", "Rotate By");
+    }
+  }
+}
+
+static void version_modifier_persistent_uid(Main *bmain)
+{
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    int uid = 1;
+    LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+      /* These identifiers are not necessarily stable for linked data. If the linked data has a
+       * new modifier inserted, the identifiers of other modifiers can change. */
+      md->persistent_uid = uid++;
+    }
+  }
+}
+
+static void version_brush_dir_in(Main *bmain)
+{
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    /* The `sculpt_flag` was used to store the `BRUSH_DIR_IN`
+     * With the fix for #115313 this is now just using the `brush->flag`. */
+    if (brush->gpencil_settings && (brush->gpencil_settings->sculpt_flag & BRUSH_DIR_IN) != 0) {
+      brush->flag |= BRUSH_DIR_IN;
+    }
+  }
+}
+
+static void version_light_soft_falloff(Main *bmain)
+{
+  LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+    if (ELEM(light->type, LA_LOCAL, LA_SPOT)) {
+      light->mode |= LA_USE_SOFT_FALLOFF;
+    }
+  }
+}
+
+static void version_grease_pencil_layer_scale(Main *bmain)
+{
+  using namespace blender::bke::greasepencil;
+  /* Initialize newly added scale layer transform to one. */
+  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+    for (Layer *layer : grease_pencil->layers_for_write()) {
+      copy_v3_fl(layer->scale, 1.0f);
+    }
+  }
+}
+
+static void version_scene_motion_blur(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    bool is_cycles = scene && STREQ(scene->r.engine, RE_engine_id_CYCLES);
+    if (is_cycles) {
+      if (IDProperty *cscene = version_cycles_properties_from_ID(&scene->id)) {
+        int cposition = version_cycles_property_int(cscene, "motion_blur_position", 1);
+        BLI_assert(cposition >= 0 && cposition < 3);
+        int order_conversion[3] = {SCE_MB_START, SCE_MB_CENTER, SCE_MB_END};
+        scene->r.motion_blur_position = order_conversion[std::clamp(cposition, 0, 2)];
+      }
+    }
+    else {
+      SET_FLAG_FROM_TEST(
+          scene->r.mode, scene->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED_DEPRECATED, R_MBLUR);
+      scene->r.motion_blur_position = scene->eevee.motion_blur_position_deprecated;
+      scene->r.motion_blur_shutter = scene->eevee.motion_blur_shutter_deprecated;
+    }
+  }
+}
+
+static void version_compositor_execution_mode(Main *bmain)
+{
+  constexpr int NTREE_EXECUTION_MODE_CPU = 0;
+  constexpr int NTREE_EXECUTION_MODE_FULL_FRAME = 1;
+
+  constexpr int NTREE_COM_GROUPNODE_BUFFER = 1 << 3;
+  constexpr int NTREE_COM_OPENCL = 1 << 1;
+
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_COMPOSIT) {
+      continue;
+    }
+
+    ntree->flag &= ~(NTREE_COM_GROUPNODE_BUFFER | NTREE_COM_OPENCL);
+
+    if (ntree->execution_mode == NTREE_EXECUTION_MODE_FULL_FRAME) {
+      ntree->execution_mode = NTREE_EXECUTION_MODE_CPU;
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_space_image_stretch_opacity(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SpaceImage", "float", "stretch_opacity")) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+            sima->stretch_opacity = 0.9f;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void version_output_avi_to_ffmpeg(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    image_settings_avi_to_ffmpeg(scene);
+  }
+}
+
+static void version_brush_sculpt_curve_radius(Main *bmain)
+{
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    if (BrushCurvesSculptSettings *settings = brush->curves_sculpt_settings) {
+      settings->flag |= BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_RADIUS;
+      settings->curve_radius = 0.01f;
+    }
+  }
+}
+
+static void version_light_shadow_filter_radius(Main *bmain)
+{
+  LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+    light->shadow_filter_radius = 1.0f;
+  }
+}
+
+static void version_tool_settings_snap_angle_increment(Main *bmain)
+{
+  const float default_snap_angle_increment = DEG2RADF(5.0f);
+  const float default_snap_angle_increment_precision = DEG2RADF(1.0f);
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->toolsettings->snap_angle_increment_2d = default_snap_angle_increment;
+    scene->toolsettings->snap_angle_increment_3d = default_snap_angle_increment;
+    scene->toolsettings->snap_angle_increment_2d_precision =
+        default_snap_angle_increment_precision;
+    scene->toolsettings->snap_angle_increment_3d_precision =
+        default_snap_angle_increment_precision;
+  }
+}
+
+static void version_eevee_gtao_resolution(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "gtao_resolution")) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->eevee.gtao_resolution = 2;
+    }
+  }
+}
+
+static void version_hue_correct_wrapping(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    versioning_node_hue_correct_set_wrappng(ntree);
+  }
+  FOREACH_NODETREE_END;
+
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      blender::seq::for_each_callback(
+          &scene->ed->seqbase, strip_hue_correct_set_wrapping, nullptr);
+    }
+  }
+}
+
+static void version_motion_path_color_post(Main *bmain)
+{
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    if (bMotionPath *mpath = ob->mpath) {
+      mpath->color_post[0] = 0.1f;
+      mpath->color_post[1] = 1.0f;
+      mpath->color_post[2] = 0.1f;
+    }
+    if (!ob->pose) {
+      continue;
+    }
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
+      if (bMotionPath *mpath = pchan->mpath) {
         mpath->color_post[0] = 0.1f;
         mpath->color_post[1] = 1.0f;
         mpath->color_post[2] = 0.1f;
       }
-      if (!ob->pose) {
+    }
+  }
+}
+
+static void version_light_transmission_fac(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "transmission_fac")) {
+    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+      /* Refracted light was not supported in legacy EEVEE. Set it to zero for compatibility with
+       * older files. */
+      light->transmission_fac = 0.0f;
+    }
+  }
+}
+
+static void version_eevee_volume_indirect(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    /* Keep legacy EEVEE old behavior. */
+    scene->eevee.flag |= SCE_EEVEE_VOLUME_CUSTOM_RANGE;
+  }
+
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->eevee.clamp_surface_indirect = 10.0f;
+    /* Make contribution of indirect lighting very small (but non-null) to avoid world lighting
+     * and volume lightprobe changing the appearance of volume objects. */
+    scene->eevee.clamp_volume_indirect = 1e-8f;
+  }
+}
+
+static void version_sequencer_snap_to_markers(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
+    sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_MARKERS;
+  }
+}
+
+static void version_sequencer_display_missing_media(Main *bmain)
+{
+  /* Display missing media in sequencer by default. */
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      scene->ed->show_missing_media_flag |= SEQ_EDIT_SHOW_MISSING_MEDIA;
+    }
+  }
+}
+
+static void version_tool_settings_uv_sculpt(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    ToolSettings *ts = scene->toolsettings;
+    if (!ts->uvsculpt.strength_curve) {
+      ts->uvsculpt.size = 50;
+      ts->uvsculpt.strength = 1.0f;
+      ts->uvsculpt.curve_preset = BRUSH_CURVE_SMOOTH;
+      ts->uvsculpt.strength_curve = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+    }
+  }
+}
+
+static void version_material_thickness_mode(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "thickness_mode")) {
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      if (material->blend_flag & MA_BL_TRANSLUCENCY) {
+        /* EEVEE Legacy used thickness from shadow map when translucency was on. */
+        material->blend_flag |= MA_BL_THICKNESS_FROM_SHADOW;
+      }
+      if ((material->blend_flag & MA_BL_SS_REFRACTION) && material->use_nodes &&
+          material->nodetree)
+      {
+        /* EEVEE Legacy used slab assumption. */
+        material->thickness_mode = MA_THICKNESS_SLAB;
+        version_refraction_depth_to_thickness_value(material->nodetree, material->refract_depth);
+      }
+    }
+  }
+}
+
+static void version_compositor_fast_gauss(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_COMPOSIT) {
+      continue;
+    }
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      if (node->type_legacy != CMP_NODE_BLUR) {
         continue;
       }
-      LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-        if (bMotionPath *mpath = pchan->mpath) {
-          mpath->color_post[0] = 0.1f;
-          mpath->color_post[1] = 1.0f;
-          mpath->color_post[2] = 0.1f;
-        }
-      }
-    }
-  }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 18)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "transmission_fac")) {
-      LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-        /* Refracted light was not supported in legacy EEVEE. Set it to zero for compatibility with
-         * older files. */
-        light->transmission_fac = 0.0f;
-      }
-    }
-  }
+      NodeBlurData &blur_data = *static_cast<NodeBlurData *>(node->storage);
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 19)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      /* Keep legacy EEVEE old behavior. */
-      scene->eevee.flag |= SCE_EEVEE_VOLUME_CUSTOM_RANGE;
-    }
-
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->eevee.clamp_surface_indirect = 10.0f;
-      /* Make contribution of indirect lighting very small (but non-null) to avoid world lighting
-       * and volume lightprobe changing the appearance of volume objects. */
-      scene->eevee.clamp_volume_indirect = 1e-8f;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 20)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
-      sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_MARKERS;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 21)) {
-    add_image_editor_asset_shelf(*bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 22)) {
-    /* Display missing media in sequencer by default. */
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->ed != nullptr) {
-        scene->ed->show_missing_media_flag |= SEQ_EDIT_SHOW_MISSING_MEDIA;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 23)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *ts = scene->toolsettings;
-      if (!ts->uvsculpt.strength_curve) {
-        ts->uvsculpt.size = 50;
-        ts->uvsculpt.strength = 1.0f;
-        ts->uvsculpt.curve_preset = BRUSH_CURVE_SMOOTH;
-        ts->uvsculpt.strength_curve = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 24)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "thickness_mode")) {
-      LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-        if (material->blend_flag & MA_BL_TRANSLUCENCY) {
-          /* EEVEE Legacy used thickness from shadow map when translucency was on. */
-          material->blend_flag |= MA_BL_THICKNESS_FROM_SHADOW;
-        }
-        if ((material->blend_flag & MA_BL_SS_REFRACTION) && material->use_nodes &&
-            material->nodetree)
-        {
-          /* EEVEE Legacy used slab assumption. */
-          material->thickness_mode = MA_THICKNESS_SLAB;
-          version_refraction_depth_to_thickness_value(material->nodetree, material->refract_depth);
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 25)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
+      if (blur_data.filtertype != R_FILTER_FAST_GAUSS) {
         continue;
       }
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy != CMP_NODE_BLUR) {
-          continue;
-        }
 
-        NodeBlurData &blur_data = *static_cast<NodeBlurData *>(node->storage);
-
-        if (blur_data.filtertype != R_FILTER_FAST_GAUSS) {
-          continue;
-        }
-
-        /* The size of the Fast Gaussian mode of blur decreased by the following factor to match
-         * other blur sizes. So increase it back. */
-        const float size_factor = 3.0f / 2.0f;
-        blur_data.sizex *= size_factor;
-        blur_data.sizey *= size_factor;
-        blur_data.percentx *= size_factor;
-        blur_data.percenty *= size_factor;
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 26)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "shadow_resolution_scale"))
-    {
-      SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.shadow_resolution_scale = default_scene_eevee.shadow_resolution_scale;
-      }
+      /* The size of the Fast Gaussian mode of blur decreased by the following factor to match
+       * other blur sizes. So increase it back. */
+      const float size_factor = 3.0f / 2.0f;
+      blur_data.sizex *= size_factor;
+      blur_data.sizey *= size_factor;
+      blur_data.percentx *= size_factor;
+      blur_data.percenty *= size_factor;
     }
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 27)) {
+static void version_eevee_shadow_resolution_scale(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "shadow_resolution_scale")) {
+    SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->ed != nullptr) {
-        scene->ed->cache_flag &= ~(SEQ_CACHE_UNUSED_5 | SEQ_CACHE_UNUSED_6 | SEQ_CACHE_UNUSED_7 |
-                                   SEQ_CACHE_UNUSED_8 | SEQ_CACHE_UNUSED_9);
-      }
+      scene->eevee.shadow_resolution_scale = default_scene_eevee.shadow_resolution_scale;
     }
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_SEQ) {
-            SpaceSeq *sseq = (SpaceSeq *)sl;
-            sseq->cache_overlay.flag |= SEQ_CACHE_SHOW_FINAL_OUT;
-          }
+  }
+}
+
+static void version_sequencer_show_final_cache(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      scene->ed->cache_flag &= ~(SEQ_CACHE_UNUSED_5 | SEQ_CACHE_UNUSED_6 | SEQ_CACHE_UNUSED_7 |
+                                 SEQ_CACHE_UNUSED_8 | SEQ_CACHE_UNUSED_9);
+    }
+  }
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_SEQ) {
+          SpaceSeq *sseq = (SpaceSeq *)sl;
+          sseq->cache_overlay.flag |= SEQ_CACHE_SHOW_FINAL_OUT;
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 28)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_proxies_timecode_update, nullptr);
-      }
-    }
-
-    LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
-      MovieClipProxy proxy = clip->proxy;
-      versioning_update_timecode(&proxy.tc);
+static void version_update_timecode_modes(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      blender::seq::for_each_callback(&scene->ed->seqbase, strip_proxies_timecode_update, nullptr);
     }
   }
+  LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
+    MovieClipProxy proxy = clip->proxy;
+    versioning_update_timecode(&proxy.tc);
+  }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 29)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_text_data_update, nullptr);
-      }
+static void version_sequencer_text_data(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed) {
+      blender::seq::for_each_callback(&scene->ed->seqbase, strip_text_data_update, nullptr);
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 30)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->nodetree) {
-        scene->nodetree->flag &= ~NTREE_UNUSED_2;
-      }
+static void version_ntree_clear_flag_2(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->nodetree) {
+      scene->nodetree->flag &= ~NTREE_UNUSED_2;
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 31)) {
-    LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
-      /* Guess a somewhat correct density given the resolution. But very low resolution need
-       * a decent enough density to work. */
-      lightprobe->grid_surfel_density = max_ii(20,
-                                               2 * max_iii(lightprobe->grid_resolution_x,
-                                                           lightprobe->grid_resolution_y,
-                                                           lightprobe->grid_resolution_z));
+static void version_light_probe_grid_surfel_density(Main *bmain)
+{
+  LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
+    /* Guess a somewhat correct density given the resolution. But very low resolution need
+     * a decent enough density to work. */
+    lightprobe->grid_surfel_density = max_ii(20,
+                                             2 * max_iii(lightprobe->grid_resolution_x,
+                                                         lightprobe->grid_resolution_y,
+                                                         lightprobe->grid_resolution_z));
+  }
+}
+
+static void version_ntree_world_output(Main *bmain, FileData *fd)
+{
+  bool only_uses_eevee_legacy_or_workbench = true;
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (!STR_ELEM(scene->r.engine, RE_engine_id_BLENDER_EEVEE, RE_engine_id_BLENDER_WORKBENCH)) {
+      only_uses_eevee_legacy_or_workbench = false;
     }
   }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 31)) {
-    bool only_uses_eevee_legacy_or_workbench = true;
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (!STR_ELEM(scene->r.engine, RE_engine_id_BLENDER_EEVEE, RE_engine_id_BLENDER_WORKBENCH)) {
-        only_uses_eevee_legacy_or_workbench = false;
-      }
-    }
-    /* Mark old EEVEE world volumes for showing conversion operator. */
-    LISTBASE_FOREACH (World *, world, &bmain->worlds) {
-      if (world->nodetree) {
-        bNode *output_node = version_eevee_output_node_get(world->nodetree, SH_NODE_OUTPUT_WORLD);
-        if (output_node) {
-          bNodeSocket *volume_input_socket = static_cast<bNodeSocket *>(
-              BLI_findlink(&output_node->inputs, 1));
-          if (volume_input_socket) {
-            LISTBASE_FOREACH (bNodeLink *, node_link, &world->nodetree->links) {
-              if (node_link->tonode == output_node && node_link->tosock == volume_input_socket) {
-                world->flag |= WO_USE_EEVEE_FINITE_VOLUME;
-                /* Only display a warning message if we are sure this can be used by EEVEE. */
-                if (only_uses_eevee_legacy_or_workbench) {
-                  BLO_reportf_wrap(fd->reports,
-                                   RPT_WARNING,
-                                   RPT_("%s contains a volume shader that might need to be "
-                                        "converted to object (see world volume panel)\n"),
-                                   world->id.name + 2);
-                }
+  /* Mark old EEVEE world volumes for showing conversion operator. */
+  LISTBASE_FOREACH (World *, world, &bmain->worlds) {
+    if (world->nodetree) {
+      bNode *output_node = version_eevee_output_node_get(world->nodetree, SH_NODE_OUTPUT_WORLD);
+      if (output_node) {
+        bNodeSocket *volume_input_socket = static_cast<bNodeSocket *>(
+            BLI_findlink(&output_node->inputs, 1));
+        if (volume_input_socket) {
+          LISTBASE_FOREACH (bNodeLink *, node_link, &world->nodetree->links) {
+            if (node_link->tonode == output_node && node_link->tosock == volume_input_socket) {
+              world->flag |= WO_USE_EEVEE_FINITE_VOLUME;
+              /* Only display a warning message if we are sure this can be used by EEVEE. */
+              if (only_uses_eevee_legacy_or_workbench) {
+                BLO_reportf_wrap(fd->reports,
+                                 RPT_WARNING,
+                                 RPT_("%s contains a volume shader that might need to be "
+                                      "converted to object (see world volume panel)\n"),
+                                 world->id.name + 2);
               }
             }
           }
@@ -9087,968 +9180,1008 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 33)) {
-    constexpr int NTREE_EXECUTION_MODE_GPU = 2;
+static void version_compositor_gpu_device(Main *bmain)
+{
+  constexpr int NTREE_EXECUTION_MODE_GPU = 2;
 
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->nodetree) {
-        if (scene->nodetree->execution_mode == NTREE_EXECUTION_MODE_GPU) {
-          scene->r.compositor_device = SCE_COMPOSITOR_DEVICE_GPU;
-        }
-        scene->r.compositor_precision = scene->nodetree->precision;
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->nodetree) {
+      if (scene->nodetree->execution_mode == NTREE_EXECUTION_MODE_GPU) {
+        scene->r.compositor_device = SCE_COMPOSITOR_DEVICE_GPU;
       }
+      scene->r.compositor_precision = scene->nodetree->precision;
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 34)) {
-    float shadow_max_res_sun = 0.001f;
-    float shadow_max_res_local = 0.001f;
-    bool shadow_resolution_absolute = false;
-    /* Try to get default resolution from scene setting. */
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      shadow_max_res_local = (2.0f * M_SQRT2) / scene->eevee.shadow_cube_size_deprecated;
-      /* Round to avoid weird numbers in the UI. */
-      shadow_max_res_local = ceil(shadow_max_res_local * 1000.0f) / 1000.0f;
-      shadow_resolution_absolute = true;
-      break;
-    }
-
-    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-      if (light->type == LA_SUN) {
-        /* Sun are too complex to convert. Need user interaction. */
-        light->shadow_maximum_resolution = shadow_max_res_sun;
-        SET_FLAG_FROM_TEST(light->mode, false, LA_SHAD_RES_ABSOLUTE);
-      }
-      else {
-        light->shadow_maximum_resolution = shadow_max_res_local;
-        SET_FLAG_FROM_TEST(light->mode, shadow_resolution_absolute, LA_SHAD_RES_ABSOLUTE);
-      }
-    }
+static void version_light_shadow_max_resolution(Main *bmain)
+{
+  float shadow_max_res_sun = 0.001f;
+  float shadow_max_res_local = 0.001f;
+  bool shadow_resolution_absolute = false;
+  /* Try to get default resolution from scene setting. */
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    shadow_max_res_local = (2.0f * M_SQRT2) / scene->eevee.shadow_cube_size_deprecated;
+    /* Round to avoid weird numbers in the UI. */
+    shadow_max_res_local = ceil(shadow_max_res_local * 1000.0f) / 1000.0f;
+    shadow_resolution_absolute = true;
+    break;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 36)) {
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      /* Only for grease pencil brushes. */
-      if (brush->gpencil_settings) {
-        /* Use the `Scene` radius unit by default (confusingly named `BRUSH_LOCK_SIZE`).
-         * Convert the radius to be the same visual size as in GPv2. */
-        brush->flag |= BRUSH_LOCK_SIZE;
-        brush->unprojected_radius = brush->size *
-                                    blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
-      }
+  LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+    if (light->type == LA_SUN) {
+      /* Sun are too complex to convert. Need user interaction. */
+      light->shadow_maximum_resolution = shadow_max_res_sun;
+      SET_FLAG_FROM_TEST(light->mode, false, LA_SHAD_RES_ABSOLUTE);
+    }
+    else {
+      light->shadow_maximum_resolution = shadow_max_res_local;
+      SET_FLAG_FROM_TEST(light->mode, shadow_resolution_absolute, LA_SHAD_RES_ABSOLUTE);
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 37)) {
-    const World *default_world = DNA_struct_default_get(World);
-    LISTBASE_FOREACH (World *, world, &bmain->worlds) {
-      world->sun_threshold = default_world->sun_threshold;
-      world->sun_angle = default_world->sun_angle;
-      world->sun_shadow_maximum_resolution = default_world->sun_shadow_maximum_resolution;
-      /* Having the sun extracted is mandatory to keep the same look and avoid too much light
-       * leaking compared to EEVEE-Legacy. But adding shadows might create performance overhead and
-       * change the result in a very different way. So we disable shadows in older file. */
-      world->flag &= ~WO_USE_SUN_SHADOW;
+static void version_grease_pencil_brush_radius(Main *bmain)
+{
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    /* Only for grease pencil brushes. */
+    if (brush->gpencil_settings) {
+      /* Use the `Scene` radius unit by default (confusingly named `BRUSH_LOCK_SIZE`).
+       * Convert the radius to be the same visual size as in GPv2. */
+      brush->flag |= BRUSH_LOCK_SIZE;
+      brush->unprojected_radius = brush->size *
+                                  blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 38)) {
-    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
-      convert_grease_pencil_stroke_hardness_to_softness(grease_pencil);
-    }
+static void version_world_sun_shadow(Main *bmain)
+{
+  const World *default_world = DNA_struct_default_get(World);
+  LISTBASE_FOREACH (World *, world, &bmain->worlds) {
+    world->sun_threshold = default_world->sun_threshold;
+    world->sun_angle = default_world->sun_angle;
+    world->sun_shadow_maximum_resolution = default_world->sun_shadow_maximum_resolution;
+    /* Having the sun extracted is mandatory to keep the same look and avoid too much light
+     * leaking compared to EEVEE-Legacy. But adding shadows might create performance overhead and
+     * change the result in a very different way. So we disable shadows in older file. */
+    world->flag &= ~WO_USE_SUN_SHADOW;
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 39)) {
-    /* Unify cast shadow property with Cycles. */
-    if (!all_scenes_use(bmain, {RE_engine_id_BLENDER_EEVEE})) {
-      const Light *default_light = DNA_struct_default_get(Light);
-      LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-        IDProperty *clight = version_cycles_properties_from_ID(&light->id);
-        if (clight) {
-          bool value = version_cycles_property_boolean(
-              clight, "cast_shadow", default_light->mode & LA_SHADOW);
-          SET_FLAG_FROM_TEST(light->mode, value, LA_SHADOW);
-        }
-      }
-    }
+static void version_grease_pencil_hardness_to_softness(Main *bmain)
+{
+  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+    convert_grease_pencil_stroke_hardness_to_softness(grease_pencil);
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 40)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      version_node_input_socket_name(ntree, FN_NODE_COMBINE_TRANSFORM, "Location", "Translation");
-      version_node_output_socket_name(
-          ntree, FN_NODE_SEPARATE_TRANSFORM, "Location", "Translation");
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 41)) {
+static void version_light_cast_shadow(Main *bmain)
+{
+  /* Unify cast shadow property with Cycles. */
+  if (!all_scenes_use(bmain, {RE_engine_id_BLENDER_EEVEE})) {
     const Light *default_light = DNA_struct_default_get(Light);
     LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-      light->shadow_jitter_overblur = default_light->shadow_jitter_overblur;
+      IDProperty *clight = version_cycles_properties_from_ID(&light->id);
+      if (clight) {
+        bool value = version_cycles_property_boolean(
+            clight, "cast_shadow", default_light->mode & LA_SHADOW);
+        SET_FLAG_FROM_TEST(light->mode, value, LA_SHADOW);
+      }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 43)) {
-    const World *default_world = DNA_struct_default_get(World);
-    LISTBASE_FOREACH (World *, world, &bmain->worlds) {
-      world->sun_shadow_maximum_resolution = default_world->sun_shadow_maximum_resolution;
-      world->sun_shadow_filter_radius = default_world->sun_shadow_filter_radius;
-    }
+static void version_ntree_transform_location_rename(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    version_node_input_socket_name(ntree, FN_NODE_COMBINE_TRANSFORM, "Location", "Translation");
+    version_node_output_socket_name(ntree, FN_NODE_SEPARATE_TRANSFORM, "Location", "Translation");
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 44)) {
-    const Scene *default_scene = DNA_struct_default_get(Scene);
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->eevee.fast_gi_step_count = default_scene->eevee.fast_gi_step_count;
-      scene->eevee.fast_gi_ray_count = default_scene->eevee.fast_gi_ray_count;
-    }
+static void version_light_shadow_jitter_overblur(Main *bmain)
+{
+  const Light *default_light = DNA_struct_default_get(Light);
+  LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+    light->shadow_jitter_overblur = default_light->shadow_jitter_overblur;
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 45)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_VIEW3D) {
-            View3D *v3d = reinterpret_cast<View3D *>(sl);
-            v3d->flag2 |= V3D_SHOW_CAMERA_GUIDES;
-          }
+static void version_world_sun_shadow_max_resolution(Main *bmain)
+{
+  const World *default_world = DNA_struct_default_get(World);
+  LISTBASE_FOREACH (World *, world, &bmain->worlds) {
+    world->sun_shadow_maximum_resolution = default_world->sun_shadow_maximum_resolution;
+    world->sun_shadow_filter_radius = default_world->sun_shadow_filter_radius;
+  }
+}
+
+static void version_eevee_fast_gi(Main *bmain)
+{
+  const Scene *default_scene = DNA_struct_default_get(Scene);
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->eevee.fast_gi_step_count = default_scene->eevee.fast_gi_step_count;
+    scene->eevee.fast_gi_ray_count = default_scene->eevee.fast_gi_ray_count;
+  }
+}
+
+static void version_space3d_show_camera_guides(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_VIEW3D) {
+          View3D *v3d = reinterpret_cast<View3D *>(sl);
+          v3d->flag2 |= V3D_SHOW_CAMERA_GUIDES;
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 46)) {
-    const Scene *default_scene = DNA_struct_default_get(Scene);
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->eevee.fast_gi_thickness_near = default_scene->eevee.fast_gi_thickness_near;
-      scene->eevee.fast_gi_thickness_far = default_scene->eevee.fast_gi_thickness_far;
+static void version_eevee_fast_gi_thickness(Main *bmain)
+{
+  const Scene *default_scene = DNA_struct_default_get(Scene);
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->eevee.fast_gi_thickness_near = default_scene->eevee.fast_gi_thickness_near;
+    scene->eevee.fast_gi_thickness_far = default_scene->eevee.fast_gi_thickness_far;
+  }
+}
+
+static void version_bone_custom_shape_wire_width(Main *bmain)
+{
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    if (!ob->pose) {
+      continue;
+    }
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
+      pchan->custom_shape_wire_width = 1.0;
     }
   }
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 48)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      if (!ob->pose) {
+}
+
+static void version_space3d_show_camera_passepartout(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_VIEW3D) {
+          View3D *v3d = reinterpret_cast<View3D *>(sl);
+          v3d->flag2 |= V3D_SHOW_CAMERA_PASSEPARTOUT;
+        }
+      }
+    }
+  }
+}
+
+static void version_geonode_capture_attribute(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    if (ntree->type != NTREE_GEOMETRY) {
+      continue;
+    }
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      if (node->type_legacy != GEO_NODE_CAPTURE_ATTRIBUTE) {
         continue;
       }
-      LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-        pchan->custom_shape_wire_width = 1.0;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 49)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_VIEW3D) {
-            View3D *v3d = reinterpret_cast<View3D *>(sl);
-            v3d->flag2 |= V3D_SHOW_CAMERA_PASSEPARTOUT;
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 50)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type != NTREE_GEOMETRY) {
+      NodeGeometryAttributeCapture *storage = static_cast<NodeGeometryAttributeCapture *>(
+          node->storage);
+      if (storage->next_identifier > 0) {
         continue;
       }
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy != GEO_NODE_CAPTURE_ATTRIBUTE) {
-          continue;
-        }
-        NodeGeometryAttributeCapture *storage = static_cast<NodeGeometryAttributeCapture *>(
-            node->storage);
-        if (storage->next_identifier > 0) {
-          continue;
-        }
-        storage->capture_items_num = 1;
-        storage->capture_items = MEM_calloc_arrayN<NodeGeometryAttributeCaptureItem>(
-            storage->capture_items_num, __func__);
-        NodeGeometryAttributeCaptureItem &item = storage->capture_items[0];
-        item.data_type = storage->data_type_legacy;
-        item.identifier = storage->next_identifier++;
-        item.name = BLI_strdup("Value");
-      }
+      storage->capture_items_num = 1;
+      storage->capture_items = MEM_calloc_arrayN<NodeGeometryAttributeCaptureItem>(
+          storage->capture_items_num, __func__);
+      NodeGeometryAttributeCaptureItem &item = storage->capture_items[0];
+      item.data_type = storage->data_type_legacy;
+      item.identifier = storage->next_identifier++;
+      item.name = BLI_strdup("Value");
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 53)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_NODE) {
-            SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
-            snode->overlay.flag |= SN_OVERLAY_SHOW_REROUTE_AUTO_LABELS;
-          }
+static void version_node_show_reroute_auto_labels(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_NODE) {
+          SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
+          snode->overlay.flag |= SN_OVERLAY_SHOW_REROUTE_AUTO_LABELS;
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 55)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
+static void version_compositor_curve_filmlike(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_COMPOSIT) {
+      continue;
+    }
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      if (node->type_legacy != CMP_NODE_CURVE_RGB) {
         continue;
       }
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy != CMP_NODE_CURVE_RGB) {
-          continue;
-        }
 
-        CurveMapping &curve_mapping = *static_cast<CurveMapping *>(node->storage);
+      CurveMapping &curve_mapping = *static_cast<CurveMapping *>(node->storage);
 
-        /* Film-like tone only works with the combined curve, which is the fourth curve, so make
-         * the combined curve current, as we now hide the rest of the curves since they no longer
-         * have an effect. */
-        if (curve_mapping.tone == CURVE_TONE_FILMLIKE) {
-          curve_mapping.cur = 3;
-        }
+      /* Film-like tone only works with the combined curve, which is the fourth curve, so make
+       * the combined curve current, as we now hide the rest of the curves since they no longer
+       * have an effect. */
+      if (curve_mapping.tone == CURVE_TONE_FILMLIKE) {
+        curve_mapping.cur = 3;
       }
     }
-    FOREACH_NODETREE_END;
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 2)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, space_link, &area->spacedata) {
-          if (space_link->spacetype == SPACE_NODE) {
-            SpaceNode *space_node = reinterpret_cast<SpaceNode *>(space_link);
-            space_node->flag &= ~SNODE_FLAG_UNUSED_5;
-          }
+static void version_space_node_clear_unused_5(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, space_link, &area->spacedata) {
+        if (space_link->spacetype == SPACE_NODE) {
+          SpaceNode *space_node = reinterpret_cast<SpaceNode *>(space_link);
+          space_node->flag &= ~SNODE_FLAG_UNUSED_5;
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 60) ||
-      (bmain->versionfile == 403 && !MAIN_VERSION_FILE_ATLEAST(bmain, 403, 3)))
-  {
-    /* Limit Rotation constraints from old files should use the legacy Limit
-     * Rotation behavior. */
-    LISTBASE_FOREACH (Object *, obj, &bmain->objects) {
-      LISTBASE_FOREACH (bConstraint *, constraint, &obj->constraints) {
+static void version_legacy_rotation_constraints(Main *bmain)
+{
+  /* Limit Rotation constraints from old files should use the legacy Limit
+   * Rotation behavior. */
+  LISTBASE_FOREACH (Object *, obj, &bmain->objects) {
+    LISTBASE_FOREACH (bConstraint *, constraint, &obj->constraints) {
+      if (constraint->type != CONSTRAINT_TYPE_ROTLIMIT) {
+        continue;
+      }
+      static_cast<bRotLimitConstraint *>(constraint->data)->flag |= LIMIT_ROT_LEGACY_BEHAVIOR;
+    }
+
+    if (!obj->pose) {
+      continue;
+    }
+    LISTBASE_FOREACH (bPoseChannel *, pbone, &obj->pose->chanbase) {
+      LISTBASE_FOREACH (bConstraint *, constraint, &pbone->constraints) {
         if (constraint->type != CONSTRAINT_TYPE_ROTLIMIT) {
           continue;
         }
         static_cast<bRotLimitConstraint *>(constraint->data)->flag |= LIMIT_ROT_LEGACY_BEHAVIOR;
       }
+    }
+  }
+}
 
-      if (!obj->pose) {
-        continue;
-      }
-      LISTBASE_FOREACH (bPoseChannel *, pbone, &obj->pose->chanbase) {
-        LISTBASE_FOREACH (bConstraint *, constraint, &pbone->constraints) {
-          if (constraint->type != CONSTRAINT_TYPE_ROTLIMIT) {
-            continue;
-          }
-          static_cast<bRotLimitConstraint *>(constraint->data)->flag |= LIMIT_ROT_LEGACY_BEHAVIOR;
+static void version_eevee_gi_cubemap_resolution(Main *bmain)
+{
+  /* LIGHT_PROBE_RESOLUTION_64 has been removed in EEVEE-Next as the tedrahedral mapping is to
+   * low res to be usable. */
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->eevee.gi_cubemap_resolution = std::max(scene->eevee.gi_cubemap_resolution, 128);
+  }
+}
+
+static void version_eevee_transparent_shadows(Main *bmain)
+{
+  if (all_scenes_use(bmain, {RE_engine_id_BLENDER_EEVEE})) {
+    /* Re-apply versioning made for EEVEE-Next in 4.1 before it got delayed. */
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      bool transparent_shadows = material->blend_shadow != MA_BS_SOLID;
+      SET_FLAG_FROM_TEST(material->blend_flag, transparent_shadows, MA_BL_TRANSPARENT_SHADOW);
+    }
+    LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
+      mat->surface_render_method = (mat->blend_method == MA_BM_BLEND) ? MA_SURFACE_METHOD_FORWARD :
+                                                                        MA_SURFACE_METHOD_DEFERRED;
+    }
+  }
+}
+
+static void version_brush_alpha_simplify_px(Main *bmain)
+{
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    if (BrushGpencilSettings *settings = brush->gpencil_settings) {
+      /* Copy the `draw_strength` value to the `alpha` value. */
+      brush->alpha = settings->draw_strength;
+
+      /* We approximate the simplify pixel threshold by taking the previous threshold (world
+       * space) and dividing by the legacy radius conversion factor. This should generally give
+       * reasonable "pixel" threshold values, at least for previous GPv2 defaults. */
+      settings->simplify_px = settings->simplify_f /
+                              blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR * 0.1f;
+    }
+  }
+}
+
+static void version_view_settings_temperature_tint(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->view_settings.temperature = 6500.0f;
+    scene->view_settings.tint = 10.0f;
+  }
+}
+
+static void version_sequencer_snap_defaults(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
+    sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_PREVIEW_BORDERS |
+                                          SEQ_SNAP_TO_PREVIEW_CENTER | SEQ_SNAP_TO_STRIPS_PREVIEW;
+  }
+}
+
+static void version_node_color_balance_white_point(Main *bmain)
+{
+  /* Initialize Color Balance node white point settings. */
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_CUSTOM) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+          NodeColorBalance *n = static_cast<NodeColorBalance *>(node->storage);
+          n->input_temperature = n->output_temperature = 6500.0f;
+          n->input_tint = n->output_tint = 10.0f;
         }
       }
     }
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 61)) {
-    /* LIGHT_PROBE_RESOLUTION_64 has been removed in EEVEE-Next as the tedrahedral mapping is to
-     * low res to be usable. */
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->eevee.gi_cubemap_resolution = std::max(scene->eevee.gi_cubemap_resolution, 128);
-    }
+static void version_curves_active_attribute(Main *bmain)
+{
+  LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
+    curves->geometry.attributes_active_index = curves->attributes_active_index_legacy;
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 64)) {
-    if (all_scenes_use(bmain, {RE_engine_id_BLENDER_EEVEE})) {
-      /* Re-apply versioning made for EEVEE-Next in 4.1 before it got delayed. */
-      LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-        bool transparent_shadows = material->blend_shadow != MA_BS_SOLID;
-        SET_FLAG_FROM_TEST(material->blend_flag, transparent_shadows, MA_BL_TRANSPARENT_SHADOW);
-      }
-      LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
-        mat->surface_render_method = (mat->blend_method == MA_BM_BLEND) ?
-                                         MA_SURFACE_METHOD_FORWARD :
-                                         MA_SURFACE_METHOD_DEFERRED;
-      }
-    }
+static void version_camera_cylindrical_params(Main *bmain)
+{
+  Camera default_cam = *DNA_struct_default_get(Camera);
+  LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
+    camera->central_cylindrical_range_u_min = default_cam.central_cylindrical_range_u_min;
+    camera->central_cylindrical_range_u_max = default_cam.central_cylindrical_range_u_max;
+    camera->central_cylindrical_range_v_min = default_cam.central_cylindrical_range_v_min;
+    camera->central_cylindrical_range_v_max = default_cam.central_cylindrical_range_v_max;
+    camera->central_cylindrical_radius = default_cam.central_cylindrical_radius;
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 3)) {
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if (BrushGpencilSettings *settings = brush->gpencil_settings) {
-        /* Copy the `draw_strength` value to the `alpha` value. */
-        brush->alpha = settings->draw_strength;
-
-        /* We approximate the simplify pixel threshold by taking the previous threshold (world
-         * space) and dividing by the legacy radius conversion factor. This should generally give
-         * reasonable "pixel" threshold values, at least for previous GPv2 defaults. */
-        settings->simplify_px = settings->simplify_f /
-                                blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR * 0.1f;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 4)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->view_settings.temperature = 6500.0f;
-      scene->view_settings.tint = 10.0f;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 7)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
-      sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_PREVIEW_BORDERS |
-                                            SEQ_SNAP_TO_PREVIEW_CENTER |
-                                            SEQ_SNAP_TO_STRIPS_PREVIEW;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 8)) {
-    update_paint_modes_for_brush_assets(*bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 9)) {
-    fix_built_in_curve_attribute_defaults(bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 10)) {
-    /* Initialize Color Balance node white point settings. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_CUSTOM) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == CMP_NODE_COLORBALANCE) {
-            NodeColorBalance *n = static_cast<NodeColorBalance *>(node->storage);
-            n->input_temperature = n->output_temperature = 6500.0f;
-            n->input_tint = n->output_tint = 10.0f;
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 11)) {
-    LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
-      curves->geometry.attributes_active_index = curves->attributes_active_index_legacy;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 13)) {
-    Camera default_cam = *DNA_struct_default_get(Camera);
-    LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
-      camera->central_cylindrical_range_u_min = default_cam.central_cylindrical_range_u_min;
-      camera->central_cylindrical_range_u_max = default_cam.central_cylindrical_range_u_max;
-      camera->central_cylindrical_range_v_min = default_cam.central_cylindrical_range_v_min;
-      camera->central_cylindrical_range_v_max = default_cam.central_cylindrical_range_v_max;
-      camera->central_cylindrical_radius = default_cam.central_cylindrical_radius;
-    }
-  }
-
+static void version_compositor_file_output_color_space(Main *bmain)
+{
   /* The File Output node now uses the linear color space setting of its stored image formats. So
    * we need to ensure the color space value is initialized to some sane default based on the image
    * type. Furthermore, the node now gained a new Save As Render option that is global to the node,
    * which will be used if Use Node Format is enabled for each input, so we potentially need to
    * disable Use Node Format in case inputs had different Save As render options. */
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 14)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_COMPOSIT) {
+      continue;
+    }
+
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      if (node->type_legacy != CMP_NODE_OUTPUT_FILE) {
         continue;
       }
 
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy != CMP_NODE_OUTPUT_FILE) {
-          continue;
-        }
-
-        /* Initialize node format color space if it is not set. */
-        NodeImageMultiFile *storage = static_cast<NodeImageMultiFile *>(node->storage);
-        if (storage->format.linear_colorspace_settings.name[0] == '\0') {
-          BKE_image_format_update_color_space_for_type(&storage->format);
-        }
-
-        if (BLI_listbase_is_empty(&node->inputs)) {
-          continue;
-        }
-
-        /* Initialize input formats color space if it is not set. */
-        LISTBASE_FOREACH (const bNodeSocket *, input, &node->inputs) {
-          NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
-              input->storage);
-          if (input_storage->format.linear_colorspace_settings.name[0] == '\0') {
-            BKE_image_format_update_color_space_for_type(&input_storage->format);
-          }
-        }
-
-        /* EXR images don't use Save As Render. */
-        if (ELEM(storage->format.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
-          continue;
-        }
-
-        /* Find out if all inputs have the same Save As Render option. */
-        const bNodeSocket *first_input = static_cast<bNodeSocket *>(node->inputs.first);
-        const NodeImageMultiFileSocket *first_input_storage =
-            static_cast<NodeImageMultiFileSocket *>(first_input->storage);
-        const bool first_save_as_render = first_input_storage->save_as_render;
-        bool all_inputs_have_same_save_as_render = true;
-        LISTBASE_FOREACH (const bNodeSocket *, input, &node->inputs) {
-          const NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
-              input->storage);
-          if (bool(input_storage->save_as_render) != first_save_as_render) {
-            all_inputs_have_same_save_as_render = false;
-            break;
-          }
-        }
-
-        /* All inputs have the same save as render option, so we set the node Save As Render option
-         * to that value, and we leave inputs as is. */
-        if (all_inputs_have_same_save_as_render) {
-          storage->save_as_render = first_save_as_render;
-          continue;
-        }
-
-        /* For inputs that have Use Node Format enabled, we need to disabled it because otherwise
-         * they will use the node's Save As Render option. It follows that we need to copy the
-         * node's format to the input format. */
-        LISTBASE_FOREACH (const bNodeSocket *, input, &node->inputs) {
-          NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
-              input->storage);
-
-          if (!input_storage->use_node_format) {
-            continue;
-          }
-
-          input_storage->use_node_format = false;
-          input_storage->format = storage->format;
-        }
+      /* Initialize node format color space if it is not set. */
+      NodeImageMultiFile *storage = static_cast<NodeImageMultiFile *>(node->storage);
+      if (storage->format.linear_colorspace_settings.name[0] == '\0') {
+        BKE_image_format_update_color_space_for_type(&storage->format);
       }
-    }
-    FOREACH_NODETREE_END;
-  }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 15)) {
-    using namespace blender;
-
-    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-      const ListBase *exporters = &collection->exporters;
-      LISTBASE_FOREACH (CollectionExport *, data, exporters) {
-        /* The name field should be empty at this point. */
-        BLI_assert(data->name[0] == '\0');
-
-        bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
-        BKE_collection_exporter_name_set(exporters, data, fh ? fh->label : DATA_("Undefined"));
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 16)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->eevee.flag |= SCE_EEVEE_FAST_GI_ENABLED;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 17)) {
-    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
-      if (tree->default_group_node_width == 0) {
-        tree->default_group_node_width = GROUP_NODE_DEFAULT_WIDTH;
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 20)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_SEQ) {
-            ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_TOOLS);
-            if (region != nullptr) {
-              region->flag &= ~RGN_FLAG_HIDDEN;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 21)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_CLIP) {
-            ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
-            if (region != nullptr) {
-              View2D *v2d = &region->v2d;
-              v2d->flag &= ~V2D_VIEWSYNC_SCREEN_TIME;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 22)) {
-    add_bevel_modifier_attribute_name_defaults(*bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 23)) {
-    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-        if (md->type != eModifierType_Nodes) {
-          continue;
-        }
-        NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(md);
-        if (nmd.bake_target == NODES_MODIFIER_BAKE_TARGET_INHERIT) {
-          /* Use disk target for existing modifiers to avoid changing behavior. */
-          nmd.bake_target = NODES_MODIFIER_BAKE_TARGET_DISK;
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 24)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      node_reroute_add_storage(*ntree);
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 26)) {
-    hide_simulation_node_skip_socket_value(*bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 28)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_VIEW3D) {
-            View3D *v3d = reinterpret_cast<View3D *>(sl);
-            copy_v3_fl(v3d->overlay.gpencil_grid_color, 0.5f);
-            copy_v2_fl(v3d->overlay.gpencil_grid_scale, 1.0f);
-            copy_v2_fl(v3d->overlay.gpencil_grid_offset, 0.0f);
-            v3d->overlay.gpencil_grid_subdivisions = 4;
-          }
-        }
-      }
-    }
-
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
-        continue;
-      }
-      LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-        if (ELEM(node->type_legacy, CMP_NODE_VIEWER, CMP_NODE_COMPOSITE)) {
-          node->flag &= ~NODE_PREVIEW;
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 29)) {
-    /* Open warnings panel by default. */
-    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-        if (md->type == eModifierType_Nodes) {
-          md->layout_panel_open_flag |= 1 << NODES_MODIFIER_PANEL_WARNINGS;
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 31)) {
-    LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
-      LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
-        if (tref->space_type != SPACE_SEQ) {
-          continue;
-        }
-        STRNCPY(tref->idname, "builtin.select_box");
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 1)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      Editing *ed = blender::seq::editing_get(scene);
-      if (ed != nullptr) {
-        blender::seq::for_each_callback(&ed->seqbase, versioning_convert_seq_text_anchor, nullptr);
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 4)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype != SPACE_FILE) {
-            continue;
-          }
-          SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
-          if (sfile->asset_params) {
-            sfile->asset_params->base_params.sort = FILE_SORT_ASSET_CATALOG;
-          }
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 6)) {
-    add_subsurf_node_limit_surface_option(*bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 8)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type == NTREE_GEOMETRY) {
-        remove_triangulate_node_min_size_input(ntree);
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
-    LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
-      blender::animrig::Action &action = dna_action->wrap();
-      blender::animrig::foreach_fcurve_in_action(
-          action, [&](FCurve &fcurve) { version_fcurve_noise_modifier(fcurve); });
-    }
-
-    ID *id;
-    FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      AnimData *adt = BKE_animdata_from_id(id);
-      if (!adt) {
+      if (BLI_listbase_is_empty(&node->inputs)) {
         continue;
       }
 
-      LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
-        version_fcurve_noise_modifier(*fcu);
-      }
-    }
-    FOREACH_MAIN_ID_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 11)) {
-    /* #update_paint_modes_for_brush_assets() didn't handle image editor tools for some time. 4.3
-     * files saved during that period could have invalid tool references stored. */
-    LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
-      LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
-        if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
-          STRNCPY(tref->idname, "builtin.brush");
+      /* Initialize input formats color space if it is not set. */
+      LISTBASE_FOREACH (const bNodeSocket *, input, &node->inputs) {
+        NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
+            input->storage);
+        if (input_storage->format.linear_colorspace_settings.name[0] == '\0') {
+          BKE_image_format_update_color_space_for_type(&input_storage->format);
         }
       }
-    }
-  }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 12)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      version_node_locations_to_global(*ntree);
-    }
-    FOREACH_NODETREE_END;
-  }
+      /* EXR images don't use Save As Render. */
+      if (ELEM(storage->format.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
+        continue;
+      }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 13)) {
-    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
-        if (modifier->type != eModifierType_Nodes) {
+      /* Find out if all inputs have the same Save As Render option. */
+      const bNodeSocket *first_input = static_cast<bNodeSocket *>(node->inputs.first);
+      const NodeImageMultiFileSocket *first_input_storage =
+          static_cast<NodeImageMultiFileSocket *>(first_input->storage);
+      const bool first_save_as_render = first_input_storage->save_as_render;
+      bool all_inputs_have_same_save_as_render = true;
+      LISTBASE_FOREACH (const bNodeSocket *, input, &node->inputs) {
+        const NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
+            input->storage);
+        if (bool(input_storage->save_as_render) != first_save_as_render) {
+          all_inputs_have_same_save_as_render = false;
+          break;
+        }
+      }
+
+      /* All inputs have the same save as render option, so we set the node Save As Render option
+       * to that value, and we leave inputs as is. */
+      if (all_inputs_have_same_save_as_render) {
+        storage->save_as_render = first_save_as_render;
+        continue;
+      }
+
+      /* For inputs that have Use Node Format enabled, we need to disabled it because otherwise
+       * they will use the node's Save As Render option. It follows that we need to copy the
+       * node's format to the input format. */
+      LISTBASE_FOREACH (const bNodeSocket *, input, &node->inputs) {
+        NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
+            input->storage);
+
+        if (!input_storage->use_node_format) {
           continue;
         }
-        NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(modifier);
-        if (!nmd->settings.properties) {
+
+        input_storage->use_node_format = false;
+        input_storage->format = storage->format;
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_collection_exporter_name(Main *bmain)
+{
+  using namespace blender;
+
+  LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+    const ListBase *exporters = &collection->exporters;
+    LISTBASE_FOREACH (CollectionExport *, data, exporters) {
+      /* The name field should be empty at this point. */
+      BLI_assert(data->name[0] == '\0');
+
+      bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
+      BKE_collection_exporter_name_set(exporters, data, fh ? fh->label : DATA_("Undefined"));
+    }
+  }
+}
+
+static void version_eevee_enable_fast_gi(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->eevee.flag |= SCE_EEVEE_FAST_GI_ENABLED;
+  }
+}
+
+static void version_ntree_default_group_width(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+    if (tree->default_group_node_width == 0) {
+      tree->default_group_node_width = GROUP_NODE_DEFAULT_WIDTH;
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_sequencer_show_tools(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_SEQ) {
+          ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_TOOLS);
+          if (region != nullptr) {
+            region->flag &= ~RGN_FLAG_HIDDEN;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void version_space_clip_clear_time_sync(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_CLIP) {
+          ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+          if (region != nullptr) {
+            View2D *v2d = &region->v2d;
+            v2d->flag &= ~V2D_VIEWSYNC_SCREEN_TIME;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void version_nodes_bake_target_keep_disk(Main *bmain)
+{
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+      if (md->type != eModifierType_Nodes) {
+        continue;
+      }
+      NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(md);
+      if (nmd.bake_target == NODES_MODIFIER_BAKE_TARGET_INHERIT) {
+        /* Use disk target for existing modifiers to avoid changing behavior. */
+        nmd.bake_target = NODES_MODIFIER_BAKE_TARGET_DISK;
+      }
+    }
+  }
+}
+
+static void version_ntree_reroute_storage(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    node_reroute_add_storage(*ntree);
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_view3d_grease_pencil_grid(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_VIEW3D) {
+          View3D *v3d = reinterpret_cast<View3D *>(sl);
+          copy_v3_fl(v3d->overlay.gpencil_grid_color, 0.5f);
+          copy_v2_fl(v3d->overlay.gpencil_grid_scale, 1.0f);
+          copy_v2_fl(v3d->overlay.gpencil_grid_offset, 0.0f);
+          v3d->overlay.gpencil_grid_subdivisions = 4;
+        }
+      }
+    }
+  }
+}
+
+static void version_compositor_clear_preview(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_COMPOSIT) {
+      continue;
+    }
+    LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
+      if (ELEM(node->type_legacy, CMP_NODE_VIEWER, CMP_NODE_COMPOSITE)) {
+        node->flag &= ~NODE_PREVIEW;
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_modifier_show_warnings(Main *bmain)
+{
+  /* Open warnings panel by default. */
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+      if (md->type == eModifierType_Nodes) {
+        md->layout_panel_open_flag |= 1 << NODES_MODIFIER_PANEL_WARNINGS;
+      }
+    }
+  }
+}
+
+static void version_sequencer_default_tool_select_box(Main *bmain)
+{
+  LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
+    LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
+      if (tref->space_type != SPACE_SEQ) {
+        continue;
+      }
+      STRNCPY(tref->idname, "builtin.select_box");
+    }
+  }
+}
+
+static void version_sequencer_convert_text_anchor(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    Editing *ed = blender::seq::editing_get(scene);
+    if (ed != nullptr) {
+      blender::seq::for_each_callback(&ed->seqbase, versioning_convert_seq_text_anchor, nullptr);
+    }
+  }
+}
+
+static void version_space_file_sort_asset_catalog(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype != SPACE_FILE) {
           continue;
         }
-        LISTBASE_FOREACH (IDProperty *, idprop, &nmd->settings.properties->data.group) {
-          if (idprop->type != IDP_STRING) {
-            continue;
-          }
-          blender::StringRef prop_name(idprop->name);
-          if (prop_name.endswith("_attribute_name") || prop_name.endswith("_use_attribute")) {
-            idprop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY | IDP_FLAG_STATIC_TYPE;
-          }
+        SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
+        if (sfile->asset_params) {
+          sfile->asset_params->base_params.sort = FILE_SORT_ASSET_CATALOG;
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 14)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      version_group_input_socket_data_block_reference(*ntree);
+static void version_geonode_remove_triangulate_min_size(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    if (ntree->type == NTREE_GEOMETRY) {
+      remove_triangulate_node_min_size_input(ntree);
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 15)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      Editing *ed = blender::seq::editing_get(scene);
-      if (ed != nullptr) {
-        blender::seq::for_each_callback(&ed->seqbase, versioning_clear_strip_unused_flag, scene);
+static void version_fcurve_noise_mod(Main *bmain)
+{
+  LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+    blender::animrig::Action &action = dna_action->wrap();
+    blender::animrig::foreach_fcurve_in_action(
+        action, [&](FCurve &fcurve) { version_fcurve_noise_modifier(fcurve); });
+  }
+
+  ID *id;
+  FOREACH_MAIN_ID_BEGIN (bmain, id) {
+    AnimData *adt = BKE_animdata_from_id(id);
+    if (!adt) {
+      continue;
+    }
+
+    LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
+      version_fcurve_noise_modifier(*fcu);
+    }
+  }
+  FOREACH_MAIN_ID_END;
+}
+
+static void version_space_image_paint_tool(Main *bmain)
+{
+  /* #update_paint_modes_for_brush_assets() didn't handle image editor tools for some time. 4.3
+   * files saved during that period could have invalid tool references stored. */
+  LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
+    LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
+      if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
+        STRNCPY(tref->idname, "builtin.brush");
       }
     }
   }
+}
 
+static void version_node_locations_global(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    version_node_locations_to_global(*ntree);
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_node_property_flags(Main *bmain)
+{
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
+      if (modifier->type != eModifierType_Nodes) {
+        continue;
+      }
+      NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(modifier);
+      if (!nmd->settings.properties) {
+        continue;
+      }
+      LISTBASE_FOREACH (IDProperty *, idprop, &nmd->settings.properties->data.group) {
+        if (idprop->type != IDP_STRING) {
+          continue;
+        }
+        blender::StringRef prop_name(idprop->name);
+        if (prop_name.endswith("_attribute_name") || prop_name.endswith("_use_attribute")) {
+          idprop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY | IDP_FLAG_STATIC_TYPE;
+        }
+      }
+    }
+  }
+}
+
+static void version_ntree_group_input_data_block_reference(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    version_group_input_socket_data_block_reference(*ntree);
+  }
+}
+
+static void version_sequencer_clear_unused_flags(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    Editing *ed = blender::seq::editing_get(scene);
+    if (ed != nullptr) {
+      blender::seq::for_each_callback(&ed->seqbase, versioning_clear_strip_unused_flag, scene);
+    }
+  }
+}
+
+static void version_shader_mix_identifier(Main *bmain)
+{
   /* Fix incorrect identifier in the shader mix node. */
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 16)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_SHADER) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == SH_NODE_MIX_SHADER) {
-            LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
-              if (STREQ(socket->identifier, "Shader.001")) {
-                STRNCPY(socket->identifier, "Shader_001");
-              }
-            }
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 17)) {
-    if (!DNA_struct_member_exists(
-            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_preview_quality"))
-    {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->r.compositor_denoise_preview_quality = SCE_COMPOSITOR_DENOISE_BALANCED;
-      }
-    }
-    if (!DNA_struct_member_exists(
-            fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_final_quality"))
-    {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->r.compositor_denoise_final_quality = SCE_COMPOSITOR_DENOISE_HIGH;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 22)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      IDProperty *cscene = version_cycles_properties_from_ID(&scene->id);
-      if (cscene) {
-        if (version_cycles_property_int(cscene, "sample_offset", 0) > 0) {
-          version_cycles_property_boolean_set(cscene, "use_sample_subset", true);
-          version_cycles_property_int_set(cscene, "sample_subset_length", (1 << 24));
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 23)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "Curves", "float", "surface_collision_distance")) {
-      LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
-        curves->surface_collision_distance = 0.005f;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 24)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      version_geometry_normal_input_node(*ntree);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 26)) {
-    const Brush *default_brush = DNA_struct_default_get(Brush);
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if ((brush->mask_stencil_dimension[0] == 0) && (brush->mask_stencil_dimension[1] == 0)) {
-        brush->mask_stencil_dimension[0] = default_brush->mask_stencil_dimension[0];
-        brush->mask_stencil_dimension[1] = default_brush->mask_stencil_dimension[1];
-      }
-      if ((brush->mask_stencil_pos[0] == 0) && (brush->mask_stencil_pos[1] == 0)) {
-        brush->mask_stencil_pos[0] = default_brush->mask_stencil_pos[0];
-        brush->mask_stencil_pos[1] = default_brush->mask_stencil_pos[1];
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 27)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        do_version_viewer_shortcut(ntree);
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 28)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
-      sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_RETIMING;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 29)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *ts = scene->toolsettings;
-      ts->imapaint.clone_alpha = 0.5f;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 30)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (ELEM(sl->spacetype, SPACE_ACTION, SPACE_INFO, SPACE_CONSOLE)) {
-            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                   &sl->regionbase;
-            LISTBASE_FOREACH (ARegion *, region, regionbase) {
-              if (region->regiontype == RGN_TYPE_WINDOW) {
-                region->v2d.scroll |= V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
-              }
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_SHADER) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == SH_NODE_MIX_SHADER) {
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+            if (STREQ(socket->identifier, "Shader.001")) {
+              STRNCPY(socket->identifier, "Shader_001");
             }
           }
         }
       }
     }
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 2)) {
-    version_sequencer_update_overdrop(bmain);
+static void version_compositor_denoise_quality(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_preview_quality"))
+  {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->r.compositor_denoise_preview_quality = SCE_COMPOSITOR_DENOISE_BALANCED;
+    }
   }
+  if (!DNA_struct_member_exists(
+          fd->filesdna, "RenderData", "RenderSettings", "compositor_denoise_final_quality"))
+  {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->r.compositor_denoise_final_quality = SCE_COMPOSITOR_DENOISE_HIGH;
+    }
+  }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 4)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_GEOMETRY) {
-        do_version_node_curve_to_mesh_scale_input(ntree);
+static void version_cycles_sample_offset(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    IDProperty *cscene = version_cycles_properties_from_ID(&scene->id);
+    if (cscene) {
+      if (version_cycles_property_int(cscene, "sample_offset", 0) > 0) {
+        version_cycles_property_boolean_set(cscene, "use_sample_subset", true);
+        version_cycles_property_int_set(cscene, "sample_subset_length", (1 << 24));
       }
     }
-    FOREACH_NODETREE_END;
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 5)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *tool_settings = scene->toolsettings;
-      tool_settings->snap_flag_seq |= SCE_SNAP;
-
-      SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
-      sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
+static void version_curves_surface_collision_distance(Main *bmain, FileData *fd)
+{
+  if (!DNA_struct_member_exists(fd->filesdna, "Curves", "float", "surface_collision_distance")) {
+    LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
+      curves->surface_collision_distance = 0.005f;
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 6)) {
-    asset_browser_add_list_view(bmain);
+static void version_ntree_geometry_normal_input(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    version_geometry_normal_input_node(*ntree);
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 7)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type == NTREE_GEOMETRY) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (STREQ(node->idname, "GeometryNodeStoreNamedGrid")) {
-            switch (node->custom1) {
-              case CD_PROP_FLOAT:
-                node->custom1 = VOLUME_GRID_FLOAT;
-                break;
-              case CD_PROP_FLOAT2:
-              case CD_PROP_FLOAT3:
-                node->custom1 = VOLUME_GRID_VECTOR_FLOAT;
-                break;
-              default:
-                node->custom1 = VOLUME_GRID_FLOAT;
-                break;
+static void version_brush_mask_stencil(Main *bmain)
+{
+  const Brush *default_brush = DNA_struct_default_get(Brush);
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    if ((brush->mask_stencil_dimension[0] == 0) && (brush->mask_stencil_dimension[1] == 0)) {
+      brush->mask_stencil_dimension[0] = default_brush->mask_stencil_dimension[0];
+      brush->mask_stencil_dimension[1] = default_brush->mask_stencil_dimension[1];
+    }
+    if ((brush->mask_stencil_pos[0] == 0) && (brush->mask_stencil_pos[1] == 0)) {
+      brush->mask_stencil_pos[0] = default_brush->mask_stencil_pos[0];
+      brush->mask_stencil_pos[1] = default_brush->mask_stencil_pos[1];
+    }
+  }
+}
+
+static void version_compositor_viewer_shortcut(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
+      do_version_viewer_shortcut(ntree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_sequencer_snap_to_retiming(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
+    sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_RETIMING;
+  }
+}
+
+static void version_tool_settings_paint_clone_alpha(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    ToolSettings *ts = scene->toolsettings;
+    ts->imapaint.clone_alpha = 0.5f;
+  }
+}
+
+static void version_window_hide_vertical_scroll(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (ELEM(sl->spacetype, SPACE_ACTION, SPACE_INFO, SPACE_CONSOLE)) {
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+          LISTBASE_FOREACH (ARegion *, region, regionbase) {
+            if (region->regiontype == RGN_TYPE_WINDOW) {
+              region->v2d.scroll |= V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
             }
           }
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        do_version_convert_to_generic_nodes(ntree);
-      }
+static void version_geonode_curve_to_mesh_scale_input(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_GEOMETRY) {
+      do_version_node_curve_to_mesh_scale_input(ntree);
     }
-    FOREACH_NODETREE_END;
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 9)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype != SPACE_FILE) {
-            continue;
-          }
-          SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
-          if (sfile->asset_params) {
-            sfile->asset_params->import_flags |= FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK;
+static void version_sequencer_snap_to_frame_range(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    ToolSettings *tool_settings = scene->toolsettings;
+    tool_settings->snap_flag_seq |= SCE_SNAP;
+
+    SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(scene);
+    sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
+  }
+}
+
+static void version_geonode_store_named_grid(Main *bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+    if (ntree->type == NTREE_GEOMETRY) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (STREQ(node->idname, "GeometryNodeStoreNamedGrid")) {
+          switch (node->custom1) {
+            case CD_PROP_FLOAT:
+              node->custom1 = VOLUME_GRID_FLOAT;
+              break;
+            case CD_PROP_FLOAT2:
+            case CD_PROP_FLOAT3:
+              node->custom1 = VOLUME_GRID_VECTOR_FLOAT;
+              break;
+            default:
+              node->custom1 = VOLUME_GRID_FLOAT;
+              break;
           }
         }
       }
     }
   }
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 15)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
+static void version_compositor_generic_nodes(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
+      do_version_convert_to_generic_nodes(ntree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_space_file_import_flags(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype != SPACE_FILE) {
+          continue;
+        }
+        SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
+        if (sfile->asset_params) {
+          sfile->asset_params->import_flags |= FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK;
+        }
+      }
+    }
+  }
+}
+
+static void version_compositor_scale_interpolation(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type != NTREE_COMPOSIT) {
+      continue;
+    }
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      if (node->type_legacy != CMP_NODE_SCALE) {
         continue;
       }
+      if (node->storage != nullptr) {
+        continue;
+      }
+      NodeScaleData *data = MEM_callocN<NodeScaleData>(__func__);
+      data->interpolation = CMP_NODE_INTERPOLATION_BILINEAR;
+      node->storage = data;
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_grease_pencil_aa(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->grease_pencil_settings.smaa_threshold_render =
+        scene->grease_pencil_settings.smaa_threshold;
+    scene->grease_pencil_settings.aa_samples = 1;
+  }
+}
+
+static void version_compositor_corner_pin(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+    if (ntree->type == NTREE_COMPOSIT) {
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy != CMP_NODE_SCALE) {
-          continue;
-        }
-        if (node->storage != nullptr) {
-          continue;
-        }
-        NodeScaleData *data = MEM_callocN<NodeScaleData>(__func__);
-        data->interpolation = CMP_NODE_INTERPOLATION_BILINEAR;
-        node->storage = data;
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 16)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->grease_pencil_settings.smaa_threshold_render =
-          scene->grease_pencil_settings.smaa_threshold;
-      scene->grease_pencil_settings.aa_samples = 1;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 17)) {
-    version_show_texpaint_to_show_uv(bmain);
-    version_set_uv_face_overlay_defaults(bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 18)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == CMP_NODE_CORNERPIN) {
-            node->custom1 = CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC;
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 19)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_PROPERTIES) {
-            SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
-            /* Translates to 0xFFFFFFFF, so other tabs can be added without versioning. */
-            sbuts->visible_tabs = uint(-1);
-          }
+        if (node->type_legacy == CMP_NODE_CORNERPIN) {
+          node->custom1 = CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC;
         }
       }
     }
   }
+  FOREACH_NODETREE_END;
+}
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
-    /* Older files uses non-UTF8 aware string copy, ensure names are valid UTF8.
-     * The slot names are not unique so no further changes are needed. */
-    LISTBASE_FOREACH (Image *, image, &bmain->images) {
-      LISTBASE_FOREACH (RenderSlot *, slot, &image->renderslots) {
-        if (slot->name[0]) {
-          BLI_str_utf8_invalid_strip(slot->name, STRNLEN(slot->name));
+static void version_properties_visible_tabs(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_PROPERTIES) {
+          SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
+          /* Translates to 0xFFFFFFFF, so other tabs can be added without versioning. */
+          sbuts->visible_tabs = uint(-1);
         }
       }
     }
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->r.ppm_factor = 72.0f;
-      scene->r.ppm_base = 0.0254f;
+  }
+}
+
+static void version_image_renderslots_utf8(Main *bmain)
+{
+  /* Older files uses non-UTF8 aware string copy, ensure names are valid UTF8.
+   * The slot names are not unique so no further changes are needed. */
+  LISTBASE_FOREACH (Image *, image, &bmain->images) {
+    LISTBASE_FOREACH (RenderSlot *, slot, &image->renderslots) {
+      if (slot->name[0]) {
+        BLI_str_utf8_invalid_strip(slot->name, STRNLEN(slot->name));
+      }
     }
   }
+}
 
+static void version_render_ppm(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    scene->r.ppm_factor = 72.0f;
+    scene->r.ppm_base = 0.0254f;
+  }
+}
+
+static void version_compositor_options_to_inputs(Main *bmain)
+{
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 21)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
@@ -10374,26 +10507,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 46)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype == SPACE_SEQ) {
-            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                   &sl->regionbase;
-            LISTBASE_FOREACH (ARegion *, region, regionbase) {
-              if (region->regiontype == RGN_TYPE_WINDOW) {
-                region->v2d.keepzoom |= V2D_KEEPZOOM;
-                region->v2d.keepofs |= V2D_KEEPOFS_X | V2D_KEEPOFS_Y;
-                region->v2d.flag |= V2D_ZOOM_IGNORE_KEEPOFS;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 47)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
@@ -10444,23 +10557,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 51)) {
-    const Object *dob = DNA_struct_default_get(Object);
-    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      object->shadow_terminator_normal_offset = dob->shadow_terminator_normal_offset;
-      object->shadow_terminator_geometry_offset = dob->shadow_terminator_geometry_offset;
-      object->shadow_terminator_shading_offset = dob->shadow_terminator_shading_offset;
-      /* Copy Cycles' property into Blender Object. */
-      IDProperty *cob = version_cycles_properties_from_ID(&object->id);
-      if (cob) {
-        object->shadow_terminator_geometry_offset = version_cycles_property_float(
-            cob, "shadow_terminator_geometry_offset", dob->shadow_terminator_geometry_offset);
-        object->shadow_terminator_shading_offset = version_cycles_property_float(
-            cob, "shadow_terminator_offset", dob->shadow_terminator_shading_offset);
-      }
-    }
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 52)) {
@@ -10515,28 +10611,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 56)) {
-    version_convert_sculpt_planar_brushes(bmain);
-  }
-
-  /* Enforce that bone envelope radii match for parent and connected children. */
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 57)) {
-    LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      blender::animrig::ANIM_armature_foreach_bone(&arm->bonebase, [](Bone *bone) {
-        if (bone->parent && (bone->flag & BONE_CONNECTED)) {
-          bone->rad_head = bone->parent->rad_tail;
-        }
-      });
-      if (arm->edbo) {
-        LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-          if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
-            ebone->rad_head = ebone->parent->rad_tail;
-          }
-        }
-      }
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 58)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
@@ -10576,33 +10650,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 61)) {
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type == NTREE_COMPOSIT) {
-        do_version_composite_viewer_remove_alpha(node_tree);
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 62)) {
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type == NTREE_COMPOSIT) {
-        do_version_bright_contrast_remove_premultiplied(node_tree);
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 63)) {
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type == NTREE_COMPOSIT) {
-        do_version_alpha_over_remove_premultiply(node_tree);
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 64)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
@@ -10614,6 +10661,617 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+}
+
+static void version_window_2d_zoom(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        if (sl->spacetype == SPACE_SEQ) {
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+          LISTBASE_FOREACH (ARegion *, region, regionbase) {
+            if (region->regiontype == RGN_TYPE_WINDOW) {
+              region->v2d.keepzoom |= V2D_KEEPZOOM;
+              region->v2d.keepofs |= V2D_KEEPOFS_X | V2D_KEEPOFS_Y;
+              region->v2d.flag |= V2D_ZOOM_IGNORE_KEEPOFS;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+static void version_shadow_terminator(Main *bmain)
+{
+  const Object *dob = DNA_struct_default_get(Object);
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    object->shadow_terminator_normal_offset = dob->shadow_terminator_normal_offset;
+    object->shadow_terminator_geometry_offset = dob->shadow_terminator_geometry_offset;
+    object->shadow_terminator_shading_offset = dob->shadow_terminator_shading_offset;
+    /* Copy Cycles' property into Blender Object. */
+    IDProperty *cob = version_cycles_properties_from_ID(&object->id);
+    if (cob) {
+      object->shadow_terminator_geometry_offset = version_cycles_property_float(
+          cob, "shadow_terminator_geometry_offset", dob->shadow_terminator_geometry_offset);
+      object->shadow_terminator_shading_offset = version_cycles_property_float(
+          cob, "shadow_terminator_offset", dob->shadow_terminator_shading_offset);
+    }
+  }
+}
+
+static void version_bone_envelope_radii(Main *bmain)
+{
+  /* Enforce that bone envelope radii match for parent and connected children. */
+  LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+    blender::animrig::ANIM_armature_foreach_bone(&arm->bonebase, [](Bone *bone) {
+      if (bone->parent && (bone->flag & BONE_CONNECTED)) {
+        bone->rad_head = bone->parent->rad_tail;
+      }
+    });
+    if (arm->edbo) {
+      LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
+        if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
+          ebone->rad_head = ebone->parent->rad_tail;
+        }
+      }
+    }
+  }
+}
+
+static void version_compositor_viewer_remove_alpha(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+    if (node_tree->type == NTREE_COMPOSIT) {
+      do_version_composite_viewer_remove_alpha(node_tree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_compositor_bright_contrast_remove_premultiplied(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+    if (node_tree->type == NTREE_COMPOSIT) {
+      do_version_bright_contrast_remove_premultiplied(node_tree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+static void version_compositor_alpha_over_remove_premultiply(Main *bmain)
+{
+  FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+    if (node_tree->type == NTREE_COMPOSIT) {
+      do_version_alpha_over_remove_premultiply(node_tree);
+    }
+  }
+  FOREACH_NODETREE_END;
+}
+
+void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
+{
+  /* 4.0 */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
+    version_mesh_legacy_format(bmain);
+    version_movieclips_legacy_camera_object(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 2)) {
+    version_mesh_legacy_bevel_weight(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 5)) {
+    version_tool_settings_snap_modes(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 6)) {
+    version_ntree_glossy_nodes(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 7)) {
+    version_mesh_crease_generic(*bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 8)) {
+    version_action_frame_bounds(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
+    version_light_ntree_texcoord_normal(bmain);
+  }
+
+  version_brush_tip_scale_zeroes(bmain);
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 10)) {
+    version_space_node_show_previews(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 11)) {
+    version_vertex_weight_edit_preserve_threshold_exclusivity(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 12)) {
+    version_light_probe_grid(bmain, fd);
+    version_remove_zbuffer_flag(bmain);
+    version_gpencil_layer_opacity(bmain);
+    version_shader_roughness_sheen(bmain);
+    version_region_resize_flags(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 13)) {
+    version_scene_color_management_none(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 14)) {
+    version_eevee_default_ray_tracing_method(bmain, fd);
+    version_add_asset_shelf(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 16)) {
+    version_set_noise_texture_normalize(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 17)) {
+    version_replace_shader_principled_hair(bmain, fd);
+    version_camera_panorama_properties(bmain, fd);
+    version_light_probe_grid_flag(bmain, fd);
+    version_eevee_default_gi_size(bmain, fd);
+    version_tool_settings_snap_anim(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 20)) {
+    /* Convert old socket lists into new interface items. */
+    version_ntree_socket_lists_to_interface(bmain);
+  }
+  else {
+    /* Legacy node tree sockets are created for forward compatibility,
+     * but have to be freed after loading and versioning. */
+    version_ntree_free_socket_lists(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 22)) {
+    version_ntree_root_panel_flags(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 23)) {
+    version_geonode_shade_smooth_face(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 24)) {
+    version_shader_coat_ss_emission(bmain);
+    version_asset_shelf_preferred_row_count(bmain);
+    version_ntree_split_inout_sockets(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 25)) {
+    version_shader_specular_tint_renames(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 26)) {
+    enable_geometry_nodes_is_modifier(*bmain);
+    version_set_simulation_frame_range(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 27)) {
+    version_sequencer_show_retiming(bmain);
+    version_eevee_shadow_step_count(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 28)) {
+    version_asset_shelf_library_reference(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 29)) {
+    version_ntree_unhide_reroute_nodes(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 30)) {
+    version_tool_settings_snap_to_new(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 31)) {
+    version_font_curve_mat_nr(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 33)) {
+    version_ntree_sort_sockets(bmain);
+  }
+
+  /* 4.1 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 1)) {
+    version_grease_pencil_radii(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 4)) {
+    version_convert_musgrave_noise(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 5)) {
+    version_material_shadow_blend_flags(bmain);
+    version_compositor_replace_split_viewer(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 7)) {
+    version_eevee_volume_ray_depth(bmain, fd);
+    version_material_surface_render_method(bmain, fd);
+    version_asset_shelf_alignment(bmain);
+    version_eevee_gtao_thickness(bmain, fd);
+    version_light_probe_data_display_size(bmain, fd);
+    version_mesh_clear_no_overlap_topology(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 8)) {
+    version_geonode_dynamic_sockets(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 9)) {
+    version_material_displacement_method(bmain, fd);
+    version_bone_custom_color_opaque(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 10)) {
+    version_eevee_ray_tracing_options(bmain, fd);
+    version_geonode_rotation_dynamic_info_scale(bmain);
+  }
+  if (MAIN_VERSION_FILE_ATLEAST(bmain, 400, 20) && !MAIN_VERSION_FILE_ATLEAST(bmain, 401, 11)) {
+    version_ntree_socket_subtype_idnames(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 12)) {
+    version_compositor_pixelate(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 13)) {
+    version_compositor_map_uv_aniso(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 14)) {
+    version_brush_automasking(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 15)) {
+    version_compositor_keying_radius(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 16)) {
+    version_sculpt_boundary_propagation(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 17)) {
+    version_tool_settings_input_samples(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 18)) {
+    version_sequencer_default_filter(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 19)) {
+    version_geonode_rotation_name(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 20)) {
+    version_modifier_persistent_uid(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 21)) {
+    version_brush_dir_in(bmain);
+  }
+
+  /* Keep point/spot light soft falloff for files created before 4.0. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 0)) {
+    version_light_soft_falloff(bmain);
+  }
+
+  /* 4.2 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 1)) {
+    version_grease_pencil_layer_scale(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 2)) {
+    version_scene_motion_blur(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 3)) {
+    version_compositor_execution_mode(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 4)) {
+    version_space_image_stretch_opacity(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 5)) {
+    version_output_avi_to_ffmpeg(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 6)) {
+    version_brush_sculpt_curve_radius(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 8)) {
+    version_light_shadow_filter_radius(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 9)) {
+    version_tool_settings_snap_angle_increment(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 10)) {
+    version_eevee_gtao_resolution(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 12)) {
+    version_hue_correct_wrapping(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 14)) {
+    version_motion_path_color_post(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 18)) {
+    version_light_transmission_fac(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 19)) {
+    version_eevee_volume_indirect(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 20)) {
+    version_sequencer_snap_to_markers(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 21)) {
+    add_image_editor_asset_shelf(*bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 22)) {
+    version_sequencer_display_missing_media(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 23)) {
+    version_tool_settings_uv_sculpt(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 24)) {
+    version_material_thickness_mode(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 25)) {
+    version_compositor_fast_gauss(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 26)) {
+    version_eevee_shadow_resolution_scale(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 27)) {
+    version_sequencer_show_final_cache(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 28)) {
+    version_update_timecode_modes(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 29)) {
+    version_sequencer_text_data(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 30)) {
+    version_ntree_clear_flag_2(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 31)) {
+    version_light_probe_grid_surfel_density(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 31)) {
+    version_ntree_world_output(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 33)) {
+    version_compositor_gpu_device(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 34)) {
+    version_light_shadow_max_resolution(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 36)) {
+    version_grease_pencil_brush_radius(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 37)) {
+    version_world_sun_shadow(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 38)) {
+    version_grease_pencil_hardness_to_softness(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 39)) {
+    version_light_cast_shadow(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 40)) {
+    version_ntree_transform_location_rename(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 41)) {
+    version_light_shadow_jitter_overblur(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 43)) {
+    version_world_sun_shadow_max_resolution(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 44)) {
+    version_eevee_fast_gi(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 45)) {
+    version_space3d_show_camera_guides(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 46)) {
+    version_eevee_fast_gi_thickness(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 48)) {
+    version_bone_custom_shape_wire_width(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 49)) {
+    version_space3d_show_camera_passepartout(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 50)) {
+    version_geonode_capture_attribute(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 53)) {
+    version_node_show_reroute_auto_labels(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 55)) {
+    version_compositor_curve_filmlike(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 60) ||
+      (bmain->versionfile == 403 && !MAIN_VERSION_FILE_ATLEAST(bmain, 403, 3)))
+  {
+    version_legacy_rotation_constraints(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 61)) {
+    version_eevee_gi_cubemap_resolution(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 64)) {
+    version_eevee_transparent_shadows(bmain);
+  }
+
+  /* 4.3 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 2)) {
+    version_space_node_clear_unused_5(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 3)) {
+    version_brush_alpha_simplify_px(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 4)) {
+    version_view_settings_temperature_tint(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 7)) {
+    version_sequencer_snap_defaults(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 8)) {
+    update_paint_modes_for_brush_assets(*bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 9)) {
+    fix_built_in_curve_attribute_defaults(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 10)) {
+    version_node_color_balance_white_point(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 11)) {
+    version_curves_active_attribute(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 13)) {
+    version_camera_cylindrical_params(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 14)) {
+    version_compositor_file_output_color_space(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 15)) {
+    version_collection_exporter_name(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 16)) {
+    version_eevee_enable_fast_gi(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 17)) {
+    version_ntree_default_group_width(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 20)) {
+    version_sequencer_show_tools(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 21)) {
+    version_space_clip_clear_time_sync(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 22)) {
+    add_bevel_modifier_attribute_name_defaults(*bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 23)) {
+    version_nodes_bake_target_keep_disk(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 24)) {
+    version_ntree_reroute_storage(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 26)) {
+    hide_simulation_node_skip_socket_value(*bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 28)) {
+    version_view3d_grease_pencil_grid(bmain);
+    version_compositor_clear_preview(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 29)) {
+    version_modifier_show_warnings(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 31)) {
+    version_sequencer_default_tool_select_box(bmain);
+  }
+
+  /* 4.4 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 1)) {
+    version_sequencer_convert_text_anchor(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 4)) {
+    version_space_file_sort_asset_catalog(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 6)) {
+    add_subsurf_node_limit_surface_option(*bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 8)) {
+    version_geonode_remove_triangulate_min_size(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 10)) {
+    version_fcurve_noise_mod(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 11)) {
+    version_space_image_paint_tool(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 12)) {
+    version_node_locations_global(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 13)) {
+    version_node_property_flags(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 14)) {
+    version_ntree_group_input_data_block_reference(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 15)) {
+    version_sequencer_clear_unused_flags(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 16)) {
+    version_shader_mix_identifier(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 17)) {
+    version_compositor_denoise_quality(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 22)) {
+    version_cycles_sample_offset(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 23)) {
+    version_curves_surface_collision_distance(bmain, fd);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 24)) {
+    version_ntree_geometry_normal_input(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 26)) {
+    version_brush_mask_stencil(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 27)) {
+    version_compositor_viewer_shortcut(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 28)) {
+    version_sequencer_snap_to_retiming(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 29)) {
+    version_tool_settings_paint_clone_alpha(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 30)) {
+    version_window_hide_vertical_scroll(bmain);
+  }
+
+  /* 4.5 */
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 2)) {
+    version_sequencer_update_overdrop(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 4)) {
+    version_geonode_curve_to_mesh_scale_input(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 5)) {
+    version_sequencer_snap_to_frame_range(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 6)) {
+    asset_browser_add_list_view(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 7)) {
+    version_geonode_store_named_grid(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
+    version_compositor_generic_nodes(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 9)) {
+    version_space_file_import_flags(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 15)) {
+    version_compositor_scale_interpolation(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 16)) {
+    version_grease_pencil_aa(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 17)) {
+    version_show_texpaint_to_show_uv(bmain);
+    version_set_uv_face_overlay_defaults(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 18)) {
+    version_compositor_corner_pin(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 19)) {
+    version_properties_visible_tabs(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 20)) {
+    version_image_renderslots_utf8(bmain);
+    version_render_ppm(bmain);
+  }
+
+  /* Encompasses multiple version checks inside. */
+  version_compositor_options_to_inputs(bmain);
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 46)) {
+    version_window_2d_zoom(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 51)) {
+    version_shadow_terminator(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 56)) {
+    version_convert_sculpt_planar_brushes(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 57)) {
+    version_bone_envelope_radii(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 61)) {
+    version_compositor_viewer_remove_alpha(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 62)) {
+    version_compositor_bright_contrast_remove_premultiplied(bmain);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 63)) {
+    version_compositor_alpha_over_remove_premultiply(bmain);
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
