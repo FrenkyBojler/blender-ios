@@ -25,6 +25,7 @@ struct ListBase;
 struct MaskLayer;
 struct Object;
 struct Scene;
+struct Strip;
 struct bAction;
 struct bActionGroup;
 struct bAnimContext;
@@ -280,6 +281,9 @@ void gpl_to_keylist(bDopeSheet *ads, bGPDlayer *gpl, AnimKeylist *keylist);
 
 /* Mask */
 void mask_to_keylist(bDopeSheet *ads, MaskLayer *masklay, AnimKeylist *keylist);
+
+/* Sequencer strip data. */
+void sequencer_strip_to_keylist(const Strip &strip, AnimKeylist &keylist, Scene &scene);
 
 /* ActKeyColumn API ---------------- */
 

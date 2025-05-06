@@ -48,6 +48,7 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 
@@ -141,12 +142,27 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
     return;
   }
 
-  bAnimContext ac;
-  if (!ANIM_animdata_get_context(C, &ac)) {
+  ScrArea *area = CTX_wm_area(C);
+
+  if (area->spacetype == SPACE_SEQ) {
+    /* Special case for the sequencer since it has retiming keys, but those have no bAnimListElem
+     * representation. Need to manually add entries to keylist. */
+    op_data.keylist = ED_keylist_create();
+    Scene *scene = CTX_data_scene(C);
+
+    ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+    LISTBASE_FOREACH (Strip *, strip, seqbase) {
+      sequencer_strip_to_keylist(*strip, *op_data.keylist, *scene);
+    }
+    ED_keylist_prepare_for_direct_access(op_data.keylist);
     return;
   }
 
-  ScrArea *area = CTX_wm_area(C);
+  bAnimContext ac;
+  if (!ANIM_animdata_get_context(C, &ac)) {
+    BLI_assert_unreachable();
+    return;
+  }
 
   ListBase anim_data = {nullptr, nullptr};
 
@@ -308,8 +324,11 @@ static float get_nla_strip_snap_target(bContext *C, const float timeline_frame)
 
 /* ---- */
 
-static blender::Vector<SnapTarget> seq_get_snap_targets(Scene *scene, const float timeline_frame)
+static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
+                                                        FrameChangeModalData &op_data,
+                                                        const float timeline_frame)
 {
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
 
   blender::Vector<SnapTarget> targets;
@@ -323,6 +342,11 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(Scene *scene, const floa
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
     const float snap_target = get_marker_snap_target(scene, timeline_frame);
+    targets.append({snap_target, true});
+  }
+
+  if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
+    const float snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
     targets.append({snap_target, true});
   }
 
@@ -453,7 +477,7 @@ static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const 
   Scene *scene = CTX_data_scene(C);
   switch (area->spacetype) {
     case SPACE_SEQ:
-      targets = seq_get_snap_targets(scene, frame);
+      targets = seq_get_snap_targets(C, op_data, frame);
       break;
     case SPACE_ACTION:
       targets = action_get_snap_targets(C, op_data, frame);

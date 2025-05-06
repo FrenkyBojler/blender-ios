@@ -28,12 +28,15 @@
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BKE_fcurve.hh"
 #include "BKE_grease_pencil.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_keylist.hh"
+
+#include "SEQ_retiming.hh"
 
 #include "ANIM_action.hh"
 
@@ -618,6 +621,50 @@ static void nupdate_ak_gpframe(ActKeyColumn *ak, void *data)
   if (gpf->key_type == BEZT_KEYTYPE_KEYFRAME) {
     ak->key_type = BEZT_KEYTYPE_KEYFRAME;
   }
+}
+
+/* ......... */
+
+/* Extra struct to pass the timeline frame since the retiming key doesn't contain that and we would
+ * need the scene to get it. */
+struct SeqAllocateData {
+  const SeqRetimingKey *key;
+  float timeline_frame;
+};
+
+/* New node callback used for building ActKeyColumns from Sequencer keys. */
+static ActKeyColumn *nalloc_ak_seqframe(void *data)
+{
+  ActKeyColumn *ak = MEM_callocN<ActKeyColumn>("ActKeyColumnGPF");
+  const SeqAllocateData *allocate_data = (SeqAllocateData *)data;
+  const SeqRetimingKey *timing_key = allocate_data->key;
+
+  /* store settings based on state of BezTriple */
+  ak->cfra = allocate_data->timeline_frame;
+  ak->sel = (timing_key->flag & SEQ_KEY_SELECTED) ? SELECT : 0;
+  ak->key_type = eBezTriple_KeyframeType::BEZT_KEYTYPE_KEYFRAME;
+
+  /* Count keyframes in this column. */
+  ak->totkey = 1;
+  /* Set as visible block. */
+  ak->totblock = 1;
+  ak->block.sel = ak->sel;
+  ak->block.flag = 0;
+
+  return ak;
+}
+
+/* Node updater callback used for building ActKeyColumns from Sequencer keys. */
+static void nupdate_ak_seqframe(ActKeyColumn *ak, void *data)
+{
+  SeqAllocateData *allocate_data = static_cast<SeqAllocateData *>(data);
+
+  /* Set selection status and 'touched' status. */
+  if (allocate_data->key->flag & SEQ_KEY_SELECTED) {
+    ak->sel = SELECT;
+  }
+
+  ak->totkey++;
 }
 
 /* ......... */
@@ -1449,4 +1496,19 @@ void mask_to_keylist(bDopeSheet * /*ads*/, MaskLayer *masklay, AnimKeylist *keyl
   }
 
   update_keyblocks(keylist, nullptr, 0);
+}
+
+void sequencer_strip_to_keylist(const Strip &strip, AnimKeylist &keylist, Scene &scene)
+{
+  if (!blender::seq::retiming_is_active(&strip)) {
+    return;
+  }
+  keylist_reset_last_accessed(&keylist);
+  for (const SeqRetimingKey &retime_key : blender::seq::retiming_keys_get(&strip)) {
+    const float cfra = blender::seq::retiming_key_timeline_frame_get(&scene, &strip, &retime_key);
+    SeqAllocateData allocate_data = {&retime_key, cfra};
+    keylist_add_or_update_column(
+        &keylist, cfra, nalloc_ak_seqframe, nupdate_ak_seqframe, &allocate_data);
+  }
+  update_keyblocks(&keylist, nullptr, 0);
 }
