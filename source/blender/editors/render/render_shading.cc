@@ -741,7 +741,7 @@ void OBJECT_OT_material_slot_remove_unused(wmOperatorType *ot)
 }
 
 static wmOperatorStatus material_slot_remove_all_exec(bContext *C, wmOperator *op)
-{  
+{
   /* Removing material slots in edit mode screws things up, see bug #21822. */
   Object *ob_active = CTX_data_active_object(C);
   if (ob_active && BKE_object_is_in_editmode(ob_active)) {
@@ -776,7 +776,7 @@ static wmOperatorStatus material_slot_remove_all_exec(bContext *C, wmOperator *o
   }
 
   BKE_reportf(op->reports, RPT_INFO, "Removed %d materials", removed);
-  
+
   if (ob_active->mode == OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);

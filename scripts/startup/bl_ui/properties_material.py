@@ -23,6 +23,7 @@ class MATERIAL_MT_context_menu(Menu):
         layout.operator("object.material_slot_remove_unused")
         layout.operator("object.material_slot_remove_all")
 
+
 class MATERIAL_UL_matslots(UIList):
 
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
