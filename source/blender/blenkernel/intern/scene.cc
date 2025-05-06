@@ -1403,7 +1403,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
   /* Runtime */
   sce->r.mode &= ~R_NO_CAMERA_SWITCH;
 
-  BLO_read_struct_list(reader, TimeMarker, &(sce->markers));
   BKE_time_markers_blend_read(reader, sce->markers);
 
   BLO_read_struct_list(reader, TransformOrientation, &(sce->transform_spaces));

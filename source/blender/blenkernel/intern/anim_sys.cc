@@ -4309,6 +4309,7 @@ void BKE_time_markers_blend_write(BlendWriter *writer, ListBase /* TimeMarker */
 
 void BKE_time_markers_blend_read(BlendDataReader *reader, ListBase /* TimeMarker */ &markers)
 {
+  BLO_read_struct_list(reader, TimeMarker, &markers);
   LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
     BLO_read_struct(reader, IDProperty, &marker->prop);
     IDP_BlendDataRead(reader, &marker->prop);
