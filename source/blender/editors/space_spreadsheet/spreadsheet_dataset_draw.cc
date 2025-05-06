@@ -848,7 +848,7 @@ class SimulationViewerPathPathItem : public ViewerPathTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, "Simulation", ICON_BLANK1);
+    uiItemL(&row, label_, ICON_BLANK1);
   }
 };
 
@@ -916,6 +916,7 @@ class DataSourceTreeView : public ui::AbstractTreeView {
   DataSourceTreeView(const bContext &C)
       : sspreadsheet_(*CTX_wm_space_spreadsheet(&C)), screen_(*CTX_wm_screen(&C))
   {
+    /* This tree view contains only a flat list of items without. */
     is_flat_ = true;
   }
 
