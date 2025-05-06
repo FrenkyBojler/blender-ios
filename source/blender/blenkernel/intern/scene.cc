@@ -1000,8 +1000,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
      * writing the scene.*/
     /* We need a valid pointer to scene->nodetree to write to, so allocate a dummy byte to get a
      * valid pointer address. */
-    char dummy;
-    sce->nodetree = reinterpret_cast<bNodeTree *>(&dummy);
+    sce->nodetree = reinterpret_cast<bNodeTree *>(MEM_mallocN(1, "dummy pointer"));
   }
 
   /* write LibData */
@@ -1122,6 +1121,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     temp_nodetree->chunksize = 256;
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
+    MEM_freeN(sce->nodetree);
     sce->nodetree = nullptr;
   }
 
