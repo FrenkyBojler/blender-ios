@@ -73,11 +73,11 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
 
     const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | (use_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0;
 
-    float *r_cubic_array;
-    uint32_t *r_orig_index_map;
-    uint32_t r_cubic_array_len;
-    uint32_t *r_corner_index_array;
-    uint32_t r_corner_index_array_len;
+    float *r_cubic_array = nullptr;
+    uint32_t *r_orig_index_map = nullptr;
+    uint32_t r_cubic_array_len = 0;
+    uint32_t *r_corner_index_array = nullptr;
+    uint32_t r_corner_index_array_len = 0;
 
     int error = 1;
     if (method == FitMethod::Split) {
@@ -120,6 +120,8 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
       return;
     }
 
+    BLI_assert(r_cubic_array!= nullptr && r_cubic_array_len > 0);
+    
     const int dst_points_num = r_cubic_array_len;
     const Span<float3> cubic_array_span(reinterpret_cast<float3 *>(r_cubic_array),
                                         dst_points_num * 3);
