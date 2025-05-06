@@ -276,40 +276,33 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   std::mutex progress_mutex;
   progress_count = 0;
   const Span<USDPrimReader *> readers = archive->readers();
-  blender::threading::parallel_for(readers.index_range(), 1, [&](const IndexRange range) {
+  threading::parallel_for_each(readers.index_range(), [&](const int64_t index) {
     /* Quickly drain the parallel loop if cancelation was requested. */
     if (G.is_break) {
       data->was_canceled = true;
       return;
     }
 
-    for (const int reader_i : range) {
-      USDPrimReader *reader = readers[reader_i];
-      if (!reader) {
-        continue;
-      }
+    USDPrimReader *reader = readers[index];
+    if (!reader) {
+      return;
+    }
 
-      Object *ob = reader->object();
-      reader->read_object_data(data->bmain, 0.0);
+    Object *ob = reader->object();
+    reader->read_object_data(data->bmain, 0.0);
 
-      const USDPrimReader *parent = reader->parent();
-      if (parent == nullptr) {
-        ob->parent = nullptr;
-      }
-      else {
-        ob->parent = parent->object();
-      }
+    const USDPrimReader *parent = reader->parent();
+    if (parent == nullptr) {
+      ob->parent = nullptr;
+    }
+    else {
+      ob->parent = parent->object();
+    }
 
-      {
-        std::scoped_lock lock{progress_mutex};
-        *data->progress = 0.5f + 0.5f * (++progress_count / size);
-        *data->do_update = true;
-      }
-
-      if (G.is_break) {
-        data->was_canceled = true;
-        break;
-      }
+    {
+      std::scoped_lock lock{progress_mutex};
+      *data->progress = 0.5f + 0.5f * (++progress_count / size);
+      *data->do_update = true;
     }
   });
 
