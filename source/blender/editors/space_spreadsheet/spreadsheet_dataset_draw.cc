@@ -752,6 +752,23 @@ std::optional<bool> DataSetViewItem::should_be_active() const
   return true;
 }
 
+class RepeatZoneItem : public ui::AbstractTreeViewItem {
+ private:
+  const RepeatZoneViewerPathElem &repeat_zone_;
+
+ public:
+  RepeatZoneItem(const RepeatZoneViewerPathElem &repeat_zone) : repeat_zone_(repeat_zone)
+  {
+    label_ = IFACE_("Repeat Zone");
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    uiItemL(&row, IFACE_("Repeat Zone"), ICON_BLANK1);
+    draw_row_suffix(*this, std::to_string(repeat_zone_.iteration));
+  }
+};
+
 class DataSourceTreeView : public ui::AbstractTreeView {
  private:
   SpaceSpreadsheet &sspreadsheet_;
@@ -820,7 +837,8 @@ class DataSourceTreeView : public ui::AbstractTreeView {
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
-        this->add_tree_item<ui::BasicTreeViewItem>("Repeat Zone", ICON_BLANK1);
+        this->add_tree_item<RepeatZoneItem>(
+            reinterpret_cast<const RepeatZoneViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
