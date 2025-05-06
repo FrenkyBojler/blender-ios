@@ -17,6 +17,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_volume.hh"
 
 #include "RNA_access.hh"
@@ -752,12 +753,33 @@ std::optional<bool> DataSetViewItem::should_be_active() const
   return true;
 }
 
-class RepeatZoneItem : public ui::AbstractTreeViewItem {
+class IDViewerPathItem : public ui::AbstractTreeViewItem {
+  const IDViewerPathElem &id_elem_;
+
+ public:
+  IDViewerPathItem(const IDViewerPathElem &id_elem) : id_elem_(id_elem)
+  {
+    label_ = id_elem.id ? id_elem.id->name + 2 : "No data-block";
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    if (id_elem_.id) {
+      const int icon = ED_outliner_icon_from_id(*id_elem_.id);
+      uiItemL(&row, BKE_id_name(*id_elem_.id), icon);
+    }
+    else {
+      uiItemL(&row, "No data-block", ICON_BLANK1);
+    }
+  }
+};
+
+class RepeatViewerPathItem : public ui::AbstractTreeViewItem {
  private:
   const RepeatZoneViewerPathElem &repeat_zone_;
 
  public:
-  RepeatZoneItem(const RepeatZoneViewerPathElem &repeat_zone) : repeat_zone_(repeat_zone)
+  RepeatViewerPathItem(const RepeatZoneViewerPathElem &repeat_zone) : repeat_zone_(repeat_zone)
   {
     label_ = IFACE_("Repeat");
   }
@@ -769,12 +791,12 @@ class RepeatZoneItem : public ui::AbstractTreeViewItem {
   }
 };
 
-class ForeachGeometryElementZoneItem : public ui::AbstractTreeViewItem {
+class ForeachElementViewerPathItem : public ui::AbstractTreeViewItem {
  private:
   const ForeachGeometryElementZoneViewerPathElem &foreach_geo_elem_zone_;
 
  public:
-  ForeachGeometryElementZoneItem(
+  ForeachElementViewerPathItem(
       const ForeachGeometryElementZoneViewerPathElem &foreach_geo_elem_zone)
       : foreach_geo_elem_zone_(foreach_geo_elem_zone)
   {
@@ -826,10 +848,7 @@ class DataSourceTreeView : public ui::AbstractTreeView {
   {
     switch (elem.type) {
       case VIEWER_PATH_ELEM_TYPE_ID: {
-        const IDViewerPathElem &id_elem = reinterpret_cast<const IDViewerPathElem &>(elem);
-        // TODO: Add icon.
-        this->add_tree_item<ui::BasicTreeViewItem>(
-            id_elem.id ? id_elem.id->name + 2 : "Invalid data-block", ICON_OBJECT_DATA);
+        this->add_tree_item<IDViewerPathItem>(reinterpret_cast<const IDViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_MODIFIER: {
@@ -856,12 +875,12 @@ class DataSourceTreeView : public ui::AbstractTreeView {
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
-        this->add_tree_item<RepeatZoneItem>(
+        this->add_tree_item<RepeatViewerPathItem>(
             reinterpret_cast<const RepeatZoneViewerPathElem &>(elem));
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
-        this->add_tree_item<ForeachGeometryElementZoneItem>(
+        this->add_tree_item<ForeachElementViewerPathItem>(
             reinterpret_cast<const ForeachGeometryElementZoneViewerPathElem &>(elem));
         break;
       }
