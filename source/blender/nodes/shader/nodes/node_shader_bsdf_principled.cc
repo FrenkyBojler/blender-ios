@@ -594,15 +594,29 @@ NODE_SHADER_MATERIALX_BEGIN
       in.insert(e_in.begin(), e_in.end());
 
       NodeItem base_color = in["base_color"];
-      NodeItem anisotropy = in["anisotropic"];
-      NodeItem rotation = in["anisotropic_rotation"] * val(360.0f);
-      NodeItem normal = in["normal"];
-      NodeItem tangent = in["tangent"];
+      // anisotropy scaled down to approximately match the principled BSDF anisotrophy
+      NodeItem anisotropy = in["anisotropic"] * val(0.7f);
+      // rotation is offset by 90 degrees and inverted to approximately align visually with principled BSDF direction.
+      NodeItem rotation = -((in["anisotropic_rotation"] * val(360.0f)) + val(90.0f));
 
-      NodeItem n_main_tangent = empty();
-      if (tangent && normal) {
+      NodeItem tangent = in["tangent"];
+      if (anisotropy)
+      {
+        // only create a normal node locally if we need to use it to rotate the tangent vector.
+        // we don't actually pass this to the exported material.
+        NodeItem normal = in["normal"];
+        if (!normal) {
+          const std::string world = "world";
+          normal = create_node("normal", NodeItem::Type::Vector3, {{"space", val(world)}}).normalize();
+        }
+
+        if (!tangent) {
+          const std::string world = "world";
+          tangent = create_node("tangent", NodeItem::Type::Vector3, {{"space", val(world)}}).normalize();
+        }
+
         NodeItem n_tangent_rotate_normalize = tangent.rotate(rotation, normal).normalize();
-        n_main_tangent = anisotropy.if_else(
+        tangent = anisotropy.if_else(
             NodeItem::CompareOp::Greater, val(0.0f), n_tangent_rotate_normalize, tangent);
       }
 
@@ -611,13 +625,19 @@ NODE_SHADER_MATERIALX_BEGIN
       NodeItem thin_film_weight = thin_film_thickness.if_else(
           NodeItem::CompareOp::Greater, val(0.0f), val(1.0f), val(0.0f));
 
+      // "specular" here is "Specular IOR Level" in principled BSDF
+      // 0 = no specular
+      // 0.5 = full weight specular
+      // 1 = double specular weight
+      NodeItem specularWeight = in["specular"] * val(2.0f);
+
       res = create_node("open_pbr_surface",
                         NodeItem::Type::SurfaceShader,
                         {{"base_weight", val(1.0f)},
                          {"base_color", base_color},
                          {"base_diffuse_roughness", in["diffuse_roughness"]},
                          {"base_metalness", in["metallic"]},
-                         {"specular_weight", in["specular"]},
+                         {"specular_weight", specularWeight},
                          {"specular_color", in["specular_tint"]},
                          {"specular_roughness", in["roughness"]},
                          {"specular_ior", in["ior"]},
@@ -638,15 +658,15 @@ NODE_SHADER_MATERIALX_BEGIN
                          {"coat_ior", in["coat_ior"]},
                          // Blender Principled BSDF does not support anisotropy for the coat
                          //  {"coat_roughness_anisotropy", anisotropic},
-                         //  {"geometry_coat_tangent", n_main_tangent},
+                         //  {"geometry_coat_tangent", tangent},
                          {"emission_luminance", in["emission"]},
                          {"emission_color", in["emission_color"]},
                          {"thin_film_weight", thin_film_weight},
                          {"thin_film_thickness", thin_film_thickness},
                          {"thin_film_ior", in["thin_film_IOR"]},
-                         {"geometry_normal", normal},
+                         {"geometry_normal", in["normal"]},
                          {"geometry_coat_normal", in["coat_normal"]},
-                         {"geometry_tangent", n_main_tangent},
+                         {"geometry_tangent", tangent},
                          {"geometry_opacity", in["alpha"]}});
       break;
     }
