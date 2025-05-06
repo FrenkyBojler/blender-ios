@@ -812,6 +812,13 @@ static void spreadsheet_data_source_panel_draw(const bContext &C, uiLayout &layo
   }
   uiItemR(&layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
   spreadsheet_data_source_list_draw(C, layout);
+
+  const int viewer_path_len = BLI_listbase_count(&viewer_path.path);
+  if (sspreadsheet.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
+      viewer_path_len < 3)
+  {
+    uiItemL(&layout, IFACE_("No active viewer node"), ICON_INFO);
+  }
 }
 
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
