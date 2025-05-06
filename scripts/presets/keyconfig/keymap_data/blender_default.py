@@ -4136,27 +4136,8 @@ def km_grease_pencil_sculpt_mode(params):
     return keymap
 
 
-def km_grease_pencil_weight_paint(params):
-    # NOTE: This keymap falls through to "Pose" when an armature modifying the GP object
-    # is selected in weight paint mode. When editing the key-map take care that pose operations
-    # (such as transforming bones) is not impacted.
-    items = []
-    keymap = (
-        "Grease Pencil Weight Paint",
-        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
-        {"items": items},
-    )
-
+def km_grease_pencil_weight_generic(params, items):
     items.extend([
-        # Paint weight
-        ("grease_pencil.weight_brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
-        ("grease_pencil.weight_brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
-         {"properties": [("mode", 'INVERT')]}),
-        # Increase/Decrease brush size
-        ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
-         {"properties": [("scalar", 0.9)]}),
-        ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
-         {"properties": [("scalar", 1.0 / 0.9)]}),
         # Radial controls
         *_template_paint_radial_control("gpencil_weight_paint"),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True},
@@ -4214,6 +4195,32 @@ def km_grease_pencil_weight_paint(params):
             ("view3d.select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True, "shift": True}, None),
         ])
 
+
+def km_grease_pencil_weight_paint(params):
+    # NOTE: This keymap falls through to "Pose" when an armature modifying the GP object
+    # is selected in weight paint mode. When editing the key-map take care that pose operations
+    # (such as transforming bones) is not impacted.
+    items = []
+    keymap = (
+        "Grease Pencil Weight Paint",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        {"items": items},
+    )
+
+    items.extend([
+        # Paint weight
+        ("grease_pencil.weight_brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("grease_pencil.weight_brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("mode", 'INVERT')]}),
+        # Increase/Decrease brush size
+        ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 0.9)]}),
+        ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 1.0 / 0.9)]}),
+    ])
+
+    km_grease_pencil_weight_generic(params, items)
+
     return keymap
 
 
@@ -4226,21 +4233,13 @@ def km_grease_pencil_weight_gradient(params):
     )
 
     items.extend([
-        ("grease_pencil.weight_gradient",
-            {"type": params.tool_mouse, "value": params.tool_maybe_tweak_value},
-            {"properties": [("mode", 'NORMAL')]}),
-        ("grease_pencil.weight_gradient",
-            {"type": params.tool_mouse, "value": params.tool_maybe_tweak_value, "ctrl": True},
-            {"properties": [("mode", 'INVERT')]}),
-        # Radial controls
-        *_template_paint_radial_control("gpencil_weight_paint"),
-        ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True},
-         radial_control_properties("gpencil_weight_paint", 'weight', 'use_unified_weight')),
-        # Toggle Add/Subtract for weight draw tool
-        ("grease_pencil.weight_toggle_direction", {"type": 'D', "value": 'PRESS'}, None),
-        # Context menu
-        *_template_items_context_panel("VIEW3D_PT_greasepencil_weight_context_menu", params.context_menu_event),
+        ("grease_pencil.weight_gradient", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+         {"properties": [("mode", 'NORMAL')]}),
+        ("grease_pencil.weight_gradient", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("mode", 'INVERT')]}),
     ])
+
+    km_grease_pencil_weight_generic(params, items)
 
     return keymap
 
