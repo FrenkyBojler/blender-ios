@@ -993,17 +993,15 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     sce->cursor = View3DCursor{};
   }
 
-  /* We need a valid pointer to scene->nodetree to write to, so allocate a dummy byte to get a
-   * valid pointer address. */
   /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not initialize the
    * address of `scene->nodetree` anymore. */
-  bNodeTree *dummy_nodetree;
   if (sce->compositing_nodetree) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
      * writing the scene.*/
-    dummy_nodetree = blender::bke::node_tree_add_tree(
-        nullptr, "Dummy Nodetree", "CompositorNodeTree");
-    sce->nodetree = dummy_nodetree;
+    /* We need a valid pointer to scene->nodetree to write to, so allocate a dummy byte to get a
+     * valid pointer address. */
+    char dummy;
+    sce->nodetree = reinterpret_cast<bNodeTree *>(&dummy);
   }
 
   /* write LibData */
@@ -1125,9 +1123,6 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
     sce->nodetree = nullptr;
-    blender::bke::node_tree_free_tree(*dummy_nodetree);
-    MEM_freeN(dummy_nodetree);
-    dummy_nodetree = nullptr;
   }
 
   BKE_color_managed_view_settings_blend_write(writer, &sce->view_settings);
