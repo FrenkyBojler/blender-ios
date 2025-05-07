@@ -7850,13 +7850,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /* Fix brush->tip_scale_x which should never be zero. */
-  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-    if (brush->tip_scale_x == 0.0f) {
-      brush->tip_scale_x = 1.0f;
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 10)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -10643,6 +10636,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
             space_sequencer->draw_flag &= ~SEQ_DRAW_UNUSED_0;
           }
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 67)) {
+    /* Fix brush->tip_scale_x which should never be zero. */
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->tip_scale_x == 0.0f) {
+        brush->tip_scale_x = 1.0f;
       }
     }
   }
