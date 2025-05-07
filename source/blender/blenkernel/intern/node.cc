@@ -2503,7 +2503,10 @@ void node_modify_socket_type(bNodeTree &ntree,
           sock.default_value_typed<bNodeSocketValueString>()->subtype = socktype->subtype;
           break;
         }
-        case SOCK_RGBA:
+        case SOCK_RGBA: {
+          sock.default_value_typed<bNodeSocketValueRGBA>()->subtype = socktype->subtype;
+          break;
+        }
         case SOCK_SHADER:
         case SOCK_BOOLEAN:
         case SOCK_ROTATION:
