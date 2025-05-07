@@ -157,7 +157,7 @@ struct uiLayout : uiItem {
 
   /**
    * Add a pie menu layout, buttons are arranged around a center.
-   * Only one pie menu per layout root can be added, if its already initialized it will be
+   * Only one pie menu per layout root can be added, if it's already initialized it will be
    * returned instead of adding a new one.
    */
   uiLayout &menu_pie();
