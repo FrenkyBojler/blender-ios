@@ -162,7 +162,7 @@ static CLG_LogRef LOG = {"bke.object"};
 #define VPARENT_THREADING_HACK
 
 #ifdef VPARENT_THREADING_HACK
-static ThreadMutex vparent_lock = BLI_MUTEX_INITIALIZER;
+static blender::Mutex vparent_lock;
 #endif
 
 static void copy_object_pose(Object *obn, const Object *ob, const int flag);
@@ -2713,7 +2713,7 @@ void BKE_object_obdata_size_init(Object *ob, const float size)
       unit_m4(mat);
       scale_m4_fl(mat, size);
 
-      BKE_lattice_transform(lt, (float(*)[4])mat, false);
+      BKE_lattice_transform(lt, (float (*)[4])mat, false);
       break;
     }
   }
@@ -3059,11 +3059,10 @@ static void give_parvert(const Object *par, int nr, float vec[3], const bool use
         numVerts = em->bm->totvert;
         if (em->bm->elem_table_dirty & BM_VERT) {
 #ifdef VPARENT_THREADING_HACK
-          BLI_mutex_lock(&vparent_lock);
+          std::scoped_lock lock(vparent_lock);
           if (em->bm->elem_table_dirty & BM_VERT) {
             BM_mesh_elem_table_ensure(em->bm, BM_VERT);
           }
-          BLI_mutex_unlock(&vparent_lock);
 #else
           BLI_assert_msg(0, "Not safe for threading");
           BM_mesh_elem_table_ensure(em->bm, BM_VERT);
@@ -3139,7 +3138,7 @@ static void give_parvert(const Object *par, int nr, float vec[3], const bool use
     DispList *dl = par->runtime->curve_cache ?
                        BKE_displist_find(&par->runtime->curve_cache->disp, DL_VERTS) :
                        nullptr;
-    float(*co)[3] = dl ? (float(*)[3])dl->verts : nullptr;
+    float (*co)[3] = dl ? (float (*)[3])dl->verts : nullptr;
     int tot;
 
     if (latt->editlatt) {
