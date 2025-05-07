@@ -1273,7 +1273,6 @@ void NODE_OT_add_group_input_node_with_socket(wmOperatorType *ot)
 
 static wmOperatorStatus node_add_group_input_node_with_panel_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *ntree = snode->edittree;
 
@@ -1312,14 +1311,7 @@ static wmOperatorStatus node_add_group_input_node_with_panel_exec(bContext *C, w
   }
 
   /* Add Group Input node. */
-  bNode *group_input_node = bke::node_add_node(C, *ntree, "NodeGroupInput");
-  if (!group_input_node) {
-    BKE_report(op->reports, RPT_WARNING, "Could not add Group Input node");
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Place node at mouse position. */
-  position_node_based_on_mouse(*group_input_node, snode->runtime->cursor);
+  bNode *group_input_node = add_node(*C, "NodeGroupInput", snode->runtime->cursor);
 
   /* Initially hide all sockets. */
   LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
@@ -1334,11 +1326,6 @@ static wmOperatorStatus node_add_group_input_node_with_panel_exec(bContext *C, w
       socket->flag &= ~SOCK_HIDDEN;
     }
   }
-
-  /* Select added node. */
-  bke::node_set_active(*ntree, *group_input_node);
-
-  BKE_main_ensure_invariants(*bmain, ntree->id);
 
   return OPERATOR_FINISHED;
 }
