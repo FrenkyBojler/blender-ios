@@ -4821,7 +4821,7 @@ static void draw_frame_overlays(const bContext &C,
 static void draw_link_errors(SpaceNode &snode,
                              const bNodeLink &link,
                              const Span<bke::NodeLinkError> errors,
-                             Span<uiBlock *> blocks)
+                             uiBlock &invalid_links_block)
 {
   if (errors.is_empty()) {
     return;
@@ -4859,14 +4859,10 @@ static void draw_link_errors(SpaceNode &snode,
   ui_draw_dropshadow(&bg_rect, bg_corner_radius, UI_UNIT_X * 0.2f, snode.runtime->aspect, 0.5f);
   UI_draw_roundbox_4fv(&bg_rect, true, bg_corner_radius, bg_color);
 
-  /* Reuse block of the target node. There does not seem to be a reason to create a new one instead
-   * currently. */
-  uiBlock &block = *blocks[link.tonode->index()];
-
   /* Draw the icon itself with a tooltip. */
   const float icon_size = UI_UNIT_X;
-  UI_block_emboss_set(&block, ui::EmbossType::None);
-  uiBut *but = uiDefIconBut(&block,
+  UI_block_emboss_set(&invalid_links_block, ui::EmbossType::None);
+  uiBut *but = uiDefIconBut(&invalid_links_block,
                             UI_BTYPE_BUT,
                             0,
                             ICON_ERROR,
@@ -4880,6 +4876,15 @@ static void draw_link_errors(SpaceNode &snode,
                             std::nullopt);
   UI_but_func_tooltip_label_set(
       but, [tooltip = std::move(error_tooltip)](const uiBut * /*but*/) { return tooltip; });
+}
+
+static uiBlock &invalid_links_uiblock_init(const bContext &C)
+{
+  Scene *scene = CTX_data_scene(&C);
+  wmWindow *window = CTX_wm_window(&C);
+  ARegion *region = CTX_wm_region(&C);
+  return *UI_block_begin(
+      &C, scene, window, region, "invalid_links", blender::ui::EmbossType::None);
 }
 
 #define USE_DRAW_TOT_UPDATE
@@ -4924,11 +4929,14 @@ static void node_draw_nodetree(const bContext &C,
 
   nodelink_batch_end(snode);
 
+  uiBlock &invalid_links_block = invalid_links_uiblock_init(C);
   for (auto &&item : ntree.runtime->link_errors.items()) {
     if (const bNodeLink *link = item.key.try_find(ntree)) {
-      draw_link_errors(snode, *link, item.value, blocks);
+      draw_link_errors(snode, *link, item.value, invalid_links_block);
     }
   }
+  UI_block_end(&C, &invalid_links_block);
+  UI_block_draw(&C, &invalid_links_block);
 
   GPU_blend(GPU_BLEND_NONE);
 
