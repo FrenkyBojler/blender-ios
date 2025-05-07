@@ -8909,7 +8909,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "NodeTree");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(
-      prop, "Node Tree", "Compositing node tree (deprecated, use compositing_node_tree)");
+      prop, "Node Tree", "Compositing node tree. (Deprecated: Use compositing_node_tree.)");
 
   prop = RNA_def_property(srna, "compositing_node_tree", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "compositing_nodetree");
