@@ -24,6 +24,7 @@ using OCIO_GPUShader = struct OCIO_GPUShader;
 #define OCIO_ROLE_DEFAULT_BYTE "default_byte"
 #define OCIO_ROLE_DEFAULT_FLOAT "default_float"
 #define OCIO_ROLE_DEFAULT_SEQUENCER "default_sequencer"
+#define OCIO_ROLE_ACES_INTERCHANGE "aces_interchange"
 
 OCIO_DECLARE_HANDLE(OCIO_ConstConfigRc);
 OCIO_DECLARE_HANDLE(OCIO_ConstColorSpaceRc);
@@ -117,6 +118,8 @@ OCIO_ConstColorSpaceRcPtr *OCIO_configGetColorSpace(OCIO_ConstConfigRcPtr *confi
                                                     const char *name);
 int OCIO_configGetIndexForColorSpace(OCIO_ConstConfigRcPtr *config, const char *name);
 
+const char *OCIO_getColorSpaceFromFilepath(OCIO_ConstConfigRcPtr *config, const char *filepath);
+
 int OCIO_colorSpaceIsInvertible(OCIO_ConstColorSpaceRcPtr *cs);
 int OCIO_colorSpaceIsData(OCIO_ConstColorSpaceRcPtr *cs);
 void OCIO_colorSpaceIsBuiltin(OCIO_ConstConfigRcPtr *config,
@@ -208,7 +211,10 @@ bool OCIO_gpuDisplayShaderBind(OCIO_ConstConfigRcPtr *config,
                                const bool use_overlay,
                                const bool use_hdr,
                                const bool use_white_balance);
-void OCIO_gpuDisplayShaderUnbind(void);
+bool OCIO_gpuToSceneLinearShaderBind(OCIO_ConstConfigRcPtr *config,
+                                     const char *from_colorspace_name,
+                                     bool use_predivide);
+void OCIO_gpuShaderUnbind(void);
 void OCIO_gpuCacheFree(void);
 
 const char *OCIO_getVersionString(void);

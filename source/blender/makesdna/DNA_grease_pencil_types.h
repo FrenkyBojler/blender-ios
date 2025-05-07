@@ -261,7 +261,7 @@ typedef struct GreasePencilLayerTreeNode {
   int8_t type;
   char _pad[7];
   /**
-   * Channel color for dopesheet.
+   * Channel color for dope-sheet.
    */
   float color[3];
   /**
@@ -441,6 +441,11 @@ typedef struct GreasePencilOnionSkinningSettings {
  * The grease pencil data-block.
  */
 typedef struct GreasePencil {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_GP;
+#endif
+
   ID id;
   /** Animation data. */
   struct AnimData *adt;

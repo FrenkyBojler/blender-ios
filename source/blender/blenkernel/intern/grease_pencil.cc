@@ -112,7 +112,7 @@ static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &gre
 {
   using namespace blender::bke;
 
-  if (!DEG_is_evaluated_id(&id_dst) || !grease_pencil.adt) {
+  if (!DEG_is_evaluated(&id_dst) || !grease_pencil.adt) {
     return;
   }
 
@@ -305,7 +305,7 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_GP = {
-    /*id_code*/ ID_GP,
+    /*id_code*/ GreasePencil::id_type,
     /*id_filter*/ FILTER_ID_GP,
     /*dependencies_id_types*/ FILTER_ID_GP | FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_GP,
@@ -1940,6 +1940,15 @@ void LayerGroup::update_from_dna_read()
   }
 }
 
+void ensure_non_empty_layer_names(Main &bmain, GreasePencil &grease_pencil)
+{
+  for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+    if (layer->name().is_empty()) {
+      grease_pencil.rename_node(bmain, layer->as_node(), DATA_("Layer"));
+    }
+  }
+}
+
 }  // namespace blender::bke::greasepencil
 
 namespace blender::bke {
@@ -1998,8 +2007,7 @@ GreasePencil *BKE_grease_pencil_add(Main *bmain, const char *name)
 
 GreasePencil *BKE_grease_pencil_new_nomain()
 {
-  GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(
-      BKE_id_new_nomain(ID_GP, nullptr));
+  GreasePencil *grease_pencil = BKE_id_new_nomain<GreasePencil>(nullptr);
   return grease_pencil;
 }
 
@@ -2312,7 +2320,7 @@ void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *o
     GeometryComponentEditData &edit_component =
         geometry_set.get_component_for_write<GeometryComponentEditData>();
     edit_component.grease_pencil_edit_hints_ = std::make_unique<GreasePencilEditHints>(
-        *static_cast<const GreasePencil *>(DEG_get_original_object(object)->data));
+        *static_cast<const GreasePencil *>(DEG_get_original(object)->data));
   }
   grease_pencil_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
@@ -2589,6 +2597,8 @@ Material *BKE_grease_pencil_object_material_ensure_from_brush(Main *bmain,
   }
 
   /* Fall back to default material. */
+  /* XXX FIXME This is critical abuse of the 'default material' feature, these IDs should never be
+   * used/returned as 'regular' data. */
   return BKE_material_default_gpencil();
 }
 

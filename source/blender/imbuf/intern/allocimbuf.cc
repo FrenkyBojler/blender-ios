@@ -28,17 +28,7 @@
 
 #include "GPU_texture.hh"
 
-static SpinLock refcounter_spin;
-
-void imb_refcounter_lock_init()
-{
-  BLI_spin_init(&refcounter_spin);
-}
-
-void imb_refcounter_lock_exit()
-{
-  BLI_spin_end(&refcounter_spin);
-}
+#include "atomic_ops.h"
 
 #ifndef WIN32
 static SpinLock mmap_spin;
@@ -250,17 +240,7 @@ void IMB_freeImBuf(ImBuf *ibuf)
     return;
   }
 
-  bool needs_free = false;
-
-  BLI_spin_lock(&refcounter_spin);
-  if (ibuf->refcounter > 0) {
-    ibuf->refcounter--;
-  }
-  else {
-    needs_free = true;
-  }
-  BLI_spin_unlock(&refcounter_spin);
-
+  bool needs_free = atomic_sub_and_fetch_int32(&ibuf->refcounter, 1) < 0;
   if (needs_free) {
     /* Include this check here as the path may be manipulated after creation. */
     BLI_assert_msg(!(ibuf->filepath[0] == '/' && ibuf->filepath[1] == '/'),
@@ -277,9 +257,7 @@ void IMB_freeImBuf(ImBuf *ibuf)
 
 void IMB_refImBuf(ImBuf *ibuf)
 {
-  BLI_spin_lock(&refcounter_spin);
-  ibuf->refcounter++;
-  BLI_spin_unlock(&refcounter_spin);
+  atomic_add_and_fetch_int32(&ibuf->refcounter, 1);
 }
 
 ImBuf *IMB_makeSingleUser(ImBuf *ibuf)
@@ -288,9 +266,7 @@ ImBuf *IMB_makeSingleUser(ImBuf *ibuf)
     return nullptr;
   }
 
-  BLI_spin_lock(&refcounter_spin);
-  const bool is_single = (ibuf->refcounter == 0);
-  BLI_spin_unlock(&refcounter_spin);
+  const bool is_single = (atomic_load_int32(&ibuf->refcounter) == 0);
   if (is_single) {
     return ibuf;
   }
@@ -377,7 +353,7 @@ void *imb_alloc_pixels(
   return initialize_pixels ? MEM_callocN(size, alloc_name) : MEM_mallocN(size, alloc_name);
 }
 
-bool IMB_alloc_float_pixels(ImBuf *ibuf, const unsigned int channels, bool initialize_pixels)
+bool IMB_alloc_float_pixels(ImBuf *ibuf, const uint channels, bool initialize_pixels)
 {
   if (ibuf == nullptr) {
     return false;
@@ -587,7 +563,7 @@ ImBuf *IMB_allocImBuf(uint x, uint y, uchar planes, uint flags)
 
 bool IMB_initImBuf(ImBuf *ibuf, uint x, uint y, uchar planes, uint flags)
 {
-  memset(ibuf, 0, sizeof(ImBuf));
+  *ibuf = ImBuf{};
 
   ibuf->x = x;
   ibuf->y = y;
@@ -685,7 +661,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   }
   tbuf.dds_data.data = nullptr;
 
-  /* set malloc flag */
+  /* Set `malloc` flag. */
   tbuf.refcounter = 0;
 
   /* for now don't duplicate metadata */
@@ -723,7 +699,7 @@ size_t IMB_get_size_in_memory(const ImBuf *ibuf)
     channel_size += sizeof(float);
   }
 
-  size += channel_size * ibuf->x * ibuf->y * ibuf->channels;
+  size += channel_size * IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
 
   if (ibuf->miptot) {
     for (a = 0; a < ibuf->miptot; a++) {

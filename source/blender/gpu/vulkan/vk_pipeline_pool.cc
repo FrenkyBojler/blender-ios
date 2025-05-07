@@ -53,6 +53,7 @@ VKPipelinePool::VKPipelinePool()
       &vk_pipeline_vertex_input_state_create_info_;
   vk_graphics_pipeline_create_info_.pRasterizationState =
       &vk_pipeline_rasterization_state_create_info_;
+  vk_graphics_pipeline_create_info_.pDynamicState = &vk_pipeline_dynamic_state_create_info_;
   vk_graphics_pipeline_create_info_.pViewportState = &vk_pipeline_viewport_state_create_info_;
   vk_graphics_pipeline_create_info_.pMultisampleState =
       &vk_pipeline_multisample_state_create_info_;
@@ -99,6 +100,11 @@ VKPipelinePool::VKPipelinePool()
       VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_PROVOKING_VERTEX_STATE_CREATE_INFO_EXT;
   vk_pipeline_rasterization_provoking_vertex_state_info_.provokingVertexMode =
       VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT;
+
+  vk_dynamic_states_ = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+  vk_pipeline_dynamic_state_create_info_ = {};
+  vk_pipeline_dynamic_state_create_info_.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 
   vk_pipeline_viewport_state_create_info_ = {};
   vk_pipeline_viewport_state_create_info_.sType =
@@ -287,13 +293,15 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
           VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT :
           VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
+  /* Dynamic state */
+  vk_pipeline_dynamic_state_create_info_.dynamicStateCount = vk_dynamic_states_.size();
+  vk_pipeline_dynamic_state_create_info_.pDynamicStates = vk_dynamic_states_.data();
+
   /* Viewport state */
-  vk_pipeline_viewport_state_create_info_.pViewports =
-      graphics_info.fragment_shader.viewports.data();
+  vk_pipeline_viewport_state_create_info_.pViewports = nullptr;
   vk_pipeline_viewport_state_create_info_.viewportCount =
       graphics_info.fragment_shader.viewports.size();
-  vk_pipeline_viewport_state_create_info_.pScissors =
-      graphics_info.fragment_shader.scissors.data();
+  vk_pipeline_viewport_state_create_info_.pScissors = nullptr;
   vk_pipeline_viewport_state_create_info_.scissorCount =
       graphics_info.fragment_shader.scissors.size();
 
@@ -388,6 +396,13 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
         att_state.dstColorBlendFactor = VK_BLEND_FACTOR_SRC1_COLOR;
         att_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         att_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_SRC1_ALPHA;
+        break;
+
+      case GPU_BLEND_OVERLAY_MASK_FROM_ALPHA:
+        att_state.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+        att_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        att_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        att_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         break;
     }
 
@@ -680,7 +695,7 @@ void VKPipelinePool::free_data()
 
 #ifdef WITH_BUILDINFO
 struct VKPipelineCachePrefixHeader {
-  /* 'B'lender 'C'ache + 2 bytes for file versioning. */
+  /* `BC` stands for "Blender Cache" + 2 bytes for file versioning. */
   uint32_t magic = 0xBC00;
   uint32_t blender_version = BLENDER_VERSION;
   uint32_t blender_version_patch = BLENDER_VERSION_PATCH;

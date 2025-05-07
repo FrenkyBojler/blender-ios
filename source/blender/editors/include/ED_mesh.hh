@@ -12,6 +12,8 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 
+#include "DNA_windowmanager_enums.h"
+
 struct ARegion;
 struct BMBVHTree;
 struct BMEdge;
@@ -289,7 +291,15 @@ void EDBM_selectmode_set(BMEditMesh *em);
 void EDBM_selectmode_convert(BMEditMesh *em, short selectmode_old, short selectmode_new);
 
 /**
- * User access this.
+ * Select-mode setting utility.
+ * This operates on tool-settings and all objects passed in.
+ */
+bool EDBM_selectmode_set_multi_ex(Scene *scene,
+                                  blender::Span<Object *> objects,
+                                  const short selectmode);
+/**
+ * High level select-mode setting utility.
+ * This operates on tool-settings and all edit-mode objects.
  */
 bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
 /**
@@ -515,8 +525,10 @@ void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 
 /* `meshtools.cc` */
 
-int ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
-int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
+                                                  bool ensure_keys_exist,
+                                                  ReportList *reports);
 
 /* mirror lookup api */
 

@@ -265,8 +265,7 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
                                                        StructCallbackFunc call,
                                                        StructFreeFunc free)
 {
-  bNodeTreeInterfaceSocket dummy_socket;
-  memset(&dummy_socket, 0, sizeof(bNodeTreeInterfaceSocket));
+  bNodeTreeInterfaceSocket dummy_socket = {};
   /* Set #item_type so that refining the type ends up with RNA_NodeTreeInterfaceSocket. */
   dummy_socket.item.item_type = NODE_INTERFACE_SOCKET;
 
@@ -368,6 +367,12 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
   /* Only use basic socket types for this enum. */
   if (socket_type->subtype != PROP_NONE) {
     return false;
+  }
+
+  if (!U.experimental.use_bundle_and_closure_nodes) {
+    if (ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE)) {
+      return false;
+    }
   }
 
   return true;

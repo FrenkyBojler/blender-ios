@@ -970,7 +970,7 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 /**
  * Common code for invoke() methods.
  */
-static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
 
@@ -1113,7 +1113,7 @@ static bool pose_slide_toggle_axis_locks(wmOperator *op,
 /**
  * Operator `modal()` callback.
  */
-static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tPoseSlideOp *pso = static_cast<tPoseSlideOp *>(op->customdata);
   wmWindow *win = CTX_wm_window(C);
@@ -1311,7 +1311,7 @@ static void pose_slide_cancel(bContext *C, wmOperator *op)
 /**
  * Common code for exec() methods.
  */
-static int pose_slide_exec_common(bContext *C, wmOperator *op, tPoseSlideOp *pso)
+static wmOperatorStatus pose_slide_exec_common(bContext *C, wmOperator *op, tPoseSlideOp *pso)
 {
   /* Settings should have been set up ok for applying, so just apply! */
   if (!ELEM(pso->mode, POSESLIDE_BLEND_REST)) {
@@ -1391,7 +1391,7 @@ static void pose_slide_opdef_properties(wmOperatorType *ot)
 /**
  * Operator `invoke()` callback for 'push from breakdown' mode.
  */
-static int pose_slide_push_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_push_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_PUSH) == 0) {
@@ -1406,7 +1406,7 @@ static int pose_slide_push_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 /**
  * Operator `exec()` callback - for push.
  */
-static int pose_slide_push_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_push_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1448,7 +1448,7 @@ void POSE_OT_push(wmOperatorType *ot)
 /**
  * Invoke callback - for 'relax to breakdown' mode.
  */
-static int pose_slide_relax_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_relax_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_RELAX) == 0) {
@@ -1463,7 +1463,7 @@ static int pose_slide_relax_invoke(bContext *C, wmOperator *op, const wmEvent *e
 /**
  * Operator exec() - for relax.
  */
-static int pose_slide_relax_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_relax_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1504,7 +1504,9 @@ void POSE_OT_relax(wmOperatorType *ot)
 /**
  * Operator `invoke()` - for 'blend with rest pose' mode.
  */
-static int pose_slide_blend_rest_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_blend_rest_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_BLEND_REST) == 0) {
@@ -1523,7 +1525,7 @@ static int pose_slide_blend_rest_invoke(bContext *C, wmOperator *op, const wmEve
 /**
  * Operator `exec()` - for push.
  */
-static int pose_slide_blend_rest_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_blend_rest_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1565,7 +1567,9 @@ void POSE_OT_blend_with_rest(wmOperatorType *ot)
 /**
  * Operator `invoke()` - for 'breakdown' mode.
  */
-static int pose_slide_breakdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_breakdown_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_BREAKDOWN) == 0) {
@@ -1580,7 +1584,7 @@ static int pose_slide_breakdown_invoke(bContext *C, wmOperator *op, const wmEven
 /**
  * Operator exec() - for breakdown.
  */
-static int pose_slide_breakdown_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_breakdown_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1618,7 +1622,9 @@ void POSE_OT_breakdown(wmOperatorType *ot)
 }
 
 /* ........................ */
-static int pose_slide_blend_to_neighbors_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_blend_to_neighbors_invoke(bContext *C,
+                                                             wmOperator *op,
+                                                             const wmEvent *event)
 {
   /* Initialize data. */
   if (pose_slide_init(C, op, POSESLIDE_BLEND) == 0) {
@@ -1630,7 +1636,7 @@ static int pose_slide_blend_to_neighbors_invoke(bContext *C, wmOperator *op, con
   return pose_slide_invoke_common(C, op, event);
 }
 
-static int pose_slide_blend_to_neighbors_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_slide_blend_to_neighbors_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
@@ -1759,7 +1765,7 @@ static void get_selected_marker_positions(Scene *scene, ListBase /*FrameLink*/ *
   ListBase selected_markers = {nullptr, nullptr};
   ED_markers_make_cfra_list(&scene->markers, &selected_markers, true);
   LISTBASE_FOREACH (CfraElem *, marker, &selected_markers) {
-    FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Marker Key Link"));
+    FrameLink *link = MEM_callocN<FrameLink>("Marker Key Link");
     link->frame = marker->cfra;
     BLI_addtail(target_frames, link);
   }
@@ -1785,7 +1791,7 @@ static void get_keyed_frames_in_range(ListBase *pflinks,
     if (column->cfra > end_frame) {
       break;
     }
-    FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Marker Key Link"));
+    FrameLink *link = MEM_callocN<FrameLink>("Marker Key Link");
     link->frame = column->cfra;
     BLI_addtail(target_frames, link);
   }
@@ -1805,7 +1811,7 @@ static void get_selected_frames(ListBase *pflinks, ListBase /*FrameLink*/ *targe
     if (!column->sel) {
       continue;
     }
-    FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Marker Key Link"));
+    FrameLink *link = MEM_callocN<FrameLink>("Marker Key Link");
     link->frame = column->cfra;
     BLI_addtail(target_frames, link);
   }
@@ -1814,7 +1820,7 @@ static void get_selected_frames(ListBase *pflinks, ListBase /*FrameLink*/ *targe
 
 /* --------------------------------- */
 
-static int pose_propagate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1843,7 +1849,7 @@ static int pose_propagate_exec(bContext *C, wmOperator *op)
   switch (mode) {
     case POSE_PROPAGATE_NEXT_KEY: {
       float target_frame = find_next_key(&pflinks, current_frame);
-      FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Next Key Link"));
+      FrameLink *link = MEM_callocN<FrameLink>("Next Key Link");
       link->frame = target_frame;
       BLI_addtail(&target_frames, link);
       propagate_curve_values(&pflinks, current_frame, &target_frames);
@@ -1852,7 +1858,7 @@ static int pose_propagate_exec(bContext *C, wmOperator *op)
 
     case POSE_PROPAGATE_LAST_KEY: {
       float target_frame = find_last_key(&pflinks);
-      FrameLink *link = static_cast<FrameLink *>(MEM_callocN(sizeof(FrameLink), "Last Key Link"));
+      FrameLink *link = MEM_callocN<FrameLink>("Last Key Link");
       link->frame = target_frame;
       BLI_addtail(&target_frames, link);
       propagate_curve_values(&pflinks, current_frame, &target_frames);

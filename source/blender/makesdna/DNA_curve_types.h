@@ -204,7 +204,11 @@ typedef struct EditNurb {
 } EditNurb;
 
 typedef struct Curve {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Curve)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_CU_LEGACY;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
@@ -450,6 +454,7 @@ enum {
   CU_NURB_CYCLIC = 1 << 0,
   CU_NURB_ENDPOINT = 1 << 1,
   CU_NURB_BEZIER = 1 << 2,
+  CU_NURB_CUSTOM = 1 << 3,
 };
 
 #define CU_ACT_NONE -1

@@ -87,6 +87,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view3d_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_viewer_path_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_volume_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_windowmanager_enums.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_windowmanager_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_workspace_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_types.h
@@ -156,6 +157,7 @@ add_subdirectory(render)
 add_subdirectory(blenfont)
 add_subdirectory(blentranslation)
 add_subdirectory(blenloader)
+add_subdirectory(blenloader_core)
 add_subdirectory(depsgraph)
 add_subdirectory(ikplugin)
 add_subdirectory(simulation)

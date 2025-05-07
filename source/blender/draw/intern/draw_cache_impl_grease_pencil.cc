@@ -31,8 +31,8 @@
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 
-#include "../engines/gpencil/gpencil_defines.h"
-#include "../engines/gpencil/gpencil_shader_shared.h"
+#include "../engines/gpencil/gpencil_defines.hh"
+#include "../engines/gpencil/gpencil_shader_shared.hh"
 
 namespace blender::draw {
 
@@ -389,12 +389,8 @@ static void grease_pencil_weight_batch_ensure(Object &object,
     drawing_start_offset += curves.points_num();
   }
 
-  cache->edit_line_indices = GPU_indexbuf_calloc();
-  GPU_indexbuf_build_in_place_ex(
-      &lines_builder, 0, total_points_num, true, cache->edit_line_indices);
-  cache->edit_points_indices = GPU_indexbuf_calloc();
-  GPU_indexbuf_build_in_place_ex(
-      &points_builder, 0, total_points_num, false, cache->edit_points_indices);
+  cache->edit_line_indices = GPU_indexbuf_build_ex(&lines_builder, 0, total_points_num, true);
+  cache->edit_points_indices = GPU_indexbuf_build_ex(&points_builder, 0, total_points_num, false);
 
   /* Create the batches. */
   cache->edit_points = GPU_batch_create(
@@ -1041,12 +1037,8 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     }
   }
 
-  cache->edit_line_indices = GPU_indexbuf_calloc();
-  GPU_indexbuf_build_in_place_ex(
-      &lines_builder, 0, total_points_num, true, cache->edit_line_indices);
-  cache->edit_points_indices = GPU_indexbuf_calloc();
-  GPU_indexbuf_build_in_place_ex(
-      &points_builder, 0, total_points_num, false, cache->edit_points_indices);
+  cache->edit_line_indices = GPU_indexbuf_build_ex(&lines_builder, 0, total_points_num, true);
+  cache->edit_points_indices = GPU_indexbuf_build_ex(&points_builder, 0, total_points_num, false);
 
   /* Create the batches */
   cache->edit_points = GPU_batch_create(
@@ -1384,7 +1376,7 @@ static void grease_pencil_wire_batch_ensure(Object &object,
   int index_len = 0;
   for (const ed::greasepencil::DrawingInfo &info : drawings) {
     const bke::CurvesGeometry &curves = info.drawing.strokes();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
     const VArray<bool> cyclic = curves.cyclic();
     IndexMaskMemory memory;
     const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
@@ -1438,8 +1430,7 @@ static void grease_pencil_wire_batch_ensure(Object &object,
     }
   });
 
-  gpu::IndexBuf *ibo = GPU_indexbuf_calloc();
-  GPU_indexbuf_build_in_place_ex(&elb, 0, max_index, true, ibo);
+  gpu::IndexBuf *ibo = GPU_indexbuf_build_ex(&elb, 0, max_index, true);
 
   cache->lines_batch = GPU_batch_create_ex(
       GPU_PRIM_LINE_STRIP, cache->vbo, ibo, GPU_BATCH_OWNS_INDEX);

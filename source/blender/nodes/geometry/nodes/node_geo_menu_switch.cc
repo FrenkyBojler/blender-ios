@@ -33,6 +33,11 @@ NODE_STORAGE_FUNCS(NodeMenuSwitch)
 
 static bool is_supported_socket_type(const eNodeSocketDatatype data_type)
 {
+  if (!U.experimental.use_bundle_and_closure_nodes) {
+    if (ELEM(data_type, SOCK_BUNDLE, SOCK_CLOSURE)) {
+      return false;
+    }
+  }
   return ELEM(data_type,
               SOCK_FLOAT,
               SOCK_INT,
@@ -46,7 +51,9 @@ static bool is_supported_socket_type(const eNodeSocketDatatype data_type)
               SOCK_COLLECTION,
               SOCK_MATERIAL,
               SOCK_IMAGE,
-              SOCK_MATRIX);
+              SOCK_MATRIX,
+              SOCK_BUNDLE,
+              SOCK_CLOSURE);
 }
 
 static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
@@ -360,8 +367,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
   uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "menu_switch_items", false, IFACE_("Menu Items")))
-  {
+  if (uiLayout *panel = layout->panel(C, "menu_switch_items", false, IFACE_("Menu Items"))) {
     socket_items::ui::draw_items_list_with_operators<MenuSwitchItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<MenuSwitchItemsAccessor>(

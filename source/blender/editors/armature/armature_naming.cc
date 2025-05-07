@@ -57,38 +57,33 @@ using namespace blender;
  * \{ */
 
 /* NOTE: there's a ed_armature_bone_unique_name() too! */
-static bool editbone_unique_check(void *arg, const char *name)
+static bool editbone_unique_check(ListBase *ebones, const StringRefNull name, EditBone *bone)
 {
-  struct Arg {
-    ListBase *lb;
-    void *bone;
-  } *data = static_cast<Arg *>(arg);
-
-  if (data->bone) {
+  if (bone) {
     /* This indicates that there is a bone to ignore. This means ED_armature_ebone_find_name()
      * cannot be used, as it might return the bone we should be ignoring. */
-    for (EditBone *ebone : ListBaseWrapper<EditBone>(data->lb)) {
-      if (STREQ(ebone->name, name) && ebone != data->bone) {
+    for (EditBone *ebone : ListBaseWrapper<EditBone>(ebones)) {
+      if (ebone->name == name && ebone != bone) {
         return true;
       }
     }
     return false;
   }
 
-  EditBone *dupli = ED_armature_ebone_find_name(data->lb, name);
-  return dupli && dupli != data->bone;
+  EditBone *dupli = ED_armature_ebone_find_name(ebones, name.c_str());
+  return dupli && dupli != bone;
 }
 
 void ED_armature_ebone_unique_name(ListBase *ebones, char *name, EditBone *bone)
 {
-  struct {
-    ListBase *lb;
-    void *bone;
-  } data;
-  data.lb = ebones;
-  data.bone = bone;
-
-  BLI_uniquename_cb(editbone_unique_check, &data, DATA_("Bone"), '.', name, sizeof(bone->name));
+  BLI_uniquename_cb(
+      [&](const StringRefNull check_name) {
+        return editbone_unique_check(ebones, check_name, bone);
+      },
+      DATA_("Bone"),
+      '.',
+      name,
+      sizeof(bone->name));
 }
 
 /** \} */
@@ -97,14 +92,16 @@ void ED_armature_ebone_unique_name(ListBase *ebones, char *name, EditBone *bone)
 /** \name Unique Bone Name Utility (Object Mode)
  * \{ */
 
-static bool bone_unique_check(void *arg, const char *name)
-{
-  return BKE_armature_find_bone_name(static_cast<bArmature *>(arg), name) != nullptr;
-}
-
 static void ed_armature_bone_unique_name(bArmature *arm, char *name)
 {
-  BLI_uniquename_cb(bone_unique_check, (void *)arm, DATA_("Bone"), '.', name, sizeof(Bone::name));
+  BLI_uniquename_cb(
+      [&](const StringRefNull check_name) {
+        return BKE_armature_find_bone_name(arm, check_name.c_str()) != nullptr;
+      },
+      DATA_("Bone"),
+      '.',
+      name,
+      sizeof(Bone::name));
 }
 
 /** \} */
@@ -432,7 +429,7 @@ void ED_armature_bones_flip_names(Main *bmain,
 /** \name Flip Bone Names (Edit Mode Operator)
  * \{ */
 
-static int armature_flip_names_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_flip_names_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
@@ -480,7 +477,7 @@ static int armature_flip_names_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
     /* copied from #rna_Bone_update_renamed */
-    /* Redraw Outliner / Dopesheet. */
+    /* Redraw Outliner / Dope-sheet. */
     WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_RENAME, ob->data);
 
     /* update animation channels */
@@ -518,7 +515,7 @@ void ARMATURE_OT_flip_names(wmOperatorType *ot)
 /** \name Bone Auto Side Names (Edit Mode Operator)
  * \{ */
 
-static int armature_autoside_names_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_autoside_names_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);

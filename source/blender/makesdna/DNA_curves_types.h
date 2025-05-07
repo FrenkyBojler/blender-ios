@@ -74,6 +74,7 @@ typedef enum KnotsMode {
   NURBS_KNOT_MODE_ENDPOINT = 1,
   NURBS_KNOT_MODE_BEZIER = 2,
   NURBS_KNOT_MODE_ENDPOINT_BEZIER = 3,
+  NURBS_KNOT_MODE_CUSTOM = 4,
 } KnotsMode;
 
 /** Method used to calculate the normals of a curve's evaluated points. */
@@ -150,6 +151,18 @@ typedef struct CurvesGeometry {
    */
   CurvesGeometryRuntimeHandle *runtime;
 
+  /**
+   * Knot values for NURBS curves with NURBS_KNOT_MODE_CUSTOM mode.
+   * Array is allocated with bke::CurvesGeometry::nurbs_custom_knots_update_size() or
+   * bke::CurvesGeometry::nurbs_custom_knots_resize().
+   * Indexed with bke::CurvesGeometry::nurbs_custom_knots_by_curve().
+   */
+  float *custom_knots;
+
+  int custom_knot_num;
+
+  char _pad[4];
+
 #ifdef __cplusplus
   blender::bke::CurvesGeometry &wrap();
   const blender::bke::CurvesGeometry &wrap() const;
@@ -162,6 +175,11 @@ typedef struct CurvesGeometry {
  * interaction) is embedded in the #CurvesGeometry struct.
  */
 typedef struct Curves {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_CV;
+#endif
+
   ID id;
   /** Animation data (must be immediately after #id). */
   struct AnimData *adt;

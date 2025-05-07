@@ -90,7 +90,7 @@ struct PointCloudBatchCache {
    * some locking would be necessary because multiple objects can use the same object data with
    * different materials, etc. This is a placeholder to make multi-threading easier in the future.
    */
-  std::mutex render_mutex;
+  Mutex render_mutex;
 };
 
 static PointCloudBatchCache *pointcloud_batch_cache_get(PointCloud &pointcloud)
@@ -311,8 +311,8 @@ static void pointcloud_extract_attribute(const PointCloud &pointcloud,
   const bke::AttributeAccessor attributes = pointcloud.attributes();
 
   /* TODO(@kevindietrich): float4 is used for scalar attributes as the implicit conversion done
-   * by OpenGL to vec4 for a scalar `s` will produce a `vec4(s, 0, 0, 1)`. However, following
-   * the Blender convention, it should be `vec4(s, s, s, 1)`. This could be resolved using a
+   * by OpenGL to float4 for a scalar `s` will produce a `float4(s, 0, 0, 1)`. However, following
+   * the Blender convention, it should be `float4(s, s, s, 1)`. This could be resolved using a
    * similar texture state swizzle to map the attribute correctly as for volume attributes, so we
    * can control the conversion ourselves. */
   bke::AttributeReader<ColorGeometry4f> attribute = attributes.lookup_or_default<ColorGeometry4f>(

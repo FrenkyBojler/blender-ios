@@ -95,7 +95,7 @@ enum {
    * active button can be polled on non-active buttons to (e.g. for disabling). */
   UI_BUT_ACTIVE_OVERRIDE = (1 << 7),
 
-  /* WARNING: rest of #uiBut.flag in UI_interface.hh */
+  /* WARNING: rest of #uiBut.flag in `UI_interface_c.hh`. */
 };
 
 /** #uiBut.pie_dir */
@@ -248,7 +248,7 @@ struct uiBut {
 
   BIFIconID icon = ICON_NONE;
   /** Copied from the #uiBlock.emboss */
-  eUIEmbossType emboss = UI_EMBOSS;
+  blender::ui::EmbossType emboss = blender::ui::EmbossType::Emboss;
   /** direction in a pie menu, used for collision detection. */
   RadialDirection pie_dir = UI_RADIAL_NONE;
   /** could be made into a single flag */
@@ -458,7 +458,7 @@ struct uiButCurveMapping : public uiBut {
 
 /** Derived struct for #UI_BTYPE_HOTKEY_EVENT. */
 struct uiButHotkeyEvent : public uiBut {
-  short modifier_key = 0;
+  wmEventModifierFlag modifier_key = wmEventModifierFlag(0);
 };
 
 /**
@@ -621,7 +621,7 @@ struct uiBlock {
   /** UI_BLOCK_THEME_STYLE_* */
   char theme_style;
   /** Copied to #uiBut.emboss */
-  eUIEmbossType emboss;
+  blender::ui::EmbossType emboss;
   bool auto_open;
   char _pad[5];
   double auto_open_last;
@@ -1305,6 +1305,8 @@ enum uiMenuItemSeparatorType {
 /**
  * Helper call to draw a menu item without a button.
  *
+ * \param back_rect: Used to draw/leave out the backdrop of the menu item. Useful when layering
+ *                   multiple items with different formatting like in search menus.
  * \param but_flag: Button flags (#uiBut.flag) indicating the state of the item, typically
  *                  #UI_HOVER, #UI_BUT_DISABLED, #UI_BUT_INACTIVE.
  * \param separator_type: The kind of separator which controls if and how the string is clipped.
@@ -1313,6 +1315,9 @@ enum uiMenuItemSeparatorType {
  */
 void ui_draw_menu_item(const uiFontStyle *fstyle,
                        rcti *rect,
+                       rcti *back_rect,
+                       float zoom,
+                       bool use_unpadded,
                        const char *name,
                        int iconid,
                        int but_flag,
@@ -1320,6 +1325,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                        int *r_xmax);
 void ui_draw_preview_item(const uiFontStyle *fstyle,
                           rcti *rect,
+                          float zoom,
                           const char *name,
                           int iconid,
                           int but_flag,

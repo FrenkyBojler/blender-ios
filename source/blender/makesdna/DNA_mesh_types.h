@@ -55,7 +55,11 @@ struct MFace;
 struct Material;
 
 typedef struct Mesh {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Mesh)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_ME;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
@@ -388,17 +392,21 @@ typedef struct Mesh {
    * Normal direction of faces, defined by positions and the winding direction of face corners.
    */
   blender::Span<blender::float3> face_normals() const;
+  blender::Span<blender::float3> face_normals_true() const;
   /**
    * Normal direction of vertices, defined as the weighted average of face normals
    * surrounding each vertex and the normalized position for loose vertices.
    */
   blender::Span<blender::float3> vert_normals() const;
+  blender::Span<blender::float3> vert_normals_true() const;
   /**
    * Normal direction at each face corner. Defined by a combination of face normals, vertex
    * normals, the `sharp_edge` and `sharp_face` attributes, and potentially by custom normals.
    *
    * \note Because of the large memory requirements of storing normals per face corner, prefer
-   * using #face_normals() or #vert_normals() when possible (see #normals_domain()).
+   * using #face_normals() or #vert_normals() when possible (see #normals_domain()). For this
+   * reason, the "true" face corner normals aren't cached, since they're just the same as the
+   * corresponding face normals.
    */
   blender::Span<blender::float3> corner_normals() const;
 

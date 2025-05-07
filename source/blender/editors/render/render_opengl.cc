@@ -9,7 +9,6 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstring>
-#include <mutex>
 
 #include "MEM_guardedalloc.h"
 
@@ -17,6 +16,7 @@
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
+#include "BLI_mutex.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_task.hh"
@@ -113,7 +113,7 @@ struct OGLRender : public RenderJobBase {
 
   GPUViewport *viewport = nullptr;
 
-  std::mutex reports_mutex;
+  blender::Mutex reports_mutex;
   ReportList *reports = nullptr;
 
   int cfrao = 0;
@@ -807,9 +807,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     oglrender->rv3d = static_cast<RegionView3D *>(oglrender->region->regiondata);
 
     /* MUST be cleared on exit */
-    memset(&oglrender->scene->customdata_mask_modal,
-           0,
-           sizeof(oglrender->scene->customdata_mask_modal));
+    oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
     ED_view3d_datamask(oglrender->scene,
                        oglrender->view_layer,
                        oglrender->v3d,
@@ -913,9 +911,7 @@ static void screen_opengl_render_end(OGLRender *oglrender)
 
   MEM_SAFE_FREE(oglrender->seq_data.ibufs_arr);
 
-  memset(&oglrender->scene->customdata_mask_modal,
-         0,
-         sizeof(oglrender->scene->customdata_mask_modal));
+  oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
 
   if (oglrender->wm_job) { /* exec will not have a job */
     Depsgraph *depsgraph = oglrender->depsgraph;
@@ -1196,7 +1192,9 @@ finally: /* Step the frame and bail early if needed */
   return true;
 }
 
-static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_opengl_render_modal(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
 
@@ -1261,7 +1259,9 @@ static void opengl_render_freejob(void *customdata)
   screen_opengl_render_end(oglrender);
 }
 
-static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   const bool anim = RNA_boolean_get(op->ptr, "animation");
 
@@ -1305,7 +1305,7 @@ static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEven
 }
 
 /* executes blocking render */
-static int screen_opengl_render_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
 {
   if (!screen_opengl_render_init(C, op)) {
     return OPERATOR_CANCELLED;
