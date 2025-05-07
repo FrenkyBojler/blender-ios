@@ -5,6 +5,7 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_attribute_legacy_convert.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_pointcloud.hh"
 
 #include "attribute_access_intern.hh"
@@ -66,75 +67,97 @@ static GAttributeReader attribute_to_reader(const Attribute &attribute,
   return {};
 }
 
-static GAttributeWriter attribute_to_writer(const StringRef name,Attribute &attribute,
-                                            const AttrDomain domain,
-                                            const int64_t domain_size)
+static GAttributeWriter attribute_to_writer(PointCloud &pointcloud,
+                                            const int64_t domain_size,
+                                            Attribute &attribute)
 {
   const CPPType &cpp_type = attribute_type_to_cpp_type(attribute.data_type());
   Attribute::DataVariant &data = attribute.data_for_write();
   if (auto *array = std::get_if<Attribute::ArrayData>(&data)) {
-    BLI_assert(domain_size == array->size);
-    return GAttributeWriter
-    {
-      GVMutableArray::ForSpan(GMutableSpan(cpp_type, array->data, array->size)), domain,
-          changed_tags().lookup(name);
+    BLI_assert(array->size == domain_size);
+
+    std::function<void()> tag_modified_fn;
+    if (const UpdateOnChange update_fn = changed_tags().lookup(attribute.name())) {
+      tag_modified_fn = [pointcloud = &pointcloud, update_fn]() { update_fn(pointcloud); };
     };
+
+    return GAttributeWriter{
+        GVMutableArray::ForSpan(GMutableSpan(cpp_type, array->data, domain_size)),
+        attribute.domain(),
+        std::move(tag_modified_fn)};
   }
-  if (auto *single = std::get_if<Attribute::SingleData>(&data)) {
-    const GVArray varray = GVArray::ForSingleRef(cpp_type, domain_size, single->value);
-    // return GAttributeWriter{varray, domain, single->sharing_info.get()};
+  if (std::get_if<Attribute::SingleData>(&data)) {
+    /* Not yet implemented. */
+    BLI_assert_unreachable();
+    return {};
   }
   BLI_assert_unreachable();
   return {};
 }
 
-static Attribute::DataVariant attribute_init_to_data(const AttributeInit &init)
+static Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
+                                                     const int64_t domain_size,
+                                                     const AttributeInit &initializer)
 {
-  switch (init.type) {
+  switch (initializer.type) {
     case AttributeInit::Type::Construct: {
-      add_generic_custom_data_layer(
-          custom_data, data_type, CD_CONSTRUCT, domain_num, attribute_id);
-      break;
+      const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
+      Attribute::ArrayData data;
+      data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
+      data.size = domain_size;
+      data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+      return data;
     }
     case AttributeInit::Type::DefaultValue: {
-      if (const void *default_value = custom_default_value_ptr.get()) {
-        const CPPType &type = *custom_default_value_ptr.type();
-        void *data = add_generic_custom_data_layer(
-            custom_data, data_type, CD_CONSTRUCT, domain_num, attribute_id);
-        type.fill_assign_n(default_value, data, domain_num);
+      const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
+      Attribute::ArrayData data;
+      const void *value = type.default_value();
+
+      /* Prefer `calloc` to filling after allocation since it is faster. */
+      if (BLI_memory_is_zero(value, type.size) && type.alignment <= MEM_MIN_CPP_ALIGNMENT) {
+        data.data = MEM_calloc_arrayN(domain_size, type.size, __func__);
       }
       else {
-        add_generic_custom_data_layer(
-            custom_data, data_type, CD_SET_DEFAULT, domain_num, attribute_id);
+        data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
+        type.fill_construct_n(value, data.data, domain_size);
       }
-      break;
+
+      data.size = domain_size;
+      data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+      return data;
     }
     case AttributeInit::Type::VArray: {
-      void *data = add_generic_custom_data_layer(
-          custom_data, data_type, CD_CONSTRUCT, domain_num, attribute_id);
-      if (data != nullptr) {
-        const GVArray &varray = static_cast<const AttributeInitVArray &>(initializer).varray;
-        varray.materialize_to_uninitialized(varray.index_range(), data);
-      }
-      break;
+      const auto &init = static_cast<const AttributeInitVArray &>(initializer);
+      const GVArray &varray = init.varray;
+      BLI_assert(varray.size() == domain_size);
+      const CPPType &type = varray.type();
+      Attribute::ArrayData data;
+      data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
+      varray.materialize_to_uninitialized(varray.index_range(), data.data);
+      data.size = domain_size;
+      data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+      return data;
     }
     case AttributeInit::Type::MoveArray: {
-      void *data = static_cast<const AttributeInitMoveArray &>(initializer).data;
-      add_generic_custom_data_layer_with_existing_data(
-          custom_data, data_type, attribute_id, domain_num, data, nullptr);
-      break;
+      const auto &init = static_cast<const AttributeInitMoveArray &>(initializer);
+      Attribute::ArrayData data;
+      data.data = init.data;
+      data.size = domain_size;
+      data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+      return data;
     }
     case AttributeInit::Type::Shared: {
-      const AttributeInitShared &init = static_cast<const AttributeInitShared &>(initializer);
-      add_generic_custom_data_layer_with_existing_data(custom_data,
-                                                       data_type,
-                                                       attribute_id,
-                                                       domain_num,
-                                                       const_cast<void *>(init.data),
-                                                       init.sharing_info);
-      break;
+      const auto &init = static_cast<const AttributeInitShared &>(initializer);
+      Attribute::ArrayData data;
+      data.data = const_cast<void *>(init.data);
+      data.size = domain_size;
+      data.sharing_info = ImplicitSharingPtr<>(init.sharing_info);
+      data.sharing_info->add_user();
+      return data;
     }
   }
+  BLI_assert_unreachable();
+  return {};
 }
 
 /**
@@ -195,7 +218,7 @@ static AttributeAccessorFunctions get_pointcloud_accessor_functions()
     if (!info) {
       return std::nullopt;
     }
-    const std::optional<eCustomDataType> cd_type = attribute_to_to_custom_data_type(info->type);
+    const std::optional<eCustomDataType> cd_type = attr_type_to_custom_data_type(info->type);
     BLI_assert(cd_type.has_value());
     return AttributeDomainAndType{info->domain, *cd_type};
   };
@@ -226,7 +249,7 @@ static AttributeAccessorFunctions get_pointcloud_accessor_functions()
       const auto get_fn = [&]() {
         return attribute_to_reader(attribute, AttrDomain::Point, pointcloud.totpoint);
       };
-      const std::optional<eCustomDataType> cd_type = attribute_to_to_custom_data_type(
+      const std::optional<eCustomDataType> cd_type = attr_type_to_custom_data_type(
           attribute.data_type());
       BLI_assert(cd_type.has_value());
       AttributeIter iter(attribute.name(), attribute.domain(), *cd_type, get_fn);
@@ -250,7 +273,7 @@ static AttributeAccessorFunctions get_pointcloud_accessor_functions()
     if (!attribute) {
       return {};
     }
-    return attribute_to_writer(name,*attribute, AttrDomain::Point, pointcloud.totpoint);
+    return attribute_to_writer(pointcloud, pointcloud.totpoint, *attribute);
   };
   fn.remove = [](void *owner, const StringRef name) -> bool {
     PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
@@ -269,13 +292,15 @@ static AttributeAccessorFunctions get_pointcloud_accessor_functions()
               const eCustomDataType data_type,
               const AttributeInit &initializer) {
     PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
+    const int domain_size = pointcloud.totpoint;
     AttributeStorage &storage = pointcloud.attribute_storage.wrap();
     if (storage.lookup(name)) {
       return false;
     }
-    const std::optional<AttrType> type = custom_data_type_to_attribute_type(data_type);
-    Attribute::DataVariant data = attribute_init_to_data(initializer);
-    storage.add(name, domain, type, std::move(data  ));
+    const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type);
+    BLI_assert(type.has_value());
+    Attribute::DataVariant data = attribute_init_to_data(*type, domain_size, initializer);
+    storage.add(name, domain, *type, std::move(data));
     return false;
   };
 
