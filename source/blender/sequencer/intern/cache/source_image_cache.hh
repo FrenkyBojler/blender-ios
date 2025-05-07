@@ -30,4 +30,6 @@ void source_image_cache_destroy(Scene *scene);
 bool source_image_cache_evict(Scene *scene);
 void source_image_cache_tick(Scene *scene);
 
+size_t source_image_cache_get_image_count(const Scene *scene);
+
 }  // namespace blender::seq

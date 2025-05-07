@@ -239,6 +239,20 @@ size_t source_image_cache_calc_memory_size(const Scene *scene)
   return size;
 }
 
+size_t source_image_cache_get_image_count(const Scene *scene)
+{
+  std::lock_guard lock(source_image_cache_mutex);
+  SourceImageCache *cache = query_source_image_cache(scene);
+  if (cache == nullptr) {
+    return 0;
+  }
+  size_t count = 0;
+  for (const SourceImageCache::StripEntry &entry : cache->map_.values()) {
+    count += entry.frames.size();
+  }
+  return count;
+}
+
 bool source_image_cache_evict(Scene *scene)
 {
   std::lock_guard lock(source_image_cache_mutex);

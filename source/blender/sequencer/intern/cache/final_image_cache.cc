@@ -184,6 +184,16 @@ size_t final_image_cache_calc_memory_size(const Scene *scene)
   return size;
 }
 
+size_t final_image_cache_get_image_count(const Scene *scene)
+{
+  std::lock_guard lock(final_image_cache_mutex);
+  FinalImageCache *cache = query_final_image_cache(scene);
+  if (cache == nullptr) {
+    return 0;
+  }
+  return cache->map_.size();
+}
+
 bool final_image_cache_evict(Scene *scene)
 {
   std::lock_guard lock(final_image_cache_mutex);
