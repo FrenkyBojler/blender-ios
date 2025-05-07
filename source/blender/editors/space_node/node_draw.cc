@@ -4818,7 +4818,8 @@ static void draw_frame_overlays(const bContext &C,
   }
 }
 
-static void draw_link_errors(const bNodeLink &link,
+static void draw_link_errors(SpaceNode &snode,
+                             const bNodeLink &link,
                              const Span<bke::NodeLinkError> errors,
                              Span<uiBlock *> blocks)
 {
@@ -4834,18 +4835,21 @@ static void draw_link_errors(const bNodeLink &link,
 
   const float2 start = socket_link_connection_location(*link.fromnode, *link.fromsock, link);
   const float2 end = socket_link_connection_location(*link.tonode, *link.tosock, link);
-  const float2 center = math::midpoint(start, end);
+  const int2 center = int2(math::midpoint(start, end));
 
   uiBlock &block = *blocks[link.tonode->index()];
 
   const float bg_radius = UI_UNIT_X * 0.5f;
+  const float bg_corner_radius = UI_UNIT_X * 0.2f;
   rctf bg_rect;
-  BLI_rctf_init_pt_radius(&bg_rect, center, bg_radius);
+  BLI_rctf_init_pt_radius(&bg_rect, float2(center), bg_radius);
 
   ColorTheme4f bg_color;
   UI_GetThemeColor4fv(TH_NODE, bg_color);
 
-  UI_draw_roundbox_4fv(&bg_rect, true, UI_UNIT_X * 0.2f, bg_color);
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  ui_draw_dropshadow(&bg_rect, bg_corner_radius, UI_UNIT_X * 0.2f, snode.runtime->aspect, 0.5f);
+  UI_draw_roundbox_4fv(&bg_rect, true, bg_corner_radius, bg_color);
 
   const float icon_size = UI_UNIT_X;
   UI_block_emboss_set(&block, ui::EmbossType::None);
@@ -4908,7 +4912,7 @@ static void node_draw_nodetree(const bContext &C,
   nodelink_batch_end(snode);
 
   for (auto &&item : ntree.runtime->link_errors.items()) {
-    draw_link_errors(*item.key, item.value, blocks);
+    draw_link_errors(snode, *item.key, item.value, blocks);
   }
 
   GPU_blend(GPU_BLEND_NONE);
