@@ -712,7 +712,8 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
 
   /* Proxies and non-generator effect strips are not stored in cache. */
   const bool is_effect_with_inputs = (strip->type & STRIP_TYPE_EFFECT) != 0 &&
-                                     effect_get_num_inputs(strip->type) != 0;
+                                     (effect_get_num_inputs(strip->type) != 0 ||
+                                      (strip->type == STRIP_TYPE_ADJUSTMENT));
   if (!is_proxy_image && !is_effect_with_inputs) {
     Scene *orig_scene = prefetch_get_original_scene(context);
     if (orig_scene->ed->cache_flag & SEQ_CACHE_STORE_RAW) {
