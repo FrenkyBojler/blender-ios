@@ -1108,11 +1108,11 @@ bool BKE_image_render_write(ReportList *reports,
       char filepath[FILE_MAX];
       /* For multiview individual files we still want the multiview filenames (even if only a
        * single view is enabled). */
-      if (is_multiview_name) {
-        BKE_scene_multiview_view_filepath_get(&scene->r, filepath_basis, rv->name, filepath);
+      if (is_mono && !is_multiview_name) {
+        STRNCPY(filepath, filepath_basis);
       }
       else {
-        STRNCPY(filepath, filepath_basis);
+        BKE_scene_multiview_view_filepath_get(&scene->r, filepath_basis, rv->name, filepath);
       }
 
       if (is_exr_rr) {
