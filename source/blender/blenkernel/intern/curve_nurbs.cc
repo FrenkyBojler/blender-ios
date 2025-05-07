@@ -32,16 +32,33 @@ bool check_valid_num_and_order(const int points_num,
   return true;
 }
 
+static int count_nonzero_knot_spans(const int points_num,
+                                    const int order,
+                                    const bool cyclic,
+                                    const Span<float> knots)
+{
+  BLI_assert(points_num > 0);
+  const int degree = order - 1;
+  const int last_control_point_index = cyclic ? points_num + degree : points_num;
+  int span_num = 0;
+  for (const int knot_span : IndexRange::from_begin_end(degree, last_control_point_index)) {
+    span_num += (knots[knot_span + 1] - knots[knot_span]) > 0;
+  }
+  return span_num;
+}
+
 int calculate_evaluated_num(const int points_num,
                             const int8_t order,
                             const bool cyclic,
                             const int resolution,
-                            const KnotsMode knots_mode)
+                            const KnotsMode knots_mode,
+                            const Span<float> knots)
 {
   if (!check_valid_num_and_order(points_num, order, cyclic, knots_mode)) {
     return points_num;
   }
-  return resolution * segments_num(points_num, cyclic);
+  return resolution * count_nonzero_knot_spans(points_num, order, cyclic, knots) +
+         (cyclic ? 0 : 1);
 }
 
 int knots_num(const int points_num, const int8_t order, const bool cyclic)
@@ -112,6 +129,24 @@ void calculate_knots(const int points_num,
   }
 }
 
+void load_curve_knots(const KnotsMode mode,
+                      const int points_num,
+                      const int8_t order,
+                      const bool cyclic,
+                      const IndexRange curve_knots,
+                      const Span<float> custom_knots,
+                      MutableSpan<float> knots)
+{
+  /* Some curves edit tools might not support custom knots, for example GP extrude.
+   * These tools create empty `custom_knots` with mode NURBS_KNOT_MODE_CUSTOM. */
+  if (mode == NURBS_KNOT_MODE_CUSTOM && !custom_knots.is_empty() && !curve_knots.is_empty()) {
+    bke::curves::nurbs::copy_custom_knots(order, cyclic, custom_knots.slice(curve_knots), knots);
+  }
+  else {
+    curves::nurbs::calculate_knots(points_num, mode, order, cyclic, knots);
+  }
+}
+
 static void calculate_basis_for_point(const float parameter,
                                       const int points_num,
                                       const int degree,
@@ -168,6 +203,7 @@ static void calculate_basis_for_point(const float parameter,
 void calculate_basis_cache(const int points_num,
                            const int evaluated_num,
                            const int8_t order,
+                           const int resolution,
                            const bool cyclic,
                            const Span<float> knots,
                            BasisCache &basis_cache)
@@ -187,19 +223,36 @@ void calculate_basis_cache(const int points_num,
   MutableSpan<int> basis_start_indices(basis_cache.start_indices);
 
   const int last_control_point_index = cyclic ? points_num + degree : points_num;
-  const int evaluated_segment_num = segments_num(evaluated_num, cyclic);
 
-  const float start = knots[degree];
-  const float end = knots[last_control_point_index];
-  const float step = (end - start) / evaluated_segment_num;
-  for (const int i : IndexRange(evaluated_num)) {
-    /* Clamp parameter due to floating point inaccuracy. */
-    const float parameter = std::clamp(start + step * i, knots[0], knots[points_num + degree]);
+  int i = 0;
+  if (!cyclic) {
+    calculate_basis_for_point(knots[degree],
+                              last_control_point_index,
+                              degree,
+                              knots,
+                              basis_weights.slice(i, order),
+                              basis_start_indices[i]);
+    i++;
+  }
 
-    MutableSpan<float> point_weights = basis_weights.slice(i * order, order);
-
-    calculate_basis_for_point(
-        parameter, last_control_point_index, degree, knots, point_weights, basis_start_indices[i]);
+  for (const int knot_span : IndexRange::from_begin_end(degree, last_control_point_index)) {
+    const float start = knots[knot_span];
+    const float end = knots[knot_span + 1];
+    if (start == end) {
+      continue;
+    }
+    const float step = (end - start) / resolution;
+    for (const int j : IndexRange::from_begin_size(1, resolution)) {
+      /* Clamp parameter due to floating point inaccuracy. */
+      const float parameter = std::clamp(start + step * j, start, end);
+      calculate_basis_for_point(parameter,
+                                last_control_point_index,
+                                degree,
+                                knots,
+                                basis_weights.slice(i * order, order),
+                                basis_start_indices[i]);
+      i++;
+    }
   }
 }
 
