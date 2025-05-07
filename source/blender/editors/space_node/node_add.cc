@@ -1232,14 +1232,18 @@ static bool node_add_group_input_node_with_socket_poll(bContext *C)
 
   bNodeTreeInterface interface = ntree->tree_interface;
   bNodeTreeInterfaceItem *active_item = interface.active_item();
-  auto *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(active_item);
 
-  if (socket) {
+  if (auto *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(active_item)) {
     if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
       CTX_wm_operator_poll_msg_set(C, "Cannot drag an output socket");
       return false;
     }
     return true;
+  }
+  if (auto *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(active_item)) {
+    if (panel->header_toggle_socket()) {
+      return true;
+    }
   }
   return false;
 }
