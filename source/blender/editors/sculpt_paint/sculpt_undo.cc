@@ -238,7 +238,7 @@ struct StepData {
 
   bool applied;
 
-  std::mutex nodes_mutex;
+  Mutex nodes_mutex;
 
   /**
    * #undo::Node is stored per #pbvh::Node to reduce data storage needed for changes only impacting
@@ -1865,7 +1865,8 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
     layer = BKE_attribute_search_for_write(
         owner, attr->name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
     if (layer) {
-      if (ed::geometry::convert_attribute(mesh->attributes_for_write(),
+      if (ed::geometry::convert_attribute(owner,
+                                          mesh->attributes_for_write(),
                                           attr->name,
                                           attr->domain,
                                           eCustomDataType(attr->type),

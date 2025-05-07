@@ -302,6 +302,12 @@ Use pre-compiled headers to speed up compilation."
   endif()
 endif()
 
+option(WITH_OPTIMIZED_BUILD_TOOLS "\
+Enable optimizations even on Debug builds for executables used for the build process"
+  ON
+)
+mark_as_advanced(WITH_OPTIMIZED_BUILD_TOOLS)
+
 option(WITH_IK_ITASC "\
 Enable ITASC IK solver (only disable for development & for incompatible C++ compilers)"
   ON
@@ -333,6 +339,7 @@ endif()
 unset(_option_default)
 
 option(WITH_GMP "Enable features depending on GMP (Exact Boolean)" ON)
+option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean)" ON)
 
 option(WITH_OPENIMAGEDENOISE "Enable the OpenImageDenoise compositing node" ON)
 
@@ -758,7 +765,6 @@ option(LLVM_STATIC "Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 option(WITH_CLANG "Use Clang" OFF)
 
-# disable for now, but plan to support on all platforms eventually
 option(WITH_MEM_JEMALLOC "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
 mark_as_advanced(WITH_MEM_JEMALLOC)
 
@@ -863,6 +869,14 @@ else()
   # TODO: We should probably add more sanity checks for Windows and Mac as well
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
+
+option(WITH_TESTS_EXPERIMENTAL "\
+Run tests marked as experimental. \
+These tests are labeled as such due to long runtime, flakey results, or other issues that make them unsuitable \
+for blocking a build on."
+  OFF
+)
+mark_as_advanced(WITH_TESTS_EXPERIMENTAL)
 
 # Enabled by default for typical use cases to speed up development cycles. However, when looking
 # into threading or memory related issues (in dependency graph, out-of-bounds, etc) forcing single
@@ -1032,8 +1046,8 @@ if(WITH_COMPILER_CODE_COVERAGE)
     "C flags for code coverage"
   )
   mark_as_advanced(COMPILER_CODE_COVERAGE_CFLAGS)
-  set(COMPILER_CODE_COVERAGE_
-    CXXFLAGS ${_code_coverage_defaults} CACHE STRING
+  set(COMPILER_CODE_COVERAGE_CXXFLAGS
+    ${_code_coverage_defaults} CACHE STRING
     "C++ flags for code coverage"
   )
   mark_as_advanced(COMPILER_CODE_COVERAGE_CXXFLAGS)
@@ -1255,11 +1269,15 @@ endif()
 
 
 # Apple
-
 if(APPLE)
   include(platform_apple_xcode)
-endif()
 
+  option(WITH_LEGACY_MACOS_X64_LINKER "\
+Use legacy macOS linker on x64 platform. Minutes slower, but emits fewer warnings."
+    OFF
+  )
+  mark_as_advanced(WITH_LEGACY_MACOS_X64_LINKER)
+endif()
 
 # -----------------------------------------------------------------------------
 # Check for Conflicting/Unsupported Configurations
@@ -2401,6 +2419,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CXX_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
     CXX_WARN_NO_UNDEF -Wno-undef
     CXX_WARN_NO_UNDEF_PREFIX -Wno-undef-prefix
+    CXX_WARN_NO_INCONSISTENT_MISSING_OVERRIDE -Wno-inconsistent-missing-override
   )
 
 elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
@@ -2728,6 +2747,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_INPUT_NDOF)
   info_cfg_option(WITH_INPUT_IME)
   info_cfg_option(WITH_INTERNATIONAL)
+  info_cfg_option(WITH_MANIFOLD)
   info_cfg_option(WITH_OPENCOLLADA)
   info_cfg_option(WITH_OPENCOLORIO)
   info_cfg_option(WITH_OPENIMAGEDENOISE)
@@ -2743,6 +2763,7 @@ if(FIRST_RUN)
 
   info_cfg_text("Compiler Options:")
   info_cfg_option(WITH_BUILDINFO)
+  info_cfg_option(WITH_OPTIMIZED_BUILD_TOOLS)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)
