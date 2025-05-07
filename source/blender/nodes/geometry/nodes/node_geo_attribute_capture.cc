@@ -46,7 +46,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           CaptureAttributeItemsAccessor::output_socket_identifier_for_item(item);
       b.add_input(data_type, item.name, input_identifier)
           .field_on_all()
-          .socket_name_ptr(&tree->id, CaptureAttributeItemsAccessor::item_srna, &item, "name");
+          .socket_name_ptr(&tree->id, CaptureAttributeItemsAccessor::item_srna, &item, "name")
+          .warn_common_bad_cast();
       b.add_output(data_type, item.name, output_identifier).field_on_all().align_with_previous();
     }
   }

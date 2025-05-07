@@ -3103,6 +3103,38 @@ static void node_get_invalid_links_extra_info(const SpaceNode &snode,
   rows.append(std::move(row));
 }
 
+static void add_bad_cast_warnings(const bNode &node, Vector<NodeExtraInfoRow> &rows)
+{
+  for (const bNodeSocket *socket : node.input_sockets()) {
+    if (!socket->is_available()) {
+      continue;
+    }
+    if (!socket->runtime->declaration) {
+      continue;
+    }
+    if (!socket->runtime->declaration->warn_common_bad_cast) {
+      continue;
+    }
+    for (const bNodeLink *link : socket->directly_linked_links()) {
+      if (!link->is_used()) {
+        continue;
+      }
+      const bNodeSocket &from_socket = *link->fromsock;
+      if (ELEM(from_socket.type, SOCK_VECTOR, SOCK_RGBA, SOCK_ROTATION) &&
+          ELEM(socket->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN))
+      {
+        NodeExtraInfoRow row;
+        row.icon = ICON_INFO;
+        row.text = IFACE_("Wrong type");
+        row.tooltip = TIP_(
+            "The type conversion on an input is error prone. Does the node have the correct "
+            "type?");
+        rows.append(std::move(row));
+      }
+    }
+  }
+}
+
 static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
                                                     TreeDrawContext &tree_draw_ctx,
                                                     const SpaceNode &snode,
@@ -3114,6 +3146,8 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
     nodes::NodeExtraInfoParams params{rows, node, C};
     node.typeinfo->get_extra_info(params);
   }
+
+  add_bad_cast_warnings(node, rows);
 
   if (node.typeinfo->deprecation_notice) {
     NodeExtraInfoRow row;
