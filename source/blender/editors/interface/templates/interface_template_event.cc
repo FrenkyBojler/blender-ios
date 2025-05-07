@@ -54,7 +54,7 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
     return 1;
   }
 
-  /* Try to merge some known XYZ items to save horizontal space. */
+  /* Try to merge some known triplet items to save horizontal space. */
   const EnumPropertyItem *item_y = (item[1].identifier) ? item + 1 : nullptr;
   const EnumPropertyItem *item_z = (item_y && item[2].identifier) ? item + 2 : nullptr;
   const wmKeyMapItem *kmi_y = keymap_item_from_enum_item(keymap, item_y);
@@ -91,19 +91,20 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
         }
       }
       uiItemL(layout, "", icon);
-      uiItemS_ex(layout, -0.4f);
+      uiItemS_ex(layout, ui_event_icon_offset(icon));
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_y, icon_mod);
 #endif
       uiItemL(layout, "", icon);
-      uiItemS_ex(layout, -0.4f);
+      uiItemS_ex(layout, ui_event_icon_offset(icon));
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_z, icon_mod);
 #endif
       uiItemL(layout, "", icon);
-      uiItemS_ex(layout, -0.18f);
+      uiItemS_ex(layout, ui_event_icon_offset(icon));
+      uiItemS_ex(layout, 0.2f);
       uiItemL(layout, xyz_label, ICON_NONE);
       uiItemS_ex(layout, 0.6f);
       return 3;
@@ -135,13 +136,14 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
         }
       }
       uiItemL(layout, "", icon);
-      uiItemS_ex(layout, -0.4f);
+      uiItemS_ex(layout, ui_event_icon_offset(icon));
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_y, icon_mod);
 #endif
       uiItemL(layout, "", icon);
-      uiItemS_ex(layout, -0.18f);
+      uiItemS_ex(layout, ui_event_icon_offset(icon));
+      uiItemS_ex(layout, 0.2f);
       uiItemL(layout, ab_label, ICON_NONE);
       uiItemS_ex(layout, 0.6f);
       return 2;
