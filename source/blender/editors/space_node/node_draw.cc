@@ -4925,7 +4925,9 @@ static void node_draw_nodetree(const bContext &C,
   nodelink_batch_end(snode);
 
   for (auto &&item : ntree.runtime->link_errors.items()) {
-    draw_link_errors(snode, *item.key, item.value, blocks);
+    if (const bNodeLink *link = item.key.try_find(ntree)) {
+      draw_link_errors(snode, *link, item.value, blocks);
+    }
   }
 
   GPU_blend(GPU_BLEND_NONE);

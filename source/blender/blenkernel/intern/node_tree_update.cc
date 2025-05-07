@@ -1206,7 +1206,8 @@ class NodeTreeMainUpdater {
       if (is_invalid_enum_ref(*link->fromsock) || is_invalid_enum_ref(*link->tosock)) {
         link->flag &= ~NODE_LINK_VALID;
         ntree.runtime->link_errors.add(
-            link, NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
+            NodeLinkKey{*link},
+            NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
         continue;
       }
       if (ntree.type == NTREE_GEOMETRY) {
@@ -1216,7 +1217,7 @@ class NodeTreeMainUpdater {
         {
           link->flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors.add(
-              link, NodeLinkError{TIP_("The node input does not support fields")});
+              NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
           continue;
         }
       }
@@ -1227,7 +1228,8 @@ class NodeTreeMainUpdater {
       {
         link->flag &= ~NODE_LINK_VALID;
         ntree.runtime->link_errors.add(
-            link, NodeLinkError{TIP_("The links form a cycle which is not supported")});
+            NodeLinkKey{*link},
+            NodeLinkError{TIP_("The links form a cycle which is not supported")});
         continue;
       }
       if (ntree.typeinfo->validate_link) {
@@ -1236,7 +1238,7 @@ class NodeTreeMainUpdater {
         if (!ntree.typeinfo->validate_link(from_type, to_type)) {
           link->flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors.add(
-              link,
+              NodeLinkKey{*link},
               NodeLinkError{fmt::format("{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                                         " {}",
                                         TIP_("Conversion is not supported"),

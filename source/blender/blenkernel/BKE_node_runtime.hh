@@ -15,6 +15,7 @@
 #include "BLI_multi_value_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_set.hh"
+#include "BLI_struct_equality_utils.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -67,6 +68,34 @@ using NodeIDVectorSet = CustomIDVectorSet<bNode *, NodeIDGetter>;
 
 struct NodeLinkError {
   std::string tooltip;
+};
+
+/**
+ * Utility to weakly reference a link. Weak references are safer because they avoid dangling
+ * references which can easily happen temporarily when editing the node tree.
+ */
+struct NodeLinkKey {
+ private:
+  int to_node_id_;
+  int input_socket_index_;
+  int input_link_index_;
+
+ public:
+  /** Assumes that the topology cache is up to date. */
+  explicit NodeLinkKey(const bNodeLink &link);
+
+  bNodeLink *try_find(bNodeTree &ntree) const;
+  const bNodeLink *try_find(const bNodeTree &ntree) const;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->to_node_id_, this->input_socket_index_, this->input_link_index_);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_3(NodeLinkKey,
+                                  to_node_id_,
+                                  input_socket_index_,
+                                  input_link_index_);
 };
 
 struct LoggedZoneGraphs {
@@ -164,10 +193,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
 
   /**
    * Stores information about invalid links. This information is then displayed to the user. This
-   * is updated in #update_link_validation and is valid during drawing code. In other places like
-   * operators, it may be out of date and have dangling pointers if links have been removed.
+   * is updated in #update_link_validation and is valid during drawing code.
    */
-  MultiValueMap<const bNodeLink *, NodeLinkError> link_errors;
+  MultiValueMap<NodeLinkKey, NodeLinkError> link_errors;
 
   /**
    * Protects access to all topology cache variables below. This is necessary so that the cache can
@@ -421,6 +449,7 @@ inline bool topology_cache_is_available(const bNodeSocket &socket)
 namespace node_field_inferencing {
 bool update_field_inferencing(const bNodeTree &tree);
 }
+
 }  // namespace blender::bke
 
 /* -------------------------------------------------------------------- */
