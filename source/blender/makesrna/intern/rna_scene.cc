@@ -1969,13 +1969,39 @@ static std::optional<std::string> rna_SceneRenderView_path(const PointerRNA *ptr
   return fmt::format("render.views[\"{}\"]", srv_name_esc);
 }
 
+static bool rna_Scene_use_nodes_get(PointerRNA *ptr)
+{
+  Scene *scene = reinterpret_cast<Scene *>(ptr->data);
+  return scene->r.scemode & R_DOCOMP;
+}
+
+static void rna_Scene_use_nodes_set(PointerRNA *ptr, const bool use_nodes)
+{
+  Scene *scene = reinterpret_cast<Scene *>(ptr->data);
+  SET_FLAG_FROM_TEST(scene->r.scemode, use_nodes, R_DOCOMP);
+}
+
+/* Todo(habib): Remove in 5.0. use_nodes will be replaced by use_compositing. */
 static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->data;
-  if (scene->use_nodes && scene->compositing_nodetree == nullptr) {
+  if (scene->r.scemode & R_DOCOMP && scene->compositing_nodetree == nullptr) {
     ED_node_composit_default(C, scene);
   }
   DEG_relations_tag_update(CTX_data_main(C));
+}
+
+static void rna_Scene_compositing_node_tree_ensure(Scene *scene, bContext *C)
+{
+  Main *bmain = CTX_data_main(C);
+
+  if (scene->compositing_nodetree == nullptr) {
+    ED_node_composit_default(C, scene);
+  }
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(scene->compositing_nodetree);
+  WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
+  WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 static void rna_Physics_relations_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
@@ -8922,8 +8948,16 @@ void RNA_def_scene(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_ui_text(prop, "Use Nodes", "Enable the compositing node tree");
+  RNA_def_property_ui_text(
+      prop, "Use Nodes", "Enable the compositing node tree. (Deprecated: use use_compositing)");
+  RNA_def_property_boolean_funcs(prop, "rna_Scene_use_nodes_get", "rna_Scene_use_nodes_set");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_use_nodes_update");
+
+  func = RNA_def_function(
+      srna, "compositing_node_tree_ensure", "rna_Scene_compositing_node_tree_ensure");
+  RNA_def_function_ui_description(
+      func, "Create a new compositing node tree if none exists, and assign it to the scene.");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 
   /* Sequencer */
   prop = RNA_def_property(srna, "sequence_editor", PROP_POINTER, PROP_NONE);

@@ -4956,7 +4956,7 @@ static void snode_setup_v2d(SpaceNode &snode, ARegion &region, const float2 &cen
 static bool compositor_is_in_use(const bContext &context)
 {
   const Scene *scene = CTX_data_scene(&context);
-  if (!scene->use_nodes) {
+  if ((scene->r.scemode & R_DOCOMP) == 0) {
     return false;
   }
 

@@ -770,7 +770,7 @@ class CLIP_OT_setup_tracking_scene(Operator):
 
         sc = context.space_data
         scene = context.scene
-        scene.use_nodes = True
+        scene.compositing_node_tree_ensure()
         tree = scene.node_tree
         clip = sc.clip
 
