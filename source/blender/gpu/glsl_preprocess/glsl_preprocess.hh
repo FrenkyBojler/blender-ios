@@ -224,7 +224,13 @@ class Preprocessor {
         small_type_linting(str, report_error);
       }
       str = remove_quotes(str);
+      if (language == BLENDER_GLSL) {
+        str = using_mutation(str, report_error);
+        str = namespace_mutation(str, report_error);
+        str = namespace_separator_mutation(str);
+      }
       str = enum_macro_injection(str);
+      str = default_argument_mutation(str);
       str = argument_reference_mutation(str);
       str = variable_reference_mutation(str, report_error);
       str = template_definition_mutation(str, report_error);
@@ -657,6 +663,148 @@ class Preprocessor {
     return out;
   }
 
+  std::string namespace_mutation(const std::string &str, report_callback report_error)
+  {
+    if (str.find("namespace") == std::string::npos) {
+      return str;
+    }
+
+    std::string out = str;
+
+    /* Parse each namespace declaration. */
+    std::regex regex(R"(namespace (\w+(?:\:\:\w+)*))");
+    regex_global_search(str, regex, [&](const std::smatch &match) {
+      std::string namespace_name = match[1].str();
+      std::string content = get_content_between_balanced_pair(match.suffix().str(), '{', '}');
+
+      if (content.find("namespace") != std::string::npos) {
+        report_error(match, "Nested namespaces are unsupported.");
+        return;
+      }
+
+      std::string out_content = content;
+
+      /* Parse all global symbols (struct / functions) inside the content. */
+      std::regex regex(R"(\n(?:const )?\w+ (\w+)\(?)");
+      regex_global_search(content, regex, [&](const std::smatch &match) {
+        std::string function = match[1].str();
+        /* Replace all occurrences of the non-namespace specified symbol.
+         * Reject symbols that contain the target symbol name. */
+        std::regex regex(R"(([^:\w]))" + function + R"(([\s\(]))");
+        out_content = std::regex_replace(
+            out_content, regex, "$1" + namespace_name + "::" + function + "$2");
+      });
+
+      replace_all(out, "namespace " + namespace_name + " {" + content + "}", out_content);
+    });
+
+    return out;
+  }
+
+  /* Needs to run before namespace mutation so that `using` have more precedence. */
+  std::string using_mutation(const std::string &str, report_callback report_error)
+  {
+    using namespace std;
+
+    if (str.find("using ") == string::npos) {
+      return str;
+    }
+
+    if (str.find("using namespace ") != string::npos) {
+      regex_global_search(str, regex(R"(\busing namespace\b)"), [&](const smatch &match) {
+        report_error(match,
+                     "Unsupported `using namespace`. "
+                     "Add individual `using` directives for each needed symbol.");
+      });
+      return str;
+    }
+
+    string next_str = str;
+
+    string out_str;
+    /* Using namespace symbol. Example: `using A::B;` */
+    /* Using as type alias. Example: `using S = A::B;` */
+    regex regex_using(R"(\busing (?:(\w+) = )?(([\w\:\<\>]+)::(\w+));)");
+
+    smatch match;
+    while (regex_search(next_str, match, regex_using)) {
+      const string using_definition = match[0].str();
+      const string alias = match[1].str();
+      const string to = match[2].str();
+      const string namespace_prefix = match[3].str();
+      const string symbol = match[4].str();
+      const string prefix = match.prefix().str();
+      const string suffix = match.suffix().str();
+
+      out_str += prefix;
+      /* Assumes formatted input. */
+      if (prefix.back() == '\n') {
+        /* Using the keyword in global or at namespace scope. */
+        const string parent_scope = get_content_between_balanced_pair(
+            out_str + '}', '{', '}', true);
+        if (parent_scope.empty()) {
+          report_error(match, "The `using` keyword is not allowed in global scope.");
+          break;
+        }
+        /* Ensure we are bringing symbols from the same namespace.
+         * Otherwise we can have different shadowing outcome between shader and C++. */
+        const string ns_keyword = "namespace ";
+        size_t pos = out_str.rfind(ns_keyword, out_str.size() - parent_scope.size());
+        if (pos == string::npos) {
+          report_error(match, "Couldn't find `namespace` keyword at begining of scope.");
+          break;
+        }
+        size_t start = pos + ns_keyword.size();
+        size_t end = out_str.size() - parent_scope.size() - start - 2;
+        const string namespace_scope = out_str.substr(start, end);
+        if (namespace_scope != namespace_prefix) {
+          report_error(
+              match,
+              "The `using` keyword is only allowed in namespace scope to make visible symbols "
+              "from the same namespace declared in another scope, potentially from another "
+              "file.");
+          break;
+        }
+      }
+      /** IMPORTANT: `match` is invalid after the assignment. */
+      next_str = using_definition + suffix;
+      /* Assignments do not allow to alias functions symbols. */
+      const bool replace_fn = alias.empty();
+      /* Replace the alias (the left part of the assignment) or the last symbol. */
+      const string from = !alias.empty() ? alias : symbol;
+      /* Replace all occurrences of the non-namespace specified symbol.
+       * Reject symbols that contain the target symbol name. */
+      /** IMPORTANT: If replace_fn is true, this can replace any symbol type if there are functions
+       * and types with the same name. We could support being more explicit about the type of
+       * symbol to replace using an optional attribute [[gpu::using_function]]. */
+      const regex regex(R"(([^:\w]))" + from + R"(([\s)" + (replace_fn ? R"(\()" : "") + "])");
+      const string in_scope = get_content_between_balanced_pair('{' + suffix, '{', '}');
+      const string out_scope = regex_replace(in_scope, regex, "$1" + to + "$2");
+      replace_all(next_str, using_definition + in_scope, out_scope);
+    }
+    out_str += next_str;
+
+    /* Verify all using were processed. */
+    if (out_str.find("using ") != string::npos) {
+      regex_global_search(out_str, regex(R"(\busing\b)"), [&](const smatch &match) {
+        report_error(match, "Unsupported `using` keyword usage.");
+      });
+    }
+    return out_str;
+  }
+
+  std::string namespace_separator_mutation(const std::string &str)
+  {
+    std::string out = str;
+
+    /* Global namespace reference. */
+    replace_all(out, " ::", "   ");
+    /* Specific namespace reference.
+     * Cannot use `__` because of some compilers complaining about reserved symbols. */
+    replace_all(out, "::", "_");
+    return out;
+  }
+
   std::string preprocessor_directive_mutation(const std::string &str)
   {
     /* Remove unsupported directives.` */
@@ -885,6 +1033,104 @@ class Preprocessor {
     return str;
   }
 
+  /**
+   * Expand functions with default arguments to function overloads.
+   * Expects formatted input and that function bodies are followed by newline.
+   */
+  std::string default_argument_mutation(std::string str)
+  {
+    using namespace std;
+    int match = 0;
+    default_argument_search(
+        str, [&](int /*parenthesis_depth*/, int /*bracket_depth*/, char & /*c*/) { match++; });
+
+    if (match == 0) {
+      /* No mutation to do. Early out as the following regex is expensive. */
+      return str;
+    }
+
+    vector<pair<string, string>> mutations;
+
+    int64_t line = 0;
+
+    /* Matches function definition.  */
+    regex regex_func(R"(\n((\w+)\s+(\w+)\s*\()([^{]+))");
+    regex_global_search(str, regex_func, [&](const smatch &match) {
+      const string prefix = match[1].str();
+      const string return_type = match[2].str();
+      const string func_name = match[3].str();
+      const string args = get_content_between_balanced_pair('(' + match[4].str(), '(', ')');
+      const string suffix = ")\n{";
+
+      int64_t lines_in_content = line_count(match[0].str());
+      line += line_count(match.prefix().str()) + lines_in_content;
+
+      if (args.find('=') == string::npos) {
+        return;
+      }
+
+      const bool has_non_void_return_type = return_type != "void";
+
+      string line_directive = "#line " + to_string(line - lines_in_content + 2) + "\n";
+
+      vector<string> args_split = split_string_not_between_balanced_pair(args, ',', '(', ')');
+      string overloads;
+      string args_defined;
+      string args_called;
+
+      /* Rewrite original definition without defaults. */
+      string with_default = match[0].str();
+      string no_default = with_default;
+
+      for (const string &arg : args_split) {
+        regex regex(R"(((?:const )?\w+)\s+(\w+)( = (.+))?)");
+        smatch match;
+        regex_search(arg, match, regex);
+
+        string arg_type = match[1].str();
+        string arg_name = match[2].str();
+        string arg_assign = match[3].str();
+        string arg_value = match[4].str();
+
+        if (!arg_value.empty()) {
+          string body = func_name + "(" + args_called + arg_value + ");";
+          if (has_non_void_return_type) {
+            body = "  return " + body;
+          }
+          else {
+            body = "  " + body;
+          }
+
+          overloads = line_directive + prefix + args_defined + suffix + '\n' + line_directive +
+                      body + "\n}\n" + overloads;
+
+          replace_all(no_default, arg_assign, "");
+        }
+        if (!args_defined.empty()) {
+          args_defined += ", ";
+        }
+        args_defined += arg_type + ' ' + arg_name;
+        args_called += arg_name + ", ";
+      }
+
+      /* Get function body to put the overload after it. */
+      string body_content = '{' +
+                            get_content_between_balanced_pair(match.suffix().str(), '{', '}') +
+                            "}\n";
+
+      string last_line_directive =
+          "#line " + to_string(line - lines_in_content + line_count(body_content) + 3) + "\n";
+
+      mutations.emplace_back(with_default + body_content,
+                             no_default + body_content + overloads + last_line_directive);
+    });
+
+    for (auto mutation : mutations) {
+      replace_all(str, mutation.first, mutation.second);
+    }
+    return str;
+  }
+
   /* To be run before `argument_decorator_macro_injection()`. */
   std::string argument_reference_mutation(std::string &str)
   {
@@ -946,8 +1192,6 @@ class Preprocessor {
       const string suffix = match.suffix().str();
 
       out_str += prefix;
-      /** IMPORTANT: `match` is invalid after the assignment. */
-      next_str = definition + suffix;
 
       /* Assert definition doesn't contain any side effect. */
       if (value.find("++") != string::npos || value.find("--") != string::npos) {
@@ -1016,6 +1260,9 @@ class Preprocessor {
        * and functions with the same name. */
       modified = regex_replace(
           modified, regex(R"(([^\.])\b)" + name + R"(\b([^(]))"), "$1" + value + "$2");
+
+      /** IMPORTANT: `match` is invalid after the assignment. */
+      next_str = definition + suffix;
 
       /* Replace whole modified scope in output string. */
       replace_all(next_str, original, modified);
@@ -1352,22 +1599,56 @@ class Preprocessor {
    * Expects the input `str` to be formatted with balanced parenthesis and curly brackets. */
   static void reference_search(std::string &str, std::function<void(int, int, char &)> callback)
   {
+    scopes_scan_for_char(
+        str, '&', [&](size_t pos, int parenthesis_depth, int bracket_depth, char &c) {
+          if (pos > 0 && pos <= str.length() - 2) {
+            /* This is made safe by the previous check. */
+            char prev_char = str[pos - 1];
+            char next_char = str[pos + 1];
+            /* Validate it is not an operator (`&`, `&&`, `&=`). */
+            if (prev_char == ' ' || prev_char == '(') {
+              if (next_char != ' ' && next_char != '\n' && next_char != '&' && next_char != '=') {
+                callback(parenthesis_depth, bracket_depth, c);
+              }
+            }
+          }
+        });
+  }
+
+  /* Match any default argument definition (e.g. `void func(int a = 0)`).
+   * Call the callback function for each `=` character inside a function argument list.
+   * Expects the input `str` to be formatted with balanced parenthesis and curly brackets. */
+  static void default_argument_search(std::string &str,
+                                      std::function<void(int, int, char &)> callback)
+  {
+    scopes_scan_for_char(
+        str, '=', [&](size_t pos, int parenthesis_depth, int bracket_depth, char &c) {
+          if (pos > 0 && pos <= str.length() - 2) {
+            /* This is made safe by the previous check. */
+            char prev_char = str[pos - 1];
+            char next_char = str[pos + 1];
+            /* Validate it is not an operator (`==`, `<=`, `>=`). Expects formatted input. */
+            if (prev_char == ' ' && next_char == ' ') {
+              if (parenthesis_depth == 1 && bracket_depth == 0) {
+                callback(parenthesis_depth, bracket_depth, c);
+              }
+            }
+          }
+        });
+  }
+
+  /* Scan through a string matching for every occurrence of a character.
+   * Calls the callback with the context in which the match occurs. */
+  static void scopes_scan_for_char(std::string &str,
+                                   char search_char,
+                                   std::function<void(size_t, int, int, char &)> callback)
+  {
     size_t pos = 0;
     int parenthesis_depth = 0;
     int bracket_depth = 0;
     for (char &c : str) {
-      if (c == '&') {
-        if (pos > 0 && pos <= str.length() - 2) {
-          /* This is made safe by the previous check and by starting at pos = 1. */
-          char prev_char = str[pos - 1];
-          char next_char = str[pos + 1];
-          /* Validate it is not an operator (`&`, `&&`, `&=`). */
-          if (prev_char == ' ' || prev_char == '(') {
-            if (next_char != ' ' && next_char != '\n' && next_char != '&' && next_char != '=') {
-              callback(parenthesis_depth, bracket_depth, c);
-            }
-          }
-        }
+      if (c == search_char) {
+        callback(pos, parenthesis_depth, bracket_depth, c);
       }
       else if (c == '(') {
         parenthesis_depth++;
