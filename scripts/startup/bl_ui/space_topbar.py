@@ -656,7 +656,7 @@ class TOPBAR_MT_workspace_menu(Menu):
 
         layout.separator()
 
-        layout.operator("workspace.delete_all", text="Close Inactive Tabs")
+        layout.operator("workspace.delete_all", text="Delete Inactive Tabs")
 
 
 # Grease Pencil Object - Primitive curve
