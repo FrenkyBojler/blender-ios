@@ -160,51 +160,8 @@ static Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_ty
   return {};
 }
 
-/**
- * In this function all the attribute providers for a point cloud component are created. Most data
- * in this function is statically allocated, because it does not change over time.
- */
-static GeometryAttributeProviders create_attribute_providers_for_pointcloud()
+static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
 {
-  static CustomDataAccessInfo point_access = {
-      [](void *owner) -> CustomData * {
-        PointCloud *pointcloud = static_cast<PointCloud *>(owner);
-        return &pointcloud->pdata;
-      },
-      [](const void *owner) -> const CustomData * {
-        const PointCloud *pointcloud = static_cast<const PointCloud *>(owner);
-        return &pointcloud->pdata;
-      },
-      [](const void *owner) -> int {
-        const PointCloud *pointcloud = static_cast<const PointCloud *>(owner);
-        return pointcloud->totpoint;
-      }};
-
-  static BuiltinCustomDataLayerProvider position("position",
-                                                 AttrDomain::Point,
-                                                 CD_PROP_FLOAT3,
-                                                 BuiltinAttributeProvider::NonDeletable,
-                                                 point_access,
-                                                 tag_position_changed);
-  static BuiltinCustomDataLayerProvider radius("radius",
-                                               AttrDomain::Point,
-                                               CD_PROP_FLOAT,
-                                               BuiltinAttributeProvider::Deletable,
-                                               point_access,
-                                               tag_radius_changed);
-  static BuiltinCustomDataLayerProvider id("id",
-                                           AttrDomain::Point,
-                                           CD_PROP_INT32,
-                                           BuiltinAttributeProvider::Deletable,
-                                           point_access,
-                                           nullptr);
-  static CustomDataAttributeProvider point_custom_data(AttrDomain::Point, point_access);
-  return GeometryAttributeProviders({&position, &radius, &id}, {&point_custom_data});
-}
-
-static AttributeAccessorFunctions get_pointcloud_accessor_functions()
-{
-  static const GeometryAttributeProviders providers = create_attribute_providers_for_pointcloud();
   AttributeAccessorFunctions fn{};
   fn.domain_supported = [](const void * /*owner*/, const AttrDomain domain) {
     return domain == AttrDomain::Point;
@@ -309,7 +266,7 @@ static AttributeAccessorFunctions get_pointcloud_accessor_functions()
 
 const AttributeAccessorFunctions &pointcloud_attribute_accessor_functions()
 {
-  static const AttributeAccessorFunctions fn = get_pointcloud_accessor_functions();
+  static constexpr AttributeAccessorFunctions fn = get_pointcloud_accessor_functions();
   return fn;
 }
 
