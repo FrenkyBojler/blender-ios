@@ -25,7 +25,6 @@ from mathutils import (
 from bpy.app.translations import (
     pgettext_tip as tip_,
     pgettext_rpt as rpt_,
-    pgettext_data as data_,
 )
 
 
@@ -666,27 +665,6 @@ class NODE_OT_viewer_shortcut_get(Operator):
         return {'FINISHED'}
 
 
-class NODE_OT_compositor_new_nodetree_assign(Operator):
-    """Create a new compositor node tree and assign it to the active scene"""
-
-    bl_idname = "node.new_compositor_node_tree_assign"
-    bl_label = "Assign New Compositor Node Tree"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        ntree = bpy.data.node_groups.new(data_("Compositing Nodetree"), "CompositorNodeTree")
-        context.scene.compositing_node_tree = ntree
-
-        render_layers = ntree.nodes.new(type="CompositorNodeRLayers")
-        render_layers.location = (-200, 200)
-        composite = ntree.nodes.new(type="CompositorNodeComposite")
-        composite.location = (200, 200)
-
-        ntree.links.new(render_layers.outputs["Image"], composite.inputs["Image"])
-
-        return {'FINISHED'}
-
-
 class NODE_FH_image_node(FileHandler):
     bl_idname = "NODE_FH_image_node"
     bl_label = "Image node"
@@ -722,5 +700,4 @@ classes = (
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,
     NODE_OT_viewer_shortcut_set,
-    NODE_OT_compositor_new_nodetree_assign,
 )

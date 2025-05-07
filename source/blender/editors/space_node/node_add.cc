@@ -1369,4 +1369,63 @@ void NODE_OT_new_node_tree(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name New Compositing Node Tree Operator
+ * \{ */
+
+static wmOperatorStatus new_compositing_node_tree_exec(bContext *C, wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(C);
+
+  /* Create a compositing node tree.
+   * Note: Calling an operator instead of new_node_tree_exec() directly insures we have a valid
+   * scene->compositing_nodetree.*/
+  wmOperatorType *ot = WM_operatortype_find("NODE_OT_new_node_tree", false);
+  PointerRNA props_ptr;
+  WM_operator_properties_create_ptr(&props_ptr, ot);
+  RNA_enum_set(&props_ptr, "type", NTREE_COMPOSIT);
+  RNA_string_set(&props_ptr, "name", DATA_("Compositor Nodetree"));
+
+  WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, nullptr);
+  WM_operator_properties_free(&props_ptr);
+
+  /* Add default nodes to the compositing node tree. */
+  bNode *out = blender::bke::node_add_node(
+      C, *scene->compositing_nodetree, "CompositorNodeComposite");
+  out->location[0] = 200.0f;
+  out->location[1] = 200.0f;
+
+  bNode *in = blender::bke::node_add_node(
+      C, *scene->compositing_nodetree, "CompositorNodeRLayers");
+  in->location[0] = -200.0f;
+  in->location[1] = 200.0f;
+  blender::bke::node_set_active(*scene->compositing_nodetree, *in);
+
+  /* Links from color to color. */
+  bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
+  bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
+  blender::bke::node_add_link(*scene->compositing_nodetree, *in, *fromsock, *out, *tosock);
+
+  BKE_ntree_update_after_single_tree_change(*bmain, *scene->compositing_nodetree);
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_new_compositing_node_tree(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "New Compositing Node Tree";
+  ot->idname = "NODE_OT_new_compositing_node_tree";
+  ot->description = "Create a new compositing node tree";
+
+  /* api callbacks */
+  ot->exec = new_compositing_node_tree_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
 }  // namespace blender::ed::space_node
