@@ -636,8 +636,10 @@ class TOPBAR_MT_workspace_menu(Menu):
         layout = self.layout
 
         layout.operator("workspace.duplicate", text="Duplicate", icon='DUPLICATE')
-        if len(bpy.data.workspaces) > 1:
-            layout.operator("workspace.delete", text="Delete", icon='REMOVE')
+        if len(bpy.data.workspaces) <= 1:
+            return
+
+        layout.operator("workspace.delete", text="Close", icon='REMOVE')
 
         layout.separator()
 
@@ -651,6 +653,10 @@ class TOPBAR_MT_workspace_menu(Menu):
         props.direction = 'PREV'
         props = layout.operator("screen.workspace_cycle", text="Next Workspace")
         props.direction = 'NEXT'
+
+        layout.separator()
+
+        layout.operator("workspace.delete_all", text="Close All")
 
 
 # Grease Pencil Object - Primitive curve

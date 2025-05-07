@@ -340,6 +340,34 @@ static void WORKSPACE_OT_delete(wmOperatorType *ot)
   ot->exec = workspace_delete_exec;
 }
 
+static wmOperatorStatus workspace_delete_all_exec(bContext *C, wmOperator * /*op*/)
+{
+  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
+  WorkSpace *current_workspace = WM_window_get_active_workspace(win);
+
+  LISTBASE_FOREACH (WorkSpace *, ws, &bmain->workspaces) {
+    if (ws != current_workspace) {
+      WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_DELETE, ws);
+      WM_event_add_notifier(C, NC_WINDOW, nullptr);
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void WORKSPACE_OT_delete_all(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Delete All Workspace";
+  ot->description = "Delete all workspaces";
+  ot->idname = "WORKSPACE_OT_delete_all";
+
+  /* api callbacks */
+  ot->poll = workspace_context_poll;
+  ot->exec = workspace_delete_all_exec;
+}
+
 static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -646,9 +674,11 @@ void ED_operatortypes_workspace()
 {
   WM_operatortype_append(WORKSPACE_OT_duplicate);
   WM_operatortype_append(WORKSPACE_OT_delete);
+  WM_operatortype_append(WORKSPACE_OT_delete_all);
   WM_operatortype_append(WORKSPACE_OT_add);
   WM_operatortype_append(WORKSPACE_OT_append_activate);
   WM_operatortype_append(WORKSPACE_OT_reorder_to_back);
+
   WM_operatortype_append(WORKSPACE_OT_reorder_to_front);
   WM_operatortype_append(WORKSPACE_OT_scene_pin_toggle);
 }
