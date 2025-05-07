@@ -12,10 +12,8 @@ Usage:
   strip_libraries.py <path/to/library/directory>
 """
 import argparse
-import glob
 import subprocess
 import sys
-import os
 from pathlib import Path
 
 def print_strip_lib(strip_lib, prev_print_len):
@@ -27,24 +25,20 @@ def print_strip_lib(strip_lib, prev_print_len):
 
 def strip_libs(strip_dir):
     print(f"Stripping libraries in: {strip_dir}")
-    os.chdir(strip_dir)
     prev_print_len = 0;
-    for shared_lib in glob.iglob("**/*.so*", recursive=True):
-        shared_path = Path(shared_lib)
-        if shared_path.suffix == ".py":
+    for shared_lib in strip_dir.rglob("*.so*"):
+        if shared_lib.suffix == ".py":
             # Work around badly named sycl scripts
             continue
 
-        if shared_path.is_symlink():
+        if shared_lib.is_symlink():
             # Don't strip symlinks
             continue
 
         prev_print_len = print_strip_lib(shared_lib, prev_print_len)
         subprocess.check_call(["strip", "-s", "--enable-deterministic-archives", shared_lib])
-    for static_lib in glob.iglob("**/*.a", recursive=True):
-        static_path = Path(static_lib)
-
-        if static_path.is_symlink():
+    for static_lib in strip_dir.rglob("*.a"):
+        if static_lib.is_symlink():
             # Don't strip symlinks
             continue
 
