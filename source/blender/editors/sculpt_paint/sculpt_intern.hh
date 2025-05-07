@@ -943,7 +943,7 @@ void SCULPT_OT_paint_mask_extract(wmOperatorType *ot);
 void SCULPT_OT_face_set_extract(wmOperatorType *ot);
 void SCULPT_OT_paint_mask_slice(wmOperatorType *ot);
 
-}
+}  // namespace blender::ed::sculpt_paint
 
 namespace blender::ed::sculpt_paint::filter {
 
