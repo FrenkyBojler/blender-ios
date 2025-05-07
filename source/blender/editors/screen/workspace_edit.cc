@@ -678,7 +678,6 @@ void ED_operatortypes_workspace()
   WM_operatortype_append(WORKSPACE_OT_add);
   WM_operatortype_append(WORKSPACE_OT_append_activate);
   WM_operatortype_append(WORKSPACE_OT_reorder_to_back);
-
   WM_operatortype_append(WORKSPACE_OT_reorder_to_front);
   WM_operatortype_append(WORKSPACE_OT_scene_pin_toggle);
 }
