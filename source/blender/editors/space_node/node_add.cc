@@ -1307,37 +1307,36 @@ static wmOperatorStatus node_add_group_input_node_with_panel_exec(bContext *C, w
     }
   }
 
+  if (!has_inputs) {
+    return OPERATOR_CANCELLED;
+  }
+
   /* Add Group Input node. */
-  bNode *group_input_node = nullptr;
-  if (has_inputs) {
-    group_input_node = bke::node_add_node(C, *ntree, "NodeGroupInput");
-    if (!group_input_node) {
-      BKE_report(op->reports, RPT_WARNING, "Could not add Group Input node");
-      return OPERATOR_CANCELLED;
-    }
+  bNode *group_input_node = bke::node_add_node(C, *ntree, "NodeGroupInput");
+  if (!group_input_node) {
+    BKE_report(op->reports, RPT_WARNING, "Could not add Group Input node");
+    return OPERATOR_CANCELLED;
+  }
 
-    /* Place node at mouse position. */
-    position_node_based_on_mouse(*group_input_node, snode->runtime->cursor);
+  /* Place node at mouse position. */
+  position_node_based_on_mouse(*group_input_node, snode->runtime->cursor);
 
-    /* Initially hide all sockets. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
-      socket->flag |= SOCK_HIDDEN;
-    }
-    /* Show only sockets contained in the dragged panel. */
-    for (bNodeTreeInterfaceSocket *iface_socket : ntree->interface_inputs()) {
-      if (panel->contains_recursive(iface_socket->item)) {
-        bNodeSocket *socket = bke::node_find_socket(
-            *group_input_node, SOCK_OUT, iface_socket->identifier);
-        BLI_assert(socket);
-        socket->flag &= ~SOCK_HIDDEN;
-      }
+  /* Initially hide all sockets. */
+  LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
+    socket->flag |= SOCK_HIDDEN;
+  }
+  /* Show only sockets contained in the dragged panel. */
+  for (bNodeTreeInterfaceSocket *iface_socket : ntree->interface_inputs()) {
+    if (panel->contains_recursive(iface_socket->item)) {
+      bNodeSocket *socket = bke::node_find_socket(
+          *group_input_node, SOCK_OUT, iface_socket->identifier);
+      BLI_assert(socket);
+      socket->flag &= ~SOCK_HIDDEN;
     }
   }
 
   /* Select added node. */
-  if (group_input_node) {
-    bke::node_set_active(*ntree, *group_input_node);
-  }
+  bke::node_set_active(*ntree, *group_input_node);
 
   BKE_main_ensure_invariants(*bmain, ntree->id);
 
