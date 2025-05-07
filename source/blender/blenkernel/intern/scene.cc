@@ -1004,6 +1004,12 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     sce->nodetree = reinterpret_cast<bNodeTree *>(MEM_mallocN(1, "dummy pointer"));
   }
 
+  /* Todo(habib): Forward compatibility support will be removed in 5.0. Remove mapping between
+   * `scene->use_nodes` and `scene->r.scemode`. */
+  if (sce->compositing_nodetree && sce->r.scemode & R_DOCOMP) {
+    sce->use_nodes = true;
+  }
+
   /* write LibData */
   BLO_write_id_struct(writer, Scene, id_address, &sce->id);
   BKE_id_blend_write(writer, &sce->id);
