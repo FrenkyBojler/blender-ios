@@ -488,7 +488,7 @@ class NodeTreeMainUpdater {
   {
     TreeUpdateResult result;
 
-    ntree.runtime->link_errors_by_target_node.clear();
+    ntree.runtime->link_errors.clear();
 
     if (this->update_panel_toggle_names(ntree)) {
       result.interface_changed = true;
@@ -1205,9 +1205,8 @@ class NodeTreeMainUpdater {
       }
       if (is_invalid_enum_ref(*link->fromsock) || is_invalid_enum_ref(*link->tosock)) {
         link->flag &= ~NODE_LINK_VALID;
-        ntree.runtime->link_errors_by_target_node.add(
-            link->tonode->identifier,
-            NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
+        ntree.runtime->link_errors.add(
+            link, NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
         continue;
       }
       if (ntree.type == NTREE_GEOMETRY) {
@@ -1216,9 +1215,8 @@ class NodeTreeMainUpdater {
             field_states[link->tosock->index_in_tree()] != FieldSocketState::IsField)
         {
           link->flag &= ~NODE_LINK_VALID;
-          ntree.runtime->link_errors_by_target_node.add(
-              link->tonode->identifier,
-              NodeLinkError{TIP_("The node input does not support fields")});
+          ntree.runtime->link_errors.add(
+              link, NodeLinkError{TIP_("The node input does not support fields")});
           continue;
         }
       }
@@ -1228,9 +1226,8 @@ class NodeTreeMainUpdater {
           to_node.runtime->toposort_left_to_right_index)
       {
         link->flag &= ~NODE_LINK_VALID;
-        ntree.runtime->link_errors_by_target_node.add(
-            link->tonode->identifier,
-            NodeLinkError{TIP_("The links form a cycle which is not supported")});
+        ntree.runtime->link_errors.add(
+            link, NodeLinkError{TIP_("The links form a cycle which is not supported")});
         continue;
       }
       if (ntree.typeinfo->validate_link) {
@@ -1238,8 +1235,8 @@ class NodeTreeMainUpdater {
         const eNodeSocketDatatype to_type = eNodeSocketDatatype(link->tosock->type);
         if (!ntree.typeinfo->validate_link(from_type, to_type)) {
           link->flag &= ~NODE_LINK_VALID;
-          ntree.runtime->link_errors_by_target_node.add(
-              link->tonode->identifier,
+          ntree.runtime->link_errors.add(
+              link,
               NodeLinkError{fmt::format("{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                                         " {}",
                                         TIP_("Conversion is not supported"),

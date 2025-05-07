@@ -163,11 +163,11 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
       geometry_nodes_lazy_function_graph_info;
 
   /**
-   * Stores information about invalid links. This information is then displayed to the user. The
-   * key of the map is the node identifier. The data is stored per target-node because we want to
-   * display the error information there.
+   * Stores information about invalid links. This information is then displayed to the user. This
+   * is updated in #update_link_validation and is valid during drawing code. In other places like
+   * operators, it may be out of date and have dangling pointers if links have been removed.
    */
-  MultiValueMap<int, NodeLinkError> link_errors_by_target_node;
+  MultiValueMap<const bNodeLink *, NodeLinkError> link_errors;
 
   /**
    * Protects access to all topology cache variables below. This is necessary so that the cache can
