@@ -3103,7 +3103,7 @@ static void node_get_invalid_links_extra_info(const SpaceNode &snode,
   rows.append(std::move(row));
 }
 
-static void add_bad_cast_warnings(const bNode &node, Vector<NodeExtraInfoRow> &rows)
+static void add_bad_socket_type_warnings(const bNode &node, Vector<NodeExtraInfoRow> &rows)
 {
   for (const bNodeSocket *socket : node.input_sockets()) {
     if (!socket->is_available()) {
@@ -3112,7 +3112,7 @@ static void add_bad_cast_warnings(const bNode &node, Vector<NodeExtraInfoRow> &r
     if (!socket->runtime->declaration) {
       continue;
     }
-    if (!socket->runtime->declaration->warn_common_bad_cast) {
+    if (!socket->runtime->declaration->warn_bad_socket_type) {
       continue;
     }
     for (const bNodeLink *link : socket->directly_linked_links()) {
@@ -3127,8 +3127,7 @@ static void add_bad_cast_warnings(const bNode &node, Vector<NodeExtraInfoRow> &r
         row.icon = ICON_INFO;
         row.text = IFACE_("Wrong type");
         row.tooltip = TIP_(
-            "The type conversion on an input is error prone. Does the node have the correct "
-            "type?");
+            "The socket type is likely wrong. There is an error-prone implicit conversion");
         rows.append(std::move(row));
       }
     }
@@ -3147,7 +3146,7 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
     node.typeinfo->get_extra_info(params);
   }
 
-  add_bad_cast_warnings(node, rows);
+  add_bad_socket_type_warnings(node, rows);
 
   if (node.typeinfo->deprecation_notice) {
     NodeExtraInfoRow row;

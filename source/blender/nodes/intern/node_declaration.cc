@@ -641,9 +641,10 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_default_link_sock
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::warn_common_bad_cast(bool value)
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::warn_bad_socket_type(bool value)
 {
-  decl_base_->warn_common_bad_cast = value;
+  BLI_assert(this->is_input());
+  decl_base_->warn_bad_socket_type = value;
   return *this;
 }
 

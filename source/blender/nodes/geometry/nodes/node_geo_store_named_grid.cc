@@ -34,7 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input(*bke::grid_type_to_socket_type(VolumeGridType(node->custom1)), "Grid")
       .hide_value()
-      .warn_common_bad_cast();
+      .warn_bad_socket_type();
 }
 
 static void search_link_ops(GatherLinkSearchOpParams &params)

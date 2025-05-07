@@ -40,7 +40,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const NodeGeometryStoreNamedAttribute &storage = node_storage(*node);
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
-    b.add_input(data_type, "Value").field_on_all().warn_common_bad_cast();
+    b.add_input(data_type, "Value").field_on_all().warn_bad_socket_type();
   }
 }
 

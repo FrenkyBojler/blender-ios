@@ -195,7 +195,8 @@ class SocketDeclaration : public ItemDeclaration {
   /** This socket is used as a toggle for the parent panel. */
   bool is_panel_toggle = false;
   bool is_layer_name = false;
-  bool warn_common_bad_cast = false;
+  /** See #warn_bad_socket_type method below. */
+  bool warn_bad_socket_type = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -306,7 +307,11 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
 
-  BaseSocketDeclarationBuilder &warn_common_bad_cast(bool value = true);
+  /**
+   * The input socket type is controlled by the node and if a value passed to it is downcast it's
+   * likely a mistake.
+   */
+  BaseSocketDeclarationBuilder &warn_bad_socket_type(bool value = true);
 
   /** The input socket allows passing in a field. */
   BaseSocketDeclarationBuilder &supports_field();
