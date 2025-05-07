@@ -362,8 +362,9 @@ void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale)
   drag->imbuf_scale = scale;
 }
 
-void WM_event_drag_space_file_paths(const bContext *C, wmDrag *drag)
+void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *C, wmDrag *drag)
 {
+  BLI_assert(drag->type == WM_DRAG_PATH);
   if (!CTX_wm_space_file(C)) {
     return;
   }

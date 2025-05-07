@@ -1552,7 +1552,7 @@ void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale);
  * Overrides the `drag.poin` event to include all selected files in the space file where the event
  * started.
  */
-void WM_event_drag_space_file_paths(const bContext *, wmDrag *drag);
+void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *, wmDrag *drag);
 void WM_event_drag_preview_icon(wmDrag *drag, int icon_id);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
