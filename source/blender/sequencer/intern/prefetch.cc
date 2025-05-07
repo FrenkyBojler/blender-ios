@@ -198,14 +198,20 @@ static AnimationEvalContext seq_prefetch_anim_eval_context(PrefetchJob *pfjob)
 
 void seq_prefetch_get_time_range(Scene *scene, int *r_start, int *r_end)
 {
-  *r_start = -1;
-  *r_end = -1;
+  /* When there is no prefetch job, return "impossible" negative values. */
+  *r_start = INT_MIN;
+  *r_end = INT_MIN;
 
   PrefetchJob *pfjob = seq_prefetch_job_get(scene);
-  if (pfjob != nullptr) {
-    *r_start = pfjob->cfra;
-    *r_end = seq_prefetch_cfra(pfjob);
+  if (pfjob == nullptr) {
+    return;
   }
+  if ((scene->ed->cache_flag & SEQ_CACHE_PREFETCH_ENABLE) == 0 || !pfjob->running) {
+    return;
+  }
+
+  *r_start = pfjob->cfra;
+  *r_end = seq_prefetch_cfra(pfjob);
 }
 
 static void seq_prefetch_free_depsgraph(PrefetchJob *pfjob)

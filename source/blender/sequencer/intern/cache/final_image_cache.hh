@@ -26,7 +26,6 @@ void final_image_cache_clear(Scene *scene);
 void final_image_cache_destroy(Scene *scene);
 
 bool final_image_cache_evict(Scene *scene);
-void final_image_cache_tick(Scene *scene);
 
 size_t final_image_cache_get_image_count(const Scene *scene);
 

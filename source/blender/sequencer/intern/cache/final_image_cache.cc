@@ -26,13 +26,7 @@ namespace blender::seq {
 static Mutex final_image_cache_mutex;
 
 struct FinalImageCache {
-  struct FrameEntry {
-    ImBuf *image = nullptr;
-    int64_t used_at = 0;
-  };
-
-  Map<int, FrameEntry> map_;
-  int64_t logical_time_ = 0;
+  Map<int, ImBuf *> map_;
 
   ~FinalImageCache()
   {
@@ -41,11 +35,10 @@ struct FinalImageCache {
 
   void clear()
   {
-    for (const auto &item : map_.values()) {
-      IMB_freeImBuf(item.image);
+    for (ImBuf *item : map_.values()) {
+      IMB_freeImBuf(item);
     }
     map_.clear();
-    logical_time_ = 0;
   }
 };
 
@@ -77,14 +70,7 @@ ImBuf *final_image_cache_get(Scene *scene, float timeline_frame)
     if (cache == nullptr) {
       return nullptr;
     }
-
-    int64_t cur_time = cache->logical_time_;
-    FinalImageCache::FrameEntry *frame = cache->map_.lookup_ptr(key);
-    if (frame == nullptr) {
-      return nullptr;
-    }
-    frame->used_at = math::max(frame->used_at, cur_time);
-    res = frame->image;
+    res = cache->map_.lookup_default(key, nullptr);
   }
 
   if (res) {
@@ -102,15 +88,13 @@ void final_image_cache_put(Scene *scene, float timeline_frame, ImBuf *image)
   std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = ensure_final_image_cache(scene);
 
-  const int64_t cur_time = cache->logical_time_;
-  FinalImageCache::FrameEntry *existing = cache->map_.lookup_ptr(key);
+  ImBuf **existing = cache->map_.lookup_ptr(key);
   if (existing != nullptr) {
-    existing->used_at = math::max(existing->used_at, cur_time);
-    IMB_freeImBuf(existing->image);
-    existing->image = image;
+    IMB_freeImBuf(*existing);
+    *existing = image;
   }
   else {
-    cache->map_.add_new(key, {image, cur_time});
+    cache->map_.add_new(key, image);
   }
 }
 
@@ -130,7 +114,7 @@ void final_image_cache_invalidate_frame_range(Scene *scene,
   for (auto it = cache->map_.items().begin(); it != cache->map_.items().end(); it++) {
     const int key = (*it).key;
     if (key >= key_start && key <= key_end) {
-      IMB_freeImBuf((*it).value.image);
+      IMB_freeImBuf((*it).value);
       cache->map_.remove(it);
     }
   }
@@ -178,8 +162,8 @@ size_t final_image_cache_calc_memory_size(const Scene *scene)
     return 0;
   }
   size_t size = 0;
-  for (const FinalImageCache::FrameEntry &frame : cache->map_.values()) {
-    size += IMB_get_size_in_memory(frame.image);
+  for (ImBuf *frame : cache->map_.values()) {
+    size += IMB_get_size_in_memory(frame);
   }
   return size;
 }
@@ -202,46 +186,48 @@ bool final_image_cache_evict(Scene *scene)
     return false;
   }
 
-  /* Find which entry was the least recently used.
+  /* Find which entry to remove -- we pick the one that is furthest from the current frame,
+   * biasing the ones that are behind the current frame.
    *
    * However, do not try to evict entries from the current prefetch job range -- we need to
    * be able to fully fill the cache from prefetching, and then actually stop the job when it
    * is full and no longer can evict anything. */
-  int cur_prefetch_start = -1, cur_prefetch_end = -1;
+  int cur_prefetch_start = INT_MIN, cur_prefetch_end = INT_MIN;
   seq_prefetch_get_time_range(scene, &cur_prefetch_start, &cur_prefetch_end);
 
-  int oldest_key = -1;
-  FinalImageCache::FrameEntry *oldest_item = nullptr;
-  int64_t oldest_time = cache->logical_time_;
+  const int cur_frame = scene->r.cfra;
+  int best_key = -1;
+  ImBuf *best_item = nullptr;
+  int best_score = 0;
   for (const auto &item : cache->map_.items()) {
     if (item.key >= cur_prefetch_start && item.key <= cur_prefetch_end) {
       continue; /* Within active prefetch range, do not try to remove it. */
     }
-    if (item.value.used_at < oldest_time) {
-      oldest_key = item.key;
-      oldest_item = &item.value;
-      oldest_time = item.value.used_at;
+
+    /* Score for removal is distance to current frame; 2x that if behind current frame. */
+    int score = 0;
+    if (item.key < cur_frame) {
+      score = (cur_frame - item.key) * 2;
+    }
+    else if (item.key > cur_frame) {
+      score = item.key - cur_frame;
+    }
+    if (score > best_score) {
+      best_key = item.key;
+      best_item = item.value;
+      best_score = score;
     }
   }
 
   /* Remove if we found one. */
-  if (oldest_item != nullptr) {
-    IMB_freeImBuf(oldest_item->image);
-    cache->map_.remove(oldest_key);
+  if (best_item != nullptr) {
+    IMB_freeImBuf(best_item);
+    cache->map_.remove(best_key);
     return true;
   }
 
   /* Did not find anything to remove. */
   return false;
-}
-
-void final_image_cache_tick(Scene *scene)
-{
-  std::lock_guard lock(final_image_cache_mutex);
-  FinalImageCache *cache = query_final_image_cache(scene);
-  if (cache != nullptr) {
-    cache->logical_time_++;
-  }
 }
 
 }  // namespace blender::seq
