@@ -4855,6 +4855,43 @@ static void draw_frame_overlays(const bContext &C,
   }
 }
 
+static void draw_link_message(const bContext &C,
+                              const View2D &v2d,
+                              const SpaceNode &snode,
+                              const bNodeLink &link,
+                              Span<uiBlock *> blocks)
+{
+  const float2 start = socket_link_connection_location(*link.fromnode, *link.fromsock, link);
+  const float2 end = socket_link_connection_location(*link.tonode, *link.tosock, link);
+  const float2 center = math::midpoint(start, end);
+
+  uiBlock &block = *blocks[link.tonode->index()];
+
+  const float bg_radius = UI_UNIT_X * 0.5f;
+  rctf bg_rect;
+  BLI_rctf_init_pt_radius(&bg_rect, center, bg_radius);
+
+  ColorTheme4f bg_color;
+  UI_GetThemeColor4fv(TH_NODE, bg_color);
+
+  UI_draw_roundbox_4fv(&bg_rect, true, UI_UNIT_X * 0.2f, bg_color);
+
+  const float icon_size = UI_UNIT_X;
+  UI_block_emboss_set(&block, ui::EmbossType::None);
+  uiDefIconBut(&block,
+               UI_BTYPE_BUT,
+               0,
+               ICON_ERROR,
+               center.x - icon_size / 2,
+               center.y - icon_size / 2,
+               icon_size,
+               icon_size,
+               nullptr,
+               0,
+               0,
+               "Hello World");
+}
+
 #define USE_DRAW_TOT_UPDATE
 
 static void node_draw_nodetree(const bContext &C,
@@ -4896,6 +4933,11 @@ static void node_draw_nodetree(const bContext &C,
   }
 
   nodelink_batch_end(snode);
+
+  for (const bNodeLink *link : ntree.all_links()) {
+    draw_link_message(C, region.v2d, snode, *link, blocks);
+  }
+
   GPU_blend(GPU_BLEND_NONE);
 
   draw_frame_overlays(C, tree_draw_ctx, region, snode, ntree, blocks);
