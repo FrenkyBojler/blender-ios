@@ -1,3 +1,4 @@
 Referenced by commit c50ae81c4d127031f10366278c485c3c5ab7b24b, Fix: incorrect use of the last handled event
 Referenced by commit 99d469e4d5f7405bfba7c50a32e471852c08236e, Fix: glitch highlighting gizmos when using a tablet
 Referenced by pull request #136847, UI: Increase Gizmo 3D Part Hit Size For Pens
+Referenced by commit 440274d42e8390137ac922409c13d1334777d67b, WM: revert change to the hot-spot size (use the value from 4.4v)
