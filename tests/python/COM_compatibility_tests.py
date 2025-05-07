@@ -2,7 +2,7 @@ import subprocess
 import os
 
 blender_44 = "/home/habib/blender-git/Archive/blender-4.4.0-linux-x64/blender"
-blender_45 = "/home/habib/blender-git/build_linux/bin/blender"
+blender_45 = "/home/habib/blender-git/build_linux_3/bin/blender"
 
 
 TEST_FILES = ["dilate.blend",
@@ -16,7 +16,10 @@ TEST_FILES = ["dilate.blend",
               "node_time.blend",
               "node_tonemap_photoreceptor.blend",
               "node_tonemap_simple.blend",
-              "node_inpaint.blend"
+              "node_inpaint.blend",
+              "node_despeckle.blend",
+              "node_denoise.blend",
+              "node_anti_aliasing.blend",
               ]
 
 ##############################################
@@ -35,7 +38,7 @@ for blend_file in TEST_FILES:
     command = [blender_44]
     command.extend(["--background"])
     command.extend([start_file])
-    command.extend(['--python', "/home/habib/blender-git/blender/tests/python/COM_compatibility_vary_and_render.py"])
+    command.extend(['--python', "/home/habib/blender-git/blender-branch-3/tests/python/COM_compatibility_vary_and_render.py"])
 
     output = subprocess.check_output(command)
 
@@ -51,6 +54,9 @@ for blend_file in TEST_FILES:
     command.extend(['-f', '5'])
 
     output = subprocess.check_output(command)
+
+    if output.find(b"WARNING") != -1:
+        print("\t\tWARNING: no nodes tested")
 
     # Compare render outputs
 
@@ -82,7 +88,7 @@ for blend_file in TEST_FILES:
     command = [blender_45]
     command.extend(["--background"])
     command.extend([start_file])
-    command.extend(['--python', "/home/habib/blender-git/blender/tests/python/COM_compatibility_vary_and_render.py"])
+    command.extend(['--python', "/home/habib/blender-git/blender-branch-3/tests/python/COM_compatibility_vary_and_render.py"])
 
     output = subprocess.check_output(command)
 
@@ -97,6 +103,9 @@ for blend_file in TEST_FILES:
     command.extend(['-f', '5'])
 
     output = subprocess.check_output(command)
+
+    if output.find(b"WARNING") != -1:
+        print("\t\tWARNING: no nodes tested")
 
     # Compare render outputs
 

@@ -20,8 +20,12 @@ TEST_NODES = set(["CompositorNodeBokehImage",
                   "CompositorNodeTonemap",
                   "CompositorNodeDilateErode",
                   "CompositorNodeInpaint",
+                  "CompositorNodeDespeckle",
+                  "CompositorNodeDenoise",
+                  "CompositorNodeAntiAliasing",
                   ])
 
+found_node = False
 for node in bpy.data.scenes[0].node_tree.nodes:
     print()
     print("node:", node.name)
@@ -29,6 +33,7 @@ for node in bpy.data.scenes[0].node_tree.nodes:
     if node.bl_idname not in TEST_NODES:
         continue
 
+    found_node = True
     for attribute in dir(node):
         print("\tattribute:", attribute)
         if attribute in IGNORE_ATTR:
@@ -51,6 +56,9 @@ for node in bpy.data.scenes[0].node_tree.nodes:
                 setattr(node, attribute, new_val)
             bpy.data.scenes[0].frame_current = 10
             node.keyframe_insert(data_path = attribute)
+
+if not found_node:
+    print("WARNING: No nodes tested")
 
 bpy.data.scenes[0].frame_current = 5
 bpy.data.scenes[0].render.image_settings.file_format = 'OPEN_EXR'
