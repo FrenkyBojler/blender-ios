@@ -917,10 +917,7 @@ void DRWContext::engines_data_validate()
   DRW_view_data_free_unused(this->view_data_active);
 }
 
-/* Use `DRW_gpencil_engine_excluded` together with `DRW_gpencil_engine_any_exists` to quickly check
- * whether grease pencil drawing is neede in different cases. For slow exact check use
- * `DRW_render_check_grease_pencil` */
-bool DRW_gpencil_engine_excluded(View3D *v3d)
+bool gpencil_object_is_excluded(View3D *v3d)
 {
   if (v3d) {
     return ((v3d->object_type_exclude_viewport & (1 << OB_GREASE_PENCIL)) != 0);
@@ -928,7 +925,7 @@ bool DRW_gpencil_engine_excluded(View3D *v3d)
   return false;
 }
 
-bool DRW_gpencil_engine_any_exists(Depsgraph *depsgraph)
+static bool gpencil_any_exists(Depsgraph *depsgraph)
 {
   return (DEG_id_type_any_exists(depsgraph, ID_GD_LEGACY) ||
           DEG_id_type_any_exists(depsgraph, ID_GP));
@@ -936,10 +933,10 @@ bool DRW_gpencil_engine_any_exists(Depsgraph *depsgraph)
 
 bool DRW_gpencil_engine_needed_viewport(Depsgraph *depsgraph, View3D *v3d)
 {
-  if (DRW_gpencil_engine_excluded(v3d)) {
+  if (gpencil_object_is_excluded(v3d)) {
     return false;
   }
-  return DRW_gpencil_engine_any_exists(depsgraph);
+  return gpencil_any_exists(depsgraph);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1390,7 +1387,7 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
 
 bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
 {
-  if (DRW_gpencil_engine_any_exists(depsgraph)) {
+  if (gpencil_any_exists(depsgraph)) {
     return true;
   }
 
