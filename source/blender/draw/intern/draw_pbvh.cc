@@ -20,7 +20,6 @@
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
-#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
@@ -1396,10 +1395,6 @@ static void create_lines_index_grids_flat_layout(const Span<int> grid_indices,
 
 static Array<int> calc_material_indices(const Object &object, const OrigMeshData &orig_mesh_data)
 {
-  /* Make sure to sanitize the input for the engine. Otherwise, high material values can
-   * result in out of bound access. */
-  int max_material = BKE_object_material_count_eval(&object);
-
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
@@ -1419,7 +1414,7 @@ static Array<int> calc_material_indices(const Object &object, const OrigMeshData
           if (face_indices.is_empty()) {
             continue;
           }
-          node_materials[i] = min_ii(material_indices[face_indices.first()], max_material);
+          node_materials[i] = material_indices[face_indices.first()];
         }
       });
       return node_materials;
@@ -1442,7 +1437,7 @@ static Array<int> calc_material_indices(const Object &object, const OrigMeshData
           if (grids.is_empty()) {
             continue;
           }
-          node_materials[i] = min_ii(material_indices[grid_faces[grids.first()]], max_material);
+          node_materials[i] = material_indices[grid_faces[grids.first()]];
         }
       });
       return node_materials;
