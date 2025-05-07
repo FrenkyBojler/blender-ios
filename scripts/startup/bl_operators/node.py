@@ -25,8 +25,8 @@ from mathutils import (
 from bpy.app.translations import (
     pgettext_tip as tip_,
     pgettext_rpt as rpt_,
+    pgettext_data as data_,
 )
-from bpy.app.translations import pgettext_data as data_
 
 
 class NodeSetting(PropertyGroup):
