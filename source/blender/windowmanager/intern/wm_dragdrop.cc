@@ -21,7 +21,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_linear_allocator.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_path_utils.hh"
@@ -371,7 +370,6 @@ void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext 
   char dirpath[FILE_MAX];
   BLI_path_split_dir_part(WM_drag_get_single_path(drag), dirpath, FILE_MAX);
 
-  blender::LinearAllocator<> allocator;
   blender::Vector<const char *> paths;
   const blender::Vector<PointerRNA> files = CTX_data_collection_get(C, "selected_files");
   for (const PointerRNA &file_ptr : files) {
@@ -379,13 +377,16 @@ void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext 
     char filepath[FILE_MAX];
     BLI_path_join(filepath, sizeof(filepath), dirpath, file->name);
 
-    paths.append(allocator.copy_string(filepath).c_str());
+    paths.append(BLI_strdup(filepath));
   }
   if (paths.is_empty()) {
     return;
   }
   WM_drag_data_free(drag->type, drag->poin);
   drag->poin = WM_drag_create_path_data(paths);
+  for (const char *path : paths) {
+    MEM_SAFE_FREE(path);
+  }
 }
 
 void WM_event_drag_preview_icon(wmDrag *drag, int icon_id)
