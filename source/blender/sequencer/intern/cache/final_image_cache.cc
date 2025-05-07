@@ -7,6 +7,7 @@
  */
 
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
@@ -20,11 +21,9 @@
 #include "final_image_cache.hh"
 #include "prefetch.hh"
 
-#include <mutex>
-
 namespace blender::seq {
 
-static std::mutex final_image_cache_mutex;
+static Mutex final_image_cache_mutex;
 
 struct FinalImageCache {
   struct FrameEntry {
@@ -73,7 +72,7 @@ ImBuf *final_image_cache_get(Scene *scene, float timeline_frame)
 
   ImBuf *res = nullptr;
   {
-    std::scoped_lock lock(final_image_cache_mutex);
+    std::lock_guard lock(final_image_cache_mutex);
     FinalImageCache *cache = query_final_image_cache(scene);
     if (cache == nullptr) {
       return nullptr;
@@ -100,7 +99,7 @@ void final_image_cache_put(Scene *scene, float timeline_frame, ImBuf *image)
 
   IMB_refImBuf(image);
 
-  std::scoped_lock lock(final_image_cache_mutex);
+  std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = ensure_final_image_cache(scene);
 
   const int64_t cur_time = cache->logical_time_;
@@ -119,7 +118,7 @@ void final_image_cache_invalidate_frame_range(Scene *scene,
                                               const float timeline_frame_start,
                                               const float timeline_frame_end)
 {
-  std::scoped_lock lock(final_image_cache_mutex);
+  std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
   if (cache == nullptr) {
     return;
@@ -139,7 +138,7 @@ void final_image_cache_invalidate_frame_range(Scene *scene,
 
 void final_image_cache_clear(Scene *scene)
 {
-  std::scoped_lock lock(final_image_cache_mutex);
+  std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
   if (cache != nullptr) {
     scene->ed->runtime.final_image_cache->clear();
@@ -148,7 +147,7 @@ void final_image_cache_clear(Scene *scene)
 
 void final_image_cache_destroy(Scene *scene)
 {
-  std::scoped_lock lock(final_image_cache_mutex);
+  std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
   if (cache != nullptr) {
     BLI_assert(cache == scene->ed->runtime.final_image_cache);
@@ -161,7 +160,7 @@ void final_image_cache_iterate(Scene *scene,
                                void *userdata,
                                void callback_iter(void *userdata, int timeline_frame))
 {
-  std::scoped_lock lock(final_image_cache_mutex);
+  std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
   if (cache == nullptr) {
     return;
@@ -173,7 +172,7 @@ void final_image_cache_iterate(Scene *scene,
 
 size_t final_image_cache_calc_memory_size(const Scene *scene)
 {
-  std::scoped_lock lock(final_image_cache_mutex);
+  std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
   if (cache == nullptr) {
     return 0;
@@ -187,7 +186,7 @@ size_t final_image_cache_calc_memory_size(const Scene *scene)
 
 bool final_image_cache_evict(Scene *scene)
 {
-  std::scoped_lock lock(final_image_cache_mutex);
+  std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
   if (cache == nullptr) {
     return false;
@@ -228,7 +227,7 @@ bool final_image_cache_evict(Scene *scene)
 
 void final_image_cache_tick(Scene *scene)
 {
-  std::scoped_lock lock(final_image_cache_mutex);
+  std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = query_final_image_cache(scene);
   if (cache != nullptr) {
     cache->logical_time_++;
