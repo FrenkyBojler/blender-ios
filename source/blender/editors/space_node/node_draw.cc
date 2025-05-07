@@ -4823,6 +4823,15 @@ static void draw_link_errors(SpaceNode &snode,
                              const Span<bke::NodeLinkError> errors,
                              Span<uiBlock *> blocks)
 {
+  if (errors.is_empty()) {
+    return;
+  }
+  if (!link.fromsock || !link.tosock || !link.fromnode || !link.tonode) {
+    /* Likely because the link is being dragged. */
+    return;
+  }
+
+  /* Generate full tooltip from potentially multiple errors. */
   std::string error_tooltip;
   if (errors.size() == 1) {
     error_tooltip = errors[0].tooltip;
@@ -4833,24 +4842,28 @@ static void draw_link_errors(SpaceNode &snode,
     }
   }
 
+  /* Compute error icon location. Currently, the center between the two sockets is always on the
+   * link. */
   const float2 start = socket_link_connection_location(*link.fromnode, *link.fromsock, link);
   const float2 end = socket_link_connection_location(*link.tonode, *link.tosock, link);
   const int2 center = int2(math::midpoint(start, end));
 
-  uiBlock &block = *blocks[link.tonode->index()];
-
+  /* Draw a background for the error icon. */
   const float bg_radius = UI_UNIT_X * 0.5f;
   const float bg_corner_radius = UI_UNIT_X * 0.2f;
   rctf bg_rect;
   BLI_rctf_init_pt_radius(&bg_rect, float2(center), bg_radius);
-
   ColorTheme4f bg_color;
   UI_GetThemeColor4fv(TH_NODE, bg_color);
-
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   ui_draw_dropshadow(&bg_rect, bg_corner_radius, UI_UNIT_X * 0.2f, snode.runtime->aspect, 0.5f);
   UI_draw_roundbox_4fv(&bg_rect, true, bg_corner_radius, bg_color);
 
+  /* Reuse block of the target node. There does not seem to be a reason to create a new one instead
+   * currently. */
+  uiBlock &block = *blocks[link.tonode->index()];
+
+  /* Draw the icon itself with a tooltip. */
   const float icon_size = UI_UNIT_X;
   UI_block_emboss_set(&block, ui::EmbossType::None);
   uiBut *but = uiDefIconBut(&block,
