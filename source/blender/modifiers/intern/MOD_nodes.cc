@@ -950,7 +950,7 @@ static void check_property_socket_sync(const Object *ob,
 
 class NodesModifierBakeDataBlockMap : public bake::BakeDataBlockMap {
   /** Protects access to `new_mappings` which may be added to from multiple threads. */
-  std::mutex mutex_;
+  Mutex mutex_;
 
  public:
   Map<bake::BakeDataBlockID, ID *> old_mappings;
@@ -2522,13 +2522,8 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         char rna_path[sizeof(socket_id_esc) + 4];
         SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
-        panel_layout = uiLayoutPanelPropWithBoolHeader(&ctx.C,
-                                                       layout,
-                                                       &panel_ptr,
-                                                       "is_open",
-                                                       ctx.md_ptr,
-                                                       rna_path,
-                                                       IFACE_(sub_interface_panel.name));
+        panel_layout = layout->panel_prop_with_bool_header(
+            &ctx.C, &panel_ptr, "is_open", ctx.md_ptr, rna_path, IFACE_(sub_interface_panel.name));
         skip_first = true;
       }
       else {

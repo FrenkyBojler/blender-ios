@@ -122,16 +122,6 @@ void Instance::init()
     ED_space_image_get_aspect(space_image, &state.image_aspect.x, &state.image_aspect.y);
   }
 
-  state.has_mesh = DEG_id_type_any_exists(state.depsgraph, ID_ME);
-  state.has_curve = DEG_id_type_any_exists(state.depsgraph, ID_CV) ||
-                    DEG_id_type_any_exists(state.depsgraph, ID_CU_LEGACY);
-  state.has_volume = DEG_id_type_any_exists(state.depsgraph, ID_VO);
-  state.has_gpencil = DEG_id_type_any_exists(state.depsgraph, ID_GP);
-  state.has_armature = DEG_id_type_any_exists(state.depsgraph, ID_AR);
-  state.has_particles = DEG_id_type_any_exists(state.depsgraph, ID_PA);
-  state.has_lattice = DEG_id_type_any_exists(state.depsgraph, ID_LT);
-  state.has_ptcloud = DEG_id_type_any_exists(state.depsgraph, ID_PT);
-
   resources.update_theme_settings(ctx, state);
   resources.update_clip_planes(state);
 
@@ -254,7 +244,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_WIRE, gb.colors.wire);
   UI_GetThemeColor4fv(TH_WIRE_EDIT, gb.colors.wire_edit);
   UI_GetThemeColor4fv(TH_ACTIVE, gb.colors.active_object);
-  UI_GetThemeColor4fv(TH_SELECT, gb.colors.select);
+  UI_GetThemeColor4fv(TH_SELECT, gb.colors.object_select);
   gb.colors.library_select = rgba_uchar_to_float(0x88, 0xFF, 0xFF, 155);
   gb.colors.library = rgba_uchar_to_float(0x55, 0xCC, 0xCC, 155);
   UI_GetThemeColor4fv(TH_TRANSFORM, gb.colors.transform);

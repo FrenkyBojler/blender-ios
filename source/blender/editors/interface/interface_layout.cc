@@ -542,7 +542,7 @@ static void ui_item_array(uiLayout *layout,
     uint layer_used = 0;
     uint layer_active = 0;
 
-    UI_block_layout_set_current(block, uiLayoutAbsolute(layout, false));
+    UI_block_layout_set_current(block, &layout->absolute(false));
 
     const int butw = UI_UNIT_X * 0.75;
     const int buth = UI_UNIT_X * 0.75;
@@ -603,7 +603,7 @@ static void ui_item_array(uiLayout *layout,
     int totdim, dim_size[3]; /* 3 == RNA_MAX_ARRAY_DIMENSION */
     int row, col;
 
-    UI_block_layout_set_current(block, uiLayoutAbsolute(layout, true));
+    UI_block_layout_set_current(block, &layout->absolute(true));
 
     totdim = RNA_property_array_dimension(ptr, prop, dim_size);
     if (totdim != 2) {
@@ -5007,22 +5007,21 @@ PanelLayout uiLayout::panel_prop(const bContext *C,
   return panel_layout;
 }
 
-PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
-                                            uiLayout *layout,
-                                            PointerRNA *open_prop_owner,
-                                            const StringRefNull open_prop_name,
-                                            PointerRNA *bool_prop_owner,
-                                            const StringRefNull bool_prop_name,
-                                            const std::optional<StringRefNull> label)
+PanelLayout uiLayout::panel_prop_with_bool_header(const bContext *C,
+                                                  PointerRNA *open_prop_owner,
+                                                  const StringRefNull open_prop_name,
+                                                  PointerRNA *bool_prop_owner,
+                                                  const StringRefNull bool_prop_name,
+                                                  const std::optional<StringRefNull> label)
 {
-  PanelLayout panel = layout->panel_prop(C, open_prop_owner, open_prop_name);
+  PanelLayout panel_layout = panel_prop(C, open_prop_owner, open_prop_name);
 
-  uiLayout *panel_header = panel.header;
+  uiLayout *panel_header = panel_layout.header;
   panel_header->flag_ &= ~(uiItemInternalFlag::PropSep | uiItemInternalFlag::PropDecorate |
                            uiItemInternalFlag::InsidePropSep);
   uiItemR(panel_header, bool_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
 
-  return panel;
+  return panel_layout;
 }
 
 uiLayout *uiLayout::panel_prop(const bContext *C,
@@ -5209,22 +5208,22 @@ uiLayout *uiLayoutListBox(uiLayout *layout,
   return (uiLayout *)box;
 }
 
-uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align)
+uiLayout &uiLayout::absolute(bool align)
 {
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, align);
+  ui_litem_init_from_parent(litem, this, align);
 
   litem->type_ = uiItemType::LayoutAbsolute;
 
-  UI_block_layout_set_current(layout->root_->block, litem);
+  UI_block_layout_set_current(root_->block, litem);
 
-  return litem;
+  return *litem;
 }
 
-uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout)
+uiBlock *uiLayout::absolute_block()
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
-  uiLayoutAbsolute(layout, false);
+  uiBlock *block = uiLayoutGetBlock(this);
+  absolute(false);
 
   return block;
 }
