@@ -298,12 +298,6 @@ void MESH_OT_smooth_normals(wmOperatorType *ot);
 void MESH_OT_mod_weighted_strength(wmOperatorType *ot);
 void MESH_OT_flip_quad_tessellation(wmOperatorType *ot);
 
-/* *** editmesh_mask_extract.cc *** */
-
-void SCULPT_OT_paint_mask_extract(wmOperatorType *ot);
-void SCULPT_OT_face_set_extract(wmOperatorType *ot);
-void SCULPT_OT_paint_mask_slice(wmOperatorType *ot);
-
 /** Called in `transform_ops.cc`, on each regeneration of key-maps. */
 wmKeyMap *point_normals_modal_keymap(wmKeyConfig *keyconf);
 
