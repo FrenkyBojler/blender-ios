@@ -542,7 +542,7 @@ static void ui_item_array(uiLayout *layout,
     uint layer_used = 0;
     uint layer_active = 0;
 
-    UI_block_layout_set_current(block, uiLayoutAbsolute(layout, false));
+    UI_block_layout_set_current(block, &layout->absolute(false));
 
     const int butw = UI_UNIT_X * 0.75;
     const int buth = UI_UNIT_X * 0.75;
@@ -603,7 +603,7 @@ static void ui_item_array(uiLayout *layout,
     int totdim, dim_size[3]; /* 3 == RNA_MAX_ARRAY_DIMENSION */
     int row, col;
 
-    UI_block_layout_set_current(block, uiLayoutAbsolute(layout, true));
+    UI_block_layout_set_current(block, &layout->absolute(true));
 
     totdim = RNA_property_array_dimension(ptr, prop, dim_size);
     if (totdim != 2) {
@@ -4962,10 +4962,9 @@ uiLayout &uiLayout::row(bool align)
   return *litem;
 }
 
-PanelLayout uiLayoutPanelProp(const bContext *C,
-                              uiLayout *layout,
-                              PointerRNA *open_prop_owner,
-                              const StringRefNull open_prop_name)
+PanelLayout uiLayout::panel_prop(const bContext *C,
+                                 PointerRNA *open_prop_owner,
+                                 const StringRefNull open_prop_name)
 {
   const ARegion *region = CTX_wm_region(C);
 
@@ -4976,7 +4975,7 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
   PanelLayout panel_layout{};
   {
     uiLayoutItemPanelHeader *header_litem = MEM_new<uiLayoutItemPanelHeader>(__func__);
-    ui_litem_init_from_parent(header_litem, layout, false);
+    ui_litem_init_from_parent(header_litem, this, false);
     header_litem->type_ = uiItemType::LayoutPanelHeader;
 
     header_litem->open_prop_owner = *open_prop_owner;
@@ -4987,7 +4986,7 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
 
     uiBlock *block = uiLayoutGetBlock(row);
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
-    const int width = ui_text_icon_width(layout, "", icon, false);
+    const int width = ui_text_icon_width(this, "", icon, false);
     uiDefIconTextBut(
         block, UI_BTYPE_LABEL, 0, icon, "", 0, 0, width, UI_UNIT_Y, nullptr, 0.0f, 0.0f, "");
 
@@ -5000,68 +4999,63 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
 
   uiLayoutItemPanelBody *body_litem = MEM_new<uiLayoutItemPanelBody>(__func__);
   body_litem->type_ = uiItemType::LayoutPanelBody;
-  body_litem->space_ = layout->root_->style->templatespace;
-  ui_litem_init_from_parent(body_litem, layout, false);
-  UI_block_layout_set_current(layout->root_->block, body_litem);
+  body_litem->space_ = root_->style->templatespace;
+  ui_litem_init_from_parent(body_litem, this, false);
+  UI_block_layout_set_current(root_->block, body_litem);
   panel_layout.body = body_litem;
 
   return panel_layout;
 }
 
-PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
-                                            uiLayout *layout,
-                                            PointerRNA *open_prop_owner,
-                                            const StringRefNull open_prop_name,
-                                            PointerRNA *bool_prop_owner,
-                                            const StringRefNull bool_prop_name,
-                                            const std::optional<StringRefNull> label)
+PanelLayout uiLayout::panel_prop_with_bool_header(const bContext *C,
+                                                  PointerRNA *open_prop_owner,
+                                                  const StringRefNull open_prop_name,
+                                                  PointerRNA *bool_prop_owner,
+                                                  const StringRefNull bool_prop_name,
+                                                  const std::optional<StringRefNull> label)
 {
-  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
+  PanelLayout panel_layout = panel_prop(C, open_prop_owner, open_prop_name);
 
-  uiLayout *panel_header = panel.header;
+  uiLayout *panel_header = panel_layout.header;
   panel_header->flag_ &= ~(uiItemInternalFlag::PropSep | uiItemInternalFlag::PropDecorate |
                            uiItemInternalFlag::InsidePropSep);
   uiItemR(panel_header, bool_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
 
-  return panel;
+  return panel_layout;
 }
 
-uiLayout *uiLayoutPanelProp(const bContext *C,
-                            uiLayout *layout,
-                            PointerRNA *open_prop_owner,
-                            const StringRefNull open_prop_name,
-                            const StringRef label)
+uiLayout *uiLayout::panel_prop(const bContext *C,
+                               PointerRNA *open_prop_owner,
+                               const StringRefNull open_prop_name,
+                               const StringRef label)
 {
-  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
-  uiItemL(panel.header, label, ICON_NONE);
+  PanelLayout panel_layout = panel_prop(C, open_prop_owner, open_prop_name);
+  uiItemL(panel_layout.header, label, ICON_NONE);
 
-  return panel.body;
+  return panel_layout.body;
 }
 
-PanelLayout uiLayoutPanel(const bContext *C,
-                          uiLayout *layout,
-                          const StringRef idname,
-                          const bool default_closed)
+PanelLayout uiLayout::panel(const bContext *C, const StringRef idname, const bool default_closed)
 {
-  Panel *panel = uiLayoutGetRootPanel(layout);
-  BLI_assert(panel != nullptr);
+  Panel *root_panel = uiLayoutGetRootPanel(this);
+  BLI_assert(root_panel != nullptr);
 
-  LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(panel, idname, default_closed);
+  LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
+      root_panel, idname, default_closed);
   PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
 
-  return uiLayoutPanelProp(C, layout, &state_ptr, "is_open");
+  return panel_prop(C, &state_ptr, "is_open");
 }
 
-uiLayout *uiLayoutPanel(const bContext *C,
-                        uiLayout *layout,
-                        const StringRef idname,
-                        const bool default_closed,
-                        const StringRef label)
+uiLayout *uiLayout::panel(const bContext *C,
+                          const StringRef idname,
+                          const bool default_closed,
+                          const StringRef label)
 {
-  PanelLayout panel = uiLayoutPanel(C, layout, idname, default_closed);
-  uiItemL(panel.header, label, ICON_NONE);
+  PanelLayout panel_layout = panel(C, idname, default_closed);
+  uiItemL(panel_layout.header, label, ICON_NONE);
 
-  return panel.body;
+  return panel_layout.body;
 }
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout)
@@ -5214,22 +5208,22 @@ uiLayout *uiLayoutListBox(uiLayout *layout,
   return (uiLayout *)box;
 }
 
-uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align)
+uiLayout &uiLayout::absolute(bool align)
 {
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, align);
+  ui_litem_init_from_parent(litem, this, align);
 
   litem->type_ = uiItemType::LayoutAbsolute;
 
-  UI_block_layout_set_current(layout->root_->block, litem);
+  UI_block_layout_set_current(root_->block, litem);
 
-  return litem;
+  return *litem;
 }
 
-uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout)
+uiBlock *uiLayout::absolute_block()
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
-  uiLayoutAbsolute(layout, false);
+  uiBlock *block = uiLayoutGetBlock(this);
+  absolute(false);
 
   return block;
 }
