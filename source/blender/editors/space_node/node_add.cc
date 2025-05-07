@@ -1161,7 +1161,6 @@ void NODE_OT_add_import_node(wmOperatorType *ot)
 
 static wmOperatorStatus node_add_group_input_node_with_socket_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *ntree = snode->edittree;
 
@@ -1188,17 +1187,9 @@ static wmOperatorStatus node_add_group_input_node_with_socket_exec(bContext *C, 
     return OPERATOR_CANCELLED;
   }
 
-  node_deselect_all(*ntree);
-
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
-  /* Add node under mouse position. */
-  bNode *added_node = bke::node_add_node(C, *ntree, "NodeGroupInput");
-  if (!added_node) {
-    BKE_report(op->reports, RPT_WARNING, "Could not add Group Input node");
-    return OPERATOR_CANCELLED;
-  }
-  position_node_based_on_mouse(*added_node, snode->runtime->cursor);
+  bNode *added_node = add_node(*C, "NodeGroupInput", snode->runtime->cursor);
 
   /* Hide all other sockets in the new group input node, to only display the dragged one. */
   LISTBASE_FOREACH (bNodeSocket *, socket, &added_node->outputs) {
@@ -1206,11 +1197,6 @@ static wmOperatorStatus node_add_group_input_node_with_socket_exec(bContext *C, 
       socket->flag |= SOCK_HIDDEN;
     }
   }
-
-  /* Select the added node. */
-  bke::node_set_active(*ntree, *added_node);
-
-  BKE_main_ensure_invariants(*bmain, ntree->id);
 
   return OPERATOR_FINISHED;
 }
