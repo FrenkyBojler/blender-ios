@@ -10,11 +10,11 @@ void main()
 {
   float2 centered = gl_PointCoord - float2(0.5f);
   float dist_squared = dot(centered, centered);
-  const float rad_squared = 0.25f;
+  constexpr float rad_squared = 0.25f;
 
   /* Round point with jagged edges. */
   if (dist_squared > rad_squared) {
-    discard;
+    gpu_discard_fragment();
   }
 
   fragColor = finalColor;

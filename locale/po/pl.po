@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"POT-Creation-Date: 2025-05-05 08:47+0000\n"
 "PO-Revision-Date: 2025-04-14 08:34+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -12365,10 +12365,6 @@ msgid "Show Preview"
 msgstr "Pokaż podgląd"
 
 
-msgid "How much sharp corners will be rounded"
-msgstr "Jak bardzo ostre rogi będą zaokrąglone"
-
-
 msgid "Rounding"
 msgstr "Zaokrąglanie"
 
@@ -18538,10 +18534,6 @@ msgid "Resolution Scale"
 msgstr "Skala rozdzielczości"
 
 
-msgid "Display in Material Preview mode"
-msgstr "Wyświetla w trybie podglądu materiału"
-
-
 msgid "Text Color"
 msgstr "Kolor tekstu"
 
@@ -21737,11 +21729,6 @@ msgstr "Wyłącz podczas renderowania"
 
 
 msgctxt "Operator"
-msgid "ID Data"
-msgstr "ID danych"
-
-
-msgctxt "Operator"
 msgid "Paste Data-Blocks"
 msgstr "Wklej bloki danych"
 
@@ -22725,6 +22712,11 @@ msgstr "Pusty"
 
 
 msgctxt "Operator"
+msgid "Point Cloud"
+msgstr "Chmura punktów"
+
+
+msgctxt "Operator"
 msgid "Speaker"
 msgstr "Głośnik"
 
@@ -22965,11 +22957,6 @@ msgstr "Tekst atrybutu"
 msgctxt "Operator"
 msgid "Viewport Render Animation"
 msgstr "Renderuj animację rzutni"
-
-
-msgctxt "Operator"
-msgid "Point Cloud"
-msgstr "Chmura punktów"
 
 
 msgctxt "Operator"
@@ -26744,10 +26731,6 @@ msgid "New effect needs more input strips"
 msgstr "Nowy efekt potrzebuje paska źródłowego"
 
 
-msgid "No active sequence!"
-msgstr "Brak aktywnej sekwencji!"
-
-
 msgid "Rows:"
 msgstr "Wiersze:"
 
@@ -28106,10 +28089,6 @@ msgid "Quality:"
 msgstr "Jakość:"
 
 
-msgid "Center:"
-msgstr "Centrum:"
-
-
 msgid "Path:"
 msgstr "Ścieżka:"
 
@@ -28815,10 +28794,6 @@ msgstr "Wszystkie wtyczki zainstalowane przez użytkownika"
 
 msgid "Import-Export"
 msgstr "Import-Eksport"
-
-
-msgid "English (English)"
-msgstr "Angielski (English)"
 
 
 msgid "Japanese (日本語)"

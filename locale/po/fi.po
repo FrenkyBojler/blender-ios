@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"POT-Creation-Date: 2025-05-05 08:47+0000\n"
 "PO-Revision-Date: 2025-04-14 08:20+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -7316,6 +7316,10 @@ msgid "Mask"
 msgstr "Maski"
 
 
+msgid "Select Similar"
+msgstr "Valitse samankaltainen"
+
+
 msgid "Select All by Trait"
 msgstr "Valitse kaikki piirteen mukaan"
 
@@ -7374,10 +7378,6 @@ msgstr "Teksti"
 
 msgid "UV Mapping"
 msgstr "UV-kartoittaminen"
-
-
-msgid "Select Similar"
-msgstr "Valitse samankaltainen"
 
 
 msgid "Basic"
@@ -15262,10 +15262,6 @@ msgid "Can't create subtitle file"
 msgstr "Tekstitystiedostoa ei kyetty luomaan"
 
 
-msgid "No active sequence!"
-msgstr "Ei aktiivista sekvenssiä!"
-
-
 msgid "Rows:"
 msgstr "Rivit:"
 
@@ -15967,10 +15963,6 @@ msgstr "Kuva 1"
 
 msgid "Image 2"
 msgstr "Kuva 2"
-
-
-msgid "Center:"
-msgstr "Keskikohta:"
 
 
 msgid "Inner Edge:"
@@ -17829,10 +17821,6 @@ msgstr "mikrofoni"
 
 msgid "network"
 msgstr "verkko"
-
-
-msgid "English (English)"
-msgstr "Englanti (English)"
 
 
 msgid "Japanese (日本語)"

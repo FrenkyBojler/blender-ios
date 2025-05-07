@@ -112,7 +112,7 @@ struct SocketUsageInferencer {
       const SocketInContext &socket = usage_tasks_.peek();
       this->usage_task(socket);
       if (&socket == &usage_tasks_.peek()) {
-        /* The task is finished if it hasn't added any new task it depends on.*/
+        /* The task is finished if it hasn't added any new task it depends on. */
         usage_tasks_.pop();
       }
     }
@@ -137,7 +137,7 @@ struct SocketUsageInferencer {
       const SocketInContext &socket = value_tasks_.peek();
       this->value_task(socket);
       if (&socket == &value_tasks_.peek()) {
-        /* The task is finished if it hasn't added any new task it depends on.*/
+        /* The task is finished if it hasn't added any new task it depends on. */
         value_tasks_.pop();
       }
     }
@@ -536,7 +536,7 @@ struct SocketUsageInferencer {
     }
     const CPPType *base_type = socket->typeinfo->base_cpp_type;
     if (!base_type) {
-      /* The socket type is unknown for some reason (maybe a socket type from the future?).*/
+      /* The socket type is unknown for some reason (maybe a socket type from the future?). */
       all_socket_values_.add_new(socket, nullptr);
       return;
     }
@@ -705,7 +705,7 @@ struct SocketUsageInferencer {
     const NodeInContext node = socket.owner_node();
     const int inputs_num = node->input_sockets().size();
 
-    /* Gather all input values are return early if any of them is not known.*/
+    /* Gather all input values are return early if any of them is not known. */
     Vector<const void *> input_values(inputs_num);
     for (const int input_i : IndexRange(inputs_num)) {
       const SocketInContext input_socket = node.input_socket(input_i);
@@ -746,13 +746,9 @@ struct SocketUsageInferencer {
       }
       /* Allocate memory for the output value. */
       const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
-      void *value = scope_.allocator().allocate(base_type.size(), base_type.alignment());
+      void *value = scope_.allocate_owned(base_type);
       params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
       all_socket_values_.add_new(output_socket, value);
-      if (!base_type.is_trivially_destructible()) {
-        scope_.add_destruct_call(
-            [type = &base_type, value]() { type->destruct(const_cast<void *>(value)); });
-      }
     }
     mf::ContextBuilder context;
     /* Actually evaluate the multi-function. The outputs will be written into the memory allocated
@@ -827,14 +823,9 @@ struct SocketUsageInferencer {
       }
     }
 
-    const CPPType &base_type = *socket->typeinfo->base_cpp_type;
-    void *value_buffer = scope_.allocator().allocate(base_type.size(), base_type.alignment());
+    void *value_buffer = scope_.allocate_owned(*socket->typeinfo->base_cpp_type);
     socket->typeinfo->get_base_cpp_value(socket->default_value, value_buffer);
     all_socket_values_.add_new(socket, value_buffer);
-    if (!base_type.is_trivially_destructible()) {
-      scope_.add_destruct_call(
-          [type = &base_type, value_buffer]() { type->destruct(value_buffer); });
-    }
   }
 
   void value_task__input__linked(const SocketInContext &from_socket,
@@ -869,11 +860,8 @@ struct SocketUsageInferencer {
     if (!conversions.is_convertible(*from_type, *to_type)) {
       return nullptr;
     }
-    void *dst = scope_.allocator().allocate(to_type->size(), to_type->alignment());
+    void *dst = scope_.allocate_owned(*to_type);
     conversions.convert_to_uninitialized(*from_type, *to_type, src, dst);
-    if (!to_type->is_trivially_destructible()) {
-      scope_.add_destruct_call([to_type, dst]() { to_type->destruct(dst); });
-    }
     return dst;
   }
 
@@ -1079,7 +1067,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
     if (base_type == nullptr) {
       continue;
     }
-    void *value = allocator.allocate(base_type->size(), base_type->alignment());
+    void *value = allocator.allocate(*base_type);
     stype.get_base_cpp_value(socket.default_value, value);
     input_values[i] = GPointer(base_type, value);
   }

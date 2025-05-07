@@ -60,6 +60,7 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -799,10 +800,12 @@ struct LibOverrideGroupTagData {
   blender::Set<ID *> linked_ids_hierarchy_default_override;
   bool do_create_linked_overrides_set;
 
-  /** Helpers to mark or unmark an ID as part of the processed (reference of) liboverride
+  /**
+   * Helpers to mark or unmark an ID as part of the processed (reference of) liboverride
    * hierarchy.
    *
-   * \return `true` if the given ID is tagged as missing linked data, `false` otherwise. */
+   * \return `true` if the given ID is tagged as missing linked data, `false` otherwise.
+   */
   bool id_tag_set(ID *id, const bool is_missing)
   {
     if (do_create_linked_overrides_set) {
@@ -903,6 +906,12 @@ static bool lib_override_hierarchy_dependencies_relationship_skip_check(
   /* Skip all relationships that should never be taken into account to define a liboverride
    * hierarchy ('from', 'parents', 'owner' etc. pointers). */
   if ((relation_id_entry->usage_flag & IDWALK_CB_OVERRIDE_LIBRARY_NOT_OVERRIDABLE) != 0) {
+    return true;
+  }
+  /* Loop-back pointers (`from` ones) should not be taken into account in liboverride hierarchies.
+   *   - They generate an 'inverted' dependency that adds processing and...
+   *   - They should always have a regular, 'forward' matching relation anyway. */
+  if ((relation_id_entry->usage_flag & IDWALK_CB_LOOPBACK) != 0) {
     return true;
   }
   return false;
@@ -1796,6 +1805,55 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
   return best_root_id_candidate;
 }
 
+/**
+ * Ensure that the current hierarchy root for the given liboverride #id is valid, i.e. that the
+ * root id is effectively one of its ancestors.
+ */
+static bool lib_override_root_is_valid(Main *bmain, ID *id)
+{
+  if (!ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
+    BLI_assert_unreachable();
+    return false;
+  }
+  ID *id_root = id->override_library->hierarchy_root;
+  if (!id_root || !ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
+    BLI_assert_unreachable();
+    return false;
+  }
+
+  if (id_root == id) {
+    return true;
+  }
+
+  blender::VectorSet<ID *> ancestors = {id};
+  for (int64_t i = 0; i < ancestors.size(); i++) {
+    ID *id_iter = ancestors[i];
+
+    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
+        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+    BLI_assert(entry != nullptr);
+
+    for (MainIDRelationsEntryItem *from_id_entry = entry->from_ids; from_id_entry != nullptr;
+         from_id_entry = from_id_entry->next)
+    {
+      if (lib_override_hierarchy_dependencies_relationship_skip_check(from_id_entry)) {
+        continue;
+      }
+      ID *from_id = from_id_entry->id_pointer.from;
+      if (lib_override_hierarchy_dependencies_skip_check(id_iter, from_id, true)) {
+        continue;
+      }
+
+      if (from_id == id_root) {
+        /* The hierarchy root is a valid ancestor of the given id. */
+        return true;
+      }
+      ancestors.add(from_id);
+    }
+  }
+  return false;
+}
+
 static void lib_override_root_hierarchy_set(
     Main *bmain, ID *id_root, ID *id, ID *id_from, blender::Set<ID *> &processed_ids)
 {
@@ -1926,6 +1984,22 @@ void BKE_lib_override_library_main_hierarchy_root_ensure(Main *bmain)
       {
         CLOG_ERROR(
             &LOG,
+            "Existing override hierarchy root ('%s') for ID '%s' is invalid, will try to find a "
+            "new valid one",
+            id->override_library->hierarchy_root != nullptr ?
+                id->override_library->hierarchy_root->name :
+                "<NONE>",
+            id->name);
+        id->override_library->hierarchy_root = nullptr;
+      }
+      else if (!lib_override_root_is_valid(bmain, id)) {
+        /* Serious invalid cases (likely resulting from bugs or invalid operations) should have
+         * been caught by the first check above. Invalid hierarchy roots detected here can happen
+         * in normal situations, e.g. when breaking a hierarchy by making one of its components
+         * local. See also #137412. */
+        CLOG_INFO(
+            &LOG,
+            2,
             "Existing override hierarchy root ('%s') for ID '%s' is invalid, will try to find a "
             "new valid one",
             id->override_library->hierarchy_root != nullptr ?

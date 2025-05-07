@@ -744,6 +744,11 @@ namespace blender::ed::sculpt_paint {
 /**
  * Tilts a normal by the x and y tilt values using the view axis.
  */
+float3 tilt_apply_to_normal(const Object &object,
+                            const float4x4 &view_inverse,
+                            const float3 &normal,
+                            const float2 &tilt,
+                            float tilt_strength);
 float3 tilt_apply_to_normal(const float3 &normal, const StrokeCache &cache, float tilt_strength);
 
 /**
@@ -885,22 +890,6 @@ void SCULPT_do_paint_brush_image(const Scene &scene,
                                  Object &ob,
                                  const blender::IndexMask &node_mask);
 bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob);
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Brush Specific Functionality
- * \{ */
-
-namespace blender::ed::sculpt_paint {
-void multiplane_scrape_preview_draw(uint gpuattr,
-                                    const Brush &brush,
-                                    const SculptSession &ss,
-                                    const float outline_col[3],
-                                    float outline_alpha);
-
-float clay_thumb_get_stabilized_pressure(const StrokeCache &cache);
-}  // namespace blender::ed::sculpt_paint
 
 /** \} */
 

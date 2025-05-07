@@ -269,7 +269,7 @@ GPUShader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
   return wrap(Context::get()->get_compiler()->compile(info, false));
 }
 
-static std::string preprocess_source(StringRefNull original)
+std::string GPU_shader_preprocess_source(StringRefNull original)
 {
   if (original.is_empty()) {
     return original;
@@ -289,10 +289,10 @@ GPUShader *GPU_shader_create_from_info_python(const GPUShaderCreateInfo *_info)
   std::string geometry_source_original = info.geometry_source_generated;
   std::string compute_source_original = info.compute_source_generated;
 
-  info.vertex_source_generated = preprocess_source(info.vertex_source_generated);
-  info.fragment_source_generated = preprocess_source(info.fragment_source_generated);
-  info.geometry_source_generated = preprocess_source(info.geometry_source_generated);
-  info.compute_source_generated = preprocess_source(info.compute_source_generated);
+  info.vertex_source_generated = GPU_shader_preprocess_source(info.vertex_source_generated);
+  info.fragment_source_generated = GPU_shader_preprocess_source(info.fragment_source_generated);
+  info.geometry_source_generated = GPU_shader_preprocess_source(info.geometry_source_generated);
+  info.compute_source_generated = GPU_shader_preprocess_source(info.compute_source_generated);
 
   GPUShader *result = wrap(Context::get()->get_compiler()->compile(info, false));
 
@@ -336,19 +336,19 @@ GPUShader *GPU_shader_create_from_python(std::optional<StringRefNull> vertcode,
   std::string library_source_processed;
 
   if (vertcode.has_value()) {
-    vertex_source_processed = preprocess_source(*vertcode);
+    vertex_source_processed = GPU_shader_preprocess_source(*vertcode);
     vertcode = vertex_source_processed;
   }
   if (fragcode.has_value()) {
-    fragment_source_processed = preprocess_source(*fragcode);
+    fragment_source_processed = GPU_shader_preprocess_source(*fragcode);
     fragcode = fragment_source_processed;
   }
   if (geomcode.has_value()) {
-    geometry_source_processed = preprocess_source(*geomcode);
+    geometry_source_processed = GPU_shader_preprocess_source(*geomcode);
     geomcode = geometry_source_processed;
   }
   if (libcode.has_value()) {
-    library_source_processed = preprocess_source(*libcode);
+    library_source_processed = GPU_shader_preprocess_source(*libcode);
     libcode = library_source_processed;
   }
 
@@ -407,7 +407,7 @@ void GPU_shader_bind(GPUShader *gpu_shader)
     ctx->shader = shader;
     shader->bind();
     GPU_matrix_bind(gpu_shader);
-    Shader::set_srgb_uniform(gpu_shader);
+    Shader::set_srgb_uniform(ctx, gpu_shader);
     shader->constants.is_dirty = false;
   }
   else {
@@ -415,8 +415,8 @@ void GPU_shader_bind(GPUShader *gpu_shader)
       shader->bind();
       shader->constants.is_dirty = false;
     }
-    if (Shader::srgb_uniform_dirty_get()) {
-      Shader::set_srgb_uniform(gpu_shader);
+    if (ctx->shader_builtin_srgb_is_dirty) {
+      Shader::set_srgb_uniform(ctx, gpu_shader);
     }
     if (GPU_matrix_dirty_get()) {
       GPU_matrix_bind(gpu_shader);
@@ -790,28 +790,21 @@ namespace blender::gpu {
  * frame-buffer color-space.
  * \{ */
 
-static int g_shader_builtin_srgb_transform = 0;
-static bool g_shader_builtin_srgb_is_dirty = false;
-
-bool Shader::srgb_uniform_dirty_get()
-{
-  return g_shader_builtin_srgb_is_dirty;
-}
-
-void Shader::set_srgb_uniform(GPUShader *shader)
+void Shader::set_srgb_uniform(Context *ctx, GPUShader *shader)
 {
   int32_t loc = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_SRGB_TRANSFORM);
   if (loc != -1) {
-    GPU_shader_uniform_int_ex(shader, loc, 1, 1, &g_shader_builtin_srgb_transform);
+    GPU_shader_uniform_int_ex(shader, loc, 1, 1, &ctx->shader_builtin_srgb_transform);
   }
-  g_shader_builtin_srgb_is_dirty = false;
+  ctx->shader_builtin_srgb_is_dirty = false;
 }
 
 void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 {
-  if (g_shader_builtin_srgb_transform != use_srgb_to_linear) {
-    g_shader_builtin_srgb_transform = use_srgb_to_linear;
-    g_shader_builtin_srgb_is_dirty = true;
+  Context *ctx = Context::get();
+  if (ctx->shader_builtin_srgb_transform != use_srgb_to_linear) {
+    ctx->shader_builtin_srgb_transform = use_srgb_to_linear;
+    ctx->shader_builtin_srgb_is_dirty = true;
   }
 }
 

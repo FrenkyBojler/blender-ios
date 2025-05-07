@@ -881,6 +881,23 @@ if(WITH_OPENIMAGEDENOISE)
   set(OPENIMAGEDENOISE_DEFINITIONS)
 endif()
 
+if(WITH_MANIFOLD)
+  set(MANIFOLD ${LIBDIR}/manifold)
+  if(EXISTS ${MANIFOLD})
+    set(MANIFOLD_INCLUDE_DIR ${MANIFOLD}/include)
+    set(MANIFOLD_INCLUDE_DIRS ${MANIFOLD_INCLUDE_DIR})
+    set(MANIFOLD_LIBDIR ${MANIFOLD}/lib)
+    set(MANIFOLD_LIBRARIES
+      optimized ${MANIFOLD_LIBDIR}/manifold.lib
+      debug ${MANIFOLD_LIBDIR}/manifold_d.lib
+    )
+    set(MANIFOLD_FOUND 1)
+  else()
+    set(WITH_MANIFOLD OFF)
+    message(STATUS "Manifold not found, disabling WITH_MANIFOLD")
+  endif()
+endif()
+
 if(WITH_ALEMBIC)
   set(ALEMBIC ${LIBDIR}/alembic)
   set(ALEMBIC_INCLUDE_DIR ${ALEMBIC}/include)
@@ -938,7 +955,15 @@ endif()
 
 if(WITH_TBB)
   windows_find_package(TBB)
-  if(NOT TBB_FOUND)
+  if(TBB_FOUND)
+    get_target_property(TBB_LIBRARIES_RELEASE TBB::tbb LOCATION_RELEASE)
+    get_target_property(TBB_LIBRARIES_DEBUG TBB::tbb LOCATION_DEBUG)
+    set(TBB_LIBRARIES
+      optimized ${TBB_LIBRARIES_RELEASE}
+      debug ${TBB_LIBRARIES_DEBUG}
+    )
+    get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  else()
     if(EXISTS ${LIBDIR}/tbb/lib/tbb12.lib) # 4.4
       set(TBB_LIBRARIES
         optimized ${LIBDIR}/tbb/lib/tbb12.lib

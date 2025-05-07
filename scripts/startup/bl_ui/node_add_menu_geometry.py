@@ -381,6 +381,7 @@ class NODE_MT_geometry_node_GEO_INSTANCE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeTranslateInstances")
         node_add_menu.add_node_type(layout, "GeometryNodeSetInstanceTransform")
         layout.separator()
+        node_add_menu.add_node_type(layout, "GeometryNodeInputInstanceBounds")
         node_add_menu.add_node_type(layout, "GeometryNodeInstanceTransform")
         node_add_menu.add_node_type(layout, "GeometryNodeInputInstanceRotation")
         node_add_menu.add_node_type(layout, "GeometryNodeInputInstanceScale")
@@ -523,6 +524,7 @@ class NODE_MT_category_import(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeImportPLY", label="Stanford PLY (.ply)")
         node_add_menu.add_node_type(layout, "GeometryNodeImportSTL", label="STL (.stl)")
         node_add_menu.add_node_type(layout, "GeometryNodeImportText", label="Text (.txt)")
+        node_add_menu.add_node_type(layout, "GeometryNodeImportVDB", label="OpenVDB (.vdb)")
         node_add_menu.draw_assets_for_catalog(layout, "Input/Import")
 
 

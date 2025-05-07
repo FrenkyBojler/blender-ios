@@ -38,6 +38,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -513,7 +514,7 @@ static bool node_update_basis_socket(const bContext &C,
     uiLayoutSetActive(layout, false);
   }
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
   uiLayoutSetContextPointer(row, "node", &nodeptr);
 
@@ -3150,7 +3151,8 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_SIMULATION_OUTPUT,
             GEO_NODE_REPEAT_OUTPUT,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
-            GEO_NODE_EVALUATE_CLOSURE)))
+            GEO_NODE_EVALUATE_CLOSURE) ||
+       StringRef(node.idname).startswith("GeometryNodeImport")))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
         tree_draw_ctx, snode, node);
@@ -3580,7 +3582,7 @@ static void node_draw_basis(const bContext &C,
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT,
                               0,
-                              is_active ? ICON_HIDE_OFF : ICON_HIDE_ON,
+                              is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
                               iconofs,
                               rct.ymax - NODE_DY,
                               iconbutw,
@@ -3614,12 +3616,31 @@ static void node_draw_basis(const bContext &C,
   if (node.is_type("CompositorNodeViewer")) {
     short shortcut_icon = get_viewer_shortcut_icon(node);
     iconofs -= iconbutw;
+    const bool is_active = node.flag & NODE_DO_OUTPUT;
     UI_block_emboss_set(&block, blender::ui::EmbossType::None);
+    uiBut *but = uiDefIconBut(&block,
+                              UI_BTYPE_BUT,
+                              0,
+                              is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
+                              iconofs,
+                              rct.ymax - NODE_DY,
+                              iconbutw,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              "");
+
+    UI_but_func_set(but,
+                    node_toggle_button_cb,
+                    POINTER_FROM_INT(node.identifier),
+                    (void *)"NODE_OT_activate_viewer");
+
     uiDefIconBut(&block,
                  UI_BTYPE_BUT,
                  0,
                  shortcut_icon,
-                 iconofs,
+                 iconofs - 1.2 * iconbutw,
                  rct.ymax - NODE_DY,
                  iconbutw,
                  UI_UNIT_Y,
@@ -4363,26 +4384,18 @@ static Set<const bNodeSocket *> find_sockets_on_active_gizmo_paths(const bContex
   }
   snode.edittree->ensure_topology_cache();
 
-  /* Compute the compute context hash for the current node tree path. */
-  std::optional<ComputeContextHash> current_compute_context_hash =
-      [&]() -> std::optional<ComputeContextHash> {
-    ComputeContextBuilder compute_context_builder;
-    compute_context_builder.push<bke::ModifierComputeContext>(*object_and_modifier->nmd);
-    if (!ed::space_node::push_compute_context_for_tree_path(snode, compute_context_builder)) {
-      return std::nullopt;
-    }
-    return compute_context_builder.current()->hash();
-  }();
-  if (!current_compute_context_hash) {
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current_compute_context = ed::space_node::compute_context_for_edittree(
+      snode, compute_context_cache);
+  if (!current_compute_context) {
     return {};
   }
 
   Set<const bNodeSocket *> sockets_on_gizmo_paths;
 
-  ComputeContextBuilder compute_context_builder;
   nodes::gizmos::foreach_active_gizmo(
       C,
-      compute_context_builder,
+      compute_context_cache,
       [&](const Object &gizmo_object,
           const NodesModifierData &gizmo_nmd,
           const ComputeContext &gizmo_context,
@@ -4401,7 +4414,7 @@ static Set<const bNodeSocket *> find_sockets_on_active_gizmo_paths(const bContex
             [&](const ComputeContext &compute_context,
                 const bNodeSocket &socket,
                 const nodes::inverse_eval::ElemVariant & /*elem*/) {
-              if (compute_context.hash() == *current_compute_context_hash) {
+              if (compute_context.hash() == current_compute_context->hash()) {
                 sockets_on_gizmo_paths.add(&socket);
               }
             });
@@ -4687,12 +4700,9 @@ static void find_bounds_by_zone_recursive(const SpaceNode &snode,
   }
 }
 
-static void node_draw_zones_and_frames(const bContext &C,
-                                       TreeDrawContext &tree_draw_ctx,
-                                       const ARegion &region,
+static void node_draw_zones_and_frames(const ARegion &region,
                                        const SpaceNode &snode,
-                                       const bNodeTree &ntree,
-                                       Span<uiBlock *> blocks)
+                                       const bNodeTree &ntree)
 {
   const bNodeTreeZones *zones = ntree.zones();
   const int zones_num = zones ? zones->zones.size() : 0;
@@ -4831,13 +4841,17 @@ static void node_draw_zones_and_frames(const bContext &C,
   }
 
   GPU_blend(GPU_BLEND_NONE);
+}
 
-  /* Draw text on frame nodes. */
-  for (const ZoneOrNode &zone_or_node : draw_order) {
-    if (const bNode *const *node_p = std::get_if<const bNode *>(&zone_or_node)) {
-      const bNode &node = **node_p;
-      frame_node_draw_overlay(C, tree_draw_ctx, region, snode, ntree, node, *blocks[node.index()]);
-    }
+static void draw_frame_overlays(const bContext &C,
+                                TreeDrawContext &tree_draw_ctx,
+                                const ARegion &region,
+                                const SpaceNode &snode,
+                                const bNodeTree &ntree,
+                                Span<uiBlock *> blocks)
+{
+  for (const bNode *node : ntree.nodes_by_type("NodeFrame")) {
+    frame_node_draw_overlay(C, tree_draw_ctx, region, snode, ntree, *node, *blocks[node->index()]);
   }
 }
 
@@ -4883,6 +4897,8 @@ static void node_draw_nodetree(const bContext &C,
 
   nodelink_batch_end(snode);
   GPU_blend(GPU_BLEND_NONE);
+
+  draw_frame_overlays(C, tree_draw_ctx, region, snode, ntree, blocks);
 
   /* Draw foreground nodes, last nodes in front. */
   for (const int i : nodes.index_range()) {
@@ -5021,7 +5037,7 @@ static void draw_nodetree(const bContext &C,
   }
 
   node_update_nodetree(C, tree_draw_ctx, ntree, nodes, blocks);
-  node_draw_zones_and_frames(C, tree_draw_ctx, region, *snode, ntree, blocks);
+  node_draw_zones_and_frames(region, *snode, ntree);
   node_draw_nodetree(C, tree_draw_ctx, region, *snode, ntree, nodes, blocks, parent_key);
 }
 

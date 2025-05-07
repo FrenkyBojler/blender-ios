@@ -51,8 +51,8 @@ void thickness_from_shadow_single(uint l_idx,
   float3 P_offset = P;
   /* Invert all biases to get value inside the surface.
    * The additional offset is to make the pcf kernel fully inside the object. */
-  float normal_offset = shadow_normal_offset(Ng, lv.L);
-  P_offset -= Ng * (texel_radius * normal_offset);
+  float normal_offset = shadow_normal_offset(Ng, lv.L, texel_radius);
+  P_offset -= Ng * normal_offset;
   /* Inverting this bias means we will over estimate the distance. Which removes some artifacts. */
   P_offset -= texel_radius * shadow_pcf_offset(lv.L, Ng, pcf_random);
 
@@ -115,10 +115,10 @@ void main()
 
   /* Bias the shading point position because of depth buffer precision.
    * Constant is taken from https://www.terathon.com/gdc07_lengyel.pdf. */
-  const float bias = 2.4e-7f;
+  constexpr float bias = 2.4e-7f;
   depth -= bias;
 
-  float3 P = drw_point_screen_to_world(float3(uvcoordsvar.xy, depth));
+  float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
   float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
 
   float3 Ng = gbuffer_normal_unpack(imageLoad(gbuf_normal_img, int3(texel, 0)).rg);

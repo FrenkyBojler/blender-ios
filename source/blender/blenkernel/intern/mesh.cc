@@ -233,9 +233,20 @@ static void mesh_free_data(ID *id)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
 
-  BKE_mesh_clear_geometry_and_metadata(mesh);
+  CustomData_free(&mesh->vert_data);
+  CustomData_free(&mesh->edge_data);
+  CustomData_free(&mesh->fdata_legacy);
+  CustomData_free(&mesh->corner_data);
+  CustomData_free(&mesh->face_data);
+  BLI_freelistN(&mesh->vertex_group_names);
+  MEM_SAFE_FREE(mesh->active_color_attribute);
+  MEM_SAFE_FREE(mesh->default_color_attribute);
+  if (mesh->face_offset_indices) {
+    blender::implicit_sharing::free_shared_data(&mesh->face_offset_indices,
+                                                &mesh->runtime->face_offsets_sharing_info);
+  }
+  MEM_SAFE_FREE(mesh->mselect);
   MEM_SAFE_FREE(mesh->mat);
-
   delete mesh->runtime;
 }
 
@@ -327,21 +338,21 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   /* Cache only - don't write. */
   mesh->mface = nullptr;
   mesh->totface_legacy = 0;
-  memset(&mesh->fdata_legacy, 0, sizeof(mesh->fdata_legacy));
+  mesh->fdata_legacy = CustomData{};
 
   /* Do not store actual geometry data in case this is a library override ID. */
   if (ID_IS_OVERRIDE_LIBRARY(mesh) && !is_undo) {
     mesh->verts_num = 0;
-    memset(&mesh->vert_data, 0, sizeof(mesh->vert_data));
+    mesh->vert_data = CustomData{};
 
     mesh->edges_num = 0;
-    memset(&mesh->edge_data, 0, sizeof(mesh->edge_data));
+    mesh->edge_data = CustomData{};
 
     mesh->corners_num = 0;
-    memset(&mesh->corner_data, 0, sizeof(mesh->corner_data));
+    mesh->corner_data = CustomData{};
 
     mesh->faces_num = 0;
-    memset(&mesh->face_data, 0, sizeof(mesh->face_data));
+    mesh->face_data = CustomData{};
     mesh->face_offset_indices = nullptr;
   }
   else {
@@ -454,7 +465,7 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_ME = {
-    /*id_code*/ ID_ME,
+    /*id_code*/ Mesh::id_type,
     /*id_filter*/ FILTER_ID_ME,
     /*dependencies_id_types*/ FILTER_ID_ME | FILTER_ID_MA | FILTER_ID_IM | FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_ME,
@@ -598,11 +609,6 @@ void mesh_remove_invalid_attribute_strings(Mesh &mesh)
 }
 
 }  // namespace blender::bke
-
-void BKE_mesh_free_data_for_undo(Mesh *mesh)
-{
-  mesh_free_data(&mesh->id);
-}
 
 /**
  * \note on data that this function intentionally doesn't free:
@@ -918,7 +924,7 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
   const bool do_tessface = (tessface_num ||
                             ((me_src->totface_legacy != 0) && (me_src->faces_num == 0)));
 
-  Mesh *me_dst = static_cast<Mesh *>(BKE_id_new_nomain(ID_ME, nullptr));
+  Mesh *me_dst = BKE_id_new_nomain<Mesh>(nullptr);
 
   me_dst->mselect = (MSelect *)MEM_dupallocN(me_src->mselect);
 
@@ -1004,7 +1010,7 @@ Mesh *BKE_mesh_from_bmesh_nomain(BMesh *bm,
                                  const Mesh *me_settings)
 {
   BLI_assert(params->calc_object_remap == false);
-  Mesh *mesh = static_cast<Mesh *>(BKE_id_new_nomain(ID_ME, nullptr));
+  Mesh *mesh = BKE_id_new_nomain<Mesh>(nullptr);
   BM_mesh_bm_to_me(nullptr, bm, mesh, params);
   BKE_mesh_copy_parameters_for_eval(mesh, me_settings);
   return mesh;
@@ -1014,7 +1020,7 @@ Mesh *BKE_mesh_from_bmesh_for_eval_nomain(BMesh *bm,
                                           const CustomData_MeshMasks *cd_mask_extra,
                                           const Mesh *me_settings)
 {
-  Mesh *mesh = static_cast<Mesh *>(BKE_id_new_nomain(ID_ME, nullptr));
+  Mesh *mesh = BKE_id_new_nomain<Mesh>(nullptr);
   BM_mesh_bm_to_me_for_eval(*bm, *mesh, cd_mask_extra);
   BKE_mesh_copy_parameters_for_eval(mesh, me_settings);
   return mesh;
@@ -1636,7 +1642,7 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
     mesh->runtime->mesh_eval = nullptr;
   }
   if (DEG_is_active(depsgraph)) {
-    Mesh *mesh_orig = reinterpret_cast<Mesh *>(DEG_get_original_id(&mesh->id));
+    Mesh *mesh_orig = DEG_get_original(mesh);
     if (mesh->texspace_flag & ME_TEXSPACE_FLAG_AUTO_EVALUATED) {
       mesh_orig->texspace_flag |= ME_TEXSPACE_FLAG_AUTO_EVALUATED;
       copy_v3_v3(mesh_orig->texspace_location, mesh->texspace_location);

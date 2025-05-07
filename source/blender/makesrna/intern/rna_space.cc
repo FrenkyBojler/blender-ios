@@ -384,14 +384,26 @@ static const EnumPropertyItem display_channels_items[] = {
 };
 
 const EnumPropertyItem rna_enum_shading_type_items[] = {
-    {OB_WIRE, "WIREFRAME", ICON_SHADING_WIRE, "Wireframe", "Display the object as wire edges"},
-    {OB_SOLID, "SOLID", ICON_SHADING_SOLID, "Solid", "Display in solid mode"},
+    {OB_WIRE,
+     "WIREFRAME",
+     ICON_SHADING_WIRE,
+     "Wireframe",
+     "Display only edges of geometry without surface shading"},
+    {OB_SOLID,
+     "SOLID",
+     ICON_SHADING_SOLID,
+     "Solid",
+     "Display objects with flat lighting and basic surface shading"},
     {OB_MATERIAL,
      "MATERIAL",
      ICON_SHADING_TEXTURE,
      "Material Preview",
-     "Display in Material Preview mode"},
-    {OB_RENDER, "RENDERED", ICON_SHADING_RENDERED, "Rendered", "Display render preview"},
+     "Preview materials using predefined environment lights"},
+    {OB_RENDER,
+     "RENDERED",
+     ICON_SHADING_RENDERED,
+     "Rendered",
+     "Preview the final scene using the active render engine"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -2623,8 +2635,11 @@ static void rna_SpaceNodeEditor_node_tree_set(PointerRNA *ptr,
                                               const PointerRNA value,
                                               ReportList * /*reports*/)
 {
-  SpaceNode *snode = (SpaceNode *)ptr->data;
-  ED_node_tree_start(snode, (bNodeTree *)value.data, nullptr, nullptr);
+  SpaceNode *snode = ptr->data_as<SpaceNode>();
+  ScrArea *area = BKE_screen_find_area_from_space(reinterpret_cast<const bScreen *>(ptr->owner_id),
+                                                  reinterpret_cast<const SpaceLink *>(snode));
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  ED_node_tree_start(region, snode, (bNodeTree *)value.data, nullptr, nullptr);
 }
 
 static bool rna_SpaceNodeEditor_geometry_nodes_tool_tree_poll(PointerRNA * /*ptr*/,
@@ -2760,13 +2775,29 @@ static int rna_SpaceNodeEditor_path_length(PointerRNA *ptr)
 
 static void rna_SpaceNodeEditor_path_clear(SpaceNode *snode, bContext *C)
 {
-  ED_node_tree_start(snode, nullptr, nullptr, nullptr);
+  ED_node_tree_start(nullptr, snode, nullptr, nullptr, nullptr);
   blender::ed::space_node::tree_update(C);
+}
+
+static ARegion *find_snode_region(SpaceNode *snode, bContext *C)
+{
+  if (wmWindowManager *wm = CTX_wm_manager(C)) {
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+      bScreen *screen = WM_window_get_active_screen(win);
+      ScrArea *area = BKE_screen_find_area_from_space(screen,
+                                                      reinterpret_cast<const SpaceLink *>(snode));
+      if (ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW)) {
+        return region;
+      }
+    }
+  }
+  return nullptr;
 }
 
 static void rna_SpaceNodeEditor_path_start(SpaceNode *snode, bContext *C, PointerRNA *node_tree)
 {
-  ED_node_tree_start(snode, (bNodeTree *)node_tree->data, nullptr, nullptr);
+  ARegion *region = find_snode_region(snode, C);
+  ED_node_tree_start(region, snode, (bNodeTree *)node_tree->data, nullptr, nullptr);
   blender::ed::space_node::tree_update(C);
 }
 
@@ -2775,14 +2806,16 @@ static void rna_SpaceNodeEditor_path_append(SpaceNode *snode,
                                             PointerRNA *node_tree,
                                             PointerRNA *node)
 {
+  ARegion *region = find_snode_region(snode, C);
   ED_node_tree_push(
-      snode, static_cast<bNodeTree *>(node_tree->data), static_cast<bNode *>(node->data));
+      region, snode, static_cast<bNodeTree *>(node_tree->data), static_cast<bNode *>(node->data));
   blender::ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_path_pop(SpaceNode *snode, bContext *C)
 {
-  ED_node_tree_pop(snode);
+  ARegion *region = find_snode_region(snode, C);
+  ED_node_tree_pop(region, snode);
   blender::ed::space_node::tree_update(C);
 }
 
@@ -5155,6 +5188,13 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
       prop, "Onion Skins", "Show ghosts of the keyframes before and after the current frame");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
+  /* Show onion skin for active object only. */
+  prop = RNA_def_property(srna, "use_gpencil_onion_skin_active_object", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gp_flag", V3D_GP_ONION_SKIN_ACTIVE_OBJECT);
+  RNA_def_property_ui_text(
+      prop, "Active Object Only", "Show only the onion skins of the active object");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
   /* vertex opacity */
   prop = RNA_def_property(srna, "vertex_opacity", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "vertex_opacity");
@@ -6360,11 +6400,6 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "overlay_frame_type");
   RNA_def_property_enum_items(prop, overlay_frame_type_items);
   RNA_def_property_ui_text(prop, "Overlay Type", "Overlay display method");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_backdrop", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "draw_flag", SEQ_DRAW_BACKDROP);
-  RNA_def_property_ui_text(prop, "Use Backdrop", "Display result under strips");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "show_transform_preview", PROP_BOOLEAN, PROP_NONE);
@@ -8117,8 +8152,9 @@ static void rna_def_space_clip(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "SpaceClip");
   RNA_def_struct_ui_text(srna, "Space Clip Editor", "Clip editor space data");
 
-  rna_def_space_generic_show_region_toggles(
-      srna, (1 << RGN_TYPE_TOOLS) | (1 << RGN_TYPE_UI) | (1 << RGN_TYPE_HUD));
+  rna_def_space_generic_show_region_toggles(srna,
+                                            (1 << RGN_TYPE_TOOLS) | (1 << RGN_TYPE_UI) |
+                                                (1 << RGN_TYPE_HUD) | (1 << RGN_TYPE_CHANNELS));
 
   /* movieclip */
   prop = RNA_def_property(srna, "clip", PROP_POINTER, PROP_NONE);
@@ -8634,11 +8670,11 @@ static void rna_def_evaluate_closure_node_viewer_path_elem(BlenderRNA *brna)
   prop = RNA_def_property(srna, "evaluate_node_id", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Evaluate Node ID", "");
 
-  prop = RNA_def_property(srna, "closure_output_node_id", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Closure Output Node ID", "");
+  prop = RNA_def_property(srna, "source_output_node_id", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Closure Node ID", "");
 
-  prop = RNA_def_property(srna, "closure_tree", PROP_POINTER, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Closure Tree", "");
+  prop = RNA_def_property(srna, "source_node_tree", PROP_POINTER, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Source Tree", "");
 }
 
 static void rna_def_viewer_node_viewer_path_elem(BlenderRNA *brna)

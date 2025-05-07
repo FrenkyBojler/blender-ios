@@ -66,7 +66,7 @@ World::~World()
 ::World *World::default_world_get()
 {
   if (default_world_ == nullptr) {
-    default_world_ = static_cast<::World *>(BKE_id_new_nomain(ID_WO, "EEVEEE default world"));
+    default_world_ = BKE_id_new_nomain<::World>("EEVEEE default world");
     default_world_->horr = default_world_->horg = default_world_->horb = 0.0f;
     default_world_->use_nodes = 0;
     default_world_->nodetree = nullptr;
@@ -136,12 +136,17 @@ void World::sync()
   }
 
   /* We have to manually test here because we have overrides. */
-  ::World *orig_world = (::World *)DEG_get_original_id(&bl_world->id);
+  ::World *orig_world = DEG_get_original(bl_world);
   if (assign_if_different(prev_original_world, orig_world)) {
     has_update = true;
   }
 
   inst_.light_probes.sync_world(bl_world, has_update);
+
+  if (inst_.is_viewport() && has_update) {
+    /* Catch lookdev viewport properties updates. */
+    inst_.sampling.reset();
+  }
 
   GPUMaterial *gpumat = inst_.shaders.world_shader_get(bl_world, ntree, MAT_PIPE_DEFERRED);
 

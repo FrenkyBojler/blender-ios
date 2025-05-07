@@ -2407,7 +2407,7 @@ static struct Clipboard {
 } *grease_pencil_clipboard = nullptr;
 
 /** The clone brush accesses the clipboard from multiple threads. Protect from parallel access. */
-std::mutex grease_pencil_clipboard_lock;
+blender::Mutex grease_pencil_clipboard_lock;
 
 static Clipboard &ensure_grease_pencil_clipboard()
 {
@@ -3270,14 +3270,14 @@ static void grease_pencil_reproject_ui(bContext * /*C*/, wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiItemR(row, op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (type == ReprojectMode::Surface) {
-    row = uiLayoutRow(layout, true);
+    row = &layout->row(true);
     uiItemR(row, op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiItemR(row, op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
@@ -4569,7 +4569,7 @@ wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
     /* Old C API, needs a const_cast but doesn't actually change anything. */
     Material **materials_ptr = const_cast<Material **>(materials.data());
     BKE_object_material_array_assign(
-        bmain, DEG_get_original_object(ob_dst), &materials_ptr, materials.size(), false);
+        bmain, DEG_get_original(ob_dst), &materials_ptr, materials.size(), false);
   }
 
   DEG_id_tag_update(&grease_pencil_dst->id, ID_RECALC_GEOMETRY);

@@ -98,6 +98,7 @@ set(SRC
   nodes/node_geo_import_ply.cc
   nodes/node_geo_import_stl.cc
   nodes/node_geo_import_text.cc
+  nodes/node_geo_import_vdb.cc
   nodes/node_geo_index_of_nearest.cc
   nodes/node_geo_index_switch.cc
   nodes/node_geo_input_active_camera.cc
@@ -108,6 +109,7 @@ set(SRC
   nodes/node_geo_input_face_smooth.cc
   nodes/node_geo_input_id.cc
   nodes/node_geo_input_index.cc
+  nodes/node_geo_input_instance_bounds.cc
   nodes/node_geo_input_instance_rotation.cc
   nodes/node_geo_input_instance_scale.cc
   nodes/node_geo_input_instance_transform.cc

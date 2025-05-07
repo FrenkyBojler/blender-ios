@@ -43,8 +43,8 @@
 
 struct GBufferData {
   ClosureUndetermined closure[GBUFFER_LAYER_MAX];
-  /* True if surface uses a dedicated light linking group. Otherwise, assume group is 0. */
-  bool use_light_linking;
+  /* True if surface uses a dedicated object id layer. Should only be turned on if needed. */
+  bool use_object_id;
   /* Additional object information if any closure needs it. */
   float thickness;
   /* First world normal stored in the gbuffer. Only valid if `has_any_surface` is true. */
@@ -312,7 +312,7 @@ bool gbuffer_is_refraction(float4 gbuffer)
 uint gbuffer_geometry_normal_pack(float3 Ng, float3 N)
 {
   /* This is a threshold that minimizes the error over the sphere. */
-  const float quantization_multiplier = 1.360f;
+  constexpr float quantization_multiplier = 1.360f;
   /* Normalize for comparison. */
   float3 Ng_quantize = normalize(round(quantization_multiplier * Ng));
   /* Note: Comparing the error using cosines. The greater the cosine value, the lower the error. */
@@ -344,12 +344,12 @@ float3 gbuffer_geometry_normal_unpack(uint data, float3 N)
 }
 
 /* Light Linking flag. */
-uint gbuffer_light_linking_pack(bool use_light_linking)
+uint gbuffer_use_object_id_pack(bool use_object_id)
 {
-  return int(use_light_linking) << 31u;
+  return int(use_object_id) << 31u;
 }
 
-bool gbuffer_light_linking_unpack(uint header)
+bool gbuffer_use_object_id_unpack(uint header)
 {
   return flag_test(header, 1u << 31u);
 }
@@ -902,7 +902,7 @@ GBufferWriter gbuffer_pack(GBufferData data_in, float3 Ng)
 
   /* Pack geometric normal into the header if needed. */
   gbuf.header |= gbuffer_geometry_normal_pack(Ng, gbuf.surface_N);
-  gbuf.header |= gbuffer_light_linking_pack(data_in.use_light_linking);
+  gbuf.header |= gbuffer_use_object_id_pack(data_in.use_object_id);
 
   if (has_additional_data) {
     gbuffer_additional_info_pack(gbuf, data_in.thickness);
@@ -915,7 +915,7 @@ GBufferWriter gbuffer_pack(GBufferData data_in, float3 Ng)
 int gbuffer_closure_count(uint header)
 {
   /* NOTE: Need to be adjusted for different global GBUFFER_LAYER_MAX. */
-  const uint bits_per_layer = uint(GBUFFER_HEADER_BITS_PER_LAYER);
+  constexpr uint bits_per_layer = uint(GBUFFER_HEADER_BITS_PER_LAYER);
   uint3 closure_types = (uint3(header) >> (uint3(0u, 1u, 2u) * bits_per_layer)) &
                         ((1u << bits_per_layer) - 1);
   return reduce_add(int3(not(equal(closure_types, uint3(0u)))));
@@ -924,10 +924,10 @@ int gbuffer_closure_count(uint header)
 bool gbuffer_has_transmission(uint header)
 {
   /* NOTE: Need to be adjusted for different global GBUFFER_LAYER_MAX. */
-  const uint bits_per_layer = uint(GBUFFER_HEADER_BITS_PER_LAYER);
-  const uint header_mask = (GBUF_TRANSMISSION_BIT << (bits_per_layer * 0)) |
-                           (GBUF_TRANSMISSION_BIT << (bits_per_layer * 1)) |
-                           (GBUF_TRANSMISSION_BIT << (bits_per_layer * 2));
+  constexpr uint bits_per_layer = uint(GBUFFER_HEADER_BITS_PER_LAYER);
+  constexpr uint header_mask = (GBUF_TRANSMISSION_BIT << (bits_per_layer * 0)) |
+                               (GBUF_TRANSMISSION_BIT << (bits_per_layer * 1)) |
+                               (GBUF_TRANSMISSION_BIT << (bits_per_layer * 2));
   return (header & header_mask) != 0;
 }
 
@@ -949,7 +949,7 @@ ClosureType gbuffer_closure_type_get_by_bin(uint header, uchar bin_index)
 {
   /* TODO(fclem): Doesn't take GBUF_METAL_CLEARCOAT into account or other mode that could merge two
    * bins into one layer. */
-  const int bits_per_layer = GBUFFER_HEADER_BITS_PER_LAYER;
+  constexpr int bits_per_layer = GBUFFER_HEADER_BITS_PER_LAYER;
   uint mode = (header >> (bin_index * bits_per_layer)) & ((1u << bits_per_layer) - 1);
   return gbuffer_mode_to_closure_type(mode);
 }
