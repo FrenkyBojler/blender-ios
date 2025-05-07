@@ -640,6 +640,26 @@ void ED_node_shader_default(const bContext *C, ID *id)
   }
 }
 
+void ED_node_composit_default_init(const bContext *C, bNodeTree *ntree)
+{
+  BLI_assert(ntree != nullptr && ntree->type == NTREE_COMPOSIT);
+  BLI_assert(BLI_listbase_count(&ntree->nodes) == 0);
+
+  bNode *out = blender::bke::node_add_node(C, *ntree, "CompositorNodeComposite");
+  out->location[0] = 200.0f;
+  out->location[1] = 200.0f;
+
+  bNode *in = blender::bke::node_add_node(C, *ntree, "CompositorNodeRLayers");
+  in->location[0] = -200.0f;
+  in->location[1] = 200.0f;
+  blender::bke::node_set_active(*ntree, *in);
+
+  /* Links from color to color. */
+  bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
+  bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
+  blender::bke::node_add_link(*ntree, *in, *fromsock, *out, *tosock);
+}
+
 void ED_node_composit_default(const bContext *C, Scene *sce)
 {
   Main *bmain = CTX_data_main(C);
@@ -655,20 +675,7 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   sce->compositing_nodetree = blender::bke::node_tree_add_tree(
       bmain, DATA_("Compositing Nodetree"), ntreeType_Composite->idname);
 
-  bNode *out = blender::bke::node_add_static_node(
-      C, *sce->compositing_nodetree, CMP_NODE_COMPOSITE);
-  out->location[0] = 200.0f;
-  out->location[1] = 200.0f;
-
-  bNode *in = blender::bke::node_add_static_node(C, *sce->compositing_nodetree, CMP_NODE_R_LAYERS);
-  in->location[0] = -200.0f;
-  in->location[1] = 200.0f;
-  blender::bke::node_set_active(*sce->compositing_nodetree, *in);
-
-  /* Links from color to color. */
-  bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
-  bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
-  blender::bke::node_add_link(*sce->compositing_nodetree, *in, *fromsock, *out, *tosock);
+  ED_node_composit_default_init(C, sce->compositing_nodetree);
 
   BKE_ntree_update_after_single_tree_change(*bmain, *sce->compositing_nodetree);
 }

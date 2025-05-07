@@ -998,8 +998,9 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (sce->compositing_nodetree) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
      * writing the scene.*/
-    /* We need a valid pointer to scene->nodetree to write to, so allocate a dummy byte to get a
-     * valid pointer address. */
+    /* We need a valid, unique (within that Scene ID) memory address as 'UID' of the written
+     * embedded node tree. The simplest and safest solution to obtain this is to actually allocate
+     * a dummy byte.*/
     sce->nodetree = reinterpret_cast<bNodeTree *>(MEM_mallocN(1, "dummy pointer"));
   }
 
@@ -1121,7 +1122,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     temp_nodetree->chunksize = 256;
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
-    MEM_freeN(sce->nodetree);
+    MEM_freeN(reinterpret_cast<void *>(sce->nodetree));
     sce->nodetree = nullptr;
   }
 
