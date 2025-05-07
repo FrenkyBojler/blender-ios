@@ -336,6 +336,8 @@ static bool image_save_single(ReportList *reports,
   rr = BKE_image_acquire_renderresult(opts->scene, ima);
   const bool is_mono = rr ? BLI_listbase_count_at_most(&rr->views, 2) < 2 :
                             BLI_listbase_count_at_most(&ima->views, 2) < 2;
+  const bool is_multiview_name = ((opts->scene->r.scemode & R_MULTIVIEW) != 0 &&
+                                  (imf->views_format == R_IMF_VIEWS_INDIVIDUAL));
   const bool is_exr_rr = rr && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);
   const bool is_multilayer = is_exr_rr && (imf->imtype == R_IMF_IMTYPE_MULTILAYER);
@@ -414,7 +416,7 @@ static bool image_save_single(ReportList *reports,
     BKE_image_release_ibuf(ima, ibuf, lock);
   }
   /* regular mono pipeline */
-  else if (is_mono) {
+  else if (is_mono && !is_multiview_name) {
     if (is_exr_rr) {
       ok = BKE_image_render_write_exr(
           reports, rr, opts->filepath, imf, save_as_render, nullptr, layer);
@@ -1089,7 +1091,8 @@ bool BKE_image_render_write(ReportList *reports,
                              image_format.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);
   const float dither = scene->r.dither_intensity;
-  const bool is_views_individual = (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL);
+  const bool is_multiview_name = ((scene->r.scemode & R_MULTIVIEW) != 0 &&
+                                  (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
   if (image_format.views_format == R_IMF_VIEWS_MULTIVIEW && is_exr_rr) {
     ok = BKE_image_render_write_exr(
@@ -1098,18 +1101,18 @@ bool BKE_image_render_write(ReportList *reports,
   }
 
   /* mono, legacy code */
-  else if (is_mono || is_views_individual) {
+  else if (is_mono || image_format.views_format == R_IMF_VIEWS_INDIVIDUAL) {
     int view_id = 0;
     for (const RenderView *rv = (const RenderView *)rr->views.first; rv; rv = rv->next, view_id++)
     {
       char filepath[FILE_MAX];
       /* For multiview individual files we still want the multiview filenames (even if only a
        * single view is enabled). */
-      if (is_mono && !is_views_individual) {
-        STRNCPY(filepath, filepath_basis);
+      if (is_multiview_name) {
+        BKE_scene_multiview_view_filepath_get(&scene->r, filepath_basis, rv->name, filepath);
       }
       else {
-        BKE_scene_multiview_view_filepath_get(&scene->r, filepath_basis, rv->name, filepath);
+        STRNCPY(filepath, filepath_basis);
       }
 
       if (is_exr_rr) {
