@@ -3126,11 +3126,15 @@ static void add_bad_socket_type_warnings(const bNode &node, Vector<NodeExtraInfo
         NodeExtraInfoRow row;
         row.icon = ICON_INFO;
         row.text = IFACE_("Wrong type");
-        row.tooltip = fmt::format(
-            "{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {}",
-            TIP_("The socket type is likely wrong. There is an error-prone implicit conversion"),
-            TIP_(link->fromsock->typeinfo->label),
-            TIP_(link->tosock->typeinfo->label));
+        row.tooltip_fn_arg = const_cast<bNodeLink *>(link);
+        row.tooltip_fn = [](bContext * /*C*/, void *argN, const blender::StringRef /*tip*/) {
+          const bNodeLink *link = static_cast<const bNodeLink *>(argN);
+          return fmt::format(
+              "{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {}",
+              TIP_("The socket type is likely wrong. There is an error-prone implicit conversion"),
+              TIP_(link->fromsock->typeinfo->label),
+              TIP_(link->tosock->typeinfo->label));
+        };
         rows.append(std::move(row));
       }
     }
