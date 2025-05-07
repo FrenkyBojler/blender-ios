@@ -4,6 +4,16 @@
 
 /** \file
  * \ingroup sequencer
+ *
+ * Cache source images for strips.
+ * - Keyed by (strip + frame index within strip media).
+ * - Caching is only done for strips that are independent of
+ *   any other strips (images, movies, no-input effect strips like
+ *   Text and Color).
+ * - When full, cache eviction policy is to remove oldest image
+ *   that was used.
+ * - Invalidated fairly rarely, since the cached items only change
+ *   when the source content changes.
  */
 
 #pragma once

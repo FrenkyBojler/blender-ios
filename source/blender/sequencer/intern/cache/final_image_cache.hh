@@ -4,6 +4,14 @@
 
 /** \file
  * \ingroup sequencer
+ *
+ * Cache of final rendered frames.
+ * - Keyed by timeline frame.
+ * - When full, cache eviction policy is to remove frames furthest
+ *   from the current playhead, biasing towards removal of
+ *   frames behind the playhead.
+ * - Invalidated fairly often while editing, basically whenever any
+ *   strip overlapping that frame changes.
  */
 
 #pragma once
