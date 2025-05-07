@@ -305,7 +305,7 @@ void editing_free(Scene *scene, const bool do_id_user)
   strip_lookup_free(ed);
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_destroy(scene);
-  MEM_SAFE_DELETE(ed->runtime.intra_frame_cache);
+  blender::seq::intra_frame_cache_destroy(scene);
   blender::seq::source_image_cache_destroy(scene);
   blender::seq::final_image_cache_destroy(scene);
   channels_free(&ed->channels);

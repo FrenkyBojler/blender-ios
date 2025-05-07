@@ -8,30 +8,22 @@
 
 #pragma once
 
-#include "BLI_map.hh"
-
 struct ImBuf;
 struct Strip;
 struct Scene;
 
 namespace blender::seq {
 
-struct IntraFrameCache {
-  Map<const Strip *, ImBuf *> cache_;
-  float timeline_frame_ = -1.0f;
+ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip);
+ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip);
+void intra_frame_cache_put_preprocessed(Scene *scene, const Strip *strip, ImBuf *image);
+void intra_frame_cache_put_composite(Scene *scene, const Strip *strip, ImBuf *image);
 
-  ~IntraFrameCache()
-  {
-    clear();
-  }
+void intra_frame_cache_destroy(Scene *scene);
 
-  ImBuf *get(const Strip *strip) const;
-  void put(const Strip *strip, ImBuf *image);
-  void invalidate(const Strip *strip);
-  void clear();
-};
+void intra_frame_cache_invalidate(Scene *scene, const Strip *strip);
+void intra_frame_cache_invalidate(Scene *scene);
 
-void invalidate_intra_frame_cache(Scene *scene, const Strip *strip);
-void invalidate_intra_frame_cache(Scene *scene);
+void intra_frame_cache_set_cur_frame(Scene *scene, float frame);
 
 }  // namespace blender::seq

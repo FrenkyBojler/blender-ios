@@ -1742,15 +1742,12 @@ ImBuf *seq_render_strip(const RenderData *context,
                         Strip *strip,
                         float timeline_frame)
 {
-  ImBuf *ibuf = nullptr;
   bool use_preprocess = false;
   bool is_proxy_image = false;
 
-  if (state->intra_frame_cache != nullptr) {
-    ibuf = state->intra_frame_cache->get(strip);
-    if (ibuf != nullptr) {
-      return ibuf;
-    }
+  ImBuf *ibuf = intra_frame_cache_get_preprocessed(context->scene, strip);
+  if (ibuf != nullptr) {
+    return ibuf;
   }
 
   /* Proxies are not stored in cache. */
@@ -1766,9 +1763,7 @@ ImBuf *seq_render_strip(const RenderData *context,
     use_preprocess = seq_input_have_to_preprocess(context, strip, timeline_frame);
     ibuf = seq_render_preprocess_ibuf(
         context, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
-    if (state->intra_frame_cache != nullptr) {
-      state->intra_frame_cache->put(strip, ibuf);
-    }
+    intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
   }
 
   if (ibuf == nullptr) {
@@ -1864,9 +1859,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
   for (i = strips.size() - 1; i >= 0; i--) {
     Strip *strip = strips[i];
 
-    if (state->intra_frame_cache != nullptr) {
-      out = state->intra_frame_cache->get(strip);
-    }
+    out = intra_frame_cache_get_composite(context->scene, strip);
     if (out) {
       break;
     }
@@ -1933,9 +1926,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
           out = seq_render_strip_stack_apply_effect(context, strip, timeline_frame, ibuf1, ibuf2);
           IMB_metadata_copy(out, ibuf2);
 
-          if (state->intra_frame_cache != nullptr) {
-            state->intra_frame_cache->put(strip, out);
-          }
+          intra_frame_cache_put_composite(context->scene, strip, out);
 
           IMB_freeImBuf(ibuf1);
           IMB_freeImBuf(ibuf2);
@@ -1966,9 +1957,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
       IMB_freeImBuf(ibuf2);
     }
 
-    if (state->intra_frame_cache != nullptr) {
-      state->intra_frame_cache->put(strip, out);
-    }
+    intra_frame_cache_put_composite(context->scene, strip, out);
   }
 
   return out;
@@ -2024,19 +2013,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     channels = ed->displayed_channels;
   }
 
-  SeqRenderState state;
-  seq::IntraFrameCache intra_frame_cache;
-  state.intra_frame_cache = &intra_frame_cache;
-  if (!context->is_proxy_render && !context->is_prefetch_render) {
-    if (ed->runtime.intra_frame_cache == nullptr) {
-      ed->runtime.intra_frame_cache = MEM_new<seq::IntraFrameCache>(__func__);
-    }
-    state.intra_frame_cache = ed->runtime.intra_frame_cache;
-    if (state.intra_frame_cache->timeline_frame_ != timeline_frame) {
-      state.intra_frame_cache->clear();
-      state.intra_frame_cache->timeline_frame_ = timeline_frame;
-    }
-  }
+  intra_frame_cache_set_cur_frame(scene, timeline_frame);
 
   Scene *orig_scene = prefetch_get_original_scene(context);
   source_image_cache_tick(orig_scene);
@@ -2050,6 +2027,8 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
 
   /* Make sure we only keep the `anim` data for strips that are in view. */
   relations_free_all_anim_ibufs(context->scene, timeline_frame);
+
+  SeqRenderState state;
 
   if (!strips.is_empty() && !out) {
     BLI_mutex_lock(&seq_render_mutex);

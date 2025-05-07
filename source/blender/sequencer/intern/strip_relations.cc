@@ -50,7 +50,7 @@ void cache_cleanup(Scene *scene)
   thumbnail_cache_clear(scene);
   source_image_cache_clear(scene);
   final_image_cache_clear(scene);
-  invalidate_intra_frame_cache(scene);
+  intra_frame_cache_invalidate(scene);
 }
 
 bool is_cache_full(const Scene *scene)
@@ -96,7 +96,7 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
   media_presence_invalidate_strip(scene, strip);
 
   invalidate_final_cache_strip_range(scene, strip);
-  invalidate_intra_frame_cache(scene, strip);
+  intra_frame_cache_invalidate(scene, strip);
   invalidate_raw_cache_of_parent_meta(scene, strip);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
