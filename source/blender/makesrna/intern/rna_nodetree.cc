@@ -1593,7 +1593,7 @@ static void rna_NodeTree_debug_lazy_function_graph(bNodeTree *tree,
 {
   *r_len = 0;
   *r_str = nullptr;
-  if (DEG_is_original_id(&tree->id)) {
+  if (DEG_is_original(tree)) {
     /* The graph is only stored on the evaluated data. */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
@@ -1613,7 +1613,7 @@ static void rna_NodeTree_debug_zone_body_lazy_function_graph(
   *r_len = 0;
   *r_str = nullptr;
   bNodeTree *tree = reinterpret_cast<bNodeTree *>(tree_id);
-  if (DEG_is_original_id(&tree->id)) {
+  if (DEG_is_original(tree)) {
     /* The graph is only stored on the evaluated data. */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
@@ -2207,6 +2207,15 @@ static void rna_GeometryNodeTree_is_mode_sculpt_set(PointerRNA *ptr, bool value)
   geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_SCULPT, value);
 }
 
+static bool rna_GeometryNodeTree_is_mode_paint_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_PAINT);
+}
+static void rna_GeometryNodeTree_is_mode_paint_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_PAINT, value);
+}
+
 static bool rna_GeometryNodeTree_is_type_mesh_get(PointerRNA *ptr)
 {
   return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_MESH);
@@ -2241,6 +2250,15 @@ static bool rna_GeometryNodeTree_use_wait_for_click_get(PointerRNA *ptr)
 static void rna_GeometryNodeTree_use_wait_for_click_set(PointerRNA *ptr, bool value)
 {
   geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_WAIT_FOR_CURSOR, value);
+}
+
+static bool rna_GeometryNodeTree_is_type_grease_pencil_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_GREASE_PENCIL);
+}
+static void rna_GeometryNodeTree_is_type_grease_pencil_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_GREASE_PENCIL, value);
 }
 
 static bool random_value_type_supported(const EnumPropertyItem *item)
@@ -4205,6 +4223,9 @@ static const char node_input_length[] = "Length";
 static const char node_input_center[] = "Center";
 static const char node_input_translation_amount[] = "Translation Amount";
 static const char node_input_translation_direction[] = "Translation Direction";
+
+/* Alpha Over node. */
+static const char node_input_straight_alpha[] = "Straight Alpha";
 
 /* --------------------------------------------------------------------
  * White Balance Node.
@@ -7267,10 +7288,13 @@ static void def_cmp_alpha_over(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
 
-  /* XXX: Tooltip */
   prop = RNA_def_property(srna, "use_premultiply", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
-  RNA_def_property_ui_text(prop, "Convert Premultiplied", "");
+  RNA_def_property_boolean_funcs(
+      prop,
+      "rna_node_property_to_input_getter<bool, node_input_straight_alpha>",
+      "rna_node_property_to_input_setter<bool, node_input_straight_alpha>");
+  RNA_def_property_ui_text(
+      prop, "Convert Premultiplied", "(Deprecated: Use Straight Alpha input instead.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   RNA_def_struct_sdna_from(srna, "NodeTwoFloats", "storage");
@@ -7278,7 +7302,7 @@ static void def_cmp_alpha_over(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "premul", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "x");
   RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_text(prop, "Premultiplied", "Mix Factor");
+  RNA_def_property_ui_text(prop, "Premultiplied", "Mix Factor. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -8262,7 +8286,9 @@ static void def_cmp_brightcontrast(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "use_premultiply", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
-  RNA_def_property_ui_text(prop, "Convert Premultiplied", "Keep output image premultiplied alpha");
+  RNA_def_property_ui_text(prop,
+                           "Convert Premultiplied",
+                           "Keep output image premultiplied alpha. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -10129,10 +10155,10 @@ static void def_cmp_viewer(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "use_alpha", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "custom2", CMP_NODE_OUTPUT_IGNORE_ALPHA);
-  RNA_def_property_ui_text(
-      prop,
-      "Use Alpha",
-      "Colors are treated alpha premultiplied, or colors output straight (alpha gets set to 1)");
+  RNA_def_property_ui_text(prop,
+                           "Use Alpha",
+                           "Colors are treated alpha premultiplied, or colors output straight "
+                           "(alpha gets set to 1). (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
@@ -10150,10 +10176,10 @@ static void def_cmp_composite(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "use_alpha", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "custom2", CMP_NODE_OUTPUT_IGNORE_ALPHA);
-  RNA_def_property_ui_text(
-      prop,
-      "Use Alpha",
-      "Colors are treated alpha premultiplied, or colors output straight (alpha gets set to 1)");
+  RNA_def_property_ui_text(prop,
+                           "Use Alpha",
+                           "Colors are treated alpha premultiplied, or colors output straight "
+                           "(alpha gets set to 1). (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -13355,6 +13381,14 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
       prop, "rna_GeometryNodeTree_is_mode_sculpt_get", "rna_GeometryNodeTree_is_mode_sculpt_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
+  prop = RNA_def_property(srna, "is_mode_paint", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_PAINT);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Paint", "The node group is used in paint mode");
+  RNA_def_property_boolean_funcs(
+      prop, "rna_GeometryNodeTree_is_mode_paint_get", "rna_GeometryNodeTree_is_mode_paint_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
+
   prop = RNA_def_property(srna, "is_type_mesh", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_MESH);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -13389,6 +13423,15 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop,
                                  "rna_GeometryNodeTree_use_wait_for_click_get",
                                  "rna_GeometryNodeTree_use_wait_for_click_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
+
+  prop = RNA_def_property(srna, "is_type_grease_pencil", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_ASSET_GREASE_PENCIL);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Grease Pencil", "The node group is used for Grease Pencil");
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GeometryNodeTree_is_type_grease_pencil_get",
+                                 "rna_GeometryNodeTree_is_type_grease_pencil_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 }
 
@@ -13826,6 +13869,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeImportSTL");
   define("GeometryNode", "GeometryNodeImportCSV");
   define("GeometryNode", "GeometryNodeImportText");
+  define("GeometryNode", "GeometryNodeImportVDB");
   define("GeometryNode", "GeometryNodeIndexOfNearest");
   define("GeometryNode", "GeometryNodeIndexSwitch", def_geo_index_switch);
   define("GeometryNode", "GeometryNodeInputActiveCamera");

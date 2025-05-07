@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstdlib>
+#include <fmt/format.h>
 
 #include "DNA_node_types.h"
 #include "DNA_windowmanager_types.h"
@@ -1302,14 +1303,13 @@ void NODE_OT_select_same_type_step(wmOperatorType *ot)
 /** \name Find Node by Name Operator
  * \{ */
 
-static void node_find_create_label(const bNode *node, char *str, int str_maxncpy)
+static std::string node_find_create_label(const bNodeTree &ntree, const bNode &node)
 {
-  if (node->label[0]) {
-    BLI_snprintf(str, str_maxncpy, "%s (%s)", node->name, node->label);
+  std::string label = bke::node_label(ntree, node);
+  if (label == node.name) {
+    return label;
   }
-  else {
-    BLI_strncpy(str, node->name, str_maxncpy);
-  }
+  return fmt::format("{} ({})", label, node.name);
 }
 
 /* Generic search invoke. */
@@ -1323,17 +1323,16 @@ static void node_find_update_fn(const bContext *C,
 
   ui::string_search::StringSearch<bNode> search;
 
+  const bNodeTree &ntree = *snode->edittree;
   for (bNode *node : snode->edittree->all_nodes()) {
-    char name[256];
-    node_find_create_label(node, name, ARRAY_SIZE(name));
+    const std::string name = node_find_create_label(ntree, *node);
     search.add(name, node);
   }
 
   const Vector<bNode *> filtered_nodes = search.query(str);
 
   for (bNode *node : filtered_nodes) {
-    char name[256];
-    node_find_create_label(node, name, ARRAY_SIZE(name));
+    const std::string name = node_find_create_label(ntree, *node);
     if (!UI_search_item_add(items, name, node, ICON_NONE, 0, 0)) {
       break;
     }
@@ -1366,29 +1365,22 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  but = uiDefSearchBut(block,
-                       search,
-                       0,
-                       ICON_VIEWZOOM,
-                       sizeof(search),
-                       10,
-                       10,
-                       UI_searchbox_size_x(),
-                       UI_UNIT_Y,
-                       "");
+  but = uiDefSearchBut(
+      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_searchbox_size_x(), UI_UNIT_Y, "");
   UI_but_func_search_set(
       but, nullptr, node_find_update_fn, optype, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button holds space for search items. */
+  const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
            UI_BTYPE_LABEL,
            0,
            "",
-           10,
-           10 - UI_searchbox_size_y(),
+           0,
+           -height,
            UI_searchbox_size_x(),
-           UI_searchbox_size_y(),
+           height,
            nullptr,
            0,
            0,
@@ -1396,7 +1388,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};
-  UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, bounds_offset.data());
+  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, bounds_offset.data());
 
   return block;
 }
