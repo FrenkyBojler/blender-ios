@@ -232,6 +232,8 @@ bool VDBImageLoader::load_metadata(const ImageDeviceFeatures &features, ImageMet
     texture_to_index = transform_translate(min.x(), min.y(), min.z()) *
                        transform_scale(dim.x(), dim.y(), dim.z());
   }
+  /* Map to voxel centers instead of corners. */
+  texture_to_index = transform_translate(-0.5f, -0.5f, -0.5f) * texture_to_index;
 
   metadata.transform_3d = transform_inverse(index_to_object * texture_to_index);
   metadata.use_transform_3d = true;
