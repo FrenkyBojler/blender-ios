@@ -148,6 +148,9 @@ static void brush_free_data(ID *id)
     BKE_curvemapping_free(brush->curves_sculpt_settings->curve_parameter_falloff);
     MEM_freeN(brush->curves_sculpt_settings);
   }
+  if (brush->mesh_paint_settings != nullptr) {
+    MEM_SAFE_FREE(brush->mesh_paint_settings);
+  }
 
   MEM_SAFE_FREE(brush->gradient);
 
