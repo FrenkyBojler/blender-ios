@@ -63,7 +63,7 @@ def main():
     args = parser.parse_args()
 
     if sys.platform == "linux":
-        strip_libs(args.bpy_dir)
+        strip_libs(args.directory)
         return
 
 

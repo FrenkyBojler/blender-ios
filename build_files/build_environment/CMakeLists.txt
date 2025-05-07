@@ -185,5 +185,7 @@ include(cmake/manifold.cmake)
 include(cmake/deps_html.cmake)
 include(cmake/cve_check.cmake)
 
-# Strip all installed libraries
-harvest_strip_all_libraries()
+if(UNIX)
+  # Strip all installed libraries
+  harvest_strip_all_libraries()
+endif()
