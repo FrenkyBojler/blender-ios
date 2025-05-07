@@ -506,7 +506,8 @@ static void dyntopo_detail_size_parallel_lines_draw(uint pos3d,
       break;
     case DetailMode::Constant:
     case DetailMode::Manual:
-      object_space_constant_detail = detail_size::constant_to_detail_size(cd->current_value, *cd->active_object);
+      object_space_constant_detail = detail_size::constant_to_detail_size(cd->current_value,
+                                                                          *cd->active_object);
       break;
     case DetailMode::Brush:
       object_space_constant_detail = detail_size::brush_to_detail_size(cd->current_value,

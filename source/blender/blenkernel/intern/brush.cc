@@ -550,7 +550,12 @@ Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
   {
     BKE_brush_init_gpencil_settings(brush);
   }
-  else if (ELEM(ob_mode, OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT)) {
+  else if (ELEM(ob_mode,
+                OB_MODE_SCULPT,
+                OB_MODE_VERTEX_PAINT,
+                OB_MODE_WEIGHT_PAINT,
+                OB_MODE_TEXTURE_PAINT))
+  {
     BKE_brush_init_mesh_paint_settings(*brush);
   }
 
@@ -624,7 +629,7 @@ void BKE_brush_init_mesh_paint_settings(Brush &brush)
   // TODO: Is any of this needed, or correct? Shouldn't this be set elsewhere?
   BrushMeshPaintSettings &settings = *brush.mesh_paint_settings;
 
-  DyntopoSettings dyntopo_settings;;
+  DyntopoSettings dyntopo_settings;
   dyntopo_settings.detail_size = 12.0f;
   dyntopo_settings.detail_percent = 25;
   dyntopo_settings.constant_detail_resolution = 3.0f;

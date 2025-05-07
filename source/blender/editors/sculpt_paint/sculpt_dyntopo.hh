@@ -32,7 +32,7 @@ enum WarnFlag {
 };
 ENUM_OPERATORS(WarnFlag, MODIFIER);
 
-enum class DetailFlags: uint8_t {
+enum class DetailFlags : uint8_t {
   None = 0,
   Subdivide = (1 << 0),
   Collapse = (1 << 1),
@@ -56,7 +56,7 @@ struct Settings {
  * Retrieves relevant dyntopo settings, preferring data from the brush over the data in the scene.
  */
 Settings get_settings(const Sculpt &sculpt, const Brush &brush);
-void set_detail_value(Sculpt& sculpt, Brush& brush, DetailMode mode, float value);
+void set_detail_value(Sculpt &sculpt, Brush &brush, DetailMode mode, float value);
 
 /** Enable dynamic topology; mesh will be triangulated */
 void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob);
