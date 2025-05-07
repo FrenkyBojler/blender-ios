@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import bpy
 from bpy.types import Menu
 from bl_ui import node_add_menu
 from bpy.app.translations import (
@@ -729,7 +730,7 @@ class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
     bl_idname = "NODE_MT_category_GEO_UTILITIES_MATH"
     bl_label = "Math"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "FunctionNodeBooleanMath")
         node_add_menu.add_node_type(layout, "FunctionNodeIntegerMath")
@@ -741,6 +742,12 @@ class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeMapRange")
         node_add_menu.add_node_type(layout, "ShaderNodeMath")
         node_add_menu.add_node_type(layout, "ShaderNodeMix")
+
+        if context.is_menu_search:
+            menu_entries_for_enum_items(layout, "ShaderNodeMath", "operation")
+            menu_entries_for_enum_items(layout, "FunctionNodeBooleanMath", "operation")
+            menu_entries_for_enum_items(layout, "FunctionNodeIntegerMath", "operation")
+
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Math")
 
 
@@ -755,15 +762,28 @@ class NODE_MT_category_GEO_UV(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/UV")
 
 
+def menu_entries_for_enum_items(layout, node_idname, property_name):
+    node_type = getattr(bpy.types, node_idname)
+    for item in node_type.bl_rna.properties[property_name].enum_items_static:
+        props = node_add_menu.add_node_type(layout, node_idname, label=node_type.bl_rna.name + " ▸ " + item.name)
+        prop = props.settings.add()
+        prop.name = property_name
+        prop.value = repr(item.identifier)
+
+
 class NODE_MT_category_GEO_VECTOR(Menu):
     bl_idname = "NODE_MT_category_GEO_VECTOR"
     bl_label = "Vector"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorMath")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorRotate")
+
+        if context.is_menu_search:
+            menu_entries_for_enum_items(layout, "ShaderNodeVectorMath", "operation")
+
         layout.separator()
         node_add_menu.add_node_type(layout, "ShaderNodeCombineXYZ")
         props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=iface_("Mix Vector"))
