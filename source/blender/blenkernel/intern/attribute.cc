@@ -115,9 +115,8 @@ static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(const AttributeOwner 
 
   switch (owner.type()) {
     case AttributeOwnerType::PointCloud: {
-      PointCloud *pointcloud = owner.get_pointcloud();
-      info[int(AttrDomain::Point)].customdata = &pointcloud->pdata;
-      info[int(AttrDomain::Point)].length = pointcloud->totpoint;
+      /* This should be implemented with #AttributeStorage instead. */
+      BLI_assert_unreachable();
       break;
     }
     case AttributeOwnerType::Mesh: {
@@ -382,6 +381,9 @@ static bool attribute_name_exists(const AttributeOwner &owner, const StringRef n
 
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const StringRef name)
 {
+  if (owner.type() == AttributeOwnerType::PointCloud) {
+    return owner.get_pointcloud()->attribute_storage.wrap().unique_name_calc(name);
+  }
   return BLI_uniquename_cb(
       [&](const StringRef new_name) { return attribute_name_exists(owner, new_name); },
       '.',
