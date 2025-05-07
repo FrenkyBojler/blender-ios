@@ -514,7 +514,7 @@ static bool node_update_basis_socket(const bContext &C,
     uiLayoutSetActive(layout, false);
   }
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
   uiLayoutSetContextPointer(row, "node", &nodeptr);
 
@@ -3151,7 +3151,8 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_SIMULATION_OUTPUT,
             GEO_NODE_REPEAT_OUTPUT,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
-            GEO_NODE_EVALUATE_CLOSURE)))
+            GEO_NODE_EVALUATE_CLOSURE) ||
+       StringRef(node.idname).startswith("GeometryNodeImport")))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
         tree_draw_ctx, snode, node);
@@ -4699,12 +4700,9 @@ static void find_bounds_by_zone_recursive(const SpaceNode &snode,
   }
 }
 
-static void node_draw_zones_and_frames(const bContext &C,
-                                       TreeDrawContext &tree_draw_ctx,
-                                       const ARegion &region,
+static void node_draw_zones_and_frames(const ARegion &region,
                                        const SpaceNode &snode,
-                                       const bNodeTree &ntree,
-                                       Span<uiBlock *> blocks)
+                                       const bNodeTree &ntree)
 {
   const bNodeTreeZones *zones = ntree.zones();
   const int zones_num = zones ? zones->zones.size() : 0;
@@ -4843,13 +4841,17 @@ static void node_draw_zones_and_frames(const bContext &C,
   }
 
   GPU_blend(GPU_BLEND_NONE);
+}
 
-  /* Draw text on frame nodes. */
-  for (const ZoneOrNode &zone_or_node : draw_order) {
-    if (const bNode *const *node_p = std::get_if<const bNode *>(&zone_or_node)) {
-      const bNode &node = **node_p;
-      frame_node_draw_overlay(C, tree_draw_ctx, region, snode, ntree, node, *blocks[node.index()]);
-    }
+static void draw_frame_overlays(const bContext &C,
+                                TreeDrawContext &tree_draw_ctx,
+                                const ARegion &region,
+                                const SpaceNode &snode,
+                                const bNodeTree &ntree,
+                                Span<uiBlock *> blocks)
+{
+  for (const bNode *node : ntree.nodes_by_type("NodeFrame")) {
+    frame_node_draw_overlay(C, tree_draw_ctx, region, snode, ntree, *node, *blocks[node->index()]);
   }
 }
 
@@ -4895,6 +4897,8 @@ static void node_draw_nodetree(const bContext &C,
 
   nodelink_batch_end(snode);
   GPU_blend(GPU_BLEND_NONE);
+
+  draw_frame_overlays(C, tree_draw_ctx, region, snode, ntree, blocks);
 
   /* Draw foreground nodes, last nodes in front. */
   for (const int i : nodes.index_range()) {
@@ -5033,7 +5037,7 @@ static void draw_nodetree(const bContext &C,
   }
 
   node_update_nodetree(C, tree_draw_ctx, ntree, nodes, blocks);
-  node_draw_zones_and_frames(C, tree_draw_ctx, region, *snode, ntree, blocks);
+  node_draw_zones_and_frames(region, *snode, ntree);
   node_draw_nodetree(C, tree_draw_ctx, region, *snode, ntree, nodes, blocks, parent_key);
 }
 

@@ -1771,6 +1771,8 @@ void UI_but_func_search_set_listen(uiBut *but, uiButSearchListenFn listen_fn);
 void UI_but_func_search_set_sep_string(uiBut *but, const char *search_sep_string);
 void UI_but_func_search_set_results_are_suggestions(uiBut *but, bool value);
 
+#define UI_SEARCHBOX_BOUNDS (6.0f * UI_SCALE_FAC)
+#define UI_SEARCHBOX_TRIA_H (12.0f * UI_SCALE_FAC)
 /**
  * Height in pixels, it's using hard-coded values still.
  */
@@ -2725,8 +2727,7 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C,
                                                 PointerRNA *r_ptr,
                                                 PropertyRNA **r_prop,
                                                 bool *r_is_undo,
-                                                bool *r_is_userdef,
-                                                bool *r_override_path_supports_blend_relative);
+                                                bool *r_is_userdef);
 /**
  * For new/open operators.
  *

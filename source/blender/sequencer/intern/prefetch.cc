@@ -125,15 +125,15 @@ static bool seq_prefetch_job_is_waiting(Scene *scene)
   return pfjob->waiting;
 }
 
-static Strip *get_original_sequence(const Strip *strip, ListBase *seqbase)
+static Strip *original_strip_get(const Strip *strip, ListBase *seqbase)
 {
-  LISTBASE_FOREACH (Strip *, seq_orig, seqbase) {
-    if (STREQ(strip->name, seq_orig->name)) {
-      return seq_orig;
+  LISTBASE_FOREACH (Strip *, strip_orig, seqbase) {
+    if (STREQ(strip->name, strip_orig->name)) {
+      return strip_orig;
     }
 
-    if (seq_orig->type == STRIP_TYPE_META) {
-      Strip *match = get_original_sequence(strip, &seq_orig->seqbase);
+    if (strip_orig->type == STRIP_TYPE_META) {
+      Strip *match = original_strip_get(strip, &strip_orig->seqbase);
       if (match != nullptr) {
         return match;
       }
@@ -143,10 +143,10 @@ static Strip *get_original_sequence(const Strip *strip, ListBase *seqbase)
   return nullptr;
 }
 
-static Strip *get_original_sequence(const Strip *strip, Scene *scene)
+static Strip *original_strip_get(const Strip *strip, Scene *scene)
 {
   Editing *ed = scene->ed;
-  return get_original_sequence(strip, &ed->seqbase);
+  return original_strip_get(strip, &ed->seqbase);
 }
 
 static RenderData *get_original_context(const RenderData *context)
@@ -172,7 +172,7 @@ Scene *prefetch_get_original_scene_and_strip(const RenderData *context, const St
   if (context->is_prefetch_render) {
     context = get_original_context(context);
     scene = context->scene;
-    strip = get_original_sequence(strip, scene);
+    strip = original_strip_get(strip, scene);
   }
   return scene;
 }
@@ -339,11 +339,11 @@ static void seq_prefetch_update_active_seqbase(PrefetchJob *pfjob)
   Editing *ed_eval = editing_get(pfjob->scene_eval);
 
   if (ms_orig != nullptr) {
-    Strip *meta_eval = get_original_sequence(ms_orig->parseq, pfjob->scene_eval);
-    seqbase_active_set(ed_eval, &meta_eval->seqbase);
+    Strip *meta_eval = original_strip_get(ms_orig->parent_strip, pfjob->scene_eval);
+    active_seqbase_set(ed_eval, &meta_eval->seqbase);
   }
   else {
-    seqbase_active_set(ed_eval, &ed_eval->seqbase);
+    active_seqbase_set(ed_eval, &ed_eval->seqbase);
   }
 }
 
@@ -404,7 +404,7 @@ static bool seq_prefetch_scene_strip_is_rendered(PrefetchJob *pfjob,
                                                  bool is_recursive_check)
 {
   float cfra = seq_prefetch_cfra(pfjob);
-  blender::Vector<Strip *> strips = seq_get_shown_sequences(
+  blender::Vector<Strip *> strips = seq_shown_strips_get(
       pfjob->scene_eval, channels, seqbase, cfra, 0);
 
   /* Iterate over rendered strips. */

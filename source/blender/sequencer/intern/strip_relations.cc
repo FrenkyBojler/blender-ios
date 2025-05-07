@@ -169,7 +169,7 @@ void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
 
     if (strip->data) {
       if (strip->type == STRIP_TYPE_MOVIE) {
-        relations_sequence_free_anim(strip);
+        relations_strip_free_anim(strip);
       }
       if (strip->type == STRIP_TYPE_SPEED) {
         strip_effect_speed_rebuild_map(scene, strip);
@@ -196,13 +196,13 @@ static void sequencer_all_free_anim_ibufs(const Scene *scene,
     if (!time_strip_intersects_frame(scene, strip, timeline_frame) ||
         !((frame_range[0] <= timeline_frame) && (frame_range[1] > timeline_frame)))
     {
-      relations_sequence_free_anim(strip);
+      relations_strip_free_anim(strip);
     }
     if (strip->type == STRIP_TYPE_META) {
       int meta_range[2];
 
       MetaStack *ms = meta_stack_active_get(ed);
-      if (ms != nullptr && ms->parseq == strip) {
+      if (ms != nullptr && ms->parent_strip == strip) {
         meta_range[0] = -MAXFRAME;
         meta_range[1] = MAXFRAME;
       }
@@ -269,7 +269,7 @@ bool relations_check_scene_recursion(Scene *scene, ReportList *reports)
                 time_left_handle_frame_get(scene, recursive_seq));
 
     LISTBASE_FOREACH (Strip *, strip, &ed->seqbase) {
-      if (strip->type != STRIP_TYPE_SCENE && sequencer_seq_generates_image(strip)) {
+      if (strip->type != STRIP_TYPE_SCENE && sequencer_strip_generates_image(strip)) {
         /* There are other strips to render, so render them. */
         return false;
       }
@@ -297,8 +297,8 @@ bool relations_render_loop_check(Strip *strip_main, Strip *strip)
     return true;
   }
 
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip_main->modifiers) {
-    if (smd->mask_sequence && relations_render_loop_check(smd->mask_sequence, strip)) {
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip_main->modifiers) {
+    if (smd->mask_strip && relations_render_loop_check(smd->mask_strip, strip)) {
       return true;
     }
   }
@@ -306,7 +306,7 @@ bool relations_render_loop_check(Strip *strip_main, Strip *strip)
   return false;
 }
 
-void relations_sequence_free_anim(Strip *strip)
+void relations_strip_free_anim(Strip *strip)
 {
   while (strip->anims.last) {
     StripAnim *sanim = static_cast<StripAnim *>(strip->anims.last);
@@ -321,9 +321,9 @@ void relations_sequence_free_anim(Strip *strip)
   BLI_listbase_clear(&strip->anims);
 }
 
-void relations_session_uid_generate(Strip *sequence)
+void relations_session_uid_generate(Strip *strip)
 {
-  sequence->runtime.session_uid = BLI_session_uid_generate();
+  strip->runtime.session_uid = BLI_session_uid_generate();
 }
 
 static bool get_uids_cb(Strip *strip, void *user_data)

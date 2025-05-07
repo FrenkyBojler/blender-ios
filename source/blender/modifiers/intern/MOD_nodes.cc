@@ -650,7 +650,7 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
       }
       /* The tree may sometimes be original and sometimes evaluated, depending on the source of the
        * compute context. */
-      const bNodeTree *eval_closure_tree = DEG_is_evaluated_id(&source_location->tree->id) ?
+      const bNodeTree *eval_closure_tree = DEG_is_evaluated(source_location->tree) ?
                                                source_location->tree :
                                                reinterpret_cast<const bNodeTree *>(
                                                    DEG_get_evaluated_id(
@@ -950,7 +950,7 @@ static void check_property_socket_sync(const Object *ob,
 
 class NodesModifierBakeDataBlockMap : public bake::BakeDataBlockMap {
   /** Protects access to `new_mappings` which may be added to from multiple threads. */
-  std::mutex mutex_;
+  Mutex mutex_;
 
  public:
   Map<bake::BakeDataBlockID, ID *> old_mappings;
@@ -2144,8 +2144,8 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
   /* We're handling this manually in this case. */
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
-  uiLayout *name_row = uiLayoutRow(split, false);
+  uiLayout *split = &layout->split(0.4f, false);
+  uiLayout *name_row = &split->row(false);
   uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
 
   uiLayout *prop_row = nullptr;
@@ -2154,10 +2154,10 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
                                                                                   socket);
   if (type == SOCK_BOOLEAN && !attribute_name) {
     uiItemL(name_row, "", ICON_NONE);
-    prop_row = uiLayoutRow(split, true);
+    prop_row = &split->row(true);
   }
   else {
-    prop_row = uiLayoutRow(layout, true);
+    prop_row = &layout->row(true);
   }
 
   if (type == SOCK_BOOLEAN) {
@@ -2167,7 +2167,7 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   if (attribute_name) {
     uiItemL(name_row, socket.name ? IFACE_(socket.name) : "", ICON_NONE);
-    prop_row = uiLayoutRow(split, true);
+    prop_row = &split->row(true);
     add_attribute_search_button(ctx, prop_row, rna_path_attribute_name, socket, false);
     uiItemL(layout, "", ICON_BLANK1);
   }
@@ -2272,12 +2272,12 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
 
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
-  uiLayout *name_row = uiLayoutRow(split, false);
+  uiLayout *split = &layout->split(0.4f, false);
+  uiLayout *name_row = &split->row(false);
   uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
 
   uiItemL(name_row, socket.name ? IFACE_(socket.name) : "", ICON_NONE);
-  uiLayout *prop_row = uiLayoutRow(split, true);
+  uiLayout *prop_row = &split->row(true);
 
   uiBlock *block = uiLayoutGetBlock(prop_row);
   uiBut *but = uiDefIconTextButR(block,
@@ -2346,7 +2346,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   const int input_index = ctx.nmd.node_group->interface_input_index(socket);
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   uiLayoutSetPropDecorate(row, true);
   uiLayoutSetActive(row, ctx.input_usages[input_index]);
 
@@ -2420,12 +2420,12 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
   const std::string rna_path_attribute_name = fmt::format(
       "[\"{}{}\"]", socket_id_esc, nodes::input_attribute_name_suffix);
 
-  uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
-  uiLayout *name_row = uiLayoutRow(split, false);
+  uiLayout *split = &layout->split(0.4f, false);
+  uiLayout *name_row = &split->row(false);
   uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
   uiItemL(name_row, socket.name ? socket.name : "", ICON_NONE);
 
-  uiLayout *row = uiLayoutRow(split, true);
+  uiLayout *row = &split->row(true);
   add_attribute_search_button(ctx, row, rna_path_attribute_name, socket, true);
 }
 
@@ -2522,17 +2522,12 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         char rna_path[sizeof(socket_id_esc) + 4];
         SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
-        panel_layout = uiLayoutPanelPropWithBoolHeader(&ctx.C,
-                                                       layout,
-                                                       &panel_ptr,
-                                                       "is_open",
-                                                       ctx.md_ptr,
-                                                       rna_path,
-                                                       IFACE_(sub_interface_panel.name));
+        panel_layout = layout->panel_prop_with_bool_header(
+            &ctx.C, &panel_ptr, "is_open", ctx.md_ptr, rna_path, IFACE_(sub_interface_panel.name));
         skip_first = true;
       }
       else {
-        panel_layout = uiLayoutPanelProp(&ctx.C, layout, &panel_ptr, "is_open");
+        panel_layout = layout->panel_prop(&ctx.C, &panel_ptr, "is_open");
         uiItemL(panel_layout.header, IFACE_(sub_interface_panel.name), ICON_NONE);
       }
       if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
@@ -2593,7 +2588,7 @@ static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, uiLayout *
 
 static void draw_bake_panel(uiLayout *layout, PointerRNA *modifier_ptr)
 {
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiLayoutSetPropSep(col, true);
   uiLayoutSetPropDecorate(col, false);
   uiItemR(col, modifier_ptr, "bake_target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2640,7 +2635,7 @@ static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd
     const geo_log::NamedAttributeUsage usage = attribute.usage;
 
     /* #uiLayoutRowWithHeading doesn't seem to work in this case. */
-    uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
+    uiLayout *split = &layout->split(0.4f, false);
 
     std::stringstream ss;
     Vector<std::string> usages;
@@ -2660,12 +2655,12 @@ static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd
       }
     }
 
-    uiLayout *row = uiLayoutRow(split, false);
+    uiLayout *row = &split->row(false);
     uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
     uiLayoutSetActive(row, false);
     uiItemL(row, ss.str(), ICON_NONE);
 
-    row = uiLayoutRow(split, false);
+    row = &split->row(false);
     uiItemL(row, attribute_name, ICON_NONE);
   }
 }
@@ -2675,13 +2670,13 @@ static void draw_manage_panel(const bContext *C,
                               PointerRNA *modifier_ptr,
                               NodesModifierData &nmd)
 {
-  if (uiLayout *panel_layout = uiLayoutPanelProp(
-          C, layout, modifier_ptr, "open_bake_panel", IFACE_("Bake")))
+  if (uiLayout *panel_layout = layout->panel_prop(
+          C, modifier_ptr, "open_bake_panel", IFACE_("Bake")))
   {
     draw_bake_panel(panel_layout, modifier_ptr);
   }
-  if (uiLayout *panel_layout = uiLayoutPanelProp(
-          C, layout, modifier_ptr, "open_named_attributes_panel", IFACE_("Named Attributes")))
+  if (uiLayout *panel_layout = layout->panel_prop(
+          C, modifier_ptr, "open_named_attributes_panel", IFACE_("Named Attributes")))
   {
     draw_named_attributes_panel(panel_layout, nmd);
   }
@@ -2706,7 +2701,7 @@ static void draw_warnings(const bContext *C,
   if (warnings_num == 0) {
     return;
   }
-  PanelLayout panel = uiLayoutPanelProp(C, layout, md_ptr, "open_warnings_panel");
+  PanelLayout panel = layout->panel_prop(C, md_ptr, "open_warnings_panel");
   uiItemL(panel.header,
           fmt::format(fmt::runtime(IFACE_("Warnings ({})")), warnings_num).c_str(),
           ICON_NONE);
@@ -2729,7 +2724,7 @@ static void draw_warnings(const bContext *C,
     return BLI_strcasecmp_natural(a->message.c_str(), b->message.c_str()) < 0;
   });
 
-  uiLayout *col = uiLayoutColumn(panel.body, false);
+  uiLayout *col = &panel.body->column(false);
   for (const NodeWarning *warning : warnings) {
     const int icon = node_warning_type_icon(warning->type);
     uiItemL(col, warning->message, icon);
@@ -2772,15 +2767,13 @@ static void panel_draw(const bContext *C, Panel *panel)
   draw_warnings(C, *nmd, layout, ptr);
 
   if (has_output_attribute(*nmd)) {
-    if (uiLayout *panel_layout = uiLayoutPanelProp(
-            C, layout, ptr, "open_output_attributes_panel", IFACE_("Output Attributes")))
+    if (uiLayout *panel_layout = layout->panel_prop(
+            C, ptr, "open_output_attributes_panel", IFACE_("Output Attributes")))
     {
       draw_output_attributes_panel(ctx, panel_layout);
     }
   }
-  if (uiLayout *panel_layout = uiLayoutPanelProp(
-          C, layout, ptr, "open_manage_panel", IFACE_("Manage")))
-  {
+  if (uiLayout *panel_layout = layout->panel_prop(C, ptr, "open_manage_panel", IFACE_("Manage"))) {
     draw_manage_panel(C, panel_layout, ptr, *nmd);
   }
 }
