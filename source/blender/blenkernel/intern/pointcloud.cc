@@ -69,10 +69,6 @@ static void pointcloud_init_data(ID *id)
 
   new (&pointcloud->attribute_storage) blender::bke::AttributeStorage();
   pointcloud->runtime = new blender::bke::PointCloudRuntime();
-
-  CustomData_reset(&pointcloud->pdata);
-  pointcloud->attributes_for_write().add<float3>(
-      "position", blender::bke::AttrDomain::Point, blender::bke::AttributeInitConstruct());
 }
 
 static void pointcloud_copy_data(Main * /*bmain*/,
@@ -85,8 +81,6 @@ static void pointcloud_copy_data(Main * /*bmain*/,
   const PointCloud *pointcloud_src = (const PointCloud *)id_src;
   pointcloud_dst->mat = static_cast<Material **>(MEM_dupallocN(pointcloud_src->mat));
 
-  CustomData_init_from(
-      &pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, pointcloud_dst->totpoint);
   new (&pointcloud_dst->attribute_storage.wrap())
       blender::bke::AttributeStorage(pointcloud_src->attribute_storage.wrap());
 
@@ -109,7 +103,7 @@ static void pointcloud_free_data(ID *id)
   PointCloud *pointcloud = (PointCloud *)id;
   BKE_animdata_free(&pointcloud->id, false);
   BKE_pointcloud_batch_cache_free(pointcloud);
-  CustomData_free(&pointcloud->pdata);
+  BLI_assert(pointcloud->pdata.totlayer == 0);
   pointcloud->attribute_storage.wrap().~AttributeStorage();
   MEM_SAFE_FREE(pointcloud->mat);
   delete pointcloud->runtime;
@@ -134,8 +128,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(
       pointcloud->attribute_storage.wrap(), {{AttrDomain::Point, &point_layers}}, attribute_data);
-  CustomData_blend_write_prepare(
-      pointcloud->pdata, AttrDomain::Point, pointcloud->totpoint, point_layers, attribute_data);
+  BLI_assert(pointcloud->pdata.totlayer == 0);
   pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
   pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
 
@@ -144,12 +137,6 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   BKE_id_blend_write(writer, &pointcloud->id);
 
   /* Direct data */
-  CustomData_blend_write(writer,
-                         &pointcloud->pdata,
-                         point_layers,
-                         pointcloud->totpoint,
-                         CD_MASK_ALL,
-                         &pointcloud->id);
   pointcloud->attribute_storage.wrap().blend_write(*writer, attribute_data);
 
   BLO_write_pointer_array(writer, pointcloud->totcol, pointcloud->mat);
@@ -162,9 +149,6 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
   /* Geometry */
   CustomData_blend_read(reader, &pointcloud->pdata, pointcloud->totpoint);
   pointcloud->attribute_storage.wrap().blend_read(*reader);
-
-  /* Forward compatibility. To be removed when runtime format changes. */
-  blender::bke::pointcloud_convert_storage_to_customdata(*pointcloud);
 
   /* Materials */
   BLO_read_pointer_array(reader, pointcloud->totcol, (void **)&pointcloud->mat);
@@ -208,7 +192,6 @@ static void pointcloud_random(PointCloud *pointcloud)
   using namespace blender::bke;
   BLI_assert(pointcloud->totpoint == 0);
   pointcloud->totpoint = 400;
-  CustomData_realloc(&pointcloud->pdata, 0, pointcloud->totpoint);
 
   RNG *rng = BLI_rng_new(0);
 
@@ -264,6 +247,11 @@ static MutableSpan<T> get_mutable_attribute(PointCloud &pointcloud,
     return {};
   }
   const eCustomDataType type = blender::bke::cpp_type_to_custom_data_type(CPPType::get<T>());
+  blender::bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name);
+  if (attr) {
+    //
+    // TODO: Add attribute.
+  }
 
   T *data = (T *)CustomData_get_layer_named_for_write(
       &pointcloud.pdata, type, name, pointcloud.totpoint);
@@ -320,8 +308,11 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
 
   BKE_libblock_init_empty(&pointcloud->id);
 
-  CustomData_realloc(&pointcloud->pdata, 0, totpoint);
   pointcloud->totpoint = totpoint;
+  pointcloud->attributes_for_write().add("position",
+                                         blender::bke::AttrDomain::Point,
+                                         CD_PROP_FLOAT3,
+                                         blender::bke::AttributeInitConstruct());
 
   return pointcloud;
 }
@@ -537,9 +528,8 @@ namespace blender::bke {
 
 PointCloud *pointcloud_new_no_attributes(int totpoint)
 {
-  PointCloud *pointcloud = BKE_pointcloud_new_nomain(0);
+  PointCloud *pointcloud = BKE_id_new_nomain<PointCloud>(nullptr);
   pointcloud->totpoint = totpoint;
-  CustomData_free_layer_named(&pointcloud->pdata, "position");
   return pointcloud;
 }
 

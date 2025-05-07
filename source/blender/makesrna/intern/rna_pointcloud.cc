@@ -36,21 +36,19 @@ static PointCloud *rna_pointcloud(const PointerRNA *ptr)
 
 static float (*get_pointcloud_positions(PointCloud *pointcloud))[3]
 {
-  return (float(*)[3])CustomData_get_layer_named_for_write(
-      &pointcloud->pdata, CD_PROP_FLOAT3, "position", pointcloud->totpoint);
+  return (float (*)[3])pointcloud.positions_for_write().data();
 }
 
 static const float (*get_pointcloud_positions_const(const PointCloud *pointcloud))[3]
 {
-  return (const float(*)[3])CustomData_get_layer_named(
-      &pointcloud->pdata, CD_PROP_FLOAT3, "position");
+  return (const float (*)[3])pointcloud.positions_for_write().data();
 }
 
 static int rna_Point_index_get_const(const PointerRNA *ptr)
 {
   const PointCloud *pointcloud = rna_pointcloud(ptr);
-  const float(*co)[3] = static_cast<const float(*)[3]>(ptr->data);
-  const float(*positions)[3] = get_pointcloud_positions_const(pointcloud);
+  const float (*co)[3] = static_cast<const float (*)[3]>(ptr->data);
+  const float (*positions)[3] = get_pointcloud_positions_const(pointcloud);
   return int(co - positions);
 }
 
@@ -101,23 +99,13 @@ static void rna_Point_location_set(PointerRNA *ptr, const float value[3])
 static float rna_Point_radius_get(PointerRNA *ptr)
 {
   const PointCloud *pointcloud = rna_pointcloud(ptr);
-  const float *radii = (const float *)CustomData_get_layer_named(
-      &pointcloud->pdata, CD_PROP_FLOAT, "radius");
-  if (radii == nullptr) {
-    return 0.0f;
-  }
-  return radii[rna_Point_index_get_const(ptr)];
+  return pointcloud->radius()[rna_Point_index_get_const(ptr)];
 }
 
 static void rna_Point_radius_set(PointerRNA *ptr, float value)
 {
   PointCloud *pointcloud = rna_pointcloud(ptr);
-  float *radii = (float *)CustomData_get_layer_named_for_write(
-      &pointcloud->pdata, CD_PROP_FLOAT, "radius", pointcloud->totpoint);
-  if (radii == nullptr) {
-    return;
-  }
-  radii[rna_Point_index_get_const(ptr)] = value;
+  pointcloud->radius_for_write()[rna_Point_index_get_const(ptr)] = value;
 }
 
 static std::optional<std::string> rna_Point_path(const PointerRNA *ptr)

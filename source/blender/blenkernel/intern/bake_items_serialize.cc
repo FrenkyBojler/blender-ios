@@ -612,7 +612,7 @@ static PointCloud *try_load_pointcloud(const DictionaryValue &io_geometry,
     return nullptr;
   }
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(0);
-  CustomData_free_layer_named(&pointcloud->pdata, "position");
+  pointcloud->attribute_storage.wrap().remove("position");  // TODO: Don't have empty attributes?
   pointcloud->totpoint = io_pointcloud->lookup_int("num_points").value_or(0);
 
   auto cancel = [&]() {
