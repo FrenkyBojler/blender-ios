@@ -799,7 +799,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   uiLayout *col = nullptr;
   if (add_box_) {
-    uiLayout *box = uiLayoutBox(&parent_layout);
+    uiLayout *box = &parent_layout.box();
     col = &box->column(true);
   }
   else {
@@ -883,7 +883,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   uiLayout &prev_layout = current_layout();
   blender::ui::EmbossType previous_emboss = UI_block_emboss_get(&block_);
 
-  uiLayout *overlap = uiLayoutOverlap(&prev_layout);
+  uiLayout *overlap = &prev_layout.overlap();
 
   if (!item.is_interactive_) {
     uiLayoutSetActive(overlap, false);

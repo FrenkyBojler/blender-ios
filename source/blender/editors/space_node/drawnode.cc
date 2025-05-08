@@ -68,6 +68,7 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_partial_eval.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_declarations.hh"
 #include "node_intern.hh" /* own include */
 
 namespace blender::ed::space_node {
@@ -353,13 +354,13 @@ static void node_buts_image_user(uiLayout *layout,
   }
 
   if (show_color_management) {
-    uiLayout *split = uiLayoutSplit(layout, 0.33f, true);
+    uiLayout *split = &layout->split(0.33f, true);
     PointerRNA colorspace_settings_ptr = RNA_pointer_get(imaptr, "colorspace_settings");
     uiItemL(split, IFACE_("Color Space"), ICON_NONE);
     uiItemR(split, &colorspace_settings_ptr, "name", DEFAULT_FLAGS, "", ICON_NONE);
 
     if (image->source != IMA_SRC_GENERATED) {
-      split = uiLayoutSplit(layout, 0.33f, true);
+      split = &layout->split(0.33f, true);
       uiItemL(split, IFACE_("Alpha"), ICON_NONE);
       uiItemR(split, imaptr, "alpha_mode", DEFAULT_FLAGS, "", ICON_NONE);
 
@@ -1317,7 +1318,7 @@ static void std_node_socket_draw(
         uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
       }
       else {
-        uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
+        uiLayout *row = &layout->split(0.4f, false);
         uiItemL(row, text, ICON_NONE);
         uiItemR(row, ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
       }
@@ -1329,7 +1330,7 @@ static void std_node_socket_draw(
           node_geometry_add_attribute_search_button(*C, *node, *ptr, *layout, label);
         }
         else {
-          uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
+          uiLayout *row = &layout->split(0.4f, false);
           uiItemL(row, text, ICON_NONE);
           node_geometry_add_attribute_search_button(*C, *node, *ptr, *row);
         }
@@ -1339,7 +1340,7 @@ static void std_node_socket_draw(
           node_geometry_add_layer_search_button(*C, *node, *ptr, *layout, label);
         }
         else {
-          uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
+          uiLayout *row = &layout->split(0.4f, false);
           uiItemL(row, text, ICON_NONE);
           node_geometry_add_layer_search_button(*C, *node, *ptr, *row);
         }
@@ -1357,7 +1358,7 @@ static void std_node_socket_draw(
                       label);
         }
         else {
-          uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
+          uiLayout *row = &layout->split(0.4f, false);
           uiItemL(row, text, ICON_NONE);
           uiItemR(row, ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
         }
@@ -1369,11 +1370,19 @@ static void std_node_socket_draw(
           sock->default_value_typed<bNodeSocketValueMenu>();
       if (default_value->enum_items) {
         if (default_value->enum_items->items.is_empty()) {
-          uiLayout *row = uiLayoutSplit(layout, 0.4f, false);
+          uiLayout *row = &layout->split(0.4f, false);
           uiItemL(row, text, ICON_NONE);
           uiItemL(row, IFACE_("No Items"), ICON_NONE);
         }
         else {
+          if (const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
+                  sock->runtime->declaration))
+          {
+            if (socket_decl->is_expanded) {
+              uiItemR(layout, ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+              break;
+            }
+          }
           uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
         }
       }
@@ -1407,7 +1416,7 @@ static void std_node_socket_draw(
         }
         else {
           /* 0.3 split ratio is inconsistent, but use it here because the "New" button is large. */
-          uiLayout *row = uiLayoutSplit(layout, 0.3f, false);
+          uiLayout *row = &layout->split(0.3f, false);
           uiItemL(row, text, ICON_NONE);
           uiTemplateID(row, C, ptr, "default_value", "image.new", "image.open", nullptr);
         }
@@ -1423,7 +1432,7 @@ static void std_node_socket_draw(
       }
       else {
         /* 0.3 split ratio is inconsistent, but use it here because the "New" button is large. */
-        uiLayout *row = uiLayoutSplit(layout, 0.3f, false);
+        uiLayout *row = &layout->split(0.3f, false);
         uiItemL(row, text, ICON_NONE);
         uiTemplateID(row, C, ptr, "default_value", "texture.new", nullptr, nullptr);
       }
@@ -1496,6 +1505,7 @@ static void std_node_socket_interface_draw(ID *id,
     }
     case SOCK_MENU: {
       uiItemR(col, &ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      uiItemR(col, &ptr, "menu_expanded", DEFAULT_FLAGS, IFACE_("Expanded"), ICON_NONE);
       break;
     }
     case SOCK_SHADER:
@@ -1640,8 +1650,8 @@ void draw_nodespace_back_pix(const bContext &C,
   if (ibuf) {
     /* somehow the offset has to be calculated inverse */
     wmOrtho2_region_pixelspace(&region);
-    const float offset_x = snode.xof + ima->runtime.backdrop_offset[0] * snode.zoom;
-    const float offset_y = snode.yof + ima->runtime.backdrop_offset[1] * snode.zoom;
+    const float offset_x = snode.xof + ima->runtime->backdrop_offset[0] * snode.zoom;
+    const float offset_y = snode.yof + ima->runtime->backdrop_offset[1] * snode.zoom;
     const float x = (region.winx - snode.zoom * ibuf->x) / 2 + offset_x;
     const float y = (region.winy - snode.zoom * ibuf->y) / 2 + offset_y;
 
