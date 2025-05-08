@@ -999,6 +999,7 @@ Collection *BKE_collection_master_add(Scene *scene)
   master_collection->color_tag = COLLECTION_COLOR_NONE;
 
   BLI_assert(scene->id.lib == master_collection->id.lib);
+  master_collection->runtime = MEM_new<blender::bke::CollectionRuntime>(__func__);
 
   return master_collection;
 }
