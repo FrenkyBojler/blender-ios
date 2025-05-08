@@ -5022,15 +5022,6 @@ static void node_draw_nodetree(const bContext &C,
 
   nodelink_batch_end(snode);
 
-  uiBlock &invalid_links_block = invalid_links_uiblock_init(C);
-  for (auto &&item : ntree.runtime->link_errors.items()) {
-    if (const bNodeLink *link = item.key.try_find(ntree)) {
-      draw_link_errors(C, snode, *link, item.value, invalid_links_block);
-    }
-  }
-  UI_block_end(&C, &invalid_links_block);
-  UI_block_draw(&C, &invalid_links_block);
-
   GPU_blend(GPU_BLEND_NONE);
 
   draw_frame_overlays(C, tree_draw_ctx, region, snode, ntree, blocks);
@@ -5046,6 +5037,15 @@ static void node_draw_nodetree(const bContext &C,
     const bNodeInstanceKey key = bke::node_instance_key(parent_key, &ntree, &node);
     node_draw(C, tree_draw_ctx, region, snode, ntree, node, *blocks[node.index()], key);
   }
+
+  uiBlock &invalid_links_block = invalid_links_uiblock_init(C);
+  for (auto &&item : ntree.runtime->link_errors.items()) {
+    if (const bNodeLink *link = item.key.try_find(ntree)) {
+      draw_link_errors(C, snode, *link, item.value, invalid_links_block);
+    }
+  }
+  UI_block_end(&C, &invalid_links_block);
+  UI_block_draw(&C, &invalid_links_block);
 }
 
 /* Draw the breadcrumb on the top of the editor. */
