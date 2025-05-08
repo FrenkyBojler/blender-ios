@@ -2008,6 +2008,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
   bool result;
   int old_but_flag = 0;
 
+  const bContextStore *previous_ctx = CTX_store_get(C);
   if (but) {
     old_but_flag = but->flag;
 
@@ -2030,7 +2031,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
     const_cast<uiBut *>(but)->flag = old_but_flag;
 
     if (but->context) {
-      CTX_store_set(C, nullptr);
+      CTX_store_set(C, previous_ctx);
     }
   }
 
@@ -4430,7 +4431,7 @@ static uiBut *ui_def_but(uiBlock *block,
   }
 
 #ifdef WITH_PYTHON
-  /* If the 'UI_OT_editsource' is running, extract the source info from the button. */
+  /* If the `UI_OT_editsource` is running, extract the source info from the button. */
   if (UI_editsource_enable_check()) {
     UI_editsource_active_but_test(but);
   }
@@ -4585,7 +4586,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   /* NOTE: `item_array[...]` is reversed on access. */
 
   /* create items */
-  uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
+  uiLayout *split = &layout->split(0.0f, false);
 
   bool new_column;
 
@@ -4608,7 +4609,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
         }
       }
 
-      column = uiLayoutColumn(split, false);
+      column = &split->column(false);
     }
 
     const EnumPropertyItem *item = &item_array[a];
