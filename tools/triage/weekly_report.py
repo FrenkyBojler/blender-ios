@@ -196,8 +196,8 @@ def report_personal_weekly_get(
                         hash_value = commit_json["Sha1"]
                         if hash_length > 0:
                             hash_value = hash_value[:hash_length]
-                        branch_name_str = f"[{branch_name}] " if branch_name != "main" else ""
-                        commits.append(branch_name_str + f"{title} ({repo_fullname}@{hash_value})")
+                        branch_str = f" on `{branch_name}`" if branch_name != "main" else ""
+                        commits.append(f"{title} ({repo_fullname}@{hash_value}{branch_str})")
 
     date_end = date_curr
     len_total = len(issues_closed) + len(issues_commented) + len(pulls_commented)
