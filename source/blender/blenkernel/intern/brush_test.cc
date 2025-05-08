@@ -26,11 +26,10 @@ class BrushTest : public testing::Test {
   void TearDown() override
   {
     BKE_main_free(bmain);
-
   }
 };
 
-static void check_id_and_name(ID* a, ID* b)
+static void check_id_and_name(ID *a, ID *b)
 {
   ASSERT_NE(a, b);
   ASSERT_FALSE(STREQ(a->name, b->name));
