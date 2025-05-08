@@ -176,8 +176,8 @@ static void grease_pencil_import_svg_draw(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiLayout *box = uiLayoutBox(layout);
-  uiLayout *col = uiLayoutColumn(box, false);
+  uiLayout *box = &layout->box();
+  uiLayout *col = &box->column(false);
   uiItemR(col, op->ptr, "resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -338,7 +338,7 @@ static void grease_pencil_export_svg_draw(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  box = uiLayoutBox(layout);
+  box = &layout->box();
 
   row = &box->row(false);
   uiItemL(row, IFACE_("Scene Options"), ICON_NONE);
@@ -346,11 +346,11 @@ static void grease_pencil_export_svg_draw(bContext * /*C*/, wmOperator *op)
   row = &box->row(false);
   uiItemR(row, op->ptr, "selected_object_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  box = uiLayoutBox(layout);
+  box = &layout->box();
   row = &box->row(false);
   uiItemL(row, IFACE_("Export Options"), ICON_NONE);
 
-  uiLayout *col = uiLayoutColumn(box, false);
+  uiLayout *col = &box->column(false);
   uiItemR(col, op->ptr, "stroke_sample", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "use_fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(col, op->ptr, "use_uniform_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -497,7 +497,7 @@ static void ui_gpencil_export_pdf_settings(uiLayout *layout, PointerRNA *imfptr)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  box = uiLayoutBox(layout);
+  box = &layout->box();
 
   row = &box->row(false);
   uiItemL(row, IFACE_("Scene Options"), ICON_NONE);
@@ -505,17 +505,17 @@ static void ui_gpencil_export_pdf_settings(uiLayout *layout, PointerRNA *imfptr)
   row = &box->row(false);
   uiItemR(row, imfptr, "selected_object_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  box = uiLayoutBox(layout);
+  box = &layout->box();
   row = &box->row(false);
   uiItemL(row, IFACE_("Export Options"), ICON_NONE);
 
-  col = uiLayoutColumn(box, false);
-  sub = uiLayoutColumn(col, true);
+  col = &box->column(false);
+  sub = &col->column(true);
   uiItemR(sub, imfptr, "frame_mode", UI_ITEM_NONE, IFACE_("Frame"), ICON_NONE);
 
   uiLayoutSetPropSep(box, true);
 
-  sub = uiLayoutColumn(col, true);
+  sub = &col->column(true);
   uiItemR(sub, imfptr, "stroke_sample", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(sub, imfptr, "use_fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(sub, imfptr, "use_uniform_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);

@@ -296,7 +296,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   int splash_width = style->widget.points * 45 * UI_SCALE_FAC;
-  CLAMP_MAX(splash_width, CTX_wm_window(C)->sizex * 0.7f);
+  CLAMP_MAX(splash_width, WM_window_native_pixel_x(CTX_wm_window(C)) * 0.7f);
   int splash_height;
 
   /* Would be nice to support caching this, so it only has to be re-read (and likely resized) on
@@ -371,7 +371,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   {
     uiItemS_ex(layout, 2.0f, LayoutSeparatorType::Line);
 
-    uiLayout *split = uiLayoutSplit(layout, 0.725, true);
+    uiLayout *split = &layout->split(0.725, true);
     uiLayout *row1 = &split->row(true);
     uiLayout *row2 = &split->row(true);
 
@@ -471,7 +471,7 @@ static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg
   }
 #endif /* !WITH_HEADLESS */
 
-  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *col = &layout->column(true);
 
   uiItemL_ex(col, IFACE_("Blender"), ICON_NONE, true, false);
 

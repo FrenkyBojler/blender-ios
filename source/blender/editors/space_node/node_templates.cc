@@ -538,7 +538,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       }
 
       if (first) {
-        column = uiLayoutColumn(layout, false);
+        column = &layout->column(false);
         UI_block_layout_set_current(block, column);
 
         uiItemL(column, IFACE_(cname), ICON_NODE);
@@ -616,7 +616,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
   bke::bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
   UI_block_layout_set_current(block, layout);
-  split = uiLayoutSplit(layout, 0.0f, false);
+  split = &layout->split(0.0f, false);
 
   arg->bmain = bmain;
   arg->scene = scene;
@@ -626,7 +626,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
     ntreetype->foreach_nodeclass(arg, node_menu_column_foreach_cb);
   }
 
-  column = uiLayoutColumn(split, false);
+  column = &split->column(false);
   UI_block_layout_set_current(block, column);
 
   if (sock->link) {
@@ -739,8 +739,7 @@ static void ui_node_draw_recursive(uiLayout &layout,
   const nodes::SocketDeclaration *panel_toggle_decl = panel_decl.panel_input_decl();
   const std::string panel_id = fmt::format(
       "{}_{}_{}", ntree.id.name, node.identifier, panel_decl.identifier);
-  PanelLayout panel_layout = uiLayoutPanel(
-      &C, &layout, panel_id.c_str(), panel_decl.default_collapsed);
+  PanelLayout panel_layout = layout.panel(&C, panel_id.c_str(), panel_decl.default_collapsed);
   if (panel_toggle_decl) {
     uiLayoutSetPropSep(panel_layout.header, false);
     uiLayoutSetPropDecorate(panel_layout.header, false);
@@ -908,7 +907,7 @@ static void ui_node_draw_input(uiLayout &layout,
       switch (input.type) {
         case SOCK_VECTOR:
           uiItemS(sub);
-          sub = uiLayoutColumn(sub, true);
+          sub = &sub->column(true);
           ATTR_FALLTHROUGH;
         case SOCK_FLOAT:
         case SOCK_INT:
