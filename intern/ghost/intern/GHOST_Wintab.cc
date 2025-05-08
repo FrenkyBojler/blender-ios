@@ -25,22 +25,8 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
     return nullptr;
   }
 
-  try {
-    auto open = (GHOST_WIN32_WTOpen)::GetProcAddress(handle.get(), "WTOpenA");
-    if (!open) {
-      return nullptr;
-    }
-  }
-  catch (int /*exception*/) {
-    /* Some vendor's wintab driver (like Huion's) can sometimes get into a broken state where
-     * `WTOpen` would cause exception. If we don't want this to prevent blender from starting, we
-     * need to catch the exception and resume normal operation of blender.
-     * See https://projects.blender.org/blender/blender/issues/111152 */
-    MessageBox(0,
-               "WinTab internal state error. Please restart your tablet's driver.\nBlender is not "
-               "able to use the tablet.",
-               "Warning",
-               MB_OK);
+  auto open = (GHOST_WIN32_WTOpen)::GetProcAddress(handle.get(), "WTOpenA");
+  if (!open) {
     return nullptr;
   }
 
@@ -95,9 +81,24 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
   extractCoordinates(lc, tablet, system);
   modifyContext(lc);
 
-  /* The Wintab spec says we must open the context disabled if we are using cursor masks. */
-  auto hctx = unique_hctx(open(hwnd, &lc, FALSE), close);
-  if (!hctx) {
+  unique_hctx hctx = unique_hctx(0, 0);
+  try {
+    /* The Wintab spec says we must open the context disabled if we are using cursor masks. */
+    hctx = unique_hctx(open(hwnd, &lc, FALSE), close);
+    if (!hctx) {
+      return nullptr;
+    }
+  }
+  catch (int /*exception*/) {
+    /* Some vendor's wintab driver (like Huion's) can sometimes get into a broken state where
+     * `WTOpen` would cause exception. If we don't want this to prevent blender from starting, we
+     * need to catch the exception and resume normal operation of blender.
+     * See https://projects.blender.org/blender/blender/issues/111152 */
+    MessageBox(0,
+               "WinTab internal state error. Please restart your tablet's driver.\nBlender is not "
+               "able to use the tablet.",
+               "Warning",
+               MB_OK);
     return nullptr;
   }
 
