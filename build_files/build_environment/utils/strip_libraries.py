@@ -5,6 +5,8 @@
 
 """
 Script which strips all libraries in the given library directory.
+This is so we don't keep any debug data or symbols that contains
+random hashes that are not reproducible between builds.
 
 This will strip both static and shared libraries.
 
@@ -19,7 +21,7 @@ from pathlib import Path
 def print_strip_lib(strip_lib, prev_print_len):
     print_str = f"Stripping: {strip_lib}"
     if prev_print_len > 0:
-        print(f"\r{' '*prev_print_len}\r", end="")
+        print(f"\r{' ' * prev_print_len}\r", end="")
     print(print_str, end="", flush=True)
     return len(print_str)
 
@@ -32,14 +34,14 @@ def strip_libs(strip_dir):
             continue
 
         if shared_lib.is_symlink():
-            # Don't strip symlinks.
+            # Don't strip symlinks as we don't want to strip the same library multiple times.
             continue
 
         prev_print_len = print_strip_lib(shared_lib, prev_print_len)
         subprocess.check_call(["strip", "-s", "--enable-deterministic-archives", shared_lib])
     for static_lib in strip_dir.rglob("*.a"):
         if static_lib.is_symlink():
-            # Don't strip symlinks.
+            # Don't strip symlinks as we don't want to strip the same library multiple times.
             continue
 
         prev_print_len = print_strip_lib(static_lib, prev_print_len)
