@@ -659,7 +659,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_ContextVK::getVulkanNumFramesInFlight(uint32_t &r_num_frames) 
+GHOST_TSuccess GHOST_ContextVK::getVulkanNumFramesInFlight(uint32_t &r_num_frames)
 {
   r_num_frames = NUM_FRAMES_IN_FLIGHT;
 
