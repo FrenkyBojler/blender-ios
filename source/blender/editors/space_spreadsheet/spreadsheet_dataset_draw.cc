@@ -995,7 +995,7 @@ std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
   return tree_view.sspreadsheet_.active_viewer_path_index == viewer_path_index_;
 }
 
-static void data_source_panel_draw_without_context(uiLayout &layout)
+static void draw_context_panel_without_context(uiLayout &layout)
 {
   layout.label(IFACE_("No active context"), ICON_NONE);
 }
@@ -1018,56 +1018,64 @@ static void draw_viewer_path_panel(const bContext &C, uiLayout &layout)
   ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
 }
 
-void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
+static void draw_context_panel(const bContext &C, uiLayout &layout)
 {
-  bScreen &screen = *CTX_wm_screen(C);
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-
-  uiLayout *layout = panel->layout;
-  uiBlock *block = uiLayoutGetBlock(layout);
-  UI_block_layout_set_current(block, layout);
+  bScreen &screen = *CTX_wm_screen(&C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(&C);
 
   ViewerPath &viewer_path = sspreadsheet->viewer_path;
   if (BLI_listbase_is_empty(&viewer_path.path)) {
-    data_source_panel_draw_without_context(*layout);
+    draw_context_panel_without_context(layout);
     return;
   }
   ViewerPathElem &root_elem = *static_cast<ViewerPathElem *>(viewer_path.path.first);
   if (root_elem.type != VIEWER_PATH_ELEM_TYPE_ID) {
-    data_source_panel_draw_without_context(*layout);
+    draw_context_panel_without_context(layout);
     return;
   }
   IDViewerPathElem &root_id_elem = *reinterpret_cast<IDViewerPathElem *>(&root_elem);
   if (!root_id_elem.id) {
-    data_source_panel_draw_without_context(*layout);
+    draw_context_panel_without_context(layout);
     return;
   }
   ID &root_id = *root_id_elem.id;
   if (GS(root_id.name) != ID_OB) {
-    data_source_panel_draw_without_context(*layout);
+    draw_context_panel_without_context(layout);
     return;
   }
 
   PointerRNA sspreadsheet_ptr = RNA_pointer_create_discrete(
       &screen.id, &RNA_SpaceSpreadsheet, sspreadsheet);
 
-  {
-    uiLayout &row = layout->row(false);
-    uiLayoutSetEmboss(&row, ui::EmbossType::None);
-    row.label(BKE_id_name(root_id), ICON_OBJECT_DATA);
-    uiItemO(&row,
-            "",
-            sspreadsheet->flag & SPREADSHEET_FLAG_PINNED ? ICON_PINNED : ICON_UNPINNED,
-            "spreadsheet.toggle_pin");
-  }
-  uiItemR(layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
+  layout.label(BKE_id_name(root_id), ICON_OBJECT_DATA);
+  uiItemR(&layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
 
   if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
-    if (uiLayout *panel = layout->panel(C, "viewer path", true, IFACE_("Viewer Path"))) {
-      draw_viewer_path_panel(*C, *panel);
+    if (uiLayout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
+      draw_viewer_path_panel(C, *panel);
     }
+  }
+}
+
+void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
+{
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+
+  uiLayout *layout = panel->layout;
+  uiBlock *block = uiLayoutGetBlock(layout);
+  UI_block_layout_set_current(block, layout);
+
+  PanelLayout context_panel = layout->panel(C, "context", false);
+  uiLayoutSetEmboss(context_panel.header, ui::EmbossType::None);
+  context_panel.header->label(IFACE_("Context"), ICON_NONE);
+  uiItemO(context_panel.header,
+          "",
+          sspreadsheet->flag & SPREADSHEET_FLAG_PINNED ? ICON_PINNED : ICON_UNPINNED,
+          "spreadsheet.toggle_pin");
+  if (context_panel.body) {
+    draw_context_panel(*C, *context_panel.body);
   }
 
   Object *object = spreadsheet_get_object_eval(sspreadsheet, CTX_data_depsgraph_pointer(C));
