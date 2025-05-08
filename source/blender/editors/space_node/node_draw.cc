@@ -4882,32 +4882,6 @@ static std::optional<std::array<float2, 2>> rctf_clamp_segment(const rctf &rect,
   return std::array{p1, p2};
 }
 
-static std::optional<float2> find_best_position_on_link_in_rect(const Span<float2> link_points,
-                                                                const float2 &target,
-                                                                const rctf &rect)
-{
-  std::optional<float2> best_position;
-  for (const int i : IndexRange(link_points.size() - 1)) {
-    const float2 p0 = link_points[i];
-    const float2 p1 = link_points[i + 1];
-
-    std::optional<std::array<float2, 2>> clamped_opt = rctf_clamp_segment(rect, p0, p1);
-    if (!clamped_opt.has_value()) {
-      continue;
-    }
-    float2 closest;
-    const std::array<float2, 2> &clamped = clamped_opt.value();
-    closest_to_line_segment_v2(closest, target, clamped[0], clamped[1]);
-    if (!best_position.has_value()) {
-      best_position = closest;
-    }
-    else if (math::distance(closest, target) < math::distance(best_position.value(), target)) {
-      best_position = closest;
-    }
-  }
-  return best_position;
-}
-
 /**
  * Tries to find a position on the link where we can draw link information like an error icon. If
  * the link center is not visible, it finds the closest point to the link center that's still
