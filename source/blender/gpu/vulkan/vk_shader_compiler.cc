@@ -200,12 +200,20 @@ static bool compile_ex(shaderc::Compiler &compiler,
                        shaderc_shader_kind stage,
                        VKShaderModule &shader_module)
 {
+#if 0
   if (read_spirv_from_disk(shader_module)) {
     return true;
   }
+#endif
 
   shaderc::CompileOptions options;
+  /* On Windows shaderc can be very slow when compiling in Debug mode. Disabling performing
+   * optimizations for better compilation performance. */
+#ifndef NDEBUG
+  options.SetOptimizationLevel(shaderc_optimization_level_zero);
+#else
   options.SetOptimizationLevel(shaderc_optimization_level_performance);
+#endif
   options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
   if (G.debug & G_DEBUG_GPU_RENDERDOC) {
     options.SetOptimizationLevel(shaderc_optimization_level_zero);
