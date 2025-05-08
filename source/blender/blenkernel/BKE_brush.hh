@@ -15,6 +15,7 @@
 #include "DNA_brush_enums.h"
 #include "DNA_color_types.h"
 #include "DNA_object_enums.h"
+#include "DNA_userdef_enums.h"
 
 enum class PaintMode : int8_t;
 struct Brush;
@@ -44,6 +45,14 @@ Brush *BKE_brush_add(Main *bmain, const char *name, eObjectMode ob_mode);
  * Delete a Brush.
  */
 bool BKE_brush_delete(Main *bmain, Brush *brush);
+
+/**
+ * Perform a deep copy of a Brush and any children datablocks.
+ *
+ * \param dupflag: Controls which sub-data are also duplicated
+ * (see #eDupli_ID_Flags in DNA_userdef_types.h).
+ */
+Brush *BKE_brush_duplicate(Main *bmain, const Brush *brush, eDupli_ID_Flags dupflag);
 /**
  * Add grease pencil settings.
  */
