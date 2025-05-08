@@ -590,12 +590,13 @@ bool BKE_brush_delete(Main *bmain, Brush *brush)
   return true;
 }
 
-Brush* BKE_brush_duplicate(Main *bmain, Brush *brush)
+Brush *BKE_brush_duplicate(Main *bmain, Brush *brush)
 {
   const eDupli_ID_Flags dup_flag = USER_DUP_LINKED_ID;
   const int id_copy_flag = LIB_ID_COPY_DEFAULT;
 
-  Brush* new_brush = reinterpret_cast<Brush *>(BKE_id_copy_for_duplicate(bmain, &brush->id, dup_flag, id_copy_flag));
+  Brush *new_brush = reinterpret_cast<Brush *>(
+      BKE_id_copy_for_duplicate(bmain, &brush->id, dup_flag, id_copy_flag));
 
   auto dependencies_cb = [&](LibraryIDLinkCallbackData *cb_data) -> int {
     BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dup_flag, id_copy_flag);
