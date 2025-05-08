@@ -1905,7 +1905,8 @@ def brush_basic_grease_pencil_weight_settings(layout, context, brush, *, compact
             props = WindowManager.operator_properties_last("grease_pencil.weight_gradient")
             layout.prop(props, "type", expand=True)
             if props.type == 'LINEAR':
-                layout.prop(props, "limit_start")
+                layout.label(text="Opposite:")
+                layout.prop(props, "opposite", expand=True)
 
 
 def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact=False):

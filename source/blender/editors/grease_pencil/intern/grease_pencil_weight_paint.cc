@@ -977,6 +977,12 @@ enum class WeightGradientType : uint8_t {
   Radial,
 };
 
+enum class WeightGradientOpposite : uint8_t {
+  Full,
+  None,
+  Mirror,
+};
+
 enum class BrushMode : uint8_t {
   Normal,
   Invert,
@@ -1031,7 +1037,8 @@ static wmOperatorStatus weight_gradient_exec(bContext *C, wmOperator *op)
 
   /* Get gradient type (linear/radial). */
   const WeightGradientType gradient_type = WeightGradientType(RNA_enum_get(op->ptr, "type"));
-  const bool limit_start = RNA_boolean_get(op->ptr, "limit_start");
+  const WeightGradientOpposite opposite_behavior = WeightGradientOpposite(
+      RNA_enum_get(op->ptr, "opposite"));
 
   /* Get position and length of the interactive gradient line in the viewport. */
   const int x_start = RNA_int_get(op->ptr, "xstart");
@@ -1070,17 +1077,36 @@ static wmOperatorStatus weight_gradient_exec(bContext *C, wmOperator *op)
               case WeightGradientType::Linear: {
                 /* For the linear gradient, get the orthogonal position of the stroke point towards
                  * the gradient line. */
-                const float dist_on_gradient_line = math::dot(vec_point_to_gradient,
-                                                              gradient_vector);
-                if (dist_on_gradient_line > gradient_length_sq ||
-                    (limit_start && dist_on_gradient_line < 0.0f))
-                {
+                float dist_on_gradient_line = math::dot(vec_point_to_gradient, gradient_vector);
+                if (dist_on_gradient_line > gradient_length_sq) {
                   continue;
+                }
+
+                /* Handle the behavior when the stroke point is in the opposite direction of the
+                 * gradient line. */
+                switch (opposite_behavior) {
+                  /* Full weight for anything before the starting point. */
+                  case WeightGradientOpposite::Full:
+                    dist_on_gradient_line = math::max(0.0f, dist_on_gradient_line);
+                    break;
+                  /* No weight for anything before the starting point. */
+                  case WeightGradientOpposite::None:
+                    if (dist_on_gradient_line < 0.0f) {
+                      dist_on_gradient_line = gradient_length_sq;
+                    }
+                    break;
+                  /* Mirrored weight for anything before the starting point. */
+                  case WeightGradientOpposite::Mirror:
+                    if (dist_on_gradient_line < 0.0f) {
+                      dist_on_gradient_line = -dist_on_gradient_line;
+                    }
+                    break;
                 }
                 gradient_factor = (math::max(0.0f, dist_on_gradient_line) / gradient_length_sq) *
                                   gradient_length;
                 break;
               }
+
               case WeightGradientType::Radial: {
                 /* For the radial gradient, get the distance of the stroke point to the center of
                  * the gradient. */
@@ -1090,9 +1116,6 @@ static wmOperatorStatus weight_gradient_exec(bContext *C, wmOperator *op)
                 }
                 break;
               }
-              default:
-                BLI_assert_unreachable();
-                break;
             }
 
             /* Set the new weight. */
@@ -1224,7 +1247,7 @@ static void init_weight_gradient_tool(const bContext &C,
   /* Build a cache with screen space positions and initial vertex weights of the stroke points in
    * all editable drawings. */
   const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, tool.object);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, tool.object);
   const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
   const ARegion *region = CTX_wm_region(&C);
   const float4x4 projection = ED_view3d_ob_project_mat_get(rv3d, tool.object);
@@ -1332,6 +1355,24 @@ static void GREASE_PENCIL_OT_weight_gradient(wmOperatorType *ot)
       {int(WeightGradientType::Radial), "RADIAL", 0, "Radial", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
+  static const EnumPropertyItem gradient_opposite_types[] = {
+      {int(WeightGradientOpposite::Full),
+       "FULL",
+       0,
+       "Full",
+       "Set full weight in the opposite direction of the gradient line"},
+      {int(WeightGradientOpposite::None),
+       "NONE",
+       0,
+       "None",
+       "Set no weight in the opposite direction of the gradient line"},
+      {int(WeightGradientOpposite::Mirror),
+       "MIRROR",
+       0,
+       "Mirror",
+       "Mirror the weight in the opposite direction of the gradient line"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
   static const EnumPropertyItem brush_modes[] = {
       {int(BrushMode::Normal), "NORMAL", 0, "Normal", ""},
       {int(BrushMode::Invert), "INVERT", 0, "Invert", ""},
@@ -1360,11 +1401,12 @@ static void GREASE_PENCIL_OT_weight_gradient(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_enum(ot->srna, "mode", brush_modes, 0, "Mode", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
-  prop = RNA_def_boolean(ot->srna,
-                         "limit_start",
-                         false,
-                         "Limit Start",
-                         "Only affect points from the start of the line, nothing before");
+  prop = RNA_def_enum(ot->srna,
+                      "opposite",
+                      gradient_opposite_types,
+                      0,
+                      "Opposite",
+                      "Weight behavior in the opposite direction");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
   WM_operator_properties_gesture_straightline(ot, WM_CURSOR_EDIT);
