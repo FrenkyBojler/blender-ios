@@ -428,7 +428,7 @@ ifneq "$(findstring clean, $(MAKECMDGOALS))" ""
 	DEPS_TARGET = clean
 endif
 
-# Set the SOURCE_DATE_EPOCH to make builds reproducible (locks timestamps to the specified date)
+# Set the SOURCE_DATE_EPOCH to make builds reproducible (locks timestamps to the specified date).
 deps: export SOURCE_DATE_EPOCH = 1745584760
 deps: .FORCE
 	@echo
