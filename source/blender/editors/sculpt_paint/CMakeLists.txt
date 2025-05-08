@@ -7,11 +7,11 @@ set(INC
 
   ../asset
   ../include
+  ../mesh
   ../uvedit
   ../../blenlib
   ../../makesrna
   ../../../../intern/eigen
-  ../mesh
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -97,6 +97,7 @@ set(SRC
   sculpt_geodesic.cc
   sculpt_gesture.cc
   sculpt_hide.cc
+  sculpt_mask_extract.cc
   sculpt_mask_init.cc
   sculpt_ops.cc
   sculpt_paint_color.cc
@@ -108,7 +109,6 @@ set(SRC
   sculpt_trim.cc
   sculpt_undo.cc
   sculpt_uv.cc
-  sculpt_mask_extract.cc
   
   curves_sculpt_intern.hh
   grease_pencil_intern.hh
