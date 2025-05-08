@@ -147,11 +147,6 @@ class GHOST_Context : public GHOST_IContext {
   }
 
 #ifdef WITH_VULKAN_BACKEND
-  virtual GHOST_TSuccess getVulkanNumFramesInFlight(uint32_t & /* r_num_frames */) override
-  {
-    return GHOST_kFailure;
-  };
-
   /**
    * Get Vulkan handles for the given context.
    *

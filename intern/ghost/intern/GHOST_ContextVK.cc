@@ -475,8 +475,6 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
   return GHOST_kSuccess;
 }
 
-constexpr static uint32_t NUM_FRAMES_IN_FLIGHT = 3;
-
 /** \} */
 
 GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
@@ -655,13 +653,6 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   if (swap_buffers_post_callback_) {
     swap_buffers_post_callback_();
   }
-
-  return GHOST_kSuccess;
-}
-
-GHOST_TSuccess GHOST_ContextVK::getVulkanNumFramesInFlight(uint32_t &r_num_frames)
-{
-  r_num_frames = NUM_FRAMES_IN_FLIGHT;
 
   return GHOST_kSuccess;
 }

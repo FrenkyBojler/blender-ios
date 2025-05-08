@@ -1306,15 +1306,6 @@ void GHOST_SetVulkanSwapBuffersCallbacks(
 void GHOST_GetVulkanSwapChainFormat(GHOST_WindowHandle windowhandle,
                                     GHOST_VulkanSwapChainData *r_swap_chain_data);
 
-/**
- * Get the number of frames that GHOST manages in Vulkan backend.
- *
- * The number of frames in flight is guaranteed to be constant, and it is safe for
- * callers to maintain datastructures that are synchronized with these frames (e.g. frame
- * specific resources). Note that this is different than the number of swapchain images.
- */
-void GHOST_GetVulkanNumFramesInFlight(GHOST_ContextHandle context, uint32_t &r_num_frames);
-
 #endif
 
 #ifdef __cplusplus
