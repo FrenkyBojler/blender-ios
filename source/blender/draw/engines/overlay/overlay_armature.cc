@@ -996,17 +996,6 @@ static void draw_bone_update_disp_matrix_custom_shape(UnifiedBonePtr bone)
   translate_m4(disp_tail_mat, 0.0f, 1.0f, 0.0f);
 }
 
-static void bone_draw_context_setup(const eArmature_Drawtype drawtype,
-                                    const bool use_custom_shape,
-                                    Armatures::DrawContext *ctx,
-                                    const bool is_filled,
-                                    const bool do_envelope_dist)
-{
-  if (!use_custom_shape && drawtype == ARM_WIRE) {
-    ctx->const_wire = 1.5f;
-  }
-}
-
 /* compute connected child pointer for B-Bone drawing */
 static void edbo_compute_bbone_child(bArmature *arm)
 {
