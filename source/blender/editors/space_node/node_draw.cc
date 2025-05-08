@@ -4948,7 +4948,7 @@ static void draw_link_errors(const bContext &C,
   rctf bg_rect;
   BLI_rctf_init_pt_radius(&bg_rect, float2(draw_position), bg_radius);
   ColorTheme4f bg_color;
-  UI_GetThemeColor4fv(TH_NODE, bg_color);
+  UI_GetThemeColor4fv(TH_REDALERT, bg_color);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   ui_draw_dropshadow(&bg_rect, bg_corner_radius, UI_UNIT_X * 0.2f, snode.runtime->aspect, 0.5f);
   UI_draw_roundbox_4fv(&bg_rect, true, bg_corner_radius, bg_color);
