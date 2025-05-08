@@ -6217,15 +6217,15 @@ void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout)
   if (layout->context_) {
     context_store = *layout->context_;
   }
-  const bContextStore *old_context_store = CTX_store_get(C);
-  if (old_context_store) {
-    context_store.entries.extend(old_context_store->entries);
+  const bContextStore *previous_context_store = CTX_store_get(C);
+  if (previous_context_store) {
+    context_store.entries.extend(previous_context_store->entries);
   }
   CTX_store_set(C, &context_store);
 
   mt->draw(C, &menu);
 
-  CTX_store_set(C, old_context_store);
+  CTX_store_set(C, previous_context_store);
 }
 
 static bool ui_layout_has_panel_label(const uiLayout *layout, const PanelType *pt)
