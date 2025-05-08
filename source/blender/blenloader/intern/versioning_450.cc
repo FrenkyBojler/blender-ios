@@ -4927,7 +4927,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 67)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 68)) {
     /* Fix brush->tip_scale_x which should never be zero. */
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if (brush->tip_scale_x == 0.0f) {
