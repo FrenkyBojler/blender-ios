@@ -4925,9 +4925,9 @@ static int ui_do_but_TEX(
       }
 
       /* More space for an added digit. */
-      str_len += 2;
-      char *head = (char *)MEM_callocN(sizeof(char) * str_len, __func__);
-      char *tail = (char *)MEM_callocN(sizeof(char) * str_len, __func__);
+      str_len += 1;
+      char *head = MEM_calloc_arrayN<char>(str_len, __func__);
+      char *tail = MEM_calloc_arrayN<char>(str_len, __func__);
       ushort digits;
 
       /* Decode the string, parsing head, digits, tail. */
@@ -4941,7 +4941,7 @@ static int ui_do_but_TEX(
       num += (event->type == WHEELUPMOUSE) ? 1 : -1;
 
       /* Encode the new string with the changed value. */
-      char *string = (char *)MEM_callocN(sizeof(char) * str_len, __func__);
+      char *string = MEM_calloc_arrayN<char>(str_len, __func__);
       BLI_path_sequence_encode(string, str_len, head, tail, digits, num);
       ui_but_set_string_interactive(C, but, string);
       MEM_freeN(string);
