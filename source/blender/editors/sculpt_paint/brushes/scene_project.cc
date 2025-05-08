@@ -33,7 +33,6 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
@@ -69,12 +68,17 @@ static inline float absolute_min_distance(const float d1, const float d2)
 
 static inline void raycast(const float3 &ray_origin,
                            const float3 &ray_normal,
-                           bke::BVHTreeFromMesh &tree_data,
+                           const bke::BVHTreeFromMesh &tree_data,
                            BVHTreeRayHit &hit)
 {
   hit.dist = BVH_RAYCAST_DIST_MAX;
-  BLI_bvhtree_ray_cast(
-      tree_data.tree, ray_origin, ray_normal, 0.0f, &hit, tree_data.raycast_callback, &tree_data);
+  BLI_bvhtree_ray_cast(tree_data.tree,
+                       ray_origin,
+                       ray_normal,
+                       0.0f,
+                       &hit,
+                       tree_data.raycast_callback,
+                       const_cast<bke::BVHTreeFromMesh *>(&tree_data));
 }
 
 /**
@@ -109,30 +113,21 @@ static inline void raycast(const float3 &ray_origin,
  *
  * Therefore, `d` also represents the parametric distance in the new coordinate system.
  */
-static void object_raycast(const Object &active_object,
-                           const Object &target_object,
+static void object_raycast(const ProjectBrushTarget &project_target,
                            const bool bidirectional,
-                           const float3 &ray_direction,
+                           const float3 &normal,
                            const Span<float3> positions,
                            const Span<float> factors,
                            const MutableSpan<float> best_hit_distances)
 {
-  const Mesh &mesh = *static_cast<Mesh *>(target_object.data);
-  bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
-
-  if (tree_data.tree == nullptr) {
-    return;
-  }
-
-  const float4x4 active_to_target_mat = target_object.world_to_object() *
-                                        active_object.object_to_world();
-
-  /* Origins are in the coordinate system of the active object. Convert them to the
+  /* Positions and normal are in the coordinate system of the active object. Convert them to the
    * coordinate system of the target. */
+  const float3 ray_direction = math::transform_direction(project_target.active_to_target_matrix,
+                                                         normal);
   Array<float3> ray_origins(positions.size());
 
   for (const int i : positions.index_range()) {
-    ray_origins[i] = math::transform_point(active_to_target_mat, positions[i]);
+    ray_origins[i] = math::transform_point(project_target.active_to_target_matrix, positions[i]);
   }
 
   threading::isolate_task([&]() {
@@ -143,11 +138,12 @@ static void object_raycast(const Object &active_object,
         }
 
         BVHTreeRayHit hit;
-        raycast(ray_origins[i], ray_direction, tree_data, hit);
+
+        raycast(ray_origins[i], ray_direction, project_target.tree_data, hit);
         best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], hit.dist);
 
         if (bidirectional) {
-          raycast(ray_origins[i], -ray_direction, tree_data, hit);
+          raycast(ray_origins[i], -ray_direction, project_target.tree_data, hit);
           best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], -hit.dist);
         }
       }
@@ -159,8 +155,7 @@ static void object_raycast(const Object &active_object,
  * Casts rays from the active object's positions to find the closest hits with the target objects
  * in the scene, storing distances in `r_hit_distances`.
  */
-static void scene_raycast(const Object &active_object,
-                          const Span<Object *> target_objects,
+static void scene_raycast(const MutableSpan<ProjectBrushTarget> project_targets,
                           const bool bidirectional,
                           const float3 &normal,
                           const Span<float3> positions,
@@ -169,14 +164,8 @@ static void scene_raycast(const Object &active_object,
 {
   r_hit_distances.fill(BVH_RAYCAST_DIST_MAX);
 
-  for (const int i : target_objects.index_range()) {
-    object_raycast(active_object,
-                   *target_objects[i],
-                   bidirectional,
-                   normal,
-                   positions,
-                   factors,
-                   r_hit_distances);
+  for (const int i : project_targets.index_range()) {
+    object_raycast(project_targets[i], bidirectional, normal, positions, factors, r_hit_distances);
   }
 
   /* Set hit distances to zero for vertices with no hits, preventing displacement. */
@@ -191,36 +180,26 @@ static void scene_raycast(const Object &active_object,
  * Calculates the projection of the brush plane center on the target objects, and returns its
  * distance.
  */
-static float calc_center_projection_distance(const Object &active_object,
-                                             const StrokeCache &cache,
+static float calc_center_projection_distance(const StrokeCache &cache,
                                              const float3 &normal,
                                              const bool bidirectional)
 {
-  const Span<Object *> target_objects = cache.target_objects;
+  const Span<ProjectBrushTarget> project_targets = cache.project_targets.as_span();
   const float3 &center = cache.location_symm;
 
   BVHTreeRayHit hit;
   float distance = BVH_RAYCAST_DIST_MAX;
 
-  for (const int i : target_objects.index_range()) {
-    const Mesh &mesh = *static_cast<Mesh *>(target_objects[i]->data);
-    bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
-
-    if (tree_data.tree == nullptr) {
-      continue;
-    }
-
-    const float4x4 active_to_target_mat = target_objects[i]->world_to_object() *
-                                          active_object.object_to_world();
-
+  for (const int i : project_targets.index_range()) {
+    const float4x4 &active_to_target_mat = project_targets[i].active_to_target_matrix;
     const float3 ray_origin = math::transform_point(active_to_target_mat, center);
     const float3 ray_direction = math::transform_direction(active_to_target_mat, normal);
 
-    raycast(ray_origin, ray_direction, tree_data, hit);
+    raycast(ray_origin, ray_direction, project_targets[i].tree_data, hit);
     distance = absolute_min_distance(distance, hit.dist);
 
     if (bidirectional) {
-      raycast(ray_origin, -ray_direction, tree_data, hit);
+      raycast(ray_origin, -ray_direction, project_targets[i].tree_data, hit);
       distance = absolute_min_distance(distance, -hit.dist);
     }
   }
@@ -266,6 +245,9 @@ static float3 calc_normal(const Brush &brush, const StrokeCache &cache)
       return -cache.view_normal_symm;
     case BRUSH_PROJECT_DIRECTION_PLANE_NORMAL:
       return cache.sculpt_normal_symm;
+    default:
+      BLI_assert_unreachable();
+      return float3(0.0f);
   }
 }
 
@@ -302,13 +284,8 @@ static void calc_faces(const Depsgraph &depsgraph,
   tls.hit_distances.resize(verts.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
 
-  scene_raycast(object,
-                ss.cache->target_objects,
-                bidirectional,
-                normal,
-                positions,
-                tls.factors,
-                hit_distances);
+  scene_raycast(
+      ss.cache->project_targets, bidirectional, normal, positions, tls.factors, hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
                          normal,
@@ -346,13 +323,8 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  scene_raycast(object,
-                ss.cache->target_objects,
-                bidirectional,
-                normal,
-                positions,
-                tls.factors,
-                hit_distances);
+  scene_raycast(
+      ss.cache->project_targets, bidirectional, normal, positions, tls.factors, hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
                          normal,
@@ -389,13 +361,8 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  scene_raycast(object,
-                ss.cache->target_objects,
-                bidirectional,
-                normal,
-                positions,
-                tls.factors,
-                hit_distances);
+  scene_raycast(
+      ss.cache->project_targets, bidirectional, normal, positions, tls.factors, hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
                          normal,
@@ -428,7 +395,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
   const float3 normal = calc_normal(brush, cache);
 
   const float center_projection_dist = calc_center_projection_distance(
-      object, cache, normal, bidirectional);
+      cache, normal, bidirectional);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {

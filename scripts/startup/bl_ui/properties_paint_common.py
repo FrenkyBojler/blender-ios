@@ -928,7 +928,6 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "project_direction_type")
             layout.prop(brush, "projection_offset_factor")
             layout.prop(brush, "bidirectional")
-            layout.prop(brush, "ignore_hidden_objects")
 
         elif sculpt_tool == 'PAINT':
             row = layout.row(align=True)

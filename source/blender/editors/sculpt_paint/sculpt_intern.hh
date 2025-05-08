@@ -14,6 +14,7 @@
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
+#include "BKE_bvhutils.hh"
 #include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_quaternion_types.hh"
@@ -47,6 +48,7 @@ enum class Type : int8_t;
 }  // namespace blender::ed::sculpt_paint
 struct bContext;
 struct BMLog;
+struct BVHTreeFromMesh;
 struct Dial;
 struct DistRayAABB_Precalc;
 struct Image;
@@ -154,6 +156,11 @@ enum class TransformDisplacementMode {
 namespace blender::ed::sculpt_paint {
 
 static constexpr int plane_brush_max_rolling_average_num = 20;
+
+struct ProjectBrushTarget {
+  bke::BVHTreeFromMesh tree_data;
+  float4x4 active_to_target_matrix;
+};
 
 /**
  * This structure contains all the temporary data
@@ -367,7 +374,7 @@ struct StrokeCache {
   } plane_brush;
 
   /* Scene Project brush */
-  Vector<Object *> target_objects;
+  Vector<ProjectBrushTarget> project_targets;
 
   /* Cloth brush */
   std::unique_ptr<cloth::SimulationData> cloth_sim;

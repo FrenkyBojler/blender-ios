@@ -42,6 +42,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
+#include "BKE_bvhutils.hh"
 #include "BKE_ccg.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
@@ -3968,27 +3969,37 @@ static void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache
   }
 }
 
-static void init_scene_project_brush_target_objects(const bContext *C,
-                                                    const Object &active_object,
-                                                    const Brush &brush,
-                                                    StrokeCache &cache)
+static void init_scene_project_brush_targets(const bContext *C,
+                                             const Object &active_object,
+                                             const Brush &brush,
+                                             StrokeCache &cache)
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
-  cache.target_objects.clear();
-
-  const bool ignore_hidden = brush.flag2 & BRUSH_IGNORE_HIDDEN_OBJECTS;
+  cache.project_targets.clear();
 
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     const bool is_active_object = base->object == &active_object;
+    const bool is_hidden = !BKE_base_is_visible(v3d, base);
     Object *object = DEG_get_evaluated(&depsgraph, base->object);
 
-    if (!is_active_object && object->type == OB_MESH &&
-        (!ignore_hidden || BKE_base_is_visible(v3d, base)))
-    {
-      cache.target_objects.append(object);
+    if (is_active_object || object->type != OB_MESH || is_hidden) {
+      continue;
     }
+
+    const Mesh &mesh = *static_cast<Mesh *>(object->data);
+    bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
+
+    if (tree_data.tree == nullptr) {
+      continue;
+    }
+
+    const float4x4 active_to_target_matrix = object->world_to_object() *
+                                             active_object.object_to_world();
+
+    ProjectBrushTarget project_target{std::move(tree_data), active_to_target_matrix};
+    cache.project_targets.append(std::move(project_target));
   }
 }
 
@@ -4045,7 +4056,7 @@ static void sculpt_update_cache_invariants(
   }
 
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT) {
-    init_scene_project_brush_target_objects(C, ob, *brush, *cache);
+    init_scene_project_brush_targets(C, ob, *brush, *cache);
   }
 
   /* Not very nice, but with current events system implementation
