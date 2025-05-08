@@ -2008,6 +2008,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
   bool result;
   int old_but_flag = 0;
 
+  const bContextStore *previous_ctx = CTX_store_get(C);
   if (but) {
     old_but_flag = but->flag;
 
@@ -2030,7 +2031,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
     const_cast<uiBut *>(but)->flag = old_but_flag;
 
     if (but->context) {
-      CTX_store_set(C, nullptr);
+      CTX_store_set(C, previous_ctx);
     }
   }
 
@@ -4614,17 +4615,17 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     const EnumPropertyItem *item = &item_array[a];
 
     if (new_column && (categories > 0) && (columns > 1) && item->identifier[0]) {
-      uiItemL(column, "", ICON_NONE);
+      column->label("", ICON_NONE);
       uiItemS(column);
     }
 
     if (!item->identifier[0]) {
       if (item->name || columns > 1) {
         if (item->icon) {
-          uiItemL(column, item->name, item->icon);
+          column->label(item->name, item->icon);
         }
         else if (item->name) {
-          /* Do not use uiItemL here, as our root layout is a menu one,
+          /* Do not use uiLayout::label here, as our root layout is a menu one,
            * it will add a fake blank icon! */
           uiDefBut(block,
                    UI_BTYPE_LABEL,
@@ -4718,7 +4719,7 @@ static void ui_def_but_rna__panel_type(bContext *C, uiLayout *layout, void *arg)
     ui_item_paneltype_func(C, layout, panel_type);
   }
   else {
-    uiItemL(layout, RPT_("Missing Panel"), ICON_NONE);
+    layout->label(RPT_("Missing Panel"), ICON_NONE);
   }
 }
 
@@ -4749,7 +4750,7 @@ static void ui_def_but_rna__menu_type(bContext *C, uiLayout *layout, void *but_p
   else {
     char msg[256];
     SNPRINTF(msg, RPT_("Missing Menu: %s"), menu_type);
-    uiItemL(layout, msg, ICON_NONE);
+    layout->label(msg, ICON_NONE);
   }
 }
 
