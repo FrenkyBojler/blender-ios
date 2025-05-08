@@ -174,8 +174,6 @@ typedef struct Brush {
   struct MTex mtex;
   struct MTex mask_mtex;
 
-  struct Brush *toggle_brush;
-
   struct ImBuf *icon_imbuf;
   PreviewImage *preview;
   /** Color gradient. */
