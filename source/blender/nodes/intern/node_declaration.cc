@@ -530,7 +530,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::supports_field()
 {
   BLI_assert(this->is_input());
   decl_base_->input_field_type = InputSocketFieldType::IsSupported;
-  this->structure_type(StructureType::Dynamic);
+  this->structure_type(StructureType::Field);
   return *this;
 }
 
