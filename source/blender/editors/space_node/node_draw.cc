@@ -4946,10 +4946,7 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
     /* It's definitely not visible. */
     return std::nullopt;
   }
-  /* Make the allowed rect larger step by step until a valid position is found or we our of
-   * bounds. There might be a smarter way to do this but this seems to work well enough. It's only
-   * used for the somewhat rare case when the link is almost entirely outside the view, but not
-   * quite. */
+  // TODO: Try to find a more stable algorithm for this.
   for (float pad = -(region_padding + radius); pad < radius; pad += 1.0f) {
     best_position = find_position_with_padding(pad);
     if (best_position.has_value()) {
