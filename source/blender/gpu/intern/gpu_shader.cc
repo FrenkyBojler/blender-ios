@@ -826,7 +826,10 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   using namespace blender::gpu::shader;
   const_cast<ShaderCreateInfo &>(info).finalize();
 
-  GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
+  if (Context::get()) {
+    /* Context can be null in Vulkan compilation threads. */
+    GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
+  }
 
   const std::string error = info.check_error();
   if (!error.empty()) {
@@ -940,11 +943,14 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
 
   if (!shader->finalize(&info)) {
     delete shader;
-    GPU_debug_group_end();
-    return nullptr;
+    shader = nullptr;
   }
 
-  GPU_debug_group_end();
+  if (Context::get()) {
+    /* Context can be null in Vulkan compilation threads. */
+    GPU_debug_group_end();
+  }
+
   return shader;
 }
 
