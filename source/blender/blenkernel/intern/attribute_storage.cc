@@ -329,7 +329,7 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
   this->runtime->attributes.reserve(this->dna_attributes_num);
 
-  BLO_read_struct_array(&reader, Attribute, this->dna_attributes_num, &this->dna_attributes);
+  BLO_read_struct_array(&reader, ::Attribute, this->dna_attributes_num, &this->dna_attributes);
   for (const int i : IndexRange(this->dna_attributes_num)) {
     ::Attribute &dna_attr = this->dna_attributes[i];
     BLO_read_string(&reader, &dna_attr.name);
@@ -506,8 +506,9 @@ static void write_shared_array(BlendWriter &writer,
 void AttributeStorage::blend_write(BlendWriter &writer,
                                    const AttributeStorage::BlendWriteData &write_data)
 {
-  BLO_write_struct_array(
-      &writer, Attribute, write_data.attributes.size(), write_data.attributes.data());
+  /* Use string argument to avoid confusion with the C++ class with the same name. */
+  BLO_write_struct_array_by_name(
+      &writer, "Attribute", write_data.attributes.size(), write_data.attributes.data());
   for (const ::Attribute &attr_dna : write_data.attributes) {
     BLO_write_string(&writer, attr_dna.name);
     switch (AttrStorageType(attr_dna.storage_type)) {
