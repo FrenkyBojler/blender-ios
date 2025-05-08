@@ -6,7 +6,8 @@
 #include "usd.hh"
 #include "usd_reader_prim.hh"
 
-#include <pxr/usd/usdSkel/skeleton.h>
+#include <pxr/usd/usdLux/domeLight.h>
+#include <pxr/usd/usdLux/domeLight_1.h>
 
 namespace blender::io::usd {
 
@@ -22,7 +23,7 @@ class USDDomeLightReader : public USDPrimReader {
 
   bool valid() const override
   {
-    return bool(prim_);
+    return prim_.IsA<pxr::UsdLuxDomeLight>() || prim_.IsA<pxr::UsdLuxDomeLight_1>();
   }
 
   void create_object(Main * /*bmain*/){};
