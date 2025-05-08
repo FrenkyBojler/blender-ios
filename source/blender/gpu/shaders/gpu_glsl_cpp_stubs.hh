@@ -139,6 +139,9 @@ template<typename T, int Sz> struct VecOp {
 template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
   using VecT = VecBase<T, Sz>;
 
+  SwizzleBase() = default;
+  SwizzleBase(T) {}
+
   constexpr VecT operator=(const VecT &) RET;
   operator VecT() const RET;
 };
@@ -1070,3 +1073,12 @@ void groupMemoryBarrier() {}
 #define row_major row_major_is_reserved_glsl_keyword_do_not_use
 
 #include "GPU_shader_shared_utils.hh"
+
+#ifdef __GNUC__
+/* Avoid warnings caused by our own unroll attributes. */
+#  ifdef __clang__
+#    pragma GCC diagnostic ignored "-Wunknown-attributes"
+#  else
+#    pragma GCC diagnostic ignored "-Wattributes"
+#  endif
+#endif
