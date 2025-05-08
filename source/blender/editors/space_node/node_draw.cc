@@ -4923,34 +4923,55 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
   const float2 end = socket_link_connection_location(*link.tonode, *link.tosock, link);
   const float2 center = math::midpoint(start, end);
 
+  rctf inner_rect = v2d.cur;
+  BLI_rctf_pad(&inner_rect, -(region_padding + radius), -(region_padding + radius));
+
+  if (BLI_rctf_isect_pt_v(&inner_rect, center)) {
+    /* The center is visible. */
+    return center;
+  }
+
+  rctf outer_rect = v2d.cur;
+  BLI_rctf_pad(&outer_rect, radius, radius);
+
   /* Get the straight individual link segments. */
   std::array<float2, NODE_LINK_RESOL + 1> link_points;
   node_link_bezier_points_evaluated(link, link_points);
 
-  const auto find_position_with_padding = [&](const float pad) {
-    rctf padded_rect = v2d.cur;
-    BLI_rctf_pad(&padded_rect, pad, pad);
-    return find_best_position_on_link_in_rect(link_points, center, padded_rect);
+  const float required_socket_distance = UI_UNIT_X;
+  const auto cost_function = [&](const float2 &p) -> float {
+    const float distance_to_socket = std::min(math::distance(p, start), math::distance(p, end));
+    const float distance_to_inner_rect = std::max(BLI_rctf_length_x(&inner_rect, p.x),
+                                                  BLI_rctf_length_y(&inner_rect, p.y));
+    const float distance_to_center = math::distance(p, center);
+    if (distance_to_socket < required_socket_distance) {
+      return 1e5f + distance_to_center;
+    }
+    return distance_to_center + 10.0 * distance_to_inner_rect;
   };
 
-  /* Try to find a good position within the current view that also has some padding to the region
-   * boundary. */
-  std::optional<float2> best_position = find_position_with_padding(-(region_padding + radius));
-  if (best_position.has_value()) {
-    return best_position;
-  }
-
-  /* Check if the link intersects the view at all. Some padding is taken into account, because what
-   * we draw on the link has a certain size too. */
-  if (!find_position_with_padding(radius).has_value()) {
-    /* It's definitely not visible. */
-    return std::nullopt;
-  }
-  // TODO: Try to find a more stable algorithm for this.
-  for (float pad = -(region_padding + radius); pad < radius; pad += 1.0f) {
-    best_position = find_position_with_padding(pad);
-    if (best_position.has_value()) {
-      break;
+  float best_cost;
+  std::optional<float2> best_position;
+  for (const int i : IndexRange(link_points.size() - 1)) {
+    const float2 p0 = link_points[i];
+    const float2 p1 = link_points[i + 1];
+    const std::optional<std::array<float2, 2>> clamped_opt = rctf_clamp_segment(
+        outer_rect, p0, p1);
+    if (!clamped_opt.has_value()) {
+      continue;
+    }
+    const std::array<float2, 2> &clamped = *clamped_opt;
+    const float length = math::distance(clamped[0], clamped[1]);
+    const float point_distance = 1.0f;
+    const int points_to_check = std::max(2, 1 + int(length / point_distance));
+    for (const int j : IndexRange(points_to_check)) {
+      const float t = float(j) / (points_to_check - 1);
+      const float2 p = math::interpolate(clamped[0], clamped[1], t);
+      const float cost = cost_function(p);
+      if (!best_position.has_value() || cost < best_cost) {
+        best_cost = cost;
+        best_position = p;
+      }
     }
   }
   return best_position;
