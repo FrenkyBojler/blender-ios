@@ -18,14 +18,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-def print_strip_lib(strip_lib, prev_print_len):
+def print_strip_lib(strip_lib: Path, prev_print_len: int) -> int:
     print_str = f"Stripping: {strip_lib}"
     if prev_print_len > 0:
         print(f"\r{' ' * prev_print_len}\r", end="")
     print(print_str, end="", flush=True)
     return len(print_str)
 
-def strip_libs(strip_dir):
+def strip_libs(strip_dir: Path) -> None:
     print(f"Stripping libraries in: {strip_dir}")
     prev_print_len = 0;
     for shared_lib in strip_dir.rglob("*.so*"):
@@ -50,7 +50,7 @@ def strip_libs(strip_dir):
     print("\nDone stripping libraries!")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawTextHelpFormatter,
