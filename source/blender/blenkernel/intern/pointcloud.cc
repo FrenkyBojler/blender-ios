@@ -67,7 +67,7 @@ static void pointcloud_init_data(ID *id)
 
   MEMCPY_STRUCT_AFTER(pointcloud, DNA_struct_default_get(PointCloud), id);
 
-  new (&pointcloud->attribute_storage) blender::bke::AttributeStorage();
+  new (&pointcloud->attribute_storage.wrap()) blender::bke::AttributeStorage();
   pointcloud->runtime = new blender::bke::PointCloudRuntime();
 
   CustomData_reset(&pointcloud->pdata);

@@ -97,7 +97,7 @@ static void mesh_init_data(ID *id)
   CustomData_reset(&mesh->face_data);
   CustomData_reset(&mesh->corner_data);
 
-  new (&mesh->attribute_storage) blender::bke::AttributeStorage();
+  new (&mesh->attribute_storage.wrap()) blender::bke::AttributeStorage();
   mesh->runtime = new blender::bke::MeshRuntime();
 
   mesh->face_sets_color_seed = BLI_hash_int(BLI_time_now_seconds_i() & UINT_MAX);
