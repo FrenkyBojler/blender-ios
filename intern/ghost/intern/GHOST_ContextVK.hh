@@ -98,6 +98,8 @@ struct GHOST_Frame {
   }
 };
 
+constexpr static uint32_t NUM_FRAMES_IN_FLIGHT = 3;
+
 class GHOST_ContextVK : public GHOST_Context {
   friend class GHOST_XrGraphicsBindingVulkan;
   friend class GHOST_XrGraphicsBindingVulkanD3D;

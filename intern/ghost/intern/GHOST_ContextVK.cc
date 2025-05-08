@@ -517,10 +517,7 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
       m_preferred_device(preferred_device),
       m_surface(VK_NULL_HANDLE),
       m_swapchain(VK_NULL_HANDLE),
-      // m_frame_data's size should be kept in sync with that of
-      // VKThreadData::resource_pools_count, otherwise the fences
-      // contained within m_frame_data might end up unsound.
-      m_frame_data(3),
+      m_frame_data(NUM_FRAMES_IN_FLIGHT),
       m_render_frame(0)
 {
 }
@@ -553,16 +550,18 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
   VkDevice device = vulkan_device->device;
 
-  /* The swapBuffers method is called after all the draw calls, and it signals that
+  /* This method is called after all the draw calls in the application, and it signals that
    * we are ready to both (1) submit commands for those draw calls to the device and
-   * (2) begin building the next frame.
+   * (2) begin building the next frame. It is assumed as an invariant that the submission fence
+   * in the current GHOST_Frame has been signaled. So, we wait for the *next* GHOST_Frame's
+   * submission fence to be signaled, to ensure the invariant holds for the next call to
+   * `swapBuffers`.
    *
-   * So, `submission_frame_data` holds the submission fence and swapchain presentation
-   * semaphores for the current frame, and will be passed via callbacks to the Vulkan
-   * backend for command buffer submission. Those callbacks are only called, however, after we wait
-   * for the *next* frame's submission fence. That way, when we call those callbacks, the Vulkan
-   * backend knows that it now also safe to cleanup the next frame's resources and being building
-   * the next frame.
+   * We will pass the current GHOST_Frame to the swap_buffers_pre_callback_ for command buffer
+   * submission, and it is the responsibility of that callback to use the current GHOST_Frame's
+   * fence for it's submission fence. Since the callback is called after we wait for the next frame
+   * to be complete, it is also safe in the callback to clean up resources associated with the next
+   * frame.
    */
   GHOST_Frame &submission_frame_data = m_frame_data[m_render_frame];
   m_render_frame = (m_render_frame + 1) % m_frame_data.size();

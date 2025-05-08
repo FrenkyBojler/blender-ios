@@ -15,6 +15,7 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
+#include "intern/GHOST_ContextVK.hh"
 #include "render_graph/vk_render_graph.hh"
 #include "render_graph/vk_resource_state_tracker.hh"
 #include "vk_buffer.hh"
@@ -96,7 +97,7 @@ class VKThreadData : public NonCopyable, NonMovable {
    * NOTE: Initialized to `UINT32_MAX` to detect first change.
    */
   uint32_t resource_pool_index = UINT32_MAX;
-  std::array<VKResourcePool, resource_pools_count> resource_pools;
+  std::array<VKResourcePool, NUM_FRAMES_IN_FLIGHT> resource_pools;
 
   /**
    * The current rendering depth.
