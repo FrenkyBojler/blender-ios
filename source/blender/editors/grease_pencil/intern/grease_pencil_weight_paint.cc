@@ -1102,8 +1102,7 @@ static wmOperatorStatus weight_gradient_exec(bContext *C, wmOperator *op)
                     }
                     break;
                 }
-                gradient_factor = (math::max(0.0f, dist_on_gradient_line) / gradient_length_sq) *
-                                  gradient_length;
+                gradient_factor = (dist_on_gradient_line / gradient_length_sq) * gradient_length;
                 break;
               }
 
