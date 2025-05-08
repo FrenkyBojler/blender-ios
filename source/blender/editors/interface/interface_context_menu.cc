@@ -199,7 +199,7 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
                                      0,
                                      style);
 
-  uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"), ICON_HAND);
+  layout->label(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"), ICON_HAND);
   uiItemR(layout, &ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 
   const int bounds_offset[2] = {int(-100 * UI_SCALE_FAC), int(36 * UI_SCALE_FAC)};
@@ -259,7 +259,7 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
                                      0,
                                      style);
 
-  uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut"), ICON_HAND);
+  layout->label(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut"), ICON_HAND);
   uiItemR(layout, &ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 
   const int bounds_offset[2] = {int(-100 * UI_SCALE_FAC), int(36 * UI_SCALE_FAC)};
@@ -1085,7 +1085,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
       const bContextStore *prev_ctx = CTX_store_get(C);
       /* Sub-layout for context override. */
-      uiLayout *sub = uiLayoutColumn(layout, false);
+      uiLayout *sub = &layout->column(false);
       set_layout_context_from_button(C, sub, view_item_but);
       view_item_but->view_item->build_context_menu(*C, *sub);
 
@@ -1108,13 +1108,13 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       /* Gray out items depending on if data-block is an asset. Preferably this could be done via
        * operator poll, but that doesn't work since the operator also works with "selected_ids",
        * which isn't cheap to check. */
-      uiLayout *sub = uiLayoutColumn(layout, true);
+      uiLayout *sub = &layout->column(true);
       uiLayoutSetEnabled(sub, !id->asset_data);
       uiItemO(sub,
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark as Asset"),
               ICON_ASSET_MANAGER,
               "ASSET_OT_mark_single");
-      sub = uiLayoutColumn(layout, true);
+      sub = &layout->column(true);
       uiLayoutSetEnabled(sub, id->asset_data);
       uiItemO(sub,
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Asset"),
@@ -1399,13 +1399,13 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   if (is_inside_listrow) {
     MenuType *mt = WM_menutype_find("UI_MT_list_item_context_menu", true);
     if (mt) {
-      UI_menutype_draw(C, mt, uiLayoutColumn(layout, false));
+      UI_menutype_draw(C, mt, &layout->column(false));
     }
   }
 
   MenuType *mt = WM_menutype_find("UI_MT_button_context_menu", true);
   if (mt) {
-    UI_menutype_draw(C, mt, uiLayoutColumn(layout, false));
+    UI_menutype_draw(C, mt, &layout->column(false));
   }
 
   if (but->context) {

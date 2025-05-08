@@ -1591,7 +1591,7 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
           opnames_len = 0; /* Do nothing. */
         }
         if (free) {
-          MEM_freeN((void *)item);
+          MEM_freeN(item);
         }
       }
 
@@ -2008,6 +2008,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
   bool result;
   int old_but_flag = 0;
 
+  const bContextStore *previous_ctx = CTX_store_get(C);
   if (but) {
     old_but_flag = but->flag;
 
@@ -2030,7 +2031,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
     const_cast<uiBut *>(but)->flag = old_but_flag;
 
     if (but->context) {
-      CTX_store_set(C, nullptr);
+      CTX_store_set(C, previous_ctx);
     }
   }
 
@@ -3066,7 +3067,7 @@ void ui_but_string_get_ex(uiBut *but,
       else {
         BLI_strncpy(str, buf, str_maxncpy);
       }
-      MEM_freeN((void *)buf);
+      MEM_freeN(buf);
     }
   }
   else if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
@@ -3705,7 +3706,7 @@ void UI_block_free(const bContext *C, uiBlock *block)
   block->buttons.clear();
 
   if (block->unit) {
-    MEM_freeN((void *)block->unit);
+    MEM_freeN(block->unit);
   }
 
   if (block->func_argN) {
@@ -4398,7 +4399,7 @@ static uiBut *ui_def_but(uiBlock *block,
     but->flag |= UI_BUT_DISABLED;
   }
 
-  /* keep track of UI_interface.hh */
+  /* Keep track of `UI_interface_c.hh`. */
   if (ELEM(but->type,
            UI_BTYPE_BLOCK,
            UI_BTYPE_BUT,
@@ -4430,7 +4431,7 @@ static uiBut *ui_def_but(uiBlock *block,
   }
 
 #ifdef WITH_PYTHON
-  /* If the 'UI_OT_editsource' is running, extract the source info from the button. */
+  /* If the `UI_OT_editsource` is running, extract the source info from the button. */
   if (UI_editsource_enable_check()) {
     UI_editsource_active_but_test(but);
   }
@@ -4585,7 +4586,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   /* NOTE: `item_array[...]` is reversed on access. */
 
   /* create items */
-  uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
+  uiLayout *split = &layout->split(0.0f, false);
 
   bool new_column;
 
@@ -4608,23 +4609,23 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
         }
       }
 
-      column = uiLayoutColumn(split, false);
+      column = &split->column(false);
     }
 
     const EnumPropertyItem *item = &item_array[a];
 
     if (new_column && (categories > 0) && (columns > 1) && item->identifier[0]) {
-      uiItemL(column, "", ICON_NONE);
+      column->label("", ICON_NONE);
       uiItemS(column);
     }
 
     if (!item->identifier[0]) {
       if (item->name || columns > 1) {
         if (item->icon) {
-          uiItemL(column, item->name, item->icon);
+          column->label(item->name, item->icon);
         }
         else if (item->name) {
-          /* Do not use uiItemL here, as our root layout is a menu one,
+          /* Do not use uiLayout::label here, as our root layout is a menu one,
            * it will add a fake blank icon! */
           uiDefBut(block,
                    UI_BTYPE_LABEL,
@@ -4707,7 +4708,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   UI_block_layout_set_current(block, layout);
 
   if (free) {
-    MEM_freeN((void *)item_array);
+    MEM_freeN(item_array);
   }
 }
 
@@ -4718,7 +4719,7 @@ static void ui_def_but_rna__panel_type(bContext *C, uiLayout *layout, void *arg)
     ui_item_paneltype_func(C, layout, panel_type);
   }
   else {
-    uiItemL(layout, RPT_("Missing Panel"), ICON_NONE);
+    layout->label(RPT_("Missing Panel"), ICON_NONE);
   }
 }
 
@@ -4749,7 +4750,7 @@ static void ui_def_but_rna__menu_type(bContext *C, uiLayout *layout, void *but_p
   else {
     char msg[256];
     SNPRINTF(msg, RPT_("Missing Menu: %s"), menu_type);
-    uiItemL(layout, msg, ICON_NONE);
+    layout->label(msg, ICON_NONE);
   }
 }
 
@@ -4849,7 +4850,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
     }
 
     if (free) {
-      MEM_freeN((void *)item);
+      MEM_freeN(item);
     }
   }
   else {
@@ -5135,7 +5136,7 @@ AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy)
   autocpl = MEM_callocN<AutoComplete>(__func__);
   autocpl->maxncpy = maxncpy;
   autocpl->matches = 0;
-  autocpl->truncate = static_cast<char *>(MEM_callocN(sizeof(char) * maxncpy, __func__));
+  autocpl->truncate = MEM_calloc_arrayN<char>(maxncpy, __func__);
   autocpl->startname = startname;
 
   return autocpl;
@@ -6583,7 +6584,7 @@ static void operator_enum_search_update_fn(
     }
 
     if (do_free) {
-      MEM_freeN((void *)all_items);
+      MEM_freeN(all_items);
     }
   }
 }

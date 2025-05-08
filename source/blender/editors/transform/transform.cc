@@ -753,13 +753,13 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Decrease Proportional Influence",
        ""},
+      {TFM_MODAL_PROPSIZE, "PROPORTIONAL_SIZE", 0, "Adjust Proportional Influence", ""},
       {TFM_MODAL_AUTOIK_LEN_INC, "AUTOIK_CHAIN_LEN_UP", 0, "Increase Max AutoIK Chain Length", ""},
       {TFM_MODAL_AUTOIK_LEN_DEC,
        "AUTOIK_CHAIN_LEN_DOWN",
        0,
        "Decrease Max AutoIK Chain Length",
        ""},
-      {TFM_MODAL_PROPSIZE, "PROPORTIONAL_SIZE", 0, "Adjust Proportional Influence", ""},
       {TFM_MODAL_INSERTOFS_TOGGLE_DIR,
        "INSERTOFS_TOGGLE_DIR",
        0,
@@ -1411,7 +1411,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
 
 bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
 {
-  TransInfo *t = static_cast<TransInfo *>(MEM_callocN(sizeof(TransInfo), "TransInfo data"));
+  TransInfo *t = MEM_callocN<TransInfo>("TransInfo data");
   bool success;
 
   t->context = C;

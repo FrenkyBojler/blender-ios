@@ -564,10 +564,10 @@ static uiButMultiState *ui_multibut_lookup(uiHandleButtonData *data, const uiBut
 #endif
 
 /* buttons clipboard */
-static ColorBand but_copypaste_coba = {0};
-static CurveMapping but_copypaste_curve = {0};
+static ColorBand but_copypaste_coba = {};
+static CurveMapping but_copypaste_curve = {};
 static bool but_copypaste_curve_alive = false;
-static CurveProfile but_copypaste_profile = {0};
+static CurveProfile but_copypaste_profile = {};
 static bool but_copypaste_profile_alive = false;
 
 /** \} */
@@ -698,14 +698,16 @@ static bool ui_multibut_drag_wait(const uiHandleButtonMulti &multi_data)
 /**
  * Ignore mouse movements within some horizontal pixel threshold before starting to drag
  */
-static bool ui_but_dragedit_update_mval(uiHandleButtonData *data, int mx)
+static bool ui_but_dragedit_update_mval(uiHandleButtonData *data,
+                                        int mx,
+                                        blender::FunctionRef<int()> drag_threshold_fn)
 {
   if (mx == data->draglastx) {
     return false;
   }
 
   if (data->draglock) {
-    const int threshold = WM_event_drag_threshold(data->window->event_last_handled);
+    const int threshold = drag_threshold_fn();
     if (abs(mx - data->dragstartx) < threshold) {
       return false;
     }
@@ -2058,7 +2060,7 @@ static void ui_selectcontext_apply(bContext *C,
         wmWindow *win = CTX_wm_window(C);
         if ((win->eventstate->modifier & KM_SHIFT) == 0) {
           const int len = RNA_property_array_length(&but->rnapoin, prop);
-          bool *tmparray = static_cast<bool *>(MEM_callocN(sizeof(bool) * len, __func__));
+          bool *tmparray = MEM_calloc_arrayN<bool>(len, __func__);
 
           tmparray[index] = true;
 
@@ -2540,7 +2542,7 @@ static void ui_but_get_pasted_text_from_clipboard(const bool ensure_utf8,
     *r_buf_len = length;
   }
   else {
-    *r_buf_paste = static_cast<char *>(MEM_callocN(sizeof(char), __func__));
+    *r_buf_paste = MEM_callocN<char>(__func__);
     *r_buf_len = 0;
   }
 }
@@ -2966,7 +2968,7 @@ static void ui_but_paste(bContext *C, uiBut *but, uiHandleButtonData *data, cons
       break;
   }
 
-  MEM_freeN((void *)buf_paste);
+  MEM_freeN(buf_paste);
 }
 
 void ui_but_clipboard_free()
@@ -2981,7 +2983,7 @@ void ui_but_clipboard_free()
 /** \name Button Text Password
  *
  * Functions to convert password strings that should not be displayed
- * to asterisk representation (e.g. 'mysecretpasswd' -> '*************')
+ * to asterisk representation (e.g. `mysecretpasswd` -> `*************`)
  *
  * It converts every UTF-8 character to an asterisk, and also remaps
  * the cursor position and selection start/end.
@@ -3077,7 +3079,7 @@ void ui_but_active_string_clear_and_exit(bContext *C, uiBut *but)
 
   /* most likely nullptr, but let's check, and give it temp zero string */
   if (!but->active->text_edit.edit_string) {
-    but->active->text_edit.edit_string = static_cast<char *>(MEM_callocN(1, "temp str"));
+    but->active->text_edit.edit_string = MEM_calloc_arrayN<char>(1, "temp str");
   }
   but->active->text_edit.edit_string[0] = 0;
 
@@ -3419,8 +3421,7 @@ static bool ui_textedit_copypaste(uiBut *but, uiTextEdit &text_edit, const int m
   else if (ELEM(mode, UI_TEXTEDIT_COPY, UI_TEXTEDIT_CUT)) {
     /* copy the contents to the copypaste buffer */
     const int sellen = but->selend - but->selsta;
-    char *buf = static_cast<char *>(
-        MEM_mallocN(sizeof(char) * (sellen + 1), "ui_textedit_copypaste"));
+    char *buf = MEM_malloc_arrayN<char>((sellen + 1), "ui_textedit_copypaste");
 
     memcpy(buf, text_edit.edit_string + but->selsta, sellen);
     buf[sellen] = '\0';
@@ -3536,8 +3537,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
   /* retrieve string */
   text_edit.max_string_size = ui_but_string_get_maxncpy(but);
   if (text_edit.max_string_size != 0) {
-    text_edit.edit_string = static_cast<char *>(
-        MEM_callocN(sizeof(char) * text_edit.max_string_size, "textedit str"));
+    text_edit.edit_string = MEM_calloc_arrayN<char>(text_edit.max_string_size, "textedit str");
     /* We do not want to truncate precision to default here, it's nice to show value,
      * not to edit it - way too much precision is lost then. */
     ui_but_string_get_ex(but,
@@ -4884,6 +4884,67 @@ static int ui_do_but_TAB(
   return WM_UI_HANDLER_CONTINUE;
 }
 
+/* Increment or decrement an integer value within
+ * the text of a button while hovering over it. */
+static int ui_do_but_text_value_cycle(bContext *C,
+                                      uiBut *but,
+                                      uiHandleButtonData *data,
+                                      const int inc_value)
+{
+  if (data->state != BUTTON_STATE_HIGHLIGHT) {
+    /* This function assumes the mouse is only hovering over the input. */
+    return WM_UI_HANDLER_CONTINUE;
+  }
+
+  /* Retrieve the string. */
+  char *but_string;
+  int str_len = ui_but_string_get_maxncpy(but);
+  bool no_zero_strip = false;
+  if (str_len != 0) {
+    but_string = MEM_calloc_arrayN<char>(str_len, __func__);
+    ui_but_string_get_ex(but, but_string, str_len, UI_PRECISION_FLOAT_MAX, true, &no_zero_strip);
+  }
+  else {
+    but_string = ui_but_string_get_dynamic(but, &str_len);
+  }
+
+  if (but_string[0] == '\0') {
+    /* Don't append a number to an empty string. */
+    MEM_freeN(but_string);
+    return WM_UI_HANDLER_CONTINUE;
+  }
+
+  /* More space needed for an added digit. */
+  str_len += 1;
+  char *head = MEM_calloc_arrayN<char>(str_len, __func__);
+  char *tail = MEM_calloc_arrayN<char>(str_len, __func__);
+  ushort digits;
+
+  /* Decode the string, parsing head, digits, tail. */
+  int num = BLI_path_sequence_decode(but_string, head, str_len, tail, str_len, &digits);
+  MEM_freeN(but_string);
+  if (num == 0 && digits == 0) {
+    BLI_str_rstrip_digits(head);
+  }
+
+  /* Increase or decrease the value. */
+  num += inc_value;
+
+  /* Encode the new string with the changed value. */
+  char *string = MEM_calloc_arrayN<char>(str_len, __func__);
+  BLI_path_sequence_encode(string, str_len, head, tail, digits, num);
+
+  /* Save this new string to the button. */
+  ui_but_set_string_interactive(C, but, string);
+
+  /* Free the strings. */
+  MEM_freeN(string);
+  MEM_freeN(head);
+  MEM_freeN(tail);
+
+  return WM_UI_HANDLER_BREAK;
+}
+
 static int ui_do_but_TEX(
     bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
@@ -4907,6 +4968,10 @@ static int ui_do_but_TEX(
         }
         return WM_UI_HANDLER_BREAK;
       }
+    }
+    else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
+      const int inc_value = (event->type == WHEELUPMOUSE) ? 1 : -1;
+      return ui_do_but_text_value_cycle(C, but, data, inc_value);
     }
   }
   else if (data->state == BUTTON_STATE_TEXT_EDITING) {
@@ -4966,8 +5031,21 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
       return WM_UI_HANDLER_BREAK;
     }
     if (ELEM(event->type, MOUSEPAN, WHEELDOWNMOUSE, WHEELUPMOUSE) && (event->modifier & KM_CTRL)) {
-      /* Support Ctrl-Wheel to cycle values on expanded enum rows. */
-      if (but->type == UI_BTYPE_ROW) {
+      if (ELEM(but->type,
+               UI_BTYPE_TOGGLE,
+               UI_BTYPE_TOGGLE_N,
+               UI_BTYPE_ICON_TOGGLE,
+               UI_BTYPE_ICON_TOGGLE_N,
+               UI_BTYPE_BUT_TOGGLE,
+               UI_BTYPE_CHECKBOX,
+               UI_BTYPE_CHECKBOX_N))
+      {
+        /* Support Ctrl-Wheel to cycle toggles and checkboxes. */
+        button_activate_state(C, but, BUTTON_STATE_EXIT);
+        return WM_UI_HANDLER_BREAK;
+      }
+      else if (but->type == UI_BTYPE_ROW) {
+        /* Support Ctrl-Wheel to cycle values on expanded enum rows. */
         int type = event->type;
         int val = event->val;
 
@@ -5267,6 +5345,7 @@ static float ui_numedit_apply_snap(int temp,
 static bool ui_numedit_but_NUM(uiButNumber *but,
                                uiHandleButtonData *data,
                                int mx,
+                               blender::FunctionRef<int()> drag_threshold_fn,
                                const bool is_motion,
                                const enum eSnapType snap,
                                float fac)
@@ -5278,7 +5357,9 @@ static bool ui_numedit_but_NUM(uiButNumber *but,
   const PropertyScaleType scale_type = ui_but_scale_type(but);
 
   /* prevent unwanted drag adjustments, test motion so modifier keys refresh. */
-  if ((is_motion || data->draglock) && (ui_but_dragedit_update_mval(data, mx) == false)) {
+  if ((is_motion || data->draglock) &&
+      (ui_but_dragedit_update_mval(data, mx, drag_threshold_fn) == false))
+  {
     return changed;
   }
 
@@ -5582,6 +5663,9 @@ static int ui_do_but_NUM(
   /* mouse location kept at screen pixel coords */
   const int screen_mx = event->xy[0];
 
+  /* Defer evaluation as it's rarely needed. */
+  auto drag_threshold_fn = [event]() -> int { return WM_event_drag_threshold(event); };
+
   BLI_assert(but->type == UI_BTYPE_NUM);
 
   ui_window_to_block(data->region, block, &mx, &my);
@@ -5684,6 +5768,7 @@ static int ui_do_but_NUM(
       if (ui_numedit_but_NUM(number_but,
                              data,
                              (ui_but_is_cursor_warp(but) ? screen_mx : mx),
+                             drag_threshold_fn,
                              is_motion,
                              snap,
                              fac))
@@ -5787,6 +5872,7 @@ static int ui_do_but_NUM(
 static bool ui_numedit_but_SLI(uiBut *but,
                                uiHandleButtonData *data,
                                int mx,
+                               blender::FunctionRef<int()> drag_threshold_fn,
                                const bool is_horizontal,
                                const bool is_motion,
                                const bool snap,
@@ -5800,7 +5886,7 @@ static bool ui_numedit_but_SLI(uiBut *but,
 
   /* prevent unwanted drag adjustments, test motion so modifier keys refresh. */
   if ((but->type != UI_BTYPE_SCROLL) && (is_motion || data->draglock) &&
-      (ui_but_dragedit_update_mval(data, mx) == false))
+      (ui_but_dragedit_update_mval(data, mx, drag_threshold_fn) == false))
   {
     return changed;
   }
@@ -5942,6 +6028,9 @@ static int ui_do_but_SLI(
   int my = event->xy[1];
   ui_window_to_block(data->region, block, &mx, &my);
 
+  /* Defer evaluation as it's rarely needed. */
+  auto drag_threshold_fn = [event]() -> int { return WM_event_drag_threshold(event); };
+
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     int type = event->type, val = event->val;
 
@@ -6039,6 +6128,7 @@ static int ui_do_but_SLI(
       if (ui_numedit_but_SLI(but,
                              data,
                              mx,
+                             drag_threshold_fn,
                              true,
                              is_motion,
                              event->modifier & KM_CTRL,
@@ -6168,6 +6258,9 @@ static int ui_do_but_SCROLL(
   int my = event->xy[1];
   ui_window_to_block(data->region, block, &mx, &my);
 
+  /* Defer evaluation as it's rarely needed. */
+  auto drag_threshold_fn = [event]() -> int { return WM_event_drag_threshold(event); };
+
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->val == KM_PRESS) {
       if (event->type == LEFTMOUSE) {
@@ -6197,8 +6290,14 @@ static int ui_do_but_SCROLL(
     }
     else if (event->type == MOUSEMOVE) {
       const bool is_motion = true;
-      if (ui_numedit_but_SLI(
-              but, data, (horizontal) ? mx : my, horizontal, is_motion, false, false))
+      if (ui_numedit_but_SLI(but,
+                             data,
+                             (horizontal) ? mx : my,
+                             drag_threshold_fn,
+                             horizontal,
+                             is_motion,
+                             false,
+                             false))
       {
         /* Scroll-bars in popups need UI layout refresh to update the right items to show. */
         if (ui_block_is_popup_any(but->block)) {
@@ -7237,7 +7336,7 @@ static int ui_do_but_HSVCIRCLE(
       len = RNA_property_array_length(&but->rnapoin, but->rnaprop);
       if (len >= 3) {
         float rgb[3], def_hsv[3];
-        float *def = static_cast<float *>(MEM_callocN(sizeof(float) * len, __func__));
+        float *def = MEM_calloc_arrayN<float>(len, __func__);
 
         RNA_property_float_get_default_array(&but->rnapoin, but->rnaprop, def);
         ui_color_picker_hsv_to_rgb(def, def_hsv);
@@ -10049,8 +10148,7 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *regi
       if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
         /* If we have a display order different from
          * collection order, we have some work! */
-        int *org_order = static_cast<int *>(
-            MEM_mallocN(dyn_data->items_shown * sizeof(int), __func__));
+        int *org_order = MEM_malloc_arrayN<int>(dyn_data->items_shown, __func__);
         const int *new_order = dyn_data->items_filter_neworder;
         int org_idx = -1, len = dyn_data->items_len;
         int current_idx = -1;
@@ -12524,8 +12622,7 @@ static uiBlockInteraction_Handle *ui_block_interaction_begin(bContext *C,
     }
   }
 
-  int *unique_retval_ids = static_cast<int *>(
-      MEM_mallocN(sizeof(*unique_retval_ids) * unique_retval_ids_len, __func__));
+  int *unique_retval_ids = MEM_malloc_arrayN<int>(unique_retval_ids_len, __func__);
   unique_retval_ids_len = 0;
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
     if (but->active || (but->flag & UI_BUT_DRAG_MULTI)) {

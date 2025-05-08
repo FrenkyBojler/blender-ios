@@ -1517,6 +1517,33 @@ bool IMB_colormanagement_space_name_is_srgb(const char *name)
   return (colorspace && IMB_colormanagement_space_is_srgb(colorspace));
 }
 
+const char *IMB_colormanagement_srgb_colorspace_name_get()
+{
+  LISTBASE_FOREACH (ColorSpace *, colorspace, &global_colorspaces) {
+    colormanage_ensure_srgb_scene_linear_info(colorspace);
+    if (colorspace->info.is_srgb) {
+      return colorspace->name;
+    }
+  }
+
+  /* Make a best effort to find by common names. First two are from the ColorInterop forum. */
+  const char *names[] = {"sRGB Encoded Rec.709 (sRGB)",
+                         "srgb_rec709_scene",
+                         "Utility - sRGB - Texture",
+                         "sRGB - Texture",
+                         "sRGB",
+                         nullptr};
+  for (int i = 0; names[i]; i++) {
+    ColorSpace *colorspace = colormanage_colorspace_get_named(names[i]);
+    if (colorspace) {
+      return colorspace->name;
+    }
+  }
+
+  /* Fallback if nothing can be found. */
+  return global_role_default_byte;
+}
+
 blender::float3x3 IMB_colormanagement_get_xyz_to_scene_linear()
 {
   return blender::float3x3(imbuf_xyz_to_scene_linear);
@@ -2809,7 +2836,7 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
 
   /* ensure color management bit fields exists */
   if (!ibuf->display_buffer_flags) {
-    ibuf->display_buffer_flags = MEM_calloc_arrayN<uint>(size_t(global_tot_display),
+    ibuf->display_buffer_flags = MEM_calloc_arrayN<uint>(global_tot_display,
                                                          "imbuf display_buffer_flags");
   }
   else if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) {
@@ -4285,10 +4312,23 @@ bool IMB_colormanagement_setup_glsl_draw_ctx(const bContext *C, float dither, bo
   return IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, nullptr, dither, predivide);
 }
 
+bool IMB_colormanagement_setup_glsl_draw_to_scene_linear(const char *from_colorspace_name,
+                                                         const bool predivide)
+{
+  OCIO_ConstConfigRcPtr *config = OCIO_getCurrentConfig();
+
+  global_gpu_state.gpu_shader_bound = OCIO_gpuToSceneLinearShaderBind(
+      config, from_colorspace_name, predivide);
+
+  OCIO_configRelease(config);
+
+  return global_gpu_state.gpu_shader_bound;
+}
+
 void IMB_colormanagement_finish_glsl_draw()
 {
   if (global_gpu_state.gpu_shader_bound) {
-    OCIO_gpuDisplayShaderUnbind();
+    OCIO_gpuShaderUnbind();
     global_gpu_state.gpu_shader_bound = false;
   }
 }

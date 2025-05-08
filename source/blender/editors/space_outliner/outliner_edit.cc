@@ -211,6 +211,7 @@ static wmOperatorStatus outliner_item_openclose_modal(bContext *C,
 {
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  OpenCloseData *data = (OpenCloseData *)op->customdata;
 
   float view_mval[2];
   UI_view2d_region_to_view(
@@ -218,8 +219,6 @@ static wmOperatorStatus outliner_item_openclose_modal(bContext *C,
 
   if (event->type == MOUSEMOVE) {
     TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);
-
-    OpenCloseData *data = (OpenCloseData *)op->customdata;
 
     /* Only openclose if mouse is not over the previously toggled element */
     if (te && TREESTORE(te) != data->prev_tselem) {
@@ -240,7 +239,7 @@ static wmOperatorStatus outliner_item_openclose_modal(bContext *C,
     }
   }
   else if (event->val == KM_RELEASE) {
-    MEM_freeN(op->customdata);
+    MEM_freeN(data);
 
     return OPERATOR_FINISHED;
   }
@@ -344,7 +343,7 @@ static void do_item_rename(ARegion *region,
            TSE_RNA_PROPERTY,
            TSE_RNA_ARRAY_ELEM,
            TSE_ID_BASE) ||
-      ELEM(tselem->type, TSE_SCENE_OBJECTS_BASE, TSE_GENERIC_LABEL))
+      ELEM(tselem->type, TSE_SCENE_OBJECTS_BASE, TSE_GENERIC_LABEL, TSE_GPENCIL_EFFECT_BASE))
   {
     BKE_report(reports, RPT_INFO, "Not an editable name");
   }
@@ -2429,19 +2428,19 @@ static void outliner_orphans_purge_ui(bContext * /*C*/, wmOperator *op)
 
   std::string unused_message;
   unused_message_gen(unused_message, data.num_local);
-  uiLayout *column = uiLayoutColumn(layout, true);
+  uiLayout *column = &layout->column(true);
   uiItemR(column, ptr, "do_local_ids", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiLayout *row = uiLayoutRow(column, true);
+  uiLayout *row = &column->row(true);
   uiItemS_ex(row, 2.67f);
-  uiItemL(row, unused_message, ICON_NONE);
+  row->label(unused_message, ICON_NONE);
 
   unused_message = "";
   unused_message_gen(unused_message, data.num_linked);
-  column = uiLayoutColumn(layout, true);
+  column = &layout->column(true);
   uiItemR(column, ptr, "do_linked_ids", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  row = uiLayoutRow(column, true);
+  row = &column->row(true);
   uiItemS_ex(row, 2.67f);
-  uiItemL(row, unused_message, ICON_NONE);
+  row->label(unused_message, ICON_NONE);
 
   uiItemR(layout, ptr, "do_recursive", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }

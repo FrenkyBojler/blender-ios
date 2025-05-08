@@ -5,6 +5,7 @@
 #pragma once
 
 #include "BLI_index_mask.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
 #include <optional>
@@ -25,7 +26,7 @@ class Node;
 namespace blender::ed::sculpt_paint::brushes {
 
 /** Represents the result of one or more BVH queries to find a brush's affected nodes. */
-struct NodeMaskResult {
+struct CursorSampleResult {
   IndexMask node_mask;
 
   /* For planar brushes, the plane center and normal are calculated based on the original cursor
@@ -39,6 +40,13 @@ void do_clay_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &ob,
                    const IndexMask &node_mask);
+/**
+ * Basic principles of the clay strips brush:
+ * * Calculate a brush plane from an initial node mask
+ * * Use this center position and normal to create a brush-local matrix
+ * * Use this matrix and the plane to calculate and use cube distances for
+ * * the affected area
+ */
 void do_clay_strips_brush(const Depsgraph &depsgraph,
                           const Sculpt &sd,
                           Object &ob,
@@ -46,11 +54,16 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
                           const float3 &plane_normal,
                           const float3 &plane_center);
 namespace clay_strips {
-NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
-                              Object &ob,
-                              const Brush &brush,
-                              IndexMaskMemory &memory);
-}
+float4x4 calc_local_matrix(const Brush &brush,
+                           const StrokeCache &cache,
+                           const float3 &plane_normal,
+                           const float3 &plane_center,
+                           const bool flip);
+CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
+                                  Object &ob,
+                                  const Brush &brush,
+                                  IndexMaskMemory &memory);
+}  // namespace clay_strips
 void do_clay_thumb_brush(const Depsgraph &depsgraph,
                          const Sculpt &sd,
                          Object &ob,
@@ -106,14 +119,6 @@ void do_enhance_details_brush(const Depsgraph &depsgraph,
                               const Sculpt &sd,
                               Object &object,
                               const IndexMask &node_mask);
-void do_fill_brush(const Depsgraph &depsgraph,
-                   const Sculpt &sd,
-                   Object &object,
-                   const IndexMask &node_mask);
-void do_flatten_brush(const Depsgraph &depsgraph,
-                      const Sculpt &sd,
-                      Object &ob,
-                      const IndexMask &node_mask);
 void do_plane_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
@@ -122,10 +127,10 @@ void do_plane_brush(const Depsgraph &depsgraph,
                     const float3 &plane_center);
 
 namespace plane {
-NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
-                              Object &ob,
-                              const Brush &brush,
-                              IndexMaskMemory &memory);
+CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
+                                  Object &ob,
+                                  const Brush &brush,
+                                  IndexMaskMemory &memory);
 }
 
 void do_grab_brush(const Depsgraph &depsgraph,
@@ -172,10 +177,6 @@ void do_relax_face_sets_brush(const Depsgraph &depsgraph,
                               Object &object,
                               const IndexMask &node_mask);
 void do_rotate_brush(const Depsgraph &depsgraph,
-                     const Sculpt &sd,
-                     Object &object,
-                     const IndexMask &node_mask);
-void do_scrape_brush(const Depsgraph &depsgraph,
                      const Sculpt &sd,
                      Object &object,
                      const IndexMask &node_mask);

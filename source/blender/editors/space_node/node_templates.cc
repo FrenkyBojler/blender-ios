@@ -538,10 +538,10 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       }
 
       if (first) {
-        column = uiLayoutColumn(layout, false);
+        column = &layout->column(false);
         UI_block_layout_set_current(block, column);
 
-        uiItemL(column, IFACE_(cname), ICON_NODE);
+        column->label(IFACE_(cname), ICON_NODE);
         but = block->buttons.last().get();
 
         first = 0;
@@ -550,7 +550,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       if (num > 1) {
         if (!cur_node_name || !STREQ(cur_node_name, item.node_name)) {
           cur_node_name = item.node_name;
-          /* XXX Do not use uiItemL here,
+          /* XXX Do not use uiLayout::label here,
            * it would add an empty icon as we are in a menu! */
           uiDefBut(block,
                    UI_BTYPE_LABEL,
@@ -616,7 +616,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
   bke::bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
   UI_block_layout_set_current(block, layout);
-  split = uiLayoutSplit(layout, 0.0f, false);
+  split = &layout->split(0.0f, false);
 
   arg->bmain = bmain;
   arg->scene = scene;
@@ -626,11 +626,11 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
     ntreetype->foreach_nodeclass(arg, node_menu_column_foreach_cb);
   }
 
-  column = uiLayoutColumn(split, false);
+  column = &split->column(false);
   UI_block_layout_set_current(block, column);
 
   if (sock->link) {
-    uiItemL(column, IFACE_("Link"), ICON_NONE);
+    column->label(IFACE_("Link"), ICON_NONE);
     but = block->buttons.last().get();
     but->drawflag = UI_BUT_TEXT_LEFT;
 
@@ -739,8 +739,7 @@ static void ui_node_draw_recursive(uiLayout &layout,
   const nodes::SocketDeclaration *panel_toggle_decl = panel_decl.panel_input_decl();
   const std::string panel_id = fmt::format(
       "{}_{}_{}", ntree.id.name, node.identifier, panel_decl.identifier);
-  PanelLayout panel_layout = uiLayoutPanel(
-      &C, &layout, panel_id.c_str(), panel_decl.default_collapsed);
+  PanelLayout panel_layout = layout.panel(&C, panel_id.c_str(), panel_decl.default_collapsed);
   if (panel_toggle_decl) {
     uiLayoutSetPropSep(panel_layout.header, false);
     uiLayoutSetPropDecorate(panel_layout.header, false);
@@ -754,7 +753,7 @@ static void ui_node_draw_recursive(uiLayout &layout,
             ICON_NONE);
   }
   else {
-    uiItemL(panel_layout.header, panel_decl.name, ICON_NONE);
+    panel_layout.header->label(panel_decl.name, ICON_NONE);
   }
 
   if (!panel_layout.body) {
@@ -849,7 +848,7 @@ static void ui_node_draw_input(uiLayout &layout,
   PointerRNA inputptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &input);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
-  row = uiLayoutRow(&layout, true);
+  row = &layout.row(true);
 
   uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(row);
   /* Decorations are added manually here. */
@@ -858,7 +857,7 @@ static void ui_node_draw_input(uiLayout &layout,
   bool add_dummy_decorator = false;
 
   {
-    uiLayout *sub = uiLayoutRow(split_wrapper.label_column, true);
+    uiLayout *sub = &split_wrapper.label_column->row(true);
 
     if (depth > 0) {
       UI_block_emboss_set(block, blender::ui::EmbossType::None);
@@ -873,13 +872,13 @@ static void ui_node_draw_input(uiLayout &layout,
       UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
     }
 
-    sub = uiLayoutRow(sub, true);
+    sub = &sub->row(true);
     uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
-    uiItemL(sub, node_socket_get_label(&input, panel_label), ICON_NONE);
+    sub->label(node_socket_get_label(&input, panel_label), ICON_NONE);
   }
 
   if (dependency_loop) {
-    uiItemL(row, RPT_("Dependency Loop"), ICON_ERROR);
+    row->label(RPT_("Dependency Loop"), ICON_ERROR);
     add_dummy_decorator = true;
   }
   else if (lnode) {
@@ -896,7 +895,7 @@ static void ui_node_draw_input(uiLayout &layout,
     }
   }
   else {
-    uiLayout *sub = uiLayoutRow(row, true);
+    uiLayout *sub = &row->row(true);
 
     uiTemplateNodeLink(sub, &C, &ntree, &node, &input);
 
@@ -908,7 +907,7 @@ static void ui_node_draw_input(uiLayout &layout,
       switch (input.type) {
         case SOCK_VECTOR:
           uiItemS(sub);
-          sub = uiLayoutColumn(sub, true);
+          sub = &sub->column(true);
           ATTR_FALLTHROUGH;
         case SOCK_FLOAT:
         case SOCK_INT:
@@ -939,7 +938,7 @@ static void ui_node_draw_input(uiLayout &layout,
           break;
         }
         case SOCK_MENU:
-          uiItemL(sub, RPT_("Unsupported Menu Socket"), ICON_NONE);
+          sub->label(RPT_("Unsupported Menu Socket"), ICON_NONE);
           break;
         case SOCK_CUSTOM:
           input.typeinfo->draw(&C, sub, &inputptr, &nodeptr, input.name);

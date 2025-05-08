@@ -41,7 +41,7 @@ blender::bke::subdiv::Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgrap
 
   if (depsgraph != nullptr) {
     Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-    Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+    Object *object_eval = DEG_get_evaluated(depsgraph, object);
     base_mesh = mesh_get_eval_deform(depsgraph, scene_eval, object_eval, &CD_MASK_BAREMESH);
   }
   else {
@@ -565,7 +565,7 @@ static void allocate_displacement_grid(MDisps *displacement_grid, const int leve
 {
   const int grid_size = blender::bke::subdiv::grid_size_from_level(level);
   const int grid_area = grid_size * grid_size;
-  float(*disps)[3] = MEM_calloc_arrayN<float[3]>(size_t(grid_area), "multires disps");
+  float(*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
   if (displacement_grid->disps != nullptr) {
     MEM_freeN(displacement_grid->disps);
   }
@@ -613,7 +613,7 @@ static void ensure_mask_grids(Mesh *mesh, const int level)
       MEM_freeN(grid_paint_mask->data);
     }
     /* TODO(sergey): Preserve data on the old level. */
-    grid_paint_mask->data = MEM_calloc_arrayN<float>(size_t(grid_area), "gpm.data");
+    grid_paint_mask->data = MEM_calloc_arrayN<float>(grid_area, "gpm.data");
   }
 }
 

@@ -229,11 +229,11 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiItemPointerR(
       row, ptr, "target_vertex_group", &ob_ptr, "vertex_groups", std::nullopt, ICON_NONE);
 
-  sub = uiLayoutRow(row, true);
+  sub = &row->row(true);
   bool has_output = RNA_string_length(ptr, "target_vertex_group") != 0;
   uiLayoutSetPropDecorate(sub, false);
   uiLayoutSetActive(sub, has_output);
@@ -246,8 +246,8 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiItemR(layout, ptr, "minimum_weight", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiItemR(layout, ptr, "use_multiply", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
