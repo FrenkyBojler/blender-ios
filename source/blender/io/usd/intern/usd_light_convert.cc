@@ -44,8 +44,6 @@ static CLG_LogRef LOG = {"io.usd"};
 
 namespace usdtokens {
 // Attribute values.
-static const pxr::TfToken pole_axis_scene("scene", pxr::TfToken::Immortal);
-static const pxr::TfToken pole_axis_z("Z", pxr::TfToken::Immortal);
 static const pxr::TfToken pole_axis_y("Y", pxr::TfToken::Immortal);
 }  // namespace usdtokens
 
