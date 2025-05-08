@@ -871,7 +871,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
   uiLayoutSetActive(row, affects_output);
   uiLayoutSetPropDecorate(row, false);
 
-  /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
+  /* Use #uiItemPointerR to draw pointer properties because #uiLayout::prop would not have enough
    * information about what type of ID to select for editing the values. This is because
    * pointer IDProperties contain no information about their type. */
   const char *name = socket.name ? socket.name : "";

@@ -2321,7 +2321,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                          nullptr);
 }
 
-/* Drawing the properties manually with #uiItemR instead of #uiDefAutoButsRNA allows using
+/* Drawing the properties manually with #uiLayout::prop instead of #uiDefAutoButsRNA allows using
  * the node socket identifier for the property names, since they are unique, but also having
  * the correct label displayed in the UI. */
 static void draw_property_for_socket(DrawGroupInputsContext &ctx,
@@ -2350,7 +2350,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   uiLayoutSetPropDecorate(row, true);
   uiLayoutSetActive(row, ctx.input_usages[input_index]);
 
-  /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
+  /* Use #uiItemPointerR to draw pointer properties because #uiLayout::prop would not have enough
    * information about what type of ID to select for editing the values. This is because
    * pointer IDProperties contain no information about their type. */
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();

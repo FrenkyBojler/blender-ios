@@ -73,7 +73,7 @@
 
 namespace blender::ed::space_node {
 
-/* Default flags for uiItemR(). Name is kept short since this is used a lot in this file. */
+/* Default flags for uiLayout::prop(). Name is kept short since this is used a lot in this file. */
 #define DEFAULT_FLAGS UI_ITEM_R_SPLIT_EMPTY_NAME
 
 /* ****************** SOCKET BUTTON DRAW FUNCTIONS ***************** */

@@ -214,8 +214,8 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
   uiLayoutSetPropSep(layout, false);
 
   /* Preset selector */
-  /* There is probably potential to use simpler "uiItemR" functions here, but automatic updating
-   * after a preset is selected would be more complicated. */
+  /* There is probably potential to use simpler "uiLayout::prop" functions here, but automatic
+   * updating after a preset is selected would be more complicated. */
   uiLayout *row = &layout->row(true);
   RNAUpdateCb *presets_cb = MEM_new<RNAUpdateCb>(__func__, cb);
   bt = uiDefBlockBut(block,
