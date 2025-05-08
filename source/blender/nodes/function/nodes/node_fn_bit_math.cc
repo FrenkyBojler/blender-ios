@@ -114,7 +114,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   for (const auto &item : bit_math_operation_items) {
     if (item.name != nullptr && item.identifier[0] != '\0') {
       params.add_item(
-          IFACE_(item.name), SocketSearchOp{"Value", BitMathOperation(item.value)}, weight);
+          IFACE_(item.name), SocketSearchOp{"A", BitMathOperation(item.value)}, weight);
     }
   }
 }
