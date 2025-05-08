@@ -2543,22 +2543,21 @@ void uiItemFullR(uiLayout *layout,
   }
 }
 
-void uiItemR(uiLayout *layout,
-             PointerRNA *ptr,
-             const StringRefNull propname,
-             const eUI_Item_Flag flag,
-             const std::optional<StringRefNull> name,
-             int icon)
+void uiLayout::prop(PointerRNA *ptr,
+                    const StringRefNull propname,
+                    const eUI_Item_Flag flag,
+                    const std::optional<StringRefNull> name,
+                    int icon)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
   if (!prop) {
-    ui_item_disabled(layout, propname.c_str());
+    ui_item_disabled(this, propname.c_str());
     RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
 
-  uiItemFullR(layout, ptr, prop, RNA_NO_INDEX, 0, flag, name, icon);
+  uiItemFullR(this, ptr, prop, RNA_NO_INDEX, 0, flag, name, icon);
 }
 
 void uiItemFullR_with_popover(uiLayout *layout,

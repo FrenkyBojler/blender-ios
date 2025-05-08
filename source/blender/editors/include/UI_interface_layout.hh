@@ -238,6 +238,11 @@ struct uiLayout : uiItem {
 
   /** Adds a label item that will display text and/or icon in the layout. */
   void label(blender::StringRef name, int icon);
+  void prop(PointerRNA *ptr,
+            blender::StringRefNull propname,
+            eUI_Item_Flag flag,
+            std::optional<blender::StringRefNull> name,
+            int icon);
 };
 
 enum {
@@ -500,12 +505,6 @@ void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              const char *menu_id, /* extra menu arg. */
                              PointerRNA *r_opptr);
 
-void uiItemR(uiLayout *layout,
-             PointerRNA *ptr,
-             blender::StringRefNull propname,
-             eUI_Item_Flag flag,
-             std::optional<blender::StringRefNull> name,
-             int icon);
 void uiItemFullR(uiLayout *layout,
                  PointerRNA *ptr,
                  PropertyRNA *prop,
