@@ -10385,7 +10385,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
               if (region->regiontype == RGN_TYPE_WINDOW) {
                 region->v2d.keepzoom |= V2D_KEEPZOOM;
                 region->v2d.keepofs |= V2D_KEEPOFS_X | V2D_KEEPOFS_Y;
-                region->v2d.flag |= V2D_ZOOM_IGNORE_KEEPOFS;
               }
             }
           }
@@ -10614,6 +10613,38 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 65)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_SEQ) {
+            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                   &sl->regionbase;
+            LISTBASE_FOREACH (ARegion *, region, regionbase) {
+              if (region->regiontype == RGN_TYPE_WINDOW) {
+                region->v2d.flag |= V2D_ZOOM_IGNORE_KEEPOFS;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 66)) {
+    /* Clear unused draw flag (used to be SEQ_DRAW_BACKDROP). */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_SEQ) {
+            SpaceSeq *space_sequencer = (SpaceSeq *)sl;
+            space_sequencer->draw_flag &= ~SEQ_DRAW_UNUSED_0;
+          }
+        }
+      }
+    }
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
