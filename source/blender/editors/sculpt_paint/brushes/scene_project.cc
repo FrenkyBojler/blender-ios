@@ -55,6 +55,7 @@ inline namespace scene_project_cc {
 
 struct LocalData {
   Vector<float3> positions;
+  Vector<float3> ray_origins;
   Vector<float> hit_distances;
   Vector<float> factors;
   Vector<float> distances;
@@ -118,13 +119,13 @@ static void object_raycast(const ProjectBrushTarget &project_target,
                            const float3 &normal,
                            const Span<float3> positions,
                            const Span<float> factors,
+                           const MutableSpan<float3> ray_origins,
                            const MutableSpan<float> best_hit_distances)
 {
   /* Positions and normal are in the coordinate system of the active object. Convert them to the
    * coordinate system of the target. */
   const float3 ray_direction = math::transform_direction(project_target.active_to_target_matrix,
                                                          normal);
-  Array<float3> ray_origins(positions.size());
 
   for (const int i : positions.index_range()) {
     ray_origins[i] = math::transform_point(project_target.active_to_target_matrix, positions[i]);
@@ -160,12 +161,19 @@ static void scene_raycast(const MutableSpan<ProjectBrushTarget> project_targets,
                           const float3 &normal,
                           const Span<float3> positions,
                           const Span<float> factors,
+                          const MutableSpan<float3> ray_origins,
                           const MutableSpan<float> r_hit_distances)
 {
   r_hit_distances.fill(BVH_RAYCAST_DIST_MAX);
 
   for (const int i : project_targets.index_range()) {
-    object_raycast(project_targets[i], bidirectional, normal, positions, factors, r_hit_distances);
+    object_raycast(project_targets[i],
+                   bidirectional,
+                   normal,
+                   positions,
+                   factors,
+                   ray_origins,
+                   r_hit_distances);
   }
 
   /* Set hit distances to zero for vertices with no hits, preventing displacement. */
@@ -281,11 +289,17 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> positions = tls.positions;
   gather_data_mesh(position_data.eval, verts, positions);
 
+  tls.ray_origins.resize(verts.size());
   tls.hit_distances.resize(verts.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
 
-  scene_raycast(
-      ss.cache->project_targets, bidirectional, normal, positions, tls.factors, hit_distances);
+  scene_raycast(ss.cache->project_targets,
+                bidirectional,
+                normal,
+                positions,
+                tls.factors,
+                tls.ray_origins,
+                hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
                          normal,
@@ -321,10 +335,16 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   calc_factors_common_grids(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
 
+  tls.ray_origins.resize(positions.size());
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  scene_raycast(
-      ss.cache->project_targets, bidirectional, normal, positions, tls.factors, hit_distances);
+  scene_raycast(ss.cache->project_targets,
+                bidirectional,
+                normal,
+                positions,
+                tls.factors,
+                tls.ray_origins,
+                hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
                          normal,
@@ -359,10 +379,16 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   calc_factors_common_bmesh(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
 
+  tls.ray_origins.resize(positions.size());
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
-  scene_raycast(
-      ss.cache->project_targets, bidirectional, normal, positions, tls.factors, hit_distances);
+  scene_raycast(ss.cache->project_targets,
+                bidirectional,
+                normal,
+                positions,
+                tls.factors,
+                tls.ray_origins,
+                hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
                          normal,
