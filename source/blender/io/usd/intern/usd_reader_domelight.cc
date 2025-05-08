@@ -86,30 +86,34 @@ bool get_domeligth_color(const T &dome_light, float motionSampleTime, pxr::GfVec
 
 void USDDomeLightReader::create_object(Scene *scene, Main *bmain)
 {
-  USDImportDomeLightAttr attr;
+  USDImportDomeLightData dome_light_data;
 
   const double motionSampleTime = 0.0;
 
   if (prim_.IsA<pxr::UsdLuxDomeLight>()) {
     pxr::UsdLuxDomeLight dome_light = pxr::UsdLuxDomeLight(prim_);
-    attr.intensity = get_domeligth_intensity(dome_light, motionSampleTime);
-    attr.has_tex = get_domeligth_tex_path(dome_light, motionSampleTime, &attr.tex_path);
-    attr.has_color = get_domeligth_color(dome_light, motionSampleTime, &attr.color);
-    attr.pole_axis = usdtokens::pole_axis_scene;
+    dome_light_data.intensity = get_domeligth_intensity(dome_light, motionSampleTime);
+    dome_light_data.has_tex = get_domeligth_tex_path(
+        dome_light, motionSampleTime, &dome_light_data.tex_path);
+    dome_light_data.has_color = get_domeligth_color(
+        dome_light, motionSampleTime, &dome_light_data.color);
+    dome_light_data.pole_axis = usdtokens::pole_axis_scene;
   }
   else if (prim_.IsA<pxr::UsdLuxDomeLight_1>()) {
     pxr::UsdLuxDomeLight_1 dome_light = pxr::UsdLuxDomeLight_1(prim_);
-    attr.intensity = get_domeligth_intensity(dome_light, motionSampleTime);
-    attr.has_tex = get_domeligth_tex_path(dome_light, motionSampleTime, &attr.tex_path);
-    attr.has_color = get_domeligth_color(dome_light, motionSampleTime, &attr.color);
+    dome_light_data.intensity = get_domeligth_intensity(dome_light, motionSampleTime);
+    dome_light_data.has_tex = get_domeligth_tex_path(
+        dome_light, motionSampleTime, &dome_light_data.tex_path);
+    dome_light_data.has_color = get_domeligth_color(
+        dome_light, motionSampleTime, &dome_light_data.color);
     get_authored_value(dome_light.GetPoleAxisAttr(),
                        motionSampleTime,
                        dome_light.GetPrim(),
                        usdtokens::pole_axis,
-                       &attr.pole_axis);
+                       &dome_light_data.pole_axis);
   }
 
-  dome_light_to_world_material(import_params_, scene, bmain, attr, prim_);
+  dome_light_to_world_material(import_params_, scene, bmain, dome_light_data, prim_);
 }
 
 }  // namespace blender::io::usd

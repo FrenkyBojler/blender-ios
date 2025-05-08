@@ -15,7 +15,7 @@ struct USDImportParams;
 
 /* This struct contains all DomeLight attribute needed to
  * create a world environment */
-struct USDImportDomeLightAttr {
+struct USDImportDomeLightData {
   float intensity;
   pxr::GfVec3f color;
   pxr::SdfAssetPath tex_path;
@@ -36,7 +36,7 @@ void world_material_to_dome_light(const USDExportParams &params,
 void dome_light_to_world_material(const USDImportParams &params,
                                   Scene *scene,
                                   Main *bmain,
-                                  const USDImportDomeLightAttr &dome_light_attr,
+                                  const USDImportDomeLightData &dome_light_data,
                                   const pxr::UsdPrim &prim,
                                   const double motionSampleTime = 0.0);
 

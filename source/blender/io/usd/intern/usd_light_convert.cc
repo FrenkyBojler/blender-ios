@@ -345,7 +345,7 @@ void world_material_to_dome_light(const USDExportParams &params,
 void dome_light_to_world_material(const USDImportParams &params,
                                   Scene *scene,
                                   Main *bmain,
-                                  const USDImportDomeLightAttr &dome_light_attr,
+                                  const USDImportDomeLightData &dome_light_data,
                                   const pxr::UsdPrim &prim,
                                   const double motionSampleTime)
 {
@@ -420,18 +420,18 @@ void dome_light_to_world_material(const USDImportParams &params,
   }
 
   /* Set the background shader intensity. */
-  float intensity = dome_light_attr.intensity * params.light_intensity_scale;
+  float intensity = dome_light_data.intensity * params.light_intensity_scale;
 
   bNodeSocket *strength_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Strength");
   ((bNodeSocketValueFloat *)strength_sock->default_value)->value = intensity;
 
-  if (!dome_light_attr.has_tex) {
+  if (!dome_light_data.has_tex) {
     /* No texture file is authored on the dome light.  Set the color, if it was authored,
      * and return early. */
-    if (dome_light_attr.has_color) {
+    if (dome_light_data.has_color) {
       bNodeSocket *color_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
       copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value,
-                 dome_light_attr.color.data());
+                 dome_light_data.color.data());
     }
 
     bke::node_set_active(*ntree, *output);
@@ -444,7 +444,7 @@ void dome_light_to_world_material(const USDImportParams &params,
    * texture output. */
   bNode *mult = nullptr;
 
-  if (dome_light_attr.has_color) {
+  if (dome_light_data.has_color) {
     mult = append_node(bgshader, SH_NODE_VECTOR_MATH, "Vector", "Color", ntree, 200);
 
     if (!mult) {
@@ -462,7 +462,7 @@ void dome_light_to_world_material(const USDImportParams &params,
 
     if (vec_sock) {
       copy_v3_v3(((bNodeSocketValueVector *)vec_sock->default_value)->value,
-                 dome_light_attr.color.data());
+                 dome_light_data.color.data());
     }
     else {
       CLOG_WARN(&LOG, "Couldn't find vector multiply second vector socket");
@@ -499,12 +499,12 @@ void dome_light_to_world_material(const USDImportParams &params,
   }
 
   /* Load the texture image. */
-  std::string resolved_path = dome_light_attr.tex_path.GetResolvedPath();
+  std::string resolved_path = dome_light_data.tex_path.GetResolvedPath();
 
   if (resolved_path.empty()) {
     CLOG_WARN(&LOG,
               "Couldn't get resolved path for asset %s",
-              dome_light_attr.tex_path.GetAssetPath().c_str());
+              dome_light_data.tex_path.GetAssetPath().c_str());
     return;
   }
 
@@ -528,7 +528,7 @@ void dome_light_to_world_material(const USDImportParams &params,
   }
 
   if (pxr::UsdGeomGetStageUpAxis(stage) == pxr::UsdGeomTokens->y &&
-      dome_light_attr.pole_axis != usdtokens::pole_axis_y)
+      dome_light_data.pole_axis != usdtokens::pole_axis_y)
   {
     /* Convert from Y-up to Z-up with a 90 degree rotation about the X-axis. */
     xf *= pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0));
