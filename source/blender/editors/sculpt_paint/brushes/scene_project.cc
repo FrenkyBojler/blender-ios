@@ -266,9 +266,6 @@ static float3 calc_normal(const Brush &brush, const StrokeCache &cache)
       return -cache.view_normal_symm;
     case BRUSH_PROJECT_DIRECTION_PLANE_NORMAL:
       return cache.sculpt_normal_symm;
-    default:
-      BLI_assert_unreachable();
-      return;
   }
 }
 
