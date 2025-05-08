@@ -4923,6 +4923,7 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
   const float2 end = socket_link_connection_location(*link.tonode, *link.tosock, link);
   const float2 center = math::midpoint(start, end);
 
+  /* The rectangle that we would like to stay within if possible. */
   rctf inner_rect = v2d.cur;
   BLI_rctf_pad(&inner_rect, -(region_padding + radius), -(region_padding + radius));
 
@@ -4931,6 +4932,7 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
     return center;
   }
 
+  /* The rectangle containing all points which are valid result positions. */
   rctf outer_rect = v2d.cur;
   BLI_rctf_pad(&outer_rect, radius, radius);
 
@@ -4939,6 +4941,8 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
   node_link_bezier_points_evaluated(link, link_points);
 
   const float required_socket_distance = UI_UNIT_X;
+  /* Define a cost function that returns a value that is larger the worse the given position is.
+   * The point on the link with the lowest cost will be picked. */
   const auto cost_function = [&](const float2 &p) -> float {
     const float distance_to_socket = std::min(math::distance(p, start), math::distance(p, end));
     const float distance_to_inner_rect = std::max(BLI_rctf_length_x(&inner_rect, p.x),
@@ -4950,6 +4954,10 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
     return distance_to_center + 10.0 * distance_to_inner_rect;
   };
 
+  /* Iterate over visible points on the link, compute the cost of each and pick the best one. A
+   * more direct algorithm to find a good position would be nice. However, that seems to be
+   * surprisingly tricky to achieve without resulting in very "jumpy" positions, especially when
+   * the link is colinear to the region border. */
   float best_cost;
   std::optional<float2> best_position;
   for (const int i : IndexRange(link_points.size() - 1)) {
@@ -4963,6 +4971,8 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
     const std::array<float2, 2> &clamped = *clamped_opt;
     const float length = math::distance(clamped[0], clamped[1]);
     const float point_distance = 1.0f;
+    /* Might be possible to do a smarter scan of the cost function using some sort of binary sort,
+     * but it's not entirely straight forward because the cost function is not monotonic. */
     const int points_to_check = std::max(2, 1 + int(length / point_distance));
     for (const int j : IndexRange(points_to_check)) {
       const float t = float(j) / (points_to_check - 1);
