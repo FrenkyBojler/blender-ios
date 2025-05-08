@@ -1,0 +1,1 @@
+Referenced by commit 12decaf13c2b10581fbc0577a6444c64c8343a9e, Fix: Use after free after recent image pool lock cleanup
