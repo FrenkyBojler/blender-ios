@@ -445,7 +445,9 @@ USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
   }
 
   if (prim.IsA<pxr::UsdLuxDomeLight>() || prim.IsA<pxr::UsdLuxDomeLight_1>()) {
-    dome_light_readers_.append(new USDDomeLightReader(prim, params_, settings_));
+    USDDomeLightReader * reader = new USDDomeLightReader(prim, params_, settings_);
+    reader->incref();
+    dome_light_readers_.append(reader);
   }
 
   pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
