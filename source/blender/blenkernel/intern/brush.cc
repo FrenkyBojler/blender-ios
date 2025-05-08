@@ -590,6 +590,26 @@ bool BKE_brush_delete(Main *bmain, Brush *brush)
   return true;
 }
 
+Brush *BKE_brush_duplicate(Main *bmain, Brush *brush)
+{
+  const eDupli_ID_Flags dup_flag = USER_DUP_LINKED_ID;
+  const int id_copy_flag = LIB_ID_COPY_DEFAULT;
+
+  Brush *new_brush = reinterpret_cast<Brush *>(
+      BKE_id_copy_for_duplicate(bmain, &brush->id, dup_flag, id_copy_flag));
+
+  auto dependencies_cb = [&](LibraryIDLinkCallbackData *cb_data) -> int {
+    BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dup_flag, id_copy_flag);
+    return IDWALK_NOP;
+  };
+
+  BKE_library_foreach_ID_link(bmain, &new_brush->id, dependencies_cb, nullptr, IDWALK_RECURSE);
+
+  BKE_libblock_relink_to_newid(bmain, &new_brush->id, 0);
+
+  return new_brush;
+}
+
 void BKE_brush_init_curves_sculpt_settings(Brush *brush)
 {
   if (brush->curves_sculpt_settings == nullptr) {

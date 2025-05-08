@@ -44,6 +44,11 @@ Brush *BKE_brush_add(Main *bmain, const char *name, eObjectMode ob_mode);
  * Delete a Brush.
  */
 bool BKE_brush_delete(Main *bmain, Brush *brush);
+
+/**
+ * Perform a deep copy of a Brush and any children datablocks.
+ */
+Brush *BKE_brush_duplicate(Main *bmain, Brush *brush);
 /**
  * Add grease pencil settings.
  */
