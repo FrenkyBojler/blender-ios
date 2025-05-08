@@ -310,7 +310,7 @@ static void v3d_editvertex_buts(
     const bContext *C, uiLayout *layout, View3D *v3d, Object *ob, float lim)
 {
   using namespace blender;
-  uiBlock *block = (layout) ? uiLayoutAbsoluteBlock(layout) : nullptr;
+  uiBlock *block = (layout) ? layout->absolute_block() : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   TransformMedian median_basis, ve_median_basis;
   int tot, totedgedata, totcurvedata, totlattdata, totcurvebweight;
@@ -1311,7 +1311,7 @@ static void v3d_editvertex_buts(
 
 static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d, Object *ob)
 {
-  uiBlock *block = (layout) ? uiLayoutAbsoluteBlock(layout) : nullptr;
+  uiBlock *block = (layout) ? layout->absolute_block() : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   const bool is_editable = ID_IS_EDITABLE(&ob->id);
 
@@ -1428,7 +1428,7 @@ static void update_active_vertex_weight(bContext *C, void *arg1, void * /*arg2*/
 
 static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 {
-  uiBlock *block = uiLayoutAbsoluteBlock(panel->layout);
+  uiBlock *block = panel->layout->absolute_block();
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -1481,7 +1481,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
         if (dw) {
           int x, xco = 0;
           int icon;
-          uiLayout *split = uiLayoutSplit(col, 0.45, true);
+          uiLayout *split = &col->split(0.45, true);
           row = &split->row(true);
 
           /* The Weight Group Name */
@@ -1603,7 +1603,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
 {
   uiLayout *split, *colsub;
 
-  split = uiLayoutSplit(layout, 0.8f, false);
+  split = &layout->split(0.8f, false);
 
   if (ptr->type == &RNA_PoseBone) {
     PointerRNA boneptr;
@@ -1625,7 +1625,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
           "",
           ICON_DECORATE_UNLOCKED);
 
-  split = uiLayoutSplit(layout, 0.8f, false);
+  split = &layout->split(0.8f, false);
 
   switch (RNA_enum_get(ptr, "rotation_mode")) {
     case ROT_MODE_QUAT: /* quaternion */
@@ -1692,7 +1692,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
   }
   uiItemR(layout, ptr, "rotation_mode", UI_ITEM_NONE, "", ICON_NONE);
 
-  split = uiLayoutSplit(layout, 0.8f, false);
+  split = &layout->split(0.8f, false);
   colsub = &split->column(true);
   uiItemR(colsub, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   colsub = &split->column(true);

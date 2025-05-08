@@ -22,6 +22,8 @@
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
 
+#include "BLO_core_bhead.hh"
+#include "BLO_core_blend_header.hh"
 #include "BLO_readfile.hh"
 
 struct BlendFileData;
@@ -69,6 +71,7 @@ struct FileData {
   ListBase bhead_list = {};
   enum eFileDataFlag flags = eFileDataFlag(0);
   bool is_eof = false;
+  BlenderHeader blender_header = {};
 
   FileReader *file = nullptr;
 
@@ -156,8 +159,6 @@ struct FileData {
   /** Opaque handle to the storage system used for non-static allocation strings. */
   void *storage_handle = nullptr;
 };
-
-#define SIZEOFBLENDERHEADER 12
 
 /***/
 void blo_join_main(ListBase *mainlist);
