@@ -55,6 +55,7 @@ static VertAttrType vertex_format_combine(GPUVertCompType component_type,
         default:
           break;
       }
+      break;
     }
     case GPU_COMP_U8: {
       switch (fetch_mode) {
@@ -73,6 +74,7 @@ static VertAttrType vertex_format_combine(GPUVertCompType component_type,
         default:
           break;
       }
+      break;
     }
     case GPU_COMP_I16: {
       switch (fetch_mode) {
@@ -95,6 +97,7 @@ static VertAttrType vertex_format_combine(GPUVertCompType component_type,
         default:
           break;
       }
+      break;
     }
     case GPU_COMP_U16: {
       switch (fetch_mode) {
@@ -117,6 +120,7 @@ static VertAttrType vertex_format_combine(GPUVertCompType component_type,
         default:
           break;
       }
+      break;
     }
     case GPU_COMP_I32: {
       switch (fetch_mode) {
