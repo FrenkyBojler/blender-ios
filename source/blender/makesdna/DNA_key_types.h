@@ -18,39 +18,45 @@
 struct AnimData;
 struct Ipo;
 
+/**
+ * The struct that holds the data for an individual Shape Key. Depending on which object owns the
+ * `Key`, the contained data type can vary (see `void *data;`).
+ */
 typedef struct KeyBlock {
   struct KeyBlock *next, *prev;
 
   /**
-   * point in time   (Key->type == KEY_NORMAL) only,
+   * A point in time used in case of `(Key->type == KEY_NORMAL)` only,
    * for historic reasons this is relative to (Key->ctime / 100),
    * so this value increments by 0.1f per frame.
    */
   float pos;
-  /** influence (typically [0 - 1] but can be more), `(Key->type == KEY_RELATIVE)` only. */
+  /** Influence (typically [0 - 1] but can be more), `(Key->type == KEY_RELATIVE)` only. */
   float curval;
 
-  /** Interpolation type `(Key->type == KEY_NORMAL)` only. */
+  /** Interpolation type. Used for `(Key->type == KEY_NORMAL)` only (eKeyInterpolationType). */
   short type;
   char _pad1[2];
 
-  /** relative == 0 means first key is reference, otherwise the index of Key->blocks */
+  /** `relative == 0` means first key is reference, otherwise the index of Key->blocks. */
   short relative;
+  /* eKeyBlockFlag */
   short flag;
 
-  /** total number if items in the keyblock (compare with mesh/curve verts to check we match) */
+  /** Total number of items in the keyblock (compare with mesh/curve verts to check we match). */
   int totelem;
-  /** for meshes only, match the unique number with the customdata layer */
+  /** For meshes only, match the unique number with the customdata layer. */
   int uid;
 
-  /** array of shape key values, size is `(Key->elemsize * KeyBlock->totelem)` */
+  /** Array of shape key values, size is `(Key->elemsize * KeyBlock->totelem)`.
+   * E.g. meshes use float3. */
   void *data;
-  /** MAX_NAME (unique name, user assigned) */
+  /** MAX_NAME (unique name, user assigned). */
   char name[64];
-  /** MAX_VGROUP_NAME (optional vertex group), array gets allocated into 'weights' when set */
+  /** MAX_VGROUP_NAME (optional vertex group), array gets allocated into 'weights' when set. */
   char vgroup[64];
 
-  /** ranges, for RNA and UI only to clamp 'curval' */
+  /** Ranges, for RNA and UI only to clamp 'curval'. */
   float slidermin;
   float slidermax;
 
@@ -67,9 +73,9 @@ typedef struct Key {
   struct AnimData *adt;
 
   /**
-   * commonly called 'Basis', `(Key->type == KEY_RELATIVE)` only.
-   * Looks like this is  _always_ 'key->block.first',
-   * perhaps later on it could be defined as some other KeyBlock - campbell
+   * Commonly called 'Basis', `(Key->type == KEY_RELATIVE)` only.
+   * Looks like this is _always_ 'key->block.first',
+   * perhaps later on it could be defined as some other KeyBlock - campbell.
    */
   KeyBlock *refkey;
 
@@ -82,17 +88,18 @@ typedef struct Key {
   int elemsize;
   char _pad[4];
 
-  /** list of KeyBlock's */
+  /** A list of KeyBlock's. */
   ListBase block;
-  /** old animation system, deprecated for 2.5 */
+  /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
 
   ID *from;
 
-  /** (totkey == BLI_listbase_count(&key->block)) */
+  /** (totkey == BLI_listbase_count(&key->block)). */
   int totkey;
+  /* eKeyFlag */
   short flag;
-  /** absolute or relative shape key */
+  /** Absolute or relative shape key (eKeyType). */
   char type;
   char _pad2;
 
@@ -110,34 +117,34 @@ typedef struct Key {
 /* **************** KEY ********************* */
 
 /* Key->type: KeyBlocks are interpreted as... */
-enum {
+typedef enum eKeyType {
   /* Sequential positions over time (using KeyBlock->pos and Key->ctime) */
   KEY_NORMAL = 0,
 
   /* States to blend between (default) */
   KEY_RELATIVE = 1,
-};
+} eKeyType;
 
 /* Key->flag */
-enum {
+typedef enum eKeyFlag {
   KEY_DS_EXPAND = 1,
-};
+} eKeyFlag;
 
-/* KeyBlock->type */
-enum {
+/* The obvious name would be `eKeyBlockType` but this enum is actually used in places outside of
+ * Shape Keys (NURBS, particles, etc.). */
+typedef enum eKeyInterpolationType {
   KEY_LINEAR = 0,
   KEY_CARDINAL = 1,
   KEY_BSPLINE = 2,
   KEY_CATMULL_ROM = 3,
-};
+} eKeyInterpolationType;
 
-/* KeyBlock->flag */
-enum {
+typedef enum eKeyBlockFlag {
   KEYBLOCK_MUTE = (1 << 0),
   KEYBLOCK_SEL = (1 << 1),
   KEYBLOCK_LOCKED = (1 << 2),
   KEYBLOCK_LOCKED_SHAPE = (1 << 3),
-};
+} eKeyBlockFlag;
 
 #define KEYELEM_FLOAT_LEN_COORD 3
 
