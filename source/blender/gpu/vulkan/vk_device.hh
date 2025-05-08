@@ -9,6 +9,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -85,8 +86,6 @@ struct VKWorkarounds {
  * Shared resources between contexts that run in the same thread.
  */
 class VKThreadData : public NonCopyable, NonMovable {
-  static constexpr uint32_t resource_pools_count = 3;
-
  public:
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
@@ -97,7 +96,7 @@ class VKThreadData : public NonCopyable, NonMovable {
    * NOTE: Initialized to `UINT32_MAX` to detect first change.
    */
   uint32_t resource_pool_index = UINT32_MAX;
-  std::array<VKResourcePool, NUM_FRAMES_IN_FLIGHT> resource_pools;
+  Vector<std::unique_ptr<VKResourcePool>> resource_pools;
 
   /**
    * The current rendering depth.
@@ -109,7 +108,7 @@ class VKThreadData : public NonCopyable, NonMovable {
    */
   int32_t rendering_depth = 0;
 
-  VKThreadData(VKDevice &device, pthread_t thread_id);
+  VKThreadData(VKDevice &device, pthread_t thread_id, uint32_t num_frames_in_flight);
   void deinit(VKDevice &device);
 
   /**
@@ -118,9 +117,9 @@ class VKThreadData : public NonCopyable, NonMovable {
   VKResourcePool &resource_pool_get()
   {
     if (resource_pool_index >= resource_pools.size()) {
-      return resource_pools[0];
+      return *resource_pools[0];
     }
-    return resource_pools[resource_pool_index];
+    return *resource_pools[resource_pool_index];
   }
 
   /** Activate the next resource pool. */
@@ -130,7 +129,7 @@ class VKThreadData : public NonCopyable, NonMovable {
       resource_pool_index = 1;
     }
     else {
-      resource_pool_index = (resource_pool_index + 1) % resource_pools_count;
+      resource_pool_index = (resource_pool_index + 1) % resource_pools.size();
     }
   }
 };
@@ -214,6 +213,7 @@ class VKDevice : public NonCopyable {
   std::string glsl_frag_patch_;
   std::string glsl_comp_patch_;
   Vector<VKThreadData *> thread_data_;
+  uint32_t num_frames_in_flight_;
 
  public:
   render_graph::VKResourceStateTracker resources;

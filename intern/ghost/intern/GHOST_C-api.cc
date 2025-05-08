@@ -1274,4 +1274,9 @@ void GHOST_GetVulkanSwapChainFormat(GHOST_WindowHandle windowhandle,
   window->getVulkanSwapChainFormat(r_swap_chain_data);
 }
 
+void GHOST_GetVulkanNumFramesInFlight(GHOST_ContextHandle contexthandle, uint32_t &r_num_frames) {
+  GHOST_IContext *context = (GHOST_IContext *)contexthandle;
+  context->getVulkanNumFramesInFlight(r_num_frames);
+}
+
 #endif /* WITH_VULKAN_BACKEND */

@@ -51,6 +51,15 @@ class GHOST_IContext {
 
 #ifdef WITH_VULKAN_BACKEND
   /**
+   * Get the number of frames that GHOST manages in Vulkan backend.
+   *
+   * The number of frames in flight is guaranteed to be constant, and it is safe for
+   * callers to maintain datastructures that are synchronized with these frames (e.g. frame
+   * specific resources). Note that this is different than the number of swapchain images.
+   */
+  virtual GHOST_TSuccess getVulkanNumFramesInFlight(uint32_t &r_num_frames) = 0;
+
+  /**
    * Get Vulkan handles for the given context.
    *
    * These handles are the same for a given context.

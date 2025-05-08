@@ -6,11 +6,13 @@
  * \ingroup gpu
  */
 
+#include <memory>
 #include <sstream>
 
 #include "vk_backend.hh"
 #include "vk_context.hh"
 #include "vk_device.hh"
+#include "vk_resource_pool.hh"
 #include "vk_state_manager.hh"
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
@@ -90,6 +92,7 @@ void VKDevice::init(void *ghost_context)
   BLI_assert(!is_initialized());
   GHOST_VulkanHandles handles = {};
   GHOST_GetVulkanHandles((GHOST_ContextHandle)ghost_context, &handles);
+  GHOST_GetVulkanNumFramesInFlight((GHOST_ContextHandle)ghost_context, num_frames_in_flight_);
   vk_instance_ = handles.instance;
   vk_physical_device_ = handles.physical_device;
   vk_device_ = handles.device;
@@ -445,17 +448,20 @@ std::string VKDevice::driver_version() const
 /** \name VKThreadData
  * \{ */
 
-VKThreadData::VKThreadData(VKDevice &device, pthread_t thread_id) : thread_id(thread_id)
+VKThreadData::VKThreadData(VKDevice &device, pthread_t thread_id, uint32_t num_frames_in_flight)
+    : thread_id(thread_id)
 {
-  for (VKResourcePool &resource_pool : resource_pools) {
-    resource_pool.init(device);
+  for (size_t i = 0; i < num_frames_in_flight; i++) {
+    auto resource_pool = std::make_unique<VKResourcePool>();
+    resource_pool->init(device);
+    resource_pools.append(std::move(resource_pool));
   }
 }
 
 void VKThreadData::deinit(VKDevice &device)
 {
-  for (VKResourcePool &resource_pool : resource_pools) {
-    resource_pool.deinit(device);
+  for (auto &resource_pool : resource_pools) {
+    resource_pool->deinit(device);
   }
 }
 
@@ -476,7 +482,7 @@ VKThreadData &VKDevice::current_thread_data()
     }
   }
 
-  VKThreadData *thread_data = new VKThreadData(*this, current_thread_id);
+  VKThreadData *thread_data = new VKThreadData(*this, current_thread_id, num_frames_in_flight_);
   thread_data_.append(thread_data);
   return *thread_data;
 }
