@@ -334,10 +334,7 @@ static bool image_save_single(ReportList *reports,
 
   /* we need renderresult for exr and rendered multiview */
   rr = BKE_image_acquire_renderresult(opts->scene, ima);
-  const bool is_mono = rr ? BLI_listbase_count_at_most(&rr->views, 2) < 2 :
-                            BLI_listbase_count_at_most(&ima->views, 2) < 2;
-  const bool is_multiview_name = ((opts->scene->r.scemode & R_MULTIVIEW) != 0 &&
-                                  (imf->views_format == R_IMF_VIEWS_INDIVIDUAL));
+  const bool is_mono = !(rr ? RE_ResultIsMultiView(rr) : BKE_image_is_multiview(ima));
   const bool is_exr_rr = rr && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);
   const bool is_multilayer = is_exr_rr && (imf->imtype == R_IMF_IMTYPE_MULTILAYER);
@@ -416,7 +413,7 @@ static bool image_save_single(ReportList *reports,
     BKE_image_release_ibuf(ima, ibuf, lock);
   }
   /* regular mono pipeline */
-  else if (is_mono && !is_multiview_name) {
+  else if (is_mono) {
     if (is_exr_rr) {
       ok = BKE_image_render_write_exr(
           reports, rr, opts->filepath, imf, save_as_render, nullptr, layer);
@@ -1086,13 +1083,11 @@ bool BKE_image_render_write(ReportList *reports,
                                                &format->linear_colorspace_settings);
   }
 
-  const bool is_mono = BLI_listbase_count_at_most(&rr->views, 2) < 2;
+  const bool is_mono = !RE_ResultIsMultiView(rr);
   const bool is_exr_rr = ELEM(
                              image_format.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);
   const float dither = scene->r.dither_intensity;
-  const bool is_multiview_name = ((scene->r.scemode & R_MULTIVIEW) != 0 &&
-                                  (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
   if (image_format.views_format == R_IMF_VIEWS_MULTIVIEW && is_exr_rr) {
     ok = BKE_image_render_write_exr(
@@ -1101,14 +1096,12 @@ bool BKE_image_render_write(ReportList *reports,
   }
 
   /* mono, legacy code */
-  else if (is_mono || image_format.views_format == R_IMF_VIEWS_INDIVIDUAL) {
+  else if (is_mono || (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL)) {
     int view_id = 0;
     for (const RenderView *rv = (const RenderView *)rr->views.first; rv; rv = rv->next, view_id++)
     {
       char filepath[FILE_MAX];
-      /* For multiview individual files we still want the multiview filenames (even if only a
-       * single view is enabled). */
-      if (is_mono && !is_multiview_name) {
+      if (is_mono) {
         STRNCPY(filepath, filepath_basis);
       }
       else {
