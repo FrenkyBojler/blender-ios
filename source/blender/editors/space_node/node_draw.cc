@@ -9,7 +9,6 @@
 
 #include <iomanip>
 
-#include "BLI_math_geom.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_light_types.h"
