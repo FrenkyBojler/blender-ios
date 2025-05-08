@@ -9,6 +9,7 @@
 
 #include <iomanip>
 
+#include "BLI_math_geom.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_light_types.h"
@@ -4818,11 +4819,153 @@ static void draw_frame_overlays(const bContext &C,
   }
 }
 
-static void draw_link_errors(SpaceNode &snode,
+static std::optional<std::array<float2, 2>> rctf_clamp_segment(const rctf &rect,
+                                                               float2 p1,
+                                                               float2 p2)
+{
+
+  const bool p1_inside = BLI_rctf_isect_pt_v(&rect, p1);
+  const bool p2_inside = BLI_rctf_isect_pt_v(&rect, p2);
+  if (p1_inside && p2_inside) {
+    return std::array{p1, p2};
+  }
+
+  const std::array<float2, 2> top_line = {float2{rect.xmin, rect.ymax},
+                                          float2{rect.xmax, rect.ymax}};
+  const std::array<float2, 2> bottom_line = {float2{rect.xmin, rect.ymin},
+                                             float2{rect.xmax, rect.ymin}};
+  const std::array<float2, 2> left_line = {float2{rect.xmin, rect.ymin},
+                                           float2{rect.xmin, rect.ymax}};
+  const std::array<float2, 2> right_line = {float2{rect.xmax, rect.ymin},
+                                            float2{rect.xmax, rect.ymax}};
+  const std::array<std::array<float2, 2>, 4> lines = {
+      top_line, bottom_line, left_line, right_line};
+
+  if (p1_inside && !p2_inside) {
+    for (const std::array<float2, 2> &line : lines) {
+      float2 intersection;
+      if (isect_seg_seg_v2_point(p1, p2, line[0], line[1], intersection) == 1) {
+        p2 = intersection;
+      }
+    }
+    return std::array{p1, p2};
+  }
+  if (!p1_inside && p2_inside) {
+    for (const std::array<float2, 2> &line : lines) {
+      float2 intersection;
+      if (isect_seg_seg_v2_point(p1, p2, line[0], line[1], intersection) == 1) {
+        p1 = intersection;
+      }
+    }
+    return std::array{p1, p2};
+  }
+
+  for (const std::array<float2, 2> &line : lines) {
+    float2 intersection;
+    if (isect_seg_seg_v2_point(p1, p2, line[0], line[1], intersection) == 1) {
+      p1 = intersection;
+    }
+    else {
+      return std::nullopt;
+    }
+  }
+  for (const std::array<float2, 2> &line : lines) {
+    float2 intersection;
+    if (isect_seg_seg_v2_point(p2, p1, line[0], line[1], intersection) == 1) {
+      p2 = intersection;
+    }
+    else {
+      return std::nullopt;
+    }
+  }
+
+  return std::array{p1, p2};
+}
+
+static std::optional<float2> find_best_position_on_link_in_rect(const Span<float2> link_points,
+                                                                const float2 &target,
+                                                                const rctf &rect)
+{
+  std::optional<float2> best_position;
+  for (const int i : IndexRange(link_points.size() - 1)) {
+    const float2 p0 = link_points[i];
+    const float2 p1 = link_points[i + 1];
+
+    std::optional<std::array<float2, 2>> clamped_opt = rctf_clamp_segment(rect, p0, p1);
+    if (!clamped_opt.has_value()) {
+      continue;
+    }
+    float2 closest;
+    const std::array<float2, 2> &clamped = clamped_opt.value();
+    closest_to_line_segment_v2(closest, target, clamped[0], clamped[1]);
+    if (!best_position.has_value()) {
+      best_position = closest;
+    }
+    else if (math::distance(closest, target) < math::distance(best_position.value(), target)) {
+      best_position = closest;
+    }
+  }
+  return best_position;
+}
+
+/**
+ * Tries to find a position on the link where we can draw link information like an error icon. If
+ * the link center is not visible, it finds the closest point to the link center that's still
+ * visible with some padding if possible. If none such point is found, nullopt is returned.
+ */
+static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
+                                                         const bNodeLink &link,
+                                                         const float radius,
+                                                         const float region_padding)
+{
+  /* Compute center of the link because that's used as "ideal" position. */
+  const float2 start = socket_link_connection_location(*link.fromnode, *link.fromsock, link);
+  const float2 end = socket_link_connection_location(*link.tonode, *link.tosock, link);
+  const float2 center = math::midpoint(start, end);
+
+  /* Get the straight individual link segments. */
+  std::array<float2, NODE_LINK_RESOL + 1> link_points;
+  node_link_bezier_points_evaluated(link, link_points);
+
+  const auto find_position_with_padding = [&](const float pad) {
+    rctf padded_rect = v2d.cur;
+    BLI_rctf_pad(&padded_rect, pad, pad);
+    return find_best_position_on_link_in_rect(link_points, center, padded_rect);
+  };
+
+  /* Try to find a good position within the current view that also has some padding to the region
+   * boundary. */
+  std::optional<float2> best_position = find_position_with_padding(-(region_padding + radius));
+  if (best_position.has_value()) {
+    return best_position;
+  }
+
+  /* Check if the link intersects the view at all. Some padding is taken into account, because what
+   * we draw on the link has a certain size too. */
+  if (!find_position_with_padding(radius).has_value()) {
+    /* It's definitely not visible. */
+    return std::nullopt;
+  }
+  /* Make the allowed rect larger step by step until a valid position is found or we our of
+   * bounds. There might be a smarter way to do this but this seems to work well enough. It's only
+   * used for the somewhat rare case when the link is almost entirely outside the view, but not
+   * quite. */
+  for (float pad = -(region_padding + radius); pad < radius; pad += 1.0f) {
+    best_position = find_position_with_padding(pad);
+    if (best_position.has_value()) {
+      break;
+    }
+  }
+  return best_position;
+}
+
+static void draw_link_errors(const bContext &C,
+                             SpaceNode &snode,
                              const bNodeLink &link,
                              const Span<bke::NodeLinkError> errors,
                              uiBlock &invalid_links_block)
 {
+  const ARegion &region = *CTX_wm_region(&C);
   if (errors.is_empty()) {
     return;
   }
@@ -4842,17 +4985,22 @@ static void draw_link_errors(SpaceNode &snode,
     }
   }
 
-  /* Compute error icon location. Currently, the center between the two sockets is always on the
-   * link. */
-  const float2 start = socket_link_connection_location(*link.fromnode, *link.fromsock, link);
-  const float2 end = socket_link_connection_location(*link.tonode, *link.tosock, link);
-  const int2 center = int2(math::midpoint(start, end));
-
-  /* Draw a background for the error icon. */
   const float bg_radius = UI_UNIT_X * 0.5f;
   const float bg_corner_radius = UI_UNIT_X * 0.2f;
+  const float icon_size = UI_UNIT_X;
+  const float region_padding = UI_UNIT_X * 0.5f;
+
+  /* Compute error icon location. */
+  std::optional<float2> draw_position_opt = find_visible_center_of_link(
+      region.v2d, link, bg_radius, region_padding);
+  if (!draw_position_opt.has_value()) {
+    return;
+  }
+  const int2 draw_position = int2(draw_position_opt.value());
+
+  /* Draw a background for the error icon. */
   rctf bg_rect;
-  BLI_rctf_init_pt_radius(&bg_rect, float2(center), bg_radius);
+  BLI_rctf_init_pt_radius(&bg_rect, float2(draw_position), bg_radius);
   ColorTheme4f bg_color;
   UI_GetThemeColor4fv(TH_NODE, bg_color);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
@@ -4860,14 +5008,13 @@ static void draw_link_errors(SpaceNode &snode,
   UI_draw_roundbox_4fv(&bg_rect, true, bg_corner_radius, bg_color);
 
   /* Draw the icon itself with a tooltip. */
-  const float icon_size = UI_UNIT_X;
   UI_block_emboss_set(&invalid_links_block, ui::EmbossType::None);
   uiBut *but = uiDefIconBut(&invalid_links_block,
                             UI_BTYPE_BUT,
                             0,
                             ICON_ERROR,
-                            center.x - icon_size / 2,
-                            center.y - icon_size / 2,
+                            draw_position.x - icon_size / 2,
+                            draw_position.y - icon_size / 2,
                             icon_size,
                             icon_size,
                             nullptr,
@@ -4932,7 +5079,7 @@ static void node_draw_nodetree(const bContext &C,
   uiBlock &invalid_links_block = invalid_links_uiblock_init(C);
   for (auto &&item : ntree.runtime->link_errors.items()) {
     if (const bNodeLink *link = item.key.try_find(ntree)) {
-      draw_link_errors(snode, *link, item.value, invalid_links_block);
+      draw_link_errors(C, snode, *link, item.value, invalid_links_block);
     }
   }
   UI_block_end(&C, &invalid_links_block);
