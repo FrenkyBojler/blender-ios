@@ -116,7 +116,7 @@ class PathTraceDisplay {
   /* Get PathTraceDisplay graphics interoperability information which acts as a destination for the
    * device API. */
   GraphicsInteropDevice graphics_interop_get_device();
-  GraphicsInteropBuffer graphics_interop_get_buffer();
+  GraphicsInteropBuffer &graphics_interop_get_buffer();
 
   /* (De)activate GPU display for graphics interoperability outside of regular display update
    * routines. */

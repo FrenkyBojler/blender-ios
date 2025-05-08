@@ -24,7 +24,7 @@ class MetalDeviceGraphicsInterop : public DeviceGraphicsInterop {
   MetalDeviceGraphicsInterop &operator=(const MetalDeviceGraphicsInterop &other) = delete;
   MetalDeviceGraphicsInterop &operator=(MetalDeviceGraphicsInterop &&other) = delete;
 
-  void set_buffer(const GraphicsInteropBuffer &interop_buffer) override;
+  void set_buffer(GraphicsInteropBuffer &interop_buffer) override;
 
   device_ptr map() override;
   void unmap() override;

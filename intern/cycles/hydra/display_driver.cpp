@@ -72,6 +72,7 @@ void HdCyclesDisplayDriver::gl_context_create()
 
   if (!gl_pbo_id_) {
     glGenBuffers(1, &gl_pbo_id_);
+    graphics_interop_buffer_.clear();
   }
 }
 
@@ -142,6 +143,7 @@ bool HdCyclesDisplayDriver::update_begin(const Params &params,
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
     pbo_size_ = params.full_size;
+    graphics_interop_buffer_.clear();
   }
 
   need_update_ = true;
@@ -201,20 +203,21 @@ GraphicsInteropDevice HdCyclesDisplayDriver::graphics_interop_get_device()
   return interop_device;
 }
 
-GraphicsInteropBuffer HdCyclesDisplayDriver::graphics_interop_get_buffer()
+void HdCyclesDisplayDriver::graphics_interop_update_buffer()
 {
-  GraphicsInteropBuffer interop_buffer;
-
-  interop_buffer.width = pbo_size_.x;
-  interop_buffer.height = pbo_size_.y;
-  interop_buffer.type = GraphicsInteropDevice::OPENGL;
-  interop_buffer.handle = gl_pbo_id_;
-  interop_buffer.size = pbo_size_.x * pbo_size_.y * sizeof(half4);
-
-  interop_buffer.need_clear = need_clear_;
+  graphics_interop_buffer_.need_clear = need_clear_;
   need_clear_ = false;
 
-  return interop_buffer;
+  if (graphics_interop_buffer_.handle) {
+    return;
+  }
+
+  graphics_interop_buffer_.width = pbo_size_.x;
+  graphics_interop_buffer_.height = pbo_size_.y;
+  graphics_interop_buffer_.type = GraphicsInteropDevice::OPENGL;
+  graphics_interop_buffer_.handle = gl_pbo_id_;
+  graphics_interop_buffer_.size = pbo_size_.x * pbo_size_.y * sizeof(half4);
+  graphics_interop_buffer_.need_recreate = true;
 }
 
 void HdCyclesDisplayDriver::graphics_interop_activate()

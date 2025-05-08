@@ -33,6 +33,21 @@ class GraphicsInteropDevice {
  * with RGBA channels. */
 class GraphicsInteropBuffer {
  public:
+  GraphicsInteropBuffer() = default;
+  ~GraphicsInteropBuffer();
+
+  GraphicsInteropBuffer(const GraphicsInteropBuffer &other) = delete;
+  GraphicsInteropBuffer &operator=(const GraphicsInteropBuffer &other) = delete;
+  GraphicsInteropBuffer(GraphicsInteropBuffer &&other) = delete;
+  GraphicsInteropBuffer &operator=(GraphicsInteropBuffer &&other) = delete;
+
+  void clear();
+
+  /* Take ownership of graphics interop buffer.
+   * This will set need_recreate to false, and make the caller responsible for
+   * freeing the handle, which is needed for Vulkan. */
+  void take_ownership();
+
   /* Dimensions of the buffer, in pixels. */
   int width = 0;
   int height = 0;
@@ -51,16 +66,9 @@ class GraphicsInteropBuffer {
   /* Clear the entire buffer before doing partial write to it. */
   bool need_clear = false;
 
-  /* Enforce re-creation of the graphics interop object.
-   *
-   * When this field is true then the graphics interop will be re-created no matter what the
-   * rest of the configuration is.
-   * When this field is false the graphics interop will be re-created if the PBO or buffer size
-   * did change.
-   *
-   * This allows to ensure graphics interop is re-created when there is a possibility that an
-   * underlying PBO was re-allocated but did not change its ID. */
-  bool need_recreate = false;
+  /* This indicates if the graphics interop buffer was freed or reallocated, and so
+   * needs to be recreated. When true, this also implies we own the handle. */
+  bool need_recreate = true;
 };
 
 /* Display driver for efficient interactive display of renders.
@@ -130,14 +138,19 @@ class DisplayDriver {
   virtual half4 *map_texture_buffer() = 0;
   virtual void unmap_texture_buffer() = 0;
 
+  GraphicsInteropBuffer graphics_interop_buffer_;
+
+  /* Graphics interop to avoid CPU - GPU transfer. See GraphicsInteropBuffer for details. */
   virtual GraphicsInteropDevice graphics_interop_get_device()
   {
     return GraphicsInteropDevice();
   }
 
-  virtual GraphicsInteropBuffer graphics_interop_get_buffer()
+  virtual void graphics_interop_update_buffer() {}
+
+  GraphicsInteropBuffer &graphics_interop_get_buffer()
   {
-    return GraphicsInteropBuffer();
+    return graphics_interop_buffer_;
   }
 
   /* (De)activate graphics context required for editing or deleting the graphics interop

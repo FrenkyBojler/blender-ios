@@ -313,8 +313,10 @@ class DisplayGPUPixelBuffer {
     return *this;
   }
 
-  bool gpu_resources_ensure(const uint new_width, const uint new_height)
+  bool gpu_resources_ensure(const uint new_width, const uint new_height, bool &buffer_recreated)
   {
+    buffer_recreated = false;
+
     const size_t required_size = sizeof(half4) * new_width * new_height;
 
     /* Try to re-use the existing PBO if it has usable size. */
@@ -322,6 +324,7 @@ class DisplayGPUPixelBuffer {
       if (new_width != width || new_height != height ||
           GPU_pixel_buffer_size(gpu_pixel_buffer) < required_size)
       {
+        buffer_recreated = true;
         gpu_resources_destroy();
       }
     }
@@ -333,6 +336,7 @@ class DisplayGPUPixelBuffer {
     /* Create pixel buffer if not already created. */
     if (!gpu_pixel_buffer) {
       gpu_pixel_buffer = GPU_pixel_buffer_create(required_size);
+      buffer_recreated = true;
     }
 
     if (gpu_pixel_buffer == nullptr) {
@@ -520,13 +524,20 @@ bool BlenderDisplayDriver::update_begin(const Params &params,
    * mode faster. */
   const int buffer_width = params.size.x;
   const int buffer_height = params.size.y;
+  bool interop_recreated = false;
 
-  if (!current_tile_buffer_object.gpu_resources_ensure(buffer_width, buffer_height) ||
+  if (!current_tile_buffer_object.gpu_resources_ensure(
+          buffer_width, buffer_height, interop_recreated) ||
       !current_tile.texture.gpu_resources_ensure(texture_width, texture_height))
   {
+    graphics_interop_buffer_.clear();
     tiles_->current_tile.gpu_resources_destroy();
     gpu_context_disable();
     return false;
+  }
+
+  if (interop_recreated) {
+    graphics_interop_buffer_.clear();
   }
 
   /* Store an updated parameters of the current tile.
@@ -633,9 +644,10 @@ GraphicsInteropDevice BlenderDisplayDriver::graphics_interop_get_device()
       interop_device.type = GraphicsInteropDevice::VULKAN;
       break;
     case GPU_BACKEND_METAL:
+      graphics_interop_buffer_.type = GraphicsInteropDevice::METAL;
+      break;
     case GPU_BACKEND_NONE:
     case GPU_BACKEND_ANY:
-      /* Metal not supported yet by Cycles. */
       interop_device.type = GraphicsInteropDevice::NONE;
       break;
   }
@@ -647,35 +659,37 @@ GraphicsInteropDevice BlenderDisplayDriver::graphics_interop_get_device()
   return interop_device;
 }
 
-GraphicsInteropBuffer BlenderDisplayDriver::graphics_interop_get_buffer()
+void BlenderDisplayDriver::graphics_interop_update_buffer()
 {
-  GraphicsInteropBuffer interop_buffer;
+  if (graphics_interop_buffer_.handle) {
+    return;
+  }
 
-  interop_buffer.width = tiles_->current_tile.buffer_object.width;
-  interop_buffer.height = tiles_->current_tile.buffer_object.height;
+  graphics_interop_buffer_.width = tiles_->current_tile.buffer_object.width;
+  graphics_interop_buffer_.height = tiles_->current_tile.buffer_object.height;
+
+  switch (GPU_backend_get_type()) {
+    case GPU_BACKEND_OPENGL:
+      graphics_interop_buffer_.type = GraphicsInteropDevice::OPENGL;
+      break;
+    case GPU_BACKEND_VULKAN:
+      graphics_interop_buffer_.type = GraphicsInteropDevice::VULKAN;
+      break;
+    case GPU_BACKEND_METAL:
+      graphics_interop_buffer_.type = GraphicsInteropDevice::METAL;
+      break;
+    case GPU_BACKEND_NONE:
+    case GPU_BACKEND_ANY:
+      graphics_interop_buffer_.type = GraphicsInteropDevice::NONE;
+      break;
+  }
 
   GPUPixelBufferNativeHandle handle = GPU_pixel_buffer_get_native_handle(
       tiles_->current_tile.buffer_object.gpu_pixel_buffer);
 
-  switch (GPU_backend_get_type()) {
-    case GPU_BACKEND_OPENGL:
-      interop_buffer.type = GraphicsInteropDevice::OPENGL;
-      break;
-    case GPU_BACKEND_VULKAN:
-      interop_buffer.type = GraphicsInteropDevice::VULKAN;
-      break;
-    case GPU_BACKEND_METAL:
-    case GPU_BACKEND_NONE:
-    case GPU_BACKEND_ANY:
-      /* Metal not supported yet by Cycles. */
-      interop_buffer.type = GraphicsInteropDevice::NONE;
-      break;
-  }
-
-  interop_buffer.handle = handle.handle;
-  interop_buffer.size = handle.size;
-
-  return interop_buffer;
+  graphics_interop_buffer_.handle = handle.handle;
+  graphics_interop_buffer_.size = handle.size;
+  graphics_interop_buffer_.need_recreate = true;
 }
 
 void BlenderDisplayDriver::graphics_interop_activate()
@@ -933,6 +947,8 @@ void BlenderDisplayDriver::gpu_resources_destroy()
   gpu_context_enable();
 
   display_shader_.reset();
+
+  graphics_interop_buffer_.clear();
 
   tiles_->current_tile.gpu_resources_destroy();
   tiles_->finished_tiles.gl_resources_destroy_and_clear();

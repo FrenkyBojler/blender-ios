@@ -22,29 +22,18 @@ HIPDeviceGraphicsInterop::~HIPDeviceGraphicsInterop()
   free();
 }
 
-void HIPDeviceGraphicsInterop::set_buffer(const GraphicsInteropBuffer &interop_buffer)
+void HIPDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buffer)
 {
-  const int64_t new_buffer_area = int64_t(interop_buffer.width) * interop_buffer.height;
-
   assert(interop_buffer.size >= interop_buffer.width * interop_buffer.height * sizeof(half4));
 
-  need_clear_ = interop_buffer.need_clear;
+  need_clear_ |= interop_buffer.need_clear;
 
   if (!interop_buffer.need_recreate) {
-    if (native_type_ == interop_buffer.type && native_handle_ == interop_buffer.handle &&
-        native_size_ == interop_buffer.size && buffer_area_ == new_buffer_area)
-    {
-      return;
-    }
+    return;
   }
 
   HIPContextScope scope(device_);
   free();
-
-  native_type_ = interop_buffer.type;
-  native_handle_ = interop_buffer.handle;
-  native_size_ = interop_buffer.size;
-  buffer_area_ = new_buffer_area;
 
   switch (interop_buffer.type) {
     case GraphicsInteropDevice::OPENGL: {
@@ -53,7 +42,12 @@ void HIPDeviceGraphicsInterop::set_buffer(const GraphicsInteropBuffer &interop_b
 
       if (result != hipSuccess) {
         LOG(ERROR) << "Error registering OpenGL buffer: " << hipewErrorString(result);
+        break;
       }
+
+      interop_buffer.take_ownership();
+      buffer_size_ = interop_buffer.size;
+
       break;
     }
     case GraphicsInteropDevice::VULKAN:
@@ -83,8 +77,7 @@ device_ptr HIPDeviceGraphicsInterop::map()
   }
 
   if (hip_buffer && need_clear_) {
-    hip_device_assert(
-        device_, hipMemsetD8Async(hip_buffer, 0, buffer_area_ * sizeof(half4), queue_->stream()));
+    hip_device_assert(device_, hipMemsetD8Async(hip_buffer, 0, buffer_size_, queue_->stream()));
 
     need_clear_ = false;
   }
@@ -110,6 +103,8 @@ void HIPDeviceGraphicsInterop::free()
   }
 
   hip_external_memory_ptr_ = 0;
+
+  buffer_size_ = 0;
 }
 
 CCL_NAMESPACE_END
