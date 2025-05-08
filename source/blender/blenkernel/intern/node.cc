@@ -1007,7 +1007,7 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     if (node->type_legacy == CMP_NODE_BILATERALBLUR) {
       NodeBilateralBlurData *storage = static_cast<NodeBilateralBlurData *>(node->storage);
 
-      /* The size input is ceil(iterations + sigma_space). */
+      /* The size input is `ceil(iterations + sigma_space)`. */
       const bNodeSocket *size_input = blender::bke::node_find_socket(*node, SOCK_IN, "Size");
       storage->iter = size_input->default_value_typed<bNodeSocketValueInt>()->value - 1;
       storage->sigma_space = 1.0f;
@@ -1763,7 +1763,7 @@ static AssetTypeInfo AssetType_NT = {
 };
 
 IDTypeInfo IDType_ID_NT = {
-    /*id_code*/ ID_NT,
+    /*id_code*/ bNodeTree::id_type,
     /*id_filter*/ FILTER_ID_NT,
     /* IDProps of nodes, and #bNode.id, can use any type of ID. */
     /*dependencies_id_types*/ FILTER_ID_ALL,
