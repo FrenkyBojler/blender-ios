@@ -1,1 +1,2 @@
 Referenced by issue #116588, Rendering artifacts occur when using metallic BSDF Shaders with Cycles.
+Referenced by pull request #138632, Cycles: Fix inconsistency in Ng handling between Microfacets and other closures
