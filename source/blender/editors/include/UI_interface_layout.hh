@@ -60,6 +60,7 @@ struct uiItem {
 };
 
 enum eUI_Item_Flag : uint16_t;
+
 /**
  * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
