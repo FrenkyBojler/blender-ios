@@ -816,10 +816,10 @@ static void add_attribute_search_or_value_buttons(uiLayout *layout,
 
   const bool use_attribute = RNA_boolean_get(md_ptr, rna_path_use_attribute.c_str());
   if (socket_type == SOCK_BOOLEAN && !use_attribute) {
-    uiItemL(name_row, "", ICON_NONE);
+    name_row->label("", ICON_NONE);
   }
   else {
-    uiItemL(name_row, socket.name ? socket.name : "", ICON_NONE);
+    name_row->label(socket.name ? socket.name : "", ICON_NONE);
   }
 
   uiLayout *prop_row = &split->row(true);
@@ -892,6 +892,15 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
     case SOCK_IMAGE:
       uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "images", name, ICON_IMAGE);
       break;
+    case SOCK_MENU: {
+      if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
+        uiItemR(row, op_ptr, rna_path, UI_ITEM_R_EXPAND, name, ICON_NONE);
+      }
+      else {
+        uiItemR(row, op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+      }
+      break;
+    }
     default:
       if (nodes::input_has_attribute_toggle(node_tree, socket_index)) {
         add_attribute_search_or_value_buttons(row, op_ptr, socket_id_esc, rna_path, socket);
@@ -901,7 +910,7 @@ static void draw_property_for_socket(const bNodeTree &node_tree,
       }
   }
   if (!nodes::input_has_attribute_toggle(node_tree, socket_index)) {
-    uiItemL(row, "", ICON_BLANK1);
+    row->label("", ICON_BLANK1);
   }
 }
 
@@ -1527,7 +1536,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
       add_separator = false;
     }
     if (first) {
-      uiItemL(layout, IFACE_("Non-Assets"), ICON_NONE);
+      layout->label(IFACE_("Non-Assets"), ICON_NONE);
       first = false;
     }
 
