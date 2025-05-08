@@ -476,20 +476,26 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_structure_type_itemf(
         break;
       }
       case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC: {
-        if (supports_fields || supports_grids) {
-          RNA_enum_item_add(&items, &items_count, item);
+        if (U.experimental.use_socket_structure_type) {
+          if (supports_fields || supports_grids) {
+            RNA_enum_item_add(&items, &items_count, item);
+          }
+          break;
         }
-        break;
       }
       case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD: {
-        if (supports_fields) {
-          RNA_enum_item_add(&items, &items_count, item);
+        if (U.experimental.use_socket_structure_type) {
+          if (supports_fields) {
+            RNA_enum_item_add(&items, &items_count, item);
+          }
         }
         break;
       }
       case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID: {
-        if (supports_grids) {
-          RNA_enum_item_add(&items, &items_count, item);
+        if (U.experimental.use_socket_structure_type) {
+          if (supports_grids) {
+            RNA_enum_item_add(&items, &items_count, item);
+          }
         }
         break;
       }
@@ -1119,7 +1125,9 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_NodeTreeInterfaceSocket_force_non_field_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
-      prop, "Single Value", "Only allow single value inputs rather than fields");
+      prop,
+      "Single Value",
+      "Only allow single value inputs rather than field.\nDeprecated. Will be remove in 5.0.");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "is_inspect_output", PROP_BOOLEAN, PROP_NONE);
