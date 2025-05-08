@@ -278,6 +278,8 @@ struct uiLayout : uiItem {
 
   /** Adds a label item that will display text and/or icon in the layout. */
   void label(blender::StringRef name, int icon);
+
+  /** Adds a RNA property item, and exposes it into the layout. */
   void prop(PointerRNA *ptr,
             blender::StringRefNull propname,
             eUI_Item_Flag flag,
