@@ -373,14 +373,11 @@ def report_personal_weekly_get(
 
             pr = repo.prs.get((branch.repository_full_name, branch_name))
             if pr:
-                # print("  " * indent_level, "* ", pr, sep="")
                 print("{:s}* {:s}".format("  " * indent_level, pr))
             else:
-                # print("  " * indent_level, "* {:s}:{:s}:".format(repo.name, branch_name), sep="")
                 print("{:s}* {:s}:{:s}".format("  " * indent_level, repo.name, branch_name))
 
             for commit in branch.commits:
-                # print("  " * indent_level, "  * ", commit, sep="")
                 print("  {:s}* {:s}".format("  " * indent_level, commit))
 
     # Print commits
