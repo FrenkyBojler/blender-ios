@@ -990,9 +990,8 @@ void ViewerPathTreeViewItem::on_activate(bContext &C)
 
 std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
 {
-  const ViewerPathTreeView &tree_view = dynamic_cast<const ViewerPathTreeView &>(
-      this->get_tree_view());
-  return tree_view.sspreadsheet_.active_viewer_path_index == viewer_path_index_;
+  /* Can use SpaceSpreadsheet.active_viewer_path_index once selection is used. */
+  return false;
 }
 
 static void draw_context_panel_without_context(uiLayout &layout)
