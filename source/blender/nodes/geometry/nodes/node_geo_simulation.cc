@@ -182,8 +182,8 @@ static void draw_simulation_state(const bContext *C,
                                   bNodeTree &ntree,
                                   bNode &output_node)
 {
-  if (uiLayout *panel = uiLayoutPanel(
-          C, layout, "simulation_state_items", false, IFACE_("Simulation State")))
+  if (uiLayout *panel = layout->panel(
+          C, "simulation_state_items", false, IFACE_("Simulation State")))
   {
     socket_items::ui::draw_items_list_with_operators<SimulationItemsAccessor>(
         C, panel, ntree, output_node);
@@ -237,7 +237,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
     draw_bake_button_row(ctx, col, true);
     if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
       uiLayout *row = &col->row(true);
-      uiItemL(row, *bake_state_str, ICON_NONE);
+      row->label(*bake_state_str, ICON_NONE);
     }
   }
   draw_common_bake_settings(C, ctx, layout);
