@@ -598,7 +598,7 @@ Brush *BKE_brush_duplicate(Main *bmain, Brush *brush)
   Brush *new_brush = reinterpret_cast<Brush *>(
       BKE_id_copy_for_duplicate(bmain, &brush->id, dup_flag, id_copy_flag));
 
-  auto dependencies_cb = [&](LibraryIDLinkCallbackData *cb_data) -> int {
+  auto dependencies_cb = [&](const LibraryIDLinkCallbackData *cb_data) -> int {
     BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dup_flag, id_copy_flag);
     return IDWALK_NOP;
   };
