@@ -9,7 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_base.h"
-#include "BLI_threads.h"
+#include "BLI_mutex.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -180,19 +180,20 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     /* TODO(jbakker): Dualcon crashes when run in parallel. Could be related to incorrect
      * input data or that the library isn't thread safe.
      * This was identified when changing the task isolation's during #76553. */
-    static ThreadMutex dualcon_mutex = BLI_MUTEX_INITIALIZER;
-    BLI_mutex_lock(&dualcon_mutex);
-    output = static_cast<DualConOutput *>(dualcon(&input,
-                                                  dualcon_alloc_output,
-                                                  dualcon_add_vert,
-                                                  dualcon_add_quad,
-                                                  flags,
-                                                  mode,
-                                                  rmd->threshold,
-                                                  rmd->hermite_num,
-                                                  rmd->scale,
-                                                  rmd->depth));
-    BLI_mutex_unlock(&dualcon_mutex);
+    static blender::Mutex dualcon_mutex;
+    {
+      std::scoped_lock lock(dualcon_mutex);
+      output = static_cast<DualConOutput *>(dualcon(&input,
+                                                    dualcon_alloc_output,
+                                                    dualcon_add_vert,
+                                                    dualcon_add_quad,
+                                                    flags,
+                                                    mode,
+                                                    rmd->threshold,
+                                                    rmd->hermite_num,
+                                                    rmd->scale,
+                                                    rmd->depth));
+    }
     result = output->mesh;
     MEM_freeN(output);
   }
@@ -254,7 +255,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   modifier_panel_end(layout, ptr);
 
 #else  /* WITH_MOD_REMESH */
-  uiItemL(layout, RPT_("Built without Remesh modifier"), ICON_NONE);
+  layout->label(RPT_("Built without Remesh modifier"), ICON_NONE);
 #endif /* WITH_MOD_REMESH */
 }
 
