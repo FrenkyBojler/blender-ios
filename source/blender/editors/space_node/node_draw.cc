@@ -4944,14 +4944,25 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
   /* Define a cost function that returns a value that is larger the worse the given position is.
    * The point on the link with the lowest cost will be picked. */
   const auto cost_function = [&](const float2 &p) -> float {
-    const float distance_to_socket = std::min(math::distance(p, start), math::distance(p, end));
     const float distance_to_inner_rect = std::max(BLI_rctf_length_x(&inner_rect, p.x),
                                                   BLI_rctf_length_y(&inner_rect, p.y));
     const float distance_to_center = math::distance(p, center);
+
+    /* Set a high cost when the point is close to a socket. The distance to the center still has to
+     * be taken account though. Otherwise there is bad behavior when both sockets are close to the
+     * point. */
+    const float distance_to_socket = std::min(math::distance(p, start), math::distance(p, end));
     if (distance_to_socket < required_socket_distance) {
       return 1e5f + distance_to_center;
     }
-    return distance_to_center + 10.0 * distance_to_inner_rect;
+    return
+        /* The larger the distance to the link center, the higher the cost. The importants of this
+           distance decreases the further the center is away. */
+        std::sqrt(distance_to_center)
+        /* The larger the distance to the inner rectangle, the higher the cost. Apply an additional
+         * factor because it's more important that the position stays visible than that it is at
+         * the center. */
+        + 10.0f * distance_to_inner_rect;
   };
 
   /* Iterate over visible points on the link, compute the cost of each and pick the best one. A
