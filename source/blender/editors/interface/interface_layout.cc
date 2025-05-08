@@ -106,7 +106,7 @@ enum class ItemType : int8_t {
   LayoutAbsolute,
   LayoutSplit,
   LayoutOverlap,
-  LayoutRadial,
+  LayoutRadial, /* AKA: menu pie. */
 
   LayoutRoot,
 #if 0
@@ -542,7 +542,7 @@ static void ui_item_array(uiLayout *layout,
     uint layer_used = 0;
     uint layer_active = 0;
 
-    UI_block_layout_set_current(block, uiLayoutAbsolute(layout, false));
+    UI_block_layout_set_current(block, &layout->absolute(false));
 
     const int butw = UI_UNIT_X * 0.75;
     const int buth = UI_UNIT_X * 0.75;
@@ -603,7 +603,7 @@ static void ui_item_array(uiLayout *layout,
     int totdim, dim_size[3]; /* 3 == RNA_MAX_ARRAY_DIMENSION */
     int row, col;
 
-    UI_block_layout_set_current(block, uiLayoutAbsolute(layout, true));
+    UI_block_layout_set_current(block, &layout->absolute(true));
 
     totdim = RNA_property_array_dimension(ptr, prop, dim_size);
     if (totdim != 2) {
@@ -837,7 +837,7 @@ static void ui_item_enum_expand_exec(uiLayout *layout,
   uiLayout *layout_radial = nullptr;
   if (radial) {
     if (layout->root_->layout == layout) {
-      layout_radial = uiLayoutRadial(layout);
+      layout_radial = &layout->menu_pie();
       UI_block_layout_set_current(block, layout_radial);
     }
     else {
@@ -1486,7 +1486,7 @@ void uiItemsFullEnumO_items(uiLayout *layout,
   const bool radial = ui_layout_is_radial(layout);
 
   if (radial) {
-    target = uiLayoutRadial(layout);
+    target = &layout->menu_pie();
   }
   else if ((uiLayoutGetLocalDir(layout) == UI_LAYOUT_HORIZONTAL) && (flag & UI_ITEM_R_ICON_ONLY)) {
     target = layout;
@@ -3088,13 +3088,7 @@ void uiItemMContents(uiLayout *layout, const StringRef menuname)
     return;
   }
 
-  const bContextStore *previous_ctx = CTX_store_get(C);
   UI_menutype_draw(C, mt, layout);
-
-  /* Restore context that was cleared by `UI_menutype_draw`. */
-  if (layout->context_) {
-    CTX_store_set(C, previous_ctx);
-  }
 }
 
 void uiItemDecoratorR_prop(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index)
@@ -4955,17 +4949,16 @@ uiLayout &uiLayout::row(bool align)
   ui_litem_init_from_parent(litem, this, align);
 
   litem->type_ = uiItemType::LayoutRow;
-  litem->space_ = (align) ? 0 : this->root_->style->buttonspacex;
+  litem->space_ = (align) ? 0 : root_->style->buttonspacex;
 
-  UI_block_layout_set_current(this->root_->block, litem);
+  UI_block_layout_set_current(root_->block, litem);
 
   return *litem;
 }
 
-PanelLayout uiLayoutPanelProp(const bContext *C,
-                              uiLayout *layout,
-                              PointerRNA *open_prop_owner,
-                              const StringRefNull open_prop_name)
+PanelLayout uiLayout::panel_prop(const bContext *C,
+                                 PointerRNA *open_prop_owner,
+                                 const StringRefNull open_prop_name)
 {
   const ARegion *region = CTX_wm_region(C);
 
@@ -4976,7 +4969,7 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
   PanelLayout panel_layout{};
   {
     uiLayoutItemPanelHeader *header_litem = MEM_new<uiLayoutItemPanelHeader>(__func__);
-    ui_litem_init_from_parent(header_litem, layout, false);
+    ui_litem_init_from_parent(header_litem, this, false);
     header_litem->type_ = uiItemType::LayoutPanelHeader;
 
     header_litem->open_prop_owner = *open_prop_owner;
@@ -4987,7 +4980,7 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
 
     uiBlock *block = uiLayoutGetBlock(row);
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
-    const int width = ui_text_icon_width(layout, "", icon, false);
+    const int width = ui_text_icon_width(this, "", icon, false);
     uiDefIconTextBut(
         block, UI_BTYPE_LABEL, 0, icon, "", 0, 0, width, UI_UNIT_Y, nullptr, 0.0f, 0.0f, "");
 
@@ -5000,42 +4993,40 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
 
   uiLayoutItemPanelBody *body_litem = MEM_new<uiLayoutItemPanelBody>(__func__);
   body_litem->type_ = uiItemType::LayoutPanelBody;
-  body_litem->space_ = layout->root_->style->templatespace;
-  ui_litem_init_from_parent(body_litem, layout, false);
-  UI_block_layout_set_current(layout->root_->block, body_litem);
+  body_litem->space_ = root_->style->templatespace;
+  ui_litem_init_from_parent(body_litem, this, false);
+  UI_block_layout_set_current(root_->block, body_litem);
   panel_layout.body = body_litem;
 
   return panel_layout;
 }
 
-PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
-                                            uiLayout *layout,
-                                            PointerRNA *open_prop_owner,
-                                            const StringRefNull open_prop_name,
-                                            PointerRNA *bool_prop_owner,
-                                            const StringRefNull bool_prop_name,
-                                            const std::optional<StringRefNull> label)
+PanelLayout uiLayout::panel_prop_with_bool_header(const bContext *C,
+                                                  PointerRNA *open_prop_owner,
+                                                  const StringRefNull open_prop_name,
+                                                  PointerRNA *bool_prop_owner,
+                                                  const StringRefNull bool_prop_name,
+                                                  const std::optional<StringRefNull> label)
 {
-  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
+  PanelLayout panel_layout = this->panel_prop(C, open_prop_owner, open_prop_name);
 
-  uiLayout *panel_header = panel.header;
+  uiLayout *panel_header = panel_layout.header;
   panel_header->flag_ &= ~(uiItemInternalFlag::PropSep | uiItemInternalFlag::PropDecorate |
                            uiItemInternalFlag::InsidePropSep);
   uiItemR(panel_header, bool_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
 
-  return panel;
+  return panel_layout;
 }
 
-uiLayout *uiLayoutPanelProp(const bContext *C,
-                            uiLayout *layout,
-                            PointerRNA *open_prop_owner,
-                            const StringRefNull open_prop_name,
-                            const StringRef label)
+uiLayout *uiLayout::panel_prop(const bContext *C,
+                               PointerRNA *open_prop_owner,
+                               const StringRefNull open_prop_name,
+                               const StringRef label)
 {
-  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
-  uiItemL(panel.header, label, ICON_NONE);
+  PanelLayout panel_layout = this->panel_prop(C, open_prop_owner, open_prop_name);
+  uiItemL(panel_layout.header, label, ICON_NONE);
 
-  return panel.body;
+  return panel_layout.body;
 }
 
 PanelLayout uiLayout::panel(const bContext *C, const StringRef idname, const bool default_closed)
@@ -5047,7 +5038,7 @@ PanelLayout uiLayout::panel(const bContext *C, const StringRef idname, const boo
       root_panel, idname, default_closed);
   PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
 
-  return uiLayoutPanelProp(C, this, &state_ptr, "is_open");
+  return this->panel_prop(C, &state_ptr, "is_open");
 }
 
 uiLayout *uiLayout::panel(const bContext *C,
@@ -5055,7 +5046,7 @@ uiLayout *uiLayout::panel(const bContext *C,
                           const bool default_closed,
                           const StringRef label)
 {
-  PanelLayout panel_layout = panel(C, idname, default_closed);
+  PanelLayout panel_layout = this->panel(C, idname, default_closed);
   uiItemL(panel_layout.header, label, ICON_NONE);
 
   return panel_layout.body;
@@ -5072,7 +5063,7 @@ bool uiLayoutEndsWithPanelHeader(const uiLayout &layout)
 
 uiLayout &uiLayout::row(bool align, const StringRef heading)
 {
-  uiLayout &litem = row(align);
+  uiLayout &litem = this->row(align);
   ui_layout_heading_set(&litem, heading);
   return litem;
 }
@@ -5083,16 +5074,16 @@ uiLayout &uiLayout::column(bool align)
   ui_litem_init_from_parent(litem, this, align);
 
   litem->type_ = uiItemType::LayoutColumn;
-  litem->space_ = (align) ? 0 : this->root_->style->buttonspacey;
+  litem->space_ = (align) ? 0 : root_->style->buttonspacey;
 
-  UI_block_layout_set_current(this->root_->block, litem);
+  UI_block_layout_set_current(root_->block, litem);
 
   return *litem;
 }
 
 uiLayout &uiLayout::column(bool align, const StringRef heading)
 {
-  uiLayout &litem = column(align);
+  uiLayout &litem = this->column(align);
   ui_layout_heading_set(&litem, heading);
   return litem;
 }
@@ -5103,10 +5094,10 @@ uiLayout &uiLayout::column_flow(int number, bool align)
   ui_litem_init_from_parent(flow, this, align);
 
   flow->type_ = uiItemType::LayoutColumnFlow;
-  flow->space_ = (flow->align_) ? 0 : this->root_->style->columnspace;
+  flow->space_ = (flow->align_) ? 0 : root_->style->columnspace;
   flow->number = number;
 
-  UI_block_layout_set_current(this->root_->block, flow);
+  UI_block_layout_set_current(root_->block, flow);
 
   return *flow;
 }
@@ -5118,13 +5109,13 @@ uiLayout &uiLayout::grid_flow(
   flow->type_ = uiItemType::LayoutGridFlow;
   ui_litem_init_from_parent(flow, this, align);
 
-  flow->space_ = (flow->align_) ? 0 : this->root_->style->columnspace;
+  flow->space_ = (flow->align_) ? 0 : root_->style->columnspace;
   flow->row_major = row_major;
   flow->columns_len = columns_len;
   flow->even_columns = even_columns;
   flow->even_rows = even_rows;
 
-  UI_block_layout_set_current(this->root_->block, flow);
+  UI_block_layout_set_current(root_->block, flow);
 
   return *flow;
 }
@@ -5144,30 +5135,30 @@ static uiLayoutItemBx *ui_layout_box(uiLayout *layout, int type)
   return box;
 }
 
-uiLayout *uiLayoutRadial(uiLayout *layout)
+uiLayout &uiLayout::menu_pie()
 {
   /* radial layouts are only valid for radial menus */
-  if (layout->root_->type != UI_LAYOUT_PIEMENU) {
-    return ui_item_local_sublayout(layout, layout, false);
+  if (root_->type != UI_LAYOUT_PIEMENU) {
+    return *ui_item_local_sublayout(this, this, false);
   }
 
   /* only one radial wheel per root layout is allowed, so check and return that, if it exists */
-  for (uiItem *item : layout->root_->layout->items_) {
+  for (uiItem *item : root_->layout->items_) {
     if (item->type_ == uiItemType::LayoutRadial) {
       uiLayout *litem = static_cast<uiLayout *>(item);
-      UI_block_layout_set_current(layout->root_->block, litem);
-      return litem;
+      UI_block_layout_set_current(root_->block, litem);
+      return *litem;
     }
   }
 
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, false);
+  ui_litem_init_from_parent(litem, this, false);
 
   litem->type_ = uiItemType::LayoutRadial;
 
-  UI_block_layout_set_current(layout->root_->block, litem);
+  UI_block_layout_set_current(root_->block, litem);
 
-  return litem;
+  return *litem;
 }
 
 uiLayout &uiLayout::box()
@@ -5190,13 +5181,10 @@ void ui_layout_list_set_labels_active(uiLayout *layout)
   }
 }
 
-uiLayout *uiLayoutListBox(uiLayout *layout,
-                          uiList *ui_list,
-                          PointerRNA *actptr,
-                          PropertyRNA *actprop)
+uiLayout &uiLayout::list_box(uiList *ui_list, PointerRNA *actptr, PropertyRNA *actprop)
 {
-  uiLayoutItemBx *box = ui_layout_box(layout, UI_BTYPE_LISTBOX);
-  uiBut *but = box->roundbox;
+  uiLayoutItemBx *item_box = ui_layout_box(this, UI_BTYPE_LISTBOX);
+  uiBut *but = item_box->roundbox;
 
   but->custom_data = ui_list;
 
@@ -5208,39 +5196,39 @@ uiLayout *uiLayoutListBox(uiLayout *layout,
     but->tip = RNA_property_description(actprop);
   }
 
-  return (uiLayout *)box;
+  return *item_box;
 }
 
-uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align)
+uiLayout &uiLayout::absolute(bool align)
 {
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, align);
+  ui_litem_init_from_parent(litem, this, align);
 
   litem->type_ = uiItemType::LayoutAbsolute;
 
-  UI_block_layout_set_current(layout->root_->block, litem);
+  UI_block_layout_set_current(root_->block, litem);
 
-  return litem;
+  return *litem;
 }
 
-uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout)
+uiBlock *uiLayout::absolute_block()
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
-  uiLayoutAbsolute(layout, false);
+  uiBlock *block = uiLayoutGetBlock(this);
+  absolute(false);
 
   return block;
 }
 
-uiLayout *uiLayoutOverlap(uiLayout *layout)
+uiLayout &uiLayout::overlap()
 {
   uiLayout *litem = MEM_new<uiLayout>(__func__);
-  ui_litem_init_from_parent(litem, layout, false);
+  ui_litem_init_from_parent(litem, this, false);
 
   litem->type_ = uiItemType::LayoutOverlap;
 
-  UI_block_layout_set_current(layout->root_->block, litem);
+  UI_block_layout_set_current(root_->block, litem);
 
-  return litem;
+  return *litem;
 }
 
 uiLayout &uiLayout::split(float percentage, bool align)
@@ -6222,15 +6210,19 @@ void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout)
     ui_block_add_dynamic_listener(block, mt->listener);
   }
 
+  bContextStore context_store;
   if (layout->context_) {
-    CTX_store_set(C, layout->context_);
+    context_store = *layout->context_;
   }
+  const bContextStore *previous_context_store = CTX_store_get(C);
+  if (previous_context_store) {
+    context_store.entries.extend(previous_context_store->entries);
+  }
+  CTX_store_set(C, &context_store);
 
   mt->draw(C, &menu);
 
-  if (layout->context_) {
-    CTX_store_set(C, nullptr);
-  }
+  CTX_store_set(C, previous_context_store);
 }
 
 static bool ui_layout_has_panel_label(const uiLayout *layout, const PanelType *pt)
