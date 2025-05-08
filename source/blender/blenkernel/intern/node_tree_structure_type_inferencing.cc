@@ -297,9 +297,9 @@ static void propagate_right_to_left(const bNodeTree &tree,
     for (const bNode *node : tree.toposort_right_to_left()) {
       const Span<const bNodeSocket *> input_sockets = node->input_sockets();
       const Span<const bNodeSocket *> output_sockets = node->output_sockets();
-      const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
+      const nodes::StructureTypeInterface &node_interface = node_interfaces[node->index()];
 
-      for (const int output : interface.outputs.index_range()) {
+      for (const int output : node_interface.outputs.index_range()) {
         const bNodeSocket &output_socket = *output_sockets[output];
         DataRequirement ouput_requirement = DataRequirement::None;
         for (const bNodeSocket *socket : output_socket.directly_linked_sockets()) {
@@ -315,7 +315,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
          * grid), it's better to not propagate the data requirement than incorrectly saying that
          * all of the inputs have it. */
         Vector<int, 8> inputs_with_links;
-        for (const int input : interface.outputs[output].linked_inputs) {
+        for (const int input : node_interface.outputs[output].linked_inputs) {
           const bNodeSocket &input_socket = *input_sockets[input];
           if (input_socket.is_directly_linked()) {
             inputs_with_links.append(input_socket.index_in_all_inputs());
@@ -524,9 +524,9 @@ static void propagate_left_to_right(const bNodeTree &tree,
             get_unconnected_input_structure_type(declaration));
       }
 
-      const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
+      const nodes::StructureTypeInterface &node_interface = node_interfaces[node->index()];
 
-      for (const int output_index : interface.outputs.index_range()) {
+      for (const int output_index : node_interface.outputs.index_range()) {
         const bNodeSocket &output = *output_sockets[output_index];
         if (!output.is_available()) {
           continue;
@@ -534,7 +534,7 @@ static void propagate_left_to_right(const bNodeTree &tree,
         const nodes::SocketDeclaration &declaration = *output.runtime->declaration;
 
         std::optional<StructureType> output_type;
-        for (const int input_index : interface.outputs[output_index].linked_inputs) {
+        for (const int input_index : node_interface.outputs[output_index].linked_inputs) {
           const bNodeSocket &input = node->input_socket(input_index);
           if (!input.is_available()) {
             continue;
@@ -586,8 +586,8 @@ static Vector<int> find_dynamic_output_linked_inputs(
         continue;
       }
 
-      const nodes::StructureTypeInterface &interface = interface_by_node[origin_node.index()];
-      for (const int input_index : interface.outputs[origin_socket->index()].linked_inputs) {
+      const nodes::StructureTypeInterface &node_interface = interface_by_node[origin_node.index()];
+      for (const int input_index : node_interface.outputs[origin_socket->index()].linked_inputs) {
         const bNodeSocket &input = origin_node.input_socket(input_index);
         if (!input.is_available()) {
           continue;
