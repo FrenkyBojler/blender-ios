@@ -533,7 +533,6 @@ void USDStageReader::collect_readers()
   }
 
   clear_readers();
-  dome_light_readers_.clear();
 
   /* Identify paths to point instancer prototypes, as these will be converted
    * in a separate pass over the stage. */
@@ -737,6 +736,11 @@ void USDStageReader::clear_readers()
     }
   }
   instancer_proto_readers_.clear();
+
+  for (USDDomeLightReader *reader : dome_light_readers_) {
+    decref(reader);
+  }
+  dome_light_readers_.clear();
 }
 
 void USDStageReader::sort_readers()
