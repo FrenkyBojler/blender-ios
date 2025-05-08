@@ -1022,6 +1022,33 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     if (node->type_legacy == CMP_NODE_ALPHAOVER) {
       write_input_to_property_bool_short("Straight Alpha", node->custom1);
     }
+
+    if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+      NodeColorBalance *storage = static_cast<NodeColorBalance *>(node->storage);
+      write_input_to_property_float_color("Lift", 0, storage->lift[0]);
+      write_input_to_property_float_color("Lift", 1, storage->lift[1]);
+      write_input_to_property_float_color("Lift", 2, storage->lift[2]);
+      write_input_to_property_float_color("Gamma", 0, storage->gamma[0]);
+      write_input_to_property_float_color("Gamma", 1, storage->gamma[1]);
+      write_input_to_property_float_color("Gamma", 2, storage->gamma[2]);
+      write_input_to_property_float_color("Gain", 0, storage->gain[0]);
+      write_input_to_property_float_color("Gain", 1, storage->gain[1]);
+      write_input_to_property_float_color("Gain", 2, storage->gain[2]);
+      write_input_to_property_float_color("Offset", 0, storage->offset[0]);
+      write_input_to_property_float_color("Offset", 1, storage->offset[1]);
+      write_input_to_property_float_color("Offset", 2, storage->offset[2]);
+      write_input_to_property_float_color("Power", 0, storage->power[0]);
+      write_input_to_property_float_color("Power", 1, storage->power[1]);
+      write_input_to_property_float_color("Power", 2, storage->power[2]);
+      write_input_to_property_float_color("Slope", 0, storage->slope[0]);
+      write_input_to_property_float_color("Slope", 1, storage->slope[1]);
+      write_input_to_property_float_color("Slope", 2, storage->slope[2]);
+      write_input_to_property_float("Offset Basis", storage->offset_basis);
+      write_input_to_property_float("Input Temperature", storage->input_temperature);
+      write_input_to_property_float("Input Tint", storage->input_tint);
+      write_input_to_property_float("Output Temperature", storage->output_temperature);
+      write_input_to_property_float("Output Tint", storage->output_tint);
+    }
   }
 }
 
