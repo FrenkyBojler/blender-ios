@@ -198,13 +198,13 @@ def report_personal_weekly_get(
                     repo = activity["repo"]
                     repo_fullname = repo["full_name"]
                     content_json_commits: list[dict[str, Any]] = content_json["Commits"]
-                    for commits in content_json_commits:
+                    for commit_json in content_json_commits:
                         # Skip commits that were not made by this user. Using email doesn't seem to
                         # be possible unfortunately.
-                        if commits["AuthorName"] != user_data["full_name"]:
+                        if commit_json["AuthorName"] != user_data["full_name"]:
                             continue
 
-                        title = commits["Message"].split('\n', 1)[0]
+                        title = commit_json["Message"].split('\n', 1)[0]
 
                         if title.startswith("Merge branch "):
                             continue
@@ -212,7 +212,7 @@ def report_personal_weekly_get(
                         # Substitute occurrences of "#\d+" with "repo#\d+"
                         title = re.sub(r"#(\d+)", rf"{repo_fullname}#\1", title)
 
-                        hash_value = commits["Sha1"]
+                        hash_value = commit_json["Sha1"]
                         if hash_length > 0:
                             hash_value = hash_value[:hash_length]
 
@@ -226,30 +226,30 @@ def report_personal_weekly_get(
                         #
                         # So the folling adds branches and PRs to a "target" repository, not the owning one.
 
-                        target_repo = repo["parent"]
+                        target_repo_json = repo["parent"]
                         # There's no parent repo if the branch is on the same repo. Treat the repo itself as target.
-                        if not target_repo and branch_name != repo["default_branch"]:
-                            target_repo = repo
-                        target_repo_fullname = target_repo["full_name"] if target_repo else repo_fullname
+                        if not target_repo_json and branch_name != repo["default_branch"]:
+                            target_repo_json = repo
+                        target_repo_fullname = target_repo_json["full_name"] if target_repo_json else repo_fullname
 
                         if target_repo_fullname not in repositories:
                             repositories[target_repo_fullname] = Repository(target_repo_fullname)
-                        target_repository = repositories[target_repo_fullname]
+                        target_repo = repositories[target_repo_fullname]
 
-                        if branch_name not in target_repository.branches:
-                            target_repository.branches[branch_name] = Branch(repo_fullname, [])
+                        if branch_name not in target_repo.branches:
+                            target_repo.branches[branch_name] = Branch(repo_fullname, [])
                             # If we see this branch for the first time, try to find a PR for it. Only catches PRs made
-                            # against the default branch of the parent repository.
-                            if target_repo:
+                            # against the default branch of the target repository.
+                            if target_repo_json:
                                 pr = gitea_json_pull_request_by_base_and_head_get(
-                                    target_repo_fullname, target_repo["default_branch"], f"{repo_fullname}:{branch_name}")
-                        branch = target_repository.branches[branch_name]
+                                    target_repo_fullname, target_repo_json["default_branch"], f"{repo_fullname}:{branch_name}")
+                        branch = target_repo.branches[branch_name]
 
                         if pr:
                             pr_title = pr["title"]
                             pr_id = pr["id"]
-                            target_repository.prs[(repo_fullname,
-                                                   branch_name)] = f"{pr_title} ({target_repo_fullname}!{pr_id})"
+                            target_repo.prs[(repo_fullname, branch_name)
+                                            ] = f"{pr_title} ({target_repo_fullname}!{pr_id})"
 
                         branch.commits.append(f"{title} ({repo_fullname}@{hash_value})")
 
