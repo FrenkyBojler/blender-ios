@@ -1086,7 +1086,7 @@ static void particle_batch_cache_ensure_procedural_indices(PTCacheEdit *edit,
   GPUPrimType prim_type = (thickness_res == 1) ? GPU_PRIM_LINE_STRIP : GPU_PRIM_TRI_STRIP;
 
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "dummy", GPU_COMP_U32, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      "dummy", GPU_COMP_U32, 1, GPU_FETCH_INT);
 
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, 1);
