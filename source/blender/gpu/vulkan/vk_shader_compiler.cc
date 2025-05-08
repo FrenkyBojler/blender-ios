@@ -200,11 +200,9 @@ static bool compile_ex(shaderc::Compiler &compiler,
                        shaderc_shader_kind stage,
                        VKShaderModule &shader_module)
 {
-#if 0
   if (read_spirv_from_disk(shader_module)) {
     return true;
   }
-#endif
 
   shaderc::CompileOptions options;
   /* On Windows shaderc can be very slow when compiling in Debug mode. Disabling performing
