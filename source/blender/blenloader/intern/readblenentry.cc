@@ -7,9 +7,7 @@
  * `.blend` file reading entry point.
  */
 
-#include <cmath>
 #include <cstddef>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -22,14 +20,12 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_genfile.h"
-#include "DNA_sdna_types.h"
 
 #include "BKE_asset.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_preview_image.hh"
 
-#include "BLO_blend_defs.hh"
 #include "BLO_readfile.hh"
 
 #include "readfile.hh"
@@ -135,8 +131,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
       if (skip_datablock) {
         continue;
       }
-      BLODataBlockInfo *info = static_cast<BLODataBlockInfo *>(
-          MEM_mallocN(sizeof(*info), __func__));
+      BLODataBlockInfo *info = MEM_mallocN<BLODataBlockInfo>(__func__);
 
       /* Lastly, read asset data from the following blocks. */
       if (asset_meta_data) {
@@ -401,7 +396,7 @@ void BLO_blendfiledata_free(BlendFileData *bfd)
     MEM_freeN(bfd->user);
   }
 
-  MEM_freeN(bfd);
+  MEM_delete(bfd);
 }
 
 void BLO_read_do_version_after_setup(Main *new_bmain,

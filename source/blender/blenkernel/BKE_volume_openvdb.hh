@@ -2,12 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #ifdef WITH_OPENVDB
 
-#  include <openvdb/openvdb.h>
-#  include <openvdb/points/PointDataGrid.h>
+#  include <openvdb/openvdb.h>              /* IWYU pragma: export */
+#  include <openvdb/points/PointDataGrid.h> /* IWYU pragma: export */
 #  include <optional>
 
 #  include "BLI_bounds_types.hh"
@@ -16,12 +20,15 @@
 #  include "BLI_string_ref.hh"
 
 #  include "BKE_volume_enums.hh"
+#  include "BKE_volume_grid_fwd.hh"
 
 struct Volume;
 
 blender::bke::VolumeGridData *BKE_volume_grid_add_vdb(Volume &volume,
                                                       blender::StringRef name,
                                                       openvdb::GridBase::Ptr vdb_grid);
+
+void BKE_volume_metadata_set(Volume &volume, openvdb::MetaMap::Ptr metadata);
 
 std::optional<blender::Bounds<blender::float3>> BKE_volume_grid_bounds(
     openvdb::GridBase::ConstPtr grid);

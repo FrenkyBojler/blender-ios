@@ -8,6 +8,7 @@ from bl_ui.space_view3d import (
     VIEW3D_PT_shading_lighting,
     VIEW3D_PT_shading_color,
     VIEW3D_PT_shading_options,
+    VIEW3D_PT_shading_cavity,
 )
 from bl_ui.utils import PresetPanel
 
@@ -760,12 +761,42 @@ class CompositorPerformanceButtonsPanel:
         col = layout.column()
         row = col.row()
         row.prop(rd, "compositor_device", text="Device", expand=True)
-        col.prop(rd, "compositor_precision", text="Precision")
+        if rd.compositor_device == 'GPU':
+            col.prop(rd, "compositor_precision", text="Precision")
+
+
+class CompositorDenoisePerformanceButtonsPanel:
+    bl_label = "Denoise Nodes"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        rd = scene.render
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        col = layout.column()
+        row = col.row()
+        row.prop(rd, "compositor_denoise_device", text="Denoising Device", expand=True)
+        col.prop(rd, "compositor_denoise_preview_quality", text="Preview Quality")
+        col.prop(rd, "compositor_denoise_final_quality", text="Final Quality")
 
 
 class RENDER_PT_eevee_performance_compositor(RenderButtonsPanel, CompositorPerformanceButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "RENDER_PT_eevee_performance"
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
+
+
+class RENDER_PT_eevee_performance_compositor_denoise_settings(
+        RenderButtonsPanel, CompositorDenoisePerformanceButtonsPanel, Panel,
+):
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "RENDER_PT_eevee_performance_compositor"
     COMPAT_ENGINES = {
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
@@ -816,10 +847,29 @@ class RENDER_PT_eevee_performance_viewport(RenderButtonsPanel, Panel):
         col.prop(rd, "preview_pixel_size", text="Pixel Size")
 
 
+# TODO(falk): To rename for 5.0
 class RENDER_PT_gpencil(RenderButtonsPanel, Panel):
     bl_label = "Grease Pencil"
     bl_options = {'DEFAULT_CLOSED'}
     bl_order = 10
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        pass
+
+
+class RENDER_PT_grease_pencil_viewport(RenderButtonsPanel, Panel):
+    bl_label = "Viewport"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "RENDER_PT_gpencil"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE_NEXT',
@@ -835,7 +885,30 @@ class RENDER_PT_gpencil(RenderButtonsPanel, Panel):
         props = scene.grease_pencil_settings
 
         col = layout.column()
-        col.prop(props, "antialias_threshold")
+        col.prop(props, "antialias_threshold", text="SMAA Threshold")
+
+
+class RENDER_PT_grease_pencil_render(RenderButtonsPanel, Panel):
+    bl_label = "Render"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "RENDER_PT_gpencil"
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        scene = context.scene
+        props = scene.grease_pencil_settings
+
+        col = layout.column()
+        col.prop(props, "antialias_threshold_render", text="SMAA Threshold")
+        col.prop(props, "aa_samples", text="SSAA Samples")
 
 
 class RENDER_PT_opengl_sampling(RenderButtonsPanel, Panel):
@@ -907,6 +980,10 @@ class RENDER_PT_opengl_options(RenderButtonsPanel, Panel):
 
     def draw(self, context):
         VIEW3D_PT_shading_options.draw(self, context)
+
+        # Cavity properties.
+        VIEW3D_PT_shading_cavity.draw_header(self, context)
+        VIEW3D_PT_shading_cavity.draw(self, context)
 
 
 class RENDER_PT_simplify(RenderButtonsPanel, Panel):
@@ -1044,9 +1121,12 @@ classes = (
     RENDER_PT_eevee_performance_memory,
     RENDER_PT_eevee_performance_viewport,
     RENDER_PT_eevee_performance_compositor,
+    RENDER_PT_eevee_performance_compositor_denoise_settings,
 
 
     RENDER_PT_gpencil,
+    RENDER_PT_grease_pencil_viewport,
+    RENDER_PT_grease_pencil_render,
     RENDER_PT_opengl_sampling,
     RENDER_PT_opengl_lighting,
     RENDER_PT_opengl_color,

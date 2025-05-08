@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-./blender.bin --background --factory-startup --python tests/python/bl_constraints.py -- --testdir /path/to/tests/data/constraints
+./blender.bin --background --factory-startup --python tests/python/bl_constraints.py -- --testdir /path/to/tests/files/constraints
 """
 
 import pathlib
@@ -450,7 +450,7 @@ class ActionConstraintTest(AbstractConstraintTests):
 
     def test_assign_action_slot_virgin(self):
         action = bpy.data.actions.new("Slotted")
-        slot = action.slots.new()
+        slot = action.slots.new('OBJECT', "Slot")
 
         con = self.constraint()
         con.action = action

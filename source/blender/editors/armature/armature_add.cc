@@ -15,11 +15,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
+#include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -33,6 +34,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_object_types.hh"
+#include "BKE_report.hh"
 
 #include "ANIM_action.hh"
 
@@ -59,7 +61,7 @@ using blender::Vector;
 
 EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
 {
-  EditBone *bone = static_cast<EditBone *>(MEM_callocN(sizeof(EditBone), "eBone"));
+  EditBone *bone = MEM_callocN<EditBone>("eBone");
 
   STRNCPY(bone->name, name);
   ED_armature_ebone_unique_name(arm->edbo, bone->name, nullptr);
@@ -131,7 +133,7 @@ EditBone *ED_armature_ebone_add_primitive(Object *obedit_arm,
  * If we want the support to be expanded we should something like the
  * offset we do for mesh click extrude.
  */
-static int armature_click_extrude_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*op*/)
 {
   bArmature *arm;
   EditBone *ebone, *newbone, *flipbone;
@@ -227,7 +229,9 @@ static int armature_click_extrude_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus armature_click_extrude_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent *event)
 {
   /* TODO: most of this code is copied from set3dcursor_invoke,
    * it would be better to reuse code in set3dcursor_invoke */
@@ -251,7 +255,7 @@ static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEv
   copy_v3_v3(cursor->location, tvec);
 
   /* extrude to the where new cursor is and store the operation result */
-  int retval = armature_click_extrude_exec(C, op);
+  wmOperatorStatus retval = armature_click_extrude_exec(C, op);
 
   /* restore previous 3d cursor position */
   copy_v3_v3(cursor->location, oldcurs);
@@ -293,21 +297,6 @@ EditBone *add_points_bone(Object *obedit, float head[3], float tail[3])
   return ebo;
 }
 
-static EditBone *get_named_editbone(ListBase *edbo, const char *name)
-{
-  if (!edbo || !name) {
-    return nullptr;
-  }
-
-  LISTBASE_FOREACH (EditBone *, eBone, edbo) {
-    if (STREQ(name, eBone->name)) {
-      return eBone;
-    }
-  }
-
-  return nullptr;
-}
-
 static void pre_edit_bone_duplicate(ListBase *editbones)
 {
   /* clear temp */
@@ -318,15 +307,16 @@ static void pre_edit_bone_duplicate(ListBase *editbones)
  * Helper function for #pose_edit_bone_duplicate,
  * return the destination pchan from the original.
  */
-static bPoseChannel *pchan_duplicate_map(const bPose *pose,
-                                         GHash *name_map,
-                                         bPoseChannel *pchan_src)
+static bPoseChannel *pchan_duplicate_map(
+    const bPose *pose,
+    const blender::Map<blender::StringRefNull, blender::StringRefNull> &name_map,
+    bPoseChannel *pchan_src)
 {
   bPoseChannel *pchan_dst = nullptr;
   const char *name_src = pchan_src->name;
-  const char *name_dst = static_cast<const char *>(BLI_ghash_lookup(name_map, name_src));
-  if (name_dst) {
-    pchan_dst = BKE_pose_channel_find_name(pose, name_dst);
+  const blender::StringRefNull name_dst = name_map.lookup_default(name_src, "");
+  if (!name_dst.is_empty()) {
+    pchan_dst = BKE_pose_channel_find_name(pose, name_dst.c_str());
   }
 
   if (pchan_dst == nullptr) {
@@ -345,7 +335,7 @@ static void pose_edit_bone_duplicate(ListBase *editbones, Object *ob)
   BKE_pose_channels_hash_free(ob->pose);
   BKE_pose_channels_hash_ensure(ob->pose);
 
-  GHash *name_map = BLI_ghash_str_new(__func__);
+  blender::Map<blender::StringRefNull, blender::StringRefNull> name_map;
 
   LISTBASE_FOREACH (EditBone *, ebone_src, editbones) {
     EditBone *ebone_dst = ebone_src->temp.ebone;
@@ -354,7 +344,7 @@ static void pose_edit_bone_duplicate(ListBase *editbones, Object *ob)
     }
 
     if (ebone_dst) {
-      BLI_ghash_insert(name_map, ebone_src->name, ebone_dst->name);
+      name_map.add_as(ebone_src->name, ebone_dst->name);
     }
   }
 
@@ -384,8 +374,6 @@ static void pose_edit_bone_duplicate(ListBase *editbones, Object *ob)
       pchan_dst->bbone_next = pchan_duplicate_map(ob->pose, name_map, pchan_src->bbone_next);
     }
   }
-
-  BLI_ghash_free(name_map, nullptr, nullptr);
 }
 
 static void update_duplicate_subtarget(EditBone *dup_bone,
@@ -427,7 +415,12 @@ static void update_duplicate_subtarget(EditBone *dup_bone,
        * so, update the constraint to point at the
        * duplicate of the old subtarget.
        */
-      oldtarget = get_named_editbone(&target_armature->bonebase, ct->subtarget);
+
+      /* TODO: support updating sub-targets for multi-object edit mode.
+       * This requires all objects bones to be duplicated before this runs. */
+      oldtarget = (ob == target_ob) ?
+                      ED_armature_ebone_find_name(target_armature->edbo, ct->subtarget) :
+                      nullptr;
       if (oldtarget && oldtarget->temp.ebone) {
         newtarget = oldtarget->temp.ebone;
         STRNCPY(ct->subtarget, newtarget->name);
@@ -446,7 +439,7 @@ static void update_duplicate_subtarget(EditBone *dup_bone,
 static void update_duplicate_action_constraint_settings(
     EditBone *dup_bone, EditBone *orig_bone, Object *ob, bPoseChannel *pchan, bConstraint *curcon)
 {
-  bActionConstraint *act_con = (bActionConstraint *)curcon->data;
+  bActionConstraint *act_con = static_cast<bActionConstraint *>(curcon->data);
 
   float mat[4][4];
 
@@ -520,7 +513,7 @@ static void update_duplicate_action_constraint_settings(
   bAction *act = (bAction *)act_con->act;
   if (act) {
     blender::animrig::Action &action = act->wrap();
-    blender::animrig::ChannelBag *cbag = blender::animrig::channelbag_for_action_slot(
+    blender::animrig::Channelbag *cbag = blender::animrig::channelbag_for_action_slot(
         action, act_con->action_slot_handle);
 
     /* Create a copy and mirror the animation */
@@ -598,7 +591,7 @@ static void update_duplicate_action_constraint_settings(
 static void update_duplicate_kinematics_constraint_settings(bConstraint *curcon)
 {
   /* IK constraint */
-  bKinematicConstraint *ik = (bKinematicConstraint *)curcon->data;
+  bKinematicConstraint *ik = static_cast<bKinematicConstraint *>(curcon->data);
   ik->poleangle = -M_PI - ik->poleangle;
   /* Wrap the angle to the +/-180.0f range (default soft limit of the input boxes). */
   ik->poleangle = angle_wrap_rad(ik->poleangle);
@@ -610,7 +603,7 @@ static void update_duplicate_loc_rot_constraint_settings(Object *ob,
 {
   /* This code assumes that bRotLimitConstraint and bLocLimitConstraint have the same fields in
    * the same memory locations. */
-  bRotLimitConstraint *limit = (bRotLimitConstraint *)curcon->data;
+  bRotLimitConstraint *limit = static_cast<bRotLimitConstraint *>(curcon->data);
   float local_mat[4][4], imat[4][4];
 
   float min_vec[3], max_vec[3];
@@ -661,6 +654,14 @@ static void update_duplicate_loc_rot_constraint_settings(Object *ob,
 
     min_vec[0] = max_vec[0] * -1;
     max_vec[0] = min_x_copy * -1;
+
+    /* Also flip the enabled axis check-boxes accordingly. */
+    const bool use_max_x = (limit->flag & LIMIT_XMAX);
+    const bool use_min_x = (limit->flag & LIMIT_XMIN);
+    limit->flag |= use_max_x ? LIMIT_XMIN : 0;
+    limit->flag &= (use_max_x && !use_min_x) ? ~LIMIT_XMAX : limit->flag;
+    limit->flag |= use_min_x ? LIMIT_XMAX : 0;
+    limit->flag &= (use_min_x && !use_max_x) ? ~LIMIT_XMIN : limit->flag;
   }
 
   /* convert back to the settings space */
@@ -680,7 +681,7 @@ static void update_duplicate_transform_constraint_settings(Object *ob,
                                                            bPoseChannel *pchan,
                                                            bConstraint *curcon)
 {
-  bTransformConstraint *trans = (bTransformConstraint *)curcon->data;
+  bTransformConstraint *trans = static_cast<bTransformConstraint *>(curcon->data);
 
   float target_mat[4][4], own_mat[4][4], imat[4][4];
 
@@ -969,7 +970,7 @@ static void update_duplicate_custom_bone_shapes(bContext *C, EditBone *dup_bone,
 
     /* Skip the first two chars in the object name as those are used to store object type */
     BLI_string_flip_side_name(name_flip, pchan->custom->id.name + 2, false, sizeof(name_flip));
-    Object *shape_ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, name_flip);
+    Object *shape_ob = reinterpret_cast<Object *>(BKE_libblock_find_name(bmain, ID_OB, name_flip));
 
     /* If name_flip doesn't exist, BKE_libblock_find_name() returns pchan->custom (best match) */
     shape_ob = shape_ob == pchan->custom ? nullptr : shape_ob;
@@ -996,6 +997,49 @@ static void mirror_pose_bone(Object &ob, EditBone &ebone)
   pose_bone->limitmax[2] = -limit_min;
 }
 
+static void mirror_bone_collection_assignments(bArmature &armature,
+                                               EditBone &source_bone,
+                                               EditBone &target_bone)
+{
+  BLI_assert_msg(armature.edbo != nullptr, "Expecting the armature to be in edit mode");
+  char name_flip[64];
+  /* Avoiding modification of the ListBase in the iteration. */
+  blender::Vector<BoneCollection *> unassign_collections;
+  blender::Vector<BoneCollection *> assign_collections;
+
+  /* Find all collections from source_bone that can be flipped. */
+  LISTBASE_FOREACH (BoneCollectionReference *, collection_reference, &source_bone.bone_collections)
+  {
+    BoneCollection *collection = collection_reference->bcoll;
+    BLI_string_flip_side_name(name_flip, collection->name, false, sizeof(name_flip));
+    if (STREQ(name_flip, collection->name)) {
+      /* Name flipping failed. */
+      continue;
+    }
+    BoneCollection *flipped_collection = ANIM_armature_bonecoll_get_by_name(&armature, name_flip);
+    if (!flipped_collection) {
+      const int bcoll_index = blender::animrig::armature_bonecoll_find_index(&armature,
+                                                                             collection);
+      const int parent_index = blender::animrig::armature_bonecoll_find_parent_index(&armature,
+                                                                                     bcoll_index);
+      flipped_collection = ANIM_armature_bonecoll_new(&armature, name_flip, parent_index);
+    }
+    BLI_assert(flipped_collection != nullptr);
+    unassign_collections.append(collection);
+    assign_collections.append(flipped_collection);
+  }
+
+  /* The target_bone might not be in unassign_collections anymore, or might already be in
+   * assign_collections. The assign functions will just do nothing in those cases. */
+  for (BoneCollection *collection : unassign_collections) {
+    ANIM_armature_bonecoll_unassign_editbone(collection, &target_bone);
+  }
+
+  for (BoneCollection *collection : assign_collections) {
+    ANIM_armature_bonecoll_assign_editbone(collection, &target_bone);
+  }
+}
+
 static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, Object *dst_ob)
 {
   /* copy the ID property */
@@ -1011,7 +1055,7 @@ static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, O
 
     chanold = BKE_pose_channel_ensure(src_ob->pose, src_bone->name);
     if (chanold) {
-      /* WARNING: this creates a new posechannel, but there will not be an attached bone
+      /* WARNING: this creates a new pose-channel, but there will not be an attached bone
        * yet as the new bones created here are still 'EditBones' not 'Bones'.
        */
       channew = BKE_pose_channel_ensure(dst_ob->pose, dst_bone->name);
@@ -1032,7 +1076,7 @@ void ED_armature_ebone_copy(EditBone *dest, const EditBone *source)
 EditBone *duplicateEditBoneObjects(
     EditBone *cur_bone, const char *name, ListBase *editbones, Object *src_ob, Object *dst_ob)
 {
-  EditBone *e_bone = static_cast<EditBone *>(MEM_mallocN(sizeof(EditBone), "addup_editbone"));
+  EditBone *e_bone = MEM_mallocN<EditBone>("addup_editbone");
 
   /* Copy data from old bone to new bone */
   ED_armature_ebone_copy(e_bone, cur_bone);
@@ -1057,7 +1101,7 @@ EditBone *duplicateEditBone(EditBone *cur_bone, const char *name, ListBase *edit
   return duplicateEditBoneObjects(cur_bone, name, editbones, ob, ob);
 }
 
-static int armature_duplicate_selected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1103,7 +1147,7 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *op)
       if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
         EditBone *ebone;
         char new_bone_name_buff[MAXBONENAME];
-        char *new_bone_name = ebone_iter->name;
+        const char *new_bone_name = ebone_iter->name;
 
         if (do_flip_names) {
           BLI_string_flip_side_name(
@@ -1148,7 +1192,7 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *op)
           /* If this bone has a parent that IS not selected,
            * Set the duplicate->parent to the cur_bone->parent
            */
-          ebone->parent = (EditBone *)ebone_iter->parent;
+          ebone->parent = ebone_iter->parent;
           ebone->flag &= ~BONE_CONNECTED;
         }
 
@@ -1231,7 +1275,7 @@ static EditBone *get_symmetrized_bone(bArmature *arm, EditBone *bone)
  * near duplicate of #armature_duplicate_selected_exec,
  * except for parenting part (keep in sync)
  */
-static int armature_symmetrize_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1366,7 +1410,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
     {
       if (ebone_iter->temp.ebone) {
         /* copy all flags except for ... */
-        const int flag_copy = int(~0) & ~(BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
+        const int flag_copy = (~0) & ~(BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
 
         EditBone *ebone = ebone_iter->temp.ebone;
 
@@ -1422,6 +1466,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
         update_duplicate_custom_bone_shapes(C, ebone, obedit);
         /* Mirror any settings on the pose bone. */
         mirror_pose_bone(*obedit, *ebone);
+        mirror_bone_collection_assignments(*arm, *ebone_iter, *ebone);
       }
     }
 
@@ -1501,7 +1546,7 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
 /* previously extrude_armature */
 /* context; editmode armature */
 /* if forked && mirror-edit: makes two bones with flipped names */
-static int armature_extrude_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1585,7 +1630,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
           }
 
           totbone++;
-          newbone = static_cast<EditBone *>(MEM_callocN(sizeof(EditBone), "extrudebone"));
+          newbone = MEM_callocN<EditBone>("extrudebone");
 
           if (do_extrude == TIP_EXTRUDE) {
             copy_v3_v3(newbone->head, ebone->tail);
@@ -1715,7 +1760,7 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
 
 /* Op makes a new bone and returns it with its tip selected. */
 
-static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   Object *obedit = CTX_data_edit_object(C);
@@ -1755,7 +1800,10 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
     BLI_assert_msg(bcoll_ref,
                    "Bone that is not visible due to its bone collections MUST be assigned to at "
                    "least one of them.");
-    WM_reportf(RPT_WARNING, "Bone was added to a hidden collection '%s'", bcoll_ref->bcoll->name);
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "Bone was added to a hidden collection '%s'",
+                bcoll_ref->bcoll->name);
   }
 
   copy_v3_v3(bone->head, curs);
@@ -1800,7 +1848,7 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
  * appropriate ways), and two separate ones.
  */
 
-static int armature_subdivide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   EditBone *newbone;
@@ -1826,7 +1874,7 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
       float val2[3];
       float val3[3];
 
-      newbone = static_cast<EditBone *>(MEM_mallocN(sizeof(EditBone), "ebone subdiv"));
+      newbone = MEM_mallocN<EditBone>("ebone subdiv");
       *newbone = *ebone;
       BLI_addtail(arm->edbo, newbone);
 

@@ -39,11 +39,6 @@ def eevee_shader_nodes_poll(context):
     return context.engine == 'BLENDER_EEVEE_NEXT'
 
 
-def object_cycles_shader_nodes_poll(context):
-    return (object_shader_nodes_poll(context) and
-            cycles_shader_nodes_poll(context))
-
-
 def object_not_eevee_shader_nodes_poll(context):
     return (object_shader_nodes_poll(context) and
             not eevee_shader_nodes_poll(context))
@@ -237,6 +232,10 @@ class NODE_MT_category_shader_shader(Menu):
             layout,
             "ShaderNodeVolumeScatter",
         )
+        node_add_menu.add_node_type(
+            layout,
+            "ShaderNodeVolumeCoefficients",
+        )
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -276,13 +275,13 @@ class NODE_MT_category_shader_converter(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeCombineXYZ")
         node_add_menu.add_node_type(layout, "ShaderNodeFloatCurve")
         node_add_menu.add_node_type(layout, "ShaderNodeMapRange")
-        node_add_menu.add_node_type(layout, "ShaderNodeMath")
+        node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeMix")
         node_add_menu.add_node_type(layout, "ShaderNodeRGBToBW")
         node_add_menu.add_node_type(layout, "ShaderNodeSeparateColor")
         node_add_menu.add_node_type(layout, "ShaderNodeSeparateXYZ")
         node_add_menu.add_node_type(layout, "ShaderNodeShaderToRGB", poll=object_eevee_shader_nodes_poll(context))
-        node_add_menu.add_node_type(layout, "ShaderNodeVectorMath")
+        node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeWavelength")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)

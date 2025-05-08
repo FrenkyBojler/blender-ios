@@ -2,21 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_listbase.h"
-#include "BLI_task.hh"
+#include "BLI_math_vector.hh"
 
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
-
-#include "BKE_attribute_math.hh"
-#include "BKE_deform.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
-
-#include "FN_multi_function_builder.hh"
 
 #include "attribute_access_intern.hh"
 
@@ -131,21 +122,25 @@ void MeshComponent::count_memory(MemoryCounter &memory) const
 
 VArray<float3> mesh_normals_varray(const Mesh &mesh,
                                    const IndexMask &mask,
-                                   const AttrDomain domain)
+                                   const AttrDomain domain,
+                                   const bool no_corner_normals,
+                                   const bool true_normals)
 {
   switch (domain) {
     case AttrDomain::Face: {
-      return VArray<float3>::ForSpan(mesh.face_normals());
+      return VArray<float3>::ForSpan(true_normals ? mesh.face_normals_true() :
+                                                    mesh.face_normals());
     }
     case AttrDomain::Point: {
-      return VArray<float3>::ForSpan(mesh.vert_normals());
+      return VArray<float3>::ForSpan(true_normals ? mesh.vert_normals_true() :
+                                                    mesh.vert_normals());
     }
     case AttrDomain::Edge: {
       /* In this case, start with vertex normals and convert to the edge domain, since the
        * conversion from edges to vertices is very simple. Use "manual" domain interpolation
        * instead of the GeometryComponent API to avoid calculating unnecessary values and to
        * allow normalizing the result more simply. */
-      Span<float3> vert_normals = mesh.vert_normals();
+      Span<float3> vert_normals = true_normals ? mesh.vert_normals_true() : mesh.vert_normals();
       const Span<int2> edges = mesh.edges();
       Array<float3> edge_normals(mask.min_array_size());
       mask.foreach_index([&](const int i) {
@@ -157,12 +152,13 @@ VArray<float3> mesh_normals_varray(const Mesh &mesh,
       return VArray<float3>::ForContainer(std::move(edge_normals));
     }
     case AttrDomain::Corner: {
-      /* The normals on corners are just the mesh's face normals, so start with the face normal
-       * array and copy the face normal for each of its corners. In this case using the mesh
-       * component's generic domain interpolation is fine, the data will still be normalized,
-       * since the face normal is just copied to every corner. */
-      return mesh.attributes().adapt_domain(
-          VArray<float3>::ForSpan(mesh.face_normals()), AttrDomain::Face, AttrDomain::Corner);
+      if (no_corner_normals || true_normals) {
+        return mesh.attributes().adapt_domain(
+            VArray<float3>::ForSpan(true_normals ? mesh.face_normals_true() : mesh.face_normals()),
+            AttrDomain::Face,
+            AttrDomain::Corner);
+      }
+      return VArray<float3>::ForSpan(mesh.corner_normals());
     }
     default:
       return {};

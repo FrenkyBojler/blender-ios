@@ -128,6 +128,10 @@ typedef struct uiWidgetColors {
 } uiWidgetColors;
 
 typedef struct uiWidgetStateColors {
+  unsigned char error[4];
+  unsigned char warning[4];
+  unsigned char info[4];
+  unsigned char success[4];
   unsigned char inner_anim[4];
   unsigned char inner_anim_sel[4];
   unsigned char inner_key[4];
@@ -318,7 +322,7 @@ typedef struct ThemeSpace {
   unsigned char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4],
       handle_sel_auto_clamped[4];
 
-  /** Dopesheet. */
+  /** Dope-sheet. */
   unsigned char ds_channel[4], ds_subchannel[4], ds_ipoline[4];
   /** Keytypes. */
   unsigned char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4],
@@ -355,14 +359,16 @@ typedef struct ThemeSpace {
   unsigned char node_zone_simulation[4];
   unsigned char node_zone_repeat[4];
   unsigned char node_zone_foreach_geometry_element[4];
+  unsigned char node_zone_closure[4];
   unsigned char simulated_frames[4];
+  char _pad7[4];
 
   /** For sequence editor. */
   unsigned char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];
   unsigned char effect[4], transition[4], meta[4], text_strip[4], color_strip[4];
-  unsigned char active_strip[4], selected_strip[4];
+  unsigned char active_strip[4], selected_strip[4], text_strip_cursor[4], selected_text[4];
 
-  /** For dopesheet - scale factor for size of keyframes (i.e. height of channels). */
+  /** For dope-sheet - scale factor for size of keyframes (i.e. height of channels). */
   float keyframe_scale_fac;
 
   unsigned char editmesh_active[4];
@@ -437,12 +443,13 @@ typedef struct ThemeSpace {
 
   /* info */
   unsigned char info_selected[4], info_selected_text[4];
-  unsigned char info_error[4], info_error_text[4];
-  unsigned char info_warning[4], info_warning_text[4];
-  unsigned char info_info[4], info_info_text[4];
+  unsigned char info_error_text[4];
+  unsigned char info_warning_text[4];
+  unsigned char info_info_text[4];
   unsigned char info_debug[4], info_debug_text[4];
   unsigned char info_property[4], info_property_text[4];
   unsigned char info_operator[4], info_operator_text[4];
+  char _pad6[4];
 
   unsigned char paint_curve_pivot[4];
   unsigned char paint_curve_handle[4];
@@ -540,7 +547,7 @@ typedef struct bTheme {
   /* See COLLECTION_COLOR_TOT for the number of collection colors. */
   ThemeCollectionColor collection_color[8];
 
-  /* See SEQUENCE_COLOR_TOT for the total number of strip colors. */
+  /* See STRIP_COLOR_TOT for the total number of strip colors. */
   ThemeStripColor strip_color[9];
 
   int active_theme_area;
@@ -715,6 +722,8 @@ typedef struct UserDef_SpaceData {
   /** #eUserPref_SpaceData_Flag UI options. */
   char flag;
   char _pad0[6];
+  /** Info used when creating Preferences in a temporary window. */
+  rctf win_rect;
 } UserDef_SpaceData;
 
 /**
@@ -729,19 +738,15 @@ typedef struct UserDef_FileSpaceData {
   int flag;           /* FileSelectParams.flag */
   int _pad0;
   uint64_t filter_id; /* FileSelectParams.filter_id */
+
+  /** Info used when creating the file browser in a temporary window. */
+  rctf win_rect;
 } UserDef_FileSpaceData;
 
 /**
- * Storage for temp window position and size. Needs to
- * use floats (divided by UI_DPI_FAC) to avoid drifting.
+ * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
+ * unless the #USER_DEVELOPER_UI is known to be enabled.
  */
-typedef struct UserDef_WinState {
-  float posx;
-  float posy;
-  float sizex;
-  float sizey;
-} UserDef_WinState;
-
 typedef struct UserDef_Experimental {
   /* Debug options, always available. */
   char use_undo_legacy;
@@ -754,21 +759,18 @@ typedef struct UserDef_Experimental {
   char use_all_linked_data_direct;
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
+  char write_large_blend_file_blocks;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
   char use_new_curves_tools;
-  char use_new_point_cloud_type;
   char use_sculpt_tools_tilt;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
-  char enable_overlay_legacy;
   char use_new_volume_nodes;
-  char use_new_file_import_nodes;
   char use_shader_node_previews;
-  char enable_new_cpu_compositor;
-  char _pad[3];
-  /** `makesdna` does not allow empty structs. */
+  char use_bundle_and_closure_nodes;
+  char _pad[5];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -855,7 +857,11 @@ typedef struct UserDef {
   short versions;
   short dbl_click_time;
 
-  char _pad0[3];
+  char _pad0[2];
+
+  /** Space around each area. Inter-editor gap width. */
+  char border_width;
+
   char mini_axis_type;
   /** #eUserpref_UI_Flag. */
   int uiflag;
@@ -877,7 +883,12 @@ typedef struct UserDef {
 
   /** Setting for UI scale (fractional), before screen DPI has been applied. */
   float ui_scale;
-  /** Setting for UI line width. */
+  /**
+   * Setting for UI line width.
+   *
+   * In most cases this should not be used directly it is an offset used to calculate `pixelsize`
+   * which should be used to define the line width.
+   */
   int ui_line_width;
   /** Runtime, full DPI divided by `pixelsize`. */
   int dpi;
@@ -885,7 +896,18 @@ typedef struct UserDef {
   float scale_factor;
   /** Runtime, `1.0 / scale_factor` */
   float inv_scale_factor;
-  /** Runtime, calculated from line-width and point-size based on DPI (rounded to int). */
+  /**
+   * Runtime, calculated from line-width and point-size based on DPI.
+   *
+   * - Rounded down to an integer, clamped to a minimum of 1.0.
+   * - This includes both the UI scale and windowing system's DPI.
+   *   so a HI-DPI display of 200% with a UI scale of 3.0 results in a pixel-size of 6.0
+   *   (when the line-width is set to auto).
+   * - The line-width is added to this value, so lines & vertex drawing can be adjusted.
+   *
+   * \note This should never be used as a UI scale value otherwise changing the line-width
+   * could double or halve the size of UI elements. Use #UI_SCALE_FAC instead.
+   */
   float pixelsize;
   /** Deprecated, for forward compatibility. */
   int virtual_pixel;
@@ -1137,9 +1159,6 @@ typedef struct UserDef {
   UserDef_SpaceData space_data;
   UserDef_FileSpaceData file_space_data;
 
-  UserDef_WinState file_winstate;
-  UserDef_WinState preferences_winstate;
-
   UserDef_Experimental experimental;
 
   /** Runtime data (keep last). */
@@ -1333,7 +1352,7 @@ typedef enum eUserpref_UI_Flag2 {
 
 /** #UserDef.gpu_flag */
 typedef enum eUserpref_GPU_Flag {
-  USER_GPU_FLAG_NO_DEPT_PICK = (1 << 0),
+  USER_GPU_FLAG_NO_DEPT_PICK = (1 << 0), /* Unused. To be removed. */
   USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE = (1 << 1),
   USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE = (1 << 2),
   USER_GPU_FLAG_SUBDIVISION_EVALUATION = (1 << 3),
@@ -1518,7 +1537,7 @@ typedef enum eTimecodeStyles {
 
 /** #UserDef.ndof_flag (3D mouse options) */
 typedef enum eNdof_Flag {
-  NDOF_SHOW_GUIDE = (1 << 0),
+  NDOF_SHOW_GUIDE_ORBIT_AXIS = (1 << 0),
   NDOF_FLY_HELICOPTER = (1 << 1),
   NDOF_LOCK_HORIZON = (1 << 2),
 
@@ -1545,6 +1564,9 @@ typedef enum eNdof_Flag {
   NDOF_PANZ_INVERT_AXIS = (1 << 14),
   NDOF_TURNTABLE = (1 << 15),
   NDOF_CAMERA_PAN_ZOOM = (1 << 16),
+  NDOF_ORBIT_CENTER_AUTO = (1 << 17),
+  NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
+  NDOF_SHOW_GUIDE_ORBIT_CENTER = (1 << 19),
 } eNdof_Flag;
 
 #define NDOF_PIXELS_PER_SECOND 600.0f
@@ -1581,8 +1603,7 @@ typedef enum eUserpref_RenderDisplayType {
   USER_RENDER_DISPLAY_NONE = 0,
   USER_RENDER_DISPLAY_SCREEN = 1,
   USER_RENDER_DISPLAY_AREA = 2,
-  USER_RENDER_DISPLAY_WINDOW = 3,
-  USER_RENDER_DISPLAY_WINDOW_SAVED = 4
+  USER_RENDER_DISPLAY_WINDOW = 3
 } eUserpref_RenderDisplayType;
 
 typedef enum eUserpref_TempSpaceDisplayType {

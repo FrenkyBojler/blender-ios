@@ -24,9 +24,6 @@ class VKContext;
 
 class VKFrameBuffer : public FrameBuffer {
  private:
-  /* Number of layers if the attachments are layered textures. */
-  int depth_ = 1;
-
   /** Is the first attachment an SRGB texture. */
   bool srgb_;
   bool enabled_srgb_;
@@ -118,7 +115,7 @@ class VKFrameBuffer : public FrameBuffer {
    * the latest changes that can happen between drawing commands inside `VKStateManager`.
    */
   void rendering_ensure(VKContext &context);
-  void rendering_ensure_dynamic_rendering(VKContext &context, const VKWorkarounds &workarounds);
+  void rendering_ensure_dynamic_rendering(VKContext &context, const VKExtensions &extensions);
   void rendering_ensure_render_pass(VKContext &context);
 
   /**
