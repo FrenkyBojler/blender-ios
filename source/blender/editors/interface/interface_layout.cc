@@ -5027,7 +5027,7 @@ PanelLayout uiLayout::panel_prop_with_bool_header(const bContext *C,
   uiLayout *panel_header = panel_layout.header;
   panel_header->flag_ &= ~(uiItemInternalFlag::PropSep | uiItemInternalFlag::PropDecorate |
                            uiItemInternalFlag::InsidePropSep);
-  uiItemR(panel_header, bool_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
+  panel_header->prop(bool_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
 
   return panel_layout;
 }
