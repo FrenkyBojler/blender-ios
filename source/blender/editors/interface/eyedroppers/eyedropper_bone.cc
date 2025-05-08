@@ -505,7 +505,7 @@ static bool bonedropper_poll(bContext *C)
     return false;
   }
 
-  Object *active_object = CTX_data_active_object(C);
+  const Object *active_object = CTX_data_active_object(C);
 
   if (!active_object || active_object->type != OB_ARMATURE) {
     CTX_wm_operator_poll_msg_set(C, "The active object needs to be an armature");
@@ -513,7 +513,7 @@ static bool bonedropper_poll(bContext *C)
   }
 
   if (!ELEM(active_object->mode, OB_MODE_POSE, OB_MODE_EDIT)) {
-    CTX_wm_operator_poll_msg_set(C, "The armature needs to be in Pose- or Edit mode");
+    CTX_wm_operator_poll_msg_set(C, "The armature needs to be in Pose mode or Edit mode");
     return false;
   }
 
