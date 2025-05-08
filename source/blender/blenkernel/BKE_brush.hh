@@ -52,7 +52,7 @@ bool BKE_brush_delete(Main *bmain, Brush *brush);
  * \param dupflag: Controls which sub-data are also duplicated
  * (see #eDupli_ID_Flags in DNA_userdef_types.h).
  */
-Brush *BKE_brush_duplicate(Main *bmain, const Brush *brush, eDupli_ID_Flags dupflag);
+Brush *BKE_brush_duplicate(Main *bmain, Brush *brush);
 /**
  * Add grease pencil settings.
  */

@@ -169,21 +169,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     const Brush *original_brush = brush;
     /* Note: Currently, when copying to the local library, only the brush itself is copied over.
      * It retains its references to any linked data of the original brush. */
-    if (ID_IS_LINKED(&brush->id)) {
-      /* Duplicating from an asset library into the local library */
-      const bool success = BKE_lib_id_make_local(bmain,
-                                                 &brush->id,
-                                                 LIB_ID_MAKELOCAL_FORCE_COPY |
-                                                     LIB_ID_MAKELOCAL_INDIRECT |
-                                                     LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
-      BLI_assert(success && brush->id.newid);
-      UNUSED_VARS_NDEBUG(success);
-      brush = reinterpret_cast<Brush *>(brush->id.newid);
-    }
-    else {
-      /* Duplicating from the local library into the local library */
-      brush = reinterpret_cast<Brush *>(BKE_id_copy(bmain, &brush->id));
-    }
+    brush = BKE_brush_duplicate(bmain, brush);
 
     BKE_libblock_rename(*bmain, brush->id, name);
     asset::mark_id(&brush->id);
