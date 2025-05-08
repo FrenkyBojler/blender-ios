@@ -1382,13 +1382,12 @@ static wmOperatorStatus particle_system_remove_all_exec(bContext *C, wmOperator 
   Object *ob = blender::ed::object::context_object(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  int mode_orig;
 
   if (!scene || !ob) {
     return OPERATOR_CANCELLED;
   }
 
-  mode_orig = ob->mode;
+  const eObjectMode mode_orig = eObjectMode (ob->mode);
   LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
     object_remove_particle_system(bmain, scene, ob, psys);
   }
@@ -1422,10 +1421,4 @@ void PARTICLE_OT_remove_all_particle_system(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  RNA_def_boolean(ot->srna,
-                  "use_duplicate_settings",
-                  false,
-                  "Duplicate Settings",
-                  "Duplicate settings as well, so the new particle system uses its own settings");
 }
