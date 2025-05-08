@@ -142,14 +142,14 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
   }
 }
 
-static short detect_knot_mode_cyclic(const int degree,
-                                     const Span<int> indices,
-                                     const Span<float> knots)
+static bool detect_knot_mode_cyclic(const int degree,
+                                    const Span<int> indices,
+                                    const Span<float> knots)
 {
   const Span<int> indices_tail = indices.take_back(degree);
   for (const int i : IndexRange(degree)) {
     if (indices[i] != indices_tail[i]) {
-      return 0;
+      return false;
     }
   }
   const Span<float> knots_tail = knots.take_back(2 * degree + 1);
@@ -157,10 +157,10 @@ static short detect_knot_mode_cyclic(const int degree,
     const float head_span = knots[i + 1] - knots[i];
     const float tail_span = knots_tail[i + 1] - knots_tail[i];
     if (abs(head_span - tail_span) > 0.0001f) {
-      return 0;
+      return false;
     }
   }
-  return CU_NURB_CYCLIC;
+  return true;
 }
 
 short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
@@ -172,7 +172,7 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
   short knot_mode = 0;
 
   if (import_params.close_spline_loops && indices.size() > degree) {
-    knot_mode |= detect_knot_mode_cyclic(degree, indices, knots);
+    SET_FLAG_FROM_TEST(knot_mode, detect_knot_mode_cyclic(degree, indices, knots), CU_NURB_CYCLIC);
   }
 
   /* Figure out whether curve should have U endpoint flag set:
