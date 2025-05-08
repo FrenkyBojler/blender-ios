@@ -75,6 +75,11 @@ bool generic_attribute_type_supported(const EnumPropertyItem &item)
               CD_PROP_FLOAT4X4);
 }
 
+bool attribute_type_supports_grids(const eCustomDataType data_type)
+{
+  return ELEM(data_type, CD_PROP_FLOAT, CD_PROP_FLOAT3);
+}
+
 }  // namespace enums
 
 const EnumPropertyItem *grid_data_type_socket_items_filter_fn(bContext * /*C*/,
@@ -99,6 +104,18 @@ const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext * /*C*/,
                            [](const EnumPropertyItem &item) -> bool {
                              return socket_type_supports_grids(eNodeSocketDatatype(item.value));
                            });
+}
+
+const EnumPropertyItem *grid_attribute_type_items_filter_fn(bContext * /*C*/,
+                                                            PointerRNA * /*ptr*/,
+                                                            PropertyRNA * /*prop*/,
+                                                            bool *r_free)
+{
+  *r_free = true;
+  return enum_items_filter(
+      rna_enum_attribute_type_items, [](const EnumPropertyItem &item) -> bool {
+        return enums::attribute_type_supports_grids(eCustomDataType(item.value));
+      });
 }
 
 void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params)

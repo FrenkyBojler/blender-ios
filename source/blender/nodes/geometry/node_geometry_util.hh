@@ -63,6 +63,8 @@ const EnumPropertyItem *attribute_type_type_with_socket_fn(bContext * /*C*/,
 
 bool generic_attribute_type_supported(const EnumPropertyItem &item);
 
+bool attribute_type_supports_grids(eCustomDataType data_type);
+
 }  // namespace enums
 
 const EnumPropertyItem *grid_data_type_socket_items_filter_fn(bContext *C,
@@ -73,6 +75,10 @@ const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext *C,
                                                          PointerRNA *ptr,
                                                          PropertyRNA *prop,
                                                          bool *r_free);
+const EnumPropertyItem *grid_attribute_type_items_filter_fn(bContext *C,
+                                                            PointerRNA *ptr,
+                                                            PropertyRNA *prop,
+                                                            bool *r_free);
 
 void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params);
 
