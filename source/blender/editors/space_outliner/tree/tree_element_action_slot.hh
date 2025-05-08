@@ -18,12 +18,9 @@ class Slot;
 namespace blender::ed::outliner {
 
 class TreeElementActionSlot final : public AbstractTreeElement {
-  blender::animrig::Slot &slot_;
 
  public:
   TreeElementActionSlot(TreeElement &legacy_te, blender::animrig::Slot &slot);
-
-  void expand(SpaceOutliner &space_outliner);
 };
 
 }  // namespace blender::ed::outliner
