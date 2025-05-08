@@ -104,7 +104,7 @@ static void uilist_draw_item_default(uiList *ui_list,
   /* Simplest one! */
   switch (ui_list->layout_type) {
     case UILST_LAYOUT_GRID:
-      uiItemL(layout, "", icon);
+      layout->label("", icon);
       break;
     case UILST_LAYOUT_DEFAULT:
     case UILST_LAYOUT_COMPACT:
@@ -113,7 +113,7 @@ static void uilist_draw_item_default(uiList *ui_list,
         uiItemFullR(layout, itemptr, nameprop, RNA_NO_INDEX, 0, UI_ITEM_R_NO_BG, "", icon);
       }
       else {
-        uiItemL(layout, "", icon);
+        layout->label("", icon);
       }
       break;
   }
@@ -732,7 +732,7 @@ static void ui_template_list_layout_draw(const bContext *C,
   switch (ui_list->layout_type) {
     case UILST_LAYOUT_DEFAULT: {
       /* layout */
-      box = uiLayoutListBox(layout, ui_list, &input_data->active_dataptr, input_data->activeprop);
+      box = &layout->list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
       glob = &box->column(true);
       row = &glob->row(false);
       col = &row->column(true);
@@ -755,7 +755,7 @@ static void ui_template_list_layout_draw(const bContext *C,
           const int flt_flag = items->item_vec[i].flt_flag;
           uiBlock *subblock = uiLayoutGetBlock(col);
 
-          overlap = uiLayoutOverlap(col);
+          overlap = &col->overlap();
 
           UI_block_flag_enable(subblock, UI_BLOCK_LIST_ITEM);
 
@@ -821,7 +821,7 @@ static void ui_template_list_layout_draw(const bContext *C,
 
       /* add dummy buttons to fill space */
       for (; i < visual_info.start_idx + visual_info.visual_items; i++) {
-        uiItemL(col, "", ICON_NONE);
+        col->label("", ICON_NONE);
       }
 
       /* Add scroll-bar. */
@@ -870,7 +870,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       }
       /* if list is empty, add in dummy button */
       else {
-        uiItemL(row, "", ICON_NONE);
+        row->label("", ICON_NONE);
       }
 
       /* next/prev button */
@@ -895,7 +895,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       }
       break;
     case UILST_LAYOUT_GRID: {
-      box = uiLayoutListBox(layout, ui_list, &input_data->active_dataptr, input_data->activeprop);
+      box = &layout->list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
       glob = &box->column(true);
       row = &glob->row(false);
       col = &row->column(true);
@@ -917,7 +917,7 @@ static void ui_template_list_layout_draw(const bContext *C,
           }
 
           uiBlock *subblock = uiLayoutGetBlock(subrow);
-          overlap = uiLayoutOverlap(subrow);
+          overlap = &subrow->overlap();
 
           UI_block_flag_enable(subblock, UI_BLOCK_LIST_ITEM);
 
@@ -968,7 +968,7 @@ static void ui_template_list_layout_draw(const bContext *C,
         if (!(i % layout_data->columns)) {
           subrow = &col->row(false);
         }
-        uiItemL(subrow, "", ICON_NONE);
+        subrow->label("", ICON_NONE);
       }
 
       /* Add scroll-bar. */
@@ -992,7 +992,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       break;
     }
     case UILST_LAYOUT_BIG_PREVIEW_GRID:
-      box = uiLayoutListBox(layout, ui_list, &input_data->active_dataptr, input_data->activeprop);
+      box = &layout->list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
       /* For grip button. */
       glob = &box->column(true);
       /* For scroll-bar. */
@@ -1018,7 +1018,7 @@ static void ui_template_list_layout_draw(const bContext *C,
           const int org_i = items->item_vec[i].org_idx;
           const int flt_flag = items->item_vec[i].flt_flag;
 
-          overlap = uiLayoutOverlap(grid);
+          overlap = &grid->overlap();
           col = &overlap->column(false);
 
           uiBlock *subblock = uiLayoutGetBlock(col);

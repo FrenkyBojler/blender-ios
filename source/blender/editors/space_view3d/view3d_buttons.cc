@@ -310,7 +310,7 @@ static void v3d_editvertex_buts(
     const bContext *C, uiLayout *layout, View3D *v3d, Object *ob, float lim)
 {
   using namespace blender;
-  uiBlock *block = (layout) ? uiLayoutAbsoluteBlock(layout) : nullptr;
+  uiBlock *block = (layout) ? layout->absolute_block() : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   TransformMedian median_basis, ve_median_basis;
   int tot, totedgedata, totcurvedata, totlattdata, totcurvebweight;
@@ -1311,7 +1311,7 @@ static void v3d_editvertex_buts(
 
 static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d, Object *ob)
 {
-  uiBlock *block = (layout) ? uiLayoutAbsoluteBlock(layout) : nullptr;
+  uiBlock *block = (layout) ? layout->absolute_block() : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   const bool is_editable = ID_IS_EDITABLE(&ob->id);
 
@@ -1428,7 +1428,7 @@ static void update_active_vertex_weight(bContext *C, void *arg1, void * /*arg2*/
 
 static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 {
-  uiBlock *block = uiLayoutAbsoluteBlock(panel->layout);
+  uiBlock *block = panel->layout->absolute_block();
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -1617,7 +1617,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
   uiItemR(colsub, ptr, "location", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   colsub = &split->column(true);
   uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
-  uiItemL(colsub, "", ICON_NONE);
+  colsub->label("", ICON_NONE);
   uiItemR(colsub,
           ptr,
           "lock_location",
@@ -1643,7 +1643,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
                 ICON_DECORATE_UNLOCKED);
       }
       else {
-        uiItemL(colsub, "", ICON_NONE);
+        colsub->label("", ICON_NONE);
       }
       uiItemR(colsub,
               ptr,
@@ -1667,7 +1667,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
                 ICON_DECORATE_UNLOCKED);
       }
       else {
-        uiItemL(colsub, "", ICON_NONE);
+        colsub->label("", ICON_NONE);
       }
       uiItemR(colsub,
               ptr,
@@ -1681,7 +1681,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
       uiItemR(colsub, ptr, "rotation_euler", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
       colsub = &split->column(true);
       uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
-      uiItemL(colsub, "", ICON_NONE);
+      colsub->label("", ICON_NONE);
       uiItemR(colsub,
               ptr,
               "lock_rotation",
@@ -1697,7 +1697,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
   uiItemR(colsub, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   colsub = &split->column(true);
   uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
-  uiItemL(colsub, "", ICON_NONE);
+  colsub->label("", ICON_NONE);
   uiItemR(colsub,
           ptr,
           "lock_scale",
@@ -1714,7 +1714,7 @@ static void v3d_posearmature_buts(uiLayout *layout, Object *ob)
   pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
 
   if (!pchan) {
-    uiItemL(layout, IFACE_("No Bone Active"), ICON_NONE);
+    layout->label(IFACE_("No Bone Active"), ICON_NONE);
     return;
   }
 
@@ -1737,7 +1737,7 @@ static void v3d_editarmature_buts(uiLayout *layout, Object *ob)
   ebone = arm->act_edbone;
 
   if (!ebone || !ANIM_bonecoll_is_visible_editbone(arm, ebone)) {
-    uiItemL(layout, IFACE_("Nothing selected"), ICON_NONE);
+    layout->label(IFACE_("Nothing selected"), ICON_NONE);
     return;
   }
 
@@ -1767,7 +1767,7 @@ static void v3d_editmetaball_buts(uiLayout *layout, Object *ob)
   uiLayout *col;
 
   if (!mball || !(mball->lastelem)) {
-    uiItemL(layout, IFACE_("Nothing selected"), ICON_NONE);
+    layout->label(IFACE_("Nothing selected"), ICON_NONE);
     return;
   }
 
@@ -1786,22 +1786,22 @@ static void v3d_editmetaball_buts(uiLayout *layout, Object *ob)
     case MB_BALL:
       break;
     case MB_CUBE:
-      uiItemL(col, IFACE_("Size:"), ICON_NONE);
+      col->label(IFACE_("Size:"), ICON_NONE);
       uiItemR(col, &ptr, "size_x", UI_ITEM_NONE, "X", ICON_NONE);
       uiItemR(col, &ptr, "size_y", UI_ITEM_NONE, "Y", ICON_NONE);
       uiItemR(col, &ptr, "size_z", UI_ITEM_NONE, "Z", ICON_NONE);
       break;
     case MB_TUBE:
-      uiItemL(col, IFACE_("Size:"), ICON_NONE);
+      col->label(IFACE_("Size:"), ICON_NONE);
       uiItemR(col, &ptr, "size_x", UI_ITEM_NONE, "X", ICON_NONE);
       break;
     case MB_PLANE:
-      uiItemL(col, IFACE_("Size:"), ICON_NONE);
+      col->label(IFACE_("Size:"), ICON_NONE);
       uiItemR(col, &ptr, "size_x", UI_ITEM_NONE, "X", ICON_NONE);
       uiItemR(col, &ptr, "size_y", UI_ITEM_NONE, "Y", ICON_NONE);
       break;
     case MB_ELIPSOID:
-      uiItemL(col, IFACE_("Size:"), ICON_NONE);
+      col->label(IFACE_("Size:"), ICON_NONE);
       uiItemR(col, &ptr, "size_x", UI_ITEM_NONE, "X", ICON_NONE);
       uiItemR(col, &ptr, "size_y", UI_ITEM_NONE, "Y", ICON_NONE);
       uiItemR(col, &ptr, "size_z", UI_ITEM_NONE, "Z", ICON_NONE);

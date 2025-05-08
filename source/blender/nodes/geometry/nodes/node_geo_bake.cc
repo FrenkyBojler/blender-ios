@@ -186,7 +186,7 @@ static bake::BakeSocketConfig make_bake_socket_config(const Span<NodeGeometryBak
  */
 struct DummyDataBlockMap : public bake::BakeDataBlockMap {
  private:
-  std::mutex mutex_;
+  Mutex mutex_;
   Map<bake::BakeDataBlockID, ID *> map_;
 
  public:
@@ -534,7 +534,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
     draw_bake_button_row(ctx, col, true);
     if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
       uiLayout *row = &col->row(true);
-      uiItemL(row, *bake_state_str, ICON_NONE);
+      row->label(*bake_state_str, ICON_NONE);
     }
   }
 
