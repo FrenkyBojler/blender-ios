@@ -4725,7 +4725,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
         ele_sort[i].sort_value = angle;
         ele_sort[i].data = v_link;
 
-        /* Do not allow the best corner or the diagonally opposite corner to be detected.*/
+        /* Do not allow the best corner or the diagonally opposite corner to be detected. */
         if (ELEM(i, 0, verts_len / 2)) {
           ele_sort[i].sort_value = 0;
         }
@@ -8434,7 +8434,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
         view3d_operator_needs_gpu(C);
         SelectPick_Params params{};
         params.sel_op = SEL_OP_SET;
-        if (EDBM_select_pick(C, event->mval, &params)) {
+        if (EDBM_select_pick(C, event->mval, params)) {
           /* Point to newly selected active. */
           blender::ed::object::calc_active_center_for_editmode(obedit, false, target);
 

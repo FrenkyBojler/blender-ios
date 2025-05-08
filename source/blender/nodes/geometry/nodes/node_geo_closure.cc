@@ -37,7 +37,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   bNode &output_node = const_cast<bNode &>(*zone->output_node);
 
   if (current_node->type_legacy == GEO_NODE_CLOSURE_INPUT) {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "input_items", false, TIP_("Input Items"))) {
+    if (uiLayout *panel = layout->panel(C, "input_items", false, TIP_("Input Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
@@ -47,7 +47,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
     }
   }
   else {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "output_items", false, TIP_("Output Items"))) {
+    if (uiLayout *panel = layout->panel(C, "output_items", false, TIP_("Output Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureOutputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureOutputItemsAccessor>(
@@ -184,7 +184,9 @@ static void node_operators()
   socket_items::ops::make_common_operators<ClosureOutputItemsAccessor>();
 }
 
-static void try_initialize_closure_from_evaluator(SpaceNode &snode, bNode &closure_output_node)
+static void try_initialize_closure_from_evaluator(SpaceNode &snode,
+                                                  bNode &closure_input_node,
+                                                  bNode &closure_output_node)
 {
   snode.edittree->ensure_topology_cache();
   bNodeSocket &closure_socket = closure_output_node.output_socket(0);
@@ -225,7 +227,27 @@ static void try_initialize_closure_from_evaluator(SpaceNode &snode, bNode &closu
     socket_items::add_item_with_socket_type_and_name<ClosureOutputItemsAccessor>(
         closure_output_node, eNodeSocketDatatype(evaluate_item.socket_type), evaluate_item.name);
   }
+  BKE_ntree_update_tag_node_property(snode.edittree, &closure_input_node);
   BKE_ntree_update_tag_node_property(snode.edittree, &closure_output_node);
+
+  update_node_declaration_and_sockets(*snode.edittree, closure_input_node);
+  update_node_declaration_and_sockets(*snode.edittree, closure_output_node);
+
+  snode.edittree->ensure_topology_cache();
+  Vector<std::pair<bNodeSocket *, bNodeSocket *>> internal_links;
+  for (const bNodeSocket *eval_output_socket : evaluate_node->output_sockets()) {
+    const bNodeSocket *eval_input_socket = evaluate_closure_node_internally_linked_input(
+        *eval_output_socket);
+    if (!eval_input_socket) {
+      continue;
+    }
+    internal_links.append({&closure_input_node.output_socket(eval_input_socket->index() - 1),
+                           &closure_output_node.input_socket(eval_output_socket->index())});
+  }
+  for (auto &&[from_socket, to_socket] : internal_links) {
+    bke::node_add_link(
+        *snode.edittree, closure_input_node, *from_socket, closure_output_node, *to_socket);
+  }
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
@@ -248,7 +270,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.connect_available_socket(output_node, "Closure");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    try_initialize_closure_from_evaluator(snode, output_node);
+    try_initialize_closure_from_evaluator(snode, input_node, output_node);
   });
 }
 
