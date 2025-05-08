@@ -880,7 +880,7 @@ class ForeachElementViewerPathItem : public ViewerPathTreeViewItem {
       const ForeachGeometryElementZoneViewerPathElem &foreach_geo_elem_zone)
       : ViewerPathTreeViewItem(viewer_path_index), foreach_geo_elem_zone_(foreach_geo_elem_zone)
   {
-    label_ = IFACE_("Foreach Element");
+    label_ = IFACE_("For Each Element");
   }
 
   void build_row(uiLayout &row) override
