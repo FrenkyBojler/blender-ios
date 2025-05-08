@@ -4819,69 +4819,6 @@ static void draw_frame_overlays(const bContext &C,
   }
 }
 
-static std::optional<std::array<float2, 2>> rctf_clamp_segment(const rctf &rect,
-                                                               float2 p1,
-                                                               float2 p2)
-{
-
-  const bool p1_inside = BLI_rctf_isect_pt_v(&rect, p1);
-  const bool p2_inside = BLI_rctf_isect_pt_v(&rect, p2);
-  if (p1_inside && p2_inside) {
-    return std::array{p1, p2};
-  }
-
-  const std::array<float2, 2> top_line = {float2{rect.xmin, rect.ymax},
-                                          float2{rect.xmax, rect.ymax}};
-  const std::array<float2, 2> bottom_line = {float2{rect.xmin, rect.ymin},
-                                             float2{rect.xmax, rect.ymin}};
-  const std::array<float2, 2> left_line = {float2{rect.xmin, rect.ymin},
-                                           float2{rect.xmin, rect.ymax}};
-  const std::array<float2, 2> right_line = {float2{rect.xmax, rect.ymin},
-                                            float2{rect.xmax, rect.ymax}};
-  const std::array<std::array<float2, 2>, 4> lines = {
-      top_line, bottom_line, left_line, right_line};
-
-  if (p1_inside && !p2_inside) {
-    for (const std::array<float2, 2> &line : lines) {
-      float2 intersection;
-      if (isect_seg_seg_v2_point(p1, p2, line[0], line[1], intersection) == 1) {
-        p2 = intersection;
-      }
-    }
-    return std::array{p1, p2};
-  }
-  if (!p1_inside && p2_inside) {
-    for (const std::array<float2, 2> &line : lines) {
-      float2 intersection;
-      if (isect_seg_seg_v2_point(p1, p2, line[0], line[1], intersection) == 1) {
-        p1 = intersection;
-      }
-    }
-    return std::array{p1, p2};
-  }
-
-  for (const std::array<float2, 2> &line : lines) {
-    float2 intersection;
-    if (isect_seg_seg_v2_point(p1, p2, line[0], line[1], intersection) == 1) {
-      p1 = intersection;
-    }
-    else {
-      return std::nullopt;
-    }
-  }
-  for (const std::array<float2, 2> &line : lines) {
-    float2 intersection;
-    if (isect_seg_seg_v2_point(p2, p1, line[0], line[1], intersection) == 1) {
-      p2 = intersection;
-    }
-    else {
-      return std::nullopt;
-    }
-  }
-
-  return std::array{p1, p2};
-}
-
 /**
  * Tries to find a position on the link where we can draw link information like an error icon. If
  * the link center is not visible, it finds the closest point to the link center that's still
@@ -4946,22 +4883,19 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
   float best_cost;
   std::optional<float2> best_position;
   for (const int i : IndexRange(link_points.size() - 1)) {
-    const float2 p0 = link_points[i];
-    const float2 p1 = link_points[i + 1];
-    const std::optional<std::array<float2, 2>> clamped_opt = rctf_clamp_segment(
-        outer_rect, p0, p1);
-    if (!clamped_opt.has_value()) {
+    float2 p0 = link_points[i];
+    float2 p1 = link_points[i + 1];
+    if (!BLI_rctf_clamp_segment(&outer_rect, p0, p1)) {
       continue;
     }
-    const std::array<float2, 2> &clamped = *clamped_opt;
-    const float length = math::distance(clamped[0], clamped[1]);
+    const float length = math::distance(p0, p1);
     const float point_distance = 1.0f;
     /* Might be possible to do a smarter scan of the cost function using some sort of binary sort,
      * but it's not entirely straight forward because the cost function is not monotonic. */
     const int points_to_check = std::max(2, 1 + int(length / point_distance));
     for (const int j : IndexRange(points_to_check)) {
       const float t = float(j) / (points_to_check - 1);
-      const float2 p = math::interpolate(clamped[0], clamped[1], t);
+      const float2 p = math::interpolate(p0, p1, t);
       const float cost = cost_function(p);
       if (!best_position.has_value() || cost < best_cost) {
         best_cost = cost;
