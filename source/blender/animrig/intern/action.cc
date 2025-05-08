@@ -578,9 +578,8 @@ bool Action::slot_remove(Slot &slot_to_remove)
   }
 
   /* Remove the slot's data from each keyframe strip. */
-  for (int i = 0; i < this->strip_keyframe_data_array_num; i++) {
-    StripKeyframeData &strip_data = this->strip_keyframe_data_array[i]->wrap();
-    strip_data.slot_data_remove(slot_to_remove.handle);
+  for (StripKeyframeData *strip_data : this->strip_keyframe_data()) {
+    strip_data->slot_data_remove(slot_to_remove.handle);
   }
 
   /* Don't bother un-assigning this slot from its users. The slot handle will
