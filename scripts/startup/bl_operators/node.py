@@ -176,6 +176,7 @@ class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
         from nodeitems_builtins import node_tree_group_type
         tree = context.space_data.edit_tree
         group = self.create_empty_group(tree.bl_idname)
+        self.deselect_nodes(context)
         node = self.create_node(context, node_tree_group_type[tree.bl_idname])
         node.node_tree = group
         return {"FINISHED"}
