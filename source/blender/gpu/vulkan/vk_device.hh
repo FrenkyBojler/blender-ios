@@ -85,6 +85,11 @@ struct VKWorkarounds {
  * Shared resources between contexts that run in the same thread.
  */
 class VKThreadData : public NonCopyable, NonMovable {
+  /**
+   * The number of resource pools is aligned to the number of frames
+   * in flight used by GHOST. Therefore, this constant *must* always
+   * match GHOST_ContextVK's GHOST_FRAMES_IN_FLIGHT.
+   */
   static constexpr uint32_t resource_pools_count = 3;
 
  public:
@@ -97,7 +102,7 @@ class VKThreadData : public NonCopyable, NonMovable {
    * NOTE: Initialized to `UINT32_MAX` to detect first change.
    */
   uint32_t resource_pool_index = UINT32_MAX;
-  std::array<VKResourcePool, NUM_FRAMES_IN_FLIGHT> resource_pools;
+  std::array<VKResourcePool, resource_pools_count> resource_pools;
 
   /**
    * The current rendering depth.

@@ -517,7 +517,7 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
       m_preferred_device(preferred_device),
       m_surface(VK_NULL_HANDLE),
       m_swapchain(VK_NULL_HANDLE),
-      m_frame_data(NUM_FRAMES_IN_FLIGHT),
+      m_frame_data(GHOST_FRAMES_IN_FLIGHT),
       m_render_frame(0)
 {
 }
