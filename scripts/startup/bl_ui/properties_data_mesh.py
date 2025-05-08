@@ -140,7 +140,6 @@ class MESH_UL_shape_keys(UIList):
                 row.label(text="")
             row.prop(key_block, "mute", text="", emboss=False)
             row.prop(key_block, "lock_shape", text="", emboss=False)
-            row.prop(key_block, "select", text="", emboss=False)
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.label(text="", icon_value=icon)
