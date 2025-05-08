@@ -4866,7 +4866,7 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
       return 1e5f + distance_to_center;
     }
     return
-        /* The larger the distance to the link center, the higher the cost. The importants of this
+        /* The larger the distance to the link center, the higher the cost. The importance of this
            distance decreases the further the center is away. */
         std::sqrt(distance_to_center)
         /* The larger the distance to the inner rectangle, the higher the cost. Apply an additional
