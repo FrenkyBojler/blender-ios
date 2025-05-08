@@ -3971,7 +3971,6 @@ static void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache
 
 static void init_scene_project_brush_targets(const bContext *C,
                                              const Object &active_object,
-                                             const Brush &brush,
                                              StrokeCache &cache)
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
@@ -4056,7 +4055,7 @@ static void sculpt_update_cache_invariants(
   }
 
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT) {
-    init_scene_project_brush_targets(C, ob, *brush, *cache);
+    init_scene_project_brush_targets(C, ob, *cache);
   }
 
   /* Not very nice, but with current events system implementation
