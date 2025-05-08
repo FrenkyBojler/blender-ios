@@ -25,8 +25,22 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
     return nullptr;
   }
 
-  auto open = (GHOST_WIN32_WTOpen)::GetProcAddress(handle.get(), "WTOpenA");
-  if (!open) {
+  try {
+    auto open = (GHOST_WIN32_WTOpen)::GetProcAddress(handle.get(), "WTOpenA");
+    if (!open) {
+      return nullptr;
+    }
+  }
+  catch (int /*exception*/) {
+    /* Some vendor's wintab driver (like Huion's) can sometimes get into a broken state where
+     * `WTOpen` would cause exception. If we don't want this to prevent blender from starting, we
+     * need to catch the exception and resume normal operation of blender.
+     * See https://projects.blender.org/blender/blender/issues/111152 */
+    MessageBox(0,
+               "WinTab internal state error. Please restart your tablet's driver.\nBlender is not "
+               "able to use the tablet.",
+               "Warning",
+               MB_OK);
     return nullptr;
   }
 
