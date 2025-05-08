@@ -56,7 +56,6 @@ inline namespace scene_project_cc {
 
 struct LocalData {
   Vector<float3> positions;
-  Vector<float3> normals;
   Vector<float> hit_distances;
   Vector<float> factors;
   Vector<float> distances;
@@ -113,7 +112,7 @@ static inline void raycast(const float3 &ray_origin,
 static void object_raycast(const Object &active_object,
                            const Object &target_object,
                            const bool bidirectional,
-                           const Span<float3> normals,
+                           const float3 &ray_direction,
                            const Span<float3> positions,
                            const Span<float> factors,
                            const MutableSpan<float> best_hit_distances)
@@ -128,13 +127,11 @@ static void object_raycast(const Object &active_object,
   const float4x4 active_to_target_mat = target_object.world_to_object() *
                                         active_object.object_to_world();
 
-  /* Directions and origins are in the coordinate system of the active object. Convert them to the
+  /* Origins are in the coordinate system of the active object. Convert them to the
    * coordinate system of the target. */
-  Array<float3> ray_directions(normals.size());
   Array<float3> ray_origins(positions.size());
 
-  for (const int i : normals.index_range()) {
-    ray_directions[i] = math::transform_direction(active_to_target_mat, normals[i]);
+  for (const int i : positions.index_range()) {
     ray_origins[i] = math::transform_point(active_to_target_mat, positions[i]);
   }
 
@@ -146,11 +143,11 @@ static void object_raycast(const Object &active_object,
         }
 
         BVHTreeRayHit hit;
-        raycast(ray_origins[i], ray_directions[i], tree_data, hit);
+        raycast(ray_origins[i], ray_direction, tree_data, hit);
         best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], hit.dist);
 
         if (bidirectional) {
-          raycast(ray_origins[i], -ray_directions[i], tree_data, hit);
+          raycast(ray_origins[i], -ray_direction, tree_data, hit);
           best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], -hit.dist);
         }
       }
@@ -165,7 +162,7 @@ static void object_raycast(const Object &active_object,
 static void scene_raycast(const Object &active_object,
                           const Span<Object *> target_objects,
                           const bool bidirectional,
-                          const Span<float3> normals,
+                          const float3 &normal,
                           const Span<float3> positions,
                           const Span<float> factors,
                           const MutableSpan<float> r_hit_distances)
@@ -176,7 +173,7 @@ static void scene_raycast(const Object &active_object,
     object_raycast(active_object,
                    *target_objects[i],
                    bidirectional,
-                   normals,
+                   normal,
                    positions,
                    factors,
                    r_hit_distances);
@@ -236,9 +233,9 @@ static float calc_center_projection_distance(const Object &active_object,
  * squeezed when projected.
  */
 static void calc_projection_offset(const float3 &center,
+                                   const float3 &normal,
                                    const float center_projection_dist,
                                    const float projection_offset_factor,
-                                   const Span<float3> normals,
                                    const Span<float3> positions,
                                    const MutableSpan<float> hit_distances)
 {
@@ -247,58 +244,39 @@ static void calc_projection_offset(const float3 &center,
   }
 
   for (const int i : positions.index_range()) {
-    const float distance = math::dot(positions[i] - center, normals[i]);
+    const float distance = math::dot(positions[i] - center, normal);
     hit_distances[i] += (distance - center_projection_dist) * projection_offset_factor;
   }
 }
 
-static void calc_translations(const Span<float3> normals,
+static void calc_translations(const float3 &normal,
                               const Span<float> factors,
                               const Span<float> hit_distances,
                               const MutableSpan<float3> r_translations)
 {
   for (const int i : factors.index_range()) {
-    r_translations[i] = normals[i] * hit_distances[i] * factors[i];
+    r_translations[i] = normal * hit_distances[i] * factors[i];
   }
 }
 
-static void calc_normals(const Brush &brush,
-                         const StrokeCache &cache,
-                         const Span<float3> positions,
-                         const MutableSpan<float3> r_normals)
+static float3 calc_normal(const Brush &brush, const StrokeCache &cache)
 {
   switch (brush.project_direction_type) {
-    case BRUSH_PROJECT_DIRECTION_VIEW_NORMAL: {
-      const bool view_is_perspective = cache.vc->rv3d->is_persp;
-
-      if (view_is_perspective) {
-        for (const int i : r_normals.index_range()) {
-          r_normals[i] = positions[i] - cache.view_origin_symm;
-        }
-      }
-      else {
-        r_normals.fill(cache.view_normal_symm);
-      }
-      break;
-    }
+    case BRUSH_PROJECT_DIRECTION_VIEW_NORMAL:
+      return -cache.view_normal_symm;
     case BRUSH_PROJECT_DIRECTION_PLANE_NORMAL:
-      r_normals.fill(-cache.sculpt_normal_symm);
-      break;
+      return cache.sculpt_normal_symm;
+    default:
+      BLI_assert_unreachable();
+      return;
   }
-}
-
-static float3 calc_center_normal(const Brush &brush, const StrokeCache &cache)
-{
-  Array<float3> center_normal(1);
-  calc_normals(brush, cache, {cache.location_symm}, center_normal);
-
-  return center_normal[0];
 }
 
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
                        const bool bidirectional,
+                       const float3 &normal,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
                        const float center_projection_dist,
@@ -324,31 +302,27 @@ static void calc_faces(const Depsgraph &depsgraph,
   const MutableSpan<float3> positions = tls.positions;
   gather_data_mesh(position_data.eval, verts, positions);
 
-  tls.normals.resize(verts.size());
-  const MutableSpan<float3> normals = tls.normals;
-  calc_normals(brush, *ss.cache, positions, normals);
-
   tls.hit_distances.resize(verts.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
 
   scene_raycast(object,
                 ss.cache->target_objects,
                 bidirectional,
-                normals,
+                normal,
                 positions,
                 tls.factors,
                 hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
+                         normal,
                          center_projection_dist,
                          brush.projection_offset_factor,
-                         normals,
                          positions,
                          hit_distances);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
-  calc_translations(normals, tls.factors, hit_distances, translations);
+  calc_translations(normal, tls.factors, hit_distances, translations);
   scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
@@ -360,6 +334,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool bidirectional,
+                       const float3 &normal,
                        const float center_projection_dist,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
@@ -372,30 +347,26 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   calc_factors_common_grids(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
 
-  tls.normals.resize(positions.size());
-  const MutableSpan<float3> normals = tls.normals;
-  calc_normals(brush, *ss.cache, positions, normals);
-
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
   scene_raycast(object,
                 ss.cache->target_objects,
                 bidirectional,
-                normals,
+                normal,
                 positions,
                 tls.factors,
                 hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
+                         normal,
                          center_projection_dist,
                          brush.projection_offset_factor,
-                         normals,
                          positions,
                          hit_distances);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
-  calc_translations(normals, tls.factors, hit_distances, translations);
+  calc_translations(normal, tls.factors, hit_distances, translations);
   scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
@@ -407,6 +378,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool bidirectional,
+                       const float3 &normal,
                        const float center_projection_dist,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
@@ -418,30 +390,26 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   calc_factors_common_bmesh(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
 
-  tls.normals.resize(positions.size());
-  const MutableSpan<float3> normals = tls.normals;
-  calc_normals(brush, *ss.cache, positions, normals);
-
   tls.hit_distances.resize(positions.size());
   const MutableSpan<float> hit_distances = tls.hit_distances;
   scene_raycast(object,
                 ss.cache->target_objects,
                 bidirectional,
-                normals,
+                normal,
                 positions,
                 tls.factors,
                 hit_distances);
 
   calc_projection_offset(ss.cache->location_symm,
+                         normal,
                          center_projection_dist,
                          brush.projection_offset_factor,
-                         normals,
                          positions,
                          hit_distances);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
-  calc_translations(normals, tls.factors, hit_distances, translations);
+  calc_translations(normal, tls.factors, hit_distances, translations);
   scale_translations(translations, ss.cache->bstrength);
 
   clip_and_lock_translations(sd, ss, positions, translations);
@@ -460,10 +428,10 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
   const StrokeCache &cache = *object.sculpt->cache;
 
   const bool bidirectional = brush.flag2 & BRUSH_BIDIRECTIONAL;
-  const float3 center_normal = calc_center_normal(brush, cache);
+  const float3 normal = calc_normal(brush, cache);
 
   const float center_projection_dist = calc_center_projection_distance(
-      object, cache, center_normal, bidirectional);
+      object, cache, normal, bidirectional);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
@@ -480,6 +448,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
                    sd,
                    brush,
                    bidirectional,
+                   normal,
                    attribute_data,
                    vert_normals,
                    center_projection_dist,
@@ -497,8 +466,15 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_grids(
-            depsgraph, sd, object, brush, bidirectional, center_projection_dist, nodes[i], tls);
+        calc_grids(depsgraph,
+                   sd,
+                   object,
+                   brush,
+                   bidirectional,
+                   normal,
+                   center_projection_dist,
+                   nodes[i],
+                   tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -507,8 +483,15 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_bmesh(
-            depsgraph, sd, object, brush, bidirectional, center_projection_dist, nodes[i], tls);
+        calc_bmesh(depsgraph,
+                   sd,
+                   object,
+                   brush,
+                   bidirectional,
+                   normal,
+                   center_projection_dist,
+                   nodes[i],
+                   tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;
