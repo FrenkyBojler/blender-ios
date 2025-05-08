@@ -778,10 +778,10 @@ class IDViewerPathItem : public ViewerPathTreeViewItem {
   {
     if (id_elem_.id) {
       const int icon = ED_outliner_icon_from_id(*id_elem_.id);
-      uiItemL(&row, BKE_id_name(*id_elem_.id), icon);
+      row.label(BKE_id_name(*id_elem_.id), icon);
     }
     else {
-      uiItemL(&row, "No data-block", ICON_BLANK1);
+      row.label("No data-block", ICON_BLANK1);
     }
   }
 };
@@ -798,7 +798,7 @@ class ModifierViewerPathItem : public ViewerPathTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, modifier_elem_.modifier_name, ICON_MODIFIER);
+    row.label(modifier_elem_.modifier_name, ICON_MODIFIER);
   }
 };
 
@@ -815,7 +815,7 @@ class GroupNodeViewerPathItem : public ViewerPathTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, group_node_elem_.base.ui_name, ICON_NODE);
+    row.label(group_node_elem_.base.ui_name, ICON_NODE);
   }
 };
 
@@ -832,7 +832,7 @@ class ViewerNodeViewerPathItem : public ViewerPathTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, viewer_node_elem_.base.ui_name, ICON_RESTRICT_VIEW_OFF);
+    row.label(viewer_node_elem_.base.ui_name, ICON_RESTRICT_VIEW_OFF);
   }
 };
 
@@ -848,7 +848,7 @@ class SimulationViewerPathPathItem : public ViewerPathTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_BLANK1);
+    row.label(label_, ICON_BLANK1);
   }
 };
 
@@ -865,7 +865,7 @@ class RepeatViewerPathItem : public ViewerPathTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_BLANK1);
+    row.label(label_, ICON_BLANK1);
     draw_row_suffix(*this, std::to_string(repeat_zone_.iteration));
   }
 };
@@ -885,7 +885,7 @@ class ForeachElementViewerPathItem : public ViewerPathTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_BLANK1);
+    row.label(label_, ICON_BLANK1);
     draw_row_suffix(*this, std::to_string(foreach_geo_elem_zone_.index));
   }
 };
@@ -901,7 +901,7 @@ class EvaluteClosureViewerPathItem : public ViewerPathTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_BLANK1);
+    row.label(label_, ICON_BLANK1);
   }
 };
 
@@ -997,7 +997,7 @@ std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
 
 static void data_source_panel_draw_without_context(uiLayout &layout)
 {
-  uiItemL(&layout, IFACE_("No active context"), ICON_NONE);
+  layout.label(IFACE_("No active context"), ICON_NONE);
 }
 
 static bool viewer_path_ends_with_viewer_node(const ViewerPath &viewer_path)
@@ -1054,7 +1054,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   {
     uiLayout &row = layout->row(false);
     uiLayoutSetEmboss(&row, ui::EmbossType::None);
-    uiItemL(&row, BKE_id_name(root_id), ICON_OBJECT_DATA);
+    row.label(BKE_id_name(root_id), ICON_OBJECT_DATA);
     uiItemO(&row,
             "",
             sspreadsheet->flag & SPREADSHEET_FLAG_PINNED ? ICON_PINNED : ICON_UNPINNED,
