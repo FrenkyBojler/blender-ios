@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2021 NVIDIA Corporation. All rights reserved.
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
