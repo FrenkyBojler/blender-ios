@@ -996,6 +996,13 @@ static void rna_def_keyblock(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_CHECKBOX_HLT, -1);
   RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
+  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", KEYBLOCK_SEL);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop, "Select", "Selects this shape key");
+  RNA_def_property_ui_icon(prop, ICON_CHECKBOX_DEHLT, 1);
+  RNA_def_property_update(prop, 0, "rna_Key_update_data");
+
   prop = RNA_def_property(srna, "lock_shape", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", KEYBLOCK_LOCKED_SHAPE);
   RNA_def_property_ui_text(
