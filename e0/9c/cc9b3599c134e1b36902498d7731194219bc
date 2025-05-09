@@ -1,1 +1,2 @@
 Referenced by commit 2b2963e2903fa0722b3c9f6923e8473f343e1d09, Fix (studio-reported) broken Lattice ID management.
+Referenced by pull request #138667, Core: use template for BKE_id_new
