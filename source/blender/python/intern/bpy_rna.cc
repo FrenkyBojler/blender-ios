@@ -8197,7 +8197,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
     }
 #endif
 
-    if (RNA_struct_idprops_check(srna) &&
+    if (RNA_struct_system_idprops_check(srna) &&
         !PyObject_IsSubclass(py_base, (PyObject *)&pyrna_struct_meta_idprop_Type))
     {
       metaclass = (PyObject *)&pyrna_struct_meta_idprop_Type;
