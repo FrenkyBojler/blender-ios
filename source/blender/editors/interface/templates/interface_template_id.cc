@@ -1785,7 +1785,7 @@ void uiTemplateAnyID(uiLayout *layout,
   /* Start drawing UI Elements using standard defines */
 
   /* NOTE: split amount here needs to be synced with normal labels */
-  uiLayout *split = uiLayoutSplit(layout, 0.33f, false);
+  uiLayout *split = &layout->split(0.33f, false);
 
   /* FIRST PART ................................................ */
   uiLayout *row = &split->row(false);
@@ -1793,11 +1793,11 @@ void uiTemplateAnyID(uiLayout *layout,
   /* Label - either use the provided text, or will become "ID-Block:" */
   if (text) {
     if (!text->is_empty()) {
-      uiItemL(row, *text, ICON_NONE);
+      row->label(*text, ICON_NONE);
     }
   }
   else {
-    uiItemL(row, IFACE_("ID-Block:"), ICON_NONE);
+    row->label(IFACE_("ID-Block:"), ICON_NONE);
   }
 
   /* SECOND PART ................................................ */

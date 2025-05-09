@@ -411,10 +411,10 @@ bool uvedit_edge_select_test_ex(const ToolSettings *ts,
       BLI_assert_unreachable();
     }
 
-    if (ts->selectmode & SCE_SELECT_FACE) {
+    if ((ts->selectmode & ~SCE_SELECT_VERTEX) == SCE_SELECT_FACE) {
       return BM_elem_flag_test(l->f, BM_ELEM_SELECT);
     }
-    if (ts->selectmode == SCE_SELECT_EDGE) {
+    if ((ts->selectmode & ~SCE_SELECT_FACE) == SCE_SELECT_EDGE) {
       return BM_elem_flag_test(l->e, BM_ELEM_SELECT);
     }
     return BM_elem_flag_test(l->v, BM_ELEM_SELECT) &&
@@ -627,6 +627,30 @@ bool uvedit_uv_select_test_ex(const ToolSettings *ts, const BMLoop *l, const BMU
         }
         case SI_STICKY_DISABLE: {
           return BM_elem_flag_test_bool(l->f, BM_ELEM_SELECT);
+        }
+        default: {
+          /* #SI_STICKY_VERTEX */
+          return BM_elem_flag_test_bool(l->v, BM_ELEM_SELECT);
+        }
+      }
+      BLI_assert_unreachable();
+    }
+
+    if ((ts->selectmode & ~SCE_SELECT_FACE) == SCE_SELECT_EDGE) {
+      /* Edge/Face is a special case that can respect sticky modes. */
+      switch (ts->uv_sticky) {
+        case SI_STICKY_LOC: {
+          if (BM_elem_flag_test(l->f, BM_ELEM_SELECT)) {
+            return true;
+          }
+          if (uvedit_vert_is_edge_select_any_other(ts, l, offsets)) {
+            return true;
+          }
+          return false;
+        }
+        case SI_STICKY_DISABLE: {
+          return BM_elem_flag_test(l->e, BM_ELEM_SELECT) ||
+                 BM_elem_flag_test(l->prev->e, BM_ELEM_SELECT);
         }
         default: {
           /* #SI_STICKY_VERTEX */
@@ -2535,7 +2559,7 @@ void UV_OT_select_all(wmOperatorType *ot)
 static bool uv_mouse_select_multi(bContext *C,
                                   const Span<Object *> objects,
                                   const float co[2],
-                                  const SelectPick_Params *params)
+                                  const SelectPick_Params &params)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const ARegion *region = CTX_wm_region(C);
@@ -2653,11 +2677,11 @@ static bool uv_mouse_select_multi(bContext *C,
     }
   }
 
-  if (params->sel_op == SEL_OP_SET) {
-    if ((found && params->select_passthrough) && is_selected) {
+  if (params.sel_op == SEL_OP_SET) {
+    if ((found && params.select_passthrough) && is_selected) {
       found = false;
     }
-    else if (found || params->deselect_all) {
+    else if (found || params.deselect_all) {
       /* Deselect everything. */
       uv_select_all_perform_multi(scene, objects, SEL_DESELECT);
       for (Object *obedit : objects) {
@@ -2680,9 +2704,9 @@ static bool uv_mouse_select_multi(bContext *C,
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
     if (selectmode == UV_SELECT_ISLAND) {
-      const bool extend = params->sel_op == SEL_OP_ADD;
-      const bool deselect = params->sel_op == SEL_OP_SUB;
-      const bool toggle = params->sel_op == SEL_OP_XOR;
+      const bool extend = params.sel_op == SEL_OP_ADD;
+      const bool deselect = params.sel_op == SEL_OP_SUB;
+      const bool toggle = params.sel_op == SEL_OP_XOR;
       /* Current behavior of 'extend'
        * is actually toggling, so pass extend flag as 'toggle' here */
       uv_select_linked_multi(scene, objects, &hit, extend, deselect, toggle, false);
@@ -2692,7 +2716,7 @@ static bool uv_mouse_select_multi(bContext *C,
     else {
       BLI_assert(ELEM(selectmode, UV_SELECT_VERTEX, UV_SELECT_EDGE, UV_SELECT_FACE));
       bool select_value = false;
-      switch (params->sel_op) {
+      switch (params.sel_op) {
         case SEL_OP_ADD: {
           select_value = true;
           break;
@@ -2754,7 +2778,7 @@ static bool uv_mouse_select_multi(bContext *C,
     }
     else {
       /* Setting the selection implies a single element, which doesn't need to be flushed. */
-      if (params->sel_op != SEL_OP_SET) {
+      if (params.sel_op != SEL_OP_SET) {
         ED_uvedit_selectmode_flush(scene, bm);
       }
     }
@@ -2768,7 +2792,7 @@ static bool uv_mouse_select_multi(bContext *C,
 
   return changed || found;
 }
-static bool uv_mouse_select(bContext *C, const float co[2], const SelectPick_Params *params)
+static bool uv_mouse_select(bContext *C, const float co[2], const SelectPick_Params &params)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -2784,10 +2808,9 @@ static wmOperatorStatus uv_select_exec(bContext *C, wmOperator *op)
 
   RNA_float_get_array(op->ptr, "location", co);
 
-  SelectPick_Params params{};
-  ED_select_pick_params_from_operator(op->ptr, &params);
+  const SelectPick_Params params = ED_select_pick_params_from_operator(op->ptr);
 
-  const bool changed = uv_mouse_select(C, co, &params);
+  const bool changed = uv_mouse_select(C, co, params);
 
   if (changed) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
@@ -5650,7 +5673,8 @@ void ED_uvedit_sticky_selectmode_update(bContext *C)
   if ((ts->uv_flag & UV_SYNC_SELECTION) == 0) {
     return;
   }
-  if (ts->selectmode != SCE_SELECT_FACE) {
+  /* Only for edge/face select modes. */
+  if (ts->selectmode & SCE_SELECT_VERTEX) {
     return;
   }
 

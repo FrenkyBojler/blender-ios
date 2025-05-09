@@ -248,7 +248,7 @@ set(SRC
   engines/overlay/overlay_camera.hh
   engines/overlay/overlay_cursor.hh
   engines/overlay/overlay_curve.hh
-  engines/overlay/overlay_edit_text.hh
+  engines/overlay/overlay_text.hh
   engines/overlay/overlay_empty.hh
   engines/overlay/overlay_engine.h
   engines/overlay/overlay_facing.hh
@@ -733,6 +733,7 @@ foreach(GLSL_FILE ${GLSL_SRC})
 endforeach()
 
 blender_add_lib(bf_draw_shaders "${GLSL_C}" "" "" "")
+blender_set_target_unity_build(bf_draw_shaders 10)
 
 list(APPEND LIB
   PRIVATE bf::animrig
