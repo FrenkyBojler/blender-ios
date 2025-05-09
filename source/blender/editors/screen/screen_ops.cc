@@ -6061,14 +6061,7 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   }
 
   /* changes context! */
-  if (WM_window_open_temp(C,
-                          nullptr,
-                          &U.space_data.win_rect,
-                          500 + UI_NAVIGATION_REGION_WIDTH,
-                          520,
-                          SPACE_USERPREF,
-                          false) != nullptr)
-  {
+  if (WM_window_open_temp(C, SPACE_USERPREF, false) != nullptr) {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
     ScrArea *area = CTX_wm_area(C);

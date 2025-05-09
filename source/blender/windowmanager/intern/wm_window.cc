@@ -438,12 +438,12 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
     const float f = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
     win->runtime->win_rect->xmin = (float)win->posx * f / UI_SCALE_FAC;
     win->runtime->win_rect->xmax = win->runtime->win_rect->xmin +
-                                    (float)win->sizex * f / UI_SCALE_FAC;
+                                   (float)win->sizex * f / UI_SCALE_FAC;
     win->runtime->win_rect->ymin = (float)win->posy * f / UI_SCALE_FAC;
     win->runtime->win_rect->ymax = win->runtime->win_rect->ymin +
-                                    (float)win->sizey * f / UI_SCALE_FAC;
+                                   (float)win->sizey * f / UI_SCALE_FAC;
     /* Tag user preferences as dirty. */
-      U.runtime.is_dirty = true;
+    U.runtime.is_dirty = true;
   }
 
   wmWindow *win_other;
@@ -1214,26 +1214,34 @@ wmWindow *WM_window_open(bContext *C,
   return nullptr;
 }
 
-wmWindow *WM_window_open_temp(struct bContext *C,
-                              const char *title,
-                              rctf *win_rect,
-                              int def_sizex,
-                              int def_sizey,
-                              int space_type,
-                              bool dialog)
+wmWindow *WM_window_open_temp(struct bContext *C, int space_type, bool dialog)
 {
-  rcti rect;
+  rctf *userdef_store = nullptr;
+  int def_sizex = 800;
+  int def_sizey = 600;
 
+  if (space_type == SPACE_FILE) {
+    userdef_store = &U.file_space_data.win_rect;
+    def_sizex = 1060;
+    def_sizey = 600;
+  }
+  else if (space_type == SPACE_USERPREF) {
+    userdef_store = &U.space_data.win_rect;
+    def_sizex = 600;
+    def_sizey = 520;
+  }
+
+  rcti rect;
   int posx, posy, sizex, sizey;
   eWindowAlignment align;
 
   WM_window_set_dpi(CTX_wm_window(C));
 
-  if (win_rect && win_rect->xmax != 0.0f) {
-    rect.xmin = (int)(win_rect->xmin * UI_SCALE_FAC);
-    rect.ymin = (int)(win_rect->ymin * UI_SCALE_FAC);
-    rect.xmax = (int)(win_rect->xmax * UI_SCALE_FAC);
-    rect.ymax = (int)(win_rect->ymax * UI_SCALE_FAC);
+  if (userdef_store && userdef_store->xmax != 0.0f) {
+    rect.xmin = (int)(userdef_store->xmin * UI_SCALE_FAC);
+    rect.ymin = (int)(userdef_store->ymin * UI_SCALE_FAC);
+    rect.xmax = (int)(userdef_store->xmax * UI_SCALE_FAC);
+    rect.ymax = (int)(userdef_store->ymax * UI_SCALE_FAC);
     align = WIN_ALIGN_ABSOLUTE;
   }
   else {
@@ -1248,9 +1256,9 @@ wmWindow *WM_window_open_temp(struct bContext *C,
   }
 
   wmWindow *win = WM_window_open(
-      C, title, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
+      C, nullptr, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
 
-  win->runtime->win_rect = win_rect;
+  win->runtime->win_rect = userdef_store;
 
   return win;
 }

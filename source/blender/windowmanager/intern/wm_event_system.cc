@@ -2796,9 +2796,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
 
   switch (val) {
     case EVT_FILESELECT_FULL_OPEN: {
-      if (WM_window_open_temp(C, nullptr, &U.file_space_data.win_rect, 1060, 600, SPACE_FILE, true) !=
-          nullptr)
-      {
+      if (WM_window_open_temp(C, SPACE_FILE, true) != nullptr) {
         ScrArea *area = CTX_wm_area(C);
         ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
