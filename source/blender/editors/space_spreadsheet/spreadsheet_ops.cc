@@ -123,9 +123,53 @@ static void SPREADSHEET_OT_change_spreadsheet_data_source(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
-static wmOperatorStatus resize_column_invoke(bContext *C,
-                                             wmOperator * /*op*/,
-                                             const wmEvent *event)
+struct ResizeColumnData {
+  SpreadsheetColumn *column = nullptr;
+  int2 initial_cursor_re;
+  int initial_width_px;
+};
+
+static wmOperatorStatus resize_column_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  ARegion &region = *CTX_wm_region(C);
+
+  ResizeColumnData &data = *static_cast<ResizeColumnData *>(op->customdata);
+
+  auto cancel = [&]() {
+    data.column->width = data.initial_width_px / SPREADSHEET_WIDTH_UNIT;
+    MEM_delete(&data);
+    return OPERATOR_CANCELLED;
+  };
+  auto finish = [&]() {
+    MEM_delete(&data);
+    return OPERATOR_FINISHED;
+  };
+
+  const int2 cursor_re{event->mval[0], event->mval[1]};
+
+  switch (event->type) {
+    case RIGHTMOUSE:
+    case EVT_ESCKEY: {
+      return cancel();
+    }
+    case LEFTMOUSE: {
+      return finish();
+    }
+    case MOUSEMOVE: {
+      const int offset = cursor_re.x - data.initial_cursor_re.x;
+      const float new_width_px = std::max<float>(SPREADSHEET_WIDTH_UNIT,
+                                                 data.initial_width_px + offset);
+      data.column->width = new_width_px / SPREADSHEET_WIDTH_UNIT;
+      ED_region_tag_redraw(&region);
+      return OPERATOR_RUNNING_MODAL;
+    }
+    default: {
+      return OPERATOR_RUNNING_MODAL;
+    }
+  }
+}
+
+static wmOperatorStatus resize_column_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion &region = *CTX_wm_region(C);
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
@@ -148,8 +192,14 @@ static wmOperatorStatus resize_column_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  fmt::println("Hello World");
-  return OPERATOR_FINISHED;
+  ResizeColumnData *data = MEM_new<ResizeColumnData>("ResizeColumnData");
+  data->column = column_to_resize;
+  data->initial_cursor_re = cursor_re;
+  data->initial_width_px = column_to_resize->width * SPREADSHEET_WIDTH_UNIT;
+  op->customdata = data;
+
+  WM_event_add_modal_handler(C, op);
+  return OPERATOR_RUNNING_MODAL;
 }
 
 static void SPREADSHEET_OT_resize_column(wmOperatorType *ot)
@@ -159,6 +209,7 @@ static void SPREADSHEET_OT_resize_column(wmOperatorType *ot)
   ot->idname = "SPREADSHEET_OT_resize_column";
 
   ot->invoke = resize_column_invoke;
+  ot->modal = resize_column_modal;
   ot->poll = ED_operator_spreadsheet_active;
   ot->flag = OPTYPE_INTERNAL;
 }
