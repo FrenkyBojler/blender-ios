@@ -468,7 +468,7 @@ float ColumnValues::initial_width_px() const
       return 2.0f * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_INT8: {
-      return 3 * SPREADSHEET_WIDTH_UNIT;
+      return 3.0f * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_INT32: {
       return compute_text_widths<int>(3 * SPREADSHEET_WIDTH_UNIT,
