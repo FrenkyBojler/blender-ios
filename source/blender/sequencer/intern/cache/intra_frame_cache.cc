@@ -29,6 +29,7 @@ struct IntraFrameCache {
   StripImageMap preprocessed;
   StripImageMap composite;
   float timeline_frame = -1.0f;
+  int view_id = -1;
 
   ~IntraFrameCache()
   {
@@ -52,6 +53,7 @@ void intra_frame_cache_invalidate(Scene *scene)
     cache->preprocessed.clear();
     cache->composite.clear();
     cache->timeline_frame = -1.0f;
+    cache->view_id = -1;
   }
 }
 
@@ -160,12 +162,13 @@ void intra_frame_cache_destroy(Scene *scene)
   }
 }
 
-void intra_frame_cache_set_cur_frame(Scene *scene, float frame)
+void intra_frame_cache_set_cur_frame(Scene *scene, float frame, int view_id)
 {
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (cache != nullptr) {
-    if (cache->timeline_frame != frame) {
+    if (cache->timeline_frame != frame || cache->view_id != view_id) {
       cache->timeline_frame = frame;
+      cache->view_id = view_id;
       cache->preprocessed.clear();
       cache->composite.clear();
     }

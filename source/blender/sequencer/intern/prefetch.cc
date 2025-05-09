@@ -393,7 +393,7 @@ static bool strip_is_cached(PrefetchJob *pfjob, Strip *strip, bool can_have_fina
   }
 
   if (can_have_final_image) {
-    ibuf = final_image_cache_get(pfjob->context.scene, cfra);
+    ibuf = final_image_cache_get(pfjob->context.scene, cfra, pfjob->context.view_id);
     if (ibuf != nullptr) {
       IMB_freeImBuf(ibuf);
       return true;

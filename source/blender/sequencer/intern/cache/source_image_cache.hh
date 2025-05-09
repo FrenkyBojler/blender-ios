@@ -6,7 +6,7 @@
  * \ingroup sequencer
  *
  * Cache source images for strips.
- * - Keyed by (strip + frame index within strip media).
+ * - Keyed by (strip + frame index within strip media + view ID).
  * - Caching is only done for strips that are independent of
  *   any other strips (images, movies, no-input effect strips like
  *   Text and Color).

@@ -33,8 +33,8 @@ struct SourceImageCache {
   };
 
   struct StripEntry {
-    /* Map key is source media frame index (i.e. movie frame). */
-    Map<int, FrameEntry> frames;
+    /* Map key is {source media frame index (i.e. movie frame), view ID}. */
+    Map<std::pair<int, int>, FrameEntry> frames;
   };
 
   Map<const Strip *, StripEntry> map_;
@@ -98,6 +98,7 @@ ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, flo
   if (strip->type == STRIP_TYPE_MOVIE) {
     frame_index += strip->anim_startofs;
   }
+  const int view_id = context->view_id;
 
   ImBuf *res = nullptr;
   {
@@ -114,7 +115,7 @@ ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, flo
       return nullptr;
     }
     /* Search entries for the frame we want. */
-    SourceImageCache::FrameEntry *frame = val->frames.lookup_ptr(frame_index);
+    SourceImageCache::FrameEntry *frame = val->frames.lookup_ptr({frame_index, view_id});
     if (frame != nullptr) {
       frame->used_at = math::max(frame->used_at, cur_time);
       res = frame->image;
@@ -143,6 +144,7 @@ void source_image_cache_put(const RenderData *context,
   if (strip->type == STRIP_TYPE_MOVIE) {
     frame_index += strip->anim_startofs;
   }
+  const int view_id = context->view_id;
 
   IMB_refImBuf(image);
 
@@ -159,7 +161,7 @@ void source_image_cache_put(const RenderData *context,
   }
   BLI_assert_msg(val != nullptr, "Source image cache value should never be null here");
 
-  SourceImageCache::FrameEntry &frame = val->frames.lookup_or_add_default(frame_index);
+  SourceImageCache::FrameEntry &frame = val->frames.lookup_or_add_default({frame_index, view_id});
   if (frame.image != nullptr) {
     IMB_freeImBuf(frame.image);
   }
@@ -211,11 +213,11 @@ void source_image_cache_iterate(Scene *scene,
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
 
   for (const auto &[key, value] : cache->map_.items()) {
-    for (int frame : value.frames.keys()) {
+    for (std::pair<int, int> frame_view : value.frames.keys()) {
       /* We have frame index of source media, try to guesstimate the timeline frame.
        * Note that this will be not correct when retiming, strobing etc. are used.
        * However, factor in playback rate difference. */
-      float frame_fl = frame / time_media_playback_rate_factor_get(key, scene_fps);
+      float frame_fl = frame_view.first / time_media_playback_rate_factor_get(key, scene_fps);
       float timeline_frame = frame_fl + time_start_frame_get(key);
 
       callback_iter(userdata, key, int(timeline_frame));
@@ -263,7 +265,7 @@ bool source_image_cache_evict(Scene *scene)
 
   /* Find which entry was the least recently used. */
   SourceImageCache::StripEntry *oldest_strip = nullptr;
-  int oldest_key = -1;
+  std::pair<int, int> oldest_key = {};
   int64_t oldest_time = cache->logical_time_;
   for (const auto &item : cache->map_.items()) {
     for (const auto &frame : item.value.frames.items()) {

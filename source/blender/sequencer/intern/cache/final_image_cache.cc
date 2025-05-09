@@ -26,7 +26,8 @@ namespace blender::seq {
 static Mutex final_image_cache_mutex;
 
 struct FinalImageCache {
-  Map<int, ImBuf *> map_;
+  /* Key is {timeline frame, view ID}. */
+  Map<std::pair<int, int>, ImBuf *> map_;
 
   ~FinalImageCache()
   {
@@ -59,9 +60,9 @@ static FinalImageCache *query_final_image_cache(const Scene *scene)
   return scene->ed->runtime.final_image_cache;
 }
 
-ImBuf *final_image_cache_get(Scene *scene, float timeline_frame)
+ImBuf *final_image_cache_get(Scene *scene, float timeline_frame, int view_id)
 {
-  const int key = int(math::round(timeline_frame));
+  const std::pair<int, int> key = {int(math::round(timeline_frame)), view_id};
 
   ImBuf *res = nullptr;
   {
@@ -79,9 +80,9 @@ ImBuf *final_image_cache_get(Scene *scene, float timeline_frame)
   return res;
 }
 
-void final_image_cache_put(Scene *scene, float timeline_frame, ImBuf *image)
+void final_image_cache_put(Scene *scene, float timeline_frame, int view_id, ImBuf *image)
 {
-  const int key = int(math::round(timeline_frame));
+  const std::pair<int, int> key = {int(math::round(timeline_frame)), view_id};
 
   IMB_refImBuf(image);
 
@@ -112,7 +113,7 @@ void final_image_cache_invalidate_frame_range(Scene *scene,
   const int key_end = int(math::ceil(timeline_frame_end));
 
   for (auto it = cache->map_.items().begin(); it != cache->map_.items().end(); it++) {
-    const int key = (*it).key;
+    const int key = (*it).key.first;
     if (key >= key_start && key <= key_end) {
       IMB_freeImBuf((*it).value);
       cache->map_.remove(it);
@@ -149,8 +150,8 @@ void final_image_cache_iterate(Scene *scene,
   if (cache == nullptr) {
     return;
   }
-  for (int frame : cache->map_.keys()) {
-    callback_iter(userdata, frame);
+  for (std::pair<int, int> frame_view : cache->map_.keys()) {
+    callback_iter(userdata, frame_view.first);
   }
 }
 
@@ -196,21 +197,22 @@ bool final_image_cache_evict(Scene *scene)
   seq_prefetch_get_time_range(scene, &cur_prefetch_start, &cur_prefetch_end);
 
   const int cur_frame = scene->r.cfra;
-  int best_key = -1;
+  std::pair<int, int> best_key = {};
   ImBuf *best_item = nullptr;
   int best_score = 0;
   for (const auto &item : cache->map_.items()) {
-    if (item.key >= cur_prefetch_start && item.key <= cur_prefetch_end) {
+    const int item_frame = item.key.first;
+    if (item_frame >= cur_prefetch_start && item_frame <= cur_prefetch_end) {
       continue; /* Within active prefetch range, do not try to remove it. */
     }
 
     /* Score for removal is distance to current frame; 2x that if behind current frame. */
     int score = 0;
-    if (item.key < cur_frame) {
-      score = (cur_frame - item.key) * 2;
+    if (item_frame < cur_frame) {
+      score = (cur_frame - item_frame) * 2;
     }
-    else if (item.key > cur_frame) {
-      score = item.key - cur_frame;
+    else if (item_frame > cur_frame) {
+      score = item_frame - cur_frame;
     }
     if (score > best_score) {
       best_key = item.key;

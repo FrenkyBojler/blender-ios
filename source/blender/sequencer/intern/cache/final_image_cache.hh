@@ -6,7 +6,7 @@
  * \ingroup sequencer
  *
  * Cache of final rendered frames.
- * - Keyed by timeline frame.
+ * - Keyed by (timeline frame, view_id).
  * - When full, cache eviction policy is to remove frames furthest
  *   from the current playhead, biasing towards removal of
  *   frames behind the playhead.
@@ -22,9 +22,9 @@ struct Scene;
 
 namespace blender::seq {
 
-void final_image_cache_put(Scene *scene, float timeline_frame, ImBuf *image);
+void final_image_cache_put(Scene *scene, float timeline_frame, int view_id, ImBuf *image);
 
-ImBuf *final_image_cache_get(Scene *scene, float timeline_frame);
+ImBuf *final_image_cache_get(Scene *scene, float timeline_frame, int view_id);
 
 void final_image_cache_invalidate_frame_range(Scene *scene,
                                               const float timeline_frame_start,
