@@ -104,6 +104,8 @@ struct FileData {
   /** Used to retrieve asset data from (bhead+1). NOTE: This may not be available in old files,
    * will be -1 then! */
   int id_asset_data_offset = 0;
+  int id_flag_offset = 0;
+  int id_deep_hash_offset = 0;
   /** For do_versions patching. */
   int globalf = 0;
   int fileflags = 0;
@@ -121,6 +123,8 @@ struct FileData {
 
   OldNewMap *datamap = nullptr;
   OldNewMap *globmap = nullptr;
+  /** Used to keep track of already loaded embedded IDs to avoid loading them multiple times. */
+  std::shared_ptr<blender::Map<IDHash, ID *>> id_by_deep_hash;
 
   /**
    * Store mapping from old ID pointers (the values they have in the .blend file) to new ones,

@@ -808,6 +808,21 @@ AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *
              nullptr;
 }
 
+static const IDHash *blo_bhead_id_deep_hash(const FileData *fd, const BHead *bhead)
+{
+  BLI_assert(blo_bhead_is_id_valid_type(bhead));
+  if (fd->id_flag_offset < 0 || fd->id_deep_hash_offset < 0) {
+    return nullptr;
+  }
+  const short flag = *reinterpret_cast<const short *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_flag_offset));
+  if (!(flag & ID_FLAG_LINKED_AND_EMBEDDED)) {
+    return nullptr;
+  }
+  return reinterpret_cast<const IDHash *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_deep_hash_offset));
+}
+
 static void read_blender_header(FileData *fd)
 {
   const BlenderHeaderVariant header_variant = BLO_readfile_blender_header_decode(fd->file);
@@ -876,6 +891,10 @@ static bool read_file_dna(FileData *fd, const char **r_error_message)
         BLI_assert(fd->id_name_offset != -1);
         fd->id_asset_data_offset = DNA_struct_member_offset_by_name_with_alias(
             fd->filesdna, "ID", "AssetMetaData", "*asset_data");
+        fd->id_flag_offset = DNA_struct_member_offset_by_name_with_alias(
+            fd->filesdna, "ID", "short", "flag");
+        fd->id_deep_hash_offset = DNA_struct_member_offset_by_name_with_alias(
+            fd->filesdna, "ID", "IDHash", "deep_hash");
 
         return true;
       }
@@ -948,6 +967,7 @@ static FileData *filedata_new(BlendFileReadReport *reports)
   fd->datamap = oldnewmap_new();
   fd->globmap = oldnewmap_new();
   fd->libmap = oldnewmap_new();
+  fd->id_by_deep_hash = std::make_shared<blender::Map<IDHash, ID *>>();
 
   fd->reports = reports;
 
@@ -2953,6 +2973,9 @@ static BHead *read_libblock(FileData *fd,
     if (main->id_map != nullptr) {
       BKE_main_idmap_insert_id(main->id_map, id_target);
     }
+    if (ID_IS_LINKED_EMBEDDED(id)) {
+      fd->id_by_deep_hash->add_new(id->deep_hash, id);
+    }
   }
 
   return bhead;
@@ -3996,6 +4019,12 @@ static BHead *find_bhead_from_idname(FileData *fd, const char *idname)
 
 static ID *library_id_is_yet_read(FileData *fd, Main *mainvar, BHead *bhead)
 {
+  if (const IDHash *deep_hash = blo_bhead_id_deep_hash(fd, bhead)) {
+    if (ID *existing_id = fd->id_by_deep_hash->lookup_default(*deep_hash, nullptr)) {
+      return existing_id;
+    }
+  }
+
   if (mainvar->id_map == nullptr) {
     mainvar->id_map = BKE_main_idmap_create(mainvar, false, nullptr, MAIN_IDMAP_TYPE_NAME);
   }
@@ -4741,6 +4770,7 @@ static FileData *read_library_file_data(FileData *basefd,
     }
 
     fd->libmap = oldnewmap_new();
+    fd->id_by_deep_hash = basefd->id_by_deep_hash;
 
     mainptr->curlib->runtime->filedata = fd;
     mainptr->versionfile = fd->fileversion;
