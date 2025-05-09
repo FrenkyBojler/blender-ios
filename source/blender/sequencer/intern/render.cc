@@ -88,7 +88,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
                                      float timeline_frame,
                                      int chanshown);
 
-static ThreadMutex seq_render_mutex = BLI_MUTEX_INITIALIZER;
+static blender::Mutex seq_render_mutex;
 DrawViewFn view3d_fn = nullptr; /* nullptr in background mode */
 
 /* -------------------------------------------------------------------- */
@@ -2031,7 +2031,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   SeqRenderState state;
 
   if (!strips.is_empty() && !out) {
-    BLI_mutex_lock(&seq_render_mutex);
+    std::scoped_lock lock(seq_render_mutex);
     out = seq_render_strip_stack(context, &state, channels, seqbasep, timeline_frame, chanshown);
 
     evict_caches_if_full(orig_scene);
@@ -2041,8 +2041,6 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     {
       final_image_cache_put(orig_scene, timeline_frame, out);
     }
-
-    BLI_mutex_unlock(&seq_render_mutex);
   }
 
   seq_prefetch_start(context, timeline_frame);

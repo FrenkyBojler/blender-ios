@@ -244,7 +244,7 @@ uiBlock *template_common_search_menu(const bContext *C,
 
 void uiTemplateHeader(uiLayout *layout, bContext *C)
 {
-  uiBlock *block = uiLayoutAbsoluteBlock(layout);
+  uiBlock *block = layout->absolute_block();
   ED_area_header_switchbutton(C, block, 0);
 }
 
@@ -272,7 +272,7 @@ void uiTemplatePathBuilder(uiLayout *layout,
   uiLayout *row = &layout->row(true);
 
   /* Path (existing string) Widget */
-  uiItemR(row, ptr, propname, UI_ITEM_NONE, text, ICON_RNA);
+  row->prop(ptr, propname, UI_ITEM_NONE, text, ICON_RNA);
 
   /* TODO: attach something to this to make allow
    * searching of nested properties to 'build' the path */

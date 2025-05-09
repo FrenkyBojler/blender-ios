@@ -58,6 +58,9 @@ struct uiItem {
   uiItem(const uiItem &) = default;
   virtual ~uiItem() = default;
 };
+
+enum eUI_Item_Flag : uint16_t;
+
 /**
  * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -95,6 +98,9 @@ struct uiLayout : uiItem {
   float search_weight_;
 
  public:
+  uiLayout &absolute(bool align);
+  uiBlock *absolute_block();
+
   /**
    * Add a new box sub-layout, items placed in this sub-layout are added vertically one under
    * each other in a column and are surrounded by a box.
@@ -148,6 +154,19 @@ struct uiLayout : uiItem {
    */
   uiLayout &grid_flow(
       bool row_major, int columns_len, bool even_columns, bool even_rows, bool align);
+
+  /** Add a new list box sub-layout. */
+  uiLayout &list_box(uiList *ui_list, PointerRNA *actptr, PropertyRNA *actprop);
+
+  /**
+   * Add a pie menu layout, buttons are arranged around a center.
+   * Only one pie menu per layout root can be added, if it's already initialized it will be
+   * returned instead of adding a new one.
+   */
+  uiLayout &menu_pie();
+
+  /** Add a new overlap sub-layout. */
+  uiLayout &overlap();
 
   /**
    * Create a "layout panel" which is a panel that is defined as part of the `uiLayout`. This
@@ -217,6 +236,18 @@ struct uiLayout : uiItem {
    * \param percentage: Width percent to split.
    */
   uiLayout &split(float percentage, bool align);
+
+  /** Items. */
+
+  /** Adds a label item that will display text and/or icon in the layout. */
+  void label(blender::StringRef name, int icon);
+
+  /** Adds a RNA property item, and exposes it into the layout. */
+  void prop(PointerRNA *ptr,
+            blender::StringRefNull propname,
+            eUI_Item_Flag flag,
+            std::optional<blender::StringRefNull> name,
+            int icon);
 };
 
 enum {
@@ -240,7 +271,7 @@ enum {
   UI_LAYOUT_ALIGN_RIGHT = 3,
 };
 
-enum eUI_Item_Flag {
+enum eUI_Item_Flag : uint16_t {
   /* UI_ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
   UI_ITEM_R_EXPAND = 1 << 1,
   UI_ITEM_R_SLIDER = 1 << 2,
@@ -387,16 +418,6 @@ void uiLayoutListItemAddPadding(uiLayout *layout);
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
-uiLayout *uiLayoutListBox(uiLayout *layout,
-                          uiList *ui_list,
-                          PointerRNA *actptr,
-                          PropertyRNA *actprop);
-uiLayout *uiLayoutAbsolute(uiLayout *layout, bool align);
-uiLayout *uiLayoutOverlap(uiLayout *layout);
-uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout);
-/** Pie menu layout: Buttons are arranged around a center. */
-uiLayout *uiLayoutRadial(uiLayout *layout);
-
 enum class LayoutSeparatorType : int8_t {
   Auto,
   Space,
@@ -489,12 +510,6 @@ void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              const char *menu_id, /* extra menu arg. */
                              PointerRNA *r_opptr);
 
-void uiItemR(uiLayout *layout,
-             PointerRNA *ptr,
-             blender::StringRefNull propname,
-             eUI_Item_Flag flag,
-             std::optional<blender::StringRefNull> name,
-             int icon);
 void uiItemFullR(uiLayout *layout,
                  PointerRNA *ptr,
                  PropertyRNA *prop,
@@ -608,7 +623,6 @@ struct uiPropertySplitWrapper {
  */
 uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout);
 
-void uiItemL(uiLayout *layout, blender::StringRef name, int icon); /* label */
 uiBut *uiItemL_ex(
     uiLayout *layout, blender::StringRef name, int icon, bool highlight, bool redalert);
 /**
