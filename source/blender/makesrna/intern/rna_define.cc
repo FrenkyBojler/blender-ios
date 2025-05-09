@@ -1232,27 +1232,28 @@ void RNA_def_struct_system_idprops_func(StructRNA *srna,
     return;
   }
 
-  if (system_idproperties) {
-    srna->system_idproperties = reinterpret_cast<IDPropertiesFunc>(
-        const_cast<char *>(system_idproperties));
-
-    if (generate_rna_property) {
-      PropertyRNA *prop = RNA_def_pointer(
-          srna,
-          "bl_system_properties",
-          "PropertyGroup",
-          "",
-          "Internal access to runtime-defined RNA data storage, intended solely for testing and "
-          "debugging purposes. Do not access it in regular scripting work, and in particular, do "
-          "not assume that it contains writable data");
-      RNA_def_property_pointer_funcs(
-          prop, "rna_struct_system_properties_get", nullptr, nullptr, nullptr);
-      /* These IDProperties should never be used directly, but only accessed through their RNA
-       * property wrappers. As such, they should never be used when comparing two different RNA
-       * data. */
-      RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
-    }
+  if (!system_idproperties) {
+    return;
   }
+  srna->system_idproperties = reinterpret_cast<IDPropertiesFunc>(
+      const_cast<char *>(system_idproperties));
+
+  if (!generate_rna_property) {
+    return;
+  }
+  PropertyRNA *prop = RNA_def_pointer(
+      srna,
+      "bl_system_properties",
+      "PropertyGroup",
+      "",
+      "Internal access to runtime-defined RNA data storage, intended solely for testing and "
+      "debugging purposes. Do not access it in regular scripting work, and in particular, do "
+      "not assume that it contains writable data");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_struct_system_properties_get", nullptr, nullptr, nullptr);
+  /* These IDProperties should never be used directly, but only accessed through their RNA property
+   * wrappers. As such, they should never be used when comparing two different RNA data. */
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
 }
 
 void RNA_def_struct_register_funcs(StructRNA *srna,

@@ -206,6 +206,35 @@ void version_node_output_socket_name(bNodeTree *ntree,
   }
 }
 
+/* Find the base socket name for an idname that may include a subtype. */
+StringRef legacy_socket_idname_to_socket_type(StringRef idname)
+{
+  using string_pair = std::pair<const char *, const char *>;
+  static const string_pair subtypes_map[] = {{"NodeSocketFloatUnsigned", "NodeSocketFloat"},
+                                             {"NodeSocketFloatPercentage", "NodeSocketFloat"},
+                                             {"NodeSocketFloatFactor", "NodeSocketFloat"},
+                                             {"NodeSocketFloatAngle", "NodeSocketFloat"},
+                                             {"NodeSocketFloatTime", "NodeSocketFloat"},
+                                             {"NodeSocketFloatTimeAbsolute", "NodeSocketFloat"},
+                                             {"NodeSocketFloatDistance", "NodeSocketFloat"},
+                                             {"NodeSocketIntUnsigned", "NodeSocketInt"},
+                                             {"NodeSocketIntPercentage", "NodeSocketInt"},
+                                             {"NodeSocketIntFactor", "NodeSocketInt"},
+                                             {"NodeSocketVectorTranslation", "NodeSocketVector"},
+                                             {"NodeSocketVectorDirection", "NodeSocketVector"},
+                                             {"NodeSocketVectorVelocity", "NodeSocketVector"},
+                                             {"NodeSocketVectorAcceleration", "NodeSocketVector"},
+                                             {"NodeSocketVectorEuler", "NodeSocketVector"},
+                                             {"NodeSocketVectorXYZ", "NodeSocketVector"}};
+  for (const string_pair &pair : subtypes_map) {
+    if (pair.first == idname) {
+      return pair.second;
+    }
+  }
+  /* Unchanged socket idname. */
+  return idname;
+}
+
 bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
 {
   blender::bke::bNodeType *ntype = blender::bke::node_type_find(idname);
@@ -649,6 +678,27 @@ void version_system_idprops_generate(Main *bmain)
       idprops_process(bone->prop, &bone->system_properties);
     }
   }
+}
+
+bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines)
+{
+  if (!bmain->scenes.first) {
+    return false;
+  }
+
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    bool match = false;
+    for (const char *engine : engines) {
+      if (STREQ(scene->r.engine, engine)) {
+        match = true;
+      }
+    }
+    if (!match) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 static bool blendfile_or_libraries_versions_atleast(Main *bmain,
