@@ -27,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
+  const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_input(data_type, "Grid").hide_value();
 
