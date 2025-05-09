@@ -51,6 +51,8 @@ static std::string generate_scene_linear_fragment_source(
 {
   std::string source;
 
+  source += "#define USE_TO_SCENE_LINEAR_ONLY\n\n";
+
   /* Generate OCIO_to_scene_linear(). */
   if (display_shader.from_colorspace == "sRGB") {
     /* Use Blender's default sRGB->Linear conversion.

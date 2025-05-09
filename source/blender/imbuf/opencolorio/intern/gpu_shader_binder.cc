@@ -30,6 +30,7 @@
 
 namespace blender::ocio {
 namespace internal {
+
 /* -------------------------------------------------------------------- */
 /** \name GPUTextures
  * \{ */

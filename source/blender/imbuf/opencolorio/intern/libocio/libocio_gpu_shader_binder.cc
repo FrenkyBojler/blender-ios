@@ -169,7 +169,8 @@ static bool create_gpu_textures(internal::GPUTextures &textures,
 void LibOCIOGPUShaderBinder::construct_shader_for_processors(
     internal::GPUDisplayShader &display_shader,
     ConstProcessorRcPtr &processor_to_scene_linear,
-    ConstProcessorRcPtr processor_to_display) const
+    ConstProcessorRcPtr processor_to_display,
+    const std::string source_header) const
 {
   GpuShaderDescRcPtr shaderdesc_to_scene_linear = GpuShaderDesc::CreateShaderDesc();
   shaderdesc_to_scene_linear->setLanguage(GPU_LANGUAGE_GLSL_1_3);
@@ -194,7 +195,7 @@ void LibOCIOGPUShaderBinder::construct_shader_for_processors(
     return;
   }
 
-  std::string fragment_source;
+  std::string fragment_source = source_header + "\n";
   fragment_source += shaderdesc_to_scene_linear->getShaderText();
   fragment_source += "\n";
   fragment_source += shaderdesc_to_display->getShaderText();
@@ -241,7 +242,10 @@ void LibOCIOGPUShaderBinder::construct_scene_linear_shader(
     return;
   }
 
-  construct_shader_for_processors(display_shader, processor_to_scene_linear, processor_to_display);
+  construct_shader_for_processors(display_shader,
+                                  processor_to_scene_linear,
+                                  processor_to_display,
+                                  "#define USE_TO_SCENE_LINEAR_ONLY\n");
 }
 
 }  // namespace blender::ocio
