@@ -11,10 +11,6 @@
 #include "BLI_sys_types.h"
 #include "DNA_layer_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Forward declarations. */
 struct CryptomatteSession;
 struct Material;
@@ -59,9 +55,4 @@ void BKE_cryptomatte_matte_id_to_entries(struct NodeCryptomatte *node_storage,
                                          const char *matte_id);
 
 void BKE_cryptomatte_store_metadata(const struct CryptomatteSession *session,
-                                    struct RenderResult *render_result,
-                                    const ViewLayer *view_layer);
-
-#ifdef __cplusplus
-}
-#endif
+                                    struct RenderResult *render_result);

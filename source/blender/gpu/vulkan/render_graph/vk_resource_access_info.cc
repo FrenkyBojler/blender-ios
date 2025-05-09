@@ -7,20 +7,27 @@
  */
 
 #include "vk_resource_access_info.hh"
+#include "vk_backend.hh"
 #include "vk_render_graph_links.hh"
 #include "vk_resource_state_tracker.hh"
 
 namespace blender::gpu::render_graph {
 
-VkImageLayout VKImageAccess::to_vk_image_layout() const
+VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
 {
   if (vk_access_flags & (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT)) {
     /* TODO: when read only use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL */
     return VK_IMAGE_LAYOUT_GENERAL;
   }
 
-  if (vk_access_flags &
-      (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
+  if (supports_local_read && vk_access_flags & (VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
+                                                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
+  {
+    return VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR;
+  }
+  else if (vk_access_flags &
+           (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
   {
     return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   }
@@ -41,18 +48,6 @@ VkImageLayout VKImageAccess::to_vk_image_layout() const
   BLI_assert_unreachable();
   return VK_IMAGE_LAYOUT_UNDEFINED;
 }
-
-/** Which access flags are considered for read access. */
-static constexpr VkAccessFlags VK_ACCESS_READ_MASK = VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
-                                                     VK_ACCESS_INDEX_READ_BIT |
-                                                     VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
-                                                     VK_ACCESS_UNIFORM_READ_BIT |
-                                                     VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
-                                                     VK_ACCESS_SHADER_READ_BIT |
-                                                     VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-                                                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
-                                                     VK_ACCESS_TRANSFER_READ_BIT |
-                                                     VK_ACCESS_HOST_READ_BIT;
 
 /** Which access flags are considered for write access. */
 static constexpr VkAccessFlags VK_ACCESS_WRITE_MASK =
@@ -79,8 +74,10 @@ void VKResourceAccessInfo::build_links(VKResourceStateTracker &resources,
     }
   }
 
+  const bool supports_local_read = resources.use_dynamic_rendering_local_read;
+
   for (const VKImageAccess &image_access : images) {
-    VkImageLayout image_layout = image_access.to_vk_image_layout();
+    VkImageLayout image_layout = image_access.to_vk_image_layout(supports_local_read);
     const bool writes_to_resource = bool(image_access.vk_access_flags & VK_ACCESS_WRITE_MASK);
     ResourceWithStamp versioned_resource = writes_to_resource ?
                                                resources.get_image_and_increase_stamp(
@@ -90,13 +87,17 @@ void VKResourceAccessInfo::build_links(VKResourceStateTracker &resources,
       node_links.outputs.append({versioned_resource,
                                  image_access.vk_access_flags,
                                  image_layout,
-                                 image_access.vk_image_aspect});
+                                 image_access.vk_image_aspect,
+                                 image_access.layer_base,
+                                 image_access.layer_count});
     }
     else {
       node_links.inputs.append({versioned_resource,
                                 image_access.vk_access_flags,
                                 image_layout,
-                                image_access.vk_image_aspect});
+                                image_access.vk_image_aspect,
+                                image_access.layer_base,
+                                image_access.layer_count});
     }
   }
 }

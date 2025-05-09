@@ -30,12 +30,17 @@ enum {
   IDTYPE_FLAGS_NO_COPY = 1 << 0,
   /** Indicates that the given IDType does not support linking/appending from a library file. */
   IDTYPE_FLAGS_NO_LIBLINKING = 1 << 1,
-  /** Indicates that the given IDType should not be directly linked from a library file, but may be
-   * appended.
-   * NOTE: Mutually exclusive with `IDTYPE_FLAGS_NO_LIBLINKING`. */
+  /**
+   * Indicates that the given IDType should not be directly linked from a library file,
+   * but may be appended.
+   * NOTE: Mutually exclusive with `IDTYPE_FLAGS_NO_LIBLINKING`.
+   */
   IDTYPE_FLAGS_ONLY_APPEND = 1 << 2,
-  /** Allow to re-use an existing local ID with matching weak library reference instead of creating
-   * a new copy of it, when appending. See also #LibraryWeakReference in `DNA_ID.h`. */
+  /**
+   * Allow to re-use an existing local ID with matching weak library reference
+   * instead of creating a new copy of it, when appending.
+   * See also #LibraryWeakReference in `DNA_ID.h`.
+   */
   IDTYPE_FLAGS_APPEND_IS_REUSABLE = 1 << 3,
   /** Indicates that the given IDType does not have animation data. */
   IDTYPE_FLAGS_NO_ANIMDATA = 1 << 4,
@@ -59,16 +64,18 @@ enum {
    *
    * \note The implementation of the expected behaviors related to this characteristic is somewhat
    * fragile and inconsistent currently. In most case though, code is expected to ensure that such
-   * IDs have at least an 'extra user' (#LIB_TAG_EXTRAUSER).
+   * IDs have at least an 'extra user' (#ID_TAG_EXTRAUSER).
    */
   IDTYPE_FLAGS_NEVER_UNUSED = 1 << 6,
 };
 
 struct IDCacheKey {
-  /* The session UID of the ID owning the cached data. */
+  /** The session UID of the ID owning the cached data. */
   unsigned int id_session_uid;
-  /* Value uniquely identifying the cache within its ID.
-   * Typically the offset of its member in the data-block struct, but can be anything. */
+  /**
+   * Value uniquely identifying the cache within its ID.
+   * Typically the offset of its member in the data-block struct, but can be anything.
+   */
   size_t identifier;
 };
 
@@ -91,8 +98,10 @@ using IDTypeMakeLocalFunction = void (*)(Main *bmain, ID *id, int flags);
 using IDTypeForeachIDFunction = void (*)(ID *id, LibraryForeachIDData *data);
 
 enum eIDTypeInfoCacheCallbackFlags {
-  /** Indicates to the callback that cache may be stored in the .blend file,
-   * so its pointer should not be cleared at read-time. */
+  /**
+   * Indicates to the callback that cache may be stored in the .blend file,
+   * so its pointer should not be cleared at read-time.
+   */
   IDTYPE_CACHE_CB_FLAGS_PERSISTENT = 1 << 0,
 };
 using IDTypeForeachCacheFunctionCallback =
@@ -145,7 +154,7 @@ struct IDTypeInfo {
 
   /**
    * Define the position of this data-block type in the virtual list of all data in a Main that is
-   * returned by `set_listbasepointers()`.
+   * returned by `BKE_main_lists_get()`.
    * Very important, this has to be unique and below INDEX_ID_MAX, see DNA_ID.h.
    */
   int main_listbase_index;
@@ -153,7 +162,13 @@ struct IDTypeInfo {
   /** Memory size of a data-block of that type. */
   size_t struct_size;
 
-  /** The user visible name for this data-block, also used as default name for a new data-block. */
+  /**
+   * The user visible name for this data-block, also used as default name for a new data-block.
+   *
+   * \note: Also used for the 'filepath' ID type part when listing IDs in library blend-files
+   * (`my_blendfile.blend/<IDType.name>/my_id_name`, e.g. `boat-v001.blend/Collection/PR-boat` for
+   * the `GRPR-boat` Collection ID in `boat-v001.blend`).
+   */
   const char *name;
   /** Plural version of the user-visible name. */
   const char *name_plural;
@@ -376,9 +391,9 @@ short BKE_idtype_idcode_from_name(const char *idtype_name);
  */
 int BKE_idtype_idcode_to_index(short idcode);
 /**
- * Convert an \a idfilter into an \a idtype_index (e.g. #FILTER_ID_OB -> #INDEX_ID_OB).
+ * Convert an \a id_filter into an \a idtype_index (e.g. #FILTER_ID_OB -> #INDEX_ID_OB).
  */
-int BKE_idtype_idfilter_to_index(uint64_t idfilter);
+int BKE_idtype_idfilter_to_index(uint64_t id_filter);
 
 /**
  * Convert an \a idtype_index into an \a idcode (e.g. #INDEX_ID_OB -> #ID_OB).

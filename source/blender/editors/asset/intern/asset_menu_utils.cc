@@ -6,14 +6,12 @@
  * \ingroup edasset
  */
 
-#include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_tree.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
 #include "DNA_screen_types.h"
 
-#include "BKE_asset.hh"
 #include "BKE_report.hh"
 
 #include "BLT_translation.hh"
@@ -21,7 +19,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_asset_list.hh"
 #include "ED_asset_menu_utils.hh"
@@ -70,7 +68,7 @@ static const asset_system::AssetRepresentation *get_local_asset_from_relative_id
 
   const asset_system::AssetRepresentation *matching_asset = nullptr;
   list::iterate(library_ref, [&](asset_system::AssetRepresentation &asset) {
-    if (asset.get_identifier().library_relative_identifier() == relative_identifier) {
+    if (asset.library_relative_identifier() == relative_identifier) {
       matching_asset = &asset;
       return false;
     }
@@ -106,11 +104,9 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
     return nullptr;
   }
 
-  const std::string full_path = all_library->resolve_asset_weak_reference_to_full_path(weak_ref);
-
   const asset_system::AssetRepresentation *matching_asset = nullptr;
   list::iterate(library_ref, [&](asset_system::AssetRepresentation &asset) {
-    if (asset.get_identifier().full_path() == full_path) {
+    if (asset.make_weak_reference() == weak_ref) {
       matching_asset = &asset;
       return false;
     }
@@ -119,6 +115,8 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
 
   if (reports && !matching_asset) {
     if (list::is_loaded(&library_ref)) {
+      const std::string full_path = all_library->resolve_asset_weak_reference_to_full_path(
+          weak_ref);
       BKE_reportf(reports, RPT_ERROR, "No asset found at path \"%s\"", full_path.c_str());
     }
   }
@@ -141,9 +139,9 @@ void draw_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
                            const StringRefNull menu_name,
                            uiLayout &layout)
 {
-  uiLayout *col = uiLayoutColumn(&layout, false);
+  uiLayout *col = &layout.column(false);
   uiLayoutSetContextString(col, "asset_catalog_path", item.catalog_path().c_str());
-  uiItemM(col, menu_name.c_str(), IFACE_(item.get_name().c_str()), ICON_NONE);
+  uiItemM(col, menu_name, IFACE_(item.get_name()), ICON_NONE);
 }
 
 }  // namespace blender::ed::asset

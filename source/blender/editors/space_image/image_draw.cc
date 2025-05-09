@@ -10,36 +10,27 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
-#include "DNA_brush_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_mask_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view2d_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
-#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_colormanagement.hh"
-#include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
+#include "IMB_imbuf_enums.h"
 #include "IMB_moviecache.hh"
 
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_paint.hh"
 
 #include "BIF_glutil.hh"
 
-#include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
@@ -523,9 +514,8 @@ void draw_image_cache(const bContext *C, ARegion *region)
     int num_segments = 0;
     int *points = nullptr;
 
-    BLI_mutex_lock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+    std::scoped_lock lock(image->runtime->cache_mutex);
     IMB_moviecache_get_cache_segments(image->cache, IMB_PROXY_NONE, 0, &num_segments, &points);
-    BLI_mutex_unlock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
 
     ED_region_cache_draw_cached_segments(
         region, num_segments, points, sfra + sima->iuser.offset, efra + sima->iuser.offset);
@@ -543,7 +533,8 @@ void draw_image_cache(const bContext *C, ARegion *region)
   immRecti(pos, x, region_bottom, x + ceilf(framelen), region_bottom + 8 * UI_SCALE_FAC);
   immUnbindProgram();
 
-  ED_region_cache_draw_curfra_label(cfra, x, region_bottom + 8.0f * UI_SCALE_FAC);
+  ED_region_cache_draw_curfra_label(
+      cfra, x + roundf(framelen / 2), region_bottom + 8.0f * UI_SCALE_FAC);
 
   if (mask != nullptr) {
     ED_mask_draw_frames(mask, region, cfra, sfra, efra);
