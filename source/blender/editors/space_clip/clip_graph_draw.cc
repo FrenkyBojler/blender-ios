@@ -15,6 +15,7 @@
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
+#include "ED_anim_api.hh"
 #include "ED_clip.hh"
 
 #include "GPU_immediate.hh"
@@ -271,5 +272,6 @@ void clip_draw_graph(SpaceClip *sc, ARegion *region, Scene *scene)
   }
 
   /* frame range */
-  clip_draw_sfra_efra(v2d, scene);
+  UI_view2d_view_ortho(v2d);
+  ANIM_draw_framerange(scene, v2d);
 }
