@@ -97,13 +97,13 @@ void main()
     }
     case SOCK_DISPLAY_SHAPE_LINE: {
       float square_radius = square_radius - corner_rounding;
-      distance_squared = square_sdf(co, vec2(square_radius * 0.75, square_radius * 1.4));
+      distance_squared = square_sdf(co, float2(square_radius * 0.75, square_radius * 1.4));
       alpha_threshold = corner_rounding;
       break;
     }
     case SOCK_DISPLAY_SHAPE_VOLUME_GRID: {
       float size = 0.7;
-      vec2 uv = abs(absUV - size * 0.5) - size * 0.4;
+      float2 uv = abs(absUV - size * 0.5) - size * 0.4;
       float radius_out = length(max(uv, 0.0));
       float radius_in = max(abs(uv).x, abs(uv).y) * -1.0;
       float radius = mix(radius_in, radius_out, radius_out > 0);
