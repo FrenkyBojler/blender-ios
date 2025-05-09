@@ -435,10 +435,10 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
 };
 
 template<typename T>
-static float compute_text_widths(const float min_width,
-                                 const int fontid,
-                                 const VArray<T> &data,
-                                 FunctionRef<std::string(const T &)> to_string)
+static float estimate_max_column_width(const float min_width,
+                                       const int fontid,
+                                       const VArray<T> &data,
+                                       FunctionRef<std::string(const T &)> to_string)
 {
   if (const std::optional<T> value = data.get_if_single()) {
     const std::string str = to_string(*value);
@@ -471,37 +471,37 @@ float ColumnValues::initial_width_px() const
       return 3.0f * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_INT32: {
-      return compute_text_widths<int>(3 * SPREADSHEET_WIDTH_UNIT,
-                                      fontid,
-                                      data_.typed<int>(),
-                                      [](const int value) { return fmt::format("{}", value); });
+      return estimate_max_column_width<int>(
+          3 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<int>(), [](const int value) {
+            return fmt::format("{}", value);
+          });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT: {
-      return compute_text_widths<float>(
+      return estimate_max_column_width<float>(
           3 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<float>(), [](const float value) {
             return fmt::format("{:.3f}", value);
           });
     }
     case SPREADSHEET_VALUE_TYPE_INT32_2D: {
-      return compute_text_widths<int2>(
+      return estimate_max_column_width<int2>(
           3 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<int2>(), [](const int2 value) {
             return fmt::format("{}  {}", value.x, value.y);
           });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT2: {
-      return compute_text_widths<float2>(
+      return estimate_max_column_width<float2>(
           6 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<float2>(), [](const float2 value) {
             return fmt::format("{:.3f}  {:.3f}", value.x, value.y);
           });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT3: {
-      return compute_text_widths<float3>(
+      return estimate_max_column_width<float3>(
           9 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<float3>(), [](const float3 value) {
             return fmt::format("{:.3f}  {:.3f}  {:.3f}", value.x, value.y, value.z);
           });
     }
     case SPREADSHEET_VALUE_TYPE_COLOR: {
-      return compute_text_widths<ColorGeometry4f>(
+      return estimate_max_column_width<ColorGeometry4f>(
           12 * SPREADSHEET_WIDTH_UNIT,
           fontid,
           data_.typed<ColorGeometry4f>(),
@@ -511,7 +511,7 @@ float ColumnValues::initial_width_px() const
           });
     }
     case SPREADSHEET_VALUE_TYPE_BYTE_COLOR: {
-      return compute_text_widths<ColorGeometry4b>(
+      return estimate_max_column_width<ColorGeometry4b>(
           12 * SPREADSHEET_WIDTH_UNIT,
           fontid,
           data_.typed<ColorGeometry4b>(),
@@ -520,7 +520,7 @@ float ColumnValues::initial_width_px() const
           });
     }
     case SPREADSHEET_VALUE_TYPE_QUATERNION: {
-      return compute_text_widths<math::Quaternion>(
+      return estimate_max_column_width<math::Quaternion>(
           12 * SPREADSHEET_WIDTH_UNIT,
           fontid,
           data_.typed<math::Quaternion>(),
@@ -534,13 +534,13 @@ float ColumnValues::initial_width_px() const
     }
     case SPREADSHEET_VALUE_TYPE_STRING: {
       if (data_.type().is<std::string>()) {
-        return compute_text_widths<std::string>(
+        return estimate_max_column_width<std::string>(
             SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<std::string>(), [](const StringRef value) {
               return value.data();
             });
       }
       if (data_.type().is<MStringProperty>()) {
-        return compute_text_widths<MStringProperty>(
+        return estimate_max_column_width<MStringProperty>(
             SPREADSHEET_WIDTH_UNIT,
             fontid,
             data_.typed<MStringProperty>(),
