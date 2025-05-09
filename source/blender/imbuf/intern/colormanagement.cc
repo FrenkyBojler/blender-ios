@@ -103,21 +103,28 @@ struct ColormanageProcessor {
   bool is_data_result;
 };
 
-static struct global_gpu_state {
+static struct GlobalGPUState {
+  ~GlobalGPUState()
+  {
+    if (curve_mapping) {
+      BKE_curvemapping_free(curve_mapping);
+    }
+  }
+
   /* GPU shader currently bound. */
-  bool gpu_shader_bound;
+  bool gpu_shader_bound = false;
 
   /* Curve mapping. */
-  CurveMapping *curve_mapping, *orig_curve_mapping;
-  bool use_curve_mapping;
-  int curve_mapping_timestamp;
+  CurveMapping *curve_mapping = nullptr, *orig_curve_mapping = nullptr;
+  bool use_curve_mapping = false;
+  int curve_mapping_timestamp = 0;
 } global_gpu_state = {false};
 
-static struct global_color_picking_state {
+static struct GlobalColorPickingState {
   /* Cached processor for color picking conversion. */
   std::shared_ptr<const ocio::CPUProcessor> cpu_processor_to;
   std::shared_ptr<const ocio::CPUProcessor> cpu_processor_from;
-  bool failed;
+  bool failed = false;
 } global_color_picking_state = {nullptr};
 
 /** \} */
@@ -621,12 +628,8 @@ void colormanagement_init()
 
 void colormanagement_exit()
 {
-  if (global_gpu_state.curve_mapping) {
-    BKE_curvemapping_free(global_gpu_state.curve_mapping);
-  }
-
-  memset(&global_gpu_state, 0, sizeof(global_gpu_state));
-  memset(&global_color_picking_state, 0, sizeof(global_color_picking_state));
+  global_gpu_state = GlobalGPUState();
+  global_color_picking_state = GlobalColorPickingState();
 
   colormanage_free_config();
 }
