@@ -32,6 +32,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_linestyle.h"
 #include "BKE_modifier.hh"
 #include "BKE_node_legacy_types.hh"
@@ -131,6 +132,18 @@ static void buttons_texture_user_node_add(ListBase *users,
   user->index = BLI_listbase_count(users);
 
   BLI_addtail(users, user);
+}
+
+static void buttons_texture_user_mtex_add(ListBase *users,
+                                          ID *id,
+                                          MTex *mtex,
+                                          const char *category)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_TextureSlot, mtex);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
+
+  buttons_texture_user_property_add(
+      users, id, ptr, prop, category, RNA_struct_ui_icon(ptr.type), BKE_id_name(mtex->tex->id));
 }
 
 static void buttons_texture_users_find_nodetree(ListBase *users,
@@ -284,6 +297,11 @@ static void buttons_texture_users_from_context(ListBase *users,
   }
 
   if (linestyle && !limited_mode) {
+    for (int i = 0; i < MAX_MTEX; i++) {
+      if (linestyle->mtex[i] && linestyle->mtex[i]->tex) {
+        buttons_texture_user_mtex_add(users, &linestyle->id, linestyle->mtex[i], N_("Line Style"));
+      }
+    }
     buttons_texture_users_find_nodetree(
         users, &linestyle->id, linestyle->nodetree, N_("Line Style"));
   }
@@ -482,7 +500,7 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
 
     /* add label per category */
     if (!last_category || !STREQ(last_category, user->category)) {
-      uiItemL(layout, IFACE_(user->category), ICON_NONE);
+      layout->label(IFACE_(user->category), ICON_NONE);
       but = block->buttons.last().get();
       but->drawflag = UI_BUT_TEXT_LEFT;
     }
@@ -547,7 +565,7 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
   user = ct->user;
 
   if (!user) {
-    uiItemL(layout, TIP_("No textures in context"), ICON_NONE);
+    layout->label(TIP_("No textures in context"), ICON_NONE);
     return;
   }
 

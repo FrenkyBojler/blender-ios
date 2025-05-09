@@ -86,7 +86,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
                                      float timeline_frame,
                                      int chanshown);
 
-static ThreadMutex seq_render_mutex = BLI_MUTEX_INITIALIZER;
+static blender::Mutex seq_render_mutex;
 DrawViewFn view3d_fn = nullptr; /* nullptr in background mode */
 
 /* -------------------------------------------------------------------- */
@@ -249,11 +249,11 @@ StripElem *render_give_stripelem(const Scene *scene, const Strip *strip, int tim
   return se;
 }
 
-Vector<Strip *> seq_get_shown_sequences(const Scene *scene,
-                                        ListBase *channels,
-                                        ListBase *seqbase,
-                                        const int timeline_frame,
-                                        const int chanshown)
+Vector<Strip *> seq_shown_strips_get(const Scene *scene,
+                                     ListBase *channels,
+                                     ListBase *seqbase,
+                                     const int timeline_frame,
+                                     const int chanshown)
 {
   VectorSet strips = query_rendered_strips(scene, channels, seqbase, timeline_frame, chanshown);
   const int strip_count = strips.size();
@@ -864,13 +864,14 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
   }
 
   if (prefix[0] == '\0') {
-    ibuf = IMB_loadiffname(filepath, flag, strip->data->colorspace_settings.name);
+    ibuf = IMB_load_image_from_filepath(filepath, flag, strip->data->colorspace_settings.name);
   }
   else {
     char filepath_view[FILE_MAX];
     BKE_scene_multiview_view_prefix_get(context->scene, filepath, prefix, &ext);
     seq_multiview_name(context->scene, view_id, prefix, ext, filepath_view, FILE_MAX);
-    ibuf = IMB_loadiffname(filepath_view, flag, strip->data->colorspace_settings.name);
+    ibuf = IMB_load_image_from_filepath(
+        filepath_view, flag, strip->data->colorspace_settings.name);
   }
 
   if (ibuf == nullptr) {
@@ -958,8 +959,7 @@ static ImBuf *seq_render_image_strip(const RenderData *context,
 
   if (is_multiview_render) {
     int totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
-    ImBuf **ibufs_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews),
-                                                   "Sequence Image Views Imbufs");
+    ImBuf **ibufs_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
 
     for (int view_id = 0; view_id < totfiles; view_id++) {
       ibufs_arr[view_id] = seq_render_image_strip_view(
@@ -1114,7 +1114,7 @@ static ImBuf *seq_render_movie_strip(const RenderData *context,
   if (is_multiview_render) {
     ImBuf **ibuf_arr;
     int totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
-    ibuf_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews), "Sequence Image Views Imbufs");
+    ibuf_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
     int ibuf_view_id;
 
     for (ibuf_view_id = 0, sanim = static_cast<StripAnim *>(strip->anims.first); sanim;
@@ -1352,10 +1352,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
     int scemode;
     int timeline_frame;
     float subframe;
-
-#ifdef DURIAN_CAMERA_SWITCH
     int mode;
-#endif
   } orig_data;
 
   /* Old info:
@@ -1424,9 +1421,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
   orig_data.scemode = scene->r.scemode;
   orig_data.timeline_frame = scene->r.cfra;
   orig_data.subframe = scene->r.subframe;
-#ifdef DURIAN_CAMERA_SWITCH
   orig_data.mode = scene->r.mode;
-#endif
 
   BKE_scene_frame_set(scene, frame);
 
@@ -1449,10 +1444,8 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
   /* prevent eternal loop */
   scene->r.scemode &= ~R_DOSEQ;
 
-#ifdef DURIAN_CAMERA_SWITCH
   /* stooping to new low's in hackyness :( */
   scene->r.mode |= R_NO_CAMERA_SWITCH;
-#endif
 
   is_frame_update = (orig_data.timeline_frame != scene->r.cfra) ||
                     (orig_data.subframe != scene->r.subframe);
@@ -1478,7 +1471,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
     /* opengl offscreen render */
     depsgraph = BKE_scene_ensure_depsgraph(context->bmain, scene, view_layer);
     BKE_scene_graph_update_for_newframe(depsgraph);
-    Object *camera_eval = DEG_get_evaluated_object(depsgraph, camera);
+    Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
     ibuf = view3d_fn(
         /* set for OpenGL render (nullptr when scrubbing) */
         depsgraph,
@@ -1518,7 +1511,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
       goto finally;
     }
 
-    ibufs_arr = MEM_calloc_arrayN<ImBuf *>(size_t(totviews), "Sequence Image Views Imbufs");
+    ibufs_arr = MEM_calloc_arrayN<ImBuf *>(totviews, "Sequence Image Views Imbufs");
 
     if (re == nullptr) {
       re = RE_NewSceneRender(scene);
@@ -1597,10 +1590,8 @@ finally:
     BKE_scene_graph_update_for_newframe(depsgraph);
   }
 
-#ifdef DURIAN_CAMERA_SWITCH
   /* stooping to new low's in hackyness :( */
   scene->r.mode &= orig_data.mode | ~R_NO_CAMERA_SWITCH;
-#endif
 
   return ibuf;
 }
@@ -1618,7 +1609,7 @@ static ImBuf *do_render_strip_seqbase(const RenderData *context,
   ListBase *channels = nullptr;
   int offset;
 
-  seqbase = get_seqbase_from_sequence(strip, &channels, &offset);
+  seqbase = get_seqbase_from_strip(strip, &channels, &offset);
 
   if (seqbase && !BLI_listbase_is_empty(seqbase)) {
 
@@ -1832,7 +1823,7 @@ static bool is_opaque_alpha_over(const Strip *strip)
   if (strip->mul < 1.0f && (strip->flag & SEQ_MULTIPLY_ALPHA) != 0) {
     return false;
   }
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     /* Assume result is not opaque if there is an enabled Mask modifier. */
     if ((smd->flag & SEQUENCE_MODIFIER_MUTE) == 0 && smd->type == seqModifierType_Mask) {
       return false;
@@ -1848,7 +1839,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
                                      float timeline_frame,
                                      int chanshown)
 {
-  Vector<Strip *> strips = seq_get_shown_sequences(
+  Vector<Strip *> strips = seq_shown_strips_get(
       context->scene, channels, seqbasep, timeline_frame, chanshown);
   if (strips.is_empty()) {
     return nullptr;
@@ -1991,7 +1982,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   SeqRenderState state;
   ImBuf *out = nullptr;
 
-  Vector<Strip *> strips = seq_get_shown_sequences(
+  Vector<Strip *> strips = seq_shown_strips_get(
       scene, channels, seqbasep, timeline_frame, chanshown);
 
   if (!strips.is_empty()) {
@@ -2003,7 +1994,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   relations_free_all_anim_ibufs(context->scene, timeline_frame);
 
   if (!strips.is_empty() && !out) {
-    BLI_mutex_lock(&seq_render_mutex);
+    std::scoped_lock lock(seq_render_mutex);
     out = seq_render_strip_stack(context, &state, channels, seqbasep, timeline_frame, chanshown);
 
     if (context->is_prefetch_render) {
@@ -2013,7 +2004,6 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
       seq_cache_put_if_possible(
           context, strips.last(), timeline_frame, SEQ_CACHE_STORE_FINAL_OUT, out);
     }
-    BLI_mutex_unlock(&seq_render_mutex);
   }
 
   seq_prefetch_start(context, timeline_frame);

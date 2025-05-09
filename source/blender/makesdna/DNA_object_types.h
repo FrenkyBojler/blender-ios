@@ -191,7 +191,11 @@ typedef struct LightLinking {
 } LightLinking;
 
 typedef struct Object {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Object)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_OB;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
@@ -377,7 +381,10 @@ typedef struct Object {
 
   /** ObjectModifierFlag */
   uint8_t modifier_flag;
-  char _pad8[4];
+
+  float shadow_terminator_normal_offset;
+  float shadow_terminator_geometry_offset;
+  float shadow_terminator_shading_offset;
 
   struct PreviewImage *preview;
 
@@ -572,6 +579,8 @@ enum {
   OB_TRANSFLAG_UNUSED_12 = 1 << 12, /* cleared */
   /* runtime constraints disable */
   OB_NO_CONSTRAINTS = 1 << 13,
+  /* when calculating vertex parent position, ignore CD_ORIGINDEX layer */
+  OB_PARENT_USE_FINAL_INDICES = 1 << 14,
 
   OB_DUPLI = OB_DUPLIVERTS | OB_DUPLICOLLECTION | OB_DUPLIFACES | OB_DUPLIPARTS,
 };

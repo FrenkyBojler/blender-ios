@@ -171,10 +171,11 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     win->eventstate_prev_press_time_ms = 0;
     win->event_last_handled = nullptr;
     win->cursor_keymap_status = nullptr;
-#if defined(WIN32) || defined(__APPLE__)
+
+    /* Some files could be saved with ime_data still present.
+     * See https://projects.blender.org/blender/blender/issues/136829 */
     win->ime_data = nullptr;
     win->ime_data_is_composing = false;
-#endif
 
     BLI_listbase_clear(&win->handlers);
     BLI_listbase_clear(&win->modalhandlers);
@@ -190,7 +191,7 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     win->event_queue_check_click = 0;
     win->event_queue_check_drag = 0;
     win->event_queue_check_drag_handled = 0;
-    win->event_queue_consecutive_gesture_type = 0;
+    win->event_queue_consecutive_gesture_type = EVENT_NONE;
     win->event_queue_consecutive_gesture_data = nullptr;
     BLO_read_struct(reader, Stereo3dFormat, &win->stereo3d_format);
 
@@ -244,7 +245,7 @@ static void window_manager_blend_read_after_liblink(BlendLibReader *reader, ID *
 }
 
 IDTypeInfo IDType_ID_WM = {
-    /*id_code*/ ID_WM,
+    /*id_code*/ wmWindowManager::id_type,
     /*id_filter*/ FILTER_ID_WM,
     /*dependencies_id_types*/ FILTER_ID_SCE | FILTER_ID_WS,
     /*main_listbase_index*/ INDEX_ID_WM,

@@ -15,6 +15,7 @@
 #include "ED_view3d.hh"
 
 #include "DNA_listBase.h"
+#include "DNA_windowmanager_enums.h"
 
 #include "DEG_depsgraph.hh"
 
@@ -183,8 +184,11 @@ enum eTFlag {
 
   /** Special flag for when the transform code is called after keys have been duplicated. */
   T_DUPLICATED_KEYFRAMES = 1 << 26,
+
+  /** Transform origin. */
+  T_ORIGIN = 1 << 27,
 };
-ENUM_OPERATORS(eTFlag, T_DUPLICATED_KEYFRAMES);
+ENUM_OPERATORS(eTFlag, T_ORIGIN);
 
 /** #TransInfo.modifiers */
 enum eTModifier {
@@ -906,9 +910,9 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
  * \see #initTransform which reads values from the operator.
  */
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op);
-int transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event);
+wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event);
 void transformApply(bContext *C, TransInfo *t);
-int transformEnd(bContext *C, TransInfo *t);
+wmOperatorStatus transformEnd(bContext *C, TransInfo *t);
 
 void setTransformViewMatrices(TransInfo *t);
 void setTransformViewAspect(TransInfo *t, float r_aspect[3]);

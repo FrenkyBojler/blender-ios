@@ -432,7 +432,9 @@ static void sculpt_color_filter_end(bContext *C, Object &ob)
   flush_update_done(C, ob, UpdateType::Color);
 }
 
-static int sculpt_color_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
@@ -512,7 +514,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH;
 }
 
-static int sculpt_color_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_color_filter_exec(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
 
@@ -526,7 +528,9 @@ static int sculpt_color_filter_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sculpt_color_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -560,10 +564,10 @@ static void sculpt_color_filter_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill) {
-    uiItemR(layout, op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

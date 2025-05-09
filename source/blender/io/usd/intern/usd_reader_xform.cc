@@ -25,7 +25,7 @@
 
 namespace blender::io::usd {
 
-void USDXformReader::create_object(Main *bmain, const double /*motionSampleTime*/)
+void USDXformReader::create_object(Main *bmain)
 {
   object_ = BKE_object_add_only_object(bmain, OB_EMPTY, name_.c_str());
   object_->empty_drawsize = 0.1f;
@@ -44,9 +44,9 @@ void USDXformReader::read_object_data(Main * /*bmain*/, const double motionSampl
         object_, nullptr, CONSTRAINT_TYPE_TRANSFORM_CACHE);
     bTransformCacheConstraint *data = static_cast<bTransformCacheConstraint *>(con->data);
 
-    pxr::SdfPath prim_path = use_parent_xform_ ? prim_.GetParent().GetPath() : prim_path_;
+    pxr::SdfPath object_path = use_parent_xform_ ? prim_.GetParent().GetPath() : this->prim_path();
 
-    STRNCPY(data->object_path, prim_path.GetAsString().c_str());
+    STRNCPY(data->object_path, object_path.GetAsString().c_str());
 
     data->cache_file = settings_->get_cache_file();
     id_us_plus(&data->cache_file->id);

@@ -14,6 +14,7 @@
 
 #include "CLG_log.h"
 
+#include "GPU_capabilities.hh"
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
 
@@ -183,7 +184,7 @@ bool VKBackend::is_supported()
     return false;
   }
 
-  // go over all the devices
+  /* Go over all the devices. */
   uint32_t physical_devices_count = 0;
   vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, nullptr);
   Array<VkPhysicalDevice> vk_physical_devices(physical_devices_count);
@@ -331,6 +332,19 @@ void VKBackend::platform_init(const VKDevice &device)
            GPU_ARCHITECTURE_IMR);
   GPG.devices = devices;
 
+  const VkPhysicalDeviceIDProperties &id_properties = device.physical_device_id_properties_get();
+
+  GPG.device_uuid = Array<uint8_t, 16>(Span<uint8_t>(id_properties.deviceUUID, VK_UUID_SIZE));
+
+  if (id_properties.deviceLUIDValid) {
+    GPG.device_luid = Array<uint8_t, 8>(Span<uint8_t>(id_properties.deviceUUID, VK_LUID_SIZE));
+    GPG.device_luid_node_mask = id_properties.deviceNodeMask;
+  }
+  else {
+    GPG.device_luid.reinitialize(0);
+    GPG.device_luid_node_mask = 0;
+  }
+
   CLOG_INFO(&LOG,
             0,
             "Using vendor [%s] device [%s] driver version [%s].",
@@ -434,7 +448,16 @@ void VKBackend::platform_exit()
   }
 }
 
-void VKBackend::delete_resources() {}
+void VKBackend::init_resources()
+{
+  compiler_ = MEM_new<ShaderCompiler>(
+      __func__, GPU_max_parallel_compilations(), GPUWorker::ContextType::Main);
+}
+
+void VKBackend::delete_resources()
+{
+  MEM_delete(compiler_);
+}
 
 void VKBackend::samplers_update()
 {
@@ -485,7 +508,10 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
   device.context_register(*context);
   GHOST_SetVulkanSwapBuffersCallbacks((GHOST_ContextHandle)ghost_context,
                                       VKContext::swap_buffers_pre_callback,
-                                      VKContext::swap_buffers_post_callback);
+                                      VKContext::swap_buffers_post_callback,
+                                      VKContext::openxr_acquire_framebuffer_image_callback,
+                                      VKContext::openxr_release_framebuffer_image_callback);
+
   return context;
 }
 
@@ -578,7 +604,6 @@ void VKBackend::capabilities_init(VKDevice &device)
   /* Reset all capabilities from previous context. */
   GCaps = {};
   GCaps.geometry_shader_support = true;
-  GCaps.texture_view_support = true;
   GCaps.stencil_export_support = device.supports_extension(
       VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
   GCaps.shader_draw_parameters_support =

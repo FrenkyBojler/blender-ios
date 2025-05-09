@@ -222,6 +222,7 @@ class Menu : public SocketDeclaration {
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_MENU;
 
   int32_t default_value;
+  bool is_expanded = false;
 
   friend MenuBuilder;
 
@@ -236,7 +237,46 @@ class Menu : public SocketDeclaration {
 class MenuBuilder : public SocketDeclarationBuilder<Menu> {
  public:
   MenuBuilder &default_value(int32_t value);
+
+  /** Draw the menu items next to each other instead of as a drop-down menu. */
+  MenuBuilder &expanded(bool value = true);
 };
+
+class BundleBuilder;
+
+class Bundle : public SocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_BUNDLE;
+
+  friend BundleBuilder;
+
+  using Builder = BundleBuilder;
+
+  bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
+  bool matches(const bNodeSocket &socket) const override;
+  bNodeSocket &update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const override;
+  bool can_connect(const bNodeSocket &socket) const override;
+};
+
+class BundleBuilder : public SocketDeclarationBuilder<Bundle> {};
+
+class ClosureBuilder;
+
+class Closure : public SocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_CLOSURE;
+
+  friend ClosureBuilder;
+
+  using Builder = ClosureBuilder;
+
+  bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
+  bool matches(const bNodeSocket &socket) const override;
+  bNodeSocket &update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const override;
+  bool can_connect(const bNodeSocket &socket) const override;
+};
+
+class ClosureBuilder : public SocketDeclarationBuilder<Closure> {};
 
 class IDSocketDeclaration : public SocketDeclaration {
  public:
@@ -522,6 +562,12 @@ inline StringBuilder &StringBuilder::subtype(PropertySubType subtype)
 inline MenuBuilder &MenuBuilder::default_value(const int32_t value)
 {
   decl_->default_value = value;
+  return *this;
+}
+
+inline MenuBuilder &MenuBuilder::expanded(const bool value)
+{
+  decl_->is_expanded = value;
   return *this;
 }
 

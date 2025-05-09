@@ -62,6 +62,7 @@
 
 #include "BLI_math_vector.h"
 #include "BLI_mempool.h"
+#include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -126,37 +127,11 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src);
 /** \name Image #IDTypeInfo API
  * \{ */
 
-/** Reset runtime image fields when data-block is being initialized. */
-static void image_runtime_reset(Image *image)
-{
-  memset(&image->runtime, 0, sizeof(image->runtime));
-  image->runtime.cache_mutex = MEM_mallocN<ThreadMutex>("image runtime cache_mutex");
-  BLI_mutex_init(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
-  image->runtime.update_count = 0;
-}
-
-/** Reset runtime image fields when data-block is being copied. */
-static void image_runtime_reset_on_copy(Image *image)
-{
-  image->runtime.cache_mutex = MEM_mallocN<ThreadMutex>("image runtime cache_mutex");
-  BLI_mutex_init(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
-
-  image->runtime.partial_update_register = nullptr;
-  image->runtime.partial_update_user = nullptr;
-
-  image->runtime.backdrop_offset[0] = 0.0f;
-  image->runtime.backdrop_offset[1] = 0.0f;
-}
-
 static void image_runtime_free_data(Image *image)
 {
-  BLI_mutex_end(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
-  MEM_freeN(image->runtime.cache_mutex);
-  image->runtime.cache_mutex = nullptr;
-
-  if (image->runtime.partial_update_user != nullptr) {
-    BKE_image_partial_update_free(image->runtime.partial_update_user);
-    image->runtime.partial_update_user = nullptr;
+  if (image->runtime->partial_update_user != nullptr) {
+    BKE_image_partial_update_free(image->runtime->partial_update_user);
+    image->runtime->partial_update_user = nullptr;
   }
   BKE_image_partial_update_register_free(image);
 }
@@ -224,7 +199,7 @@ static void image_copy_data(Main * /*bmain*/,
     image_dst->preview = nullptr;
   }
 
-  image_runtime_reset_on_copy(image_dst);
+  image_dst->runtime = MEM_new<blender::bke::ImageRuntime>(__func__);
 }
 
 static void image_free_data(ID *id)
@@ -253,6 +228,7 @@ static void image_free_data(ID *id)
   BLI_freelistN(&image->tiles);
 
   image_runtime_free_data(image);
+  MEM_delete(image->runtime);
 }
 
 static void image_foreach_cache(ID *id,
@@ -364,8 +340,6 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   ima->cache = nullptr;
   image_gpu_runtime_reset(ima);
   BLI_listbase_clear(&ima->anims);
-  ima->runtime.partial_update_register = nullptr;
-  ima->runtime.partial_update_user = nullptr;
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 2; j++) {
       ima->gputexture[i][j] = nullptr;
@@ -446,7 +420,7 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, Stereo3dFormat, &ima->stereo3d_format);
 
   image_gpu_runtime_reset(ima);
-  image_runtime_reset(ima);
+  ima->runtime = MEM_new<blender::bke::ImageRuntime>(__func__);
 }
 
 static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
@@ -639,7 +613,7 @@ static void image_free_anims(Image *ima)
 void BKE_image_free_buffers_ex(Image *ima, bool do_lock)
 {
   if (do_lock) {
-    BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+    ima->runtime->cache_mutex.lock();
   }
   image_free_cached_frames(ima);
 
@@ -653,7 +627,7 @@ void BKE_image_free_buffers_ex(Image *ima, bool do_lock)
   BKE_image_free_gputextures(ima);
 
   if (do_lock) {
-    BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+    ima->runtime->cache_mutex.unlock();
   }
 }
 
@@ -700,7 +674,7 @@ static void image_init(Image *ima, short source, short type)
     }
   }
 
-  image_runtime_reset(ima);
+  ima->runtime = MEM_new<blender::bke::ImageRuntime>(__func__);
 
   BKE_color_managed_colorspace_settings_init(&ima->colorspace_settings);
   ima->stereo3d_format = MEM_callocN<Stereo3dFormat>("Image Stereo Format");
@@ -784,24 +758,22 @@ void BKE_image_merge(Main *bmain, Image *dest, Image *source)
 {
   /* sanity check */
   if (dest && source && dest != source) {
-    BLI_mutex_lock(static_cast<ThreadMutex *>(source->runtime.cache_mutex));
-    BLI_mutex_lock(static_cast<ThreadMutex *>(dest->runtime.cache_mutex));
+    {
+      std::scoped_lock lock_src(source->runtime->cache_mutex);
+      std::scoped_lock lock_dst(dest->runtime->cache_mutex);
 
-    if (source->cache != nullptr) {
-      MovieCacheIter *iter;
-      iter = IMB_moviecacheIter_new(source->cache);
-      while (!IMB_moviecacheIter_done(iter)) {
-        ImBuf *ibuf = IMB_moviecacheIter_getImBuf(iter);
-        ImageCacheKey *key = static_cast<ImageCacheKey *>(IMB_moviecacheIter_getUserKey(iter));
-        imagecache_put(dest, key->index, ibuf);
-        IMB_moviecacheIter_step(iter);
+      if (source->cache != nullptr) {
+        MovieCacheIter *iter;
+        iter = IMB_moviecacheIter_new(source->cache);
+        while (!IMB_moviecacheIter_done(iter)) {
+          ImBuf *ibuf = IMB_moviecacheIter_getImBuf(iter);
+          ImageCacheKey *key = static_cast<ImageCacheKey *>(IMB_moviecacheIter_getUserKey(iter));
+          imagecache_put(dest, key->index, ibuf);
+          IMB_moviecacheIter_step(iter);
+        }
+        IMB_moviecacheIter_free(iter);
       }
-      IMB_moviecacheIter_free(iter);
     }
-
-    BLI_mutex_unlock(static_cast<ThreadMutex *>(dest->runtime.cache_mutex));
-    BLI_mutex_unlock(static_cast<ThreadMutex *>(source->runtime.cache_mutex));
-
     BKE_id_free(bmain, source);
   }
 }
@@ -1016,7 +988,8 @@ static void image_init_color_management(Image *ima)
   BKE_image_user_file_path(nullptr, ima, filepath);
 
   /* Will set input color space to image format default's. */
-  ibuf = IMB_loadiffname(filepath, IB_test | IB_alphamode_detect, ima->colorspace_settings.name);
+  ibuf = IMB_load_image_from_filepath(
+      filepath, IB_test | IB_alphamode_detect, ima->colorspace_settings.name);
 
   if (ibuf) {
     if (ibuf->flags & IB_alphamode_premul) {
@@ -1412,7 +1385,7 @@ static bool image_memorypack_imbuf(
 {
   ibuf->ftype = (ibuf->float_buffer.data) ? IMB_FTYPE_OPENEXR : IMB_FTYPE_PNG;
 
-  IMB_saveiff(ibuf, filepath, IB_byte_data | IB_mem);
+  IMB_save_image(ibuf, filepath, IB_byte_data | IB_mem);
 
   if (ibuf->encoded_buffer.data == nullptr) {
     CLOG_STR_ERROR(&LOG, "memory save for pack error");
@@ -1570,7 +1543,7 @@ static uintptr_t image_mem_size(Image *image)
     return 0;
   }
 
-  BLI_mutex_lock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  std::scoped_lock lock(image->runtime->cache_mutex);
 
   if (image->cache != nullptr) {
     MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
@@ -1591,8 +1564,6 @@ static uintptr_t image_mem_size(Image *image)
     }
     IMB_moviecacheIter_free(iter);
   }
-
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
 
   return size;
 }
@@ -1685,11 +1656,10 @@ static bool imagecache_check_free_anim(ImBuf *ibuf, void * /*userkey*/, void *us
 
 void BKE_image_free_anim_ibufs(Image *ima, int except_frame)
 {
-  BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+  std::scoped_lock lock(ima->runtime->cache_mutex);
   if (ima->cache != nullptr) {
     IMB_moviecache_cleanup(ima->cache, imagecache_check_free_anim, &except_frame);
   }
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
 }
 
 void BKE_image_all_free_anim_ibufs(Main *bmain, int cfra)
@@ -1875,7 +1845,7 @@ static void stampdata(
   }
 
   if (use_dynamic && scene->r.stamp & R_STAMP_SEQSTRIP) {
-    const Strip *strip = blender::seq::get_topmost_sequence(scene, scene->r.cfra);
+    const Strip *strip = blender::seq::strip_topmost_get(scene, scene->r.cfra);
 
     if (strip) {
       STRNCPY(text, strip->name + 2);
@@ -2040,7 +2010,7 @@ void BKE_image_stamp_buf(Scene *scene,
   int x, y, y_ofs;
   int h_fixed;
   const int mono = blf_mono_font_render; /* XXX */
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display;
   const char *display_device;
 
   /* vars for calculating wordwrap */
@@ -2540,16 +2510,13 @@ void BKE_image_multilayer_stamp_info_callback(void *data,
                                               StampCallback callback,
                                               bool noskip)
 {
-  BLI_mutex_lock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
+  std::scoped_lock lock(image.runtime->cache_mutex);
 
   if (!image.rr || !image.rr->stamp_data) {
-    BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
     return;
   }
 
   BKE_stamp_info_callback(data, image.rr->stamp_data, callback, noskip);
-
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
 }
 
 void BKE_render_result_stamp_data(RenderResult *rr, const char *key, const char *value)
@@ -2644,10 +2611,9 @@ void BKE_stamp_info_from_imbuf(RenderResult *rr, ImBuf *ibuf)
 
 bool BKE_imbuf_alpha_test(ImBuf *ibuf)
 {
-  int tot;
   if (ibuf->float_buffer.data) {
     const float *buf = ibuf->float_buffer.data;
-    for (tot = ibuf->x * ibuf->y; tot--; buf += 4) {
+    for (size_t tot = IMB_get_pixel_count(ibuf); tot--; buf += 4) {
       if (buf[3] < 1.0f) {
         return true;
       }
@@ -2655,7 +2621,7 @@ bool BKE_imbuf_alpha_test(ImBuf *ibuf)
   }
   else if (ibuf->byte_buffer.data) {
     uchar *buf = ibuf->byte_buffer.data;
-    for (tot = ibuf->x * ibuf->y; tot--; buf += 4) {
+    for (size_t tot = IMB_get_pixel_count(ibuf); tot--; buf += 4) {
       if (buf[3] != 255) {
         return true;
       }
@@ -2671,7 +2637,7 @@ bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *i
 
   BLI_file_ensure_parent_dir_exists(filepath);
 
-  const bool ok = IMB_saveiff(ibuf, filepath, IB_byte_data);
+  const bool ok = IMB_save_image(ibuf, filepath, IB_byte_data);
   if (ok == 0) {
     perror(filepath);
   }
@@ -2874,15 +2840,13 @@ void BKE_image_ensure_viewer_views(const RenderData *rd, Image *ima, ImageUser *
   }
 
   if (!image_views_match_render_views(ima, rd)) {
-    BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+    std::scoped_lock lock(ima->runtime->cache_mutex);
 
     image_free_cached_frames(ima);
     BKE_image_free_views(ima);
 
     /* add new views */
     image_viewer_create_views(rd, ima);
-
-    BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
   }
 
   BLI_thread_unlock(LOCK_DRAW_IMAGE);
@@ -3134,7 +3098,7 @@ static void image_tag_reload(Image *ima, ID *iuser_id, ImageUser *iuser, void *c
 
 void BKE_imageuser_default(ImageUser *iuser)
 {
-  memset(iuser, 0, sizeof(ImageUser));
+  *iuser = ImageUser{};
   iuser->frames = 100;
   iuser->sfra = 1;
 }
@@ -3208,7 +3172,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
     return;
   }
 
-  BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+  ima->runtime->cache_mutex.lock();
 
   switch (signal) {
     case IMA_SIGNAL_FREE:
@@ -3392,7 +3356,9 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
       break;
   }
 
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+  /* NOTE: It is important that the image is unlocked before calling the node tree updates since
+   * its update functions might need to acquire image buffers from this image. */
+  ima->runtime->cache_mutex.unlock();
 
   BKE_ntree_update_tag_id_changed(bmain, &ima->id);
   BKE_ntree_update(*bmain);
@@ -3912,7 +3878,7 @@ static void image_init_multilayer_multiview(Image *ima, RenderResult *rr)
 
 RenderResult *BKE_image_acquire_renderresult(Scene *scene, Image *ima)
 {
-  BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+  std::scoped_lock lock(ima->runtime->cache_mutex);
 
   RenderResult *rr = nullptr;
 
@@ -3936,7 +3902,6 @@ RenderResult *BKE_image_acquire_renderresult(Scene *scene, Image *ima)
     RE_ReferenceRenderResult(rr);
   }
 
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
   return rr;
 }
 
@@ -3944,9 +3909,8 @@ void BKE_image_release_renderresult(Scene *scene, Image *ima, RenderResult *rend
 {
   if (render_result) {
     /* Decrement user counter, and free if nobody else holds a reference to the result. */
-    BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+    std::scoped_lock lock(ima->runtime->cache_mutex);
     RE_FreeRenderResult(render_result);
-    BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
   }
 
   if (ima->rr) {
@@ -3961,7 +3925,7 @@ void BKE_image_release_renderresult(Scene *scene, Image *ima, RenderResult *rend
 
 bool BKE_image_is_openexr(Image *ima)
 {
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
   if (ELEM(ima->source, IMA_SRC_FILE, IMA_SRC_SEQUENCE, IMA_SRC_TILED)) {
     return BLI_path_extension_check(ima->filepath, ".exr");
   }
@@ -4047,7 +4011,7 @@ static void image_add_view(Image *ima, const char *viewname, const char *filepat
 
 /* After imbuf load, OpenEXR type can return with a EXR-handle open
  * in that case we have to build a render-result. */
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
 static void image_create_multilayer(Image *ima, ImBuf *ibuf, int framenr)
 {
   const char *colorspace = ima->colorspace_settings.name;
@@ -4069,7 +4033,7 @@ static void image_create_multilayer(Image *ima, ImBuf *ibuf, int framenr)
   /* set proper views */
   image_init_multilayer_multiview(ima, ima->rr);
 }
-#endif /* WITH_OPENEXR */
+#endif /* WITH_IMAGE_OPENEXR */
 
 /** Common stuff to do with images after loading. */
 static void image_init_after_load(Image *ima, ImageUser *iuser, ImBuf * /*ibuf*/)
@@ -4157,6 +4121,7 @@ static ImBuf *image_load_sequence_multilayer(Image *ima, ImageUser *iuser, int e
       IMB_refImBuf(ibuf);
 
       BKE_imbuf_stamp_info(ima->rr, ibuf);
+      copy_v2_v2_db(ibuf->ppm, ima->rr->ppm);
 
       image_init_after_load(ima, iuser, ibuf);
       image_assign_ibuf(ima, ibuf, iuser ? iuser->multi_index : 0, entry);
@@ -4287,11 +4252,12 @@ static ImBuf *load_image_single(Image *ima,
     LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
       if (imapf->view == view_id && imapf->tile_number == tile_number) {
         if (imapf->packedfile) {
-          ibuf = IMB_ibImageFromMemory((uchar *)imapf->packedfile->data,
-                                       imapf->packedfile->size,
-                                       flag,
-                                       ima->colorspace_settings.name,
-                                       "<packed data>");
+          ibuf = IMB_load_image_from_memory((uchar *)imapf->packedfile->data,
+                                            imapf->packedfile->size,
+                                            flag,
+                                            "<packed data>",
+                                            nullptr,
+                                            ima->colorspace_settings.name);
         }
         break;
       }
@@ -4321,11 +4287,11 @@ static ImBuf *load_image_single(Image *ima,
     BKE_image_user_file_path(&iuser_t, ima, filepath);
 
     /* read ibuf */
-    ibuf = IMB_loadiffname(filepath, flag, ima->colorspace_settings.name);
+    ibuf = IMB_load_image_from_filepath(filepath, flag, ima->colorspace_settings.name);
   }
 
   if (ibuf) {
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
     if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->userdata) {
       /* Handle multilayer and multiview cases, don't assign ibuf here.
        * will be set layer in BKE_image_acquire_ibuf from ima->rr. */
@@ -4456,6 +4422,7 @@ static ImBuf *image_get_ibuf_multilayer(Image *ima, ImageUser *iuser)
       image_init_after_load(ima, iuser, ibuf);
 
       BKE_imbuf_stamp_info(ima->rr, ibuf);
+      copy_v2_v2_db(ibuf->ppm, ima->rr->ppm);
 
       image_assign_ibuf(ima, ibuf, iuser ? iuser->multi_index : IMA_NO_INDEX, 0);
     }
@@ -4858,15 +4825,8 @@ ImBuf *BKE_image_acquire_ibuf(Image *ima, ImageUser *iuser, void **r_lock)
     return nullptr;
   }
 
-  ImBuf *ibuf;
-
-  BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
-
-  ibuf = image_acquire_ibuf(ima, iuser, r_lock);
-
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
-
-  return ibuf;
+  std::scoped_lock lock(ima->runtime->cache_mutex);
+  return image_acquire_ibuf(ima, iuser, r_lock);
 }
 
 static int get_multilayer_view_index(const Image &image,
@@ -4899,7 +4859,7 @@ ImBuf *BKE_image_acquire_multilayer_view_ibuf(const RenderData &render_data,
                                               const char *pass_name,
                                               const char *view_name)
 {
-  BLI_mutex_lock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
+  std::scoped_lock lock(image.runtime->cache_mutex);
 
   /* Local changes to the original ImageUser. */
   ImageUser local_user = image_user;
@@ -4913,7 +4873,6 @@ ImBuf *BKE_image_acquire_multilayer_view_ibuf(const RenderData &render_data,
     BLI_assert(pass_name);
 
     if (!image.rr) {
-      BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
       return nullptr;
     }
 
@@ -4925,7 +4884,6 @@ ImBuf *BKE_image_acquire_multilayer_view_ibuf(const RenderData &render_data,
         &render_layer->passes, pass_name, offsetof(RenderPass, name));
 
     if (!BKE_image_multilayer_index(image.rr, &local_user)) {
-      BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
       return nullptr;
     }
   }
@@ -4933,11 +4891,7 @@ ImBuf *BKE_image_acquire_multilayer_view_ibuf(const RenderData &render_data,
     local_user.multi_index = BKE_scene_multiview_view_id_get(&render_data, view_name);
   }
 
-  ImBuf *ibuf = image_acquire_ibuf(&image, &local_user, nullptr);
-
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
-
-  return ibuf;
+  return image_acquire_ibuf(&image, &local_user, nullptr);
 }
 
 void BKE_image_release_ibuf(Image *ima, ImBuf *ibuf, void *lock)
@@ -4954,9 +4908,8 @@ void BKE_image_release_ibuf(Image *ima, ImBuf *ibuf, void *lock)
   }
 
   if (ibuf) {
-    BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+    std::scoped_lock lock(ima->runtime->cache_mutex);
     IMB_freeImBuf(ibuf);
-    BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
   }
 }
 
@@ -4969,15 +4922,13 @@ bool BKE_image_has_ibuf(Image *ima, ImageUser *iuser)
     return false;
   }
 
-  BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+  std::scoped_lock lock(ima->runtime->cache_mutex);
 
   ibuf = image_get_cached_ibuf(ima, iuser, nullptr, nullptr, nullptr);
 
   if (!ibuf) {
     ibuf = image_acquire_ibuf(ima, iuser, nullptr);
   }
-
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
 
   IMB_freeImBuf(ibuf);
 
@@ -5024,42 +4975,36 @@ struct ImagePoolItem {
 };
 
 struct ImagePool {
-  ListBase image_buffers;
-  BLI_mempool *memory_pool;
-  ThreadMutex mutex;
+  ListBase image_buffers = {};
+  BLI_mempool *memory_pool = nullptr;
+  blender::Mutex mutex;
 };
 
 ImagePool *BKE_image_pool_new()
 {
-  ImagePool *pool = MEM_callocN<ImagePool>("Image Pool");
+  ImagePool *pool = MEM_new<ImagePool>(__func__);
   pool->memory_pool = BLI_mempool_create(sizeof(ImagePoolItem), 0, 128, BLI_MEMPOOL_NOP);
-
-  BLI_mutex_init(&pool->mutex);
-
   return pool;
 }
 
 void BKE_image_pool_free(ImagePool *pool)
 {
   /* Use single lock to dereference all the image buffers. */
-  BLI_mutex_lock(&pool->mutex);
-  for (ImagePoolItem *item = static_cast<ImagePoolItem *>(pool->image_buffers.first);
-       item != nullptr;
-       item = item->next)
   {
-    if (item->ibuf != nullptr) {
-      BLI_mutex_lock(static_cast<ThreadMutex *>(item->image->runtime.cache_mutex));
-      IMB_freeImBuf(item->ibuf);
-      BLI_mutex_unlock(static_cast<ThreadMutex *>(item->image->runtime.cache_mutex));
+    std::scoped_lock lock(pool->mutex);
+    for (ImagePoolItem *item = static_cast<ImagePoolItem *>(pool->image_buffers.first);
+         item != nullptr;
+         item = item->next)
+    {
+      if (item->ibuf != nullptr) {
+        std::scoped_lock lock(item->image->runtime->cache_mutex);
+        IMB_freeImBuf(item->ibuf);
+      }
     }
+
+    BLI_mempool_destroy(pool->memory_pool);
   }
-  BLI_mutex_unlock(&pool->mutex);
-
-  BLI_mempool_destroy(pool->memory_pool);
-
-  BLI_mutex_end(&pool->mutex);
-
-  MEM_freeN(pool);
+  MEM_delete(pool);
 }
 
 BLI_INLINE ImBuf *image_pool_find_item(
@@ -5102,7 +5047,7 @@ ImBuf *BKE_image_pool_acquire_ibuf(Image *ima, ImageUser *iuser, ImagePool *pool
   }
 
   /* Lock the pool, to allow thread-safe modification of the content of the pool. */
-  BLI_mutex_lock(&pool->mutex);
+  std::scoped_lock lock(pool->mutex);
 
   ibuf = image_pool_find_item(pool, ima, entry, index, &found);
 
@@ -5124,8 +5069,6 @@ ImBuf *BKE_image_pool_acquire_ibuf(Image *ima, ImageUser *iuser, ImagePool *pool
 
     BLI_addtail(&pool->image_buffers, item);
   }
-
-  BLI_mutex_unlock(&pool->mutex);
 
   return ibuf;
 }
@@ -5520,7 +5463,7 @@ bool BKE_image_is_dirty_writable(Image *image, bool *r_is_writable)
   bool is_dirty = false;
   bool is_writable = false;
 
-  BLI_mutex_lock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  std::scoped_lock lock(image->runtime->cache_mutex);
   if (image->cache != nullptr) {
     MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
 
@@ -5535,7 +5478,6 @@ bool BKE_image_is_dirty_writable(Image *image, bool *r_is_writable)
     }
     IMB_moviecacheIter_free(iter);
   }
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
 
   if (r_is_writable) {
     *r_is_writable = is_writable;
@@ -5564,7 +5506,7 @@ bool BKE_image_buffer_format_writable(ImBuf *ibuf)
 
 void BKE_image_file_format_set(Image *image, int ftype, const ImbFormatOptions *options)
 {
-  BLI_mutex_lock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  std::scoped_lock lock(image->runtime->cache_mutex);
   if (image->cache != nullptr) {
     MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
 
@@ -5578,14 +5520,13 @@ void BKE_image_file_format_set(Image *image, int ftype, const ImbFormatOptions *
     }
     IMB_moviecacheIter_free(iter);
   }
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
 }
 
 bool BKE_image_has_loaded_ibuf(Image *image)
 {
   bool has_loaded_ibuf = false;
 
-  BLI_mutex_lock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  std::scoped_lock lock(image->runtime->cache_mutex);
   if (image->cache != nullptr) {
     MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
 
@@ -5599,7 +5540,6 @@ bool BKE_image_has_loaded_ibuf(Image *image)
     }
     IMB_moviecacheIter_free(iter);
   }
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
 
   return has_loaded_ibuf;
 }
@@ -5609,7 +5549,7 @@ ImBuf *BKE_image_get_ibuf_with_name(Image *image, const char *filepath)
   BLI_assert(!BLI_path_is_rel(filepath));
   ImBuf *ibuf = nullptr;
 
-  BLI_mutex_lock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  std::scoped_lock lock(image->runtime->cache_mutex);
   if (image->cache != nullptr) {
     MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
 
@@ -5624,7 +5564,6 @@ ImBuf *BKE_image_get_ibuf_with_name(Image *image, const char *filepath)
     }
     IMB_moviecacheIter_free(iter);
   }
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
 
   return ibuf;
 }
@@ -5633,7 +5572,7 @@ ImBuf *BKE_image_get_first_ibuf(Image *image)
 {
   ImBuf *ibuf = nullptr;
 
-  BLI_mutex_lock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  std::scoped_lock lock(image->runtime->cache_mutex);
   if (image->cache != nullptr) {
     MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
 
@@ -5646,7 +5585,6 @@ ImBuf *BKE_image_get_first_ibuf(Image *image)
     }
     IMB_moviecacheIter_free(iter);
   }
-  BLI_mutex_unlock(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
 
   return ibuf;
 }
@@ -5734,7 +5672,7 @@ RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name)
 {
   RenderSlot *slot = MEM_callocN<RenderSlot>("Image new Render Slot");
   if (name && name[0]) {
-    STRNCPY(slot->name, name);
+    STRNCPY_UTF8(slot->name, name);
   }
   else {
     int n = BLI_listbase_count(&ima->renderslots) + 1;

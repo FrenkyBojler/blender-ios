@@ -391,15 +391,15 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
         name = RNA_property_ui_name(prop);
 
         if (label_align == UI_BUT_LABEL_ALIGN_COLUMN) {
-          col = uiLayoutColumn(layout, true);
+          col = &layout->column(true);
 
           if (!is_boolean) {
-            uiItemL(col, *name, ICON_NONE);
+            col->label(*name, ICON_NONE);
           }
         }
         else {
           BLI_assert(label_align == UI_BUT_LABEL_ALIGN_SPLIT_COLUMN);
-          col = uiLayoutColumn(layout, true);
+          col = &layout->column(true);
           /* Let uiItemFullR() create the split layout. */
           uiLayoutSetPropSep(col, true);
         }
@@ -1129,8 +1129,15 @@ std::optional<std::string> UI_key_event_operator_string(const bContext *C,
   }
 
   if ((event_val != KM_NOTHING) && (event_type != KM_NOTHING)) {
-    return WM_keymap_item_raw_to_string(
-        false, false, false, false, 0, event_val, event_type, false);
+    return WM_keymap_item_raw_to_string(KM_NOTHING,
+                                        KM_NOTHING,
+                                        KM_NOTHING,
+                                        KM_NOTHING,
+                                        KM_NOTHING,
+                                        0,
+                                        event_val,
+                                        event_type,
+                                        false);
   }
 
   return std::nullopt;

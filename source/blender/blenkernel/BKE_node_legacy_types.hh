@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 /**
@@ -129,6 +133,7 @@
 #define SH_NODE_BSDF_RAY_PORTAL 714
 #define SH_NODE_TEX_GABOR 715
 #define SH_NODE_BSDF_METALLIC 716
+#define SH_NODE_VOLUME_COEFFICIENTS 717
 
 /** \} */
 
@@ -253,11 +258,6 @@
 /* channel toggles */
 #define CMP_CHAN_RGB 1
 #define CMP_CHAN_A 2
-
-/* Default SMAA configuration values. */
-#define CMP_DEFAULT_SMAA_THRESHOLD 1.0f
-#define CMP_DEFAULT_SMAA_CONTRAST_LIMIT 0.2f
-#define CMP_DEFAULT_SMAA_CORNER_ROUNDING 0.25f
 
 /** \} */
 
@@ -513,6 +513,11 @@
 #define GEO_NODE_MERGE_LAYERS 2150
 #define GEO_NODE_INPUT_COLLECTION 2151
 #define GEO_NODE_INPUT_OBJECT 2152
+#define GEO_NODE_COMBINE_BUNDLE 2153
+#define GEO_NODE_SEPARATE_BUNDLE 2154
+#define GEO_NODE_CLOSURE_OUTPUT 2155
+#define GEO_NODE_EVALUATE_CLOSURE 2156
+#define GEO_NODE_CLOSURE_INPUT 2157
 
 /** \} */
 
