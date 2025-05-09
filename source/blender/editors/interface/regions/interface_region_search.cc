@@ -215,6 +215,8 @@ int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn updat
   for (const int width : item_widths) {
     box_width = std::max(box_width, width);
   }
+  /* Avoid extremely wide boxes. */
+  box_width = std::min(box_width, UI_searchbox_size_x() * 5);
   return box_width;
 }
 
