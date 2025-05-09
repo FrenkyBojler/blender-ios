@@ -306,6 +306,10 @@ static void flushTransNodes(TransInfo *t)
 
       node->location[0] = loc.x;
       node->location[1] = loc.y;
+
+      if (t->modifiers & MOD_NODE_DETACH_FRAME) {
+        bke::node_detach_node(*snode->edittree, *node);
+      }
     }
 
     /* Handle intersection with noodles. */
