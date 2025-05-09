@@ -2364,6 +2364,33 @@ void BKE_grease_pencil_duplicate_drawing_array(const GreasePencil *grease_pencil
  *  \note Used for "move only origins" in object_data_transform.cc.
  * \{ */
 
+bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, const CurveType type)
+{
+  using namespace blender;
+
+  bool has_curve_with_type = false;
+
+  for (const int layer_i : grease_pencil.layers().index_range()) {
+    const bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+    const Map<bke::greasepencil::FramesMapKeyT, GreasePencilFrame> frames = layer.frames();
+    frames.foreach_item(
+        [&](const bke::greasepencil::FramesMapKeyT /*key*/, const GreasePencilFrame frame) {
+          const GreasePencilDrawingBase *base = grease_pencil.drawing(frame.drawing_index);
+          if (base->type != GP_DRAWING) {
+            return;
+          }
+          const bke::greasepencil::Drawing &drawing =
+              reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
+          const bke::CurvesGeometry &curves = drawing.strokes();
+          if (curves.has_curve_with_type(type)) {
+            has_curve_with_type = true;
+          }
+        });
+  }
+
+  return has_curve_with_type;
+}
+
 int BKE_grease_pencil_stroke_point_count(const GreasePencil &grease_pencil)
 {
   using namespace blender;
@@ -2411,10 +2438,26 @@ void BKE_grease_pencil_point_coords_get(const GreasePencil &grease_pencil,
           const Span<float3> positions = curves.positions();
           const VArray<float> radii = drawing.radii();
 
-          for (const int i : curves.points_range()) {
-            all_positions[index] = math::transform_point(layer_to_object, positions[i]);
-            all_radii[index] = radii[i];
-            index++;
+          if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+            for (const int i : curves.points_range()) {
+              all_positions[index] = math::transform_point(layer_to_object, positions[i]);
+              all_radii[index] = radii[i];
+              index++;
+            }
+          }
+          else {
+            const Span<float3> handle_positions_left = curves.handle_positions_left();
+            const Span<float3> handle_positions_right = curves.handle_positions_right();
+            for (const int i : curves.points_range()) {
+              const int index_pos = index * 3;
+              all_positions[index_pos] = math::transform_point(layer_to_object,
+                                                               handle_positions_left[i]);
+              all_positions[index_pos + 1] = math::transform_point(layer_to_object, positions[i]);
+              all_positions[index_pos + 2] = math::transform_point(layer_to_object,
+                                                                   handle_positions_right[i]);
+              all_radii[index] = radii[i];
+              index++;
+            }
           }
         });
   }
@@ -2442,10 +2485,26 @@ void BKE_grease_pencil_point_coords_apply(GreasePencil &grease_pencil,
       MutableSpan<float3> positions = curves.positions_for_write();
       MutableSpan<float> radii = drawing.radii_for_write();
 
-      for (const int i : curves.points_range()) {
-        positions[i] = math::transform_point(object_to_layer, all_positions[index]);
-        radii[i] = all_radii[index];
-        index++;
+      if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+        for (const int i : curves.points_range()) {
+          positions[i] = math::transform_point(object_to_layer, all_positions[index]);
+          radii[i] = all_radii[index];
+          index++;
+        }
+      }
+      else {
+        MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
+        MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
+        for (const int i : curves.points_range()) {
+          const int index_pos = index * 3;
+          handle_positions_left[i] = math::transform_point(object_to_layer,
+                                                           all_positions[index_pos]);
+          positions[i] = math::transform_point(object_to_layer, all_positions[index_pos + 1]);
+          handle_positions_right[i] = math::transform_point(object_to_layer,
+                                                            all_positions[index_pos + 2]);
+          radii[i] = all_radii[index];
+          index++;
+        }
       }
 
       curves.tag_radii_changed();
@@ -2478,10 +2537,27 @@ void BKE_grease_pencil_point_coords_apply_with_mat4(GreasePencil &grease_pencil,
       MutableSpan<float3> positions = curves.positions_for_write();
       MutableSpan<float> radii = drawing.radii_for_write();
 
-      for (const int i : curves.points_range()) {
-        positions[i] = math::transform_point(object_to_layer * mat, all_positions[index]);
-        radii[i] = all_radii[index] * scalef;
-        index++;
+      if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+        for (const int i : curves.points_range()) {
+          positions[i] = math::transform_point(object_to_layer * mat, all_positions[index]);
+          radii[i] = all_radii[index] * scalef;
+          index++;
+        }
+      }
+      else {
+        MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
+        MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
+        for (const int i : curves.points_range()) {
+          const int index_pos = index * 3;
+          handle_positions_left[i] = math::transform_point(object_to_layer * mat,
+                                                           all_positions[index_pos]);
+          positions[i] = math::transform_point(object_to_layer * mat,
+                                               all_positions[index_pos + 1]);
+          handle_positions_right[i] = math::transform_point(object_to_layer * mat,
+                                                            all_positions[index_pos + 2]);
+          radii[i] = all_radii[index] * scalef;
+          index++;
+        }
       }
 
       curves.tag_radii_changed();
