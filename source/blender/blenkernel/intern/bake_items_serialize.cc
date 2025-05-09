@@ -611,9 +611,8 @@ static PointCloud *try_load_pointcloud(const DictionaryValue &io_geometry,
   if (!io_attributes) {
     return nullptr;
   }
-  PointCloud *pointcloud = BKE_pointcloud_new_nomain(0);
-  pointcloud->attribute_storage.wrap().remove("position");  // TODO: Don't have empty attributes?
-  pointcloud->totpoint = io_pointcloud->lookup_int("num_points").value_or(0);
+  const int points_num = io_pointcloud->lookup_int("num_points").value_or(0);
+  PointCloud *pointcloud = bke::pointcloud_new_no_attributes(points_num);
 
   auto cancel = [&]() {
     BKE_id_free(nullptr, pointcloud);
