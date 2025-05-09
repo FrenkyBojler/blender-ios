@@ -18,6 +18,7 @@
 #  include <fmt/format.h>
 
 #  include "BLI_math_vector.h"
+#  include "BLI_virtual_array.hh"
 
 #  include "BKE_customdata.hh"
 #  include "BKE_pointcloud.hh"
@@ -36,12 +37,12 @@ static PointCloud *rna_pointcloud(const PointerRNA *ptr)
 
 static float3 *get_pointcloud_positions(PointCloud *pointcloud)
 {
-  return pointcloud.positions_for_write().data();
+  return pointcloud->positions_for_write().data();
 }
 
 static const float3 *get_pointcloud_positions_const(const PointCloud *pointcloud)
 {
-  return pointcloud.positions_for_write().data();
+  return pointcloud->positions().data();
 }
 
 static int rna_Point_index_get_const(const PointerRNA *ptr)
@@ -88,7 +89,7 @@ bool rna_PointCloud_points_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_
 
 static void rna_Point_location_get(PointerRNA *ptr, float value[3])
 {
-  copy_v3_v3(value, static_cast<const float3 *>(ptr->data));
+  copy_v3_v3(value, *static_cast<const float3 *>(ptr->data));
 }
 
 static void rna_Point_location_set(PointerRNA *ptr, const float value[3])
@@ -99,7 +100,7 @@ static void rna_Point_location_set(PointerRNA *ptr, const float value[3])
 static float rna_Point_radius_get(PointerRNA *ptr)
 {
   const PointCloud *pointcloud = rna_pointcloud(ptr);
-  return pointcloud->radius()[rna_Point_index_get_const(ptr)];
+  return pointcloud->radius().get(rna_Point_index_get_const(ptr));
 }
 
 static void rna_Point_radius_set(PointerRNA *ptr, float value)
