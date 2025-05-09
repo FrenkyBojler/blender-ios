@@ -167,6 +167,7 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
 
   space_node::node_insert_on_link_flags_set(
       *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
+  space_node::node_insert_on_frame_flag_set(*snode);
 
   t->custom.type.data = customdata;
   t->custom.type.use_free = true;
@@ -351,6 +352,7 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   }
 
   space_node::node_insert_on_link_flags_clear(*ntree);
+  space_node::node_insert_on_frame_flag_clear(*snode);
 
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_insert_offset", true);
   BLI_assert(ot);

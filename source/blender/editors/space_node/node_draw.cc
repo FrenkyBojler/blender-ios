@@ -4281,7 +4281,9 @@ static void frame_node_draw_background(const ARegion &region,
   UI_draw_roundbox_4fv(&rct, true, BASIS_RAD, color);
 }
 
-static void frame_node_draw_outline(const ARegion &region, const bNode &node)
+static void frame_node_draw_outline(const ARegion &region,
+                                    const SpaceNode &snode,
+                                    const bNode &node)
 {
   /* Skip if out of view. */
   const rctf &rct = node.runtime->draw_bounds;
@@ -4289,16 +4291,27 @@ static void frame_node_draw_outline(const ARegion &region, const bNode &node)
     return;
   }
 
-  float color[4];
-  if (node.flag & SELECT) {
+  ColorTheme4f outline_color;
+  bool draw_outline = false;
+
+  if (snode.runtime->highlight_frame_under_cursor &&
+      BLI_rctf_isect_pt_v(&rct, snode.runtime->cursor))
+  {
+    draw_outline = true;
+    UI_GetThemeColorShadeAlpha4fv(TH_ACTIVE, 0, -150, outline_color);
+  }
+  else if (node.flag & SELECT) {
+    draw_outline = true;
     if (node.flag & NODE_ACTIVE) {
-      UI_GetThemeColorShadeAlpha4fv(TH_ACTIVE, 0, -40, color);
+      UI_GetThemeColorShadeAlpha4fv(TH_ACTIVE, 0, -40, outline_color);
     }
     else {
-      UI_GetThemeColorShadeAlpha4fv(TH_SELECT, 0, -40, color);
+      UI_GetThemeColorShadeAlpha4fv(TH_SELECT, 0, -40, outline_color);
     }
+  }
 
-    UI_draw_roundbox_aa(&rct, false, BASIS_RAD, color);
+  if (draw_outline) {
+    UI_draw_roundbox_aa(&rct, false, BASIS_RAD, outline_color);
   }
 }
 
@@ -4801,7 +4814,7 @@ static void node_draw_zones_and_frames(const ARegion &region,
     }
     if (const bNode *const *node_p = std::get_if<const bNode *>(&zone_or_node)) {
       const bNode &node = **node_p;
-      frame_node_draw_outline(region, node);
+      frame_node_draw_outline(region, snode, node);
     }
   }
 

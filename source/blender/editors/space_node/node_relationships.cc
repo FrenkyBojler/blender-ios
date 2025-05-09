@@ -2400,6 +2400,16 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   }
 }
 
+void node_insert_on_frame_flag_set(SpaceNode &snode)
+{
+  snode.runtime->highlight_frame_under_cursor = true;
+}
+
+void node_insert_on_frame_flag_clear(SpaceNode &snode)
+{
+  snode.runtime->highlight_frame_under_cursor = false;
+}
+
 void node_insert_on_link_flags_clear(bNodeTree &node_tree)
 {
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
