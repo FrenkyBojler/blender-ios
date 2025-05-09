@@ -158,17 +158,16 @@ blender::bke::path_templates::VariableMap BKE_build_template_variables(
     const char *blend_file_path, const RenderData *render_data);
 
 /**
- * Validate the template syntax in the given path.
+ * Validate the templating in the given path.
  *
- * This does *not* validate whether any variables referenced in the path exist
- * or not, nor whether the format specification in a variable expression is
- * appropriate for its type. This only validates that the template syntax itself
- * is valid.
+ * If `template_variables` is null, then only syntax is checked for errors. If
+ * `template_variables` is provided, then missing variables and
+ * type<->format-specifier mismatches are also checked.
  *
- * \return An empty vector if valid, or a vector of the parse errors if invalid.
+ * \return An empty vector if valid, or a vector of the errors if invalid.
  */
-blender::Vector<blender::bke::path_templates::Error> BKE_validate_template_syntax(
-    blender::StringRef path);
+blender::Vector<blender::bke::path_templates::Error> BKE_validate_template(
+    blender::StringRef path, const blender::bke::path_templates::VariableMap *template_variables);
 
 /**
  * Perform variable substitution and escaping on the given path.

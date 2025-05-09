@@ -620,7 +620,8 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
   return std::nullopt;
 }
 
-blender::Vector<Error> BKE_validate_template_syntax(blender::StringRef path)
+blender::Vector<Error> BKE_validate_template(
+    blender::StringRef path, const blender::bke::path_templates::VariableMap *template_variables)
 {
   const blender::Vector<Token> tokens = parse_template(path);
 
@@ -628,6 +629,27 @@ blender::Vector<Error> BKE_validate_template_syntax(blender::StringRef path)
   for (const Token &token : tokens) {
     if (std::optional<Error> error = token_to_syntax_error(token)) {
       errors.append(*error);
+      continue;
+    }
+
+    /* If template_variables isn't provided, then we skip non-syntax errors. */
+    if (template_variables == nullptr) {
+      continue;
+    }
+
+    /* Check if referenced variable exists. */
+    if (!template_variables->contains(token.variable_name)) {
+      errors.append({ErrorType::UNKNOWN_VARIABLE, token.byte_range});
+      continue;
+    }
+
+    /* Check if the format specifier is appropriate for the variable type. */
+    if (template_variables->get_string(token.variable_name).has_value()) {
+      /* String variables don't take format specifiers. */
+      if (token.format.type != FormatSpecifierType::NONE) {
+        errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
+        continue;
+      }
     }
   }
 

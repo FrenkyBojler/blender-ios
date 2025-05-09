@@ -1073,11 +1073,13 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
         /* Template parse errors, for paths that support it. */
         if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
           const blender::StringRef path = but->drawstr;
+          const blender::bke::path_templates::VariableMap variables = BKE_build_template_variables(
+              BKE_main_blendfile_path_from_global(), &CTX_data_scene(C)->r);
           const blender::Vector<blender::bke::path_templates::Error> errors =
-              BKE_validate_template_syntax(path);
+              BKE_validate_template(path, &variables);
 
           if (!errors.is_empty()) {
-            std::string error_message("Syntax error(s):");
+            std::string error_message("Path template error(s):");
             for (const blender::bke::path_templates::Error &error : errors) {
               error_message += "\n  - " + BKE_path_template_error_to_string(error, path);
             }
