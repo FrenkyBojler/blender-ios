@@ -27,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  eCustomDataType data_type = eCustomDataType(node->custom1);
+  eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_input(data_type, "Grid");
 
@@ -46,7 +46,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  const eCustomDataType data_type = eCustomDataType(params.node().custom1);
+  const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
 
   const auto grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {
@@ -59,7 +59,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Transform", BKE_volume_transform_to_blender(vdb_grid->transform()));
 
   bke::attribute_math::convert_to_static_type(
-      *bke::custom_data_type_to_cpp_type(data_type), [&](auto type_tag) {
+      *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&](auto type_tag) {
         using ValueT = decltype(type_tag);
         using type_traits = typename bke::VolumeGridTraits<ValueT>;
         using TreeType = typename type_traits::TreeType;
@@ -81,7 +81,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = CD_PROP_FLOAT;
+  node->custom1 = SOCK_FLOAT;
 }
 
 static void node_rna(StructRNA *srna)
@@ -90,10 +90,10 @@ static void node_rna(StructRNA *srna)
                     "data_type",
                     "Data Type",
                     "Type of grid data",
-                    rna_enum_attribute_type_items,
+                    rna_enum_node_socket_data_type_items,
                     NOD_inline_enum_accessors(custom1),
-                    CD_PROP_FLOAT,
-                    grid_attribute_type_items_filter_fn);
+                    SOCK_FLOAT,
+                    grid_socket_type_items_filter_fn);
 }
 
 static void node_register()
