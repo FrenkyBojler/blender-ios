@@ -455,6 +455,8 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   std::unique_ptr<SpreadsheetDrawer> drawer = spreadsheet_drawer_from_layout(spreadsheet_layout);
   draw_spreadsheet_in_region(C, region, *drawer);
 
+  sspreadsheet->runtime->top_row_height = drawer->top_row_height;
+
   /* Tag other regions for redraw, because the main region updates data for them. */
   ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);
   ED_region_tag_redraw(footer);
@@ -714,13 +716,14 @@ static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   const int2 cursor_re{win->eventstate->xy[0] - region->winrct.xmin,
                        win->eventstate->xy[1] - region->winrct.ymin};
+  const int region_height = BLI_rcti_size_y(&region->winrct);
 
-  fmt::println("{} {}", cursor_re.x, cursor_re.y);
-
-  LISTBASE_FOREACH (const SpreadsheetColumn *, column, &sspreadsheet->columns) {
-    if (std::abs(cursor_re.x - column->runtime->right_x) < 5) {
-      WM_cursor_set(win, WM_CURSOR_X_MOVE);
-      return;
+  if (cursor_re.y >= region_height - sspreadsheet->runtime->top_row_height) {
+    LISTBASE_FOREACH (const SpreadsheetColumn *, column, &sspreadsheet->columns) {
+      if (std::abs(cursor_re.x - column->runtime->right_x) < 5) {
+        WM_cursor_set(win, WM_CURSOR_X_MOVE);
+        return;
+      }
     }
   }
 

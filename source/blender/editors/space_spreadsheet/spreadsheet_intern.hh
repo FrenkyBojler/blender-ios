@@ -19,6 +19,7 @@ struct SpaceSpreadsheet_Runtime {
   int visible_rows = 0;
   int tot_rows = 0;
   int tot_columns = 0;
+  int top_row_height = 0;
 
   SpreadsheetCache cache;
 
