@@ -720,7 +720,7 @@ static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   if (cursor_re.y >= region_height - sspreadsheet->runtime->top_row_height) {
     LISTBASE_FOREACH (const SpreadsheetColumn *, column, &sspreadsheet->columns) {
-      if (std::abs(cursor_re.x - column->runtime->right_x) < 5) {
+      if (std::abs(cursor_re.x - column->runtime->right_x) < SPREADSHEET_EDGE_ACTION_ZONE) {
         WM_cursor_set(win, WM_CURSOR_X_MOVE);
         return;
       }

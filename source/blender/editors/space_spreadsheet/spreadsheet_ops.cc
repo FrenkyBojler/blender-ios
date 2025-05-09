@@ -2,20 +2,26 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "DNA_space_types.h"
 
 #include "ED_screen.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_rect.h"
 
 #include "BKE_context.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "UI_interface_c.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "spreadsheet_column.hh"
 #include "spreadsheet_intern.hh"
 #include "spreadsheet_row_filter.hh"
 
@@ -117,11 +123,52 @@ static void SPREADSHEET_OT_change_spreadsheet_data_source(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
+static wmOperatorStatus resize_column_invoke(bContext *C,
+                                             wmOperator * /*op*/,
+                                             const wmEvent *event)
+{
+  ARegion &region = *CTX_wm_region(C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
+
+  const int2 cursor_re{event->mval[0], event->mval[1]};
+  const int region_height = BLI_rcti_size_y(&region.winrct);
+  if (cursor_re.y < region_height - sspreadsheet.runtime->top_row_height) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  SpreadsheetColumn *column_to_resize = nullptr;
+  LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet.columns) {
+    if (std::abs(cursor_re.x - column->runtime->right_x) < SPREADSHEET_EDGE_ACTION_ZONE) {
+      column_to_resize = column;
+      break;
+    }
+  }
+
+  if (!column_to_resize) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  fmt::println("Hello World");
+  return OPERATOR_FINISHED;
+}
+
+static void SPREADSHEET_OT_resize_column(wmOperatorType *ot)
+{
+  ot->name = "Resize Column";
+  ot->description = "Resize a spreadsheet column";
+  ot->idname = "SPREADSHEET_OT_resize_column";
+
+  ot->invoke = resize_column_invoke;
+  ot->poll = ED_operator_spreadsheet_active;
+  ot->flag = OPTYPE_INTERNAL;
+}
+
 void spreadsheet_operatortypes()
 {
   WM_operatortype_append(SPREADSHEET_OT_add_row_filter_rule);
   WM_operatortype_append(SPREADSHEET_OT_remove_row_filter_rule);
   WM_operatortype_append(SPREADSHEET_OT_change_spreadsheet_data_source);
+  WM_operatortype_append(SPREADSHEET_OT_resize_column);
 }
 
 }  // namespace blender::ed::spreadsheet

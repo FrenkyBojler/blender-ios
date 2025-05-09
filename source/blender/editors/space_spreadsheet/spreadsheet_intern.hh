@@ -12,6 +12,8 @@ struct Depsgraph;
 struct Object;
 struct SpaceSpreadsheet;
 
+#define SPREADSHEET_EDGE_ACTION_ZONE (UI_UNIT_X * 0.3f)
+
 namespace blender::ed::spreadsheet {
 
 struct SpaceSpreadsheet_Runtime {
