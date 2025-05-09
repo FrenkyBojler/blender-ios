@@ -178,6 +178,9 @@ class AttributeStorage : public ::AttributeStorage {
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 };
 
+/** The C++ wrapper needs to be the same size as the DNA struct. */
+static_assert(sizeof(AttributeStorage) == sizeof(::AttributeStorage));
+
 inline StringRefNull Attribute::name() const
 {
   return name_;

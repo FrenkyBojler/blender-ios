@@ -108,7 +108,7 @@ static void grease_pencil_init_data(ID *id)
   grease_pencil->set_active_node(nullptr);
 
   CustomData_reset(&grease_pencil->layers_data);
-  new (&grease_pencil->attribute_storage) blender::bke::AttributeStorage();
+  new (&grease_pencil->attribute_storage.wrap()) blender::bke::AttributeStorage();
 
   grease_pencil->runtime = MEM_new<GreasePencilRuntime>(__func__);
 }
@@ -515,7 +515,7 @@ static void update_triangle_cache(const Span<float3> positions,
       }
       MutableSpan<int3> r_tris = triangles.slice(triangle_offsets[curve_i]);
 
-      float(*projverts)[2] = static_cast<float(*)[2]>(
+      float (*projverts)[2] = static_cast<float (*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(points.size())));
 
       float3x3 axis_mat;
@@ -526,7 +526,7 @@ static void update_triangle_cache(const Span<float3> positions,
       }
 
       BLI_polyfill_calc_arena(
-          projverts, points.size(), 0, reinterpret_cast<uint32_t(*)[3]>(r_tris.data()), pf_arena);
+          projverts, points.size(), 0, reinterpret_cast<uint32_t (*)[3]>(r_tris.data()), pf_arena);
       BLI_memarena_clear(pf_arena);
     }
   });
@@ -2029,7 +2029,7 @@ bool BKE_grease_pencil_drawing_attribute_required(const GreasePencilDrawing * /*
 
 GreasePencil *BKE_grease_pencil_add(Main *bmain, const char *name)
 {
-  GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(BKE_id_new(bmain, ID_GP, name));
+  GreasePencil *grease_pencil = BKE_id_new<GreasePencil>(bmain, name);
 
   return grease_pencil;
 }

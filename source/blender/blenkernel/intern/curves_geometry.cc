@@ -68,7 +68,7 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
   this->curve_num = curve_num;
   CustomData_reset(&this->point_data);
   CustomData_reset(&this->curve_data);
-  new (&this->attribute_storage) blender::bke::AttributeStorage();
+  new (&this->attribute_storage.wrap()) blender::bke::AttributeStorage();
   BLI_listbase_clear(&this->vertex_group_names);
 
   this->attributes_for_write().add<float3>(

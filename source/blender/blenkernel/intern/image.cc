@@ -2010,7 +2010,7 @@ void BKE_image_stamp_buf(Scene *scene,
   int x, y, y_ofs;
   int h_fixed;
   const int mono = blf_mono_font_render; /* XXX */
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display;
   const char *display_device;
 
   /* vars for calculating wordwrap */
@@ -3172,7 +3172,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
     return;
   }
 
-  std::scoped_lock lock(ima->runtime->cache_mutex);
+  ima->runtime->cache_mutex.lock();
 
   switch (signal) {
     case IMA_SIGNAL_FREE:
@@ -3355,6 +3355,10 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
       BKE_image_free_buffers(ima);
       break;
   }
+
+  /* NOTE: It is important that the image is unlocked before calling the node tree updates since
+   * its update functions might need to acquire image buffers from this image. */
+  ima->runtime->cache_mutex.unlock();
 
   BKE_ntree_update_tag_id_changed(bmain, &ima->id);
   BKE_ntree_update(*bmain);
@@ -4971,41 +4975,36 @@ struct ImagePoolItem {
 };
 
 struct ImagePool {
-  ListBase image_buffers;
-  BLI_mempool *memory_pool;
-  ThreadMutex mutex;
+  ListBase image_buffers = {};
+  BLI_mempool *memory_pool = nullptr;
+  blender::Mutex mutex;
 };
 
 ImagePool *BKE_image_pool_new()
 {
-  ImagePool *pool = MEM_callocN<ImagePool>("Image Pool");
+  ImagePool *pool = MEM_new<ImagePool>(__func__);
   pool->memory_pool = BLI_mempool_create(sizeof(ImagePoolItem), 0, 128, BLI_MEMPOOL_NOP);
-
-  BLI_mutex_init(&pool->mutex);
-
   return pool;
 }
 
 void BKE_image_pool_free(ImagePool *pool)
 {
   /* Use single lock to dereference all the image buffers. */
-  BLI_mutex_lock(&pool->mutex);
-  for (ImagePoolItem *item = static_cast<ImagePoolItem *>(pool->image_buffers.first);
-       item != nullptr;
-       item = item->next)
   {
-    if (item->ibuf != nullptr) {
-      std::scoped_lock lock(item->image->runtime->cache_mutex);
-      IMB_freeImBuf(item->ibuf);
+    std::scoped_lock lock(pool->mutex);
+    for (ImagePoolItem *item = static_cast<ImagePoolItem *>(pool->image_buffers.first);
+         item != nullptr;
+         item = item->next)
+    {
+      if (item->ibuf != nullptr) {
+        std::scoped_lock lock(item->image->runtime->cache_mutex);
+        IMB_freeImBuf(item->ibuf);
+      }
     }
+
+    BLI_mempool_destroy(pool->memory_pool);
   }
-  BLI_mutex_unlock(&pool->mutex);
-
-  BLI_mempool_destroy(pool->memory_pool);
-
-  BLI_mutex_end(&pool->mutex);
-
-  MEM_freeN(pool);
+  MEM_delete(pool);
 }
 
 BLI_INLINE ImBuf *image_pool_find_item(
@@ -5048,7 +5047,7 @@ ImBuf *BKE_image_pool_acquire_ibuf(Image *ima, ImageUser *iuser, ImagePool *pool
   }
 
   /* Lock the pool, to allow thread-safe modification of the content of the pool. */
-  BLI_mutex_lock(&pool->mutex);
+  std::scoped_lock lock(pool->mutex);
 
   ibuf = image_pool_find_item(pool, ima, entry, index, &found);
 
@@ -5070,8 +5069,6 @@ ImBuf *BKE_image_pool_acquire_ibuf(Image *ima, ImageUser *iuser, ImagePool *pool
 
     BLI_addtail(&pool->image_buffers, item);
   }
-
-  BLI_mutex_unlock(&pool->mutex);
 
   return ibuf;
 }

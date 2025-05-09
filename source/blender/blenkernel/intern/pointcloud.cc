@@ -67,7 +67,7 @@ static void pointcloud_init_data(ID *id)
 
   MEMCPY_STRUCT_AFTER(pointcloud, DNA_struct_default_get(PointCloud), id);
 
-  new (&pointcloud->attribute_storage) blender::bke::AttributeStorage();
+  new (&pointcloud->attribute_storage.wrap()) blender::bke::AttributeStorage();
   pointcloud->runtime = new blender::bke::PointCloudRuntime();
 }
 
@@ -287,14 +287,14 @@ MutableSpan<float> PointCloud::radius_for_write()
 
 PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
 {
-  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_id_new(bmain, ID_PT, name));
+  PointCloud *pointcloud = BKE_id_new<PointCloud>(bmain, name);
 
   return pointcloud;
 }
 
 PointCloud *BKE_pointcloud_add_default(Main *bmain, const char *name)
 {
-  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_id_new(bmain, ID_PT, name));
+  PointCloud *pointcloud = BKE_id_new<PointCloud>(bmain, name);
 
   pointcloud_random(pointcloud);
 

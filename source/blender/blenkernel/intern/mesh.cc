@@ -97,7 +97,7 @@ static void mesh_init_data(ID *id)
   CustomData_reset(&mesh->face_data);
   CustomData_reset(&mesh->corner_data);
 
-  new (&mesh->attribute_storage) blender::bke::AttributeStorage();
+  new (&mesh->attribute_storage.wrap()) blender::bke::AttributeStorage();
   mesh->runtime = new blender::bke::MeshRuntime();
 
   mesh->face_sets_color_seed = BLI_hash_int(BLI_time_now_seconds_i() & UINT_MAX);
@@ -707,7 +707,7 @@ static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata)
 
 Mesh *BKE_mesh_add(Main *bmain, const char *name)
 {
-  return static_cast<Mesh *>(BKE_id_new(bmain, ID_ME, name));
+  return BKE_id_new<Mesh>(bmain, name);
 }
 
 void BKE_mesh_face_offsets_ensure_alloc(Mesh *mesh)
