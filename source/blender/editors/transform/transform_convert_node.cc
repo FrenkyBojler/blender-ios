@@ -285,6 +285,14 @@ static void flushTransNodes(TransInfo *t)
     }
   }
 
+  if (t->modifiers & MOD_NODE_DETACH_FRAME) {
+    LISTBASE_FOREACH (bNode *, node, &snode->edittree->nodes) {
+      if (node->flag & NODE_SELECT) {
+        bke::node_detach_node(*snode->edittree, *node);
+      }
+    }
+  }
+
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     node_snap_grid_apply(t);
 
@@ -306,10 +314,6 @@ static void flushTransNodes(TransInfo *t)
 
       node->location[0] = loc.x;
       node->location[1] = loc.y;
-
-      if (t->modifiers & MOD_NODE_DETACH_FRAME) {
-        bke::node_detach_node(*snode->edittree, *node);
-      }
     }
 
     /* Handle intersection with noodles. */
