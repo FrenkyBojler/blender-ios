@@ -100,9 +100,10 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
 
-  /* frame range */
+  /* Frame and preview range. */
   UI_view2d_view_ortho(v2d);
   ANIM_draw_framerange(scene, v2d);
+  ANIM_draw_previewrange(scene, v2d, 0);
 
   if (clip) {
     MovieTracking *tracking = &clip->tracking;
