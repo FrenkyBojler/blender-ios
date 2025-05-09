@@ -4294,9 +4294,7 @@ static void frame_node_draw_outline(const ARegion &region,
   ColorTheme4f outline_color;
   bool draw_outline = false;
 
-  if (snode.runtime->highlight_frame_under_cursor &&
-      BLI_rctf_isect_pt_v(&rct, snode.runtime->cursor))
-  {
+  if (snode.runtime->frame_identifier_to_highlight == node.identifier) {
     draw_outline = true;
     UI_GetThemeColorShadeAlpha4fv(TH_ACTIVE, 0, -150, outline_color);
   }

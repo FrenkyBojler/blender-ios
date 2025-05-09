@@ -2400,14 +2400,26 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   }
 }
 
-void node_insert_on_frame_flag_set(SpaceNode &snode)
+void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode)
 {
-  snode.runtime->highlight_frame_under_cursor = true;
+  wmWindow &win = *CTX_wm_window(&C);
+  ARegion &region = *CTX_wm_region(&C);
+
+  int2 cursor{win.eventstate->xy[0] - region.winrct.xmin,
+              win.eventstate->xy[1] - region.winrct.ymin};
+
+  const bNode *frame = node_find_frame_to_attach(region, *snode.edittree, cursor);
+  if (frame) {
+    snode.runtime->frame_identifier_to_highlight = frame->identifier;
+  }
+  else {
+    snode.runtime->frame_identifier_to_highlight.reset();
+  }
 }
 
 void node_insert_on_frame_flag_clear(SpaceNode &snode)
 {
-  snode.runtime->highlight_frame_under_cursor = false;
+  snode.runtime->frame_identifier_to_highlight.reset();
 }
 
 void node_insert_on_link_flags_clear(bNodeTree &node_tree)

@@ -86,7 +86,7 @@ struct SpaceNode_Runtime {
   /** Mouse position for drawing socket-less links and adding nodes. */
   float2 cursor;
 
-  bool highlight_frame_under_cursor = false;
+  std::optional<int> frame_identifier_to_highlight;
 
   /**
    * Indicates that the compositing int the space tree needs to be re-evaluated using

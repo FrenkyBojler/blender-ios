@@ -53,7 +53,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
                                    bool attach_enabled,
                                    bool is_new_node);
 
-void node_insert_on_frame_flag_set(SpaceNode &snode);
+void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode);
 void node_insert_on_frame_flag_clear(SpaceNode &snode);
 
 /**
