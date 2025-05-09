@@ -444,10 +444,10 @@ static float compute_text_widths(const float min_width,
     const std::string str = to_string(*value);
     return std::max(min_width, BLF_width(fontid, str.c_str(), str.size()));
   }
+  const int max_sample_size = 100;
   float width = min_width;
-  const VArraySpan<T> span{data};
-  for (const T &value : span) {
-    const std::string str = to_string(value);
+  for (const int i : data.index_range().take_front(max_sample_size)) {
+    const std::string str = to_string(data[i]);
     const float value_width = BLF_width(fontid, str.c_str(), str.size());
     width = std::max(width, value_width);
   }
