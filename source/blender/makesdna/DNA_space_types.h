@@ -79,14 +79,17 @@ using SpaceText_Runtime = blender::ed::text::SpaceText_Runtime;
 
 namespace blender::ed::spreadsheet {
 struct SpaceSpreadsheet_Runtime;
+struct SpreadsheetColumnRuntime;
 }  // namespace blender::ed::spreadsheet
 using SpaceSpreadsheet_Runtime = blender::ed::spreadsheet::SpaceSpreadsheet_Runtime;
+using SpreadsheetColumnRuntime = blender::ed::spreadsheet::SpreadsheetColumnRuntime;
 #else
 typedef struct SpaceNode_Runtime SpaceNode_Runtime;
 typedef struct SpaceOutliner_Runtime SpaceOutliner_Runtime;
 typedef struct SpaceSeq_Runtime SpaceSeq_Runtime;
 typedef struct SpaceText_Runtime SpaceText_Runtime;
 typedef struct SpaceSpreadsheet_Runtime SpaceSpreadsheet_Runtime;
+typedef struct SpreadsheetColumnRuntime SpreadsheetColumnRuntime;
 #endif
 
 /** Defined in `file_intern.hh`. */
@@ -1967,6 +1970,8 @@ typedef struct SpreadsheetColumn {
    * cached at runtime when the data source columns are generated.
    */
   char *display_name;
+
+  SpreadsheetColumnRuntime *runtime;
 } SpreadsheetColumn;
 
 typedef struct SpreadsheetInstanceID {

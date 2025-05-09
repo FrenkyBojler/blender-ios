@@ -25,6 +25,8 @@ inline bool operator==(const SpreadsheetColumnID &a, const SpreadsheetColumnID &
 
 namespace blender::ed::spreadsheet {
 
+struct SpreadsheetColumnRuntime {};
+
 SpreadsheetColumnID *spreadsheet_column_id_new();
 SpreadsheetColumnID *spreadsheet_column_id_copy(const SpreadsheetColumnID *src_column_id);
 void spreadsheet_column_id_free(SpreadsheetColumnID *column_id);

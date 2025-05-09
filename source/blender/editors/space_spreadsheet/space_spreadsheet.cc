@@ -661,6 +661,7 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   }
   BLO_read_struct_list(reader, SpreadsheetColumn, &sspreadsheet->columns);
   LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
+    column->runtime = MEM_new<SpreadsheetColumnRuntime>(__func__);
     BLO_read_struct(reader, SpreadsheetColumnID, &column->id);
     BLO_read_string(reader, &column->id->name);
     /* While the display name is technically runtime data, it is loaded here, otherwise the row
@@ -700,6 +701,11 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
   BKE_viewer_path_blend_write(writer, &sspreadsheet->viewer_path);
 }
 
+static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
+{
+  WM_cursor_set(win, WM_CURSOR_X_MOVE);
+}
+
 void register_spacetype()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -729,6 +735,7 @@ void register_spacetype()
   art->init = spreadsheet_main_region_init;
   art->draw = spreadsheet_main_region_draw;
   art->listener = spreadsheet_main_region_listener;
+  art->cursor = spreadsheet_cursor;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
