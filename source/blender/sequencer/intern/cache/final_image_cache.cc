@@ -89,14 +89,15 @@ void final_image_cache_put(Scene *scene, float timeline_frame, int view_id, ImBu
   std::lock_guard lock(final_image_cache_mutex);
   FinalImageCache *cache = ensure_final_image_cache(scene);
 
-  ImBuf **existing = cache->map_.lookup_ptr(key);
-  if (existing != nullptr) {
-    IMB_freeImBuf(*existing);
-    *existing = image;
-  }
-  else {
-    cache->map_.add_new(key, image);
-  }
+  cache->map_.add_or_modify(
+      key,
+      [&](ImBuf **value) { *value = image; },
+      [&](ImBuf **existing) {
+        if (*existing) {
+          IMB_freeImBuf(*existing);
+        }
+        *existing = image;
+      });
 }
 
 void final_image_cache_invalidate_frame_range(Scene *scene,
