@@ -25,7 +25,11 @@ inline bool operator==(const SpreadsheetColumnID &a, const SpreadsheetColumnID &
 
 namespace blender::ed::spreadsheet {
 
-struct SpreadsheetColumnRuntime {};
+struct SpreadsheetColumnRuntime {
+  /** Pixel coordinatets of the left and right edges of the column. */
+  int left_x = 0;
+  int right_x = 0;
+};
 
 SpreadsheetColumnID *spreadsheet_column_id_new();
 SpreadsheetColumnID *spreadsheet_column_id_copy(const SpreadsheetColumnID *src_column_id);

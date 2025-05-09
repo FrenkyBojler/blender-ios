@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
+#include <fmt/format.h>
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -421,6 +422,13 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   SpreadsheetLayout spreadsheet_layout;
   ResourceScope scope;
 
+  const int tot_rows = data_source->tot_rows();
+  spreadsheet_layout.index_column_width = get_index_column_width(tot_rows);
+  spreadsheet_layout.row_indices = spreadsheet_filter_rows(
+      *sspreadsheet, spreadsheet_layout, *data_source, scope);
+
+  int x = spreadsheet_layout.index_column_width;
+
   LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
     std::unique_ptr<ColumnValues> values_ptr = data_source->get_column_values(*column->id);
     /* Should have been removed before if it does not exist anymore. */
@@ -433,13 +441,12 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     const int width_in_pixels = column->width * SPREADSHEET_WIDTH_UNIT;
     spreadsheet_layout.columns.append({values, width_in_pixels});
 
+    column->runtime->left_x = x;
+    x += width_in_pixels;
+    column->runtime->right_x = x;
+
     spreadsheet_column_assign_runtime_data(column, values->type(), values->name());
   }
-
-  const int tot_rows = data_source->tot_rows();
-  spreadsheet_layout.index_column_width = get_index_column_width(tot_rows);
-  spreadsheet_layout.row_indices = spreadsheet_filter_rows(
-      *sspreadsheet, spreadsheet_layout, *data_source, scope);
 
   sspreadsheet->runtime->tot_columns = spreadsheet_layout.columns.size();
   sspreadsheet->runtime->tot_rows = tot_rows;
@@ -703,7 +710,21 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 {
-  WM_cursor_set(win, WM_CURSOR_X_MOVE);
+  SpaceSpreadsheet *sspreadsheet = static_cast<SpaceSpreadsheet *>(area->spacedata.first);
+
+  const int2 cursor_re{win->eventstate->xy[0] - region->winrct.xmin,
+                       win->eventstate->xy[1] - region->winrct.ymin};
+
+  fmt::println("{} {}", cursor_re.x, cursor_re.y);
+
+  LISTBASE_FOREACH (const SpreadsheetColumn *, column, &sspreadsheet->columns) {
+    if (std::abs(cursor_re.x - column->runtime->right_x) < 5) {
+      WM_cursor_set(win, WM_CURSOR_X_MOVE);
+      return;
+    }
+  }
+
+  WM_cursor_set(win, WM_CURSOR_DEFAULT);
 }
 
 void register_spacetype()
@@ -736,6 +757,7 @@ void register_spacetype()
   art->draw = spreadsheet_main_region_draw;
   art->listener = spreadsheet_main_region_listener;
   art->cursor = spreadsheet_cursor;
+  art->event_cursor = true;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
