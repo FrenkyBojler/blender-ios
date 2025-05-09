@@ -104,6 +104,8 @@ struct ColormanageProcessor {
 };
 
 static struct GlobalGPUState {
+  GlobalGPUState() = default;
+
   ~GlobalGPUState()
   {
     if (curve_mapping) {
@@ -118,14 +120,16 @@ static struct GlobalGPUState {
   CurveMapping *curve_mapping = nullptr, *orig_curve_mapping = nullptr;
   bool use_curve_mapping = false;
   int curve_mapping_timestamp = 0;
-} global_gpu_state = {false};
+} global_gpu_state;
 
 static struct GlobalColorPickingState {
+  GlobalColorPickingState() = default;
+
   /* Cached processor for color picking conversion. */
   std::shared_ptr<const ocio::CPUProcessor> cpu_processor_to;
   std::shared_ptr<const ocio::CPUProcessor> cpu_processor_from;
   bool failed = false;
-} global_color_picking_state = {nullptr};
+} global_color_picking_state;
 
 /** \} */
 
