@@ -1842,13 +1842,13 @@ void UI_but_menu_disable_hover_open(uiBut *but);
 
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg);
 /**
- * Show a quick tool-tip label, that is, a tool-tip that appears faster than usual. If the button
- * has a quick and normal tooltip, then the normal one will replace the quick one after a short
- * wait. Quick tooltips are useful in cases like:
- * - Part of the tooltip is known immediately and can show therefore be shown immediately, while
- *   generating for full tooltip takes a bit longer.
- * - The tooltip is on some icon and the only reason to hover over that icon is to view the
- *   tooltip.
+ * Enable a tooltip that appears faster than the usual tooltip. If the button has both a quick and
+ * a normal tooltip, the quick one is shown first, and expanded to the full one after the usual
+ * tooltip delay. Quick tooltips are useful in cases like:
+ * - A button doesn't show a label to save space but the label is still relevant. Show the label as
+ *   quick tooltip in that case (like the name of tools in a compact, icon only tool-shelf).
+ * - The only purpose of a button is to display this tooltip (like a warning icon with the warning
+ *   text in the tooltip).
  */
 void UI_but_func_quick_tooltip_set(uiBut *but, std::function<std::string(const uiBut *but)> func);
 
