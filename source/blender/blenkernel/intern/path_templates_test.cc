@@ -135,8 +135,8 @@ TEST(path_templates, path_apply_variables)
 
     EXPECT_TRUE(errors.is_empty());
     EXPECT_EQ(blender::StringRef(path),
-              "hello_goodbye_42_7_-7_3.141592653589793_2.718281828459045_29.97002997002997_2.0_-3."
-              "141592653589793_2e+32_2e-33");
+              "hello_goodbye_42_7_-7_3.141592653589793_2.718281828459045_29.970029970029973_2.0_-"
+              "3.141592653589793_2e+32_2e-33");
   }
 
   /* Integer formatting. */

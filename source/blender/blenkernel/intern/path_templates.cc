@@ -325,13 +325,12 @@ static int format_float_to_string(const FormatSpecifier &format,
 
   switch (format.type) {
     case FormatSpecifierType::NONE: {
-      /* When no format specification is given, we attempt to approximate
-       * Python's behavior in the same situation. We can't exactly match via
-       * libfmt, but we can get pretty close. The only major thing we can't
-       * replicate via libfmt is that in Python whole numbers are printed
-       * with a trailing ".0". So we handle that bit manually. */
+      /* When no format specification is given, we attempt to replicate Python's
+       * behavior in the same situation. The only major thing we can't replicate
+       * via libfmt is that in Python whole numbers are printed with a trailing
+       * ".0". So we handle that bit manually. */
       output_length =
-          fmt::format_to_n(r_output_string, FORMAT_BUFFER_SIZE - 1, "{:.16g}", float_value).size;
+          fmt::format_to_n(r_output_string, FORMAT_BUFFER_SIZE - 1, "{}", float_value).size;
       r_output_string[output_length] = '\0';
 
       /* If the string consists only of digits and a possible negative sign, then
