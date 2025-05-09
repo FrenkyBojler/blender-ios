@@ -4947,6 +4947,15 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 68)) {
+    /* Fix brush->tip_scale_x which should never be zero. */
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->tip_scale_x == 0.0f) {
+        brush->tip_scale_x = 1.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 69)) {
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type == NTREE_GEOMETRY) {
         node_interface_single_value_to_structure_type(ntree->tree_interface.root_panel.item);
