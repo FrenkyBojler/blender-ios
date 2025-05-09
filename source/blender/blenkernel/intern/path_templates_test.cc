@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "BKE_path_templates.hh"
 
 #include "testing/testing.h"
@@ -27,17 +29,17 @@ using namespace blender::bke::path_templates;
       type = "UNKNOWN_VARIABLE";
       break;
   }
-  printf("(%s, (%ld, %ld))", type, error.byte_range.start(), error.byte_range.size());
+  fmt::print("({}, ({}, {}))", type, error.byte_range.start(), error.byte_range.size());
 }
 
 [[maybe_unused]] static void debug_print_errors(Span<Error> errors)
 {
-  printf("[");
+  fmt::print("[");
   for (const Error &error : errors) {
     debug_print_error(error);
-    printf(", ");
+    fmt::print(", ");
   }
-  printf("]\n");
+  fmt::print("]\n");
 }
 
 TEST(path_templates, VariableMap)
