@@ -2915,12 +2915,14 @@ std::optional<std::string> UI_key_event_operator_string(const bContext *C,
 /* ui_interface_region_tooltip.c */
 
 /**
- * \param is_label: When true, show a small tip that only shows the name, otherwise show the full
- *                  tooltip.
+ * \param is_quick_tip: See #UI_but_func_quick_tooltip_set for what a quick tooltip is.
  */
-ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *but, bool is_label);
+ARegion *UI_tooltip_create_from_button(bContext *C,
+                                       ARegion *butregion,
+                                       uiBut *but,
+                                       bool is_quick_tip);
 ARegion *UI_tooltip_create_from_button_or_extra_icon(
-    bContext *C, ARegion *butregion, uiBut *but, uiButExtraOpIcon *extra_icon, bool is_label);
+    bContext *C, ARegion *butregion, uiBut *but, uiButExtraOpIcon *extra_icon, bool is_quick_tip);
 ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
 void UI_tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 

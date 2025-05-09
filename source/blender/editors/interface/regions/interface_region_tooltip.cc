@@ -1591,7 +1591,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
  * \{ */
 
 ARegion *UI_tooltip_create_from_button_or_extra_icon(
-    bContext *C, ARegion *butregion, uiBut *but, uiButExtraOpIcon *extra_icon, bool is_label)
+    bContext *C, ARegion *butregion, uiBut *but, uiButExtraOpIcon *extra_icon, bool is_quick_tip)
 {
   wmWindow *win = CTX_wm_window(C);
   float init_position[2];
@@ -1601,20 +1601,20 @@ ARegion *UI_tooltip_create_from_button_or_extra_icon(
   }
   std::unique_ptr<uiTooltipData> data = nullptr;
 
-  if (!is_label && but->tip_custom_func) {
+  if (!is_quick_tip && but->tip_custom_func) {
     data = ui_tooltip_data_from_custom_func(C, but);
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_tool(C, but, is_label);
+    data = ui_tooltip_data_from_tool(C, but, is_quick_tip);
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_button_or_extra_icon(C, but, extra_icon, is_label);
+    data = ui_tooltip_data_from_button_or_extra_icon(C, but, extra_icon, is_quick_tip);
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_button_or_extra_icon(C, but, nullptr, is_label);
+    data = ui_tooltip_data_from_button_or_extra_icon(C, but, nullptr, is_quick_tip);
   }
 
   if (data == nullptr) {
@@ -1656,9 +1656,12 @@ ARegion *UI_tooltip_create_from_button_or_extra_icon(
   return region;
 }
 
-ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *but, bool is_label)
+ARegion *UI_tooltip_create_from_button(bContext *C,
+                                       ARegion *butregion,
+                                       uiBut *but,
+                                       bool is_quick_tip)
 {
-  return UI_tooltip_create_from_button_or_extra_icon(C, butregion, but, nullptr, is_label);
+  return UI_tooltip_create_from_button_or_extra_icon(C, butregion, but, nullptr, is_quick_tip);
 }
 
 ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
