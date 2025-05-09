@@ -4296,7 +4296,7 @@ static void frame_node_draw_outline(const ARegion &region,
 
   if (snode.runtime->frame_identifier_to_highlight == node.identifier) {
     draw_outline = true;
-    UI_GetThemeColorShadeAlpha4fv(TH_ACTIVE, 0, -150, outline_color);
+    UI_GetThemeColorShadeAlpha4fv(TH_ACTIVE, 0, -100, outline_color);
   }
   else if (node.flag & SELECT) {
     draw_outline = true;
