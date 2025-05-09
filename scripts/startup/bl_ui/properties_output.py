@@ -536,6 +536,11 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
             image_settings = context.scene.render.image_settings
             layout.prop(image_settings, "color_depth", expand=True)
 
+        # HDR options
+        use_hdr = needs_codec and ffmpeg.codec in {'H265', 'AV1'}
+        if use_hdr:
+            layout.prop(ffmpeg, "video_hdr")
+
         if ffmpeg.codec == 'DNXHD':
             layout.prop(ffmpeg, "use_lossless_output")
 

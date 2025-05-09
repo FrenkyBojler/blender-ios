@@ -255,7 +255,8 @@ void IMB_colormanagement_imbuf_make_display_space(
 ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
                                            bool save_as_render,
                                            bool allocate_result,
-                                           const ImageFormatData *image_format);
+                                           const ImageFormatData *image_format,
+                                           bool force_linear = false);
 
 /** \} */
 

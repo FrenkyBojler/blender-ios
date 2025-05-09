@@ -41,6 +41,9 @@
 
 #  include "ffmpeg_swscale.hh"
 #  include "movie_util.hh"
+extern "C" {
+#  include <libavutil/mastering_display_metadata.h>
+}
 
 static constexpr int64_t ffmpeg_autosplit_size = 2'000'000'000;
 
@@ -638,6 +641,53 @@ static void set_quality_rate_options(const MovieWriter *context,
   }
 }
 
+/* Add side data indicating light levels and things. @TODO: not quite sure if this is really needed
+ */
+static void add_hdr_hlg_metadata(AVStream *stream)
+{
+  constexpr int hdr_peak_level = 1000;
+
+  size_t light_meta_size;
+  AVContentLightMetadata *light_meta = av_content_light_metadata_alloc(&light_meta_size);
+  light_meta->MaxCLL = hdr_peak_level;
+  light_meta->MaxFALL = hdr_peak_level;
+#  if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(60, 31, 102)
+  av_stream_add_side_data(
+      stream, AV_PKT_DATA_CONTENT_LIGHT_LEVEL, (uint8_t *)light_meta, light_meta_size);
+#  else
+  av_packet_side_data_add(&stream->codecpar->coded_side_data,
+                          &stream->codecpar->nb_coded_side_data,
+                          AV_PKT_DATA_CONTENT_LIGHT_LEVEL,
+                          light_meta,
+                          light_meta_size,
+                          0);
+#  endif
+  AVMasteringDisplayMetadata *mastering = av_mastering_display_metadata_alloc();
+  mastering->display_primaries[0][0] = av_make_q(17, 25);
+  mastering->display_primaries[0][1] = av_make_q(8, 25);
+  mastering->display_primaries[1][0] = av_make_q(53, 200);
+  mastering->display_primaries[1][1] = av_make_q(69, 100);
+  mastering->display_primaries[2][0] = av_make_q(3, 20);
+  mastering->display_primaries[2][1] = av_make_q(3, 50);
+  mastering->white_point[0] = av_make_q(3127, 10000);
+  mastering->white_point[1] = av_make_q(329, 1000);
+  mastering->min_luminance = av_make_q(0, 1);
+  mastering->max_luminance = av_make_q(hdr_peak_level, 1);
+  mastering->has_primaries = 1;
+  mastering->has_luminance = 1;
+#  if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(60, 31, 102)
+  av_stream_add_side_data(
+      stream, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, (uint8_t *)mastering, sizeof(*mastering));
+#  else
+  av_packet_side_data_add(&stream->codecpar->coded_side_data,
+                          &stream->codecpar->nb_coded_side_data,
+                          AV_PKT_DATA_MASTERING_DISPLAY_METADATA,
+                          mastering,
+                          sizeof(*mastering),
+                          0);
+#  endif
+}
+
 static AVStream *alloc_video_stream(MovieWriter *context,
                                     RenderData *rd,
                                     AVCodecID codec_id,
@@ -763,6 +813,8 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     /* makes HuffYUV happy ... */
     c->pix_fmt = AV_PIX_FMT_YUV422P;
   }
+
+  const bool is_hdr_hlg = rd->ffcodecdata.video_hdr == FFM_VIDEO_HDR_REC2020_HLG;
 
   const bool is_10_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_10;
   const bool is_12_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_12;
@@ -891,7 +943,13 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   /* If output pixel format is not RGB(A), setup colorspace metadata. */
   const AVPixFmtDescriptor *pix_fmt_desc = av_pix_fmt_desc_get(c->pix_fmt);
   const bool set_bt709 = (pix_fmt_desc->flags & AV_PIX_FMT_FLAG_RGB) == 0;
-  if (set_bt709) {
+  if (is_hdr_hlg) {
+    c->color_range = AVCOL_RANGE_JPEG;  //@TODO: this or MPEG? or configurable?
+    c->color_primaries = AVCOL_PRI_BT2020;
+    c->color_trc = AVCOL_TRC_ARIB_STD_B67;
+    c->colorspace = AVCOL_SPC_BT2020_NCL;
+  }
+  else if (set_bt709) {
     c->color_range = AVCOL_RANGE_MPEG;
     c->color_primaries = AVCOL_PRI_BT709;
     c->color_trc = AVCOL_TRC_BT709;
@@ -947,8 +1005,8 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     context->img_convert_ctx = ffmpeg_sws_get_context(
         c->width, c->height, src_format, c->width, c->height, c->pix_fmt, SWS_BICUBIC);
 
-    /* Setup BT.709 coefficients for RGB->YUV conversion, if needed. */
-    if (set_bt709) {
+    /* Setup colorspace coefficients for RGB->YUV conversion, if needed. */
+    if (set_bt709 || is_hdr_hlg) {
       int *inv_table = nullptr, *table = nullptr;
       int src_range = 0, dst_range = 0, brightness = 0, contrast = 0, saturation = 0;
       sws_getColorspaceDetails(context->img_convert_ctx,
@@ -959,7 +1017,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
                                &brightness,
                                &contrast,
                                &saturation);
-      const int *new_table = sws_getCoefficients(AVCOL_SPC_BT709);
+      const int *new_table = sws_getCoefficients(c->colorspace);
       sws_setColorspaceDetails(context->img_convert_ctx,
                                inv_table,
                                src_range,
@@ -972,6 +1030,10 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   avcodec_parameters_from_context(st->codecpar, c);
+
+  if (is_hdr_hlg) {
+    add_hdr_hlg_metadata(st);
+  }
 
   context->video_time = 0.0f;
 

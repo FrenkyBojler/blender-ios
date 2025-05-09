@@ -116,6 +116,11 @@ typedef enum eFFMpegProresProfile {
   FFM_PRORES_PROFILE_4444_XQ = 5,   /* FF_PROFILE_PRORES_XQ */
 } eFFMpegProresProfile;
 
+typedef enum eFFMpegVideoHdr {
+  FFM_VIDEO_HDR_NONE = 0,
+  FFM_VIDEO_HDR_REC2020_HLG = 1,
+} eFFMpegVideoHdr;
+
 typedef struct FFMpegCodecData {
   int type;
   int codec;
@@ -139,7 +144,7 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  char _pad0[4];
+  int video_hdr; /* eFFMpegVideoHdr */
 } FFMpegCodecData;
 
 /** \} */
