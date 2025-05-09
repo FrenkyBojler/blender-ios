@@ -104,6 +104,7 @@ static wmOperatorStatus sculpt_detail_flood_fill_exec(bContext *C, wmOperator *o
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+  Brush *brush = BKE_paint_brush(&sd->paint);
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
 
@@ -131,9 +132,12 @@ static wmOperatorStatus sculpt_detail_flood_fill_exec(bContext *C, wmOperator *o
   const float3 dim = bounds.max - bounds.min;
   const float size = math::reduce_max(dim);
 
+  const Settings settings = get_settings(*sd, *brush);
+  BLI_assert(ELEM(settings.mode, DetailMode::Constant, DetailMode::Manual));
+
   /* Update topology size. */
   const float max_edge_len = 1.0f /
-                             (sd->constant_detail * mat4_to_scale(ob.object_to_world().ptr()));
+                             (settings.value * mat4_to_scale(ob.object_to_world().ptr()));
   const float min_edge_len = max_edge_len * detail_size::EDGE_LENGTH_MIN_FACTOR;
 
   undo::push_begin(scene, ob, op);
