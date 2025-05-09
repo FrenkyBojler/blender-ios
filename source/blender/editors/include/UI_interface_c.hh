@@ -332,10 +332,9 @@ enum {
   /** Prevent the button to show any tool-tip. */
   UI_BUT_NO_TOOLTIP = 1 << 4,
   /**
-   * Show a quick tool-tip label, that is, a short tool-tip that appears faster than the full one
-   * and only shows the label. After a short delay the full tool-tip is shown if any.
+   * See #UI_but_func_quick_tooltip_set.
    */
-  UI_BUT_HAS_TOOLTIP_LABEL = 1 << 5,
+  UI_BUT_HAS_QUICK_TOOLTIP = 1 << 5,
   /** Do not add the usual horizontal padding for text drawing. */
   UI_BUT_NO_TEXT_PADDING = 1 << 6,
   /** Do not add the usual padding around preview image drawing, use the size of the button. */
@@ -680,7 +679,7 @@ void UI_block_interaction_set(uiBlock *block, uiBlockInteraction_CallbackData *c
 
 /* `interface_query.cc` */
 
-bool UI_but_has_tooltip_label(const uiBut *but);
+bool UI_but_has_quick_tooltip(const uiBut *but);
 bool UI_but_is_tool(const uiBut *but);
 /* file selectors are exempt from utf-8 checks */
 bool UI_but_is_utf8(const uiBut *but);
@@ -1843,11 +1842,15 @@ void UI_but_menu_disable_hover_open(uiBut *but);
 
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg);
 /**
- * Enable a custom quick tooltip label. That is, a short tooltip that appears faster than the full
- * one and only shows the label string returned by \a func. After a short delay the full tooltip is
- * shown, including the same label.
+ * Show a quick tool-tip label, that is, a tool-tip that appears faster than usual. If the button
+ * has a quick and normal tooltip, then the normal one will replace the quick one after a short
+ * wait. Quick tooltips are useful in cases like:
+ * - Part of the tooltip is known immediately and can show therefore be shown immediately, while
+ *   generating for full tooltip takes a bit longer.
+ * - The tooltip is on some icon and the only reason to hover over that icon is to view the
+ *   tooltip.
  */
-void UI_but_func_tooltip_label_set(uiBut *but, std::function<std::string(const uiBut *but)> func);
+void UI_but_func_quick_tooltip_set(uiBut *but, std::function<std::string(const uiBut *but)> func);
 
 enum uiTooltipStyle {
   UI_TIP_STYLE_NORMAL = 0, /* Regular text. */
@@ -2935,7 +2938,7 @@ ARegion *UI_tooltip_create_from_search_item_generic(bContext *C,
 
 /* How long before a tool-tip shows. */
 #define UI_TOOLTIP_DELAY 0.5
-#define UI_TOOLTIP_DELAY_LABEL 0.2
+#define UI_TOOLTIP_DELAY_QUICK 0.2
 
 /* Float precision helpers */
 

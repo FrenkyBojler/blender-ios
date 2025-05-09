@@ -1621,7 +1621,7 @@ ARegion *UI_tooltip_create_from_button_or_extra_icon(
     return nullptr;
   }
 
-  const bool is_no_overlap = UI_but_has_tooltip_label(but) || UI_but_is_tool(but);
+  const bool is_no_overlap = UI_but_has_quick_tooltip(but) || UI_but_is_tool(but);
   rcti init_rect;
   if (is_no_overlap) {
     rctf overlap_rect_fl;
