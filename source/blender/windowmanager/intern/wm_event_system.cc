@@ -2793,29 +2793,42 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
+  ScrArea *area = nullptr;
 
   switch (val) {
     case EVT_FILESELECT_FULL_OPEN: {
-      if (WM_window_open_temp(C, SPACE_FILE) != nullptr) {
-        ScrArea *area = CTX_wm_area(C);
-        ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-
-        BLI_assert(area->spacetype == SPACE_FILE);
-
-        region_header->flag |= RGN_FLAG_HIDDEN;
-        /* Header on bottom, #AZone triangle to toggle header looks misplaced at the top. */
-        region_header->alignment = RGN_ALIGN_BOTTOM;
-
-        /* Settings for file-browser, #sfile is not operator owner but sends events. */
-        SpaceFile *sfile = (SpaceFile *)area->spacedata.first;
-        sfile->op = handler->op;
-
-        ED_fileselect_set_params_from_userdef(sfile);
+      if (U.filebrowser_display_type == USER_TEMP_SPACE_DISPLAY_FULLSCREEN) {
+        area = ED_screen_temp_space_open(C,
+                                         IFACE_("Blender File View"),
+                                         nullptr,
+                                         SPACE_FILE,
+                                         USER_TEMP_SPACE_DISPLAY_FULLSCREEN,
+                                         true);
+        if (!area) {
+          BKE_report(&wm->runtime->reports, RPT_ERROR, "Failed to open file browser!");
+          return WM_HANDLER_BREAK;
+        }
       }
       else {
-        BKE_report(&wm->runtime->reports, RPT_ERROR, "Failed to open window!");
-        return WM_HANDLER_BREAK;
+        if (WM_window_open_temp(C, SPACE_FILE) == nullptr) {
+          BKE_report(&wm->runtime->reports, RPT_ERROR, "Failed to open file browser!");
+          return WM_HANDLER_BREAK;
+        }
+        area = CTX_wm_area(C);
       }
+
+      ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
+      BLI_assert(area->spacetype == SPACE_FILE);
+
+      region_header->flag |= RGN_FLAG_HIDDEN;
+      /* Header on bottom, #AZone triangle to toggle header looks misplaced at the top. */
+      region_header->alignment = RGN_ALIGN_BOTTOM;
+
+      /* Settings for file-browser, #sfile is not operator owner but sends events. */
+      SpaceFile *sfile = (SpaceFile *)area->spacedata.first;
+      sfile->op = handler->op;
+
+      ED_fileselect_set_params_from_userdef(sfile);
 
       action = WM_HANDLER_BREAK;
       break;
