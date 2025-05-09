@@ -2018,6 +2018,10 @@ static void direct_link_id_common(BlendDataReader *reader,
     id->session_uid = MAIN_ID_SESSION_UID_UNSET;
   }
 
+  if (ID_IS_LINKED_EMBEDDED(id)) {
+    /* TODO: This is not true currently and leads to a crash further down the line. */
+    BLI_assert(current_library->flag & LIBRARY_FLAG_IS_ARCHIVE);
+  }
   id->lib = current_library;
   if (id->lib) {
     /* Always fully clear fake user flag for linked data. */
