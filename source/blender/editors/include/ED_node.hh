@@ -53,6 +53,9 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
                                    bool attach_enabled,
                                    bool is_new_node);
 
+/**
+ * Tag the editor to highlight the frame that currently transformed nodes will be attached to.
+ */
 void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode);
 void node_insert_on_frame_flag_clear(SpaceNode &snode);
 
