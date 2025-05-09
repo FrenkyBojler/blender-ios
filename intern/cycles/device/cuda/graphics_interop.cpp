@@ -63,7 +63,7 @@ void CUDADeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buffer
       CUDA_EXTERNAL_MEMORY_HANDLE_DESC external_memory_handle_desc = {};
 #  ifdef _WIN32
       /* cuImportExternalMemory will not take ownership of the handle. */
-      vulkan_windows_handle_ = interop_buffer.take_hande();
+      vulkan_windows_handle_ = interop_buffer.take_handle();
       external_memory_handle_desc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32;
       external_memory_handle_desc.handle.win32.handle = reinterpret_cast<void *>(
           vulkan_windows_handle_);
