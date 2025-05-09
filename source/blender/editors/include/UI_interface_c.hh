@@ -1779,6 +1779,10 @@ void UI_but_func_search_set_results_are_suggestions(uiBut *but, bool value);
 int UI_searchbox_size_y();
 int UI_searchbox_size_x();
 /**
+ * Guess a good width for the search box based on the searchable items.
+ */
+int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn update_fn);
+/**
  * Check if a string is in an existing search box.
  */
 int UI_search_items_find_index(const uiSearchItems *items, const char *name);
