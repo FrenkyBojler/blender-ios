@@ -36,19 +36,19 @@ static PointCloud *rna_pointcloud(const PointerRNA *ptr)
 
 static float (*get_pointcloud_positions(PointCloud *pointcloud))[3]
 {
-  return (float (*)[3])pointcloud.positions_for_write().data();
+  return (float(*)[3])pointcloud.positions_for_write().data();
 }
 
 static const float (*get_pointcloud_positions_const(const PointCloud *pointcloud))[3]
 {
-  return (const float (*)[3])pointcloud.positions_for_write().data();
+  return (const float(*)[3])pointcloud.positions_for_write().data();
 }
 
 static int rna_Point_index_get_const(const PointerRNA *ptr)
 {
   const PointCloud *pointcloud = rna_pointcloud(ptr);
-  const float (*co)[3] = static_cast<const float (*)[3]>(ptr->data);
-  const float (*positions)[3] = get_pointcloud_positions_const(pointcloud);
+  const float(*co)[3] = static_cast<const float(*)[3]>(ptr->data);
+  const float(*positions)[3] = get_pointcloud_positions_const(pointcloud);
   return int(co - positions);
 }
 
