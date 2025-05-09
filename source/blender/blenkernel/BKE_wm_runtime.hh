@@ -46,7 +46,7 @@ struct WindowRuntime {
   ListBase event_queue = {nullptr, nullptr};
 
   /* Optional pointer to a UserDef rectf used to store size and position. */
-  rctf *win_rect = nullptr;
+  rctf *stored_bounds = nullptr;
 
   WindowRuntime() = default;
   ~WindowRuntime();

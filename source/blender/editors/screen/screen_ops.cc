@@ -1501,8 +1501,11 @@ static void area_dupli_fn(bScreen * /*screen*/, ScrArea *area, void *user_data)
 /* operator callback */
 static bool area_dupli_open(bContext *C, ScrArea *area, const blender::int2 position)
 {
-  const rcti window_rect = {
-      position.x, position.x + area->winx, position.y, position.y + area->winy};
+  const wmWindow *win = CTX_wm_window(C);
+  const rcti window_rect = {win->posx + position.x,
+                            win->posx + position.x + area->winx,
+                            win->posy + position.y,
+                            win->posy + position.y + area->winy};
 
   /* Create new window. No need to set space_type since it will be copied over. */
   wmWindow *newwin = WM_window_open(C,

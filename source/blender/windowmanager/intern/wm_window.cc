@@ -432,16 +432,16 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
-  if (win->runtime->win_rect && !WM_window_is_maximized(win)) {
+  if (win->runtime->stored_bounds && !WM_window_is_maximized(win)) {
     /* Get DPI and scale from parent window, if there is one. */
     WM_window_set_dpi(win->parent ? win->parent : win);
     const float f = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
-    win->runtime->win_rect->xmin = (float)win->posx * f / UI_SCALE_FAC;
-    win->runtime->win_rect->xmax = win->runtime->win_rect->xmin +
-                                   (float)win->sizex * f / UI_SCALE_FAC;
-    win->runtime->win_rect->ymin = (float)win->posy * f / UI_SCALE_FAC;
-    win->runtime->win_rect->ymax = win->runtime->win_rect->ymin +
-                                   (float)win->sizey * f / UI_SCALE_FAC;
+    win->runtime->stored_bounds->xmin = (float)win->posx * f / UI_SCALE_FAC;
+    win->runtime->stored_bounds->xmax = win->runtime->stored_bounds->xmin +
+                                        (float)win->sizex * f / UI_SCALE_FAC;
+    win->runtime->stored_bounds->ymin = (float)win->posy * f / UI_SCALE_FAC;
+    win->runtime->stored_bounds->ymax = win->runtime->stored_bounds->ymin +
+                                        (float)win->sizey * f / UI_SCALE_FAC;
     /* Tag user preferences as dirty. */
     U.runtime.is_dirty = true;
   }
@@ -1065,7 +1065,7 @@ wmWindow *WM_window_open(bContext *C,
                          eWindowAlignment alignment,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
                          void *area_setup_user_data,
-                         rctf *userdef_rect_storage)
+                         rctf *userdef_stored_bounds)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1129,7 +1129,7 @@ wmWindow *WM_window_open(bContext *C,
     win->sizex = BLI_rcti_size_x(&rect);
     win->sizey = BLI_rcti_size_y(&rect);
     *win->stereo3d_format = *win_prev->stereo3d_format;
-    win->runtime->win_rect = userdef_rect_storage;
+    win->runtime->stored_bounds = userdef_stored_bounds;
   }
 
   bScreen *screen = WM_window_get_active_screen(win);
@@ -1218,19 +1218,19 @@ wmWindow *WM_window_open(bContext *C,
 
 wmWindow *WM_window_open_temp(struct bContext *C, int space_type)
 {
-  rctf *userdef_store = nullptr;
+  rctf *stored_bounds = nullptr;
   int def_sizex = 800;
   int def_sizey = 600;
   bool dialog = false;
 
   if (space_type == SPACE_FILE) {
-    userdef_store = &U.file_space_data.win_rect;
+    stored_bounds = &U.file_space_data.win_rect;
     def_sizex = 1060;
     def_sizey = 600;
     dialog = true;
   }
   else if (space_type == SPACE_USERPREF) {
-    userdef_store = &U.space_data.win_rect;
+    stored_bounds = &U.space_data.win_rect;
     def_sizex = 600;
     def_sizey = 520;
   }
@@ -1240,11 +1240,11 @@ wmWindow *WM_window_open_temp(struct bContext *C, int space_type)
 
   WM_window_set_dpi(CTX_wm_window(C));
 
-  if (userdef_store && userdef_store->xmax != 0.0f) {
-    rect.xmin = (int)(userdef_store->xmin * UI_SCALE_FAC);
-    rect.ymin = (int)(userdef_store->ymin * UI_SCALE_FAC);
-    rect.xmax = (int)(userdef_store->xmax * UI_SCALE_FAC);
-    rect.ymax = (int)(userdef_store->ymax * UI_SCALE_FAC);
+  if (stored_bounds && stored_bounds->xmax != 0.0f) {
+    rect.xmin = (int)(stored_bounds->xmin * UI_SCALE_FAC);
+    rect.ymin = (int)(stored_bounds->ymin * UI_SCALE_FAC);
+    rect.xmax = (int)(stored_bounds->xmax * UI_SCALE_FAC);
+    rect.ymax = (int)(stored_bounds->ymax * UI_SCALE_FAC);
     align = WIN_ALIGN_ABSOLUTE;
   }
   else {
@@ -1259,7 +1259,7 @@ wmWindow *WM_window_open_temp(struct bContext *C, int space_type)
   }
 
   wmWindow *win = WM_window_open(
-      C, nullptr, &rect, space_type, false, dialog, true, align, nullptr, nullptr, userdef_store);
+      C, nullptr, &rect, space_type, false, dialog, true, align, nullptr, nullptr, stored_bounds);
 
   return win;
 }
