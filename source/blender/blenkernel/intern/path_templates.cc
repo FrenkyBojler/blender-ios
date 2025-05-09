@@ -252,7 +252,7 @@ static int format_int_to_string(const FormatSpecifier &format,
       BLI_assert(*format.integer_digit_count > 0);
       output_length = fmt::format_to_n(r_output_string,
                                        FORMAT_BUFFER_SIZE - 1,
-                                       "{0:0{1}}",
+                                       "{:0{}}",
                                        integer_value,
                                        *format.integer_digit_count)
                           .size;
@@ -272,7 +272,7 @@ static int format_int_to_string(const FormatSpecifier &format,
         BLI_assert(*format.integer_digit_count > 0);
         output_length = fmt::format_to_n(r_output_string,
                                          FORMAT_BUFFER_SIZE - 1,
-                                         "{0:0{1}}",
+                                         "{:0{}}",
                                          integer_value,
                                          *format.integer_digit_count)
                             .size;
@@ -361,7 +361,7 @@ static int format_float_to_string(const FormatSpecifier &format,
         BLI_assert(*format.integer_digit_count > 0);
         output_length = fmt::format_to_n(r_output_string,
                                          FORMAT_BUFFER_SIZE - 1,
-                                         "{0:0{1}.{2}f}",
+                                         "{:0{}.{}f}",
                                          float_value,
                                          *format.integer_digit_count +
                                              *format.fractional_digit_count + 1,
@@ -373,7 +373,7 @@ static int format_float_to_string(const FormatSpecifier &format,
         /* Only fractional component length is specified. */
         output_length = fmt::format_to_n(r_output_string,
                                          FORMAT_BUFFER_SIZE - 1,
-                                         "{0:.{1}f}",
+                                         "{:.{}f}",
                                          float_value,
                                          *format.fractional_digit_count)
                             .size;
