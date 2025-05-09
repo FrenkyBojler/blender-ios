@@ -41,7 +41,7 @@ class HIPDeviceGraphicsInterop : public DeviceGraphicsInterop {
   size_t buffer_size_ = 0;
 
   /* The destination was requested to be cleared. */
-  bool need_clear_ = false;
+  bool need_zero_ = false;
 
   hipGraphicsResource hip_graphics_resource_ = nullptr;
   hipDeviceptr_t hip_external_memory_ptr_ = 0;

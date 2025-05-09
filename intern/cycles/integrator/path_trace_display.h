@@ -138,7 +138,7 @@ class PathTraceDisplay {
    *
    * If the GPU display supports graphics interoperability then the zeroing the display is to be
    * delegated to the device via the `GraphicsInterop`. */
-  void clear();
+  void zero();
 
   /* Draw the current state of the texture.
    *

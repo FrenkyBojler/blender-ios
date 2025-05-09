@@ -38,7 +38,7 @@ class MetalDeviceGraphicsInterop : public DeviceGraphicsInterop {
   size_t size_ = 0;
 
   /* The destination was requested to be cleared. */
-  bool need_clear_ = false;
+  bool need_zero_ = false;
 };
 
 CCL_NAMESPACE_END

@@ -98,7 +98,7 @@ class BlenderDisplayDriver : public DisplayDriver {
   void graphics_interop_activate() override;
   void graphics_interop_deactivate() override;
 
-  void clear() override;
+  void zero() override;
 
   void set_zoom(const float zoom_x, const float zoom_y);
 
@@ -138,7 +138,7 @@ class BlenderDisplayDriver : public DisplayDriver {
   bool background_;
 
   /* Content of the display is to be filled with zeroes. */
-  std::atomic<bool> need_clear_ = true;
+  std::atomic<bool> need_zero_ = true;
 
   unique_ptr<BlenderDisplayShader> display_shader_;
 

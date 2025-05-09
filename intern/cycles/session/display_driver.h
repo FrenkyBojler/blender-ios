@@ -41,34 +41,47 @@ class GraphicsInteropBuffer {
   GraphicsInteropBuffer(GraphicsInteropBuffer &&other) = delete;
   GraphicsInteropBuffer &operator=(GraphicsInteropBuffer &&other) = delete;
 
+  /* Display Driver API. */
+
+  /* Assign handle. For Vulkan, this transfers ownership of the handle. */
+  void assign(GraphicsInteropDevice::Type type, int64_t handle, size_t size);
+  /* Is a handle assigned? */
+  bool is_empty() const;
+  /* Zero memory. */
+  void zero();
+  /* Clear handle. */
   void clear();
 
-  /* Take ownership of graphics interop buffer.
-   * This will set need_recreate to false, and make the caller responsible for
-   * freeing the handle, which is needed for Vulkan. */
-  void take_ownership();
+  /* Device graphics interop API. */
 
-  /* Dimensions of the buffer, in pixels. */
-  int width = 0;
-  int height = 0;
+  /* Get type of handle. */
+  GraphicsInteropDevice::Type get_type() const;
+  /* Get size of buffer. */
+  bool get_size() const;
 
+  /* Is there a new handle to take ownership of? */
+  bool has_new_handle() const;
+  /* Take ownership of the handle. */
+  int64_t take_handle();
+
+  /* Take ownership of zeroing the buffer. */
+  bool take_zero();
+
+ protected:
   /* The handle is expected to be:
    * - OpenGL: pixel buffer object ID.
    * - Vulkan on Windows: opaque handle for VkBuffer.
    * - Vulkan on Unix: opaque file descriptor for VkBuffer.
    * - Metal: pixel buffer unified memory pointer. */
-  GraphicsInteropDevice::Type type = GraphicsInteropDevice::NONE;
-  int64_t handle = 0;
+  GraphicsInteropDevice::Type type_ = GraphicsInteropDevice::NONE;
+  int64_t handle_ = 0;
+  bool own_handle_ = false;
 
-  /* Actual size of the memory, which must be `>= width * height sizeof(half4)`. */
-  size_t size = 0;
+  /* Actual size of the memory, which must be `>= width * height * sizeof(half4)`. */
+  size_t size_ = 0;
 
   /* Clear the entire buffer before doing partial write to it. */
-  bool need_clear = false;
-
-  /* This indicates if the graphics interop buffer was freed or reallocated, and so
-   * needs to be recreated. When true, this also implies we own the handle. */
-  bool need_recreate = true;
+  bool need_zero_ = false;
 };
 
 /* Display driver for efficient interactive display of renders.
@@ -162,7 +175,7 @@ class DisplayDriver {
   virtual void graphics_interop_deactivate(){};
 
   /* Clear the display buffer by filling it with zeros. */
-  virtual void clear() = 0;
+  virtual void zero() = 0;
 
   /* Draw the render using the native graphics API.
    *

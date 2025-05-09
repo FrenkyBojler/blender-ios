@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#pragma once
-
 #include "session/display_driver.h"
 
 #ifdef _WIN32
@@ -19,28 +17,70 @@ GraphicsInteropBuffer::~GraphicsInteropBuffer()
   clear();
 }
 
+void GraphicsInteropBuffer::assign(GraphicsInteropDevice::Type type, int64_t handle, size_t size)
+{
+  clear();
+
+  type_ = type;
+  handle_ = handle;
+  own_handle_ = true;
+  size_ = size;
+}
+
+bool GraphicsInteropBuffer::is_empty() const
+{
+  return handle_ == 0;
+}
+
+void GraphicsInteropBuffer::zero()
+{
+  need_zero_ = true;
+}
+
 void GraphicsInteropBuffer::clear()
 {
-  if (type == GraphicsInteropDevice::VULKAN && handle && need_recreate) {
+  if (type_ == GraphicsInteropDevice::VULKAN && handle_ && own_handle_) {
 #ifdef _WIN32
-    CloseHandle(HANDLE(handle));
+    CloseHandle(HANDLE(handle_));
 #else
-    close(handle);
+    close(handle_);
 #endif
   }
 
-  width = 0;
-  height = 0;
-  type = GraphicsInteropDevice::NONE;
-  handle = 0;
-  size = 0;
-  need_clear = false;
-  need_recreate = true;
+  type_ = GraphicsInteropDevice::NONE;
+  handle_ = 0;
+  size_ = 0;
+  need_zero_ = false;
+  own_handle_ = false;
 }
 
-void GraphicsInteropBuffer::take_ownership()
+GraphicsInteropDevice::Type GraphicsInteropBuffer::get_type() const
 {
-  need_recreate = false;
+  return type_;
+}
+
+bool GraphicsInteropBuffer::get_size() const
+{
+  return size_;
+}
+
+bool GraphicsInteropBuffer::has_new_handle() const
+{
+  return own_handle_;
+}
+
+bool GraphicsInteropBuffer::take_zero()
+{
+  bool need_zero = need_zero_;
+  need_zero_ = false;
+  return need_zero;
+}
+
+int64_t GraphicsInteropBuffer::take_handle()
+{
+  assert(own_handle_);
+  own_handle_ = false;
+  return handle_;
 }
 
 CCL_NAMESPACE_END

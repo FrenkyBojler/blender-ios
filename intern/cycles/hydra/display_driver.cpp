@@ -181,9 +181,9 @@ half4 *HdCyclesDisplayDriver::map_texture_buffer()
   auto *const mapped_rgba_pixels = static_cast<half4 *>(
       glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY));
 
-  if (need_clear_ && mapped_rgba_pixels) {
+  if (need_zero_ && mapped_rgba_pixels) {
     memset(mapped_rgba_pixels, 0, sizeof(half4) * pbo_size_.x * pbo_size_.y);
-    need_clear_ = false;
+    need_zero_ = false;
   }
 
   return mapped_rgba_pixels;
@@ -205,19 +205,15 @@ GraphicsInteropDevice HdCyclesDisplayDriver::graphics_interop_get_device()
 
 void HdCyclesDisplayDriver::graphics_interop_update_buffer()
 {
-  graphics_interop_buffer_.need_clear = need_clear_;
-  need_clear_ = false;
-
-  if (graphics_interop_buffer_.handle) {
-    return;
+  if (graphics_interop_buffer_.is_empty()) {
+    graphics_interop_buffer_.assign(
+        GraphicsInteropDevice::OPENGL, gl_pbo_id_, pbo_size_.x * pbo_size_.y * sizeof(half4));
   }
 
-  graphics_interop_buffer_.width = pbo_size_.x;
-  graphics_interop_buffer_.height = pbo_size_.y;
-  graphics_interop_buffer_.type = GraphicsInteropDevice::OPENGL;
-  graphics_interop_buffer_.handle = gl_pbo_id_;
-  graphics_interop_buffer_.size = pbo_size_.x * pbo_size_.y * sizeof(half4);
-  graphics_interop_buffer_.need_recreate = true;
+  if (need_zero_) {
+    graphics_interop_buffer_.zero();
+    need_zero_ = false;
+  }
 }
 
 void HdCyclesDisplayDriver::graphics_interop_activate()
@@ -230,9 +226,9 @@ void HdCyclesDisplayDriver::graphics_interop_deactivate()
   gl_context_disable();
 }
 
-void HdCyclesDisplayDriver::clear()
+void HdCyclesDisplayDriver::zero()
 {
-  need_clear_ = true;
+  need_zero_ = true;
 }
 
 void HdCyclesDisplayDriver::draw(const Params &params)

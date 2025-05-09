@@ -232,9 +232,9 @@ void PathTraceDisplay::graphics_interop_deactivate()
  * Drawing.
  */
 
-void PathTraceDisplay::clear()
+void PathTraceDisplay::zero()
 {
-  driver_->clear();
+  driver_->zero();
 }
 
 bool PathTraceDisplay::draw()
