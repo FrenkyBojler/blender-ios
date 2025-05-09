@@ -6,8 +6,6 @@
  * \ingroup RNA
  */
 
-#include <cstdlib>
-
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -29,26 +27,28 @@
 #  include "WM_api.hh"
 #  include "WM_types.hh"
 
+using blender::float3;
+
 static PointCloud *rna_pointcloud(const PointerRNA *ptr)
 {
   return (PointCloud *)ptr->owner_id;
 }
 
-static float (*get_pointcloud_positions(PointCloud *pointcloud))[3]
+static float3 *get_pointcloud_positions(PointCloud *pointcloud)
 {
-  return (float(*)[3])pointcloud.positions_for_write().data();
+  return pointcloud.positions_for_write().data();
 }
 
-static const float (*get_pointcloud_positions_const(const PointCloud *pointcloud))[3]
+static const float3 *get_pointcloud_positions_const(const PointCloud *pointcloud)
 {
-  return (const float(*)[3])pointcloud.positions_for_write().data();
+  return pointcloud.positions_for_write().data();
 }
 
 static int rna_Point_index_get_const(const PointerRNA *ptr)
 {
   const PointCloud *pointcloud = rna_pointcloud(ptr);
-  const float(*co)[3] = static_cast<const float(*)[3]>(ptr->data);
-  const float(*positions)[3] = get_pointcloud_positions_const(pointcloud);
+  const float3 *co = static_cast<const float3 *>(ptr->data);
+  const float3 *positions = get_pointcloud_positions_const(pointcloud);
   return int(co - positions);
 }
 
@@ -69,7 +69,7 @@ static void rna_PointCloud_points_begin(CollectionPropertyIterator *iter, Pointe
   rna_iterator_array_begin(iter,
                            ptr,
                            get_pointcloud_positions(pointcloud),
-                           sizeof(float[3]),
+                           sizeof(float3),
                            pointcloud->totpoint,
                            false,
                            nullptr);
@@ -88,12 +88,12 @@ bool rna_PointCloud_points_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_
 
 static void rna_Point_location_get(PointerRNA *ptr, float value[3])
 {
-  copy_v3_v3(value, (const float *)ptr->data);
+  copy_v3_v3(value, static_cast<const float3 *>(ptr->data));
 }
 
 static void rna_Point_location_set(PointerRNA *ptr, const float value[3])
 {
-  copy_v3_v3((float *)ptr->data, value);
+  *static_cast<float3 *>(ptr->data) = float3(value);
 }
 
 static float rna_Point_radius_get(PointerRNA *ptr)
