@@ -1064,7 +1064,8 @@ wmWindow *WM_window_open(bContext *C,
                          bool temp,
                          eWindowAlignment alignment,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
-                         void *area_setup_user_data)
+                         void *area_setup_user_data,
+                         rctf *userdef_rect_storage)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1128,6 +1129,7 @@ wmWindow *WM_window_open(bContext *C,
     win->sizex = BLI_rcti_size_x(&rect);
     win->sizey = BLI_rcti_size_y(&rect);
     *win->stereo3d_format = *win_prev->stereo3d_format;
+    win->runtime->win_rect = userdef_rect_storage;
   }
 
   bScreen *screen = WM_window_get_active_screen(win);
@@ -1214,16 +1216,18 @@ wmWindow *WM_window_open(bContext *C,
   return nullptr;
 }
 
-wmWindow *WM_window_open_temp(struct bContext *C, int space_type, bool dialog)
+wmWindow *WM_window_open_temp(struct bContext *C, int space_type)
 {
   rctf *userdef_store = nullptr;
   int def_sizex = 800;
   int def_sizey = 600;
+  bool dialog = false;
 
   if (space_type == SPACE_FILE) {
     userdef_store = &U.file_space_data.win_rect;
     def_sizex = 1060;
     def_sizey = 600;
+    dialog = true;
   }
   else if (space_type == SPACE_USERPREF) {
     userdef_store = &U.space_data.win_rect;
@@ -1232,7 +1236,6 @@ wmWindow *WM_window_open_temp(struct bContext *C, int space_type, bool dialog)
   }
 
   rcti rect;
-  int posx, posy, sizex, sizey;
   eWindowAlignment align;
 
   WM_window_set_dpi(CTX_wm_window(C));
@@ -1256,9 +1259,7 @@ wmWindow *WM_window_open_temp(struct bContext *C, int space_type, bool dialog)
   }
 
   wmWindow *win = WM_window_open(
-      C, nullptr, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
-
-  win->runtime->win_rect = userdef_store;
+      C, nullptr, &rect, space_type, false, dialog, true, align, nullptr, nullptr, userdef_store);
 
   return win;
 }

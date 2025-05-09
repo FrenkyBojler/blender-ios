@@ -183,6 +183,8 @@ void ED_fileselect_activate_by_id(SpaceFile *sfile, ID *asset_id, bool deferred)
 void ED_fileselect_deselect_all(SpaceFile *sfile);
 void ED_fileselect_activate_by_relpath(SpaceFile *sfile, const char *relative_path);
 
+void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized);
+
 /**
  * Return the File Browser area in which \a file_operator is active.
  */

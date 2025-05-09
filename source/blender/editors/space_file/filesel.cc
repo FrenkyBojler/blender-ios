@@ -629,6 +629,18 @@ void ED_fileselect_deselect_all(SpaceFile *sfile)
  * may also be remembered, but only conditionally. */
 #define PARAMS_FLAGS_REMEMBERED (FILE_HIDE_DOT)
 
+void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized)
+{
+  /* Get DPI/pixel-size independent size to be stored in preferences. */
+  WM_window_set_dpi(win); /* Ensure the DPI is taken from the right window. */
+
+  const blender::int2 win_size = WM_window_native_pixel_size(win);
+  r_win_size[0] = win_size[0] / UI_SCALE_FAC;
+  r_win_size[1] = win_size[1] / UI_SCALE_FAC;
+
+  *r_is_maximized = WM_window_is_maximized(win);
+}
+
 static bool file_select_use_default_display_type(const SpaceFile *sfile)
 {
   PropertyRNA *prop;
