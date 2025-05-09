@@ -1,2 +1,3 @@
 Referenced by issue #125881, Does Blender support build with MSVC under c++20 or c++latest ?
 Referenced by pull request #138640, Format: use fmt::format correctly with runtime format strings
+Referenced by commit eb82c4edf1d2b8aa1cabd0ef5659ba5ba9dfca39, Format: use fmt::format correctly with runtime format strings
