@@ -1003,6 +1003,25 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Scale");
       storage->zoom = input->default_value_typed<bNodeSocketValueFloat>()->value - 1.0f;
     }
+
+    if (node->type_legacy == CMP_NODE_BILATERALBLUR) {
+      NodeBilateralBlurData *storage = static_cast<NodeBilateralBlurData *>(node->storage);
+
+      /* The size input is `ceil(iterations + sigma_space)`. */
+      const bNodeSocket *size_input = blender::bke::node_find_socket(*node, SOCK_IN, "Size");
+      storage->iter = size_input->default_value_typed<bNodeSocketValueInt>()->value - 1;
+      storage->sigma_space = 1.0f;
+
+      /* Threshold was previously multiplied by 3. */
+      const bNodeSocket *threshold_input = blender::bke::node_find_socket(
+          *node, SOCK_IN, "Threshold");
+      storage->sigma_color = threshold_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             3.0f;
+    }
+
+    if (node->type_legacy == CMP_NODE_ALPHAOVER) {
+      write_input_to_property_bool_short("Straight Alpha", node->custom1);
+    }
   }
 }
 
@@ -1744,7 +1763,7 @@ static AssetTypeInfo AssetType_NT = {
 };
 
 IDTypeInfo IDType_ID_NT = {
-    /*id_code*/ ID_NT,
+    /*id_code*/ bNodeTree::id_type,
     /*id_filter*/ FILTER_ID_NT,
     /* IDProps of nodes, and #bNode.id, can use any type of ID. */
     /*dependencies_id_types*/ FILTER_ID_ALL,
@@ -4926,42 +4945,46 @@ bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetre
     *r_nodetree = &node_tree;
     *r_id = &node_tree.id;
     ntreeiter->ngroup = reinterpret_cast<bNodeTree *>(node_tree.id.next);
+    return true;
   }
-  else if (ntreeiter->scene) {
+  if (ntreeiter->scene) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->scene->nodetree);
     *r_id = &ntreeiter->scene->id;
     ntreeiter->scene = reinterpret_cast<Scene *>(ntreeiter->scene->id.next);
+    return true;
   }
-  else if (ntreeiter->mat) {
+  if (ntreeiter->mat) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->mat->nodetree);
     *r_id = &ntreeiter->mat->id;
     ntreeiter->mat = reinterpret_cast<Material *>(ntreeiter->mat->id.next);
+    return true;
   }
-  else if (ntreeiter->tex) {
+  if (ntreeiter->tex) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->tex->nodetree);
     *r_id = &ntreeiter->tex->id;
     ntreeiter->tex = reinterpret_cast<Tex *>(ntreeiter->tex->id.next);
+    return true;
   }
-  else if (ntreeiter->light) {
+  if (ntreeiter->light) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->light->nodetree);
     *r_id = &ntreeiter->light->id;
     ntreeiter->light = reinterpret_cast<Light *>(ntreeiter->light->id.next);
+    return true;
   }
-  else if (ntreeiter->world) {
+  if (ntreeiter->world) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->world->nodetree);
     *r_id = &ntreeiter->world->id;
     ntreeiter->world = reinterpret_cast<World *>(ntreeiter->world->id.next);
+    return true;
   }
-  else if (ntreeiter->linestyle) {
+  if (ntreeiter->linestyle) {
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->linestyle->nodetree);
     *r_id = &ntreeiter->linestyle->id;
     ntreeiter->linestyle = reinterpret_cast<FreestyleLineStyle *>(ntreeiter->linestyle->id.next);
-  }
-  else {
-    return false;
+    return true;
   }
 
-  return true;
+  return false;
 }
 
 void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, const int layer_index)
