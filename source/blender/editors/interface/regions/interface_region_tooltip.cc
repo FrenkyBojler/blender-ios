@@ -467,7 +467,7 @@ static bool ui_tooltip_period_needed(blender::StringRef tip)
  */
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
                                                                 uiBut *but,
-                                                                bool is_label)
+                                                                bool is_quick_tip)
 {
   if (but->optype == nullptr) {
     return nullptr;
@@ -573,7 +573,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   }
 
   /* Tip. */
-  if (is_label == false) {
+  if (is_quick_tip == false) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
     SNPRINTF(expr,
@@ -615,7 +615,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   }
 
   /* Shortcut. */
-  const bool show_shortcut = is_label == false &&
+  const bool show_shortcut = is_quick_tip == false &&
                              ((but->block->flag & UI_BLOCK_SHOW_SHORTCUT_ALWAYS) == 0);
 
   if (show_shortcut) {
@@ -756,7 +756,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   }
 
   /* Python */
-  if ((is_label == false) && (U.flag & USER_TOOLTIPS_PYTHON)) {
+  if ((is_quick_tip == false) && (U.flag & USER_TOOLTIPS_PYTHON)) {
     std::string str = ui_tooltip_text_python_from_op(C, but->optype, but->opptr);
     UI_tooltip_text_field_add(*data,
                               fmt::format(fmt::runtime(TIP_("Python: {}")), str),
@@ -769,7 +769,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   /* Keymap */
 
   /* This is too handy not to expose somehow, let's be sneaky for now. */
-  if ((is_label == false) && CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
+  if ((is_quick_tip == false) && CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
     SNPRINTF(expr,
@@ -838,7 +838,7 @@ static std::string ui_tooltip_color_string(const blender::float4 &color,
 };
 
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
-    bContext *C, uiBut *but, uiButExtraOpIcon *extra_icon, const bool is_label)
+    bContext *C, uiBut *but, uiButExtraOpIcon *extra_icon, const bool is_quick_tip)
 {
   char buf[512];
 
@@ -862,7 +862,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   std::string enum_tip;
 
   if (extra_icon) {
-    if (is_label) {
+    if (is_quick_tip) {
       but_label = UI_but_extra_icon_string_get_label(*extra_icon);
     }
     else {
@@ -875,7 +875,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   }
   else {
     const std::optional<EnumPropertyItem> enum_item = UI_but_rna_enum_item_get(*C, *but);
-    if (is_label) {
+    if (is_quick_tip) {
       but_tip_label = UI_but_string_get_tooltip_label(*but);
       but_label = UI_but_string_get_label(*but);
       enum_label = enum_item ? enum_item->name : "";
@@ -957,7 +957,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   }
 
   /* Don't include further details if this is just a quick label tooltip. */
-  if (is_label) {
+  if (is_quick_tip) {
     return data->fields.is_empty() ? nullptr : std::move(data);
   }
 
