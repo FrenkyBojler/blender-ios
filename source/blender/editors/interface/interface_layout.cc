@@ -2250,7 +2250,7 @@ void uiLayout::prop(PointerRNA *ptr,
 
     if (name.is_empty() && !use_split_empty_name) {
       /* Ensure we get a column when text is not set. */
-      layout = &(layout_row ? layout_row : this)->column(true);
+      layout = &(layout_row ? layout_row : layout)->column(true);
       layout->space_ = 0;
       if (heading_layout) {
         ui_layout_heading_label_add(layout, heading_layout, false, false);
