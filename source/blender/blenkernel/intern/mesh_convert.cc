@@ -570,14 +570,8 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
   using namespace blender::bke;
   BLI_assert(ob->type == OB_POINTCLOUD);
 
-<<<<<<< Updated upstream
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-  const blender::bke::GeometrySet geometry = blender::bke::object_get_evaluated_geometry_set(
-      *ob_eval);
-=======
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
   const GeometrySet geometry = object_get_evaluated_geometry_set(*ob_eval);
->>>>>>> Stashed changes
 
   Mesh *mesh = BKE_mesh_add(bmain, ob->id.name + 2);
   if (const PointCloud *points = geometry.get_pointcloud()) {
