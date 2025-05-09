@@ -4282,7 +4282,7 @@ static void frame_node_draw_background(const ARegion &region,
       UI_GetThemeColor4fv(TH_NODE_FRAME, color);
     }
     else {
-      UI_GetThemeColorShade4fv(TH_NODE_FRAME, 30, color);
+      UI_GetThemeColorShade4fv(TH_NODE_FRAME, 20, color);
     }
   }
 
