@@ -432,6 +432,11 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
   }
 };
 
+float ColumnValues::initial_width_px() const
+{
+  return SPREADSHEET_WIDTH_UNIT;
+}
+
 std::unique_ptr<SpreadsheetDrawer> spreadsheet_drawer_from_layout(
     const SpreadsheetLayout &spreadsheet_layout)
 {

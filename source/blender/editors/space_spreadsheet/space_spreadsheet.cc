@@ -341,58 +341,27 @@ static std::unique_ptr<DataSource> get_data_source(const bContext *C)
   return {};
 }
 
-static float get_default_column_width(const ColumnValues &values)
+static float get_initial_column_width(const ColumnValues &values)
 {
-  if (values.default_width > 0.0f) {
-    return values.default_width;
-  }
-  static const float float_width = 3;
-  switch (values.type()) {
-    case SPREADSHEET_VALUE_TYPE_BOOL:
-    case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
-      return 2.0f;
-    case SPREADSHEET_VALUE_TYPE_INT8:
-    case SPREADSHEET_VALUE_TYPE_INT32:
-      return float_width;
-    case SPREADSHEET_VALUE_TYPE_FLOAT:
-      return float_width;
-    case SPREADSHEET_VALUE_TYPE_INT32_2D:
-    case SPREADSHEET_VALUE_TYPE_FLOAT2:
-      return 2.0f * float_width;
-    case SPREADSHEET_VALUE_TYPE_FLOAT3:
-      return 3.0f * float_width;
-    case SPREADSHEET_VALUE_TYPE_COLOR:
-    case SPREADSHEET_VALUE_TYPE_BYTE_COLOR:
-    case SPREADSHEET_VALUE_TYPE_QUATERNION:
-      return 4.0f * float_width;
-    case SPREADSHEET_VALUE_TYPE_INSTANCES:
-      return 8.0f;
-    case SPREADSHEET_VALUE_TYPE_STRING:
-      return 5.0f;
-    case SPREADSHEET_VALUE_TYPE_UNKNOWN:
-      return 2.0f;
-  }
-  return float_width;
-}
+  const float padding_px = 0.5 * SPREADSHEET_WIDTH_UNIT;
+  const float min_width_px = SPREADSHEET_WIDTH_UNIT;
 
-static float get_column_width(const ColumnValues &values)
-{
-  float data_width = get_default_column_width(values);
-  const int fontid = UI_style_get()->widget.uifont_id;
+  const float data_width_px = values.initial_width_px();
+
+  const int fontid = BLF_default();
   BLF_size(fontid, UI_DEFAULT_TEXT_POINTS * UI_SCALE_FAC);
   const StringRefNull name = values.name();
-  const float name_width = BLF_width(fontid, name.data(), name.size());
-  return std::max<float>(name_width / UI_UNIT_X + 1.0f, data_width);
-}
+  const float name_width_px = BLF_width(fontid, name.data(), name.size());
 
-static float get_column_width_in_pixels(const ColumnValues &values)
-{
-  return get_column_width(values) * SPREADSHEET_WIDTH_UNIT;
+  const float width_px = std::max(min_width_px,
+                                  padding_px + std::max(data_width_px, name_width_px));
+  const float width = width_px / SPREADSHEET_WIDTH_UNIT;
+  return width;
 }
 
 static int get_index_column_width(const int tot_rows)
 {
-  const int fontid = UI_style_get()->widget.uifont_id;
+  const int fontid = BLF_default();
   BLF_size(fontid, UI_style_get_dpi()->widget.points * UI_SCALE_FAC);
   return std::to_string(std::max(0, tot_rows - 1)).size() * BLF_width(fontid, "0", 1) +
          UI_UNIT_X * 0.75;
@@ -457,8 +426,12 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     /* Should have been removed before if it does not exist anymore. */
     BLI_assert(values_ptr);
     const ColumnValues *values = scope.add(std::move(values_ptr));
-    const int width = get_column_width_in_pixels(*values);
-    spreadsheet_layout.columns.append({values, width});
+
+    if (column->width <= 0.0f) {
+      column->width = get_initial_column_width(*values);
+    }
+    const int width_in_pixels = column->width * SPREADSHEET_WIDTH_UNIT;
+    spreadsheet_layout.columns.append({values, width_in_pixels});
 
     spreadsheet_column_assign_runtime_data(column, values->type(), values->name());
   }
