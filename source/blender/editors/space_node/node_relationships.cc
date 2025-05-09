@@ -580,19 +580,17 @@ static void finalize_viewer_link(const bContext &C,
   remove_links_to_unavailable_viewer_sockets(*snode.edittree, viewer_node);
   viewer_link.flag &= ~NODE_LINK_MUTED;
   viewer_node.flag &= ~NODE_MUTED;
-
-  /* Node trees can have only one active viewer at a time. Deactivating all other viewers before
-   * enabling the current one ensures viewer_node will be the active viewer in case other viewers
-   * are active in the same node tree. See also #node_tree_set_output.  */
-  for (bNode *node : snode.nodetree->all_nodes()) {
-    if (node->is_type("CompositorNodeViewer") || node->is_type("GeometryNodeViewer")) {
-      node->flag &= ~NODE_DO_OUTPUT;
-    }
-  }
   viewer_node.flag |= NODE_DO_OUTPUT;
 
   if (snode.edittree->type == NTREE_GEOMETRY) {
     viewer_path::activate_geometry_node(*bmain, snode, viewer_node);
+  }
+  else if (snode.edittree->type == NTREE_COMPOSIT) {
+    for (bNode *node : snode.nodetree->all_nodes()) {
+      if (node->is_type("CompositorNodeViewer") && node != &viewer_node) {
+        node->flag &= ~NODE_DO_OUTPUT;
+      }
+    }
   }
   BKE_ntree_update_tag_active_output_changed(snode.edittree);
   BKE_main_ensure_invariants(*bmain, snode.edittree->id);
