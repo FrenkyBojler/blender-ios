@@ -197,6 +197,11 @@ class GeometryInstancesTreeView : public ui::AbstractTreeView {
     root_item.uncollapse_by_default();
     if (const bke::Instances *instances = root_geometry_set_.get_instances()) {
       this->build_tree_for_instances(root_item, *instances);
+      this->set_default_rows(3);
+    }
+    else {
+      lock_height_ = true;
+      this->set_default_rows(1);
     }
   }
 

@@ -307,9 +307,10 @@ void AbstractTreeView::draw_overlays(const ARegion &region, const uiBlock &block
 void AbstractTreeView::update_children_from_old(const AbstractView &old_view)
 {
   const AbstractTreeView &old_tree_view = dynamic_cast<const AbstractTreeView &>(old_view);
-
-  custom_height_ = old_tree_view.custom_height_;
-  scroll_value_ = old_tree_view.scroll_value_;
+  if (!lock_height_) {
+    custom_height_ = old_tree_view.custom_height_;
+    scroll_value_ = old_tree_view.scroll_value_;
+  }
   update_children_from_old_recursive(*this, old_tree_view);
 }
 
@@ -833,7 +834,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       },
       AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
 
-  if (tree_view.custom_height_) {
+  if (tree_view.custom_height_ && !tree_view.lock_height_) {
 
     *tree_view.custom_height_ = visible_row_count.value_or(1) * padded_item_height();
     if (!tree_view.scroll_value_) {

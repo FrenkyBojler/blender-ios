@@ -147,6 +147,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   void set_default_rows(int default_rows);
 
  protected:
+  bool lock_height_ = false;
   virtual void build_tree() = 0;
 
   std::optional<uiViewState> persistent_state() const override;
