@@ -17,6 +17,7 @@
 #include "usd_writer_light.hh"
 #include "usd_writer_mesh.hh"
 #include "usd_writer_metaball.hh"
+#include "usd_writer_pointinstancer.hh"
 #include "usd_writer_points.hh"
 #include "usd_writer_text.hh"
 #include "usd_writer_transform.hh"
@@ -25,6 +26,7 @@
 #include <string>
 
 #include "BKE_main.hh"
+#include "BKE_report.hh"
 
 #include "BLI_assert.h"
 
@@ -137,9 +139,88 @@ USDExporterContext USDHierarchyIterator::create_usd_export_context(const Hierarc
       bmain_, depsgraph_, stage_, path, get_time_code, params_, export_file_path};
 }
 
+void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *context)
+{
+  if (!context) {
+    return;
+  }
+
+  if (context->object->type == OB_ARMATURE) {
+    return;
+  }
+
+  if (context->is_point_instancer()) {
+    /* Mark the point instancer's children as a point instance.*/
+    USDExporterContext usd_export_context = create_usd_export_context(context);
+    ExportChildren *children = graph_children(context);
+
+    bool is_referencing_self = false;
+
+    std::string instancer_path_str;
+    if (strlen(params_.root_prim_path) != 0) {
+      instancer_path_str = std::string(params_.root_prim_path) + context->export_path;
+    }
+    else {
+      instancer_path_str = context->export_path;
+    }
+
+    if (children != nullptr) {
+      for (HierarchyContext *child_context : *children) {
+        if (child_context->is_instance() && child_context->duplicator != nullptr &&
+            !child_context->original_export_path.empty())
+        {
+          if (isSubPath(context->export_path, child_context->original_export_path)) {
+            is_referencing_self = true;
+            break;
+          }
+
+          if (strlen(params_.root_prim_path) != 0) {
+            std::string proto_path_str = std::string(params_.root_prim_path) +
+                                         child_context->original_export_path;
+            prototype_paths[instancer_path_str].insert(
+                std::make_pair(proto_path_str, child_context->object));
+          }
+          else {
+            prototype_paths[instancer_path_str].insert(
+                std::make_pair(child_context->original_export_path, child_context->object));
+          }
+          child_context->is_point_instance = true;
+        }
+        else {
+          child_context->is_point_proto = true;
+        }
+      }
+    }
+
+    if (is_referencing_self) {
+      /* MARK: If the "Instance on Points" node uses an Object as a prototype,
+       but the "Object Info" node has not enabled the "As Instance" option,
+       then the generated reference path is incorrect and refers to itself. */
+      if (is_referencing_self) {
+        BKE_reportf(
+            params_.worker_status->reports,
+            RPT_WARNING,
+            "One or more objects used as prototypes in 'Instance on Points' nodes either do not "
+            "have 'As Instance' enabled in their 'Object Info' nodes, or the prototype is the "
+            "base geometry input itself—both cases prevent valid point instancer export. If it's "
+            "the former, enable 'As Instance' to avoid incorrect self-referencing.");
+      }
+
+      prototype_paths[instancer_path_str].clear();
+      for (HierarchyContext *child_context : *children) {
+        child_context->is_point_instance = false;
+        child_context->is_point_proto = false;
+      }
+    }
+  }
+}
+
 AbstractHierarchyWriter *USDHierarchyIterator::create_transform_writer(
     const HierarchyContext *context)
 {
+  /* transform writer is always called before data writers, so determin if the Xform's children is
+   * a point instancer before writing data */
+  determine_point_instancers(context);
   return new USDTransformWriter(create_usd_export_context(context));
 }
 
@@ -147,11 +228,28 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
 {
   USDExporterContext usd_export_context = create_usd_export_context(context);
   USDAbstractWriter *data_writer = nullptr;
+  std::set<std::pair<std::string, Object *>> proto_paths =
+      prototype_paths[usd_export_context.usd_path.GetParentPath().GetString()];
 
   switch (context->object->type) {
     case OB_MESH:
       if (usd_export_context.export_params.export_meshes) {
-        data_writer = new USDMeshWriter(usd_export_context);
+        if (context->is_point_instancer() && !proto_paths.empty()) {
+
+          data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
+
+          /* Handle Mesh base data */
+          USDExporterContext mesh_context = create_pi_base_path_context(context,
+                                                                        usd_export_context);
+          USDMeshWriter *mesh_writer = new USDMeshWriter(mesh_context);
+          mesh_writer->write(const_cast<HierarchyContext &>(*context));
+          if (mesh_writer && (params_.export_armatures || params_.export_shapekeys)) {
+            add_usd_skel_export_mapping(context->object, mesh_writer->usd_path());
+          }
+        }
+        else {
+          data_writer = new USDMeshWriter(usd_export_context);
+        }
       }
       else {
         return nullptr;
@@ -182,7 +280,21 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_CURVES_LEGACY:
     case OB_CURVES:
       if (usd_export_context.export_params.export_curves) {
-        data_writer = new USDCurvesWriter(usd_export_context);
+        if (context->is_point_instancer() && !proto_paths.empty()) {
+          data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
+
+          /* Handle Curve base data */
+          USDExporterContext curves_context = create_pi_base_path_context(context,
+                                                                          usd_export_context);
+          USDCurvesWriter *curves_writer = new USDCurvesWriter(curves_context);
+          curves_writer->write(const_cast<HierarchyContext &>(*context));
+          if (curves_writer && (params_.export_armatures || params_.export_shapekeys)) {
+            add_usd_skel_export_mapping(context->object, curves_writer->usd_path());
+          }
+        }
+        else {
+          data_writer = new USDCurvesWriter(usd_export_context);
+        }
       }
       else {
         return nullptr;
@@ -206,7 +318,21 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
       break;
     case OB_POINTCLOUD:
       if (usd_export_context.export_params.export_points) {
-        data_writer = new USDPointsWriter(usd_export_context);
+        if (context->is_point_instancer() && !proto_paths.empty()) {
+          data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
+
+          /* Handle Point Cloud base data */
+          USDExporterContext pointcloud_context = create_pi_base_path_context(context,
+                                                                              usd_export_context);
+          USDPointsWriter *pointcloud_writer = new USDPointsWriter(pointcloud_context);
+          pointcloud_writer->write(const_cast<HierarchyContext &>(*context));
+          if (pointcloud_writer && (params_.export_armatures || params_.export_shapekeys)) {
+            add_usd_skel_export_mapping(context->object, pointcloud_writer->usd_path());
+          }
+        }
+        else {
+          data_writer = new USDPointsWriter(usd_export_context);
+        }
       }
       else {
         return nullptr;
@@ -229,7 +355,7 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
       return nullptr;
   }
 
-  if (!data_writer->is_supported(context)) {
+  if (data_writer && !data_writer->is_supported(context)) {
     delete data_writer;
     return nullptr;
   }
@@ -284,6 +410,32 @@ void USDHierarchyIterator::add_usd_skel_export_mapping(const Object *obj, const 
   {
     skinned_mesh_export_map_.add(obj, path);
   }
+}
+
+USDExporterContext USDHierarchyIterator::create_pi_base_path_context(
+    const HierarchyContext *context, const USDExporterContext &usd_export_context)
+{
+  BLI_assert(context && context->object);
+
+  std::string raw_name = context->object->id.name;
+
+  /* Blender automatically prefixes object ID names with "OB" (e.g., "OBCube"). To get the actual
+   * object name, we strip the "OB" prefix. */
+  if (raw_name.rfind("OB", 0) == 0) {
+    raw_name = raw_name.substr(2);
+  }
+
+  std::string base_name = raw_name + "_base";
+  std::string safe_name = make_safe_name(base_name,
+                                         usd_export_context.export_params.allow_unicode);
+
+  pxr::SdfPath base_path = usd_export_context.usd_path.GetParentPath().AppendChild(
+      pxr::TfToken(safe_name));
+
+  USDExporterContext new_context = usd_export_context;
+  *const_cast<pxr::SdfPath *>(&new_context.usd_path) = base_path;
+
+  return new_context;
 }
 
 }  // namespace blender::io::usd

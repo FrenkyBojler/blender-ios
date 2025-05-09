@@ -69,4 +69,17 @@ pxr::SdfPath get_unique_path(pxr::UsdStageRefPtr stage, const std::string &path)
   return pxr::SdfPath(unique_path);
 }
 
+bool isSubPath(const std::string &child, const std::string &parent)
+{
+  if (child == parent) {
+    return true;
+  }
+  if (child.size() > parent.size() && child.compare(0, parent.size(), parent) == 0 &&
+      child[parent.size()] == '/')
+  {
+    return true;
+  }
+  return false;
+}
+
 }  // namespace blender::io::usd

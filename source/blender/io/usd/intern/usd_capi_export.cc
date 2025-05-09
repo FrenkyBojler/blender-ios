@@ -15,9 +15,11 @@
 #include <pxr/base/tf/token.h>
 #include <pxr/pxr.h>
 #include <pxr/usd/sdf/assetPath.h>
+#include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/metrics.h>
+#include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdGeom/xformCommonAPI.h>
@@ -386,6 +388,71 @@ std::string cache_image_color(const float color[4])
   return file_path;
 }
 
+static void mark_point_instancer_prototypes_as_over(const pxr::UsdStageRefPtr &stage)
+{
+  for (const pxr::UsdPrim &prim : stage->Traverse()) {
+    if (!prim.IsA<pxr::UsdGeomPointInstancer>()) {
+      continue;
+    }
+
+    const std::string instancer_name = prim.GetName().GetString();
+    pxr::UsdGeomPointInstancer instancer(prim);
+    pxr::SdfPathVector targets;
+    if (!instancer.GetPrototypesRel().GetTargets(&targets)) {
+      continue;
+    }
+
+    for (const pxr::SdfPath &wrapper_path : targets) {
+      pxr::UsdPrim wrapper_prim = stage->GetPrimAtPath(wrapper_path);
+      if (!wrapper_prim || !wrapper_prim.IsValid()) {
+        continue;
+      }
+
+      std::string real_path_str;
+
+      for (const pxr::SdfPrimSpecHandle &primSpec : wrapper_prim.GetPrimStack()) {
+        if (!primSpec || !primSpec->HasReferences()) {
+          continue;
+        }
+
+        for (const pxr::SdfReference &ref : primSpec->GetReferenceList().GetPrependedItems()) {
+          if (ref.GetAssetPath().empty() && !ref.GetPrimPath().IsEmpty()) {
+            real_path_str = ref.GetPrimPath().GetString();
+            break;
+          }
+        }
+
+        if (!real_path_str.empty()) {
+          break;
+        }
+      }
+
+      if (real_path_str.empty()) {
+        CLOG_WARN(&LOG, "No prototype reference found for: %s", wrapper_path.GetText());
+        continue;
+      }
+
+      const pxr::SdfPath real_path(real_path_str);
+      pxr::UsdPrim proto_prim = stage->GetPrimAtPath(real_path);
+      if (!proto_prim || !proto_prim.IsValid()) {
+        CLOG_WARN(&LOG, "Referenced prototype not found at: %s", real_path.GetText());
+        continue;
+      }
+
+      proto_prim.SetSpecifier(pxr::SdfSpecifierOver);
+
+      std::string doc_message = fmt::format(
+          "This prim is used as a prototype by the PointInstancer \"{}\" so we override the def "
+          "with an \"over\" so that it isn't imaged in the scene, but is available as a prototype "
+          "that can be referenced.",
+          instancer_name);
+      proto_prim.SetDocumentation(doc_message);
+    }
+  }
+
+  stage->GetRootLayer()->Save();
+}
+
 pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
                                     Depsgraph *depsgraph,
                                     const char *filepath)
@@ -566,6 +633,7 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     return;
   }
 
+  mark_point_instancer_prototypes_as_over(usd_stage);
   usd_stage->GetRootLayer()->Save();
 
   data->export_ok = true;

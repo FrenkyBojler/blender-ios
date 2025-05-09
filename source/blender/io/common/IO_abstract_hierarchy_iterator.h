@@ -112,6 +112,12 @@ struct HierarchyContext {
   void mark_as_not_instanced();
   bool is_prototype() const;
 
+  /* For handling point instancing (Instance on Points geo node). */
+  bool is_point_instancer() const;
+  bool is_point_instance;
+  bool is_point_proto;
+  bool has_point_instance_ancestor;
+
   bool is_object_visible(enum eEvaluationMode evaluation_mode) const;
 };
 

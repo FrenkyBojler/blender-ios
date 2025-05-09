@@ -11,6 +11,9 @@
 #include "BKE_anim_data.hh"
 #include "BKE_duplilist.hh"
 #include "BKE_key.hh"
+#include "BKE_modifier.hh"
+#include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_particle.h"
 
@@ -23,6 +26,7 @@
 #include "DNA_ID.h"
 #include "DNA_layer_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
@@ -153,6 +157,51 @@ bool AbstractHierarchyWriter::check_has_deforming_physics(const HierarchyContext
 {
   const RigidBodyOb *rbo = context.object->rigidbody_object;
   return rbo != nullptr && rbo->type == RBO_TYPE_ACTIVE && (rbo->flag & RBO_FLAG_USE_DEFORM) != 0;
+}
+
+bool HierarchyContext::is_point_instancer() const
+{
+  if (!this->object) {
+    return false;
+  }
+
+  std::function<bool(bNodeTree *)> has_instance_on_points_node;
+  has_instance_on_points_node = [&](bNodeTree *ntree) -> bool {
+    if (!ntree) {
+      return false;
+    }
+
+    for (bNode *node : ntree->all_nodes()) {
+      if (node->type_legacy == GEO_NODE_INSTANCE_ON_POINTS) {
+        bNodeSocket *points_socket = bke::node_find_socket(*node, SOCK_IN, "Points");
+        bNodeSocket *instance_socket = bke::node_find_socket(*node, SOCK_IN, "Instance");
+        bNodeSocket *instances_socket = bke::node_find_socket(*node, SOCK_OUT, "Instances");
+
+        if (points_socket && instance_socket && instances_socket) {
+          return true;
+        }
+      }
+      else if (node->type_legacy == NODE_GROUP && node->id) {
+        bNodeTree *subtree = reinterpret_cast<bNodeTree *>(node->id);
+        if (has_instance_on_points_node(subtree)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
+  LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+    if (md->type == eModifierType_Nodes) {
+      NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
+      if (has_instance_on_points_node(nmd->node_group)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 AbstractHierarchyIterator::AbstractHierarchyIterator(Main *bmain, Depsgraph *depsgraph)
@@ -629,6 +678,12 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
   }
 
   for (HierarchyContext *context : *children) {
+    if (parent_context) {
+      if (parent_context->is_point_instance || parent_context->has_point_instance_ancestor) {
+        context->has_point_instance_ancestor = true;
+      }
+    }
+
     /* Update the context so that it is correct for this parent-child relation. */
     copy_m4_m4(context->parent_matrix_inv_world, parent_matrix_inv_world);
     if (parent_context != nullptr) {
@@ -645,15 +700,21 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
       return;
     }
 
-    BLI_assert(DEG_is_evaluated(context->object));
-    if (transform_writer.is_newly_created() || export_subset_.transforms) {
+    BLI_assert(DEG_is_evaluated_object(context->object));
+    if ((transform_writer.is_newly_created() || export_subset_.transforms) &&
+        ((!context->is_point_instance && !context->has_point_instance_ancestor) ||
+         context->is_point_proto))
+    {
       /* XXX This can lead to too many XForms being written. For example, a camera writer can
        * refuse to write an orthographic camera. By the time that this is known, the XForm has
        * already been written. */
       transform_writer->write(*context);
     }
 
-    if (!context->weak_export && include_data_writers(context)) {
+    if (!context->weak_export && include_data_writers(context) &&
+        ((!context->is_point_instance && !context->has_point_instance_ancestor) ||
+         context->is_point_proto))
+    {
       make_writers_particle_systems(context);
       make_writer_object_data(context);
     }

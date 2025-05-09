@@ -1,0 +1,39 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+#include "BLI_math_quaternion_types.hh"
+#include "usd_attribute_utils.hh"
+#include "usd_writer_abstract.hh"
+#include <pxr/usd/usdGeom/pointInstancer.h>
+#include <pxr/usd/usdGeom/points.h>
+#include <vector>
+
+struct USDExporterContext;
+
+namespace blender::io::usd {
+
+class USDPointInstancerWriter final : public USDAbstractWriter {
+ public:
+  USDPointInstancerWriter(const USDExporterContext &ctx,
+                          std::set<std::pair<std::string, Object *>> paths);
+  ~USDPointInstancerWriter() final = default;
+  std::set<std::pair<std::string, Object *>> proto_paths;
+  const std::string proto_name = "Prototype";
+
+ protected:
+  virtual void do_write(HierarchyContext &context) override;
+
+ private:
+  void write_attribute_data(const bke::AttributeIter &attr,
+                            const pxr::UsdGeomPointInstancer &usd_instancer,
+                            const pxr::UsdTimeCode timecode);
+
+  void handle_collection_prototypes(const pxr::UsdGeomPointInstancer &usd_instancer,
+                                    const pxr::UsdTimeCode timecode,
+                                    int instance_num);
+};
+
+}  // namespace blender::io::usd

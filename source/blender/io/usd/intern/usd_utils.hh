@@ -31,4 +31,5 @@ std::string make_safe_name(StringRef name, bool allow_unicode);
  */
 pxr::SdfPath get_unique_path(pxr::UsdStageRefPtr stage, const std::string &path);
 
+bool isSubPath(const std::string &child, const std::string &parent);
 }  // namespace blender::io::usd
