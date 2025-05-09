@@ -12,6 +12,5 @@ namespace blender {
 
 template<typename T> class VArray;
 template<typename T> class VMutableArray;
-class GVArray;
 
 }  // namespace blender
