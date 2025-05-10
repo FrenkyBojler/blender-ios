@@ -1632,7 +1632,7 @@
     - '(0200p,0200){hollow}body@2@128' 
 
 ==== Objects: 19
-- Obj 'Armature' ARMATURE data:'Armature'
+- Obj '(0)en_draber#1C6#0' ARMATURE data:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 1.571, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
@@ -1656,142 +1656,142 @@
   - pos 0.000, 0.000, 0.000
   - rot 1.571, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
-- Obj 'mesh[0]_0_0_0_0#75#0' MESH data:'mesh[0]_0_0_0_0#75#0_mesh' par:'Armature'
+- Obj 'mesh[0]_0_0_0_0#75#0' MESH data:'mesh[0]_0_0_0_0#75#0_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 16 vertex groups
     - '(1)hip_efce#1C0#0' '(2)spine#1C0#0' '(3)l_thigh#1C0#0' '(4)l_thigh_tw#1C0#0' '(7)drs-line_tail_01#1C0#0' ... '(17)neck01#1C0#0' '(21)jaw0#1C0#0' '(25)l_clavicle#1C0#0' '(40)l_upperarm_tw#1C0#0' '(69)l_calf#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[10]_1_1_1_1#78#5' MESH data:'mesh[10]_1_1_1_1#78#5_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[10]_1_1_1_1#78#5' MESH data:'mesh[10]_1_1_1_1#78#5_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 2 vertex groups
     - '(13)spine01#1C1#0' '(14)spine02#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[11]_0_0_0_0#79#1' MESH data:'mesh[11]_0_0_0_0#79#1_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[11]_0_0_0_0#79#1' MESH data:'mesh[11]_0_0_0_0#79#1_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 6 vertex groups
     - '(1)hip_efce#1C0#0' '(2)spine#1C0#0' '(58)rwing_put#1C0#0' '(59)drs-line_rwing_01#1C0#0' '(61)lwing_put#1C0#0' '(62)drs-line_lwing_01#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[12]_0_0_0_0#80#6' MESH data:'mesh[12]_0_0_0_0#80#6_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[12]_0_0_0_0#80#6' MESH data:'mesh[12]_0_0_0_0#80#6_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 1 vertex groups
     - '(18)head#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[13]_0_0_0_0#81#7' MESH data:'mesh[13]_0_0_0_0#81#7_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[13]_0_0_0_0#81#7' MESH data:'mesh[13]_0_0_0_0#81#7_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 1 vertex groups
     - '(18)head#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[14]_0_0_0_0#82#8' MESH data:'mesh[14]_0_0_0_0#82#8_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[14]_0_0_0_0#82#8' MESH data:'mesh[14]_0_0_0_0#82#8_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 1 vertex groups
     - '(18)head#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[15]_0_0_0_0#83#9' MESH data:'mesh[15]_0_0_0_0#83#9_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[15]_0_0_0_0#83#9' MESH data:'mesh[15]_0_0_0_0#83#9_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 1 vertex groups
     - '(10)drs-line_tail_04#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[16]_0_0_0_0#84#4' MESH data:'mesh[16]_0_0_0_0#84#4_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[16]_0_0_0_0#84#4' MESH data:'mesh[16]_0_0_0_0#84#4_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 4 vertex groups
     - '(42)r_upperarm#1C0#0' '(43)r_forearm#1C0#0' '(53)r_ko01#1C0#0' '(55)r_forearm_tw#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[1]_0_0_0_0#75#0' MESH data:'mesh[1]_0_0_0_0#75#0_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[1]_0_0_0_0#75#0' MESH data:'mesh[1]_0_0_0_0#75#0_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 16 vertex groups
     - '(25)l_clavicle#1C0#0' '(26)l_upperarm#1C0#0' '(27)l_forearm#1C0#0' '(28)l_hand_efhl#1C0#0' '(31)l_hito01#1C0#0' ... '(65)l_foot#1C0#0' '(66)l_toe_ko01#1C0#0' '(67)l_toe_naka01#1C0#0' '(68)l_toe_hito01#1C0#0' '(69)l_calf#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[2]_0_0_0_0#75#0' MESH data:'mesh[2]_0_0_0_0#75#0_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[2]_0_0_0_0#75#0' MESH data:'mesh[2]_0_0_0_0#75#0_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 16 vertex groups
     - '(1)hip_efce#1C0#0' '(5)r_thigh#1C0#0' '(6)r_thigh_tw#1C0#0' '(14)spine02#1C0#0' '(15)neck#1C0#0' ... '(35)l_kusuri01#1C0#0' '(37)l_ko01#1C0#0' '(38)l_ko02#1C0#0' '(41)r_clavicle#1C0#0' '(56)r_upperarm_tw#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[3]_0_0_0_0#75#0' MESH data:'mesh[3]_0_0_0_0#75#0_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[3]_0_0_0_0#75#0' MESH data:'mesh[3]_0_0_0_0#75#0_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 16 vertex groups
     - '(5)r_thigh#1C0#0' '(6)r_thigh_tw#1C0#0' '(15)neck#1C0#0' '(17)neck01#1C0#0' '(18)head#1C0#0' ... '(70)r_foot#1C0#0' '(71)r_toe_ko01#1C0#0' '(72)r_toe_naka01#1C0#0' '(73)r_toe_hito01#1C0#0' '(74)r_calf#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[4]_0_0_0_0#75#0' MESH data:'mesh[4]_0_0_0_0#75#0_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[4]_0_0_0_0#75#0' MESH data:'mesh[4]_0_0_0_0#75#0_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 16 vertex groups
     - '(41)r_clavicle#1C0#0' '(42)r_upperarm#1C0#0' '(43)r_forearm#1C0#0' '(44)r_hand_efhr#1C0#0' '(45)r_oya01#1C0#0' ... '(52)r_kusuri02#1C0#0' '(53)r_ko01#1C0#0' '(54)r_ko02#1C0#0' '(55)r_forearm_tw#1C0#0' '(56)r_upperarm_tw#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[5]_1_1_1_1#75#0' MESH data:'mesh[5]_1_1_1_1#75#0_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[5]_1_1_1_1#75#0' MESH data:'mesh[5]_1_1_1_1#75#0_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 2 vertex groups
     - '(1)hip_efce#1C0#0' '(2)spine#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[6]_0_0_0_0#76#2' MESH data:'mesh[6]_0_0_0_0#76#2_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[6]_0_0_0_0#76#2' MESH data:'mesh[6]_0_0_0_0#76#2_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 7 vertex groups
     - '(2)spine#1C0#0' '(13)spine01#1C1#0' '(14)spine02#1C0#0' '(15)neck#1C0#0' '(25)l_clavicle#1C0#0' '(40)l_upperarm_tw#1C0#0' '(56)r_upperarm_tw#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[7]_2_1_1_1#76#2' MESH data:'mesh[7]_2_1_1_1#76#2_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[7]_2_1_1_1#76#2' MESH data:'mesh[7]_2_1_1_1#76#2_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 6 vertex groups
     - '(2)spine#1C0#0' '(13)spine01#1C1#0' '(14)spine02#1C0#0' '(40)l_upperarm_tw#1C0#0' '(56)r_upperarm_tw#1C0#0' '(57)body01#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[8]_0_0_0_0#77#3' MESH data:'mesh[8]_0_0_0_0#77#3_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[8]_0_0_0_0#77#3' MESH data:'mesh[8]_0_0_0_0#77#3_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 4 vertex groups
     - '(26)l_upperarm#1C0#0' '(27)l_forearm#1C0#0' '(37)l_ko01#1C0#0' '(39)l_forearm_tw#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
-- Obj 'mesh[9]_0_0_0_0#78#5' MESH data:'mesh[9]_0_0_0_0#78#5_mesh' par:'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
+- Obj 'mesh[9]_0_0_0_0#78#5' MESH data:'mesh[9]_0_0_0_0#78#5_mesh' par:'(0)en_draber#1C6#0'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 5 vertex groups
     - '(2)spine#1C0#0' '(13)spine01#1C1#0' '(14)spine02#1C0#0' '(40)l_upperarm_tw#1C0#0' '(56)r_upperarm_tw#1C0#0' 
   - 1 modifiers
-    - ARMATURE 'Armature'
+    - ARMATURE '(0)en_draber#1C6#0'
 
 ==== Materials: 3
 - Mat '(0200p,0200){hollow}body@2@128'
@@ -1831,16 +1831,12 @@
   - backface False probe True shadow False
 
 ==== Armatures: 1
-- Armature 'Armature' 89 bones
-  - bone '(0)en_draber#1C6#0' h:(0.000, 0.000, 0.000) t:(0.000, 3.025, 0.000) radius h:0.100 t:0.050
-      1.000 0.000 0.000 0.000
-      0.000 1.000 0.000 0.000
-      0.000 0.000 1.000 0.000
-  - bone '(1)hip_efce#1C0#0' parent:'(0)en_draber#1C6#0' h:(0.000, -0.590, -0.912) t:(0.785, -0.590, -0.912) radius h:0.100 t:0.050
+- Armature '(0)en_draber#1C6#0' 88 bones
+  - bone '(1)hip_efce#1C0#0' h:(0.000, 2.435, -0.912) t:(0.785, 2.435, -0.912) radius h:0.100 t:0.050
       0.000 1.000 0.000 0.000
       1.000 0.000 0.000 2.435
       0.000 0.000 -1.000 -0.912
-  - bone '(10)drs-line_tail_04#1C0#0' parent:'(9)drs-line_tail_03#1C0#0' h:(2.331, -2.332, 0.002) t:(2.331, 2.285, 0.002) radius h:0.100 t:0.050
+  - bone '(10)drs-line_tail_04#1C0#0' parent:'(9)drs-line_tail_03#1C0#0' h:(2.331, -2.331, 0.002) t:(2.331, 2.285, 0.002) radius h:0.100 t:0.050
       0.000 1.000 0.000 -0.001
       0.197 0.000 -0.980 0.279
       -0.980 0.000 -0.197 -7.334
@@ -2076,11 +2072,11 @@
       0.635 0.405 -0.658 5.409
       0.535 -0.845 -0.003 7.713
       -0.557 -0.350 -0.753 -5.440
-  - bone '(64)attach#1C0#0' parent:'(0)en_draber#1C6#0' h:(0.000, -3.025, 9.000) t:(0.000, 0.000, 9.000) radius h:0.100 t:0.050
+  - bone '(64)attach#1C0#0' h:(0.000, 0.000, 9.000) t:(0.000, 3.025, 9.000) radius h:0.100 t:0.050
       1.000 0.000 0.000 0.000
       0.000 1.000 0.000 0.000
       0.000 0.000 1.000 9.000
-  - bone '(65)l_foot#1C0#0' parent:'(0)en_draber#1C6#0' h:(1.375, -2.062, -0.537) t:(0.376, -2.062, 0.117) radius h:0.100 t:0.050
+  - bone '(65)l_foot#1C0#0' h:(1.375, 0.962, -0.537) t:(0.376, 0.962, 0.117) radius h:0.100 t:0.050
       -0.281 -0.837 -0.470 1.375
       -0.858 0.000 0.513 0.962
       -0.430 0.547 -0.718 -0.537
@@ -2104,7 +2100,7 @@
       0.000 1.000 0.000 0.000
       -0.671 0.000 -0.742 2.000
       -0.742 0.000 0.671 -1.723
-  - bone '(70)r_foot#1C0#0' parent:'(0)en_draber#1C6#0' h:(-1.375, -2.062, -0.537) t:(-2.342, -2.062, -1.170) radius h:0.100 t:0.050
+  - bone '(70)r_foot#1C0#0' h:(-1.375, 0.962, -0.537) t:(-2.342, 0.962, -1.170) radius h:0.100 t:0.050
       0.281 -0.837 0.470 -1.375
       -0.858 0.000 0.513 0.962
       -0.429 -0.548 -0.718 -0.537
@@ -2124,7 +2120,7 @@
       0.464 -0.808 0.363 -1.389
       -0.639 -0.021 0.769 1.005
       -0.614 -0.589 -0.526 -0.515
-  - bone '(75)draber_mdl#1C6#1000' parent:'(0)en_draber#1C6#0' h:(0.000, -3.025, 0.000) t:(0.000, -3.015, 0.000) radius h:0.100 t:0.050
+  - bone '(75)draber_mdl#1C6#1000' h:(0.000, 0.000, 0.000) t:(0.000, 0.010, 0.000) radius h:0.100 t:0.050
       1.000 0.000 0.000 0.000
       0.000 1.000 0.000 0.000
       0.000 0.000 1.000 0.000

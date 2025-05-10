@@ -14,7 +14,6 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
-#include "BKE_object_types.hh"
 
 #include "BLI_color.hh"
 #include "BLI_listbase.h"
@@ -449,10 +448,10 @@ void import_meshes(Main &bmain,
           obj->parent = parent_to_arm;
 
           /* We are setting mesh parent to the armature, so set the matrix that is
-           * armature-local. */
-          ufbx_matrix arm_to_world;
-          m44_to_matrix(parent_to_arm->runtime->object_to_world.ptr(), arm_to_world);
-          ufbx_matrix world_to_arm = ufbx_matrix_invert(&arm_to_world);
+           * armature-local. Note that the matrix needs to be relative to the FBX
+           * node matrix (not the root bone pose matrix). */
+          ufbx_matrix world_to_arm = mapping.armature_world_to_arm_node_matrix.lookup_default(
+              parent_to_arm, ufbx_identity_matrix);
           ufbx_matrix mtx = ufbx_matrix_mul(&node->node_to_world, &node->geometry_to_node);
           mtx = ufbx_matrix_mul(&world_to_arm, &mtx);
           ufbx_matrix_to_obj(mtx, obj);

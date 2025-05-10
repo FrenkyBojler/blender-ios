@@ -268,9 +268,8 @@ static void create_transform_curve_data(const FbxElementMapping &mapping,
     if (!bone_at_scene_root) {
       Object *arm_obj = mapping.bone_to_armature.lookup_default(fnode, nullptr);
       if (arm_obj != nullptr) {
-        ufbx_matrix arm_to_world;
-        m44_to_matrix(arm_obj->runtime->object_to_world.ptr(), arm_to_world);
-        world_to_arm = ufbx_matrix_invert(&arm_to_world);
+        world_to_arm = mapping.armature_world_to_arm_pose_matrix.lookup_default(
+            arm_obj, ufbx_identity_matrix);
       }
     }
 
