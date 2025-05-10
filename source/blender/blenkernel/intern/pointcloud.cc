@@ -283,11 +283,7 @@ void BKE_pointcloud_nomain_to_pointcloud(PointCloud *pointcloud_src, PointCloud 
 {
   BLI_assert(pointcloud_src->id.tag & ID_TAG_NO_MAIN);
 
-  CustomData_free(&pointcloud_dst->pdata);
-
-  const int totpoint = pointcloud_dst->totpoint = pointcloud_src->totpoint;
-  CustomData_init_from(&pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, totpoint);
-
+  pointcloud_dst->attribute_storage.wrap() = std::move(pointcloud_src->attribute_storage.wrap());
   pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;
   pointcloud_dst->runtime->bounds_with_radius_cache =
       pointcloud_src->runtime->bounds_with_radius_cache;
