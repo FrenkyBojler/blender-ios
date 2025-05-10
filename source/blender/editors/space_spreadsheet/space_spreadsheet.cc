@@ -712,21 +712,14 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 {
-  SpaceSpreadsheet *sspreadsheet = static_cast<SpaceSpreadsheet *>(area->spacedata.first);
+  SpaceSpreadsheet &sspreadsheet = *static_cast<SpaceSpreadsheet *>(area->spacedata.first);
 
   const int2 cursor_re{win->eventstate->xy[0] - region->winrct.xmin,
                        win->eventstate->xy[1] - region->winrct.ymin};
-  const int region_height = BLI_rcti_size_y(&region->winrct);
-
-  if (cursor_re.y >= region_height - sspreadsheet->runtime->top_row_height) {
-    LISTBASE_FOREACH (const SpreadsheetColumn *, column, &sspreadsheet->columns) {
-      if (std::abs(cursor_re.x - column->runtime->right_x) < SPREADSHEET_EDGE_ACTION_ZONE) {
-        WM_cursor_set(win, WM_CURSOR_X_MOVE);
-        return;
-      }
-    }
+  if (find_column_to_resize(sspreadsheet, *region, cursor_re)) {
+    WM_cursor_set(win, WM_CURSOR_X_MOVE);
+    return;
   }
-
   WM_cursor_set(win, WM_CURSOR_DEFAULT);
 }
 

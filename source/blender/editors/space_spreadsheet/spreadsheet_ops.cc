@@ -171,30 +171,34 @@ static wmOperatorStatus resize_column_modal(bContext *C, wmOperator *op, const w
   }
 }
 
+SpreadsheetColumn *find_column_to_resize(SpaceSpreadsheet &sspreadsheet,
+                                         ARegion &region,
+                                         const int2 &cursor_re)
+{
+  const int region_height = BLI_rcti_size_y(&region.winrct);
+  if (cursor_re.y < region_height - sspreadsheet.runtime->top_row_height) {
+    return nullptr;
+  }
+  LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet.columns) {
+    if (std::abs(cursor_re.x - column->runtime->right_x) < SPREADSHEET_EDGE_ACTION_ZONE) {
+      return column;
+    }
+  }
+  return nullptr;
+}
+
 static wmOperatorStatus resize_column_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion &region = *CTX_wm_region(C);
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
 
   const int2 cursor_re{event->mval[0], event->mval[1]};
-  const int region_height = BLI_rcti_size_y(&region.winrct);
-  if (cursor_re.y < region_height - sspreadsheet.runtime->top_row_height) {
-    return OPERATOR_PASS_THROUGH;
-  }
-
-  SpreadsheetColumn *column_to_resize = nullptr;
-  LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet.columns) {
-    if (std::abs(cursor_re.x - column->runtime->right_x) < SPREADSHEET_EDGE_ACTION_ZONE) {
-      column_to_resize = column;
-      break;
-    }
-  }
-
+  SpreadsheetColumn *column_to_resize = find_column_to_resize(sspreadsheet, region, cursor_re);
   if (!column_to_resize) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  ResizeColumnData *data = MEM_new<ResizeColumnData>("ResizeColumnData");
+  ResizeColumnData *data = MEM_new<ResizeColumnData>(__func__);
   data->column = column_to_resize;
   data->initial_cursor_re = cursor_re;
   data->initial_width_px = column_to_resize->width * SPREADSHEET_WIDTH_UNIT;
