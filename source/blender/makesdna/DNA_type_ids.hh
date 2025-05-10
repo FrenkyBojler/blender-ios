@@ -6,8 +6,12 @@
  * \ingroup DNA
  */
 
+#pragma once
+
 namespace blender::dna {
 
 template<typename T> int get_sdna_type_id();
 
-}
+int get_max_sdna_type_id();
+
+}  // namespace blender::dna
