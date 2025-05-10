@@ -903,7 +903,7 @@ std::unique_ptr<LazyFunction> get_bake_lazy_function(
 
 StructRNA *BakeItemsAccessor::item_srna = &RNA_NodeGeometryBakeItem;
 int BakeItemsAccessor::node_type = GEO_NODE_BAKE;
-int BakeItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(NodeGeometryBakeItem);
+int BakeItemsAccessor::item_dna_type = dna::get_sdna_type_id<NodeGeometryBakeItem>();
 
 void BakeItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
