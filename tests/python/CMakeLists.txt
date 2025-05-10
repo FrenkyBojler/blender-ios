@@ -4,7 +4,7 @@
 
 # Use '--write-blend=/tmp/test.blend' to view output
 
-set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/data)
+set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/files)
 set(TEST_PYTHON_DIR ${CMAKE_SOURCE_DIR}/tests/python)
 set(TEST_OUT_DIR ${CMAKE_BINARY_DIR}/tests)
 
@@ -1021,6 +1021,7 @@ if(TEST_SRC_DIR_EXISTS)
     foreach_geometry_element_zone
     geometry
     grease_pencil
+    import
     instance
     repeat_zone
     mesh_primitives

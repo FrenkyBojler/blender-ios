@@ -1007,7 +1007,7 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     if (node->type_legacy == CMP_NODE_BILATERALBLUR) {
       NodeBilateralBlurData *storage = static_cast<NodeBilateralBlurData *>(node->storage);
 
-      /* The size input is ceil(iterations + sigma_space). */
+      /* The size input is `ceil(iterations + sigma_space)`. */
       const bNodeSocket *size_input = blender::bke::node_find_socket(*node, SOCK_IN, "Size");
       storage->iter = size_input->default_value_typed<bNodeSocketValueInt>()->value - 1;
       storage->sigma_space = 1.0f;
@@ -1017,6 +1017,14 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
           *node, SOCK_IN, "Threshold");
       storage->sigma_color = threshold_input->default_value_typed<bNodeSocketValueFloat>()->value *
                              3.0f;
+    }
+
+    if (node->type_legacy == CMP_NODE_ALPHAOVER) {
+      write_input_to_property_bool_short("Straight Alpha", node->custom1);
+    }
+
+    if (node->type_legacy == CMP_NODE_BOKEHBLUR) {
+      write_input_to_property_bool_int16_flag("Extend Bounds", node->custom1, (1 << 1));
     }
   }
 }
@@ -1759,7 +1767,7 @@ static AssetTypeInfo AssetType_NT = {
 };
 
 IDTypeInfo IDType_ID_NT = {
-    /*id_code*/ ID_NT,
+    /*id_code*/ bNodeTree::id_type,
     /*id_filter*/ FILTER_ID_NT,
     /* IDProps of nodes, and #bNode.id, can use any type of ID. */
     /*dependencies_id_types*/ FILTER_ID_ALL,
