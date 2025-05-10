@@ -185,11 +185,17 @@ static VArray<T> get_varray_attribute(const PointCloud &pointcloud,
                                       const StringRef name,
                                       const T default_value)
 {
-  const eCustomDataType type = blender::bke::cpp_type_to_custom_data_type(CPPType::get<T>());
-
-  const T *data = (const T *)CustomData_get_layer_named(&pointcloud.pdata, type, name);
-  if (data != nullptr) {
-    return VArray<T>::ForSpan(Span<T>(data, pointcloud.totpoint));
+  using namespace blender;
+  const bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name);
+  if (!attr) {
+    return VArray<T>::ForSingle(default_value, pointcloud.totpoint);
+  }
+  if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
+    const Span span(static_cast<const T *>(array_data->data), array_data->size);
+    return VArray<T>::ForSpan(span);
+  }
+  if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
+    return VArray<T>::ForSingle(*static_cast<const T *>(single_data->value), pointcloud.totpoint);
   }
   return VArray<T>::ForSingle(default_value, pointcloud.totpoint);
 }
@@ -197,13 +203,16 @@ static VArray<T> get_varray_attribute(const PointCloud &pointcloud,
 template<typename T>
 static Span<T> get_span_attribute(const PointCloud &pointcloud, const StringRef name)
 {
-  const eCustomDataType type = blender::bke::cpp_type_to_custom_data_type(CPPType::get<T>());
-
-  T *data = (T *)CustomData_get_layer_named(&pointcloud.pdata, type, name);
-  if (data == nullptr) {
+  using namespace blender;
+  const bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name);
+  if (!attr) {
     return {};
   }
-  return {data, pointcloud.totpoint};
+  if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
+    const Span span(static_cast<const T *>(array_data->data), array_data->size);
+    return span;
+  }
+  return {};
 }
 
 template<typename T>
