@@ -1,1 +1,2 @@
 Referenced by issue #137507, File path of collection exporter incorrectly says relative paths unsupported
+Referenced by pull request #138707, Geometry Nodes: don't show error when using relative path in Import Nodes
