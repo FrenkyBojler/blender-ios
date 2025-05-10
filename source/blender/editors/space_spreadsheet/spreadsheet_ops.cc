@@ -138,10 +138,12 @@ static wmOperatorStatus resize_column_modal(bContext *C, wmOperator *op, const w
   auto cancel = [&]() {
     data.column->width = data.initial_width_px / SPREADSHEET_WIDTH_UNIT;
     MEM_delete(&data);
+    ED_region_tag_redraw(&region);
     return OPERATOR_CANCELLED;
   };
   auto finish = [&]() {
     MEM_delete(&data);
+    ED_region_tag_redraw(&region);
     return OPERATOR_FINISHED;
   };
 
