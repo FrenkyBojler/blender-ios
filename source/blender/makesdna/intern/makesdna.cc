@@ -1489,16 +1489,16 @@ static int make_structDNA(
       fprintf(file_ids, "struct %s;\n", name);
     }
     fprintf(file_ids, "\n\nnamespace blender::dna {\n\n");
-    fprintf(file_ids, "template<typename T> int get_sdna_type_id();\n\n");
-    fprintf(file_ids, "int get_max_sdna_type_id();\n");
-    fprintf(file_ids, "int get_max_sdna_type_id() { return %d; }\n", structs_num - 1);
+    fprintf(file_ids, "template<typename T> int get_sdna_struct_id();\n\n");
+    fprintf(file_ids, "int get_sdna_struct_id_max();\n");
+    fprintf(file_ids, "int get_sdna_struct_id_max() { return %d; }\n", structs_num - 1);
 
     /* Starting at 1, because 0 is "raw data". */
     for (int i = 1; i < structs_num; i++) {
       const short *structpoin = structs[i];
       const int struct_type_index = structpoin[0];
       const char *name = version_struct_alias_from_static(types[struct_type_index]);
-      fprintf(file_ids, "template<> int get_sdna_type_id<%s>() { return %d; }\n", name, i);
+      fprintf(file_ids, "template<> int get_sdna_struct_id<%s>() { return %d; }\n", name, i);
     }
 
     fprintf(file_ids, "\n}\n");

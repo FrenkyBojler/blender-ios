@@ -17,7 +17,7 @@
 #include "BLI_math_rotation.h"
 
 #include "DNA_defaults.h"
-#include "DNA_type_ids.hh"
+#include "DNA_sdna_type_ids.hh"
 
 namespace blender::eevee {
 
@@ -373,7 +373,7 @@ void LightModule::begin_sync()
     /* Create a placeholder light to be fed by the GPU after sunlight extraction.
      * Sunlight is disabled if power is zero. */
     ::Light la = blender::dna::shallow_copy(
-        *(const ::Light *)DNA_default_table[dna::get_sdna_type_id<::Light>()]);
+        *(const ::Light *)DNA_default_table[dna::get_sdna_struct_id<::Light>()]);
     la.type = LA_SUN;
     /* Set on the GPU. */
     la.r = la.g = la.b = -1.0f; /* Tag as world sun light. */

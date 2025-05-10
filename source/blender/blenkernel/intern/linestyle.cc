@@ -18,8 +18,8 @@
 #include "DNA_defaults.h"
 #include "DNA_material_types.h" /* for ramp blend */
 #include "DNA_object_types.h"
+#include "DNA_sdna_type_ids.hh"
 #include "DNA_texture_types.h"
-#include "DNA_type_ids.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
@@ -181,32 +181,32 @@ static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modif
     int struct_nr;
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleColorModifier_AlongStroke>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleColorModifier_AlongStroke>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleColorModifier_DistanceFromCamera>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleColorModifier_DistanceFromCamera>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleColorModifier_DistanceFromObject>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleColorModifier_DistanceFromObject>();
         break;
       case LS_MODIFIER_MATERIAL:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleColorModifier_Material>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleColorModifier_Material>();
         break;
       case LS_MODIFIER_TANGENT:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleColorModifier_Tangent>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleColorModifier_Tangent>();
         break;
       case LS_MODIFIER_NOISE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleColorModifier_Noise>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleColorModifier_Noise>();
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleColorModifier_CreaseAngle>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleColorModifier_CreaseAngle>();
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleColorModifier_Curvature_3D>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleColorModifier_Curvature_3D>();
         break;
       default:
         struct_nr =
-            blender::dna::get_sdna_type_id<LineStyleModifier>(); /* this should not happen */
+            blender::dna::get_sdna_struct_id<LineStyleModifier>(); /* this should not happen */
     }
     BLO_write_struct_by_id(writer, struct_nr, m);
   }
@@ -249,32 +249,32 @@ static void write_linestyle_alpha_modifiers(BlendWriter *writer, ListBase *modif
     int struct_nr;
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleAlphaModifier_AlongStroke>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleAlphaModifier_AlongStroke>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleAlphaModifier_DistanceFromCamera>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleAlphaModifier_DistanceFromCamera>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleAlphaModifier_DistanceFromObject>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleAlphaModifier_DistanceFromObject>();
         break;
       case LS_MODIFIER_MATERIAL:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleAlphaModifier_Material>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleAlphaModifier_Material>();
         break;
       case LS_MODIFIER_TANGENT:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleAlphaModifier_Tangent>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleAlphaModifier_Tangent>();
         break;
       case LS_MODIFIER_NOISE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleAlphaModifier_Noise>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleAlphaModifier_Noise>();
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleAlphaModifier_CreaseAngle>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleAlphaModifier_CreaseAngle>();
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleAlphaModifier_Curvature_3D>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleAlphaModifier_Curvature_3D>();
         break;
       default:
         struct_nr =
-            blender::dna::get_sdna_type_id<LineStyleModifier>(); /* this should not happen */
+            blender::dna::get_sdna_struct_id<LineStyleModifier>(); /* this should not happen */
     }
     BLO_write_struct_by_id(writer, struct_nr, m);
   }
@@ -316,37 +316,37 @@ static void write_linestyle_thickness_modifiers(BlendWriter *writer, ListBase *m
     int struct_nr;
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleThicknessModifier_AlongStroke>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_AlongStroke>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
         struct_nr =
-            blender::dna::get_sdna_type_id<LineStyleThicknessModifier_DistanceFromCamera>();
+            blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_DistanceFromCamera>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
         struct_nr =
-            blender::dna::get_sdna_type_id<LineStyleThicknessModifier_DistanceFromObject>();
+            blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_DistanceFromObject>();
         break;
       case LS_MODIFIER_MATERIAL:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleThicknessModifier_Material>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_Material>();
         break;
       case LS_MODIFIER_CALLIGRAPHY:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleThicknessModifier_Calligraphy>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_Calligraphy>();
         break;
       case LS_MODIFIER_TANGENT:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleThicknessModifier_Tangent>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_Tangent>();
         break;
       case LS_MODIFIER_NOISE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleThicknessModifier_Noise>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_Noise>();
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleThicknessModifier_CreaseAngle>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_CreaseAngle>();
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleThicknessModifier_Curvature_3D>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleThicknessModifier_Curvature_3D>();
         break;
       default:
         struct_nr =
-            blender::dna::get_sdna_type_id<LineStyleModifier>(); /* this should not happen */
+            blender::dna::get_sdna_struct_id<LineStyleModifier>(); /* this should not happen */
     }
     BLO_write_struct_by_id(writer, struct_nr, m);
   }
@@ -386,50 +386,52 @@ static void write_linestyle_geometry_modifiers(BlendWriter *writer, ListBase *mo
     int struct_nr;
     switch (m->type) {
       case LS_MODIFIER_SAMPLING:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_Sampling>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_Sampling>();
         break;
       case LS_MODIFIER_BEZIER_CURVE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_BezierCurve>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_BezierCurve>();
         break;
       case LS_MODIFIER_SINUS_DISPLACEMENT:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_SinusDisplacement>();
+        struct_nr =
+            blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_SinusDisplacement>();
         break;
       case LS_MODIFIER_SPATIAL_NOISE:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_SpatialNoise>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_SpatialNoise>();
         break;
       case LS_MODIFIER_PERLIN_NOISE_1D:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_PerlinNoise1D>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_PerlinNoise1D>();
         break;
       case LS_MODIFIER_PERLIN_NOISE_2D:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_PerlinNoise2D>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_PerlinNoise2D>();
         break;
       case LS_MODIFIER_BACKBONE_STRETCHER:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_BackboneStretcher>();
+        struct_nr =
+            blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_BackboneStretcher>();
         break;
       case LS_MODIFIER_TIP_REMOVER:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_TipRemover>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_TipRemover>();
         break;
       case LS_MODIFIER_POLYGONIZATION:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_Polygonalization>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_Polygonalization>();
         break;
       case LS_MODIFIER_GUIDING_LINES:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_GuidingLines>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_GuidingLines>();
         break;
       case LS_MODIFIER_BLUEPRINT:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_Blueprint>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_Blueprint>();
         break;
       case LS_MODIFIER_2D_OFFSET:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_2DOffset>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_2DOffset>();
         break;
       case LS_MODIFIER_2D_TRANSFORM:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_2DTransform>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_2DTransform>();
         break;
       case LS_MODIFIER_SIMPLIFICATION:
-        struct_nr = blender::dna::get_sdna_type_id<LineStyleGeometryModifier_Simplification>();
+        struct_nr = blender::dna::get_sdna_struct_id<LineStyleGeometryModifier_Simplification>();
         break;
       default:
         struct_nr =
-            blender::dna::get_sdna_type_id<LineStyleModifier>(); /* this should not happen */
+            blender::dna::get_sdna_struct_id<LineStyleModifier>(); /* this should not happen */
     }
     BLO_write_struct_by_id(writer, struct_nr, m);
   }

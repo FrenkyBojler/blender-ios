@@ -132,7 +132,7 @@ StructRNA *EvaluateClosureInputItemsAccessor::item_srna =
     &RNA_NodeGeometryEvaluateClosureInputItem;
 int EvaluateClosureInputItemsAccessor::node_type = GEO_NODE_EVALUATE_CLOSURE;
 int EvaluateClosureInputItemsAccessor::item_dna_type =
-    dna::get_sdna_type_id<NodeGeometryEvaluateClosureInputItem>();
+    dna::get_sdna_struct_id<NodeGeometryEvaluateClosureInputItem>();
 
 void EvaluateClosureInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -148,7 +148,7 @@ StructRNA *EvaluateClosureOutputItemsAccessor::item_srna =
     &RNA_NodeGeometryEvaluateClosureOutputItem;
 int EvaluateClosureOutputItemsAccessor::node_type = GEO_NODE_EVALUATE_CLOSURE;
 int EvaluateClosureOutputItemsAccessor::item_dna_type =
-    dna::get_sdna_type_id<NodeGeometryEvaluateClosureOutputItem>();
+    dna::get_sdna_struct_id<NodeGeometryEvaluateClosureOutputItem>();
 
 void EvaluateClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

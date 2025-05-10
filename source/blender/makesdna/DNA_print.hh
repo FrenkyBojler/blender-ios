@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <iosfwd>
 
-#include "DNA_type_ids.hh"
+#include "DNA_sdna_type_ids.hh"
 
 struct SDNA;
 struct SDNA_Struct;
@@ -46,4 +46,4 @@ void print_struct_by_id(int struct_id, const void *data);
  *   DNA_print_struct(bNode, node);
  */
 #define DNA_print_struct(struct_name, data_ptr) \
-  blender::dna::print_struct_by_id(blender::dna::get_sdna_type_id<struct_name>(), data_ptr)
+  blender::dna::print_struct_by_id(blender::dna::get_sdna_struct_id<struct_name>(), data_ptr)
