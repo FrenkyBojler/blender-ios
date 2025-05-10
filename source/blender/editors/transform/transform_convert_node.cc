@@ -254,6 +254,16 @@ static void move_child_nodes(bNode &node, const float2 &delta)
   }
 }
 
+static bool has_selected_parent(const bNode &node)
+{
+  for (bNode *parent = node.parent; parent; parent = parent->parent) {
+    if (parent->flag & NODE_SELECT) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void flushTransNodes(TransInfo *t)
 {
   const float dpi_fac = UI_SCALE_FAC;
@@ -287,9 +297,13 @@ static void flushTransNodes(TransInfo *t)
 
   if (t->modifiers & MOD_NODE_DETACH_FRAME) {
     for (bNode *node : snode->edittree->all_nodes()) {
-      if (node->flag & NODE_SELECT) {
-        bke::node_detach_node(*snode->edittree, *node);
+      if (!(node->flag & NODE_SELECT)) {
+        continue;
       }
+      if (has_selected_parent(*node)) {
+        continue;
+      }
+      bke::node_detach_node(*snode->edittree, *node);
     }
   }
 
