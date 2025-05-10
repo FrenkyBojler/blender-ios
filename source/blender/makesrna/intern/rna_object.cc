@@ -2073,7 +2073,7 @@ static std::optional<std::string> rna_ObjectLineArt_path(const PointerRNA * /*pt
   return "lineart";
 }
 
-static bool mesh_symmetry_get_common(PointerRNA *ptr, const eMeshSymmetryFlags sym)
+static bool object_mesh_symmetry_get(PointerRNA *ptr, const eMeshSymmetryFlags sym)
 {
   const Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   if (ob->type != OB_MESH) {
@@ -2086,20 +2086,20 @@ static bool mesh_symmetry_get_common(PointerRNA *ptr, const eMeshSymmetryFlags s
 
 static bool rna_Object_mesh_symmetry_x_get(PointerRNA *ptr)
 {
-  return mesh_symmetry_get_common(ptr, ME_SYMMETRY_X);
+  return object_mesh_symmetry_get(ptr, ME_SYMMETRY_X);
 }
 
 static bool rna_Object_mesh_symmetry_y_get(PointerRNA *ptr)
 {
-  return mesh_symmetry_get_common(ptr, ME_SYMMETRY_Y);
+  return object_mesh_symmetry_get(ptr, ME_SYMMETRY_Y);
 }
 
 static bool rna_Object_mesh_symmetry_z_get(PointerRNA *ptr)
 {
-  return mesh_symmetry_get_common(ptr, ME_SYMMETRY_Z);
+  return object_mesh_symmetry_get(ptr, ME_SYMMETRY_Z);
 }
 
-static void mesh_symmetry_set_common(PointerRNA *ptr,
+static void object_mesh_symmetry_set(PointerRNA *ptr,
                                      const bool value,
                                      const eMeshSymmetryFlags sym)
 {
@@ -2109,30 +2109,25 @@ static void mesh_symmetry_set_common(PointerRNA *ptr,
   }
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  if (value) {
-    mesh->symmetry |= sym;
-  }
-  else {
-    mesh->symmetry &= ~sym;
-  }
+  SET_FLAG_FROM_TEST(mesh->symmetry, value, sym);
 }
 
 static void rna_Object_mesh_symmetry_x_set(PointerRNA *ptr, bool value)
 {
-  mesh_symmetry_set_common(ptr, value, ME_SYMMETRY_X);
+  object_mesh_symmetry_set(ptr, value, ME_SYMMETRY_X);
 }
 
 static void rna_Object_mesh_symmetry_y_set(PointerRNA *ptr, bool value)
 {
-  mesh_symmetry_set_common(ptr, value, ME_SYMMETRY_Y);
+  object_mesh_symmetry_set(ptr, value, ME_SYMMETRY_Y);
 }
 
 static void rna_Object_mesh_symmetry_z_set(PointerRNA *ptr, bool value)
 {
-  mesh_symmetry_set_common(ptr, value, ME_SYMMETRY_Z);
+  object_mesh_symmetry_set(ptr, value, ME_SYMMETRY_Z);
 }
 
-static bool mesh_lock_get_common(PointerRNA *ptr, const eMeshLockAxis lock)
+static bool object_mesh_lock_get(PointerRNA *ptr, const eMeshLockAxis lock)
 {
   const Object *ob = (Object *)ptr->owner_id;
   if (ob->type != OB_MESH) {
@@ -2145,48 +2140,43 @@ static bool mesh_lock_get_common(PointerRNA *ptr, const eMeshLockAxis lock)
 
 static bool rna_Object_mesh_lock_x_get(PointerRNA *ptr)
 {
-  return mesh_lock_get_common(ptr, ME_LOCK_X);
+  return object_mesh_lock_get(ptr, ME_LOCK_X);
 }
 
 static bool rna_Object_mesh_lock_y_get(PointerRNA *ptr)
 {
-  return mesh_lock_get_common(ptr, ME_LOCK_Y);
+  return object_mesh_lock_get(ptr, ME_LOCK_Y);
 }
 
 static bool rna_Object_mesh_lock_z_get(PointerRNA *ptr)
 {
-  return mesh_lock_get_common(ptr, ME_LOCK_Z);
+  return object_mesh_lock_get(ptr, ME_LOCK_Z);
 }
 
-static void mesh_lock_set_common(PointerRNA *ptr, const bool value, const eMeshLockAxis lock)
+static void object_mesh_lock_set(PointerRNA *ptr, const bool value, const eMeshLockAxis lock)
 {
-  Object *ob = (Object *)ptr->owner_id;
+  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   if (ob->type != OB_MESH) {
     return;
   }
 
-  Mesh *mesh = (Mesh *)ob->data;
-  if (value) {
-    mesh->lock |= lock;
-  }
-  else {
-    mesh->lock &= ~lock;
-  }
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  SET_FLAG_FROM_TEST(mesh->lock, value, lock);
 }
 
 static void rna_Object_mesh_lock_x_set(PointerRNA *ptr, bool value)
 {
-  mesh_lock_set_common(ptr, value, ME_LOCK_X);
+  object_mesh_lock_set(ptr, value, ME_LOCK_X);
 }
 
 static void rna_Object_mesh_lock_y_set(PointerRNA *ptr, bool value)
 {
-  mesh_lock_set_common(ptr, value, ME_LOCK_Y);
+  object_mesh_lock_set(ptr, value, ME_LOCK_Y);
 }
 
 static void rna_Object_mesh_lock_z_set(PointerRNA *ptr, bool value)
 {
-  mesh_lock_set_common(ptr, value, ME_LOCK_Z);
+  object_mesh_lock_set(ptr, value, ME_LOCK_Z);
 }
 
 static int rna_Object_mesh_symmetry_yz_editable(const PointerRNA *ptr, const char ** /*r_info*/)
