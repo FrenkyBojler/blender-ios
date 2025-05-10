@@ -2132,7 +2132,7 @@ static void rna_Object_mesh_symmetry_z_set(PointerRNA *ptr, bool value)
   mesh_symmetry_set_common(ptr, value, ME_SYMMETRY_Z);
 }
 
-static bool mesh_lock_get_common(PointerRNA *ptr, const eMeshLockType lock)
+static bool mesh_lock_get_common(PointerRNA *ptr, const eMeshLockAxis lock)
 {
   const Object *ob = (Object *)ptr->owner_id;
   if (ob->type != OB_MESH) {
@@ -2158,7 +2158,7 @@ static bool rna_Object_mesh_lock_z_get(PointerRNA *ptr)
   return mesh_lock_get_common(ptr, ME_LOCK_Z);
 }
 
-static void mesh_lock_set_common(PointerRNA *ptr, const bool value, const eMeshLockType lock)
+static void mesh_lock_set_common(PointerRNA *ptr, const bool value, const eMeshLockAxis lock)
 {
   Object *ob = (Object *)ptr->owner_id;
   if (ob->type != OB_MESH) {

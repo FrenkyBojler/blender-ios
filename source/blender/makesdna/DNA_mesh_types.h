@@ -246,7 +246,7 @@ typedef struct Mesh {
   float tile_offset[3];
 
   /**
-   * User-defined lock flag (#eMeshLockType) that causes editing operations to be restricted from
+   * User-defined lock flag (#eMeshLockAxis) that causes editing operations to be restricted from
    * transforming along locked axes. Supported by operations such as transform.
    */
   char lock;
@@ -587,10 +587,10 @@ inline eMeshSymmetryFlags operator++(eMeshSymmetryFlags &flags, int)
 #endif
 
 /** #Mesh.lock */
-typedef enum eMeshLockType {
+typedef enum eMeshLockAxis {
   ME_LOCK_X = 1 << 0,
   ME_LOCK_Y = 1 << 1,
   ME_LOCK_Z = 1 << 2,
-} eMeshLockType;
+} eMeshLockAxis;
 
 #define MESH_MAX_VERTS 2000000000L
