@@ -12,6 +12,7 @@
 
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_type_conversions.hh"
 
 #include "NOD_rna_define.hh"
@@ -42,7 +43,19 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
     b.add_input(data_type, "Value")
         .field_on_all()
-        .pinned_type(storage.flag & GEO_NODE_STORE_NAMED_ATTRIBUTE_FLAG_PIN_DATA_TYPE);
+        .pinned_type(
+            storage.flag & GEO_NODE_STORE_NAMED_ATTRIBUTE_FLAG_PIN_DATA_TYPE,
+            [](bNodeTree &tree, bNode &node, bNodeSocket &source_socket) {
+              NodeGeometryStoreNamedAttribute &storage = node_storage(node);
+              const std::optional<eCustomDataType> new_type = bke::socket_type_to_custom_data_type(
+                  eNodeSocketDatatype(source_socket.type));
+              if (new_type) {
+                if (storage.data_type != *new_type) {
+                  storage.data_type = *new_type;
+                  BKE_ntree_update_tag_node_property(&tree, &node);
+                }
+              }
+            });
   }
 }
 

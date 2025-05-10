@@ -641,9 +641,14 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_default_link_sock
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::pinned_type(bool value)
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::pinned_type(
+    bool value, SetPinnedTypeFn set_pinned_type_fn)
 {
   decl_base_->is_pinned_type = value;
+  if (set_pinned_type_fn) {
+    decl_base_->set_pinned_type_fn = std::make_unique<SetPinnedTypeFn>(
+        std::move(set_pinned_type_fn));
+  }
   return *this;
 }
 

@@ -151,6 +151,8 @@ std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations)
 namespace aal = anonymous_attribute_lifetime;
 
 using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value)>;
+using SetPinnedTypeFn =
+    std::function<void(bNodeTree &tree, bNode &node, bNodeSocket &source_socket)>;
 
 /* Socket or panel declaration. */
 class ItemDeclaration {
@@ -196,6 +198,7 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_panel_toggle = false;
   bool is_layer_name = false;
   bool is_pinned_type = true;
+  std::unique_ptr<SetPinnedTypeFn> set_pinned_type_fn;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -306,7 +309,8 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
 
-  BaseSocketDeclarationBuilder &pinned_type(bool value = true);
+  BaseSocketDeclarationBuilder &pinned_type(bool value = true,
+                                            SetPinnedTypeFn set_pinned_type_fn = {});
 
   /** The input socket allows passing in a field. */
   BaseSocketDeclarationBuilder &supports_field();

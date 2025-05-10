@@ -580,6 +580,23 @@ class NodeTreeMainUpdater {
   {
     for (bNode *node : ntree.all_nodes()) {
       bke::node_declaration_ensure(ntree, *node);
+      LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+        if (!socket->runtime->declaration) {
+          continue;
+        }
+        if (socket->runtime->declaration->is_pinned_type) {
+          continue;
+        }
+        if (socket->is_directly_linked()) {
+          bNodeSocket &source_socket = *socket->directly_linked_sockets()[0];
+          if (socket->runtime->declaration->set_pinned_type_fn) {
+            (*socket->runtime->declaration->set_pinned_type_fn)(ntree, *node, source_socket);
+          }
+        }
+      }
+    }
+    for (bNode *node : ntree.all_nodes()) {
+      bke::node_declaration_ensure(ntree, *node);
       if (this->should_update_individual_node(ntree, *node)) {
         bke::bNodeType &ntype = *node->typeinfo;
         if (ntype.group_update_func) {
