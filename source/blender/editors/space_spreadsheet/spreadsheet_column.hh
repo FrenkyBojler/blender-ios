@@ -26,7 +26,7 @@ inline bool operator==(const SpreadsheetColumnID &a, const SpreadsheetColumnID &
 namespace blender::ed::spreadsheet {
 
 struct SpreadsheetColumnRuntime {
-  /** Pixel coordinatets of the left and right edges of the column. */
+  /** Coordinates of the left and right edges of the column in view space. */
   int left_x = 0;
   int right_x = 0;
 };

@@ -17,6 +17,7 @@
 #include "RNA_define.hh"
 
 #include "UI_interface_c.hh"
+#include "UI_view2d.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -179,8 +180,9 @@ SpreadsheetColumn *find_column_to_resize(SpaceSpreadsheet &sspreadsheet,
   if (cursor_re.y < region_height - sspreadsheet.runtime->top_row_height) {
     return nullptr;
   }
+  const float cursor_x_view = UI_view2d_region_to_view_x(&region.v2d, cursor_re.x);
   LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet.columns) {
-    if (std::abs(cursor_re.x - column->runtime->right_x) < SPREADSHEET_EDGE_ACTION_ZONE) {
+    if (std::abs(cursor_x_view - column->runtime->right_x) < SPREADSHEET_EDGE_ACTION_ZONE) {
       return column;
     }
   }
