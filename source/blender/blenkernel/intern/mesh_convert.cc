@@ -547,7 +547,6 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
   }
 
   PointCloud *pointcloud = BKE_pointcloud_add(bmain, ob->id.name + 2);
-  pointcloud->attribute_storage.wrap() = bke::AttributeStorage();
   pointcloud->totpoint = mesh_eval->verts_num;
   copy_attributes(mesh_eval->attributes(),
                   AttrDomain::Point,
