@@ -590,16 +590,39 @@ bool BKE_brush_delete(Main *bmain, Brush *brush)
   return true;
 }
 
-Brush *BKE_brush_duplicate(Main *bmain, Brush *brush)
+Brush *BKE_brush_duplicate(Main *bmain,
+                           Brush *brush,
+                           eDupli_ID_Flags /*dupflag*/,
+                           uint duplicate_options)
 {
-  constexpr eDupli_ID_Flags dup_flag = USER_DUP_LINKED_ID;
+  const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
+  const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
+
+  const eDupli_ID_Flags dupflag = USER_DUP_OBDATA | USER_DUP_LINKED_ID;
+
+  if (!is_subprocess) {
+    BKE_main_id_newptr_and_tag_clear(bmain);
+  }
+  if (is_root_id) {
+    duplicate_options &= ~LIB_ID_DUPLICATE_IS_ROOT_ID;
+  }
+
   constexpr int id_copy_flag = LIB_ID_COPY_DEFAULT;
 
   Brush *new_brush = reinterpret_cast<Brush *>(
-      BKE_id_copy_for_duplicate(bmain, &brush->id, dup_flag, id_copy_flag));
+      BKE_id_copy_for_duplicate(bmain, &brush->id, dupflag, id_copy_flag));
 
+  /* Currently this duplicates everything and the passed in value of `dupflag` is ignored. Ideally,
+   * this should both check user preferences and do further filtering based on eDupli_ID_Flags. */
   auto dependencies_cb = [&](const LibraryIDLinkCallbackData *cb_data) -> int {
-    BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dup_flag, id_copy_flag);
+    if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
+      return IDWALK_NOP;
+    }
+    if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
+      return IDWALK_NOP;
+    }
+
+    BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dupflag, id_copy_flag);
     return IDWALK_NOP;
   };
 
