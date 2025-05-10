@@ -46,4 +46,4 @@ void print_struct_by_id(int struct_id, const void *data);
  *   DNA_print_struct(bNode, node);
  */
 #define DNA_print_struct(struct_name, data_ptr) \
-  blender::dna::print_struct_by_id(blender::dna::get_sdna_struct_id<struct_name>(), data_ptr)
+  blender::dna::print_struct_by_id(blender::dna::sdna_struct_id_get<struct_name>(), data_ptr)

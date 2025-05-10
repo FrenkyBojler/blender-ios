@@ -142,7 +142,7 @@ namespace blender::nodes {
 StructRNA *CombineBundleItemsAccessor::item_srna = &RNA_NodeGeometryCombineBundleItem;
 int CombineBundleItemsAccessor::node_type = GEO_NODE_COMBINE_BUNDLE;
 int CombineBundleItemsAccessor::item_dna_type =
-    dna::get_sdna_struct_id<NodeGeometryCombineBundleItem>();
+    dna::sdna_struct_id_get<NodeGeometryCombineBundleItem>();
 
 void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

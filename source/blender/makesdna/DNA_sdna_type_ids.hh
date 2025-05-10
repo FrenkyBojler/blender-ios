@@ -15,11 +15,11 @@ namespace blender::dna {
  * not necessarily across different builds. The identifier can be used to index into
  * `SDNA.structs`.
  */
-template<typename T> int get_sdna_struct_id();
+template<typename T> int sdna_struct_id_get();
 
 /**
- * The maximum identifier that will be returned by #get_sdna_struct_id in this Blender build.
+ * The maximum identifier that will be returned by #sdna_struct_id_get in this Blender build.
  */
-int get_sdna_struct_id_max();
+int sdna_struct_id_get_max();
 
 }  // namespace blender::dna

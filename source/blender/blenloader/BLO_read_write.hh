@@ -92,7 +92,7 @@ int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name
 void BLO_write_struct_by_name(BlendWriter *writer, const char *struct_name, const void *data_ptr);
 void BLO_write_struct_by_id(BlendWriter *writer, int struct_id, const void *data_ptr);
 #define BLO_write_struct(writer, struct_name, data_ptr) \
-  BLO_write_struct_by_id(writer, blender::dna::get_sdna_struct_id<struct_name>(), data_ptr)
+  BLO_write_struct_by_id(writer, blender::dna::sdna_struct_id_get<struct_name>(), data_ptr)
 
 /**
  * Write single struct at address.
@@ -103,7 +103,7 @@ void BLO_write_struct_at_address_by_id(BlendWriter *writer,
                                        const void *data_ptr);
 #define BLO_write_struct_at_address(writer, struct_name, address, data_ptr) \
   BLO_write_struct_at_address_by_id( \
-      writer, blender::dna::get_sdna_struct_id<struct_name>(), address, data_ptr)
+      writer, blender::dna::sdna_struct_id_get<struct_name>(), address, data_ptr)
 
 /**
  * Write single struct at address and specify a file-code.
@@ -113,7 +113,7 @@ void BLO_write_struct_at_address_by_id_with_filecode(
 #define BLO_write_struct_at_address_with_filecode( \
     writer, filecode, struct_name, address, data_ptr) \
   BLO_write_struct_at_address_by_id_with_filecode( \
-      writer, filecode, blender::dna::get_sdna_struct_id<struct_name>(), address, data_ptr)
+      writer, filecode, blender::dna::sdna_struct_id_get<struct_name>(), address, data_ptr)
 
 /**
  * Write struct array.
@@ -128,7 +128,7 @@ void BLO_write_struct_array_by_id(BlendWriter *writer,
                                   const void *data_ptr);
 #define BLO_write_struct_array(writer, struct_name, array_size, data_ptr) \
   BLO_write_struct_array_by_id( \
-      writer, blender::dna::get_sdna_struct_id<struct_name>(), array_size, data_ptr)
+      writer, blender::dna::sdna_struct_id_get<struct_name>(), array_size, data_ptr)
 
 /**
  * Write struct array at address.
@@ -140,7 +140,7 @@ void BLO_write_struct_array_at_address_by_id(BlendWriter *writer,
                                              const void *data_ptr);
 #define BLO_write_struct_array_at_address(writer, struct_name, array_size, address, data_ptr) \
   BLO_write_struct_array_at_address_by_id( \
-      writer, blender::dna::get_sdna_struct_id<struct_name>(), array_size, address, data_ptr)
+      writer, blender::dna::sdna_struct_id_get<struct_name>(), array_size, address, data_ptr)
 
 /**
  * Write struct list.
@@ -148,14 +148,14 @@ void BLO_write_struct_array_at_address_by_id(BlendWriter *writer,
 void BLO_write_struct_list_by_name(BlendWriter *writer, const char *struct_name, ListBase *list);
 void BLO_write_struct_list_by_id(BlendWriter *writer, int struct_id, const ListBase *list);
 #define BLO_write_struct_list(writer, struct_name, list_ptr) \
-  BLO_write_struct_list_by_id(writer, blender::dna::get_sdna_struct_id<struct_name>(), list_ptr)
+  BLO_write_struct_list_by_id(writer, blender::dna::sdna_struct_id_get<struct_name>(), list_ptr)
 
 /**
  * Write id struct.
  */
 void blo_write_id_struct(BlendWriter *writer, int struct_id, const void *id_address, const ID *id);
 #define BLO_write_id_struct(writer, struct_name, id_address, id) \
-  blo_write_id_struct(writer, blender::dna::get_sdna_struct_id<struct_name>(), id_address, id)
+  blo_write_id_struct(writer, blender::dna::sdna_struct_id_get<struct_name>(), id_address, id)
 
 /**
  * Specific code to prepare IDs to be written.

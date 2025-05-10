@@ -772,7 +772,7 @@ static void writestruct_at_address_nr(WriteData *wd,
                                       const void *adr,
                                       const void *data)
 {
-  BLI_assert(struct_nr > 0 && struct_nr <= blender::dna::get_sdna_struct_id_max());
+  BLI_assert(struct_nr > 0 && struct_nr <= blender::dna::sdna_struct_id_get_max());
 
   if (adr == nullptr || data == nullptr || nr == 0) {
     return;
@@ -918,10 +918,10 @@ static void writelist_id(WriteData *wd, const int filecode, const char *structna
 
 #define writestruct_at_address(wd, filecode, struct_id, nr, adr, data) \
   writestruct_at_address_nr( \
-      wd, filecode, blender::dna::get_sdna_struct_id<struct_id>(), nr, adr, data)
+      wd, filecode, blender::dna::sdna_struct_id_get<struct_id>(), nr, adr, data)
 
 #define writestruct(wd, filecode, struct_id, nr, adr) \
-  writestruct_nr(wd, filecode, blender::dna::get_sdna_struct_id<struct_id>(), nr, adr)
+  writestruct_nr(wd, filecode, blender::dna::sdna_struct_id_get<struct_id>(), nr, adr)
 
 /** \} */
 

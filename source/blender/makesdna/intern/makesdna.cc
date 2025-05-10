@@ -1482,26 +1482,31 @@ static int make_structDNA(
   }
 
   {
-    for (int i = 1; i < structs_num; i++) {
+    /* Starting at 1, because 0 is "raw data". */
+    const int start_struct_index = 1;
+
+    // for (int i = start_struct_index; i < structs_num; i++) {
+    //   const short *structpoin = structs[i];
+    //   const int struct_type_index = structpoin[0];
+    //   const char *name = version_struct_alias_from_static(types[struct_type_index]);
+    //   fprintf(file_ids, "struct %s;\n", name);
+    // }
+    fprintf(file_ids, "\n\nnamespace blender::dna {\n\n");
+    fprintf(file_ids, "template<typename T> int sdna_struct_id_get();\n\n");
+    fprintf(file_ids, "int sdna_struct_id_get_max();\n");
+    fprintf(file_ids, "int sdna_struct_id_get_max() { return %d; }\n", structs_num - 1);
+    fprintf(file_ids, "\n}\n");
+
+    for (int i = start_struct_index; i < structs_num; i++) {
       const short *structpoin = structs[i];
       const int struct_type_index = structpoin[0];
       const char *name = version_struct_alias_from_static(types[struct_type_index]);
       fprintf(file_ids, "struct %s;\n", name);
+      fprintf(file_ids,
+              "template<> int blender::dna::sdna_struct_id_get<%s>() { return %d; }\n",
+              name,
+              i);
     }
-    fprintf(file_ids, "\n\nnamespace blender::dna {\n\n");
-    fprintf(file_ids, "template<typename T> int get_sdna_struct_id();\n\n");
-    fprintf(file_ids, "int get_sdna_struct_id_max();\n");
-    fprintf(file_ids, "int get_sdna_struct_id_max() { return %d; }\n", structs_num - 1);
-
-    /* Starting at 1, because 0 is "raw data". */
-    for (int i = 1; i < structs_num; i++) {
-      const short *structpoin = structs[i];
-      const int struct_type_index = structpoin[0];
-      const char *name = version_struct_alias_from_static(types[struct_type_index]);
-      fprintf(file_ids, "template<> int get_sdna_struct_id<%s>() { return %d; }\n", name, i);
-    }
-
-    fprintf(file_ids, "\n}\n");
   }
 
   /* Check versioning errors which could cause duplicate names,

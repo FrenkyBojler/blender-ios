@@ -454,7 +454,7 @@ StructRNA *ForeachGeometryElementInputItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementInputItem;
 int ForeachGeometryElementInputItemsAccessor::node_type = GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
 int ForeachGeometryElementInputItemsAccessor::item_dna_type =
-    dna::get_sdna_struct_id<NodeForeachGeometryElementInputItem>();
+    dna::sdna_struct_id_get<NodeForeachGeometryElementInputItem>();
 
 void ForeachGeometryElementInputItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                 const ItemT &item)
@@ -472,7 +472,7 @@ StructRNA *ForeachGeometryElementMainItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementMainItem;
 int ForeachGeometryElementMainItemsAccessor::node_type = GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
 int ForeachGeometryElementMainItemsAccessor::item_dna_type =
-    dna::get_sdna_struct_id<NodeForeachGeometryElementMainItem>();
+    dna::sdna_struct_id_get<NodeForeachGeometryElementMainItem>();
 
 void ForeachGeometryElementMainItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                const ItemT &item)
@@ -491,7 +491,7 @@ StructRNA *ForeachGeometryElementGenerationItemsAccessor::item_srna =
 int ForeachGeometryElementGenerationItemsAccessor::node_type =
     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
 int ForeachGeometryElementGenerationItemsAccessor::item_dna_type =
-    dna::get_sdna_struct_id<NodeForeachGeometryElementGenerationItem>();
+    dna::sdna_struct_id_get<NodeForeachGeometryElementGenerationItem>();
 
 void ForeachGeometryElementGenerationItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                      const ItemT &item)
