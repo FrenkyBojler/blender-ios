@@ -40,7 +40,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const NodeGeometryStoreNamedAttribute &storage = node_storage(*node);
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
-    b.add_input(data_type, "Value").field_on_all();
+    b.add_input(data_type, "Value")
+        .field_on_all()
+        .pinned_type(storage.flag & GEO_NODE_STORE_NAMED_ATTRIBUTE_FLAG_PIN_DATA_TYPE);
   }
 }
 
@@ -49,6 +51,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
+  // TODO: Versioning.
   const bool pin_data_type = RNA_boolean_get(ptr, "pin_data_type");
 
   uiLayout &row = layout->row(true);

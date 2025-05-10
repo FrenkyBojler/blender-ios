@@ -195,6 +195,7 @@ class SocketDeclaration : public ItemDeclaration {
   /** This socket is used as a toggle for the parent panel. */
   bool is_panel_toggle = false;
   bool is_layer_name = false;
+  bool is_pinned_type = true;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -304,6 +305,8 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &is_attribute_name(bool value = true);
 
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
+
+  BaseSocketDeclarationBuilder &pinned_type(bool value = true);
 
   /** The input socket allows passing in a field. */
   BaseSocketDeclarationBuilder &supports_field();
