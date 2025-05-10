@@ -117,29 +117,11 @@ static Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_ty
   switch (initializer.type) {
     case AttributeInit::Type::Construct: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
-      Attribute::ArrayData data;
-      data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
-      data.size = domain_size;
-      data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
-      return data;
+      return Attribute::ArrayData::ForUninitialized(type, domain_size);
     }
     case AttributeInit::Type::DefaultValue: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
-      Attribute::ArrayData data;
-      const void *value = type.default_value();
-
-      /* Prefer `calloc` to filling after allocation since it is faster. */
-      if (BLI_memory_is_zero(value, type.size) && type.alignment <= MEM_MIN_CPP_ALIGNMENT) {
-        data.data = MEM_calloc_arrayN(domain_size, type.size, __func__);
-      }
-      else {
-        data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
-        type.fill_construct_n(value, data.data, domain_size);
-      }
-
-      data.size = domain_size;
-      data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
-      return data;
+      return Attribute::ArrayData::ForDefaultValue(type, domain_size);
     }
     case AttributeInit::Type::VArray: {
       const auto &init = static_cast<const AttributeInitVArray &>(initializer);

@@ -56,6 +56,42 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   }
 };
 
+Attribute::ArrayData ForValue(const GPointer &value, const int64_t domain_size)
+{
+  Attribute::ArrayData data{};
+  const CPPType &type = *value.type();
+  const void *value_ptr = type.default_value();
+
+  /* Prefer `calloc` to filling after allocation since it is faster. */
+  if (BLI_memory_is_zero(value_ptr, type.size) && type.alignment <= MEM_MIN_CPP_ALIGNMENT) {
+    data.data = MEM_calloc_arrayN(domain_size, type.size, __func__);
+  }
+  else {
+    data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
+    type.fill_construct_n(value_ptr, data.data, domain_size);
+  }
+
+  data.size = domain_size;
+  BLI_assert(type.is_trivially_destructible);
+  data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+  return data;
+}
+
+Attribute::ArrayData ForDefaultValue(const CPPType &type, const int64_t domain_size)
+{
+  return ForValue(GPointer(type, type.default_value()), domain_size);
+}
+
+Attribute::ArrayData ForUninitialized(const CPPType &type, const int64_t domain_size)
+{
+  Attribute::ArrayData data{};
+  data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
+  data.size = domain_size;
+  BLI_assert(type.is_trivially_destructible);
+  data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+  return data;
+}
+
 void AttributeStorage::foreach(FunctionRef<void(Attribute &)> fn)
 {
   for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {

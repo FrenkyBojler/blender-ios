@@ -209,8 +209,7 @@ static Span<T> get_span_attribute(const PointCloud &pointcloud, const StringRef 
     return {};
   }
   if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
-    const Span span(static_cast<const T *>(array_data->data), array_data->size);
-    return span;
+    return Span(static_cast<const T *>(array_data->data), array_data->size);
   }
   return {};
 }
@@ -220,28 +219,24 @@ static MutableSpan<T> get_mutable_attribute(PointCloud &pointcloud,
                                             const StringRef name,
                                             const T default_value = T())
 {
+  using namespace blender;
   if (pointcloud.totpoint <= 0) {
     return {};
   }
-  const eCustomDataType type = blender::bke::cpp_type_to_custom_data_type(CPPType::get<T>());
-  blender::bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name);
-  if (attr) {
-    //
-    // TODO: Add attribute.
+  const bke::AttrType type = bke::cpp_type_to_attribute_type(CPPType::get<T>());
+  if (bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name)) {
+    if (auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data_for_write())) {
+      return MutableSpan(static_cast<T *>(array_data->data), pointcloud.totpoint);
+    }
   }
-
-  T *data = (T *)CustomData_get_layer_named_for_write(
-      &pointcloud.pdata, type, name, pointcloud.totpoint);
-  if (data != nullptr) {
-    return {data, pointcloud.totpoint};
-  }
-  data = (T *)CustomData_add_layer_named(
-      &pointcloud.pdata, type, CD_SET_DEFAULT, pointcloud.totpoint, name);
-  MutableSpan<T> span = {data, pointcloud.totpoint};
-  if (pointcloud.totpoint > 0 && span.first() != default_value) {
-    span.fill(default_value);
-  }
-  return span;
+  bke::Attribute &attr = pointcloud.attribute_storage.wrap().add(
+      name,
+      bke::AttrDomain::Point,
+      type,
+      bke::Attribute::ArrayData::ForValue({CPPType::get<T>(), &default_value},
+                                          pointcloud.totpoint));
+  auto &array_data = std::get<bke::Attribute::ArrayData>(attr.data_for_write());
+  return MutableSpan(static_cast<T *>(array_data.data), pointcloud.totpoint);
 }
 
 Span<float3> PointCloud::positions() const

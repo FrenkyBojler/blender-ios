@@ -16,8 +16,10 @@
 struct BlendDataReader;
 struct BlendWriter;
 namespace blender {
+class GPointer;
+class CPPType;
 class ResourceScope;
-}
+}  // namespace blender
 
 namespace blender::bke {
 
@@ -40,6 +42,9 @@ class Attribute {
     /* The number of elements in the array. */
     int64_t size;
     ImplicitSharingPtr<> sharing_info;
+    static ArrayData ForValue(const GPointer &value, int64_t domain_size);
+    static ArrayData ForDefaultValue(const CPPType &type, int64_t domain_size);
+    static ArrayData ForUninitialized(const CPPType &type, int64_t domain_size);
   };
   /** Data for an attribute stored as a single value for the entire domain. */
   struct SingleData {
