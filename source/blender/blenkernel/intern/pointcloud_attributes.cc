@@ -68,18 +68,21 @@ static GAttributeReader attribute_to_reader(const Attribute &attribute,
                                             const int64_t domain_size)
 {
   const CPPType &cpp_type = attribute_type_to_cpp_type(attribute.data_type());
-  const Attribute::DataVariant &data = attribute.data();
-  if (const auto *array = std::get_if<Attribute::ArrayData>(&data)) {
-    BLI_assert(domain_size == array->size);
-    const GVArray varray = GVArray::ForSpan(GSpan(cpp_type, array->data, array->size));
-    return GAttributeReader{varray, domain, array->sharing_info.get()};
-  }
-  if (const auto *single = std::get_if<Attribute::SingleData>(&data)) {
-    const GVArray varray = GVArray::ForSingleRef(cpp_type, domain_size, single->value);
-    return GAttributeReader{varray, domain, single->sharing_info.get()};
-  }
-  BLI_assert_unreachable();
-  return {};
+  return std::visit(
+      [&](const auto &data) {
+        using T = std::decay_t<decltype(data)>;
+        if constexpr (std::is_same_v<T, Attribute::ArrayData>) {
+          return GAttributeReader{GVArray::ForSpan(GSpan(cpp_type, data.data, data.size)),
+                                  domain,
+                                  data.sharing_info.get()};
+        }
+        else {
+          return GAttributeReader{GVArray::ForSingleRef(cpp_type, domain_size, data.value),
+                                  domain,
+                                  data.sharing_info.get()};
+        }
+      },
+      attribute.data());
 }
 
 static GAttributeWriter attribute_to_writer(PointCloud &pointcloud,
@@ -199,7 +202,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
                             const AttributeAccessor &accessor) {
     const PointCloud &pointcloud = *static_cast<const PointCloud *>(owner);
     const AttributeStorage &storage = pointcloud.attribute_storage.wrap();
-    storage.foreach([&](const Attribute &attribute) {
+    storage.foreach_with_stop([&](const Attribute &attribute) {
       const auto get_fn = [&]() {
         return attribute_to_reader(attribute, AttrDomain::Point, pointcloud.totpoint);
       };

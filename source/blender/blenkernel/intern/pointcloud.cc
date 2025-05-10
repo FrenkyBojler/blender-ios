@@ -141,7 +141,7 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
   PointCloud *pointcloud = (PointCloud *)id;
 
   /* Geometry */
-  CustomData_blend_read(reader, &pointcloud->pdata, pointcloud->totpoint);
+  CustomData_blend_read(reader, &pointcloud->pdata_legacy, pointcloud->totpoint);
   pointcloud->attribute_storage.wrap().blend_read(*reader);
 
   /* Materials */

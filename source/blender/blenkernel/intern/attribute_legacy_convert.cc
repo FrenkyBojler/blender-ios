@@ -248,14 +248,15 @@ AttributeStorage curves_convert_customdata_to_storage(const CurvesGeometry &curv
 
 void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
 {
-  convert_storage_to_customdata(pointcloud.attribute_storage.wrap(),
-                                {{AttrDomain::Point, {pointcloud.pdata, pointcloud.totpoint}}});
+  convert_storage_to_customdata(
+      pointcloud.attribute_storage.wrap(),
+      {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}});
 }
 
 AttributeStorage pointcloud_convert_customdata_to_storage(const PointCloud &pointcloud)
 {
   return attribute_legacy_convert_customdata_to_storage(
-      {{AttrDomain::Point, {pointcloud.pdata, pointcloud.totpoint}}});
+      {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}});
 }
 
 void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)

@@ -8,8 +8,8 @@
 
 #include "BLI_task.hh"
 
+#include "BKE_attribute_storage.hh"
 #include "BKE_context.hh"
-#include "BKE_customdata.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcloud.hh"
@@ -133,9 +133,6 @@ static void step_decode(
 static void step_free(UndoStep *us_p)
 {
   PointCloudUndoStep *us = reinterpret_cast<PointCloudUndoStep *>(us_p);
-  for (StepObject &object : us->objects) {
-    CustomData_free(&object.custom_data);
-  }
   us->objects.~Array();
 }
 

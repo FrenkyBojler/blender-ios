@@ -57,7 +57,8 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   }
 };
 
-Attribute::ArrayData ForValue(const GPointer &value, const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::ForValue(const GPointer &value,
+                                                    const int64_t domain_size)
 {
   Attribute::ArrayData data{};
   const CPPType &type = *value.type();
@@ -78,12 +79,14 @@ Attribute::ArrayData ForValue(const GPointer &value, const int64_t domain_size)
   return data;
 }
 
-Attribute::ArrayData ForDefaultValue(const CPPType &type, const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::ForDefaultValue(const CPPType &type,
+                                                           const int64_t domain_size)
 {
   return ForValue(GPointer(type, type.default_value()), domain_size);
 }
 
-Attribute::ArrayData ForUninitialized(const CPPType &type, const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::ForUninitialized(const CPPType &type,
+                                                            const int64_t domain_size)
 {
   Attribute::ArrayData data{};
   data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
@@ -103,6 +106,23 @@ void AttributeStorage::foreach(FunctionRef<void(const Attribute &)> fn) const
 {
   for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
     fn(*attribute);
+  }
+}
+
+void AttributeStorage::foreach_with_stop(FunctionRef<bool(Attribute &)> fn)
+{
+  for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
+    if (!fn(*attribute)) {
+      break;
+    }
+  }
+}
+void AttributeStorage::foreach_with_stop(FunctionRef<bool(const Attribute &)> fn) const
+{
+  for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
+    if (!fn(*attribute)) {
+      break;
+    }
   }
 }
 

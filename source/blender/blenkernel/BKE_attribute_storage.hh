@@ -138,6 +138,8 @@ class AttributeStorage : public ::AttributeStorage {
    */
   void foreach(FunctionRef<void(Attribute &)> fn);
   void foreach(FunctionRef<void(const Attribute &)> fn) const;
+  void foreach_with_stop(FunctionRef<bool(Attribute &)> fn);
+  void foreach_with_stop(FunctionRef<bool(const Attribute &)> fn) const;
 
   /**
    * Try to find the attribute with a givin name. The non-const overload does not make the
