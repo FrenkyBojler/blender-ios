@@ -11,6 +11,7 @@
 struct ListBase;
 struct Curve;
 struct Curves;
+enum KnotsMode;
 
 namespace blender::bke {
 
@@ -23,5 +24,10 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy);
  * geometry data. Caller owns the returned pointer.
  */
 Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_list);
+
+/**
+ * Determine Curves knot mode from legacy flag.
+ */
+KnotsMode knots_mode_from_legacy(const short flag);
 
 }  // namespace blender::bke
