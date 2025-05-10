@@ -534,10 +534,10 @@ float ColumnValues::initial_width_px() const
     }
     case SPREADSHEET_VALUE_TYPE_STRING: {
       if (data_.type().is<std::string>()) {
-        return estimate_max_column_width<std::string>(
-            SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<std::string>(), [](const StringRef value) {
-              return value.data();
-            });
+        return estimate_max_column_width<std::string>(SPREADSHEET_WIDTH_UNIT,
+                                                      fontid,
+                                                      data_.typed<std::string>(),
+                                                      [](const StringRef value) { return value; });
       }
       if (data_.type().is<MStringProperty>()) {
         return estimate_max_column_width<MStringProperty>(
