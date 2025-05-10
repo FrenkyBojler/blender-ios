@@ -12,6 +12,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_asset_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
