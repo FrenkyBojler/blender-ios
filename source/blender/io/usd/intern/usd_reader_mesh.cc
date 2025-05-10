@@ -261,7 +261,6 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
 
   int loop_index = 0;
 
-  bool ok_faces = true;
   for (int i = 0; i < face_counts_.size(); i++) {
     const int face_size = face_counts_[i];
 
@@ -270,31 +269,41 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
     /* Polygons are always assumed to be smooth-shaded. If the mesh should be flat-shaded,
      * this is encoded in custom loop normals. */
 
-    Set<int, 32> used_verts;
     if (is_left_handed_) {
       int loop_end_index = loop_index + (face_size - 1);
       for (int f = 0; f < face_size; ++f, ++loop_index) {
-        const int vert_index = face_indices_[loop_end_index - f];
-        if (!used_verts.add(vert_index)) {
-          ok_faces = false;
-        }
-        corner_verts[loop_index] = vert_index;
+        corner_verts[loop_index] = face_indices_[loop_end_index - f];
       }
     }
     else {
       for (int f = 0; f < face_size; ++f, ++loop_index) {
-        const int vert_index = face_indices_[loop_index];
-        if (!used_verts.add(vert_index)) {
-          ok_faces = false;
-        }
-        corner_verts[loop_index] = vert_index;
+        corner_verts[loop_index] = face_indices_[loop_index];
       }
     }
   }
 
+  /* Check for any bad faces which will require a mesh validate and fix-up. */
+  const OffsetIndices<int> faces = mesh->faces();
+  const bool all_faces_ok = threading::parallel_reduce(
+      faces.index_range(),
+      1024,
+      true,
+      [&faces, &corner_verts](const IndexRange part, const bool ok_so_far) {
+        bool current_faces_ok = ok_so_far;
+        if (ok_so_far) {
+          for (const int i : part) {
+            const IndexRange face_range = faces[i];
+            const Set<int, 32> used_verts(corner_verts.slice(face_range));
+            current_faces_ok = current_faces_ok && used_verts.size() == face_range.size();
+          }
+        }
+        return current_faces_ok;
+      },
+      std::logical_and<>());
+
   bke::mesh_calc_edges(*mesh, false, false);
 
-  return ok_faces;
+  return all_faces_ok;
 }
 
 void USDMeshReader::read_uv_data_primvar(Mesh *mesh,
