@@ -38,13 +38,28 @@ struct BuiltinInfo {
   bke::AttrType type;
   GPointer default_value;
   AttributeValidator validator;
-  UpdateOnChange update_on_change;
   bool deletable;
 };
 
 static const auto &builtin_attributes()
 {
-  static Map<StringRef, BuiltinInfo> attributes;
+  static auto attributes = []() {
+    Map<StringRef, BuiltinInfo> map;
+    {
+      BuiltinInfo position{};
+      position.domain = bke::AttrDomain::Point;
+      position.type = bke::AttrType::Float3;
+      position.deletable = false;
+      map.add_new("position", std::move(position));
+    }
+    {
+      BuiltinInfo radius{};
+      radius.domain = bke::AttrDomain::Point;
+      radius.type = bke::AttrType::Float;
+      map.add_new("radius", std::move(radius));
+    }
+    return map;
+  }();
   return attributes;
 }
 
@@ -235,6 +250,11 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
   fn.remove = [](void *owner, const StringRef name) -> bool {
     PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
     AttributeStorage &storage = pointcloud.attribute_storage.wrap();
+    if (const BuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+      if (!info->deletable) {
+        return false;
+      }
+    }
     const bool removed = storage.remove(name);
     if (removed) {
       if (const std::optional<UpdateOnChange> fn = changed_tags().lookup_try(name)) {
@@ -251,11 +271,16 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
     const int domain_size = pointcloud.totpoint;
     AttributeStorage &storage = pointcloud.attribute_storage.wrap();
+    const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type);
+    BLI_assert(type.has_value());
+    if (const BuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+      if (info->domain != domain || info->type != type) {
+        return false;
+      }
+    }
     if (storage.lookup(name)) {
       return false;
     }
-    const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type);
-    BLI_assert(type.has_value());
     Attribute::DataVariant data = attribute_init_to_data(*type, domain_size, initializer);
     storage.add(name, domain, *type, std::move(data));
     return false;
