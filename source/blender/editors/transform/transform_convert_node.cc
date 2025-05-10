@@ -303,6 +303,8 @@ static void flushTransNodes(TransInfo *t)
   }
 
   if (t->modifiers & MOD_NODE_DETACH_FRAME) {
+    t->modifiers &= ~MOD_NODE_DETACH_FRAME;
+    Vector<bNode *> nodes_to_detach;
     for (bNode *node : snode->edittree->all_nodes()) {
       if (!(node->flag & NODE_SELECT)) {
         continue;
@@ -314,7 +316,15 @@ static void flushTransNodes(TransInfo *t)
         continue;
       }
       customdata->old_parent_by_detached_node.add(node, node->parent);
-      bke::node_detach_node(*snode->edittree, *node);
+      nodes_to_detach.append(node);
+    }
+    if (nodes_to_detach.is_empty()) {
+      WM_operator_name_call(t->context, "NODE_OT_attach", WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+    }
+    else {
+      for (bNode *node : nodes_to_detach) {
+        bke::node_detach_node(*snode->edittree, *node);
+      }
     }
   }
 
