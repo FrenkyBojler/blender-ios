@@ -4215,7 +4215,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   const rctf &rct = node.runtime->draw_bounds;
   const float label_x = BLI_rctf_cent_x(&rct) - (0.5f * width);
-  const float label_y = rct.ymax - label_height - (0.5f * margin);
+  const float label_y = rct.ymax - label_height - (0.25f * margin);
 
   /* Label. */
   const bool has_label = node.label[0] != '\0';
