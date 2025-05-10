@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "BLI_compute_context.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -56,7 +57,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 /**
  * Tag the editor to highlight the frame that currently transformed nodes will be attached to.
  */
-void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode);
+void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode, const int2 &cursor);
 void node_insert_on_frame_flag_clear(SpaceNode &snode);
 
 /**

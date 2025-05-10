@@ -2410,15 +2410,11 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   }
 }
 
-void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode)
+void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode, const int2 &cursor)
 {
   snode.runtime->frame_identifier_to_highlight.reset();
 
-  wmWindow &win = *CTX_wm_window(&C);
   ARegion &region = *CTX_wm_region(&C);
-
-  int2 cursor{win.eventstate->xy[0] - region.winrct.xmin,
-              win.eventstate->xy[1] - region.winrct.ymin};
 
   snode.edittree->ensure_topology_cache();
   const bNode *frame = node_find_frame_to_attach(region, *snode.edittree, cursor);
