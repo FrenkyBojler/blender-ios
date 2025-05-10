@@ -286,7 +286,7 @@ static void flushTransNodes(TransInfo *t)
   }
 
   if (t->modifiers & MOD_NODE_DETACH_FRAME) {
-    LISTBASE_FOREACH (bNode *, node, &snode->edittree->nodes) {
+    for (bNode *node : snode->edittree->all_nodes()) {
       if (node->flag & NODE_SELECT) {
         bke::node_detach_node(*snode->edittree, *node);
       }
