@@ -41,6 +41,8 @@ struct TransCustomDataNode {
   rctf viewrect_prev{};
 
   bool is_new_node = false;
+
+  Map<bNode *, bNode *> old_parent_by_detached_node;
 };
 
 /* -------------------------------------------------------------------- */
@@ -308,6 +310,10 @@ static void flushTransNodes(TransInfo *t)
       if (has_selected_parent(*node)) {
         continue;
       }
+      if (!node->parent) {
+        continue;
+      }
+      customdata->old_parent_by_detached_node.add(node, node->parent);
       bke::node_detach_node(*snode->edittree, *node);
     }
   }
@@ -355,9 +361,15 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = (SpaceNode *)t->area->spacedata.first;
   bNodeTree *ntree = snode->edittree;
+  const TransCustomDataNode &customdata = *(TransCustomDataNode *)t->custom.type.data;
 
   const bool canceled = (t->state == TRANS_CANCEL);
 
+  if (canceled) {
+    for (auto &&[node, parent] : customdata.old_parent_by_detached_node.items()) {
+      bke::node_attach_node(*ntree, *node, *parent);
+    }
+  }
   if (canceled && t->remove_on_cancel) {
     /* Remove selected nodes on cancel. */
     if (ntree) {
@@ -373,7 +385,6 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   if (!canceled) {
     ED_node_post_apply_transform(C, snode->edittree);
     if (t->modifiers & MOD_NODE_ATTACH) {
-      const TransCustomDataNode &customdata = *(TransCustomDataNode *)t->custom.type.data;
       space_node::node_insert_on_link_flags(*bmain, *snode, customdata.is_new_node);
     }
   }
