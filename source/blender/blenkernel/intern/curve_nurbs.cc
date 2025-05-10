@@ -42,7 +42,7 @@ static int count_nonzero_knot_spans(const int points_num,
   const int last_control_point_index = cyclic ? points_num + degree : points_num;
   int span_num = 0;
   for (const int knot_span : IndexRange::from_begin_end(degree, last_control_point_index)) {
-    span_num += (knots[knot_span + 1] - knots[knot_span]) > 0;
+    span_num += (knots[knot_span + 1] - knots[knot_span]) > 0.0f;
   }
   return span_num;
 }
@@ -57,8 +57,7 @@ int calculate_evaluated_num(const int points_num,
   if (!check_valid_num_and_order(points_num, order, cyclic, knots_mode)) {
     return points_num;
   }
-  return resolution * count_nonzero_knot_spans(points_num, order, cyclic, knots) +
-         (cyclic ? 0 : 1);
+  return resolution * count_nonzero_knot_spans(points_num, order, cyclic, knots) + int(!cyclic);
 }
 
 int knots_num(const int points_num, const int8_t order, const bool cyclic)
