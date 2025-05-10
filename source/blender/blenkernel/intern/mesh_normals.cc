@@ -1203,7 +1203,7 @@ BLI_NOINLINE static void handle_fan_result_and_custom_normals(
       const VertCornerInfo &info = corner_infos[local_corner];
       fan_edge_dirs.append_unchecked(edge_dirs[info.local_edge_next]);
     }
-    if (local_corners_in_fan.size() < corner_infos.size()) {
+    if (local_edge_last != local_edge_first) {
       fan_edge_dirs.append_unchecked(edge_dirs[local_edge_last]);
     }
   }
