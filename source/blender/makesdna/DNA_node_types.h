@@ -717,6 +717,11 @@ typedef struct bNestedNodeRef {
  * materials and textures allocate their own tree struct.
  */
 typedef struct bNodeTree {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_NT;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
@@ -1018,6 +1023,9 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_MODIFIER = (1 << 6),
   GEO_NODE_ASSET_OBJECT = (1 << 7),
   GEO_NODE_ASSET_WAIT_FOR_CURSOR = (1 << 8),
+  GEO_NODE_ASSET_GREASE_PENCIL = (1 << 9),
+  /* Only used by Grease Pencil for now. */
+  GEO_NODE_ASSET_PAINT = (1 << 10),
 } GeometryNodeAssetTraitFlag;
 ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_WAIT_FOR_CURSOR);
 
@@ -1052,7 +1060,6 @@ typedef enum CMPNodeMaskFlags {
 } CMPNodeMaskFlags;
 
 enum {
-  CMP_NODEFLAG_BLUR_VARIABLE_SIZE = (1 << 0),
   CMP_NODEFLAG_BLUR_EXTEND_BOUNDS = (1 << 1),
 };
 
@@ -1078,46 +1085,46 @@ typedef struct NodeImageAnim {
 } NodeImageAnim;
 
 typedef struct ColorCorrectionData {
-  float saturation;
-  float contrast;
-  float gamma;
-  float gain;
-  float lift;
+  float saturation DNA_DEPRECATED;
+  float contrast DNA_DEPRECATED;
+  float gamma DNA_DEPRECATED;
+  float gain DNA_DEPRECATED;
+  float lift DNA_DEPRECATED;
   char _pad[4];
 } ColorCorrectionData;
 
 typedef struct NodeColorCorrection {
-  ColorCorrectionData master;
-  ColorCorrectionData shadows;
-  ColorCorrectionData midtones;
-  ColorCorrectionData highlights;
-  float startmidtones;
-  float endmidtones;
+  ColorCorrectionData master DNA_DEPRECATED;
+  ColorCorrectionData shadows DNA_DEPRECATED;
+  ColorCorrectionData midtones DNA_DEPRECATED;
+  ColorCorrectionData highlights DNA_DEPRECATED;
+  float startmidtones DNA_DEPRECATED;
+  float endmidtones DNA_DEPRECATED;
 } NodeColorCorrection;
 
 typedef struct NodeBokehImage {
-  float angle;
-  int flaps;
-  float rounding;
-  float catadioptric;
-  float lensshift;
+  float angle DNA_DEPRECATED;
+  int flaps DNA_DEPRECATED;
+  float rounding DNA_DEPRECATED;
+  float catadioptric DNA_DEPRECATED;
+  float lensshift DNA_DEPRECATED;
 } NodeBokehImage;
 
 typedef struct NodeBoxMask {
-  float x;
-  float y;
-  float rotation;
-  float height;
-  float width;
+  float x DNA_DEPRECATED;
+  float y DNA_DEPRECATED;
+  float rotation DNA_DEPRECATED;
+  float height DNA_DEPRECATED;
+  float width DNA_DEPRECATED;
   char _pad[4];
 } NodeBoxMask;
 
 typedef struct NodeEllipseMask {
-  float x;
-  float y;
-  float rotation;
-  float height;
-  float width;
+  float x DNA_DEPRECATED;
+  float y DNA_DEPRECATED;
+  float rotation DNA_DEPRECATED;
+  float height DNA_DEPRECATED;
+  float width DNA_DEPRECATED;
   char _pad[4];
 } NodeEllipseMask;
 
@@ -1142,31 +1149,37 @@ typedef struct NodeBlurData {
 } NodeBlurData;
 
 typedef struct NodeDBlurData {
-  float center_x, center_y, distance, angle, spin, zoom;
-  short iter;
+  float center_x DNA_DEPRECATED;
+  float center_y DNA_DEPRECATED;
+  float distance DNA_DEPRECATED;
+  float angle DNA_DEPRECATED;
+  float spin DNA_DEPRECATED;
+  float zoom DNA_DEPRECATED;
+  short iter DNA_DEPRECATED;
   char _pad[2];
 } NodeDBlurData;
 
 typedef struct NodeBilateralBlurData {
-  float sigma_color, sigma_space;
-  short iter;
+  float sigma_color DNA_DEPRECATED;
+  float sigma_space DNA_DEPRECATED;
+  short iter DNA_DEPRECATED;
   char _pad[2];
 } NodeBilateralBlurData;
 
 typedef struct NodeKuwaharaData {
   short size DNA_DEPRECATED;
   short variation;
-  int uniformity;
-  float sharpness;
-  float eccentricity;
-  char high_precision;
+  int uniformity DNA_DEPRECATED;
+  float sharpness DNA_DEPRECATED;
+  float eccentricity DNA_DEPRECATED;
+  char high_precision DNA_DEPRECATED;
   char _pad[3];
 } NodeKuwaharaData;
 
 typedef struct NodeAntiAliasingData {
-  float threshold;
-  float contrast_limit;
-  float corner_rounding;
+  float threshold DNA_DEPRECATED;
+  float contrast_limit DNA_DEPRECATED;
+  float corner_rounding DNA_DEPRECATED;
 } NodeAntiAliasingData;
 
 /** \note Only for do-version code. */
@@ -1213,10 +1226,15 @@ typedef struct NodeImageMultiFileSocket {
 } NodeImageMultiFileSocket;
 
 typedef struct NodeChroma {
-  float t1, t2, t3;
-  float fsize, fstrength, falpha;
-  float key[4];
-  short algorithm, channel;
+  float t1 DNA_DEPRECATED;
+  float t2 DNA_DEPRECATED;
+  float t3 DNA_DEPRECATED;
+  float fsize DNA_DEPRECATED;
+  float fstrength DNA_DEPRECATED;
+  float falpha DNA_DEPRECATED;
+  float key[4] DNA_DEPRECATED;
+  short algorithm;
+  short channel;
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
@@ -1274,15 +1292,23 @@ typedef struct NodeGlare {
 
 /** Tone-map node. */
 typedef struct NodeTonemap {
-  float key, offset, gamma;
-  float f, m, a, c;
+  float key DNA_DEPRECATED;
+  float offset DNA_DEPRECATED;
+  float gamma DNA_DEPRECATED;
+  float f DNA_DEPRECATED;
+  float m DNA_DEPRECATED;
+  float a DNA_DEPRECATED;
+  float c DNA_DEPRECATED;
   int type;
 } NodeTonemap;
 
-/** Lens distortion node. */
+/* Lens Distortion node. */
 typedef struct NodeLensDist {
-  short jit, proj, fit;
+  short jit DNA_DEPRECATED;
+  short proj DNA_DEPRECATED;
+  short fit DNA_DEPRECATED;
   char _pad[2];
+  int distortion_type;
 } NodeLensDist;
 
 typedef struct NodeColorBalance {
@@ -1306,9 +1332,12 @@ typedef struct NodeColorBalance {
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
-  short limchan, unspill;
-  float limscale;
-  float uspillr, uspillg, uspillb;
+  short limchan;
+  short unspill DNA_DEPRECATED;
+  float limscale DNA_DEPRECATED;
+  float uspillr DNA_DEPRECATED;
+  float uspillg DNA_DEPRECATED;
+  float uspillb DNA_DEPRECATED;
 } NodeColorspill;
 
 typedef struct NodeConvertColorSpace {
@@ -1321,7 +1350,8 @@ typedef struct NodeDilateErode {
 } NodeDilateErode;
 
 typedef struct NodeMask {
-  int size_x, size_y;
+  int size_x DNA_DEPRECATED;
+  int size_y DNA_DEPRECATED;
 } NodeMask;
 
 typedef struct NodeSetAlpha {
@@ -1480,20 +1510,22 @@ typedef struct TexNodeOutput {
 
 typedef struct NodeKeyingScreenData {
   char tracking_object[64];
-  float smoothness;
+  float smoothness DNA_DEPRECATED;
 } NodeKeyingScreenData;
 
 typedef struct NodeKeyingData {
-  float screen_balance;
-  float despill_factor;
-  float despill_balance;
-  int edge_kernel_radius;
-  float edge_kernel_tolerance;
-  float clip_black, clip_white;
-  int dilate_distance;
-  int feather_distance;
+  float screen_balance DNA_DEPRECATED;
+  float despill_factor DNA_DEPRECATED;
+  float despill_balance DNA_DEPRECATED;
+  int edge_kernel_radius DNA_DEPRECATED;
+  float edge_kernel_tolerance DNA_DEPRECATED;
+  float clip_black DNA_DEPRECATED;
+  float clip_white DNA_DEPRECATED;
+  int dilate_distance DNA_DEPRECATED;
+  int feather_distance DNA_DEPRECATED;
   int feather_falloff;
-  int blur_pre, blur_post;
+  int blur_pre DNA_DEPRECATED;
+  int blur_post DNA_DEPRECATED;
 } NodeKeyingData;
 
 typedef struct NodeTrackPosData {
@@ -1514,10 +1546,10 @@ typedef struct NodeScaleData {
 typedef struct NodePlaneTrackDeformData {
   char tracking_object[64];
   char plane_track_name[64];
-  char flag;
-  char motion_blur_samples;
+  char flag DNA_DEPRECATED;
+  char motion_blur_samples DNA_DEPRECATED;
   char _pad[2];
-  float motion_blur_shutter;
+  float motion_blur_shutter DNA_DEPRECATED;
 } NodePlaneTrackDeformData;
 
 typedef struct NodeShaderScript {
@@ -1562,9 +1594,8 @@ typedef struct NodeShaderOutputAOV {
 } NodeShaderOutputAOV;
 
 typedef struct NodeSunBeams {
-  float source[2];
-
-  float ray_length;
+  float source[2] DNA_DEPRECATED;
+  float ray_length DNA_DEPRECATED;
 } NodeSunBeams;
 
 typedef struct CryptomatteEntry {
@@ -1613,7 +1644,7 @@ typedef struct NodeCryptomatte {
 } NodeCryptomatte;
 
 typedef struct NodeDenoise {
-  char hdr;
+  char hdr DNA_DEPRECATED;
   char prefilter;
   char quality;
   char _pad[1];
@@ -2939,18 +2970,6 @@ typedef enum CMPNodeCornerPinInterpolation {
   CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC = 3,
 } CMPNodeCornerPinInterpolation;
 
-/* Stabilize 2D node. Stored in custom2. */
-typedef enum CMPNodeStabilizeInverse {
-  CMP_NODE_STABILIZE_FLAG_INVERSE = 1,
-} CMPNodeStabilizeInverse;
-
-#define CMP_NODE_PLANE_TRACK_DEFORM_MOTION_BLUR_SAMPLES_MAX 64
-
-/* Plane track deform node. */
-typedef enum CMPNodePlaneTrackDeformFlags {
-  CMP_NODE_PLANE_TRACK_DEFORM_FLAG_MOTION_BLUR = 1,
-} CMPNodePlaneTrackDeformFlags;
-
 /* Set Alpha Node. */
 
 /** #NodeSetAlpha.mode */
@@ -3007,6 +3026,12 @@ typedef enum CMPNodeChannelMatteColorSpace {
   CMP_NODE_CHANNEL_MATTE_CS_YUV = 3,
   CMP_NODE_CHANNEL_MATTE_CS_YCC = 4,
 } CMPNodeChannelMatteColorSpace;
+
+/* NodeLensDist.distortion_type. */
+typedef enum CMPNodeLensDistortionType {
+  CMP_NODE_LENS_DISTORTION_RADIAL = 0,
+  CMP_NODE_LENS_DISTORTION_HORIZONTAL = 1,
+} CMPNodeLensDistortionType;
 
 /* Point Density shader node */
 

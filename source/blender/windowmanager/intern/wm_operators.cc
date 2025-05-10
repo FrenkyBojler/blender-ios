@@ -1150,8 +1150,8 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
            UI_BTYPE_LABEL,
            0,
            WM_operatortype_name(op->type, op->ptr),
-           10,
-           10,
+           0,
+           0,
            UI_searchbox_size_x(),
            UI_UNIT_Y,
            nullptr,
@@ -1166,28 +1166,17 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
                                    0,
                                    ICON_VIEWZOOM,
                                    sizeof(search),
-                                   10,
-                                   10,
+                                   0,
+                                   0,
                                    width,
                                    UI_UNIT_Y,
                                    "");
 
   /* Fake button, it holds space for search items. */
-  uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
-           "",
-           10,
-           10 - UI_searchbox_size_y(),
-           width,
-           height,
-           nullptr,
-           0,
-           0,
-           std::nullopt);
+  uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
-  UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, blender::int2{0, -UI_UNIT_Y});
+  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, blender::int2{0, -UI_UNIT_Y});
 
   UI_but_focus_on_enter_event(win, but);
 
@@ -1455,7 +1444,7 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *region, void *arg_op)
   uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
   uiItemS_ex(layout, 0.5f);
 
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiTemplateOperatorPropertyButs(C, col, op, UI_BUT_LABEL_ALIGN_NONE, 0);
 
   UI_block_bounds_set_popup(block, 7 * UI_SCALE_FAC, nullptr);
@@ -1588,11 +1577,11 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
 
   /* Message lines. */
   if (message_lines.size() > 0) {
-    uiLayout *lines = uiLayoutColumn(layout, false);
+    uiLayout *lines = &layout->column(false);
     uiLayoutSetScaleY(lines, 0.65f);
     uiItemS_ex(lines, 0.1f);
     for (auto &st : message_lines) {
-      uiItemL(lines, st, ICON_NONE);
+      lines->label(st, ICON_NONE);
     }
   }
 
@@ -1616,12 +1605,12 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
    * confirmation buttons which are shown instead of these, see: #124098. */
   if (!UI_block_has_active_default_button(uiLayoutGetBlock(layout))) {
     /* New column so as not to interfere with custom layouts, see: #26436. */
-    uiLayout *col = uiLayoutColumn(layout, false);
+    uiLayout *col = &layout->column(false);
     uiBlock *col_block = uiLayoutGetBlock(col);
     uiBut *confirm_but;
     uiBut *cancel_but;
 
-    col = uiLayoutSplit(col, 0.0f, true);
+    col = &col->split(0.0f, true);
     uiLayoutSetScaleY(col, small ? 1.0f : 1.2f);
 
     if (windows_layout) {
@@ -1637,14 +1626,14 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
                              0,
                              0,
                              "");
-      uiLayoutColumn(col, false);
+      col->column(false);
     }
 
     cancel_but = uiDefBut(
         col_block, UI_BTYPE_BUT, 0, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
 
     if (!windows_layout) {
-      uiLayoutColumn(col, false);
+      col->column(false);
       confirm_but = uiDefBut(col_block,
                              UI_BTYPE_BUT,
                              0,
@@ -2009,8 +1998,8 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
                               0,
                               ICON_VIEWZOOM,
                               sizeof(g_search_text),
-                              10,
-                              10,
+                              0,
+                              0,
                               init_data->size[0],
                               UI_UNIT_Y,
                               "");
@@ -2032,21 +2021,22 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button, it holds space for search items. */
+  const int height = init_data->size[1] - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
            UI_BTYPE_LABEL,
            0,
            "",
-           10,
-           10 - init_data->size[1],
+           0,
+           -height,
            init_data->size[0],
-           init_data->size[1],
+           height,
            nullptr,
            0,
            0,
            std::nullopt);
 
   /* Move it downwards, mouse over button. */
-  UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, blender::int2{0, -UI_UNIT_Y});
+  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, blender::int2{0, -UI_UNIT_Y});
 
   return block;
 }
@@ -2766,8 +2756,10 @@ static void radial_control_paint_curve(uint pos, Brush *br, float radius, int li
   immEnd();
 }
 
-static void radial_control_paint_cursor(
-    bContext * /*C*/, int x, int y, float /*x_tilt*/, float /*y_tilt*/, void *customdata)
+static void radial_control_paint_cursor(bContext * /*C*/,
+                                        const blender::int2 & /*xy*/,
+                                        const blender::float2 & /*tilt*/,
+                                        void *customdata)
 {
   RadialControl *rc = static_cast<RadialControl *>(customdata);
   const uiStyle *style = UI_style_get();
@@ -2822,6 +2814,7 @@ static void radial_control_paint_cursor(
       break;
   }
 
+  int x, y;
   if (rc->subtype == PROP_ANGLE) {
     /* Use the initial mouse position to draw the rotation preview. This avoids starting the
      * rotation in a random direction. */
@@ -4185,6 +4178,7 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_revert_mainfile);
   WM_operatortype_append(WM_OT_link);
   WM_operatortype_append(WM_OT_append);
+  WM_operatortype_append(WM_OT_id_linked_relocate);
   WM_operatortype_append(WM_OT_lib_relocate);
   WM_operatortype_append(WM_OT_lib_reload);
   WM_operatortype_append(WM_OT_recover_last_session);

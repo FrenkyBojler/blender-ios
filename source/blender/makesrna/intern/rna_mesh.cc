@@ -2827,7 +2827,7 @@ static void rna_def_uv_layers(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "remove", "rna_Mesh_uv_layers_remove");
-  RNA_def_function_ui_description(func, "Remove a vertex color layer");
+  RNA_def_function_ui_description(func, "Remove a UV map layer");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func, "layer", "MeshUVLoopLayer", "", "The layer to remove");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
@@ -3197,8 +3197,10 @@ static void rna_def_mesh(BlenderRNA *brna)
 
   /* Remesh */
   prop = RNA_def_property(srna, "remesh_voxel_size", PROP_FLOAT, PROP_DISTANCE);
+  /* NOTE: allow zero (which skips computation), to avoid zero clamping
+   * to a small value which is likely to run out of memory, see: #130526. */
   RNA_def_property_float_sdna(prop, nullptr, "remesh_voxel_size");
-  RNA_def_property_range(prop, 0.0001f, FLT_MAX);
+  RNA_def_property_range(prop, 0, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0001f, FLT_MAX, 0.01, 4);
   RNA_def_property_ui_text(prop,
                            "Voxel Size",

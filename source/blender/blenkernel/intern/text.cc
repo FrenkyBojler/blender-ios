@@ -225,7 +225,7 @@ static void text_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_TXT = {
-    /*id_code*/ ID_TXT,
+    /*id_code*/ Text::id_type,
     /*id_filter*/ FILTER_ID_TXT,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_TXT,
@@ -281,7 +281,7 @@ Text *BKE_text_add(Main *bmain, const char *name)
 {
   Text *ta;
 
-  ta = static_cast<Text *>(BKE_id_new(bmain, ID_TXT, name));
+  ta = BKE_id_new<Text>(bmain, name);
   /* Texts have no users by default... Set the fake user flag to ensure that this text block
    * doesn't get deleted by default when cleaning up data blocks. */
   id_us_min(&ta->id);
@@ -1591,13 +1591,13 @@ void txt_insert_buf(Text *text, const char *in_buffer, int in_buffer_len)
 /** \name Find String in Text
  * \{ */
 
-int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
+bool txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
 {
   TextLine *tl, *startl;
   const char *s = nullptr;
 
   if (!text->curl || !text->sell) {
-    return 0;
+    return false;
   }
 
   txt_order_cursors(text, false);
@@ -1637,10 +1637,10 @@ int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
     int newc = int(s - tl->line);
     txt_move_to(text, newl, newc, false);
     txt_move_to(text, newl, newc + strlen(findstr), true);
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 /** \} */

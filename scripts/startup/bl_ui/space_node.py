@@ -463,9 +463,9 @@ class NODE_PT_geometry_node_tool_object_types(Panel):
         types = [
             ("is_type_mesh", "Mesh", 'MESH_DATA'),
             ("is_type_curve", "Hair Curves", 'CURVES_DATA'),
+            ("is_type_grease_pencil", "Grease Pencil", 'OUTLINER_OB_GREASEPENCIL'),
+            ("is_type_pointcloud", "Point Cloud", 'POINTCLOUD_DATA'),
         ]
-        if context.preferences.experimental.use_new_pointcloud_type:
-            types.append(("is_type_pointcloud", "Point Cloud", 'POINTCLOUD_DATA'))
 
         col = layout.column()
         col.active = group.is_tool
@@ -499,6 +499,11 @@ class NODE_PT_geometry_node_tool_mode(Panel):
             row = col.row(align=True)
             row.label(text=name, icon=icon)
             row.prop(group, prop, text="")
+
+        if group.is_type_grease_pencil:
+            row = col.row(align=True)
+            row.label(text="Draw Mode", icon='GREASEPENCIL')
+            row.prop(group, "is_mode_paint", text="")
 
 
 class NODE_PT_geometry_node_tool_options(Panel):

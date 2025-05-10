@@ -4791,10 +4791,11 @@ static void tablet_tool_handle_tilt(void *data,
                                     const wl_fixed_t tilt_x,
                                     const wl_fixed_t tilt_y)
 {
-  /* Map degrees to `-1.0..1.0`. */
+  /* Map X tilt to `-1.0 (left)..1.0 (right)`.
+   * Map Y tilt to `-1.0 (away from user)..1.0 (toward user)`. */
   const float tilt_unit[2] = {
-      float(wl_fixed_to_double(tilt_x) / 90.0),
-      float(wl_fixed_to_double(tilt_y) / 90.0),
+      float(wl_fixed_to_double(tilt_x) / 90.0f),
+      float(wl_fixed_to_double(tilt_y) / 90.0f),
   };
   CLOG_INFO(LOG, 2, "tilt (x=%.4f, y=%.4f)", UNPACK2(tilt_unit));
   GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(data);
@@ -5837,14 +5838,7 @@ static void text_input_handle_commit_string(void *data,
   CLOG_INFO(LOG, 2, "commit_string (text=\"%s\")", text ? text : "<null>");
 
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
-  seat->ime.result_is_null = (text == nullptr);
-  if (seat->ime.result_is_null) {
-    seat->ime.result = "";
-  }
-  else {
-    seat->ime.result = text;
-  }
-
+  seat->ime.result = text ? text : "";
   seat->ime.result_is_null = (text == nullptr);
   seat->ime.event_ime_data.result = (void *)seat->ime.result.c_str();
   seat->ime.event_ime_data.result_len = (void *)seat->ime.result.size();
@@ -6263,7 +6257,7 @@ static void xdg_output_handle_logical_size(void *data,
   CLOG_INFO(LOG, 2, "logical_size [%d, %d]", width, height);
 
   GWL_Output *output = static_cast<GWL_Output *>(data);
-  if (output->size_logical[0] != 0 && output->size_logical[1] != 0) {
+  if (output->size_native[0] != 0 && output->size_native[1] != 0) {
     /* Original comment from SDL. */
     /* FIXME(@flibit): GNOME has a bug where the logical size does not account for
      * scale, resulting in bogus viewport sizes.
@@ -6271,9 +6265,8 @@ static void xdg_output_handle_logical_size(void *data,
      * Until this is fixed, validate that _some_ kind of scaling is being
      * done (we can't match exactly because fractional scaling can't be
      * detected otherwise), then override if necessary. */
-    if ((output->size_logical[0] == width) &&
-        (output->scale_fractional == (1 * FRACTIONAL_DENOMINATOR)))
-    {
+    int width_native = output->size_native[(output->transform & WL_OUTPUT_TRANSFORM_90) ? 1 : 0];
+    if ((width_native == width) && (output->scale_fractional == (1 * FRACTIONAL_DENOMINATOR))) {
       GHOST_PRINT("xdg_output scale did not match, overriding with wl_output scale\n");
 
 #ifdef USE_GNOME_CONFINE_HACK
@@ -6379,13 +6372,6 @@ static void output_handle_mode(void *data,
   GWL_Output *output = static_cast<GWL_Output *>(data);
   output->size_native[0] = width;
   output->size_native[1] = height;
-
-  /* Don't rotate this yet, `wl-output` coordinates are transformed in
-   * handle_done and `xdg-output` coordinates are pre-transformed. */
-  if (!output->has_size_logical) {
-    output->size_logical[0] = width;
-    output->size_logical[1] = height;
-  }
 }
 
 /**
@@ -6402,7 +6388,7 @@ static void output_handle_done(void *data, wl_output * /*wl_output*/)
 
   GWL_Output *output = static_cast<GWL_Output *>(data);
   int32_t size_native[2] = {UNPACK2(output->size_native)};
-  if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+  if (output->transform & WL_OUTPUT_TRANSFORM_90) {
     std::swap(size_native[0], size_native[1]);
   }
 
@@ -8191,7 +8177,7 @@ static GHOST_TSuccess getCursorPositionClientRelative_impl(
     if (win->getCursorGrabBounds(wrap_bounds) == GHOST_kFailure) {
       win->getClientBounds(wrap_bounds);
     }
-    int xy_wrap[2] = {
+    wl_fixed_t xy_wrap[2] = {
         seat_state_pointer->xy[0],
         seat_state_pointer->xy[1],
     };
@@ -8326,7 +8312,7 @@ void GHOST_SystemWayland::getMainDisplayDimensions(uint32_t &width, uint32_t &he
     /* We assume first output as main. */
     const GWL_Output *output = display_->outputs[0];
     int32_t size_native[2] = {UNPACK2(output->size_native)};
-    if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+    if (output->transform & WL_OUTPUT_TRANSFORM_90) {
       std::swap(size_native[0], size_native[1]);
     }
     width = uint32_t(size_native[0]);
@@ -8350,7 +8336,7 @@ void GHOST_SystemWayland::getAllDisplayDimensions(uint32_t &width, uint32_t &hei
         xy[0] = output->position_logical[0];
         xy[1] = output->position_logical[1];
       }
-      if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+      if (output->transform & WL_OUTPUT_TRANSFORM_90) {
         std::swap(size_native[0], size_native[1]);
       }
       xy_min[0] = std::min(xy_min[0], xy[0]);
@@ -9405,14 +9391,14 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
     }
     if (seat->wp.locked_pointer) {
       /* Potentially add a motion event so the application has updated X/Y coordinates. */
-      int32_t xy_motion[2] = {0, 0};
+      wl_fixed_t xy_motion[2] = {0, 0};
       bool xy_motion_create_event = false;
 
       /* Request location to restore to. */
       if (mode_current == GHOST_kGrabWrap) {
         /* Since this call is initiated by Blender, we can be sure the window wasn't closed
          * by logic outside this function - as the window was needed to make this call. */
-        int32_t xy_next[2] = {UNPACK2(seat->pointer.xy)};
+        wl_fixed_t xy_next[2] = {UNPACK2(seat->pointer.xy)};
 
         GHOST_Rect bounds_scale;
 
@@ -9440,13 +9426,14 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
         wl_surface_commit(wl_surface);
       }
       else if (mode_current == GHOST_kGrabHide) {
+        const wl_fixed_t xy_next[2] = {
+            gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(init_grab_xy[0])),
+            gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(init_grab_xy[1])),
+        };
+
         if ((init_grab_xy[0] != seat->grab_lock_xy[0]) ||
             (init_grab_xy[1] != seat->grab_lock_xy[1]))
         {
-          const wl_fixed_t xy_next[2] = {
-              gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(init_grab_xy[0])),
-              gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(init_grab_xy[1])),
-          };
           zwp_locked_pointer_v1_set_cursor_position_hint(seat->wp.locked_pointer,
                                                          UNPACK2(xy_next));
           wl_surface_commit(wl_surface);
@@ -9454,6 +9441,14 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
           /* NOTE(@ideasman42): The new cursor position is a hint,
            * it's possible the hint is ignored. It doesn't seem like there is a good way to
            * know if the hint will be used or not, at least not immediately. */
+          xy_motion[0] = xy_next[0];
+          xy_motion[1] = xy_next[1];
+          xy_motion_create_event = true;
+        }
+        else if (grab_state_prev.use_lock) {
+          /* NOTE(@ideasman42): From WAYLAND's perspective the cursor did not move.
+           * The application will have received "hidden" events to warped locations.
+           * So generate event without setting the cursor position hint. */
           xy_motion[0] = xy_next[0];
           xy_motion[1] = xy_next[1];
           xy_motion_create_event = true;

@@ -6,7 +6,7 @@
 
 VERTEX_SHADER_CREATE_INFO(overlay_outline_prepass_curves)
 
-#include "common_hair_lib.glsl"
+#include "draw_curves_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_clipping_lib.glsl"
@@ -18,30 +18,24 @@ uint outline_colorid_get()
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
 
-  if (isTransform) {
-    return 0u; /* colorTransform */
+  if (is_transform) {
+    return 0u; /* theme.colors.transform */
   }
   else if (is_active) {
-    return 3u; /* colorActive */
+    return 3u; /* theme.colors.active */
   }
   else {
-    return 1u; /* colorSelect */
+    return 1u; /* theme.colors.object_select */
   }
 
   return 0u;
 }
 
-/* Replace top 2 bits (of the 16bit output) by outlineId.
- * This leaves 16K different IDs to create outlines between objects.
- * `vec3 world_pos = drw_point_object_to_world(pos);`
- * `SHIFT = (32 - (16 - 2))`. */
-#define SHIFT 18u
-
 void main()
 {
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
   float time, thickness;
-  vec3 center_wpos, tangent, binor;
+  float3 center_wpos, tangent, binor;
 
   hair_get_center_pos_tan_binor_time(is_persp,
                                      drw_view().viewinv[3].xyz,
@@ -51,11 +45,11 @@ void main()
                                      binor,
                                      time,
                                      thickness);
-  vec3 world_pos;
+  float3 world_pos;
   if (hairThicknessRes > 1) {
     /* Calculate the thickness, thick-time, world-position taken into account the outline. */
     float outline_width = drw_point_world_to_homogenous(center_wpos).w * 1.25f *
-                          globalsBlock.size_viewport.w * drw_view().wininv[1][1];
+                          uniform_buf.size_viewport_inv.y * drw_view().wininv[1][1];
     thickness += outline_width;
     float thick_time = float(gl_VertexID % hairThicknessRes) / float(hairThicknessRes - 1);
     thick_time = thickness * (thick_time * 2.0f - 1.0f);
@@ -84,7 +78,7 @@ void main()
   uint outline_id = outline_colorid_get();
 
   /* Combine for 16bit uint target. */
-  interp.ob_id = (outline_id << 14u) | ((interp.ob_id << SHIFT) >> SHIFT);
+  interp.ob_id = outline_id_pack(outline_id, interp.ob_id);
 
   view_clipping_distances(world_pos);
 }

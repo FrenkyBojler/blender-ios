@@ -464,9 +464,7 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_channels")
         layout.separator()
 
-        if is_sequencer_only:
-            layout.prop(st, "show_backdrop", text="Preview as Backdrop")
-        if is_preview or st.show_backdrop:
+        if is_preview:
             layout.prop(st, "show_transform_preview", text="Preview During Transform")
         layout.separator()
 
@@ -584,7 +582,10 @@ class SEQUENCER_MT_select(Menu):
             context.scene.sequence_editor is not None and
             context.scene.sequence_editor.selected_retiming_keys
         )
-
+        if has_preview:
+            layout.operator_context = 'INVOKE_REGION_PREVIEW'
+        else:
+            layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("sequencer.select_all", text="All").action = 'SELECT'
         layout.operator("sequencer.select_all", text="None").action = 'DESELECT'
         layout.operator("sequencer.select_all", text="Invert").action = 'INVERT'
@@ -941,6 +942,18 @@ class SEQUENCER_MT_strip_text(Menu):
         layout.operator("sequencer.text_deselect_all")
 
 
+class SEQUENCER_MT_strip_show_hide(Menu):
+    bl_label = "Show/Hide"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_PREVIEW'
+        layout.operator("sequencer.unmute", text="Show Hidden Strips").unselected = False
+        layout.separator()
+        layout.operator("sequencer.mute", text="Hide Selected").unselected = False
+        layout.operator("sequencer.mute", text="Hide Unselected").unselected = True
+
+
 class SEQUENCER_MT_strip_input(Menu):
     bl_label = "Inputs"
 
@@ -1061,6 +1074,8 @@ class SEQUENCER_MT_strip(Menu):
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
             layout.separator()
+            layout.menu("SEQUENCER_MT_strip_show_hide")
+            layout.separator()
             if strip and strip.type == 'TEXT':
                 layout.menu("SEQUENCER_MT_strip_text")
 
@@ -1163,6 +1178,8 @@ class SEQUENCER_MT_image_transform(Menu):
         layout.operator("transform.translate")
         layout.operator("transform.rotate")
         layout.operator("transform.resize", text="Scale")
+        layout.separator()
+        layout.operator("transform.translate", text="Move Origin").translate_origin = True
 
 
 class SEQUENCER_MT_image_clear(Menu):
@@ -1421,7 +1438,7 @@ class SequencerButtonsPanel_Output:
     @staticmethod
     def has_preview(context):
         st = context.space_data
-        return (st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}) or st.show_backdrop
+        return (st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'})
 
     @classmethod
     def poll(cls, context):
@@ -3114,6 +3131,7 @@ classes = (
     SEQUENCER_MT_strip_transform,
     SEQUENCER_MT_strip_retiming,
     SEQUENCER_MT_strip_text,
+    SEQUENCER_MT_strip_show_hide,
     SEQUENCER_MT_strip_input,
     SEQUENCER_MT_strip_lock_mute,
     SEQUENCER_MT_image,

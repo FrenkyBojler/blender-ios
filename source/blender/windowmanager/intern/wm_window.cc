@@ -530,7 +530,7 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
   else if (has_filepath) {
     win_title.append(BLI_path_basename(filename));
   }
-  /* New / Unsaved file default title. Shows "Untitled" on macOS following the Apple HIGs.*/
+  /* New / Unsaved file default title. Shows "Untitled" on macOS following the Apple HIGs. */
   else {
 #ifdef __APPLE__
     win_title.append(IFACE_("Untitled"));
@@ -878,8 +878,15 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
       GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
     }
 #endif
-    /* Until screens get drawn, make it nice gray. */
-    GPU_clear_color(0.25f, 0.25f, 0.25f, 1.0f);
+
+    /* Get the window background color from the current theme. Using the top-bar header
+     * background theme color to match with the colored title-bar decoration style. */
+    float window_bg_color[3];
+    UI_SetTheme(SPACE_TOPBAR, RGN_TYPE_HEADER);
+    UI_GetThemeColor3fv(TH_BACK, window_bg_color);
+
+    /* Until screens get drawn, draw a default background using the window theme color. */
+    GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     /* Needed here, because it's used before it reads #UserDef. */
     WM_window_set_dpi(win);
@@ -887,7 +894,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     wm_window_swap_buffers(win);
 
     /* Clear double buffer to avoids flickering of new windows on certain drivers, see #97600. */
-    GPU_clear_color(0.25f, 0.25f, 0.25f, 1.0f);
+    GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     GPU_render_end();
   }
@@ -2111,26 +2118,26 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiLayoutSetScaleY(col, 0.9f);
 
   /* Title and explanation text. */
   uiItemL_ex(col, title, ICON_NONE, true, false);
   uiItemS_ex(col, 0.8f, LayoutSeparatorType::Space);
 
-  uiLayout *messages = uiLayoutColumn(col, false);
+  uiLayout *messages = &col->column(false);
   uiLayoutSetScaleY(messages, 0.8f);
 
-  uiItemL(messages, message1, ICON_NONE);
-  uiItemL(messages, message2, ICON_NONE);
-  uiItemL(messages, message3, ICON_NONE);
+  messages->label(message1, ICON_NONE);
+  messages->label(message2, ICON_NONE);
+  messages->label(message3, ICON_NONE);
   if (G.opengl_deprecation_usage_filename) {
     char location[1024];
     SNPRINTF(
         location, "%s:%d", G.opengl_deprecation_usage_filename, G.opengl_deprecation_usage_lineno);
-    uiItemL(messages, location, ICON_NONE);
+    messages->label(location, ICON_NONE);
   }
-  uiItemL(messages, message4, ICON_NONE);
+  messages->label(message4, ICON_NONE);
 
   uiItemS_ex(col, 0.5f, LayoutSeparatorType::Space);
 
@@ -2187,16 +2194,15 @@ static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, 
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
 
   /* Title and explanation text. */
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiLayoutSetScaleY(col, 0.8f);
   uiItemL_ex(
       col, RPT_("Failed to load using Vulkan, using OpenGL instead."), ICON_NONE, true, false);
   uiItemS_ex(col, 1.3f, LayoutSeparatorType::Space);
 
-  uiItemL(col, RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
-  uiItemL(col,
-          RPT_("The graphics backend can be changed in the System section of the Preferences."),
-          ICON_NONE);
+  col->label(RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
+  col->label(RPT_("The graphics backend can be changed in the System section of the Preferences."),
+             ICON_NONE);
 
   UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
 

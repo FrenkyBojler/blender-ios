@@ -53,6 +53,7 @@ set(INC
   intern
   shader
   texture
+  geometry/include
   ../animrig
   ../editors/include
   ../depsgraph
@@ -162,6 +163,7 @@ set(LIB
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::intern::clog
 )
 
 if(WITH_BULLET)
@@ -222,3 +224,15 @@ add_library(bf::nodes ALIAS bf_nodes)
 
 # RNA_prototypes.hh
 add_dependencies(bf_nodes bf_rna)
+
+if(WITH_GTESTS)
+  set(TEST_INC
+  )
+  set(TEST_SRC
+    intern/node_iterator_tests.cc
+  )
+  set(TEST_LIB
+    bf_nodes
+  )
+  blender_add_test_suite_lib(nodes "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB}")
+endif()

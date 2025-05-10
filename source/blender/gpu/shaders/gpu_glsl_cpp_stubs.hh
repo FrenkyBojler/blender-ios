@@ -139,6 +139,9 @@ template<typename T, int Sz> struct VecOp {
 template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
   using VecT = VecBase<T, Sz>;
 
+  SwizzleBase() = default;
+  SwizzleBase(T) {}
+
   constexpr VecT operator=(const VecT &) RET;
   operator VecT() const RET;
 };
@@ -157,7 +160,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_XYZ(T) \
   SWIZZLE_XY(T) \
-  SwizzleBase<T, 2> xz, yz, zx, zy, zz, zw; \
+  SwizzleBase<T, 2> xz, yz, zx, zy, zz; \
   SwizzleBase<T, 3> xxz, xyz, xzx, xzy, xzz, yxz, yyz, yzx, yzy, yzz, zxx, zxy, zxz, zyx, zyy, \
       zyz, zzx, zzy, zzz; \
   SwizzleBase<T, 4> xxxz, xxyz, xxzx, xxzy, xxzz, xyxz, xyyz, xyzx, xyzy, xyzz, xzxx, xzxy, xzxz, \
@@ -179,7 +182,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_XYZW(T) \
   SWIZZLE_XYZ(T) \
-  SwizzleBase<T, 2> xw, yw, wx, wy, wz, ww; \
+  SwizzleBase<T, 2> xw, yw, zw, wx, wy, wz, ww; \
   SwizzleBase<T, 3> xxw, xyw, xzw, xwx, xwy, xwz, xww, yxw, yyw, yzw, ywx, ywy, ywz, yww, zxw, \
       zyw, zzw, zwx, zwy, zwz, zww, wxx, wxy, wxz, wxw, wyx, wyy, wyz, wyw, wzx, wzy, wzz, wzw, \
       wwx, wwy, wwz, www; \
@@ -224,6 +227,11 @@ template<typename T> struct VecBase<T, 1> {
 };
 
 template<typename T> struct VecBase<T, 2> : VecOp<T, 2> {
+ private:
+  /* Weird non-zero value to avoid error about division by zero in constexpr. */
+  static constexpr T V = T(0.123f);
+
+ public:
   union {
     struct {
       T x, y;
@@ -237,11 +245,17 @@ template<typename T> struct VecBase<T, 2> : VecOp<T, 2> {
 
   VecBase() = default;
   template<typename U> explicit VecBase(VecOp<U, 2>) {}
-  explicit VecBase(T) {}
-  explicit VecBase(T, T) {}
+  constexpr explicit VecBase(T) : x(V), y(V) {}
+  /* Implemented correctly for GCC to compile the constexpr float2 arrays. */
+  constexpr explicit VecBase(T x_, T y_) : x(x_), y(y_) {}
 };
 
 template<typename T> struct VecBase<T, 3> : VecOp<T, 3> {
+ private:
+  /* Weird non-zero value to avoid error about division by zero in constexpr. */
+  static constexpr T V = T(0.123f);
+
+ public:
   union {
     struct {
       T x, y, z;
@@ -255,14 +269,19 @@ template<typename T> struct VecBase<T, 3> : VecOp<T, 3> {
 
   VecBase() = default;
   template<typename U> explicit VecBase(VecOp<U, 3>) {}
-  explicit VecBase(T) {}
+  constexpr explicit VecBase(T) : x(V), y(V), z(V) {}
   /* Implemented correctly for GCC to compile the constexpr gl_WorkGroupSize. */
   constexpr explicit VecBase(T x_, T y_, T z_) : x(x_), y(y_), z(z_) {}
-  explicit VecBase(VecOp<T, 2>, T) {}
-  explicit VecBase(T, VecOp<T, 2>) {}
+  constexpr explicit VecBase(VecOp<T, 2>, T) : x(V), y(V), z(V) {}
+  constexpr explicit VecBase(T, VecOp<T, 2>) : x(V), y(V), z(V) {}
 };
 
 template<typename T> struct VecBase<T, 4> : VecOp<T, 4> {
+ private:
+  /* Weird non-zero value to avoid error about division by zero in constexpr. */
+  static constexpr T V = T(0.123f);
+
+ public:
   union {
     struct {
       T x, y, z, w;
@@ -276,14 +295,15 @@ template<typename T> struct VecBase<T, 4> : VecOp<T, 4> {
 
   VecBase() = default;
   template<typename U> explicit VecBase(VecOp<U, 4>) {}
-  explicit VecBase(T) {}
-  explicit VecBase(T, T, T, T) {}
-  explicit VecBase(VecOp<T, 2>, T, T) {}
-  explicit VecBase(T, VecOp<T, 2>, T) {}
-  explicit VecBase(T, T, VecOp<T, 2>) {}
-  explicit VecBase(VecOp<T, 2>, VecOp<T, 2>) {}
-  explicit VecBase(VecOp<T, 3>, T) {}
-  explicit VecBase(T, VecOp<T, 3>) {}
+  constexpr explicit VecBase(T) : x(V), y(V), z(V), w(V) {}
+  /* Implemented correctly for GCC to compile the constexpr. */
+  constexpr explicit VecBase(T x_, T y_, T z_, T w_) : x(x_), y(y_), z(z_), w(w_) {}
+  constexpr explicit VecBase(VecOp<T, 2>, T, T) : x(V), y(V), z(V), w(V) {}
+  constexpr explicit VecBase(T, VecOp<T, 2>, T) : x(V), y(V), z(V), w(V) {}
+  constexpr explicit VecBase(T, T, VecOp<T, 2>) : x(V), y(V), z(V), w(V) {}
+  constexpr explicit VecBase(VecOp<T, 2>, VecOp<T, 2>) : x(V), y(V), z(V), w(V) {}
+  constexpr explicit VecBase(VecOp<T, 3>, T) : x(V), y(V), z(V), w(V) {}
+  constexpr explicit VecBase(T, VecOp<T, 3>) : x(V), y(V), z(V), w(V) {}
 };
 
 /* Boolean vectors do not have operators and are not convertible from other types. */
@@ -379,22 +399,6 @@ using bool2 = VecBase<bool, 2>;
 using bool3 = VecBase<bool, 3>;
 using bool4 = VecBase<bool, 4>;
 
-using vec2 = float2;
-using vec3 = float3;
-using vec4 = float4;
-
-using ivec2 = int2;
-using ivec3 = int3;
-using ivec4 = int4;
-
-using uvec2 = uint2;
-using uvec3 = uint3;
-using uvec4 = uint4;
-
-using bvec2 = bool2;
-using bvec3 = bool3;
-using bvec4 = bool4;
-
 using bool32_t = uint;
 
 /** Packed types are needed for MSL which have different alignment rules for float3. */
@@ -485,20 +489,6 @@ using float4x2 = MatBase<4, 2>;
 using float4x3 = MatBase<4, 3>;
 using float4x4 = MatBase<4, 4>;
 
-using mat2x2 = float2x2;
-using mat2x3 = float2x3;
-using mat2x4 = float2x4;
-using mat3x2 = float3x2;
-using mat3x3 = float3x3;
-using mat3x4 = float3x4;
-using mat4x2 = float4x2;
-using mat4x3 = float4x3;
-using mat4x4 = float4x4;
-
-using mat2 = float2x2;
-using mat3 = float3x3;
-using mat4 = float4x4;
-
 /* Matrix reshaping functions. */
 #define RESHAPE(mat_to, mat_from, ...) \
   mat_to to_##mat_to(mat_from m) \
@@ -524,7 +514,12 @@ RESHAPE(float3x3, float3x4, m[0].xyz, m[1].xyz, m[2].xyz)
 /** \name Sampler Types
  * \{ */
 
-template<typename T, int Dimensions, bool Cube = false, bool Array = false, bool Atomic = false>
+template<typename T,
+         int Dimensions,
+         bool Cube = false,
+         bool Array = false,
+         bool Atomic = false,
+         bool Depth = false>
 struct SamplerBase {
   static constexpr int coord_dim = Dimensions + int(Cube) + int(Array);
   static constexpr int deriv_dim = Dimensions + int(Cube);
@@ -594,10 +589,10 @@ using isampler2DAtomic = SamplerBase<int, 2, false, false, true>;
 using isampler2DArrayAtomic = SamplerBase<int, 2, false, true, true>;
 using isampler3DAtomic = SamplerBase<int, 3, false, false, true>;
 
-using depth2D = sampler2D;
-using depth2DArray = sampler2DArray;
-using depthCube = samplerCube;
-using depthCubeArray = samplerCubeArray;
+using sampler2DDepth = SamplerBase<float, 2, false, false, false, true>;
+using sampler2DArrayDepth = SamplerBase<float, 2, false, true, false, true>;
+using samplerCubeDepth = SamplerBase<float, 2, true, false, false, true>;
+using samplerCubeArrayDepth = SamplerBase<float, 2, true, true, false, true>;
 
 /* Sampler Buffers do not have LOD. */
 float4 texelFetch(samplerBuffer, int) RET;
@@ -610,7 +605,7 @@ uint4 texelFetch(usamplerBuffer, int) RET;
 /** \name Image Types
  * \{ */
 
-template<typename T, int Dimensions, bool Array = false> struct ImageBase {
+template<typename T, int Dimensions, bool Array = false, bool Atomic = false> struct ImageBase {
   static constexpr int coord_dim = Dimensions + int(Array);
 
   using int_coord_type = VecBase<int, coord_dim>;
@@ -672,6 +667,14 @@ using iimage2DArray = ImageBase<int, 2, true>;
 using uimage1DArray = ImageBase<uint, 1, true>;
 using uimage2DArray = ImageBase<uint, 2, true>;
 
+using iimage2DAtomic = ImageBase<int, 2, false, true>;
+using iimage3DAtomic = ImageBase<int, 3, false, true>;
+using uimage2DAtomic = ImageBase<uint, 2, false, true>;
+using uimage3DAtomic = ImageBase<uint, 3, false, true>;
+
+using iimage2DArrayAtomic = ImageBase<int, 2, true, true>;
+using uimage2DArrayAtomic = ImageBase<uint, 2, true, true>;
+
 /* Forbid Cube and cube arrays. Bind them as 3D textures instead. */
 
 /** \} */
@@ -722,12 +725,12 @@ int findMSB(uint) RET;
 /* NOTE: Declared inside a namespace and exposed behind macros to prevent
  * errors on VS2019 due to `corecrt_math` conflicting functions. */
 namespace glsl {
-template<typename T> T abs(T) RET;
+template<typename T> constexpr T abs(T) RET;
 /* TODO(fclem): These should be restricted to floats. */
-template<typename T> T ceil(T) RET;
-template<typename T> T exp(T) RET;
-template<typename T> T exp2(T) RET;
-template<typename T> T floor(T) RET;
+template<typename T> constexpr T ceil(T) RET;
+template<typename T> constexpr T exp(T) RET;
+template<typename T> constexpr T exp2(T) RET;
+template<typename T> constexpr T floor(T) RET;
 template<typename T> T fma(T, T, T) RET;
 float fma(float, float, float) RET;
 template<typename T> T frexp(T, T) RET;
@@ -735,25 +738,25 @@ bool isinf(float) RET;
 template<int D> VecBase<bool, D> isinf(VecOp<float, D>) RET;
 bool isnan(float) RET;
 template<int D> VecBase<bool, D> isnan(VecOp<float, D>) RET;
-template<typename T> T log(T) RET;
-template<typename T> T log2(T) RET;
+template<typename T> constexpr T log(T) RET;
+template<typename T> constexpr T log2(T) RET;
 template<typename T> T modf(T, T);
-template<typename T, typename U> T pow(T, U) RET;
-template<typename T> T round(T) RET;
-template<typename T> T sqrt(T) RET;
-template<typename T> T trunc(T) RET;
+template<typename T, typename U> constexpr T pow(T, U) RET;
+template<typename T> constexpr T round(T) RET;
+template<typename T> constexpr T sqrt(T) RET;
+template<typename T> constexpr T trunc(T) RET;
 template<typename T, typename U> T ldexp(T, U) RET;
 
-template<typename T> T acos(T) RET;
+template<typename T> constexpr T acos(T) RET;
 template<typename T> T acosh(T) RET;
-template<typename T> T asin(T) RET;
+template<typename T> constexpr T asin(T) RET;
 template<typename T> T asinh(T) RET;
 template<typename T> T atan(T, T) RET;
 template<typename T> T atan(T) RET;
 template<typename T> T atanh(T) RET;
-template<typename T> T cos(T) RET;
+template<typename T> constexpr T cos(T) RET;
 template<typename T> T cosh(T) RET;
-template<typename T> T sin(T) RET;
+template<typename T> constexpr T sin(T) RET;
 template<typename T> T sinh(T) RET;
 template<typename T> T tan(T) RET;
 template<typename T> T tanh(T) RET;
@@ -789,19 +792,19 @@ template<typename T> T tanh(T) RET;
 #define tan glsl::tan
 #define tanh glsl::tanh
 
-template<typename T> T max(T, T) RET;
-template<typename T> T min(T, T) RET;
-template<typename T> T sign(T) RET;
-template<typename T, typename U> T clamp(T, U, U) RET;
-template<typename T> T clamp(T, float, float) RET;
-template<typename T, typename U> T max(T, U) RET;
-template<typename T, typename U> T min(T, U) RET;
+template<typename T> constexpr T max(T, T) RET;
+template<typename T> constexpr T min(T, T) RET;
+template<typename T> constexpr T sign(T) RET;
+template<typename T, typename U> constexpr T clamp(T, U, U) RET;
+template<typename T> constexpr T clamp(T, float, float) RET;
+template<typename T, typename U> constexpr T max(T, U) RET;
+template<typename T, typename U> constexpr T min(T, U) RET;
 /* TODO(fclem): These should be restricted to floats. */
 template<typename T> T fract(T) RET;
-template<typename T> T inversesqrt(T) RET;
-float mod(float, float) RET;
-template<int D> VecBase<float, D> mod(VecOp<float, D>, float) RET;
-template<int D> VecBase<float, D> mod(VecOp<float, D>, VecOp<float, D>) RET;
+template<typename T> constexpr T inversesqrt(T) RET;
+constexpr float mod(float, float) RET;
+template<int D> VecBase<float, D> constexpr mod(VecOp<float, D>, float) RET;
+template<int D> VecBase<float, D> constexpr mod(VecOp<float, D>, VecOp<float, D>) RET;
 template<typename T> T smoothstep(T, T, T) RET;
 float step(float, float) RET;
 template<int D> VecBase<float, D> step(VecOp<float, D>, VecOp<float, D>) RET;
@@ -809,8 +812,8 @@ template<int D> VecBase<float, D> step(float, VecOp<float, D>) RET;
 float smoothstep(float, float, float) RET;
 template<int D> VecBase<float, D> smoothstep(float, float, VecOp<float, D>) RET;
 
-template<typename T> T degrees(T) RET;
-template<typename T> T radians(T) RET;
+template<typename T> constexpr T degrees(T) RET;
+template<typename T> constexpr T radians(T) RET;
 
 /* Declared explicitly to avoid type errors. */
 float mix(float, float, float) RET;
@@ -835,12 +838,13 @@ uint floatBitsToUint(float) RET;
 float intBitsToFloat(int) RET;
 float uintBitsToFloat(uint) RET;
 
-namespace gl_FragmentShader {
 /* Derivative functions. */
-template<typename T> T dFdx(T) RET;
-template<typename T> T dFdy(T) RET;
-template<typename T> T fwidth(T) RET;
-}  // namespace gl_FragmentShader
+template<typename T> T gpu_dfdx(T) RET;
+template<typename T> T gpu_dfdy(T) RET;
+template<typename T> T gpu_fwidth(T) RET;
+
+/* Discards the output of the current fragment shader invocation and halts its execution. */
+void gpu_discard_fragment() {}
 
 /* Geometric functions. */
 template<typename T, int D> VecBase<T, D> faceforward(VecOp<T, D>, VecOp<T, D>, VecOp<T, D>) RET;
@@ -944,9 +948,6 @@ extern const uint gl_LocalInvocationIndex;
 /* Pass argument by copy (default). */
 #define in
 
-/* Discards the output of the current fragment shader invocation and halts its execution. */
-#define discard
-
 /* Decorate a variable in global scope that is common to all threads in a thread-group. */
 #define shared
 
@@ -1004,7 +1005,7 @@ void groupMemoryBarrier() {}
 
 /** \} */
 
-/* Use to suppress '-Wimplicit-fallthrough' (in place of 'break'). */
+/* Use to suppress `-Wimplicit-fallthrough` (in place of `break`). */
 #ifndef ATTR_FALLTHROUGH
 #  ifdef __GNUC__
 #    define ATTR_FALLTHROUGH __attribute__((fallthrough))
@@ -1029,4 +1030,55 @@ void groupMemoryBarrier() {}
 
 #define GLSL_CPP_STUBS
 
+/* List of reserved keywords in GLSL. */
+#define common common_is_reserved_glsl_keyword_do_not_use
+#define partition partition_is_reserved_glsl_keyword_do_not_use
+#define active active_is_reserved_glsl_keyword_do_not_use
+#define class class_is_reserved_glsl_keyword_do_not_use
+#define union union_is_reserved_glsl_keyword_do_not_use
+// #define enum /* Supported. */
+#define typedef typedef_is_reserved_glsl_keyword_do_not_use
+// #define template /* Needed for Stubs. */
+#define this this_is_reserved_glsl_keyword_do_not_use
+#define packed packed_is_reserved_glsl_keyword_do_not_use
+#define resource resource_is_reserved_glsl_keyword_do_not_use
+#define goto goto_is_reserved_glsl_keyword_do_not_use
+// #define inline  /* Supported. */
+#define noinline noinline_is_reserved_glsl_keyword_do_not_use
+#define public public_is_reserved_glsl_keyword_do_not_use
+// #define static /* Supported. */
+// #define extern /* Needed for Stubs. */
+#define external external_is_reserved_glsl_keyword_do_not_use
+#define interface interface_is_reserved_glsl_keyword_do_not_use
+#define long long_is_reserved_glsl_keyword_do_not_use
+// #define short /* Supported. */
+// #define half /* Supported. */
+#define fixed fixed_is_reserved_glsl_keyword_do_not_use
+#define unsigned unsigned_is_reserved_glsl_keyword_do_not_use
+#define superp superp_is_reserved_glsl_keyword_do_not_use
+#define input input_is_reserved_glsl_keyword_do_not_use
+#define output output_is_reserved_glsl_keyword_do_not_use
+#define hvec2 hvec2_is_reserved_glsl_keyword_do_not_use
+#define hvec3 hvec3_is_reserved_glsl_keyword_do_not_use
+#define hvec4 hvec4_is_reserved_glsl_keyword_do_not_use
+#define fvec2 fvec2_is_reserved_glsl_keyword_do_not_use
+#define fvec3 fvec3_is_reserved_glsl_keyword_do_not_use
+#define fvec4 fvec4_is_reserved_glsl_keyword_do_not_use
+#define sampler3DRect sampler3DRect_is_reserved_glsl_keyword_do_not_use
+#define filter filter_is_reserved_glsl_keyword_do_not_use
+#define sizeof sizeof_is_reserved_glsl_keyword_do_not_use
+#define cast cast_is_reserved_glsl_keyword_do_not_use
+// #define namespace /* Needed for Stubs. */
+// #define using /* Needed for Stubs. */
+#define row_major row_major_is_reserved_glsl_keyword_do_not_use
+
 #include "GPU_shader_shared_utils.hh"
+
+#ifdef __GNUC__
+/* Avoid warnings caused by our own unroll attributes. */
+#  ifdef __clang__
+#    pragma GCC diagnostic ignored "-Wunknown-attributes"
+#  else
+#    pragma GCC diagnostic ignored "-Wattributes"
+#  endif
+#endif
