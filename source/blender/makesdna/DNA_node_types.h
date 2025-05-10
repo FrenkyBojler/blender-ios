@@ -1950,7 +1950,14 @@ typedef struct NodeGeometryStoreNamedAttribute {
   int8_t data_type;
   /** #AttrDomain. */
   int8_t domain;
+  /** #NodeGeometryStoreNamedAttributeFlag. */
+  uint8_t flag;
+  char _pad[1];
 } NodeGeometryStoreNamedAttribute;
+
+typedef enum NodeGeometryStoreNamedAttributeFlag {
+  GEO_NODE_STORE_NAMED_ATTRIBUTE_FLAG_PIN_DATA_TYPE = (1 << 0),
+} NodeGeometryStoreNamedAttributeFlag;
 
 typedef struct NodeGeometryInputNamedAttribute {
   /** #eCustomDataType. */

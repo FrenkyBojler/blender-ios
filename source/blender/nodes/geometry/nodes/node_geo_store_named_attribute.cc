@@ -48,7 +48,14 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+
+  const bool pin_data_type = RNA_boolean_get(ptr, "pin_data_type");
+
+  uiLayout &row = layout->row(true);
+  uiLayout &subrow = row.row(true);
+  uiLayoutSetActive(&subrow, pin_data_type);
+  subrow.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  row.prop(ptr, "pin_data_type", UI_ITEM_NONE, "", pin_data_type ? ICON_PINNED : ICON_UNPINNED);
   layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -204,6 +211,13 @@ static void node_rna(StructRNA *srna)
                     rna_enum_attribute_domain_items,
                     NOD_storage_enum_accessors(domain),
                     int(AttrDomain::Point));
+
+  RNA_def_node_boolean(
+      srna,
+      "pin_data_type",
+      "Pin Data Type",
+      "Don't change the data type automatically based on the connected socket",
+      NOD_storage_boolean_accessors(flag, GEO_NODE_STORE_NAMED_ATTRIBUTE_FLAG_PIN_DATA_TYPE));
 }
 
 static void node_register()
