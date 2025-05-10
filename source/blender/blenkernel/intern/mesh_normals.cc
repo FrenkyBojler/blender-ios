@@ -11,7 +11,6 @@
  */
 
 #include <climits>
-#include <iostream>
 
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
@@ -44,18 +43,6 @@
  * \{ */
 
 namespace blender::bke {
-
-template<typename T> static void print_span(const StringRef name, const Span<T> span)
-{
-  std::cout << name << ": {";
-  for (const T &value : span.drop_back(1)) {
-    std::cout << value << ", ";
-  }
-  if (!span.is_empty()) {
-    std::cout << span.last();
-  }
-  std::cout << "}";
-}
 
 void mesh_vert_normals_assign(Mesh &mesh, Span<float3> vert_normals)
 {
@@ -601,10 +588,6 @@ static CornerNormalSpace corner_fan_space_define(const float3 &lnor,
   const float pi2 = float(M_PI) * 2.0f;
   const float dtp_ref = math::dot(vec_ref, lnor);
   const float dtp_other = math::dot(vec_other, lnor);
-
-  std::cout << "vec_ref: " << vec_ref << ", ";
-  std::cout << "vec_other: " << vec_other << ", ";
-  print_span("edge_vectors", edge_vectors);
 
   if (UNLIKELY(std::abs(dtp_ref) >= LNOR_SPACE_TRIGO_THRESHOLD ||
                std::abs(dtp_other) >= LNOR_SPACE_TRIGO_THRESHOLD))
@@ -1304,14 +1287,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
         corners_in_fan.clear();
         traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
 
-        std::cout << "vert: " << vert << ", ";
-        Vector<int> corners;
-        for (const int i : corners_in_fan) {
-          corners.append(corner_infos[i].corner);
-        }
-        print_span("corners", corners.as_span());
-        std::cout << ", ";
-
         float3 fan_normal = accumulate_fan_normal(
             corner_infos, edge_dirs, face_normals, corners_in_fan);
 
@@ -1319,8 +1294,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
           handle_fan_result_and_custom_normals(
               custom_normals, corner_infos, edge_dirs, corners_in_fan, fan_normal, r_fan_spaces);
         }
-
-        std::cout << '\n';
 
         for (const int local_corner : corners_in_fan) {
           const VertCornerInfo &info = corner_infos[local_corner];
