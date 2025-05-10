@@ -233,12 +233,12 @@ typedef struct Mesh {
    * User-defined symmetrize direction, one of the directions itemized in
    * rna_enum_symmetrize_direction_items.
    */
-  int symmetrize_direction;
+  int8_t symmetrize_direction;
 
   /**
    * User-defined radial symmetry that causes edit operations to be repeated around the given axis.
    */
-  int radial_symmetry[3];
+  int8_t radial_symmetry[3];
 
   /**
    * User-defined stride at which strokes are applied in paint modes for the given axis.
@@ -250,7 +250,7 @@ typedef struct Mesh {
    * transforming along locked axes. Supported by operations such as transform.
    */
   char lock;
-  char _pad1[7];
+  char _pad1[3];
 
   /**
    * Data that isn't saved in files, including caches of derived data, temporary data to improve

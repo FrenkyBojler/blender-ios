@@ -521,7 +521,7 @@ enum {
   DEL_ONLYTAGGED,
 };
 
-enum BMO_SymmDirection {
+enum BMO_SymmDirection : int8_t {
   BMO_SYMMETRIZE_NEGATIVE_X,
   BMO_SYMMETRIZE_NEGATIVE_Y,
   BMO_SYMMETRIZE_NEGATIVE_Z,
