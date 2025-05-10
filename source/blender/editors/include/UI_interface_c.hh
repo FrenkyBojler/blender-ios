@@ -1779,6 +1779,9 @@ int UI_searchbox_size_y();
 int UI_searchbox_size_x();
 /**
  * Guess a good width for the search box based on the searchable items.
+ *
+ * \note When used with a menu that does full refreshes, it might be beneficial to cache this size
+ * because recomputing it is potentially expensive.
  */
 int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn update_fn);
 /**
