@@ -11,6 +11,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "BKE_attribute_storage.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
@@ -79,6 +80,25 @@ static void reorder_customdata(CustomData &data, const Span<int> new_by_old_map)
   }
   CustomData_free(&data);
   data = new_data;
+}
+
+static void reorder_attribute_domain(bke::AttributeStorage &data,
+                                     const bke::AttrDomain domain,
+                                     const Span<int> new_by_old_map)
+{
+  data.foreach([&](bke::Attribute &attr) {
+    if (attr.domain() != domain) {
+      return;
+    }
+    const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
+    if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr.data())) {
+      auto new_data = bke::Attribute::ArrayData::ForUninitialized(type, new_by_old_map.size());
+      bke::attribute_math::gather(GSpan(type, array_data->data, array_data->size),
+                                  new_by_old_map,
+                                  GMutableSpan(type, new_data.data, new_data.size));
+      attr.data_for_write() = std::move(new_data);
+    }
+  });
 }
 
 void debug_randomize_vert_order(Mesh *mesh)
@@ -183,8 +203,8 @@ void debug_randomize_point_order(PointCloud *pointcloud)
 
   const int seed = seed_from_pointcloud(*pointcloud);
   const Array<int> new_by_old_map = get_permutation(pointcloud->totpoint, seed);
-
-  reorder_customdata(pointcloud->pdata, new_by_old_map);
+  reorder_attribute_domain(
+      pointcloud->attribute_storage.wrap(), bke::AttrDomain::Point, new_by_old_map);
 
   pointcloud->tag_positions_changed();
   pointcloud->tag_radii_changed();
