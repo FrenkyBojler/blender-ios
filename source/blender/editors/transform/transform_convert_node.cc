@@ -302,8 +302,8 @@ static void flushTransNodes(TransInfo *t)
     }
   }
 
-  if (t->modifiers & MOD_NODE_DETACH_FRAME) {
-    t->modifiers &= ~MOD_NODE_DETACH_FRAME;
+  if (t->modifiers & MOD_NODE_FRAME) {
+    t->modifiers &= ~MOD_NODE_FRAME;
     Vector<bNode *> nodes_to_detach;
     for (bNode *node : snode->edittree->all_nodes()) {
       if (!(node->flag & NODE_SELECT)) {
