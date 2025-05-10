@@ -339,7 +339,7 @@ std::optional<int> PointCloud::material_index_max() const
 
 void PointCloud::count_memory(blender::MemoryCounter &memory) const
 {
-  CustomData_count_memory(this->pdata, this->totpoint, memory);
+  this->attribute_storage.wrap().count_memory(memory);
 }
 
 blender::bke::AttributeAccessor PointCloud::attributes() const
