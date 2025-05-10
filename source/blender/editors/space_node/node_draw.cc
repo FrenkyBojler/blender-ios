@@ -2396,13 +2396,17 @@ static void node_draw_socket(const bContext &C,
 
   ColorTheme4f socket_color;
   ColorTheme4f outline_color;
-  if (sock.runtime->declaration && sock.runtime->declaration->is_pinned_type) {
-    node_socket_color_get(C, ntree, node_ptr, sock, socket_color);
-    node_socket_outline_color_get(selected, sock.type, outline_color);
-  }
-  else {
+
+  const bool is_unpinned_socket_type = !sock.runtime->declaration ||
+                                       !sock.runtime->declaration->is_pinned_type;
+
+  if (!sock.is_directly_linked() && is_unpinned_socket_type) {
     socket_color = ColorTheme4f(0.2f, 0.2f, 0.2f, 1.0f);
     outline_color = virtual_node_socket_outline_color;
+  }
+  else {
+    node_socket_color_get(C, ntree, node_ptr, sock, socket_color);
+    node_socket_outline_color_get(selected, sock.type, outline_color);
   }
 
   const float2 socket_location = sock.runtime->location;
