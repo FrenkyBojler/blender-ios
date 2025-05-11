@@ -1135,8 +1135,8 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
   if (!ntype->storagename.empty()) {
     BLO_write_struct_by_name(writer, ntype->storagename.c_str(), node->storage);
   }
-  if (ntype->blend_write_storage) {
-    ntype->blend_write_storage(*ntree, *node, *writer);
+  if (ntype->blend_write_storage_content) {
+    ntype->blend_write_storage_content(*ntree, *node, *writer);
     return;
   }
   if (ELEM(ntree->type, NTREE_SHADER, NTREE_GEOMETRY, NTREE_COMPOSIT) &&
@@ -1447,8 +1447,8 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
     BLO_read_data_address(reader, &node->storage);
   }
 
-  if (ntype && ntype->blend_data_read_storage) {
-    ntype->blend_data_read_storage(*ntree, *node, *reader);
+  if (ntype && ntype->blend_data_read_storage_content) {
+    ntype->blend_data_read_storage_content(*ntree, *node, *reader);
     return;
   }
 
