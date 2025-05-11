@@ -575,12 +575,12 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  nodes::socket_items::blend_write<nodes::BakeItemsAccessor>(&writer, node);
+  socket_items::blend_write<nodes::BakeItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  nodes::socket_items::blend_read_data<nodes::BakeItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<nodes::BakeItemsAccessor>(&reader, node);
 }
 
 static void node_register()

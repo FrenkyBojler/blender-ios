@@ -423,20 +423,17 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  nodes::socket_items::blend_write<nodes::ForeachGeometryElementInputItemsAccessor>(&writer, node);
-  nodes::socket_items::blend_write<nodes::ForeachGeometryElementGenerationItemsAccessor>(&writer,
-                                                                                         node);
-  nodes::socket_items::blend_write<nodes::ForeachGeometryElementMainItemsAccessor>(&writer, node);
+  socket_items::blend_write<nodes::ForeachGeometryElementInputItemsAccessor>(&writer, node);
+  socket_items::blend_write<nodes::ForeachGeometryElementGenerationItemsAccessor>(&writer, node);
+  socket_items::blend_write<nodes::ForeachGeometryElementMainItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  nodes::socket_items::blend_read_data<nodes::ForeachGeometryElementInputItemsAccessor>(&reader,
-                                                                                        node);
-  nodes::socket_items::blend_read_data<nodes::ForeachGeometryElementMainItemsAccessor>(&reader,
-                                                                                       node);
-  nodes::socket_items::blend_read_data<nodes::ForeachGeometryElementGenerationItemsAccessor>(
-      &reader, node);
+  socket_items::blend_read_data<nodes::ForeachGeometryElementInputItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<nodes::ForeachGeometryElementMainItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<nodes::ForeachGeometryElementGenerationItemsAccessor>(&reader,
+                                                                                      node);
 }
 
 static void node_register()
