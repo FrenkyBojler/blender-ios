@@ -17,7 +17,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "NOD_socket_items_blend.hh"
 #include "UI_interface.hh"
 
 #include "NOD_common.hh"
@@ -25,6 +24,7 @@
 #include "NOD_geo_simulation.hh"
 #include "NOD_node_extra_info.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
