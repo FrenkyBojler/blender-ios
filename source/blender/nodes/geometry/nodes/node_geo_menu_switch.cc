@@ -14,6 +14,7 @@
 #include "NOD_geo_menu_switch.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
@@ -390,6 +391,16 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
       *ntree, *node, *node, *link);
 }
 
+static void node_blend_write(const bNodeTree & /*ntree*/, const bNode &node, BlendWriter &writer)
+{
+  nodes::socket_items::blend_write<nodes::MenuSwitchItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*ntree*/, bNode &node, BlendDataReader &reader)
+{
+  nodes::socket_items::blend_read_data<nodes::MenuSwitchItemsAccessor>(&reader, node);
+}
+
 static void node_rna(StructRNA *srna)
 {
   RNA_def_node_enum(
@@ -426,6 +437,8 @@ static void register_node()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.insert_link = node_insert_link;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

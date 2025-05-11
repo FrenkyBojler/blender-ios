@@ -1189,10 +1189,6 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     }
     nodes::socket_items::blend_write<nodes::CaptureAttributeItemsAccessor>(writer, *node);
   }
-
-  if (node->type_legacy == GEO_NODE_MENU_SWITCH) {
-    nodes::socket_items::blend_write<nodes::MenuSwitchItemsAccessor>(writer, *node);
-  }
 }
 
 void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
@@ -1467,10 +1463,6 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
     case CMP_NODE_OUTPUT_FILE: {
       NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
       BKE_image_format_blend_read_data(reader, &nimf->format);
-      break;
-    }
-    case GEO_NODE_MENU_SWITCH: {
-      nodes::socket_items::blend_read_data<nodes::MenuSwitchItemsAccessor>(reader, *node);
       break;
     }
     case GEO_NODE_CAPTURE_ATTRIBUTE: {
