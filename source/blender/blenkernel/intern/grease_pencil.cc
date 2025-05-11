@@ -1905,7 +1905,6 @@ void LayerGroup::ensure_nodes_cache() const
 
     LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child_, &this->children) {
       TreeNode *node = reinterpret_cast<TreeNode *>(child_);
-      this->runtime->nodes_cache_.append(node);
       switch (node->type) {
         case GP_LAYER_TREE_LEAF: {
           this->runtime->layer_cache_.append(&node->as_layer());
@@ -1925,6 +1924,7 @@ void LayerGroup::ensure_nodes_cache() const
           break;
         }
       }
+      this->runtime->nodes_cache_.append(node);
     }
   });
 }
