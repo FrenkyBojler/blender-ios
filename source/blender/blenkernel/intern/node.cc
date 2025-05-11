@@ -1111,40 +1111,8 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
   if (!node->storage) {
     return;
   }
-  const bke::bNodeType *ntype = node_type_find(node->idname);
-  if (ntype->blend_write_storage) {
-    ntype->blend_write_storage(*ntree, *node, *writer);
-    return;
-  }
-  if (ELEM(ntree->type, NTREE_SHADER, NTREE_GEOMETRY, NTREE_COMPOSIT) &&
-      ELEM(node->type_legacy, SH_NODE_CURVE_VEC, SH_NODE_CURVE_RGB, SH_NODE_CURVE_FLOAT))
-  {
-    BKE_curvemapping_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
-  }
-  else if (ntree->type == NTREE_SHADER && (node->type_legacy == SH_NODE_SCRIPT)) {
-    NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
-    if (nss->bytecode) {
-      BLO_write_string(writer, nss->bytecode);
-    }
-    BLO_write_struct_by_name(writer, node->typeinfo->storagename.c_str(), node->storage);
-  }
-  else if ((ntree->type == NTREE_COMPOSIT) && ELEM(node->type_legacy,
-                                                   CMP_NODE_TIME,
-                                                   CMP_NODE_CURVE_VEC,
-                                                   CMP_NODE_CURVE_RGB,
-                                                   CMP_NODE_HUECORRECT))
-  {
-    BKE_curvemapping_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
-  }
-  else if ((ntree->type == NTREE_TEXTURE) &&
-           ELEM(node->type_legacy, TEX_NODE_CURVE_RGB, TEX_NODE_CURVE_TIME))
-  {
-    BKE_curvemapping_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
-  }
-  else if ((ntree->type == NTREE_COMPOSIT) && (node->type_legacy == CMP_NODE_MOVIEDISTORTION)) {
-    /* pass */
-  }
-  else if ((ntree->type == NTREE_COMPOSIT) && (node->type_legacy == CMP_NODE_GLARE)) {
+
+  if (node->type_legacy == CMP_NODE_GLARE) {
     /* Simple forward compatibility for fix for #50736.
      * Not ideal (there is no ideal solution here), but should do for now. */
     NodeGlare *ndg = static_cast<NodeGlare *>(node->storage);
@@ -1161,7 +1129,42 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
           break;
       }
     }
-    BLO_write_struct_by_name(writer, node->typeinfo->storagename.c_str(), node->storage);
+  }
+
+  const bNodeType *ntype = node->typeinfo;
+  if (!ntype->storagename.empty()) {
+    BLO_write_struct_by_name(writer, ntype->storagename.c_str(), node->storage);
+  }
+  if (ntype->blend_write_storage) {
+    ntype->blend_write_storage(*ntree, *node, *writer);
+    return;
+  }
+  if (ELEM(ntree->type, NTREE_SHADER, NTREE_GEOMETRY, NTREE_COMPOSIT) &&
+      ELEM(node->type_legacy, SH_NODE_CURVE_VEC, SH_NODE_CURVE_RGB, SH_NODE_CURVE_FLOAT))
+  {
+    BKE_curvemapping_curves_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
+  }
+  else if (ntree->type == NTREE_SHADER && (node->type_legacy == SH_NODE_SCRIPT)) {
+    NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
+    if (nss->bytecode) {
+      BLO_write_string(writer, nss->bytecode);
+    }
+  }
+  else if ((ntree->type == NTREE_COMPOSIT) && ELEM(node->type_legacy,
+                                                   CMP_NODE_TIME,
+                                                   CMP_NODE_CURVE_VEC,
+                                                   CMP_NODE_CURVE_RGB,
+                                                   CMP_NODE_HUECORRECT))
+  {
+    BKE_curvemapping_curves_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
+  }
+  else if ((ntree->type == NTREE_TEXTURE) &&
+           ELEM(node->type_legacy, TEX_NODE_CURVE_RGB, TEX_NODE_CURVE_TIME))
+  {
+    BKE_curvemapping_curves_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
+  }
+  else if ((ntree->type == NTREE_COMPOSIT) && (node->type_legacy == CMP_NODE_MOVIEDISTORTION)) {
+    /* pass */
   }
   else if ((ntree->type == NTREE_COMPOSIT) &&
            ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY))
@@ -1171,14 +1174,12 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     LISTBASE_FOREACH (CryptomatteEntry *, entry, &nc->entries) {
       BLO_write_struct(writer, CryptomatteEntry, entry);
     }
-    BLO_write_struct_by_name(writer, node->typeinfo->storagename.c_str(), node->storage);
   }
   else if (node->type_legacy == FN_NODE_INPUT_STRING) {
     NodeInputString *storage = static_cast<NodeInputString *>(node->storage);
     if (storage->string) {
       BLO_write_string(writer, storage->string);
     }
-    BLO_write_struct_by_name(writer, node->typeinfo->storagename.c_str(), storage);
   }
   else if (node->type_legacy == GEO_NODE_CAPTURE_ATTRIBUTE) {
     auto &storage = *static_cast<NodeGeometryAttributeCapture *>(node->storage);
@@ -1194,11 +1195,7 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
         break;
       }
     }
-    BLO_write_struct(writer, NodeGeometryAttributeCapture, node->storage);
     nodes::socket_items::blend_write<nodes::CaptureAttributeItemsAccessor>(writer, *node);
-  }
-  else if (!node->is_undefined()) {
-    BLO_write_struct_by_name(writer, node->typeinfo->storagename.c_str(), node->storage);
   }
 
   if (node->type_legacy == GEO_NODE_SIMULATION_OUTPUT) {
@@ -1498,8 +1495,9 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
     }
 
     if (node->storage) {
-      if (node->typeinfo->blend_data_read_storage) {
-        node->typeinfo->blend_data_read_storage(*ntree, *node, *reader);
+      const bNodeType *ntype = node_type_find(node->idname);
+      if (ntype && ntype->blend_data_read_storage) {
+        ntype->blend_data_read_storage(*ntree, *node, *reader);
         continue;
       }
 
