@@ -1173,12 +1173,6 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
       BLO_write_struct(writer, CryptomatteEntry, entry);
     }
   }
-  else if (node->type_legacy == FN_NODE_INPUT_STRING) {
-    NodeInputString *storage = static_cast<NodeInputString *>(node->storage);
-    if (storage->string) {
-      BLO_write_string(writer, storage->string);
-    }
-  }
   else if (node->type_legacy == GEO_NODE_CAPTURE_ATTRIBUTE) {
     auto &storage = *static_cast<NodeGeometryAttributeCapture *>(node->storage);
     /* Improve forward compatibility. */
@@ -1507,11 +1501,6 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
     case CMP_NODE_OUTPUT_FILE: {
       NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
       BKE_image_format_blend_read_data(reader, &nimf->format);
-      break;
-    }
-    case FN_NODE_INPUT_STRING: {
-      NodeInputString *storage = static_cast<NodeInputString *>(node->storage);
-      BLO_read_string(reader, &storage->string);
       break;
     }
     case GEO_NODE_SIMULATION_OUTPUT: {
