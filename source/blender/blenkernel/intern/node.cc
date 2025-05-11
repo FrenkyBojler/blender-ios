@@ -1154,6 +1154,7 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     ntype->blend_write_storage_content(*ntree, *node, *writer);
     return;
   }
+
   /* These nodes don't use #blend_write_storage_content, because their corresponding blend-read
    * can't use it, because they were introduced before there were node idnames. */
   if (ELEM(node->type_legacy,
@@ -1169,19 +1170,16 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
   {
     BKE_curvemapping_curves_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
   }
-
-  if (ntree->type == NTREE_SHADER && (node->type_legacy == SH_NODE_SCRIPT)) {
+  else if (node->type_legacy == SH_NODE_SCRIPT) {
     NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
     if (nss->bytecode) {
       BLO_write_string(writer, nss->bytecode);
     }
   }
-  else if ((ntree->type == NTREE_COMPOSIT) && (node->type_legacy == CMP_NODE_MOVIEDISTORTION)) {
+  else if (node->type_legacy == CMP_NODE_MOVIEDISTORTION) {
     /* pass */
   }
-  else if ((ntree->type == NTREE_COMPOSIT) &&
-           ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY))
-  {
+  else if (ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY)) {
     NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
     BLO_write_string(writer, nc->matte_id);
     LISTBASE_FOREACH (CryptomatteEntry *, entry, &nc->entries) {
