@@ -602,6 +602,34 @@ PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter)
   return RNA_pointer_create_with_parent(iter->parent, type, layer);
 }
 
+void rna_AttributeStorage_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  memset(&iter->internal.array, 0, sizeof(iter->internal.array));
+  AttributeOwner owner = owner_from_pointer_rna(ptr);
+  // rna_AttributeStorage_next_domain(owner, iter, ptr, rna_Attributes_layer_skip);
+}
+
+void rna_AttributeStorage_iterator_next(CollectionPropertyIterator *iter)
+{
+  rna_iterator_array_next(iter);
+
+  if (!iter->valid) {
+    AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
+    rna_AttributeStorage_next_domain(owner, iter, &iter->parent, rna_Attributes_layer_skip);
+  }
+}
+
+PointerRNA rna_AttributeStorage_iterator_get(CollectionPropertyIterator *iter)
+{
+  /* Refine to the proper type. */
+  CustomDataLayer *layer = static_cast<CustomDataLayer *>(rna_iterator_array_get(iter));
+  StructRNA *type = srna_by_custom_data_layer_type(eCustomDataType(layer->type));
+  if (type == nullptr) {
+    return PointerRNA_NULL;
+  }
+  return RNA_pointer_create_with_parent(iter->parent, type, layer);
+}
+
 void rna_AttributeGroup_color_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   memset(&iter->internal.array, 0, sizeof(iter->internal.array));
@@ -1605,6 +1633,78 @@ static void rna_def_attribute_group_id_common(StructRNA *srna)
   RNA_def_function_return(func, parm);
 }
 
+static void rna_def_attribute_group_from_storage(StructRNA *srna)
+{
+  PropertyRNA *prop;
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  /* API */
+  func = RNA_def_function(srna, "new", "rna_AttributeStorage_new");
+  RNA_def_function_ui_description(func, "Add attribute to geometry");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_string(func, "name", "Attribute", 0, "Name", "Name of geometry attribute");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  parm = RNA_def_enum(
+      func, "type", rna_enum_attribute_type_items, CD_PROP_FLOAT, "Type", "Attribute type");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  parm = RNA_def_enum(func,
+                      "domain",
+                      rna_enum_attribute_domain_items,
+                      int(AttrDomain::Point),
+                      "Domain",
+                      "Type of element that attribute is stored on");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  parm = RNA_def_pointer(func, "attribute", "Attribute", "", "New geometry attribute");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "remove", "rna_AttributeStorage_remove");
+  RNA_def_function_ui_description(func, "Remove attribute from geometry");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_string(func, "name", "Name", 0, "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  /* Active */
+  prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Attribute");
+  RNA_def_property_ui_text(prop, "Active Attribute", "Active attribute");
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_AttributeStorage_active_get",
+                                 "rna_AttributeStorage_active_set",
+                                 nullptr,
+                                 nullptr);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
+  RNA_def_property_update(prop, 0, "rna_AttributeGroup_update_active");
+
+  prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Active Attribute Index", "Active attribute index or -1 when none are active");
+  RNA_def_property_range(prop, -1, INT_MAX);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_int_funcs(prop,
+                             "rna_AttributeStorage_active_index_get",
+                             "rna_AttributeStorage_active_index_set",
+                             "rna_AttributeStorage_active_index_range");
+  RNA_def_property_update(prop, 0, "rna_AttributeGroup_update_active");
+
+  /* Domain Size */
+  func = RNA_def_function(srna, "domain_size", "rna_AttributeStorage_domain_size");
+  RNA_def_function_ui_description(func, "Get the size of a given domain");
+  parm = RNA_def_enum(func,
+                      "domain",
+                      rna_enum_attribute_domain_items,
+                      int(AttrDomain::Point),
+                      "Domain",
+                      "Type of element that attribute is stored on");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(func, "size", 0, 0, INT_MAX, "Size", "Size of the domain", 0, INT_MAX);
+  RNA_def_function_return(func, parm);
+}
+
 static void rna_def_attribute_group_mesh(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -1847,6 +1947,40 @@ void rna_def_attributes_common(StructRNA *srna, const AttributeOwnerType type)
       RNA_def_property_srna(prop, "AttributeGroupGreasePencilDrawing");
       break;
   }
+}
+
+void rna_def_attribute_storage(StructRNA *srna, const char *type_name)
+{
+  PropertyRNA *prop;
+
+  /* Attributes */
+  prop = RNA_def_property(srna, "attributes", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_AttributeStorage_iterator_begin",
+                                    "rna_AttributeStorage_iterator_next",
+                                    "rna_iterator_array_end",
+                                    "rna_AttributeStorage_iterator_get",
+                                    "rna_AttributeStorage_length",
+                                    nullptr,
+                                    "rna_AttributeStorage_lookup_string",
+                                    nullptr);
+  RNA_def_property_struct_type(prop, "Attribute");
+  RNA_def_property_ui_text(prop, "Attributes", "Geometry attributes");
+  RNA_def_property_srna(prop, type_name);
+
+  prop = RNA_def_property(srna, "color_attributes", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_AttributeStorage_color_iterator_begin",
+                                    "rna_AttributeStorage_color_iterator_next",
+                                    "rna_iterator_array_end",
+                                    "rna_AttributeStorage_color_iterator_get",
+                                    "rna_AttributeStorage_color_length",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_struct_type(prop, "Attribute");
+  RNA_def_property_ui_text(prop, "Color Attributes", "Geometry color attributes");
+  RNA_def_property_srna(prop, type_name);
 }
 
 void RNA_def_attribute(BlenderRNA *brna)
