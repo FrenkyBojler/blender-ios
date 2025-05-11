@@ -361,7 +361,7 @@ struct bNodeType {
   /**
    * Add to the list of search names and operations gathered by node link drag searching.
    * Usually it isn't necessary to override the default behavior here, but a node type can have
-   * custom behavior re like adding custom search items.
+   * custom behavior here like adding custom search items.
    */
   NodeGatherSocketLinkOperationsFunction gather_link_search_ops = nullptr;
 
