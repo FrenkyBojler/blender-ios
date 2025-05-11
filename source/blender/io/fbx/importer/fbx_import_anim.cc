@@ -202,7 +202,7 @@ static void create_transform_curve_desc(const FbxElementMapping &mapping,
   bool is_bone = false;
   std::string group_name_str = get_fbx_name(anim.fbx_elem->name);
   const ufbx_node *fnode = ufbx_as_node(anim.fbx_elem);
-  if (fnode != nullptr && fnode->bone != nullptr) {
+  if (fnode != nullptr && fnode->bone != nullptr && !fnode->bone->is_root) {
     is_bone = true;
     group_name_str = mapping.node_to_name.lookup_default(fnode, "");
     rna_prefix = std::string("pose.bones[\"") + group_name_str + "\"].";
@@ -255,7 +255,7 @@ static void create_transform_curve_data(const FbxElementMapping &mapping,
   bool is_bone = false;
   const ufbx_node *fnode = ufbx_as_node(anim.fbx_elem);
   ufbx_matrix bone_xform = ufbx_identity_matrix;
-  if (fnode != nullptr && fnode->bone != nullptr) {
+  if (fnode != nullptr && fnode->bone != nullptr && !fnode->bone->is_root) {
     is_bone = true;
 
     /* Bone transform curves need to be transformed to the bind transform
