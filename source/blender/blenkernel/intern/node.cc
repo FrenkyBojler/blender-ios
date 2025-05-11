@@ -1190,9 +1190,6 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     nodes::socket_items::blend_write<nodes::CaptureAttributeItemsAccessor>(writer, *node);
   }
 
-  if (node->type_legacy == GEO_NODE_SIMULATION_OUTPUT) {
-    nodes::socket_items::blend_write<nodes::SimulationItemsAccessor>(writer, *node);
-  }
   if (node->type_legacy == GEO_NODE_REPEAT_OUTPUT) {
     nodes::socket_items::blend_write<nodes::RepeatItemsAccessor>(writer, *node);
   }
@@ -1501,10 +1498,6 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
     case CMP_NODE_OUTPUT_FILE: {
       NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
       BKE_image_format_blend_read_data(reader, &nimf->format);
-      break;
-    }
-    case GEO_NODE_SIMULATION_OUTPUT: {
-      nodes::socket_items::blend_read_data<nodes::SimulationItemsAccessor>(reader, *node);
       break;
     }
     case GEO_NODE_REPEAT_OUTPUT: {
