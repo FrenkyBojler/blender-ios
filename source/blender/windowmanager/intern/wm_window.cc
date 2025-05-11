@@ -1219,35 +1219,24 @@ wmWindow *WM_window_open(bContext *C,
   return nullptr;
 }
 
-wmWindow *WM_window_open_temp(struct bContext *C, int space_type)
+wmWindow *WM_window_open_temp(struct bContext *C,
+                              const char *title,
+                              int space_type,
+                              bool dialog,
+                              int def_size_x,
+                              int def_size_y,
+                              rctf *userdef_stored_bounds)
 {
-  rctf *stored_bounds = nullptr;
-  int def_sizex = 800;
-  int def_sizey = 600;
-  bool dialog = false;
-
-  if (space_type == SPACE_FILE) {
-    stored_bounds = &U.file_space_data.win_rect;
-    def_sizex = 1060;
-    def_sizey = 600;
-    dialog = true;
-  }
-  else if (space_type == SPACE_USERPREF) {
-    stored_bounds = &U.space_data.win_rect;
-    def_sizex = 600;
-    def_sizey = 520;
-  }
-
   rcti rect;
   eWindowAlignment align;
 
   WM_window_set_dpi(CTX_wm_window(C));
 
-  if (stored_bounds && stored_bounds->xmax != 0.0f) {
-    rect.xmin = (int)(stored_bounds->xmin * UI_SCALE_FAC);
-    rect.ymin = (int)(stored_bounds->ymin * UI_SCALE_FAC);
-    rect.xmax = (int)(stored_bounds->xmax * UI_SCALE_FAC);
-    rect.ymax = (int)(stored_bounds->ymax * UI_SCALE_FAC);
+  if (userdef_stored_bounds && userdef_stored_bounds->xmax != 0.0f) {
+    rect.xmin = (int)(userdef_stored_bounds->xmin * UI_SCALE_FAC);
+    rect.ymin = (int)(userdef_stored_bounds->ymin * UI_SCALE_FAC);
+    rect.xmax = (int)(userdef_stored_bounds->xmax * UI_SCALE_FAC);
+    rect.ymax = (int)(userdef_stored_bounds->ymax * UI_SCALE_FAC);
     align = WIN_ALIGN_ABSOLUTE;
   }
   else {
@@ -1256,13 +1245,22 @@ wmWindow *WM_window_open_temp(struct bContext *C, int space_type)
     const wmEvent *event = win_cur->eventstate;
     rect.xmin = event->xy[0];
     rect.ymin = event->xy[1];
-    rect.xmax = event->xy[0] + (def_sizex * UI_SCALE_FAC);
-    rect.ymax = event->xy[1] + (def_sizey * UI_SCALE_FAC);
+    rect.xmax = event->xy[0] + (def_size_x * UI_SCALE_FAC);
+    rect.ymax = event->xy[1] + (def_size_y * UI_SCALE_FAC);
     align = WIN_ALIGN_LOCATION_CENTER;
   }
 
-  wmWindow *win = WM_window_open(
-      C, nullptr, &rect, space_type, false, dialog, true, align, nullptr, nullptr, stored_bounds);
+  wmWindow *win = WM_window_open(C,
+                                 title,
+                                 &rect,
+                                 space_type,
+                                 false,
+                                 dialog,
+                                 true,
+                                 align,
+                                 nullptr,
+                                 nullptr,
+                                 userdef_stored_bounds);
 
   return win;
 }

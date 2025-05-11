@@ -6069,7 +6069,9 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   }
 
   /* changes context! */
-  if (WM_window_open_temp(C, SPACE_USERPREF) != nullptr) {
+  if (WM_window_open_temp(
+          C, nullptr, SPACE_USERPREF, false, 600, 520, &U.stored_bounds.preferences) != nullptr)
+  {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
     ScrArea *area = CTX_wm_area(C);
@@ -6147,24 +6149,14 @@ static wmOperatorStatus drivers_editor_show_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop;
   uiBut *but = UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
-  const rcti window_rect = {
-      /*xmin*/ event->xy[0],
-      /*xmax*/ event->xy[0] + sizex,
-      /*ymin*/ event->xy[1],
-      /*ymax*/ event->xy[1] + sizey,
-  };
-
   /* changes context! */
-  if (WM_window_open(C,
-                     IFACE_("Blender Drivers Editor"),
-                     &window_rect,
-                     SPACE_GRAPH,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
+  if (WM_window_open_temp(C,
+                          IFACE_("Blender Drivers Editor"),
+                          SPACE_GRAPH,
+                          false,
+                          sizex,
+                          sizey,
+                          &U.stored_bounds.drivers) != nullptr)
   {
     ED_drivers_editor_init(C, CTX_wm_area(C));
 
@@ -6230,24 +6222,10 @@ static wmOperatorStatus info_log_show_exec(bContext *C, wmOperator *op)
   int sizex = 900 * UI_SCALE_FAC;
   int sizey = 580 * UI_SCALE_FAC;
 
-  const rcti window_rect = {
-      /*xmin*/ mx,
-      /*xmax*/ mx + sizex,
-      /*ymin*/ my,
-      /*ymax*/ my + sizey,
-  };
-
   /* changes context! */
-  if (WM_window_open(C,
-                     IFACE_("Blender Info Log"),
-                     &window_rect,
-                     SPACE_INFO,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
+  if (WM_window_open_temp(
+          C, IFACE_("Blender Info Log"), SPACE_INFO, false, sizex, sizey, &U.stored_bounds.info) !=
+      nullptr)
   {
     return OPERATOR_FINISHED;
   }

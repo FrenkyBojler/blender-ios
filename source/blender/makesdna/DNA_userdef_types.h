@@ -722,8 +722,6 @@ typedef struct UserDef_SpaceData {
   /** #eUserPref_SpaceData_Flag UI options. */
   char flag;
   char _pad0[6];
-  /** Info used when creating Preferences in a temporary window. */
-  rctf win_rect;
 } UserDef_SpaceData;
 
 /**
@@ -738,10 +736,16 @@ typedef struct UserDef_FileSpaceData {
   int flag;           /* FileSelectParams.flag */
   int _pad0;
   uint64_t filter_id; /* FileSelectParams.filter_id */
-
-  /** Info used when creating the file browser in a temporary window. */
-  rctf win_rect;
 } UserDef_FileSpaceData;
+
+typedef struct UserDef_TempWinBounds {
+  rctf file;
+  rctf preferences;
+  rctf render;
+  rctf drivers;
+  rctf info;
+  rctf orphans;
+} UserDef_TempWinBounds;
 
 /**
  * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
@@ -1159,6 +1163,8 @@ typedef struct UserDef {
   /** The UI for the user preferences. */
   UserDef_SpaceData space_data;
   UserDef_FileSpaceData file_space_data;
+
+  UserDef_TempWinBounds stored_bounds;
 
   UserDef_Experimental experimental;
 

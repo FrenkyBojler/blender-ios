@@ -149,24 +149,14 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     sizex = std::max(sizex, 320);
     sizey = std::max(sizey, 256);
 
-    const rcti window_rect = {
-        /*xmin*/ mx,
-        /*xmax*/ mx + sizex,
-        /*ymin*/ my,
-        /*ymax*/ my + sizey,
-    };
-
     /* changes context! */
-    if (WM_window_open(C,
-                       IFACE_("Blender Render"),
-                       &window_rect,
-                       SPACE_IMAGE,
-                       true,
-                       false,
-                       true,
-                       WIN_ALIGN_LOCATION_CENTER,
-                       nullptr,
-                       nullptr) == nullptr)
+    if (WM_window_open_temp(C,
+                            IFACE_("Blender Render"),
+                            SPACE_IMAGE,
+                            false,
+                            sizex,
+                            sizey,
+                            &U.stored_bounds.render) == nullptr)
     {
       BKE_report(reports, RPT_ERROR, "Failed to open window!");
       return nullptr;

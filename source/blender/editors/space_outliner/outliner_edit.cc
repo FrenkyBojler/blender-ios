@@ -2497,23 +2497,13 @@ static wmOperatorStatus outliner_orphans_manage_invoke(bContext *C,
 {
   const int sizex = int(450.0f * UI_SCALE_FAC);
   const int sizey = int(450.0f * UI_SCALE_FAC);
-  const rcti window_rect = {
-      /*xmin*/ event->xy[0],
-      /*xmax*/ event->xy[0] + sizex,
-      /*ymin*/ event->xy[1],
-      /*ymax*/ event->xy[1] + sizey,
-  };
-
-  if (WM_window_open(C,
-                     IFACE_("Manage Unused Data"),
-                     &window_rect,
-                     SPACE_OUTLINER,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
+  if (WM_window_open_temp(C,
+                          IFACE_("Manage Unused Data"),
+                          SPACE_OUTLINER,
+                          false,
+                          sizex,
+                          sizey,
+                          &U.stored_bounds.orphans) != nullptr)
   {
     SpaceOutliner *soutline = CTX_wm_space_outliner(C);
     soutline->outlinevis = SO_ID_ORPHANS;

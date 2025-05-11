@@ -2810,7 +2810,14 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
         }
       }
       else {
-        if (WM_window_open_temp(C, SPACE_FILE) == nullptr) {
+        if (WM_window_open_temp(C,
+                                IFACE_("Blender File View"),
+                                SPACE_FILE,
+                                true,
+                                1080,
+                                600,
+                                &U.stored_bounds.file) == nullptr)
+        {
           BKE_report(&wm->runtime->reports, RPT_ERROR, "Failed to open file browser!");
           return WM_HANDLER_BREAK;
         }
