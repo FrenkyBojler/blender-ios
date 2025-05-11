@@ -57,10 +57,11 @@ class GHOST_IEventConsumer;
  *
  * GHOST supports the following platforms:
  *
- * - OSX Cocoa.
- * - Windows.
- * - X11.
- * - SDL2 (experimental).
+ * - macOS Cocoa.
+ * - Microsoft Windows.
+ * - X11 (Linux).
+ * - Wayland (Linux).
+ * - SDL2.
  * - null (headless mode).
  *
  * \section Building GHOST
