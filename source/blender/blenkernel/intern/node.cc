@@ -1423,6 +1423,155 @@ static void remove_unsupported_sockets(ListBase *sockets, ListBase *links)
   }
 }
 
+static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntree, bNode *node)
+{
+  if (!node->storage) {
+    return;
+  }
+  if (node->type_legacy == CMP_NODE_MOVIEDISTORTION) {
+    /* Do nothing, this is a runtime cache and hence handled by generic code using
+     * `IDTypeInfo.foreach_cache` callback. */
+    return;
+  }
+
+  /* This may not always find the type for legacy nodes when the idname did not exist yet or it was
+   * changed. Versioning code will update the nodes with unknown types. */
+  const bNodeType *ntype = node_type_find(node->idname);
+
+  if (ntype && !ntype->storagename.empty()) {
+    node->storage = BLO_read_struct_by_name_array(
+        reader, ntype->storagename.c_str(), 1, node->storage);
+  }
+  else {
+    /* Untyped read because we don't know the type yet. */
+    BLO_read_data_address(reader, &node->storage);
+  }
+
+  if (ntype && ntype->blend_data_read_storage) {
+    ntype->blend_data_read_storage(*ntree, *node, *reader);
+    return;
+  }
+
+  switch (node->type_legacy) {
+    case SH_NODE_CURVE_VEC:
+    case SH_NODE_CURVE_RGB:
+    case SH_NODE_CURVE_FLOAT:
+    case CMP_NODE_TIME:
+    case CMP_NODE_CURVE_VEC:
+    case CMP_NODE_CURVE_RGB:
+    case CMP_NODE_HUECORRECT:
+    case TEX_NODE_CURVE_RGB:
+    case TEX_NODE_CURVE_TIME: {
+      BKE_curvemapping_blend_read(reader, static_cast<CurveMapping *>(node->storage));
+      break;
+    }
+    case SH_NODE_SCRIPT: {
+      NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
+      BLO_read_string(reader, &nss->bytecode);
+      break;
+    }
+    case SH_NODE_TEX_POINTDENSITY: {
+      NodeShaderTexPointDensity *npd = static_cast<NodeShaderTexPointDensity *>(node->storage);
+      npd->pd = dna::shallow_zero_initialize();
+      break;
+    }
+    case SH_NODE_TEX_IMAGE: {
+      NodeTexImage *tex = static_cast<NodeTexImage *>(node->storage);
+      tex->iuser.scene = nullptr;
+      break;
+    }
+    case SH_NODE_TEX_ENVIRONMENT: {
+      NodeTexEnvironment *tex = static_cast<NodeTexEnvironment *>(node->storage);
+      tex->iuser.scene = nullptr;
+      break;
+    }
+    case CMP_NODE_IMAGE:
+    case CMP_NODE_VIEWER: {
+      ImageUser *iuser = static_cast<ImageUser *>(node->storage);
+      iuser->scene = nullptr;
+      break;
+    }
+    case CMP_NODE_CRYPTOMATTE_LEGACY:
+    case CMP_NODE_CRYPTOMATTE: {
+      NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
+      BLO_read_string(reader, &nc->matte_id);
+      BLO_read_struct_list(reader, CryptomatteEntry, &nc->entries);
+      BLI_listbase_clear(&nc->runtime.layers);
+      break;
+    }
+    case TEX_NODE_IMAGE: {
+      ImageUser *iuser = static_cast<ImageUser *>(node->storage);
+      iuser->scene = nullptr;
+      break;
+    }
+    case CMP_NODE_OUTPUT_FILE: {
+      NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
+      BKE_image_format_blend_read_data(reader, &nimf->format);
+      break;
+    }
+    case FN_NODE_INPUT_STRING: {
+      NodeInputString *storage = static_cast<NodeInputString *>(node->storage);
+      BLO_read_string(reader, &storage->string);
+      break;
+    }
+    case GEO_NODE_SIMULATION_OUTPUT: {
+      nodes::socket_items::blend_read_data<nodes::SimulationItemsAccessor>(reader, *node);
+      break;
+    }
+    case GEO_NODE_REPEAT_OUTPUT: {
+      nodes::socket_items::blend_read_data<nodes::RepeatItemsAccessor>(reader, *node);
+      break;
+    }
+    case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
+      nodes::socket_items::blend_read_data<nodes::ForeachGeometryElementInputItemsAccessor>(reader,
+                                                                                            *node);
+      nodes::socket_items::blend_read_data<nodes::ForeachGeometryElementMainItemsAccessor>(reader,
+                                                                                           *node);
+      nodes::socket_items::blend_read_data<nodes::ForeachGeometryElementGenerationItemsAccessor>(
+          reader, *node);
+      break;
+    }
+    case GEO_NODE_INDEX_SWITCH: {
+      nodes::socket_items::blend_read_data<nodes::IndexSwitchItemsAccessor>(reader, *node);
+      break;
+    }
+    case GEO_NODE_BAKE: {
+      nodes::socket_items::blend_read_data<nodes::BakeItemsAccessor>(reader, *node);
+      break;
+    }
+    case GEO_NODE_COMBINE_BUNDLE: {
+      nodes::socket_items::blend_read_data<nodes::CombineBundleItemsAccessor>(reader, *node);
+      break;
+    }
+    case GEO_NODE_CLOSURE_OUTPUT: {
+      nodes::socket_items::blend_read_data<nodes::ClosureInputItemsAccessor>(reader, *node);
+      nodes::socket_items::blend_read_data<nodes::ClosureOutputItemsAccessor>(reader, *node);
+      break;
+    }
+    case GEO_NODE_EVALUATE_CLOSURE: {
+      nodes::socket_items::blend_read_data<nodes::EvaluateClosureInputItemsAccessor>(reader,
+                                                                                     *node);
+      nodes::socket_items::blend_read_data<nodes::EvaluateClosureOutputItemsAccessor>(reader,
+                                                                                      *node);
+      break;
+    }
+    case GEO_NODE_SEPARATE_BUNDLE: {
+      nodes::socket_items::blend_read_data<nodes::SeparateBundleItemsAccessor>(reader, *node);
+      break;
+    }
+    case GEO_NODE_MENU_SWITCH: {
+      nodes::socket_items::blend_read_data<nodes::MenuSwitchItemsAccessor>(reader, *node);
+      break;
+    }
+    case GEO_NODE_CAPTURE_ATTRIBUTE: {
+      nodes::socket_items::blend_read_data<nodes::CaptureAttributeItemsAccessor>(reader, *node);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree)
 {
   /* Special case for this pointer, do not rely on regular `lib_link` process here. Avoids needs
@@ -1484,144 +1633,7 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
     BLO_read_struct(reader, IDProperty, &node->prop);
     IDP_BlendDataRead(reader, &node->prop);
 
-    if (node->type_legacy == CMP_NODE_MOVIEDISTORTION) {
-      /* Do nothing, this is runtime cache and hence handled by generic code using
-       * `IDTypeInfo.foreach_cache` callback. */
-    }
-    else {
-      /* FIXME Avoid using low-level untyped read function here. Most likely by just mirroring
-       * the matching logic in #node_tree_blend_write ? */
-      BLO_read_data_address(reader, &node->storage);
-    }
-
-    if (node->storage) {
-      const bNodeType *ntype = node_type_find(node->idname);
-      if (ntype && ntype->blend_data_read_storage) {
-        ntype->blend_data_read_storage(*ntree, *node, *reader);
-        continue;
-      }
-
-      switch (node->type_legacy) {
-        case SH_NODE_CURVE_VEC:
-        case SH_NODE_CURVE_RGB:
-        case SH_NODE_CURVE_FLOAT:
-        case CMP_NODE_TIME:
-        case CMP_NODE_CURVE_VEC:
-        case CMP_NODE_CURVE_RGB:
-        case CMP_NODE_HUECORRECT:
-        case TEX_NODE_CURVE_RGB:
-        case TEX_NODE_CURVE_TIME: {
-          BKE_curvemapping_blend_read(reader, static_cast<CurveMapping *>(node->storage));
-          break;
-        }
-        case SH_NODE_SCRIPT: {
-          NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
-          BLO_read_string(reader, &nss->bytecode);
-          break;
-        }
-        case SH_NODE_TEX_POINTDENSITY: {
-          NodeShaderTexPointDensity *npd = static_cast<NodeShaderTexPointDensity *>(node->storage);
-          npd->pd = dna::shallow_zero_initialize();
-          break;
-        }
-        case SH_NODE_TEX_IMAGE: {
-          NodeTexImage *tex = static_cast<NodeTexImage *>(node->storage);
-          tex->iuser.scene = nullptr;
-          break;
-        }
-        case SH_NODE_TEX_ENVIRONMENT: {
-          NodeTexEnvironment *tex = static_cast<NodeTexEnvironment *>(node->storage);
-          tex->iuser.scene = nullptr;
-          break;
-        }
-        case CMP_NODE_IMAGE:
-        case CMP_NODE_VIEWER: {
-          ImageUser *iuser = static_cast<ImageUser *>(node->storage);
-          iuser->scene = nullptr;
-          break;
-        }
-        case CMP_NODE_CRYPTOMATTE_LEGACY:
-        case CMP_NODE_CRYPTOMATTE: {
-          NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
-          BLO_read_string(reader, &nc->matte_id);
-          BLO_read_struct_list(reader, CryptomatteEntry, &nc->entries);
-          BLI_listbase_clear(&nc->runtime.layers);
-          break;
-        }
-        case TEX_NODE_IMAGE: {
-          ImageUser *iuser = static_cast<ImageUser *>(node->storage);
-          iuser->scene = nullptr;
-          break;
-        }
-        case CMP_NODE_OUTPUT_FILE: {
-          NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
-          BKE_image_format_blend_read_data(reader, &nimf->format);
-          break;
-        }
-        case FN_NODE_INPUT_STRING: {
-          NodeInputString *storage = static_cast<NodeInputString *>(node->storage);
-          BLO_read_string(reader, &storage->string);
-          break;
-        }
-        case GEO_NODE_SIMULATION_OUTPUT: {
-          nodes::socket_items::blend_read_data<nodes::SimulationItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_REPEAT_OUTPUT: {
-          nodes::socket_items::blend_read_data<nodes::RepeatItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
-          nodes::socket_items::blend_read_data<nodes::ForeachGeometryElementInputItemsAccessor>(
-              reader, *node);
-          nodes::socket_items::blend_read_data<nodes::ForeachGeometryElementMainItemsAccessor>(
-              reader, *node);
-          nodes::socket_items::blend_read_data<
-              nodes::ForeachGeometryElementGenerationItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_INDEX_SWITCH: {
-          nodes::socket_items::blend_read_data<nodes::IndexSwitchItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_BAKE: {
-          nodes::socket_items::blend_read_data<nodes::BakeItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_COMBINE_BUNDLE: {
-          nodes::socket_items::blend_read_data<nodes::CombineBundleItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_CLOSURE_OUTPUT: {
-          nodes::socket_items::blend_read_data<nodes::ClosureInputItemsAccessor>(reader, *node);
-          nodes::socket_items::blend_read_data<nodes::ClosureOutputItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_EVALUATE_CLOSURE: {
-          nodes::socket_items::blend_read_data<nodes::EvaluateClosureInputItemsAccessor>(reader,
-                                                                                         *node);
-          nodes::socket_items::blend_read_data<nodes::EvaluateClosureOutputItemsAccessor>(reader,
-                                                                                          *node);
-          break;
-        }
-        case GEO_NODE_SEPARATE_BUNDLE: {
-          nodes::socket_items::blend_read_data<nodes::SeparateBundleItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_MENU_SWITCH: {
-          nodes::socket_items::blend_read_data<nodes::MenuSwitchItemsAccessor>(reader, *node);
-          break;
-        }
-        case GEO_NODE_CAPTURE_ATTRIBUTE: {
-          nodes::socket_items::blend_read_data<nodes::CaptureAttributeItemsAccessor>(reader,
-                                                                                     *node);
-          break;
-        }
-
-        default:
-          break;
-      }
-    }
+    node_blend_read_data_storage(reader, ntree, node);
   }
   BLO_read_struct_list(reader, bNodeLink, &ntree->links);
   BLI_assert(ntree->all_nodes().size() == BLI_listbase_count(&ntree->nodes));
