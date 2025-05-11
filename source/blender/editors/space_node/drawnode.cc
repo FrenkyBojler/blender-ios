@@ -1374,6 +1374,7 @@ static void std_node_socket_draw(
     case SOCK_COLLECTION:
     case SOCK_OBJECT:
     case SOCK_MATERIAL: {
+      const StringRefNull sock_typeinfo_label = sock->typeinfo->label;
       layout->prop(ptr,
                    RNA_struct_find_property(ptr, "default_value"),
                    -1,
@@ -1381,7 +1382,7 @@ static void std_node_socket_draw(
                    DEFAULT_FLAGS,
                    "",
                    ICON_NONE,
-                   label);
+                   text.is_empty() ? sock_typeinfo_label : label);
       break;
     }
     case SOCK_IMAGE: {
