@@ -45,7 +45,7 @@ GHOST_DECLARE_HANDLE(GHOST_EventConsumerHandle);
 GHOST_DECLARE_HANDLE(GHOST_ContextHandle);
 GHOST_DECLARE_HANDLE(GHOST_XrContextHandle);
 
-typedef void (*GHOST_TBacktraceFn)(void *file_handle);
+using GHOST_TBacktraceFn = void (*)(void *file_handle);
 
 /**
  * A reference to cursor bitmap data.
@@ -67,7 +67,7 @@ enum GHOST_DialogOptions {
   GHOST_DialogError = (1 << 1),
 };
 
-typedef void *GHOST_TUserDataPtr;
+using GHOST_TUserDataPtr = void *;
 
 enum GHOST_TSuccess { GHOST_kFailure = 0, GHOST_kSuccess };
 
@@ -551,7 +551,7 @@ enum GHOST_TAxisFlag {
   GHOST_kAxisY = (1 << 1),
 };
 
-typedef const void *GHOST_TEventDataPtr;
+using GHOST_TEventDataPtr = const void *;
 
 struct GHOST_TEventCursorData {
   /** The x-coordinate of the cursor position. */
@@ -605,7 +605,7 @@ enum GHOST_TDragnDropTypes {
   GHOST_kDragnDropTypeBitmap     /* Bitmap image data. */
 };
 
-typedef void *GHOST_TDragnDropDataPtr;
+using GHOST_TDragnDropDataPtr = void *;
 
 struct GHOST_TEventDragnDropData {
   /** The x-coordinate of the cursor position. */
@@ -841,13 +841,13 @@ struct GHOST_Debug {
 };
 
 #ifdef _WIN32
-typedef void *GHOST_TEmbedderWindowID;
+using GHOST_TEmbedderWindowID = void *;
 #endif  // _WIN32
 
 #ifndef _WIN32
 /* I can't use "Window" from `X11/Xlib.h`
  * because it conflicts with Window defined in `winlay.h`. */
-typedef int GHOST_TEmbedderWindowID;
+using GHOST_TEmbedderWindowID = int;
 #endif  // _WIN32
 
 /**
@@ -857,10 +857,10 @@ typedef int GHOST_TEmbedderWindowID;
  */
 #ifdef __cplusplus
 class GHOST_ITimerTask;
-typedef void (*GHOST_TimerProcPtr)(GHOST_ITimerTask *task, uint64_t time);
+using GHOST_TimerProcPtr = void (*)(GHOST_ITimerTask *task, uint64_t time);
 #else
 struct GHOST_TimerTaskHandle__;
-typedef void (*GHOST_TimerProcPtr)(struct GHOST_TimerTaskHandle__ *task, uint64_t time);
+using GHOST_TimerProcPtr = void (*)(struct GHOST_TimerTaskHandle__ *task, uint64_t time);
 #endif
 
 #ifdef WITH_XR_OPENXR
@@ -886,23 +886,23 @@ enum GHOST_TXrGraphicsBinding {
   //  GHOST_kXrGraphicsVulkan,
 };
 
-typedef void (*GHOST_XrErrorHandlerFn)(const struct GHOST_XrError *);
+using GHOST_XrErrorHandlerFn = void (*)(const struct GHOST_XrError*);
 
-typedef void (*GHOST_XrSessionCreateFn)(void);
-typedef void (*GHOST_XrSessionExitFn)(void *customdata);
-typedef void (*GHOST_XrCustomdataFreeFn)(void *customdata);
+using GHOST_XrSessionCreateFn = void (*)();
+using GHOST_XrSessionExitFn = void (*)(void *customdata);
+using GHOST_XrCustomdataFreeFn = void (*)(void *customdata);
 
-typedef void *(*GHOST_XrGraphicsContextBindFn)(void);
-typedef void (*GHOST_XrGraphicsContextUnbindFn)(GHOST_ContextHandle graphics_context);
-typedef void (*GHOST_XrDrawViewFn)(const struct GHOST_XrDrawViewInfo *draw_view, void *customdata);
-typedef bool (*GHOST_XrPassthroughEnabledFn)(void *customdata);
-typedef void (*GHOST_XrDisablePassthroughFn)(void *customdata);
+using GHOST_XrGraphicsContextBindFn = void* (*)();
+using GHOST_XrGraphicsContextUnbindFn = void (*)(GHOST_ContextHandle graphics_context);
+using GHOST_XrDrawViewFn = void (*)(const struct GHOST_XrDrawViewInfo *draw_view, void *customdata);
+using GHOST_XrPassthroughEnabledFn = bool (*)(void* customdata);
+using GHOST_XrDisablePassthroughFn = void (*)(void* customdata);
 
 /**
  * An array of #GHOST_TXrGraphicsBinding items defining the candidate bindings to use.
  * The first available candidate will be chosen, so order defines priority.
  */
-typedef const GHOST_TXrGraphicsBinding *GHOST_XrGraphicsBindingCandidates;
+using GHOST_XrGraphicsBindingCandidates = const GHOST_TXrGraphicsBinding *;
 
 struct GHOST_XrPose {
   bool is_active;
