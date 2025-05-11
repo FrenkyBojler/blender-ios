@@ -11,8 +11,6 @@
 #include <cassert>
 #include <string>
 
-#include "GHOST_C-api.h"
-
 #include "GHOST_XrContext.hh"
 #include "GHOST_XrException.hh"
 #include "GHOST_Xr_intern.hh"

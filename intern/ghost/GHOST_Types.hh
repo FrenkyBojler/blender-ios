@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 #ifdef WITH_VULKAN_BACKEND
 #  ifdef __APPLE__
@@ -23,18 +23,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#if defined(__cplusplus)
-#  define GHOST_DECLARE_HANDLE(name) \
-    typedef struct name##__ { \
-      int unused; \
-      MEM_CXX_CLASS_ALLOC_FUNCS(#name) \
-    } *name
-#else
-#  define GHOST_DECLARE_HANDLE(name) \
-    typedef struct name##__ { \
-      int unused; \
-    } *name
-#endif
+#define GHOST_DECLARE_HANDLE(name) \
+  typedef struct name##__ { \
+    int unused; \
+    MEM_CXX_CLASS_ALLOC_FUNCS(#name) \
+  } *name
 
 /**
  * Creates a "handle" for a C++ GHOST object.
@@ -531,7 +524,7 @@ typedef enum {
 } GHOST_TKey;
 
 #define GHOST_KEY_MODIFIER_NUM ((_GHOST_KEY_MODIFIER_MAX - _GHOST_KEY_MODIFIER_MIN) + 1)
-#define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key)-_GHOST_KEY_MODIFIER_MIN)
+#define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key) - _GHOST_KEY_MODIFIER_MIN)
 #define GHOST_KEY_MODIFIER_FROM_INDEX(key) \
   (GHOST_TKey)(((unsigned int)(key) + _GHOST_KEY_MODIFIER_MIN))
 #define GHOST_KEY_MODIFIER_CHECK(key) (GHOST_KEY_MODIFIER_TO_INDEX(key) < GHOST_KEY_MODIFIER_NUM)

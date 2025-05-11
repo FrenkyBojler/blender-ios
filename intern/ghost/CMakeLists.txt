@@ -12,7 +12,6 @@ set(INC_SYS
 
 set(SRC
   intern/GHOST_Buttons.cc
-  intern/GHOST_C-api.cc
   intern/GHOST_CallbackEventConsumer.cc
   intern/GHOST_Context.cc
   intern/GHOST_ContextNone.cc
@@ -28,7 +27,6 @@ set(SRC
   intern/GHOST_Window.cc
   intern/GHOST_WindowManager.cc
 
-  GHOST_C-api.h
   GHOST_IContext.hh
   GHOST_IEvent.hh
   GHOST_IEventConsumer.hh
@@ -38,7 +36,7 @@ set(SRC
   GHOST_IWindow.hh
   GHOST_Path-api.hh
   GHOST_Rect.hh
-  GHOST_Types.h
+  GHOST_Types.hh
 
   intern/GHOST_Buttons.hh
   intern/GHOST_CallbackEventConsumer.hh

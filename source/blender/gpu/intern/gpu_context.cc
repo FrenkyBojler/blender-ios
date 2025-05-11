@@ -22,7 +22,7 @@
 #include "DNA_userdef_types.h"
 
 #include "GHOST_C-api.h"
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 #include "GPU_context.hh"
 

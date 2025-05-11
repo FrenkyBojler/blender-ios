@@ -16,7 +16,7 @@
 #include "GHOST_IContext.hh"
 #include "GHOST_ITimerTask.hh"
 #include "GHOST_IWindow.hh"
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 class GHOST_IEventConsumer;
 

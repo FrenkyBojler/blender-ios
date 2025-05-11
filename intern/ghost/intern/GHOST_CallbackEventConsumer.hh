@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "GHOST_C-api.h"
+#include "GHOST_Types.hh"
 #include "GHOST_IEventConsumer.hh"
 
 /**

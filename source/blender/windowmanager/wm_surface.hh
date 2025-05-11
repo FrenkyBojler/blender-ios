@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 struct bContext;
 struct GPUContext;

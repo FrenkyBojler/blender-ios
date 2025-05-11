@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "../GHOST_Types.h"
+#include "../GHOST_Types.hh"
 #include "GHOST_SystemPaths.hh"
 
 class GHOST_SystemPathsUnix : public GHOST_SystemPaths {

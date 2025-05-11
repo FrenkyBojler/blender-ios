@@ -8,7 +8,7 @@
 
 #include "GHOST_Path-api.hh"
 #include "GHOST_ISystemPaths.hh"
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 #include "intern/GHOST_Debug.hh"
 
 GHOST_TSuccess GHOST_CreateSystemPaths()
