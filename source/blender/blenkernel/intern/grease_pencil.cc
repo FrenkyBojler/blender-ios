@@ -2370,22 +2370,16 @@ bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, co
 
   bool has_curve_with_type = false;
 
-  for (const int layer_i : grease_pencil.layers().index_range()) {
-    const bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
-    const Map<bke::greasepencil::FramesMapKeyT, GreasePencilFrame> frames = layer.frames();
-    frames.foreach_item(
-        [&](const bke::greasepencil::FramesMapKeyT /*key*/, const GreasePencilFrame frame) {
-          const GreasePencilDrawingBase *base = grease_pencil.drawing(frame.drawing_index);
-          if (base->type != GP_DRAWING) {
-            return;
-          }
-          const bke::greasepencil::Drawing &drawing =
-              reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
-          const bke::CurvesGeometry &curves = drawing.strokes();
-          if (curves.has_curve_with_type(type)) {
-            has_curve_with_type = true;
-          }
-        });
+  for (const GreasePencilDrawingBase *base : grease_pencil.drawings()) {
+    if (base->type != GP_DRAWING) {
+      continue;
+    }
+    const bke::greasepencil::Drawing &drawing = reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
+    const bke::CurvesGeometry &curves = drawing.strokes();
+    if (curves.has_curve_with_type(type)) {
+      has_curve_with_type = true;
+      break;
+    }
   }
 
   return has_curve_with_type;

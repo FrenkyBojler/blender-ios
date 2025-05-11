@@ -667,7 +667,6 @@ void data_xform_by_mat4(XFormObjectData &xod_base, const float4x4 &transform)
 
 void data_xform_restore(XFormObjectData &xod_base)
 {
-  printf("data_xform_restore\n");
   switch (GS(xod_base.id->name)) {
     case ID_ME: {
       Mesh *mesh = (Mesh *)xod_base.id;
