@@ -543,8 +543,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 
   /* Add library data-block itself to 'main' Main, since libraries are **never** linked data.
    * Fixes bug where you could end with all ID_LI data-blocks having the same name... */
-  lib = static_cast<Library *>(
-      BKE_id_new(static_cast<Main *>(mainlist->first), ID_LI, BLI_path_basename(filepath)));
+  lib = BKE_id_new<Library>(static_cast<Main *>(mainlist->first), BLI_path_basename(filepath));
 
   /* Important, consistency with main ID reading code from read_libblock(). */
   lib->id.us = ID_FAKE_USERS(lib);
@@ -3095,6 +3094,21 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_400(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_410(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_420(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_430(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_440(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_450(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -3139,6 +3153,21 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_400(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_410(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_420(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_430(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_440(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_450(fd, main);
   }
 
   main->is_locked_for_linking = false;
