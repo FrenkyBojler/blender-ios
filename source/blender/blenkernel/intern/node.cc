@@ -1139,29 +1139,27 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     ntype->blend_write_storage_content(*ntree, *node, *writer);
     return;
   }
-  if (ELEM(ntree->type, NTREE_SHADER, NTREE_GEOMETRY, NTREE_COMPOSIT) &&
-      ELEM(node->type_legacy, SH_NODE_CURVE_VEC, SH_NODE_CURVE_RGB, SH_NODE_CURVE_FLOAT))
+  /* These nodes don't use #blend_write_storage_content, because their corresponding blend-read
+   * can't use it, because they were introduced before there were node idnames. */
+  if (ELEM(node->type_legacy,
+           SH_NODE_CURVE_VEC,
+           SH_NODE_CURVE_RGB,
+           SH_NODE_CURVE_FLOAT,
+           CMP_NODE_TIME,
+           CMP_NODE_CURVE_VEC,
+           CMP_NODE_CURVE_RGB,
+           CMP_NODE_HUECORRECT,
+           TEX_NODE_CURVE_RGB,
+           TEX_NODE_CURVE_TIME))
   {
     BKE_curvemapping_curves_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
   }
-  else if (ntree->type == NTREE_SHADER && (node->type_legacy == SH_NODE_SCRIPT)) {
+
+  if (ntree->type == NTREE_SHADER && (node->type_legacy == SH_NODE_SCRIPT)) {
     NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
     if (nss->bytecode) {
       BLO_write_string(writer, nss->bytecode);
     }
-  }
-  else if ((ntree->type == NTREE_COMPOSIT) && ELEM(node->type_legacy,
-                                                   CMP_NODE_TIME,
-                                                   CMP_NODE_CURVE_VEC,
-                                                   CMP_NODE_CURVE_RGB,
-                                                   CMP_NODE_HUECORRECT))
-  {
-    BKE_curvemapping_curves_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
-  }
-  else if ((ntree->type == NTREE_TEXTURE) &&
-           ELEM(node->type_legacy, TEX_NODE_CURVE_RGB, TEX_NODE_CURVE_TIME))
-  {
-    BKE_curvemapping_curves_blend_write(writer, static_cast<const CurveMapping *>(node->storage));
   }
   else if ((ntree->type == NTREE_COMPOSIT) && (node->type_legacy == CMP_NODE_MOVIEDISTORTION)) {
     /* pass */
@@ -1452,6 +1450,8 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
     return;
   }
 
+  /* Some nodes don't use the callback above, because they were introduced before there were node
+   * idnames. Therefore, we can't rely on the idname to lookup the node type. */
   switch (node->type_legacy) {
     case SH_NODE_CURVE_VEC:
     case SH_NODE_CURVE_RGB:
