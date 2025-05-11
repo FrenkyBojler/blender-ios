@@ -102,18 +102,36 @@ typedef enum eGPDbrush_Flag {
 } eGPDbrush_Flag;
 
 typedef enum eGPDbrush_Flag2 {
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE  */
+  /* Brush use random Hue at stroke level */
+  GP_BRUSH_USE_HUE_AT_STROKE = (1 << 0),
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE  */
+  /* Brush use random Saturation at stroke level */
+  GP_BRUSH_USE_SAT_AT_STROKE = (1 << 1),
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE  */
+  /* Brush use random Value at stroke level */
+  GP_BRUSH_USE_VAL_AT_STROKE = (1 << 2),
   /* Brush use random Pressure at stroke level */
-  GP_BRUSH_USE_PRESS_AT_STROKE = (1 << 0),
+  GP_BRUSH_USE_PRESS_AT_STROKE = (1 << 3),
   /* Brush use random Strength at stroke level */
-  GP_BRUSH_USE_STRENGTH_AT_STROKE = (1 << 1),
+  GP_BRUSH_USE_STRENGTH_AT_STROKE = (1 << 4),
   /* Brush use random UV at stroke level */
-  GP_BRUSH_USE_UV_AT_STROKE = (1 << 2),
+  GP_BRUSH_USE_UV_AT_STROKE = (1 << 5),
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS  */
+  /* Brush use Hue random pressure */
+  GP_BRUSH_USE_HUE_RAND_PRESS = (1 << 6),
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS  */
+  /* Brush use Saturation random pressure */
+  GP_BRUSH_USE_SAT_RAND_PRESS = (1 << 7),
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS  */
+  /* Brush use Value random pressure */
+  GP_BRUSH_USE_VAL_RAND_PRESS = (1 << 8),
   /* Brush use Pressure random pressure */
-  GP_BRUSH_USE_PRESSURE_RAND_PRESS = (1 << 3),
+  GP_BRUSH_USE_PRESSURE_RAND_PRESS = (1 << 9),
   /* Brush use Strength random pressure */
-  GP_BRUSH_USE_STRENGTH_RAND_PRESS = (1 << 4),
+  GP_BRUSH_USE_STRENGTH_RAND_PRESS = (1 << 10),
   /* Brush use UV random pressure */
-  GP_BRUSH_USE_UV_RAND_PRESS = (1 << 5),
+  GP_BRUSH_USE_UV_RAND_PRESS = (1 << 11),
 } eGPDbrush_Flag2;
 
 /* BrushGpencilSettings->fill_draw_mode */

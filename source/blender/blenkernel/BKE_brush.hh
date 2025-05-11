@@ -10,8 +10,9 @@
  * General operations for brushes.
  */
 
-#include "BLI_span.hh"
 #include <optional>
+
+#include "BLI_span.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_color_types.h"
