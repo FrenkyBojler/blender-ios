@@ -16,22 +16,6 @@
 
 #include "node_util.hh"
 
-namespace blender::nodes::node_shader_curves_cc {
-
-/** Shared across node types in this file. */
-static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
-{
-  BKE_curvemapping_curves_blend_write(&writer, static_cast<CurveMapping *>(node.storage));
-}
-
-/** Shared across node types in this file. */
-static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
-{
-  BKE_curvemapping_blend_read(&reader, static_cast<CurveMapping *>(node.storage));
-}
-
-}  // namespace blender::nodes::node_shader_curves_cc
-
 namespace blender::nodes::node_shader_curves_cc::vec {
 
 static void sh_node_curve_vec_declare(NodeDeclarationBuilder &b)
@@ -164,8 +148,6 @@ void register_node_type_sh_curve_vec()
   ntype.gpu_fn = file_ns::gpu_shader_curve_vec;
   ntype.build_multi_function = file_ns::sh_node_curve_vec_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
-  ntype.blend_write_storage_content = blender::nodes::node_shader_curves_cc::node_blend_write;
-  ntype.blend_data_read_storage_content = blender::nodes::node_shader_curves_cc::node_blend_read;
 
   blender::bke::node_register_type(ntype);
 }
@@ -332,8 +314,6 @@ void register_node_type_sh_curve_rgb()
   ntype.gpu_fn = file_ns::gpu_shader_curve_rgb;
   ntype.build_multi_function = file_ns::sh_node_curve_rgb_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
-  ntype.blend_write_storage_content = blender::nodes::node_shader_curves_cc::node_blend_write;
-  ntype.blend_data_read_storage_content = blender::nodes::node_shader_curves_cc::node_blend_read;
 
   blender::bke::node_register_type(ntype);
 }
@@ -470,8 +450,6 @@ void register_node_type_sh_curve_float()
   ntype.gpu_fn = file_ns::gpu_shader_curve_float;
   ntype.build_multi_function = file_ns::sh_node_curve_float_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
-  ntype.blend_write_storage_content = blender::nodes::node_shader_curves_cc::node_blend_write;
-  ntype.blend_data_read_storage_content = blender::nodes::node_shader_curves_cc::node_blend_read;
 
   blender::bke::node_register_type(ntype);
 }
