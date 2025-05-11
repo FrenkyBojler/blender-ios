@@ -72,6 +72,13 @@ using GHOST_TUserDataPtr = void *;
 enum GHOST_TSuccess { GHOST_kFailure = 0, GHOST_kSuccess };
 
 /**
+ * Definition of a callback routine that receives events.
+ * \param event: The event received.
+ * \param user_data: The callback's user data, supplied to #GHOST_CreateSystem.
+ */
+using GHOST_EventCallbackProcPtr = bool (*)(GHOST_EventHandle event, GHOST_TUserDataPtr user_data);
+
+/**
  * Static flag (relating to the back-ends support for features).
  *
  * \note When adding new capabilities, add to #GHOST_CAPABILITY_FLAG_ALL,
