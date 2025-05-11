@@ -1190,12 +1190,6 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     nodes::socket_items::blend_write<nodes::CaptureAttributeItemsAccessor>(writer, *node);
   }
 
-  if (node->type_legacy == GEO_NODE_BAKE) {
-    nodes::socket_items::blend_write<nodes::BakeItemsAccessor>(writer, *node);
-  }
-  if (node->type_legacy == GEO_NODE_COMBINE_BUNDLE) {
-    nodes::socket_items::blend_write<nodes::CombineBundleItemsAccessor>(writer, *node);
-  }
   if (node->type_legacy == GEO_NODE_SEPARATE_BUNDLE) {
     nodes::socket_items::blend_write<nodes::SeparateBundleItemsAccessor>(writer, *node);
   }
@@ -1484,14 +1478,6 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
     case CMP_NODE_OUTPUT_FILE: {
       NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
       BKE_image_format_blend_read_data(reader, &nimf->format);
-      break;
-    }
-    case GEO_NODE_BAKE: {
-      nodes::socket_items::blend_read_data<nodes::BakeItemsAccessor>(reader, *node);
-      break;
-    }
-    case GEO_NODE_COMBINE_BUNDLE: {
-      nodes::socket_items::blend_read_data<nodes::CombineBundleItemsAccessor>(reader, *node);
       break;
     }
     case GEO_NODE_CLOSURE_OUTPUT: {
