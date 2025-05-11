@@ -393,12 +393,12 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 
 static void node_blend_write(const bNodeTree & /*ntree*/, const bNode &node, BlendWriter &writer)
 {
-  socket_items::blend_write<nodes::MenuSwitchItemsAccessor>(&writer, node);
+  socket_items::blend_write<MenuSwitchItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*ntree*/, bNode &node, BlendDataReader &reader)
 {
-  socket_items::blend_read_data<nodes::MenuSwitchItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<MenuSwitchItemsAccessor>(&reader, node);
 }
 
 static void node_rna(StructRNA *srna)

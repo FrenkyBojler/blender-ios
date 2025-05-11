@@ -255,12 +255,12 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  socket_items::blend_write<nodes::CaptureAttributeItemsAccessor>(&writer, node);
+  socket_items::blend_write<CaptureAttributeItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  socket_items::blend_read_data<nodes::CaptureAttributeItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<CaptureAttributeItemsAccessor>(&reader, node);
 }
 
 static void node_register()

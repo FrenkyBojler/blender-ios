@@ -277,14 +277,14 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  socket_items::blend_write<nodes::ClosureInputItemsAccessor>(&writer, node);
-  socket_items::blend_write<nodes::ClosureOutputItemsAccessor>(&writer, node);
+  socket_items::blend_write<ClosureInputItemsAccessor>(&writer, node);
+  socket_items::blend_write<ClosureOutputItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  socket_items::blend_read_data<nodes::ClosureInputItemsAccessor>(&reader, node);
-  socket_items::blend_read_data<nodes::ClosureOutputItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ClosureInputItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ClosureOutputItemsAccessor>(&reader, node);
 }
 
 static void node_register()

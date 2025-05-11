@@ -884,12 +884,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  socket_items::blend_write<nodes::SimulationItemsAccessor>(&writer, node);
+  socket_items::blend_write<SimulationItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  socket_items::blend_read_data<nodes::SimulationItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<SimulationItemsAccessor>(&reader, node);
 }
 
 static void node_register()

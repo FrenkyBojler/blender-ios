@@ -135,12 +135,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  socket_items::blend_write<nodes::SeparateBundleItemsAccessor>(&writer, node);
+  socket_items::blend_write<SeparateBundleItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  socket_items::blend_read_data<nodes::SeparateBundleItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<SeparateBundleItemsAccessor>(&reader, node);
 }
 
 static void node_register()
