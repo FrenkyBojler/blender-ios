@@ -1130,6 +1130,21 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
       }
     }
   }
+  else if (node->type_legacy == GEO_NODE_CAPTURE_ATTRIBUTE) {
+    auto &storage = *static_cast<NodeGeometryAttributeCapture *>(node->storage);
+    /* Improve forward compatibility. */
+    storage.data_type_legacy = CD_PROP_FLOAT;
+    for (const NodeGeometryAttributeCaptureItem &item :
+         Span{storage.capture_items, storage.capture_items_num})
+    {
+      if (item.identifier == 0) {
+        /* The sockets of this item have the same identifiers that have been used by older
+         * Blender versions before the node supported capturing multiple attributes. */
+        storage.data_type_legacy = item.data_type;
+        break;
+      }
+    }
+  }
 
   const bNodeType *ntype = node->typeinfo;
   if (!ntype->storagename.empty()) {
@@ -1172,22 +1187,6 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     LISTBASE_FOREACH (CryptomatteEntry *, entry, &nc->entries) {
       BLO_write_struct(writer, CryptomatteEntry, entry);
     }
-  }
-  else if (node->type_legacy == GEO_NODE_CAPTURE_ATTRIBUTE) {
-    auto &storage = *static_cast<NodeGeometryAttributeCapture *>(node->storage);
-    /* Improve forward compatibility. */
-    storage.data_type_legacy = CD_PROP_FLOAT;
-    for (const NodeGeometryAttributeCaptureItem &item :
-         Span{storage.capture_items, storage.capture_items_num})
-    {
-      if (item.identifier == 0) {
-        /* The sockets of this item have the same identifiers that have been used by older
-         * Blender versions before the node supported capturing multiple attributes. */
-        storage.data_type_legacy = item.data_type;
-        break;
-      }
-    }
-    nodes::socket_items::blend_write<nodes::CaptureAttributeItemsAccessor>(writer, *node);
   }
 }
 
@@ -1463,10 +1462,6 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
     case CMP_NODE_OUTPUT_FILE: {
       NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
       BKE_image_format_blend_read_data(reader, &nimf->format);
-      break;
-    }
-    case GEO_NODE_CAPTURE_ATTRIBUTE: {
-      nodes::socket_items::blend_read_data<nodes::CaptureAttributeItemsAccessor>(reader, *node);
       break;
     }
     default:
