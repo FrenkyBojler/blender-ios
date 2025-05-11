@@ -50,26 +50,26 @@ typedef void (*GHOST_TBacktraceFn)(void *file_handle);
 /**
  * A reference to cursor bitmap data.
  */
-typedef struct {
+struct GHOST_CursorBitmapRef {
   /** `RGBA` bytes. */
   const uint8_t *data;
   int data_size[2];
   int hot_spot[2];
-} GHOST_CursorBitmapRef;
+};
 
-typedef enum {
+enum GHOST_GPUFlags {
   GHOST_gpuStereoVisual = (1 << 0),
   GHOST_gpuDebugContext = (1 << 1),
-} GHOST_GPUFlags;
+};
 
-typedef enum GHOST_DialogOptions {
+enum GHOST_DialogOptions {
   GHOST_DialogWarning = (1 << 0),
   GHOST_DialogError = (1 << 1),
-} GHOST_DialogOptions;
+};
 
 typedef void *GHOST_TUserDataPtr;
 
-typedef enum { GHOST_kFailure = 0, GHOST_kSuccess } GHOST_TSuccess;
+enum GHOST_TSuccess { GHOST_kFailure = 0, GHOST_kSuccess };
 
 /**
  * Static flag (relating to the back-ends support for features).
@@ -78,7 +78,7 @@ typedef enum { GHOST_kFailure = 0, GHOST_kSuccess } GHOST_TSuccess;
  * then mask out of from the `getCapabilities(..)` callback with an explanation for why
  * the feature is not supported.
  */
-typedef enum {
+enum GHOST_TCapabilityFlag {
   /**
    * Set when warping the cursor is supported (re-positioning the users cursor).
    */
@@ -120,8 +120,7 @@ typedef enum {
    * Support for the "Hyper" modifier key.
    */
   GHOST_kCapabilityKeyboardHyperKey = (1 << 9),
-
-} GHOST_TCapabilityFlag;
+};
 
 /**
  * Back-ends should use this, masking out features which are not supported
@@ -141,26 +140,26 @@ typedef enum {
  * the pen's angle in 3D space vertically downwards on to the XY plane
  * --Matt
  */
-typedef enum {
+enum GHOST_TTabletMode {
   GHOST_kTabletModeNone = 0,
   GHOST_kTabletModeStylus,
   GHOST_kTabletModeEraser
-} GHOST_TTabletMode;
+};
 
-typedef enum {
+enum GHOST_TTabletAPI {
   GHOST_kTabletAutomatic = 0,
   /* Show as Windows Ink to users to match "Use Windows Ink" in tablet utilities,
    * but we use the dependent Windows Pointer API. */
   GHOST_kTabletWinPointer,
   GHOST_kTabletWintab,
-} GHOST_TTabletAPI;
+};
 
-typedef struct GHOST_TabletData {
+struct GHOST_TabletData {
   GHOST_TTabletMode Active; /* 0=None, 1=Stylus, 2=Eraser */
   float Pressure;           /* range 0.0 (not touching) to 1.0 (full pressure) */
   float Xtilt;              /* range -1.0 (left) to +1.0 (right) */
   float Ytilt;              /* range -1.0 (away from user) to +1.0 (toward user) */
-} GHOST_TabletData;
+};
 
 static const GHOST_TabletData GHOST_TABLET_DATA_NONE = {
     GHOST_kTabletModeNone, /* No cursor in range */
@@ -168,15 +167,15 @@ static const GHOST_TabletData GHOST_TABLET_DATA_NONE = {
     0.0f,                  /* Xtilt */
     0.0f};                 /* Ytilt */
 
-typedef enum {
+enum GHOST_TVisibility {
   GHOST_kNotVisible = 0,
   GHOST_kPartiallyVisible,
   GHOST_kFullyVisible
-} GHOST_TVisibility;
+};
 
-typedef enum { GHOST_kFireTimeNever = 0xFFFFFFFF } GHOST_TFireTimeConstant;
+enum GHOST_TFireTimeConstant { GHOST_kFireTimeNever = 0xFFFFFFFF };
 
-typedef enum {
+enum GHOST_TModifierKey {
   GHOST_kModifierKeyLeftShift = 0,
   GHOST_kModifierKeyRightShift,
   GHOST_kModifierKeyLeftAlt,
@@ -188,29 +187,29 @@ typedef enum {
   GHOST_kModifierKeyLeftHyper,
   GHOST_kModifierKeyRightHyper,
   GHOST_kModifierKeyNum
-} GHOST_TModifierKey;
+};
 
 /**
  * \note these values are stored in #wmWindow::windowstate,
  * don't change, only add new values.
  */
-typedef enum {
+enum GHOST_TWindowState {
   GHOST_kWindowStateNormal = 0,
   GHOST_kWindowStateMaximized = 1,
   GHOST_kWindowStateMinimized = 2,
   GHOST_kWindowStateFullScreen = 3,
-} GHOST_TWindowState;
+};
 
-typedef enum {
+enum GHOST_TConsoleWindowState {
   GHOST_kConsoleWindowStateHide = 0,
   GHOST_kConsoleWindowStateShow,
   GHOST_kConsoleWindowStateToggle,
   GHOST_kConsoleWindowStateHideForNonConsoleLaunch
-} GHOST_TConsoleWindowState;
+};
 
-typedef enum { GHOST_kWindowOrderTop = 0, GHOST_kWindowOrderBottom } GHOST_TWindowOrder;
+enum GHOST_TWindowOrder { GHOST_kWindowOrderTop = 0, GHOST_kWindowOrderBottom };
 
-typedef enum {
+enum GHOST_TDrawingContextType {
   GHOST_kDrawingContextTypeNone = 0,
 #if defined(WITH_OPENGL_BACKEND)
   GHOST_kDrawingContextTypeOpenGL,
@@ -224,9 +223,9 @@ typedef enum {
 #ifdef WITH_VULKAN_BACKEND
   GHOST_kDrawingContextTypeVulkan,
 #endif
-} GHOST_TDrawingContextType;
+};
 
-typedef enum {
+enum GHOST_TButton {
   GHOST_kButtonMaskNone,
   GHOST_kButtonMaskLeft,
   GHOST_kButtonMaskMiddle,
@@ -238,9 +237,9 @@ typedef enum {
   GHOST_kButtonMaskButton7,
 
 #define GHOST_kButtonNum (int(GHOST_kButtonMaskButton7) + 1)
-} GHOST_TButton;
+};
 
-typedef enum {
+enum GHOST_TEventType {
   GHOST_kEventUnknown = 0,
 
   /** Mouse move event.
@@ -316,9 +315,9 @@ typedef enum {
   GHOST_kEventImeCompositionEnd,
 
 #define GHOST_kNumEventTypes (GHOST_kEventImeCompositionEnd + 1)
-} GHOST_TEventType;
+};
 
-typedef enum {
+enum GHOST_TStandardCursor {
 #define GHOST_kStandardCursorFirstCursor int(GHOST_kStandardCursorDefault)
   GHOST_kStandardCursorDefault = 0,
   GHOST_kStandardCursorRightArrow,
@@ -368,9 +367,9 @@ typedef enum {
   GHOST_kStandardCursorCustom,
 
 #define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
-} GHOST_TStandardCursor;
+};
 
-typedef enum {
+enum GHOST_TKey {
   GHOST_kKeyUnknown = -1,
   GHOST_kKeyBackSpace,
   GHOST_kKeyTab,
@@ -521,7 +520,7 @@ typedef enum {
   GHOST_kKeyMediaStop,
   GHOST_kKeyMediaFirst,
   GHOST_kKeyMediaLast
-} GHOST_TKey;
+};
 
 #define GHOST_KEY_MODIFIER_NUM ((_GHOST_KEY_MODIFIER_MAX - _GHOST_KEY_MODIFIER_MIN) + 1)
 #define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key) - _GHOST_KEY_MODIFIER_MIN)
@@ -529,7 +528,7 @@ typedef enum {
   (GHOST_TKey)(((unsigned int)(key) + _GHOST_KEY_MODIFIER_MIN))
 #define GHOST_KEY_MODIFIER_CHECK(key) (GHOST_KEY_MODIFIER_TO_INDEX(key) < GHOST_KEY_MODIFIER_NUM)
 
-typedef enum {
+enum GHOST_TGrabCursorMode {
   /** Grab not set. */
   GHOST_kGrabDisable = 0,
   /** No cursor adjustments. */
@@ -541,50 +540,50 @@ typedef enum {
    * (used for number buttons and some other draggable UI elements).
    */
   GHOST_kGrabHide,
-} GHOST_TGrabCursorMode;
+};
 
 #define GHOST_GRAB_NEEDS_SOFTWARE_CURSOR_FOR_WARP(grab) ((grab) == GHOST_kGrabWrap)
 
-typedef enum {
+enum GHOST_TAxisFlag {
   /** Axis that cursor grab will wrap. */
   GHOST_kAxisNone = 0,
   GHOST_kAxisX = (1 << 0),
   GHOST_kAxisY = (1 << 1),
-} GHOST_TAxisFlag;
+};
 
 typedef const void *GHOST_TEventDataPtr;
 
-typedef struct {
+struct GHOST_TEventCursorData {
   /** The x-coordinate of the cursor position. */
   int32_t x;
   /** The y-coordinate of the cursor position. */
   int32_t y;
   /** Associated tablet data. */
   GHOST_TabletData tablet;
-} GHOST_TEventCursorData;
+};
 
-typedef struct {
+struct GHOST_TEventButtonData {
   /** The mask of the mouse button. */
   GHOST_TButton button;
   /** Associated tablet data. */
   GHOST_TabletData tablet;
-} GHOST_TEventButtonData;
+};
 
-typedef struct {
+struct GHOST_TEventWheelData {
   /** Displacement of a mouse wheel. */
   int32_t z;
-} GHOST_TEventWheelData;
+};
 
-typedef enum {
+enum GHOST_TTrackpadEventSubTypes {
   GHOST_kTrackpadEventUnknown = 0,
   GHOST_kTrackpadEventScroll,
   GHOST_kTrackpadEventRotate,
   GHOST_kTrackpadEventSwipe, /* Reserved, not used for now */
   GHOST_kTrackpadEventMagnify,
   GHOST_kTrackpadEventSmartMagnify
-} GHOST_TTrackpadEventSubTypes;
+};
 
-typedef struct {
+struct GHOST_TEventTrackpadData {
   /** The event subtype */
   GHOST_TTrackpadEventSubTypes subtype;
   /** The x-location of the trackpad event */
@@ -597,18 +596,18 @@ typedef struct {
   int32_t deltaY;
   /** The delta is inverted from the device due to system preferences. */
   char isDirectionInverted;
-} GHOST_TEventTrackpadData;
+};
 
-typedef enum {
+enum GHOST_TDragnDropTypes {
   GHOST_kDragnDropTypeUnknown = 0,
   GHOST_kDragnDropTypeFilenames, /* Array of strings representing file names (full path). */
   GHOST_kDragnDropTypeString,    /* Unformatted text UTF-8 string. */
   GHOST_kDragnDropTypeBitmap     /* Bitmap image data. */
-} GHOST_TDragnDropTypes;
+};
 
 typedef void *GHOST_TDragnDropDataPtr;
 
-typedef struct {
+struct GHOST_TEventDragnDropData {
   /** The x-coordinate of the cursor position. */
   int32_t x;
   /** The y-coordinate of the cursor position. */
@@ -617,13 +616,13 @@ typedef struct {
   GHOST_TDragnDropTypes dataType;
   /** The "dropped content" */
   GHOST_TDragnDropDataPtr data;
-} GHOST_TEventDragnDropData;
+};
 
 /**
  * \warning this is a duplicate of #wmImeData.
  * All members must remain aligned and the struct size match!
  */
-typedef struct {
+struct GHOST_TEventImeData {
   /** size_t */
   GHOST_TUserDataPtr result_len, composite_len;
   /** char * utf8 encoding */
@@ -634,26 +633,26 @@ typedef struct {
   int target_start;
   /** Represents the position of the end of the selection */
   int target_end;
-} GHOST_TEventImeData;
+};
 
-typedef struct {
+struct GHOST_TStringArray {
   int count;
   uint8_t **strings;
-} GHOST_TStringArray;
+};
 
 /**
  * Keep in sync with #wmProgress.
  */
-typedef enum {
+enum GHOST_TProgress {
   GHOST_kNotStarted = 0,
   GHOST_kStarting,
   GHOST_kInProgress,
   GHOST_kFinishing,
   GHOST_kFinished
-} GHOST_TProgress;
+};
 
 #ifdef WITH_INPUT_NDOF
-typedef struct {
+struct GHOST_TEventNDOFMotionData {
   /** N-degree of freedom device data v3 [GSoC 2010] */
   /* Each component normally ranges from -1 to +1, but can exceed that.
    * These use blender standard view coordinates,
@@ -668,18 +667,18 @@ typedef struct {
   float dt;
   /** Starting, #GHOST_kInProgress or #GHOST_kFinishing (for modal handlers) */
   GHOST_TProgress progress;
-} GHOST_TEventNDOFMotionData;
+};
 
-typedef enum { GHOST_kPress, GHOST_kRelease } GHOST_TButtonAction;
+enum GHOST_TButtonAction { GHOST_kPress, GHOST_kRelease };
 /* Good for mouse or other buttons too? */
 
-typedef struct {
+struct GHOST_TEventNDOFButtonData {
   GHOST_TButtonAction action;
   short button;
-} GHOST_TEventNDOFButtonData;
+};
 #endif  // WITH_INPUT_NDOF
 
-typedef struct {
+struct GHOST_TEventKeyData {
   /** The key code. */
   GHOST_TKey key;
 
@@ -693,9 +692,9 @@ typedef struct {
    * All back-ends must set this variable for correct behavior regarding repeatable keys.
    */
   char is_repeat;
-} GHOST_TEventKeyData;
+};
 
-typedef enum {
+enum GHOST_TUserSpecialDirTypes {
   GHOST_kUserSpecialDirDesktop,
   GHOST_kUserSpecialDirDocuments,
   GHOST_kUserSpecialDirDownloads,
@@ -704,35 +703,35 @@ typedef enum {
   GHOST_kUserSpecialDirVideos,
   GHOST_kUserSpecialDirCaches,
   /* Can be extended as needed. */
-} GHOST_TUserSpecialDirTypes;
+};
 
-typedef enum {
+enum GHOST_TWindowDecorationStyleFlags {
   GHOST_kDecorationNone = 0,
   GHOST_kDecorationColoredTitleBar = (1 << 0),
-} GHOST_TWindowDecorationStyleFlags;
+};
 
-typedef struct {
+struct GHOST_GPUDevice {
   /** Index of the GPU device in the list provided by the platform. */
   int index;
   /** (PCI) Vendor ID of the GPU. */
   uint vendor_id;
   /** Device ID of the GPU provided by the vendor. */
   uint device_id;
-} GHOST_GPUDevice;
+};
 
-typedef struct {
+struct GHOST_GPUSettings {
   int flags;
   GHOST_TDrawingContextType context_type;
   GHOST_GPUDevice preferred_device;
-} GHOST_GPUSettings;
+};
 
-typedef struct {
+struct GHOST_WindowDecorationStyleSettings {
   float colored_titlebar_bg_color[3];
   float colored_titlebar_fg_color[3];
-} GHOST_WindowDecorationStyleSettings;
+};
 
 #ifdef WITH_VULKAN_BACKEND
-typedef struct {
+struct GHOST_VulkanSwapChainData {
   /** Image handle to the image that will be presented to the user. */
   VkImage image;
   /** Format of the swap chain. */
@@ -745,9 +744,9 @@ typedef struct {
   VkSemaphore present_semaphore;
   /** Fence to signal after the image has been updated. */
   VkFence submission_fence;
-} GHOST_VulkanSwapChainData;
+};
 
-typedef enum {
+enum GHOST_TVulkanXRModes {
   /**
    * Use RAM to transfer the render result to the XR swapchain.
    *
@@ -771,9 +770,9 @@ typedef enum {
    * GHOST_XrGraphicsBindingVulkan will import the memory and copy the image to the swapchain.
    */
   GHOST_kVulkanXRModeWin32,
-} GHOST_TVulkanXRModes;
+};
 
-typedef struct {
+struct GHOST_VulkanOpenXRData {
   /**
    * Mode to use for data transfer between the application rendered result and the OpenXR
    * swapchain. This is set by the GHOST and should be respected by the application.
@@ -818,28 +817,28 @@ typedef struct {
     } gpu;
   };
 
-} GHOST_VulkanOpenXRData;
+};
 
-typedef struct {
+struct GHOST_VulkanHandles {
   VkInstance instance;
   VkPhysicalDevice physical_device;
   VkDevice device;
   uint32_t graphic_queue_family;
   VkQueue queue;
   void *queue_mutex;
-} GHOST_VulkanHandles;
+};
 
 #endif
 
-typedef enum {
+enum GHOST_TDebugFlags {
   /** Axis that cursor grab will wrap. */
   GHOST_kDebugDefault = (1 << 1),
   GHOST_kDebugWintab = (1 << 2),
-} GHOST_TDebugFlags;
+};
 
-typedef struct {
+struct GHOST_Debug {
   int flags;
-} GHOST_Debug;
+};
 
 #ifdef _WIN32
 typedef void *GHOST_TEmbedderWindowID;
@@ -875,7 +874,7 @@ struct GHOST_XrError;
  *
  * This enum defines the possible graphics bindings to attempt to enable.
  */
-typedef enum GHOST_TXrGraphicsBinding {
+enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsUnknown = 0,
   GHOST_kXrGraphicsOpenGL,
   GHOST_kXrGraphicsVulkan,
@@ -885,7 +884,7 @@ typedef enum GHOST_TXrGraphicsBinding {
 #  endif
   /* For later */
   //  GHOST_kXrGraphicsVulkan,
-} GHOST_TXrGraphicsBinding;
+};
 
 typedef void (*GHOST_XrErrorHandlerFn)(const struct GHOST_XrError *);
 
@@ -905,12 +904,12 @@ typedef void (*GHOST_XrDisablePassthroughFn)(void *customdata);
  */
 typedef const GHOST_TXrGraphicsBinding *GHOST_XrGraphicsBindingCandidates;
 
-typedef struct {
+struct GHOST_XrPose {
   bool is_active;
   float position[3];
   /* Blender convention (w, x, y, z) */
   float orientation_quat[4];
-} GHOST_XrPose;
+};
 
 enum {
   GHOST_kXrContextDebug = (1 << 0),
@@ -922,30 +921,30 @@ enum {
 #  endif
 };
 
-typedef struct {
+struct GHOST_XrContextCreateInfo {
   const GHOST_XrGraphicsBindingCandidates gpu_binding_candidates;
   unsigned int gpu_binding_candidates_count;
 
   unsigned int context_flag;
-} GHOST_XrContextCreateInfo;
+};
 
-typedef struct {
+struct GHOST_XrSessionBeginInfo {
   GHOST_XrPose base_pose;
 
   GHOST_XrSessionCreateFn create_fn;
   GHOST_XrSessionExitFn exit_fn;
   void *exit_customdata;
-} GHOST_XrSessionBeginInfo;
+};
 
 /** Texture format for XR swapchain. */
-typedef enum GHOST_TXrSwapchainFormat {
+enum GHOST_TXrSwapchainFormat {
   GHOST_kXrSwapchainFormatRGBA8,
   GHOST_kXrSwapchainFormatRGBA16,
   GHOST_kXrSwapchainFormatRGBA16F,
   GHOST_kXrSwapchainFormatRGB10_A2,
-} GHOST_TXrSwapchainFormat;
+};
 
-typedef struct GHOST_XrDrawViewInfo {
+struct GHOST_XrDrawViewInfo {
   int ofsx, ofsy;
   int width, height;
 
@@ -964,32 +963,32 @@ typedef struct GHOST_XrDrawViewInfo {
   /** The view that this info represents. Not necessarily the "eye index" (e.g. for quad view
    * systems, etc). */
   char view_idx;
-} GHOST_XrDrawViewInfo;
+};
 
-typedef struct GHOST_XrError {
+struct GHOST_XrError {
   const char *user_message;
 
   void *customdata;
-} GHOST_XrError;
+};
 
-typedef struct GHOST_XrActionSetInfo {
+struct GHOST_XrActionSetInfo {
   const char *name;
 
   GHOST_XrCustomdataFreeFn customdata_free_fn;
   void *customdata; /* wmXrActionSet */
-} GHOST_XrActionSetInfo;
+};
 
 /** XR action type. Enum values match those in OpenXR's
  * XrActionType enum for consistency. */
-typedef enum GHOST_XrActionType {
+enum GHOST_XrActionType {
   GHOST_kXrActionTypeBooleanInput = 1,
   GHOST_kXrActionTypeFloatInput = 2,
   GHOST_kXrActionTypeVector2fInput = 3,
   GHOST_kXrActionTypePoseInput = 4,
   GHOST_kXrActionTypeVibrationOutput = 100,
-} GHOST_XrActionType;
+};
 
-typedef struct GHOST_XrActionInfo {
+struct GHOST_XrActionInfo {
   const char *name;
   GHOST_XrActionType type;
   uint32_t count_subaction_paths;
@@ -1002,46 +1001,46 @@ typedef struct GHOST_XrActionInfo {
 
   GHOST_XrCustomdataFreeFn customdata_free_fn;
   void *customdata; /* wmXrAction */
-} GHOST_XrActionInfo;
+};
 
-typedef struct GHOST_XrActionBindingInfo {
+struct GHOST_XrActionBindingInfo {
   const char *component_path;
   float float_threshold;
   int16_t axis_flag;
   GHOST_XrPose pose;
-} GHOST_XrActionBindingInfo;
+};
 
-typedef struct GHOST_XrActionProfileInfo {
+struct GHOST_XrActionProfileInfo {
   const char *action_name;
   const char *profile_path;
   uint32_t count_subaction_paths;
   const char **subaction_paths;
   /** Bindings for each subaction path. */
   const GHOST_XrActionBindingInfo *bindings;
-} GHOST_XrActionProfileInfo;
+};
 
-typedef struct GHOST_XrControllerModelVertex {
+struct GHOST_XrControllerModelVertex {
   float position[3];
   float normal[3];
-} GHOST_XrControllerModelVertex;
+};
 
-typedef struct GHOST_XrControllerModelComponent {
+struct GHOST_XrControllerModelComponent {
   /** World space transform. */
   float transform[4][4];
   uint32_t vertex_offset;
   uint32_t vertex_count;
   uint32_t index_offset;
   uint32_t index_count;
-} GHOST_XrControllerModelComponent;
+};
 
-typedef struct GHOST_XrControllerModelData {
+struct GHOST_XrControllerModelData {
   uint32_t count_vertices;
   const GHOST_XrControllerModelVertex *vertices;
   uint32_t count_indices;
   const uint32_t *indices;
   uint32_t count_components;
   const GHOST_XrControllerModelComponent *components;
-} GHOST_XrControllerModelData;
+};
 
 #endif /* WITH_XR_OPENXR */
 
@@ -1055,8 +1054,7 @@ typedef struct GHOST_XrControllerModelData {
  * where some of these numbers are found but it is basically an arbitrary assignment
  * made by the vendor (3Dconnexion) since the application has the freedom to override as necessary.
  */
-typedef enum {
-
+enum GHOST_NDOF_ButtonT {
   GHOST_NDOF_BUTTON_NONE = -1,
   /* Used internally, never sent or used as an index. */
   GHOST_NDOF_BUTTON_INVALID = 0,
@@ -1155,5 +1153,4 @@ typedef enum {
   GHOST_NDOF_BUTTON_NP_F4 = 232,
 
   GHOST_NDOF_BUTTON_USER = 0x10000
-
-} GHOST_NDOF_ButtonT;
+};
