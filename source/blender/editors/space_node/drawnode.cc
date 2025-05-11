@@ -1379,9 +1379,9 @@ static void std_node_socket_draw(
                    -1,
                    0,
                    DEFAULT_FLAGS,
-                   text,
+                   "",
                    ICON_NONE,
-                   text.is_empty() ? std::optional(label) : std::nullopt);
+                   label);
       break;
     }
     case SOCK_IMAGE: {
