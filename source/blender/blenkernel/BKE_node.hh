@@ -142,9 +142,7 @@ using NodeInternallyLinkedInputFunction = const bNodeSocket *(*)(const bNodeTree
 using NodeBlendWriteFunction = void (*)(const bNodeTree &tree,
                                         const bNode &node,
                                         BlendWriter &writer);
-using NodeBlendDataReadFunction = void (*)(const bNodeTree &tree,
-                                           bNode &node,
-                                           BlendDataReader &reader);
+using NodeBlendDataReadFunction = void (*)(bNodeTree &tree, bNode &node, BlendDataReader &reader);
 
 /**
  * \brief Defines a socket type.

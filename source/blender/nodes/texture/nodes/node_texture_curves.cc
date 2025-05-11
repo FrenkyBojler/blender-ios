@@ -12,6 +12,18 @@
 #include "node_texture_util.hh"
 #include "node_util.hh"
 
+/** Shared across node types in this file. */
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  BKE_curvemapping_curves_blend_write(&writer, static_cast<CurveMapping *>(node.storage));
+}
+
+/** Shared across node types in this file. */
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  BKE_curvemapping_blend_read(&reader, static_cast<CurveMapping *>(node.storage));
+}
+
 /* **************** CURVE Time  ******************** */
 
 /* custom1 = start-frame, custom2 = end-frame. */
@@ -64,6 +76,8 @@ void register_node_type_tex_curve_time()
   blender::bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.init_exec_fn = node_initexec_curves;
   ntype.exec_fn = time_exec;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
 
   blender::bke::node_register_type(ntype);
 }
@@ -117,6 +131,8 @@ void register_node_type_tex_curve_rgb()
   blender::bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.init_exec_fn = node_initexec_curves;
   ntype.exec_fn = rgb_exec;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
 
   blender::bke::node_register_type(ntype);
 }

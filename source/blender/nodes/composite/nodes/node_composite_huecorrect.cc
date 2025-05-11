@@ -137,6 +137,16 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   });
 }
 
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  BKE_curvemapping_curves_blend_write(&writer, static_cast<CurveMapping *>(node.storage));
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  BKE_curvemapping_blend_read(&reader, static_cast<CurveMapping *>(node.storage));
+}
+
 }  // namespace blender::nodes::node_composite_huecorrect_cc
 
 void register_node_type_cmp_huecorrect()
@@ -156,6 +166,8 @@ void register_node_type_cmp_huecorrect()
   blender::bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
+  ntype.blend_write_storage_content = file_ns::node_blend_write;
+  ntype.blend_data_read_storage_content = file_ns::node_blend_read;
 
   blender::bke::node_register_type(ntype);
 }
