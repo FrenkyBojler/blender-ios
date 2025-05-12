@@ -17,6 +17,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_paint.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
@@ -54,6 +55,14 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
    * used for the asset-view template. Once the asset list design is used by the Asset Browser,
    * this can be simplified to just that case. */
   Main *bmain = CTX_data_main(C);
+
+  if (G.background) {
+    /* As asset loading can take upwards of a few minutes on production libraries, we typically
+     * do not want this to execute in a blocking fashion. However, for testing / profiling
+     * purposes, this is an acceptable workaround for now until a proper python API is created
+     * for this use case. */
+    asset::list::storage_fetch_blocking(asset_system::all_library_reference(), *C);
+  }
   const asset_system::AssetRepresentation *asset =
       asset::operator_asset_reference_props_get_asset_from_all_library(*C, *op->ptr, op->reports);
   if (!asset) {
@@ -149,11 +158,12 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
   BLI_assert(ID_IS_ASSET(&brush->id));
 
   /* Add asset to catalog. */
-  char catalog_path[MAX_NAME];
-  RNA_string_get(op->ptr, "catalog_path", catalog_path);
+  char catalog_path_c[MAX_NAME];
+  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
 
   AssetMetaData &meta_data = *brush->id.asset_data;
-  if (catalog_path[0]) {
+  if (catalog_path_c[0]) {
+    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
     const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
         *library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
@@ -167,7 +177,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
   }
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
-  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path);
+  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
 
   brush = reinterpret_cast<Brush *>(
       bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
@@ -311,8 +321,8 @@ static wmOperatorStatus brush_asset_edit_metadata_exec(bContext *C, wmOperator *
   }
   asset_system::AssetLibrary &library = asset->owner_asset_library();
 
-  char catalog_path[MAX_NAME];
-  RNA_string_get(op->ptr, "catalog_path", catalog_path);
+  char catalog_path_c[MAX_NAME];
+  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
 
   AssetMetaData &meta_data = *brush->id.asset_data;
   MEM_SAFE_FREE(meta_data.author);
@@ -320,7 +330,8 @@ static wmOperatorStatus brush_asset_edit_metadata_exec(bContext *C, wmOperator *
   MEM_SAFE_FREE(meta_data.description);
   meta_data.description = RNA_string_get_alloc(op->ptr, "description", nullptr, 0, nullptr);
 
-  if (catalog_path[0]) {
+  if (catalog_path_c[0]) {
+    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
     const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
         library, catalog_path);
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
@@ -443,8 +454,8 @@ void BRUSH_OT_asset_edit_metadata(wmOperatorType *ot)
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "The asset's catalog path");
   RNA_def_property_string_search_func_runtime(
       prop, visit_active_library_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
-  RNA_def_string(ot->srna, "author", nullptr, MAX_NAME, "Author", "");
-  RNA_def_string(ot->srna, "description", nullptr, MAX_NAME, "Description", "");
+  RNA_def_string(ot->srna, "author", nullptr, 0, "Author", "");
+  RNA_def_string(ot->srna, "description", nullptr, 0, "Description", "");
 }
 
 static wmOperatorStatus brush_asset_load_preview_exec(bContext *C, wmOperator *op)

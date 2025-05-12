@@ -185,7 +185,7 @@ static void ui_popup_menu_create_block(bContext *C,
 {
   const uiStyle *style = UI_style_get_dpi();
 
-  pup->block = UI_block_begin(C, nullptr, block_name, UI_EMBOSS_PULLDOWN);
+  pup->block = UI_block_begin(C, nullptr, block_name, blender::ui::EmbossType::Pulldown);
 
   /* A title is only provided when a Menu has a label, this is not always the case, see e.g.
    * `VIEW3D_MT_edit_mesh_context_menu` -- this specifies its own label inside the draw function
@@ -588,7 +588,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
         BLI_strncpy(buf, msg, std::min(sizeof(buf), size_t(msg_next - msg)));
         msg = buf;
       }
-      uiItemL(layout, msg, icon);
+      layout->label(msg, icon);
       icon = ICON_NONE;
     } while ((msg = msg_next) && *msg);
   }
@@ -800,7 +800,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
   /* Use a split so both buttons are the same size. */
   const bool show_confirm = !confirm_text.is_empty();
   const bool show_cancel = !cancel_text.is_empty();
-  uiLayout *row = (show_confirm && show_cancel) ? uiLayoutSplit(layout, 0.5f, false) : layout;
+  uiLayout *row = (show_confirm && show_cancel) ? &layout->split(0.5f, false) : layout;
 
   /* When only one button is shown, make it default. */
   if (!show_confirm) {

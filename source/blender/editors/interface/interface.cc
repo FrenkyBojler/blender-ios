@@ -774,6 +774,10 @@ bool ui_but_rna_equals_ex(const uiBut *but,
 /* NOTE: if `but->poin` is allocated memory for every `uiDefBut*`, things fail. */
 static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
 {
+  if (but->type != oldbut->type) {
+    return false;
+  }
+
   if (but->identity_cmp_func) {
     /* If the buttons have their own identity comparator callbacks (and they match), use this to
      * determine equality. */
@@ -829,7 +833,7 @@ static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
     return false;
   }
 
-  if ((but->type == UI_BTYPE_VIEW_ITEM) && (oldbut->type == UI_BTYPE_VIEW_ITEM)) {
+  if (but->type == UI_BTYPE_VIEW_ITEM) {
     uiButViewItem *but_item = (uiButViewItem *)but;
     uiButViewItem *oldbut_item = (uiButViewItem *)oldbut;
     if (!but_item->view_item || !oldbut_item->view_item ||
@@ -932,7 +936,7 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
 
   /* flags from the buttons we want to refresh, may want to add more here... */
   const int flag_copy = UI_BUT_REDALERT | UI_HAS_ICON | UI_SELECT_DRAW;
-  const int drawflag_copy = UI_BUT_HAS_TOOLTIP_LABEL;
+  const int drawflag_copy = UI_BUT_HAS_QUICK_TOOLTIP;
 
   /* still stuff needs to be copied */
   oldbut->rect = but->rect;
@@ -954,7 +958,7 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
   std::swap(oldbut->tip_func, but->tip_func);
   std::swap(oldbut->tip_arg, but->tip_arg);
   std::swap(oldbut->tip_arg_free, but->tip_arg_free);
-  std::swap(oldbut->tip_label_func, but->tip_label_func);
+  std::swap(oldbut->tip_quick_func, but->tip_quick_func);
 
   oldbut->flag = (oldbut->flag & ~flag_copy) | (but->flag & flag_copy);
   oldbut->drawflag = (oldbut->drawflag & ~drawflag_copy) | (but->drawflag & drawflag_copy);
@@ -1587,7 +1591,7 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
           opnames_len = 0; /* Do nothing. */
         }
         if (free) {
-          MEM_freeN((void *)item);
+          MEM_freeN(item);
         }
       }
 
@@ -1691,7 +1695,7 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
           continue;
         }
       }
-      else if (but->emboss != UI_EMBOSS_PULLDOWN) {
+      else if (but->emboss != blender::ui::EmbossType::Pulldown) {
         continue;
       }
 
@@ -2004,6 +2008,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
   bool result;
   int old_but_flag = 0;
 
+  const bContextStore *previous_ctx = CTX_store_get(C);
   if (but) {
     old_but_flag = but->flag;
 
@@ -2026,7 +2031,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
     const_cast<uiBut *>(but)->flag = old_but_flag;
 
     if (but->context) {
-      CTX_store_set(C, nullptr);
+      CTX_store_set(C, previous_ctx);
     }
   }
 
@@ -3062,7 +3067,7 @@ void ui_but_string_get_ex(uiBut *but,
       else {
         BLI_strncpy(str, buf, str_maxncpy);
       }
-      MEM_freeN((void *)buf);
+      MEM_freeN(buf);
     }
   }
   else if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
@@ -3701,7 +3706,7 @@ void UI_block_free(const bContext *C, uiBlock *block)
   block->buttons.clear();
 
   if (block->unit) {
-    MEM_freeN((void *)block->unit);
+    MEM_freeN(block->unit);
   }
 
   if (block->func_argN) {
@@ -3819,7 +3824,7 @@ uiBlock *UI_block_begin(const bContext *C,
                         wmWindow *window,
                         ARegion *region,
                         std::string name,
-                        eUIEmbossType emboss)
+                        blender::ui::EmbossType emboss)
 {
   uiBlock *block = MEM_new<uiBlock>(__func__);
   block->active = true;
@@ -3866,7 +3871,10 @@ uiBlock *UI_block_begin(const bContext *C,
   return block;
 }
 
-uiBlock *UI_block_begin(const bContext *C, ARegion *region, std::string name, eUIEmbossType emboss)
+uiBlock *UI_block_begin(const bContext *C,
+                        ARegion *region,
+                        std::string name,
+                        blender::ui::EmbossType emboss)
 {
   return UI_block_begin(C, CTX_data_scene(C), CTX_wm_window(C), region, std::move(name), emboss);
 }
@@ -3880,12 +3888,12 @@ void ui_block_add_dynamic_listener(uiBlock *block,
   BLI_addtail(&block->dynamic_listeners, listener);
 }
 
-eUIEmbossType UI_block_emboss_get(uiBlock *block)
+blender::ui::EmbossType UI_block_emboss_get(uiBlock *block)
 {
   return block->emboss;
 }
 
-void UI_block_emboss_set(uiBlock *block, eUIEmbossType emboss)
+void UI_block_emboss_set(uiBlock *block, blender::ui::EmbossType emboss)
 {
   block->emboss = emboss;
 }
@@ -4163,14 +4171,14 @@ void UI_block_align_end(uiBlock *block)
   block->flag &= ~UI_BUT_ALIGN; /* all 4 flags */
 }
 
-ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block)
+const ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block)
 {
   return IMB_colormanagement_display_get_named(block->display_device);
 }
 
 void ui_block_cm_to_display_space_v3(uiBlock *block, float pixel[3])
 {
-  ColorManagedDisplay *display = ui_block_cm_display_get(block);
+  const ColorManagedDisplay *display = ui_block_cm_display_get(block);
 
   IMB_colormanagement_scene_linear_to_display_v3(pixel, display);
 }
@@ -4391,7 +4399,7 @@ static uiBut *ui_def_but(uiBlock *block,
     but->flag |= UI_BUT_DISABLED;
   }
 
-  /* keep track of UI_interface.hh */
+  /* Keep track of `UI_interface_c.hh`. */
   if (ELEM(but->type,
            UI_BTYPE_BLOCK,
            UI_BTYPE_BUT,
@@ -4423,7 +4431,7 @@ static uiBut *ui_def_but(uiBlock *block,
   }
 
 #ifdef WITH_PYTHON
-  /* If the 'UI_OT_editsource' is running, extract the source info from the button. */
+  /* If the `UI_OT_editsource` is running, extract the source info from the button. */
   if (UI_editsource_enable_check()) {
     UI_editsource_active_but_test(but);
   }
@@ -4578,7 +4586,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   /* NOTE: `item_array[...]` is reversed on access. */
 
   /* create items */
-  uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
+  uiLayout *split = &layout->split(0.0f, false);
 
   bool new_column;
 
@@ -4601,23 +4609,23 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
         }
       }
 
-      column = uiLayoutColumn(split, false);
+      column = &split->column(false);
     }
 
     const EnumPropertyItem *item = &item_array[a];
 
     if (new_column && (categories > 0) && (columns > 1) && item->identifier[0]) {
-      uiItemL(column, "", ICON_NONE);
+      column->label("", ICON_NONE);
       uiItemS(column);
     }
 
     if (!item->identifier[0]) {
       if (item->name || columns > 1) {
         if (item->icon) {
-          uiItemL(column, item->name, item->icon);
+          column->label(item->name, item->icon);
         }
         else if (item->name) {
-          /* Do not use uiItemL here, as our root layout is a menu one,
+          /* Do not use uiLayout::label here, as our root layout is a menu one,
            * it will add a fake blank icon! */
           uiDefBut(block,
                    UI_BTYPE_LABEL,
@@ -4700,7 +4708,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   UI_block_layout_set_current(block, layout);
 
   if (free) {
-    MEM_freeN((void *)item_array);
+    MEM_freeN(item_array);
   }
 }
 
@@ -4711,7 +4719,7 @@ static void ui_def_but_rna__panel_type(bContext *C, uiLayout *layout, void *arg)
     ui_item_paneltype_func(C, layout, panel_type);
   }
   else {
-    uiItemL(layout, RPT_("Missing Panel"), ICON_NONE);
+    layout->label(RPT_("Missing Panel"), ICON_NONE);
   }
 }
 
@@ -4742,7 +4750,7 @@ static void ui_def_but_rna__menu_type(bContext *C, uiLayout *layout, void *but_p
   else {
     char msg[256];
     SNPRINTF(msg, RPT_("Missing Menu: %s"), menu_type);
-    uiItemL(layout, msg, ICON_NONE);
+    layout->label(msg, ICON_NONE);
   }
 }
 
@@ -4842,7 +4850,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
     }
 
     if (free) {
-      MEM_freeN((void *)item);
+      MEM_freeN(item);
     }
   }
   else {
@@ -4917,7 +4925,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
   }
 
   if (type == UI_BTYPE_MENU) {
-    if (but->emboss == UI_EMBOSS_PULLDOWN) {
+    if (but->emboss == blender::ui::EmbossType::Pulldown) {
       ui_but_submenu_enable(block, but);
     }
   }
@@ -5017,7 +5025,7 @@ static uiBut *ui_def_but_operator_ptr(uiBlock *block,
 
   /* Enable quick tooltip label if this is a tool button without a label. */
   if (str.is_empty() && !ui_block_is_popover(block) && UI_but_is_tool(but)) {
-    UI_but_drawflag_enable(but, UI_BUT_HAS_TOOLTIP_LABEL);
+    UI_but_drawflag_enable(but, UI_BUT_HAS_QUICK_TOOLTIP);
   }
 
   if (!ot) {
@@ -5128,7 +5136,7 @@ AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy)
   autocpl = MEM_callocN<AutoComplete>(__func__);
   autocpl->maxncpy = maxncpy;
   autocpl->matches = 0;
-  autocpl->truncate = static_cast<char *>(MEM_callocN(sizeof(char) * maxncpy, __func__));
+  autocpl->truncate = MEM_calloc_arrayN<char>(maxncpy, __func__);
   autocpl->startname = startname;
 
   return autocpl;
@@ -6251,10 +6259,10 @@ void UI_but_menu_disable_hover_open(uiBut *but)
   but->menu_no_hover_open = true;
 }
 
-void UI_but_func_tooltip_label_set(uiBut *but, std::function<std::string(const uiBut *but)> func)
+void UI_but_func_quick_tooltip_set(uiBut *but, std::function<std::string(const uiBut *but)> func)
 {
-  but->tip_label_func = std::move(func);
-  UI_but_drawflag_enable(but, UI_BUT_HAS_TOOLTIP_LABEL);
+  but->tip_quick_func = std::move(func);
+  UI_but_drawflag_enable(but, UI_BUT_HAS_QUICK_TOOLTIP);
 }
 
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg)
@@ -6576,7 +6584,7 @@ static void operator_enum_search_update_fn(
     }
 
     if (do_free) {
-      MEM_freeN((void *)all_items);
+      MEM_freeN(all_items);
     }
   }
 }
@@ -6848,10 +6856,10 @@ std::string UI_but_context_menu_title_from_button(uiBut &but)
 
 std::string UI_but_string_get_tooltip_label(const uiBut &but)
 {
-  if (!but.tip_label_func) {
+  if (!but.tip_quick_func) {
     return {};
   }
-  return but.tip_label_func(&but);
+  return but.tip_quick_func(&but);
 }
 
 std::string UI_but_string_get_rna_label(uiBut &but)

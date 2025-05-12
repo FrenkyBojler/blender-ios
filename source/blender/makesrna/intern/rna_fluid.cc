@@ -826,14 +826,14 @@ static const EnumPropertyItem *rna_Fluid_data_depth_itemf(bContext * /*C*/,
   tmp.identifier = "32";
   tmp.icon = 0;
   tmp.name = N_("Full");
-  tmp.description = N_("Full float (Use 32 bit for all data)");
+  tmp.description = N_("Use 32-bit floating-point numbers for all data");
   RNA_enum_item_add(&item, &totitem, &tmp);
 
   tmp.value = VDB_PRECISION_HALF_FLOAT;
   tmp.identifier = "16";
   tmp.icon = 0;
   tmp.name = N_("Half");
-  tmp.description = N_("Half float (Use 16 bit for all data)");
+  tmp.description = N_("Use 16-bit floating-point numbers for all data");
   RNA_enum_item_add(&item, &totitem, &tmp);
 
   if (settings->type == FLUID_DOMAIN_TYPE_LIQUID) {
@@ -841,7 +841,7 @@ static const EnumPropertyItem *rna_Fluid_data_depth_itemf(bContext * /*C*/,
     tmp.identifier = "8";
     tmp.icon = 0;
     tmp.name = N_("Mini");
-    tmp.description = N_("Mini float (Use 8 bit where possible, otherwise use 16 bit)");
+    tmp.description = N_("Use 8-bit floating-point numbers where possible, otherwise use 16-bit");
     RNA_enum_item_add(&item, &totitem, &tmp);
   }
 
@@ -2360,6 +2360,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   RNA_def_property_string_maxlength(prop, FILE_MAX);
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Fluid_cache_directory_set");
   RNA_def_property_string_sdna(prop, nullptr, "cache_directory");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "Cache directory", "Directory that contains fluid cache files");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_update");
 

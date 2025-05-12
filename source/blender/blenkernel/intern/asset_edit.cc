@@ -67,7 +67,7 @@ static ID *asset_link_id(Main &global_main,
 
   BKE_blendfile_link_append_context_free(lapp_context);
 
-  /* Verify that the name matches. It must for referencing the same asset again to work.  */
+  /* Verify that the name matches. It must for referencing the same asset again to work. */
   BLI_assert(local_asset == nullptr || STREQ(local_asset->name + 2, asset_name));
 
   /* Tag library as being editable. */
@@ -394,12 +394,7 @@ ID *asset_edit_id_find_local(Main &global_main, ID &id)
     return &id;
   }
 
-  /* Make filepath relative to match weak ref, it might not be if Library datablock is new. */
-  char lib_filepath[FILE_MAX];
-  STRNCPY(lib_filepath, id.lib->filepath);
-  BLI_path_rel(lib_filepath, BKE_main_blendfile_path(&global_main));
-
-  return BKE_main_library_weak_reference_find(&global_main, lib_filepath, id.name);
+  return BKE_main_library_weak_reference_find(&global_main, id.lib->filepath, id.name);
 }
 
 ID *asset_edit_id_ensure_local(Main &global_main, ID &id)

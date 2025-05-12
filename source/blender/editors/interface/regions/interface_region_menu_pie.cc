@@ -98,7 +98,7 @@ uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmE
 
   uiPieMenu *pie = MEM_callocN<uiPieMenu>(__func__);
 
-  pie->pie_block = UI_block_begin(C, nullptr, __func__, UI_EMBOSS);
+  pie->pie_block = UI_block_begin(C, nullptr, __func__, blender::ui::EmbossType::Emboss);
   /* may be useful later to allow spawning pies
    * from old positions */
   // pie->pie_block->flag |= UI_BLOCK_POPUP_MEMORY;
@@ -232,7 +232,7 @@ wmOperatorStatus UI_pie_menu_invoke_from_operator_enum(bContext *C,
   pie = UI_pie_menu_begin(C, IFACE_(title.c_str()), ICON_NONE, event);
   layout = UI_pie_menu_layout(pie);
 
-  layout = uiLayoutRadial(layout);
+  layout = &layout->menu_pie();
   uiItemsEnumO(layout, opname, propname);
 
   UI_pie_menu_end(C, pie);
@@ -266,8 +266,8 @@ wmOperatorStatus UI_pie_menu_invoke_from_rna_enum(bContext *C,
 
   layout = UI_pie_menu_layout(pie);
 
-  layout = uiLayoutRadial(layout);
-  uiItemFullR(layout, &r_ptr, r_prop, RNA_NO_INDEX, 0, UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout = &layout->menu_pie();
+  layout->prop(&r_ptr, r_prop, RNA_NO_INDEX, 0, UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   UI_pie_menu_end(C, pie);
 
@@ -316,7 +316,7 @@ static void ui_pie_menu_level_invoke(bContext *C, void *argN, void *arg2)
   uiPieMenu *pie = UI_pie_menu_begin(C, IFACE_(lvl->title), lvl->icon, win->eventstate);
   uiLayout *layout = UI_pie_menu_layout(pie);
 
-  layout = uiLayoutRadial(layout);
+  layout = &layout->menu_pie();
 
   PointerRNA ptr;
 

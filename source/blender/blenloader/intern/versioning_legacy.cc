@@ -407,28 +407,8 @@ static void do_version_free_effects_245(ListBase *lb)
 
 static void do_version_constraints_245(ListBase *lb)
 {
-  bConstraintTarget *ct;
-
   LISTBASE_FOREACH (bConstraint *, con, lb) {
-    if (con->type == CONSTRAINT_TYPE_PYTHON) {
-      bPythonConstraint *data = (bPythonConstraint *)con->data;
-      if (data->tar) {
-        /* version patching needs to be done */
-        ct = MEM_callocN<bConstraintTarget>("PyConTarget");
-
-        ct->tar = data->tar;
-        STRNCPY(ct->subtarget, data->subtarget);
-        ct->space = con->tarspace;
-
-        BLI_addtail(&data->targets, ct);
-        data->tarnum++;
-
-        /* clear old targets to avoid problems */
-        data->tar = nullptr;
-        data->subtarget[0] = '\0';
-      }
-    }
-    else if (con->type == CONSTRAINT_TYPE_LOCLIKE) {
+    if (con->type == CONSTRAINT_TYPE_LOCLIKE) {
       bLocateLikeConstraint *data = (bLocateLikeConstraint *)con->data;
 
       /* new headtail functionality makes Bone-Tip function obsolete */
@@ -2587,9 +2567,9 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     while (sce) {
       ed = sce->ed;
       if (ed) {
-        LISTBASE_FOREACH (Strip *, seq, blender::seq::active_seqbase_get(ed)) {
-          if (seq->data && seq->data->proxy) {
-            seq->data->proxy->quality = 90;
+        LISTBASE_FOREACH (Strip *, strip, blender::seq::active_seqbase_get(ed)) {
+          if (strip->data && strip->data->proxy) {
+            strip->data->proxy->quality = 90;
           }
         }
       }

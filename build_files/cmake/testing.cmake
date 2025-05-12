@@ -106,9 +106,6 @@ macro(blender_src_gtest_ex)
     if(DEFINED PTHREADS_LIBRARIES) # Needed for GLOG.
       target_link_libraries(${TARGET_NAME} PRIVATE ${PTHREADS_LIBRARIES})
     endif()
-    if(WITH_OPENMP AND WITH_OPENMP_STATIC)
-      target_link_libraries(${TARGET_NAME} PRIVATE ${OpenMP_LIBRARIES})
-    endif()
     if(UNIX AND NOT APPLE)
       target_link_libraries(${TARGET_NAME} PRIVATE bf_intern_libc_compat)
     endif()
@@ -144,6 +141,9 @@ function(blender_add_ctests)
   if(ARGC LESS 1)
     message(FATAL_ERROR "No arguments supplied to blender_add_ctests()")
   endif()
+  if(NOT EXISTS "${CMAKE_SOURCE_DIR}/tests/files/render")
+    return()
+  endif()
 
   # Parse the arguments
   set(oneValueArgs DISCOVER_TESTS TARGET SUITE_NAME)
@@ -171,14 +171,14 @@ function(blender_add_ctests)
       TEST_PREFIX ${ARGS_SUITE_NAME}
       WORKING_DIRECTORY "${TEST_INSTALL_DIR}"
       EXTRA_ARGS
-        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/data"
+        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/files"
         --test-release-dir "${_test_release_dir}"
     )
   else()
     add_test(
       NAME ${ARGS_SUITE_NAME}
       COMMAND ${ARGS_TARGET}
-        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/data"
+        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/files"
         --test-release-dir "${_test_release_dir}"
       WORKING_DIRECTORY ${TEST_INSTALL_DIR}
     )
@@ -292,6 +292,7 @@ function(blender_add_test_executable_impl
 
   blender_target_include_dirs(${name}_test ${includes})
   blender_target_include_dirs_sys(${name}_test ${includes_sys})
+  blender_source_group("${name}_test" "${sources}")
 endfunction()
 
 # Add tests for a Blender library, to be called in tandem with blender_add_lib().

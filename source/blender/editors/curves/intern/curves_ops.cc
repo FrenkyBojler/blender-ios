@@ -311,9 +311,8 @@ static void try_convert_single_object(Object &curves_ob,
   settings.totpart = 0;
   psys_changed_type(&surface_ob, particle_system);
 
-  MutableSpan<ParticleData> particles{
-      static_cast<ParticleData *>(MEM_calloc_arrayN(hair_num, sizeof(ParticleData), __func__)),
-      hair_num};
+  MutableSpan<ParticleData> particles{MEM_calloc_arrayN<ParticleData>(hair_num, __func__),
+                                      hair_num};
 
   /* The old hair system still uses #MFace, so make sure those are available on the mesh. */
   BKE_mesh_tessface_calc(&surface_me);
@@ -357,8 +356,7 @@ static void try_convert_single_object(Object &curves_ob,
 
     ParticleData &particle = particles[new_hair_i];
     const int num_keys = points.size();
-    MutableSpan<HairKey> hair_keys{
-        static_cast<HairKey *>(MEM_calloc_arrayN(num_keys, sizeof(HairKey), __func__)), num_keys};
+    MutableSpan<HairKey> hair_keys{MEM_calloc_arrayN<HairKey>(num_keys, __func__), num_keys};
 
     particle.hair = hair_keys.data();
     particle.totkey = hair_keys.size();
@@ -530,7 +528,7 @@ static wmOperatorStatus curves_convert_from_particle_system_exec(bContext *C, wm
   if (psys_orig == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  Object *ob_from_eval = DEG_get_evaluated_object(&depsgraph, ob_from_orig);
+  Object *ob_from_eval = DEG_get_evaluated(&depsgraph, ob_from_orig);
   ParticleSystem *psys_eval = nullptr;
   LISTBASE_FOREACH (ModifierData *, md, &ob_from_eval->modifiers) {
     if (md->type != eModifierType_ParticleSystem) {
@@ -809,7 +807,7 @@ static wmOperatorStatus curves_set_selection_domain_exec(bContext *C, wmOperator
     for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
       if (const GVArray src = *attributes.lookup(selection_name, domain)) {
         const CPPType &type = src.type();
-        void *dst = MEM_malloc_arrayN(attributes.domain_size(domain), type.size(), __func__);
+        void *dst = MEM_malloc_arrayN(attributes.domain_size(domain), type.size, __func__);
         src.materialize(dst);
 
         attributes.remove(selection_name);
@@ -939,8 +937,8 @@ static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+  layout->prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
 }
 
 static void CURVES_OT_select_random(wmOperatorType *ot)
@@ -1018,10 +1016,10 @@ static void select_ends_ui(bContext * /*C*/, wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *col = &layout->column(true);
   uiLayoutSetPropDecorate(col, false);
-  uiItemR(col, op->ptr, "amount_start", UI_ITEM_NONE, IFACE_("Amount Start"), ICON_NONE);
-  uiItemR(col, op->ptr, "amount_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+  col->prop(op->ptr, "amount_start", UI_ITEM_NONE, IFACE_("Amount Start"), ICON_NONE);
+  col->prop(op->ptr, "amount_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
 }
 
 static void CURVES_OT_select_ends(wmOperatorType *ot)

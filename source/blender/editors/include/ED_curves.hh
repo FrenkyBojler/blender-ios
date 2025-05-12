@@ -60,6 +60,11 @@ Span<StringRef> get_curves_selection_attribute_names(const bke::CurvesGeometry &
  */
 Vector<MutableSpan<float3>> get_curves_positions_for_write(bke::CurvesGeometry &curves);
 
+/**
+ * Get read-only positions per selection attribute for given curve.
+ */
+Vector<Span<float3>> get_curves_positions(const bke::CurvesGeometry &curves);
+
 /* Get all possible curve selection attribute names. */
 Span<StringRef> get_curves_all_selection_attribute_names();
 
@@ -427,6 +432,11 @@ bool remove_selection(bke::CurvesGeometry &curves, bke::AttrDomain selection_dom
 
 void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask);
 void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask);
+
+void separate_points(const bke::CurvesGeometry &curves,
+                     const IndexMask &points_to_separate,
+                     bke::CurvesGeometry &separated,
+                     bke::CurvesGeometry &retained);
 
 bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
                                  const IndexMask &points_to_split);

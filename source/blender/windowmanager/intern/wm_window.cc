@@ -530,7 +530,7 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
   else if (has_filepath) {
     win_title.append(BLI_path_basename(filename));
   }
-  /* New / Unsaved file default title. Shows "Untitled" on macOS following the Apple HIGs.*/
+  /* New / Unsaved file default title. Shows "Untitled" on macOS following the Apple HIGs. */
   else {
 #ifdef __APPLE__
     win_title.append(IFACE_("Untitled"));
@@ -878,8 +878,15 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
       GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
     }
 #endif
-    /* Until screens get drawn, make it nice gray. */
-    GPU_clear_color(0.25f, 0.25f, 0.25f, 1.0f);
+
+    /* Get the window background color from the current theme. Using the top-bar header
+     * background theme color to match with the colored title-bar decoration style. */
+    float window_bg_color[3];
+    UI_SetTheme(SPACE_TOPBAR, RGN_TYPE_HEADER);
+    UI_GetThemeColor3fv(TH_BACK, window_bg_color);
+
+    /* Until screens get drawn, draw a default background using the window theme color. */
+    GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     /* Needed here, because it's used before it reads #UserDef. */
     WM_window_set_dpi(win);
@@ -887,7 +894,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     wm_window_swap_buffers(win);
 
     /* Clear double buffer to avoids flickering of new windows on certain drivers, see #97600. */
-    GPU_clear_color(0.25f, 0.25f, 0.25f, 1.0f);
+    GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     GPU_render_end();
   }
@@ -1052,8 +1059,11 @@ wmWindow *WM_window_open(bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int x = rect_unscaled->xmin;
   int y = rect_unscaled->ymin;
-  int sizex = BLI_rcti_size_x(rect_unscaled);
-  int sizey = BLI_rcti_size_y(rect_unscaled);
+  /* Duplicated windows are created at Area size, so duplicated
+   * minimized areas can init at 2 pixels high before being
+   * resized at the end of window creation. Therefore minimums. */
+  int sizex = std::max(BLI_rcti_size_x(rect_unscaled), 200);
+  int sizey = std::max(BLI_rcti_size_y(rect_unscaled), 150);
   rcti rect;
 
   const float native_pixel_size = GHOST_GetNativePixelSize(
@@ -1551,7 +1561,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       win->active = 1;
 
       /* Zero the `keymodifier`, it hangs on hotkeys that open windows otherwise. */
-      win->eventstate->keymodifier = 0;
+      win->eventstate->keymodifier = EVENT_NONE;
 
       win->addmousemove = 1; /* Enables highlighted buttons. */
 
@@ -1879,7 +1889,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
       event.type = wt->event_type;
       event.val = KM_NOTHING;
-      event.keymodifier = 0;
+      event.keymodifier = EVENT_NONE;
       event.flag = eWM_EventFlag(0);
       event.custom = EVT_DATA_TIMER;
       event.customdata = wt;
@@ -2078,9 +2088,10 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
 
 static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, void * /*arg1*/)
 {
-  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   const char *title = RPT_("Python script uses OpenGL for drawing");
   const char *message1 = RPT_("This may lead to unexpected behavior");
@@ -2110,26 +2121,26 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiLayoutSetScaleY(col, 0.9f);
 
   /* Title and explanation text. */
   uiItemL_ex(col, title, ICON_NONE, true, false);
   uiItemS_ex(col, 0.8f, LayoutSeparatorType::Space);
 
-  uiLayout *messages = uiLayoutColumn(col, false);
+  uiLayout *messages = &col->column(false);
   uiLayoutSetScaleY(messages, 0.8f);
 
-  uiItemL(messages, message1, ICON_NONE);
-  uiItemL(messages, message2, ICON_NONE);
-  uiItemL(messages, message3, ICON_NONE);
+  messages->label(message1, ICON_NONE);
+  messages->label(message2, ICON_NONE);
+  messages->label(message3, ICON_NONE);
   if (G.opengl_deprecation_usage_filename) {
     char location[1024];
     SNPRINTF(
         location, "%s:%d", G.opengl_deprecation_usage_filename, G.opengl_deprecation_usage_lineno);
-    uiItemL(messages, location, ICON_NONE);
+    messages->label(location, ICON_NONE);
   }
-  uiItemL(messages, message4, ICON_NONE);
+  messages->label(message4, ICON_NONE);
 
   uiItemS_ex(col, 0.5f, LayoutSeparatorType::Space);
 
@@ -2178,23 +2189,23 @@ void wm_test_opengl_deprecation_warning(bContext *C)
 
 static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, void * /*arg1*/)
 {
-  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(
+      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
 
   /* Title and explanation text. */
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiLayoutSetScaleY(col, 0.8f);
   uiItemL_ex(
       col, RPT_("Failed to load using Vulkan, using OpenGL instead."), ICON_NONE, true, false);
   uiItemS_ex(col, 1.3f, LayoutSeparatorType::Space);
 
-  uiItemL(col, RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
-  uiItemL(col,
-          RPT_("The graphics backend can be changed in the System section of the Preferences."),
-          ICON_NONE);
+  col->label(RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
+  col->label(RPT_("The graphics backend can be changed in the System section of the Preferences."),
+             ICON_NONE);
 
   UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
 
@@ -2303,7 +2314,7 @@ void WM_event_timer_sleep(wmWindowManager *wm, wmWindow * /*win*/, wmTimer *time
 
 wmTimer *WM_event_timer_add(wmWindowManager *wm,
                             wmWindow *win,
-                            const int event_type,
+                            const wmEventType event_type,
                             const double time_step)
 {
   BLI_assert(ISTIMER(event_type));

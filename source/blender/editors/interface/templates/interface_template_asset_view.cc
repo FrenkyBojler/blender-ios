@@ -111,7 +111,7 @@ static void asset_view_draw_item(uiList *ui_list,
                   asset::asset_preview_icon_id(*asset),
                   /* NOLINTNEXTLINE: bugprone-suspicious-enum-usage */
                   UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
-  but->emboss = UI_EMBOSS_NONE;
+  but->emboss = blender::ui::EmbossType::None;
   if (!ui_list->dyn_data->custom_drag_optype) {
     asset_view_item_but_drag_set(but, &asset_handle);
   }
@@ -236,23 +236,17 @@ void uiTemplateAssetView(uiLayout *layout,
     return;
   }
 
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
 
   PropertyRNA *asset_library_prop = RNA_struct_find_property(asset_library_dataptr,
                                                              asset_library_propname);
   AssetLibraryReference asset_library_ref = asset::library_reference_from_enum_value(
       RNA_property_enum_get(asset_library_dataptr, asset_library_prop));
 
-  uiLayout *row = uiLayoutRow(col, true);
+  uiLayout *row = &col->row(true);
   if ((display_flags & UI_TEMPLATE_ASSET_DRAW_NO_LIBRARY) == 0) {
-    uiItemFullR(row,
-                asset_library_dataptr,
-                asset_library_prop,
-                RNA_NO_INDEX,
-                0,
-                UI_ITEM_NONE,
-                "",
-                ICON_NONE);
+    row->prop(
+        asset_library_dataptr, asset_library_prop, RNA_NO_INDEX, 0, UI_ITEM_NONE, "", ICON_NONE);
     if (asset_library_ref.type != ASSET_LIBRARY_LOCAL) {
       uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
     }
@@ -278,7 +272,7 @@ void uiTemplateAssetView(uiLayout *layout,
     template_list_flags |= UI_TEMPLATE_LIST_NO_FILTER_OPTIONS;
   }
 
-  uiLayout *subcol = uiLayoutColumn(col, false);
+  uiLayout *subcol = &col->column(false);
 
   uiLayoutSetScaleX(subcol, 0.8f);
   uiLayoutSetScaleY(subcol, 0.8f);

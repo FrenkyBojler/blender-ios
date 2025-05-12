@@ -86,6 +86,8 @@ struct SpaceNode_Runtime {
   /** Mouse position for drawing socket-less links and adding nodes. */
   float2 cursor;
 
+  std::optional<int> frame_identifier_to_highlight;
+
   /**
    * Indicates that the compositing int the space tree needs to be re-evaluated using
    * regular compositing pipeline.
@@ -228,6 +230,10 @@ void NODE_OT_backimage_fit(wmOperatorType *ot);
 void NODE_OT_backimage_sample(wmOperatorType *ot);
 
 /* `drawnode.cc` */
+
+float2 socket_link_connection_location(const bNode &node,
+                                       const bNodeSocket &socket,
+                                       const bNodeLink &link);
 
 NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
                                               const bNode *node,
@@ -397,6 +403,8 @@ void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_sun_beams(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt);
+void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt);
+void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt);
 
 /* `node_geometry_attribute_search.cc` */
 
@@ -405,6 +413,14 @@ void node_geometry_add_attribute_search_button(const bContext &C,
                                                PointerRNA &socket_ptr,
                                                uiLayout &layout,
                                                StringRefNull placeholder = "");
+
+/* `node_geometry_layer_search.cc` */
+
+void node_geometry_add_layer_search_button(const bContext &C,
+                                           const bNode &node,
+                                           PointerRNA &socket_ptr,
+                                           uiLayout &layout,
+                                           StringRefNull placeholder = "");
 
 /* `node_context_path.cc` */
 

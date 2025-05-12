@@ -259,7 +259,7 @@ static void add_root_catalogs_draw(const bContext *C, Menu *menu)
   uiItemS(layout);
 
   if (!loading_finished) {
-    uiItemL(layout, IFACE_("Loading Asset Libraries"), ICON_INFO);
+    layout->label(IFACE_("Loading Asset Libraries"), ICON_INFO);
   }
 
   const Set<StringRef> all_builtin_menus = get_builtin_menus(edit_tree->type);
@@ -324,7 +324,7 @@ void ui_template_node_asset_menu_items(uiLayout &layout,
   if (!item) {
     return;
   }
-  uiLayout *col = uiLayoutColumn(&layout, false);
+  uiLayout *col = &layout.column(false);
   uiLayoutSetContextString(col, "asset_catalog_path", item->catalog_path().str());
   uiItemMContents(col, "NODE_MT_node_add_catalog_assets");
 }

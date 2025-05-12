@@ -153,6 +153,11 @@ typedef struct wmXrData {
 
 /** Window-manager is saved, tag WMAN. */
 typedef struct wmWindowManager {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_WM;
+#endif
+
   ID id;
 
   /** Separate active from drawable. */
@@ -321,8 +326,6 @@ typedef struct wmWindow {
   short modalcursor;
   /** Cursor grab mode #GHOST_TGrabCursorMode (run-time only) */
   short grabcursor;
-  /** Internal: tag this for extra mouse-move event,
-   * makes cursors/buttons active on UI switching. */
 
   /** Internal, lock pie creation from this event until released. */
   short pie_event_type_lock;
@@ -332,7 +335,6 @@ typedef struct wmWindow {
    */
   short pie_event_type_last;
 
-  char addmousemove;
   char tag_cursor_refresh;
 
   /* Track the state of the event queue,
@@ -348,8 +350,11 @@ typedef struct wmWindow {
    */
   char event_queue_check_drag_handled;
 
-  /** The last event type (that passed #WM_event_consecutive_gesture_test check). */
-  char event_queue_consecutive_gesture_type;
+  /**
+   * The last event type (that passed #WM_event_consecutive_gesture_test check).
+   * A #wmEventType is assigned to this value.
+   */
+  short event_queue_consecutive_gesture_type;
   /** The cursor location when `event_queue_consecutive_gesture_type` was set. */
   int event_queue_consecutive_gesture_xy[2];
   /** See #WM_event_consecutive_data_get and related API. Freed when consecutive events end. */
@@ -382,11 +387,17 @@ typedef struct wmWindow {
 
   /**
    * Input Method Editor data - complex character input (especially for Asian character input)
-   * Currently WIN32 and APPLE, runtime-only data.
+   * Only used when `WITH_INPUT_IME` is defined, runtime-only data.
    */
   const struct wmIMEData *ime_data;
   char ime_data_is_composing;
-  char _pad1[7];
+  char _pad1[6];
+
+  /**
+   * Internal: tag this for extra mouse-move event,
+   * makes cursors/buttons active on UI switching.
+   */
+  char addmousemove;
 
   /** Window+screen handlers, handled last. */
   ListBase handlers;

@@ -210,7 +210,7 @@ static void change_frame_seq_preview_begin(bContext *C, const wmEvent *event, Sp
 {
   BLI_assert(sseq != nullptr);
   ARegion *region = CTX_wm_region(C);
-  if (blender::ed::vse::check_show_strip(sseq) && !ED_time_scrub_event_in_region(region, event)) {
+  if (blender::ed::vse::check_show_strip(*sseq) && !ED_time_scrub_event_in_region(region, event)) {
     blender::ed::vse::special_preview_set(C, event->mval);
   }
 }
@@ -373,6 +373,9 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
         }
       }
       break;
+    default: {
+      break;
+    }
   }
 
   if (ret != OPERATOR_RUNNING_MODAL) {
@@ -706,7 +709,7 @@ static wmOperatorStatus debug_channel_list_exec(bContext *C, wmOperator * /*op*/
   printf("----------------------------------------------\n");
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    ANIM_channel_debug_print_info(ale, 1);
+    ANIM_channel_debug_print_info(ac, ale, 1);
   }
 
   printf("==============================================\n");

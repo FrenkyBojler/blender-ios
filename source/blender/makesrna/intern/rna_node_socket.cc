@@ -18,22 +18,24 @@
 
 const EnumPropertyItem rna_enum_node_socket_type_items[] = {
     {SOCK_CUSTOM, "CUSTOM", 0, "Custom", ""},
-    {SOCK_FLOAT, "VALUE", 0, "Value", ""},
-    {SOCK_INT, "INT", 0, "Integer", ""},
-    {SOCK_BOOLEAN, "BOOLEAN", 0, "Boolean", ""},
-    {SOCK_VECTOR, "VECTOR", 0, "Vector", ""},
-    {SOCK_ROTATION, "ROTATION", 0, "Rotation", ""},
-    {SOCK_MATRIX, "MATRIX", 0, "Matrix", ""},
-    {SOCK_STRING, "STRING", 0, "String", ""},
-    {SOCK_RGBA, "RGBA", 0, "RGBA", ""},
-    {SOCK_SHADER, "SHADER", 0, "Shader", ""},
-    {SOCK_OBJECT, "OBJECT", 0, "Object", ""},
-    {SOCK_IMAGE, "IMAGE", 0, "Image", ""},
-    {SOCK_GEOMETRY, "GEOMETRY", 0, "Geometry", ""},
-    {SOCK_COLLECTION, "COLLECTION", 0, "Collection", ""},
-    {SOCK_TEXTURE, "TEXTURE", 0, "Texture", ""},
-    {SOCK_MATERIAL, "MATERIAL", 0, "Material", ""},
-    {SOCK_MENU, "MENU", 0, "Menu", ""},
+    {SOCK_FLOAT, "VALUE", ICON_NODE_SOCKET_FLOAT, "Value", ""},
+    {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", ""},
+    {SOCK_BOOLEAN, "BOOLEAN", ICON_NODE_SOCKET_BOOLEAN, "Boolean", ""},
+    {SOCK_VECTOR, "VECTOR", ICON_NODE_SOCKET_VECTOR, "Vector", ""},
+    {SOCK_ROTATION, "ROTATION", ICON_NODE_SOCKET_ROTATION, "Rotation", ""},
+    {SOCK_MATRIX, "MATRIX", ICON_NODE_SOCKET_MATRIX, "Matrix", ""},
+    {SOCK_STRING, "STRING", ICON_NODE_SOCKET_STRING, "String", ""},
+    {SOCK_RGBA, "RGBA", ICON_NODE_SOCKET_RGBA, "RGBA", ""},
+    {SOCK_SHADER, "SHADER", ICON_NODE_SOCKET_SHADER, "Shader", ""},
+    {SOCK_OBJECT, "OBJECT", ICON_NODE_SOCKET_OBJECT, "Object", ""},
+    {SOCK_IMAGE, "IMAGE", ICON_NODE_SOCKET_IMAGE, "Image", ""},
+    {SOCK_GEOMETRY, "GEOMETRY", ICON_NODE_SOCKET_GEOMETRY, "Geometry", ""},
+    {SOCK_COLLECTION, "COLLECTION", ICON_NODE_SOCKET_COLLECTION, "Collection", ""},
+    {SOCK_TEXTURE, "TEXTURE", ICON_NODE_SOCKET_TEXTURE, "Texture", ""},
+    {SOCK_MATERIAL, "MATERIAL", ICON_NODE_SOCKET_MATERIAL, "Material", ""},
+    {SOCK_MENU, "MENU", ICON_NODE_SOCKET_MENU, "Menu", ""},
+    {SOCK_BUNDLE, "BUNDLE", ICON_NODE_SOCKET_BUNDLE, "Bundle", ""},
+    {SOCK_CLOSURE, "CLOSURE", ICON_NODE_SOCKET_CLOSURE, "Closure", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -158,14 +160,13 @@ static StructRNA *rna_NodeSocket_register(Main *bmain,
                                           StructFreeFunc free)
 {
   blender::bke::bNodeSocketType *st;
-  bNodeSocket dummy_sock;
+  bNodeSocket dummy_sock = {};
   bool have_function[3];
 
   /* setup dummy socket & socket type to store static properties in */
   blender::bke::bNodeSocketType dummy_st = {};
   dummy_st.type = SOCK_CUSTOM;
 
-  memset(&dummy_sock, 0, sizeof(bNodeSocket));
   dummy_sock.typeinfo = &dummy_st;
   PointerRNA dummy_sock_ptr = RNA_pointer_create_discrete(nullptr, &RNA_NodeSocket, &dummy_sock);
 
@@ -367,6 +368,13 @@ static bool rna_NodeSocket_is_output_get(PointerRNA *ptr)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
   return sock->in_out == SOCK_OUT;
+}
+
+static bool rna_NodeSocket_select_get(PointerRNA *ptr)
+{
+  const bNodeSocket *socket = ptr->data_as<bNodeSocket>();
+
+  return (socket->flag & SELECT) != 0;
 }
 
 static int rna_NodeSocket_link_limit_get(PointerRNA *ptr)
@@ -671,6 +679,11 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, "rna_NodeSocket_is_output_get", nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Is Output", "True if the socket is an output, otherwise input");
+
+  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop, "rna_NodeSocket_select_get", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Select", "True if the socket is selected");
 
   prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SOCK_HIDDEN);
@@ -1348,6 +1361,7 @@ static void rna_def_node_socket_string(BlenderRNA *brna,
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 
   if (subtype == PROP_FILEPATH) {
+    RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
     RNA_def_property_string_filepath_filter_func(prop, "rna_NodeSocketString_filepath_filter");
   }
 
@@ -1560,6 +1574,48 @@ static void rna_def_node_socket_interface_geometry(BlenderRNA *brna, const char 
 
   srna = RNA_def_struct(brna, identifier, "NodeTreeInterfaceSocket");
   RNA_def_struct_ui_text(srna, "Geometry Node Socket Interface", "Geometry socket of a node");
+  RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
+
+  rna_def_node_tree_interface_socket_builtin(srna);
+}
+
+static void rna_def_node_socket_bundle(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
+  RNA_def_struct_ui_text(srna, "Bundle Node Socket", "Bundle socket of a node");
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_BUNDLE);
+  RNA_def_struct_sdna(srna, "bNodeSocket");
+}
+
+static void rna_def_node_socket_interface_bundle(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeTreeInterfaceSocket");
+  RNA_def_struct_ui_text(srna, "Bundle Node Socket Interface", "Bundle socket of a node");
+  RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
+
+  rna_def_node_tree_interface_socket_builtin(srna);
+}
+
+static void rna_def_node_socket_closure(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
+  RNA_def_struct_ui_text(srna, "Closure Node Socket", "Closure socket of a node");
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_CLOSURE);
+  RNA_def_struct_sdna(srna, "bNodeSocket");
+}
+
+static void rna_def_node_socket_interface_closure(BlenderRNA *brna, const char *identifier)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, identifier, "NodeTreeInterfaceSocket");
+  RNA_def_struct_ui_text(srna, "Closure Node Socket Interface", "Closure socket of a node");
   RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
 
   rna_def_node_tree_interface_socket_builtin(srna);
@@ -1787,6 +1843,8 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketTexture", "NodeTreeInterfaceSocketTexture", SOCK_TEXTURE, PROP_NONE},
     {"NodeSocketMaterial", "NodeTreeInterfaceSocketMaterial", SOCK_MATERIAL, PROP_NONE},
     {"NodeSocketMenu", "NodeTreeInterfaceSocketMenu", SOCK_MENU, PROP_NONE},
+    {"NodeSocketBundle", "NodeTreeInterfaceSocketBundle", SOCK_BUNDLE, PROP_NONE},
+    {"NodeSocketClosure", "NodeTreeInterfaceSocketClosure", SOCK_CLOSURE, PROP_NONE},
 };
 
 static void rna_def_node_socket_subtypes(BlenderRNA *brna)
@@ -1843,6 +1901,12 @@ static void rna_def_node_socket_subtypes(BlenderRNA *brna)
       case SOCK_MENU:
         rna_def_node_socket_menu(brna, identifier);
         break;
+      case SOCK_BUNDLE:
+        rna_def_node_socket_bundle(brna, identifier);
+        break;
+      case SOCK_CLOSURE:
+        rna_def_node_socket_closure(brna, identifier);
+        break;
 
       case SOCK_CUSTOM:
         break;
@@ -1852,11 +1916,12 @@ static void rna_def_node_socket_subtypes(BlenderRNA *brna)
   rna_def_node_socket_virtual(brna, "NodeSocketVirtual");
 }
 
-/* NOTE: interface items are defined outside this file.
- * The subtypes must be defined after the base type, so this function
- * is called from the interface rna file to ensure correct order. */
 void rna_def_node_socket_interface_subtypes(BlenderRNA *brna)
 {
+  /* NOTE: interface items are defined outside this file.
+   * The subtypes must be defined after the base type, so this function
+   * is called from the interface rna file to ensure correct order. */
+
   for (const bNodeSocketStaticTypeInfo &info : node_socket_subtypes) {
     const char *identifier = info.interface_identifier;
 
@@ -1908,6 +1973,12 @@ void rna_def_node_socket_interface_subtypes(BlenderRNA *brna)
         break;
       case SOCK_MATERIAL:
         rna_def_node_socket_interface_material(brna, identifier);
+        break;
+      case SOCK_BUNDLE:
+        rna_def_node_socket_interface_bundle(brna, identifier);
+        break;
+      case SOCK_CLOSURE:
+        rna_def_node_socket_interface_closure(brna, identifier);
         break;
 
       case SOCK_CUSTOM:

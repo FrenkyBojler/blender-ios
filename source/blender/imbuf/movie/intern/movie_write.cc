@@ -32,6 +32,7 @@
 #  include "BKE_global.hh"
 #  include "BKE_image.hh"
 #  include "BKE_main.hh"
+#  include "BKE_path_templates.hh"
 
 #  include "IMB_imbuf.hh"
 
@@ -53,11 +54,12 @@ static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value)
 }
 
 static void ffmpeg_movie_close(MovieWriter *context);
-static void ffmpeg_filepath_get(MovieWriter *context,
+static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix);
+                                const char *suffix,
+                                ReportList *reports);
 
 static AVFrame *alloc_frame(AVPixelFormat pix_fmt, int width, int height)
 {
@@ -537,6 +539,19 @@ static int remap_crf_to_h265_crf(int crf, bool is_10_or_12_bpp)
   return crf;
 }
 
+static const AVCodec *get_prores_encoder(RenderData *rd, int rectx, int recty)
+{
+  /* The prores_aw encoder currently (April 2025) has issues when encoding alpha with high
+   * resolution but is faster in most cases for similar quality. Use it instead of prores_ks
+   * if possible. (Upstream issue https://trac.ffmpeg.org/ticket/11536) */
+  if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+    if ((size_t(rectx) * size_t(recty)) > (3840 * 2160)) {
+      return avcodec_find_encoder_by_name("prores_ks");
+    }
+  }
+  return avcodec_find_encoder_by_name("prores_aw");
+}
+
 /* 10bpp H264: remap 0..51 range to -12..51 range
  * https://trac.ffmpeg.org/wiki/Encode/H.264#a1.ChooseaCRFvalue */
 static int remap_crf_to_h264_10bpp_crf(int crf)
@@ -651,6 +666,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
      * on given parameters, and also set up opts. */
     codec = get_av1_encoder(context, rd, &opts, rectx, recty);
   }
+  else if (codec_id == AV_CODEC_ID_PRORES) {
+    codec = get_prores_encoder(rd, rectx, recty);
+  }
   else {
     codec = avcodec_find_encoder(codec_id);
   }
@@ -761,6 +779,14 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     c->codec_tag = (('D' << 24) + ('I' << 16) + ('V' << 8) + 'X');
   }
 
+  if (codec_id == AV_CODEC_ID_H265) {
+    /* H.265 needs hvc1 tag for Apple compatibility, see
+     * https://trac.ffmpeg.org/wiki/Encode/H.265#FinalCutandApplestuffcompatibility
+     * Note that in case we are doing H.265 into an XviD container,
+     * this overwrites the tag set above. But that should not be what anyone does. */
+    c->codec_tag = MKTAG('h', 'v', 'c', '1');
+  }
+
   /* Keep lossless encodes in the RGB domain. */
   if (codec_id == AV_CODEC_ID_HUFFYUV) {
     if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
@@ -779,7 +805,33 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   if (codec_id == AV_CODEC_ID_FFV1) {
-    c->pix_fmt = AV_PIX_FMT_RGB32;
+    if (rd->im_format.planes == R_IMF_PLANES_BW) {
+      c->pix_fmt = AV_PIX_FMT_GRAY8;
+      if (is_10_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GRAY10;
+      }
+      else if (is_12_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GRAY12;
+      }
+    }
+    else if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+      c->pix_fmt = AV_PIX_FMT_RGB32;
+      if (is_10_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GBRAP10;
+      }
+      else if (is_12_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GBRAP12;
+      }
+    }
+    else { /* RGB */
+      c->pix_fmt = AV_PIX_FMT_0RGB32;
+      if (is_10_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GBRP10;
+      }
+      else if (is_12_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GBRP12;
+      }
+    }
   }
 
   if (codec_id == AV_CODEC_ID_QTRLE) {
@@ -807,6 +859,27 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   if (codec_id == AV_CODEC_ID_PNG) {
     if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
       c->pix_fmt = AV_PIX_FMT_RGBA;
+    }
+  }
+  if (codec_id == AV_CODEC_ID_PRORES) {
+    if ((context->ffmpeg_profile >= FFM_PRORES_PROFILE_422_PROXY) &&
+        (context->ffmpeg_profile <= FFM_PRORES_PROFILE_422_HQ))
+    {
+      c->profile = context->ffmpeg_profile;
+      c->pix_fmt = AV_PIX_FMT_YUV422P10LE;
+    }
+    else if ((context->ffmpeg_profile >= FFM_PRORES_PROFILE_4444) &&
+             (context->ffmpeg_profile <= FFM_PRORES_PROFILE_4444_XQ))
+    {
+      c->profile = context->ffmpeg_profile;
+      c->pix_fmt = AV_PIX_FMT_YUV444P10LE;
+
+      if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+        c->pix_fmt = AV_PIX_FMT_YUVA444P10LE;
+      }
+    }
+    else {
+      fprintf(stderr, "ffmpeg: invalid profile %d\n", context->ffmpeg_profile);
     }
   }
 
@@ -937,13 +1010,16 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   context->ffmpeg_autosplit = (rd->ffcodecdata.flags & FFMPEG_AUTOSPLIT_OUTPUT) != 0;
   context->ffmpeg_crf = rd->ffcodecdata.constant_rate_factor;
   context->ffmpeg_preset = rd->ffcodecdata.ffmpeg_preset;
+  context->ffmpeg_profile = 0;
 
   if ((rd->ffcodecdata.flags & FFMPEG_USE_MAX_B_FRAMES) != 0) {
     context->ffmpeg_max_b_frames = rd->ffcodecdata.max_b_frames;
   }
 
   /* Determine the correct filename */
-  ffmpeg_filepath_get(context, filepath, rd, context->ffmpeg_preview, suffix);
+  if (!ffmpeg_filepath_get(context, filepath, rd, context->ffmpeg_preview, suffix, reports)) {
+    return false;
+  }
   FF_DEBUG_PRINT(
       "ffmpeg: starting output to %s:\n"
       "  type=%d, codec=%d, audio_codec=%d,\n"
@@ -1049,6 +1125,10 @@ static bool start_ffmpeg_impl(MovieWriter *context,
       BKE_report(reports, RPT_ERROR, "FFmpeg only supports 48khz / stereo audio for DV!");
       goto fail;
     }
+  }
+
+  if (video_codec == AV_CODEC_ID_PRORES) {
+    context->ffmpeg_profile = rd->ffcodecdata.ffmpeg_prores_profile;
   }
 
   if (video_codec != AV_CODEC_ID_NONE) {
@@ -1172,12 +1252,19 @@ static void flush_delayed_frames(AVCodecContext *c, AVStream *stream, AVFormatCo
   av_packet_free(&packet);
 }
 
-/* Get the output filename-- similar to the other output formats */
-static void ffmpeg_filepath_get(MovieWriter *context,
+/**
+ * Get the output filename-- similar to the other output formats.
+ *
+ * \param reports If non-null, will report errors with `RPT_ERROR` level reports.
+ *
+ * \return true on success, false on failure due to errors.
+ */
+static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
   char autosplit[20];
 
@@ -1186,7 +1273,7 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   int sfra, efra;
 
   if (!filepath || !exts) {
-    return;
+    return false;
   }
 
   if (preview) {
@@ -1199,6 +1286,14 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   }
 
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
+
+  const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+      filepath, FILE_MAX, BKE_build_template_variables(BKE_main_blendfile_path_from_global(), rd));
+  if (!errors.is_empty()) {
+    BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
+    return false;
+  }
+
   BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
   BLI_file_ensure_parent_dir_exists(filepath);
@@ -1240,14 +1335,17 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   }
 
   BLI_path_suffix(filepath, FILE_MAX, suffix, "");
+
+  return true;
 }
 
 static void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
-  ffmpeg_filepath_get(nullptr, filepath, rd, preview, suffix);
+  ffmpeg_filepath_get(nullptr, filepath, rd, preview, suffix, reports);
 }
 
 static MovieWriter *ffmpeg_movie_open(const Scene *scene,
@@ -1476,15 +1574,16 @@ void MOV_write_end(MovieWriter *writer)
 void MOV_filepath_from_settings(char filepath[/*FILE_MAX*/ 1024],
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
 #ifdef WITH_FFMPEG
   if (is_imtype_ffmpeg(rd->im_format.imtype)) {
-    ffmpeg_get_filepath(filepath, rd, preview, suffix);
+    ffmpeg_get_filepath(filepath, rd, preview, suffix, reports);
     return;
   }
 #else
-  UNUSED_VARS(rd, preview, suffix);
+  UNUSED_VARS(rd, preview, suffix, reports);
 #endif
   filepath[0] = '\0';
 }
