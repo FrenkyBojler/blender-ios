@@ -8,10 +8,8 @@
  * \ingroup bke
  */
 
-struct ListBase;
-struct Curve;
-struct Curves;
-enum KnotsMode;
+#include "DNA_curves_types.h"
+#include "DNA_listBase.h"
 
 namespace blender::bke {
 
@@ -28,6 +26,6 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
 /**
  * Determine Curves knot mode from legacy flag.
  */
-KnotsMode knots_mode_from_legacy(const short flag);
+KnotsMode knots_mode_from_legacy(short flag);
 
 }  // namespace blender::bke
