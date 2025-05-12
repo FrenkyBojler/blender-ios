@@ -34,13 +34,13 @@ typedef struct KeyBlock {
   /** Influence (typically [0 - 1] but can be more), `(Key->type == KEY_RELATIVE)` only. */
   float curval;
 
-  /** Interpolation type. Used for `(Key->type == KEY_NORMAL)` only (eKeyInterpolationType). */
+  /** Interpolation type. Used for `(Key->type == KEY_NORMAL)` only (KeyInterpolationType). */
   short type;
   char _pad1[2];
 
   /** `relative == 0` means first key is reference, otherwise the index of Key->blocks. */
   short relative;
-  /* eKeyBlockFlag */
+  /* KeyBlockFlag */
   short flag;
 
   /** Total number of items in the keyblock (compare with mesh/curve verts to check we match). */
@@ -97,9 +97,9 @@ typedef struct Key {
 
   /** (totkey == BLI_listbase_count(&key->block)). */
   int totkey;
-  /* eKeyFlag */
+  /* ShapekeyContainerFlag */
   short flag;
-  /** Absolute or relative shape key (eKeyType). */
+  /** Absolute or relative shape key (ShapekeyContainerType). */
   char type;
   char _pad2;
 
@@ -117,34 +117,34 @@ typedef struct Key {
 /* **************** KEY ********************* */
 
 /* Key->type: KeyBlocks are interpreted as... */
-typedef enum eKeyType {
+typedef enum ShapekeyContainerType {
   /* Sequential positions over time (using KeyBlock->pos and Key->ctime) */
   KEY_NORMAL = 0,
 
   /* States to blend between (default) */
   KEY_RELATIVE = 1,
-} eKeyType;
+} ShapekeyContainerType;
 
 /* Key->flag */
-typedef enum eKeyFlag {
+typedef enum ShapekeyContainerFlag {
   KEY_DS_EXPAND = 1,
-} eKeyFlag;
+} ShapekeyContainerFlag;
 
 /* The obvious name would be `eKeyBlockType` but this enum is actually used in places outside of
  * Shape Keys (NURBS, particles, etc.). */
-typedef enum eKeyInterpolationType {
+typedef enum KeyInterpolationType {
   KEY_LINEAR = 0,
   KEY_CARDINAL = 1,
   KEY_BSPLINE = 2,
   KEY_CATMULL_ROM = 3,
-} eKeyInterpolationType;
+} KeyInterpolationType;
 
-typedef enum eKeyBlockFlag {
+typedef enum KeyBlockFlag {
   KEYBLOCK_MUTE = (1 << 0),
   KEYBLOCK_SEL = (1 << 1),
   KEYBLOCK_LOCKED = (1 << 2),
   KEYBLOCK_LOCKED_SHAPE = (1 << 3),
-} eKeyBlockFlag;
+} KeyBlockFlag;
 
 #define KEYELEM_FLOAT_LEN_COORD 3
 

@@ -338,7 +338,7 @@ void BKE_key_sort(Key *key)
 
 /**************** do the key ****************/
 
-void key_curve_position_weights(float t, float data[4], int /* eKeyInterpolationType */ type)
+void key_curve_position_weights(float t, float data[4], int /* KeyInterpolationType */ type)
 {
   float t2, t3, fc;
 
@@ -392,7 +392,7 @@ void key_curve_position_weights(float t, float data[4], int /* eKeyInterpolation
   }
 }
 
-void key_curve_tangent_weights(float t, float data[4], int /* eKeyInterpolationType */ type)
+void key_curve_tangent_weights(float t, float data[4], int /* KeyInterpolationType */ type)
 {
   float t2, fc;
 
@@ -443,7 +443,7 @@ void key_curve_tangent_weights(float t, float data[4], int /* eKeyInterpolationT
   }
 }
 
-void key_curve_normal_weights(float t, float data[4], int /* eKeyInterpolationType */ type)
+void key_curve_normal_weights(float t, float data[4], int /* KeyInterpolationType */ type)
 {
   float fc;
 
