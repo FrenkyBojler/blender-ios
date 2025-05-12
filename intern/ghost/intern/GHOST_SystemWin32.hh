@@ -377,6 +377,14 @@ class GHOST_SystemWin32 : public GHOST_System {
   static void processWheelEvent(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
 
   /**
+   * Handles a horizontal mouse wheel event.
+   * \param window: The window receiving the event (the active window).
+   * \param wParam: The wParam from the `wndproc`.
+   * \param lParam: The lParam from the `wndproc`.
+   */
+  static void processHorizontalWheelEvent(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
+
+  /**
    * Creates a key event and updates the key data stored locally (m_modifierKeys).
    * In most cases this is a straightforward conversion of key codes.
    * For the modifier keys however, we want to distinguish left and right keys.
@@ -481,6 +489,7 @@ class GHOST_SystemWin32 : public GHOST_System {
 
   /** Wheel delta accumulator. */
   int m_wheelDeltaAccum;
+  int m_wheelHorizontalDeltaAccum;
 };
 
 inline void GHOST_SystemWin32::handleKeyboardChange()

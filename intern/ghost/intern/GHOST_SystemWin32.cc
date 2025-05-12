@@ -36,6 +36,7 @@
 #include "GHOST_EventCursor.hh"
 #include "GHOST_EventKey.hh"
 #include "GHOST_EventWheel.hh"
+#include "GHOST_EventWheelHorizontal.hh"
 #include "GHOST_TimerManager.hh"
 #include "GHOST_TimerTask.hh"
 #include "GHOST_WindowManager.hh"
@@ -1241,6 +1242,31 @@ void GHOST_SystemWin32::processWheelEvent(GHOST_WindowWin32 *window,
   system->m_wheelDeltaAccum = acc * direction;
 }
 
+/** This is almost the same as #processWheelEvent. */
+void GHOST_SystemWin32::processHorizontalWheelEvent(GHOST_WindowWin32 *window,
+                                                    WPARAM wParam,
+                                                    LPARAM /*lParam*/)
+{
+  GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
+
+  int acc = system->m_wheelHorizontalDeltaAccum;
+  int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+
+  if (acc * delta < 0) {
+    /* Scroll direction reversed. */
+    acc = 0;
+  }
+  acc += delta;
+  int direction = (acc >= 0) ? 1 : -1;
+  acc = abs(acc);
+
+  while (acc >= WHEEL_DELTA) {
+    system->pushEvent(new GHOST_EventWheelHorizontal(getMessageTime(system), window, direction));
+    acc -= WHEEL_DELTA;
+  }
+  system->m_wheelHorizontalDeltaAccum = acc * direction;
+}
+
 GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RAWINPUT const &raw)
 {
   const char vk = raw.data.keyboard.VKey;
@@ -2001,6 +2027,11 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
 #endif
           break;
         }
+        case WM_MOUSEHWHEEL: {
+          processHorizontalWheelEvent(window, wParam, lParam);
+          eventHandled = true;
+          break;
+        }
         case WM_SETCURSOR: {
           /* The WM_SETCURSOR message is sent to a window if the mouse causes the cursor
            * to move within a window and mouse input is not captured.
@@ -2073,6 +2104,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
            * so the window is activated immediately. */
 
           system->m_wheelDeltaAccum = 0;
+          system->m_wheelHorizontalDeltaAccum = 0;
           event = processWindowEvent(
               LOWORD(wParam) ? GHOST_kEventWindowActivate : GHOST_kEventWindowDeactivate, window);
           /* WARNING: Let DefWindowProc handle WM_ACTIVATE, otherwise WM_MOUSEWHEEL
