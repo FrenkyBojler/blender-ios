@@ -861,8 +861,8 @@ int bNodeTreeInterfacePanel::find_valid_insert_position_for_item(
     }
     /* Keep outputs above inputs. */
     if (a.item_type == NODE_INTERFACE_SOCKET && b.item_type == NODE_INTERFACE_SOCKET) {
-      const bNodeTreeInterfaceSocket &sa = reinterpret_cast<const bNodeTreeInterfaceSocket &>(a);
-      const bNodeTreeInterfaceSocket &sb = reinterpret_cast<const bNodeTreeInterfaceSocket &>(b);
+      const auto &sa = reinterpret_cast<const bNodeTreeInterfaceSocket &>(a);
+      const auto &sb = reinterpret_cast<const bNodeTreeInterfaceSocket &>(b);
       const bool is_output_a = sa.flag & NODE_INTERFACE_SOCKET_OUTPUT;
       const bool is_output_b = sb.flag & NODE_INTERFACE_SOCKET_OUTPUT;
       if (is_output_a && !is_output_b) {

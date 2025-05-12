@@ -400,7 +400,7 @@ wmDragNodeTreeInterface *get_drag_node_tree_declaration(const wmDrag &drag)
   return static_cast<wmDragNodeTreeInterface *>(drag.poin);
 }
 
-bool is_dragging_parent_panel(const wmDrag &drag, bNodeTreeInterfaceItem &drop_target_item)
+bool is_dragging_parent_panel(const wmDrag &drag, const bNodeTreeInterfaceItem &drop_target_item)
 {
   if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
