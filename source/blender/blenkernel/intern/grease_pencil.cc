@@ -2374,7 +2374,8 @@ bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, co
     if (base->type != GP_DRAWING) {
       continue;
     }
-    const bke::greasepencil::Drawing &drawing = reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
+    const bke::greasepencil::Drawing &drawing =
+        reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
     const bke::CurvesGeometry &curves = drawing.strokes();
     if (curves.has_curve_with_type(type)) {
       has_curve_with_type = true;
