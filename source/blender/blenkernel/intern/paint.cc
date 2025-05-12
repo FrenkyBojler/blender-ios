@@ -137,7 +137,7 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
 }
 
 IDTypeInfo IDType_ID_PAL = {
-    /*id_code*/ ID_PAL,
+    /*id_code*/ Palette::id_type,
     /*id_filter*/ FILTER_ID_PAL,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_PAL,
@@ -206,7 +206,7 @@ static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_PC = {
-    /*id_code*/ ID_PC,
+    /*id_code*/ PaintCurve::id_type,
     /*id_filter*/ FILTER_ID_PC,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_PC,
@@ -1319,7 +1319,7 @@ std::optional<int> BKE_paint_get_brush_type_from_paintmode(const Brush *brush,
 
 PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name)
 {
-  PaintCurve *pc = static_cast<PaintCurve *>(BKE_id_new(bmain, ID_PC, name));
+  PaintCurve *pc = BKE_id_new<PaintCurve>(bmain, name);
   return pc;
 }
 
@@ -1366,7 +1366,7 @@ void BKE_palette_clear(Palette *palette)
 
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {
-  Palette *palette = static_cast<Palette *>(BKE_id_new(bmain, ID_PAL, name));
+  Palette *palette = BKE_id_new<Palette>(bmain, name);
   return palette;
 }
 
@@ -1526,8 +1526,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, co
   const int totpal = BLI_ghash_len(color_table);
 
   if (totpal > 0) {
-    color_array = static_cast<tPaletteColorHSV *>(
-        MEM_calloc_arrayN(totpal, sizeof(tPaletteColorHSV), __func__));
+    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(totpal, __func__);
     /* Put all colors in an array. */
     GHashIterator gh_iter;
     int t = 0;
@@ -2491,7 +2490,7 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
 {
   using namespace blender;
   /* Update before mesh evaluation in the dependency graph. */
-  Object *ob_orig = DEG_get_original_object(ob_eval);
+  Object *ob_orig = DEG_get_original(ob_eval);
   SculptSession *ss = ob_orig->sculpt;
   if (!ss) {
     return;
@@ -2550,7 +2549,7 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval)
 {
   /* Update after mesh evaluation in the dependency graph, to rebuild pbvh::Tree or
    * other data when modifiers change the mesh. */
-  Object *ob_orig = DEG_get_original_object(ob_eval);
+  Object *ob_orig = DEG_get_original(ob_eval);
 
   sculpt_update_object(depsgraph, ob_orig, ob_eval, false);
 }
@@ -2581,9 +2580,9 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
 
 void BKE_sculpt_update_object_for_edit(Depsgraph *depsgraph, Object *ob_orig, bool is_paint_tool)
 {
-  BLI_assert(ob_orig == DEG_get_original_object(ob_orig));
+  BLI_assert(ob_orig == DEG_get_original(ob_orig));
 
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
 
   sculpt_update_object(depsgraph, ob_orig, ob_eval, is_paint_tool);
 }
@@ -2614,8 +2613,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
       GridPaintMask *gpm = &gmask[i];
 
       gpm->level = level;
-      gpm->data = static_cast<float *>(
-          MEM_callocN(sizeof(float) * gridarea, "GridPaintMask.data"));
+      gpm->data = MEM_calloc_arrayN<float>(gridarea, "GridPaintMask.data");
     }
 
     /* If vertices already have mask, copy into multires data. */
@@ -2802,7 +2800,7 @@ pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object)
     ss.pbvh = build_pbvh_for_dynamic_topology(&object);
   }
   else {
-    Object *object_eval = DEG_get_evaluated_object(&depsgraph, &object);
+    Object *object_eval = DEG_get_evaluated(&depsgraph, &object);
     Mesh *mesh_eval = static_cast<Mesh *>(object_eval->data);
     if (mesh_eval->runtime->subdiv_ccg != nullptr) {
       ss.pbvh = build_pbvh_from_ccg(&object, *mesh_eval->runtime->subdiv_ccg);

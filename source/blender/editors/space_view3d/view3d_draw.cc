@@ -277,7 +277,7 @@ static void view3d_stereo3d_setup(
     float shiftx;
 
     data = (Camera *)v3d->camera->data;
-    data_eval = (Camera *)DEG_get_evaluated_id(depsgraph, &data->id);
+    data_eval = DEG_get_evaluated(depsgraph, data);
 
     shiftx = data_eval->shiftx;
 
@@ -390,7 +390,7 @@ static void view3d_camera_border(const Scene *scene,
 {
   CameraParams params;
   rctf rect_view, rect_camera;
-  Object *camera_eval = DEG_get_evaluated_object(depsgraph, v3d->camera);
+  Object *camera_eval = DEG_get_evaluated(depsgraph, v3d->camera);
 
   /* get viewport viewplane */
   BKE_camera_params_init(&params);
@@ -1261,9 +1261,12 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
           else if (cam->type == CAM_ORTHO) {
             name = IFACE_("Camera Orthographic");
           }
-          else {
-            BLI_assert(cam->type == CAM_PANO);
+          else if (cam->type == CAM_PANO) {
             name = IFACE_("Camera Panoramic");
+          }
+          else {
+            BLI_assert(cam->type == CAM_CUSTOM);
+            name = IFACE_("Camera Custom");
           }
         }
         else {
@@ -2044,7 +2047,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
     CameraParams params;
     Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
-    const Object *camera_eval = DEG_get_evaluated_object(depsgraph, camera);
+    const Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
 
     BKE_camera_params_init(&params);
     /* fallback for non camera objects */
@@ -2224,7 +2227,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
 
   {
     CameraParams params;
-    const Object *view_camera_eval = DEG_get_evaluated_object(
+    const Object *view_camera_eval = DEG_get_evaluated(
         depsgraph, BKE_camera_multiview_render(scene, v3d.camera, viewname));
 
     BKE_camera_params_init(&params);
@@ -2304,7 +2307,7 @@ static void validate_object_select_id(Depsgraph *depsgraph,
   if (v3d->runtime.flag & V3D_RUNTIME_DEPTHBUF_OVERRIDDEN) {
     return;
   }
-  Object *obact_eval = DEG_get_evaluated_object(depsgraph, obact);
+  Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
 
   BLI_assert(region->regiontype == RGN_TYPE_WINDOW);
   UNUSED_VARS_NDEBUG(region);
@@ -2409,7 +2412,7 @@ void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d)
   r_d->w = w;
   r_d->h = h;
 
-  r_d->depths = static_cast<float *>(MEM_mallocN(sizeof(float) * w * h, "View depths Subset"));
+  r_d->depths = MEM_malloc_arrayN<float>(w * h, "View depths Subset");
 
   {
     GPUViewport *viewport = WM_draw_region_get_viewport(region);
@@ -2471,7 +2474,7 @@ float view3d_depth_near(ViewDepths *d)
 void ED_view3d_depth_override(Depsgraph *depsgraph,
                               ARegion *region,
                               View3D *v3d,
-                              Object *obact,
+                              Object * /* obact */,
                               eV3DDepthOverrideMode mode,
                               bool use_overlay,
                               ViewDepths **r_depths)
@@ -2526,20 +2529,19 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   if (viewport != nullptr) {
     switch (mode) {
       case V3D_DEPTH_ALL:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false, false);
         break;
       case V3D_DEPTH_NO_GPENCIL:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, false);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, false, false);
         break;
       case V3D_DEPTH_GPENCIL_ONLY:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, true, false, false);
         break;
       case V3D_DEPTH_OBJECT_ONLY:
-        DRW_draw_depth_object(
-            scene, region, v3d, viewport, DEG_get_evaluated_object(depsgraph, obact));
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, false, true);
         break;
       case V3D_DEPTH_SELECTED_ONLY:
-        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, true);
+        DRW_draw_depth_loop(depsgraph, region, v3d, viewport, false, true, false);
         break;
     }
 

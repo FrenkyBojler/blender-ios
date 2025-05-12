@@ -88,7 +88,7 @@ static void validate_value(const bke::AttributeAccessor attributes,
   type.copy_assign(validated_buffer, buffer);
 }
 
-static int set_attribute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
@@ -143,7 +143,7 @@ static int set_attribute_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *active_object = CTX_data_active_object(C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
@@ -184,7 +184,7 @@ static int set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
 static void set_attribute_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = uiLayoutColumn(op->layout, true);
+  uiLayout *layout = &op->layout->column(true);
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
@@ -196,7 +196,7 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
   const eCustomDataType active_type = eCustomDataType(active_attribute->type);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(active_type);
   const char *name = active_attribute->name;
-  uiItemR(layout, op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout->prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 void CURVES_OT_attribute_set(wmOperatorType *ot)

@@ -136,6 +136,9 @@ using NodeInverseElemEvalFunction =
     void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);
 using NodeElemEvalFunction = void (*)(blender::nodes::value_elem::ElemEvalParams &params);
 using NodeInverseEvalFunction = void (*)(blender::nodes::inverse_eval::InverseEvalParams &params);
+using NodeInternallyLinkedInputFunction = const bNodeSocket *(*)(const bNodeTree &tree,
+                                                                 const bNode &node,
+                                                                 const bNodeSocket &output_socket);
 
 /**
  * \brief Defines a socket type.
@@ -259,8 +262,6 @@ struct bNodeType {
 
   /** Called when the node is updated in the editor. */
   void (*updatefunc)(bNodeTree *ntree, bNode *node) = nullptr;
-  /** Check and update if internal ID data has changed. */
-  void (*group_update_func)(bNodeTree *ntree, bNode *node) = nullptr;
 
   /**
    * Initialize a new node instance of this type after creation.
@@ -366,6 +367,9 @@ struct bNodeType {
 
   /** Get extra information that is drawn next to the node. */
   NodeExtraInfoFunction get_extra_info = nullptr;
+
+  /** Get the internally linked input socket for the case when the node is muted. */
+  NodeInternallyLinkedInputFunction internally_linked_input = nullptr;
 
   /**
    * "Abstract" evaluation of the node. It tells the caller which parts of the inputs affect which
@@ -605,6 +609,7 @@ void node_register_alias(bNodeType &nt, StringRef alias);
 Span<bNodeType *> node_types_get();
 
 bNodeSocketType *node_socket_type_find(StringRef idname);
+bNodeSocketType *node_socket_type_find_static(int type, int subtype = 0);
 void node_register_socket_type(bNodeSocketType &stype);
 void node_unregister_socket_type(bNodeSocketType &stype);
 bool node_socket_is_registered(const bNodeSocket &sock);
@@ -890,8 +895,6 @@ void node_tree_local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree);
  * \note `ntree` itself has been read!
  */
 void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree);
-
-bool node_type_is_undefined(const bNode &node);
 
 bool node_is_static_socket_type(const bNodeSocketType &stype);
 

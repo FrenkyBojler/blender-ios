@@ -181,7 +181,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
     if (tc.data_len == 0) {
       continue;
     }
-    Object *object_eval = DEG_get_evaluated_object(depsgraph, tc.obedit);
+    Object *object_eval = DEG_get_evaluated(depsgraph, tc.obedit);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(tc.obedit->data);
     Span<const bke::greasepencil::Layer *> layers = grease_pencil.layers();
 
@@ -248,10 +248,10 @@ static void recalcData_grease_pencil(TransInfo *t)
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
       if (t->mode == TFM_CURVE_SHRINKFATTEN) {
-        /* No cache to update currently. */
+        curves.tag_radii_changed();
       }
       else if (t->mode == TFM_TILT) {
-        /* No cache to update currently. */
+        curves.tag_normals_changed();
       }
       else {
         const Vector<MutableSpan<float3>> positions_per_selection_attr =

@@ -29,6 +29,7 @@
 #include "BKE_asset_edit.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -115,7 +116,7 @@ bool WM_toolsystem_ref_ensure(WorkSpace *workspace, const bToolKey *tkey, bToolR
     *r_tref = tref;
     return false;
   }
-  tref = static_cast<bToolRef *>(MEM_callocN(sizeof(*tref), __func__));
+  tref = MEM_callocN<bToolRef>(__func__);
   BLI_addhead(&workspace->tools, tref);
   tref->space_type = tkey->space_type;
   tref->mode = tkey->mode;
@@ -211,6 +212,12 @@ static const char *brush_type_identifier_get(const int brush_type, const PaintMo
 static bool brush_type_matches_active_tool(bContext *C, const int brush_type)
 {
   const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
+
+  if (active_tool->runtime == nullptr) {
+    /* Should only ever be null in background mode. */
+    BLI_assert(G.background);
+    return false;
+  }
 
   if (!(active_tool->runtime->flag & TOOLREF_FLAG_USE_BRUSHES)) {
     return false;
@@ -588,7 +595,7 @@ void WM_toolsystem_ref_set_from_runtime(bContext *C,
   tref->idname_pending[0] = '\0';
 
   if (tref->runtime == nullptr) {
-    tref->runtime = static_cast<bToolRef_Runtime *>(MEM_callocN(sizeof(*tref->runtime), __func__));
+    tref->runtime = MEM_callocN<bToolRef_Runtime>(__func__);
   }
 
   if (tref_rt != tref->runtime) {

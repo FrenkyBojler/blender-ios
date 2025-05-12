@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #ifdef WITH_OPENVDB
@@ -23,6 +27,8 @@ struct Volume;
 blender::bke::VolumeGridData *BKE_volume_grid_add_vdb(Volume &volume,
                                                       blender::StringRef name,
                                                       openvdb::GridBase::Ptr vdb_grid);
+
+void BKE_volume_metadata_set(Volume &volume, openvdb::MetaMap::Ptr metadata);
 
 std::optional<blender::Bounds<blender::float3>> BKE_volume_grid_bounds(
     openvdb::GridBase::ConstPtr grid);

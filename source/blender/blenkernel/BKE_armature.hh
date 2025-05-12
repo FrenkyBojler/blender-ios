@@ -159,7 +159,7 @@ void BKE_armature_transform(bArmature *arm, const float mat[4][4], bool do_props
 std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const Object *ob);
 
 /**
- * Calculate the axis-aligned bounds of `pchan` in world-space,
+ * Calculate the axis-aligned bounds of `pchan` in object-space,
  * taking into account custom transform when set.
  *
  * `r_min` and `r_max` are expanded to fit `pchan` so the caller must initialize them
@@ -179,7 +179,7 @@ void BKE_pchan_minmax(const Object *ob,
                       blender::float3 &r_min,
                       blender::float3 &r_max);
 /**
- * Calculate the axis aligned bounds of the pose of `ob` in world-space.
+ * Calculate the axis aligned bounds of the pose of `ob` in object-space.
  *
  * This only considers visible bones. When they are either directly (via a flag on the bone) or
  * indirectly (via bone collections) hidden, they are not part of the bounds calculation. When a
@@ -305,27 +305,29 @@ void BKE_armature_mat_world_to_pose(Object *ob, const float inmat[4][4], float o
 /**
  * Convert World-Space Location to Pose-Space Location
  * \note this cannot be used to convert to pose-space location of the supplied
- * pose-channel into its local space (i.e. 'visual'-keyframing).
+ * pose-channel into its local space (i.e. *visual*-keyframing).
  */
 void BKE_armature_loc_world_to_pose(Object *ob, const float inloc[3], float outloc[3]);
 /**
  * Convert Pose-Space Matrix to Bone-Space Matrix.
  * \note this cannot be used to convert to pose-space transforms of the supplied
- * pose-channel into its local space (i.e. 'visual'-keyframing).
+ * pose-channel into its local space (i.e. *visual*-keyframing).
  */
-void BKE_armature_mat_pose_to_bone(bPoseChannel *pchan,
+void BKE_armature_mat_pose_to_bone(const bPoseChannel *pchan,
                                    const float inmat[4][4],
                                    float outmat[4][4]);
 /**
  * Convert Pose-Space Location to Bone-Space Location
  * \note this cannot be used to convert to pose-space location of the supplied
- * pose-channel into its local space (i.e. 'visual'-keyframing).
+ * pose-channel into its local space (i.e. *visual*-keyframing).
  */
-void BKE_armature_loc_pose_to_bone(bPoseChannel *pchan, const float inloc[3], float outloc[3]);
+void BKE_armature_loc_pose_to_bone(const bPoseChannel *pchan,
+                                   const float inloc[3],
+                                   float outloc[3]);
 /**
  * Convert Bone-Space Matrix to Pose-Space Matrix.
  */
-void BKE_armature_mat_bone_to_pose(bPoseChannel *pchan,
+void BKE_armature_mat_bone_to_pose(const bPoseChannel *pchan,
                                    const float inmat[4][4],
                                    float outmat[4][4]);
 /**
@@ -339,7 +341,7 @@ void BKE_armature_mat_pose_to_delta(float delta_mat[4][4],
 
 void BKE_armature_mat_pose_to_bone_ex(Depsgraph *depsgraph,
                                       Object *ob,
-                                      bPoseChannel *pchan,
+                                      const bPoseChannel *pchan,
                                       const float inmat[4][4],
                                       float outmat[4][4]);
 
@@ -410,7 +412,7 @@ void BKE_bone_parent_transform_apply(const BoneParentTransform *bpt,
  * will differ from the rotation/scale matrix...
  *
  * \note This cannot be used to convert to pose-space transforms of the supplied
- * pose-channel into its local space (i.e. 'visual'-keyframing).
+ * pose-channel into its local space (i.e. *visual*-key-framing).
  * (NOTE(@mont29): I don't understand that, so I keep it :p).
  */
 void BKE_bone_parent_transform_calc_from_pchan(const bPoseChannel *pchan,
@@ -469,6 +471,19 @@ struct BBoneSplineParameters {
   float scale_in[3], scale_out[3];
   float curve_in_x, curve_in_z, curve_out_x, curve_out_z;
 };
+
+/** Sets the location of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_location_set(bPoseChannel *pchan, const float location[3]);
+/** Sets the location of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_scale_set(bPoseChannel *pchan, const float scale[3]);
+/** Sets the quaternion rotation of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_rotation_quaternion_set(bPoseChannel *pchan, const float quat[4]);
+/** Sets the euler rotation of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_rotation_euler_set(bPoseChannel *pchan, const float rotation_euler[3]);
+/** Sets the axis-angle rotation of the pose channel, respecting #bPoseChannel::protectflag. */
+void BKE_pchan_protected_rotation_axisangle_set(bPoseChannel *pchan,
+                                                const float axis[3],
+                                                float angle);
 
 /**
  * Get "next" and "prev" bones - these are used for handle calculations.
@@ -626,7 +641,7 @@ void BKE_pose_eval_cleanup(Depsgraph *depsgraph, Scene *scene, Object *object);
 /** \name Deform 3D Coordinates by Armature (`armature_deform.cc`)
  * \{ */
 
-/* Note that we could have a 'BKE_armature_deform_coords' that doesn't take object data
+/* Note that we could have a #BKE_armature_deform_coords that doesn't take object data
  * currently there are no callers for this though. */
 
 void BKE_armature_deform_coords_with_curves(

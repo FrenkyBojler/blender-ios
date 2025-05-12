@@ -8,6 +8,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_task.hh"
@@ -38,7 +39,7 @@ static constexpr int MAX_THUMBNAILS = 5000;
 
 // #define DEBUG_PRINT_THUMB_JOB_TIMES
 
-static std::mutex thumb_cache_mutex;
+static Mutex thumb_cache_mutex;
 
 /* Thumbnail cache is a map keyed by media file path, with values being
  * the various thumbnails that are loaded for it (mostly images would contain just
@@ -173,13 +174,13 @@ bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
   return true;
 }
 
-static std::string get_path_from_seq(Scene *scene, const Strip *strip, float timeline_frame)
+static std::string get_path_from_strip(Scene *scene, const Strip *strip, float timeline_frame)
 {
   char filepath[FILE_MAX];
   filepath[0] = 0;
   switch (strip->type) {
     case STRIP_TYPE_IMAGE: {
-      const StripElem *s_elem = SEQ_render_give_stripelem(scene, strip, timeline_frame);
+      const StripElem *s_elem = render_give_stripelem(scene, strip, timeline_frame);
       if (s_elem != nullptr) {
         BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, s_elem->filename);
         BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
@@ -198,19 +199,19 @@ static void image_size_to_thumb_size(int &r_width, int &r_height)
 {
   float aspect = float(r_width) / float(r_height);
   if (r_width > r_height) {
-    r_width = SEQ_THUMB_SIZE;
-    r_height = round_fl_to_int(SEQ_THUMB_SIZE / aspect);
+    r_width = THUMB_SIZE;
+    r_height = round_fl_to_int(THUMB_SIZE / aspect);
   }
   else {
-    r_height = SEQ_THUMB_SIZE;
-    r_width = round_fl_to_int(SEQ_THUMB_SIZE * aspect);
+    r_height = THUMB_SIZE;
+    r_width = round_fl_to_int(THUMB_SIZE * aspect);
   }
 }
 
 static ImBuf *make_thumb_for_image(const Scene *scene, const ThumbnailCache::Request &request)
 {
   ImBuf *ibuf = IMB_thumb_load_image(
-      request.file_path.c_str(), SEQ_THUMB_SIZE, nullptr, IMBThumbLoadFlags::LoadLargeFiles);
+      request.file_path.c_str(), THUMB_SIZE, nullptr, IMBThumbLoadFlags::LoadLargeFiles);
   if (ibuf == nullptr) {
     return nullptr;
   }
@@ -493,8 +494,8 @@ ImBuf *thumbnail_cache_get(const bContext *C,
 
   timeline_frame = math::round(timeline_frame);
 
-  const std::string key = get_path_from_seq(scene, strip, timeline_frame);
-  int frame_index = SEQ_give_frame_index(scene, strip, timeline_frame);
+  const std::string key = get_path_from_strip(scene, strip, timeline_frame);
+  int frame_index = give_frame_index(scene, strip, timeline_frame);
   if (strip->type == STRIP_TYPE_MOVIE) {
     frame_index += strip->anim_startofs;
   }

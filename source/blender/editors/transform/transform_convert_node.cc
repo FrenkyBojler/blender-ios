@@ -35,12 +35,12 @@
 namespace blender::ed::transform {
 
 struct TransCustomDataNode {
-  View2DEdgePanData edgepan_data;
+  View2DEdgePanData edgepan_data{};
 
   /* Compare if the view has changed so we can update with `transformViewUpdate`. */
-  rctf viewrect_prev;
+  rctf viewrect_prev{};
 
-  bool is_new_node;
+  bool is_new_node = false;
 };
 
 /* -------------------------------------------------------------------- */
@@ -94,7 +94,57 @@ static bool is_node_parent_select(const bNode *node)
   return false;
 }
 
-static void createTransNodeData(bContext * /*C*/, TransInfo *t)
+/**
+ * Some nodes are transformed together with other nodes:
+ * - Parent frames with shrinking turned on are automatically resized based on their children.
+ * - Child nodes of frames that are manually resizable are transformed together with their parent
+ *   frame.
+ */
+static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transformed_nodes)
+{
+  /* Check for frame nodes that adjust their size based on the contained child nodes. */
+  if (node->is_frame()) {
+    const NodeFrame *data = static_cast<const NodeFrame *>(node->storage);
+    const bool shrinking = data->flag & NODE_FRAME_SHRINK;
+    const bool is_parent = !(node->direct_children_in_frame().is_empty());
+
+    if (is_parent && shrinking) {
+      return true;
+    }
+  }
+
+  /* Now check for child nodes of manually resized frames. */
+  while ((node = node->parent)) {
+    const NodeFrame *parent_data = (const NodeFrame *)node->storage;
+    const bool parent_shrinking = parent_data->flag & NODE_FRAME_SHRINK;
+    const bool parent_transformed = transformed_nodes.contains(node);
+
+    if (parent_transformed && !parent_shrinking) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree)
+{
+  VectorSet<bNode *> nodes = node_tree.all_nodes();
+
+  /* Keep only nodes that are selected or inside a frame that is selected. */
+  nodes.remove_if([&](bNode *node) {
+    const bool node_selected = node->flag & NODE_SELECT;
+    const bool parent_selected = is_node_parent_select(node);
+    return (!node_selected && !parent_selected);
+  });
+
+  /* Remove nodes that are transformed together with their parent or child nodes. */
+  nodes.remove_if([&](bNode *node) { return transform_tied_to_other_node(node, nodes); });
+
+  return nodes;
+}
+
+static void createTransNodeData(bContext *C, TransInfo *t)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(t->area->spacedata.first);
   bNodeTree *node_tree = snode->edittree;
@@ -103,7 +153,7 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
   }
 
   /* Custom data to enable edge panning during the node transform. */
-  TransCustomDataNode *customdata = MEM_callocN<TransCustomDataNode>(__func__);
+  TransCustomDataNode *customdata = MEM_new<TransCustomDataNode>(__func__);
   UI_view2d_edge_pan_init(t->context,
                           &customdata->edgepan_data,
                           NODE_EDGE_PAN_INSIDE_PAD,
@@ -117,17 +167,21 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
 
   space_node::node_insert_on_link_flags_set(
       *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
+  space_node::node_insert_on_frame_flag_set(*C, *snode, int2(t->mval));
 
   t->custom.type.data = customdata;
-  t->custom.type.use_free = true;
+  t->custom.type.free_cb = [](TransInfo *, TransDataContainer *, TransCustomData *custom_data) {
+    TransCustomDataNode *data = static_cast<TransCustomDataNode *>(custom_data->data);
+    MEM_delete(data);
+    custom_data->data = nullptr;
+  };
 
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
 
   /* Nodes don't support proportional editing and probably never will. */
   t->flag = t->flag & ~T_PROP_EDIT_ALL;
 
-  VectorSet<bNode *> nodes = space_node::get_selected_nodes(*node_tree);
-  nodes.remove_if([&](bNode *node) { return is_node_parent_select(node); });
+  VectorSet<bNode *> nodes = get_transformed_nodes(*node_tree);
   if (nodes.is_empty()) {
     return;
   }
@@ -168,7 +222,6 @@ static void node_snap_grid_apply(TransInfo *t)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     for (const int i : IndexRange(tc->data_len)) {
       TransData &td = tc->data[i];
-      float iloc[2], loc[2], tvec[2];
       if (td.flag & TD_SKIP) {
         continue;
       }
@@ -177,13 +230,20 @@ static void node_snap_grid_apply(TransInfo *t)
         continue;
       }
 
-      copy_v2_v2(iloc, td.loc);
+      /* Nodes are snapped to the grid by first aligning their inital position to the grid and then
+       * offsetting them in grid increments.
+       * This ensures that multiple unsnapped nodes snap to the grid in sync while moving.
+       */
 
-      loc[0] = roundf(iloc[0] / grid_size[0]) * grid_size[0];
-      loc[1] = roundf(iloc[1] / grid_size[1]) * grid_size[1];
+      const float2 inital_location = td.iloc;
+      const float2 target_location = td.loc;
+      const float2 offset = target_location - inital_location;
 
-      sub_v2_v2v2(tvec, loc, iloc);
-      add_v2_v2(td.loc, tvec);
+      const float2 snapped_inital_location = math::round(inital_location / grid_size) * grid_size;
+      const float2 snapped_offset = math::round(offset / grid_size) * grid_size;
+      const float2 snapped_target_location = snapped_inital_location + snapped_offset;
+
+      copy_v2_v2(td.loc, snapped_target_location);
     }
   }
 }
@@ -258,6 +318,7 @@ static void flushTransNodes(TransInfo *t)
       space_node::node_insert_on_link_flags_set(
           *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
     }
+    space_node::node_insert_on_frame_flag_set(*t->context, *snode, int2(t->mval));
   }
 }
 
@@ -296,6 +357,7 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   }
 
   space_node::node_insert_on_link_flags_clear(*ntree);
+  space_node::node_insert_on_frame_flag_clear(*snode);
 
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_insert_offset", true);
   BLI_assert(ot);

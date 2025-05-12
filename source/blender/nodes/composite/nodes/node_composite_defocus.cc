@@ -50,12 +50,10 @@ static void node_composit_init_defocus(bNodeTree * /*ntree*/, bNode *node)
   NodeDefocus *nbd = MEM_callocN<NodeDefocus>(__func__);
   nbd->bktype = 0;
   nbd->rotation = 0.0f;
-  nbd->preview = 1;
   nbd->gamco = 0;
   nbd->samples = 16;
   nbd->fstop = 128.0f;
   nbd->maxblur = 16;
-  nbd->bthresh = 1.0f;
   nbd->scale = 1.0f;
   nbd->no_zbuf = 1;
   node->storage = nbd;
@@ -65,31 +63,26 @@ static void node_composit_buts_defocus(uiLayout *layout, bContext *C, PointerRNA
 {
   uiLayout *sub, *col;
 
-  col = uiLayoutColumn(layout, false);
-  uiItemL(col, IFACE_("Bokeh Type:"), ICON_NONE);
-  uiItemR(col, ptr, "bokeh", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiItemR(col, ptr, "angle", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
+  col->label(IFACE_("Bokeh Type:"), ICON_NONE);
+  col->prop(ptr, "bokeh", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  col->prop(ptr, "angle", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-  uiItemR(
-      layout, ptr, "use_gamma_correction", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_gamma_correction", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_zbuffer") == true);
-  uiItemR(col, ptr, "f_stop", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col->prop(ptr, "f_stop", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "blur_max", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "threshold", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_preview", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "blur_max", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
   uiTemplateID(layout, C, ptr, "scene", nullptr, nullptr, nullptr);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_zbuffer", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  sub = uiLayoutColumn(col, false);
+  col = &layout->column(false);
+  col->prop(ptr, "use_zbuffer", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  sub = &col->column(false);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_zbuffer") == false);
-  uiItemR(sub, ptr, "z_scale", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "z_scale", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -100,10 +93,10 @@ class DefocusOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input = get_input("Image");
-    Result &output = get_result("Image");
+    const Result &input = this->get_input("Image");
+    Result &output = this->get_result("Image");
     if (input.is_single_value() || node_storage(bnode()).maxblur < 1.0f) {
-      input.pass_through(output);
+      output.share_data(input);
       return;
     }
 
@@ -121,7 +114,7 @@ class DefocusOperation : public NodeOperation {
     const Result &bokeh_kernel = context().cache_manager().bokeh_kernels.get(
         context(), kernel_size, sides, rotation, roundness, 0.0f, 0.0f);
 
-    Result *defocus_input = &input;
+    const Result *defocus_input = &input;
     Result *defocus_output = &output;
 
     /* Apply gamma correction if needed. */

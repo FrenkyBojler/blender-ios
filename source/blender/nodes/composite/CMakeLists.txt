@@ -63,6 +63,7 @@ set(SRC
   nodes/node_composite_huecorrect.cc
   nodes/node_composite_id_mask.cc
   nodes/node_composite_image.cc
+  nodes/node_composite_image_info.cc
   nodes/node_composite_inpaint.cc
   nodes/node_composite_invert.cc
   nodes/node_composite_keying.cc
@@ -134,14 +135,11 @@ set(LIB
   bf_compositor
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::opencolorio
 )
 
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
-endif()
-
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)

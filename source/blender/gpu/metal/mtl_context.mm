@@ -266,13 +266,6 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
 
   /* Initialize samplers. */
   this->sampler_state_cache_init();
-
-  if (GPU_use_parallel_compilation()) {
-    compiler = new MTLShaderCompiler();
-  }
-  else {
-    compiler = new ShaderCompilerGeneric();
-  }
 }
 
 MTLContext::~MTLContext()
@@ -291,7 +284,7 @@ MTLContext::~MTLContext()
   /* Wait for all GPU work to finish. */
   main_command_buffer.wait_until_active_command_buffers_complete();
 
-  /* Free textures and framebuffers in base class. */
+  /* Free textures and frame-buffers in base class. */
   free_resources();
 
   /* Release context textures. */
@@ -381,8 +374,6 @@ MTLContext::~MTLContext()
   if (this->device) {
     [this->device release];
   }
-
-  delete compiler;
 }
 
 void MTLContext::begin_frame()

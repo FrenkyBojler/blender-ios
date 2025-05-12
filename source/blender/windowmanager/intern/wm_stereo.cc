@@ -244,14 +244,14 @@ static void wm_stereo3d_set_init(bContext *C, wmOperator *op)
 {
   wmWindow *win = CTX_wm_window(C);
 
-  Stereo3dData *s3dd = static_cast<Stereo3dData *>(MEM_callocN(sizeof(Stereo3dData), __func__));
+  Stereo3dData *s3dd = MEM_callocN<Stereo3dData>(__func__);
   op->customdata = s3dd;
 
   /* Store the original win stereo 3d settings in case of cancel. */
   s3dd->stereo3d_format = *win->stereo3d_format;
 }
 
-int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win_src = CTX_wm_window(C);
@@ -323,7 +323,8 @@ int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  MEM_freeN(op->customdata);
+  MEM_freeN(s3dd);
+  op->customdata = nullptr;
 
   if (ok) {
     if (win_dst) {
@@ -340,7 +341,7 @@ int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-int wm_stereo3d_set_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus wm_stereo3d_set_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   wm_stereo3d_set_init(C, op);
 
@@ -362,27 +363,22 @@ void wm_stereo3d_set_draw(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, &stereo3d_format_ptr, "display_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
+  col->prop(&stereo3d_format_ptr, "display_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (s3dd->stereo3d_format.display_mode) {
     case S3D_DISPLAY_ANAGLYPH: {
-      uiItemR(col, &stereo3d_format_ptr, "anaglyph_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(&stereo3d_format_ptr, "anaglyph_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case S3D_DISPLAY_INTERLACE: {
-      uiItemR(col, &stereo3d_format_ptr, "interlace_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(
-          col, &stereo3d_format_ptr, "use_interlace_swap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(&stereo3d_format_ptr, "interlace_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(&stereo3d_format_ptr, "use_interlace_swap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case S3D_DISPLAY_SIDEBYSIDE: {
-      uiItemR(col,
-              &stereo3d_format_ptr,
-              "use_sidebyside_crosseyed",
-              UI_ITEM_NONE,
-              std::nullopt,
-              ICON_NONE);
+      col->prop(
+          &stereo3d_format_ptr, "use_sidebyside_crosseyed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       /* Fall-through. */
     }
     case S3D_DISPLAY_PAGEFLIP:
@@ -403,6 +399,7 @@ bool wm_stereo3d_set_check(bContext * /*C*/, wmOperator * /*op*/)
 
 void wm_stereo3d_set_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op->customdata);
+  MEM_freeN(s3dd);
   op->customdata = nullptr;
 }

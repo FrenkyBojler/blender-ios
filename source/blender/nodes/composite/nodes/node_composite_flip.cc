@@ -33,7 +33,7 @@ static void cmp_node_flip_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_buts_flip(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "axis", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "axis", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -44,12 +44,10 @@ class FlipOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input = get_input("Image");
-    Result &result = get_result("Image");
-
-    /* Can't flip a single value, pass it through to the output. */
+    const Result &input = this->get_input("Image");
     if (input.is_single_value()) {
-      input.pass_through(result);
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 

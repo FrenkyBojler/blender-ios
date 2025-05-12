@@ -32,6 +32,7 @@
 
 #include "MOD_nodes.hh"
 
+#include "NOD_geo_closure.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -487,7 +488,7 @@ class NodeTreeMainUpdater {
   {
     TreeUpdateResult result;
 
-    ntree.runtime->link_errors_by_target_node.clear();
+    ntree.runtime->link_errors.clear();
 
     if (this->update_panel_toggle_names(ntree)) {
       result.interface_changed = true;
@@ -581,9 +582,6 @@ class NodeTreeMainUpdater {
       bke::node_declaration_ensure(ntree, *node);
       if (this->should_update_individual_node(ntree, *node)) {
         bke::bNodeType &ntype = *node->typeinfo;
-        if (ntype.group_update_func) {
-          ntype.group_update_func(&ntree, node);
-        }
         if (ntype.declare) {
           /* Should have been created when the node was registered. */
           BLI_assert(ntype.static_declaration != nullptr);
@@ -678,7 +676,7 @@ class NodeTreeMainUpdater {
         if (output_socket->flag & SOCK_NO_INTERNAL_LINK) {
           continue;
         }
-        const bNodeSocket *input_socket = this->find_internally_linked_input(output_socket);
+        const bNodeSocket *input_socket = this->find_internally_linked_input(ntree, output_socket);
         if (input_socket == nullptr) {
           continue;
         }
@@ -715,19 +713,17 @@ class NodeTreeMainUpdater {
     }
   }
 
-  const bNodeSocket *find_internally_linked_input(const bNodeSocket *output_socket)
+  const bNodeSocket *find_internally_linked_input(const bNodeTree &ntree,
+                                                  const bNodeSocket *output_socket)
   {
+    const bNode &node = output_socket->owner_node();
+    if (node.typeinfo->internally_linked_input) {
+      return node.typeinfo->internally_linked_input(ntree, node, *output_socket);
+    }
+
     const bNodeSocket *selected_socket = nullptr;
     int selected_priority = -1;
     bool selected_is_linked = false;
-    const bNode &node = output_socket->owner_node();
-    if (node.is_type("GeometryNodeBake")) {
-      /* Internal links should always map corresponding input and output sockets. */
-      return &node.input_by_identifier(output_socket->identifier);
-    }
-    if (node.is_type("GeometryNodeCaptureAttribute")) {
-      return &node.input_socket(output_socket->index());
-    }
     for (const bNodeSocket *input_socket : node.input_sockets()) {
       if (!input_socket->is_available()) {
         continue;
@@ -925,17 +921,16 @@ class NodeTreeMainUpdater {
         }
         continue;
       }
-      else {
-        /* Clear current enum references. */
-        for (bNodeSocket *socket : node->input_sockets()) {
-          if (socket->is_available() && socket->type == SOCK_MENU) {
-            clear_enum_reference(*socket);
-          }
+
+      /* Clear current enum references. */
+      for (bNodeSocket *socket : node->input_sockets()) {
+        if (socket->is_available() && socket->type == SOCK_MENU) {
+          clear_enum_reference(*socket);
         }
-        for (bNodeSocket *socket : node->output_sockets()) {
-          if (socket->is_available() && socket->type == SOCK_MENU) {
-            clear_enum_reference(*socket);
-          }
+      }
+      for (bNodeSocket *socket : node->output_sockets()) {
+        if (socket->is_available() && socket->type == SOCK_MENU) {
+          clear_enum_reference(*socket);
         }
       }
 
@@ -1048,7 +1043,7 @@ class NodeTreeMainUpdater {
         }
       }
       if (found_conflict) {
-        /* Make sure that all group input sockets know that there is a socket.  */
+        /* Make sure that all group input sockets know that there is a socket. */
         for (bNode *input_node : group_input_nodes) {
           bNodeSocket &socket = input_node->output_socket(interface_input_i);
           auto &socket_value = *socket.default_value_typed<bNodeSocketValueMenu>();
@@ -1202,8 +1197,8 @@ class NodeTreeMainUpdater {
       }
       if (is_invalid_enum_ref(*link->fromsock) || is_invalid_enum_ref(*link->tosock)) {
         link->flag &= ~NODE_LINK_VALID;
-        ntree.runtime->link_errors_by_target_node.add(
-            link->tonode->identifier,
+        ntree.runtime->link_errors.add(
+            NodeLinkKey{*link},
             NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
         continue;
       }
@@ -1213,9 +1208,8 @@ class NodeTreeMainUpdater {
             field_states[link->tosock->index_in_tree()] != FieldSocketState::IsField)
         {
           link->flag &= ~NODE_LINK_VALID;
-          ntree.runtime->link_errors_by_target_node.add(
-              link->tonode->identifier,
-              NodeLinkError{TIP_("The node input does not support fields")});
+          ntree.runtime->link_errors.add(
+              NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
           continue;
         }
       }
@@ -1225,8 +1219,8 @@ class NodeTreeMainUpdater {
           to_node.runtime->toposort_left_to_right_index)
       {
         link->flag &= ~NODE_LINK_VALID;
-        ntree.runtime->link_errors_by_target_node.add(
-            link->tonode->identifier,
+        ntree.runtime->link_errors.add(
+            NodeLinkKey{*link},
             NodeLinkError{TIP_("The links form a cycle which is not supported")});
         continue;
       }
@@ -1235,8 +1229,8 @@ class NodeTreeMainUpdater {
         const eNodeSocketDatatype to_type = eNodeSocketDatatype(link->tosock->type);
         if (!ntree.typeinfo->validate_link(from_type, to_type)) {
           link->flag &= ~NODE_LINK_VALID;
-          ntree.runtime->link_errors_by_target_node.add(
-              link->tonode->identifier,
+          ntree.runtime->link_errors.add(
+              NodeLinkKey{*link},
               NodeLinkError{fmt::format("{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                                         " {}",
                                         TIP_("Conversion is not supported"),
@@ -1670,8 +1664,8 @@ class NodeTreeMainUpdater {
     }
 
     /* Allocate new array for the nested node references contained in the node tree. */
-    bNestedNodeRef *new_refs = static_cast<bNestedNodeRef *>(
-        MEM_malloc_arrayN(new_path_by_id.size(), sizeof(bNestedNodeRef), __func__));
+    bNestedNodeRef *new_refs = MEM_malloc_arrayN<bNestedNodeRef>(size_t(new_path_by_id.size()),
+                                                                 __func__);
     int index = 0;
     for (const auto item : new_path_by_id.items()) {
       bNestedNodeRef &ref = new_refs[index];

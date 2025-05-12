@@ -128,7 +128,7 @@ void OBJECT_OT_camera_add(wmOperatorType *ot);
 void OBJECT_OT_speaker_add(wmOperatorType *ot);
 void OBJECT_OT_curves_random_add(wmOperatorType *ot);
 void OBJECT_OT_curves_empty_hair_add(wmOperatorType *ot);
-void OBJECT_OT_pointcloud_add(wmOperatorType *ot);
+void OBJECT_OT_pointcloud_random_add(wmOperatorType *ot);
 /**
  * Only used as menu.
  */
@@ -141,6 +141,7 @@ void OBJECT_OT_duplicate(wmOperatorType *ot);
 void OBJECT_OT_delete(wmOperatorType *ot);
 void OBJECT_OT_join(wmOperatorType *ot);
 void OBJECT_OT_join_shapes(wmOperatorType *ot);
+void OBJECT_OT_update_shapes(wmOperatorType *ot);
 void OBJECT_OT_convert(wmOperatorType *ot);
 
 /* `object_volume.cc` */
@@ -180,6 +181,10 @@ void OBJECT_OT_light_linking_blockers_select(wmOperatorType *ot);
 void OBJECT_OT_light_linking_blockers_link(wmOperatorType *ot);
 
 void OBJECT_OT_light_linking_unlink_from_collection(wmOperatorType *ot);
+
+/* object_camera.cc */
+
+void OBJECT_OT_camera_custom_update(wmOperatorType *ot);
 
 /* `object_modifier.cc` */
 
@@ -312,6 +317,7 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot);
 /* `object_shapekey.cc` */
 
 void OBJECT_OT_shape_key_add(wmOperatorType *ot);
+void OBJECT_OT_shape_key_copy(wmOperatorType *ot);
 void OBJECT_OT_shape_key_remove(wmOperatorType *ot);
 void OBJECT_OT_shape_key_clear(wmOperatorType *ot);
 void OBJECT_OT_shape_key_retime(wmOperatorType *ot);

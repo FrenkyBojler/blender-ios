@@ -387,11 +387,11 @@ void GridViewLayoutBuilder::build_grid_tile(const bContext &C,
                                             uiLayout &grid_layout,
                                             AbstractGridViewItem &item) const
 {
-  uiLayout *overlap = uiLayoutOverlap(&grid_layout);
+  uiLayout *overlap = &grid_layout.overlap();
   uiLayoutSetFixedSize(overlap, true);
 
   item.add_grid_tile_button(block_);
-  item.build_grid_tile(C, *uiLayoutRow(overlap, false));
+  item.build_grid_tile(C, overlap->row(false));
 }
 
 void GridViewLayoutBuilder::build_from_view(const bContext &C,
@@ -400,7 +400,7 @@ void GridViewLayoutBuilder::build_from_view(const bContext &C,
 {
   uiLayout *parent_layout = this->current_layout();
 
-  uiLayout &layout = *uiLayoutColumn(parent_layout, true);
+  uiLayout &layout = parent_layout->column(true);
   const GridViewStyle &style = grid_view.get_style();
 
   /* We might not actually know the width available for the grid view. Let's just assume that
@@ -430,7 +430,7 @@ void GridViewLayoutBuilder::build_from_view(const bContext &C,
 
     /* Start a new row for every first item in the row. */
     if ((item_idx % cols_per_row) == 0) {
-      row = uiLayoutRow(&layout, true);
+      row = &layout.row(true);
     }
 
     this->build_grid_tile(C, *row, item);
@@ -486,7 +486,7 @@ void PreviewGridItem::build_grid_tile_button(uiLayout &layout,
   const GridViewStyle &style = this->get_view().get_style();
   uiBlock *block = uiLayoutGetBlock(&layout);
 
-  UI_but_func_tooltip_label_set(this->view_item_button(),
+  UI_but_func_quick_tooltip_set(this->view_item_button(),
                                 [this](const uiBut * /*but*/) { return label; });
 
   uiBut *but = uiDefBut(block,
@@ -508,7 +508,7 @@ void PreviewGridItem::build_grid_tile_button(uiLayout &layout,
                   icon_id,
                   /* NOLINTNEXTLINE: bugprone-suspicious-enum-usage */
                   UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
-  but->emboss = UI_EMBOSS_NONE;
+  but->emboss = blender::ui::EmbossType::None;
 }
 
 void PreviewGridItem::build_grid_tile(const bContext & /*C*/, uiLayout &layout) const

@@ -46,7 +46,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -225,6 +225,11 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(rna_enum_node_socket_data_type_items,
                                  [](const EnumPropertyItem &item) -> bool {
+                                   if (!U.experimental.use_bundle_and_closure_nodes) {
+                                     if (ELEM(item.value, SOCK_BUNDLE, SOCK_CLOSURE)) {
+                                       return false;
+                                     }
+                                   }
                                    return ELEM(item.value,
                                                SOCK_FLOAT,
                                                SOCK_INT,
@@ -239,7 +244,9 @@ static void node_rna(StructRNA *srna)
                                                SOCK_COLLECTION,
                                                SOCK_MATERIAL,
                                                SOCK_IMAGE,
-                                               SOCK_MENU);
+                                               SOCK_MENU,
+                                               SOCK_BUNDLE,
+                                               SOCK_CLOSURE);
                                  });
       });
 }

@@ -55,7 +55,7 @@ class PoseTest : public testing::Test {
   void SetUp() override
   {
     bmain = BKE_main_new();
-    pose_action = static_cast<Action *>(BKE_id_new(bmain, ID_AC, "pose_data"));
+    pose_action = BKE_id_new<Action>(bmain, "pose_data");
     Layer &layer = pose_action->layer_add("first_layer");
     Strip &strip = layer.strip_add(*pose_action, Strip::Type::Keyframe);
     keyframe_data = &strip.data<StripKeyframeData>(*pose_action);
@@ -67,11 +67,11 @@ class PoseTest : public testing::Test {
     bArmature *armature = BKE_armature_add(bmain, "ArmatureA");
     obj_armature_a->data = armature;
 
-    Bone *bone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "BONE"));
+    Bone *bone = MEM_callocN<Bone>("BONE");
     STRNCPY(bone->name, "BoneA");
     BLI_addtail(&armature->bonebase, bone);
 
-    bone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "BONE"));
+    bone = MEM_callocN<Bone>("BONE");
     STRNCPY(bone->name, "BoneB");
     BLI_addtail(&armature->bonebase, bone);
 
@@ -80,11 +80,11 @@ class PoseTest : public testing::Test {
     armature = BKE_armature_add(bmain, "ArmatureB");
     obj_armature_b->data = armature;
 
-    bone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "BONE"));
+    bone = MEM_callocN<Bone>("BONE");
     STRNCPY(bone->name, "BoneA");
     BLI_addtail(&armature->bonebase, bone);
 
-    bone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "BONE"));
+    bone = MEM_callocN<Bone>("BONE");
     STRNCPY(bone->name, "BoneB");
     BLI_addtail(&armature->bonebase, bone);
 

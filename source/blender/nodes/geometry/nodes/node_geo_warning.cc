@@ -33,6 +33,7 @@ class LazyFunctionForWarningNode : public LazyFunction {
  public:
   LazyFunctionForWarningNode(const bNode &node) : node_(node)
   {
+    debug_name_ = "Warning";
     const CPPType &type = CPPType::get<SocketValueVariant>();
     inputs_.append_as("Show", type, lf::ValueUsage::Used);
     inputs_.append_as("Message", type);
@@ -72,7 +73,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "warning_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "warning_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_rna(StructRNA *srna)

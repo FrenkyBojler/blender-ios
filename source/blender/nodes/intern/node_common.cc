@@ -210,12 +210,12 @@ static std::function<ID *(const bNode &node)> get_default_id_getter(
     }
     const bNodeTree &ntree = *reinterpret_cast<const bNodeTree *>(node.id);
     const bNodeTreeInterfaceItem *io_item = ntree.tree_interface.get_item_at_index(item_index);
-    if (io_item == nullptr || io_item->item_type != NODE_INTERFACE_SOCKET) {
+    const bNodeTreeInterfaceSocket *io_socket =
+        node_interface::get_item_as<bNodeTreeInterfaceSocket>(io_item);
+    if (!io_socket) {
       return nullptr;
     }
-    const bNodeTreeInterfaceSocket &io_socket =
-        node_interface::get_item_as<bNodeTreeInterfaceSocket>(*io_item);
-    return *static_cast<ID **>(io_socket.socket_data);
+    return *static_cast<ID **>(io_socket->socket_data);
   };
 }
 
@@ -325,7 +325,9 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
       }
       case SOCK_MENU: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueMenu>(io_socket);
-        decl = &b.add_socket<decl::Menu>(name, identifier, in_out).default_value(value.value);
+        decl = &b.add_socket<decl::Menu>(name, identifier, in_out)
+                    .default_value(value.value)
+                    .expanded(io_socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED);
         break;
       }
       case SOCK_OBJECT: {
@@ -354,6 +356,14 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
       case SOCK_MATERIAL: {
         decl = &b.add_socket<decl::Material>(name, identifier, in_out)
                     .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
+        break;
+      }
+      case SOCK_BUNDLE: {
+        decl = &b.add_socket<decl::Bundle>(name, identifier, in_out);
+        break;
+      }
+      case SOCK_CLOSURE: {
+        decl = &b.add_socket<decl::Closure>(name, identifier, in_out);
         break;
       }
       case SOCK_CUSTOM: {
