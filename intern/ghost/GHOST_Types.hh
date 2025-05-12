@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <cstdio>
 #include <cstdint>
 
 #ifdef WITH_VULKAN_BACKEND
@@ -42,7 +43,7 @@ GHOST_DECLARE_HANDLE(GHOST_EventConsumerHandle);
 GHOST_DECLARE_HANDLE(GHOST_ContextHandle);
 GHOST_DECLARE_HANDLE(GHOST_XrContextHandle);
 
-using GHOST_TBacktraceFn = void (*)(void *file_handle);
+using GHOST_TBacktraceFn = void (*)(FILE *file_handle);
 
 /**
  * A reference to cursor bitmap data.
