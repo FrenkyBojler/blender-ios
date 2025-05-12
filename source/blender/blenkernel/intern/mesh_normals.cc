@@ -952,7 +952,7 @@ static void collect_corner_info(const OffsetIndices<int> faces,
 }
 
 /** The edge hasn't been handled yet while the edge info is being created. */
-struct EdgeUninitialized {};
+using EdgeUninitialized = std::monostate;
 
 /**
  * The first corner has been added to the edge. For boundary edges, this is the only corner. We
