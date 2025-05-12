@@ -63,6 +63,7 @@
 #include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
 
+#include "GEO_curves_detect_corners.hh"
 #include "GEO_curves_remove_and_split.hh"
 #include "GEO_fit_curves.hh"
 #include "GEO_join_geometries.hh"
@@ -4186,11 +4187,21 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       return;
     }
 
-    const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
-    const VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
+    const VArray<float> angle_min = VArray<float>::ForSingle(DEG2RADF(40.0f), curves.curves_num());
+    const VArray<float> radius_min = VArray<float>::ForSingle(0.001f, curves.curves_num());
+    const VArray<float> radius_max = VArray<float>::ForSingle(0.2f, curves.curves_num());
+    const VArray<int> samples_max = VArray<int>::ForSingle(16, curves.curves_num());
 
-    curves = geometry::fit_curves(
-        curves, strokes, thresholds, corners, geometry::FitMethod::Refit, {});
+    const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
+    const Array<bool> corners = geometry::curves_detect_corners(
+        curves, angle_min, radius_min, radius_max, samples_max);
+
+    curves = geometry::fit_curves(curves,
+                                  strokes,
+                                  thresholds,
+                                  VArray<bool>::ForSpan(corners),
+                                  geometry::FitMethod::Refit,
+                                  {});
 
     info.drawing.tag_topology_changed();
 
