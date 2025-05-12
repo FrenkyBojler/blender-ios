@@ -679,6 +679,10 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     list(APPEND render_tests grease_pencil)
   endif()
 
+  if(WITH_ALEMBIC)
+    list(APPEND render_tests render_procedural)
+  endif()
+
   list(SORT render_tests)
 
   # Cycles
@@ -744,7 +748,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
   if(WITH_GPU_RENDER_TESTS)
     list(APPEND gpu_render_tests ${render_tests})
-    list(FILTER gpu_render_tests EXCLUDE REGEX light_group|shadow_catcher|denoise|guiding|reports)
+    list(FILTER gpu_render_tests EXCLUDE REGEX light_group|shadow_catcher|denoise|guiding|render_procedural|reports)
 
     set(_gpu_render_tests_arguments)
 
