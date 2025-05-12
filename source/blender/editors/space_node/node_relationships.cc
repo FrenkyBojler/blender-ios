@@ -664,15 +664,18 @@ static void position_viewer_node(bNodeTree &tree,
   viewer_node.ui_order = tree.all_nodes().size();
   tree_draw_order_update(tree);
 
+  const bool is_new_viewer_node = BLI_rctf_size_x(&viewer_node.runtime->draw_bounds) == 0;
+  if (!is_new_viewer_node &&
+      BLI_rctf_inside_rctf(&region_bounds, &viewer_node.runtime->draw_bounds))
+  {
+    /* Stay at the old viewer position when the viewer node is still in view. */
+    return;
+  }
+
   const float default_padding_x = U.node_margin;
   const float default_padding_y = 10;
   const float viewer_width = BLI_rctf_size_x(&viewer_node.runtime->draw_bounds);
-  float viewer_height = BLI_rctf_size_y(&viewer_node.runtime->draw_bounds);
-  if (viewer_height == 0) {
-    /* Can't use if the viewer node has only just been added and the actual height is not yet
-     * known. */
-    viewer_height = 100;
-  }
+  const float viewer_height = BLI_rctf_size_y(&viewer_node.runtime->draw_bounds);
 
   const float2 main_candidate{node_to_view.runtime->draw_bounds.xmax + default_padding_x,
                               node_to_view.runtime->draw_bounds.ymax + viewer_height +
@@ -707,29 +710,6 @@ static void position_viewer_node(bNodeTree &tree,
 
   if (!new_viewer_position) {
     new_viewer_position = main_candidate;
-  }
-
-  const float2 old_position = float2(viewer_node.location) * UI_SCALE_FAC;
-  if (old_position.x > node_to_view.runtime->draw_bounds.xmax) {
-    if (BLI_rctf_inside_rctf(&region_bounds, &viewer_node.runtime->draw_bounds)) {
-      /* Measure distance from right edge of the node to view and the left edge of the
-       * viewer node. */
-      const float2 node_to_view_top_right{node_to_view.runtime->draw_bounds.xmax,
-                                          node_to_view.runtime->draw_bounds.ymax};
-      const float2 node_to_view_bottom_right{node_to_view.runtime->draw_bounds.xmax,
-                                             node_to_view.runtime->draw_bounds.ymin};
-      const float old_distance = dist_seg_seg_v2(old_position,
-                                                 old_position + float2(0, viewer_height),
-                                                 node_to_view_top_right,
-                                                 node_to_view_bottom_right);
-      const float new_distance = dist_seg_seg_v2(*new_viewer_position,
-                                                 *new_viewer_position + float2(0, viewer_height),
-                                                 node_to_view_top_right,
-                                                 node_to_view_bottom_right);
-      if (old_distance <= new_distance) {
-        new_viewer_position = old_position;
-      }
-    }
   }
 
   viewer_node.location[0] = new_viewer_position->x / UI_SCALE_FAC;
