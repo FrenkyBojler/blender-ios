@@ -934,6 +934,7 @@ void register_node_type_cmp_cryptomatte()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_cryptomatte)
 
 /** \} */
 
@@ -1042,5 +1043,6 @@ void register_node_type_cmp_cryptomatte_legacy()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_cryptomatte_legacy)
 
 /** \} */

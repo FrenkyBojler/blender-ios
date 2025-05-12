@@ -242,6 +242,7 @@ void register_node_type_cmp_separate_color()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_separate_color)
 
 /* **************** COMBINE COLOR ******************** */
 
@@ -457,3 +458,4 @@ void register_node_type_cmp_combine_color()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_combine_color)

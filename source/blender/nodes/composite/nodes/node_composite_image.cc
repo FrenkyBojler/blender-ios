@@ -554,6 +554,7 @@ void register_node_type_cmp_image()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_image)
 
 /* **************** RENDER RESULT ******************** */
 
@@ -885,3 +886,4 @@ void register_node_type_cmp_rlayers()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_rlayers)

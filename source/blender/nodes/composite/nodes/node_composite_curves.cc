@@ -123,6 +123,7 @@ void register_node_type_cmp_curve_time()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_curve_time)
 
 /* **************** CURVE VEC  ******************** */
 
@@ -232,6 +233,7 @@ void register_node_type_cmp_curve_vec()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_curve_vec)
 
 /* **************** CURVE RGB  ******************** */
 
@@ -394,3 +396,4 @@ void register_node_type_cmp_curve_rgb()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_curve_rgb)

@@ -75,6 +75,7 @@ void register_node_type_cmp_sephsva()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_sephsva)
 
 /* **************** COMBINE HSVA ******************** */
 
@@ -151,3 +152,4 @@ void register_node_type_cmp_combhsva()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_combhsva)

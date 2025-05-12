@@ -427,3 +427,4 @@ void register_node_type_cmp_colorcorrection()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_colorcorrection)

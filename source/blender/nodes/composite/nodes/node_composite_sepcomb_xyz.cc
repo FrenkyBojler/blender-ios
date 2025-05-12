@@ -72,6 +72,7 @@ void register_node_type_cmp_separate_xyz()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_separate_xyz)
 
 /* **************** COMBINE XYZ ******************** */
 
@@ -125,3 +126,4 @@ void register_node_type_cmp_combine_xyz()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_combine_xyz)

@@ -151,6 +151,7 @@ void register_node_type_cmp_valtorgb()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_valtorgb)
 
 /* **************** RGBTOBW ******************** */
 
@@ -215,3 +216,4 @@ void register_node_type_cmp_rgbtobw()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_rgbtobw)

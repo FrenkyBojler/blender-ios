@@ -41,6 +41,7 @@ void register_node_type_cmp_group()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_group)
 
 void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype)
 {
