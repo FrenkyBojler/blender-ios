@@ -152,7 +152,7 @@ struct CornerNormalSpace {
 struct CornerNormalSpaceArray {
   /**
    * Results are added from multiple threads. The lock is an easy way to parallelize adding results
-   * for each corner fan. This method means the order of spaces in the `spaces` array and
+   * for each corner fan. This method means the order of spaces in the `spaces` vector and
    * `corners_by_face` is non-deterministic. That shouldn't affect the final output for the user
    * though.
    */
@@ -161,7 +161,7 @@ struct CornerNormalSpaceArray {
    * The normal coordinate spaces, potentially shared between multiple face corners in a smooth fan
    * connected to a vertex (and not per face corner). Depending on the mesh (the amount of sharing
    * / number of sharp edges / size of each fan), there may be many fewer spaces than face corners,
-   * so they are stored in a separate array.
+   * so they are stored in a separate vector.
    */
   Vector<CornerNormalSpace> spaces;
 
