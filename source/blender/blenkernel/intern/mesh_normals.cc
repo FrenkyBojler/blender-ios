@@ -1077,7 +1077,7 @@ static void calc_connecting_edge_info(const Span<int> corner_edges,
 }
 
 /**
- * From a starting corner, follow the connected edges to find the other corners "fanning" arount
+ * From a starting corner, follow the connected edges to find the other corners "fanning" around
  * the vertex. Crucially, we've removed ambiguity from the process already by marking edges
  * connected to three faces and edges between faces with opposite winding direction sharp.
  */
