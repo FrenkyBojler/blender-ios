@@ -63,7 +63,12 @@
 #include "DNA_userdef_types.h"
 
 #include "BLF_api.hh"
-#include "GHOST_C-api.h"
+
+#include "GHOST_IEvent.hh"
+#include "GHOST_ISystem.hh"
+#include "GHOST_IWindow.hh"
+#include "GHOST_Types.hh"
+#include "intern/GHOST_CallbackEventConsumer.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -171,8 +176,8 @@ enum eWS_Qual {
 ENUM_OPERATORS(eWS_Qual, WS_QUAL_RMOUSE)
 
 struct GhostData {
-  GHOST_SystemHandle system;
-  GHOST_WindowHandle window;
+  GHOST_ISystem *system;
+  GHOST_IWindow *window;
 
   /** Not GHOST, but low level GPU context. */
   GPUContext *gpu_context;
@@ -288,16 +293,17 @@ static void print_ps(const PlayState &ps)
 }
 #endif
 
-static blender::int2 playanim_window_size_get(GHOST_WindowHandle ghost_window)
+static blender::int2 playanim_window_size_get(GHOST_IWindow *ghost_window)
 {
-  ;
-  GHOST_RectangleHandle bounds = GHOST_GetClientBounds(ghost_window);
-  const float native_pixel_size = GHOST_GetNativePixelSize(ghost_window);
+  GHOST_Rect bounds;
+  ghost_window->getClientBounds(bounds);
+
+  const float native_pixel_size = ghost_window->getNativePixelSize();
   const blender::int2 window_size = {
-      int(GHOST_GetWidthRectangle(bounds) * native_pixel_size),
-      int(GHOST_GetHeightRectangle(bounds) * native_pixel_size),
+      int(bounds.getWidth() * native_pixel_size),
+      int(bounds.getHeight() * native_pixel_size),
   };
-  GHOST_DisposeRectangle(bounds);
+
   return window_size;
 }
 
@@ -314,24 +320,24 @@ static void playanim_event_qual_update(GhostData &ghost_data)
   bool val;
 
   /* Shift. */
-  GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyLeftShift, &val);
+  ghost_data.system->getModifierKeyState(GHOST_kModifierKeyLeftShift, val);
   SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_LSHIFT);
 
-  GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyRightShift, &val);
+  ghost_data.system->getModifierKeyState(GHOST_kModifierKeyRightShift, val);
   SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_RSHIFT);
 
   /* Control. */
-  GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyLeftControl, &val);
+  ghost_data.system->getModifierKeyState(GHOST_kModifierKeyLeftControl, val);
   SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_LCTRL);
 
-  GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyRightControl, &val);
+  ghost_data.system->getModifierKeyState(GHOST_kModifierKeyRightControl, val);
   SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_RCTRL);
 
   /* Alt. */
-  GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyLeftAlt, &val);
+  ghost_data.system->getModifierKeyState(GHOST_kModifierKeyLeftAlt, val);
   SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_LALT);
 
-  GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyRightAlt, &val);
+  ghost_data.system->getModifierKeyState(GHOST_kModifierKeyRightAlt, val);
   SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_RALT);
 }
 
@@ -670,7 +676,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
                                  const bool draw_flip[2],
                                  const float frame_indicator_factor)
 {
-  GHOST_ActivateWindowDrawingContext(ghost_data.window);
+  ghost_data.window->activateDrawingContext();
   GPU_render_begin();
 
   GPUContext *restore_context = GPU_context_active_get();
@@ -781,7 +787,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
     GPU_flush();
   }
 
-  GHOST_SwapWindowBuffers(ghost_data.window);
+  ghost_data.window->swapBuffers();
   GPU_context_active_set(restore_context);
   GPU_render_end();
 }
@@ -986,8 +992,8 @@ static void build_pict_list_from_image_sequence(ListBase &picsbase,
                              fp_decoded.digits,
                              fp_framenr);
 
-    while (GHOST_ProcessEvents(ghost_data.system, false)) {
-      GHOST_DispatchEvents(ghost_data.system);
+    while (ghost_data.system->processEvents(false)) {
+      ghost_data.system->dispatchEvents();
       if (*loading_p == false) {
         break;
       }
@@ -1148,15 +1154,15 @@ static void playanim_audio_stop(PlayState & /*ps*/)
 #endif
 }
 
-static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr ps_void_ptr)
+static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr ps_void_ptr)
 {
   PlayState &ps = *static_cast<PlayState *>(ps_void_ptr);
-  const GHOST_TEventType type = GHOST_GetEventType(ghost_event);
-  GHOST_TEventDataPtr data = GHOST_GetEventData(ghost_event);
+  const GHOST_TEventType type = ghost_event->getType();
+  GHOST_TEventDataPtr data = ghost_event->getData();
   /* Convert ghost event into value keyboard or mouse. */
   const int val = ELEM(type, GHOST_kEventKeyDown, GHOST_kEventButtonDown);
-  GHOST_SystemHandle ghost_system = ps.ghost_data.system;
-  GHOST_WindowHandle ghost_window = ps.ghost_data.window;
+  GHOST_ISystem *ghost_system = ps.ghost_data.system;
+  GHOST_IWindow *ghost_window = ps.ghost_data.window;
 
   // print_ps(ps);
 
@@ -1457,8 +1463,8 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr p
       int cx, cy;
       const blender::int2 window_size = playanim_window_size_get(ghost_window);
 
-      const bool inside_window = (GHOST_GetCursorPosition(ghost_system, ghost_window, &cx, &cy) ==
-                                  GHOST_kSuccess) &&
+      const bool inside_window = (ghost_system->getCursorPositionClientRelative(
+                                      ghost_window, cx, cy) == GHOST_kSuccess) &&
                                  (cx >= 0 && cx < window_size[0] && cy >= 0 &&
                                   cy <= window_size[1]);
 
@@ -1506,8 +1512,10 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr p
          * however the API currently doesn't support this. */
         {
           int x_test, y_test;
-          if (GHOST_GetCursorPosition(ghost_system, ghost_window, &cx, &cy) == GHOST_kSuccess) {
-            GHOST_ScreenToClient(ghost_window, cd->x, cd->y, &x_test, &y_test);
+          if (ghost_system->getCursorPositionClientRelative(ghost_window, cx, cy) ==
+              GHOST_kSuccess)
+          {
+            ghost_window->screenToClient(cd->x, cd->y, x_test, y_test);
             if (cx != x_test || cy != y_test) {
               /* We're not the last event... skipping. */
               break;
@@ -1529,7 +1537,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr p
       float zoomx, zoomy;
 
       ps.display_ctx.size = playanim_window_size_get(ghost_window);
-      GHOST_ActivateWindowDrawingContext(ghost_window);
+      ghost_window->activateDrawingContext();
 
       zoomx = float(ps.display_ctx.size[0]) / ps.ibuf_size[0];
       zoomy = float(ps.display_ctx.size[1]) / ps.ibuf_size[1];
@@ -1581,8 +1589,8 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr p
   return true;
 }
 
-static GHOST_WindowHandle playanim_window_open(
-    GHOST_SystemHandle ghost_system, const char *title, int posx, int posy, int sizex, int sizey)
+static GHOST_IWindow *playanim_window_open(
+    GHOST_ISystem *ghost_system, const char *title, int posx, int posy, int sizex, int sizey)
 {
   GHOST_GPUSettings gpusettings = {0};
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
@@ -1594,10 +1602,9 @@ static GHOST_WindowHandle playanim_window_open(
   {
     bool screen_size_valid = false;
     uint32_t screen_size[2];
-    if ((GHOST_GetMainDisplayDimensions(ghost_system, &screen_size[0], &screen_size[1]) ==
-         GHOST_kSuccess) &&
-        (screen_size[0] > 0) && (screen_size[1] > 0))
-    {
+    ghost_system->getMainDisplayDimensions(screen_size[0], screen_size[1]);
+
+    if (screen_size[0] > 0 && screen_size[1] > 0) {
       screen_size_valid = true;
     }
     else {
@@ -1608,7 +1615,7 @@ static GHOST_WindowHandle playanim_window_open(
     }
 
     if (screen_size_valid) {
-      if (GHOST_GetCapabilities() & GHOST_kCapabilityWindowPosition) {
+      if (ghost_system->getCapabilities() & GHOST_kCapabilityWindowPosition) {
         posy = (screen_size[1] - posy - sizey);
       }
     }
@@ -1634,17 +1641,8 @@ static GHOST_WindowHandle playanim_window_open(
     CLAMP_MIN(sizey, 1);
   }
 
-  return GHOST_CreateWindow(ghost_system,
-                            nullptr,
-                            title,
-                            posx,
-                            posy,
-                            sizex,
-                            sizey,
-                            /* Could optionally start full-screen. */
-                            GHOST_kWindowStateNormal,
-                            false,
-                            gpusettings);
+  return ghost_system->createWindow(
+      title, posx, posy, sizex, sizey, GHOST_kWindowStateNormal, gpusettings);
 }
 
 static void playanim_window_zoom(PlayState &ps, const float zoom_offset)
@@ -1665,13 +1663,13 @@ static void playanim_window_zoom(PlayState &ps, const float zoom_offset)
   // ofs[0] -= size[0] / 2; /* UNUSED. */
   // ofs[1] -= size[1] / 2; /* UNUSED. */
   // window_set_position(ps.ghost_data.window, size[0], size[1]);
-  GHOST_SetClientSize(ps.ghost_data.window, size[0], size[1]);
+  ps.ghost_data.window->setClientSize(size[0], size[1]);
 }
 
 static bool playanim_window_font_scale_from_dpi(PlayState &ps)
 {
-  const float scale = (GHOST_GetDPIHint(ps.ghost_data.window) *
-                       GHOST_GetNativePixelSize(ps.ghost_data.window) / 96.0f);
+  const float scale = (ps.ghost_data.window->getDPIHint() *
+                       ps.ghost_data.window->getNativePixelSize() / 96.0f);
   const float font_size_base = 11.0f; /* Font size un-scaled. */
   const int font_size = int((font_size_base * scale) + 0.5f);
   bool changed = false;
@@ -1840,33 +1838,29 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
   GPU_backend_type_selection_detect();
 
   /* Init GHOST and open window. */
-  GHOST_EventConsumerHandle ghost_event_consumer = nullptr;
-  {
-    ghost_event_consumer = GHOST_CreateEventConsumer(ghost_event_proc, &ps);
+  GHOST_CallbackEventConsumer ghost_event_consumer(&ghost_event_proc, &ps);
+  GHOST_ISystem::setBacktraceFn(&BLI_system_backtrace);
 
-    GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+  GHOST_ISystem::createSystem(true, false);
+  ps.ghost_data.system = GHOST_ISystem::getSystem();
+  GPU_backend_ghost_system_set(ps.ghost_data.system);
 
-    ps.ghost_data.system = GHOST_CreateSystem();
-    GPU_backend_ghost_system_set(ps.ghost_data.system);
-
-    if (UNLIKELY(ps.ghost_data.system == nullptr)) {
-      /* GHOST will have reported the back-ends that failed to load. */
-      CLOG_WARN(&LOG, "GHOST: unable to initialize, exiting!");
-      /* This will leak memory, it's preferable to crashing. */
-      exit(EXIT_FAILURE);
-    }
-
-    GHOST_AddEventConsumer(ps.ghost_data.system, ghost_event_consumer);
-
-    GHOST_UseNativePixels();
-
-    ps.ghost_data.window = playanim_window_open(ps.ghost_data.system,
-                                                "Blender Animation Player",
-                                                window_pos[0],
-                                                window_pos[1],
-                                                ibuf->x,
-                                                ibuf->y);
+  if (UNLIKELY(ps.ghost_data.system == nullptr)) {
+    /* GHOST will have reported the back-ends that failed to load. */
+    CLOG_WARN(&LOG, "GHOST: unable to initialize, exiting!");
+    /* This will leak memory, it's preferable to crashing. */
+    exit(EXIT_FAILURE);
   }
+
+  ps.ghost_data.system->addEventConsumer(&ghost_event_consumer);
+  ps.ghost_data.system->useNativePixel();
+
+  ps.ghost_data.window = playanim_window_open(ps.ghost_data.system,
+                                              "Blender Animation Player",
+                                              window_pos[0],
+                                              window_pos[1],
+                                              ibuf->x,
+                                              ibuf->y);
 
   // GHOST_ActivateWindowDrawingContext(ps.ghost_data.window);
 
@@ -1897,7 +1891,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
     playanim_gpu_matrix();
   }
 
-  GHOST_SwapWindowBuffers(ps.ghost_data.window);
+  ps.ghost_data.window->swapBuffers();
   GPU_render_end();
 
   /* One of the frames was invalid or not passed in. */
@@ -2038,8 +2032,8 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
       GPU_render_begin();
       GPUContext *restore_context = GPU_context_active_get();
       GPU_context_active_set(ps.ghost_data.gpu_context);
-      while ((has_event = GHOST_ProcessEvents(ps.ghost_data.system, false))) {
-        GHOST_DispatchEvents(ps.ghost_data.system);
+      while ((has_event = ps.ghost_data.system->processEvents(false))) {
+        ps.ghost_data.system->dispatchEvents();
       }
       GPU_render_end();
       GPU_context_active_set(restore_context);
@@ -2155,10 +2149,8 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
     GPU_context_discard(ps.ghost_data.gpu_context);
     ps.ghost_data.gpu_context = nullptr;
   }
-  GHOST_RemoveEventConsumer(ps.ghost_data.system, ghost_event_consumer);
-  GHOST_DisposeEventConsumer(ghost_event_consumer);
-
-  GHOST_DisposeWindow(ps.ghost_data.system, ps.ghost_data.window);
+  ps.ghost_data.system->removeEventConsumer(&ghost_event_consumer);
+  ps.ghost_data.system->disposeWindow(ps.ghost_data.window);
 
   /* Early exit, IMB and BKE should be exited only in end. */
   if (ps.argv_next) {
@@ -2167,7 +2159,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
     return true;
   }
 
-  GHOST_DisposeSystem(ps.ghost_data.system);
+  GHOST_ISystem::disposeSystem();
 
 #if 0
   const int totblock = MEM_get_memory_blocks_in_use();
