@@ -58,7 +58,7 @@ static void node_composit_init_boxmask(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_boxmask(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -284,7 +284,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_boxmask_cc
 
-void register_node_type_cmp_boxmask()
+static void register_node_type_cmp_boxmask()
 {
   namespace file_ns = blender::nodes::node_composite_boxmask_cc;
 
@@ -304,3 +304,4 @@ void register_node_type_cmp_boxmask()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_boxmask)
