@@ -380,6 +380,11 @@ Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle)
   return reinterpret_cast<Vector<GPUShader *> &>(result);
 }
 
+void GPU_shader_batch_cancel(BatchHandle &handle)
+{
+  GPUBackend::get()->get_compiler()->batch_cancel(handle);
+}
+
 void GPU_shader_compile_static()
 {
   printf("Compiling all static GPU shaders. This process takes a while.\n");
@@ -550,6 +555,11 @@ SpecializationBatchHandle GPU_shader_batch_specializations(
 bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle)
 {
   return GPUBackend::get()->get_compiler()->specialization_batch_is_ready(handle);
+}
+
+void GPU_shader_batch_specializations_cancel(SpecializationBatchHandle &handle)
+{
+  GPUBackend::get()->get_compiler()->batch_cancel(handle);
 }
 
 /** \} */
