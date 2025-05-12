@@ -72,7 +72,7 @@ ShaderModule::ShaderModule()
 
 ShaderModule::~ShaderModule()
 {
-  /* Cancel compilation to avoid asserts on exit at GLShaderCompiler destructor. */
+  /* Cancel compilation to avoid asserts on exit at ShaderCompiler destructor. */
 
   /* Specializations first, to avoid releasing the base shader while the specialization compilation
    * is still in flight. */
