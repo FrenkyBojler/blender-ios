@@ -2,13 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <mutex>
 #include <optional>
 
 #include "BLI_fileops.hh"
 #include "BLI_hash.hh"
 #include "BLI_map.hh"
 #include "BLI_memory_cache_file_load.hh"
+#include "BLI_mutex.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -76,7 +76,7 @@ static std::optional<int64_t> get_file_modification_time(const StringRefNull pat
 }
 
 struct FileStatMap {
-  std::mutex mutex;
+  Mutex mutex;
   Map<std::string, std::optional<int64_t>> map;
 };
 
@@ -116,7 +116,7 @@ static void invalidate_outdated_caches_if_necessary(const Span<StringRefNull> fi
     /* Isolate because a mutex is locked. */
     threading::isolate_task([&]() {
       /* Invalidation is done while the mutex is locked so that other threads won't see the old
-       * cached value anymore after we've detected that it's oudated. */
+       * cached value anymore after we've detected that it's outdated. */
       memory_cache::remove_if([&](const GenericKey &other_key) {
         if (const auto *other_key_typed = dynamic_cast<const LoadFileKey *>(&other_key)) {
           const Span<std::string> other_key_paths = other_key_typed->file_paths();
