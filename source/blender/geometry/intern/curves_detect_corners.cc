@@ -34,8 +34,8 @@ Array<bool> curves_detect_corners(const bke::CurvesGeometry &curves,
     const int curve_samples_max = samples_max[curve];
     const float angle_threshold = angles_min[curve];
 
-    uint32_t *r_corners;
-    uint32_t r_corners_len;
+    uint32_t *r_corners = nullptr;
+    uint32_t r_corners_len = 0;
 
     const int error = curve_fit_corners_detect_fl(curve_positions.cast<float>().data(),
                                                   curve_positions.size(),
@@ -50,6 +50,8 @@ Array<bool> curves_detect_corners(const bke::CurvesGeometry &curves,
       /* Some error occured. Couldn't detect corners. */
       return;
     }
+
+    BLI_assert(r_corners != nullptr && r_corners_len > 0);
 
     const Span<int> corner_indices(reinterpret_cast<int *>(r_corners), r_corners_len);
 
