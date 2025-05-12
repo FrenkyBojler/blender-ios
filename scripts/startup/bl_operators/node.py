@@ -357,6 +357,8 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
         if active_item and active_item.item_type == 'PANEL':
             items.append(('PANEL_TOGGLE', "Panel Toggle", ""))
 
+        items.append(('SEPARATOR', "Separator", ""))
+
         return items
 
     item_type: EnumProperty(
@@ -413,6 +415,8 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             interface.move_to_parent(item, active_panel, 0)
             # Return in this case because we don't want to move the item.
             return {'FINISHED'}
+        elif self.item_type == 'SEPARATOR':
+            item = interface.new_separator()
         else:
             return {'CANCELLED'}
 

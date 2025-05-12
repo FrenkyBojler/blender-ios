@@ -19,6 +19,7 @@
 const EnumPropertyItem rna_enum_node_tree_interface_item_type_items[] = {
     {NODE_INTERFACE_SOCKET, "SOCKET", 0, "Socket", ""},
     {NODE_INTERFACE_PANEL, "PANEL", 0, "Panel", ""},
+    {NODE_INTERFACE_SEPARATOR, "SEPARATOR", 0, "Separator", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static const EnumPropertyItem node_tree_interface_socket_in_out_items[] = {
@@ -85,6 +86,8 @@ static StructRNA *rna_NodeTreeInterfaceItem_refine(PointerRNA *ptr)
     }
     case NODE_INTERFACE_PANEL:
       return &RNA_NodeTreeInterfacePanel;
+    case NODE_INTERFACE_SEPARATOR:
+      return &RNA_NodeTreeInterfaceSeparator;
     default:
       return &RNA_NodeTreeInterfaceItem;
   }
@@ -581,6 +584,17 @@ static bNodeTreeInterfacePanel *rna_NodeTreeInterfaceItems_new_panel(ID *id,
   }
 
   return panel;
+}
+
+static bNodeTreeInterfaceSeparator *rna_NodeTreeInterfaceItems_new_separator(
+    ID *id, bNodeTreeInterface *interface, Main *bmain)
+{
+  bNodeTreeInterfaceSeparator *separator = interface->add_separator(nullptr);
+
+  BKE_main_ensure_invariants(*bmain, *id);
+  WM_main_add_notifier(NC_NODE | NA_EDITED, id);
+
+  return separator;
 }
 
 static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy_to_parent(
@@ -1164,6 +1178,16 @@ static void rna_def_node_interface_panel(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
+static void rna_def_node_interface_separator(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodeTreeInterfaceSeparator", "NodeTreeInterfaceItem");
+  RNA_def_struct_ui_text(
+      srna, "Node Tree Interface Separator Item", "Separator item in a node tree interface");
+  RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSeparator");
+}
+
 static void rna_def_node_tree_interface_items_api(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -1224,6 +1248,13 @@ static void rna_def_node_tree_interface_items_api(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   /* return value */
   parm = RNA_def_pointer(func, "item", "NodeTreeInterfacePanel", "Panel", "New panel");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "new_separator", "rna_NodeTreeInterfaceItems_new_separator");
+  RNA_def_function_ui_description(func, "Add a new separator to the interface");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  /* return value */
+  parm = RNA_def_pointer(func, "item", "NodeTreeInterfaceSeparator", "Separator", "New separator");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "copy", "rna_NodeTreeInterfaceItems_copy");
@@ -1320,6 +1351,7 @@ void RNA_def_node_tree_interface(BlenderRNA *brna)
   rna_def_node_interface_item(brna);
   rna_def_node_interface_socket(brna);
   rna_def_node_interface_panel(brna);
+  rna_def_node_interface_separator(brna);
   rna_def_node_tree_interface(brna);
 
   rna_def_node_socket_interface_subtypes(brna);

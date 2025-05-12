@@ -64,6 +64,10 @@ template<typename T> static bool item_is_type(const bNodeTreeInterfaceItem &item
       match |= std::is_same_v<T, bNodeTreeInterfacePanel>;
       break;
     }
+    case NODE_INTERFACE_SEPARATOR: {
+      match |= std::is_same_v<T, bNodeTreeInterfaceSeparator>;
+      break;
+    }
   }
   return match;
 }

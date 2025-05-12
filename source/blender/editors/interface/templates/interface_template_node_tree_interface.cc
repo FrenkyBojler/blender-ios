@@ -240,6 +240,19 @@ class NodePanelViewItem : public BasicTreeViewItem {
   std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override;
 };
 
+class NodeSeparatorViewItem : public BasicTreeViewItem {
+ public:
+  NodeSeparatorViewItem(const int index, bNodeTreeInterfaceSeparator & /*separator*/)
+      : BasicTreeViewItem(std::to_string(index))
+  {
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    row.label(IFACE_("Separator"), ICON_NONE);
+  }
+};
+
 class NodeTreeInterfaceView : public AbstractTreeView {
  private:
   bNodeTree &nodetree_;
@@ -272,6 +285,7 @@ class NodeTreeInterfaceView : public AbstractTreeView {
                                      ui::TreeViewOrItem &parent_item,
                                      const bNodeTreeInterfaceItem *skip_item = nullptr)
   {
+    int separator_index = 0;
     for (bNodeTreeInterfaceItem *item : parent.items()) {
       if (item == skip_item) {
         continue;
@@ -295,6 +309,12 @@ class NodeTreeInterfaceView : public AbstractTreeView {
           const bNodeTreeInterfaceSocket *skip_item = panel->header_toggle_socket();
           add_items_for_panel_recursive(
               *panel, panel_item, reinterpret_cast<const bNodeTreeInterfaceItem *>(skip_item));
+          break;
+        }
+        case NODE_INTERFACE_SEPARATOR: {
+          bNodeTreeInterfaceSeparator *separator =
+              node_interface::get_item_as<bNodeTreeInterfaceSeparator>(item);
+          parent_item.add_tree_item<NodeSeparatorViewItem>(separator_index++, *separator);
           break;
         }
       }

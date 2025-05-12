@@ -45,6 +45,7 @@ struct BlendDataReader;
 typedef enum NodeTreeInterfaceItemType {
   NODE_INTERFACE_PANEL = 0,
   NODE_INTERFACE_SOCKET = 1,
+  NODE_INTERFACE_SEPARATOR = 2,
 } eNodeTreeInterfaceItemType;
 
 /** Describes a socket and all necessary details for a node declaration. */
@@ -237,6 +238,10 @@ typedef struct bNodeTreeInterfacePanel {
 #endif
 } bNodeTreeInterfacePanel;
 
+typedef struct bNodeTreeInterfaceSeparator {
+  bNodeTreeInterfaceItem item;
+} bNodeTreeInterfaceSeparator;
+
 typedef struct bNodeTreeInterface {
   bNodeTreeInterfacePanel root_panel;
 
@@ -365,6 +370,13 @@ typedef struct bNodeTreeInterface {
                                         NodeTreeInterfacePanelFlag flag,
                                         bNodeTreeInterfacePanel *parent,
                                         int position);
+
+  /**
+   * Add a new separator to the interface.
+   * \param parent: Panel in which the new separator is added as a child. If it is null the new
+   * separator is added to the root panel.
+   */
+  bNodeTreeInterfaceSeparator *add_separator(bNodeTreeInterfacePanel *parent);
 
   /**
    * Add a copy of an item at the end of the items list.

@@ -468,7 +468,7 @@ static void item_copy(bNodeTreeInterfaceItem &dst,
                       const int flag,
                       UidGeneratorFn generate_uid)
 {
-  switch (dst.item_type) {
+  switch (NodeTreeInterfaceItemType(dst.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &dst_socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(dst);
       const bNodeTreeInterfaceSocket &src_socket =
@@ -501,12 +501,15 @@ static void item_copy(bNodeTreeInterfaceItem &dst,
       panel_init(dst_panel, src_panel.items(), flag, generate_uid);
       break;
     }
+    case NODE_INTERFACE_SEPARATOR: {
+      break;
+    }
   }
 }
 
 static void item_free(bNodeTreeInterfaceItem &item, const bool do_id_user)
 {
-  switch (item.item_type) {
+  switch (NodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
 
@@ -534,6 +537,9 @@ static void item_free(bNodeTreeInterfaceItem &item, const bool do_id_user)
       MEM_SAFE_FREE(panel.description);
       break;
     }
+    case NODE_INTERFACE_SEPARATOR: {
+      break;
+    }
   }
 
   MEM_freeN(&item);
@@ -543,7 +549,7 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item);
 
 static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 {
-  switch (item.item_type) {
+  switch (NodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
       BLO_write_string(writer, socket.name);
@@ -568,18 +574,25 @@ static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
       }
       break;
     }
+    case NODE_INTERFACE_SEPARATOR: {
+      break;
+    }
   }
 }
 
 void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 {
-  switch (item.item_type) {
+  switch (NodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       BLO_write_struct(writer, bNodeTreeInterfaceSocket, &item);
       break;
     }
     case NODE_INTERFACE_PANEL: {
       BLO_write_struct(writer, bNodeTreeInterfacePanel, &item);
+      break;
+    }
+    case NODE_INTERFACE_SEPARATOR: {
+      BLO_write_struct(writer, bNodeTreeInterfaceSeparator, &item);
       break;
     }
   }
@@ -589,7 +602,7 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 
 static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item)
 {
-  switch (item.item_type) {
+  switch (NodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
       BLO_read_string(reader, &socket.name);
@@ -610,9 +623,12 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
       BLO_read_pointer_array(
           reader, panel.items_num, reinterpret_cast<void **>(&panel.items_array));
       for (const int i : blender::IndexRange(panel.items_num)) {
-        BLO_read_struct(reader, NodeEnumItem, &panel.items_array[i]);
+        BLO_read_struct(reader, bNodeTreeInterfaceItem, &panel.items_array[i]);
         item_read_data(reader, *panel.items_array[i]);
       }
+      break;
+    }
+    case NODE_INTERFACE_SEPARATOR: {
       break;
     }
   }
@@ -620,7 +636,7 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
 
 static void item_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceItem &item)
 {
-  switch (item.item_type) {
+  switch (NodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
 
@@ -639,14 +655,18 @@ static void item_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceItem &
       }
       break;
     }
+    case NODE_INTERFACE_SEPARATOR: {
+      break;
+    }
   }
 }
 
 /* Move all child items to the new parent. */
 static Span<bNodeTreeInterfaceItem *> item_children(bNodeTreeInterfaceItem &item)
 {
-  switch (item.item_type) {
-    case NODE_INTERFACE_SOCKET: {
+  switch (NodeTreeInterfaceItemType(item.item_type)) {
+    case NODE_INTERFACE_SOCKET:
+    case NODE_INTERFACE_SEPARATOR: {
       return {};
     }
     case NODE_INTERFACE_PANEL: {
@@ -1318,6 +1338,21 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::insert_panel(const blender::StringR
 
   this->tag_items_changed();
   return new_panel;
+}
+
+bNodeTreeInterfaceSeparator *bNodeTreeInterface::add_separator(bNodeTreeInterfacePanel *parent)
+{
+  if (parent == nullptr) {
+    parent = &root_panel;
+  }
+  BLI_assert(this->find_item(parent->item));
+
+  bNodeTreeInterfaceSeparator *new_separator = MEM_callocN<bNodeTreeInterfaceSeparator>(__func__);
+  new_separator->item.item_type = NODE_INTERFACE_SEPARATOR;
+  parent->add_item(new_separator->item);
+
+  this->tag_items_changed();
+  return new_separator;
 }
 
 bNodeTreeInterfaceItem *bNodeTreeInterface::add_item_copy(const bNodeTreeInterfaceItem &item,
