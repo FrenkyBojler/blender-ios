@@ -96,7 +96,10 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
      * See https://projects.blender.org/blender/blender/issues/111152 */
     MessageBox(0,
                "WinTab internal state error. Please restart your tablet's driver.\nBlender is not "
-               "able to use the tablet.",
+               "able to use the tablet.\n\n",
+               "To get around this issue, please set Tablet API to \"Windows Ink\" in Preferences "
+               "> Input > Tablet.\n"
+               "You should also enable Windows Ink support in your tablet driver."
                "Warning",
                MB_OK);
     return nullptr;
