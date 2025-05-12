@@ -40,6 +40,7 @@ namespace {
 
 class NodePanelViewItem;
 class NodeSocketViewItem;
+class NodeSeparatorViewItem;
 class NodeTreeInterfaceView;
 
 class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
@@ -66,9 +67,6 @@ class NodeSocketDropTarget : public TreeViewItemDropTarget {
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const DragInfo &drag_info) const override;
   bool on_drop(bContext * /*C*/, const DragInfo &drag_info) const override;
-
- protected:
-  wmDragNodeTreeInterface *get_drag_node_tree_declaration(const wmDrag &drag) const;
 };
 
 class NodePanelDropTarget : public TreeViewItemDropTarget {
@@ -81,9 +79,17 @@ class NodePanelDropTarget : public TreeViewItemDropTarget {
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const DragInfo &drag_info) const override;
   bool on_drop(bContext *C, const DragInfo &drag_info) const override;
+};
 
- protected:
-  wmDragNodeTreeInterface *get_drag_node_tree_declaration(const wmDrag &drag) const;
+class NodeSeparatorDropTarget : public TreeViewItemDropTarget {
+  bNodeTreeInterfaceSeparator &separator_;
+
+ public:
+  explicit NodeSeparatorDropTarget(NodeSeparatorViewItem &item);
+
+  bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
+  std::string drop_tooltip(const DragInfo &drag_info) const override;
+  bool on_drop(bContext *C, const DragInfo &drag_info) const override;
 };
 
 class NodeSocketViewItem : public BasicTreeViewItem {
@@ -241,9 +247,14 @@ class NodePanelViewItem : public BasicTreeViewItem {
 };
 
 class NodeSeparatorViewItem : public BasicTreeViewItem {
+ private:
+  bNodeTreeInterfaceSeparator &separator_;
+
+  friend NodeSeparatorDropTarget;
+
  public:
-  NodeSeparatorViewItem(const int index, bNodeTreeInterfaceSeparator & /*separator*/)
-      : BasicTreeViewItem(std::to_string(index))
+  NodeSeparatorViewItem(const int index, bNodeTreeInterfaceSeparator &separator)
+      : BasicTreeViewItem(std::to_string(index)), separator_(separator)
   {
   }
 
@@ -251,6 +262,9 @@ class NodeSeparatorViewItem : public BasicTreeViewItem {
   {
     row.label(IFACE_("Separator"), ICON_NONE);
   }
+
+  std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
+  std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override;
 };
 
 class NodeTreeInterfaceView : public AbstractTreeView {
@@ -344,6 +358,18 @@ std::unique_ptr<TreeViewItemDropTarget> NodePanelViewItem::create_drop_target()
   return std::make_unique<NodePanelDropTarget>(*this, panel_);
 }
 
+std::unique_ptr<AbstractViewItemDragController> NodeSeparatorViewItem::create_drag_controller()
+    const
+{
+  return std::make_unique<NodeTreeInterfaceDragController>(
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), separator_.item);
+}
+
+std::unique_ptr<TreeViewItemDropTarget> NodeSeparatorViewItem::create_drop_target()
+{
+  return std::make_unique<NodeSeparatorDropTarget>(*this);
+}
+
 NodeTreeInterfaceDragController::NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
                                                                  bNodeTreeInterfaceItem &item)
     : AbstractViewItemDragController(view), item_(item)
@@ -362,6 +388,28 @@ void *NodeTreeInterfaceDragController::create_drag_data() const
   return drag_data;
 }
 
+wmDragNodeTreeInterface *get_drag_node_tree_declaration(const wmDrag &drag)
+{
+  BLI_assert(drag.type == WM_DRAG_NODE_TREE_INTERFACE);
+  return static_cast<wmDragNodeTreeInterface *>(drag.poin);
+}
+
+bool is_dragging_parent_panel(const wmDrag &drag, bNodeTreeInterfaceItem &drop_target_item)
+{
+  if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
+    return false;
+  }
+  wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag);
+  if (const bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
+          drag_data->item))
+  {
+    if (panel->contains(drop_target_item)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 NodeSocketDropTarget::NodeSocketDropTarget(NodeSocketViewItem &item,
                                            bNodeTreeInterfaceSocket &socket)
     : TreeViewItemDropTarget(item, DropBehavior::Reorder), socket_(socket)
@@ -373,15 +421,8 @@ bool NodeSocketDropTarget::can_drop(const wmDrag &drag, const char ** /*r_disabl
   if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
   }
-  wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag);
-
-  /* Can't drop an item onto its children. */
-  if (const bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
-          drag_data->item))
-  {
-    if (panel->contains(socket_.item)) {
-      return false;
-    }
+  if (is_dragging_parent_panel(drag, socket_.item)) {
+    return false;
   }
   return true;
 }
@@ -399,27 +440,29 @@ std::string NodeSocketDropTarget::drop_tooltip(const DragInfo &drag_info) const
   return "";
 }
 
-bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
+bool on_drop_flat_item(bContext *C,
+                       const DragInfo &drag_info,
+                       bNodeTree &ntree,
+                       bNodeTreeInterfaceItem &drop_target_item)
 {
   wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
   BLI_assert(drag_data != nullptr);
   bNodeTreeInterfaceItem *drag_item = drag_data->item;
   BLI_assert(drag_item != nullptr);
 
-  bNodeTree &nodetree = this->get_view<NodeTreeInterfaceView>().nodetree();
-  bNodeTreeInterface &interface = this->get_view<NodeTreeInterfaceView>().interface();
+  bNodeTreeInterface &interface = ntree.tree_interface;
 
-  bNodeTreeInterfacePanel *parent = interface.find_item_parent(socket_.item, true);
+  bNodeTreeInterfacePanel *parent = interface.find_item_parent(drop_target_item, true);
   int index = -1;
 
   /* Insert into same panel as the target. */
   BLI_assert(parent != nullptr);
   switch (drag_info.drop_location) {
     case DropLocation::Before:
-      index = parent->items().as_span().first_index_try(&socket_.item);
+      index = parent->items().as_span().first_index_try(&drop_target_item);
       break;
     case DropLocation::After:
-      index = parent->items().as_span().first_index_try(&socket_.item) + 1;
+      index = parent->items().as_span().first_index_try(&drop_target_item) + 1;
       break;
     default:
       /* All valid cases should be handled above. */
@@ -433,16 +476,15 @@ bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   interface.move_item_to_parent(*drag_item, parent, index);
 
   /* General update */
-  BKE_main_ensure_invariants(*CTX_data_main(C), nodetree.id);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
   ED_undo_push(C, "Insert node group item");
   return true;
 }
 
-wmDragNodeTreeInterface *NodeSocketDropTarget::get_drag_node_tree_declaration(
-    const wmDrag &drag) const
+bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 {
-  BLI_assert(drag.type == WM_DRAG_NODE_TREE_INTERFACE);
-  return static_cast<wmDragNodeTreeInterface *>(drag.poin);
+  bNodeTree &nodetree = this->get_view<NodeTreeInterfaceView>().nodetree();
+  return on_drop_flat_item(C, drag_info, nodetree, socket_.item);
 }
 
 NodePanelDropTarget::NodePanelDropTarget(NodePanelViewItem &item, bNodeTreeInterfacePanel &panel)
@@ -529,11 +571,39 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   return true;
 }
 
-wmDragNodeTreeInterface *NodePanelDropTarget::get_drag_node_tree_declaration(
-    const wmDrag &drag) const
+NodeSeparatorDropTarget::NodeSeparatorDropTarget(NodeSeparatorViewItem &item)
+    : TreeViewItemDropTarget(item, DropBehavior::Reorder), separator_(item.separator_)
 {
-  BLI_assert(drag.type == WM_DRAG_NODE_TREE_INTERFACE);
-  return static_cast<wmDragNodeTreeInterface *>(drag.poin);
+}
+
+bool NodeSeparatorDropTarget::can_drop(const wmDrag &drag, const char ** /*r_disabled_hint*/) const
+{
+  if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
+    return false;
+  }
+  if (is_dragging_parent_panel(drag, separator_.item)) {
+    return false;
+  }
+  return true;
+}
+
+std::string NodeSeparatorDropTarget::drop_tooltip(const DragInfo &drag_info) const
+{
+  switch (drag_info.drop_location) {
+    case DropLocation::Into:
+      return "";
+    case DropLocation::Before:
+      return TIP_("Insert before separator");
+    case DropLocation::After:
+      return TIP_("Insert after separator");
+  }
+  return "";
+}
+
+bool NodeSeparatorDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
+{
+  bNodeTree &nodetree = this->get_view<NodeTreeInterfaceView>().nodetree();
+  return on_drop_flat_item(C, drag_info, nodetree, separator_.item);
 }
 
 }  // namespace

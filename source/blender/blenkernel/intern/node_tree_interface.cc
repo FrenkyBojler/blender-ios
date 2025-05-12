@@ -853,22 +853,20 @@ int bNodeTreeInterfacePanel::find_valid_insert_position_for_item(
   /* True if item a should be above item b. */
   auto item_compare = [sockets_above_panels](const bNodeTreeInterfaceItem &a,
                                              const bNodeTreeInterfaceItem &b) -> bool {
-    if (a.item_type != b.item_type) {
-      /* Keep sockets above panels. */
-      if (sockets_above_panels) {
-        return a.item_type == NODE_INTERFACE_SOCKET;
+    /* Keep sockets above panels. */
+    if (sockets_above_panels) {
+      if (a.item_type == NODE_INTERFACE_SOCKET && b.item_type == NODE_INTERFACE_PANEL) {
+        return true;
       }
     }
-    else {
-      /* Keep outputs above inputs. */
-      if (a.item_type == NODE_INTERFACE_SOCKET) {
-        const bNodeTreeInterfaceSocket &sa = reinterpret_cast<const bNodeTreeInterfaceSocket &>(a);
-        const bNodeTreeInterfaceSocket &sb = reinterpret_cast<const bNodeTreeInterfaceSocket &>(b);
-        const bool is_output_a = sa.flag & NODE_INTERFACE_SOCKET_OUTPUT;
-        const bool is_output_b = sb.flag & NODE_INTERFACE_SOCKET_OUTPUT;
-        if (is_output_a != is_output_b) {
-          return is_output_a;
-        }
+    /* Keep outputs above inputs. */
+    if (a.item_type == NODE_INTERFACE_SOCKET && b.item_type == NODE_INTERFACE_SOCKET) {
+      const bNodeTreeInterfaceSocket &sa = reinterpret_cast<const bNodeTreeInterfaceSocket &>(a);
+      const bNodeTreeInterfaceSocket &sb = reinterpret_cast<const bNodeTreeInterfaceSocket &>(b);
+      const bool is_output_a = sa.flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      const bool is_output_b = sb.flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      if (is_output_a && !is_output_b) {
+        return true;
       }
     }
     return false;
