@@ -979,11 +979,8 @@ static bool pose_select_children(bContext *C, const bool all)
   bool changed_any_selection = false;
 
   for (Object *pose_object : objects) {
-    bArmature *arm = static_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
-    if (!arm) {
-      /* This may never be hit because we are explicitly asking for pose objects before. */
-      continue;
-    }
+    bArmature *arm = static_cast<bArmature *>(pose_object->data);
+    BLI_assert(arm);
     blender::Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
     LISTBASE_FOREACH (bPoseChannel *, pchan, &pose_object->pose->chanbase) {
       if (!PBONE_SELECTABLE(arm, pchan->bone)) {
@@ -1015,10 +1012,8 @@ static bool pose_select_parents(bContext *C)
 
   bool changed_any_selection = false;
   for (Object *pose_object : objects) {
-    bArmature *arm = static_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
-    if (!arm) {
-      continue;
-    }
+    bArmature *arm = static_cast<bArmature *>(pose_object->data);
+    BLI_assert(arm);
     blender::Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
     for (bPoseChannel *pchan : selected_pose_bones) {
       if (!PBONE_SELECTABLE(arm, pchan->parent->bone)) {
@@ -1039,10 +1034,8 @@ static bool pose_select_siblings(bContext *C)
 
   bool changed_any_selection = false;
   for (Object *pose_object : objects) {
-    bArmature *arm = static_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
-    if (!arm) {
-      continue;
-    }
+    bArmature *arm = static_cast<bArmature *>(pose_object->data);
+    BLI_assert(arm);
     blender::Set<bPoseChannel *> parents_of_selected;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &pose_object->pose->chanbase) {
       if (PBONE_SELECTED(arm, pchan->bone)) {
