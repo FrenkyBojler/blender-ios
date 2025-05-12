@@ -343,11 +343,10 @@ static void WORKSPACE_OT_delete(wmOperatorType *ot)
 static wmOperatorStatus workspace_delete_all_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  wmWindow *win = CTX_wm_window(C);
-  WorkSpace *current_workspace = WM_window_get_active_workspace(win);
+  WorkSpace *workspace = workspace_context_get(C);
 
   LISTBASE_FOREACH (WorkSpace *, ws, &bmain->workspaces) {
-    if (ws != current_workspace) {
+    if (ws != workspace) {
       WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_DELETE, ws);
       WM_event_add_notifier(C, NC_WINDOW, nullptr);
     }
@@ -359,8 +358,8 @@ static wmOperatorStatus workspace_delete_all_exec(bContext *C, wmOperator * /*op
 static void WORKSPACE_OT_delete_all(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Delete Inactive Workspaces";
-  ot->description = "Delete inactive workspaces";
+  ot->name = "Delete all Workspaces";
+  ot->description = "Delete all workspaces";
   ot->idname = "WORKSPACE_OT_delete_all";
 
   /* api callbacks */
