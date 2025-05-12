@@ -620,47 +620,33 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
   return std::nullopt;
 }
 
-blender::Vector<Error> BKE_validate_template(
-    blender::StringRef path, const blender::bke::path_templates::VariableMap *template_variables)
+/**
+ * Evaluates the path template in `in_path` and writes the result to `out_path`
+ * if provided.
+ *
+ * \param out_path: buffer to write the evaluated path to. May be null, in which
+ * case writing is skipped, and this function just acts to validate the
+ * templating in the path.
+ *
+ * \param out_path_max_length The maximum length that template expansion is
+ * allowed to make the template-expanded path (in bytes), including the null
+ * terminator. In general, this should be the size of the underlying allocation
+ * of `path`.
+ *
+ * \param template_variables: map of variables and their values to use during
+ * template substitution. May be null, in which case substitution is skipped,
+ * and only templating syntax is checked.
+ *
+ * \return An empty vector on success, or a vector of templating errors on
+ * failure. Note that even if there are errors, `out_path` may get modified, but
+ * it should be treated as bogus data in that case.
+ */
+static blender::Vector<Error> eval_template(char *out_path,
+                                            const int out_path_max_length,
+                                            blender::StringRef in_path,
+                                            const VariableMap *template_variables)
 {
-  const blender::Vector<Token> tokens = parse_template(path);
-
-  blender::Vector<Error> errors;
-  for (const Token &token : tokens) {
-    if (std::optional<Error> error = token_to_syntax_error(token)) {
-      errors.append(*error);
-      continue;
-    }
-
-    /* If template_variables isn't provided, then we skip non-syntax errors. */
-    if (template_variables == nullptr) {
-      continue;
-    }
-
-    /* Check if referenced variable exists. */
-    if (!template_variables->contains(token.variable_name)) {
-      errors.append({ErrorType::UNKNOWN_VARIABLE, token.byte_range});
-      continue;
-    }
-
-    /* Check if the format specifier is appropriate for the variable type. */
-    if (template_variables->get_string(token.variable_name).has_value()) {
-      /* String variables don't take format specifiers. */
-      if (token.format.type != FormatSpecifierType::NONE) {
-        errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
-        continue;
-      }
-    }
-  }
-
-  return errors;
-}
-
-blender::Vector<Error> BKE_path_apply_template(char *path,
-                                               int path_max_length,
-                                               const VariableMap &template_variables)
-{
-  const blender::Vector<Token> tokens = parse_template(path);
+  const blender::Vector<Token> tokens = parse_template(in_path);
 
   if (tokens.is_empty()) {
     /* No tokens found, so nothing to do. */
@@ -675,9 +661,9 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
    * 1. So that if there are errors we can leave the original unmodified.
    * 2. So that the contents of the StringRefs in the Token structs don't change
    *    out from under us while we're generating the modified path.*/
-  blender::Vector<char> path_buffer(path_max_length);
-  char *path_modified = path_buffer.data();
-  strcpy(path_modified, path);
+  if (out_path) {
+    in_path.copy_utf8_truncated(out_path, out_path_max_length);
+  }
 
   /* Tracks the change in string length due to the modifications as we go. We
    * need this to properly map the token byte ranges to the being-modified
@@ -688,6 +674,10 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
     /* Syntax errors. */
     if (std::optional<Error> error = token_to_syntax_error(token)) {
       errors.append(*error);
+      continue;
+    }
+
+    if (!template_variables) {
       continue;
     }
 
@@ -713,7 +703,7 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
 
       /* Expand variable expression into the variable's value. */
       case TokenType::VARIABLE_EXPRESSION: {
-        if (std::optional<blender::StringRefNull> string_value = template_variables.get_string(
+        if (std::optional<blender::StringRefNull> string_value = template_variables->get_string(
                 token.variable_name))
         {
           /* String variable found, but we only process it if there's no format
@@ -727,7 +717,7 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
           break;
         }
 
-        if (std::optional<int64_t> integer_value = template_variables.get_integer(
+        if (std::optional<int64_t> integer_value = template_variables->get_integer(
                 token.variable_name))
         {
           /* Integer variable found. */
@@ -735,7 +725,7 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
           break;
         }
 
-        if (std::optional<double> float_value = template_variables.get_float(token.variable_name))
+        if (std::optional<double> float_value = template_variables->get_float(token.variable_name))
         {
           /* Float variable found. */
           format_float_to_string(token.format, *float_value, replacement_string);
@@ -749,23 +739,45 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
     }
 
     /* We're off the end of the available space. */
-    if (token.byte_range.start() + length_diff >= path_max_length) {
+    if (token.byte_range.start() + length_diff >= out_path_max_length) {
       break;
     }
 
-    BLI_string_replace_range(path_modified,
-                             path_max_length,
-                             token.byte_range.start() + length_diff,
-                             token.byte_range.one_after_last() + length_diff,
-                             replacement_string);
+    if (out_path) {
+      BLI_string_replace_range(out_path,
+                               out_path_max_length,
+                               token.byte_range.start() + length_diff,
+                               token.byte_range.one_after_last() + length_diff,
+                               replacement_string);
+    }
 
     length_diff -= token.byte_range.size();
     length_diff += strlen(replacement_string);
   }
 
+  return errors;
+}
+
+blender::Vector<Error> BKE_validate_template(
+    blender::StringRef path, const blender::bke::path_templates::VariableMap *template_variables)
+{
+  return eval_template(nullptr, 0, path, template_variables);
+}
+
+blender::Vector<Error> BKE_path_apply_template(char *path,
+                                               int path_max_length,
+                                               const VariableMap &template_variables)
+{
+  BLI_assert(path != nullptr);
+
+  blender::Vector<char> path_buffer(path_max_length);
+
+  const blender::Vector<Error> errors = eval_template(
+      path_buffer.data(), path_buffer.size(), path, &template_variables);
+
   if (errors.is_empty()) {
     /* No errors, so copy the modified path back to the original. */
-    strcpy(path, path_modified);
+    strcpy(path, path_buffer.data());
   }
   return errors;
 }

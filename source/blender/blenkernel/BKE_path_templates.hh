@@ -164,7 +164,8 @@ blender::bke::path_templates::VariableMap BKE_build_template_variables(
  * `template_variables` is provided, then missing variables and
  * type<->format-specifier mismatches are also checked.
  *
- * \return An empty vector if valid, or a vector of the errors if invalid.
+ * \return An empty vector if the templating in the path is valid, or a vector
+ * of the errors if invalid.
  */
 blender::Vector<blender::bke::path_templates::Error> BKE_validate_template(
     blender::StringRef path, const blender::bke::path_templates::VariableMap *template_variables);
