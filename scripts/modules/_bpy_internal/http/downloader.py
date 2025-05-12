@@ -6,10 +6,18 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import multiprocessing
+import multiprocessing.connection
 import queue
 import threading
 from pathlib import Path
 from typing import Protocol, TypeAlias, Any, Callable
+
+# To work around this error:
+# mypy   : Variable "multiprocessing.Event" is not valid as a type
+#          note: See https://mypy.readthedocs.io/en/stable/common_issues.html#variables-vs-type-aliases
+# Pylance: Variable not allowed in type expression
+from multiprocessing.synchronize import Event as EventClass
 
 import pydantic
 import requests
@@ -287,6 +295,19 @@ class ConditionalDownloader:
         self._cancel_download_event.set()
 
 
+# On Linux, 'fork' is the default. However the Python docs state "Note
+# that safely forking a multithreaded process is problematic.", and then
+# mention:
+#
+# The default start method will change away from fork in Python 3.14.
+# Code that requires fork should explicitly specify that via
+# get_context() or set_start_method().
+#
+# So I (Sybren) figure it's better to test with the 'spawn' method,
+# which is also the current default on Windows and macOS.
+_mp_context = multiprocessing.get_context(method='spawn')
+
+
 class BackgroundDownloader:
     """Wrapper for a ConditionalDownloader + reporters.
 
@@ -307,7 +328,7 @@ class BackgroundDownloader:
     # is fine with it and at runtime it works.
     QueuedDownload: TypeAlias = tuple['RequestDescription', Path]
     """Tuple of URL to download, and path to download it to."""
-    _queue: queue.Queue[QueuedDownload]
+    _queue: multiprocessing.Queue[QueuedDownload]
 
     # Keep track of which callback to call on the completion of which HTTP request.
     # This assumes that RequestDescriptions are unique, and not queued up
@@ -325,19 +346,20 @@ class BackgroundDownloader:
         self._thread_bridge = ThreadBridgingReporter()
         self._thread_bridge.add_reporter(self)
 
-        self._queue = queue.Queue()
+        self._queue = _mp_context.Queue()
 
-        self._shutdown_event = threading.Event()
+        self._shutdown_event = _mp_context.Event()
         """Set this to trigger a shutdown."""
-        self._shutdown_complete_event = threading.Event()
+        self._shutdown_complete_event = _mp_context.Event()
         """Gets set when shutdown is complete."""
 
         # Set up the downloader in a background thread.
         self._downloader = downloader
         self._downloader.add_reporter(self._thread_bridge)
-        self._downloader_thread = threading.Thread(
+        self._downloader_thread = _mp_context.Process(
             name="BackgroundDownloader",
-            target=self._download_queued_items,
+            target=_download_queued_items,
+            args=(self._downloader, self._queue, self._shutdown_event),
             daemon=True,
         )
 
@@ -427,37 +449,6 @@ class BackgroundDownloader:
             raise RuntimeError("start the download thread first")
         self._thread_bridge.update()
 
-    def _download_queued_items(self) -> None:
-        """Runs in a daemon thread to download stuff."""
-
-        while not self._shutdown_event.is_set():
-            # Pop an item off the queue.
-            try:
-                queued_download = self._queue.get(timeout=0.1)
-            except queue.Empty:
-                continue
-
-            if self._shutdown_event.is_set():
-                break
-
-            http_req_descr, local_path = queued_download
-
-            # Try and download it.
-            try:
-                self._downloader.download_to_file(
-                    http_req_descr.url,
-                    local_path,
-                    http_method=http_req_descr.http_method,)
-            except DownloadCancelled:
-                # Can be logged at a lower level, because the caller did the
-                # cancelling, and can log/report things more loudly if
-                # necessary.
-                logger.debug("download got cancelled: {}".format(http_req_descr))
-            except Exception as ex:
-                logger.exception("could not download {}: {}".format(http_req_descr, ex))
-
-        self._logger.debug("download thread shutting down")
-
     def download_starts(self, http_req_descr: RequestDescription) -> None:
         """CachingDownloadReporter interface function."""
 
@@ -537,6 +528,45 @@ class BackgroundDownloader:
 
         logger.debug("download done, calling %s", callback.__name__)
         callback(http_req_descr, local_file)
+
+
+def _download_queued_items(
+        downloader: ConditionalDownloader,
+        download_queue: multiprocessing.Queue,
+        shutdown_event: EventClass,
+) -> None:
+    """Runs in a daemon process to download stuff.
+
+    Managed by the BackgroundDownloader class above.
+    """
+
+    while not shutdown_event.is_set():
+        # Pop an item off the queue.
+        try:
+            queued_download = download_queue.get(timeout=0.1)
+        except queue.Empty:
+            continue
+
+        if shutdown_event.is_set():
+            break
+
+        http_req_descr, local_path = queued_download
+
+        # Try and download it.
+        try:
+            downloader.download_to_file(
+                http_req_descr.url,
+                local_path,
+                http_method=http_req_descr.http_method,)
+        except DownloadCancelled:
+            # Can be logged at a lower level, because the caller did the
+            # cancelling, and can log/report things more loudly if
+            # necessary.
+            logger.debug("download got cancelled: {}".format(http_req_descr))
+        except Exception as ex:
+            logger.exception("could not download {}: {}".format(http_req_descr, ex))
+
+    logger.getChild('bg_downloader').debug("download process shutting down")
 
 
 class DownloadReporter(Protocol):
