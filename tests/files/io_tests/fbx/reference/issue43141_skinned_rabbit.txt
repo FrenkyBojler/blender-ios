@@ -1,7 +1,7 @@
 ==== Meshes: 1
 - Mesh 'Mesh' vtx:517 face:1022 loop:3066 edge:1536
     - 2 3 1 1 0 ... 235 478 478 233 234 
-    - 0/1 0/2 8/10 8/9 16/91 ... 7/287 7/395 199/455 199/453 199/461 
+    - 0/1 0/2 8/9 8/10 16/17 ... 7/287 7/395 199/453 199/455 199/461 
   - attr 'position' FLOAT_VECTOR POINT
     - (-0.540, -0.735, -0.314)
     - (-0.584, -0.373, -0.289)
@@ -10,16 +10,12 @@
     - (0.104, -1.180, 0.138)
     - (0.016, 1.165, -0.265)
     - (0.024, 1.181, -0.230)
-  - attr 'material_index' INT FACE
-    - 0 0 0 0 0 ... 0 0 0 0 0 
   - vertex groups:
     - 0=1.000
     - 0=1.000
     - 2=1.000
     - 2=1.000
     - 2=1.000
-  - 1 materials
-    - 'Material #3' 
 
 ==== Objects: 2
 - Obj 'Bip001' ARMATURE data:'Bip001'
@@ -30,136 +26,91 @@
       0.996 0.070 -0.048 0.542
       -0.070 0.997 -0.012 -0.068
       0.047 0.015 0.999 0.000
-    - props: int:MaxHandle=317
   - posed bone 'Bip001 L Calf'
       0.757 0.654 0.000 0.000
       -0.654 0.757 0.000 0.000
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=304
   - posed bone 'Bip001 L Clavicle'
       0.992 0.000 -0.127 8.624
       0.000 1.000 0.000 0.000
       0.127 0.000 0.992 1.640
-    - props: int:MaxHandle=309
   - posed bone 'Bip001 L Foot'
       0.540 -0.841 0.040 0.000
       0.837 0.531 -0.133 0.000
       0.090 0.105 0.990 0.000
-    - props: int:MaxHandle=305
   - posed bone 'Bip001 L Forearm'
       0.996 0.094 0.000 0.000
       -0.094 0.996 0.000 0.000
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=311
   - posed bone 'Bip001 L Hand'
       0.947 0.320 0.015 0.000
       -0.319 0.947 -0.045 0.000
       -0.028 0.038 0.999 0.000
-    - props: int:MaxHandle=312
   - posed bone 'Bip001 L HorseLink'
       0.869 0.494 0.000 0.000
       -0.494 0.869 0.000 0.000
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=332
   - posed bone 'Bip001 L Thigh'
       0.977 -0.214 0.008 17.106
       0.213 0.977 0.029 -3.535
       -0.014 -0.027 1.000 -2.016
-    - props: int:MaxHandle=303
-  - posed bone 'Bip001 L Toe0'
-    - props: int:MaxHandle=319
   - posed bone 'Bip001 L UpperArm'
       0.951 -0.308 -0.030 0.000
       0.307 0.951 -0.035 0.000
       0.040 0.024 0.999 0.000
-    - props: int:MaxHandle=310
   - posed bone 'Bip001 Neck'
       0.992 -0.126 0.000 0.006
       0.126 0.992 0.000 -0.134
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=318
-  - posed bone 'Bip001 Pelvis'
-    - props: int:MaxHandle=300
   - posed bone 'Bip001 R Calf'
       0.757 0.654 0.000 0.000
       -0.654 0.757 0.000 0.000
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=307
   - posed bone 'Bip001 R Clavicle'
       0.992 0.000 0.127 8.624
       0.000 1.000 0.000 0.000
       -0.127 0.000 0.992 -1.640
-    - props: int:MaxHandle=313
   - posed bone 'Bip001 R Foot'
       0.540 -0.841 -0.040 0.000
       0.837 0.531 0.133 0.000
       -0.090 -0.105 0.990 0.000
-    - props: int:MaxHandle=308
   - posed bone 'Bip001 R Forearm'
       0.997 0.079 0.000 0.000
       -0.079 0.997 0.000 0.000
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=315
   - posed bone 'Bip001 R Hand'
       0.949 0.315 -0.012 0.000
       -0.315 0.948 0.049 0.000
       0.027 -0.043 0.999 0.000
-    - props: int:MaxHandle=316
   - posed bone 'Bip001 R HorseLink'
       0.869 0.494 0.000 0.000
       -0.494 0.869 0.000 0.000
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=331
   - posed bone 'Bip001 R Thigh'
       0.977 -0.214 -0.008 17.106
       0.213 0.977 -0.029 -3.536
       0.014 0.027 1.000 2.016
-    - props: int:MaxHandle=306
-  - posed bone 'Bip001 R Toe0'
-    - props: int:MaxHandle=322
   - posed bone 'Bip001 R UpperArm'
       0.951 -0.304 0.063 0.000
       0.302 0.953 0.033 0.000
       -0.070 -0.012 0.997 0.000
-    - props: int:MaxHandle=314
   - posed bone 'Bip001 Spine'
       0.990 -0.144 0.000 0.015
       0.144 0.990 0.000 0.001
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=301
   - posed bone 'Bip001 Spine1'
       0.998 0.063 0.000 -0.008
       -0.063 0.998 0.000 0.000
       0.000 0.000 1.000 0.000
-    - props: int:MaxHandle=302
   - posed bone 'Bone001'
       0.880 0.309 -0.361 0.000
       -0.410 0.878 -0.249 0.000
       0.240 0.367 0.899 0.000
-    - props: int:MaxHandle=335
-  - posed bone 'Bone002'
-    - props: int:MaxHandle=336
-  - posed bone 'Bone003'
-    - props: int:MaxHandle=337
-  - posed bone 'Bone004'
-    - props: int:MaxHandle=338
-  - posed bone 'Bone005'
-    - props: int:MaxHandle=339
   - posed bone 'Bone006'
       0.852 0.342 -0.397 0.000
       -0.443 0.875 -0.196 0.000
       0.280 0.343 0.896 0.000
-    - props: str:LastPose='undefined' int:MaxHandle=341
-  - posed bone 'Bone007'
-    - props: str:LastPose='undefined' int:MaxHandle=342
-  - posed bone 'Bone008'
-    - props: str:LastPose='undefined' int:MaxHandle=343
-  - posed bone 'Bone009'
-    - props: str:LastPose='undefined' int:MaxHandle=344
-  - posed bone 'Bone010'
-    - props: str:LastPose='undefined' int:MaxHandle=345
   - anim act:Take 001 slot:OBBip001 blend:REPLACE drivers:0
-  - props: int:MaxHandle=299
 - Obj 'obj4aa7ee80_obj' MESH data:'Mesh' par:'Bip001'
   - matrix_parent_inverse:
       0.116 0.000 -0.993 221.665
@@ -172,20 +123,6 @@
     - 'Bip001 L Thigh' 'Bip001 L Toe0' 'Bip001 Pelvis' 'Bip001 R Toe0' 'Bip001 Spine' ... 'Bip001 R Hand' 'Bone001' 'Bone003' 'Bone002' 'Bone004' 
   - 1 modifiers
     - ARMATURE 'Bip001'
-  - props: int:MaxHandle=297
-
-==== Materials: 1
-- Mat 'Material #3'
-  - base color (0.588, 0.588, 0.588) tex:'35d679a0.psd' (<outside of test folder>) a:False
-  - specular ior 0.000
-  - specular tint (0.900, 0.900, 0.900)
-  - roughness 0.859
-  - metallic 0.000
-  - ior 1.500
-  - viewport diffuse (0.588, 0.588, 0.588, 1.000)
-  - viewport specular (1.000, 1.000, 1.000), intensity 0.000
-  - viewport metallic 0.000, roughness 0.859
-  - backface False probe True shadow False
 
 ==== Actions: 1
 - Action 'Take 001' curverange:(1.0 .. 87.0) layers:1
@@ -447,7 +384,4 @@
       -0.889 0.343 -0.304 -403.638
       0.343 0.058 -0.937 156.541
       -0.304 -0.937 -0.170 360.455
-
-==== Images: 1
-- Image '35d679a0.psd' 0x0 0bpp
 
