@@ -266,6 +266,7 @@ class NodeSeparatorViewItem : public BasicTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
+    row.label("", ICON_BLANK1);
     row.label(IFACE_("Separator"), ICON_NONE);
   }
 
