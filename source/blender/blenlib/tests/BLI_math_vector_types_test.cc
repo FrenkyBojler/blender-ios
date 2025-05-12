@@ -324,12 +324,12 @@ TEST(math_vec_types, SwizzleFloat3)
   EXPECT_EQ(v[1], 4);
   EXPECT_EQ(v[2], 3);
   v.xyz = v.yzx;
-  EXPECT_EQ(v[0], 3);
-  EXPECT_EQ(v[1], 4);
+  EXPECT_EQ(v[0], 4);
+  EXPECT_EQ(v[1], 3);
   EXPECT_EQ(v[2], 5);
-  v.xxx = v.xxx;
-  EXPECT_EQ(v[0], 3);
-  EXPECT_EQ(v[1], 4);
+  v.yyy = v.yyy; /* Should never be written, but should not result in UB. */
+  EXPECT_EQ(v[0], 4);
+  EXPECT_EQ(v[1], 3);
   EXPECT_EQ(v[2], 5);
 
   /* Check that component assignment doesn't override all content. */
@@ -389,28 +389,15 @@ TEST(math_vec_types, SwizzleAssignment)
 
   v.yz = a;
   EXPECT_EQ(v.x, 1);
-  EXPECT_EQ(v.y, 8);
-  EXPECT_EQ(v.z, 9);
+  EXPECT_EQ(v.y, 9);
+  EXPECT_EQ(v.z, 8);
   EXPECT_EQ(v.w, 4);
   // v.yzw = b.zxx;  // Should not compile. Non contiguous swizzle.
   v.yzw = b.zzz;
-  EXPECT_EQ(v.x, 7);
+  EXPECT_EQ(v.x, 1);
   EXPECT_EQ(v.y, 5);
   EXPECT_EQ(v.z, 5);
   EXPECT_EQ(v.w, 5);
-
-  /* Assignment from/to non swizzle enabled version of the type. */
-  blender::float4 c(11, 12, 13, 14);
-  v = c;
-  EXPECT_EQ(v.x, 11);
-  EXPECT_EQ(v.y, 12);
-  EXPECT_EQ(v.z, 13);
-  EXPECT_EQ(v.w, 14);
-  c = v;
-  EXPECT_EQ(c.x, 1);
-  EXPECT_EQ(c.y, 2);
-  EXPECT_EQ(c.z, 3);
-  EXPECT_EQ(c.w, 4);
 }
 
 TEST(math_vec_types, SwizzleOperators)
@@ -433,8 +420,8 @@ TEST(math_vec_types, SwizzleOperators)
   EXPECT_EQ(v.z, 4);
   EXPECT_EQ(v.w, 8);
   v.yzw /= 2;
-  EXPECT_EQ(v.x, 1);
-  EXPECT_EQ(v.y, 2);
+  EXPECT_EQ(v.x, 2);
+  EXPECT_EQ(v.y, 1);
   EXPECT_EQ(v.z, 2);
   EXPECT_EQ(v.w, 4);
 
@@ -462,19 +449,19 @@ TEST(math_vec_types, SwizzleOperators)
   EXPECT_EQ(i.w, 1 << 4);
   i.xyz &= 2;
   EXPECT_EQ(i.x, (1 << 1) & 2);
-  EXPECT_EQ(i.y, (1 << 2));
+  EXPECT_EQ(i.y, (1 << 2) & 2);
   EXPECT_EQ(i.z, (1 << 2) & 2);
-  EXPECT_EQ(i.w, (1 << 4) & 2);
+  EXPECT_EQ(i.w, (1 << 4));
   i.yzw |= 2;
-  EXPECT_EQ(i.x, ((1 << 1) & 2) | 2);
-  EXPECT_EQ(i.y, (1 << 2));
+  EXPECT_EQ(i.x, ((1 << 1) & 2));
+  EXPECT_EQ(i.y, ((1 << 2) & 2) | 2);
   EXPECT_EQ(i.z, ((1 << 2) & 2) | 2);
-  EXPECT_EQ(i.w, ((1 << 4) & 2) | 2);
+  EXPECT_EQ(i.w, (1 << 4) | 2);
   i.yz ^= 2;
-  EXPECT_EQ(i.x, ((1 << 1) & 2) | 2);
-  EXPECT_EQ(i.y, (1 << 2));
+  EXPECT_EQ(i.x, ((1 << 1) & 2));
+  EXPECT_EQ(i.y, (((1 << 2) & 2) | 2) ^ 2);
   EXPECT_EQ(i.z, (((1 << 2) & 2) | 2) ^ 2);
-  EXPECT_EQ(i.w, (((1 << 4) & 2) | 2) ^ 2);
+  EXPECT_EQ(i.w, (1 << 4) | 2);
 }
 
 TEST(math_vec_types, SwizzleComparison)
@@ -482,14 +469,14 @@ TEST(math_vec_types, SwizzleComparison)
   int4 a(1, 2, 3, 4);
   int3 b(1, 2, 3);
 
-  // EXPECT_EQ(a.xyzw == a, true);
-  // EXPECT_EQ(a == a.xyzw, true);
-  // EXPECT_EQ(a.wzyx == a.xyzw, false);
-  // EXPECT_EQ(a.xyzw != a, false);
-  // EXPECT_EQ(a != a.xyzw, false);
-  // EXPECT_EQ(a.wzyx != a.xyzw, true);
-  // EXPECT_EQ(a.xyzz == b.xyzz, true);
-  // EXPECT_EQ(a.xyzz != b.xyzz, false);
+  EXPECT_EQ(a.xyzw == a, true);
+  EXPECT_EQ(a == a.xyzw, true);
+  EXPECT_EQ(a.wzyx() == a.xyzw, false);
+  EXPECT_EQ(a.xyzw != a, false);
+  EXPECT_EQ(a != a.xyzw, false);
+  EXPECT_EQ(a.wzyx() != a.xyzw, true);
+  EXPECT_EQ(a.xyzz() == b.xyzz, true);
+  EXPECT_EQ(a.xyzz() != b.xyzz, false);
 }
 
 }  // namespace blender::tests
