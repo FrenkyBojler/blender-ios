@@ -16,12 +16,12 @@
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
-#include "BLI_vector.hh"
 
 #include "BKE_context.hh"
 #include "BKE_paint.hh"
@@ -454,7 +454,7 @@ void apply(bContext &C, GestureData &gesture_data, wmOperator &op)
   operation->begin(C, op, gesture_data);
 
   for (int symmpass = 0; symmpass <= gesture_data.symm; symmpass++) {
-    if (SCULPT_is_symmetry_iteration_valid(symmpass, gesture_data.symm)) {
+    if (is_symmetry_iteration_valid(symmpass, gesture_data.symm)) {
       flip_for_symmetry_pass(gesture_data, ePaintSymmetryFlags(symmpass));
       update_affected_nodes(gesture_data);
 

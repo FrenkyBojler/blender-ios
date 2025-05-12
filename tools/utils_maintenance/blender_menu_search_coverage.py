@@ -8,6 +8,10 @@
 #               --enable-event-simulate \
 #               --python tools/utils_maintenance/blender_menu_search_coverage.py
 
+__all__ = (
+    "main",
+)
+
 import bpy
 
 # Menu-ID -> class.
@@ -145,7 +149,6 @@ OPERATOR_IGNORE = (
     "text.selection_set",
     "ui.*",
     "uv.rip",
-    "uv.rip_move",
     "uv.select",
     "uv.select_edge_ring",
     "uv.select_lasso",

@@ -14,6 +14,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_vector.h"
 #include "BLI_rand.hh"
 #include "BLI_utildefines.h"
 
@@ -59,6 +60,14 @@ struct PaintSample {
   float pressure;
 };
 
+/**
+ * Common structure for various paint operators (e.g. Sculpt, Grease Pencil, Curves Sculpt)
+ *
+ * Callback functions defined and stored on this struct (e.g. `StrokeGetLocation`) allow each of
+ * these modes to customize specific behavior while still sharing other common handing.
+ *
+ * See #paint_stroke_modal for the majority of the paint operator logic.
+ */
 struct PaintStroke {
   std::unique_ptr<PaintModeData> mode_data;
   void *stroke_cursor;
@@ -110,8 +119,7 @@ struct PaintStroke {
   bool pen_flip;
 
   /* Tilt, as read from the event. */
-  float x_tilt;
-  float y_tilt;
+  float2 tilt;
 
   /* line constraint */
   bool constrain_line;
@@ -127,7 +135,10 @@ struct PaintStroke {
 };
 
 /*** Cursors ***/
-static void paint_draw_smooth_cursor(bContext *C, const int x, const int y, void *customdata)
+static void paint_draw_smooth_cursor(bContext *C,
+                                     const blender::int2 &xy,
+                                     const blender::float2 & /*tilt*/,
+                                     void *customdata)
 {
   const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
@@ -150,7 +161,7 @@ static void paint_draw_smooth_cursor(bContext *C, const int x, const int y, void
     immUniformColor4ubv(paint->paint_cursor_col);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2f(pos, x, y);
+    immVertex2fv(pos, blender::float2(xy));
     immVertex2f(pos,
                 stroke->last_mouse_position[0] + region->winrct.xmin,
                 stroke->last_mouse_position[1] + region->winrct.ymin);
@@ -164,7 +175,10 @@ static void paint_draw_smooth_cursor(bContext *C, const int x, const int y, void
   }
 }
 
-static void paint_draw_line_cursor(bContext *C, const int x, const int y, void *customdata)
+static void paint_draw_line_cursor(bContext *C,
+                                   const blender::int2 &xy,
+                                   const blender::float2 & /*tilt*/,
+                                   void *customdata)
 {
   const Paint *paint = BKE_paint_get_active_from_context(C);
   PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
@@ -205,7 +219,7 @@ static void paint_draw_line_cursor(bContext *C, const int x, const int y, void *
                 stroke->last_mouse_position[0] + region->winrct.xmin,
                 stroke->last_mouse_position[1] + region->winrct.ymin);
 
-    immVertex2f(shdr_pos, x, y);
+    immVertex2iv(shdr_pos, xy);
   }
 
   immEnd();
@@ -625,8 +639,8 @@ static void paint_brush_stroke_add_step(
     /* Original mouse coordinates. */
     RNA_float_set_array(&itemptr, "mouse_event", mval);
     RNA_float_set(&itemptr, "pressure", pressure);
-    RNA_float_set(&itemptr, "x_tilt", stroke->x_tilt);
-    RNA_float_set(&itemptr, "y_tilt", stroke->y_tilt);
+    RNA_float_set(&itemptr, "x_tilt", stroke->tilt.x);
+    RNA_float_set(&itemptr, "y_tilt", stroke->tilt.y);
 
     stroke->update_step(C, op, stroke, &itemptr);
 
@@ -1050,7 +1064,7 @@ bool paint_space_stroke_enabled(const Brush &br, const PaintMode mode)
     return false;
   }
 
-  if (ELEM(mode, PaintMode::GPencil, PaintMode::SculptGreasePencil)) {
+  if (ELEM(mode, PaintMode::GPencil, PaintMode::SculptGPencil)) {
     /* No spacing needed for now. */
     return false;
   }
@@ -1158,7 +1172,7 @@ bool paint_supports_dynamic_tex_coords(const Brush &br, const PaintMode mode)
 
 wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf)
 {
-  static EnumPropertyItem modal_items[] = {
+  static const EnumPropertyItem modal_items[] = {
       {PAINT_STROKE_MODAL_CANCEL, "CANCEL", 0, "Cancel", "Cancel and undo a stroke in progress"},
       {0}};
 
@@ -1445,7 +1459,10 @@ static void paint_stroke_line_constrain(PaintStroke *stroke, float2 &mouse)
   }
 }
 
-int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p)
+wmOperatorStatus paint_stroke_modal(bContext *C,
+                                    wmOperator *op,
+                                    const wmEvent *event,
+                                    PaintStroke **stroke_p)
 {
   const Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -1484,8 +1501,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
 
   /* Tilt. */
   if (WM_event_is_tablet(event)) {
-    stroke->x_tilt = event->tablet.x_tilt;
-    stroke->y_tilt = event->tablet.y_tilt;
+    stroke->tilt = event->tablet.tilt;
   }
 
 #ifdef WITH_INPUT_NDOF
@@ -1559,6 +1575,27 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
       paint_stroke_cancel(C, op, stroke);
     }
     return OPERATOR_CANCELLED;
+  }
+
+  /* Handles shift-key active smooth toggling during a grease pencil stroke. */
+  if (mode == PaintMode::GPencil) {
+    if (event->modifier & KM_SHIFT) {
+      stroke->stroke_mode = BRUSH_STROKE_SMOOTH;
+      if (!stroke->stroke_cursor) {
+        stroke->stroke_cursor = WM_paint_cursor_activate(SPACE_TYPE_ANY,
+                                                         RGN_TYPE_ANY,
+                                                         paint_brush_cursor_poll,
+                                                         paint_draw_smooth_cursor,
+                                                         stroke);
+      }
+    }
+    else {
+      stroke->stroke_mode = BRUSH_STROKE_NORMAL;
+      if (stroke->stroke_cursor != nullptr) {
+        WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke->stroke_cursor));
+        stroke->stroke_cursor = nullptr;
+      }
+    }
   }
 
   float2 mouse;
@@ -1650,7 +1687,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
   return OPERATOR_RUNNING_MODAL;
 }
 
-int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
+wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
   /* only when executed for the first time */
   if (!stroke->stroke_started) {
@@ -1664,9 +1701,24 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
     }
   }
 
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
+  const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
+                                 stroke->get_location;
   if (stroke->stroke_started) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
-      stroke->update_step(C, op, stroke, &itemptr);
+      if (override_location) {
+        float2 mval;
+        RNA_float_get_array(&itemptr, "mouse_event", mval);
+
+        float3 location;
+        if (stroke->get_location(C, location, mval, false)) {
+          RNA_float_set_array(&itemptr, "location", location);
+          stroke->update_step(C, op, stroke, &itemptr);
+        }
+      }
+      else {
+        stroke->update_step(C, op, stroke, &itemptr);
+      }
     }
     RNA_END;
   }

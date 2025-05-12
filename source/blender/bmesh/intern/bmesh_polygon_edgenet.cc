@@ -13,7 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_linklist_stack.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -474,8 +474,7 @@ bool BM_face_split_edgenet(BMesh *bm,
    * large for single faces with complex edge-nets, see: #65980. */
 
   /* over-alloc (probably 2-4 is only used in most cases), for the biggest-fan */
-  edge_order = static_cast<VertOrder *>(
-      MEM_mallocN(sizeof(*edge_order) * edge_order_len, __func__));
+  edge_order = MEM_malloc_arrayN<VertOrder>(edge_order_len, __func__);
 
   /* use later */
   face_verts = static_cast<BMVert **>(

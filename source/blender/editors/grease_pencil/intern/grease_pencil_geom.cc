@@ -7,11 +7,10 @@
  */
 
 #include <algorithm>
-#include <limits>
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -209,12 +208,13 @@ int curve_merge_by_distance(const IndexRange points,
   return duplicate_count;
 }
 
-/* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
 blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curves,
                                                       const float merge_distance,
                                                       const IndexMask &selection,
                                                       const bke::AttributeFilter &attribute_filter)
 {
+  /* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
+
   const int src_point_size = src_curves.points_num();
   if (src_point_size == 0) {
     return {};
@@ -317,6 +317,7 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
             dst_attributes.lookup_or_add_for_write_only_span<T>(iter.name, bke::AttrDomain::Point);
+        BLI_assert(dst_attribute);
         VArraySpan<T> src = src_attribute.varray.typed<T>();
 
         threading::parallel_for(dst_curves.points_range(), 1024, [&](IndexRange range) {
@@ -357,6 +358,8 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
 
   Array<float2> screen_start_points(src_curves.curves_num());
   Array<float2> screen_end_points(src_curves.curves_num());
+  const VArray<bool> cyclic = *src_curves.attributes().lookup_or_default<bool>(
+      "cyclic", bke::AttrDomain::Curve, false);
   /* For comparing screen space positions use a 2D KDTree. Each curve adds 2 points. */
   KDTree_2d *tree = BLI_kdtree_2d_new(2 * src_curves.curves_num());
 
@@ -376,6 +379,9 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
   });
   /* Note: KDTree insertion is not thread-safe, don't parallelize this. */
   for (const int src_i : src_curves.curves_range()) {
+    if (cyclic[src_i] == true) {
+      continue;
+    }
     BLI_kdtree_2d_insert(tree, src_i * 2, screen_start_points[src_i]);
     BLI_kdtree_2d_insert(tree, src_i * 2 + 1, screen_end_points[src_i]);
   }
@@ -954,7 +960,7 @@ static float get_intersection_distance_of_segments(const float2 &co_a,
   const float b2 = co_c[0] - co_d[0];
   const float c2 = a2 * co_c[0] + b2 * co_c[1];
 
-  const float det = float(a1 * b2 - a2 * b1);
+  const float det = (a1 * b2 - a2 * b1);
   if (det == 0.0f) {
     return 0.0f;
   }

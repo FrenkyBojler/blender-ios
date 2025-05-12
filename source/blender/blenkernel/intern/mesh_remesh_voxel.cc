@@ -13,8 +13,6 @@
 #include <cstring>
 #include <ctime>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
@@ -26,15 +24,13 @@
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.hh"
-#include "BKE_customdata.hh"
-#include "BKE_editmesh.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_remesh_voxel.hh" /* own include */
-#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_sample.hh"
+#include "BKE_modifier.hh"
+#include "BKE_report.hh"
 
+#include "bmesh.hh"
 #include "bmesh_tools.hh"
 
 #ifdef WITH_OPENVDB
@@ -170,8 +166,8 @@ Mesh *BKE_mesh_remesh_quadriflow(const Mesh *mesh,
 }
 
 #ifdef WITH_OPENVDB
-static openvdb::FloatGrid::Ptr remesh_voxel_level_set_create(const Mesh *mesh,
-                                                             const float voxel_size)
+static openvdb::FloatGrid::Ptr remesh_voxel_level_set_create(
+    const Mesh *mesh, openvdb::math::Transform::Ptr transform)
 {
   const Span<float3> positions = mesh->vert_positions();
   const Span<int> corner_verts = mesh->corner_verts();
@@ -191,8 +187,6 @@ static openvdb::FloatGrid::Ptr remesh_voxel_level_set_create(const Mesh *mesh,
         corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]);
   }
 
-  openvdb::math::Transform::Ptr transform = openvdb::math::Transform::createLinearTransform(
-      voxel_size);
   openvdb::FloatGrid::Ptr grid = openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(
       *transform, points, triangles, 1.0f);
 
@@ -253,15 +247,57 @@ static Mesh *remesh_voxel_volume_to_mesh(const openvdb::FloatGrid::Ptr level_set
 Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
                             const float voxel_size,
                             const float adaptivity,
-                            const float isovalue)
+                            const float isovalue,
+                            const Object *object,
+                            ModifierData *modifier_data)
 {
 #ifdef WITH_OPENVDB
-  openvdb::FloatGrid::Ptr level_set = remesh_voxel_level_set_create(mesh, voxel_size);
+  openvdb::math::Transform::Ptr transform;
+  try {
+    transform = openvdb::math::Transform::createLinearTransform(voxel_size);
+  }
+  catch (const openvdb::ArithmeticError & /*e*/) {
+    /* OpenVDB internally has a limit of 3e-15 for the matrix's determinant and throws
+     * ArithmeticError if the provided value is too low.
+     * See #136637 for more details. */
+    BKE_modifier_set_error(
+        object, modifier_data, "Voxel size of %f too small to be solved", voxel_size);
+    return nullptr;
+  }
+  openvdb::FloatGrid::Ptr level_set = remesh_voxel_level_set_create(mesh, transform);
   Mesh *result = remesh_voxel_volume_to_mesh(level_set, isovalue, adaptivity, false);
   BKE_mesh_copy_parameters(result, mesh);
   return result;
 #else
-  UNUSED_VARS(mesh, voxel_size, adaptivity, isovalue);
+  UNUSED_VARS(mesh, voxel_size, adaptivity, isovalue, object, modifier_data);
+  return nullptr;
+#endif
+}
+
+Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
+                            const float voxel_size,
+                            const float adaptivity,
+                            const float isovalue,
+                            ReportList *reports)
+{
+#ifdef WITH_OPENVDB
+  openvdb::math::Transform::Ptr transform;
+  try {
+    transform = openvdb::math::Transform::createLinearTransform(voxel_size);
+  }
+  catch (const openvdb::ArithmeticError & /*e*/) {
+    /* OpenVDB internally has a limit of 3e-15 for the matrix's determinant and throws
+     * ArithmeticError if the provided value is too low.
+     * See #136637 for more details. */
+    BKE_reportf(reports, RPT_ERROR, "Voxel size of %f too small to be solved", voxel_size);
+    return nullptr;
+  }
+  openvdb::FloatGrid::Ptr level_set = remesh_voxel_level_set_create(mesh, transform);
+  Mesh *result = remesh_voxel_volume_to_mesh(level_set, isovalue, adaptivity, false);
+  BKE_mesh_copy_parameters(result, mesh);
+  return result;
+#else
+  UNUSED_VARS(mesh, voxel_size, adaptivity, isovalue, reports);
   return nullptr;
 #endif
 }
@@ -520,8 +556,7 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
    * the decisions made here, which mainly results in easier refactoring, more generic code, and
    * possibly improved performance from lower cache usage in the "complex" sampling part of the
    * algorithm and the copying itself. */
-  BVHTreeFromMesh bvhtree{};
-  BKE_bvhtree_from_mesh_get(&bvhtree, &src, BVHTREE_FROM_CORNER_TRIS, 2);
+  BVHTreeFromMesh bvhtree = src.bvh_corner_tris();
 
   const Span<float3> dst_positions = dst.vert_positions();
   const OffsetIndices dst_faces = dst.faces();
@@ -586,8 +621,6 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   if (src.default_color_attribute) {
     BKE_id_attributes_default_color_set(&dst.id, src.default_color_attribute);
   }
-
-  free_bvhtree_from_mesh(&bvhtree);
 }
 
 }  // namespace blender::bke

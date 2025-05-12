@@ -245,9 +245,13 @@ typedef struct FMod_Noise {
   float strength;
   float phase;
   float offset;
+  float roughness;
+  float lacunarity;
 
   short depth;
   short modification;
+  char legacy_noise;
+  char _pad[3];
 } FMod_Noise;
 
 /* modification modes */
@@ -685,6 +689,7 @@ typedef enum eFCurve_Flags {
   /** temporary tag for editing */
   FCURVE_TAGGED = (1 << 15),
 } eFCurve_Flags;
+ENUM_OPERATORS(eFCurve_Flags, FCURVE_TAGGED);
 
 /* extrapolation modes (only simple value 'extending') */
 typedef enum eFCurve_Extend {
