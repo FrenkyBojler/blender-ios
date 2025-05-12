@@ -253,9 +253,15 @@ class NodeSeparatorViewItem : public BasicTreeViewItem {
   friend NodeSeparatorDropTarget;
 
  public:
-  NodeSeparatorViewItem(const int index, bNodeTreeInterfaceSeparator &separator)
-      : BasicTreeViewItem(std::to_string(index)), separator_(separator)
+  NodeSeparatorViewItem(bNodeTree &ntree, bNodeTreeInterfaceSeparator &separator)
+      : BasicTreeViewItem("Separator"), separator_(separator)
   {
+    set_is_active_fn(
+        [&ntree, &separator]() { return ntree.tree_interface.active_item() == &separator.item; });
+    set_on_activate_fn([&ntree](bContext & /*C*/, BasicTreeViewItem &new_active) {
+      NodeSeparatorViewItem &self = static_cast<NodeSeparatorViewItem &>(new_active);
+      ntree.tree_interface.active_item_set(&self.separator_.item);
+    });
   }
 
   void build_row(uiLayout &row) override
@@ -299,7 +305,6 @@ class NodeTreeInterfaceView : public AbstractTreeView {
                                      ui::TreeViewOrItem &parent_item,
                                      const bNodeTreeInterfaceItem *skip_item = nullptr)
   {
-    int separator_index = 0;
     for (bNodeTreeInterfaceItem *item : parent.items()) {
       if (item == skip_item) {
         continue;
@@ -328,7 +333,7 @@ class NodeTreeInterfaceView : public AbstractTreeView {
         case NODE_INTERFACE_SEPARATOR: {
           bNodeTreeInterfaceSeparator *separator =
               node_interface::get_item_as<bNodeTreeInterfaceSeparator>(item);
-          parent_item.add_tree_item<NodeSeparatorViewItem>(separator_index++, *separator);
+          parent_item.add_tree_item<NodeSeparatorViewItem>(nodetree_, *separator);
           break;
         }
       }
