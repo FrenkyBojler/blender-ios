@@ -50,10 +50,10 @@ void GPU_exit()
   BKE_material_defaults_free_gpu();
   GPU_shader_free_builtin_shaders();
 
+  gpu_backend_delete_resources();
+
   gpu_shader_dependency_exit();
   gpu_shader_create_info_exit();
-
-  gpu_backend_delete_resources();
 
   initialized = false;
 }
