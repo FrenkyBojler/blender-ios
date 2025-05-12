@@ -214,6 +214,7 @@ def report_personal_weekly_get(
                             hash_value = hash_value[:hash_length]
 
                         branch_name = activity["ref_name"].removeprefix("refs/heads/")
+                        is_release_branch = re.match(r"^blender-v(?:\d+\.\d+)(?:\.\d+)?-release$", branch_name)
 
                         pr = None
 
@@ -240,7 +241,7 @@ def report_personal_weekly_get(
                             target_repo.branches[branch_name] = Branch(repo_fullname, [])
                             # If we see this branch for the first time, try to find a PR for it. Only catches PRs made
                             # against the default branch of the target repository.
-                            if target_repo_json:
+                            if not is_release_branch and target_repo_json:
                                 pr = gitea_json_pull_request_by_base_and_head_get(
                                     target_repo_fullname, target_repo_json["default_branch"], f"{repo_fullname}:{branch_name}")
                         branch = target_repo.branches[branch_name]
