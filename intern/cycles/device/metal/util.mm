@@ -12,9 +12,9 @@
 #  include "util/time.h"
 
 #  include <IOKit/IOKitLib.h>
+#  include <ctime>
 #  include <pwd.h>
 #  include <sys/shm.h>
-#  include <time.h>
 
 CCL_NAMESPACE_BEGIN
 
@@ -36,7 +36,7 @@ int MetalInfo::get_apple_gpu_core_count(id<MTLDevice> device)
     io_service_t gpu_service = IOServiceGetMatchingService(
         kIOMainPortDefault, IORegistryEntryIDMatching(device.registryID));
     if (CFNumberRef numberRef = (CFNumberRef)IORegistryEntryCreateCFProperty(
-            gpu_service, CFSTR("gpu-core-count"), 0, 0))
+            gpu_service, CFSTR("gpu-core-count"), nullptr, 0))
     {
       if (CFGetTypeID(numberRef) == CFNumberGetTypeID()) {
         CFNumberGetValue(numberRef, kCFNumberSInt32Type, &core_count);
@@ -53,10 +53,10 @@ AppleGPUArchitecture MetalInfo::get_apple_gpu_architecture(id<MTLDevice> device)
   if (strstr(device_name, "M1")) {
     return APPLE_M1;
   }
-  else if (strstr(device_name, "M2")) {
+  if (strstr(device_name, "M2")) {
     return get_apple_gpu_core_count(device) <= 10 ? APPLE_M2 : APPLE_M2_BIG;
   }
-  else if (strstr(device_name, "M3")) {
+  if (strstr(device_name, "M3")) {
     return APPLE_M3;
   }
   return APPLE_UNKNOWN;
@@ -64,7 +64,7 @@ AppleGPUArchitecture MetalInfo::get_apple_gpu_architecture(id<MTLDevice> device)
 
 int MetalInfo::optimal_sort_partition_elements()
 {
-  if (auto str = getenv("CYCLES_METAL_SORT_PARTITION_ELEMENTS")) {
+  if (auto *str = getenv("CYCLES_METAL_SORT_PARTITION_ELEMENTS")) {
     return atoi(str);
   }
 
@@ -75,7 +75,7 @@ int MetalInfo::optimal_sort_partition_elements()
   return 65536;
 }
 
-vector<id<MTLDevice>> const &MetalInfo::get_usable_devices()
+const vector<id<MTLDevice>> &MetalInfo::get_usable_devices()
 {
   static vector<id<MTLDevice>> usable_devices;
   static bool already_enumerated = false;
@@ -95,7 +95,9 @@ vector<id<MTLDevice>> const &MetalInfo::get_usable_devices()
           strstr(device_name_char, "Apple"))
       {
         /* TODO: Implement a better way to identify device vendor instead of relying on name. */
-        usable = true;
+        /* We only support Apple Silicon GPUs which all have unified memory, but explicitly check
+         * just in case it ever changes. */
+        usable = [device hasUnifiedMemory];
       }
     }
 
@@ -119,57 +121,34 @@ vector<id<MTLDevice>> const &MetalInfo::get_usable_devices()
 id<MTLBuffer> MetalBufferPool::get_buffer(id<MTLDevice> device,
                                           id<MTLCommandBuffer> command_buffer,
                                           NSUInteger length,
-                                          MTLResourceOptions options,
                                           const void *pointer,
                                           Stats &stats)
 {
-  id<MTLBuffer> buffer;
-
-  MTLStorageMode storageMode = MTLStorageMode((options & MTLResourceStorageModeMask) >>
-                                              MTLResourceStorageModeShift);
-  MTLCPUCacheMode cpuCacheMode = MTLCPUCacheMode((options & MTLResourceCPUCacheModeMask) >>
-                                                 MTLResourceCPUCacheModeShift);
-
-  buffer_mutex.lock();
-  for (auto entry = buffer_free_list.begin(); entry != buffer_free_list.end(); entry++) {
-    MetalBufferListEntry bufferEntry = *entry;
-
-    /* Check if buffer matches size and storage mode and is old enough to reuse */
-    if (bufferEntry.buffer.length == length && storageMode == bufferEntry.buffer.storageMode &&
-        cpuCacheMode == bufferEntry.buffer.cpuCacheMode)
-    {
-      buffer = bufferEntry.buffer;
-      buffer_free_list.erase(entry);
-      bufferEntry.command_buffer = command_buffer;
-      buffer_in_use_list.push_back(bufferEntry);
-      buffer_mutex.unlock();
-
-      /* Copy over data */
-      if (pointer) {
-        memcpy(buffer.contents, pointer, length);
-        if (bufferEntry.buffer.storageMode == MTLStorageModeManaged) {
-          [buffer didModifyRange:NSMakeRange(0, length)];
-        }
+  id<MTLBuffer> buffer = nil;
+  {
+    thread_scoped_lock lock(buffer_mutex);
+    /* Find an unused buffer with matching size and storage mode. */
+    for (MetalBufferListEntry &bufferEntry : temp_buffers) {
+      if (bufferEntry.buffer.length == length && bufferEntry.command_buffer == nil) {
+        buffer = bufferEntry.buffer;
+        bufferEntry.command_buffer = command_buffer;
+        break;
       }
-
-      return buffer;
+    }
+    if (!buffer) {
+      /* Create a new buffer and add it to the pool. Typically this pool will only grow to a
+       * handful of entries. */
+      buffer = [device newBufferWithLength:length options:MTLResourceStorageModeShared];
+      stats.mem_alloc(buffer.allocatedSize);
+      total_temp_mem_size += buffer.allocatedSize;
+      temp_buffers.push_back(MetalBufferListEntry{buffer, command_buffer});
     }
   }
-  // NSLog(@"Creating buffer of length %lu (%lu)", length, frameCount);
+
+  /* Copy over data */
   if (pointer) {
-    buffer = [device newBufferWithBytes:pointer length:length options:options];
+    memcpy(buffer.contents, pointer, length);
   }
-  else {
-    buffer = [device newBufferWithLength:length options:options];
-  }
-
-  MetalBufferListEntry buffer_entry(buffer, command_buffer);
-
-  stats.mem_alloc(buffer.allocatedSize);
-
-  total_temp_mem_size += buffer.allocatedSize;
-  buffer_in_use_list.push_back(buffer_entry);
-  buffer_mutex.unlock();
 
   return buffer;
 }
@@ -178,16 +157,10 @@ void MetalBufferPool::process_command_buffer_completion(id<MTLCommandBuffer> com
 {
   assert(command_buffer);
   thread_scoped_lock lock(buffer_mutex);
-  /* Release all buffers that have not been recently reused back into the free pool */
-  for (auto entry = buffer_in_use_list.begin(); entry != buffer_in_use_list.end();) {
-    MetalBufferListEntry buffer_entry = *entry;
+  /* Mark any temp buffers associated with command_buffer as unused. */
+  for (MetalBufferListEntry &buffer_entry : temp_buffers) {
     if (buffer_entry.command_buffer == command_buffer) {
-      entry = buffer_in_use_list.erase(entry);
       buffer_entry.command_buffer = nil;
-      buffer_free_list.push_back(buffer_entry);
-    }
-    else {
-      entry++;
     }
   }
 }
@@ -196,16 +169,12 @@ MetalBufferPool::~MetalBufferPool()
 {
   thread_scoped_lock lock(buffer_mutex);
   /* Release all buffers that have not been recently reused */
-  for (auto entry = buffer_free_list.begin(); entry != buffer_free_list.end();) {
-    MetalBufferListEntry buffer_entry = *entry;
-
-    id<MTLBuffer> buffer = buffer_entry.buffer;
-    // NSLog(@"Releasing buffer of length %lu (%lu) (%lu outstanding)", buffer.length, frameCount,
-    // bufferFreeList.size());
-    total_temp_mem_size -= buffer.allocatedSize;
-    [buffer release];
-    entry = buffer_free_list.erase(entry);
+  for (MetalBufferListEntry &buffer_entry : temp_buffers) {
+    total_temp_mem_size -= buffer_entry.buffer.allocatedSize;
+    [buffer_entry.buffer release];
+    buffer_entry.buffer = nil;
   }
+  temp_buffers.clear();
 }
 
 CCL_NAMESPACE_END

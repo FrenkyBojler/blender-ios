@@ -24,16 +24,15 @@ struct bNodeTree;
  * World defines general modeling data such as a background fill,
  * gravity, color model etc. It mixes rendering data and modeling data. */
 typedef struct World {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(World)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_WO;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /**
-   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
-   * DRW_drawdatalist_from_id to understand this requirement.
-   */
-  DrawDataList drawdata;
 
   char _pad0[4];
   short texact, mistype;
@@ -91,8 +90,13 @@ typedef struct World {
   /** Light-group membership information. */
   struct LightgroupMembership *lightgroup;
 
+  void *_pad1;
+
   /** Runtime. */
   ListBase gpumaterial;
+  /* The Depsgraph::update_count when this World was last updated. */
+  uint64_t last_update;
+
 } World;
 
 /* **************** WORLD ********************* */

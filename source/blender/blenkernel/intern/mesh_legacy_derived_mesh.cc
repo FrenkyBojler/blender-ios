@@ -10,9 +10,6 @@
 #include "BKE_customdata.hh"
 #include "BKE_mesh_legacy_derived_mesh.hh"
 
-struct MeshElemMap;
-struct PBVH;
-
 /* -------------------------------------------------------------------- */
 
 static float *dm_getVertArray(DerivedMesh *dm)
@@ -76,7 +73,7 @@ static int *dm_getCornerEdgeArray(DerivedMesh *dm)
 static int *dm_getPolyArray(DerivedMesh *dm)
 {
   if (!dm->face_offsets) {
-    dm->face_offsets = MEM_cnew_array<int>(dm->getNumPolys(dm) + 1, __func__);
+    dm->face_offsets = MEM_calloc_arrayN<int>(dm->getNumPolys(dm) + 1, __func__);
     dm->copyPolyArray(dm, dm->face_offsets);
   }
   return dm->face_offsets;
@@ -132,12 +129,16 @@ void DM_from_template(DerivedMesh *dm,
                       int numPolys)
 {
   const CustomData_MeshMasks *mask = &CD_MASK_DERIVEDMESH;
-  CustomData_copy_layout(&source->vertData, &dm->vertData, mask->vmask, CD_SET_DEFAULT, numVerts);
-  CustomData_copy_layout(&source->edgeData, &dm->edgeData, mask->emask, CD_SET_DEFAULT, numEdges);
-  CustomData_copy_layout(
+  CustomData_init_layout_from(
+      &source->vertData, &dm->vertData, mask->vmask, CD_SET_DEFAULT, numVerts);
+  CustomData_init_layout_from(
+      &source->edgeData, &dm->edgeData, mask->emask, CD_SET_DEFAULT, numEdges);
+  CustomData_init_layout_from(
       &source->faceData, &dm->faceData, mask->fmask, CD_SET_DEFAULT, numTessFaces);
-  CustomData_copy_layout(&source->loopData, &dm->loopData, mask->lmask, CD_SET_DEFAULT, numLoops);
-  CustomData_copy_layout(&source->polyData, &dm->polyData, mask->pmask, CD_SET_DEFAULT, numPolys);
+  CustomData_init_layout_from(
+      &source->loopData, &dm->loopData, mask->lmask, CD_SET_DEFAULT, numLoops);
+  CustomData_init_layout_from(
+      &source->polyData, &dm->polyData, mask->pmask, CD_SET_DEFAULT, numPolys);
   dm->face_offsets = static_cast<int *>(MEM_dupallocN(source->face_offsets));
 
   dm->type = type;
@@ -152,11 +153,11 @@ void DM_from_template(DerivedMesh *dm,
 
 void DM_release(DerivedMesh *dm)
 {
-  CustomData_free(&dm->vertData, dm->numVertData);
-  CustomData_free(&dm->edgeData, dm->numEdgeData);
-  CustomData_free(&dm->faceData, dm->numTessFaceData);
-  CustomData_free(&dm->loopData, dm->numLoopData);
-  CustomData_free(&dm->polyData, dm->numPolyData);
+  CustomData_free(&dm->vertData);
+  CustomData_free(&dm->edgeData);
+  CustomData_free(&dm->faceData);
+  CustomData_free(&dm->loopData);
+  CustomData_free(&dm->polyData);
   MEM_SAFE_FREE(dm->face_offsets);
 }
 
@@ -284,7 +285,7 @@ static void cdDM_release(DerivedMesh *dm)
 /**************** CDDM interface functions ****************/
 static CDDerivedMesh *cdDM_create(const char *desc)
 {
-  CDDerivedMesh *cddm = MEM_cnew<CDDerivedMesh>(desc);
+  CDDerivedMesh *cddm = MEM_callocN<CDDerivedMesh>(desc);
   DerivedMesh *dm = &cddm->dm;
 
   dm->getNumVerts = cdDM_getNumVerts;
@@ -314,7 +315,7 @@ static DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh, const CustomData_MeshMasks *ma
 
   cddata_masks.lmask &= ~CD_MASK_MDISPS;
 
-  /* this does a referenced copy, with an exception for fluidsim */
+  /* This does a referenced copy, with an exception for fluid-simulation. */
 
   DM_init(dm,
           DM_TYPE_CDDM,

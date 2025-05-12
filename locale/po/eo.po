@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Beta (b'37e2a27bdddc')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-06-24 08:56+0000\n"
-"PO-Revision-Date: 2024-04-29 13:46+0000\n"
+"POT-Creation-Date: 2025-05-05 08:47+0000\n"
+"PO-Revision-Date: 2025-04-14 08:15+0000\n"
 "Last-Translator: william sélifet <williamselifet@live.be>\n"
 "Language-Team: Esperanto <https://translate.blender.org/projects/blender-ui/ui/eo/>\n"
 "Language: eo\n"
@@ -12,11 +12,15 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.0.1"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Name"
 msgstr "Nomo"
+
+
+msgid "F-Curves"
+msgstr "F-Kurbecoj"
 
 
 msgid "Select"
@@ -51,14 +55,6 @@ msgid "Window"
 msgstr "Fenestro"
 
 
-msgid "Edit Mode"
-msgstr "Prilaborado Modo"
-
-
-msgid "F-Curves"
-msgstr "F-Kurbecoj"
-
-
 msgid "B-Bone"
 msgstr "B-osto"
 
@@ -73,6 +69,10 @@ msgstr "Ligiloj"
 
 msgid "Object Mode"
 msgstr "Objekto Modo"
+
+
+msgid "Edit Mode"
+msgstr "Prilaborado Modo"
 
 
 msgid "Sculpt Mode"

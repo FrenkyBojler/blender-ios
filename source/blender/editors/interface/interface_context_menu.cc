@@ -12,22 +12,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "BKE_addon.h"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_screen.hh"
 
 #include "ED_asset.hh"
+#include "ED_buttons.hh"
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
 
@@ -38,11 +37,11 @@
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "WM_api.hh"
@@ -114,6 +113,13 @@ static const char *shortcut_get_operator_property(bContext *C, uiBut *but, IDPro
     return "WM_OT_call_menu";
   }
 
+  if (std::optional asset_shelf_idname = UI_but_asset_shelf_type_idname_get(but)) {
+    IDProperty *prop = blender::bke::idprop::create_group(__func__).release();
+    IDP_AddToGroup(prop, bke::idprop::create("name", *asset_shelf_idname).release());
+    *r_prop = prop;
+    return "WM_OT_call_asset_shelf_popover";
+  }
+
   if (PanelType *pt = UI_but_paneltype_get(but)) {
     IDProperty *prop = blender::bke::idprop::create_group(__func__).release();
     IDP_AddToGroup(prop, bke::idprop::create("name", pt->idname).release());
@@ -176,9 +182,9 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 
   BLI_assert(kmi != nullptr);
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, &RNA_KeyMapItem, kmi);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
   UI_block_func_handle_set(block, but_shortcut_name_func, but);
   UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
   UI_block_direction_set(block, UI_DIR_CENTER_Y);
@@ -193,8 +199,8 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
                                      0,
                                      style);
 
-  uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"), ICON_HAND);
-  uiItemR(layout, &ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
+  layout->label(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"), ICON_HAND);
+  layout->prop(&ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 
   const int bounds_offset[2] = {int(-100 * UI_SCALE_FAC), int(36 * UI_SCALE_FAC)};
   UI_block_bounds_set_popup(block, 6 * UI_SCALE_FAC, bounds_offset);
@@ -237,9 +243,9 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   km = WM_keymap_guess_opname(C, idname);
   kmi = WM_keymap_item_find_id(km, kmi_id);
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, &RNA_KeyMapItem, kmi);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
   UI_block_func_handle_set(block, but_shortcut_name_func, but);
   UI_block_direction_set(block, UI_DIR_CENTER_Y);
 
@@ -253,8 +259,8 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
                                      0,
                                      style);
 
-  uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut"), ICON_HAND);
-  uiItemR(layout, &ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
+  layout->label(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut"), ICON_HAND);
+  layout->prop(&ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 
   const int bounds_offset[2] = {int(-100 * UI_SCALE_FAC), int(36 * UI_SCALE_FAC)};
   UI_block_bounds_set_popup(block, 6 * UI_SCALE_FAC, bounds_offset);
@@ -412,12 +418,12 @@ static void ui_but_user_menu_add(bContext *C, uiBut *but, bUserMenu *um)
           }
         }
 #else
-        STRNCPY(drawstr, idname);
+        drawstr = idname;
 #endif
       }
-      else if (but->tip_label_func) {
+      else if (but->tip_quick_func) {
         /* The "quick tooltip" often contains a short string that can be used as a fallback. */
-        drawstr = but->tip_label_func(but);
+        drawstr = but->tip_quick_func(but);
       }
     }
     ED_screen_user_menu_item_add_operator(
@@ -1070,14 +1076,16 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
   {
     const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
-    uiButViewItem *view_item_but = (uiButViewItem *)ui_view_item_find_mouse_over(region,
-                                                                                 event->xy);
+    uiButViewItem *view_item_but = (but->type == UI_BTYPE_VIEW_ITEM) ?
+                                       static_cast<uiButViewItem *>(but) :
+                                       static_cast<uiButViewItem *>(
+                                           ui_view_item_find_mouse_over(region, event->xy));
     if (view_item_but) {
       BLI_assert(view_item_but->type == UI_BTYPE_VIEW_ITEM);
 
       const bContextStore *prev_ctx = CTX_store_get(C);
       /* Sub-layout for context override. */
-      uiLayout *sub = uiLayoutColumn(layout, false);
+      uiLayout *sub = &layout->column(false);
       set_layout_context_from_button(C, sub, view_item_but);
       view_item_but->view_item->build_context_menu(*C, *sub);
 
@@ -1088,32 +1096,39 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     }
   }
 
-  /* If the button represents an id, it can set the "id" context pointer. */
-  if (asset::can_mark_single_from_context(C)) {
-    const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
+  /* Expose id specific operators in context menu when button has no operator associated. Otherwise
+   * they would appear in nested context menus, see: #126006. */
+  if ((but->optype == nullptr) && (but->apply_func == nullptr) &&
+      (but->menu_create_func == nullptr))
+  {
+    /* If the button represents an id, it can set the "id" context pointer. */
+    if (asset::can_mark_single_from_context(C)) {
+      const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
 
-    /* Gray out items depending on if data-block is an asset. Preferably this could be done via
-     * operator poll, but that doesn't work since the operator also works with "selected_ids",
-     * which isn't cheap to check. */
-    uiLayout *sub = uiLayoutColumn(layout, true);
-    uiLayoutSetEnabled(sub, !id->asset_data);
-    uiItemO(sub,
-            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark as Asset"),
-            ICON_ASSET_MANAGER,
-            "ASSET_OT_mark_single");
-    sub = uiLayoutColumn(layout, true);
-    uiLayoutSetEnabled(sub, id->asset_data);
-    uiItemO(sub,
-            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Asset"),
-            ICON_NONE,
-            "ASSET_OT_clear_single");
-    uiItemS(layout);
-  }
+      /* Gray out items depending on if data-block is an asset. Preferably this could be done via
+       * operator poll, but that doesn't work since the operator also works with "selected_ids",
+       * which isn't cheap to check. */
+      uiLayout *sub = &layout->column(true);
+      uiLayoutSetEnabled(sub, !id->asset_data);
+      uiItemO(sub,
+              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark as Asset"),
+              ICON_ASSET_MANAGER,
+              "ASSET_OT_mark_single");
+      sub = &layout->column(true);
+      uiLayoutSetEnabled(sub, id->asset_data);
+      uiItemO(sub,
+              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Asset"),
+              ICON_NONE,
+              "ASSET_OT_clear_single");
+      uiItemS(layout);
+    }
 
-  MenuType *mt_idtemplate_liboverride = WM_menutype_find("UI_MT_idtemplate_liboverride", true);
-  if (mt_idtemplate_liboverride && mt_idtemplate_liboverride->poll(C, mt_idtemplate_liboverride)) {
-    uiItemM_ptr(layout, mt_idtemplate_liboverride, IFACE_("Library Override"), ICON_NONE);
-    uiItemS(layout);
+    MenuType *mt_idtemplate_liboverride = WM_menutype_find("UI_MT_idtemplate_liboverride", true);
+    if (mt_idtemplate_liboverride && mt_idtemplate_liboverride->poll(C, mt_idtemplate_liboverride))
+    {
+      uiItemM_ptr(layout, mt_idtemplate_liboverride, IFACE_("Library Override"), ICON_NONE);
+      uiItemS(layout);
+    }
   }
 
   /* Pointer properties and string properties with
@@ -1329,7 +1344,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   }
 
   if (but->optype && U.flag & USER_DEVELOPER_UI) {
-    uiItemO(layout, nullptr, ICON_NONE, "UI_OT_copy_python_command_button");
+    uiItemO(layout, std::nullopt, ICON_NONE, "UI_OT_copy_python_command_button");
   }
 
   /* perhaps we should move this into (G.debug & G_DEBUG) - campbell */
@@ -1337,7 +1352,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     if (ui_block_is_menu(but->block) == false) {
       uiItemFullO(layout,
                   "UI_OT_editsource",
-                  nullptr,
+                  std::nullopt,
                   ICON_NONE,
                   nullptr,
                   WM_OP_INVOKE_DEFAULT,
@@ -1363,6 +1378,11 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
                   ICON_NONE,
                   ED_screens_region_flip_menu_create,
                   nullptr);
+      const ScrArea *area = CTX_wm_area(C);
+      if (area && area->spacetype == SPACE_PROPERTIES) {
+        uiItemMenuF(
+            layout, IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
+      }
     }
     else if (region->regiontype == RGN_TYPE_FOOTER) {
       uiItemMenuF(
@@ -1379,13 +1399,13 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   if (is_inside_listrow) {
     MenuType *mt = WM_menutype_find("UI_MT_list_item_context_menu", true);
     if (mt) {
-      UI_menutype_draw(C, mt, uiLayoutColumn(layout, false));
+      UI_menutype_draw(C, mt, &layout->column(false));
     }
   }
 
   MenuType *mt = WM_menutype_find("UI_MT_button_context_menu", true);
   if (mt) {
-    UI_menutype_draw(C, mt, uiLayoutColumn(layout, false));
+    UI_menutype_draw(C, mt, &layout->column(false));
   }
 
   if (but->context) {
@@ -1417,7 +1437,7 @@ void ui_popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
     return;
   }
 
-  PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_Panel, panel);
+  PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Panel, panel);
 
   uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Panel"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
@@ -1425,12 +1445,12 @@ void ui_popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
   if (has_panel_category) {
     char tmpstr[80];
     SNPRINTF(tmpstr, "%s" UI_SEP_CHAR_S "%s", IFACE_("Pin"), IFACE_("Shift Left Mouse"));
-    uiItemR(layout, &ptr, "use_pin", UI_ITEM_NONE, tmpstr, ICON_NONE);
+    layout->prop(&ptr, "use_pin", UI_ITEM_NONE, tmpstr, ICON_NONE);
 
     /* evil, force shortcut flag */
     {
       uiBlock *block = uiLayoutGetBlock(layout);
-      uiBut *but = static_cast<uiBut *>(block->buttons.last);
+      uiBut *but = block->buttons.last().get();
       but->flag |= UI_BUT_HAS_SEP_CHAR;
     }
   }

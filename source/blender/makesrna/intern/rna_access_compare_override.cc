@@ -18,13 +18,11 @@
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_key_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 // #define DEBUG_OVERRIDE_TIMEIT
@@ -38,15 +36,15 @@
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_override.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "rna_access_internal.h"
+#include "rna_access_internal.hh"
 #include "rna_internal.hh"
 
 static CLG_LogRef LOG = {"rna.access_compare_override"};
@@ -76,7 +74,7 @@ static ID *rna_property_override_property_real_id_owner(Main * /*bmain*/,
     return nullptr;
   }
 
-  if (id->flag & (LIB_EMBEDDED_DATA | LIB_EMBEDDED_DATA_LIB_OVERRIDE)) {
+  if (id->flag & (ID_FLAG_EMBEDDED_DATA | ID_FLAG_EMBEDDED_DATA_LIB_OVERRIDE)) {
     /* XXX this is very bad band-aid code, but for now it will do.
      * We should at least use a #define for those prop names.
      * Ideally RNA as a whole should be aware of those PITA of embedded IDs, and have a way to
@@ -137,12 +135,6 @@ bool RNA_property_overridable_get(const PointerRNA *ptr, PropertyRNA *prop)
     else if (RNA_struct_is_a(ptr->type, &RNA_Modifier)) {
       ModifierData *mod = static_cast<ModifierData *>(ptr->data);
       if (mod->flag & eModifierFlag_OverrideLibrary_Local) {
-        return true;
-      }
-    }
-    else if (RNA_struct_is_a(ptr->type, &RNA_GpencilModifier)) {
-      GpencilModifierData *gp_mod = static_cast<GpencilModifierData *>(ptr->data);
-      if (gp_mod->flag & eGpencilModifierFlag_OverrideLibrary_Local) {
         return true;
       }
     }
@@ -395,9 +387,9 @@ static int rna_property_override_diff(Main *bmain,
   }
 
   eRNAOverrideMatch diff_flags = flags;
-  if (!RNA_property_overridable_get(&prop_a->ptr, prop_a->rawprop) ||
+  if (!RNA_property_overridable_get(prop_a->ptr, prop_a->rawprop) ||
       (!ELEM(RNA_property_type(prop_a->rawprop), PROP_POINTER, PROP_COLLECTION) &&
-       !RNA_property_editable_flag(&prop_a->ptr, prop_a->rawprop)))
+       !RNA_property_editable_flag(prop_a->ptr, prop_a->rawprop)))
   {
     diff_flags &= ~RNA_OVERRIDE_COMPARE_CREATE;
   }
@@ -680,7 +672,7 @@ bool RNA_struct_override_matches(Main *bmain,
       continue;
     }
 
-    if (ignore_non_overridable && !RNA_property_overridable_get(&prop_local.ptr, rawprop)) {
+    if (ignore_non_overridable && !RNA_property_overridable_get(prop_local.ptr, rawprop)) {
       continue;
     }
 
@@ -718,7 +710,7 @@ bool RNA_struct_override_matches(Main *bmain,
       if (!prop_local.is_idprop) {
         rna_path_len = root_path_len + 1 + prop_name_len;
         if (rna_path_len >= RNA_PATH_BUFFSIZE) {
-          rna_path = static_cast<char *>(MEM_mallocN(rna_path_len + 1, __func__));
+          rna_path = MEM_malloc_arrayN<char>(rna_path_len + 1, __func__);
         }
 
         memcpy(rna_path_c, root_path, root_path_len);
@@ -729,7 +721,7 @@ bool RNA_struct_override_matches(Main *bmain,
       else {
         rna_path_len = root_path_len + 2 + prop_name_len + 2;
         if (rna_path_len >= RNA_PATH_BUFFSIZE) {
-          rna_path_c = static_cast<char *>(MEM_mallocN(rna_path_len + 1, __func__));
+          rna_path_c = MEM_malloc_arrayN<char>(rna_path_len + 1, __func__);
         }
 
         memcpy(rna_path_c, root_path, root_path_len);
@@ -840,6 +832,11 @@ bool RNA_struct_override_matches(Main *bmain,
               const bool is_restored = rna_property_override_operation_apply(bmain, rnaapply_ctx);
 
               if (is_restored) {
+                CLOG_INFO(&LOG,
+                          5,
+                          "Restoreed forbidden liboverride `%s` for override data '%s'",
+                          rna_path->c_str(),
+                          ptr_local->owner_id->name);
                 if (r_report_flags) {
                   *r_report_flags |= RNA_OVERRIDE_MATCH_RESULT_RESTORED;
                 }
@@ -878,6 +875,12 @@ bool RNA_struct_override_matches(Main *bmain,
               opop_restore->tag |= LIBOVERRIDE_PROP_TAG_NEEDS_RETORE;
               liboverride->runtime->tag |= LIBOVERRIDE_TAG_NEEDS_RESTORE;
 
+              CLOG_INFO(
+                  &LOG,
+                  5,
+                  "Tagging for restoration forbidden liboverride `%s` for override data '%s'",
+                  rna_path->c_str(),
+                  ptr_local->owner_id->name);
               if (r_report_flags) {
                 *r_report_flags |= RNA_OVERRIDE_MATCH_RESULT_RESTORE_TAGGED;
               }
@@ -1056,14 +1059,13 @@ static bool rna_property_override_collection_subitem_name_id_lookup(
     RNA_property_collection_end(&iter);
 
     if (!iter.valid) {
-      memset(r_ptr_item_name, 0, sizeof(*r_ptr_item_name));
+      *r_ptr_item_name = {};
     }
 
     return iter.valid;
   }
-  else {
-    return RNA_property_collection_lookup_string(ptr, prop, item_name, r_ptr_item_name);
-  }
+
+  return RNA_property_collection_lookup_string(ptr, prop, item_name, r_ptr_item_name);
 }
 
 static void rna_property_override_collection_subitem_name_index_lookup(
@@ -1075,8 +1077,8 @@ static void rna_property_override_collection_subitem_name_index_lookup(
     PointerRNA *r_ptr_item_name,
     PointerRNA *r_ptr_item_index)
 {
-  RNA_POINTER_INVALIDATE(r_ptr_item_name);
-  RNA_POINTER_INVALIDATE(r_ptr_item_index);
+  r_ptr_item_name->invalidate();
+  r_ptr_item_index->invalidate();
 
   const bool do_id_pointer = item_id && RNA_struct_is_ID(RNA_property_pointer_type(ptr, prop));
 
@@ -1108,7 +1110,7 @@ static void rna_property_override_collection_subitem_name_index_lookup(
   if (rna_property_override_collection_subitem_name_id_lookup(
           ptr, prop, item_name, item_name_len, do_id_pointer, item_id, r_ptr_item_name))
   {
-    RNA_POINTER_INVALIDATE(r_ptr_item_index);
+    r_ptr_item_index->invalidate();
     return;
   }
 
@@ -1147,10 +1149,10 @@ static void rna_property_override_collection_subitem_lookup(
                                                  std::optional(opop->subitem_reference_id) :
                                                  std::nullopt;
 
-  RNA_POINTER_INVALIDATE(ptr_item_dst);
-  RNA_POINTER_INVALIDATE(ptr_item_src);
+  ptr_item_dst->invalidate();
+  ptr_item_src->invalidate();
   if (prop_storage != nullptr) {
-    RNA_POINTER_INVALIDATE(ptr_item_storage);
+    ptr_item_storage->invalidate();
   }
 
   PointerRNA ptr_item_dst_name, ptr_item_dst_index;
@@ -1353,19 +1355,19 @@ static void rna_property_override_check_resync(Main *bmain,
         * self-references updated to itself, instead of still pointing to its linked source. */
        (id_dst->lib == id_src->lib && id_dst != id_owner_dst)))
   {
-    id_owner_dst->tag |= LIB_TAG_LIBOVERRIDE_NEED_RESYNC;
+    id_owner_dst->tag |= ID_TAG_LIBOVERRIDE_NEED_RESYNC;
     if (ID_IS_LINKED(id_owner_src)) {
-      id_owner_src->lib->runtime.tag |= LIBRARY_TAG_RESYNC_REQUIRED;
+      id_owner_src->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
     }
     CLOG_INFO(&LOG,
               3,
               "Local override %s detected as needing resync due to mismatch in its used IDs",
               id_owner_dst->name);
   }
-  if ((id_owner_src->override_library->reference->tag & LIB_TAG_LIBOVERRIDE_NEED_RESYNC) != 0) {
-    id_owner_dst->tag |= LIB_TAG_LIBOVERRIDE_NEED_RESYNC;
+  if ((id_owner_src->override_library->reference->tag & ID_TAG_LIBOVERRIDE_NEED_RESYNC) != 0) {
+    id_owner_dst->tag |= ID_TAG_LIBOVERRIDE_NEED_RESYNC;
     if (ID_IS_LINKED(id_owner_src)) {
-      id_owner_src->lib->runtime.tag |= LIBRARY_TAG_RESYNC_REQUIRED;
+      id_owner_src->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
     }
     CLOG_INFO(&LOG,
               3,
@@ -1553,7 +1555,7 @@ void RNA_struct_override_apply(Main *bmain,
       /* Check if an overridden ID pointer supposed to be in sync with linked data gets out of
        * sync. */
       if ((flag & RNA_OVERRIDE_APPLY_FLAG_SKIP_RESYNC_CHECK) == 0 &&
-          (id_ptr_dst->owner_id->tag & LIB_TAG_LIBOVERRIDE_NEED_RESYNC) == 0)
+          (id_ptr_dst->owner_id->tag & ID_TAG_LIBOVERRIDE_NEED_RESYNC) == 0)
       {
         if (op->rna_prop_type == PROP_POINTER && op->operations.first != nullptr &&
             (static_cast<IDOverrideLibraryPropertyOperation *>(op->operations.first)->flag &

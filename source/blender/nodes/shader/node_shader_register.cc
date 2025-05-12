@@ -24,6 +24,7 @@ void register_shader_nodes()
   register_node_type_sh_bsdf_glossy();
   register_node_type_sh_bsdf_hair_principled();
   register_node_type_sh_bsdf_hair();
+  register_node_type_sh_bsdf_metallic();
   register_node_type_sh_bsdf_principled();
   register_node_type_sh_bsdf_ray_portal();
   register_node_type_sh_bsdf_refraction();
@@ -109,6 +110,7 @@ void register_shader_nodes()
   register_node_type_sh_volume_info();
   register_node_type_sh_volume_principled();
   register_node_type_sh_volume_scatter();
+  register_node_type_sh_volume_coefficients();
   register_node_type_sh_wavelength();
   register_node_type_sh_wireframe();
 }

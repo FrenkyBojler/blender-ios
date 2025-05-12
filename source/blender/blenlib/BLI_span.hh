@@ -157,7 +157,7 @@ template<typename T> class Span {
     BLI_assert(start >= 0);
     BLI_assert(size >= 0);
     const int64_t new_size = std::max<int64_t>(0, std::min(size, size_ - start));
-    return Span(data_ + start, new_size);
+    return Span(data_ ? data_ + start : nullptr, new_size);
   }
 
   constexpr Span slice_safe(IndexRange range) const
@@ -177,8 +177,8 @@ template<typename T> class Span {
   }
 
   /**
-   * Returns a new Span with n elements removed from the beginning. This invokes undefined
-   * behavior when n is negative.
+   * Returns a new Span with n elements removed from the end. This invokes undefined behavior when
+   * n is negative.
    */
   constexpr Span drop_back(int64_t n) const
   {
@@ -707,6 +707,20 @@ template<typename T> class MutableSpan {
       }
     }
     return counter;
+  }
+
+  /**
+   * Does a linear search to see of the value is in the array.
+   * Returns true if it is, otherwise false.
+   */
+  constexpr bool contains(const T &value) const
+  {
+    for (const T &element : *this) {
+      if (element == value) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

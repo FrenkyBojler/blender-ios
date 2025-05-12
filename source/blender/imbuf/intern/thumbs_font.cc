@@ -7,7 +7,6 @@
  */
 
 #include "BLI_hash_md5.hh"
-#include "BLI_utildefines.h"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -22,7 +21,7 @@
 
 ImBuf *IMB_thumb_load_font(const char *filepath, uint x, uint y)
 {
-  ImBuf *ibuf = IMB_allocImBuf(x, y, 32, IB_rect | IB_metadata);
+  ImBuf *ibuf = IMB_allocImBuf(x, y, 32, IB_byte_data | IB_metadata);
 
   /* fill with white and zero alpha */
   const float col[4] = {1.0f, 1.0f, 1.0f, 0.0f};
@@ -49,6 +48,9 @@ bool IMB_thumb_load_font_get_hash(char *r_hash)
 ImBuf *IMB_font_preview(const char *filepath, uint width, const float color[4])
 {
   int font_id = (filepath[0] != '<') ? BLF_load(filepath) : 0;
+  if (font_id == -1) {
+    return nullptr;
+  }
   const char sample[] = "ABCDEFGH\nabcdefg123";
 
   BLF_buffer_col(font_id, color);
@@ -64,7 +66,7 @@ ImBuf *IMB_font_preview(const char *filepath, uint width, const float color[4])
   name_h *= scale;
 
   int height = int(name_h * 1.3f);
-  ImBuf *ibuf = IMB_allocImBuf(width, height, 32, IB_rect);
+  ImBuf *ibuf = IMB_allocImBuf(width, height, 32, IB_byte_data);
   /* fill with white and zero alpha */
   const float col[4] = {1.0f, 1.0f, 1.0f, 0.0f};
   IMB_rectfill(ibuf, col);
