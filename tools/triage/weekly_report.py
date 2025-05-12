@@ -209,9 +209,6 @@ def report_personal_weekly_get(
                         if title.startswith("Merge branch "):
                             continue
 
-                        # Substitute occurrences of "#\d+" with "repo#\d+"
-                        title = re.sub(r"#(\d+)", rf"{repo_fullname}#\1", title)
-
                         hash_value = commit_json["Sha1"]
                         if hash_length > 0:
                             hash_value = hash_value[:hash_length]
@@ -231,6 +228,9 @@ def report_personal_weekly_get(
                         if not target_repo_json and branch_name != repo["default_branch"]:
                             target_repo_json = repo
                         target_repo_fullname = target_repo_json["full_name"] if target_repo_json else repo_fullname
+
+                        # Substitute occurrences of "#\d+" with "repo#\d+"
+                        title = re.sub(r"#(\d+)", rf"{target_repo_fullname}#\1", title)
 
                         if target_repo_fullname not in repositories:
                             repositories[target_repo_fullname] = Repository(target_repo_fullname)
