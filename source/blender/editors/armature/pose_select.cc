@@ -968,10 +968,21 @@ static bool pose_bone_is_below_one_of(bPoseChannel &bone,
   return false;
 }
 
+static void deselect_pose_bones(const blender::Set<bPoseChannel *> &pose_bones)
+{
+  for (bPoseChannel *pose_bone : pose_bones) {
+    if (!pose_bone) {
+      /* There may be a nullptr in the set if selecting siblings of root bones. */
+      continue;
+    }
+    pose_bone->bone->flag &= ~BONE_SELECTED;
+  }
+}
+
 /* Selects children of currently selected bones in all objects in pose mode. If `all` is true, a
  * bone will be selected if any bone in it's parent hierarchy is selected. If false, only bones
  * whose direct parent is selected are changed. */
-static bool pose_select_children(bContext *C, const bool all)
+static bool pose_select_children(bContext *C, const bool all, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
       CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
@@ -982,6 +993,9 @@ static bool pose_select_children(bContext *C, const bool all)
     bArmature *arm = static_cast<bArmature *>(pose_object->data);
     BLI_assert(arm);
     blender::Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
+    if (!extend) {
+      deselect_pose_bones(selected_pose_bones);
+    }
     LISTBASE_FOREACH (bPoseChannel *, pchan, &pose_object->pose->chanbase) {
       if (!PBONE_SELECTABLE(arm, pchan->bone)) {
         continue;
@@ -1005,7 +1019,7 @@ static bool pose_select_children(bContext *C, const bool all)
   return changed_any_selection;
 }
 
-static bool pose_select_parents(bContext *C)
+static bool pose_select_parents(bContext *C, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
       CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
@@ -1015,6 +1029,9 @@ static bool pose_select_parents(bContext *C)
     bArmature *arm = static_cast<bArmature *>(pose_object->data);
     BLI_assert(arm);
     blender::Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
+    if (!extend) {
+      deselect_pose_bones(selected_pose_bones);
+    }
     for (bPoseChannel *pchan : selected_pose_bones) {
       if (!pchan->parent) {
         continue;
@@ -1030,7 +1047,7 @@ static bool pose_select_parents(bContext *C)
   return changed_any_selection;
 }
 
-static bool pose_select_siblings(bContext *C)
+static bool pose_select_siblings(bContext *C, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
       CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
@@ -1044,6 +1061,9 @@ static bool pose_select_siblings(bContext *C)
       if (PBONE_SELECTED(arm, pchan->bone)) {
         parents_of_selected.add(pchan->parent);
       }
+    }
+    if (!extend) {
+      deselect_pose_bones(parents_of_selected);
     }
     LISTBASE_FOREACH (bPoseChannel *, pchan, &pose_object->pose->chanbase) {
       if (!PBONE_SELECTABLE(arm, pchan->bone)) {
@@ -1171,19 +1191,19 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
       break;
 
     case SelectRelatedMode::CHILDREN:
-      changed = pose_select_children(C, true);
+      changed = pose_select_children(C, true, extend);
       break;
 
     case SelectRelatedMode::IMMEDIATE_CHILDREN:
-      changed = pose_select_children(C, false);
+      changed = pose_select_children(C, false, extend);
       break;
 
     case SelectRelatedMode::PARENT:
-      changed = pose_select_parents(C);
+      changed = pose_select_parents(C, extend);
       break;
 
     case SelectRelatedMode::SIBLINGS:
-      changed = pose_select_siblings(C);
+      changed = pose_select_siblings(C, extend);
       break;
 
     default:
