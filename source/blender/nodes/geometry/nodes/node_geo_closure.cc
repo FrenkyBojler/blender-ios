@@ -42,7 +42,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
   }
@@ -52,7 +52,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureOutputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
   }
@@ -301,7 +301,6 @@ namespace blender::nodes {
 
 StructRNA *ClosureInputItemsAccessor::item_srna = &RNA_NodeGeometryClosureInputItem;
 int ClosureInputItemsAccessor::node_type = GEO_NODE_CLOSURE_OUTPUT;
-int ClosureInputItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(NodeGeometryClosureInputItem);
 
 void ClosureInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -315,8 +314,6 @@ void ClosureInputItemsAccessor::blend_read_data_item(BlendDataReader *reader, It
 
 StructRNA *ClosureOutputItemsAccessor::item_srna = &RNA_NodeGeometryClosureOutputItem;
 int ClosureOutputItemsAccessor::node_type = GEO_NODE_CLOSURE_OUTPUT;
-int ClosureOutputItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeGeometryClosureOutputItem);
 
 void ClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

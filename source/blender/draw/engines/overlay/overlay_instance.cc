@@ -122,16 +122,6 @@ void Instance::init()
     ED_space_image_get_aspect(space_image, &state.image_aspect.x, &state.image_aspect.y);
   }
 
-  state.has_mesh = DEG_id_type_any_exists(state.depsgraph, ID_ME);
-  state.has_curve = DEG_id_type_any_exists(state.depsgraph, ID_CV) ||
-                    DEG_id_type_any_exists(state.depsgraph, ID_CU_LEGACY);
-  state.has_volume = DEG_id_type_any_exists(state.depsgraph, ID_VO);
-  state.has_gpencil = DEG_id_type_any_exists(state.depsgraph, ID_GP);
-  state.has_armature = DEG_id_type_any_exists(state.depsgraph, ID_AR);
-  state.has_particles = DEG_id_type_any_exists(state.depsgraph, ID_PA);
-  state.has_lattice = DEG_id_type_any_exists(state.depsgraph, ID_LT);
-  state.has_ptcloud = DEG_id_type_any_exists(state.depsgraph, ID_PT);
-
   resources.update_theme_settings(ctx, state);
   resources.update_clip_planes(state);
 
@@ -457,7 +447,7 @@ void Instance::begin_sync()
     layer.bounds.begin_sync(resources, state);
     layer.cameras.begin_sync(resources, state);
     layer.curves.begin_sync(resources, state);
-    layer.edit_text.begin_sync(resources, state);
+    layer.text.begin_sync(resources, state);
     layer.empties.begin_sync(resources, state);
     layer.facing.begin_sync(resources, state);
     layer.fade.begin_sync(resources, state);
@@ -583,7 +573,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         layer.pointclouds.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_FONT:
-        layer.edit_text.edit_object_sync(manager, ob_ref, resources, state);
+        layer.text.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_GREASE_PENCIL:
         layer.grease_pencil.edit_object_sync(manager, ob_ref, resources, state);
@@ -663,7 +653,7 @@ void Instance::end_sync()
     layer.axes.end_sync(resources, state);
     layer.bounds.end_sync(resources, state);
     layer.cameras.end_sync(resources, state);
-    layer.edit_text.end_sync(resources, state);
+    layer.text.end_sync(resources, state);
     layer.empties.end_sync(resources, state);
     layer.force_fields.end_sync(resources, state);
     layer.lights.end_sync(resources, state);
@@ -822,7 +812,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     // layer.facing.draw(framebuffer, manager, view);
     layer.fade.draw(framebuffer, manager, view);
     layer.mode_transfer.draw(framebuffer, manager, view);
-    layer.edit_text.draw(framebuffer, manager, view);
+    layer.text.draw(framebuffer, manager, view);
     layer.paints.draw(framebuffer, manager, view);
     layer.particles.draw(framebuffer, manager, view);
   };

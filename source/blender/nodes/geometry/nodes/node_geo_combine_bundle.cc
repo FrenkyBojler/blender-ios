@@ -74,7 +74,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<CombineBundleItemsAccessor>(
         ntree, node, [&](PointerRNA *item_ptr) {
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
         });
   }
 }
@@ -141,8 +141,6 @@ namespace blender::nodes {
 
 StructRNA *CombineBundleItemsAccessor::item_srna = &RNA_NodeGeometryCombineBundleItem;
 int CombineBundleItemsAccessor::node_type = GEO_NODE_COMBINE_BUNDLE;
-int CombineBundleItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeGeometryCombineBundleItem);
 
 void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

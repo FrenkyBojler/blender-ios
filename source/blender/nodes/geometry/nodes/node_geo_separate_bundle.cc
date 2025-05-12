@@ -78,7 +78,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<SeparateBundleItemsAccessor>(
         ntree, node, [&](PointerRNA *item_ptr) {
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
         });
   }
 }
@@ -158,8 +158,6 @@ namespace blender::nodes {
 
 StructRNA *SeparateBundleItemsAccessor::item_srna = &RNA_NodeGeometrySeparateBundleItem;
 int SeparateBundleItemsAccessor::node_type = GEO_NODE_SEPARATE_BUNDLE;
-int SeparateBundleItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeGeometrySeparateBundleItem);
 
 void SeparateBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

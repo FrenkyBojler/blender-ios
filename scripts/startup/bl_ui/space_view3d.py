@@ -2670,7 +2670,7 @@ class VIEW3D_MT_add(Menu):
         layout.menu("VIEW3D_MT_surface_add", icon='OUTLINER_OB_SURFACE')
         layout.menu("VIEW3D_MT_metaball_add", text="Metaball", icon='OUTLINER_OB_META')
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
-        layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
+        layout.operator("object.pointcloud_random_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
         layout.menu("VIEW3D_MT_volume_add", text="Volume", text_ctxt=i18n_contexts.id_id, icon='OUTLINER_OB_VOLUME')
         layout.menu("VIEW3D_MT_grease_pencil_add", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
 
@@ -3882,16 +3882,16 @@ class VIEW3D_MT_mask(Menu):
 
         layout.separator()
 
-        props = layout.operator("mesh.paint_mask_extract", text="Mask Extract")
+        props = layout.operator("sculpt.paint_mask_extract", text="Mask Extract")
 
         layout.separator()
 
-        props = layout.operator("mesh.paint_mask_slice", text="Mask Slice")
+        props = layout.operator("sculpt.paint_mask_slice", text="Mask Slice")
         props.fill_holes = False
         props.new_object = False
-        props = layout.operator("mesh.paint_mask_slice", text="Mask Slice and Fill Holes")
+        props = layout.operator("sculpt.paint_mask_slice", text="Mask Slice and Fill Holes")
         props.new_object = False
-        props = layout.operator("mesh.paint_mask_slice", text="Mask Slice to New Object")
+        props = layout.operator("sculpt.paint_mask_slice", text="Mask Slice to New Object")
 
         layout.separator()
 
@@ -3960,7 +3960,7 @@ class VIEW3D_MT_face_sets(Menu):
 
         layout.separator()
 
-        props = layout.operator("mesh.face_set_extract", text="Extract Face Set")
+        props = layout.operator("sculpt.face_set_extract", text="Extract Face Set")
 
         layout.separator()
 
@@ -6503,11 +6503,6 @@ class VIEW3D_PT_object_type_visibility(Panel):
         for attr, attr_name, attr_icon in attr_object_types:
             if attr is None:
                 col.separator()
-                continue
-
-            if attr == "curves" and not hasattr(bpy.data, "hair_curves"):
-                continue
-            elif attr == "pointcloud" and not hasattr(bpy.data, "pointclouds"):
                 continue
 
             attr_v = "show_object_viewport_" + attr
