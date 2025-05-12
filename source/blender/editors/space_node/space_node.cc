@@ -41,6 +41,7 @@
 
 #include "BLT_translation.hh"
 
+#include "ED_asset_shelf.hh"
 #include "ED_image.hh"
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
@@ -671,6 +672,19 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
+  /* asset shelf */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&snode->regionbase, region);
+  region->regiontype = RGN_TYPE_ASSET_SHELF;
+  region->alignment = RGN_ALIGN_BOTTOM;
+
+  /* asset shelf header */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&snode->regionbase, region);
+  region->regiontype = RGN_TYPE_ASSET_SHELF_HEADER;
+  region->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
   /* buttons/list view */
   region = BKE_area_region_new();
 
@@ -1656,10 +1670,21 @@ static void node_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   }
 }
 
+static void node_asset_shelf_region_init(wmWindowManager *wm, ARegion *region)
+{
+  using namespace blender::ed;
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->defaultconf, "Node Generic", SPACE_NODE, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
+
+  asset::shelf::region_init(wm, region);
+}
+
 }  // namespace blender::ed::space_node
 
 void ED_spacetype_node()
 {
+  using namespace blender::ed;
   using namespace blender::ed::space_node;
 
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -1724,11 +1749,11 @@ void ED_spacetype_node()
   art->duplicate = blender::ed::asset::shelf::region_duplicate;
   art->free = blender::ed::asset::shelf::region_free;
   art->on_poll_success = blender::ed::asset::shelf::region_on_poll_success;
-  art->message_subscribe = blender::ed::asset::shelf::region_message_subscribe;
   art->listener = blender::ed::asset::shelf::region_listen;
-  art->on_user_resize = blender::ed::asset::shelf::region_on_user_resize;
+  art->message_subscribe = blender::ed::asset::shelf::region_message_subscribe;
   art->poll = blender::ed::asset::shelf::regions_poll;
   art->snap_size = blender::ed::asset::shelf::region_snap;
+  art->on_user_resize = blender::ed::asset::shelf::region_on_user_resize;
   art->context = blender::ed::asset::shelf::context;
   art->init = node_asset_shelf_region_init;
   art->layout = blender::ed::asset::shelf::region_layout;

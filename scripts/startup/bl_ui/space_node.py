@@ -1119,7 +1119,7 @@ def node_panel(cls):
 
 class NODE_AST_compositor(bpy.types.AssetShelf):
     bl_space_type = 'NODE_EDITOR'
-    bl_idname = "NODE_EDITOR_AST_compositor"
+    # bl_idname = "NODE_EDITOR_AST_compositor"
     bl_region_type = 'UI'
     bl_options = {'DEFAULT_VISIBLE'}
 
@@ -1129,7 +1129,7 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
 
     @classmethod
     def asset_poll(cls, asset):
-
+        # Todo: get "type" properly as an enum
         return asset.id_type == 'NODETREE' and asset.metadata.get("type") == 1
 
 
@@ -1163,6 +1163,7 @@ classes = (
     NODE_PT_annotation,
     NODE_PT_overlay,
     NODE_PT_active_node_properties,
+    NODE_AST_compositor,
 
     node_panel(EEVEE_NEXT_MATERIAL_PT_settings),
     node_panel(EEVEE_NEXT_MATERIAL_PT_settings_surface),
