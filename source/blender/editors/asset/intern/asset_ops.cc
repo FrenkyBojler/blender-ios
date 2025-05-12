@@ -1162,7 +1162,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   asset::list::storage_tag_main_data_dirty();
   asset::refresh_asset_library_from_asset(C, *asset_handle);
 
-  WM_main_add_notifier(NC_ASSET | NA_EDITED, nullptr);
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
