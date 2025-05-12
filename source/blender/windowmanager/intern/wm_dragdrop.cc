@@ -441,6 +441,11 @@ static wmDropBox *dropbox_active(bContext *C,
                                  wmDrag *drag,
                                  const wmEvent *event)
 {
+  if (drag->drop_state.free_disabled_info) {
+    MEM_SAFE_FREE(drag->drop_state.disabled_info);
+  }
+  drag->drop_state.disabled_info = nullptr;
+
   LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
     if (handler_base->type == WM_HANDLER_TYPE_DROPBOX) {
       wmEventHandler_Dropbox *handler = (wmEventHandler_Dropbox *)handler_base;
@@ -470,10 +475,6 @@ static wmDropBox *dropbox_active(bContext *C,
           bool free_disabled_info = false;
           const char *disabled_hint = CTX_wm_operator_poll_msg_get(C, &free_disabled_info);
           if (disabled_hint) {
-            /* Free previous disabled hint if necessary. */
-            if (drag->drop_state.disabled_info && drag->drop_state.free_disabled_info) {
-              MEM_SAFE_FREE(drag->drop_state.disabled_info);
-            }
             drag->drop_state.disabled_info = disabled_hint;
             drag->drop_state.free_disabled_info = free_disabled_info;
           }
@@ -492,12 +493,6 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
   bScreen *screen = WM_window_get_active_screen(win);
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
   wmDropBox *drop = nullptr;
-
-  /* Clear previous disabled hint. */
-  if (drag->drop_state.free_disabled_info) {
-    MEM_SAFE_FREE(drag->drop_state.disabled_info);
-  }
-  drag->drop_state.disabled_info = nullptr;
 
   if (area) {
     ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
