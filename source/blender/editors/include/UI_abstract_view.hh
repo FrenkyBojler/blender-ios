@@ -102,7 +102,12 @@ class AbstractView {
   virtual void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const = 0;
 
   virtual bool supports_scrolling() const;
-  virtual void scroll(ViewScrollDirection direction);
+
+  /**
+   * Scroll the view in the given direction.
+   * \return False if the view is scrolled to the end already.
+   */
+  virtual bool scroll(ViewScrollDirection direction);
 
   /**
    * From the current view state, return certain state that will be written to files (stored in

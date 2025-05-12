@@ -120,6 +120,10 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /** Scroll offset in items, also see #uiViewState.scroll_offset. Clamped before creating the
    * button layout. */
   std::shared_ptr<int> scroll_value_ = nullptr;
+  /**
+   * The total number of items in the tree during the last redraw.
+   */
+  int last_tot_items_ = 0;
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
@@ -133,7 +137,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   void foreach_item(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
 
-  void scroll(ViewScrollDirection direction) override;
+  bool scroll(ViewScrollDirection direction) override;
 
   /**
    * \param xy: The mouse coordinates in window space.

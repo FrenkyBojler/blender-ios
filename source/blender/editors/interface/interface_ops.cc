@@ -2689,7 +2689,11 @@ static wmOperatorStatus ui_view_scroll_invoke(bContext *C,
   }
 
   BLI_assert(view->supports_scrolling());
-  view->scroll(*direction);
+  if (!view->scroll(*direction)) {
+    /* Scrolled all the way to the end already. Pass-through, so that a higher level scroll
+     * operation can be invoked. */
+    return OPERATOR_PASS_THROUGH;
+  }
 
   ED_region_tag_redraw(region);
   return OPERATOR_FINISHED;

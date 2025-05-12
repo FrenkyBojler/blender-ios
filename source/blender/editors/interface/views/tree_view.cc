@@ -368,13 +368,33 @@ bool AbstractTreeView::supports_scrolling() const
   return custom_height_ && scroll_value_;
 }
 
-void AbstractTreeView::scroll(ViewScrollDirection direction)
+bool AbstractTreeView::scroll(ViewScrollDirection direction)
 {
   if (!supports_scrolling()) {
-    return;
+    return false;
   }
-  /* Scroll value will be sanitized/clamped when drawing. */
-  *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
+  switch (direction) {
+    case ViewScrollDirection::UP: {
+      if (*scroll_value_ == 0) {
+        return false;
+      }
+      *scroll_value_ -= 1;
+      return true;
+    }
+    case ViewScrollDirection::DOWN: {
+      /* Should never be nullopt, because that's a requirement in supports_scrolling(). */
+      const std::optional<int> visible_row_count = this->tot_visible_row_count();
+      BLI_assert(visible_row_count.has_value());
+
+      const int max_scroll_value = last_tot_items_ - *visible_row_count;
+      if (*scroll_value_ >= max_scroll_value) {
+        return false;
+      }
+      *scroll_value_ += 1;
+      return true;
+    }
+  }
+  return false;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -810,6 +830,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   const std::optional<int> visible_row_count = tree_view.tot_visible_row_count();
   const int tot_items = count_visible_items(tree_view);
+  tree_view.last_tot_items_ = tot_items;
 
   /* Column for the tree view. */
   row->column(true);
