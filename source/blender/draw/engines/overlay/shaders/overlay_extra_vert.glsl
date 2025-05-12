@@ -11,43 +11,6 @@ VERTEX_SHADER_CREATE_INFO(overlay_extra_spot_cone)
 #include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
 
-#define lamp_area_size inst_data.xy
-#define lamp_clip_sta inst_data.z
-#define lamp_clip_end inst_data.w
-
-#define lamp_spot_cosine inst_data.x
-#define lamp_spot_blend inst_data.y
-
-#define camera_corner inst_data.xy
-#define camera_center inst_data.zw
-#define camera_dist color.a
-#define camera_dist_sta inst_data.z
-#define camera_dist_end inst_data.w
-#define camera_distance_color inst_data.x
-
-#define empty_size inst_data.xyz
-#define empty_scale inst_data.w
-
-/* TODO(fclem): Share with C code. */
-#define VCLASS_LIGHT_AREA_SHAPE (1 << 0)
-#define VCLASS_LIGHT_SPOT_SHAPE (1 << 1)
-#define VCLASS_LIGHT_SPOT_BLEND (1 << 2)
-#define VCLASS_LIGHT_SPOT_CONE (1 << 3)
-#define VCLASS_LIGHT_DIST (1 << 4)
-
-#define VCLASS_CAMERA_FRAME (1 << 5)
-#define VCLASS_CAMERA_DIST (1 << 6)
-#define VCLASS_CAMERA_VOLUME (1 << 7)
-
-#define VCLASS_SCREENSPACE (1 << 8)
-#define VCLASS_SCREENALIGNED (1 << 9)
-
-#define VCLASS_EMPTY_SCALED (1 << 10)
-#define VCLASS_EMPTY_AXES (1 << 11)
-#define VCLASS_EMPTY_AXES_NAME (1 << 12)
-#define VCLASS_EMPTY_AXES_SHADOW (1 << 13)
-#define VCLASS_EMPTY_SIZE (1 << 14)
-
 void main()
 {
   select_id_set(in_select_buf[gl_InstanceID]);
@@ -69,6 +32,23 @@ void main()
   if (color.a < 0.0f) {
     final_color.a = 1.0f;
   }
+
+  float2 lamp_area_size = inst_data.xy;
+  float lamp_clip_sta = inst_data.z;
+  float lamp_clip_end = inst_data.w;
+
+  float lamp_spot_cosine = inst_data.x;
+  float lamp_spot_blend = inst_data.y;
+
+  float2 camera_corner = inst_data.xy;
+  float2 camera_center = inst_data.zw;
+  float camera_dist = color.a;
+  float camera_dist_sta = inst_data.z;
+  float camera_dist_end = inst_data.w;
+  float camera_distance_color = inst_data.x;
+
+  float3 empty_size = inst_data.xyz;
+  float empty_scale = inst_data.w;
 
   float lamp_spot_sine;
   float3 vpos = pos;
@@ -190,7 +170,7 @@ void main()
     /* Relative to DPI scaling. Have constant screen size. */
     float3 screen_pos = drw_view().viewinv[0].xyz * vpos.x + drw_view().viewinv[1].xyz * vpos.y;
     float3 p = (obmat * float4(vofs, 1.0f)).xyz;
-    float screen_size = mul_project_m4_v3_zfac(globalsBlock.pixel_fac, p) * sizePixel;
+    float screen_size = mul_project_m4_v3_zfac(uniform_buf.pixel_fac, p) * theme.sizes.pixel;
     world_pos = p + screen_pos * screen_size;
   }
   else if ((vclass & VCLASS_SCREENALIGNED) != 0) {
@@ -230,13 +210,15 @@ void main()
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
   /* Convert to screen position [0..sizeVp]. */
-  edge_pos = edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_pos = edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
+                          uniform_buf.size_viewport;
 
 #if defined(SELECT_ENABLE)
   /* HACK: to avoid losing sub-pixel object in selections, we add a bit of randomness to the
    * wire to at least create one fragment that will pass the occlusion query. */
   /* TODO(fclem): Limit this workaround to selection. It's not very noticeable but still... */
-  gl_Position.xy += sizeViewportInv * gl_Position.w * ((gl_VertexID % 2 == 0) ? -1.0f : 1.0f);
+  gl_Position.xy += uniform_buf.size_viewport_inv * gl_Position.w *
+                    ((gl_VertexID % 2 == 0) ? -1.0f : 1.0f);
 #endif
 
   view_clipping_distances(world_pos);

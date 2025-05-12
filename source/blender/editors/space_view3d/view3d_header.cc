@@ -80,7 +80,7 @@ void uiTemplateEditModeSelection(uiLayout *layout, bContext *C)
   }
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
 
   PointerRNA op_ptr;
   wmOperatorType *ot = WM_operatortype_find("MESH_OT_select_mode", true);
@@ -126,17 +126,17 @@ static void uiTemplatePaintModeSelection(uiLayout *layout, bContext *C)
     PointerRNA meshptr = RNA_pointer_create_discrete(
         static_cast<ID *>(ob->data), &RNA_Mesh, ob->data);
     if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-      uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+      layout->prop(&meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
     }
     else {
-      uiLayout *row = uiLayoutRow(layout, true);
-      uiItemR(row, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-      uiItemR(row, &meshptr, "use_paint_mask_vertex", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+      uiLayout *row = &layout->row(true);
+      row->prop(&meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+      row->prop(&meshptr, "use_paint_mask_vertex", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
       /* Show the bone selection mode icon only if there is a pose mode armature */
       Object *ob_armature = BKE_object_pose_armature_get(ob);
       if (ob_armature) {
-        uiItemR(row, &meshptr, "use_paint_bone_selection", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+        row->prop(&meshptr, "use_paint_bone_selection", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
       }
     }
   }

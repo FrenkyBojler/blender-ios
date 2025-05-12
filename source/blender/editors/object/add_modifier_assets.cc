@@ -170,7 +170,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
       add_separator = false;
     }
     if (first) {
-      uiItemL(layout, IFACE_("Non-Assets"), ICON_NONE);
+      layout->label(IFACE_("Non-Assets"), ICON_NONE);
       first = false;
     }
 
@@ -206,7 +206,7 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
   uiItemS(layout);
 
   if (!loading_finished) {
-    uiItemL(layout, IFACE_("Loading Asset Libraries"), ICON_INFO);
+    layout->label(IFACE_("Loading Asset Libraries"), ICON_INFO);
   }
 
   Set<std::string> all_builtin_menus = [&]() {
@@ -418,7 +418,7 @@ void ui_template_modifier_asset_menu_items(uiLayout &layout, const StringRef cat
     return;
   }
   uiItemS(&layout);
-  uiLayout *col = uiLayoutColumn(&layout, false);
+  uiLayout *col = &layout.column(false);
   uiLayoutSetContextString(col, "asset_catalog_path", item->catalog_path().str());
   uiItemMContents(col, "OBJECT_MT_add_modifier_catalog_assets");
 }

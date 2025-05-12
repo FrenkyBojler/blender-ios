@@ -11,12 +11,12 @@
 #include "BKE_material.hh"
 #include "BKE_pointcache.h"
 #include "DEG_depsgraph_query.hh"
-#include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 #include "DNA_particle_types.h"
 #include "ED_particle.hh"
 
 #include "draw_cache.hh"
+#include "draw_cache_impl.hh"
 #include "overlay_base.hh"
 
 namespace blender::draw::overlay {
@@ -114,28 +114,6 @@ class Particles : Overlay {
     }
   }
 
-  /* Particle data are stored in world space. If an object is instanced, the associated particle
-   * systems need to be offset appropriately. */
-  static float4x4 dupli_matrix_get(const ObjectRef &ob_ref)
-  {
-    float4x4 dupli_mat = float4x4::identity();
-
-    if ((ob_ref.dupli_parent != nullptr) && (ob_ref.dupli_object != nullptr)) {
-      if (ob_ref.dupli_object->type & OB_DUPLICOLLECTION) {
-        Collection *collection = ob_ref.dupli_parent->instance_collection;
-        if (collection != nullptr) {
-          dupli_mat[3] -= float4(float3(collection->instance_offset), 0.0f);
-        }
-        dupli_mat = ob_ref.dupli_parent->object_to_world() * dupli_mat;
-      }
-      else {
-        dupli_mat = ob_ref.object->object_to_world() *
-                    math::invert(ob_ref.dupli_object->ob->object_to_world());
-      }
-    }
-    return dupli_mat;
-  }
-
   void edit_object_sync(Manager &manager,
                         const ObjectRef &ob_ref,
                         Resources & /*res*/,
@@ -185,7 +163,8 @@ class Particles : Overlay {
 
     Object *ob = ob_ref.object;
 
-    ResourceHandle handle = manager.resource_handle_for_psys(ob_ref, dupli_matrix_get(ob_ref));
+    ResourceHandle handle = manager.resource_handle_for_psys(
+        ob_ref, DRW_particles_dupli_matrix_get(ob_ref));
 
     {
       gpu::Batch *geom = DRW_cache_particles_get_edit_strands(ob, psys, edit, show_weight_);
@@ -220,7 +199,7 @@ class Particles : Overlay {
       }
 
       if (handle.raw == 0u) {
-        handle = manager.resource_handle_for_psys(ob_ref, dupli_matrix_get(ob_ref));
+        handle = manager.resource_handle_for_psys(ob_ref, DRW_particles_dupli_matrix_get(ob_ref));
       }
 
       const ParticleSettings *part = psys->part;
@@ -262,13 +241,13 @@ class Particles : Overlay {
         case PART_DRAW_AXIS:
           geom = DRW_cache_particles_get_dots(ob, psys);
           set_color(*shape_ps_);
-          shape_ps_->push_constant("shape_type", PART_SHAPE_AXIS);
+          shape_ps_->push_constant("shape_type", int(PART_SHAPE_AXIS));
           shape_ps_->draw_expand(geom, GPU_PRIM_LINES, 3, 1, handle, res.select_id(ob_ref).get());
           break;
         case PART_DRAW_CIRC:
           geom = DRW_cache_particles_get_dots(ob, psys);
           set_color(*shape_ps_);
-          shape_ps_->push_constant("shape_type", PART_SHAPE_CIRCLE);
+          shape_ps_->push_constant("shape_type", int(PART_SHAPE_CIRCLE));
           shape_ps_->draw_expand(geom,
                                  GPU_PRIM_LINES,
                                  PARTICLE_SHAPE_CIRCLE_RESOLUTION,
@@ -279,7 +258,7 @@ class Particles : Overlay {
         case PART_DRAW_CROSS:
           geom = DRW_cache_particles_get_dots(ob, psys);
           set_color(*shape_ps_);
-          shape_ps_->push_constant("shape_type", PART_SHAPE_CROSS);
+          shape_ps_->push_constant("shape_type", int(PART_SHAPE_CROSS));
           shape_ps_->draw_expand(geom, GPU_PRIM_LINES, 3, 1, handle, res.select_id(ob_ref).get());
           break;
       }

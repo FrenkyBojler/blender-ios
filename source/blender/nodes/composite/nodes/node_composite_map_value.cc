@@ -48,21 +48,21 @@ static void node_composit_buts_map_value(uiLayout *layout, bContext * /*C*/, Poi
 {
   uiLayout *sub, *col;
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "offset", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col = &layout->column(true);
+  col->prop(ptr, "offset", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col->prop(ptr, "size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "use_min", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  sub = uiLayoutColumn(col, false);
+  col = &layout->column(true);
+  col->prop(ptr, "use_min", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  sub = &col->column(false);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_min"));
-  uiItemR(sub, ptr, "min", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  sub->prop(ptr, "min", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "use_max", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  sub = uiLayoutColumn(col, false);
+  col = &layout->column(true);
+  col->prop(ptr, "use_max", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  sub = &col->column(false);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_max"));
-  uiItemR(sub, ptr, "max", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  sub->prop(ptr, "max", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;

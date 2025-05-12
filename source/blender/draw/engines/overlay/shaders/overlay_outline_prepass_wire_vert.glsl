@@ -20,13 +20,13 @@ uint outline_colorid_get()
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
 
   if (is_transform) {
-    return 0u; /* colorTransform */
+    return 0u; /* theme.colors.transform */
   }
   else if (is_active) {
-    return 3u; /* colorActive */
+    return 3u; /* theme.colors.active */
   }
   else {
-    return 1u; /* colorSelect */
+    return 1u; /* theme.colors.object_select */
   }
 
   return 0u;
@@ -44,11 +44,6 @@ VertIn input_assembly(uint in_vertex_id)
   vert_in.ls_P = gpu_attr_load_float3(pos, gpu_attr_0, v_i);
   return vert_in;
 }
-
-/* Replace top 2 bits (of the 16bit output) by outline_id.
- * This leaves 16K different IDs to create outlines between objects.
- * SHIFT = (32 - (16 - 2)) */
-#define SHIFT 18u
 
 struct VertOut {
   float3 ws_P;
@@ -74,7 +69,7 @@ VertOut vertex_main(VertIn v_in)
   uint outline_id = outline_colorid_get();
 
   /* Combine for 16bit uint target. */
-  vert_out.ob_id = (outline_id << 14u) | ((vert_out.ob_id << SHIFT) >> SHIFT);
+  vert_out.ob_id = outline_id_pack(outline_id, vert_out.ob_id);
 
   return vert_out;
 }

@@ -3935,8 +3935,8 @@ static void edbm_blend_from_shape_ui(bContext *C, wmOperator *op)
 
   uiItemPointerR(
       layout, op->ptr, "shape", &ptr_key, "key_blocks", std::nullopt, ICON_SHAPEKEY_DATA);
-  uiItemR(layout, op->ptr, "blend", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "add", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "blend", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "add", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void MESH_OT_blend_from_shape(wmOperatorType *ot)
@@ -4725,7 +4725,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
         ele_sort[i].sort_value = angle;
         ele_sort[i].data = v_link;
 
-        /* Do not allow the best corner or the diagonally opposite corner to be detected.*/
+        /* Do not allow the best corner or the diagonally opposite corner to be detected. */
         if (ELEM(i, 0, verts_len / 2)) {
           ele_sort[i].sort_value = 0;
         }
@@ -5572,9 +5572,9 @@ static void join_triangle_props(wmOperatorType *ot)
 void MESH_OT_tris_convert_to_quads(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Tris to Quads";
+  ot->name = "Triangles to Quads";
   ot->idname = "MESH_OT_tris_convert_to_quads";
-  ot->description = "Join triangles into quads";
+  ot->description = "Merge triangles into four sided polygons where possible";
 
   /* api callbacks */
   ot->exec = edbm_tris_convert_to_quads_exec;
@@ -5732,19 +5732,19 @@ static void edbm_decimate_ui(bContext * /*C*/, wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, op->ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, op->ptr, "use_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col = uiLayoutColumn(layout, false);
+  layout->prop(op->ptr, "use_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
   uiLayoutSetActive(col, RNA_boolean_get(op->ptr, "use_vertex_group"));
-  uiItemR(col, op->ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "invert_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(op->ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(op->ptr, "invert_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Symmetry"));
-  uiItemR(row, op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(row, true);
+  row = &layout->row(true, IFACE_("Symmetry"));
+  row->prop(op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->row(true);
   uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "use_symmetry"));
-  uiItemR(sub, op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  sub->prop(op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void MESH_OT_decimate(wmOperatorType *ot)
@@ -7511,7 +7511,7 @@ void MESH_OT_offset_edge_loops(wmOperatorType *ot)
   ot->poll = ED_operator_editmesh;
 
   /* Keep internal, since this is only meant to be accessed via
-   * 'MESH_OT_offset_edge_loops_slide'. */
+   * `MESH_OT_offset_edge_loops_slide`. */
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -8434,7 +8434,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
         view3d_operator_needs_gpu(C);
         SelectPick_Params params{};
         params.sel_op = SEL_OP_SET;
-        if (EDBM_select_pick(C, event->mval, &params)) {
+        if (EDBM_select_pick(C, event->mval, params)) {
           /* Point to newly selected active. */
           blender::ed::object::calc_active_center_for_editmode(obedit, false, target);
 

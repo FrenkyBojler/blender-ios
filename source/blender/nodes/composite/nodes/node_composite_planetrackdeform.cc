@@ -59,7 +59,7 @@ static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
       PointerRNA tracking_ptr = RNA_pointer_create_discrete(
           &clip->id, &RNA_MovieTracking, tracking);
 
-      uiLayout *col = uiLayoutColumn(layout, false);
+      uiLayout *col = &layout->column(false);
       uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
 
       tracking_object = BKE_tracking_object_get_named(tracking,
@@ -72,7 +72,7 @@ static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
             col, ptr, "plane_track_name", &object_ptr, "plane_tracks", "", ICON_ANIM_DATA);
       }
       else {
-        uiItemR(layout, ptr, "plane_track_name", UI_ITEM_NONE, "", ICON_ANIM_DATA);
+        layout->prop(ptr, "plane_track_name", UI_ITEM_NONE, "", ICON_ANIM_DATA);
       }
     }
   });

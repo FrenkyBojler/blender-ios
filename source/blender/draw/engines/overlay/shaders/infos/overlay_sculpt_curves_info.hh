@@ -6,7 +6,6 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "draw_common_shader_shared.hh"
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 
@@ -24,7 +23,7 @@ GPU_SHADER_CREATE_INFO(overlay_sculpt_curves_selection)
 DO_STATIC_COMPILATION()
 PUSH_CONSTANT(bool, is_point_domain)
 PUSH_CONSTANT(float, selection_opacity)
-SAMPLER(1, FLOAT_BUFFER, selection_tx)
+SAMPLER(1, samplerBuffer, selection_tx)
 VERTEX_OUT(overlay_sculpt_curves_selection_iface)
 VERTEX_SOURCE("overlay_sculpt_curves_selection_vert.glsl")
 FRAGMENT_SOURCE("overlay_sculpt_curves_selection_frag.glsl")

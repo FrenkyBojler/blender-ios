@@ -403,7 +403,9 @@ blender::gpu::Batch *DRW_cache_lattice_wire_get(Object *ob, bool use_weight)
   Lattice &lt = DRW_object_get_data_for_drawing<Lattice>(*ob);
   int actdef = -1;
 
-  if (use_weight && !BLI_listbase_is_empty(&lt.vertex_group_names) && lt.editlatt->latt->dvert) {
+  if (use_weight && !BLI_listbase_is_empty(&lt.vertex_group_names) && lt.editlatt &&
+      lt.editlatt->latt->dvert)
+  {
     actdef = lt.vertex_group_active_index - 1;
   }
 
@@ -644,7 +646,7 @@ void DRW_batch_cache_free_old(Object *ob, int ctime)
 void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
                                   const int data_type,
-                                  const char *layer_name,
+                                  const blender::StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer)
 {

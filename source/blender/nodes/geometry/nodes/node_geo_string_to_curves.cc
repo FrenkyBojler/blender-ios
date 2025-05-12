@@ -64,10 +64,10 @@ static void node_layout(uiLayout *layout, bContext *C, PointerRNA *ptr)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
   uiTemplateID(layout, C, ptr, "font", nullptr, "FONT_OT_open", "FONT_OT_unlink");
-  uiItemR(layout, ptr, "overflow", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "align_x", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "align_y", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "pivot_mode", UI_ITEM_NONE, IFACE_("Pivot Point"), ICON_NONE);
+  layout->prop(ptr, "overflow", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "align_x", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "align_y", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "pivot_mode", UI_ITEM_NONE, IFACE_("Pivot Point"), ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -132,10 +132,10 @@ struct TextLayout {
   /* The text that fit into the text box, with newline character sequences replaced. */
   std::string text;
 
-  /* The text that didn't fit into the text box in 'Truncate' mode. May be empty. */
+  /* The text that didn't fit into the text box in "Truncate" mode. May be empty. */
   std::string truncated_text;
 
-  /* Font size could be modified if in 'Scale to fit'-mode. */
+  /* Font size could be modified if in "Scale to fit"-mode. */
   float final_font_size;
 };
 

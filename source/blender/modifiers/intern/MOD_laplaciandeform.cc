@@ -794,13 +794,13 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   uiItemS(layout);
 
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiLayoutSetEnabled(row, has_vertex_group);
   uiItemO(row,
           is_bind ? IFACE_("Unbind") : IFACE_("Bind"),
