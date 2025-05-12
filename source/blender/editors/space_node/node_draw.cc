@@ -4092,7 +4092,7 @@ static FrameNodeLayout frame_node_layout(const bNode &frame_node)
     frame_layout.margin_top = std::max(frame_layout.margin, room_for_label);
 
     /* This adjustment approximately centers the cap height in the margin.
-     * This is achieved by finding the x value that is the center of the top margin, then lowering
+     * This is achieved by finding the y value that is the center of the top margin, then lowering
      * that by 35% of the label height. Since font cap heights are typically about 70% of the total
      * line height, moving the text by half that achieves rough centering. */
     frame_layout.label_baseline = 0.5f * frame_layout.margin_top +
@@ -4231,7 +4231,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   const NodeFrame *data = (const NodeFrame *)node.storage;
 
   /* Setting BLF_aspect() and then counter-scaling by aspect in BLF_size() has no effect on the
-   * rendered text size, becuase the two adjustments cancel each other out. But, using aspect
+   * rendered text size, because the two adjustments cancel each other out. But, using aspect
    * renders the text at higher resolution, which sharpens the rasterization of the text. */
   const float aspect = snode.runtime->aspect;
   BLF_enable(fontid, BLF_ASPECT);
