@@ -23,6 +23,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -36,8 +37,6 @@
 #include <pxr/usd/ar/packageUtils.h>
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/shader.h>
-
-#include <mutex>
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.usd"};
@@ -441,7 +440,7 @@ void NodePlacementContext::cache_node(const pxr::UsdShadeShader &usd_shader,
 
 USDMaterialReader::USDMaterialReader(const USDImportParams &params,
                                      Main &bmain,
-                                     std::mutex &reader_mutex)
+                                     Mutex &reader_mutex)
     : params_(params), bmain_(bmain), reader_mutex_(reader_mutex)
 {
 }

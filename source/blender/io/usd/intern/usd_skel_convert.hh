@@ -4,13 +4,12 @@
 #pragma once
 
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_string_ref.hh"
 
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdGeom/xformCache.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
-
-#include <mutex>
 
 struct Depsgraph;
 struct Main;
@@ -46,7 +45,7 @@ namespace blender::io::usd {
 void import_blendshapes(Main *bmain,
                         Object *mesh_obj,
                         const pxr::UsdPrim &prim,
-                        std::mutex &reader_mutex,
+                        Mutex &reader_mutex,
                         ReportList *reports,
                         bool import_anim = true);
 
@@ -66,7 +65,7 @@ void import_blendshapes(Main *bmain,
 void import_skeleton(Main *bmain,
                      Object *arm_obj,
                      const pxr::UsdSkelSkeleton &skel,
-                     std::mutex &reader_mutex,
+                     Mutex &reader_mutex,
                      ReportList *reports,
                      bool import_anim = true);
 /**

@@ -23,6 +23,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_task.hh"
@@ -274,7 +275,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   }
 
   /* Setup parenthood and read actual object data. */
-  std::mutex progress_mutex;
+  Mutex progress_mutex;
   progress_count = 0;
   const Span<USDPrimReader *> readers = archive->readers();
   threading::parallel_for_each(readers.index_range(), [&](const int64_t index) {

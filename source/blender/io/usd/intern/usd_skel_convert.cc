@@ -35,6 +35,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
@@ -46,7 +47,6 @@
 #include "ANIM_animdata.hh"
 
 #include <algorithm>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -87,7 +87,7 @@ void import_skeleton_curves(Main *bmain,
                             Object *arm_obj,
                             const pxr::UsdSkelSkeletonQuery &skel_query,
                             const blender::Map<pxr::TfToken, std::string> &joint_to_bone_map,
-                            std::mutex &reader_mutex,
+                            blender::Mutex &reader_mutex,
                             ReportList *reports)
 {
   using namespace blender::io::usd;
@@ -351,7 +351,7 @@ namespace blender::io::usd {
 void import_blendshapes(Main *bmain,
                         Object *mesh_obj,
                         const pxr::UsdPrim &prim,
-                        std::mutex &reader_mutex,
+                        Mutex &reader_mutex,
                         ReportList *reports,
                         const bool import_anim)
 {
@@ -707,7 +707,7 @@ static void set_rest_pose(Main *bmain,
 void import_skeleton(Main *bmain,
                      Object *arm_obj,
                      const pxr::UsdSkelSkeleton &skel,
-                     std::mutex &reader_mutex,
+                     Mutex &reader_mutex,
                      ReportList *reports,
                      const bool import_anim)
 {

@@ -11,6 +11,7 @@
 #include "usd_hash_types.hh"
 
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
 
 #include "WM_types.hh"
@@ -59,7 +60,7 @@ struct ImportSettings {
    * be populated prior to stage traversal. */
   mutable blender::Set<pxr::SdfPath> mat_import_hook_sources{};
 
-  mutable std::mutex reader_mutex;
+  mutable Mutex reader_mutex;
 
   /* We use the stage metersPerUnit to convert camera properties from USD scene units to the
    * correct millimeter scale that Blender uses for camera parameters. */

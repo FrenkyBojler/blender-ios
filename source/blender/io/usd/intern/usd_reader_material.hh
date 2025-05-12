@@ -9,12 +9,12 @@
 
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include <pxr/usd/usdShade/material.h>
 
-#include <mutex>
 #include <string>
 
 struct Main;
@@ -114,10 +114,10 @@ class USDMaterialReader {
  private:
   const USDImportParams &params_;
   Main &bmain_;
-  std::mutex &reader_mutex_;
+  Mutex &reader_mutex_;
 
  public:
-  USDMaterialReader(const USDImportParams &params, Main &bmain, std::mutex &reader_mutex);
+  USDMaterialReader(const USDImportParams &params, Main &bmain, Mutex &reader_mutex);
 
   /* Create the Blender material for the given UsdShadeMaterial. The caller is respondible for
    * holding any locks necessary for concurrency. */
