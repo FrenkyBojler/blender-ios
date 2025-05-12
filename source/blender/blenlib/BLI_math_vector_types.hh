@@ -132,52 +132,56 @@ template<typename T, int Size> struct vec_rw_swizzle {
     return (*this = other.operator VecT());
   }
 
-/* TEMP */
-#define RET \
+#define IMPL_BINARY(op) \
   { \
-    return {}; \
+    return {*this = VecT(*this) op a}; \
+  }
+#define IMPL_UNARY(op) \
+  { \
+    return op VecT(*this); \
   }
 
 #define STD_OP \
   template<typename U = T, typename std::enable_if_t<!std::is_same_v<bool, U>> * = nullptr>
 
-  STD_OP VecT operator+() const RET;
-  STD_OP VecT operator-() const RET;
+  STD_OP VecT operator+() const IMPL_UNARY(+);
+  STD_OP VecT operator-() const IMPL_UNARY(-);
 
-  STD_OP friend VecT operator+=(vec_rw_swizzle, VecT) RET;
-  STD_OP friend VecT operator-=(vec_rw_swizzle, VecT) RET;
-  STD_OP friend VecT operator/=(vec_rw_swizzle, VecT) RET;
-  STD_OP friend VecT operator*=(vec_rw_swizzle, VecT) RET;
+  STD_OP vec_rw_swizzle &operator+=(const VecT &a) IMPL_BINARY(+);
+  STD_OP vec_rw_swizzle &operator-=(const VecT &a) IMPL_BINARY(-);
+  STD_OP vec_rw_swizzle &operator/=(const VecT &a) IMPL_BINARY(/);
+  STD_OP vec_rw_swizzle &operator*=(const VecT &a) IMPL_BINARY(*);
 
-  STD_OP friend VecT operator+=(vec_rw_swizzle, T) RET;
-  STD_OP friend VecT operator-=(vec_rw_swizzle, T) RET;
-  STD_OP friend VecT operator/=(vec_rw_swizzle, T) RET;
-  STD_OP friend VecT operator*=(vec_rw_swizzle, T) RET;
+  STD_OP vec_rw_swizzle &operator+=(const T &a) IMPL_BINARY(+);
+  STD_OP vec_rw_swizzle &operator-=(const T &a) IMPL_BINARY(-);
+  STD_OP vec_rw_swizzle &operator/=(const T &a) IMPL_BINARY(/);
+  STD_OP vec_rw_swizzle &operator*=(const T &a) IMPL_BINARY(*);
 
 #define INT_OP \
   template<typename U = T, \
            typename std::enable_if_t<std::is_integral_v<U>> * = nullptr, \
            typename std::enable_if_t<!std::is_same_v<bool, U>> * = nullptr>
 
-  INT_OP friend VecT operator~(vec_rw_swizzle) RET;
+  INT_OP VecT operator~() const IMPL_UNARY(~);
 
-  INT_OP friend VecT operator%=(vec_rw_swizzle, VecT) RET;
-  INT_OP friend VecT operator&=(vec_rw_swizzle, VecT) RET;
-  INT_OP friend VecT operator|=(vec_rw_swizzle, VecT) RET;
-  INT_OP friend VecT operator^=(vec_rw_swizzle, VecT) RET;
+  INT_OP vec_rw_swizzle &operator%=(const VecT &a) IMPL_BINARY(%);
+  INT_OP vec_rw_swizzle &operator&=(const VecT &a) IMPL_BINARY(&);
+  INT_OP vec_rw_swizzle &operator|=(const VecT &a) IMPL_BINARY(|);
+  INT_OP vec_rw_swizzle &operator^=(const VecT &a) IMPL_BINARY(^);
 
-  INT_OP friend VecT operator%=(vec_rw_swizzle, T) RET;
-  INT_OP friend VecT operator&=(vec_rw_swizzle, T) RET;
-  INT_OP friend VecT operator|=(vec_rw_swizzle, T) RET;
-  INT_OP friend VecT operator^=(vec_rw_swizzle, T) RET;
+  INT_OP vec_rw_swizzle &operator%=(const T &a) IMPL_BINARY(%);
+  INT_OP vec_rw_swizzle &operator&=(const T &a) IMPL_BINARY(&);
+  INT_OP vec_rw_swizzle &operator|=(const T &a) IMPL_BINARY(|);
+  INT_OP vec_rw_swizzle &operator^=(const T &a) IMPL_BINARY(^);
 
-  INT_OP friend VecT operator<<=(vec_rw_swizzle, VecT) RET;
-  INT_OP friend VecT operator>>=(vec_rw_swizzle, VecT) RET;
-  INT_OP friend VecT operator<<=(vec_rw_swizzle, T) RET;
-  INT_OP friend VecT operator>>=(vec_rw_swizzle, T) RET;
+  INT_OP vec_rw_swizzle &operator<<=(const VecT &a) IMPL_BINARY(<<);
+  INT_OP vec_rw_swizzle &operator>>=(const VecT &a) IMPL_BINARY(>>);
+  INT_OP vec_rw_swizzle &operator<<=(const T &a) IMPL_BINARY(<<);
+  INT_OP vec_rw_swizzle &operator>>=(const T &a) IMPL_BINARY(>>);
 
 #undef INT_OP
-#undef RET
+#undef IMPL_BINARY
+#undef IMPL_UNARY
 };
 
 template<typename T, int Size, bool is_trivial_type> struct vec_struct_base {
