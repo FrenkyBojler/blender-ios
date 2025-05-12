@@ -33,6 +33,8 @@
 
 namespace blender::io::fbx {
 
+static constexpr const char *temp_custom_normals_name = "fbx_temp_custom_normals";
+
 static const ufbx_skin_deformer *get_skin_from_mesh(const ufbx_mesh *mesh)
 {
   if (mesh->skin_deformers.count > 0) {
@@ -252,18 +254,23 @@ static void import_colors(const ufbx_mesh *fmesh,
   }
 }
 
-static void import_normals(const ufbx_mesh *fmesh, Mesh *mesh)
+static bool import_normals_into_temp_attribute(const ufbx_mesh *fmesh,
+                                               Mesh *mesh,
+                                               bke::MutableAttributeAccessor &attributes)
 {
-  if (fmesh->vertex_normal.exists) {
-    BLI_assert(fmesh->vertex_normal.indices.count == mesh->corners_num);
-    Array<float3> normals(mesh->corners_num);
-    for (int i = 0; i < mesh->corners_num; i++) {
-      int val_idx = fmesh->vertex_normal.indices[i];
-      const ufbx_vec3 &normal = fmesh->vertex_normal.values[val_idx];
-      normals[i] = float3(normal.x, normal.y, normal.z);
-    }
-    bke::mesh_set_custom_normals(*mesh, normals);
+  if (!fmesh->vertex_normal.exists) {
+    return false;
   }
+  bke::SpanAttributeWriter<float3> normals = attributes.lookup_or_add_for_write_only_span<float3>(
+      temp_custom_normals_name, bke::AttrDomain::Corner);
+  BLI_assert(fmesh->vertex_normal.indices.count == mesh->corners_num);
+  BLI_assert(fmesh->vertex_normal.indices.count == normals.span.size());
+  for (int i = 0; i < mesh->corners_num; i++) {
+    int val_idx = fmesh->vertex_normal.indices[i];
+    const ufbx_vec3 &normal = fmesh->vertex_normal.values[val_idx];
+    normals.span[i] = float3(normal.x, normal.y, normal.z);
+  }
+  return true;
 }
 
 static void import_skin_vertex_groups(const ufbx_mesh *fmesh,
@@ -367,8 +374,12 @@ void import_meshes(Main &bmain,
     if (params.vertex_colors != eFBXVertexColorMode::None) {
       import_colors(fmesh, mesh, attributes, attr_owner, params.vertex_colors);
     }
+    bool has_custom_normals = false;
     if (params.use_custom_normals) {
-      import_normals(fmesh, mesh);
+      /* Mesh validation below can alter the mesh, so we first write custom normals
+       * into a temporary custom corner domain attribute, and then re-apply that
+       * data as custom normals after the validation. */
+      has_custom_normals = import_normals_into_temp_attribute(fmesh, mesh, attributes);
     }
     const ufbx_skin_deformer *skin = get_skin_from_mesh(fmesh);
     if (skin != nullptr) {
@@ -383,6 +394,16 @@ void import_meshes(Main &bmain,
 #endif
       BKE_mesh_validate(mesh, verbose_validate, false);
     }
+
+    if (has_custom_normals) {
+      /* Actually set custom normals after the validation. */
+      bke::SpanAttributeWriter<float3> normals =
+          attributes.lookup_or_add_for_write_only_span<float3>(temp_custom_normals_name,
+                                                               bke::AttrDomain::Corner);
+      bke::mesh_set_custom_normals(*mesh, normals.span);
+      attributes.remove(temp_custom_normals_name);
+    }
+
     meshes[index] = mesh;
   });
 
