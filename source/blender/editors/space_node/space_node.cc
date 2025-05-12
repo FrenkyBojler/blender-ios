@@ -1250,6 +1250,8 @@ static void node_socket_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *dro
   }
 
   BLI_assert(socket);
+  PropertyRNA *prop = RNA_struct_find_property(drop->ptr, "panel_identifier");
+  RNA_property_unset(drop->ptr, prop);
   RNA_string_set(drop->ptr, "socket_identifier", socket->identifier);
 }
 
@@ -1263,7 +1265,10 @@ static void node_panel_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop
       drag->poin);
   const bNodeTreeInterfacePanel *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(
       drag_data->item);
+
   BLI_assert(panel);
+  PropertyRNA *prop = RNA_struct_find_property(drop->ptr, "socket_identifier");
+  RNA_property_unset(drop->ptr, prop);
   RNA_int_set(drop->ptr, "panel_identifier", panel->identifier);
 }
 
@@ -1278,12 +1283,7 @@ static std::string node_socket_drop_tooltip(bContext * /*C*/,
       bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(drag_data->item);
 
   if (socket) {
-    if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-      return BLI_sprintfN(TIP_("Add \"%s\" Input"), socket->name);
-    }
-    if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-      return BLI_sprintfN(TIP_("Add \"%s\" Output"), socket->name);
-    }
+    return BLI_sprintfN(TIP_("Add \"%s\" Input"), socket->name);
   }
   else {
     const bNodeTreeInterfacePanel *panel =
@@ -1293,12 +1293,7 @@ static std::string node_socket_drop_tooltip(bContext * /*C*/,
     /* Dragging a panel with toggle defaults to dragging the toggle socket.
      * Display a hint with the modifier required to drag the panel. */
     if (socket) {
-      if (socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-        return BLI_sprintfN(TIP_("Add \"%s\" Input (Ctrl to add panel)"), socket->name);
-      }
-      if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-        return BLI_sprintfN(TIP_("Add \"%s\" Output (Ctrl to add panel)"), socket->name);
-      }
+      return BLI_sprintfN(TIP_("Add \"%s\" Input (Ctrl to add panel)"), socket->name);
     }
   }
   BLI_assert_unreachable();
@@ -1368,13 +1363,13 @@ static void node_dropboxes()
                  nullptr,
                  nullptr);
   WM_dropbox_add(lb,
-                 "NODE_OT_add_group_input_node_with_socket",
+                 "NODE_OT_add_group_input_node",
                  node_socket_drop_poll,
                  node_socket_drop_copy,
                  nullptr,
                  node_socket_drop_tooltip);
   WM_dropbox_add(lb,
-                 "NODE_OT_add_group_input_node_with_panel",
+                 "NODE_OT_add_group_input_node",
                  node_panel_drop_poll,
                  node_panel_drop_copy,
                  nullptr,
