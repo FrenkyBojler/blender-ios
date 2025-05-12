@@ -6282,9 +6282,9 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       break;
     }
 
-    case GHOST_kEventWheelX: {
-      const GHOST_TEventWheelXData *wheel_data = static_cast<const GHOST_TEventWheelXData *>(
-          customdata);
+    case GHOST_kEventWheelHorizontal: {
+      const GHOST_TEventWheelHorizontalData *wheel_data =
+          static_cast<const GHOST_TEventWheelHorizontalData *>(customdata);
 
       int click_step;
       if (wheel_data->z > 0) {
@@ -6296,9 +6296,13 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
         click_step = -wheel_data->z;
       }
 
+      /* Avoid generating a large number of events.
+       * In practice this values is typically 1, sometimes 2-3, even 32 is very high
+       * although this could happen if the system freezes. */
       click_step = std::min(click_step, 32);
 
       event.val = KM_PRESS;
+      /* Generate a separate event for each click. Same as in the #GHOST_kEventWheel case. */
       for (int i = 0; i < click_step; i++) {
         wm_event_add_intern(win, &event);
       }

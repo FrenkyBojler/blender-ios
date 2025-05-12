@@ -54,6 +54,7 @@ set(SRC
   intern/GHOST_EventString.hh
   intern/GHOST_EventTrackpad.hh
   intern/GHOST_EventWheel.hh
+  intern/GHOST_EventWheelHorizontal.hh
   intern/GHOST_ModifierKeys.hh
   intern/GHOST_PathUtils.hh
   intern/GHOST_System.hh

@@ -15,6 +15,7 @@
 #include "GHOST_EventKey.hh"
 #include "GHOST_EventTrackpad.hh"
 #include "GHOST_EventWheel.hh"
+#include "GHOST_EventWheelHorizontal.hh"
 #include "GHOST_PathUtils.hh"
 #include "GHOST_TimerManager.hh"
 #include "GHOST_WaylandUtils.hh"
@@ -4110,11 +4111,9 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
           }
 
           /* Done evaluating scroll input, generate the events. */
-
-          /* Discrete X axis currently unsupported. */
           if (ps.discrete_xy[0] || ps.discrete_xy[1]) {
             if (ps.discrete_xy[0]) {
-              seat->system->pushEvent_maybe_pending(new GHOST_EventWheelX(
+              seat->system->pushEvent_maybe_pending(new GHOST_EventWheelHorizontal(
                   ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
                   win,
                   ps.discrete_xy[0]));

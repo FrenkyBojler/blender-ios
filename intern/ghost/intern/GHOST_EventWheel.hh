@@ -35,16 +35,3 @@ class GHOST_EventWheel : public GHOST_Event {
   /** The z-displacement of the mouse wheel. */
   GHOST_TEventWheelData m_wheelEventData;
 };
-
-class GHOST_EventWheelX : public GHOST_Event {
- public:
-  GHOST_EventWheelX(uint64_t msec, GHOST_IWindow *window, int32_t z)
-      : GHOST_Event(msec, GHOST_kEventWheelX, window)
-  {
-    m_wheelEventData.z = z;
-    m_data = &m_wheelEventData;
-  }
-
- protected:
-  GHOST_TEventWheelXData m_wheelEventData;
-};
