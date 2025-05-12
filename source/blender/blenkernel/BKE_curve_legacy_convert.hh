@@ -8,9 +8,10 @@
  * \ingroup bke
  */
 
+#include "DNA_curves_types.h"
+
 struct Curve;
 struct ListBase;
-#include "DNA_curves_types.h"
 
 namespace blender::bke {
 
