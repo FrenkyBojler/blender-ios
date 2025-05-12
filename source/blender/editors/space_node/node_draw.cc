@@ -4073,6 +4073,7 @@ static FrameNodeLayout frame_node_layout(const bNode &frame_node)
   const NodeFrame *frame_data = (NodeFrame *)frame_node.storage;
 
   FrameNodeLayout frame_layout;
+
   frame_layout.has_label = frame_node.label[0] != '\0';
 
   /* This is not the actual height of the letters in the label, but an approximation that includes
@@ -4083,18 +4084,25 @@ static FrameNodeLayout frame_node_layout(const bNode &frame_node)
   frame_layout.margin = 1.5f * U.widget_unit;
 
   if (frame_layout.has_label) {
-    /* If there is a label, add the top half of the margin, plus room for the height of the label
-     * and an additional 25% to account for the glyphs descender. This works well in most cases.*/
-    frame_layout.margin_top = 0.5f * frame_layout.margin + 1.25f * frame_layout.label_height;
+    /* The label takes up 1.5 times the label height plus .2 times the margin.
+     * These coefficients are selected to provide good layout and spacing for descenders. */
+    float room_for_label = 1.5f * frame_layout.label_height + 0.2f * frame_layout.margin;
+
+    /* Make top margin bigger, if needed for the label, but never smaller than the side margins. */
+    frame_layout.margin_top = std::max(frame_layout.margin, room_for_label);
+
+    /* This adjustment approximately centers the cap height in the margin.
+     * This is achieved by finding the x value that is the center of the top margin, then lowering
+     * that by 35% of the label height. Since font cap heights are typically about 70% of the total
+     * line height, moving the text by half that achieves rough centering. */
+    frame_layout.label_baseline = 0.5f * frame_layout.margin_top +
+                                  0.35f * frame_layout.label_height;
   }
   else {
-    /* If there is no label, use the same margin as the sides. */
+    /* If there is no label, the top margin is the same as the sides. */
     frame_layout.margin_top = frame_layout.margin;
+    frame_layout.label_baseline = 0;
   }
-
-  /* This adjustment places the top edge of the label near the center of the normal margin.
-   * label_height is not actually the height of the letters, so this is an approximation. */
-  frame_layout.label_baseline = frame_layout.label_height + (0.25f * frame_layout.margin);
 
   return frame_layout;
 }
