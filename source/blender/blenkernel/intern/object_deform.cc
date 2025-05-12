@@ -796,11 +796,12 @@ bool *BKE_object_defgroup_subset_from_select_type(Object *ob,
       const bool *locked_vgroups = BKE_object_defgroup_lock_flags_get(ob, *r_defgroup_tot);
       *r_subset_count = 0;
       for (i = 0; i < *r_defgroup_tot; i++) {
-        defgroup_validmap[i] &= !locked_vgroups[i];
+        defgroup_validmap[i] &= !(locked_vgroups && locked_vgroups[i]);
         if (defgroup_validmap[i] == true) {
           *r_subset_count += 1;
         }
       }
+      MEM_SAFE_FREE(locked_vgroups);
       break;
     }
     case WT_VGROUP_BONE_DEFORM_OFF: {
