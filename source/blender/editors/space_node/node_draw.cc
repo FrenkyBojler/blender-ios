@@ -4083,13 +4083,13 @@ static FrameNodeLayout frame_node_layout(const bNode &frame_node)
   frame_layout.margin = 1.5f * U.widget_unit;
 
   if (frame_layout.has_label) {
-    /* If there is no label, use the same margin as the sides. */
-    frame_layout.margin_top = frame_layout.margin;
-  }
-  else {
     /* If there is a label, add the top half of the margin, plus room for the height of the label
      * and an additional 25% to account for the glyphs descender. This works well in most cases.*/
     frame_layout.margin_top = 0.5f * frame_layout.margin + 1.25f * frame_layout.label_height;
+  }
+  else {
+    /* If there is no label, use the same margin as the sides. */
+    frame_layout.margin_top = frame_layout.margin;
   }
 
   /* This adjustment places the top edge of the label near the center of the normal margin.
