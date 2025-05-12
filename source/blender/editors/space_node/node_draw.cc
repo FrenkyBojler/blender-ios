@@ -4058,39 +4058,45 @@ static void count_multi_input_socket_links(bNodeTree &ntree, SpaceNode &snode)
   }
 }
 
-struct FrameNodeLayoutData {
-  float margin;
-  float margin_top;
-  float label_height;
-  float label_baseline;
-  bool has_label;
+struct FrameNodeLayout {
+  float margin = 0;
+  float margin_top = 0;
+  float label_height = 0;
+  float label_baseline = 0;
+  bool has_label = 0;
 };
 
-static FrameNodeLayoutData frame_node_layout(const bNode &node)
+static FrameNodeLayout frame_node_layout(const bNode &frame_node)
 {
-  const NodeFrame *frame_data = (NodeFrame *)node.storage;
+  BLI_assert(frame_node.is_frame());
 
-  FrameNodeLayoutData retval;
-  retval.has_label = node.label[0] != '\0';
+  const NodeFrame *frame_data = (NodeFrame *)frame_node.storage;
+
+  FrameNodeLayout frame_layout;
+  frame_layout.has_label = frame_node.label[0] != '\0';
 
   /* This is not the actual height of the letters in the label, but an approximation that includes
    * some of the whitespace above and below the actual letters. */
-  retval.label_height = frame_data->label_size * UI_SCALE_FAC;
+  frame_layout.label_height = frame_data->label_size * UI_SCALE_FAC;
 
   /* The side and bottom margins are 50% bigger than the widget unit */
-  retval.margin = 1.5f * U.widget_unit;
+  frame_layout.margin = 1.5f * U.widget_unit;
 
-  /* If there is no label, add the top half and bottom half of the margin.
-   * If there is a label, add the top half of the margin, plus room for the height of the label
-   * and an additional 25% to account for the glyphs descender. This works well in most cases. */
-  retval.margin_top = 0.5f * retval.margin +
-                      (retval.has_label ? 1.25f * retval.label_height : 0.5f * retval.margin);
+  if (frame_layout.has_label) {
+    /* If there is no label, use the same margin as the sides. */
+    frame_layout.margin_top = frame_layout.margin;
+  }
+  else {
+    /* If there is a label, add the top half of the margin, plus room for the height of the label
+     * and an additional 25% to account for the glyphs descender. This works well in most cases.*/
+    frame_layout.margin_top = 0.5f * frame_layout.margin + 1.25f * frame_layout.label_height;
+  }
 
   /* This adjustment places the top edge of the label near the center of the normal margin.
    * label_height is not actually the height of the letters, so this is an approximation. */
-  retval.label_baseline = retval.label_height + (0.25f * retval.margin);
+  frame_layout.label_baseline = frame_layout.label_height + (0.25f * frame_layout.margin);
 
-  return retval;
+  return frame_layout;
 }
 
 /**
@@ -4112,7 +4118,7 @@ static rctf calc_node_frame_dimensions(bNode &node)
 
   NodeFrame *data = (NodeFrame *)node.storage;
 
-  const FrameNodeLayoutData layout = frame_node_layout(node);
+  const FrameNodeLayout frame_layout = frame_node_layout(node);
 
   /* Initialize rect from current frame size. */
   rctf rect;
@@ -4126,10 +4132,10 @@ static rctf calc_node_frame_dimensions(bNode &node)
   for (bNode *child : node.direct_children_in_frame()) {
     /* Add margin to node rect. */
     rctf noderect = calc_node_frame_dimensions(*child);
-    noderect.xmin -= layout.margin;
-    noderect.xmax += layout.margin;
-    noderect.ymin -= layout.margin;
-    noderect.ymax += layout.margin_top;
+    noderect.xmin -= frame_layout.margin;
+    noderect.xmax += frame_layout.margin;
+    noderect.ymin -= frame_layout.margin;
+    noderect.ymax += frame_layout.margin_top;
 
     /* First child initializes frame. */
     if (bbinit) {
@@ -4218,7 +4224,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx, const bNode &n
   BLF_disable(fontid, BLF_ASPECT);
   BLF_size(fontid, font_size * UI_SCALE_FAC);
 
-  const FrameNodeLayoutData layout = frame_node_layout(node);
+  const FrameNodeLayout frame_layout = frame_node_layout(node);
 
   /* Title color. */
   int color_id = node_get_colorid(tree_draw_ctx, node);
@@ -4230,10 +4236,10 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx, const bNode &n
 
   const rctf &rct = node.runtime->draw_bounds;
   const float label_x = BLI_rctf_cent_x(&rct) - (0.5f * label_width);
-  const float label_y = rct.ymax - layout.label_baseline;
+  const float label_y = rct.ymax - frame_layout.label_baseline;
 
   /* Label. */
-  if (layout.has_label) {
+  if (frame_layout.has_label) {
     BLF_position(fontid, label_x, label_y, 0);
     BLF_draw(fontid, node.label, strlen(node.label));
   }
@@ -4242,16 +4248,16 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx, const bNode &n
   if (node.id) {
     const Text *text = (const Text *)node.id;
     const float line_spacing = BLF_height_max(fontid);
-    const float line_width = (BLI_rctf_size_x(&rct) - 2 * layout.margin);
+    const float line_width = (BLI_rctf_size_x(&rct) - 2 * frame_layout.margin);
 
-    const float x = rct.xmin + layout.margin;
-    float y = rct.ymax - layout.label_height -
-              (layout.has_label ? line_spacing + layout.margin : 0);
+    const float x = rct.xmin + frame_layout.margin;
+    float y = rct.ymax - frame_layout.label_height -
+              (frame_layout.has_label ? line_spacing + frame_layout.margin : 0);
 
-    const int y_min = rct.ymin + layout.margin;
+    const int y_min = rct.ymin + frame_layout.margin;
 
     BLF_enable(fontid, BLF_CLIPPING | BLF_WORD_WRAP);
-    BLF_clipping(fontid, rct.xmin, rct.ymin + layout.margin, rct.xmax, rct.ymax);
+    BLF_clipping(fontid, rct.xmin, rct.ymin + frame_layout.margin, rct.xmax, rct.ymax);
 
     BLF_wordwrap(fontid, line_width);
 
