@@ -1111,16 +1111,15 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
     char err_out[256] = "unknown";
-    Scene *scene = CTX_data_scene(C);
     image_buffer = ED_view3d_draw_offscreen_imbuf(CTX_data_ensure_evaluated_depsgraph(C),
-                                                  scene,
+                                                  CTX_data_scene(C),
                                                   eDrawType(v3d->shading.type),
                                                   v3d,
                                                   region,
                                                   region->winx,
                                                   region->winy,
                                                   IB_byte_data,
-                                                  scene->r.alphamode,
+                                                  R_ALPHAPREMUL,
                                                   nullptr,
                                                   false,
                                                   nullptr,
