@@ -4214,15 +4214,21 @@ static void node_update_nodetree(const bContext &C,
   }
 }
 
-static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx, const bNode &node)
+static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
+                                  const bNode &node,
+                                  const SpaceNode &snode)
 {
   /* XXX font id is crap design */
   const int fontid = UI_style_get()->widget.uifont_id;
   const NodeFrame *data = (const NodeFrame *)node.storage;
-  const float font_size = data->label_size;
 
-  BLF_disable(fontid, BLF_ASPECT);
-  BLF_size(fontid, font_size * UI_SCALE_FAC);
+  /* Setting BLF_aspect() and then counter-scaling by aspect in BLF_size() has no effect on the
+   * rendered text size, becuase the two adjustments cancel each other out. But, using aspect
+   * renders the text at higher resolution, which sharpens the rasterization of the text. */
+  const float aspect = snode.runtime->aspect;
+  BLF_enable(fontid, BLF_ASPECT);
+  BLF_aspect(fontid, aspect, aspect, 1.0f);
+  BLF_size(fontid, data->label_size * UI_SCALE_FAC / aspect);
 
   const FrameNodeLayout frame_layout = frame_node_layout(node);
 
@@ -4278,6 +4284,8 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx, const bNode &n
 
     BLF_disable(fontid, BLF_CLIPPING | BLF_WORD_WRAP);
   }
+
+  BLF_disable(fontid, BLF_ASPECT);
 }
 
 static void frame_node_draw_background(const ARegion &region,
@@ -4369,7 +4377,7 @@ static void frame_node_draw_overlay(const bContext &C,
   }
 
   /* Label and text. */
-  frame_node_draw_label(tree_draw_ctx, node);
+  frame_node_draw_label(tree_draw_ctx, node, snode);
 
   node_draw_extra_info_panel(C, tree_draw_ctx, snode, node, nullptr, block);
 
