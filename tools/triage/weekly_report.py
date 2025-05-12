@@ -247,7 +247,7 @@ def report_personal_weekly_get(
 
                         if pr:
                             pr_title = pr["title"]
-                            pr_id = pr["id"]
+                            pr_id = pr["number"]
                             target_repo.prs[(repo_fullname, branch_name)
                                             ] = f"{pr_title} ({target_repo_fullname}!{pr_id})"
 
