@@ -628,7 +628,7 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
  * case writing is skipped, and this function just acts to validate the
  * templating in the path.
  *
- * \param out_path_max_length The maximum length that template expansion is
+ * \param out_path_max_length: The maximum length that template expansion is
  * allowed to make the template-expanded path (in bytes), including the null
  * terminator. In general, this should be the size of the underlying allocation
  * of `path`.
