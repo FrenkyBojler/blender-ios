@@ -151,8 +151,10 @@ struct CornerNormalSpace {
  */
 struct CornerNormalSpaceArray {
   /**
-   * Results are added from multiple threads. This faciliates building this in parallel. This means
-   * the output is nondeterministic.
+   * Results are added from multiple threads. The lock is an easy way to parallelize adding results
+   * for each corner fan. This method means the order of spaces in the `spaces` array and
+   * `corners_by_face` is non-deterministic. That shouldn't affect the final output for the user
+   * though.
    */
   std::mutex build_mutex;
   /**
