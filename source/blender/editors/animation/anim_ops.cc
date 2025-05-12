@@ -84,7 +84,8 @@ class FrameChangeModalData {
 /* Point the playhead can snap to. */
 struct SnapTarget {
   float pos;
-  /* If true, only snap if close to the point. */
+  /* If true, only snap if close to the point in screenspace. If false snap to this point
+   * regardless of screen space distance. */
   bool use_snap_treshold;
 };
 
@@ -212,38 +213,54 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
   ED_keylist_prepare_for_direct_access(op_data.keylist);
 }
 
-static float get_keyframe_snap_target(bContext *C,
-                                      FrameChangeModalData &op_data,
-                                      const float timeline_frame)
+static void append_keyframe_snap_target(bContext *C,
+                                        FrameChangeModalData &op_data,
+                                        const float timeline_frame,
+                                        blender::Vector<SnapTarget> &targets)
 {
   ensure_change_frame_keylist(C, op_data);
   const ActKeyColumn *closest_column = ED_keylist_find_closest(op_data.keylist, timeline_frame);
   if (!closest_column) {
-    return FLT_MAX;
+    return;
   }
-  return closest_column->cfra;
+  targets.append({closest_column->cfra, true});
 }
 
-static float get_marker_snap_target(Scene *scene, const float timeline_frame)
+static void append_marker_snap_target(Scene *scene,
+                                      const float timeline_frame,
+                                      blender::Vector<SnapTarget> &targets)
 {
   if (BLI_listbase_is_empty(&scene->markers)) {
     /* This check needs to be here because `ED_markers_find_nearest_marker_time` returns the
      * current frame if there are no markers. */
-    return FLT_MAX;
+    return;
   }
-  return ED_markers_find_nearest_marker_time(&scene->markers, timeline_frame);
+  const float nearest_marker = ED_markers_find_nearest_marker_time(&scene->markers,
+                                                                   timeline_frame);
+  targets.append({nearest_marker, true});
 }
 
-static float get_second_snap_target(Scene *scene, const float timeline_frame, const int step)
+static void append_second_snap_target(Scene *scene,
+                                      const float timeline_frame,
+                                      const int step,
+                                      blender::Vector<SnapTarget> &targets)
 {
   const int start_frame = scene->r.sfra;
-  return BKE_scene_frame_snap_by_seconds(scene, step, timeline_frame - start_frame) + start_frame;
+  const float snap_frame = BKE_scene_frame_snap_by_seconds(
+                               scene, step, timeline_frame - start_frame) +
+                           start_frame;
+  targets.append({snap_frame, false});
 }
 
-static float get_frame_snap_target(const Scene *scene, const float timeline_frame, const int step)
+static void append_frame_snap_target(const Scene *scene,
+                                     const float timeline_frame,
+                                     const int step,
+                                     blender::Vector<SnapTarget> &targets)
 {
   const int start_frame = scene->r.sfra;
-  return (round((timeline_frame - start_frame) / float(step)) * step) + start_frame;
+  const float snap_frame = (round((timeline_frame - start_frame) / float(step)) * step) +
+                           start_frame;
+  targets.append({snap_frame, false});
 }
 
 static void seq_frame_snap_update_best(const float position,
@@ -257,11 +274,11 @@ static void seq_frame_snap_update_best(const float position,
   }
 }
 
-static float get_sequencer_strip_snap_target(blender::Span<Strip *> strips,
-                                             const Scene *scene,
-                                             const float timeline_frame)
+static void append_sequencer_strip_snap_target(blender::Span<Strip *> strips,
+                                               const Scene *scene,
+                                               const float timeline_frame,
+                                               blender::Vector<SnapTarget> &targets)
 {
-  /* Since  */
   float best_frame = FLT_MAX;
   float best_distance = FLT_MAX;
 
@@ -276,20 +293,20 @@ static float get_sequencer_strip_snap_target(blender::Span<Strip *> strips,
                                &best_distance);
   }
 
-  if (best_distance == FLT_MAX) {
-    /* No snap target was found. */
-    return FLT_MAX;
+  /* best_frame will be FLT_MAX if no target was found. */
+  if (best_distance != FLT_MAX) {
+    targets.append({best_frame, true});
   }
-  return best_frame;
 }
 
-static float get_nla_strip_snap_target(bContext *C, const float timeline_frame)
+static void append_nla_strip_snap_target(bContext *C,
+                                         const float timeline_frame,
+                                         blender::Vector<SnapTarget> &targets)
 {
 
   bAnimContext ac;
   if (!ANIM_animdata_get_context(C, &ac)) {
     BLI_assert_unreachable();
-    return FLT_MAX;
   }
 
   ListBase anim_data = {nullptr, nullptr};
@@ -319,7 +336,9 @@ static float get_nla_strip_snap_target(bContext *C, const float timeline_frame)
   ANIM_animdata_freelist(&anim_data);
 
   /* If no strip was found, best_frame will be FLT_MAX. */
-  return best_frame;
+  if (best_frame != FLT_MAX) {
+    targets.append({best_frame, true});
+  }
 }
 
 /* ---- */
@@ -335,31 +354,24 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
     ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
-    const float snap_target = get_sequencer_strip_snap_target(
-        blender::seq::query_all_strips(seqbase), scene, timeline_frame);
-    targets.append({snap_target, true});
+    append_sequencer_strip_snap_target(
+        blender::seq::query_all_strips(seqbase), scene, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
-    const float snap_target = get_marker_snap_target(scene, timeline_frame);
-    targets.append({snap_target, true});
+    append_marker_snap_target(scene, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    const float snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
-    targets.append({snap_target, true});
+    append_keyframe_snap_target(C, op_data, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const float snap_target = get_second_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_seconds);
-    targets.append({snap_target, false});
+    append_second_snap_target(scene, timeline_frame, tool_settings->snap_step_seconds, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const float snap_target = get_frame_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_frames);
-    targets.append({snap_target, false});
+    append_frame_snap_target(scene, timeline_frame, tool_settings->snap_step_frames, targets);
   }
 
   return targets;
@@ -373,25 +385,19 @@ static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const float
   blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
-    const float snap_target = get_nla_strip_snap_target(C, timeline_frame);
-    targets.append({snap_target, true});
+    append_nla_strip_snap_target(C, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
-    const float snap_target = get_marker_snap_target(scene, timeline_frame);
-    targets.append({snap_target, true});
+    append_marker_snap_target(scene, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const float snap_target = get_second_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_seconds);
-    targets.append({snap_target, false});
+    append_second_snap_target(scene, timeline_frame, tool_settings->snap_step_seconds, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const float snap_target = get_frame_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_frames);
-    targets.append({snap_target, false});
+    append_frame_snap_target(scene, timeline_frame, tool_settings->snap_step_frames, targets);
   }
 
   return targets;
@@ -407,25 +413,19 @@ static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
   blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
-    const float snap_target = get_marker_snap_target(scene, timeline_frame);
-    targets.append({snap_target, true});
+    append_marker_snap_target(scene, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    const float snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
-    targets.append({snap_target, true});
+    append_keyframe_snap_target(C, op_data, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const float snap_target = get_second_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_seconds);
-    targets.append({snap_target, false});
+    append_second_snap_target(scene, timeline_frame, tool_settings->snap_step_seconds, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const float snap_target = get_frame_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_frames);
-    targets.append({snap_target, false});
+    append_frame_snap_target(scene, timeline_frame, tool_settings->snap_step_frames, targets);
   }
 
   return targets;
@@ -441,25 +441,19 @@ static blender::Vector<SnapTarget> graph_get_snap_targets(bContext *C,
   blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
-    const float snap_target = get_marker_snap_target(scene, timeline_frame);
-    targets.append({snap_target, true});
+    append_marker_snap_target(scene, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    const float snap_target = get_keyframe_snap_target(C, op_data, timeline_frame);
-    targets.append({snap_target, true});
+    append_keyframe_snap_target(C, op_data, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
-    const float snap_target = get_second_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_seconds);
-    targets.append({snap_target, false});
+    append_second_snap_target(scene, timeline_frame, tool_settings->snap_step_seconds, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_FRAME) {
-    const float snap_target = get_frame_snap_target(
-        scene, timeline_frame, tool_settings->snap_step_frames);
-    targets.append({snap_target, false});
+    append_frame_snap_target(scene, timeline_frame, tool_settings->snap_step_frames, targets);
   }
 
   return targets;
