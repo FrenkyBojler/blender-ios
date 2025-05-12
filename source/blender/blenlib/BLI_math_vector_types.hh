@@ -48,13 +48,12 @@ template<> struct use_swizzle<int> {
  * Will decay to a vector of the same size.
  */
 template<typename T, int Size, int x_, int y_, int z_ = y_, int w_ = z_> struct vec_ro_swizzle {
- private:
   using VecT = VecBase<T, Size>;
   static constexpr int max_comp = std::max(std::max(std::max(x_, y_), z_), w_);
   static constexpr int min_comp = std::min(std::min(std::min(x_, y_), z_), w_);
   static constexpr int effective_len = max_comp - min_comp + 1;
 
- protected:
+ private:
   T values_[effective_len];
 
  public:
@@ -75,6 +74,11 @@ template<typename T, int Size, int x_, int y_, int z_ = y_, int w_ = z_> struct 
       return {values_[x_ - min_comp], values_[y_ - min_comp]};
     }
     return {};
+  }
+
+  VecT operator()() const
+  {
+    return VecT(*this);
   }
 };
 
@@ -105,6 +109,11 @@ template<typename T, int Size> struct vec_rw_swizzle {
       return {values_[0], values_[1]};
     }
     return {};
+  }
+
+  VecT operator()() const
+  {
+    return VecT(*this);
   }
 
   vec_rw_swizzle &operator=(const VecT &other)
