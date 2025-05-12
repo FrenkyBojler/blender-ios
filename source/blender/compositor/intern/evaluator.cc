@@ -22,6 +22,8 @@
 #include "COM_shader_operation.hh"
 #include "COM_utilities.hh"
 
+#include "GPU_debug.hh"
+
 namespace blender::compositor {
 
 using namespace nodes::derived_node_tree_types;
@@ -106,6 +108,9 @@ bool Evaluator::validate_node_tree()
 
 void Evaluator::evaluate_node(DNode node, CompileState &compile_state)
 {
+  if (context_.use_gpu() && node.bnode()) {
+    GPU_debug_group_begin(node.bnode()->typeinfo->idname.c_str());
+  }
   NodeOperation *operation = node->typeinfo->get_compositor_operation(context_, node);
 
   compile_state.map_node_to_node_operation(node, operation);
@@ -120,6 +125,9 @@ void Evaluator::evaluate_node(DNode node, CompileState &compile_state)
   operation->compute_results_reference_counts(compile_state.get_schedule());
 
   operation->evaluate();
+  if (context_.use_gpu() && node.bnode()) {
+    GPU_debug_group_end();
+  }
 }
 
 void Evaluator::map_node_operation_inputs_to_their_results(DNode node,
