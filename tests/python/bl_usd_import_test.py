@@ -1672,6 +1672,7 @@ class USDImportTest(AbstractUSDTest):
         check_image("test_normal.exr", 1, 128, True)
         check_image("test_normal_invertY.exr", 1, 128, True)
         check_image("color_121212.hdr", 1, 4, True)
+        self.assertEqual(len(bpy.data.images), 4)
         check_materials()
 
         # Reload the empty file and import back in using IMPORT_COPY
@@ -1687,6 +1688,7 @@ class USDImportTest(AbstractUSDTest):
         check_image("test_normal.exr", 1, 128, False)
         check_image("test_normal_invertY.exr", 1, 128, False)
         check_image("color_121212.hdr", 1, 4, False)
+        self.assertEqual(len(bpy.data.images), 4)
         check_materials()
 
     def test_get_prim_map_parent_xform_not_merged(self):
@@ -1833,10 +1835,11 @@ class USDImportTest(AbstractUSDTest):
                               import_textures_mode='IMPORT_PACK',
                               import_textures_dir="")
 
-        # Confirm that the copied file exists.
+        # Confirm that the copied file no longer exists at this point. Using 'IMPORT_PACK' will
+        # output the file to a tempory location suitable for packing but not for long term storage.
         import_path = ImportMtlxTextureUSDHook.result[0]
-        self.assertTrue(pathlib.Path(import_path).exists(),
-                        "Imported texture does not exist")
+        self.assertFalse(pathlib.Path(import_path).exists(),
+                        "Imported texture still exists, which is unexpected for packed modes")
         # Path should be temporary
         is_temporary = ImportMtlxTextureUSDHook.result[1]
         self.assertTrue(is_temporary,
@@ -1972,6 +1975,7 @@ class ImportMtlxTextureUSDHook(bpy.types.USDHook):
         # Record the returned result tuple.  The first element of the tuple
         # is the texture path and the second is a flag indicating whether the
         # returned path references a temporary file.
+        assert pathlib.Path(result[0]).exists() # MUST exist at this point
         ImportMtlxTextureUSDHook.result = result
 
         return True

@@ -262,17 +262,17 @@ struct USDMaterialImportContext {
       return PYTHON_NS::make_tuple(asset_path, false);
     }
 
-    std::string textures_dir = params.import_textures_mode == USD_TEX_IMPORT_PACK ?
+    const char *textures_dir = params.import_textures_mode == USD_TEX_IMPORT_PACK ?
                                    temp_textures_dir() :
                                    params.import_textures_dir;
 
     const eUSDTexNameCollisionMode name_collision_mode = params.import_textures_mode ==
                                                                  USD_TEX_IMPORT_PACK ?
-                                                             USD_TEX_NAME_COLLISION_OVERWRITE :
+                                                             USD_TEX_NAME_COLLISION_USE_EXISTING :
                                                              params.tex_name_collision_mode;
 
     std::string import_path = import_asset(
-        asset_path.c_str(), textures_dir.c_str(), name_collision_mode, reports);
+        asset_path.c_str(), textures_dir, name_collision_mode, reports);
 
     if (import_path == asset_path) {
       /* Path is unchanged. */

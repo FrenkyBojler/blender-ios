@@ -4,6 +4,7 @@
 
 #include "IO_types.hh"
 #include "usd.hh"
+#include "usd_asset_utils.hh"
 #include "usd_hook.hh"
 #include "usd_light_convert.hh"
 #include "usd_reader_geom.hh"
@@ -409,6 +410,9 @@ static void import_endjob(void *customdata)
       ED_undo_push(data->C, "USD Import Finished");
     }
   }
+
+  /* Remove temporary files related to image packing during USDz processing. */
+  temp_textures_dir_delete();
 
   WM_set_locked_interface(data->wm, false);
 

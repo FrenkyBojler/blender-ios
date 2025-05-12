@@ -1281,23 +1281,24 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   const bool import_textures = params_.import_textures_mode != USD_TEX_IMPORT_NONE && is_relative;
 
   std::string imported_file_source_path;
-  std::string temp_dir = params_.import_textures_mode == USD_TEX_IMPORT_PACK ?
-                             temp_textures_dir() :
-                             params_.import_textures_dir;
 
   if (import_textures) {
     imported_file_source_path = file_path;
 
     /* If we are packing the imported textures, we first write them
      * to a temporary directory. */
+    const char *textures_dir = params_.import_textures_mode == USD_TEX_IMPORT_PACK ?
+                                   temp_textures_dir() :
+                                   params_.import_textures_dir;
+
     const eUSDTexNameCollisionMode name_collision_mode = params_.import_textures_mode ==
                                                                  USD_TEX_IMPORT_PACK ?
-                                                             USD_TEX_NAME_COLLISION_OVERWRITE :
+                                                             USD_TEX_NAME_COLLISION_USE_EXISTING :
                                                              params_.tex_name_collision_mode;
 
     /* For correct name collision handling and AssetResolver writing, the lock is needed. */
     std::scoped_lock lock{reader_mutex_};
-    file_path = import_asset(file_path.c_str(), temp_dir.c_str(), name_collision_mode, reports());
+    file_path = import_asset(file_path.c_str(), textures_dir, name_collision_mode, reports());
   }
 
   /* If this is a UDIM texture, this will store the
@@ -1375,7 +1376,6 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
       !BKE_image_has_packedfile(image))
   {
     BKE_image_packfiles(nullptr, image, ID_BLEND_PATH(&bmain_, &image->id));
-    BLI_delete(temp_dir.c_str(), true, true);
   }
 }
 
