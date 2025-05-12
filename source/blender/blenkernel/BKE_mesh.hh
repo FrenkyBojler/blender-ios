@@ -156,7 +156,7 @@ struct CornerNormalSpaceArray {
    * `corners_by_face` is non-deterministic. That shouldn't affect the final output for the user
    * though.
    */
-  std::mutex build_mutex;
+  Mutex build_mutex;
   /**
    * The normal coordinate spaces, potentially shared between multiple face corners in a smooth fan
    * connected to a vertex (and not per face corner). Depending on the mesh (the amount of sharing
