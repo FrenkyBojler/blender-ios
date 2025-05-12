@@ -49,13 +49,17 @@ def geometry_node_group_empty_tool_new(context):
     if ob_type == 'CURVES':
         group.is_type_curve = True
     elif ob_type == 'POINTCLOUD':
-        group.is_type_point_cloud = True
+        group.is_type_pointcloud = True
+    elif ob_type == 'GREASEPENCIL':
+        group.is_type_grease_pencil = True
     else:
         group.is_type_mesh = True
 
     mode = ob.mode if ob else 'OBJECT'
-    if mode in {'SCULPT', 'SCULPT_CURVES'}:
+    if mode in {'SCULPT', 'SCULPT_CURVES', 'SCULPT_GREASE_PENCIL'}:
         group.is_mode_sculpt = True
+    elif mode == 'PAINT_GREASE_PENCIL':
+        group.is_mode_paint = True
     elif mode == 'EDIT':
         group.is_mode_edit = True
     else:
@@ -133,7 +137,7 @@ def get_enabled_socket_with_name(sockets, name):
     return None
 
 
-def create_wrapper_group(modifier, old_group):
+def create_wrapper_group(operator, modifier, old_group):
     wrapper_name = old_group.name + ".wrapper"
     group = bpy.data.node_groups.new(wrapper_name, 'GeometryNodeTree')
     group.interface.new_socket(data_("Geometry"), in_out='OUTPUT', socket_type='NodeSocketGeometry')
@@ -229,8 +233,8 @@ def create_wrapper_group(modifier, old_group):
         group.links.new(store_nodes[-1].outputs["Geometry"], group_output_node.inputs[data_("Geometry")])
     else:
         if not first_geometry_output:
-            self.report({'WARNING'}, "Node group must have a geometry output")
-            return {'CANCELLED'}
+            operator.report({'WARNING'}, "Node group must have a geometry output")
+            return None
         group.links.new(first_geometry_output, group_output_node.inputs[data_("Geometry")])
 
     return group
@@ -276,7 +280,9 @@ class MoveModifierToNodes(Operator):
             old_group = modifier.node_group
             if not old_group:
                 continue
-            modifier.node_group = create_wrapper_group(modifier, old_group)
+            new_group = create_wrapper_group(self, modifier, old_group)
+            if new_group:
+                modifier.node_group = new_group
 
         return {'FINISHED'}
 

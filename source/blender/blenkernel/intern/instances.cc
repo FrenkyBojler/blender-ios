@@ -15,8 +15,6 @@
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
 
-#include "BLT_translation.hh"
-
 namespace blender::bke {
 
 InstanceReference::InstanceReference(GeometrySet geometry_set)
@@ -60,6 +58,16 @@ void InstanceReference::count_memory(MemoryCounter &memory) const
       break;
     }
   }
+}
+
+AttributeAccessor Instances::attributes() const
+{
+  return AttributeAccessor(this, instance_attribute_accessor_functions());
+}
+
+MutableAttributeAccessor Instances::attributes_for_write()
+{
+  return MutableAttributeAccessor(this, instance_attribute_accessor_functions());
 }
 
 static void convert_collection_to_instances(const Collection &collection,
@@ -163,7 +171,7 @@ Instances::Instances(const Instances &other)
 
 Instances::~Instances()
 {
-  CustomData_free(&attributes_, instances_num_);
+  CustomData_free(&attributes_);
 }
 
 Instances &Instances::operator=(const Instances &other)
@@ -324,7 +332,7 @@ void Instances::remove_unused_references()
   const Span<int> reference_handles = this->reference_handles();
 
   Array<bool> usage_by_handle(tot_references_before, false);
-  std::mutex mutex;
+  Mutex mutex;
 
   /* Loop over all instances to see which references are used. */
   threading::parallel_for(IndexRange(tot_instances), 1000, [&](IndexRange range) {
@@ -497,17 +505,13 @@ Span<int> Instances::reference_user_counts() const
 Span<int> Instances::almost_unique_ids() const
 {
   almost_unique_ids_cache_.ensure([&](Array<int> &r_data) {
-    bke::AttributeReader<int> instance_ids_attribute = this->attributes().lookup<int>("id");
-    if (instance_ids_attribute) {
-      Span<int> instance_ids = instance_ids_attribute.varray.get_internal_span();
-      if (r_data.size() != instance_ids.size()) {
-        r_data = generate_unique_instance_ids(instance_ids);
-      }
-    }
-    else {
+    const VArraySpan<int> instance_ids = *this->attributes().lookup<int>("id");
+    if (instance_ids.is_empty()) {
       r_data.reinitialize(instances_num_);
       array_utils::fill_index_range(r_data.as_mutable_span());
+      return;
     }
+    r_data = generate_unique_instance_ids(instance_ids);
   });
   return almost_unique_ids_cache_.data();
 }

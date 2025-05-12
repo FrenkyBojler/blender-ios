@@ -12,7 +12,6 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -27,7 +26,6 @@ struct AnimationEvalContext;
 struct ARegion;
 struct bContext;
 struct bContextStore;
-struct ColorManagedDisplay;
 struct CurveMapping;
 struct CurveProfile;
 namespace blender::gpu {
@@ -50,6 +48,11 @@ struct wmEvent;
 struct wmKeyConfig;
 struct wmOperatorType;
 struct wmTimer;
+
+namespace blender::ocio {
+class Display;
+}  // namespace blender::ocio
+using ColorManagedDisplay = blender::ocio::Display;
 
 /* ****************** general defines ************** */
 
@@ -96,7 +99,7 @@ enum {
    * active button can be polled on non-active buttons to (e.g. for disabling). */
   UI_BUT_ACTIVE_OVERRIDE = (1 << 7),
 
-  /* WARNING: rest of #uiBut.flag in UI_interface.hh */
+  /* WARNING: rest of #uiBut.flag in `UI_interface_c.hh`. */
 };
 
 /** #uiBut.pie_dir */
@@ -172,7 +175,6 @@ enum {
 #define PIE_MAX_ITEMS 8
 
 struct uiBut {
-  uiBut *next = nullptr, *prev = nullptr;
 
   /** Pointer back to the layout item holding this button. */
   uiLayout *layout = nullptr;
@@ -230,18 +232,18 @@ struct uiBut {
   /* When defined, and the button edits a string RNA property, the new name is _not_ set at all,
    * instead this function is called with the new name. */
   std::function<void(std::string &new_name)> rename_full_func = nullptr;
-  std::string rename_full_new = "";
+  std::string rename_full_new;
 
   /** Run an action when holding the button down. */
   uiButHandleHoldFunc hold_func = nullptr;
   void *hold_argN = nullptr;
 
-  const char *tip = nullptr;
+  blender::StringRef tip;
   uiButToolTipFunc tip_func = nullptr;
   void *tip_arg = nullptr;
   uiFreeArgFunc tip_arg_free = nullptr;
   /** Function to override the label to be displayed in the tooltip. */
-  std::function<std::string(const uiBut *)> tip_label_func;
+  std::function<std::string(const uiBut *)> tip_quick_func;
 
   uiButToolTipCustomFunc tip_custom_func = nullptr;
 
@@ -250,7 +252,7 @@ struct uiBut {
 
   BIFIconID icon = ICON_NONE;
   /** Copied from the #uiBlock.emboss */
-  eUIEmbossType emboss = UI_EMBOSS;
+  blender::ui::EmbossType emboss = blender::ui::EmbossType::Emboss;
   /** direction in a pie menu, used for collision detection. */
   RadialDirection pie_dir = UI_RADIAL_NONE;
   /** could be made into a single flag */
@@ -269,6 +271,8 @@ struct uiBut {
   uiMenuCreateFunc menu_create_func = nullptr;
 
   uiMenuStepFunc menu_step_func = nullptr;
+  /** See #UI_but_menu_disable_hover_open(). */
+  bool menu_no_hover_open = false;
 
   /* RNA data */
   PointerRNA rnapoin = {};
@@ -293,6 +297,7 @@ struct uiBut {
   eWM_DragDataType dragtype = WM_DRAG_ID;
   short dragflag = 0;
   void *dragpoin = nullptr;
+  BIFIconID drag_preview_icon_id;
   const ImBuf *imb = nullptr;
   float imb_scale = 0;
 
@@ -334,6 +339,8 @@ struct uiBut {
   uiBut(const uiBut &other) = default;
   /** Mostly shallow copy, just like copy constructor above. */
   uiBut &operator=(const uiBut &other) = default;
+
+  virtual ~uiBut() = default;
 };
 
 /** Derived struct for #UI_BTYPE_NUM */
@@ -455,7 +462,7 @@ struct uiButCurveMapping : public uiBut {
 
 /** Derived struct for #UI_BTYPE_HOTKEY_EVENT. */
 struct uiButHotkeyEvent : public uiBut {
-  short modifier_key = 0;
+  wmEventModifierFlag modifier_key = wmEventModifierFlag(0);
 };
 
 /**
@@ -555,7 +562,7 @@ struct uiBlockDynamicListener {
 struct uiBlock {
   uiBlock *next, *prev;
 
-  ListBase buttons;
+  blender::Vector<std::unique_ptr<uiBut>> buttons;
   Panel *panel;
   uiBlock *oldblock;
 
@@ -605,9 +612,7 @@ struct uiBlock {
   int (*block_event_func)(const bContext *C, uiBlock *, const wmEvent *);
 
   /** Custom extra draw function for custom blocks. */
-  void (*drawextra)(const bContext *C, void *idv, void *arg1, void *arg2, rcti *rect);
-  void *drawextra_arg1;
-  void *drawextra_arg2;
+  std::function<void(const bContext *, rcti *)> drawextra;
 
   int flag;
   short alignnr;
@@ -620,7 +625,7 @@ struct uiBlock {
   /** UI_BLOCK_THEME_STYLE_* */
   char theme_style;
   /** Copied to #uiBut.emboss */
-  eUIEmbossType emboss;
+  blender::ui::EmbossType emboss;
   bool auto_open;
   char _pad[5];
   double auto_open_last;
@@ -673,6 +678,13 @@ struct uiBlock {
   char display_device[64];
 
   PieMenuData pie_data;
+
+  void remove_but(const uiBut *but);
+  [[nodiscard]] uiBut *first_but() const;
+  [[nodiscard]] uiBut *last_but() const;
+  int but_index(const uiBut *but) const;
+  [[nodiscard]] uiBut *next_but(const uiBut *but) const;
+  [[nodiscard]] uiBut *prev_but(const uiBut *but) const;
 };
 
 struct uiSafetyRct {
@@ -680,7 +692,6 @@ struct uiSafetyRct {
   rctf parent;
   rctf safety;
 };
-
 /* `interface.cc` */
 
 void ui_fontscale(float *points, float aspect);
@@ -858,46 +869,46 @@ void ui_but_override_flag(Main *bmain, uiBut *but);
 
 void ui_block_bounds_calc(uiBlock *block);
 
-ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block);
+const ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block);
 void ui_block_cm_to_display_space_v3(uiBlock *block, float pixel[3]);
 
 /* `interface_regions.cc` */
 
 struct uiKeyNavLock {
   /** Set when we're using keyboard-input. */
-  bool is_keynav;
+  bool is_keynav = false;
   /** Only used to check if we've moved the cursor. */
-  int event_xy[2];
+  blender::int2 event_xy = blender::int2(0);
 };
 
 using uiBlockHandleCreateFunc = uiBlock *(*)(bContext *C, uiPopupBlockHandle *handle, void *arg1);
 
 struct uiPopupBlockCreate {
-  uiBlockCreateFunc create_func;
-  uiBlockHandleCreateFunc handle_create_func;
-  void *arg;
-  uiFreeArgFunc arg_free;
+  uiBlockCreateFunc create_func = nullptr;
+  uiBlockHandleCreateFunc handle_create_func = nullptr;
+  void *arg = nullptr;
+  uiFreeArgFunc arg_free = nullptr;
 
-  int event_xy[2];
+  blender::int2 event_xy = blender::int2(0);
 
   /** Set when popup is initialized from a button. */
-  ARegion *butregion;
-  uiBut *but;
+  ARegion *butregion = nullptr;
+  uiBut *but = nullptr;
 };
 
 struct uiPopupBlockHandle {
   /* internal */
-  ARegion *region;
+  ARegion *region = nullptr;
 
   /** Use only for #UI_BLOCK_MOVEMOUSE_QUIT popups. */
   float towards_xy[2];
-  double towardstime;
-  bool dotowards;
+  double towardstime = 0.0;
+  bool dotowards = false;
 
-  bool popup;
-  void (*popup_func)(bContext *C, void *arg, int event);
-  void (*cancel_func)(bContext *C, void *arg);
-  void *popup_arg;
+  bool popup = false;
+  void (*popup_func)(bContext *C, void *arg, int event) = nullptr;
+  void (*cancel_func)(bContext *C, void *arg) = nullptr;
+  void *popup_arg = nullptr;
 
   /** Store data for refreshing popups. */
   uiPopupBlockCreate popup_create_vars;
@@ -907,43 +918,45 @@ struct uiPopupBlockHandle {
    * \note Popups that can refresh are called with #bContext::wm::region_popup set
    * to the #uiPopupBlockHandle::region both on initial creation and when refreshing.
    */
-  bool can_refresh;
-  bool refresh;
+  bool can_refresh = false;
+  bool refresh = false;
 
-  wmTimer *scrolltimer;
-  float scrolloffset;
+  wmTimer *scrolltimer = nullptr;
+  float scrolloffset = 0.0f;
 
   uiKeyNavLock keynav_state;
 
   /* for operator popups */
-  wmOperator *popup_op;
-  ScrArea *ctx_area;
-  ARegion *ctx_region;
+  wmOperator *popup_op = nullptr;
+  ScrArea *ctx_area = nullptr;
+  ARegion *ctx_region = nullptr;
 
   /* return values */
-  int butretval;
-  int menuretval;
-  int retvalue;
-  float retvec[4];
+  int butretval = 0;
+  int menuretval = 0;
+  int retvalue = 0;
+  float retvec[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
   /** Menu direction. */
-  int direction;
+  int direction = 0;
 
   /* Previous values so we don't resize or reposition on refresh. */
-  rctf prev_block_rect;
-  rctf prev_butrct;
-  short prev_dir1, prev_dir2;
-  int prev_bounds_offset[2];
+  rctf prev_block_rect = {};
+  rctf prev_butrct = {};
+  short prev_dir1 = 0;
+  short prev_dir2 = 0;
+  int prev_bounds_offset[2] = {0, 0};
 
   /* Maximum estimated size to avoid having to reposition on refresh. */
-  float max_size_x, max_size_y;
+  float max_size_x = 0.0f;
+  float max_size_y = 0.0f;
 
   /* #ifdef USE_DRAG_POPUP */
-  bool is_grab;
-  int grab_xy_prev[2];
+  bool is_grab = false;
+  int grab_xy_prev[2] = {0, 0};
   /* #endif */
 
-  char menu_idname[64];
+  char menu_idname[64] = "";
 };
 
 /* -------------------------------------------------------------------- */
@@ -1050,7 +1063,7 @@ uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
  */
 void ui_pie_menu_level_create(uiBlock *block,
                               wmOperatorType *ot,
-                              const char *propname,
+                              blender::StringRefNull propname,
                               IDProperty *properties,
                               const EnumPropertyItem *items,
                               int totitem,
@@ -1168,6 +1181,8 @@ void ui_textedit_undo_push(uiUndoStack_Text *stack, const char *text, int cursor
 const char *ui_textedit_undo(uiUndoStack_Text *stack, int direction, int *r_cursor_index);
 
 /* interface_handlers.cc */
+
+void ui_but_handle_data_free(uiHandleButtonData **data);
 
 void ui_handle_afterfunc_add_operator(wmOperatorType *ot, wmOperatorCallContext opcontext);
 /**
@@ -1294,6 +1309,8 @@ enum uiMenuItemSeparatorType {
 /**
  * Helper call to draw a menu item without a button.
  *
+ * \param back_rect: Used to draw/leave out the backdrop of the menu item. Useful when layering
+ *                   multiple items with different formatting like in search menus.
  * \param but_flag: Button flags (#uiBut.flag) indicating the state of the item, typically
  *                  #UI_HOVER, #UI_BUT_DISABLED, #UI_BUT_INACTIVE.
  * \param separator_type: The kind of separator which controls if and how the string is clipped.
@@ -1302,6 +1319,9 @@ enum uiMenuItemSeparatorType {
  */
 void ui_draw_menu_item(const uiFontStyle *fstyle,
                        rcti *rect,
+                       rcti *back_rect,
+                       float zoom,
+                       bool use_unpadded,
                        const char *name,
                        int iconid,
                        int but_flag,
@@ -1309,6 +1329,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                        int *r_xmax);
 void ui_draw_preview_item(const uiFontStyle *fstyle,
                           rcti *rect,
+                          float zoom,
                           const char *name,
                           int iconid,
                           int but_flag,
@@ -1327,7 +1348,7 @@ void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
                                     int iconid,
                                     const uchar text_col[4],
                                     eFontStyle_Align text_align,
-                                    bool draw_as_icon = false);
+                                    const bool add_padding);
 
 #define UI_TEXT_MARGIN_X 0.4f
 #define UI_POPUP_MARGIN (UI_SCALE_FAC * 12)
@@ -1351,6 +1372,8 @@ void uiStyleInit();
 /* interface_icons.cc */
 
 void ui_icon_ensure_deferred(const bContext *C, int icon_id, bool big);
+/** Is \a icon_id a preview icon that is being loaded/rendered? */
+bool ui_icon_is_preview_deferred_loading(int icon_id, bool big);
 int ui_id_icon_get(const bContext *C, ID *id, bool big);
 
 /* interface_icons_event.cc */
@@ -1611,7 +1634,10 @@ void ui_interface_tag_script_reload_queries();
 /* interface_view.cc */
 
 void ui_block_free_views(uiBlock *block);
-void ui_block_views_bounds_calc(const uiBlock *block);
+void ui_block_views_end(ARegion *region, const uiBlock *block);
+void ui_block_view_persistent_state_restore(const ARegion &region,
+                                            const uiBlock &block,
+                                            blender::ui::AbstractView &view);
 void ui_block_views_listen(const uiBlock *block, const wmRegionListenerParams *listener_params);
 void ui_block_views_draw_overlays(const ARegion *region, const uiBlock *block);
 blender::ui::AbstractView *ui_block_view_find_matching_in_old_block(

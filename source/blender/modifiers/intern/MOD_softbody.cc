@@ -6,10 +6,6 @@
  * \ingroup modifiers
  */
 
-#include <cstdio>
-
-#include "BLI_utildefines.h"
-
 #include "BLT_translation.hh"
 
 #include "DNA_object_force_types.h"
@@ -72,7 +68,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
