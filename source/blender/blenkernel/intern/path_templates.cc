@@ -646,6 +646,15 @@ static blender::Vector<Error> eval_template(char *out_path,
                                             blender::StringRef in_path,
                                             const VariableMap *template_variables)
 {
+  /* We work on a copy of the path, for two reasons:
+   *
+   * 1. So that if there are errors we can leave the original unmodified.
+   * 2. So that the contents of the StringRefs in the Token structs don't change
+   *    out from under us while we're generating the modified path.*/
+  if (out_path) {
+    in_path.copy_utf8_truncated(out_path, out_path_max_length);
+  }
+
   const blender::Vector<Token> tokens = parse_template(in_path);
 
   if (tokens.is_empty()) {
@@ -655,15 +664,6 @@ static blender::Vector<Error> eval_template(char *out_path,
 
   /* Accumulates errors as we process the tokens. */
   blender::Vector<Error> errors;
-
-  /* We work on a copy of the path, for two reasons:
-   *
-   * 1. So that if there are errors we can leave the original unmodified.
-   * 2. So that the contents of the StringRefs in the Token structs don't change
-   *    out from under us while we're generating the modified path.*/
-  if (out_path) {
-    in_path.copy_utf8_truncated(out_path, out_path_max_length);
-  }
 
   /* Tracks the change in string length due to the modifications as we go. We
    * need this to properly map the token byte ranges to the being-modified
