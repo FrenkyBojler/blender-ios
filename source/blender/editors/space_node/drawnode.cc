@@ -1325,15 +1325,14 @@ static void std_node_socket_draw(
       }
       else {
         if (text.is_empty()) {
-          uiItemFullR(layout,
-                      ptr,
-                      RNA_struct_find_property(ptr, "default_value"),
-                      -1,
-                      0,
-                      UI_ITEM_NONE,
-                      "",
-                      ICON_NONE,
-                      label);
+          layout->prop(ptr,
+                       RNA_struct_find_property(ptr, "default_value"),
+                       -1,
+                       0,
+                       UI_ITEM_NONE,
+                       "",
+                       ICON_NONE,
+                       label);
         }
         else {
           uiLayout *row = &layout->split(0.4f, false);
@@ -1375,15 +1374,14 @@ static void std_node_socket_draw(
     case SOCK_COLLECTION:
     case SOCK_OBJECT:
     case SOCK_MATERIAL: {
-      uiItemFullR(layout,
-                  ptr,
-                  RNA_struct_find_property(ptr, "default_value"),
-                  -1,
-                  0,
-                  DEFAULT_FLAGS,
-                  text,
-                  ICON_NONE,
-                  text.is_empty() ? std::optional(label) : std::nullopt);
+      layout->prop(ptr,
+                   RNA_struct_find_property(ptr, "default_value"),
+                   -1,
+                   0,
+                   DEFAULT_FLAGS,
+                   text,
+                   ICON_NONE,
+                   text.is_empty() ? std::optional(label) : std::nullopt);
       break;
     }
     case SOCK_IMAGE: {
@@ -1674,9 +1672,9 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_matrix_pop();
 }
 
-static float2 socket_link_connection_location(const bNode &node,
-                                              const bNodeSocket &socket,
-                                              const bNodeLink &link)
+float2 socket_link_connection_location(const bNode &node,
+                                       const bNodeSocket &socket,
+                                       const bNodeLink &link)
 {
   const float2 socket_location = socket.runtime->location;
   if (socket.is_multi_input() && socket.is_input() && !(node.flag & NODE_HIDDEN)) {
