@@ -646,11 +646,6 @@ static blender::Vector<Error> eval_template(char *out_path,
                                             blender::StringRef in_path,
                                             const VariableMap *template_variables)
 {
-  /* We work on a copy of the path, for two reasons:
-   *
-   * 1. So that if there are errors we can leave the original unmodified.
-   * 2. So that the contents of the StringRefs in the Token structs don't change
-   *    out from under us while we're generating the modified path.*/
   if (out_path) {
     in_path.copy_utf8_truncated(out_path, out_path_max_length);
   }
