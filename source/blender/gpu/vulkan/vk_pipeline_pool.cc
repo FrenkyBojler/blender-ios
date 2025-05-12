@@ -146,7 +146,9 @@ void VKPipelinePool::init()
   VkPipelineCacheCreateInfo create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
   vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache_static_);
+  debug::object_label(vk_pipeline_cache_static_, "VkPipelineCache.Static");
   vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache_non_static_);
+  debug::object_label(vk_pipeline_cache_non_static_, "VkPipelineCache.Dynamic");
 }
 
 VkSpecializationInfo *VKPipelinePool::specialization_info_update(
@@ -396,6 +398,13 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
         att_state.dstColorBlendFactor = VK_BLEND_FACTOR_SRC1_COLOR;
         att_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         att_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_SRC1_ALPHA;
+        break;
+
+      case GPU_BLEND_OVERLAY_MASK_FROM_ALPHA:
+        att_state.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+        att_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        att_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        att_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         break;
     }
 
