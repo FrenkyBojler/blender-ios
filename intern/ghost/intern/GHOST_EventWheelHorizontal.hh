@@ -17,6 +17,11 @@
  */
 class GHOST_EventWheelHorizontal : public GHOST_Event {
  public:
+  /**
+   * \param msec: The time this event was generated.
+   * \param window: The window of this event.
+   * \param z: The displacement of the mouse wheel.
+   */
   GHOST_EventWheelHorizontal(uint64_t msec, GHOST_IWindow *window, int32_t z)
       : GHOST_Event(msec, GHOST_kEventWheelHorizontal, window)
   {
