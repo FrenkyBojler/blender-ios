@@ -241,7 +241,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_filter_cc
 
-void register_node_type_cmp_filter()
+static void register_node_type_cmp_filter()
 {
   namespace file_ns = blender::nodes::node_composite_filter_cc;
 

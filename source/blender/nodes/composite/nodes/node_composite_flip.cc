@@ -121,7 +121,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_flip_cc
 
-void register_node_type_cmp_flip()
+static void register_node_type_cmp_flip()
 {
   namespace file_ns = blender::nodes::node_composite_flip_cc;
 

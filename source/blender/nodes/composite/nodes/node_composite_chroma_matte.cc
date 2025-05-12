@@ -141,7 +141,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_chroma_matte_cc
 
-void register_node_type_cmp_chroma_matte()
+static void register_node_type_cmp_chroma_matte()
 {
   namespace file_ns = blender::nodes::node_composite_chroma_matte_cc;
 

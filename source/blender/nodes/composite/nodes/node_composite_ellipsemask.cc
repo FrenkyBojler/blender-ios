@@ -288,7 +288,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_ellipsemask_cc
 
-void register_node_type_cmp_ellipsemask()
+static void register_node_type_cmp_ellipsemask()
 {
   namespace file_ns = blender::nodes::node_composite_ellipsemask_cc;
 

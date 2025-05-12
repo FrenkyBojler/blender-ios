@@ -54,7 +54,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_separate_xyz_cc
 
-void register_node_type_cmp_separate_xyz()
+static void register_node_type_cmp_separate_xyz()
 {
   namespace file_ns = blender::nodes::node_composite_separate_xyz_cc;
 
@@ -108,7 +108,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_combine_xyz_cc
 
-void register_node_type_cmp_combine_xyz()
+static void register_node_type_cmp_combine_xyz()
 {
   namespace file_ns = blender::nodes::node_composite_combine_xyz_cc;
 

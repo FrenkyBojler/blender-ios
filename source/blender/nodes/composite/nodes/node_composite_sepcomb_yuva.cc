@@ -57,7 +57,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_separate_yuva_cc
 
-void register_node_type_cmp_sepyuva()
+static void register_node_type_cmp_sepyuva()
 {
   namespace file_ns = blender::nodes::node_composite_separate_yuva_cc;
 
@@ -134,7 +134,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_combine_yuva_cc
 
-void register_node_type_cmp_combyuva()
+static void register_node_type_cmp_combyuva()
 {
   namespace file_ns = blender::nodes::node_composite_combine_yuva_cc;
 

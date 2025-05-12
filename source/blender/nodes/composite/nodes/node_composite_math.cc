@@ -83,7 +83,7 @@ static int node_gpu_material(GPUMaterial *material,
 
 }  // namespace blender::nodes::node_composite_math_cc
 
-void register_node_type_cmp_math()
+static void register_node_type_cmp_math()
 {
   namespace file_ns = blender::nodes::node_composite_math_cc;
 

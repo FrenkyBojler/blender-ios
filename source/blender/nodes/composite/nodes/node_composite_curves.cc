@@ -102,7 +102,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_time_curves_cc
 
-void register_node_type_cmp_curve_time()
+static void register_node_type_cmp_curve_time()
 {
   namespace file_ns = blender::nodes::node_composite_time_curves_cc;
 
@@ -211,7 +211,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_vector_curves_cc
 
-void register_node_type_cmp_curve_vec()
+static void register_node_type_cmp_curve_vec()
 {
   namespace file_ns = blender::nodes::node_composite_vector_curves_cc;
 
@@ -376,7 +376,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_rgb_curves_cc
 
-void register_node_type_cmp_curve_rgb()
+static void register_node_type_cmp_curve_rgb()
 {
   namespace file_ns = blender::nodes::node_composite_rgb_curves_cc;
 

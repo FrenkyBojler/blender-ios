@@ -140,7 +140,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_composite_cc
 
-void register_node_type_cmp_composite()
+static void register_node_type_cmp_composite()
 {
   namespace file_ns = blender::nodes::node_composite_composite_cc;
 

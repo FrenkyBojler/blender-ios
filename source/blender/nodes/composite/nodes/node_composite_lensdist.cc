@@ -531,7 +531,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_lensdist_cc
 
-void register_node_type_cmp_lensdist()
+static void register_node_type_cmp_lensdist()
 {
   namespace file_ns = blender::nodes::node_composite_lensdist_cc;
 

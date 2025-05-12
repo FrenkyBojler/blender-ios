@@ -58,7 +58,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_separate_rgba_cc
 
-void register_node_type_cmp_seprgba()
+static void register_node_type_cmp_seprgba()
 {
   namespace file_ns = blender::nodes::node_composite_separate_rgba_cc;
 
@@ -132,7 +132,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_combine_rgba_cc
 
-void register_node_type_cmp_combrgba()
+static void register_node_type_cmp_combrgba()
 {
   namespace file_ns = blender::nodes::node_composite_combine_rgba_cc;
 

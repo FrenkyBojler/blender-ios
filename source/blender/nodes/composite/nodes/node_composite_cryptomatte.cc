@@ -910,7 +910,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_cryptomatte_cc
 
-void register_node_type_cmp_cryptomatte()
+static void register_node_type_cmp_cryptomatte()
 {
   namespace file_ns = blender::nodes::node_composite_cryptomatte_cc;
 
@@ -1022,7 +1022,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_legacy_cryptomatte_cc
 
-void register_node_type_cmp_cryptomatte_legacy()
+static void register_node_type_cmp_cryptomatte_legacy()
 {
   namespace legacy_file_ns = blender::nodes::node_composite_legacy_cryptomatte_cc;
   namespace file_ns = blender::nodes::node_composite_cryptomatte_cc;

@@ -221,7 +221,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_separate_color_cc
 
-void register_node_type_cmp_separate_color()
+static void register_node_type_cmp_separate_color()
 {
   namespace file_ns = blender::nodes::node_composite_separate_color_cc;
 
@@ -437,7 +437,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_combine_color_cc
 
-void register_node_type_cmp_combine_color()
+static void register_node_type_cmp_combine_color()
 {
   namespace file_ns = blender::nodes::node_composite_combine_color_cc;
 

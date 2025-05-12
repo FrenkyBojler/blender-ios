@@ -500,7 +500,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_blur_cc
 
-void register_node_type_cmp_blur()
+static void register_node_type_cmp_blur()
 {
   namespace file_ns = blender::nodes::node_composite_blur_cc;
 

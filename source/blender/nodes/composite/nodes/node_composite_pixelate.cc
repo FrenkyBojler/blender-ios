@@ -122,7 +122,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_pixelate_cc
 
-void register_node_type_cmp_pixelate()
+static void register_node_type_cmp_pixelate()
 {
   namespace file_ns = blender::nodes::node_composite_pixelate_cc;
 

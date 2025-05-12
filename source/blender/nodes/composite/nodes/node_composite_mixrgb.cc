@@ -205,7 +205,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_mixrgb_cc
 
-void register_node_type_cmp_mix_rgb()
+static void register_node_type_cmp_mix_rgb()
 {
   namespace file_ns = blender::nodes::node_composite_mixrgb_cc;
 

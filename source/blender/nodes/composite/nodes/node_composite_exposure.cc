@@ -55,7 +55,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_exposure_cc
 
-void register_node_type_cmp_exposure()
+static void register_node_type_cmp_exposure()
 {
   namespace file_ns = blender::nodes::node_composite_exposure_cc;
 

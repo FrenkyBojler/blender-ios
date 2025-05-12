@@ -809,7 +809,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_keying_cc
 
-void register_node_type_cmp_keying()
+static void register_node_type_cmp_keying()
 {
   namespace file_ns = blender::nodes::node_composite_keying_cc;
 

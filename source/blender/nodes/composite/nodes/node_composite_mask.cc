@@ -205,7 +205,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_mask_cc
 
-void register_node_type_cmp_mask()
+static void register_node_type_cmp_mask()
 {
   namespace file_ns = blender::nodes::node_composite_mask_cc;
 

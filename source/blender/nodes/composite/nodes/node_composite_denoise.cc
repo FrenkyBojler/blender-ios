@@ -348,7 +348,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_denoise_cc
 
-void register_node_type_cmp_denoise()
+static void register_node_type_cmp_denoise()
 {
   namespace file_ns = blender::nodes::node_composite_denoise_cc;
 

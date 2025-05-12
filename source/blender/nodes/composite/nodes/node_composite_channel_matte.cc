@@ -268,7 +268,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_channel_matte_cc
 
-void register_node_type_cmp_channel_matte()
+static void register_node_type_cmp_channel_matte()
 {
   namespace file_ns = blender::nodes::node_composite_channel_matte_cc;
 

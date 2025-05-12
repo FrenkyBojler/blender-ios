@@ -16,7 +16,7 @@
 
 #include "RNA_access.hh"
 
-void register_node_type_cmp_group()
+static void register_node_type_cmp_group()
 {
   static blender::bke::bNodeType ntype;
 

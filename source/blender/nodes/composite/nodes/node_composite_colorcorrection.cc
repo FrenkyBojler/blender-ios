@@ -405,7 +405,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_colorcorrection_cc
 
-void register_node_type_cmp_colorcorrection()
+static void register_node_type_cmp_colorcorrection()
 {
   namespace file_ns = blender::nodes::node_composite_colorcorrection_cc;
 

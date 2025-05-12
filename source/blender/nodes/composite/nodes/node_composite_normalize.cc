@@ -108,7 +108,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_normalize_cc
 
-void register_node_type_cmp_normalize()
+static void register_node_type_cmp_normalize()
 {
   namespace file_ns = blender::nodes::node_composite_normalize_cc;
 

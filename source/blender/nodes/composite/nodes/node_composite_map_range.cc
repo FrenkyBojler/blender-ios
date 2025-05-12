@@ -153,7 +153,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_map_range_cc
 
-void register_node_type_cmp_map_range()
+static void register_node_type_cmp_map_range()
 {
   namespace file_ns = blender::nodes::node_composite_map_range_cc;
 

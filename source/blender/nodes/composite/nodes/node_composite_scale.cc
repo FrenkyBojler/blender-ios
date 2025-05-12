@@ -328,7 +328,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_scale_cc
 
-void register_node_type_cmp_scale()
+static void register_node_type_cmp_scale()
 {
   namespace file_ns = blender::nodes::node_composite_scale_cc;
 
