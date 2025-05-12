@@ -298,6 +298,12 @@ void GPU_pass_cache_update()
   g_cache->update();
 }
 
+void GPU_pass_cache_wait_for_all()
+{
+  GPU_shader_batch_wait_for_all();
+  g_cache->update();
+}
+
 void GPU_pass_cache_free()
 {
   MEM_delete(g_cache);

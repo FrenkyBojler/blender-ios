@@ -42,4 +42,5 @@ uint64_t GPU_pass_compilation_timestamp(GPUPass *pass);
 
 void GPU_pass_cache_init();
 void GPU_pass_cache_update();
+void GPU_pass_cache_wait_for_all();
 void GPU_pass_cache_free();

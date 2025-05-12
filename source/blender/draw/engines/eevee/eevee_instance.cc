@@ -474,13 +474,11 @@ void Instance::render_sample()
   /* Motion blur may need to do re-sync after a certain number of sample. */
   if (!is_viewport() && sampling.do_render_sync()) {
     render_sync();
-    while (materials.queued_shaders_count > 0) {
-      /* Leave some time for shaders to compile. */
-      BLI_time_sleep_ms(50);
-      /* TODO: Clean this up. */
-      GPU_pass_cache_update();
-      /** WORKAROUND: Re-sync to check if all shaders are already compiled. */
+    if (materials.queued_shaders_count > 0) {
+      GPU_pass_cache_wait_for_all();
+      /** WORKAROUND: Re-sync now that all shaders are compiled. */
       render_sync();
+      BLI_assert(materials.queued_shaders_count == 0);
     }
   }
 

@@ -385,6 +385,11 @@ void GPU_shader_batch_cancel(BatchHandle &handle)
   GPUBackend::get()->get_compiler()->batch_cancel(handle);
 }
 
+void GPU_shader_batch_wait_for_all()
+{
+  GPUBackend::get()->get_compiler()->wait_for_all();
+}
+
 void GPU_shader_compile_static()
 {
   printf("Compiling all static GPU shaders. This process takes a while.\n");
@@ -1141,6 +1146,12 @@ void ShaderCompiler::run_thread()
 
     compilation_finished_notification_.notify_all();
   }
+}
+
+void ShaderCompiler::wait_for_all()
+{
+  std::unique_lock lock(mutex_);
+  compilation_finished_notification_.wait(lock, [&]() { return compilation_queue_.empty(); });
 }
 
 /** \} */
