@@ -46,6 +46,11 @@ template<> struct use_swizzle<int> {
 /**
  * Swizzle class that supports arithmetic operations.
  * Will decay to a vector of the same size.
+ *
+ * IMPORTANT: Must be declared at the same memory location as the first component referenced in the
+ * swizzle. We do this to allow the copy constructor to copy only the referenced component in the
+ * case of something like `a.zzy = b.zzy`. This is because we do not want to override (or delete)
+ * the copy constructor as it would make the vector types non-trivial.
  */
 template<typename T, int Size, int x_, int y_, int z_ = y_, int w_ = z_> struct vec_ro_swizzle {
   using VecT = VecBase<T, Size>;
