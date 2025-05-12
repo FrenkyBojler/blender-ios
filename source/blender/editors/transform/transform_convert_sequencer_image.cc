@@ -96,7 +96,12 @@ static TransData *SeqToTransData(const Scene *scene,
   tdseq->orig_rotation = transform->rotation;
   tdseq->orig_flag = strip->flag;
   tdseq->orig_mirror = mirror;
-  tdseq->active_seq_orig_rotation = ed->act_seq->data->transform->rotation;
+  if (ed->act_seq != nullptr) {
+    tdseq->active_seq_orig_rotation = ed->act_seq->data->transform->rotation;
+  }
+  else {
+    tdseq->active_seq_orig_rotation = transform->rotation;
+  }
 
   td->extra = (void *)tdseq;
   td->ext = nullptr;
