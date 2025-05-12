@@ -11,8 +11,6 @@
  */
 
 #include "GHOST_CallbackEventConsumer.hh"
-#include "GHOST_C-api.h"
-#include "GHOST_Debug.hh"
 
 GHOST_CallbackEventConsumer::GHOST_CallbackEventConsumer(GHOST_EventCallbackProcPtr eventCallback,
                                                          GHOST_TUserDataPtr userData)
@@ -23,5 +21,5 @@ GHOST_CallbackEventConsumer::GHOST_CallbackEventConsumer(GHOST_EventCallbackProc
 
 bool GHOST_CallbackEventConsumer::processEvent(const GHOST_IEvent *event)
 {
-  return m_eventCallback((GHOST_EventHandle)event, m_userData);
+  return m_eventCallback(event, m_userData);
 }
