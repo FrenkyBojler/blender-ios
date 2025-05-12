@@ -74,10 +74,11 @@ struct GPUPass {
   ~GPUPass()
   {
     if (compilation_handle) {
-      // TODO: Add a way to remove handles from the compilation queue.
-      finalize_compilation();
+      GPU_shader_batch_cancel(compilation_handle);
     }
-    BLI_assert(create_info == nullptr || (is_optimization_pass && status == GPU_PASS_QUEUED));
+    else {
+      BLI_assert(create_info == nullptr || (is_optimization_pass && status == GPU_PASS_QUEUED));
+    }
     MEM_delete(create_info);
     GPU_SHADER_FREE_SAFE(shader);
   }
