@@ -1,2 +1,3 @@
 Referenced by pull request #135450, Fix #135439: Grease Pencil: Prevent deleting groups with animated visibility
 Referenced by commit e781bd7e11880843e8c8144363227fe3ebb2b886, Fix #135439: Grease Pencil: Prevent deleting groups with animated visibility
+Referenced by issue #138733, The use of bone position as a driver to control GP layer visibility is invalid
