@@ -201,7 +201,7 @@ void ED_buttons_navbar_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 {
   ED_screens_region_flip_menu_create(C, layout, nullptr);
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-  uiItemO(layout, IFACE_("Hide"), ICON_NONE, "SCREEN_OT_region_toggle");
+  layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 }
 
 blender::Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpaceProperties *sbuts,
