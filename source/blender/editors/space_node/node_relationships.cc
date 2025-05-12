@@ -675,10 +675,10 @@ static void position_viewer_node(bNodeTree &tree,
   const float default_padding_x = U.node_margin;
   const float default_padding_y = 10;
   const float viewer_width = is_new_viewer_node ?
-                                 viewer_node.width :
+                                 viewer_node.width * UI_SCALE_FAC :
                                  BLI_rctf_size_x(&viewer_node.runtime->draw_bounds);
   const float viewer_height = is_new_viewer_node ?
-                                  100 :
+                                  100 * UI_SCALE_FAC :
                                   BLI_rctf_size_y(&viewer_node.runtime->draw_bounds);
 
   const float2 main_candidate{node_to_view.runtime->draw_bounds.xmax + default_padding_x,
