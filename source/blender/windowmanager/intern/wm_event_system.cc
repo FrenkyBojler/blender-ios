@@ -6282,6 +6282,29 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       break;
     }
 
+    case GHOST_kEventWheelX: {
+      const GHOST_TEventWheelXData *wheel_data = static_cast<const GHOST_TEventWheelXData *>(
+          customdata);
+
+      int click_step;
+      if (wheel_data->z > 0) {
+        event.type = WHEELRIGHTMOUSE;
+        click_step = wheel_data->z;
+      }
+      else {
+        event.type = WHEELLEFTMOUSE;
+        click_step = -wheel_data->z;
+      }
+
+      click_step = std::min(click_step, 32);
+
+      event.val = KM_PRESS;
+      for (int i = 0; i < click_step; i++) {
+        wm_event_add_intern(win, &event);
+      }
+      break;
+    }
+
 #ifdef WITH_INPUT_NDOF
     case GHOST_kEventNDOFMotion: {
       event.type = NDOF_MOTION;

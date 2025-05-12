@@ -942,6 +942,8 @@ def km_view2d(_params):
         ("view2d.scroll_left", {"type": 'WHEELUPMOUSE', "value": 'PRESS', "ctrl": True}, None),
         ("view2d.scroll_down", {"type": 'WHEELDOWNMOUSE', "value": 'PRESS', "shift": True}, None),
         ("view2d.scroll_up", {"type": 'WHEELUPMOUSE', "value": 'PRESS', "shift": True}, None),
+        ("view2d.scroll_right", {"type": 'WHEELRIGHTMOUSE', "value": 'PRESS'}, None),
+        ("view2d.scroll_left", {"type": 'WHEELLEFTMOUSE', "value": 'PRESS'}, None),
         ("view2d.ndof", {"type": 'NDOF_MOTION', "value": 'ANY'}, None),
         # Zoom with single step
         ("view2d.zoom_out", {"type": 'WHEELOUTMOUSE', "value": 'PRESS'}, None),

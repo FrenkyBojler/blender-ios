@@ -265,6 +265,7 @@ typedef enum {
    * \note #GHOST_GetEventData returns #GHOST_TEventWheelData.
    */
   GHOST_kEventWheel,
+  GHOST_kEventWheelX,
   /**
    * Trackpad event.
    *
@@ -581,6 +582,11 @@ typedef struct {
   /** Displacement of a mouse wheel. */
   int32_t z;
 } GHOST_TEventWheelData;
+
+typedef struct {
+  /** Displacement of a mouse wheel. */
+  int32_t z;
+} GHOST_TEventWheelXData;
 
 typedef enum {
   GHOST_kTrackpadEventUnknown = 0,

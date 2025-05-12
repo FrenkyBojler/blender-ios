@@ -4113,6 +4113,12 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
 
           /* Discrete X axis currently unsupported. */
           if (ps.discrete_xy[0] || ps.discrete_xy[1]) {
+            if (ps.discrete_xy[0]) {
+              seat->system->pushEvent_maybe_pending(new GHOST_EventWheelX(
+                  ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
+                  win,
+                  ps.discrete_xy[0]));
+            }
             if (ps.discrete_xy[1]) {
               seat->system->pushEvent_maybe_pending(new GHOST_EventWheel(
                   ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),

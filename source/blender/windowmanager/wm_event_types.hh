@@ -372,6 +372,10 @@ enum wmEventType : int16_t {
 
   /* XR events: 0x503x. */
   EVT_XR_ACTION = 0x5030, /* 20528 */
+
+  /* Horizontal scrolling events. */
+  WHEELLEFTMOUSE = 0x5031,  /* 20529 */
+  WHEELRIGHTMOUSE = 0x5032, /* 20530 */
   /* ********** End of Blender internal events. ********** */
 };
 
