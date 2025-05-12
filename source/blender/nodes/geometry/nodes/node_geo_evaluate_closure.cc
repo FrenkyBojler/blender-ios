@@ -100,6 +100,13 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   }
 }
 
+static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
+                                                       const bNode & /*node*/,
+                                                       const bNodeSocket &output_socket)
+{
+  return evaluate_closure_node_internally_linked_input(output_socket);
+}
+
 static void node_operators()
 {
   socket_items::ops::make_common_operators<EvaluateClosureInputItemsAccessor>();
@@ -117,6 +124,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.internally_linked_input = node_internally_linked_input;
   ntype.register_operators = node_operators;
   bke::node_type_storage(
       ntype, "NodeGeometryEvaluateClosure", node_free_storage, node_copy_storage);
@@ -131,8 +139,8 @@ namespace blender::nodes {
 StructRNA *EvaluateClosureInputItemsAccessor::item_srna =
     &RNA_NodeGeometryEvaluateClosureInputItem;
 int EvaluateClosureInputItemsAccessor::node_type = GEO_NODE_EVALUATE_CLOSURE;
-int EvaluateClosureInputItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeGeometryEvaluateClosureInputItem);
+int EvaluateClosureInputItemsAccessor::item_dna_type =
+    dna::sdna_struct_id_get<NodeGeometryEvaluateClosureInputItem>();
 
 void EvaluateClosureInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -147,8 +155,8 @@ void EvaluateClosureInputItemsAccessor::blend_read_data_item(BlendDataReader *re
 StructRNA *EvaluateClosureOutputItemsAccessor::item_srna =
     &RNA_NodeGeometryEvaluateClosureOutputItem;
 int EvaluateClosureOutputItemsAccessor::node_type = GEO_NODE_EVALUATE_CLOSURE;
-int EvaluateClosureOutputItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeGeometryEvaluateClosureOutputItem);
+int EvaluateClosureOutputItemsAccessor::item_dna_type =
+    dna::sdna_struct_id_get<NodeGeometryEvaluateClosureOutputItem>();
 
 void EvaluateClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
