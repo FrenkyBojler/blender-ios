@@ -1016,6 +1016,9 @@ static bool pose_select_parents(bContext *C)
     BLI_assert(arm);
     blender::Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
     for (bPoseChannel *pchan : selected_pose_bones) {
+      if (!pchan->parent) {
+        continue;
+      }
       if (!PBONE_SELECTABLE(arm, pchan->parent->bone)) {
         continue;
       }
