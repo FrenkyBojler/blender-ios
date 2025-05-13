@@ -577,7 +577,7 @@ static void tree_element_posechannel_activate(bContext *C,
     pchan->bone->flag &= ~BONE_SELECTED;
   }
   else {
-    if (ANIM_bone_is_visible(arm, pchan->bone)) {
+    if (blender::animrig::bone_is_visible(arm, pchan->bone)) {
       pchan->bone->flag |= BONE_SELECTED;
     }
     arm->act_bone = pchan->bone;
@@ -621,7 +621,7 @@ static void tree_element_bone_activate(bContext *C,
     bone->flag &= ~BONE_SELECTED;
   }
   else {
-    if (ANIM_bone_is_visible(arm, bone) && ((bone->flag & BONE_UNSELECTABLE) == 0)) {
+    if (blender::animrig::bone_is_visible(arm, bone) && ((bone->flag & BONE_UNSELECTABLE) == 0)) {
       bone->flag |= BONE_SELECTED;
     }
     arm->act_bone = bone;

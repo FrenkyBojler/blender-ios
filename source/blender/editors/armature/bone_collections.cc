@@ -779,7 +779,7 @@ static void bone_collection_select(bContext *C,
   else {
     LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
       Bone *bone = member->bone;
-      if (!ANIM_bone_is_visible(armature, bone)) {
+      if (!blender::animrig::bone_is_visible(armature, bone)) {
         continue;
       }
       if (bone->flag & BONE_UNSELECTABLE) {

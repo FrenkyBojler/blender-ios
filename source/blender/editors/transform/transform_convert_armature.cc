@@ -1492,7 +1492,7 @@ void transform_convert_pose_transflags_update(Object *ob, const int mode, const 
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     bone = pchan->bone;
-    if (ANIM_bone_is_visible_pchan(arm, pchan)) {
+    if (blender::animrig::bone_is_visible_pchan(arm, pchan)) {
       if (bone->flag & BONE_SELECTED) {
         bone->flag |= BONE_TRANSFORM;
       }
