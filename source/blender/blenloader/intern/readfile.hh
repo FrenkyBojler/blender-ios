@@ -18,6 +18,7 @@
 
 #include "BLI_filereader.h"
 #include "BLI_map.hh"
+#include "BLI_linear_allocator.hh"
 
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
@@ -158,6 +159,9 @@ struct FileData {
 
   /** Opaque handle to the storage system used for non-static allocation strings. */
   void *storage_handle = nullptr;
+
+  /* Linear allocator for all the BHeads. */
+  blender::LinearAllocator<> bheads_allocator;
 };
 
 /***/

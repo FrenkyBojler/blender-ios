@@ -631,7 +631,7 @@ static BHeadN *get_bhead(FileData *fd)
 #ifdef USE_BHEAD_READ_ON_DEMAND
       else if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(bhead)) {
         /* Delay reading bhead content. */
-        new_bhead = MEM_mallocN<BHeadN>("new_bhead");
+        new_bhead = fd->bheads_allocator.allocate<BHeadN>();
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
           new_bhead->file_offset = fd->file->offset;
@@ -641,7 +641,6 @@ static BHeadN *get_bhead(FileData *fd)
           const off64_t seek_new = fd->file->seek(fd->file, bhead->len, SEEK_CUR);
           if (UNLIKELY(seek_new == -1)) {
             fd->is_eof = true;
-            MEM_freeN(new_bhead);
             new_bhead = nullptr;
           }
           else {
@@ -655,7 +654,7 @@ static BHeadN *get_bhead(FileData *fd)
 #endif
       else {
         new_bhead = static_cast<BHeadN *>(
-            MEM_mallocN(sizeof(BHeadN) + size_t(bhead->len), "new_bhead"));
+            fd->bheads_allocator.allocate(sizeof(BHeadN) + size_t(bhead->len), 8));
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
 #ifdef USE_BHEAD_READ_ON_DEMAND
@@ -669,7 +668,6 @@ static BHeadN *get_bhead(FileData *fd)
 
           if (UNLIKELY(readsize != bhead->len)) {
             fd->is_eof = true;
-            MEM_freeN(new_bhead);
             new_bhead = nullptr;
           }
           else {
@@ -1217,20 +1215,6 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
 
 void blo_filedata_free(FileData *fd)
 {
-  /* Free all BHeadN data blocks */
-#ifdef NDEBUG
-  BLI_freelistN(&fd->bhead_list);
-#else
-  /* Sanity check we're not keeping memory we don't need. */
-  LISTBASE_FOREACH_MUTABLE (BHeadN *, new_bhead, &fd->bhead_list) {
-#  ifdef USE_BHEAD_READ_ON_DEMAND
-    if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(&new_bhead->bhead)) {
-      BLI_assert(new_bhead->has_data == 0);
-    }
-#  endif
-    MEM_freeN(new_bhead);
-  }
-#endif
   fd->file->close(fd->file);
 
   if (fd->filesdna) {
