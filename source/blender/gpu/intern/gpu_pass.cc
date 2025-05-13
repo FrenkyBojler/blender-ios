@@ -12,6 +12,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_span.hh"
+#include "BLI_time.h"
 #include "BLI_vector.hh"
 
 #include "GPU_capabilities.hh"
@@ -41,7 +42,7 @@ struct GPUPass {
   /* Orphaned GPUPasses gets freed by the garbage collector. */
   std::atomic<int> refcount = 1;
   /* The last time the refcount was greater than 0. */
-  int gc_timestamp = 0;
+  double gc_timestamp = 0.0f;
 
   uint64_t compilation_timestamp = 0;
 
@@ -105,10 +106,10 @@ struct GPUPass {
     create_info = nullptr;
   }
 
-  void update()
+  void update(double timestamp)
   {
     update_compilation();
-    update_gc_timestamp();
+    update_gc_timestamp(timestamp);
   }
 
   void update_compilation()
@@ -126,19 +127,18 @@ struct GPUPass {
     }
   }
 
-  void update_gc_timestamp()
+  void update_gc_timestamp(double timestamp)
   {
-    if (refcount == 0) {
-      gc_timestamp++;
-    }
-    else {
-      gc_timestamp = 0;
+    if (refcount != 0) {
+      gc_timestamp = timestamp;
     }
   }
 
-  bool should_gc(int gc_collect_rate)
+  bool should_gc(int gc_collect_rate, double timestamp)
   {
-    return !compilation_handle && status != GPU_PASS_FAILED && gc_timestamp >= gc_collect_rate;
+    BLI_assert(gc_timestamp != 0.0f);
+    return !compilation_handle && status != GPU_PASS_FAILED &&
+           (timestamp - gc_timestamp) >= gc_collect_rate;
   }
 };
 
@@ -201,13 +201,13 @@ uint64_t GPU_pass_compilation_timestamp(GPUPass *pass)
 
 class GPUPassCache {
 
-  /* Number of updates with 0 users required before garbage collecting a pass.*/
-  static constexpr int gc_collect_rate_ = 60;
-  /* Number of updates without base compilations required before starting to compile optimization
+  /* Number of seconds with 0 users required before garbage collecting a pass.*/
+  static constexpr float gc_collect_rate_ = 60.0f;
+  /* Number of seconds without base compilations required before starting to compile optimization
    * passes.*/
-  static constexpr int optimization_delay_ = 60;
+  static constexpr float optimization_delay_ = 10.0f;
 
-  int updates_without_base_compilations_ = 0;
+  double last_base_compilation_timestamp_;
 
   Map<uint32_t, std::unique_ptr<GPUPass>> passes_[GPU_MAT_ENGINE_MAX][2 /*is_optimization_pass*/];
   std::mutex mutex_;
@@ -244,38 +244,40 @@ class GPUPassCache {
   {
     std::lock_guard lock(mutex_);
 
+    double timestamp = BLI_time_now_seconds();
+
     bool base_passes_ready = true;
 
     /* Base Passes. */
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[false].values()) {
-        pass->update();
+        pass->update(timestamp);
         if (pass->status == GPU_PASS_QUEUED) {
           base_passes_ready = false;
         }
       }
 
       engine_passes[false].remove_if(
-          [&](auto item) { return item.value->should_gc(gc_collect_rate_); });
+          [&](auto item) { return item.value->should_gc(gc_collect_rate_, timestamp); });
     }
 
     /* Optimization Passes GC. */
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
-        pass->update_gc_timestamp();
+        pass->update_gc_timestamp(timestamp);
       }
 
       engine_passes[true].remove_if(
           /* TODO: Use lower rate for optimization passes? */
-          [&](auto item) { return item.value->should_gc(gc_collect_rate_); });
+          [&](auto item) { return item.value->should_gc(gc_collect_rate_, timestamp); });
     }
 
     if (!base_passes_ready) {
-      updates_without_base_compilations_ = 0;
+      last_base_compilation_timestamp_ = timestamp;
       return;
     }
 
-    if (++updates_without_base_compilations_ < optimization_delay_) {
+    if ((timestamp - last_base_compilation_timestamp_) < optimization_delay_) {
       return;
     }
 
