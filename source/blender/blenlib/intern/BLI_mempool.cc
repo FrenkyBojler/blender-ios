@@ -45,7 +45,7 @@
 #  define POISON_REDZONE_SIZE 0
 #endif
 
-/* NOTE: copied from BLO_blend_defs.hh, don't use here because we're in BLI. */
+/* NOTE: copied from BLO_core_bhead.hh, don't use here because we're in BLI. */
 #ifdef __BIG_ENDIAN__
 /* Big Endian */
 #  define MAKE_ID(a, b, c, d) ((int)(a) << 24 | (int)(b) << 16 | (c) << 8 | (d))
@@ -438,11 +438,6 @@ void *BLI_mempool_calloc(BLI_mempool *pool)
   return retval;
 }
 
-/**
- * Free an element from the mempool.
- *
- * \note doesn't protect against double frees, take care!
- */
 void BLI_mempool_free(BLI_mempool *pool, void *addr)
 {
   BLI_freenode *newhead = static_cast<BLI_freenode *>(addr);

@@ -140,7 +140,7 @@ class RootGeometryViewItem : public InstancesTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_GEOMETRY_SET);
+    row.label(label_, ICON_GEOMETRY_SET);
   }
 };
 
@@ -165,7 +165,7 @@ class InstanceReferenceViewItem : public InstancesTreeViewItem {
     if (name.is_empty()) {
       name = IFACE_("(Geometry)");
     }
-    uiItemL(&row, name, icon);
+    row.label(name, icon);
     draw_count(*this, user_count_);
   }
 
@@ -232,15 +232,21 @@ class DataSetViewItem : public ui::AbstractTreeViewItem {
 };
 
 class MeshViewItem : public DataSetViewItem {
+ private:
+  bool has_mesh_;
+
  public:
-  MeshViewItem()
+  MeshViewItem(const bool has_mesh) : has_mesh_(has_mesh)
   {
     label_ = IFACE_("Mesh");
   }
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_MESH_DATA);
+    if (!has_mesh_) {
+      uiLayoutSetActive(&row, false);
+    }
+    row.label(label_, ICON_MESH_DATA);
   }
 };
 
@@ -263,7 +269,7 @@ class MeshDomainViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     const BIFIconID icon = mesh_domain_to_icon(domain_);
-    uiItemL(&row, label_, icon);
+    row.label(label_, icon);
 
     const int count = mesh_ ? mesh_->attributes().domain_size(domain_) : 0;
     draw_count(*this, count);
@@ -271,15 +277,21 @@ class MeshDomainViewItem : public DataSetViewItem {
 };
 
 class CurvesViewItem : public DataSetViewItem {
+ private:
+  bool has_curves_;
+
  public:
-  CurvesViewItem()
+  CurvesViewItem(const bool has_curves) : has_curves_(has_curves)
   {
     label_ = IFACE_("Curve");
   }
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_CURVE_DATA);
+    if (!has_curves_) {
+      uiLayoutSetActive(&row, false);
+    }
+    row.label(label_, ICON_CURVE_DATA);
   }
 };
 
@@ -303,7 +315,7 @@ class CurvesDomainViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     const BIFIconID icon = curves_domain_to_icon(domain_);
-    uiItemL(&row, label_, icon);
+    row.label(label_, icon);
 
     const int count = curves_ ? curves_->geometry.wrap().attributes().domain_size(domain_) : 0;
     draw_count(*this, count);
@@ -311,15 +323,20 @@ class CurvesDomainViewItem : public DataSetViewItem {
 };
 
 class GreasePencilViewItem : public DataSetViewItem {
+  bool has_grease_pencil_;
+
  public:
-  GreasePencilViewItem()
+  GreasePencilViewItem(const bool has_grease_pencil) : has_grease_pencil_(has_grease_pencil)
   {
     label_ = IFACE_("Grease Pencil");
   }
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_OUTLINER_DATA_GREASEPENCIL);
+    if (!has_grease_pencil_) {
+      uiLayoutSetActive(&row, false);
+    }
+    row.label(label_, ICON_OUTLINER_DATA_GREASEPENCIL);
   }
 };
 
@@ -342,7 +359,7 @@ class GreasePencilLayersViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     const int count = grease_pencil_ ? grease_pencil_->layers().size() : 0;
-    uiItemL(&row, label_, ICON_OUTLINER_DATA_GP_LAYER);
+    row.label(label_, ICON_OUTLINER_DATA_GP_LAYER);
     draw_count(*this, count);
   }
 };
@@ -364,7 +381,7 @@ class GreasePencilLayerViewItem : public DataSetViewItem {
     if (name.is_empty()) {
       name = IFACE_("(Layer)");
     }
-    uiItemL(&row, name, ICON_CURVE_DATA);
+    row.label(name, ICON_CURVE_DATA);
   }
 };
 
@@ -392,7 +409,7 @@ class GreasePencilLayerCurvesDomainViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     const BIFIconID icon = curves_domain_to_icon(domain_);
-    uiItemL(&row, label_, icon);
+    row.label(label_, icon);
 
     const bke::greasepencil::Drawing *drawing = grease_pencil_.get_eval_drawing(
         grease_pencil_.layer(layer_index_));
@@ -402,15 +419,21 @@ class GreasePencilLayerCurvesDomainViewItem : public DataSetViewItem {
 };
 
 class PointCloudViewItem : public DataSetViewItem {
+ private:
+  bool has_pointcloud_;
+
  public:
-  PointCloudViewItem()
+  PointCloudViewItem(const bool has_pointcloud) : has_pointcloud_(has_pointcloud)
   {
     label_ = IFACE_("Point Cloud");
   }
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_POINTCLOUD_DATA);
+    if (!has_pointcloud_) {
+      uiLayoutSetActive(&row, false);
+    }
+    row.label(label_, ICON_POINTCLOUD_DATA);
   }
 };
 
@@ -432,7 +455,7 @@ class PointsViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_POINTCLOUD_POINT);
+    row.label(label_, ICON_POINTCLOUD_POINT);
     const int count = pointcloud_ ? pointcloud_->totpoint : 0;
     draw_count(*this, count);
   }
@@ -456,9 +479,13 @@ class VolumeGridsViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_VOLUME_DATA);
-    const int count = volume_ ? BKE_volume_num_grids(volume_) : 0;
-    draw_count(*this, count);
+    if (!volume_) {
+      uiLayoutSetActive(&row, false);
+    }
+    row.label(label_, ICON_VOLUME_DATA);
+    if (volume_) {
+      draw_count(*this, BKE_volume_num_grids(volume_));
+    }
   }
 };
 
@@ -480,9 +507,13 @@ class InstancesViewItem : public DataSetViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL(&row, label_, ICON_EMPTY_AXIS);
-    const int count = instances_ ? instances_->instances_num() : 0;
-    draw_count(*this, count);
+    if (!instances_) {
+      uiLayoutSetActive(&row, false);
+    }
+    row.label(label_, ICON_EMPTY_AXIS);
+    if (instances_) {
+      draw_count(*this, instances_->instances_num());
+    }
   }
 };
 
@@ -530,8 +561,12 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
 
   void build_tree_for_mesh(const Mesh *mesh, ui::TreeViewItemContainer &parent)
   {
-    auto &mesh_item = parent.add_tree_item<MeshViewItem>();
+    auto &mesh_item = parent.add_tree_item<MeshViewItem>(mesh != nullptr);
     mesh_item.uncollapse_by_default();
+    if (!mesh) {
+      return;
+    }
+
     mesh_item.add_tree_item<MeshDomainViewItem>(mesh, bke::AttrDomain::Point);
     mesh_item.add_tree_item<MeshDomainViewItem>(mesh, bke::AttrDomain::Edge);
     mesh_item.add_tree_item<MeshDomainViewItem>(mesh, bke::AttrDomain::Face);
@@ -540,8 +575,12 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
 
   void build_tree_for_curves(const Curves *curves, ui::TreeViewItemContainer &parent)
   {
-    auto &curves_item = parent.add_tree_item<CurvesViewItem>();
+    auto &curves_item = parent.add_tree_item<CurvesViewItem>(curves != nullptr);
     curves_item.uncollapse_by_default();
+    if (!curves) {
+      return;
+    }
+
     curves_item.add_tree_item<CurvesDomainViewItem>(curves, bke::AttrDomain::Point);
     curves_item.add_tree_item<CurvesDomainViewItem>(curves, bke::AttrDomain::Curve);
   }
@@ -549,13 +588,15 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   void build_tree_for_grease_pencil(const GreasePencil *grease_pencil,
                                     ui::TreeViewItemContainer &parent)
   {
-    auto &grease_pencil_item = parent.add_tree_item<GreasePencilViewItem>();
+    auto &grease_pencil_item = parent.add_tree_item<GreasePencilViewItem>(grease_pencil !=
+                                                                          nullptr);
     grease_pencil_item.uncollapse_by_default();
-    auto &layers_item = grease_pencil_item.add_tree_item<GreasePencilLayersViewItem>(
-        grease_pencil);
     if (!grease_pencil) {
       return;
     }
+
+    auto &layers_item = grease_pencil_item.add_tree_item<GreasePencilLayersViewItem>(
+        grease_pencil);
     const Span<const bke::greasepencil::Layer *> layers = grease_pencil->layers();
     for (const int layer_i : layers.index_range()) {
       auto &layer_item = layers_item.add_tree_item<GreasePencilLayerViewItem>(*grease_pencil,
@@ -569,8 +610,12 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
 
   void build_tree_for_pointcloud(const PointCloud *pointcloud, ui::TreeViewItemContainer &parent)
   {
-    auto &pointcloud_item = parent.add_tree_item<PointCloudViewItem>();
+    auto &pointcloud_item = parent.add_tree_item<PointCloudViewItem>(pointcloud != nullptr);
     pointcloud_item.uncollapse_by_default();
+    if (!pointcloud) {
+      return;
+    }
+
     pointcloud_item.add_tree_item<PointsViewItem>(pointcloud);
   }
 
@@ -721,7 +766,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   const bke::GeometrySet root_geometry = spreadsheet_get_display_geometry_set(sspreadsheet,
                                                                               object);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "instance tree", false, IFACE_("Geometry"))) {
+  if (uiLayout *panel = layout->panel(C, "instance tree", false, IFACE_("Geometry"))) {
     ui::AbstractTreeView *tree_view = UI_block_add_view(
         *block,
         "Instances Tree View",
@@ -729,9 +774,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
     tree_view->set_context_menu_title("Instance");
     ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *panel, {}, false);
   }
-  if (uiLayout *panel = uiLayoutPanel(
-          C, layout, "geometry_domain_tree_view", false, IFACE_("Domain")))
-  {
+  if (uiLayout *panel = layout->panel(C, "geometry_domain_tree_view", false, IFACE_("Domain"))) {
     bke::GeometrySet instance_geometry = get_geometry_set_for_instance_ids(
         root_geometry, {sspreadsheet->instance_ids, sspreadsheet->instance_ids_num});
     ui::AbstractTreeView *tree_view = UI_block_add_view(

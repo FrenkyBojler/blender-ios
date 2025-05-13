@@ -143,35 +143,35 @@ void SpecializeConstant::execute(command::RecordingState &state) const
 
   switch (type) {
     case SpecializeConstant::Type::IntValue:
-      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::INT);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::int_t);
       state.specialization_constants->values[location].i = int_value;
       break;
     case SpecializeConstant::Type::IntReference:
-      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::INT);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::int_t);
       state.specialization_constants->values[location].i = *int_ref;
       break;
     case SpecializeConstant::Type::UintValue:
-      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::UINT);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::uint_t);
       state.specialization_constants->values[location].u = uint_value;
       break;
     case SpecializeConstant::Type::UintReference:
-      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::UINT);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::uint_t);
       state.specialization_constants->values[location].u = *uint_ref;
       break;
     case SpecializeConstant::Type::FloatValue:
-      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::FLOAT);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::float_t);
       state.specialization_constants->values[location].f = float_value;
       break;
     case SpecializeConstant::Type::FloatReference:
-      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::FLOAT);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::float_t);
       state.specialization_constants->values[location].f = *float_ref;
       break;
     case SpecializeConstant::Type::BoolValue:
-      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::BOOL);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::bool_t);
       state.specialization_constants->values[location].u = bool_value;
       break;
     case SpecializeConstant::Type::BoolReference:
-      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::BOOL);
+      BLI_assert(state.specialization_constants->types[location] == gpu::shader::Type::bool_t);
       state.specialization_constants->values[location].u = *bool_ref;
       break;
   }
@@ -193,7 +193,7 @@ void Draw::execute(RecordingState &state) const
   }
 
   if (is_primitive_expansion()) {
-    /* Expanded drawcall. */
+    /* Expanded draw-call. */
     IndexRange expanded_range = GPU_batch_draw_expanded_parameter_get(
         batch->prim_type,
         GPUPrimType(expand_prim_type),
@@ -214,7 +214,7 @@ void Draw::execute(RecordingState &state) const
         gpu_batch, expanded_range.start(), expanded_range.size(), instance_first, instance_len);
   }
   else {
-    /* Regular drawcall. */
+    /* Regular draw-call. */
     GPU_batch_set_shader(batch, state.shader);
     GPU_batch_draw_advanced(batch, vertex_first, vertex_len, instance_first, instance_len);
   }
@@ -349,7 +349,6 @@ void StateSet::execute(RecordingState &recording_state) const
   }
 }
 
-/* Set state of the GPU module manually. */
 void StateSet::set(DRWState state)
 {
   RecordingState recording_state;
@@ -751,9 +750,9 @@ void DrawCommandBuf::finalize_commands(Vector<Header, 0> &headers,
       cmd.vertex_len = batch_vert_len;
     }
 
-    /* NOTE: Only do this if a handle is present. If a drawcall is using instancing with null
+    /* NOTE: Only do this if a handle is present. If a draw-call is using instancing with null
      * handle, the shader should not rely on `resource_id` at ***all***. This allows procedural
-     * instanced drawcalls with lots of instances with no overhead. */
+     * instanced draw-calls with lots of instances with no overhead. */
     /* TODO(fclem): Think about either fixing this feature or removing support for instancing all
      * together. */
     if (cmd.handle.raw > 0) {
@@ -777,7 +776,7 @@ void DrawCommandBuf::generate_commands(Vector<Header, 0> &headers,
                                        SubPassVector &sub_passes)
 {
   /* First instance ID contains the null handle with identity transform.
-   * This is referenced for drawcalls with no handle. */
+   * This is referenced for draw-calls with no handle. */
   resource_id_buf_.get_or_resize(0) = 0;
   resource_id_count_ = 1;
   finalize_commands(headers, commands, sub_passes, resource_id_count_, resource_id_buf_);
@@ -827,7 +826,7 @@ void DrawMultiBuf::generate_commands(Vector<Header, 0> & /*headers*/,
     UNUSED_VARS_NDEBUG(batch_inst_len);
 
     if (group.desc.expand_prim_type != GPU_PRIM_NONE) {
-      /* Expanded drawcall. */
+      /* Expanded draw-call. */
       IndexRange vert_range = GPU_batch_draw_expanded_parameter_get(
           group.desc.gpu_batch->prim_type,
           GPUPrimType(group.desc.expand_prim_type),
@@ -837,7 +836,7 @@ void DrawMultiBuf::generate_commands(Vector<Header, 0> & /*headers*/,
 
       group.vertex_first = vert_range.start();
       group.vertex_len = vert_range.size();
-      /* Override base index to -1 as the generated drawcall will not use an index buffer and do
+      /* Override base index to -1 as the generated draw-call will not use an index buffer and do
        * the indirection manually inside the shader. */
       group.base_index = -1;
     }

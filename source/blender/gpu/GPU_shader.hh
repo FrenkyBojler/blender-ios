@@ -41,6 +41,12 @@ constexpr static int GPU_MAX_UNIFORM_ATTR = 8;
  * \{ */
 
 /**
+ * Preprocess a raw GLSL source to adhere to our backend compatible shader language.
+ * Needed if the string was not part of our build system and is used in a #GPUShaderCreateInfo.
+ */
+std::string GPU_shader_preprocess_source(blender::StringRefNull original);
+
+/**
  * Create a shader using the given #GPUShaderCreateInfo.
  * Can return a null pointer if compilation fails.
  */
@@ -94,6 +100,11 @@ bool GPU_shader_batch_is_ready(BatchHandle handle);
  * WARNING: The handle will be invalidated by this call, you can't request the same batch twice.
  */
 blender::Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle);
+/**
+ * Cancel the compilation of the batch.
+ * WARNING: The handle will be invalidated by this call.
+ */
+void GPU_shader_batch_cancel(BatchHandle &handle);
 
 /** \} */
 
@@ -241,7 +252,7 @@ using SpecializationBatchHandle = int64_t;
 
 struct ShaderSpecialization {
   GPUShader *shader;
-  blender::Vector<blender::gpu::shader::SpecializationConstant> constants;
+  blender::gpu::shader::SpecializationConstants constants;
 };
 
 /**
@@ -264,6 +275,12 @@ SpecializationBatchHandle GPU_shader_batch_specializations(
  * WARNING: Invalidates the handle if it returns true.
  */
 bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle);
+
+/**
+ * Cancel the specialization batch.
+ * WARNING: The handle will be invalidated by this call.
+ */
+void GPU_shader_batch_specializations_cancel(SpecializationBatchHandle &handle);
 
 /** \} */
 
@@ -426,7 +443,7 @@ class StaticShader : NonCopyable {
   std::string info_name_;
   std::atomic<GPUShader *> shader_ = nullptr;
   /* TODO: Failed compilation detection should be supported by the GPUShader API. */
-  std::atomic_bool failed_ = false;
+  std::atomic<bool> failed_ = false;
   std::mutex mutex_;
 
   void move(StaticShader &&other)

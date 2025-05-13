@@ -2523,18 +2523,18 @@ void register_operator_props(wmOperatorType *ot)
 
   /* Smooth filter requires entire event history. */
   prop = RNA_def_collection_runtime(ot->srna, "event_history", &RNA_OperatorStrokeElement, "", "");
-  RNA_def_property_flag(prop, PropertyFlag(int(PROP_HIDDEN) | int(PROP_SKIP_SAVE)));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 static void sculpt_mesh_ui_exec(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout = uiLayoutRow(layout, true);
-  uiItemR(layout, op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout = &layout->row(true);
+  layout->prop(op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void SCULPT_OT_mesh_filter(wmOperatorType *ot)

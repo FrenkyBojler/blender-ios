@@ -61,7 +61,7 @@ using blender::Vector;
 
 EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
 {
-  EditBone *bone = static_cast<EditBone *>(MEM_callocN(sizeof(EditBone), "eBone"));
+  EditBone *bone = MEM_callocN<EditBone>("eBone");
 
   STRNCPY(bone->name, name);
   ED_armature_ebone_unique_name(arm->edbo, bone->name, nullptr);
@@ -148,7 +148,7 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
 
   /* find the active or selected bone */
   for (ebone = static_cast<EditBone *>(arm->edbo->first); ebone; ebone = ebone->next) {
-    if (!EBONE_VISIBLE(arm, ebone)) {
+    if (!ANIM_bone_is_visible_editbone(arm, ebone)) {
       continue;
     }
     if (ebone->flag & BONE_TIPSEL || arm->act_edbone == ebone) {
@@ -158,7 +158,7 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
 
   if (ebone == nullptr) {
     for (ebone = static_cast<EditBone *>(arm->edbo->first); ebone; ebone = ebone->next) {
-      if (!EBONE_VISIBLE(arm, ebone)) {
+      if (!ANIM_bone_is_visible_editbone(arm, ebone)) {
         continue;
       }
       if (ebone->flag & BONE_ROOTSEL || arm->act_edbone == ebone) {
@@ -1076,7 +1076,7 @@ void ED_armature_ebone_copy(EditBone *dest, const EditBone *source)
 EditBone *duplicateEditBoneObjects(
     EditBone *cur_bone, const char *name, ListBase *editbones, Object *src_ob, Object *dst_ob)
 {
-  EditBone *e_bone = static_cast<EditBone *>(MEM_mallocN(sizeof(EditBone), "addup_editbone"));
+  EditBone *e_bone = MEM_mallocN<EditBone>("addup_editbone");
 
   /* Copy data from old bone to new bone */
   ED_armature_ebone_copy(e_bone, cur_bone);
@@ -1128,7 +1128,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
     /* Select mirrored bones */
     if (arm->flag & ARM_MIRROR_EDIT) {
       LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
-        if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
+        if (ANIM_bone_is_visible_editbone(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
           EditBone *ebone;
 
           ebone = ED_armature_ebone_get_mirrored(arm->edbo, ebone_iter);
@@ -1144,7 +1144,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
+      if (ANIM_bone_is_visible_editbone(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
         EditBone *ebone;
         char new_bone_name_buff[MAXBONENAME];
         const char *new_bone_name = ebone_iter->name;
@@ -1173,7 +1173,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
+      if (ANIM_bone_is_visible_editbone(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
         EditBone *ebone = ebone_iter->temp.ebone;
 
         if (!ebone_iter->parent) {
@@ -1219,7 +1219,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter)) {
+      if (ANIM_bone_is_visible_editbone(arm, ebone_iter)) {
         ebone_iter->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
       }
     }
@@ -1306,7 +1306,8 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
      *
      * Storing temp pointers to mirrored unselected ebones. */
     LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
-      if (!(EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED))) {
+      if (!(ANIM_bone_is_visible_editbone(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)))
+      {
         /* Skipping invisible selected bones. */
         continue;
       }
@@ -1370,7 +1371,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
+      if (ANIM_bone_is_visible_editbone(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
         if (ebone_iter->temp.ebone != nullptr) {
           /* This will be set if the mirror bone already exists (no need to make a new one)
            * but we do need to make sure that the 'pchan' settings (constraints etc)
@@ -1480,7 +1481,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter)) {
+      if (ANIM_bone_is_visible_editbone(arm, ebone_iter)) {
         ebone_iter->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
       }
     }
@@ -1571,7 +1572,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
 
     /* since we allow root extrude too, we have to make sure selection is OK */
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (EBONE_VISIBLE(arm, ebone)) {
+      if (ANIM_bone_is_visible_editbone(arm, ebone)) {
         if (ebone->flag & BONE_ROOTSEL) {
           if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
             if (ebone->parent->flag & BONE_TIPSEL) {
@@ -1586,7 +1587,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
     for (ebone = static_cast<EditBone *>(arm->edbo->first); ((ebone) && (ebone != first));
          ebone = ebone->next)
     {
-      if (!EBONE_VISIBLE(arm, ebone)) {
+      if (!ANIM_bone_is_visible_editbone(arm, ebone)) {
         continue;
       }
       /* We extrude per definition the tip. */
@@ -1630,7 +1631,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
           }
 
           totbone++;
-          newbone = static_cast<EditBone *>(MEM_callocN(sizeof(EditBone), "extrudebone"));
+          newbone = MEM_callocN<EditBone>("extrudebone");
 
           if (do_extrude == TIP_EXTRUDE) {
             copy_v3_v3(newbone->head, ebone->tail);
@@ -1874,7 +1875,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
       float val2[3];
       float val3[3];
 
-      newbone = static_cast<EditBone *>(MEM_mallocN(sizeof(EditBone), "ebone subdiv"));
+      newbone = MEM_mallocN<EditBone>("ebone subdiv");
       *newbone = *ebone;
       BLI_addtail(arm->edbo, newbone);
 

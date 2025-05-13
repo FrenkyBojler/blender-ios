@@ -758,18 +758,19 @@ typedef struct UserDef_Experimental {
   char use_all_linked_data_direct;
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
+  char write_large_blend_file_blocks;
+  char use_attribute_storage_write;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
   char use_new_curves_tools;
-  char use_new_point_cloud_type;
   char use_sculpt_tools_tilt;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
   char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
-  char _pad[5];
+  char _pad[4];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -856,7 +857,11 @@ typedef struct UserDef {
   short versions;
   short dbl_click_time;
 
-  char _pad0[3];
+  char _pad0[2];
+
+  /** Space around each area. Inter-editor gap width. */
+  char border_width;
+
   char mini_axis_type;
   /** #eUserpref_UI_Flag. */
   int uiflag;

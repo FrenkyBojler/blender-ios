@@ -17,6 +17,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_paint.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
@@ -54,6 +55,14 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
    * used for the asset-view template. Once the asset list design is used by the Asset Browser,
    * this can be simplified to just that case. */
   Main *bmain = CTX_data_main(C);
+
+  if (G.background) {
+    /* As asset loading can take upwards of a few minutes on production libraries, we typically
+     * do not want this to execute in a blocking fashion. However, for testing / profiling
+     * purposes, this is an acceptable workaround for now until a proper python API is created
+     * for this use case. */
+    asset::list::storage_fetch_blocking(asset_system::all_library_reference(), *C);
+  }
   const asset_system::AssetRepresentation *asset =
       asset::operator_asset_reference_props_get_asset_from_all_library(*C, *op->ptr, op->reports);
   if (!asset) {
@@ -445,8 +454,8 @@ void BRUSH_OT_asset_edit_metadata(wmOperatorType *ot)
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "The asset's catalog path");
   RNA_def_property_string_search_func_runtime(
       prop, visit_active_library_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
-  RNA_def_string(ot->srna, "author", nullptr, MAX_NAME, "Author", "");
-  RNA_def_string(ot->srna, "description", nullptr, MAX_NAME, "Description", "");
+  RNA_def_string(ot->srna, "author", nullptr, 0, "Author", "");
+  RNA_def_string(ot->srna, "description", nullptr, 0, "Description", "");
 }
 
 static wmOperatorStatus brush_asset_load_preview_exec(bContext *C, wmOperator *op)

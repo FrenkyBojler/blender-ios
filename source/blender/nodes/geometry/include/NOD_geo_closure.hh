@@ -34,7 +34,6 @@ struct ClosureInputItemsAccessor {
   using ItemT = NodeGeometryClosureInputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static int item_dna_type;
   static constexpr const char *node_idname = "GeometryNodeClosureOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
@@ -110,7 +109,6 @@ struct ClosureOutputItemsAccessor {
   using ItemT = NodeGeometryClosureOutputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static int item_dna_type;
   static constexpr const char *node_idname = "GeometryNodeClosureOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
@@ -186,7 +184,6 @@ struct EvaluateClosureInputItemsAccessor {
   using ItemT = NodeGeometryEvaluateClosureInputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static int item_dna_type;
   static constexpr const char *node_idname = "GeometryNodeEvaluateClosure";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
@@ -263,7 +260,6 @@ struct EvaluateClosureOutputItemsAccessor {
   using ItemT = NodeGeometryEvaluateClosureOutputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static int item_dna_type;
   static constexpr const char *node_idname = "GeometryNodeEvaluateClosure";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
@@ -335,5 +331,11 @@ struct EvaluateClosureOutputItemsAccessor {
     return "Item_" + std::to_string(item.identifier);
   }
 };
+
+/**
+ * Gets an input socket that can be considered to be internally linked to the given output, or
+ * null if there is none.
+ */
+const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSocket &output_socket);
 
 }  // namespace blender::nodes

@@ -932,6 +932,12 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           undo_str = "Rename Bone Collection";
           break;
         }
+
+        case TSE_ACTION_SLOT: {
+          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          undo_str = "Rename Action Slot";
+          break;
+        }
       }
     }
     tselem->flag &= ~TSE_TEXTBUT;
@@ -1548,7 +1554,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   0,
                                   std::nullopt);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
-          if (node.parent_group() && node.parent_group()->is_visible()) {
+          if (node.parent_group() && !node.parent_group()->is_visible()) {
             UI_but_flag_enable(bt, UI_BUT_INACTIVE);
           }
         }
@@ -2603,6 +2609,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 
   if (tselem->type != TSE_SOME_ID) {
     switch (tselem->type) {
+      case TSE_ACTION_SLOT:
+        data.icon = ICON_ACTION_SLOT;
+        break;
       case TSE_ANIM_DATA:
         data.icon = ICON_ANIM_DATA; /* XXX */
         break;
@@ -3172,7 +3181,9 @@ static void outliner_draw_iconrow(uiBlock *block,
                 TSE_EBONE,
                 TSE_POSE_CHANNEL,
                 TSE_BONE_COLLECTION,
-                TSE_DEFGROUP))
+                TSE_DEFGROUP,
+                TSE_ACTION_SLOT,
+                TSE_NLA_TRACK))
       {
         outliner_draw_iconrow_doit(block, te, xmax, offsx, ys, alpha_fac, active, 1);
       }
@@ -4123,4 +4134,10 @@ void draw_outliner(const bContext *C, bool do_rebuild)
 int ED_outliner_icon_from_id(const ID &id)
 {
   return blender::ed::outliner::tree_element_get_icon_from_id(&id);
+}
+
+bool ED_outliner_support_searching(const SpaceOutliner *space_outliner)
+{
+  return !((space_outliner->outlinevis == SO_OVERRIDES_LIBRARY) &&
+           (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_HIERARCHIES));
 }

@@ -55,6 +55,8 @@ using blender::Vector;
 /** \name Path Select Struct & Properties
  * \{ */
 
+namespace {
+
 struct PathSelectParams {
   /** ensure the active element is the last selected item (handy for picking) */
   bool track_active;
@@ -69,6 +71,8 @@ struct UserData_UV {
   BMesh *bm;
   BMUVOffsets offsets;
 };
+
+}  // namespace
 
 static void path_select_properties(wmOperatorType *ot)
 {
@@ -526,7 +530,7 @@ static bool uv_shortest_path_pick_ex(Scene *scene,
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
     }
     else {
-      Object *obedit_eval = DEG_get_evaluated_object(depsgraph, obedit);
+      Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
       BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(obedit_eval->data),
                                      BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT);
     }
@@ -777,9 +781,9 @@ void UV_OT_shortest_path_pick(wmOperatorType *ot)
 
   /* use for redo */
   prop = RNA_def_int(ot->srna, "object_index", -1, -1, INT_MAX, "", "", 0, INT_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_int(ot->srna, "index", -1, -1, INT_MAX, "", "", 0, INT_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */

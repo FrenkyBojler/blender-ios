@@ -135,15 +135,17 @@ class PassBase {
   Vector<command::Header, 0> headers_;
   /** Commands referenced by headers (which contains their types). */
   Vector<command::Undetermined, 0> commands_;
-  /* Reference to draw commands buffer. Either own or from parent pass. */
+  /** Reference to draw commands buffer. Either own or from parent pass. */
   DrawCommandBufType &draw_commands_buf_;
-  /* Reference to sub-pass commands buffer. Either own or from parent pass. */
+  /** Reference to sub-pass commands buffer. Either own or from parent pass. */
   SubPassVector<PassBase<DrawCommandBufType>> &sub_passes_;
   /** Currently bound shader. Used for interface queries. */
   GPUShader *shader_;
 
   uint64_t manager_fingerprint_ = 0;
   uint64_t view_fingerprint_ = 0;
+
+  bool is_empty_ = true;
 
  public:
   const char *debug_name;
@@ -166,6 +168,11 @@ class PassBase {
    * API readability listing.
    */
   void init();
+
+  /**
+   * Returns true if the pass and its sub-passes don't contain any draw or dispatch command.
+   */
+  bool is_empty() const;
 
   /**
    * Create a sub-pass inside this pass.
@@ -499,6 +506,7 @@ template<typename DrawCommandBufType> class Pass : public detail::PassBase<DrawC
     this->commands_.clear();
     this->sub_passes_.clear();
     this->draw_commands_buf_.clear();
+    this->is_empty_ = true;
   }
 };  // namespace blender::draw
 
@@ -595,6 +603,24 @@ namespace detail {
 /** \name PassBase Implementation
  * \{ */
 
+template<class T> inline bool PassBase<T>::is_empty() const
+{
+  if (!is_empty_) {
+    return false;
+  }
+
+  for (const command::Header &header : headers_) {
+    if (header.type != Type::SubPass) {
+      continue;
+    }
+    if (!sub_passes_[header.index].is_empty()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 template<class T> inline command::Undetermined &PassBase<T>::create_command(command::Type type)
 {
   /* After render commands have been generated, the pass is read only.
@@ -602,6 +628,19 @@ template<class T> inline command::Undetermined &PassBase<T>::create_command(comm
   BLI_assert_msg(this->has_generated_commands() == false, "Command added after submission");
   int64_t index = commands_.append_and_get_index({});
   headers_.append({type, uint(index)});
+
+  if (ELEM(type,
+           Type::Barrier,
+           Type::Clear,
+           Type::ClearMulti,
+           Type::Dispatch,
+           Type::DispatchIndirect,
+           Type::Draw,
+           Type::DrawIndirect))
+  {
+    is_empty_ = false;
+  }
+
   return commands_[index];
 }
 
@@ -701,6 +740,10 @@ void PassBase<T>::warm_shader_specialization(command::RecordingState &state) con
 
 template<class T> void PassBase<T>::submit(command::RecordingState &state) const
 {
+  if (headers_.is_empty()) {
+    return;
+  }
+
   GPU_debug_group_begin(debug_name);
 
   for (const command::Header &header : headers_) {
@@ -856,6 +899,7 @@ inline void PassBase<T>::draw(gpu::Batch *batch,
                                  custom_id,
                                  GPU_PRIM_NONE,
                                  0);
+  is_empty_ = false;
 }
 
 template<class T>
@@ -888,6 +932,7 @@ inline void PassBase<T>::draw_expand(gpu::Batch *batch,
                                  custom_id,
                                  primitive_type,
                                  primitive_len);
+  is_empty_ = false;
 }
 
 template<class T>

@@ -14,7 +14,9 @@
 #include <array>
 #include <string>
 
+#include "BLI_mutex.hh"
 #include "BLI_string_ref.hh"
+
 #include "DRW_render.hh"
 #include "GPU_material.hh"
 #include "GPU_shader.hh"
@@ -170,7 +172,7 @@ class ShaderModule {
  private:
   std::array<StaticShader, MAX_SHADER_TYPE> shaders_;
   BatchHandle compilation_handle_ = 0;
-  std::mutex mutex_;
+  Mutex mutex_;
 
   class SpecializationsKey {
    private:
@@ -182,8 +184,8 @@ class ShaderModule {
                        int shadow_ray_step_count)
     {
       BLI_assert(render_buffers_shadow_id >= -1);
-      BLI_assert(shadow_ray_count >= 1 || shadow_ray_count <= 4);
-      BLI_assert(shadow_ray_step_count >= 1 || shadow_ray_step_count <= 16);
+      BLI_assert(shadow_ray_count >= 1 && shadow_ray_count <= 4);
+      BLI_assert(shadow_ray_step_count >= 1 && shadow_ray_step_count <= 16);
       hash_value_ = render_buffers_shadow_id + 1;
       hash_value_ = (hash_value_ << 2) | (shadow_ray_count - 1);
       hash_value_ = (hash_value_ << 4) | (shadow_ray_step_count - 1);

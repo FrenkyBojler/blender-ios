@@ -39,7 +39,9 @@ function(blender_test_set_envvars testname envvar_list)
       list(APPEND envvar_list "${_lsan_options}" "${_asan_options}")
     endif()
   endif()
-
+  if(WITH_COMPILER_CODE_COVERAGE AND CMAKE_C_COMPILER_ID MATCHES "Clang")
+    list(APPEND envvar_list "LLVM_PROFILE_FILE=${COMPILER_CODE_COVERAGE_DATA_DIR}/raw/blender_%p.profraw")
+  endif()
   # Can only be called once per test to define its custom environment variables.
   set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${envvar_list}")
 endfunction()
@@ -139,6 +141,9 @@ function(blender_add_ctests)
   if(ARGC LESS 1)
     message(FATAL_ERROR "No arguments supplied to blender_add_ctests()")
   endif()
+  if(NOT EXISTS "${CMAKE_SOURCE_DIR}/tests/files/render")
+    return()
+  endif()
 
   # Parse the arguments
   set(oneValueArgs DISCOVER_TESTS TARGET SUITE_NAME)
@@ -166,14 +171,14 @@ function(blender_add_ctests)
       TEST_PREFIX ${ARGS_SUITE_NAME}
       WORKING_DIRECTORY "${TEST_INSTALL_DIR}"
       EXTRA_ARGS
-        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/data"
+        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/files"
         --test-release-dir "${_test_release_dir}"
     )
   else()
     add_test(
       NAME ${ARGS_SUITE_NAME}
       COMMAND ${ARGS_TARGET}
-        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/data"
+        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/files"
         --test-release-dir "${_test_release_dir}"
       WORKING_DIRECTORY ${TEST_INSTALL_DIR}
     )
@@ -287,6 +292,7 @@ function(blender_add_test_executable_impl
 
   blender_target_include_dirs(${name}_test ${includes})
   blender_target_include_dirs_sys(${name}_test ${includes_sys})
+  blender_source_group("${name}_test" "${sources}")
 endfunction()
 
 # Add tests for a Blender library, to be called in tandem with blender_add_lib().

@@ -219,12 +219,6 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
           layer = CustomData_get_named_layer(&cd_ldata, CD_PROP_FLOAT2, name);
           type = CD_MTFACE;
 
-#if 0 /* Tangents are always from UVs - this will never happen. */
-          if (layer == -1) {
-            layer = CustomData_get_named_layer(cd_ldata, CD_TANGENT, name);
-            type = CD_TANGENT;
-          }
-#endif
           if (layer == -1) {
             /* Try to match a generic attribute, we use the first attribute domain with a
              * matching name. */
@@ -305,7 +299,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
         case CD_PROP_FLOAT:
         case CD_PROP_FLOAT2: {
           if (layer != -1 && domain.has_value()) {
-            drw_attributes_add_request(attributes, name, type, layer, *domain);
+            drw_attributes_add_request(attributes, name);
           }
           break;
         }
@@ -700,10 +694,10 @@ static void request_active_and_default_color_attributes(const Object &object,
       int layer_index;
       eCustomDataType type;
       if (drw_custom_data_match_attribute(cd_vdata, name, &layer_index, &type)) {
-        drw_attributes_add_request(&attributes, name, type, layer_index, bke::AttrDomain::Point);
+        drw_attributes_add_request(&attributes, name);
       }
       else if (drw_custom_data_match_attribute(cd_ldata, name, &layer_index, &type)) {
-        drw_attributes_add_request(&attributes, name, type, layer_index, bke::AttrDomain::Corner);
+        drw_attributes_add_request(&attributes, name);
       }
     }
   };
@@ -1042,12 +1036,28 @@ gpu::Batch *DRW_mesh_batch_cache_get_edituv_facedots(Object &object, Mesh &mesh)
   return DRW_batch_request(&cache.batch.edituv_fdots);
 }
 
-gpu::Batch *DRW_mesh_batch_cache_get_uv_edges(Object &object, Mesh &mesh)
+gpu::Batch *DRW_mesh_batch_cache_get_uv_faces(Object &object, Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  edituv_request_active_uv(cache, object, mesh);
+  mesh_batch_cache_add_request(cache, MBC_UV_FACES);
+  return DRW_batch_request(&cache.batch.uv_faces);
+}
+
+gpu::Batch *DRW_mesh_batch_cache_get_uv_wireframe(Object &object, Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   edituv_request_active_uv(cache, object, mesh);
   mesh_batch_cache_add_request(cache, MBC_WIRE_LOOPS_UVS);
   return DRW_batch_request(&cache.batch.wire_loops_uvs);
+}
+
+gpu::Batch *DRW_mesh_batch_cache_get_edituv_wireframe(Object &object, Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  edituv_request_active_uv(cache, object, mesh);
+  mesh_batch_cache_add_request(cache, MBC_WIRE_LOOPS_EDITUVS);
+  return DRW_batch_request(&cache.batch.wire_loops_edituvs);
 }
 
 gpu::Batch *DRW_mesh_batch_cache_get_surface_edges(Mesh &mesh)
@@ -1141,8 +1151,9 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   if (batch_requested &
-      (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_UVS | MBC_EDITUV_FACES_STRETCH_AREA |
-       MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
+      (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_UVS | MBC_WIRE_LOOPS_EDITUVS |
+       MBC_UV_FACES | MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE |
+       MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
   {
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
     if (cache.cd_needed.orco != 0) {
@@ -1219,7 +1230,9 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       }
       /* We only clear the batches as they may already have been
        * referenced. */
+      GPU_BATCH_CLEAR_SAFE(cache.batch.uv_faces);
       GPU_BATCH_CLEAR_SAFE(cache.batch.wire_loops_uvs);
+      GPU_BATCH_CLEAR_SAFE(cache.batch.wire_loops_edituvs);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces_stretch_area);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces_stretch_angle);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces);
@@ -1294,7 +1307,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                             GPU_PRIM_TRIS,
                             list,
                             IBOType::Tris,
-                            {VBOType::Position, VBOType::CornerNormal}};
+                            {VBOType::CornerNormal, VBOType::Position}};
       if (cache.cd_used.uv != 0) {
         batch.vbos.append(VBOType::UVs);
       }
@@ -1365,7 +1378,22 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
     if (batches_to_create & MBC_WIRE_LOOPS_UVS) {
       BatchCreateData batch{
-          *cache.batch.wire_loops_uvs, GPU_PRIM_LINES, list, IBOType::EditUVLines, {}};
+          *cache.batch.wire_loops_uvs, GPU_PRIM_LINES, list, IBOType::UVLines, {}};
+      if (cache.cd_used.uv != 0) {
+        batch.vbos.append(VBOType::UVs);
+      }
+      batch_info.append(std::move(batch));
+    }
+    if (batches_to_create & MBC_WIRE_LOOPS_EDITUVS) {
+      BatchCreateData batch{
+          *cache.batch.wire_loops_edituvs, GPU_PRIM_LINES, list, IBOType::EditUVLines, {}};
+      if (cache.cd_used.uv != 0) {
+        batch.vbos.append(VBOType::UVs);
+      }
+      batch_info.append(std::move(batch));
+    }
+    if (batches_to_create & MBC_UV_FACES) {
+      BatchCreateData batch{*cache.batch.uv_faces, GPU_PRIM_TRIS, list, IBOType::Tris, {}};
       if (cache.cd_used.uv != 0) {
         batch.vbos.append(VBOType::UVs);
       }

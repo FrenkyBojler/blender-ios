@@ -14,6 +14,7 @@
 
 #include "CLG_log.h"
 
+#include "GPU_capabilities.hh"
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
 
@@ -447,7 +448,16 @@ void VKBackend::platform_exit()
   }
 }
 
-void VKBackend::delete_resources() {}
+void VKBackend::init_resources()
+{
+  compiler_ = MEM_new<ShaderCompiler>(
+      __func__, GPU_max_parallel_compilations(), GPUWorker::ContextType::Main);
+}
+
+void VKBackend::delete_resources()
+{
+  MEM_delete(compiler_);
+}
 
 void VKBackend::samplers_update()
 {
@@ -582,9 +592,20 @@ void VKBackend::render_end()
       device.orphaned_data.destroy_discarded_resources(device);
     }
   }
+
+  if (BLI_thread_is_main() && !G.is_rendering) {
+    device.orphaned_data.move_data(device.orphaned_data_render,
+                                   device.orphaned_data.timeline_ + 1);
+  }
 }
 
-void VKBackend::render_step(bool /*force_resource_release*/) {}
+void VKBackend::render_step(bool force_resource_release)
+{
+  if (force_resource_release) {
+    device.orphaned_data.move_data(device.orphaned_data_render,
+                                   device.orphaned_data.timeline_ + 1);
+  }
+}
 
 void VKBackend::capabilities_init(VKDevice &device)
 {
@@ -594,7 +615,6 @@ void VKBackend::capabilities_init(VKDevice &device)
   /* Reset all capabilities from previous context. */
   GCaps = {};
   GCaps.geometry_shader_support = true;
-  GCaps.texture_view_support = true;
   GCaps.stencil_export_support = device.supports_extension(
       VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
   GCaps.shader_draw_parameters_support =
