@@ -276,6 +276,8 @@ struct uiLayout : uiItem {
             eUI_Item_Flag flag,
             std::optional<blender::StringRefNull> name,
             int icon);
+
+  /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 };
 
