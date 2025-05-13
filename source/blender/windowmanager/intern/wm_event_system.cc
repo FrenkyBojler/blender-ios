@@ -4011,6 +4011,13 @@ static void wm_event_handle_xrevent(bContext *C,
 
 static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *event, ARegion *region)
 {
+  if (region->runtime->type->do_lock) {
+    if (wm_event_always_pass(event)) {
+      return WM_HANDLER_CONTINUE;
+    }
+    return WM_HANDLER_BREAK;
+  }
+
   CTX_wm_region_set(C, region);
 
   /* Call even on non mouse events, since the. */
