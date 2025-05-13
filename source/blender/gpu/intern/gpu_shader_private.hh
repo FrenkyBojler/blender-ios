@@ -47,6 +47,7 @@ class Shader {
   /** Bit-set indicating the frame-buffer color attachments that this shader writes to. */
   uint16_t fragment_output_bits = 0;
 
+  /* Default specialization constants state as defined inside ShaderCreateInfo. */
   shader::SpecializationConstants constants;
 
   /* WORKAROUND: True if this shader is a polyline shader and needs an appropriate setup to render.
