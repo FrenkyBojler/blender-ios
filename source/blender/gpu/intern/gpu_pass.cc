@@ -60,7 +60,7 @@ struct GPUPass {
         is_optimization_pass(is_optimization_pass),
         should_optimize(should_optimize)
   {
-    BLI_assert(is_optimization_pass != should_optimize);
+    BLI_assert(!is_optimization_pass || !should_optimize);
     if (is_optimization_pass && deferred_compilation) {
       // Defer until all non optimization passes are compiled.
       return;
