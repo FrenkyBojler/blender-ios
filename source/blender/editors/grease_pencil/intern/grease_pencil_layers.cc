@@ -1292,11 +1292,9 @@ static wmOperatorStatus grease_pencil_layer_set_inverse_exec(bContext *C, wmOper
     copy_m4_m4(layer.parentinv, new_parentinv);
   }
   else {
-    // If no parent exists, report an error.
-    if (!grease_pencil.has_active_layer()) {
-      BKE_report(op->reports, RPT_ERROR, "No Grease Pencil layer parent");
-      return OPERATOR_CANCELLED;
-    }
+    // If no parent exists and no active layer, report an error.
+    BKE_report(op->reports, RPT_ERROR, "No Grease Pencil layer parent");
+    return OPERATOR_CANCELLED;
   }
 
   // Notify the dependency graph and UI about the transform update.
