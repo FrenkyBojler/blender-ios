@@ -63,6 +63,7 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "outliner_intern.hh"

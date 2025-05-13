@@ -9,6 +9,7 @@
 
 #include <cstring>
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "DNA_ID.h"
@@ -271,7 +272,7 @@ static void bone_collection_assign_editbones(bContext *C,
   ED_armature_edit_sync_selection(arm->edbo);
 
   LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-    if (!EBONE_EDITABLE(ebone) || !ANIM_bone_is_visible_editbone(arm, ebone)) {
+    if (!EBONE_EDITABLE(ebone) || !blender::animrig::bone_is_visible_editbone(arm, ebone)) {
       continue;
     }
     *made_any_changes |= assign_func(bcoll, ebone);

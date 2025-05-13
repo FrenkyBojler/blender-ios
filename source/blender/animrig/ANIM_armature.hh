@@ -17,10 +17,11 @@ struct bPoseChannel;
 
 namespace blender::animrig {
 
-inline bool bone_is_visible(const bArmature *armature, const Bone *bone);
-
-inline bool bone_is_visible_pchan(const bArmature *armature, const bPoseChannel *pchan);
-
-inline bool bone_is_visible_editbone(const bArmature *armature, const EditBone *ebone);
+/**
+ * Returns true if the given Bone is visible. This includes bone collection visibility.
+ */
+bool bone_is_visible(const bArmature *armature, const Bone *bone);
+bool bone_is_visible_pchan(const bArmature *armature, const bPoseChannel *pchan);
+bool bone_is_visible_editbone(const bArmature *armature, const EditBone *ebone);
 
 }  // namespace blender::animrig
