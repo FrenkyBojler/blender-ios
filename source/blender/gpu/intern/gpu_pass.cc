@@ -164,12 +164,14 @@ GPUShader *GPU_pass_shader_get(GPUPass *pass)
 void GPU_pass_acquire(GPUPass *pass)
 {
   int previous_refcount = pass->refcount++;
+  UNUSED_VARS_NDEBUG(previous_refcount);
   BLI_assert(previous_refcount > 0);
 }
 
 void GPU_pass_release(GPUPass *pass)
 {
   int previous_refcount = pass->refcount--;
+  UNUSED_VARS_NDEBUG(previous_refcount);
   BLI_assert(previous_refcount > 0);
 }
 
