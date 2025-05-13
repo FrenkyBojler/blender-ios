@@ -79,7 +79,7 @@ template<typename T, int Size, int x, int y, int z = y, int w = z> struct VecSwi
   static constexpr int effective_len = max_comp - min_comp + 1;
 
  private:
-  T values_[effective_len];
+  std::array<T, effective_len> values_;
 
  public:
   VecSwizzleReadOnly() = default;
