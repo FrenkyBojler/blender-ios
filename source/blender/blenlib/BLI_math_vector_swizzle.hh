@@ -89,6 +89,7 @@ template<typename T, int Size, int x, int y, int z = y, int w = z> struct VecSwi
     /* Can only do this when VecT has been instantiated. */
     BLI_STATIC_ASSERT(alignof(VecT) <= alignof(T),
                       "VecSwizzleReadOnly is not compatible with aligned type for now.");
+    BLI_STATIC_ASSERT(std::is_trivial_v<VecT>, "Can only swizzle trivial vectors.");
     BLI_STATIC_ASSERT(Size >= 2 && Size <= 4, "Only small vector supports swizzles");
     if constexpr (Size == 4) {
       return {values_[x - min_comp],
@@ -133,6 +134,7 @@ template<typename T, int Size> struct VecSwizzleReadWrite {
     /* Can only do this when VecT has been instantiated. */
     BLI_STATIC_ASSERT(alignof(VecT) <= alignof(T),
                       "VecSwizzleReadWrite is not compatible with aligned type for now.");
+    BLI_STATIC_ASSERT(std::is_trivial_v<VecT>, "Can only swizzle trivial vectors.");
     BLI_STATIC_ASSERT(Size >= 2 && Size <= 4, "Only small vector supports swizzles");
     if constexpr (Size == 4) {
       return {values_[0], values_[1], values_[2], values_[3]};
