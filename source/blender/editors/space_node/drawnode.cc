@@ -2073,7 +2073,7 @@ static void nodelink_batch_init()
   g_batch_link.end_color_id = GPU_vertformat_attr_add(
       &format_inst, "end_color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
   g_batch_link.muted_id = GPU_vertformat_attr_add(
-      &format_inst, "domuted", GPU_COMP_I32, 1, GPU_FETCH_INT);
+      &format_inst, "domuted", GPU_COMP_U32, 1, GPU_FETCH_INT);
   g_batch_link.dim_factor_id = GPU_vertformat_attr_add(
       &format_inst, "dim_factor", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
   g_batch_link.thickness_id = GPU_vertformat_attr_add(
@@ -2199,7 +2199,7 @@ static void nodelink_batch_add_link(const SpaceNode &snode,
   copy_v4_v4((float *)GPU_vertbuf_raw_step(&g_batch_link.start_color_step),
              draw_config.start_color);
   copy_v4_v4((float *)GPU_vertbuf_raw_step(&g_batch_link.end_color_step), draw_config.end_color);
-  int *muted = (int *)GPU_vertbuf_raw_step(&g_batch_link.muted_step);
+  uint32_t *muted = (uint32_t *)GPU_vertbuf_raw_step(&g_batch_link.muted_step);
   muted[0] = draw_config.drawmuted;
   *(float *)GPU_vertbuf_raw_step(&g_batch_link.dim_factor_step) = draw_config.dim_factor;
   *(float *)GPU_vertbuf_raw_step(&g_batch_link.thickness_step) = draw_config.thickness;
