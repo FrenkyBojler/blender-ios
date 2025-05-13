@@ -381,7 +381,11 @@ extern "C" __global__ void __closesthit__kernel_optix_hit()
     optixSetPayload_1(optixGetAttribute_0()); /* Same as 'optixGetCurveParameter()' */
     optixSetPayload_2(optixGetAttribute_1());
     optixSetPayload_3(segment.prim);
-    optixSetPayload_5(segment.type);
+    optixSetPayload_5(
+        segment.type |
+        (optixGetPrimitiveType() == OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR ?
+             PRIMITIVE_CURVE_RIBBON : /* Set both curve bits to mark this as a linear curve. */
+             0));
   }
   else {
     optixSetPayload_1(0);

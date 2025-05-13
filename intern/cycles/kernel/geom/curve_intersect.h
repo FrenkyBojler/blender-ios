@@ -665,7 +665,7 @@ ccl_device_forceinline bool curve_intersect(KernelGlobals kg,
     motion_curve_keys(kg, object, time, ka, k0, k1, kb, curve);
   }
 
-  if (type & PRIMITIVE_CURVE_RIBBON) {
+  if ((type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) {
     /* todo: adaptive number of subdivisions could help performance here. */
     const int subdivisions = kernel_data.bvh.curve_subdivisions;
     if (ribbon_intersect(ray_P, ray_D, tmin, tmax, subdivisions, curve, isect)) {
@@ -727,7 +727,7 @@ ccl_device_inline void curve_shader_setup(KernelGlobals kg,
   const float4 dPdu4 = catmull_rom_basis_derivative(P_curve, sd->u);
   const float3 dPdu = make_float3(dPdu4);
 
-  if (sd->type & PRIMITIVE_CURVE_RIBBON) {
+  if ((sd->type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) {
     /* Rounded smooth normals for ribbons, to approximate thick curve shape. */
     const float3 tangent = normalize(dPdu);
     const float3 bitangent = normalize(cross(tangent, -D));
@@ -749,7 +749,9 @@ ccl_device_inline void curve_shader_setup(KernelGlobals kg,
      * however for Optix this would go beyond the size of the payload. */
     /* NOTE: It is possible that P will be the same as P_inside (precision issues, or very small
      * radius). In this case use the view direction to approximate the normal. */
-    const float3 P_inside = make_float3(catmull_rom_basis_eval(P_curve, sd->u));
+    const float3 P_inside = (sd->type & PRIMITIVE_CURVE_RIBBON) ?
+                                make_float3(mix(P_curve[1], P_curve[2], sd->u)) :
+                                make_float3(catmull_rom_basis_eval(P_curve, sd->u));
     const float3 N = (!isequal(P, P_inside)) ? normalize(P - P_inside) : -sd->wi;
 
     sd->N = N;
@@ -769,7 +771,7 @@ ccl_device_inline void curve_shader_setup(KernelGlobals kg,
   }
 
   sd->P = P;
-  sd->Ng = (sd->type & PRIMITIVE_CURVE_RIBBON) ? sd->wi : sd->N;
+  sd->Ng = ((sd->type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) ? sd->wi : sd->N;
   sd->dPdv = cross(sd->dPdu, sd->Ng);
   sd->shader = kernel_data_fetch(curves, sd->prim).shader_id;
 }
