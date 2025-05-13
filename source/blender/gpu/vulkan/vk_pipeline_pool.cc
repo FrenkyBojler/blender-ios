@@ -649,25 +649,20 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
 void VKPipelinePool::discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pipeline_layout)
 {
   std::scoped_lock lock(mutex_);
-  Vector<VkPipeline> pipelines_to_discard;
   compute_pipelines_.remove_if([&](auto item) {
     if (item.key.vk_pipeline_layout == vk_pipeline_layout) {
-      pipelines_to_discard.append(item.value);
+      discard_pool.discard_pipeline(item.value);
       return true;
     }
     return false;
   });
   graphic_pipelines_.remove_if([&](auto item) {
     if (item.key.vk_pipeline_layout == vk_pipeline_layout) {
-      pipelines_to_discard.append(item.value);
+      discard_pool.discard_pipeline(item.value);
       return true;
     }
     return false;
   });
-
-  for (VkPipeline vk_pipeline : pipelines_to_discard) {
-    discard_pool.discard_pipeline(vk_pipeline);
-  }
 }
 
 void VKPipelinePool::free_data()
