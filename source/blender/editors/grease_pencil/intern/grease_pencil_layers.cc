@@ -1290,7 +1290,7 @@ static wmOperatorStatus grease_pencil_layer_set_inverse_exec(bContext *C, wmOper
     }
   }
   else {
-    /* Set inverse based on current transform, preserving the layer’s global transform. */
+    /* Set inverse based on current transform, preserving the layer's global transform. */
     if (layer.parent) {
       float parent_mat[4][4], inv_parent[4][4], gpencil_mat[4][4], new_parentinv[4][4];
 
@@ -1355,7 +1355,7 @@ static void GREASE_PENCIL_OT_layer_set_inverse(wmOperatorType *ot)
       "or clear it if 'unset' is true";
 
   /* api callbacks */
-  ot->poll = active_grease_pencil_layer_parent_poll;  // Use the new poll.;
+  ot->poll = active_grease_pencil_layer_parent_poll;
   ot->exec = grease_pencil_layer_set_inverse_exec;
 
   /* flags */
