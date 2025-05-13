@@ -345,7 +345,8 @@ struct CurvesEffectOperationExecutor {
         eCurvesSymmetryType(curves_id_->symmetry));
     Vector<float4x4> symmetry_brush_transforms_inv;
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      symmetry_brush_transforms_inv.append(math::invert(brush_transform));
+      /* Use explicit template call as MSVC 2019 has issues deducing the right template. */
+      symmetry_brush_transforms_inv.append(math::invert<float, 4>(brush_transform));
     }
 
     const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;
