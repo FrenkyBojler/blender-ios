@@ -1,1 +1,2 @@
 Referenced by issue #138730, Setting text object font to None using python causes Blender to crash
+Referenced by commit 011de28348bb182d9dcaf356335641d1c75a1bec, Fix #138730: Crash setting 3D texts font to None
