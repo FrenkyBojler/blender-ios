@@ -1396,13 +1396,6 @@ void VertexFormatConverter::convert_attribute(void *device_row_data,
       *component_out = float(*component_in);
     }
   }
-  else if (attribute_check(source_attribute, GPU_COMP_U8, 3) &&
-           attribute_check(device_attribute, GPU_COMP_U8, 4))
-  {
-    const uchar3 *attr_in = static_cast<const uchar3 *>(source_attr_data);
-    uchar4 *attr_out = static_cast<uchar4 *>(device_attr_data);
-    *attr_out = uchar4(attr_in->x, attr_in->y, attr_in->z, 255);
-  }
   else {
     BLI_assert_unreachable();
   }
