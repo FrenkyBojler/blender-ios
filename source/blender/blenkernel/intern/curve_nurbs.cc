@@ -32,6 +32,28 @@ bool check_valid_num_and_order(const int points_num,
   return true;
 }
 
+static int calc_nonzero_knot_spans(const int points_num,
+                                   const KnotsMode mode,
+                                   const int8_t order,
+                                   const bool cyclic)
+{
+  const bool is_bezier = ELEM(mode, NURBS_KNOT_MODE_BEZIER, NURBS_KNOT_MODE_ENDPOINT_BEZIER);
+  const bool is_end_point = ELEM(mode, NURBS_KNOT_MODE_ENDPOINT, NURBS_KNOT_MODE_ENDPOINT_BEZIER);
+  /* Inner knots are always repeated once except on Bezier case. */
+  const int repeat_inner = is_bezier ? order - 1 : 1;
+  /* For non endpoint Bezier repeated knots are shifted by one. */
+  const int knots_before_geometry = order + int(is_bezier && !is_end_point);
+  const int knots_after_geometry = order - 1 +
+                                   (cyclic && mode == NURBS_KNOT_MODE_ENDPOINT ? order - 2 : 0);
+
+  const int knots_total = knots_num(points_num, order, cyclic);
+  /* On these knots as parameters actual geometry is generated. */
+  const int geometry_knots = knots_total - knots_before_geometry - knots_after_geometry;
+  /* `repeat_inner - 1` is added to `ceil`. */
+  const int non_zero_knots = (geometry_knots + repeat_inner - 1) / repeat_inner;
+  return non_zero_knots;
+}
+
 static int count_nonzero_knot_spans(const int points_num,
                                     const int order,
                                     const bool cyclic,
@@ -39,9 +61,8 @@ static int count_nonzero_knot_spans(const int points_num,
 {
   BLI_assert(points_num > 0);
   const int degree = order - 1;
-  const int last_control_point_index = cyclic ? points_num + degree : points_num;
   int span_num = 0;
-  for (const int knot_span : IndexRange::from_begin_end(degree, last_control_point_index)) {
+  for (const int knot_span : IndexRange::from_begin_end(cyclic ? 0 : degree, points_num)) {
     span_num += (knots[knot_span + 1] - knots[knot_span]) > 0.0f;
   }
   return span_num;
@@ -57,7 +78,11 @@ int calculate_evaluated_num(const int points_num,
   if (!check_valid_num_and_order(points_num, order, cyclic, knots_mode)) {
     return points_num;
   }
-  return resolution * count_nonzero_knot_spans(points_num, order, cyclic, knots) + int(!cyclic);
+  const int nonzero_span_num = knots_mode == KnotsMode::NURBS_KNOT_MODE_CUSTOM &&
+                                       !knots.is_empty() ?
+                                   count_nonzero_knot_spans(points_num, order, cyclic, knots) :
+                                   calc_nonzero_knot_spans(points_num, knots_mode, order, cyclic);
+  return resolution * nonzero_span_num + int(!cyclic);
 }
 
 int knots_num(const int points_num, const int8_t order, const bool cyclic)
@@ -125,24 +150,6 @@ void calculate_knots(const int points_num,
   const int tail_index = knots.size() - tail;
   for (const int i : IndexRange(tail)) {
     knots[tail_index + i] = current + (knots[i] - knots[0]);
-  }
-}
-
-void load_curve_knots(const KnotsMode mode,
-                      const int points_num,
-                      const int8_t order,
-                      const bool cyclic,
-                      const IndexRange curve_knots,
-                      const Span<float> custom_knots,
-                      MutableSpan<float> knots)
-{
-  /* Some curves edit tools might not support custom knots, for example GP extrude.
-   * These tools create empty `custom_knots` with mode NURBS_KNOT_MODE_CUSTOM. */
-  if (mode == NURBS_KNOT_MODE_CUSTOM && !custom_knots.is_empty() && !curve_knots.is_empty()) {
-    bke::curves::nurbs::copy_custom_knots(order, cyclic, custom_knots.slice(curve_knots), knots);
-  }
-  else {
-    curves::nurbs::calculate_knots(points_num, mode, order, cyclic, knots);
   }
 }
 

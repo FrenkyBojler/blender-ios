@@ -868,18 +868,6 @@ int calculate_evaluated_num(int points_num,
 int knots_num(int points_num, int8_t order, bool cyclic);
 
 /**
- * Depending on KnotsMode calculates knots or copies custom knots into given `MutableSpan`.
- * Adds `order - 1` length tail for cyclic curves.
- */
-void load_curve_knots(KnotsMode mode,
-                      int points_num,
-                      int8_t order,
-                      bool cyclic,
-                      IndexRange curve_knots,
-                      Span<float> custom_knots,
-                      MutableSpan<float> knots);
-
-/**
  * Copies custom knots into given `MutableSpan`.
  * Adds `order - 1` length tail for cyclic curves.
  */

@@ -648,8 +648,7 @@ static void calculate_evaluated_offsets(const CurvesGeometry &curves,
   const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
   const VArray<int8_t> nurbs_knots_modes = curves.nurbs_knots_modes();
   const OffsetIndices<int> custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-  const Span<float> custom_knots = curves.nurbs_custom_knots();
-  Array<float> knots;
+  const Span<float> all_custom_knots = curves.nurbs_custom_knots();
 
   build_offsets(offsets, [&](const int curve_index) -> int {
     const IndexRange points = points_by_curve[curve_index];
@@ -672,17 +671,14 @@ static void calculate_evaluated_offsets(const CurvesGeometry &curves,
         const bool is_cyclic = cyclic[curve_index];
         const int8_t order = nurbs_orders[curve_index];
         const KnotsMode knots_mode = KnotsMode(nurbs_knots_modes[curve_index]);
-        const int knots_num = curves::nurbs::knots_num(points.size(), order, is_cyclic);
-        knots.reinitialize(knots_num);
-        curves::nurbs::load_curve_knots(knots_mode,
-                                        points.size(),
-                                        order,
-                                        is_cyclic,
-                                        custom_knots_by_curve[curve_index],
-                                        custom_knots,
-                                        knots);
+        const IndexRange custom_knots_range = custom_knots_by_curve[curve_index];
+        const Span<float> custom_knots = knots_mode == NURBS_KNOT_MODE_CUSTOM &&
+                                                 !all_custom_knots.is_empty() &&
+                                                 !custom_knots_range.is_empty() ?
+                                             all_custom_knots.slice(custom_knots_range) :
+                                             Span<float>();
         return curves::nurbs::calculate_evaluated_num(
-            points.size(), order, is_cyclic, resolution[curve_index], knots_mode, knots);
+            points.size(), order, is_cyclic, resolution[curve_index], knots_mode, custom_knots);
     }
     BLI_assert_unreachable();
     return 0;
