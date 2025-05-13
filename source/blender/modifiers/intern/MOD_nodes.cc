@@ -2077,7 +2077,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                         const bool is_output)
 {
   if (!ctx.nmd.runtime->eval_log) {
-    uiItemR(layout, ctx.md_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
+    layout->prop(ctx.md_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
 
@@ -2173,7 +2173,7 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
   }
   else {
     const char *name = socket.name ? IFACE_(socket.name) : "";
-    uiItemR(prop_row, ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+    prop_row->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
     uiItemDecoratorR(layout, ctx.md_ptr, rna_path.c_str(), -1);
   }
 
@@ -2266,7 +2266,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
 {
   const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
   if (!ctx.nmd.runtime->eval_log) {
-    uiItemR(layout, ctx.md_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
+    layout->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
 
@@ -2321,7 +2321,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                          nullptr);
 }
 
-/* Drawing the properties manually with #uiItemR instead of #uiDefAutoButsRNA allows using
+/* Drawing the properties manually with #uiLayout::prop instead of #uiDefAutoButsRNA allows using
  * the node socket identifier for the property names, since they are unique, but also having
  * the correct label displayed in the UI. */
 static void draw_property_for_socket(DrawGroupInputsContext &ctx,
@@ -2338,11 +2338,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     return;
   }
 
-  char socket_id_esc[MAX_NAME * 2];
-  BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
-
-  char rna_path[sizeof(socket_id_esc) + 4];
-  SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
+  const std::string socket_id_esc = BLI_str_escape(identifier.c_str());
+  const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
 
   const int input_index = ctx.nmd.node_group->interface_input_index(socket);
   if (!ctx.input_usages[input_index].is_visible) {
@@ -2355,7 +2352,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   uiLayoutSetPropDecorate(row, true);
   uiLayoutSetActive(row, ctx.input_usages[input_index].is_used);
 
-  /* Use #uiItemPointerR to draw pointer properties because #uiItemR would not have enough
+  /* Use #uiItemPointerR to draw pointer properties because #uiLayout::prop would not have enough
    * information about what type of ID to select for editing the values. This is because
    * pointer IDProperties contain no information about their type. */
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
@@ -2394,10 +2391,10 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     case SOCK_MENU: {
       if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
-        uiItemR(row, ctx.md_ptr, rna_path, UI_ITEM_R_EXPAND, name, ICON_NONE);
+        row->prop(ctx.md_ptr, rna_path, UI_ITEM_R_EXPAND, name, ICON_NONE);
       }
       else {
-        uiItemR(row, ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+        row->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
       }
       break;
     }
@@ -2415,7 +2412,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
         add_attribute_search_or_value_buttons(ctx, row, socket_id_esc, rna_path, socket);
       }
       else {
-        uiItemR(row, ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+        row->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
       }
     }
   }
@@ -2612,8 +2609,8 @@ static void draw_bake_panel(uiLayout *layout, PointerRNA *modifier_ptr)
   uiLayout *col = &layout->column(false);
   uiLayoutSetPropSep(col, true);
   uiLayoutSetPropDecorate(col, false);
-  uiItemR(col, modifier_ptr, "bake_target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, modifier_ptr, "bake_directory", UI_ITEM_NONE, IFACE_("Bake Path"), ICON_NONE);
+  col->prop(modifier_ptr, "bake_target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(modifier_ptr, "bake_directory", UI_ITEM_NONE, IFACE_("Bake Path"), ICON_NONE);
 }
 
 static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd)

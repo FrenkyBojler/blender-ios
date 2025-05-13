@@ -110,7 +110,7 @@ static void uilist_draw_item_default(uiList *ui_list,
     case UILST_LAYOUT_COMPACT:
     default:
       if (nameprop) {
-        uiItemFullR(layout, itemptr, nameprop, RNA_NO_INDEX, 0, UI_ITEM_R_NO_BG, "", icon);
+        layout->prop(itemptr, nameprop, RNA_NO_INDEX, 0, UI_ITEM_R_NO_BG, "", icon);
       }
       else {
         layout->label("", icon);
@@ -126,28 +126,23 @@ static void uilist_draw_filter_default(uiList *ui_list, const bContext * /*C*/, 
   uiLayout *row = &layout->row(false);
 
   uiLayout *subrow = &row->row(true);
-  uiItemR(subrow, &listptr, "filter_name", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(subrow,
-          &listptr,
-          "use_filter_invert",
-          UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
-          "",
-          ICON_ARROW_LEFTRIGHT);
+  subrow->prop(&listptr, "filter_name", UI_ITEM_NONE, "", ICON_NONE);
+  subrow->prop(&listptr,
+               "use_filter_invert",
+               UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
+               "",
+               ICON_ARROW_LEFTRIGHT);
 
   if ((ui_list->filter_sort_flag & UILST_FLT_SORT_LOCK) == 0) {
     subrow = &row->row(true);
-    uiItemR(subrow,
-            &listptr,
-            "use_filter_sort_alpha",
-            UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
-            "",
-            ICON_NONE);
-    uiItemR(subrow,
-            &listptr,
-            "use_filter_sort_reverse",
-            UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
-            "",
-            (ui_list->filter_sort_flag & UILST_FLT_SORT_REVERSE) ? ICON_SORT_DESC : ICON_SORT_ASC);
+    subrow->prop(
+        &listptr, "use_filter_sort_alpha", UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+    subrow->prop(&listptr,
+                 "use_filter_sort_reverse",
+                 UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
+                 "",
+                 (ui_list->filter_sort_flag & UILST_FLT_SORT_REVERSE) ? ICON_SORT_DESC :
+                                                                        ICON_SORT_ASC);
   }
 }
 

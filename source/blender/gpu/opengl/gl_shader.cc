@@ -1740,6 +1740,9 @@ void GLCompilerWorker::release()
 
 GLShaderCompiler::~GLShaderCompiler()
 {
+  /* Must be called before we destruct the GLCompilerWorkers. */
+  destruct_compilation_worker();
+
   for (GLCompilerWorker *worker : workers_) {
     delete worker;
   }
@@ -1772,7 +1775,7 @@ GLCompilerWorker *GLShaderCompiler::get_compiler_worker(const GLSourcesBaked &so
 
   GLCompilerWorker *result = nullptr;
   while (true) {
-    if (result = try_get_compiler_worker()) {
+    if ((result = try_get_compiler_worker())) {
       BLI_time_sleep_ms(1);
       break;
     }
