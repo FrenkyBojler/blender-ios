@@ -61,6 +61,12 @@ struct uiItem {
 
 enum eUI_Item_Flag : uint16_t;
 
+enum class LayoutSeparatorType : int8_t {
+  Auto,
+  Space,
+  Line,
+};
+
 /**
  * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -270,6 +276,7 @@ struct uiLayout : uiItem {
             eUI_Item_Flag flag,
             std::optional<blender::StringRefNull> name,
             int icon);
+  void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 };
 
 enum {
@@ -439,12 +446,6 @@ void uiLayoutListItemAddPadding(uiLayout *layout);
 /* Layout create functions. */
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
-
-enum class LayoutSeparatorType : int8_t {
-  Auto,
-  Space,
-  Line,
-};
 
 /* items */
 
@@ -675,12 +676,7 @@ void uiItemDecoratorR(uiLayout *layout,
                       PointerRNA *ptr,
                       std::optional<blender::StringRefNull> propname,
                       int index);
-/** Separator item */
-void uiItemS(uiLayout *layout);
-/** Separator item */
-void uiItemS_ex(uiLayout *layout,
-                float factor,
-                LayoutSeparatorType type = LayoutSeparatorType::Auto);
+
 /** Flexible spacing. */
 void uiItemSpacer(uiLayout *layout);
 
