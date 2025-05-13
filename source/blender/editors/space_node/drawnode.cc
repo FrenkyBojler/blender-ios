@@ -1262,7 +1262,7 @@ static void std_node_socket_draw(
         }
         else {
           uiLayout *column = &layout->column(false);
-          {
+          if (!text.is_empty()) {
             uiLayout *row = &column->row(true);
             draw_node_socket_name_editable(row, sock, text);
             if (has_gizmo) {
@@ -1276,7 +1276,7 @@ static void std_node_socket_draw(
       break;
     case SOCK_ROTATION: {
       uiLayout *column = &layout->column(false);
-      {
+      if (!text.is_empty()) {
         uiLayout *row = &column->row(true);
         draw_node_socket_name_editable(row, sock, text);
         if (has_gizmo) {
