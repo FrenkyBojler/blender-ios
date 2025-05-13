@@ -270,36 +270,36 @@ TEST(math_vec_types, SwizzleReinterpret)
   const float3 v123(1, 2, 3);
   const float4 v0123(0, 1, 2, 3);
   /* Identity. */
-  EXPECT_EQ(v01.xy, v01);
-  EXPECT_EQ(v012.xyz, v012);
-  EXPECT_EQ(v0123.xyzw, v0123);
+  EXPECT_EQ(v01.xy(), v01);
+  EXPECT_EQ(v012.xyz(), v012);
+  EXPECT_EQ(v0123.xyzw(), v0123);
   /* Masking. */
-  EXPECT_EQ(v012.xy, v01);
-  EXPECT_EQ(v0123.xyz, v012);
+  EXPECT_EQ(v012.xy(), v01);
+  EXPECT_EQ(v0123.xyz(), v012);
   /* Offset. */
-  EXPECT_EQ(v0123.yz, v12);
-  EXPECT_EQ(v0123.zw, v23);
-  EXPECT_EQ(v0123.yzw, v123);
+  EXPECT_EQ(v0123.yz(), v12);
+  EXPECT_EQ(v0123.zw(), v23);
+  EXPECT_EQ(v0123.yzw(), v123);
 }
 
 TEST(math_vec_types, SwizzleFloat2)
 {
   float2 v(1, 2);
   float2 b(1, 2);
-  v = v.xy;
+  v = v.xy();
   b = v;
   EXPECT_EQ(v[0], 1);
   EXPECT_EQ(v[1], 2);
-  v = v.yx;
+  v = v.yx();
   EXPECT_EQ(v[0], 2);
   EXPECT_EQ(v[1], 1);
-  v.xy = v.xx;
+  v.xy = v.xx();
   EXPECT_EQ(v[0], 2);
   EXPECT_EQ(v[1], 2);
   v.xy = float2(1, 2);
   // v.yx = v; /* Should not compile. Read-only swizzle. */
   /* Expansion of vector. */
-  float4 t = v.xyxy;
+  float4 t = v.xyxy();
   EXPECT_EQ(t[0], 1);
   EXPECT_EQ(t[1], 2);
   EXPECT_EQ(t[2], 1);
@@ -310,11 +310,11 @@ TEST(math_vec_types, SwizzleFloat3)
 {
   float3 v(3, 4, 5);
 
-  v = v.xyz;
+  v = v.xyz();
   EXPECT_EQ(v[0], 3);
   EXPECT_EQ(v[1], 4);
   EXPECT_EQ(v[2], 5);
-  v = v.zyx;
+  v = v.zyx();
   EXPECT_EQ(v[0], 5);
   EXPECT_EQ(v[1], 4);
   EXPECT_EQ(v[2], 3);
@@ -322,7 +322,7 @@ TEST(math_vec_types, SwizzleFloat3)
   EXPECT_EQ(v[0], 5);
   EXPECT_EQ(v[1], 4);
   EXPECT_EQ(v[2], 3);
-  v.xyz = v.yzx;
+  v.xyz = v.yzx();
   EXPECT_EQ(v[0], 4);
   EXPECT_EQ(v[1], 3);
   EXPECT_EQ(v[2], 5);
@@ -349,11 +349,11 @@ TEST(math_vec_types, SwizzleFloat3)
   EXPECT_EQ(b[1], 1);
   EXPECT_EQ(b[2], 2);
   /* Assignment to different swizzle type. */
-  b.yz = a.zy;
+  b.yz = a.zy();
   EXPECT_EQ(b[0], 3);
   EXPECT_EQ(b[1], 2);
   EXPECT_EQ(b[2], 1);
-  b.yz = a.zz;
+  b.yz = a.zz();
   EXPECT_EQ(b[0], 3);
   EXPECT_EQ(b[1], 2);
   EXPECT_EQ(b[2], 2);
@@ -363,12 +363,12 @@ TEST(math_vec_types, SwizzleFloat4)
 {
   float4 v(6, 7, 8, 9);
 
-  v = v.xyzw;
+  v = v.xyzw();
   EXPECT_EQ(v[0], 6);
   EXPECT_EQ(v[1], 7);
   EXPECT_EQ(v[2], 8);
   EXPECT_EQ(v[3], 9);
-  v = v.wzyx;
+  v = v.wzyx();
   EXPECT_EQ(v[0], 9);
   EXPECT_EQ(v[1], 8);
   EXPECT_EQ(v[2], 7);
@@ -391,8 +391,8 @@ TEST(math_vec_types, SwizzleAssignment)
   EXPECT_EQ(v.y, 9);
   EXPECT_EQ(v.z, 8);
   EXPECT_EQ(v.w, 4);
-  // v.yzw = b.zxx;  // Should not compile. Non contiguous swizzle.
-  v.yzw = b.zzz;
+  // v.yzw = b.zxx();  // Should not compile. Non contiguous swizzle.
+  v.yzw = b.zzz();
   EXPECT_EQ(v.x, 1);
   EXPECT_EQ(v.y, 5);
   EXPECT_EQ(v.z, 5);
@@ -468,14 +468,14 @@ TEST(math_vec_types, SwizzleComparison)
   int4 a(1, 2, 3, 4);
   int3 b(1, 2, 3);
 
-  EXPECT_EQ(a.xyzw == a, true);
-  EXPECT_EQ(a == a.xyzw, true);
-  EXPECT_EQ(a.wzyx() == a.xyzw, false);
-  EXPECT_EQ(a.xyzw != a, false);
-  EXPECT_EQ(a != a.xyzw, false);
-  EXPECT_EQ(a.wzyx() != a.xyzw, true);
-  EXPECT_EQ(a.xyzz() == b.xyzz, true);
-  EXPECT_EQ(a.xyzz() != b.xyzz, false);
+  EXPECT_EQ(a.xyzw() == a, true);
+  EXPECT_EQ(a == a.xyzw(), true);
+  EXPECT_EQ(a.wzyx() == a.xyzw(), false);
+  EXPECT_EQ(a.xyzw() != a, false);
+  EXPECT_EQ(a != a.xyzw(), false);
+  EXPECT_EQ(a.wzyx() != a.xyzw(), true);
+  EXPECT_EQ(a.xyzz() == b.xyzz(), true);
+  EXPECT_EQ(a.xyzz() != b.xyzz(), false);
 }
 
 BLI_STATIC_ASSERT(std::is_trivially_constructible_v<float3>, "");

@@ -24,8 +24,10 @@ template<typename T, int Size> struct VecBase;
  */
 template<typename T, int Size> struct VecSwizzleFunc {};
 
+/* Make assignment to the operator result an error. */
+/* NOLINTBEGIN: readability-const-return-type. */
 template<typename T> struct VecSwizzleFunc<T, 2> {
-  [[nodiscard]] VecBase<T, 2> xy() const
+  [[nodiscard]] const VecBase<T, 2> xy() const
   {
     const VecBase<T, 2> &vec = *reinterpret_cast<const VecBase<T, 2> *>(this);
     return {vec.x, vec.y};
@@ -33,13 +35,13 @@ template<typename T> struct VecSwizzleFunc<T, 2> {
 };
 
 template<typename T> struct VecSwizzleFunc<T, 3> : VecSwizzleFunc<T, 2> {
-  [[nodiscard]] VecBase<T, 3> xyz() const
+  [[nodiscard]] const VecBase<T, 3> xyz() const
   {
     const VecBase<T, 3> &vec = *reinterpret_cast<const VecBase<T, 3> *>(this);
     return {vec.x, vec.y, vec.z};
   }
 
-  [[nodiscard]] VecBase<T, 2> yz() const
+  [[nodiscard]] const VecBase<T, 2> yz() const
   {
     const VecBase<T, 3> &vec = *reinterpret_cast<const VecBase<T, 3> *>(this);
     return {vec.y, vec.z};
@@ -47,24 +49,25 @@ template<typename T> struct VecSwizzleFunc<T, 3> : VecSwizzleFunc<T, 2> {
 };
 
 template<typename T> struct VecSwizzleFunc<T, 4> : VecSwizzleFunc<T, 2> {
-  [[nodiscard]] VecBase<T, 2> zw() const
+  [[nodiscard]] const VecBase<T, 2> zw() const
   {
     const VecBase<T, 4> &vec = *reinterpret_cast<const VecBase<T, 4> *>(this);
     return {vec.z, vec.w};
   }
 
-  [[nodiscard]] VecBase<T, 3> yzw() const
+  [[nodiscard]] const VecBase<T, 3> yzw() const
   {
     const VecBase<T, 4> &vec = *reinterpret_cast<const VecBase<T, 4> *>(this);
     return {vec.y, vec.z, vec.w};
   }
 
-  [[nodiscard]] VecBase<T, 4> xyzw() const
+  [[nodiscard]] const VecBase<T, 4> xyzw() const
   {
     const VecBase<T, 4> &vec = *reinterpret_cast<const VecBase<T, 4> *>(this);
     return {vec.x, vec.y, vec.z, vec.w};
   }
 };
+/* NOLINTEND: readability-const-return-type. */
 
 /**
  * Swizzle class that supports reordering of component.
@@ -88,7 +91,9 @@ template<typename T, int Size, int x, int y, int z = y, int w = z> struct VecSwi
  public:
   VecSwizzleReadOnly() = default;
 
-  operator VecT() const
+  /* Make assignment to the operator result an error. */
+  /* NOLINTNEXTLINE: readability-const-return-type. */
+  [[nodiscard]] const VecT operator()() const
   {
     /* Can only do this when VecT has been instantiated. */
     BLI_STATIC_ASSERT(alignof(VecT) <= alignof(T),
@@ -109,11 +114,6 @@ template<typename T, int Size, int x, int y, int z = y, int w = z> struct VecSwi
     }
     return {};
   }
-
-  [[nodiscard]] VecT operator()() const
-  {
-    return VecT(*this);
-  }
 };
 
 /**
@@ -133,28 +133,16 @@ template<typename T, int Size> struct VecSwizzleReadWrite {
   std::array<T, Size> values_;
 
  public:
-  operator VecT() const
+  /* Make assignment to the operator result an error. */
+  /* NOLINTNEXTLINE: readability-const-return-type. */
+  [[nodiscard]] const VecT operator()() const
   {
     /* Can only do this when VecT has been instantiated. */
     BLI_STATIC_ASSERT(alignof(VecT) <= alignof(T),
                       "VecSwizzleReadWrite is not compatible with aligned type for now.");
     BLI_STATIC_ASSERT(std::is_trivial_v<VecT>, "Can only swizzle trivial vectors.");
     BLI_STATIC_ASSERT(Size >= 2 && Size <= 4, "Only small vector supports swizzles");
-    if constexpr (Size == 4) {
-      return {values_[0], values_[1], values_[2], values_[3]};
-    }
-    else if constexpr (Size == 3) {
-      return {values_[0], values_[1], values_[2]};
-    }
-    else if constexpr (Size == 2) {
-      return {values_[0], values_[1]};
-    }
-    return {};
-  }
-
-  [[nodiscard]] VecT operator()() const
-  {
-    return VecT(*this);
+    return *reinterpret_cast<const VecT *>(this);
   }
 
   VecSwizzleReadWrite &operator=(const VecT &other)
@@ -162,19 +150,13 @@ template<typename T, int Size> struct VecSwizzleReadWrite {
     return (*this = *reinterpret_cast<const VecSwizzleReadWrite *>(&other));
   }
 
-  template<int x_, int y_, int z_, int w_>
-  VecSwizzleReadWrite &operator=(const VecSwizzleReadOnly<T, Size, x_, y_, z_, w_> &other)
-  {
-    return (*this = other.operator VecT());
-  }
-
 #define IMPL_BINARY(op) \
   { \
-    return {*this = VecT(*this) op a}; \
+    return {*this = (*this)() op a}; \
   }
 #define IMPL_UNARY(op) \
   { \
-    return op VecT(*this); \
+    return op(*this)(); \
   }
 
 #define STD_OP \
