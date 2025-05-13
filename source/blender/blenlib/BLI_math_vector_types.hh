@@ -12,6 +12,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "BLI_math_vector_swizzle.hh"
 #include "BLI_math_vector_unroll.hh"
 #include "BLI_utildefines.h"
 
@@ -25,459 +26,21 @@ using as_uint_type = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
                      std::conditional_t<sizeof(T) == sizeof(uint64_t), uint64_t, void>>>>;
 /* clang-format on */
 
-template<typename T, int Size> struct VecBase;
-
-namespace detail {
-template<typename T> struct use_swizzle {
-  static constexpr bool value = false;
-};
-
-template<> struct use_swizzle<float> {
-  static constexpr bool value = true;
-};
-template<> struct use_swizzle<uint> {
-  static constexpr bool value = true;
-};
-template<> struct use_swizzle<int> {
-  static constexpr bool value = true;
-};
-}  // namespace detail
-
-/**
- * Swizzle class that supports arithmetic operations.
- * Will decay to a vector of the same size.
- *
- * IMPORTANT: Must be declared at the same memory location as the first component referenced in the
- * swizzle. We do this to allow the copy constructor to copy only the referenced component in the
- * case of something like `a.zzy = b.zzy`. This is because we do not want to override (or delete)
- * the copy constructor as it would make the vector types non-trivial.
- */
-template<typename T, int Size, int x_, int y_, int z_ = y_, int w_ = z_> struct vec_ro_swizzle {
-  using VecT = VecBase<T, Size>;
-  static constexpr int max_comp = std::max(std::max(std::max(x_, y_), z_), w_);
-  static constexpr int min_comp = std::min(std::min(std::min(x_, y_), z_), w_);
-  static constexpr int effective_len = max_comp - min_comp + 1;
-
- private:
-  T values_[effective_len];
-
- public:
-  vec_ro_swizzle() = default;
-
-  operator VecT() const
-  {
-    BLI_STATIC_ASSERT(Size >= 2 && Size <= 4, "Only small vector supports swizzles");
-    if constexpr (Size == 4) {
-      return {values_[x_ - min_comp],
-              values_[y_ - min_comp],
-              values_[z_ - min_comp],
-              values_[w_ - min_comp]};
-    }
-    else if constexpr (Size == 3) {
-      return {values_[x_ - min_comp], values_[y_ - min_comp], values_[z_ - min_comp]};
-    }
-    else if constexpr (Size == 2) {
-      return {values_[x_ - min_comp], values_[y_ - min_comp]};
-    }
-    return {};
-  }
-
-  VecT operator()() const
-  {
-    return VecT(*this);
-  }
-};
-
-/**
- * Swizzle class that supports assignment.
- * The writes are indirected to the actual swizzled memory location.
- * Can only be used if all swizzled components points to different memory locations.
- *
- * All operators needs take their argument by copy in case the input is another swizzle referencing
- * the same memory locations.
- */
-template<typename T, int Size> struct vec_rw_swizzle {
-  using VecT = VecBase<T, Size>;
-
- private:
-  std::array<T, Size> values_;
-
- public:
-  operator VecT() const
-  {
-    BLI_STATIC_ASSERT(Size >= 2 && Size <= 4, "Only small vector supports swizzles");
-    if constexpr (Size == 4) {
-      return {values_[0], values_[1], values_[2], values_[3]};
-    }
-    else if constexpr (Size == 3) {
-      return {values_[0], values_[1], values_[2]};
-    }
-    else if constexpr (Size == 2) {
-      return {values_[0], values_[1]};
-    }
-    return {};
-  }
-
-  VecT operator()() const
-  {
-    return VecT(*this);
-  }
-
-  vec_rw_swizzle &operator=(const VecT &other)
-  {
-    return (*this = *reinterpret_cast<const vec_rw_swizzle *>(&other));
-  }
-
-  template<int x_, int y_, int z_, int w_>
-  vec_rw_swizzle &operator=(const vec_ro_swizzle<T, Size, x_, y_, z_, w_> &other)
-  {
-    return (*this = other.operator VecT());
-  }
-
-#define IMPL_BINARY(op) \
-  { \
-    return {*this = VecT(*this) op a}; \
-  }
-#define IMPL_UNARY(op) \
-  { \
-    return op VecT(*this); \
-  }
-
-#define STD_OP \
-  template<typename U = T, typename std::enable_if_t<!std::is_same_v<bool, U>> * = nullptr>
-
-  STD_OP VecT operator+() const IMPL_UNARY(+);
-  STD_OP VecT operator-() const IMPL_UNARY(-);
-
-  STD_OP vec_rw_swizzle &operator+=(const VecT &a) IMPL_BINARY(+);
-  STD_OP vec_rw_swizzle &operator-=(const VecT &a) IMPL_BINARY(-);
-  STD_OP vec_rw_swizzle &operator/=(const VecT &a) IMPL_BINARY(/);
-  STD_OP vec_rw_swizzle &operator*=(const VecT &a) IMPL_BINARY(*);
-
-  STD_OP vec_rw_swizzle &operator+=(const T &a) IMPL_BINARY(+);
-  STD_OP vec_rw_swizzle &operator-=(const T &a) IMPL_BINARY(-);
-  STD_OP vec_rw_swizzle &operator/=(const T &a) IMPL_BINARY(/);
-  STD_OP vec_rw_swizzle &operator*=(const T &a) IMPL_BINARY(*);
-
-#define INT_OP \
-  template<typename U = T, \
-           typename std::enable_if_t<std::is_integral_v<U>> * = nullptr, \
-           typename std::enable_if_t<!std::is_same_v<bool, U>> * = nullptr>
-
-  INT_OP VecT operator~() const IMPL_UNARY(~);
-
-  INT_OP vec_rw_swizzle &operator%=(const VecT &a) IMPL_BINARY(%);
-  INT_OP vec_rw_swizzle &operator&=(const VecT &a) IMPL_BINARY(&);
-  INT_OP vec_rw_swizzle &operator|=(const VecT &a) IMPL_BINARY(|);
-  INT_OP vec_rw_swizzle &operator^=(const VecT &a) IMPL_BINARY(^);
-
-  INT_OP vec_rw_swizzle &operator%=(const T &a) IMPL_BINARY(%);
-  INT_OP vec_rw_swizzle &operator&=(const T &a) IMPL_BINARY(&);
-  INT_OP vec_rw_swizzle &operator|=(const T &a) IMPL_BINARY(|);
-  INT_OP vec_rw_swizzle &operator^=(const T &a) IMPL_BINARY(^);
-
-  INT_OP vec_rw_swizzle &operator<<=(const VecT &a) IMPL_BINARY(<<);
-  INT_OP vec_rw_swizzle &operator>>=(const VecT &a) IMPL_BINARY(>>);
-  INT_OP vec_rw_swizzle &operator<<=(const T &a) IMPL_BINARY(<<);
-  INT_OP vec_rw_swizzle &operator>>=(const T &a) IMPL_BINARY(>>);
-
-#undef INT_OP
-#undef IMPL_BINARY
-#undef IMPL_UNARY
-};
-
 template<typename T, int Size, bool is_trivial_type> struct vec_struct_base {
   std::array<T, Size> values;
 };
 
-template<typename T> struct vec_struct_base<T, 2, false> {
+template<typename T> struct vec_struct_base<T, 2, false> : VecSwizzleFunc<T, 2> {
   T x, y;
-
-  /* Masking. */
-  const VecBase<T, 2> &xy() const
-  {
-    return *reinterpret_cast<const VecBase<T, 2> *>(&x);
-  }
 };
 
-template<typename T> struct vec_struct_base<T, 3, false> {
+template<typename T> struct vec_struct_base<T, 3, false> : VecSwizzleFunc<T, 3> {
   T x, y, z;
-
-  /* Masking. */
-  const VecBase<T, 2> &xy() const
-  {
-    return *reinterpret_cast<const VecBase<T, 2> *>(&x);
-  }
-
-  const VecBase<T, 2> &yz() const
-  {
-    return *reinterpret_cast<const VecBase<T, 2> *>(&y);
-  }
-
-  const VecBase<T, 3> &xyz() const
-  {
-    return *reinterpret_cast<const VecBase<T, 3> *>(&x);
-  }
 };
 
-template<typename T> struct vec_struct_base<T, 4, false> {
+template<typename T> struct vec_struct_base<T, 4, false> : VecSwizzleFunc<T, 4> {
   T x, y, z, w;
-
-  /* Masking. */
-  const VecBase<T, 2> &xy() const
-  {
-    return *reinterpret_cast<const VecBase<T, 2> *>(&x);
-  }
-
-  const VecBase<T, 2> &yz() const
-  {
-    return *reinterpret_cast<const VecBase<T, 2> *>(&y);
-  }
-
-  const VecBase<T, 3> &xyz() const
-  {
-    return *reinterpret_cast<const VecBase<T, 3> *>(&x);
-  }
-
-  const VecBase<T, 2> &zw() const
-  {
-    return *reinterpret_cast<const VecBase<T, 2> *>(&z);
-  }
-
-  const VecBase<T, 3> &yzw() const
-  {
-    return *reinterpret_cast<const VecBase<T, 3> *>(&y);
-  }
-
-  const VecBase<T, 4> &xyzw() const
-  {
-    return *reinterpret_cast<const VecBase<T, 4> *>(&x);
-  }
 };
-
-/**
- * List of all swizzles we support.
- * We do not support non-contiguous component swizzle (e.g. xwxw) as they would have undefined
- * behavior in some corner cases.
- * We only generate the variant we use to reduce compile time and binary size.
- * Uncomment at will.
- */
-
-/* Swizzles containing X. Must be declared in a union alongside X. */
-#define X_SWIZZLES \
-  vec_ro_swizzle<T, 2, 0, 0> xx; \
-  vec_ro_swizzle<T, 3, 0, 0, 0> xxx; \
-  vec_ro_swizzle<T, 4, 0, 0, 0, 0> xxxx;
-
-/* Swizzles containing Y. Must be declared in a union alongside Y. */
-#define Y_SWIZZLES \
-  vec_ro_swizzle<T, 2, 1, 1> yy; \
-  vec_ro_swizzle<T, 3, 1, 1, 1> yyy; \
-  vec_ro_swizzle<T, 4, 1, 1, 1, 1> yyyy;
-
-/* Swizzles containing Z. Must be declared in a union alongside Z. */
-#define Z_SWIZZLES \
-  vec_ro_swizzle<T, 2, 2, 2> zz; \
-  vec_ro_swizzle<T, 3, 2, 2, 2> zzz; \
-  vec_ro_swizzle<T, 4, 2, 2, 2, 2> zzzz;
-
-/* Swizzles containing W. Must be declared in a union alongside W. */
-#define W_SWIZZLES \
-  vec_ro_swizzle<T, 2, 3, 3> ww; \
-  vec_ro_swizzle<T, 3, 3, 3, 3> www; \
-  vec_ro_swizzle<T, 4, 3, 3, 3, 3> wwww;
-
-/* Swizzles containing XY. Must be declared in a union alongside X. */
-#define XY_SWIZZLES \
-  vec_rw_swizzle<T, 2> xy; \
-  vec_ro_swizzle<T, 2, 1, 0> yx; \
-  /* vec_ro_swizzle<T, 3, 0, 0, 1> xxy; */ \
-  /* vec_ro_swizzle<T, 3, 0, 1, 0> xyx; */ \
-  /* vec_ro_swizzle<T, 3, 0, 1, 1> xyy; */ \
-  /* vec_ro_swizzle<T, 3, 1, 0, 0> yxx; */ \
-  /* vec_ro_swizzle<T, 3, 1, 0, 1> yxy; */ \
-  /* vec_ro_swizzle<T, 3, 1, 1, 0> yyx; */ \
-  /* vec_ro_swizzle<T, 4, 0, 0, 0, 1> xxxy; */ \
-  /* vec_ro_swizzle<T, 4, 0, 0, 1, 0> xxyx; */ \
-  /* vec_ro_swizzle<T, 4, 0, 0, 1, 1> xxyy; */ \
-  /* vec_ro_swizzle<T, 4, 0, 1, 0, 0> xyxx; */ \
-  vec_ro_swizzle<T, 4, 0, 1, 0, 1> xyxy; \
-  /* vec_ro_swizzle<T, 4, 0, 1, 1, 0> xyyx; */ \
-  /* vec_ro_swizzle<T, 4, 0, 1, 1, 1> xyyy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 0, 0> yxxx; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 0, 1> yxxy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 1, 0> yxyx; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 1, 1> yxyy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 0, 0> yyxx; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 0, 1> yyxy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 1, 0> yyyx; */
-
-/* Swizzles containing YZ. Must be declared in a union alongside Y. */
-#define YZ_SWIZZLES \
-  vec_rw_swizzle<T, 2> yz; \
-  vec_ro_swizzle<T, 2, 2, 1> zy; \
-  /* vec_ro_swizzle<T, 3, 1, 1, 2> yyz; */ \
-  /* vec_ro_swizzle<T, 3, 1, 2, 1> yzy; */ \
-  /* vec_ro_swizzle<T, 3, 1, 2, 2> yzz; */ \
-  /* vec_ro_swizzle<T, 3, 2, 1, 1> zyy; */ \
-  /* vec_ro_swizzle<T, 3, 2, 1, 2> zyz; */ \
-  /* vec_ro_swizzle<T, 3, 2, 2, 1> zzy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 1, 2> yyyz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 2, 1> yyzy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 2, 2> yyzz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 1, 1> yzyy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 1, 2> yzyz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 2, 1> yzzy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 2, 2> yzzz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 1, 1> zyyy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 1, 2> zyyz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 2, 1> zyzy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 2, 2> zyzz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 1, 1> zzyy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 1, 2> zzyz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 2, 1> zzzy; */
-
-/* Swizzles containing ZW. Must be declared in a union alongside Z. */
-#define ZW_SWIZZLES \
-  vec_rw_swizzle<T, 2> zw; \
-  /* vec_ro_swizzle<T, 2, 3, 2> wz; */ \
-  /* vec_ro_swizzle<T, 3, 2, 2, 3> zzw; */ \
-  /* vec_ro_swizzle<T, 3, 2, 3, 2> zwz; */ \
-  /* vec_ro_swizzle<T, 3, 2, 3, 3> zww; */ \
-  /* vec_ro_swizzle<T, 3, 3, 2, 2> wzz; */ \
-  /* vec_ro_swizzle<T, 3, 3, 2, 3> wzw; */ \
-  /* vec_ro_swizzle<T, 3, 3, 3, 2> wwz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 2, 3> zzzw; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 3, 2> zzwz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 3, 3> zzww; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 2, 2> zwzz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 2, 3> zwzw; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 3, 2> zwwz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 3, 3> zwww; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 2, 2> wzzz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 2, 3> wzzw; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 3, 2> wzwz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 3, 3> wzww; */ \
-  /* vec_ro_swizzle<T, 4, 3, 3, 2, 2> wwzz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 3, 2, 3> wwzw; */ \
-  /* vec_ro_swizzle<T, 4, 3, 3, 3, 2> wwwz; */
-
-/* Swizzles containing XYZ. Must be declared in a union alongside X. */
-#define XYZ_SWIZZLES \
-  vec_rw_swizzle<T, 3> xyz; \
-  vec_ro_swizzle<T, 3, 0, 2, 1> xzy; \
-  /* vec_ro_swizzle<T, 3, 1, 0, 2> yxz; */ \
-  vec_ro_swizzle<T, 3, 1, 2, 0> yzx; \
-  /* vec_ro_swizzle<T, 3, 2, 0, 1> zxy; */ \
-  vec_ro_swizzle<T, 3, 2, 1, 0> zyx; \
-  /* vec_ro_swizzle<T, 4, 0, 0, 1, 2> xxyz; */ \
-  /* vec_ro_swizzle<T, 4, 0, 0, 2, 1> xxzy; */ \
-  /* vec_ro_swizzle<T, 4, 0, 1, 0, 2> xyxz; */ \
-  /* vec_ro_swizzle<T, 4, 0, 1, 1, 2> xyyz; */ \
-  /* vec_ro_swizzle<T, 4, 0, 1, 2, 0> xyzx; */ \
-  /* vec_ro_swizzle<T, 4, 0, 1, 2, 1> xyzy; */ \
-  vec_ro_swizzle<T, 4, 0, 1, 2, 2> xyzz; \
-  /* vec_ro_swizzle<T, 4, 0, 2, 0, 1> xzxy; */ \
-  /* vec_ro_swizzle<T, 4, 0, 2, 1, 0> xzyx; */ \
-  /* vec_ro_swizzle<T, 4, 0, 2, 1, 1> xzyy; */ \
-  /* vec_ro_swizzle<T, 4, 0, 2, 1, 2> xzyz; */ \
-  /* vec_ro_swizzle<T, 4, 0, 2, 2, 1> xzzy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 0, 2> yxxz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 1, 2> yxyz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 2, 0> yxzx; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 2, 1> yxzy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 2, 2> yxzz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 0, 2> yyxz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 2, 0> yyzx; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 0, 0> yzxx; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 0, 1> yzxy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 0, 2> yzxz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 1, 0> yzyx; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 2, 0> yzzx; */ \
-  /* vec_ro_swizzle<T, 4, 2, 0, 0, 1> zxxy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 0, 1, 0> zxyx; */ \
-  /* vec_ro_swizzle<T, 4, 2, 0, 1, 1> zxyy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 0, 1, 2> zxyz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 0, 2, 1> zxzy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 0, 0> zyxx; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 0, 1> zyxy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 0, 2> zyxz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 1, 0> zyyx; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 2, 0> zyzx; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 0, 1> zzxy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 1, 0> zzyx; */
-
-/* Swizzles containing YZW. Must be declared in a union alongside Y. */
-#define YZW_SWIZZLES \
-  vec_rw_swizzle<T, 3> yzw; \
-  /* vec_ro_swizzle<T, 3, 1, 3, 2> ywz; */ \
-  /* vec_ro_swizzle<T, 3, 2, 1, 3> zyw; */ \
-  /* vec_ro_swizzle<T, 3, 2, 3, 1> zwy; */ \
-  /* vec_ro_swizzle<T, 3, 3, 1, 2> wyz; */ \
-  /* vec_ro_swizzle<T, 3, 3, 2, 1> wzy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 2, 3> yyzw; */ \
-  /* vec_ro_swizzle<T, 4, 1, 1, 3, 2> yywz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 1, 3> yzyw; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 2, 3> yzzw; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 3, 1> yzwy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 3, 2> yzwz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 3, 3> yzww; */ \
-  /* vec_ro_swizzle<T, 4, 1, 3, 1, 2> ywyz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 3, 2, 1> ywzy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 3, 2, 2> ywzz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 3, 2, 3> ywzw; */ \
-  /* vec_ro_swizzle<T, 4, 1, 3, 3, 2> ywwz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 1, 3> zyyw; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 2, 3> zyzw; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 3, 1> zywy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 3, 2> zywz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 3, 3> zyww; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 1, 3> zzyw; */ \
-  /* vec_ro_swizzle<T, 4, 2, 2, 3, 1> zzwy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 1, 1> zwyy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 1, 2> zwyz; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 1, 3> zwyw; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 2, 1> zwzy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 3, 1> zwwy; */ \
-  /* vec_ro_swizzle<T, 4, 3, 1, 1, 2> wyyz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 1, 2, 1> wyzy; */ \
-  /* vec_ro_swizzle<T, 4, 3, 1, 2, 2> wyzz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 1, 2, 3> wyzw; */ \
-  /* vec_ro_swizzle<T, 4, 3, 1, 3, 2> wywz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 1, 1> wzyy; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 1, 2> wzyz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 1, 3> wzyw; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 2, 1> wzzy; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 3, 1> wzwy; */ \
-  /* vec_ro_swizzle<T, 4, 3, 3, 1, 2> wwyz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 3, 2, 1> wwzy; */
-
-/* Swizzles containing XYZW. Must be declared in a union alongside X. */
-#define XYZW_SWIZZLES \
-  vec_rw_swizzle<T, 4> xyzw; \
-  /* vec_ro_swizzle<T, 4, 0, 1, 3, 2> xywz; */ \
-  /* vec_ro_swizzle<T, 4, 0, 2, 1, 3> xzyw; */ \
-  /* vec_ro_swizzle<T, 4, 0, 2, 3, 1> xzwy; */ \
-  /* vec_ro_swizzle<T, 4, 0, 3, 1, 2> xwyz; */ \
-  /* vec_ro_swizzle<T, 4, 0, 3, 2, 1> xwzy; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 2, 3> yxzw; */ \
-  /* vec_ro_swizzle<T, 4, 1, 0, 3, 2> yxwz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 0, 3> yzxw; */ \
-  /* vec_ro_swizzle<T, 4, 1, 2, 3, 0> yzwx; */ \
-  /* vec_ro_swizzle<T, 4, 1, 3, 0, 2> ywxz; */ \
-  /* vec_ro_swizzle<T, 4, 1, 3, 2, 0> ywzx; */ \
-  /* vec_ro_swizzle<T, 4, 2, 0, 1, 3> zxyw; */ \
-  /* vec_ro_swizzle<T, 4, 2, 0, 3, 1> zxwy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 0, 3> zyxw; */ \
-  /* vec_ro_swizzle<T, 4, 2, 1, 3, 0> zywx; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 0, 1> zwxy; */ \
-  /* vec_ro_swizzle<T, 4, 2, 3, 1, 0> zwyx; */ \
-  /* vec_ro_swizzle<T, 4, 3, 0, 1, 2> wxyz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 0, 2, 1> wxzy; */ \
-  /* vec_ro_swizzle<T, 4, 3, 1, 0, 2> wyxz; */ \
-  /* vec_ro_swizzle<T, 4, 3, 1, 2, 0> wyzx; */ \
-  /* vec_ro_swizzle<T, 4, 3, 2, 0, 1> wzxy; */ \
-  vec_ro_swizzle<T, 4, 3, 2, 1, 0> wzyx;
 
 template<typename T> struct vec_struct_base<T, 2, true> {
   union {
@@ -590,7 +153,7 @@ template<typename T> uint64_t vector_hash(const T &vec)
 }  // namespace math
 
 template<typename T, int Size>
-struct VecBase : public vec_struct_base<T, Size, detail::use_swizzle<T>::value> {
+struct VecBase : public vec_struct_base<T, Size, std::is_trivial_v<T>> {
 
   BLI_STATIC_ASSERT(alignof(T) <= sizeof(T),
                     "VecBase is not compatible with aligned type for now.");
@@ -1129,5 +692,11 @@ BLI_STATIC_ASSERT(sizeof(float3().xxx) == 1 * sizeof(float), "");
 BLI_STATIC_ASSERT(sizeof(float3().xxxx) == 1 * sizeof(float), "");
 BLI_STATIC_ASSERT(sizeof(float3().xy) == 2 * sizeof(float), "");
 BLI_STATIC_ASSERT(sizeof(float3().xyxy) == 2 * sizeof(float), "");
+
+vec_struct_base<float, 3, false> d;
+void f()
+{
+  d.yz() = {2, 2};
+}
 
 }  // namespace blender
