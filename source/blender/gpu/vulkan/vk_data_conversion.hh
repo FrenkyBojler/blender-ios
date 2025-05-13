@@ -136,7 +136,7 @@ struct VertexFormatConverter {
    *   setup the vertex attribute bindings.
    * - #convert can be called to convert source data to device data.
    */
-  void init(const GPUVertFormat *vertex_format, const VKWorkarounds &workarounds);
+  void init(const GPUVertFormat *vertex_format);
 
   /**
    * Get the #GPUVertFormat that is compatible with the Vulkan and the active workarounds passed by
@@ -174,18 +174,14 @@ struct VertexFormatConverter {
    * Update conversion flags happens at the start of initialization and updated the
    * #needs_conversion flag.
    */
-  void update_conversion_flags(const GPUVertFormat &vertex_format,
-                               const VKWorkarounds &workarounds);
-  void update_conversion_flags(const GPUVertAttr &vertex_attribute,
-                               const VKWorkarounds &workarounds);
+  void update_conversion_flags(const GPUVertFormat &vertex_format);
+  void update_conversion_flags(const GPUVertAttr &vertex_attribute);
 
   /**
    * Update the conversion_format to contain a device compatible version of the #source_format_.
    */
-  void init_device_format(const VKWorkarounds &workarounds);
-  void make_device_compatible(GPUVertAttr &vertex_attribute,
-                              const VKWorkarounds &workarounds,
-                              bool &needs_repack) const;
+  void init_device_format();
+  void make_device_compatible(GPUVertAttr &vertex_attribute) const;
 
   void convert_row(void *device_row_data, const void *source_row_data) const;
   void convert_attribute(void *device_row_data,
@@ -193,6 +189,18 @@ struct VertexFormatConverter {
                          const GPUVertAttr &device_attribute,
                          const GPUVertAttr &source_attribute) const;
 };
+
+inline const GPUVertFormat &VertexFormatConverter::device_format_get() const
+{
+  BLI_assert(this->is_initialized());
+  return *device_format_;
+}
+
+inline bool VertexFormatConverter::needs_conversion() const
+{
+  BLI_assert(is_initialized());
+  return needs_conversion_;
+}
 
 inline bool VertexFormatConverter::is_initialized() const
 {

@@ -18,7 +18,6 @@
 
 #include "GPU_shader.hh"
 
-#include "COM_algorithm_gamma_correct.hh"
 #include "COM_algorithm_recursive_gaussian_blur.hh"
 #include "COM_algorithm_symmetric_separable_blur.hh"
 #include "COM_node_operation.hh"
@@ -60,34 +59,32 @@ static void node_composit_buts_blur(uiLayout *layout, bContext * /*C*/, PointerR
   col = &layout->column(false);
   const int filter = RNA_enum_get(ptr, "filter_type");
 
-  uiItemR(col, ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  col->prop(ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   if (filter != R_FILTER_FAST_GAUSS) {
-    uiItemR(col, ptr, "use_bokeh", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "use_gamma_correction", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    col->prop(ptr, "use_bokeh", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(col, ptr, "use_relative", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_relative", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(ptr, "use_relative")) {
-    uiItemL(col, IFACE_("Aspect Correction"), ICON_NONE);
+    col->label(IFACE_("Aspect Correction"), ICON_NONE);
     row = &layout->row(true);
-    uiItemR(row,
-            ptr,
-            "aspect_correction",
-            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
-            std::nullopt,
-            ICON_NONE);
+    row->prop(ptr,
+              "aspect_correction",
+              UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
+              std::nullopt,
+              ICON_NONE);
 
     col = &layout->column(true);
-    uiItemR(col, ptr, "factor_x", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("X"), ICON_NONE);
-    uiItemR(col, ptr, "factor_y", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Y"), ICON_NONE);
+    col->prop(ptr, "factor_x", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("X"), ICON_NONE);
+    col->prop(ptr, "factor_y", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Y"), ICON_NONE);
   }
   else {
     col = &layout->column(true);
-    uiItemR(col, ptr, "size_x", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("X"), ICON_NONE);
-    uiItemR(col, ptr, "size_y", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Y"), ICON_NONE);
+    col->prop(ptr, "size_x", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("X"), ICON_NONE);
+    col->prop(ptr, "size_y", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Y"), ICON_NONE);
   }
-  uiItemR(col, ptr, "use_extended_bounds", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_extended_bounds", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -105,41 +102,22 @@ class BlurOperation : public NodeOperation {
       return;
     }
 
-    const Result *blur_input = &input;
-    Result *blur_output = &output;
-
-    /* Apply gamma correction if needed. */
-    Result gamma_blur_output = this->context().create_result(ResultType::Color);
-    Result gamma_corrected_input = this->context().create_result(ResultType::Color);
-    if (this->should_apply_gamma_correction()) {
-      gamma_correct(this->context(), input, gamma_corrected_input);
-      blur_input = &gamma_corrected_input;
-      blur_output = &gamma_blur_output;
-    }
-
     if (node_storage(bnode()).filtertype == R_FILTER_FAST_GAUSS) {
-      recursive_gaussian_blur(context(), *blur_input, *blur_output, compute_blur_radius());
+      recursive_gaussian_blur(context(), input, output, compute_blur_radius());
     }
     else if (!this->get_input("Size").is_single_value()) {
-      execute_variable_size(*blur_input, *blur_output);
+      execute_variable_size(input, output);
     }
     else if (use_separable_filter()) {
       symmetric_separable_blur(context(),
-                               *blur_input,
-                               *blur_output,
+                               input,
+                               output,
                                compute_blur_radius(),
                                node_storage(bnode()).filtertype,
                                get_extend_bounds());
     }
     else {
-      execute_constant_size(*blur_input, *blur_output);
-    }
-
-    /* Undo gamma correction. */
-    if (this->should_apply_gamma_correction()) {
-      gamma_corrected_input.release();
-      gamma_uncorrect(this->context(), gamma_blur_output, output);
-      gamma_blur_output.release();
+      execute_constant_size(input, output);
     }
   }
 
@@ -483,11 +461,6 @@ class BlurOperation : public NodeOperation {
     return float2(node_storage(bnode()).percentx, node_storage(bnode()).percenty) / 100.0f;
   }
 
-  bool should_apply_gamma_correction()
-  {
-    return node_storage(this->bnode()).gamma;
-  }
-
   bool get_extend_bounds()
   {
     return bnode().custom1 & CMP_NODEFLAG_BLUR_EXTEND_BOUNDS;
@@ -501,7 +474,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_blur_cc
 
-void register_node_type_cmp_blur()
+static void register_node_type_cmp_blur()
 {
   namespace file_ns = blender::nodes::node_composite_blur_cc;
 
@@ -522,3 +495,4 @@ void register_node_type_cmp_blur()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_blur)
