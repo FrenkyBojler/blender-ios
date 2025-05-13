@@ -32,11 +32,9 @@ namespace node_interface = blender::bke::node_interface;
 
 namespace blender::ui::nodes {
 
-struct wmDragNodeTreeInterface {
-  bNodeTreeInterfaceItem *item;
-};
-
 namespace {
+
+using node_interface::bNodeTreeInterfaceItemReference;
 
 class NodePanelViewItem;
 class NodeSocketViewItem;
@@ -46,10 +44,12 @@ class NodeTreeInterfaceView;
 class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
  private:
   bNodeTreeInterfaceItem &item_;
+  bNodeTree &tree_;
 
  public:
   explicit NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
-                                           bNodeTreeInterfaceItem &item);
+                                           bNodeTreeInterfaceItem &item,
+                                           bNodeTree &tree);
   ~NodeTreeInterfaceDragController() override = default;
 
   eWM_DragDataType get_drag_type() const override;
@@ -248,13 +248,14 @@ class NodePanelViewItem : public BasicTreeViewItem {
 
 class NodeSeparatorViewItem : public BasicTreeViewItem {
  private:
+  bNodeTree &ntree_;
   bNodeTreeInterfaceSeparator &separator_;
 
   friend NodeSeparatorDropTarget;
 
  public:
   NodeSeparatorViewItem(bNodeTree &ntree, bNodeTreeInterfaceSeparator &separator)
-      : BasicTreeViewItem("Separator"), separator_(separator)
+      : BasicTreeViewItem("Separator"), ntree_(ntree), separator_(separator)
   {
     set_is_active_fn(
         [&ntree, &separator]() { return ntree.tree_interface.active_item() == &separator.item; });
@@ -345,7 +346,7 @@ class NodeTreeInterfaceView : public AbstractTreeView {
 std::unique_ptr<AbstractViewItemDragController> NodeSocketViewItem::create_drag_controller() const
 {
   return std::make_unique<NodeTreeInterfaceDragController>(
-      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), socket_.item);
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), socket_.item, nodetree_);
 }
 
 std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
@@ -356,7 +357,7 @@ std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
 std::unique_ptr<AbstractViewItemDragController> NodePanelViewItem::create_drag_controller() const
 {
   return std::make_unique<NodeTreeInterfaceDragController>(
-      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), panel_.item);
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), panel_.item, nodetree_);
 }
 
 std::unique_ptr<TreeViewItemDropTarget> NodePanelViewItem::create_drop_target()
@@ -368,7 +369,7 @@ std::unique_ptr<AbstractViewItemDragController> NodeSeparatorViewItem::create_dr
     const
 {
   return std::make_unique<NodeTreeInterfaceDragController>(
-      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), separator_.item);
+      static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), separator_.item, ntree_);
 }
 
 std::unique_ptr<TreeViewItemDropTarget> NodeSeparatorViewItem::create_drop_target()
@@ -377,8 +378,9 @@ std::unique_ptr<TreeViewItemDropTarget> NodeSeparatorViewItem::create_drop_targe
 }
 
 NodeTreeInterfaceDragController::NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
-                                                                 bNodeTreeInterfaceItem &item)
-    : AbstractViewItemDragController(view), item_(item)
+                                                                 bNodeTreeInterfaceItem &item,
+                                                                 bNodeTree &tree)
+    : AbstractViewItemDragController(view), item_(item), tree_(tree)
 {
 }
 
@@ -389,15 +391,17 @@ eWM_DragDataType NodeTreeInterfaceDragController::get_drag_type() const
 
 void *NodeTreeInterfaceDragController::create_drag_data() const
 {
-  wmDragNodeTreeInterface *drag_data = MEM_callocN<wmDragNodeTreeInterface>(__func__);
+  bNodeTreeInterfaceItemReference *drag_data = MEM_callocN<bNodeTreeInterfaceItemReference>(
+      __func__);
   drag_data->item = &item_;
+  drag_data->tree = &tree_;
   return drag_data;
 }
 
-wmDragNodeTreeInterface *get_drag_node_tree_declaration(const wmDrag &drag)
+bNodeTreeInterfaceItemReference *get_drag_node_tree_declaration(const wmDrag &drag)
 {
   BLI_assert(drag.type == WM_DRAG_NODE_TREE_INTERFACE);
-  return static_cast<wmDragNodeTreeInterface *>(drag.poin);
+  return static_cast<bNodeTreeInterfaceItemReference *>(drag.poin);
 }
 
 bool is_dragging_parent_panel(const wmDrag &drag, const bNodeTreeInterfaceItem &drop_target_item)
@@ -405,7 +409,7 @@ bool is_dragging_parent_panel(const wmDrag &drag, const bNodeTreeInterfaceItem &
   if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
   }
-  wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag);
+  bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag);
   if (const bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
           drag_data->item))
   {
@@ -451,7 +455,7 @@ bool on_drop_flat_item(bContext *C,
                        bNodeTree &ntree,
                        bNodeTreeInterfaceItem &drop_target_item)
 {
-  wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
+  bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
   BLI_assert(drag_data != nullptr);
   bNodeTreeInterfaceItem *drag_item = drag_data->item;
   BLI_assert(drag_item != nullptr);
@@ -503,7 +507,7 @@ bool NodePanelDropTarget::can_drop(const wmDrag &drag, const char ** /*r_disable
   if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
   }
-  wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag);
+  bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag);
 
   /* Can't drop an item onto its children. */
   if (const bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
@@ -532,7 +536,7 @@ std::string NodePanelDropTarget::drop_tooltip(const DragInfo &drag_info) const
 
 bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 {
-  wmDragNodeTreeInterface *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
+  bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
   BLI_assert(drag_data != nullptr);
   bNodeTreeInterfaceItem *drag_item = drag_data->item;
   BLI_assert(drag_item != nullptr);
