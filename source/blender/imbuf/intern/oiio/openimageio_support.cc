@@ -158,7 +158,10 @@ static void set_file_colorspace(ImFileColorSpace &r_colorspace,
 /**
  * Get an #ImBuf filled in with pixel data and associated metadata using the provided ImageInput.
  */
-static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, ImFileColorSpace &r_colorspace)
+static ImBuf *get_oiio_ibuf(ImageInput *in,
+                            const ReadContext &ctx,
+                            ImFileColorSpace &r_colorspace,
+                            const std::string &metadata_prefix)
 {
   const ImageSpec &spec = in->spec();
   const int width = spec.width;
@@ -216,10 +219,15 @@ static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, ImFileColorS
       ibuf->flags |= spec.extra_attribs.empty() ? 0 : IB_metadata;
 
       for (const auto &attrib : spec.extra_attribs) {
-        if (attrib.name().find("ICCProfile") != string::npos) {
+        ustring name = attrib.name();
+        if (name.find("ICCProfile") != string::npos) {
           continue;
         }
-        IMB_metadata_set_field(ibuf->metadata, attrib.name().c_str(), attrib.get_string().c_str());
+        if (name.rfind(metadata_prefix, 0) == string::npos) {
+          continue;
+        }
+        name = name.substr(metadata_prefix.size());
+        IMB_metadata_set_field(ibuf->metadata, name.c_str(), attrib.get_string().c_str());
       }
     }
   }
@@ -228,13 +236,13 @@ static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, ImFileColorS
 }
 
 /**
- * Returns an #ImageInput for the precise `format` requested using the provided #IOMemReader.
+ * Returns an #ImageInput for the precise `format` requested using the provided #IOProxy.
  * If successful, the #ImageInput will be opened and ready for operations. Null will be returned if
  * the format was not found or if the open call fails.
  */
 static unique_ptr<ImageInput> get_oiio_reader(const char *format,
                                               const ImageSpec &config,
-                                              Filesystem::IOMemReader &mem_reader,
+                                              Filesystem::IOProxy &mem_reader,
                                               ImageSpec &r_newspec)
 {
   /* Attempt to create a reader based on the passed in format. */
@@ -266,16 +274,24 @@ bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format)
 ImBuf *imb_oiio_read(const ReadContext &ctx,
                      const ImageSpec &config,
                      ImFileColorSpace &r_colorspace,
-                     ImageSpec &r_newspec)
+                     ImageSpec &r_newspec,
+                     const std::string &metadata_prefix)
 {
-  /* This memory proxy must remain alive for the full duration of the read. */
-  Filesystem::IOMemReader mem_reader(cspan<uchar>(ctx.mem_start, ctx.mem_size));
-  unique_ptr<ImageInput> in = get_oiio_reader(ctx.file_format, config, mem_reader, r_newspec);
+  unique_ptr<Filesystem::IOProxy> proxy;
+  if (ctx.mem_start != nullptr) {
+    /* This memory proxy must remain alive for the full duration of the read. */
+    proxy = std::make_unique<Filesystem::IOMemReader>(cspan<uchar>(ctx.mem_start, ctx.mem_size));
+  }
+  else {
+    proxy = std::make_unique<Filesystem::IOFile>(ctx.file, Filesystem::IOProxy::Read);
+  }
+
+  unique_ptr<ImageInput> in = get_oiio_reader(ctx.file_format, config, *proxy.get(), r_newspec);
   if (!in) {
     return nullptr;
   }
 
-  return get_oiio_ibuf(in.get(), ctx, r_colorspace);
+  return get_oiio_ibuf(in.get(), ctx, r_colorspace, metadata_prefix);
 }
 
 bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSpec &file_spec)
@@ -396,7 +412,10 @@ WriteContext imb_create_write_context(const char *file_format,
   return ctx;
 }
 
-ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, TypeDesc data_format)
+ImageSpec imb_create_write_spec(const WriteContext &ctx,
+                                int file_channels,
+                                TypeDesc data_format,
+                                const std::string &metadata_prefix)
 {
   const int width = ctx.ibuf->x;
   const int height = ctx.ibuf->y;
@@ -427,7 +446,7 @@ ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, Type
           }
         }
 
-        file_spec.attribute(prop->name, IDP_String(prop));
+        file_spec.attribute(metadata_prefix + prop->name, IDP_String(prop));
       }
     }
   }

@@ -28,7 +28,7 @@ const ImFileType IMB_FILE_TYPES[] = {
         /*is_a*/ imb_is_a_jpeg,
         /*load*/ imb_load_jpeg,
         /*load_filepath*/ nullptr,
-        /*load_filepath_thumbnail*/ imb_thumbnail_jpeg,
+        /*load_filepath_thumbnail*/ imb_load_filepath_thumbnail_jpeg,
         /*save*/ imb_savejpeg,
         /*flag*/ 0,
         /*filetype*/ IMB_FTYPE_JPG,

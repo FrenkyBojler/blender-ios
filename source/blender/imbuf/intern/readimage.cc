@@ -225,7 +225,8 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
       imb_handle_colorspace_and_alpha(ibuf, flags, filepath, file_colorspace, r_colorspace);
     }
   }
-  else {
+
+  if (ibuf == nullptr) {
     /* Skip images of other types if over 100MB. */
     if ((load_flags & IMBThumbLoadFlags::LoadLargeFiles) == IMBThumbLoadFlags::Zero) {
       const size_t file_size = BLI_file_size(filepath);

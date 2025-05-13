@@ -145,12 +145,12 @@ ImBuf *imb_load_jpeg(const unsigned char *buffer,
                      size_t size,
                      int flags,
                      ImFileColorSpace &r_colorspace);
-ImBuf *imb_thumbnail_jpeg(const char *filepath,
-                          int flags,
-                          size_t max_thumb_size,
-                          ImFileColorSpace &r_colorspace,
-                          size_t *r_width,
-                          size_t *r_height);
+ImBuf *imb_load_filepath_thumbnail_jpeg(const char *filepath,
+                                        int flags,
+                                        size_t max_thumb_size,
+                                        ImFileColorSpace &r_colorspace,
+                                        size_t *r_width,
+                                        size_t *r_height);
 
 /** \} */
 

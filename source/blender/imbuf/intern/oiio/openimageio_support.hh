@@ -34,6 +34,9 @@ struct ReadContext {
 
   /** Use the `colorspace` provided in the image metadata when available. */
   bool use_metadata_colorspace = false;
+
+  /** Alternative file-based IO if mem_start is nullptr. */
+  FILE *file = nullptr;
 };
 
 /**
@@ -67,7 +70,8 @@ bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format);
 ImBuf *imb_oiio_read(const ReadContext &ctx,
                      const OIIO::ImageSpec &config,
                      ImFileColorSpace &r_colorspace,
-                     OIIO::ImageSpec &r_newspec);
+                     OIIO::ImageSpec &r_newspec,
+                     const std::string &metadata_prefix = "");
 
 /**
  * The primary method for writing data from an #ImBuf to either a physical or in-memory
@@ -100,6 +104,7 @@ WriteContext imb_create_write_context(const char *file_format,
  */
 OIIO::ImageSpec imb_create_write_spec(const WriteContext &ctx,
                                       int file_channels,
-                                      OIIO::TypeDesc data_format);
+                                      OIIO::TypeDesc data_format,
+                                      const std::string &metadata_prefix = "");
 
 }  // namespace blender::imbuf
