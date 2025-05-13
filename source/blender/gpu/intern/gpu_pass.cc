@@ -156,14 +156,14 @@ eGPUPassStatus GPU_pass_status(GPUPass *pass)
 bool GPU_pass_should_optimize(GPUPass *pass)
 {
   /* Returns optimization heuristic prepared during
-   * initial codegen. */
-  /* TODO: Measure if this could also improve performance for other backends. */
+   * initial codegen.
+   * NOTE: Only enabled on Metal, since it doesn't seem to yield any performance improvements for
+   * other backends. */
   return (GPU_backend_get_type() == GPU_BACKEND_METAL) && pass->should_optimize;
 
 #if 0
   /* Returns optimization heuristic prepared during initial codegen.
-   * NOTE: Optimization currently limited to parallel backend as repeated compilations required for
-   * material specialization causes impactful CPU stalls otherwise. */
+   * NOTE: Optimization limited to parallel compilation as it causes CPU stalls otherwise. */
   return pass->should_optimize && GPU_use_parallel_compilation();
 #endif
 }
