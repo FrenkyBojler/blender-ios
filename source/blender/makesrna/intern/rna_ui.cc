@@ -2155,7 +2155,7 @@ static void rna_def_uilist(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "bitflag_item_never_show", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(
-      prop, "ITEM_NEVER_SHOW", "To skip the item from displaying in the list");
+      prop, "ITEM_NEVER_SHOW", "Skip the item from displaying in the list");
   RNA_def_property_int_funcs(prop, "rna_UIList_item_never_show", nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
