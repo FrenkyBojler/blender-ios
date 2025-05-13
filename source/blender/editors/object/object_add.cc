@@ -36,6 +36,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -2133,23 +2134,38 @@ static wmOperatorStatus object_pointcloud_add_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3];
   add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
+  Object *object = add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
+  PointCloud &pointcloud = *static_cast<PointCloud *>(object->data);
+  pointcloud.totpoint = 400;
+  CustomData_realloc(&pointcloud.pdata, 0, pointcloud.totpoint);
+
+  bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
+  bke::SpanAttributeWriter<float3> position = attributes.lookup_or_add_for_write_only_span<float3>(
+      "position", bke::AttrDomain::Point);
+  bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
+      "radius", bke::AttrDomain::Point);
+
+  RandomNumberGenerator rng(0);
+  for (const int i : position.span.index_range()) {
+    position.span[i] = float3(rng.get_float(), rng.get_float(), rng.get_float()) * 2.0f - 1.0f;
+    radii.span[i] = 0.05f * rng.get_float();
+  }
+
+  position.finish();
+  radii.finish();
 
   return OPERATOR_FINISHED;
 }
 
-void OBJECT_OT_pointcloud_add(wmOperatorType *ot)
+void OBJECT_OT_pointcloud_random_add(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Add Point Cloud";
   ot->description = "Add a point cloud object to the scene";
-  ot->idname = "OBJECT_OT_pointcloud_add";
+  ot->idname = "OBJECT_OT_pointcloud_random_add";
 
-  /* api callbacks */
   ot->exec = object_pointcloud_add_exec;
   ot->poll = ED_operator_objectmode;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   add_generic_props(ot, false);
@@ -2953,7 +2969,7 @@ static Object *convert_curves_component_to_curves(Base &base,
     newob = get_object_for_conversion(base, info, r_new_base);
 
     const Curves *curves_eval = geometry.get_curves();
-    Curves *new_curves = static_cast<Curves *>(BKE_id_new(info.bmain, ID_CV, newob->id.name + 2));
+    Curves *new_curves = BKE_id_new<Curves>(info.bmain, newob->id.name + 2);
 
     newob->data = new_curves;
     newob->type = OB_CURVES;
@@ -2990,7 +3006,7 @@ static Object *convert_grease_pencil_component_to_curves(Base &base,
   if (geometry.has_grease_pencil()) {
     newob = get_object_for_conversion(base, info, r_new_base);
 
-    Curves *new_curves = static_cast<Curves *>(BKE_id_new(info.bmain, ID_CV, newob->id.name + 2));
+    Curves *new_curves = BKE_id_new<Curves>(info.bmain, newob->id.name + 2);
     newob->data = new_curves;
     newob->type = OB_CURVES;
 
@@ -3370,7 +3386,7 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
 
   if (mesh_eval || curves_eval) {
     newob = get_object_for_conversion(base, info, r_new_base);
-    new_mesh = static_cast<Mesh *>(BKE_id_new(info.bmain, ID_ME, newob->id.name + 2));
+    new_mesh = BKE_id_new<Mesh>(info.bmain, newob->id.name + 2);
     newob->data = new_mesh;
     newob->type = OB_MESH;
   }
@@ -3422,8 +3438,7 @@ static Object *convert_curves_to_grease_pencil(Base &base,
 
   if (grease_pencil_eval || curves_eval) {
     newob = get_object_for_conversion(base, info, r_new_base);
-    new_grease_pencil = static_cast<GreasePencil *>(
-        BKE_id_new(info.bmain, ID_GP, newob->id.name + 2));
+    new_grease_pencil = BKE_id_new<GreasePencil>(info.bmain, newob->id.name + 2);
     newob->data = new_grease_pencil;
     newob->type = OB_GREASE_PENCIL;
   }
@@ -3497,7 +3512,7 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
     newob = get_object_for_conversion(base, info, r_new_base);
 
     const Curves *curves_eval = geometry.get_curves();
-    Curves *new_curves = static_cast<Curves *>(BKE_id_new(info.bmain, ID_CV, newob->id.name + 2));
+    Curves *new_curves = BKE_id_new<Curves>(info.bmain, newob->id.name + 2);
 
     newob->data = new_curves;
     newob->type = OB_CURVES;
@@ -3547,7 +3562,7 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
       }
     }
 
-    Mesh *new_mesh = static_cast<Mesh *>(BKE_id_new(info.bmain, ID_ME, newob->id.name + 2));
+    Mesh *new_mesh = BKE_id_new<Mesh>(info.bmain, newob->id.name + 2);
     newob->data = new_mesh;
     newob->type = OB_MESH;
 
@@ -4187,17 +4202,17 @@ static void object_convert_ui(bContext * /*C*/, wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const int target = RNA_enum_get(op->ptr, "target");
   if (target == OB_MESH) {
-    uiItemR(layout, op->ptr, "merge_customdata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "merge_customdata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (target == OB_GREASE_PENCIL) {
-    uiItemR(layout, op->ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(layout, op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(layout, op->ptr, "faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

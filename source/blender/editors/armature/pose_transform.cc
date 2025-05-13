@@ -478,7 +478,7 @@ static void apply_armature_pose2bones_ui(bContext *C, wmOperator *op)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  uiItemR(layout, &ptr, "selected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&ptr, "selected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void POSE_OT_armature_apply(wmOperatorType *ot)
@@ -535,7 +535,7 @@ static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator
 
     int i;
     LISTBASE_FOREACH_INDEX (bPoseChannel *, pchan, &ob->pose->chanbase, i) {
-      if (!((pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone))) {
+      if (!((pchan->bone->flag & BONE_SELECTED) && ANIM_bone_is_visible_pchan(arm, pchan))) {
         pchan_xform_array[i].is_set = false;
         continue;
       }
