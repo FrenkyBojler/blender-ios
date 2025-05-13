@@ -626,7 +626,7 @@ static void v3d_editvertex_buts(
                     lim,
                     "");
     UI_but_number_step_size_set(but, 10);
-    UI_but_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
+    UI_but_number_precision_set(but, UI_PRECISION_FLOAT_MAX);
     UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
     but = uiDefButF(block,
                     UI_BTYPE_NUM,
@@ -641,7 +641,7 @@ static void v3d_editvertex_buts(
                     lim,
                     "");
     UI_but_number_step_size_set(but, 10);
-    UI_but_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
+    UI_but_number_precision_set(but, UI_PRECISION_FLOAT_MAX);
     UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
     but = uiDefButF(block,
                     UI_BTYPE_NUM,
@@ -656,7 +656,7 @@ static void v3d_editvertex_buts(
                     lim,
                     "");
     UI_but_number_step_size_set(but, 10);
-    UI_but_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
+    UI_but_number_precision_set(but, UI_PRECISION_FLOAT_MAX);
     UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
 
     if (totcurvebweight == tot) {

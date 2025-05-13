@@ -3950,17 +3950,14 @@ static void ui_but_build_drawstr_float(uiBut *but, double value)
       but->drawstr = fmt::format("{}{:.{}f}", but->str, value * 100, std::max(0, precision - 2));
     }
   }
-  else if (ui_but_is_unit(but)) {
+  else if (ui_but_is_unit(but) || U.experimental.use_extended_precision) {
     char new_str[UI_MAX_DRAW_STR];
     ui_get_but_string_unit(but, new_str, sizeof(new_str), value, true, -1);
     but->drawstr = but->str + new_str;
   }
   else {
-    /* This precision has been long used as decimals, so try to get this
-     * many without going over the maximum actual decimal precision. */
-    int prec = ui_but_calc_float_precision(but, value) + integer_digits_d(value);
-    CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
-    but->drawstr = fmt::format("{}{:.{}g}", but->str, value, prec);
+    const int prec = ui_but_calc_float_precision(but, value);
+    but->drawstr = fmt::format("{}{:.{}f}", but->str, value, prec);
   }
 }
 

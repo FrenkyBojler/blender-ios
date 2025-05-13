@@ -1724,7 +1724,7 @@ void RNA_def_property_ui_range(
     DefRNA.error = true;
   }
 
-  if (precision < -1 || precision > UI_PRECISION_FLOAT_MAX) {
+  if (precision < -1 || precision > RNA_TRANSLATION_PREC_DEFAULT) {
     CLOG_ERROR(&LOG, "\"%s.%s\", precision outside range.", srna->identifier, prop->identifier);
     DefRNA.error = true;
   }

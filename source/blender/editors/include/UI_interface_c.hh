@@ -2954,7 +2954,7 @@ ARegion *UI_tooltip_create_from_search_item_generic(bContext *C,
 /* Maximum number of digits of precision (not number of decimal places)
  * to display for float values. Note that the UI_FLOAT_VALUE_DISPLAY_*
  * defines that follow depend on this. */
-#define UI_PRECISION_FLOAT_MAX 7
+#define UI_PRECISION_FLOAT_MAX (U.experimental.use_extended_precision ? 7 : 6)
 
 /* Values exceeding this range are displayed as "inf" / "-inf".
  * This range is almost FLT_MAX to -FLT_MAX, but each is truncated

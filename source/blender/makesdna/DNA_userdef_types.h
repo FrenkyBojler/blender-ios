@@ -770,7 +770,8 @@ typedef struct UserDef_Experimental {
   char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
-  char _pad[4];
+  char use_extended_precision;
+  char _pad[3];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
