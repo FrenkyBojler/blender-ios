@@ -1359,9 +1359,13 @@ static void std_node_socket_draw(
           sock->default_value_typed<bNodeSocketValueMenu>();
       if (default_value->enum_items) {
         if (default_value->enum_items->items.is_empty()) {
-          uiLayout *row = &layout->split(0.4f, false);
-          row->label(text, ICON_NONE);
-          row->label(IFACE_("No Items"), ICON_NONE);
+          if (text.is_empty()) {
+            layout->label(IFACE_("No Items"), ICON_NONE);
+          } else {
+            uiLayout *row = &layout->split(0.4f, false);
+            row->label(text, ICON_NONE);
+            row->label(IFACE_("No Items"), ICON_NONE);
+          }
         }
         else {
           if (const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
