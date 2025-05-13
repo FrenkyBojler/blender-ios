@@ -1264,11 +1264,6 @@ static bool attribute_check(const GPUVertAttr attribute,
   return attribute.comp_type == comp_type && attribute.fetch_mode == fetch_mode;
 }
 
-static bool attribute_check(const GPUVertAttr attribute, GPUVertCompType comp_type, uint comp_len)
-{
-  return attribute.comp_type == comp_type && attribute.comp_len == comp_len;
-}
-
 void VertexFormatConverter::reset()
 {
   source_format_ = nullptr;
