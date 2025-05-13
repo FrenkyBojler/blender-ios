@@ -12,6 +12,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "BLI_build_config.h"
 #include "BLI_math_vector_swizzle.hh"
 #include "BLI_math_vector_unroll.hh"
 #include "BLI_utildefines.h"
@@ -41,6 +42,21 @@ template<typename T> struct vec_struct_base<T, 3, false> : VecSwizzleFunc<T, 3> 
 template<typename T> struct vec_struct_base<T, 4, false> : VecSwizzleFunc<T, 4> {
   T x, y, z, w;
 };
+
+/**
+ * Avoid warning caused by anonymous struct in unions.
+ */
+#if COMPILER_GCC
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wpedantic"
+#elif COMPILER_CLANG
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#  pragma clang diagnostic ignored "-Wnested-anon-types"
+#elif COMPILER_MSVC
+#  pragma warning(push)
+#  pragma warning(disable : 4201)  // nonstandard extension used : nameless struct/union
+#endif
 
 template<typename T> struct vec_struct_base<T, 2, true> {
   union {
@@ -129,6 +145,14 @@ template<typename T> struct vec_struct_base<T, 4, true> {
     };
   };
 };
+
+#if COMPILER_GCC
+#  pragma GCC diagnostic pop
+#elif COMPILER_CLANG
+#  pragma clang diagnostic pop
+#elif COMPILER_MSVC
+#  pragma warning(pop)
+#endif
 
 namespace math {
 
