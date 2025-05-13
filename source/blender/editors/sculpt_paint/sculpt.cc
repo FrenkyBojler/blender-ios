@@ -4497,9 +4497,7 @@ void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush &b
 }
 
 namespace blender::ed::sculpt_paint {
-static void sculpt_raycast_cb(bke::pbvh::Node &node,
-                              RaycastData &rd,
-                              float *tmin)
+static void sculpt_raycast_cb(bke::pbvh::Node &node, RaycastData &rd, float *tmin)
 {
   if (BKE_pbvh_node_get_tmin(&node) >= *tmin) {
     return;
@@ -4942,7 +4940,9 @@ static bool stroke_get_location_bvh_ex(bContext *C,
 
   bke::pbvh::find_nearest_to_ray(
       pbvh,
-      [&](bke::pbvh::Node &node, float *tmin) { sculpt_find_nearest_to_ray_cb(node, fntrd, tmin); },
+      [&](bke::pbvh::Node &node, float *tmin) {
+        sculpt_find_nearest_to_ray_cb(node, fntrd, tmin);
+      },
       ray_start,
       ray_normal,
       fntrd.use_original);
