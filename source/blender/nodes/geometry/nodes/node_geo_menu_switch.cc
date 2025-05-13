@@ -54,7 +54,8 @@ static bool is_supported_socket_type(const eNodeSocketDatatype data_type)
               SOCK_IMAGE,
               SOCK_MATRIX,
               SOCK_BUNDLE,
-              SOCK_CLOSURE);
+              SOCK_CLOSURE,
+              SOCK_MENU);
 }
 
 static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
@@ -401,6 +402,18 @@ static void node_blend_read(bNodeTree & /*ntree*/, bNode &node, BlendDataReader 
   socket_items::blend_read_data<MenuSwitchItemsAccessor>(&reader, node);
 }
 
+static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
+                                                       const bNode &node,
+                                                       const bNodeSocket & /*output_socket*/)
+{
+  const NodeMenuSwitch &storage = node_storage(node);
+  if (storage.enum_definition.items_num == 0) {
+    return nullptr;
+  }
+  /* Default to the first enum item input. */
+  return &node.input_socket(1);
+}
+
 static void node_rna(StructRNA *srna)
 {
   RNA_def_node_enum(
@@ -439,6 +452,7 @@ static void register_node()
   ntype.insert_link = node_insert_link;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.internally_linked_input = node_internally_linked_input;
   blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
