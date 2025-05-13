@@ -325,7 +325,7 @@ void uiTemplateOperatorRedoProperties(uiLayout *layout, const bContext *C)
 
 #if 0
     if (has_advanced) {
-      uiItemO(layout, IFACE_("More..."), ICON_NONE, "SCREEN_OT_redo_last");
+      layout->op( "SCREEN_OT_redo_last", IFACE_("More..."), ICON_NONE);
     }
 #endif
   }
@@ -377,15 +377,14 @@ static void draw_export_properties(bContext *C,
   PropertyRNA *prop = RNA_struct_find_property(&exporter_ptr, "filepath");
 
   std::string placeholder = "//" + filename;
-  uiItemFullR(col,
-              &exporter_ptr,
-              prop,
-              RNA_NO_INDEX,
-              0,
-              UI_ITEM_NONE,
-              std::nullopt,
-              ICON_NONE,
-              placeholder.c_str());
+  col->prop(&exporter_ptr,
+            prop,
+            RNA_NO_INDEX,
+            0,
+            UI_ITEM_NONE,
+            std::nullopt,
+            ICON_NONE,
+            placeholder.c_str());
 
   template_operator_property_buts_draw_single(C,
                                               op,
@@ -449,7 +448,7 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   uiItemIntO(col, "", ICON_REMOVE, "COLLECTION_OT_exporter_remove", "index", index);
 
   col = &layout->column(true);
-  uiItemO(col, std::nullopt, ICON_EXPORT, "COLLECTION_OT_export_all");
+  col->op("COLLECTION_OT_export_all", std::nullopt, ICON_EXPORT);
   uiLayoutSetEnabled(col, !BLI_listbase_is_empty(exporters));
 
   /* Draw the active exporter. */

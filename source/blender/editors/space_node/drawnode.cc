@@ -611,8 +611,8 @@ static void node_composit_buts_cryptomatte_legacy_ex(uiLayout *layout,
                                                      bContext * /*C*/,
                                                      PointerRNA * /*ptr*/)
 {
-  uiItemO(layout, IFACE_("Add Crypto Layer"), ICON_ADD, "NODE_OT_cryptomatte_layer_add");
-  uiItemO(layout, IFACE_("Remove Crypto Layer"), ICON_REMOVE, "NODE_OT_cryptomatte_layer_remove");
+  layout->op("NODE_OT_cryptomatte_layer_add", IFACE_("Add Crypto Layer"), ICON_ADD);
+  layout->op("NODE_OT_cryptomatte_layer_remove", IFACE_("Remove Crypto Layer"), ICON_REMOVE);
 }
 
 static void node_composit_buts_cryptomatte(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -1325,15 +1325,14 @@ static void std_node_socket_draw(
       }
       else {
         if (text.is_empty()) {
-          uiItemFullR(layout,
-                      ptr,
-                      RNA_struct_find_property(ptr, "default_value"),
-                      -1,
-                      0,
-                      UI_ITEM_NONE,
-                      "",
-                      ICON_NONE,
-                      label);
+          layout->prop(ptr,
+                       RNA_struct_find_property(ptr, "default_value"),
+                       -1,
+                       0,
+                       UI_ITEM_NONE,
+                       "",
+                       ICON_NONE,
+                       label);
         }
         else {
           uiLayout *row = &layout->split(0.4f, false);
@@ -1361,7 +1360,11 @@ static void std_node_socket_draw(
               break;
             }
           }
-          layout->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+          const char *name = "";
+          if (node->is_type("GeometryNodeMenuSwitch") && sock->index() > 0) {
+            name = sock->name;
+          }
+          layout->prop(ptr, "default_value", DEFAULT_FLAGS, name, ICON_NONE);
         }
       }
       else if (default_value->has_conflict()) {
@@ -1375,15 +1378,14 @@ static void std_node_socket_draw(
     case SOCK_COLLECTION:
     case SOCK_OBJECT:
     case SOCK_MATERIAL: {
-      uiItemFullR(layout,
-                  ptr,
-                  RNA_struct_find_property(ptr, "default_value"),
-                  -1,
-                  0,
-                  DEFAULT_FLAGS,
-                  text,
-                  ICON_NONE,
-                  text.is_empty() ? std::optional(label) : std::nullopt);
+      layout->prop(ptr,
+                   RNA_struct_find_property(ptr, "default_value"),
+                   -1,
+                   0,
+                   DEFAULT_FLAGS,
+                   text,
+                   ICON_NONE,
+                   text.is_empty() ? std::optional(label) : std::nullopt);
       break;
     }
     case SOCK_IMAGE: {
