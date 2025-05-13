@@ -1246,6 +1246,82 @@ static void GREASE_PENCIL_OT_layer_duplicate_object(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "mode", copy_mode, 0, "Mode", "");
 }
 
+static wmOperatorStatus grease_pencil_layer_set_inverse_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender::bke::greasepencil;
+
+  // Get the active object and ensure it is a Grease Pencil object.
+  Object *object = CTX_data_active_object(C);
+  if (!object || object->type != OB_GREASE_PENCIL) {
+    BKE_report(op->reports, RPT_ERROR, "Active object is not a Grease Pencil object");
+    return OPERATOR_CANCELLED;
+  }
+
+  // Ensure there is an active layer.
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  if (!grease_pencil.has_active_layer()) {
+    BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
+    return OPERATOR_CANCELLED;
+  }
+  Layer &layer = *grease_pencil.get_active_layer();
+
+  // If the layer has a parent, calculate the new inverse matrix.
+  if (layer.parent) {
+    float parent_mat[4][4], inv_parent[4][4], gpencil_mat[4][4], new_parentinv[4][4];
+
+    // Get the parent's world matrix and calculate its inverse.
+    copy_m4_m4(parent_mat, layer.parent->object_to_world().ptr());
+    invert_m4_m4(inv_parent, parent_mat);
+
+    // Get the Grease Pencil object's world matrix.
+    copy_m4_m4(gpencil_mat, object->object_to_world().ptr());
+
+    // Compute the new parent inverse matrix.
+    mul_m4_m4m4(new_parentinv, inv_parent, gpencil_mat);
+
+    // If the layer is parented to a bone, adjust the inverse matrix accordingly.
+    if (layer.parsubstr) {
+      float4x4 bone_mat;
+      get_bone_mat(layer.parent, layer.parsubstr, bone_mat);
+      float4x4 new_parentinv_mat = float4x4(new_parentinv);
+      float4x4 bone_inverse = math::invert(bone_mat) * new_parentinv_mat;
+      copy_m4_m4(new_parentinv, bone_inverse.ptr());
+    }
+
+    // Update the layer's parent inverse matrix.
+    copy_m4_m4(layer.parentinv, new_parentinv);
+  }
+  else {
+    // If no parent exists, report an error.
+    if (!grease_pencil.has_active_layer()) {
+      BKE_report(op->reports, RPT_ERROR, "No Grease Pencil layer parent");
+      return OPERATOR_CANCELLED;
+    }
+  }
+
+  // Notify the dependency graph and UI about the transform update.
+  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA, &grease_pencil);
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_layer_set_inverse(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Set Layer Inverse";
+  ot->idname = "GREASE_PENCIL_OT_layer_set_inverse";
+  ot->description =
+      "Set the inverse matrix of the active Grease Pencil layer to the current transform";
+
+  /* api callbacks */
+  ot->poll = active_grease_pencil_layer_poll;
+  ot->exec = grease_pencil_layer_set_inverse_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_layers()
@@ -1270,4 +1346,5 @@ void ED_operatortypes_grease_pencil_layers()
   WM_operatortype_append(GREASE_PENCIL_OT_layer_mask_reorder);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_group_color_tag);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_duplicate_object);
+  WM_operatortype_append(GREASE_PENCIL_OT_layer_set_inverse);
 }
