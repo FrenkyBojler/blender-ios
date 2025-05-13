@@ -16,6 +16,7 @@
 #include "BLI_vector.hh"
 
 #include "GPU_capabilities.hh"
+#include "GPU_context.hh"
 #include "GPU_pass.hh"
 #include "GPU_vertex_format.hh"
 #include "gpu_codegen.hh"
@@ -149,11 +150,17 @@ eGPUPassStatus GPU_pass_status(GPUPass *pass)
 
 bool GPU_pass_should_optimize(GPUPass *pass)
 {
+  /* Returns optimization heuristic prepared during
+   * initial codegen. */
+  /* TODO: Measure if this could also improve performance for other backends. */
+  return (GPU_backend_get_type() == GPU_BACKEND_METAL) && pass->should_optimize;
+
+#if 0
   /* Returns optimization heuristic prepared during initial codegen.
    * NOTE: Optimization currently limited to parallel backend as repeated compilations required for
    * material specialization causes impactful CPU stalls otherwise. */
-
   return pass->should_optimize && GPU_use_parallel_compilation();
+#endif
 }
 
 GPUShader *GPU_pass_shader_get(GPUPass *pass)
