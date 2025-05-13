@@ -11,6 +11,7 @@
 #include "GHOST_EventString.hh"
 #include "GHOST_EventTrackpad.hh"
 #include "GHOST_EventWheel.hh"
+#include "GHOST_EventWheelHorizontal.hh"
 #include "GHOST_TimerManager.hh"
 #include "GHOST_TimerTask.hh"
 #include "GHOST_WindowCocoa.hh"
