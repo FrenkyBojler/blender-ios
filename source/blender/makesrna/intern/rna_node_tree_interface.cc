@@ -369,6 +369,13 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
     return false;
   }
 
+  /* Ignore 2D and 4D variants of sockets that might have different dimensions. */
+  if (blender::StringRef(socket_type->idname).endswith("2D") ||
+      blender::StringRef(socket_type->idname).endswith("4D"))
+  {
+    return false;
+  }
+
   if (!U.experimental.use_bundle_and_closure_nodes) {
     if (ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE)) {
       return false;

@@ -626,8 +626,11 @@ void node_unregister_socket_type(bNodeSocketType &stype);
 bool node_socket_is_registered(const bNodeSocket &sock);
 StringRefNull node_socket_type_label(const bNodeSocketType &stype);
 
-std::optional<StringRefNull> node_static_socket_type(int type, int subtype);
-std::optional<StringRefNull> node_static_socket_interface_type_new(int type, int subtype);
+std::optional<StringRefNull> node_static_socket_type(int type,
+                                                     int subtype,
+                                                     std::optional<int> dimensions = std::nullopt);
+std::optional<StringRefNull> node_static_socket_interface_type_new(
+    int type, int subtype, std::optional<int> dimensions = std::nullopt);
 std::optional<StringRefNull> node_static_socket_label(int type, int subtype);
 
 Span<bNodeSocketType *> node_socket_types_get();

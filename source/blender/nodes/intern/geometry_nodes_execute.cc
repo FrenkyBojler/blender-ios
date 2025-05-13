@@ -141,14 +141,16 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       const bNodeSocketValueVector *value = static_cast<const bNodeSocketValueVector *>(
           socket.socket_data);
       auto property = bke::idprop::create(
-          identifier, Span<float>{value->value[0], value->value[1], value->value[2]});
+          identifier,
+          Span<float>{value->value[0], value->value[1], value->value[2], value->value[3]}
+              .take_front(value->dimensions));
       IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)IDP_ui_data_ensure(property.get());
       ui_data->base.rna_subtype = value->subtype;
       ui_data->soft_min = double(value->min);
       ui_data->soft_max = double(value->max);
-      ui_data->default_array = MEM_malloc_arrayN<double>(3, "mod_prop_default");
-      ui_data->default_array_len = 3;
-      for (const int i : IndexRange(3)) {
+      ui_data->default_array = MEM_malloc_arrayN<double>(4, "mod_prop_default");
+      ui_data->default_array_len = value->dimensions;
+      for (const int i : IndexRange(value->dimensions)) {
         ui_data->default_array[i] = double(value->value[i]);
       }
       return property;
@@ -360,7 +362,12 @@ static bool old_id_property_type_matches_socket_convert_to_new(
       return true;
     case SOCK_INT:
       return old_id_property_type_matches_socket_convert_to_new_int(old_property, new_property);
-    case SOCK_VECTOR:
+    case SOCK_VECTOR: {
+      const bNodeSocketValueVector *value = static_cast<const bNodeSocketValueVector *>(
+          socket.socket_data);
+      return old_id_property_type_matches_socket_convert_to_new_float_vec(
+          old_property, new_property, value->dimensions);
+    }
     case SOCK_ROTATION:
       return old_id_property_type_matches_socket_convert_to_new_float_vec(
           old_property, new_property, 3);
