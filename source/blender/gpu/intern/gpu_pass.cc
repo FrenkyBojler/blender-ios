@@ -52,10 +52,15 @@ struct GPUPass {
   bool should_optimize = false;
   bool is_optimization_pass = false;
 
-  GPUPass(GPUCodegenCreateInfo *info, bool deferred_compilation, bool is_optimization_pass)
-      : create_info(info), is_optimization_pass(is_optimization_pass)
+  GPUPass(GPUCodegenCreateInfo *info,
+          bool deferred_compilation,
+          bool is_optimization_pass,
+          bool should_optimize)
+      : create_info(info),
+        is_optimization_pass(is_optimization_pass),
+        should_optimize(should_optimize)
   {
-
+    BLI_assert(is_optimization_pass != should_optimize);
     if (is_optimization_pass && deferred_compilation) {
       // Defer until all non optimization passes are compiled.
       return;
@@ -221,8 +226,7 @@ class GPUPassCache {
 
  public:
   void add(eGPUMaterialEngine engine,
-           size_t hash,
-           GPUCodegenCreateInfo *info,
+           GPUCodegen &codegen,
            bool deferred_compilation,
            bool is_optimization_pass)
   {
@@ -231,7 +235,11 @@ class GPUPassCache {
     // TODO: info->name was assigned in GPU_pass_compile,
     // but there can be more than one material per pass.
     passes_[engine][is_optimization_pass].add(
-        hash, std::make_unique<GPUPass>(info, deferred_compilation, is_optimization_pass));
+        codegen.hash_get(),
+        std::make_unique<GPUPass>(codegen.create_info,
+                                  deferred_compilation,
+                                  is_optimization_pass,
+                                  codegen.should_optimize_heuristic()));
   };
 
   GPUPass *get(eGPUMaterialEngine engine,
@@ -407,8 +415,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   finalize_source_cb(thunk, material, &codegen.output);
 
   codegen.create_info->finalize();
-  g_cache->add(
-      engine, codegen.hash_get(), codegen.create_info, deferred_compilation, optimize_graph);
+  g_cache->add(engine, codegen, deferred_compilation, optimize_graph);
   codegen.create_info = nullptr;
 
   return g_cache->get(engine, codegen.hash_get(), deferred_compilation, optimize_graph);
