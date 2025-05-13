@@ -197,7 +197,6 @@ class GeometryInstancesTreeView : public ui::AbstractTreeView {
     root_item.uncollapse_by_default();
     if (const bke::Instances *instances = root_geometry_set_.get_instances()) {
       this->build_tree_for_instances(root_item, *instances);
-      this->set_default_rows(3);
     }
     else {
       lock_height_ = true;
@@ -777,6 +776,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
         "Instances Tree View",
         std::make_unique<GeometryInstancesTreeView>(root_geometry, *C));
     tree_view->set_context_menu_title("Instance");
+    tree_view->set_default_rows(3);
     ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *panel, {}, false);
   }
   if (uiLayout *panel = layout->panel(C, "geometry_domain_tree_view", false, IFACE_("Domain"))) {

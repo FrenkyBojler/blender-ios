@@ -140,6 +140,10 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
     return {};
   }
 
+  if (lock_height_) {
+    return {};
+  }
+
   uiViewState state{0};
 
   if (custom_height_) {
@@ -307,7 +311,7 @@ void AbstractTreeView::draw_overlays(const ARegion &region, const uiBlock &block
 void AbstractTreeView::update_children_from_old(const AbstractView &old_view)
 {
   const AbstractTreeView &old_tree_view = dynamic_cast<const AbstractTreeView &>(old_view);
-  if (!lock_height_) {
+  if (!(lock_height_ || old_tree_view.lock_height_)) {
     custom_height_ = old_tree_view.custom_height_;
     scroll_value_ = old_tree_view.scroll_value_;
   }
