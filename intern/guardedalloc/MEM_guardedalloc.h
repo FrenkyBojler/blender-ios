@@ -371,10 +371,11 @@ inline T *MEM_new(const char *allocation_name, Args &&...args)
 /*
  * Allocate new memory for an array of objects with type #T, and construct them.
  *
- * See #MEM_callocN for initialization logic.
+ * Do not assume this zero-initializes memory. See #MEM_new for details.
  *
- * This is only supported for trivially destructible types. For other types, use
- * a data structure like Vector instead.
+ * This is only supported for trivially destructible types. For other types and in any
+ * new code, use a data structure like Vector instead. This function only exists for
+ * porting legacy code.
  */
 template<typename T, typename... Args>
 inline T *MEM_new_array(const size_t length, const char *allocation_name)
@@ -383,10 +384,7 @@ inline T *MEM_new_array(const size_t length, const char *allocation_name)
                 "For non-trivially destructible types, use higher level types like Vector.");
   T *buffer = static_cast<T *>(
       MEM_malloc_arrayN_aligned(length, sizeof(T), alignof(T), allocation_name));
-  for (size_t i = 0; i < length; i++) {
-    new (buffer + i) T();
-  }
-  return buffer;
+  return std::uninitialized_default_construct_n(buffer, length);
 }
 
 /**
