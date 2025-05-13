@@ -22,5 +22,5 @@ inline bool bone_is_visible(const bArmature *armature, const Bone *bone);
 inline bool bone_is_visible_pchan(const bArmature *armature, const bPoseChannel *pchan);
 
 inline bool bone_is_visible_editbone(const bArmature *armature, const EditBone *ebone);
-       
-}
+
+}  // namespace blender::animrig
