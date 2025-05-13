@@ -129,7 +129,7 @@ struct GPUVertAttr {
 
     int comp_len() const
     {
-      return to_component_len(to_data_format(format));
+      return format_component_len(to_data_format(format));
     }
 
     GPUVertFetchMode fetch_mode() const;
