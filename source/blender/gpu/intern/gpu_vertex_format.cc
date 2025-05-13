@@ -341,6 +341,12 @@ void GPU_vertformat_copy(GPUVertFormat *dest, const GPUVertFormat &src)
   memcpy(dest, &src, sizeof(GPUVertFormat));
 }
 
+void GPUVertFormat::pack()
+{
+  BLI_assert(!this->packed);
+  VertexFormat_pack(this);
+}
+
 uint vertex_buffer_size(const GPUVertFormat *format, uint vertex_len)
 {
   BLI_assert(format->packed && format->stride > 0);
@@ -367,20 +373,30 @@ uint GPU_vertformat_attr_add(GPUVertFormat *format,
                              uint comp_len,
                              GPUVertFetchMode fetch_mode)
 {
-  BLI_assert(format->name_len < GPU_VERT_FORMAT_MAX_NAMES); /* there's room for more */
-  BLI_assert(format->attr_len < GPU_VERT_ATTR_MAX_LEN);     /* there's room for more */
-  BLI_assert(!format->packed);                              /* packed means frozen/locked */
+  return format->attribute_add(name, vertex_format_combine(comp_type, fetch_mode, comp_len));
+}
 
-  format->name_len++; /* Multi-name support. */
+uint GPUVertFormat::attribute_add(blender::StringRef name,
+                                  blender::gpu::VertAttrType type,
+                                  size_t offset)
+{
+  BLI_assert(this->name_len < GPU_VERT_FORMAT_MAX_NAMES); /* there's room for more */
+  BLI_assert(this->attr_len < GPU_VERT_ATTR_MAX_LEN);     /* there's room for more */
+  BLI_assert(!this->packed);                              /* packed means frozen/locked */
+  BLI_assert(type != blender::gpu::VertAttrType::Invalid);
 
-  const uint attr_id = format->attr_len++;
-  GPUVertAttr *attr = &format->attrs[attr_id];
+  this->name_len++; /* Multi-name support. */
 
-  attr->names[attr->name_len++] = copy_attr_name(format, name);
-  attr->offset = 0; /* offsets & stride are calculated later (during pack) */
-  attr->type.format = vertex_format_combine(comp_type, fetch_mode, comp_len);
-  BLI_assert(attr->type.format != blender::gpu::VertAttrType::Invalid);
-
+  const uint attr_id = this->attr_len++;
+  GPUVertAttr *attr = &this->attrs[attr_id];
+  attr->names[attr->name_len++] = copy_attr_name(this, name);
+  if (offset != -1) {
+    attr->offset = offset; /* Offset computed externally. */
+  }
+  else {
+    attr->offset = 0; /* offsets & stride are calculated later (during pack) */
+  }
+  attr->type.format = type;
   return attr_id;
 }
 
