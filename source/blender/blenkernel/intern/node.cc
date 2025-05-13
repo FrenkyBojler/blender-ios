@@ -1156,7 +1156,7 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
   }
 
   /* These nodes don't use #blend_write_storage_content because their corresponding blend-read
-   * can't use it, because they were introduced before there were node idnames. */
+   * can't use it since they were introduced before there were node idnames. */
   if (ELEM(node->type_legacy,
            SH_NODE_CURVE_VEC,
            SH_NODE_CURVE_RGB,
