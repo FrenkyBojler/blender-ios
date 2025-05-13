@@ -1090,6 +1090,24 @@ bool BKE_paint_brush_set_essentials(Main *bmain, Paint *paint, const char *name)
   return paint_brush_update_from_asset_reference(bmain, paint);
 }
 
+void BKE_paint_previous_asset_reference_set(Paint *paint,
+                                            const AssetWeakReference &asset_weak_reference)
+{
+  if (paint->runtime.previous_active_brush_reference != nullptr) {
+    MEM_delete(paint->runtime.previous_active_brush_reference);
+  }
+  paint->runtime.previous_active_brush_reference = MEM_new<AssetWeakReference>(
+      __func__, asset_weak_reference);
+}
+
+void BKE_paint_previous_asset_reference_clear(Paint *paint)
+{
+  if (paint->runtime.previous_active_brush_reference != nullptr) {
+    MEM_delete(paint->runtime.previous_active_brush_reference);
+    paint->runtime.previous_active_brush_reference = nullptr;
+  }
+}
+
 void BKE_paint_brushes_validate(Main *bmain, Paint *paint)
 {
   /* Clear brush with invalid mode. Unclear if this can still happen,
@@ -1785,6 +1803,9 @@ void BKE_paint_free(Paint *paint)
     MEM_delete(brush_ref->name);
     MEM_delete(brush_ref->brush_asset_reference);
     MEM_delete(brush_ref);
+  }
+  if (paint->runtime.previous_active_brush_reference) {
+    MEM_delete(paint->runtime.previous_active_brush_reference);
   }
 }
 
