@@ -731,6 +731,11 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Hide Value", "Hide the socket input value");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 
+  prop = RNA_def_property(srna, "hide_label", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SOCK_HIDE_LABEL);
+  RNA_def_property_ui_text(prop, "Hide Lable", "Hide the socket Label");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
+
   prop = RNA_def_property(srna, "pin_gizmo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SOCK_GIZMO_PIN);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
