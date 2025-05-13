@@ -2202,6 +2202,7 @@ class CYCLES_RENDER_PT_debug(CyclesDebugButtonsPanel, Panel):
             col.prop(cscene, "debug_use_cuda_adaptive_compile")
             col = layout.column(heading="OptiX")
             col.prop(cscene, "debug_use_optix_debug", text="Module Debug")
+            col.prop(cscene, "debug_use_optix_linear_curves", text="Linear Curves")
 
             col.separator()
 

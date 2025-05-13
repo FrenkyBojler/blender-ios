@@ -1086,6 +1086,10 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="OptiX Module Debug",
         description="Load OptiX module in debug mode: lower logging verbosity level, enable validations, and lower optimization level",
         default=False)
+    debug_use_optix_linear_curves: BoolProperty(
+        name="OptiX Linear Curves",
+        description="Use linear instead of Catmull-Rom curve intersection (which has hardware acceleration on Blackwell)",
+        default=False)
 
     debug_use_hip_adaptive_compile: BoolProperty(
         name="Adaptive Compile",

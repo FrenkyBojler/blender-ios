@@ -94,6 +94,7 @@ DebugFlags::OptiX::OptiX()
 void DebugFlags::OptiX::reset()
 {
   use_debug = false;
+  linear_curves = false;
 }
 
 void DebugFlags::reset()

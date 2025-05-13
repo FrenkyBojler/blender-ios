@@ -378,7 +378,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   if (kernel_features & KERNEL_FEATURE_HAIR) {
     if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
 #  if OPTIX_ABI_VERSION >= 55
-      pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
+      if (DebugFlags().optix.linear_curves)
+        pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
+      else
+        pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
 #  else
       pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CUBIC_BSPLINE;
 #  endif
@@ -469,7 +472,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       /* Built-in thick curve intersection. */
       OptixBuiltinISOptions builtin_options = {};
 #  if OPTIX_ABI_VERSION >= 55
-      builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
+      if (DebugFlags().optix.linear_curves)
+        builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+      else
+        builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
       builtin_options.buildFlags = OPTIX_BUILD_FLAG_PREFER_FAST_TRACE |
                                    OPTIX_BUILD_FLAG_ALLOW_COMPACTION |
                                    OPTIX_BUILD_FLAG_ALLOW_UPDATE;
@@ -1195,7 +1201,10 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       size_t num_vertices = num_segments * 4;
       if (hair->curve_shape == CURVE_THICK) {
 #  if OPTIX_ABI_VERSION >= 55
-        num_vertices = hair->num_keys() + 2 * hair->num_curves();
+        if (DebugFlags().optix.linear_curves)
+          num_vertices = hair->num_keys();
+        else
+          num_vertices = hair->num_keys() + 2 * hair->num_curves();
 #  endif
         index_data.alloc(num_segments);
         vertex_data.alloc(num_vertices * num_motion_steps);
@@ -1224,34 +1233,57 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
             const Hair::Curve curve = hair->get_curve(curve_index);
             const array<float> &curve_radius = hair->get_curve_radius();
 
-            const int first_key_index = curve.first_key;
-            {
-              vertex_data[vertex_index++] = make_float4(keys[first_key_index].x,
-                                                        keys[first_key_index].y,
-                                                        keys[first_key_index].z,
-                                                        curve_radius[first_key_index]);
-            }
+            if (DebugFlags().optix.linear_curves) {
+              const int first_key_index = curve.first_key;
 
-            for (int k = 0; k < curve.num_segments(); ++k) {
-              if (step == 0) {
-                index_data[segment_index++] = vertex_index - 1;
+              for (int k = 0; k < curve.num_segments(); ++k) {
+                if (step == 0) {
+                  index_data[segment_index++] = vertex_index;
+                }
+                vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
+                                                          keys[first_key_index + k].y,
+                                                          keys[first_key_index + k].z,
+                                                          curve_radius[first_key_index + k]);
               }
-              vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
-                                                        keys[first_key_index + k].y,
-                                                        keys[first_key_index + k].z,
-                                                        curve_radius[first_key_index + k]);
-            }
 
-            const int last_key_index = first_key_index + curve.num_keys - 1;
-            {
-              vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
-                                                        keys[last_key_index].y,
-                                                        keys[last_key_index].z,
-                                                        curve_radius[last_key_index]);
-              vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
-                                                        keys[last_key_index].y,
-                                                        keys[last_key_index].z,
-                                                        curve_radius[last_key_index]);
+              const int last_key_index = first_key_index + curve.num_keys - 1;
+              {
+                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
+                                                          keys[last_key_index].y,
+                                                          keys[last_key_index].z,
+                                                          curve_radius[last_key_index]);
+              }
+            }
+            else {
+              const int first_key_index = curve.first_key;
+              {
+                vertex_data[vertex_index++] = make_float4(keys[first_key_index].x,
+                                                          keys[first_key_index].y,
+                                                          keys[first_key_index].z,
+                                                          curve_radius[first_key_index]);
+              }
+
+              for (int k = 0; k < curve.num_segments(); ++k) {
+                if (step == 0) {
+                  index_data[segment_index++] = vertex_index - 1;
+                }
+                vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
+                                                          keys[first_key_index + k].y,
+                                                          keys[first_key_index + k].z,
+                                                          curve_radius[first_key_index + k]);
+              }
+
+              const int last_key_index = first_key_index + curve.num_keys - 1;
+              {
+                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
+                                                          keys[last_key_index].y,
+                                                          keys[last_key_index].z,
+                                                          curve_radius[last_key_index]);
+                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
+                                                          keys[last_key_index].y,
+                                                          keys[last_key_index].z,
+                                                          curve_radius[last_key_index]);
+              }
             }
           }
         }
@@ -1339,7 +1371,10 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       if (hair->curve_shape == CURVE_THICK) {
         build_input.type = OPTIX_BUILD_INPUT_TYPE_CURVES;
 #  if OPTIX_ABI_VERSION >= 55
-        build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
+        if (DebugFlags().optix.linear_curves)
+          build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+        else
+          build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
 #  else
         build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE;
 #  endif
