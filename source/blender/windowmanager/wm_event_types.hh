@@ -414,7 +414,9 @@ enum wmEventType : int16_t {
  * \note It's best to use more specific check if possible as mixing motion/buttons/gestures
  * is very broad and not necessarily obvious which kinds of events are important.
  */
-#define ISMOUSE(event_type) ((event_type) >= _EVT_MOUSE_MIN && (event_type) <= _EVT_MOUSE_MAX)
+#define ISMOUSE(event_type) \
+  (((event_type) >= _EVT_MOUSE_MIN && (event_type) <= _EVT_MOUSE_MAX) || \
+   ELEM((event_type), WHEELLEFTMOUSE, WHEELRIGHTMOUSE))
 /** Test whether the event is a mouse button (excluding mouse-wheel). */
 #define ISMOUSE_MOTION(event_type) ELEM(event_type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)
 /** Test whether the event is a mouse button (excluding mouse-wheel). */
@@ -428,7 +430,9 @@ enum wmEventType : int16_t {
         BUTTON6MOUSE, \
         BUTTON7MOUSE))
 /** Test whether the event is a mouse wheel. */
-#define ISMOUSE_WHEEL(event_type) ((event_type) >= WHEELUPMOUSE && (event_type) <= WHEELOUTMOUSE)
+#define ISMOUSE_WHEEL(event_type) \
+  (((event_type) >= WHEELUPMOUSE && (event_type) <= WHEELOUTMOUSE) || \
+   ELEM((event_type), WHEELLEFTMOUSE, WHEELRIGHTMOUSE))
 /** Test whether the event is a mouse (trackpad) gesture. */
 #define ISMOUSE_GESTURE(event_type) ((event_type) >= MOUSEPAN && (event_type) <= MOUSESMARTZOOM)
 
