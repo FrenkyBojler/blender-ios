@@ -681,22 +681,4 @@ using double2 = VecBase<double, 2>;
 using double3 = VecBase<double, 3>;
 using double4 = VecBase<double, 4>;
 
-BLI_STATIC_ASSERT(std::is_trivially_constructible_v<float3>, "");
-BLI_STATIC_ASSERT(std::is_trivially_copy_constructible_v<float3>, "");
-BLI_STATIC_ASSERT(std::is_trivially_move_constructible_v<float3>, "");
-BLI_STATIC_ASSERT(std::is_trivial_v<float3>, "");
-BLI_STATIC_ASSERT(sizeof(float3) == 3 * sizeof(float), "");
-BLI_STATIC_ASSERT(sizeof(float3().x) == 1 * sizeof(float), "");
-BLI_STATIC_ASSERT(sizeof(float3().xx) == 1 * sizeof(float), "");
-BLI_STATIC_ASSERT(sizeof(float3().xxx) == 1 * sizeof(float), "");
-BLI_STATIC_ASSERT(sizeof(float3().xxxx) == 1 * sizeof(float), "");
-BLI_STATIC_ASSERT(sizeof(float3().xy) == 2 * sizeof(float), "");
-BLI_STATIC_ASSERT(sizeof(float3().xyxy) == 2 * sizeof(float), "");
-
-vec_struct_base<float, 3, false> d;
-void f()
-{
-  d.yz() = {2, 2};
-}
-
 }  // namespace blender

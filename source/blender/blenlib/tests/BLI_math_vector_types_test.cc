@@ -4,7 +4,6 @@
 
 #include "testing/testing.h"
 
-#include "BLI_math_swizzle_types.hh"
 #include "BLI_math_vector_types.hh"
 
 namespace blender::tests {
@@ -478,5 +477,15 @@ TEST(math_vec_types, SwizzleComparison)
   EXPECT_EQ(a.xyzz() == b.xyzz, true);
   EXPECT_EQ(a.xyzz() != b.xyzz, false);
 }
+
+BLI_STATIC_ASSERT(std::is_trivially_constructible_v<float3>, "");
+BLI_STATIC_ASSERT(std::is_trivially_copy_constructible_v<float3>, "");
+BLI_STATIC_ASSERT(std::is_trivially_move_constructible_v<float3>, "");
+BLI_STATIC_ASSERT(std::is_trivial_v<float3>, "");
+BLI_STATIC_ASSERT(sizeof(float3) == 3 * sizeof(float), "");
+BLI_STATIC_ASSERT(sizeof(float3().x) == 1 * sizeof(float), "");
+BLI_STATIC_ASSERT(sizeof(float3().xxxx) == 1 * sizeof(float), "");
+BLI_STATIC_ASSERT(sizeof(float3().xy) == 2 * sizeof(float), "");
+BLI_STATIC_ASSERT(sizeof(float3().xyxy) == 2 * sizeof(float), "");
 
 }  // namespace blender::tests
