@@ -108,8 +108,8 @@ static std::ostream &operator<<(std::ostream &stream, const GPUConstant *input)
 }
 
 namespace blender::gpu::shader {
-/* :( */
-/* https://stackoverflow.com/questions/5195512/namespaces-and-operator-resolution */
+/* Needed to use the << operators from nested namespaces. :(
+ * https://stackoverflow.com/questions/5195512/namespaces-and-operator-resolution */
 using ::operator<<;
 }  // namespace blender::gpu::shader
 
