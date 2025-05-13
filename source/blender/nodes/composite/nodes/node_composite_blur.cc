@@ -87,6 +87,34 @@ static void node_composit_buts_blur(uiLayout *layout, bContext * /*C*/, PointerR
   col->prop(ptr, "use_extended_bounds", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
+class SocketSearchOp {
+ public:
+  int type = R_FILTER_GAUSS;
+  void operator()(LinkSearchOpParams &params)
+  {
+    bNode &node = params.add_node("CompositorNodeBlur");
+    node_storage(node).filtertype = this->type;
+    params.update_and_connect_available_socket(node, "Image");
+  }
+};
+
+static void gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const eNodeSocketDatatype from_socket_type = eNodeSocketDatatype(params.other_socket().type);
+  if (!params.node_tree().typeinfo->validate_link(from_socket_type, SOCK_RGBA)) {
+    return;
+  }
+
+  params.add_item(IFACE_("Flat"), SocketSearchOp{R_FILTER_BOX});
+  params.add_item(IFACE_("Tent"), SocketSearchOp{R_FILTER_TENT});
+  params.add_item(IFACE_("Quadratic"), SocketSearchOp{R_FILTER_QUAD});
+  params.add_item(IFACE_("Cubic"), SocketSearchOp{R_FILTER_CUBIC});
+  params.add_item(IFACE_("Catrom"), SocketSearchOp{R_FILTER_CATROM});
+  params.add_item(IFACE_("Gaussian"), SocketSearchOp{R_FILTER_GAUSS});
+  params.add_item(IFACE_("Mitch"), SocketSearchOp{R_FILTER_MITCH});
+  params.add_item(IFACE_("Fast Gaussian"), SocketSearchOp{R_FILTER_FAST_GAUSS});
+}
+
 using namespace blender::compositor;
 
 class BlurOperation : public NodeOperation {
@@ -489,6 +517,7 @@ static void register_node_type_cmp_blur()
   ntype.draw_buttons = file_ns::node_composit_buts_blur;
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_blur;
+  ntype.gather_link_search_ops = file_ns::gather_link_searches;
   blender::bke::node_type_storage(
       ntype, "NodeBlurData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
