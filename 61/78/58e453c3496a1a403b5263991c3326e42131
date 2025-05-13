@@ -1,3 +1,4 @@
 Referenced by pull request #138836, Fix: Various asserts when creating GPU vertex formats
 Referenced by commit 1e1ac2bb9b3bbef0443038af7f3a9e4446fe6201, Fix: Various asserts when creating GPU vertex formats
 Referenced by pull request #138852, Fix #138851: Assert on entering Sculpting workspace
+Referenced by pull request #138855, GPU: Replace U32/I32 combination with GPU_FETCH_INT_TO_FLOAT in UI code
