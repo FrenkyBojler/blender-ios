@@ -132,12 +132,11 @@ class GreasePencil_LayerRelationsPanel:
             row = layout.row(align=True)
             row.prop_search(layer, "parent_bone", layer.parent.data, "bones", text="Bone")
 
-        row = layout.row()
         if layer.parent:
-            op = row.operator("grease_pencil.layer_set_inverse", text="Set Inverse")
-            op.unset = False
-            op = row.operator("grease_pencil.layer_set_inverse", text="Clear Inverse")
-            op.unset = True
+            row = layout.row()
+            row.operator("grease_pencil.layer_set_inverse", text="Set Inverse").unset = False
+            row.operator("grease_pencil.layer_set_inverse", text="Clear Inverse").unset = True
+
         layout.separator()
 
         col = layout.row(align=True)
