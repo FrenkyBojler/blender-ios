@@ -137,6 +137,7 @@ class NODE_MT_category_compositor_color_mix(Menu):
         layout.separator()
         node_add_menu.add_color_mix_node(context, layout)
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "CompositorNodeGlare", "glare_type")
+        node_add_menu.add_node_type_with_searchable_enum(context, layout, "CompositorNodeBlur", "filter_type")
         node_add_menu.add_node_type(layout, "CompositorNodeZcombine")
         node_add_menu.draw_assets_for_catalog(layout, "Color/Mix")
 
