@@ -646,31 +646,27 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
   return pipeline;
 }
 
-void VKPipelinePool::remove(Span<VkShaderModule> vk_shader_modules)
+void VKPipelinePool::discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pipeline_layout)
 {
   std::scoped_lock lock(mutex_);
-  Vector<VkPipeline> pipelines_to_destroy;
+  Vector<VkPipeline> pipelines_to_discard;
   compute_pipelines_.remove_if([&](auto item) {
-    if (vk_shader_modules.contains(item.key.vk_shader_module)) {
-      pipelines_to_destroy.append(item.value);
+    if (item.key.vk_pipeline_layout == vk_pipeline_layout) {
+      pipelines_to_discard.append(item.value);
       return true;
     }
     return false;
   });
   graphic_pipelines_.remove_if([&](auto item) {
-    if (vk_shader_modules.contains(item.key.pre_rasterization.vk_vertex_module) ||
-        vk_shader_modules.contains(item.key.pre_rasterization.vk_geometry_module) ||
-        vk_shader_modules.contains(item.key.fragment_shader.vk_fragment_module))
-    {
-      pipelines_to_destroy.append(item.value);
+    if (item.key.vk_pipeline_layout == vk_pipeline_layout) {
+      pipelines_to_discard.append(item.value);
       return true;
     }
     return false;
   });
 
-  VKDevice &device = VKBackend::get().device;
-  for (VkPipeline vk_pipeline : pipelines_to_destroy) {
-    vkDestroyPipeline(device.vk_handle(), vk_pipeline, nullptr);
+  for (VkPipeline vk_pipeline : pipelines_to_discard) {
+    discard_pool.discard_pipeline(vk_pipeline);
   }
 }
 
