@@ -18,9 +18,9 @@ namespace blender {
 /* Needed forward declaration to allow the swizzle to reference it. */
 template<typename T, int Size> struct VecBase;
 
+/* Swizzle functions for vector of non-trivial types. */
 template<typename T, int Size> struct VecSwizzleFunc {};
 
-/* Swizzle functions for vector of non-trivial types. */
 template<typename T> struct VecSwizzleFunc<T, 2> {
   [[nodiscard]] VecBase<T, 2> xy() const
   {
@@ -64,14 +64,13 @@ template<typename T> struct VecSwizzleFunc<T, 4> : VecSwizzleFunc<T, 2> {
 };
 
 /**
- * Swizzle class that supports arithmetic operations.
+ * Swizzle class that supports reordering of component.
  * Will decay to a vector of the same size.
- * Supports reordering of component.
  *
  * IMPORTANT: Must be declared at the same memory location as the first component referenced in the
- * swizzle. We do this to allow the copy constructor to copy only the referenced component in the
- * case of something like `a.zzy = b.zzy`. This is because we do not want to override (or delete)
- * the copy constructor as it would make the vector types non-trivial.
+ * swizzle. So for `zzwy` it is `y`. We do this to allow the copy constructor to copy only the
+ * referenced component in the case of something like `a.zzy = b.zzy`. This is because we do not
+ * want to override (or delete) the copy constructor as it would make the vector types non-trivial.
  */
 template<typename T, int Size, int x, int y, int z = y, int w = z> struct VecSwizzleReadOnly {
   using VecT = VecBase<T, Size>;
@@ -110,11 +109,14 @@ template<typename T, int Size, int x, int y, int z = y, int w = z> struct VecSwi
 };
 
 /**
- * Swizzle class that supports assignment.
- * The writes are indirected to the actual swizzled memory location.
- * Can only be used if all swizzled components points to different memory locations.
+ * Swizzle class that supports assignment. Does not support reordering of component.
+ * Will decay to a vector of the same size.
+ * Can only be used if all swizzled components points to different memory locations (no `xxyy`).
  *
- * Does not support reordering of component.
+ * IMPORTANT: Must be declared at the same memory location as the first component referenced in the
+ * swizzle. So for `yz` it is `y`. We do this to allow the copy constructor to copy only the
+ * referenced component in the case of something like `a.zzy = b.zzy`. This is because we do not
+ * want to override (or delete) the copy constructor as it would make the vector types non-trivial.
  */
 template<typename T, int Size> struct VecSwizzleReadWrite {
   using VecT = VecBase<T, Size>;
@@ -211,7 +213,7 @@ template<typename T, int Size> struct VecSwizzleReadWrite {
  * We do not support non-contiguous component swizzle (e.g. xwxw) as they would have undefined
  * behavior in some corner cases.
  * We only generate the variant we use to reduce compile time and binary size.
- * Uncomment at will.
+ * Uncomment at when needed.
  */
 
 /* Swizzles containing X. Must be declared in a union alongside X. */
