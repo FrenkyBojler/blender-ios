@@ -72,7 +72,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
   b.add_input<decl::Int>("A");
   auto &value2 = b.add_input<decl::Int>("B");
-  auto &shift = b.add_input<decl::Int>("Shift").min(-max_shift).max(max_shift);
+  auto &shift = b.add_input<decl::Int>("Shift").min(min_shift).max(max_shift);
   b.add_output<decl::Int>("Value");
 
   if (const bNode *node = b.node_or_null()) {
@@ -85,7 +85,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 class SocketSearchOp {
@@ -210,6 +210,7 @@ static void node_register()
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
+  ntype.ui_description = "Perform bitwise operations on 32-bit integers";
 
   blender::bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
