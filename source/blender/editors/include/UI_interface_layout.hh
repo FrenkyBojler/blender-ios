@@ -58,6 +58,9 @@ struct uiItem {
   uiItem(const uiItem &) = default;
   virtual ~uiItem() = default;
 };
+
+enum eUI_Item_Flag : uint16_t;
+
 /**
  * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -112,7 +115,7 @@ struct uiLayout : uiItem {
    * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
    * each other in a column.
    * \param heading: Heading label to set to the first child element added in the sub-layout
-   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * through #uiLayout::prop. When property split is used, this heading label is set in the split
    * label column when there is no label defined.
    */
   uiLayout &column(bool align, blender::StringRef heading);
@@ -126,7 +129,7 @@ struct uiLayout : uiItem {
    * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
    * other in row.
    * \param heading: Heading label to set to the first child element added in the sub-layout
-   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * through #uiLayout::prop. When property split is used, this heading label is set in the split
    * label column when there is no label defined.
    */
   uiLayout &row(bool align, blender::StringRef heading);
@@ -233,6 +236,40 @@ struct uiLayout : uiItem {
    * \param percentage: Width percent to split.
    */
   uiLayout &split(float percentage, bool align);
+
+  /** Items. */
+
+  /** Adds a label item that will display text and/or icon in the layout. */
+  void label(blender::StringRef name, int icon);
+
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param opname: Operator id name.
+   * \param name: Text to show in the layout.
+   */
+  void op(blender::StringRefNull opname, std::optional<blender::StringRef> name, int icon);
+
+  /**
+   * Adds a RNA property item, and exposes it into the layout.
+   * \param ptr: RNA pointer to the struct owner of \a prop.
+   * \param prop: The property in \a ptr to add.
+   * \param index: When \a prop is a array property, indicates what entry to expose through the
+   * layout, #RNA_NO_INDEX (-1) means all.
+   */
+  void prop(PointerRNA *ptr,
+            PropertyRNA *prop,
+            int index,
+            int value,
+            eUI_Item_Flag flag,
+            std::optional<blender::StringRefNull> name_opt,
+            int icon,
+            std::optional<blender::StringRefNull> placeholder = std::nullopt);
+  /** Adds a RNA property item, and exposes it into the layout. */
+  void prop(PointerRNA *ptr,
+            blender::StringRefNull propname,
+            eUI_Item_Flag flag,
+            std::optional<blender::StringRefNull> name,
+            int icon);
 };
 
 enum {
@@ -256,7 +293,7 @@ enum {
   UI_LAYOUT_ALIGN_RIGHT = 3,
 };
 
-enum eUI_Item_Flag {
+enum eUI_Item_Flag : uint16_t {
   /* UI_ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
   UI_ITEM_R_EXPAND = 1 << 1,
   UI_ITEM_R_SLIDER = 1 << 2,
@@ -410,10 +447,7 @@ enum class LayoutSeparatorType : int8_t {
 };
 
 /* items */
-void uiItemO(uiLayout *layout,
-             std::optional<blender::StringRef> name,
-             int icon,
-             blender::StringRefNull opname);
+
 void uiItemEnumO_ptr(uiLayout *layout,
                      wmOperatorType *ot,
                      std::optional<blender::StringRef> name,
@@ -495,21 +529,6 @@ void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              const char *menu_id, /* extra menu arg. */
                              PointerRNA *r_opptr);
 
-void uiItemR(uiLayout *layout,
-             PointerRNA *ptr,
-             blender::StringRefNull propname,
-             eUI_Item_Flag flag,
-             std::optional<blender::StringRefNull> name,
-             int icon);
-void uiItemFullR(uiLayout *layout,
-                 PointerRNA *ptr,
-                 PropertyRNA *prop,
-                 int index,
-                 int value,
-                 eUI_Item_Flag flag,
-                 std::optional<blender::StringRefNull> name_opt,
-                 int icon,
-                 std::optional<blender::StringRefNull> placeholder = std::nullopt);
 /**
  * Use a wrapper function since re-implementing all the logic in this function would be messy.
  */
@@ -605,8 +624,8 @@ struct uiPropertySplitWrapper {
 };
 
 /**
- * Normally, we handle the split layout in #uiItemFullR(), but there are other cases where the
- * logic is needed. Ideally, #uiItemFullR() could just call this, but it currently has too many
+ * Normally, we handle the split layout in #uiLayout::prop(), but there are other cases where the
+ * logic is needed. Ideally, #uiLayout::prop() could just call this, but it currently has too many
  * special needs.
  *
  * The returned #uiPropertySplitWrapper.decorator_column may be null when decorators are disabled
@@ -614,7 +633,6 @@ struct uiPropertySplitWrapper {
  */
 uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout);
 
-void uiItemL(uiLayout *layout, blender::StringRef name, int icon); /* label */
 uiBut *uiItemL_ex(
     uiLayout *layout, blender::StringRef name, int icon, bool highlight, bool redalert);
 /**

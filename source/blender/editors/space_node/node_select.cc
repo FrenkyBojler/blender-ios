@@ -23,6 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -671,6 +672,8 @@ static bool node_mouse_select(bContext *C,
 
   WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
   WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
+
+  BKE_main_ensure_invariants(bmain, node_tree.id);
 
   return true;
 }
@@ -1364,26 +1367,18 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
+  const int box_width = UI_searchbox_size_x_guess(C, node_find_update_fn);
+
   but = uiDefSearchBut(
-      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_searchbox_size_x(), UI_UNIT_Y, "");
+      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");
   UI_but_func_search_set(
       but, nullptr, node_find_update_fn, optype, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button holds space for search items. */
   const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
-           "",
-           0,
-           -height,
-           UI_searchbox_size_x(),
-           height,
-           nullptr,
-           0,
-           0,
-           std::nullopt);
+  uiDefBut(
+      block, UI_BTYPE_LABEL, 0, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};

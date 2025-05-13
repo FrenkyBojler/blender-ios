@@ -519,9 +519,11 @@ void VKShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
 
 VKShader::~VKShader()
 {
+  VKDevice &device = VKBackend::get().device;
   VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
 
   if (vk_pipeline_layout != VK_NULL_HANDLE) {
+    device.pipelines.discard(discard_pool, vk_pipeline_layout);
     discard_pool.discard_pipeline_layout(vk_pipeline_layout);
     vk_pipeline_layout = VK_NULL_HANDLE;
   }
@@ -706,6 +708,8 @@ bool VKShader::finalize_pipeline_layout(VkDevice vk_device,
   {
     return false;
   };
+
+  debug::object_label(vk_pipeline_layout, name_get());
 
   return true;
 }
@@ -1312,6 +1316,7 @@ VkPipeline VKShader::ensure_and_get_compute_pipeline()
   VkPipeline vk_pipeline = device.pipelines.get_or_create_compute_pipeline(
       compute_info, is_static_shader_, vk_pipeline_base_);
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
+    debug::object_label(vk_pipeline, name_get());
     vk_pipeline_base_ = vk_pipeline;
   }
   return vk_pipeline;
@@ -1362,6 +1367,7 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
       graphics_info, is_static_shader_, vk_pipeline_base_);
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
+    debug::object_label(vk_pipeline, name_get());
     vk_pipeline_base_ = vk_pipeline;
   }
   return vk_pipeline;
