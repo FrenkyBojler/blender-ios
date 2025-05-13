@@ -134,8 +134,10 @@ class GreasePencil_LayerRelationsPanel:
 
         row = layout.row()
         if layer.parent:
-            row.operator("grease_pencil.layer_set_inverse", text="Set Inverse")
-
+            op = row.operator("grease_pencil.layer_set_inverse", text="Set Inverse")
+            op.unset = False
+            op = row.operator("grease_pencil.layer_set_inverse", text="Clear Inverse")
+            op.unset = True
         layout.separator()
 
         col = layout.row(align=True)
