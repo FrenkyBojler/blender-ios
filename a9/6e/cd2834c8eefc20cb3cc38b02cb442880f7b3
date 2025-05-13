@@ -1,1 +1,1 @@
-Referenced by issue #138795, Blender crashed while importing specific FBX files by the new FBX  importer, but works normal when using the old FBX importer.
+Referenced by issue #138795, IO: New FBX importer crashes on some files
