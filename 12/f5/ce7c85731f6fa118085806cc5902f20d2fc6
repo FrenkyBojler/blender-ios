@@ -1,2 +1,3 @@
 Referenced by issue #138727, VSE: Crash when moving a strip in the preview region
 Referenced by pull request #138753, Fix #138727: Crash translating a strip without an active strip
+Referenced by commit e951ea250abf4742e1fbc5832cf11bdb7ea16735, Fix #138727: Crash translating a strip without an active strip
