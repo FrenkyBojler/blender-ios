@@ -23,6 +23,7 @@ class NODE_MT_geometry_node_GEO_ATTRIBUTE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeBlurAttribute")
         node_add_menu.add_node_type(layout, "GeometryNodeCaptureAttribute")
         node_add_menu.add_node_type(layout, "GeometryNodeRemoveAttribute")
+        node_add_menu.add_node_type(layout, "GeometryNodeRenameAttributes")
         node_add_menu.add_node_type(layout, "GeometryNodeStoreNamedAttribute", search_weight=1.0)
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
