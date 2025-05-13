@@ -135,7 +135,7 @@ struct GPUPass {
 
   void update_gc_timestamp(double timestamp)
   {
-    if (refcount != 0) {
+    if (refcount != 0 || gc_timestamp == 0.0f) {
       gc_timestamp = timestamp;
     }
   }
