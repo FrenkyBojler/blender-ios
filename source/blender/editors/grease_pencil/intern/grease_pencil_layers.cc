@@ -1352,8 +1352,7 @@ static void GREASE_PENCIL_OT_layer_set_inverse(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Add a boolean property "unset" to allow clearing the inverse matrix. */
-  RNA_def_boolean(
-      ot->srna, "unset", false, "Clear Inverse", "Clear the inverse matrix instead of setting it");
+  RNA_def_boolean(ot->srna, "unset", false, "Clear Inverse", "Clear the layer's inverse matrix");
 }
 
 }  // namespace blender::ed::greasepencil
