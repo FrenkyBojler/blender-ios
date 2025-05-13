@@ -1842,6 +1842,22 @@ static void blf_glyph_to_curves(const FT_Outline &ftoutline,
   MEM_freeN(onpoints);
 }
 
+/* Manufacture a space character for a font that does not contain one. */
+static FT_GlyphSlot blf_glyph_outline_space(FontBLF *font, float width_ratio)
+{
+  FontBLF *font_with_glyph = font;
+  FT_UInt glyph_index = blf_glyph_index_from_charcode(&font_with_glyph, 32);
+
+  if (glyph_index == 0 || !blf_ensure_face(font_with_glyph) || !blf_ensure_face(font)) {
+    return nullptr;
+  }
+
+  FT_GlyphSlot glyph = blf_glyph_render(font, font_with_glyph, glyph_index, 32, 0, 0, true);
+  glyph->advance.x = int(float(font->face->units_per_EM) * width_ratio);
+  glyph->metrics.horiAdvance = glyph->advance.x;
+  return glyph;
+}
+
 static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, uint charcode, bool use_fallback)
 {
   if (charcode < 32) {
@@ -1860,6 +1876,11 @@ static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, uint charcode, b
                                        blf_get_char_index(font_with_glyph, charcode);
   if (!blf_ensure_face(font_with_glyph)) {
     return nullptr;
+  }
+
+  if (glyph_index == 0 && charcode == ' ') {
+    /* Unlikely, but space character not found in font. #138787. */
+    return blf_glyph_outline_space(font, (font->flags & BLF_MONOSPACED) ? 1.0f : 0.25f);
   }
 
   FT_GlyphSlot glyph = blf_glyph_render(font, font_with_glyph, glyph_index, charcode, 0, 0, true);
