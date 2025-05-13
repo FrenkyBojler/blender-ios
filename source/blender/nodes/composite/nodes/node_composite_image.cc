@@ -329,6 +329,11 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
               ntree, node, scene, view_layer, RE_PASSNAME_FREESTYLE, SOCK_RGBA);
         }
 
+        if (view_layer->grease_pencil_flags & GREASE_PENCIL_AS_SEPARATE_PASS) {
+          node_cmp_rlayers_register_pass(
+              ntree, node, scene, view_layer, RE_PASSNAME_GREASE_PENCIL, SOCK_RGBA);
+        }
+
         MEM_freeN(data);
         node->storage = nullptr;
 
@@ -528,7 +533,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_image_cc
 
-void register_node_type_cmp_image()
+static void register_node_type_cmp_image()
 {
   namespace file_ns = blender::nodes::node_composite_image_cc;
 
@@ -549,6 +554,7 @@ void register_node_type_cmp_image()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_image)
 
 /* **************** RENDER RESULT ******************** */
 
@@ -660,9 +666,9 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
     return;
   }
 
-  col = uiLayoutColumn(layout, false);
-  row = uiLayoutRow(col, true);
-  uiItemR(row, ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  col = &layout->column(false);
+  row = &col->row(true);
+  row->prop(ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "layer");
   const char *layer_name;
@@ -851,7 +857,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_render_layer_cc
 
-void register_node_type_cmp_rlayers()
+static void register_node_type_cmp_rlayers()
 {
   namespace file_ns = blender::nodes::node_composite_render_layer_cc;
 
@@ -880,3 +886,4 @@ void register_node_type_cmp_rlayers()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_rlayers)

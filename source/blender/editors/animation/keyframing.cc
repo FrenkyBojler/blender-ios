@@ -120,7 +120,7 @@ void ED_keyframes_add(FCurve *fcu, int num_keys_to_add)
 
   fcu->bezt = static_cast<BezTriple *>(
       MEM_recallocN(fcu->bezt, sizeof(BezTriple) * (fcu->totvert + num_keys_to_add)));
-  BezTriple *bezt = fcu->bezt + fcu->totvert; /* Pointer to the first new one. '*/
+  BezTriple *bezt = fcu->bezt + fcu->totvert; /* Pointer to the first new one. */
 
   fcu->totvert += num_keys_to_add;
 
@@ -506,7 +506,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
        * NOTE: If in the future the enum includes them, additional layout code can be
        * added to show them - although that doesn't seem likely. */
       BLI_assert(item->name == nullptr);
-      uiItemS(layout);
+      layout->separator();
     }
   }
 

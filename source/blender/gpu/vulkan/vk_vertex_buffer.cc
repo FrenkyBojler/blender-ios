@@ -181,22 +181,12 @@ void VKVertexBuffer::upload_data()
   }
 }
 
-void VKVertexBuffer::duplicate_data(VertBuf * /*dst*/)
-{
-  NOT_YET_IMPLEMENTED
-}
-
 void VKVertexBuffer::device_format_ensure()
 {
   if (!vertex_format_converter.is_initialized()) {
     const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
     vertex_format_converter.init(&format, workarounds);
   }
-}
-
-const GPUVertFormat &VKVertexBuffer::device_format_get() const
-{
-  return vertex_format_converter.device_format_get();
 }
 
 void VKVertexBuffer::allocate()
@@ -209,8 +199,8 @@ void VKVertexBuffer::allocate()
 
   buffer_.create(size_alloc_get(),
                  vk_buffer_usage,
+                 0,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                  VmaAllocationCreateFlags(0));
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }
