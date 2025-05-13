@@ -376,8 +376,8 @@ struct bNodeType {
   NodeInternallyLinkedInputFunction internally_linked_input = nullptr;
 
   /**
-   * Read and write the content of the node storage. The top-level storage is handled by generic
-   * code by reading and writing bNodeType::storagename.
+   * Read and write the content of the node storage. Writing the storage struct itself is handled
+   * by generic code by reading and writing bNodeType::storagename.
    */
   NodeBlendWriteFunction blend_write_storage_content = nullptr;
   NodeBlendDataReadFunction blend_data_read_storage_content = nullptr;
