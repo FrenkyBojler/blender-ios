@@ -15,7 +15,6 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
-#include "intern/GHOST_ContextVK.hh"
 #include "render_graph/vk_render_graph.hh"
 #include "render_graph/vk_resource_state_tracker.hh"
 #include "vk_buffer.hh"
