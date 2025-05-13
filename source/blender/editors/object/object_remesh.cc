@@ -106,6 +106,20 @@ static bool object_remesh_poll(bContext *C)
   return ED_operator_object_active_editable_mesh(C);
 }
 
+static int calc_estimated_remesh_vertex_count(const Mesh& mesh, const float voxel_size)
+{
+  const Span<float3> positions = mesh.vert_positions();
+  const Span<int> corner_verts = mesh.corner_verts();
+  const blender::OffsetIndices faces = mesh.faces();
+  float area = 0.0f;
+
+  for (const int i : faces.index_range()) {
+    area += blender::bke::mesh::face_area_calc(positions, corner_verts.slice(faces[i]));
+  }
+
+  return int(area / (voxel_size * voxel_size) * 1.45f);
+}
+
 static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
@@ -120,6 +134,15 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
 
   if (mesh->faces_num == 0) {
     return OPERATOR_CANCELLED;
+  }
+
+  if (ob->mode == OB_MODE_SCULPT) {
+    const int estimated_vertex_count = calc_estimated_remesh_vertex_count(*mesh, mesh->remesh_voxel_size);
+    static constexpr int warning_threshold = 5000000;
+
+    if (estimated_vertex_count > warning_threshold) {
+
+    }
   }
 
   float isovalue = 0.0f;
