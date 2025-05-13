@@ -18,7 +18,10 @@ namespace blender {
 /* Needed forward declaration to allow the swizzle to reference it. */
 template<typename T, int Size> struct VecBase;
 
-/* Swizzle functions for vector of non-trivial types. */
+/**
+ * Swizzle functions for vector of non-trivial types.
+ * Does not support assignment.
+ */
 template<typename T, int Size> struct VecSwizzleFunc {};
 
 template<typename T> struct VecSwizzleFunc<T, 2> {
@@ -66,6 +69,7 @@ template<typename T> struct VecSwizzleFunc<T, 4> : VecSwizzleFunc<T, 2> {
 /**
  * Swizzle class that supports reordering of component.
  * Will decay to a vector of the same size.
+ * Does not support assignment (but is still copy & move constructible, see below).
  *
  * IMPORTANT: Must be declared at the same memory location as the first component referenced in the
  * swizzle. So for `zzwy` it is `y`. We do this to allow the copy constructor to copy only the
