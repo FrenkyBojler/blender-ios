@@ -1267,7 +1267,8 @@ static void std_node_socket_draw(
               uiLayout *row = &column->row(true);
               draw_gizmo_pin_icon(row, ptr);
               gizmo_handled = true;
-            } else {
+            }
+            else {
               uiLayout *row = &column->row(true);
               draw_node_socket_name_editable(row, sock, text);
               if (has_gizmo) {
@@ -1287,7 +1288,8 @@ static void std_node_socket_draw(
           uiLayout *row = &column->row(true);
           draw_gizmo_pin_icon(row, ptr);
           gizmo_handled = true;
-        } else {
+        }
+        else {
           uiLayout *row = &column->row(true);
           draw_node_socket_name_editable(row, sock, text);
           if (has_gizmo) {
@@ -1361,7 +1363,8 @@ static void std_node_socket_draw(
         if (default_value->enum_items->items.is_empty()) {
           if (text.is_empty()) {
             layout->label(IFACE_("No Items"), ICON_NONE);
-          } else {
+          }
+          else {
             uiLayout *row = &layout->split(0.4f, false);
             row->label(text, ICON_NONE);
             row->label(IFACE_("No Items"), ICON_NONE);
