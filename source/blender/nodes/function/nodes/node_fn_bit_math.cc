@@ -121,12 +121,11 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_label(const bNodeTree * /*ntree*/, const bNode *node, char *label, int maxlen)
 {
-  const char *name;
-  const bool enum_label = RNA_enum_name(bit_math_operation_items.data(), node->custom1, &name);
-  if (!enum_label) {
-    name = "Unknown";
-  }
-  BLI_strncpy(label, IFACE_(name), maxlen);
+  char name[64] = {0};
+  const char *operation_name = IFACE_("Unknown");
+  RNA_enum_name(bit_math_operation_items.data(), node->custom1, &operation_name);
+  SNPRINTF(name, IFACE_("Bitwise %s"), operation_name);
+  BLI_strncpy(label, name, maxlen);
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
