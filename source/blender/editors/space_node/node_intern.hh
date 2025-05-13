@@ -400,6 +400,7 @@ void NODE_OT_cryptomatte_layer_remove(wmOperatorType *ot);
 
 /* `node_gizmo.cc` */
 
+void NODE_GGT_backdrop_viewer(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_sun_beams(wmGizmoGroupType *gzgt);
