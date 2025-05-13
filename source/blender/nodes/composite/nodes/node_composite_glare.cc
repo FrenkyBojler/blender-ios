@@ -64,12 +64,12 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
 #ifndef WITH_FFTW3
     const int glare_type = RNA_enum_get(ptr, "glare_type");
     if (glare_type == CMP_NODE_GLARE_FOG_GLOW) {
-      uiItemL(layout, RPT_("Disabled, built without FFTW"), ICON_ERROR);
+      layout->label(RPT_("Disabled, built without FFTW"), ICON_ERROR);
     }
 #endif
 
-    uiItemR(layout, ptr, "glare_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-    uiItemR(layout, ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout->prop(ptr, "glare_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout->prop(ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
 
   b.add_input<decl::Color>("Image")
@@ -2409,7 +2409,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_glare_cc
 
-void register_node_type_cmp_glare()
+static void register_node_type_cmp_glare()
 {
   namespace file_ns = blender::nodes::node_composite_glare_cc;
 
@@ -2430,3 +2430,4 @@ void register_node_type_cmp_glare()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_glare)
