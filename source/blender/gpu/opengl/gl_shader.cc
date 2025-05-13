@@ -1804,13 +1804,20 @@ Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
 
   GLCompilerWorker *worker = get_compiler_worker(sources);
 
-  if (!worker->load_program_binary(shader->program_active_->program_id) ||
+  /* This path is always called for the default shader compilation. Not for specialization.
+   * Use the default constant template.*/
+  shader::SpecializationConstants *constants = GPU_shader_get_constant_state_template(
+      wrap(shader));
+
+  if (!worker->load_program_binary(shader->program_cache_.lookup(constants->values).program_id) ||
       !shader->post_finalize(&info))
   {
     /* Compilation failed, try to compile it locally. */
     delete shader;
     shader = nullptr;
   }
+
+  MEM_delete(constants);
 
   worker->release();
 
@@ -1826,17 +1833,10 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
   static std::mutex mutex;
 
   GLShader *shader = static_cast<GLShader *>(unwrap(specialization.shader));
-  Vector<SpecializationConstant> &constants = specialization.constants;
 
   auto program_get = [&]() -> GLShader::GLProgram * {
-    for (const SpecializationConstant &constant : constants) {
-      const ShaderInput *input = shader->interface->constant_get(constant.name.c_str());
-      BLI_assert_msg(input != nullptr, "The specialization constant doesn't exists");
-      shader->constants.values[input->location].u = constant.value.u;
-    }
-    shader->constants.is_dirty = true;
-    if (shader->program_cache_.contains(shader->constants.values)) {
-      return &shader->program_cache_.lookup(shader->constants.values);
+    if (shader->program_cache_.contains(specialization.constants.values)) {
+      return &shader->program_cache_.lookup(specialization.constants.values);
     }
     return nullptr;
   };
@@ -1846,7 +1846,6 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
     GLShader::GLProgram *program = program_get();
     glDeleteProgram(program->program_id);
     program->program_id = 0;
-    shader->constants.is_dirty = true;
   };
 
   GLSourcesBaked sources;
@@ -1860,7 +1859,7 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 
     /** WORKAROUND: Set async_compilation to true, so only the sources are generated. */
     shader->async_compilation_ = true;
-    shader->program_get();
+    shader->program_get(&specialization.constants);
     shader->async_compilation_ = false;
     sources = shader->get_sources();
 
