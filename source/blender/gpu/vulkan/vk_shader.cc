@@ -736,7 +736,9 @@ void VKShader::bind(const shader::SpecializationConstants *constants_state)
 {
   /* Copy constants state. */
   /* TODO(fclem): This is not threadsafe, better copy the constants to the context. */
-  this->constants = *constants_state;
+  if (constants_state) {
+    this->constants = *constants_state;
+  }
   /* Intentionally empty. Binding of the pipeline are done just before drawing/dispatching.
    * See #VKPipeline.update_and_bind */
 }
