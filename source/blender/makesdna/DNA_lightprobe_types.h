@@ -18,6 +18,11 @@ struct AnimData;
 struct Object;
 
 typedef struct LightProbe {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_LP;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
@@ -188,7 +193,7 @@ typedef struct LightCache {
   LightCacheTexture cube_tx;
   /** Does not contains valid GPUTexture, only data. */
   LightCacheTexture *cube_mips;
-  /* All lightprobes data contained in the cache. */
+  /* All light-probes data contained in the cache. */
   LightProbeCache *cube_data;
   LightGridCache *grid_data;
 } LightCache;

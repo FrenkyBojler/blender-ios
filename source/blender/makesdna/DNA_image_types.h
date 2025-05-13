@@ -12,8 +12,17 @@
 #include "DNA_color_types.h" /* for color management */
 #include "DNA_defs.h"
 
+#ifdef __cplusplus
+namespace blender::bke {
+struct ImageRuntime;
+}  // namespace blender::bke
+using ImageRuntimeHandle = blender::bke::ImageRuntime;
+#else
+typedef struct ImageRuntimeHandle ImageRuntimeHandle;
+#endif
+
 struct GPUTexture;
-struct ImBufAnim;
+struct MovieReader;
 struct MovieCache;
 struct PackedFile;
 struct RenderResult;
@@ -49,7 +58,7 @@ typedef struct ImageUser {
 
 typedef struct ImageAnim {
   struct ImageAnim *next, *prev;
-  struct ImBufAnim *anim;
+  struct MovieReader *anim;
 } ImageAnim;
 
 typedef struct ImageView {
@@ -120,33 +129,14 @@ typedef enum eGPUTextureTarget {
   TEXTARGET_COUNT,
 } eGPUTextureTarget;
 
-/* Defined in BKE_image.h. */
-struct PartialUpdateRegister;
-struct PartialUpdateUser;
-
-typedef struct Image_Runtime {
-  /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
-   */
-  void *cache_mutex;
-
-  /** \brief Register containing partial updates. */
-  struct PartialUpdateRegister *partial_update_register;
-  /** \brief Partial update user for GPUTextures stored inside the Image. */
-  struct PartialUpdateUser *partial_update_user;
-
-  /* Compositor viewer might be translated, and that translation will be stored in this runtime
-   * vector by the compositor so that the editor draw code can draw the image translated. */
-  float backdrop_offset[2];
-} Image_Runtime;
-
 typedef struct Image {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_IM;
+#endif
+
   ID id;
   struct AnimData *adt;
-  /**
-   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
-   * DRW_drawdatalist_from_id to understand this requirement.
-   */
-  DrawDataList drawdata;
 
   /** File path, 1024 = FILE_MAX. */
   char filepath[1024];
@@ -214,7 +204,7 @@ typedef struct Image {
   ListBase views;
   struct Stereo3dFormat *stereo3d_format;
 
-  Image_Runtime runtime;
+  ImageRuntimeHandle *runtime;
 } Image;
 
 /* **************** IMAGE ********************* */
@@ -293,3 +283,9 @@ enum {
   IMA_ALPHA_CHANNEL_PACKED = 2,
   IMA_ALPHA_IGNORE = 3,
 };
+
+/* Image gpu runtime defaults */
+#define IMAGE_GPU_FRAME_NONE INT_MAX
+#define IMAGE_GPU_PASS_NONE SHRT_MAX
+#define IMAGE_GPU_LAYER_NONE SHRT_MAX
+#define IMAGE_GPU_VIEW_NONE SHRT_MAX

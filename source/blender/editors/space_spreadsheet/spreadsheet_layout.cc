@@ -7,19 +7,19 @@
 
 #include <fmt/format.h>
 
+#include "BLF_api.hh"
+
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
 #include "spreadsheet_column_values.hh"
+#include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_layout.hh"
 
-#include "DNA_collection_types.h"
-#include "DNA_object_types.h"
-#include "DNA_userdef_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -56,7 +56,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   nullptr,
                                   0,
                                   0,
-                                  nullptr);
+                                  std::nullopt);
     /* Center-align column headers. */
     UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
     UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
@@ -78,7 +78,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   nullptr,
                                   0,
                                   0,
-                                  nullptr);
+                                  std::nullopt);
     /* Right-align indices. */
     UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
     UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
@@ -109,7 +109,14 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     nullptr,
                                     0,
                                     0,
-                                    nullptr);
+                                    std::nullopt);
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+            return fmt::format("{}", *((int *)argN));
+          },
+          MEM_dupallocN<int>(__func__, value),
+          MEM_freeN);
       /* Right-align Integers. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -129,10 +136,14 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     nullptr,
                                     0,
                                     0,
-                                    nullptr);
+                                    std::nullopt);
       /* Right-align Integers. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
+    }
+    else if (data.type().is<short2>()) {
+      const int2 value = int2(data.get<short2>(real_index));
+      this->draw_int_vector(params, Span(&value.x, 2));
     }
     else if (data.type().is<int2>()) {
       const int2 value = data.get<int2>(real_index);
@@ -155,7 +166,14 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     nullptr,
                                     0,
                                     0,
-                                    nullptr);
+                                    std::nullopt);
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+            return fmt::format("{:f}", *((float *)argN));
+          },
+          MEM_dupallocN<float>(__func__, value),
+          MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -175,7 +193,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     nullptr,
                                     0,
                                     0,
-                                    nullptr);
+                                    std::nullopt);
       UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
     }
     else if (data.type().is<float2>()) {
@@ -203,61 +221,21 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
     else if (data.type().is<bke::InstanceReference>()) {
       const bke::InstanceReference value = data.get<bke::InstanceReference>(real_index);
-      switch (value.type()) {
-        case bke::InstanceReference::Type::Object: {
-          const Object &object = value.object();
-          uiDefIconTextBut(params.block,
-                           UI_BTYPE_LABEL,
-                           0,
-                           ICON_OBJECT_DATA,
-                           object.id.name + 2,
-                           params.xmin,
-                           params.ymin,
-                           params.width,
-                           params.height,
-                           nullptr,
-                           0,
-                           0,
-                           nullptr);
-          break;
-        }
-        case bke::InstanceReference::Type::Collection: {
-          Collection &collection = value.collection();
-          uiDefIconTextBut(params.block,
-                           UI_BTYPE_LABEL,
-                           0,
-                           ICON_OUTLINER_COLLECTION,
-                           collection.id.name + 2,
-                           params.xmin,
-                           params.ymin,
-                           params.width,
-                           params.height,
-                           nullptr,
-                           0,
-                           0,
-                           nullptr);
-          break;
-        }
-        case bke::InstanceReference::Type::GeometrySet: {
-          uiDefIconTextBut(params.block,
-                           UI_BTYPE_LABEL,
-                           0,
-                           ICON_MESH_DATA,
-                           "Geometry",
-                           params.xmin,
-                           params.ymin,
-                           params.width,
-                           params.height,
-                           nullptr,
-                           0,
-                           0,
-                           nullptr);
-          break;
-        }
-        case bke::InstanceReference::Type::None: {
-          break;
-        }
-      }
+      const StringRefNull name = value.name().is_empty() ? IFACE_("(Geometry)") : value.name();
+      const int icon = get_instance_reference_icon(value);
+      uiDefIconTextBut(params.block,
+                       UI_BTYPE_LABEL,
+                       0,
+                       icon,
+                       name.c_str(),
+                       params.xmin,
+                       params.ymin,
+                       params.width,
+                       params.height,
+                       nullptr,
+                       0,
+                       0,
+                       std::nullopt);
     }
     else if (data.type().is<std::string>()) {
       uiDefIconTextBut(params.block,
@@ -272,7 +250,33 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                        nullptr,
                        0,
                        0,
-                       nullptr);
+                       std::nullopt);
+    }
+    else if (data.type().is<MStringProperty>()) {
+      MStringProperty *prop = MEM_callocN<MStringProperty>(__func__);
+      data.get_to_uninitialized(real_index, prop);
+      uiBut *but = uiDefIconTextBut(params.block,
+                                    UI_BTYPE_LABEL,
+                                    0,
+                                    ICON_NONE,
+                                    StringRef(prop->s, prop->s_len),
+                                    params.xmin,
+                                    params.ymin,
+                                    params.width,
+                                    params.height,
+                                    nullptr,
+                                    0,
+                                    0,
+                                    std::nullopt);
+
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+            const MStringProperty &prop = *static_cast<MStringProperty *>(argN);
+            return std::string(StringRef(prop.s, prop.s_len));
+          },
+          prop,
+          MEM_freeN);
     }
   }
 
@@ -297,7 +301,15 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     nullptr,
                                     0,
                                     0,
-                                    nullptr);
+                                    std::nullopt);
+
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+            return fmt::format("{:f}", *((float *)argN));
+          },
+          MEM_dupallocN<float>(__func__, value),
+          MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -325,7 +337,14 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     nullptr,
                                     0,
                                     0,
-                                    nullptr);
+                                    std::nullopt);
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+            return fmt::format("{}", *((int *)argN));
+          },
+          MEM_dupallocN<int>(__func__, value),
+          MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -354,7 +373,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     nullptr,
                                     0,
                                     0,
-                                    nullptr);
+                                    std::nullopt);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -362,10 +381,10 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       /* Tooltip showing raw byte values. Encode values in pointer to avoid memory allocation. */
       UI_but_func_tooltip_set(
           but,
-          [](bContext * /*C*/, void *argN, const char * /*tip*/) {
+          [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
             const uint32_t uint_color = POINTER_AS_UINT(argN);
             ColorGeometry4b color = *(ColorGeometry4b *)&uint_color;
-            return fmt::format(TIP_("Byte Color (sRGB encoded):\n{}  {}  {}  {}"),
+            return fmt::format(fmt::runtime(TIP_("Byte Color (sRGB encoded):\n{}  {}  {}  {}")),
                                color.r,
                                color.g,
                                color.b,
@@ -390,12 +409,12 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   nullptr,
                                   0,
                                   0,
-                                  nullptr);
+                                  std::nullopt);
     /* Center alignment. */
     UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
     UI_but_func_tooltip_set(
         but,
-        [](bContext * /*C*/, void *argN, const char * /*tip*/) {
+        [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
           /* Transpose to be able to print row by row. */
           const float4x4 value = math::transpose(*static_cast<const float4x4 *>(argN));
           std::stringstream ss;
@@ -405,7 +424,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           ss << value[3];
           return ss.str();
         },
-        MEM_new<float4x4>(__func__, value),
+        MEM_dupallocN<float4x4>(__func__, value),
         MEM_freeN);
   }
 
@@ -414,6 +433,127 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     return spreadsheet_layout_.columns[column_index].width;
   }
 };
+
+template<typename T>
+static float estimate_max_column_width(const float min_width,
+                                       const int fontid,
+                                       const VArray<T> &data,
+                                       FunctionRef<std::string(const T &)> to_string)
+{
+  if (const std::optional<T> value = data.get_if_single()) {
+    const std::string str = to_string(*value);
+    return std::max(min_width, BLF_width(fontid, str.c_str(), str.size()));
+  }
+  const int max_sample_size = 100;
+  float width = min_width;
+  for (const int i : data.index_range().take_front(max_sample_size)) {
+    const std::string str = to_string(data[i]);
+    const float value_width = BLF_width(fontid, str.c_str(), str.size());
+    width = std::max(width, value_width);
+  }
+  return width;
+}
+
+float ColumnValues::initial_width_px() const
+{
+  const int fontid = BLF_default();
+  BLF_size(fontid, UI_DEFAULT_TEXT_POINTS * UI_SCALE_FAC);
+
+  const eSpreadsheetColumnValueType column_type = this->type();
+  switch (column_type) {
+    case SPREADSHEET_VALUE_TYPE_BOOL: {
+      return 2.0f * SPREADSHEET_WIDTH_UNIT;
+    }
+    case SPREADSHEET_VALUE_TYPE_FLOAT4X4: {
+      return 2.0f * SPREADSHEET_WIDTH_UNIT;
+    }
+    case SPREADSHEET_VALUE_TYPE_INT8: {
+      return 3.0f * SPREADSHEET_WIDTH_UNIT;
+    }
+    case SPREADSHEET_VALUE_TYPE_INT32: {
+      return estimate_max_column_width<int>(
+          3 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<int>(), [](const int value) {
+            return fmt::format("{}", value);
+          });
+    }
+    case SPREADSHEET_VALUE_TYPE_FLOAT: {
+      return estimate_max_column_width<float>(
+          3 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<float>(), [](const float value) {
+            return fmt::format("{:.3f}", value);
+          });
+    }
+    case SPREADSHEET_VALUE_TYPE_INT32_2D: {
+      return estimate_max_column_width<int2>(
+          3 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<int2>(), [](const int2 value) {
+            return fmt::format("{}  {}", value.x, value.y);
+          });
+    }
+    case SPREADSHEET_VALUE_TYPE_FLOAT2: {
+      return estimate_max_column_width<float2>(
+          6 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<float2>(), [](const float2 value) {
+            return fmt::format("{:.3f}  {:.3f}", value.x, value.y);
+          });
+    }
+    case SPREADSHEET_VALUE_TYPE_FLOAT3: {
+      return estimate_max_column_width<float3>(
+          9 * SPREADSHEET_WIDTH_UNIT, fontid, data_.typed<float3>(), [](const float3 value) {
+            return fmt::format("{:.3f}  {:.3f}  {:.3f}", value.x, value.y, value.z);
+          });
+    }
+    case SPREADSHEET_VALUE_TYPE_COLOR: {
+      return estimate_max_column_width<ColorGeometry4f>(
+          12 * SPREADSHEET_WIDTH_UNIT,
+          fontid,
+          data_.typed<ColorGeometry4f>(),
+          [](const ColorGeometry4f value) {
+            return fmt::format(
+                "{:.3f}  {:.3f}  {:.3f}  {:.3f}", value.r, value.g, value.b, value.a);
+          });
+    }
+    case SPREADSHEET_VALUE_TYPE_BYTE_COLOR: {
+      return estimate_max_column_width<ColorGeometry4b>(
+          12 * SPREADSHEET_WIDTH_UNIT,
+          fontid,
+          data_.typed<ColorGeometry4b>(),
+          [](const ColorGeometry4b value) {
+            return fmt::format("{}  {}  {}  {}", value.r, value.g, value.b, value.a);
+          });
+    }
+    case SPREADSHEET_VALUE_TYPE_QUATERNION: {
+      return estimate_max_column_width<math::Quaternion>(
+          12 * SPREADSHEET_WIDTH_UNIT,
+          fontid,
+          data_.typed<math::Quaternion>(),
+          [](const math::Quaternion value) {
+            return fmt::format(
+                "{:.3f}  {:.3f}  {:.3f}  {:.3f}", value.x, value.y, value.z, value.w);
+          });
+    }
+    case SPREADSHEET_VALUE_TYPE_INSTANCES: {
+      return 24 * SPREADSHEET_WIDTH_UNIT;
+    }
+    case SPREADSHEET_VALUE_TYPE_STRING: {
+      if (data_.type().is<std::string>()) {
+        return estimate_max_column_width<std::string>(SPREADSHEET_WIDTH_UNIT,
+                                                      fontid,
+                                                      data_.typed<std::string>(),
+                                                      [](const StringRef value) { return value; });
+      }
+      if (data_.type().is<MStringProperty>()) {
+        return estimate_max_column_width<MStringProperty>(
+            SPREADSHEET_WIDTH_UNIT,
+            fontid,
+            data_.typed<MStringProperty>(),
+            [](const MStringProperty &value) { return StringRef(value.s, value.s_len); });
+      }
+      break;
+    }
+    case SPREADSHEET_VALUE_TYPE_UNKNOWN: {
+      break;
+    }
+  }
+  return 2.0f * SPREADSHEET_WIDTH_UNIT;
+}
 
 std::unique_ptr<SpreadsheetDrawer> spreadsheet_drawer_from_layout(
     const SpreadsheetLayout &spreadsheet_layout)

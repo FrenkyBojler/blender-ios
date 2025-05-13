@@ -4,7 +4,6 @@
 
 #include "BLI_string.h"
 
-#include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 
 #include "draw_attributes.hh"
@@ -17,9 +16,7 @@ static bool drw_attributes_has_request(const DRW_Attributes *requests,
 {
   for (int i = 0; i < requests->num_requests; i++) {
     const DRW_AttributeRequest &src_req = requests->requests[i];
-    if (src_req.domain == req.domain && src_req.layer_index == req.layer_index &&
-        src_req.cd_type == req.cd_type)
-    {
+    if (STREQ(src_req.attribute_name, req.attribute_name)) {
       return true;
     }
   }
@@ -48,8 +45,11 @@ void drw_attributes_clear(DRW_Attributes *attributes)
   *attributes = {};
 }
 
-void drw_attributes_merge(DRW_Attributes *dst, const DRW_Attributes *src, std::mutex &render_mutex)
+void drw_attributes_merge(DRW_Attributes *dst, const DRW_Attributes *src, Mutex &render_mutex)
 {
+  if (src->num_requests == 0) {
+    return;
+  }
   std::lock_guard lock{render_mutex};
   drw_attributes_merge_requests(src, dst);
 }
@@ -65,23 +65,15 @@ bool drw_attributes_overlap(const DRW_Attributes *a, const DRW_Attributes *b)
   return true;
 }
 
-void drw_attributes_add_request(DRW_Attributes *attrs,
-                                const char *name,
-                                const eCustomDataType type,
-                                const int layer_index,
-                                const blender::bke::AttrDomain domain)
+void drw_attributes_add_request(DRW_Attributes *attrs, const char *name)
 {
-  if (attrs->num_requests >= GPU_MAX_ATTR ||
-      drw_attributes_has_request(attrs, {type, layer_index, domain}))
-  {
+  DRW_AttributeRequest req{};
+  STRNCPY(req.attribute_name, name);
+  if (attrs->num_requests >= GPU_MAX_ATTR || drw_attributes_has_request(attrs, req)) {
     return;
   }
 
-  DRW_AttributeRequest *req = &attrs->requests[attrs->num_requests];
-  req->cd_type = type;
-  STRNCPY(req->attribute_name, name);
-  req->layer_index = layer_index;
-  req->domain = domain;
+  attrs->requests[attrs->num_requests] = req;
   attrs->num_requests += 1;
 }
 
@@ -90,9 +82,10 @@ bool drw_custom_data_match_attribute(const CustomData &custom_data,
                                      int *r_layer_index,
                                      eCustomDataType *r_type)
 {
-  const eCustomDataType possible_attribute_types[10] = {
+  const eCustomDataType possible_attribute_types[11] = {
       CD_PROP_BOOL,
       CD_PROP_INT8,
+      CD_PROP_INT16_2D,
       CD_PROP_INT32_2D,
       CD_PROP_INT32,
       CD_PROP_FLOAT,

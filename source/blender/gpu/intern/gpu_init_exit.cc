@@ -7,7 +7,6 @@
  */
 
 #include "GPU_init_exit.hh" /* interface */
-#include "BLI_sys_types.h"
 #include "GPU_batch.hh"
 
 #include "intern/gpu_codegen.hh"
@@ -30,6 +29,8 @@ void GPU_init()
 
   initialized = true;
 
+  gpu_backend_init_resources();
+
   gpu_shader_dependency_init();
   gpu_shader_create_info_init();
 
@@ -44,10 +45,10 @@ void GPU_exit()
 
   gpu_codegen_exit();
 
+  gpu_backend_delete_resources();
+
   gpu_shader_dependency_exit();
   gpu_shader_create_info_exit();
-
-  gpu_backend_delete_resources();
 
   initialized = false;
 }

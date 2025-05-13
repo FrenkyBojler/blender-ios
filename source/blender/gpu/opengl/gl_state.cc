@@ -415,6 +415,13 @@ void GLStateManager::set_blend(const eGPUBlend value)
       dst_alpha = GL_SRC1_ALPHA;
       break;
     }
+    case GPU_BLEND_OVERLAY_MASK_FROM_ALPHA: {
+      src_rgb = GL_ZERO;
+      dst_rgb = GL_ONE_MINUS_SRC_ALPHA;
+      src_alpha = GL_ZERO;
+      dst_alpha = GL_ONE_MINUS_SRC_ALPHA;
+      break;
+    }
   }
 
   if (value == GPU_BLEND_SUBTRACT) {
@@ -650,7 +657,7 @@ GLFence::~GLFence()
 
 void GLFence::signal()
 {
-  /* If fence is already signalled, create a newly signalled fence primitive. */
+  /* If fence is already signaled, create a newly signaled fence primitive. */
   if (gl_sync_) {
     glDeleteSync(gl_sync_);
   }

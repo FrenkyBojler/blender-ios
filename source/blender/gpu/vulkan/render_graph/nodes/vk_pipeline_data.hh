@@ -12,6 +12,8 @@
 
 namespace blender::gpu::render_graph {
 class VKCommandBufferInterface;
+struct VKRenderGraphNodeLinks;
+class VKResourceStateTracker;
 
 /**
  * Container for storing shader descriptor set and push constants.
@@ -26,10 +28,76 @@ struct VKPipelineData {
   const void *push_constants_data;
 };
 
+/**
+ * Container for storing viewport and scissor data used for
+ * draw nodes.
+ */
+struct VKViewportData {
+  Vector<VkViewport> viewports;
+  Vector<VkRect2D> scissors;
+
+  bool operator==(const VKViewportData &other) const
+  {
+    if (viewports.size() != other.viewports.size() && scissors.size() != other.scissors.size()) {
+      return false;
+    }
+
+    if (memcmp(viewports.data(), other.viewports.data(), viewports.size() * sizeof(VkViewport)) !=
+        0)
+    {
+      return false;
+    }
+
+    if (memcmp(scissors.data(), other.scissors.data(), scissors.size() * sizeof(VkRect2D)) != 0) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool operator!=(const VKViewportData &other) const
+  {
+    return !(*this == other);
+  }
+};
+
 /** Resources bound for a compute/graphics pipeline. */
 struct VKBoundPipeline {
   VkPipeline vk_pipeline;
   VkDescriptorSet vk_descriptor_set;
+};
+
+struct VKIndexBufferBinding {
+  VkBuffer buffer;
+  VkIndexType index_type;
+
+  bool operator==(const VKIndexBufferBinding &other) const
+  {
+    return buffer == other.buffer && index_type == other.index_type;
+  }
+  bool operator!=(const VKIndexBufferBinding &other) const
+  {
+    return !(*this == other);
+  }
+};
+
+struct VKVertexBufferBindings {
+  uint32_t buffer_count;
+  VkBuffer buffer[16];
+  VkDeviceSize offset[16];
+
+  bool operator==(const VKVertexBufferBindings &other) const
+  {
+    return buffer_count == other.buffer_count &&
+           Span<VkBuffer>(buffer, buffer_count) ==
+               Span<VkBuffer>(other.buffer, other.buffer_count) &&
+           Span<VkDeviceSize>(offset, buffer_count) ==
+               Span<VkDeviceSize>(other.offset, buffer_count);
+  }
+  bool operator!=(const VKVertexBufferBindings &other) const
+  {
+    return !(*this == other);
+  }
 };
 
 /**
@@ -40,7 +108,12 @@ struct VKBoundPipelines {
   /** Last bound resources for compute pipeline. */
   VKBoundPipeline compute;
   /** Last bound resources for graphics pipeline. */
-  VKBoundPipeline graphics;
+  struct {
+    VKBoundPipeline pipeline;
+    VKIndexBufferBinding index_buffer;
+    VKVertexBufferBindings vertex_buffers;
+    VKViewportData viewport_state;
+  } graphics;
 };
 
 /**
@@ -51,6 +124,15 @@ struct VKBoundPipelines {
  * guardedalloc.
  */
 void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src);
+
+/**
+ * Record commands that set the viewport and scissor only if the desired
+ * viewport state is different than the current viewport state.
+ *
+ */
+void vk_pipeline_viewport_set_commands(VKCommandBufferInterface &command_buffer,
+                                       const VKViewportData &viewport_data,
+                                       VKViewportData &r_viewport_state);
 
 /**
  * Record the commands to the given command buffer to bind the descriptor set, pipeline and push
@@ -65,7 +147,7 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src);
  */
 void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
                                      const VKPipelineData &pipeline_data,
-                                     VKBoundPipelines &r_bound_pipelines,
+                                     VKBoundPipeline &r_bound_pipeline,
                                      VkPipelineBindPoint vk_pipeline_bind_point,
                                      VkShaderStageFlags vk_shader_stage_flags);
 
@@ -73,5 +155,18 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
  * Free localized data created by `vk_pipeline_data_copy`.
  */
 void vk_pipeline_data_free(VKPipelineData &data);
+
+void vk_index_buffer_binding_build_links(VKResourceStateTracker &resources,
+                                         VKRenderGraphNodeLinks &node_links,
+                                         const VKIndexBufferBinding &index_buffer_binding);
+void vk_index_buffer_binding_build_commands(VKCommandBufferInterface &command_buffer,
+                                            const VKIndexBufferBinding &index_buffer_binding,
+                                            VKIndexBufferBinding &r_bound_index_buffer);
+void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
+                                           VKRenderGraphNodeLinks &node_links,
+                                           const VKVertexBufferBindings &vertex_buffer_bindings);
+void vk_vertex_buffer_bindings_build_commands(VKCommandBufferInterface &command_buffer,
+                                              const VKVertexBufferBindings &vertex_buffer_bindings,
+                                              VKVertexBufferBindings &r_bound_vertex_buffers);
 
 }  // namespace blender::gpu::render_graph

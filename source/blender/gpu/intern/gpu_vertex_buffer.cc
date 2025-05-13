@@ -17,8 +17,6 @@
 
 #include "gpu_context_private.hh" /* TODO: remove. */
 
-#include "GPU_vertex_buffer.hh"
-
 #include <cstring>
 
 /* -------------------------------------------------------------------- */
@@ -69,27 +67,11 @@ void VertBuf::clear()
   flag = GPU_VERTBUF_INVALID;
 }
 
-VertBuf *VertBuf::duplicate()
-{
-  VertBuf *dst = GPUBackend::get()->vertbuf_alloc();
-  /* Full copy. */
-  *dst = *this;
-  /* Almost full copy... */
-  dst->handle_refcount_ = 1;
-  /* Metadata. */
-#ifndef NDEBUG
-  dst->extended_usage_ = extended_usage_;
-#endif
-  /* Duplicate all needed implementation specifics data. */
-  this->duplicate_data(dst);
-  return dst;
-}
-
 void VertBuf::allocate(uint vert_len)
 {
   BLI_assert(format.packed);
   /* Catch any unnecessary usage. */
-  BLI_assert(vertex_alloc != vert_len || data == nullptr);
+  BLI_assert(vertex_alloc != vert_len || data_ == nullptr);
   vertex_len = vertex_alloc = vert_len;
 
   this->acquire_data();
@@ -151,12 +133,14 @@ void GPU_vertbuf_init_build_on_device(VertBuf &verts, const GPUVertFormat &forma
   GPU_vertbuf_data_alloc(verts, v_len);
 }
 
-VertBuf *GPU_vertbuf_duplicate(VertBuf *verts)
+VertBuf *GPU_vertbuf_create_on_device(const GPUVertFormat &format, uint v_len)
 {
-  return verts->duplicate();
+  VertBuf *verts = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_DEVICE_ONLY);
+  GPU_vertbuf_data_alloc(*verts, v_len);
+  return verts;
 }
 
-void GPU_vertbuf_read(VertBuf *verts, void *data)
+void GPU_vertbuf_read(const VertBuf *verts, void *data)
 {
   verts->read(data);
 }
@@ -196,7 +180,7 @@ void GPU_vertbuf_data_resize(VertBuf &verts, uint v_len)
 
 void GPU_vertbuf_data_len_set(VertBuf &verts, uint v_len)
 {
-  BLI_assert(verts.data != nullptr); /* Only for dynamic data. */
+  BLI_assert(verts.data<uchar>().data() != nullptr); /* Only for dynamic data. */
   BLI_assert(v_len <= verts.vertex_alloc);
   verts.vertex_len = v_len;
 }
@@ -208,9 +192,9 @@ void GPU_vertbuf_attr_set(VertBuf *verts, uint a_idx, uint v_idx, const void *da
   const GPUVertAttr *a = &format->attrs[a_idx];
   BLI_assert(v_idx < verts->vertex_alloc);
   BLI_assert(a_idx < format->attr_len);
-  BLI_assert(verts->data != nullptr);
+  BLI_assert(verts->data<uchar>().data() != nullptr);
   verts->flag |= GPU_VERTBUF_DATA_DIRTY;
-  memcpy(verts->data + a->offset + v_idx * format->stride, data, a->size);
+  memcpy(verts->data<uchar>().data() + a->offset + v_idx * format->stride, data, a->size);
 }
 
 void GPU_vertbuf_attr_fill(VertBuf *verts, uint a_idx, const void *data)
@@ -228,9 +212,9 @@ void GPU_vertbuf_vert_set(VertBuf *verts, uint v_idx, const void *data)
   BLI_assert(verts->get_usage_type() != GPU_USAGE_DEVICE_ONLY);
   const GPUVertFormat *format = &verts->format;
   BLI_assert(v_idx < verts->vertex_alloc);
-  BLI_assert(verts->data != nullptr);
+  BLI_assert(verts->data<uchar>().data() != nullptr);
   verts->flag |= GPU_VERTBUF_DATA_DIRTY;
-  memcpy(verts->data + v_idx * format->stride, data, format->stride);
+  memcpy(verts->data<uchar>().data() + v_idx * format->stride, data, format->stride);
 }
 
 void GPU_vertbuf_attr_fill_stride(VertBuf *verts, uint a_idx, uint stride, const void *data)
@@ -239,19 +223,20 @@ void GPU_vertbuf_attr_fill_stride(VertBuf *verts, uint a_idx, uint stride, const
   const GPUVertFormat *format = &verts->format;
   const GPUVertAttr *a = &format->attrs[a_idx];
   BLI_assert(a_idx < format->attr_len);
-  BLI_assert(verts->data != nullptr);
+  BLI_assert(verts->data<uchar>().data() != nullptr);
   verts->flag |= GPU_VERTBUF_DATA_DIRTY;
   const uint vertex_len = verts->vertex_len;
 
   if (format->attr_len == 1 && stride == format->stride) {
     /* we can copy it all at once */
-    memcpy(verts->data, data, vertex_len * a->size);
+    memcpy(verts->data<uchar>().data(), data, vertex_len * a->size);
   }
   else {
     /* we must copy it per vertex */
     for (uint v = 0; v < vertex_len; v++) {
-      memcpy(
-          verts->data + a->offset + v * format->stride, (const uchar *)data + v * stride, a->size);
+      memcpy(verts->data<uchar>().data() + a->offset + v * format->stride,
+             (const uchar *)data + v * stride,
+             a->size);
     }
   }
 }
@@ -261,13 +246,13 @@ void GPU_vertbuf_attr_get_raw_data(VertBuf *verts, uint a_idx, GPUVertBufRaw *ac
   const GPUVertFormat *format = &verts->format;
   const GPUVertAttr *a = &format->attrs[a_idx];
   BLI_assert(a_idx < format->attr_len);
-  BLI_assert(verts->data != nullptr);
+  BLI_assert(verts->data<uchar>().data() != nullptr);
 
   verts->flag |= GPU_VERTBUF_DATA_DIRTY;
   verts->flag &= ~GPU_VERTBUF_DATA_UPLOADED;
   access->size = a->size;
   access->stride = format->stride;
-  access->data = (uchar *)verts->data + a->offset;
+  access->data = (uchar *)verts->data<uchar>().data() + a->offset;
   access->data_init = access->data;
 #ifndef NDEBUG
   access->_data_end = access->data_init + size_t(verts->vertex_alloc * format->stride);
@@ -275,12 +260,6 @@ void GPU_vertbuf_attr_get_raw_data(VertBuf *verts, uint a_idx, GPUVertBufRaw *ac
 }
 
 /* -------- Getters -------- */
-
-void *GPU_vertbuf_get_data(const VertBuf &verts)
-{
-  /* TODO: Assert that the format has no padding. */
-  return verts.data;
-}
 
 const GPUVertFormat *GPU_vertbuf_get_format(const VertBuf *verts)
 {

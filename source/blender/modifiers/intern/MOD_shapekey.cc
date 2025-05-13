@@ -7,7 +7,6 @@
  */
 
 #include "BLI_math_matrix.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -16,7 +15,7 @@
 
 #include "BKE_key.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_modifiertypes.hh"
 

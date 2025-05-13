@@ -24,27 +24,30 @@ class VKContext;
 
 class VKFrameBuffer : public FrameBuffer {
  private:
-  /* Vulkan object handle. */
-  VkFramebuffer vk_framebuffer_ = VK_NULL_HANDLE;
-  /* Vulkan device who created the handle. */
-  VkDevice vk_device_ = VK_NULL_HANDLE;
-  /* Base render pass used for frame-buffer creation. */
-  VkRenderPass vk_render_pass_ = VK_NULL_HANDLE;
-  /* Number of layers if the attachments are layered textures. */
-  int depth_ = 1;
-
   /** Is the first attachment an SRGB texture. */
   bool srgb_;
   bool enabled_srgb_;
   bool is_rendering_ = false;
 
+  VkFormat depth_attachment_format_ = VK_FORMAT_UNDEFINED;
+  VkFormat stencil_attachment_format_ = VK_FORMAT_UNDEFINED;
+  Vector<VkFormat> color_attachment_formats_;
+
+  Array<GPULoadStore, GPU_FB_MAX_ATTACHMENT> load_stores;
+  Array<GPUAttachmentState, GPU_FB_MAX_ATTACHMENT> attachment_states_;
+
+  /* Render pass workaround when dynamic rendering isn't supported. */
+  VkFramebuffer vk_framebuffer = VK_NULL_HANDLE;
+
  public:
+  VkRenderPass vk_render_pass = VK_NULL_HANDLE;
+  uint32_t color_attachment_size = 0u;
+
   /**
    * Create a conventional frame-buffer to attach texture to.
    */
   VKFrameBuffer(const char *name);
-
-  ~VKFrameBuffer();
+  virtual ~VKFrameBuffer();
 
   void bind(bool enabled_srgb) override;
   bool check(char err_out[256]) override;
@@ -58,9 +61,6 @@ class VKFrameBuffer : public FrameBuffer {
                         const void *clear_value) override;
 
   void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore /*ls*/) override;
-
-  void begin_rendering(VKContext &context);
-  void end_rendering(VKContext &context);
 
  protected:
   void subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
@@ -81,32 +81,13 @@ class VKFrameBuffer : public FrameBuffer {
                int dst_offset_x,
                int dst_offset_y) override;
 
-  bool is_valid() const
-  {
-    return vk_framebuffer_ != VK_NULL_HANDLE;
-  }
+  void vk_viewports_append(Vector<VkViewport> &r_viewports) const;
+  void vk_render_areas_append(Vector<VkRect2D> &r_render_areas) const;
+  void render_area_update(VkRect2D &render_area) const;
+  VkFormat depth_attachment_format_get() const;
+  VkFormat stencil_attachment_format_get() const;
+  Span<VkFormat> color_attachment_formats_get() const;
 
-  VkFramebuffer vk_framebuffer_get() const
-  {
-    BLI_assert(vk_framebuffer_ != VK_NULL_HANDLE);
-    return vk_framebuffer_;
-  }
-
-  void vk_render_pass_ensure();
-  VkRenderPass vk_render_pass_get() const
-  {
-    BLI_assert(vk_render_pass_ != VK_NULL_HANDLE);
-    BLI_assert(!dirty_attachments_);
-    return vk_render_pass_;
-  }
-
-  Array<VkViewport, 16> vk_viewports_get() const;
-  Array<VkRect2D, 16> vk_render_areas_get() const;
-
-  void depth_attachment_layout_ensure(VKContext &context, VkImageLayout requested_layout);
-  void color_attachment_layout_ensure(VKContext &context,
-                                      int color_attachment,
-                                      VkImageLayout requested_layout);
   /**
    * Ensure that the size of the frame-buffer matches the first attachment resolution.
    *
@@ -134,12 +115,19 @@ class VKFrameBuffer : public FrameBuffer {
    * the latest changes that can happen between drawing commands inside `VKStateManager`.
    */
   void rendering_ensure(VKContext &context);
+  void rendering_ensure_dynamic_rendering(VKContext &context, const VKExtensions &extensions);
+  void rendering_ensure_render_pass(VKContext &context);
 
   /**
    * End the rendering on this framebuffer.
    * Is being triggered when framebuffer is deactivated or when
    */
   void rendering_end(VKContext &context);
+
+  bool is_rendering() const
+  {
+    return is_rendering_;
+  }
 
   /**
    * Return the number of color attachments of this frame buffer, including unused color
@@ -151,9 +139,12 @@ class VKFrameBuffer : public FrameBuffer {
   int color_attachments_resource_size() const;
 
  private:
-  void update_attachments();
+  /**
+   * Discard both the render pass and framebuffer
+   *
+   * TODO: render pass could be reusable.
+   */
   void render_pass_free();
-  void render_pass_create();
 
   /* Clearing attachments */
   void build_clear_attachments_depth_stencil(
@@ -166,6 +157,13 @@ class VKFrameBuffer : public FrameBuffer {
       const bool multi_clear_colors,
       render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments) const;
   void clear(render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments);
+
+  /**
+   * Check if there are gaps between color attachments.
+   *
+   * This is not supported when using VkRenderPass/VkFramebuffer.
+   */
+  bool has_gaps_between_color_attachments() const;
 };
 
 static inline VKFrameBuffer *unwrap(FrameBuffer *framebuffer)

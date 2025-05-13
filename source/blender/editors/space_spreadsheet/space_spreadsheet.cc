@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
+#include <fmt/format.h>
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_screen.hh"
+#include "BKE_viewer_path.hh"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -35,6 +37,7 @@
 
 #include "BLF_api.hh"
 
+#include "spreadsheet_column.hh"
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_intern.hh"
 #include "spreadsheet_layout.hh"
@@ -47,14 +50,14 @@ namespace blender::ed::spreadsheet {
 
 static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
-  SpaceSpreadsheet *spreadsheet_space = MEM_cnew<SpaceSpreadsheet>("spreadsheet space");
+  SpaceSpreadsheet *spreadsheet_space = MEM_callocN<SpaceSpreadsheet>("spreadsheet space");
   spreadsheet_space->spacetype = SPACE_SPREADSHEET;
 
   spreadsheet_space->filter_flag = SPREADSHEET_FILTER_ENABLE;
 
   {
     /* Header. */
-    ARegion *region = MEM_cnew<ARegion>("spreadsheet header");
+    ARegion *region = BKE_area_region_new();
     BLI_addtail(&spreadsheet_space->regionbase, region);
     region->regiontype = RGN_TYPE_HEADER;
     region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
@@ -62,7 +65,7 @@ static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*s
 
   {
     /* Footer. */
-    ARegion *region = MEM_cnew<ARegion>("spreadsheet footer region");
+    ARegion *region = BKE_area_region_new();
     BLI_addtail(&spreadsheet_space->regionbase, region);
     region->regiontype = RGN_TYPE_FOOTER;
     region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
@@ -70,7 +73,7 @@ static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*s
 
   {
     /* Dataset Region */
-    ARegion *region = MEM_cnew<ARegion>("spreadsheet dataset region");
+    ARegion *region = BKE_area_region_new();
     BLI_addtail(&spreadsheet_space->regionbase, region);
     region->regiontype = RGN_TYPE_TOOLS;
     region->alignment = RGN_ALIGN_LEFT;
@@ -78,7 +81,7 @@ static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*s
 
   {
     /* Properties region. */
-    ARegion *region = MEM_cnew<ARegion>("spreadsheet right region");
+    ARegion *region = BKE_area_region_new();
     BLI_addtail(&spreadsheet_space->regionbase, region);
     region->regiontype = RGN_TYPE_UI;
     region->alignment = RGN_ALIGN_RIGHT;
@@ -87,7 +90,7 @@ static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*s
 
   {
     /* Main window. */
-    ARegion *region = MEM_cnew<ARegion>("spreadsheet main region");
+    ARegion *region = BKE_area_region_new();
     BLI_addtail(&spreadsheet_space->regionbase, region);
     region->regiontype = RGN_TYPE_WINDOW;
   }
@@ -107,6 +110,7 @@ static void spreadsheet_free(SpaceLink *sl)
   LISTBASE_FOREACH_MUTABLE (SpreadsheetColumn *, column, &sspreadsheet->columns) {
     spreadsheet_column_free(column);
   }
+  MEM_SAFE_FREE(sspreadsheet->instance_ids);
   BKE_viewer_path_clear(&sspreadsheet->viewer_path);
 }
 
@@ -141,6 +145,8 @@ static SpaceLink *spreadsheet_duplicate(SpaceLink *sl)
     BLI_addtail(&sspreadsheet_new->columns, new_column);
   }
 
+  sspreadsheet_new->instance_ids = static_cast<SpreadsheetInstanceID *>(
+      MEM_dupallocN(sspreadsheet_old->instance_ids));
   BKE_viewer_path_copy(&sspreadsheet_new->viewer_path, &sspreadsheet_old->viewer_path);
 
   return (SpaceLink *)sspreadsheet_new;
@@ -180,12 +186,12 @@ static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
   {
     wmKeyMap *keymap = WM_keymap_ensure(
         wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
-    WM_event_add_keymap_handler(&region->handlers, keymap);
+    WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
   {
     wmKeyMap *keymap = WM_keymap_ensure(
         wm->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
-    WM_event_add_keymap_handler(&region->handlers, keymap);
+    WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
 }
 
@@ -270,7 +276,10 @@ static void spreadsheet_update_context(const bContext *C)
       const std::optional<ViewerPathForGeometryNodesViewer> workspace_parsed_path =
           blender::ed::viewer_path::parse_geometry_nodes_viewer(workspace->viewer_path);
       if (workspace_parsed_path.has_value()) {
-        if (BKE_viewer_path_equal(&sspreadsheet->viewer_path, &workspace->viewer_path)) {
+        if (BKE_viewer_path_equal(&sspreadsheet->viewer_path,
+                                  &workspace->viewer_path,
+                                  VIEWER_PATH_EQUAL_FLAG_CONSIDER_UI_NAME))
+        {
           /* Nothing changed. */
           break;
         }
@@ -313,7 +322,7 @@ Object *spreadsheet_get_object_eval(const SpaceSpreadsheet *sspreadsheet,
     return nullptr;
   }
 
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, object_orig);
+  Object *object_eval = DEG_get_evaluated(depsgraph, object_orig);
   if (object_eval == nullptr) {
     return nullptr;
   }
@@ -333,58 +342,27 @@ static std::unique_ptr<DataSource> get_data_source(const bContext *C)
   return {};
 }
 
-static float get_default_column_width(const ColumnValues &values)
+static float get_initial_column_width(const ColumnValues &values)
 {
-  if (values.default_width > 0.0f) {
-    return values.default_width;
-  }
-  static const float float_width = 3;
-  switch (values.type()) {
-    case SPREADSHEET_VALUE_TYPE_BOOL:
-    case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
-      return 2.0f;
-    case SPREADSHEET_VALUE_TYPE_INT8:
-    case SPREADSHEET_VALUE_TYPE_INT32:
-      return float_width;
-    case SPREADSHEET_VALUE_TYPE_FLOAT:
-      return float_width;
-    case SPREADSHEET_VALUE_TYPE_INT32_2D:
-    case SPREADSHEET_VALUE_TYPE_FLOAT2:
-      return 2.0f * float_width;
-    case SPREADSHEET_VALUE_TYPE_FLOAT3:
-      return 3.0f * float_width;
-    case SPREADSHEET_VALUE_TYPE_COLOR:
-    case SPREADSHEET_VALUE_TYPE_BYTE_COLOR:
-    case SPREADSHEET_VALUE_TYPE_QUATERNION:
-      return 4.0f * float_width;
-    case SPREADSHEET_VALUE_TYPE_INSTANCES:
-      return 8.0f;
-    case SPREADSHEET_VALUE_TYPE_STRING:
-      return 5.0f;
-    case SPREADSHEET_VALUE_TYPE_UNKNOWN:
-      return 2.0f;
-  }
-  return float_width;
-}
+  const float padding_px = 0.5 * SPREADSHEET_WIDTH_UNIT;
+  const float min_width_px = SPREADSHEET_WIDTH_UNIT;
 
-static float get_column_width(const ColumnValues &values)
-{
-  float data_width = get_default_column_width(values);
-  const int fontid = UI_style_get()->widget.uifont_id;
+  const float data_width_px = values.initial_width_px();
+
+  const int fontid = BLF_default();
   BLF_size(fontid, UI_DEFAULT_TEXT_POINTS * UI_SCALE_FAC);
   const StringRefNull name = values.name();
-  const float name_width = BLF_width(fontid, name.data(), name.size());
-  return std::max<float>(name_width / UI_UNIT_X + 1.0f, data_width);
-}
+  const float name_width_px = BLF_width(fontid, name.data(), name.size());
 
-static float get_column_width_in_pixels(const ColumnValues &values)
-{
-  return get_column_width(values) * SPREADSHEET_WIDTH_UNIT;
+  const float width_px = std::max(min_width_px,
+                                  padding_px + std::max(data_width_px, name_width_px));
+  const float width = width_px / SPREADSHEET_WIDTH_UNIT;
+  return width;
 }
 
 static int get_index_column_width(const int tot_rows)
 {
-  const int fontid = UI_style_get()->widget.uifont_id;
+  const int fontid = BLF_default();
   BLF_size(fontid, UI_style_get_dpi()->widget.points * UI_SCALE_FAC);
   return std::to_string(std::max(0, tot_rows - 1)).size() * BLF_width(fontid, "0", 1) +
          UI_UNIT_X * 0.75;
@@ -444,21 +422,31 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   SpreadsheetLayout spreadsheet_layout;
   ResourceScope scope;
 
+  const int tot_rows = data_source->tot_rows();
+  spreadsheet_layout.index_column_width = get_index_column_width(tot_rows);
+  spreadsheet_layout.row_indices = spreadsheet_filter_rows(
+      *sspreadsheet, spreadsheet_layout, *data_source, scope);
+
+  int x = spreadsheet_layout.index_column_width;
+
   LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
     std::unique_ptr<ColumnValues> values_ptr = data_source->get_column_values(*column->id);
     /* Should have been removed before if it does not exist anymore. */
     BLI_assert(values_ptr);
     const ColumnValues *values = scope.add(std::move(values_ptr));
-    const int width = get_column_width_in_pixels(*values);
-    spreadsheet_layout.columns.append({values, width});
+
+    if (column->width <= 0.0f) {
+      column->width = get_initial_column_width(*values);
+    }
+    const int width_in_pixels = column->width * SPREADSHEET_WIDTH_UNIT;
+    spreadsheet_layout.columns.append({values, width_in_pixels});
+
+    column->runtime->left_x = x;
+    x += width_in_pixels;
+    column->runtime->right_x = x;
 
     spreadsheet_column_assign_runtime_data(column, values->type(), values->name());
   }
-
-  const int tot_rows = data_source->tot_rows();
-  spreadsheet_layout.index_column_width = get_index_column_width(tot_rows);
-  spreadsheet_layout.row_indices = spreadsheet_filter_rows(
-      *sspreadsheet, spreadsheet_layout, *data_source, scope);
 
   sspreadsheet->runtime->tot_columns = spreadsheet_layout.columns.size();
   sspreadsheet->runtime->tot_rows = tot_rows;
@@ -466,6 +454,8 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 
   std::unique_ptr<SpreadsheetDrawer> drawer = spreadsheet_drawer_from_layout(spreadsheet_layout);
   draw_spreadsheet_in_region(C, region, *drawer);
+
+  sspreadsheet->runtime->top_row_height = drawer->top_row_height;
 
   /* Tag other regions for redraw, because the main region updates data for them. */
   ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);
@@ -603,7 +593,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
 
   UI_ThemeClearColor(TH_BACK);
 
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   const uiStyle *style = UI_style_get_dpi();
   uiLayout *layout = UI_block_layout(block,
                                      UI_LAYOUT_HORIZONTAL,
@@ -616,7 +606,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
                                      style);
   uiItemSpacer(layout);
   uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
-  uiItemL(layout, stats_str.c_str(), ICON_NONE);
+  layout->label(stats_str, ICON_NONE);
   UI_block_layout_resolve(block, nullptr, nullptr);
   UI_block_align_end(block);
   UI_block_end(C, block);
@@ -662,7 +652,7 @@ static void spreadsheet_sidebar_init(wmWindowManager *wm, ARegion *region)
 
   wmKeyMap *keymap = WM_keymap_ensure(
       wm->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void spreadsheet_right_region_free(ARegion * /*region*/) {}
@@ -680,6 +670,7 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   }
   BLO_read_struct_list(reader, SpreadsheetColumn, &sspreadsheet->columns);
   LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
+    column->runtime = MEM_new<SpreadsheetColumnRuntime>(__func__);
     BLO_read_struct(reader, SpreadsheetColumnID, &column->id);
     BLO_read_string(reader, &column->id->name);
     /* While the display name is technically runtime data, it is loaded here, otherwise the row
@@ -687,6 +678,9 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
      * This would ideally be cleared here. */
     BLO_read_string(reader, &column->display_name);
   }
+
+  BLO_read_struct_array(
+      reader, SpreadsheetInstanceID, sspreadsheet->instance_ids_num, &sspreadsheet->instance_ids);
 
   BKE_viewer_path_blend_read_data(reader, &sspreadsheet->viewer_path);
 }
@@ -711,7 +705,22 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
     BLO_write_string(writer, column->display_name);
   }
 
+  BLO_write_struct_array(
+      writer, SpreadsheetInstanceID, sspreadsheet->instance_ids_num, sspreadsheet->instance_ids);
   BKE_viewer_path_blend_write(writer, &sspreadsheet->viewer_path);
+}
+
+static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
+{
+  SpaceSpreadsheet &sspreadsheet = *static_cast<SpaceSpreadsheet *>(area->spacedata.first);
+
+  const int2 cursor_re{win->eventstate->xy[0] - region->winrct.xmin,
+                       win->eventstate->xy[1] - region->winrct.ymin};
+  if (find_column_to_resize(sspreadsheet, *region, cursor_re)) {
+    WM_cursor_set(win, WM_CURSOR_X_MOVE);
+    return;
+  }
+  WM_cursor_set(win, WM_CURSOR_DEFAULT);
 }
 
 void register_spacetype()
@@ -735,7 +744,7 @@ void register_spacetype()
   st->blend_write = spreadsheet_blend_write;
 
   /* regions: main window */
-  art = MEM_cnew<ARegionType>("spacetype spreadsheet region");
+  art = MEM_callocN<ARegionType>("spacetype spreadsheet region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
   art->lock = 1;
@@ -743,10 +752,12 @@ void register_spacetype()
   art->init = spreadsheet_main_region_init;
   art->draw = spreadsheet_main_region_draw;
   art->listener = spreadsheet_main_region_listener;
+  art->cursor = spreadsheet_cursor;
+  art->event_cursor = true;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_cnew<ARegionType>("spacetype spreadsheet header region");
+  art = MEM_callocN<ARegionType>("spacetype spreadsheet header region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = 0;
@@ -760,7 +771,7 @@ void register_spacetype()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: footer */
-  art = MEM_cnew<ARegionType>("spacetype spreadsheet footer region");
+  art = MEM_callocN<ARegionType>("spacetype spreadsheet footer region");
   art->regionid = RGN_TYPE_FOOTER;
   art->prefsizey = HEADERY;
   art->keymapflag = 0;
@@ -774,7 +785,7 @@ void register_spacetype()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: right panel buttons */
-  art = MEM_cnew<ARegionType>("spacetype spreadsheet right region");
+  art = MEM_callocN<ARegionType>("spacetype spreadsheet right region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -790,7 +801,7 @@ void register_spacetype()
   register_row_filter_panels(*art);
 
   /* regions: channels */
-  art = MEM_cnew<ARegionType>("spreadsheet dataset region");
+  art = MEM_callocN<ARegionType>("spreadsheet dataset region");
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = 150 + V2D_SCROLL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;

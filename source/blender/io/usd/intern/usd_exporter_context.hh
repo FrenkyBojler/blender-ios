@@ -14,12 +14,11 @@ struct Depsgraph;
 struct Main;
 struct Image;
 struct ImageUser;
+struct Scene;
 
 namespace blender::io::usd {
 
 class USDHierarchyIterator;
-
-using ExportImageFunction = std::function<std::string(Main *, Scene *, Image *, ImageUser *)>;
 
 struct USDExporterContext {
   Main *bmain;
@@ -35,7 +34,7 @@ struct USDExporterContext {
   std::function<pxr::UsdTimeCode()> get_time_code;
   const USDExportParams &export_params;
   std::string export_file_path;
-  ExportImageFunction export_image_fn;
+  std::function<std::string(Main *, Scene *, Image *, ImageUser *)> export_image_fn;
 };
 
 }  // namespace blender::io::usd

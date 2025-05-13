@@ -15,6 +15,8 @@
 #include "GPU_index_buffer.hh"
 #include "GPU_vertex_buffer.hh"
 
+namespace blender::ed::vse {
+
 struct ColorVertex {
   blender::float2 pos;
   blender::ColorTheme4b color;
@@ -102,7 +104,7 @@ void SeqQuadsBatch::add_quad(float x1,
     draw();
   }
   if (quads_num == 0) {
-    verts_quads = static_cast<ColorVertex *>(GPU_vertbuf_get_data(*vbo_quads));
+    verts_quads = vbo_quads->data<ColorVertex>().data();
     BLI_assert(verts_quads != nullptr);
   }
 
@@ -125,7 +127,7 @@ void SeqQuadsBatch::add_wire_quad(float x1, float y1, float x2, float y2, const 
     draw();
   }
   if (lines_num == 0) {
-    verts_lines = static_cast<ColorVertex *>(GPU_vertbuf_get_data(*vbo_lines));
+    verts_lines = vbo_lines->data<ColorVertex>().data();
     BLI_assert(verts_lines != nullptr);
   }
 
@@ -157,7 +159,7 @@ void SeqQuadsBatch::add_line(
     draw();
   }
   if (lines_num == 0) {
-    verts_lines = static_cast<ColorVertex *>(GPU_vertbuf_get_data(*vbo_lines));
+    verts_lines = vbo_lines->data<ColorVertex>().data();
     BLI_assert(verts_lines != nullptr);
   }
 
@@ -169,3 +171,5 @@ void SeqQuadsBatch::add_line(
 
   lines_num++;
 }
+
+}  // namespace blender::ed::vse

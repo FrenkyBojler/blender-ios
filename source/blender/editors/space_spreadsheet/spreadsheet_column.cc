@@ -2,13 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_meshdata_types.h"
 #include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_color.hh"
 #include "BLI_cpp_type.hh"
-#include "BLI_hash.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
@@ -33,7 +33,7 @@ eSpreadsheetColumnValueType cpp_type_to_column_type(const CPPType &type)
   if (type.is<int>()) {
     return SPREADSHEET_VALUE_TYPE_INT32;
   }
-  if (type.is<int2>()) {
+  if (type.is_any<short2, int2>()) {
     return SPREADSHEET_VALUE_TYPE_INT32_2D;
   }
   if (type.is<float>()) {
@@ -48,7 +48,7 @@ eSpreadsheetColumnValueType cpp_type_to_column_type(const CPPType &type)
   if (type.is<ColorGeometry4f>()) {
     return SPREADSHEET_VALUE_TYPE_COLOR;
   }
-  if (type.is<std::string>()) {
+  if (type.is<std::string>() || type.is<MStringProperty>()) {
     return SPREADSHEET_VALUE_TYPE_STRING;
   }
   if (type.is<bke::InstanceReference>()) {
@@ -69,7 +69,7 @@ eSpreadsheetColumnValueType cpp_type_to_column_type(const CPPType &type)
 
 SpreadsheetColumnID *spreadsheet_column_id_new()
 {
-  SpreadsheetColumnID *column_id = MEM_cnew<SpreadsheetColumnID>(__func__);
+  SpreadsheetColumnID *column_id = MEM_callocN<SpreadsheetColumnID>(__func__);
   return column_id;
 }
 
@@ -90,8 +90,9 @@ void spreadsheet_column_id_free(SpreadsheetColumnID *column_id)
 
 SpreadsheetColumn *spreadsheet_column_new(SpreadsheetColumnID *column_id)
 {
-  SpreadsheetColumn *column = MEM_cnew<SpreadsheetColumn>(__func__);
+  SpreadsheetColumn *column = MEM_callocN<SpreadsheetColumn>(__func__);
   column->id = column_id;
+  column->runtime = MEM_new<SpreadsheetColumnRuntime>(__func__);
   return column;
 }
 
@@ -111,6 +112,7 @@ SpreadsheetColumn *spreadsheet_column_copy(const SpreadsheetColumn *src_column)
   if (src_column->display_name != nullptr) {
     new_column->display_name = BLI_strdup(src_column->display_name);
   }
+  new_column->width = src_column->width;
   return new_column;
 }
 
@@ -118,6 +120,7 @@ void spreadsheet_column_free(SpreadsheetColumn *column)
 {
   spreadsheet_column_id_free(column->id);
   MEM_SAFE_FREE(column->display_name);
+  MEM_delete(column->runtime);
   MEM_freeN(column);
 }
 

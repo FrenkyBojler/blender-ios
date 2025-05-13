@@ -194,6 +194,23 @@ struct VertexFormatConverter {
                          const GPUVertAttr &source_attribute) const;
 };
 
+inline const GPUVertFormat &VertexFormatConverter::device_format_get() const
+{
+  BLI_assert(this->is_initialized());
+  return *device_format_;
+}
+
+inline bool VertexFormatConverter::needs_conversion() const
+{
+  BLI_assert(is_initialized());
+  return needs_conversion_;
+}
+
+inline bool VertexFormatConverter::is_initialized() const
+{
+  return device_format_ != nullptr;
+}
+
 /* \} */
 
 /* -------------------------------------------------------------------- */
@@ -273,7 +290,6 @@ class FloatingPointFormat {
 };
 
 using FormatF32 = FloatingPointFormat<true, 23, 8>;
-using FormatF16 = FloatingPointFormat<true, 10, 5>;
 using FormatF11 = FloatingPointFormat<false, 6, 5>;
 using FormatF10 = FloatingPointFormat<false, 5, 5>;
 

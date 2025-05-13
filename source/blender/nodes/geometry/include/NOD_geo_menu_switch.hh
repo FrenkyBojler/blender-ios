@@ -23,6 +23,18 @@ struct MenuSwitchItemsAccessor {
   static constexpr bool has_type = false;
   static constexpr bool has_name = true;
   static constexpr bool has_single_identifier_str = true;
+  struct operator_idnames {
+    static constexpr const char *add_item = "NODE_OT_enum_definition_item_add";
+    static constexpr const char *remove_item = "NODE_OT_enum_definition_item_remove";
+    static constexpr const char *move_item = "NODE_OT_enum_definition_item_move";
+  };
+  struct ui_idnames {
+    static constexpr const char *list = "NODE_UL_enum_definition_items";
+  };
+  struct rna_names {
+    static constexpr const char *items = "enum_items";
+    static constexpr const char *active_index = "active_index";
+  };
 
   static socket_items::SocketItemsRef<NodeEnumItem> get_items_from_node(bNode &node)
   {
@@ -45,8 +57,8 @@ struct MenuSwitchItemsAccessor {
     MEM_SAFE_FREE(item->description);
   }
 
-  static void blend_write(BlendWriter *writer, const bNode &node);
-  static void blend_read_data(BlendDataReader *reader, bNode &node);
+  static void blend_write_item(BlendWriter *writer, const ItemT &item);
+  static void blend_read_data_item(BlendDataReader *reader, ItemT &item);
 
   static char **get_name(NodeEnumItem &item)
   {
