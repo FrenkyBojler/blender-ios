@@ -60,9 +60,13 @@ class DrawWeightPaintOperation : public WeightPaintOperation {
            * buffer. */
           threading::parallel_for_each(drawing_weights, [&](DrawingWeightData &drawing_weight) {
             for (const int point_index : drawing_weight.point_positions.index_range()) {
-              const float2 &co = drawing_weight.point_positions[point_index];
+              /* Skip read-only points. */
+              if (drawing_weight.point_is_read_only[point_index]) {
+                continue;
+              }
 
               /* When the point is under the brush, add it to the brush point buffer. */
+              const float2 &co = drawing_weight.point_positions[point_index];
               this->add_point_under_brush_to_brush_buffer(co, drawing_weight, point_index);
             }
           });
