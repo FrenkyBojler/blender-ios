@@ -22,6 +22,7 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -616,6 +617,9 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 
 void WM_main(bContext *C)
 {
+  /* Initialize increased OS timer resolution for sleep calls. */
+  BLI_time_init_timer_resolution();
+
   /* Single refresh before handling events.
    * This ensures we don't run operators before the depsgraph has been evaluated. */
   wm_event_do_refresh_wm_and_depsgraph(C);
@@ -634,4 +638,6 @@ void WM_main(bContext *C)
     /* Execute cached changes draw. */
     wm_draw_update(C);
   }
+
+  BLI_time_deinit_timer_resolution();
 }

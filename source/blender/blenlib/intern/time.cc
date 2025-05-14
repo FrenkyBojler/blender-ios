@@ -11,6 +11,7 @@
 #ifdef WIN32
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
+#  include <timeapi.h>
 
 double BLI_time_now_seconds(void)
 {
@@ -57,6 +58,23 @@ void BLI_time_sleep_ms(int ms)
   Sleep(ms);
 }
 
+void BLI_time_init_timer_resolution()
+{
+  /* The default Windows timer resolution is 5ms. This function reduces it to 1ms.
+   * For more details see:
+   * https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
+   * Theoretically, the undocumented NTAPI function NtQueryTimerResolution and NtSetTimerResolution
+   * also exist. On a test system, they could be used to set the timer resolution to a lower value
+   * of 0.5ms. However, as they are undocumented, it might be better to stay with a resolution of
+   * 1ms instead. */
+  timeBeginPeriod(1);
+}
+
+void BLI_time_deinit_timer_resolution()
+{
+  timeEndPeriod(1);
+}
+
 #else
 
 #  include <sys/time.h>
@@ -90,6 +108,16 @@ void BLI_time_sleep_ms(int ms)
   }
 
   usleep(ms * 1000);
+}
+
+void BLI_time_init_timer_res()
+{
+  /* No-op on Unix. */
+}
+
+void BLI_time_init_timer_res()
+{
+  /* No-op on Unix. */
 }
 
 #endif

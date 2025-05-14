@@ -23,3 +23,13 @@ extern long int BLI_time_now_seconds_i(void);
  * \param ms: Number of milliseconds to sleep
  */
 void BLI_time_sleep_ms(int ms);
+
+/**
+ * Platform-independent function for initializing increased sleep timer resolution.
+ */
+void BLI_time_init_timer_resolution();
+
+/**
+ * Platform-independent function for deinitializing increased sleep timer resolution.
+ */
+void BLI_time_deinit_timer_resolution();
