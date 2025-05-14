@@ -47,6 +47,7 @@ struct MaskLayer *BKE_mask_layer_new(struct Mask *mask, const char *name);
  * \note The returned mask-layer may be hidden, caller needs to check.
  */
 struct MaskLayer *BKE_mask_layer_active(struct Mask *mask);
+struct MaskLayer *BKE_mask_layer_by_name(struct Mask *mask, const char *layer_name);
 void BKE_mask_layer_active_set(struct Mask *mask, struct MaskLayer *masklay);
 void BKE_mask_layer_remove(struct Mask *mask, struct MaskLayer *masklay);
 
@@ -79,6 +80,9 @@ struct MaskSplinePoint *BKE_mask_spline_point_array_from_point(
     struct MaskSpline *spline, const struct MaskSplinePoint *point_ref);
 
 struct MaskSpline *BKE_mask_spline_add(struct MaskLayer *masklay);
+void BKE_mask_spline_move_to_layer(struct MaskSpline *spline,
+                                   struct MaskLayer *mask_layer,
+                                   struct MaskLayer *target_mask_layer);
 bool BKE_mask_spline_remove(struct MaskLayer *mask_layer, struct MaskSpline *spline);
 void BKE_mask_point_direction_switch(struct MaskSplinePoint *point);
 void BKE_mask_spline_direction_switch(struct MaskLayer *masklay, struct MaskSpline *spline);

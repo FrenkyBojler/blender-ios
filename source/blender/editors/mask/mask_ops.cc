@@ -1988,6 +1988,121 @@ void MASK_OT_layer_move(wmOperatorType *ot)
                "Direction to move the active layer");
 }
 
+/******************** mask move to layer operator *********************/
+
+static bool mask_move_to_layer_poll(bContext *C)
+{
+  if (ED_maskedit_mask_poll(C)) {
+    Mask *mask = CTX_data_edit_mask(C);
+
+    return mask->masklay_tot > 0;
+  }
+
+  return false;
+}
+
+static wmOperatorStatus mask_move_to_layer_exec(bContext *C, wmOperator *op)
+{
+  Mask *mask = CTX_data_edit_mask(C);
+
+  int target_layer_name_length;
+  char *target_layer_name = RNA_string_get_alloc(
+      op->ptr, "target_layer_name", nullptr, 0, &target_layer_name_length);
+  BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(target_layer_name); });
+  const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
+
+  if (add_new_layer) {
+    MaskLayer *mask_layer = BKE_mask_layer_new(mask, target_layer_name);
+    strcpy(target_layer_name, mask_layer->name);
+  }
+
+  MaskLayer *target_mask_layer = BKE_mask_layer_by_name(mask, target_layer_name);
+  if (target_mask_layer == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Create a list of selected splines to move to the new layer */
+  ListBase selected_splines = {NULL, NULL};
+
+  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
+    if (mask_layer->visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
+      continue;
+    }
+
+    LISTBASE_FOREACH (MaskSpline *, spline, &mask_layer->splines) {
+      if (ED_mask_spline_select_check(spline)) {
+        //BLI_remlink_safe(&mask_layer->splines, spline);
+        //BLI_addtail(&selected_splines, spline);
+        BKE_mask_spline_move_to_layer(spline, mask_layer, target_mask_layer);
+      }
+    }
+  }
+
+  /* Move the splines from the list to the new layer */
+  //LISTBASE_FOREACH (MaskSpline *, spline, &selected_splines)
+  //{
+  //  BLI_addtail(&target_mask_layer->splines, spline);
+  //  //BLI_remlink_safe(&selected_splines, spline);
+  //}
+
+  WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+  DEG_id_tag_update(&mask->id, ID_RECALC_SYNC_TO_EVAL);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus mask_move_to_layer_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
+{
+  const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
+  if (add_new_layer) {
+    Mask *mask = CTX_data_edit_mask(C);
+    MaskLayer *mask_layer = MEM_callocN<MaskLayer>(__func__);
+    BKE_mask_layer_unique_name(mask, mask_layer);
+    RNA_string_set(op->ptr, "target_layer_name", mask_layer->name);
+
+    return WM_operator_props_popup_confirm_ex(
+        C, op, event, IFACE_("Move to New Layer"), IFACE_("Create"));
+  }
+
+  /* Show the move menu if this operator is invoked from operator search without any property
+   * pre-set. */
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target_layer_name");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    WM_menu_name_call(C, "MASK_MT_move_to_layer", 0);
+    return OPERATOR_FINISHED;
+  }
+
+  return mask_move_to_layer_exec(C, op);
+}
+
+void MASK_OT_move_to_layer(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  /* identifiers */
+  ot->name = "Move to Layer";
+  ot->description = "Move the active spline to layer";
+  ot->idname = "MASK_OT_move_to_layer";
+
+  /* api callbacks */
+  ot->invoke = mask_move_to_layer_invoke;
+  ot->exec = mask_move_to_layer_exec;
+  ot->poll = mask_move_to_layer_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  prop = RNA_def_string(
+      ot->srna, "target_layer_name", nullptr, INT16_MAX, "Name", "Target Mask Layer");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(
+      ot->srna, "add_new_layer", false, "New Layer", "Move selection to a new layer");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+}
+
 /******************** duplicate *********************/
 
 static wmOperatorStatus mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
