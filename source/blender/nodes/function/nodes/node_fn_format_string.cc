@@ -238,7 +238,6 @@ static bool format_strings(const StringRef format,
       }
       return index;
     }
-    /* TODO: Restrict valid identifiers.*/
     const int index = input_names.index_of_try_as(identifier);
     if (index == -1) {
       return std::nullopt;
