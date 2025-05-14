@@ -666,9 +666,11 @@ static void position_viewer_node(bNodeTree &tree,
 
   const bool is_new_viewer_node = BLI_rctf_size_x(&viewer_node.runtime->draw_bounds) == 0;
   if (!is_new_viewer_node &&
-      BLI_rctf_inside_rctf(&region_bounds, &viewer_node.runtime->draw_bounds))
+      BLI_rctf_inside_rctf(&region_bounds, &viewer_node.runtime->draw_bounds) &&
+      viewer_node.runtime->draw_bounds.xmin > node_to_view.runtime->draw_bounds.xmax)
   {
-    /* Stay at the old viewer position when the viewer node is still in view. */
+    /* Stay at the old viewer position when the viewer node is still in view and on the right side
+     * of the node-to-view. */
     return;
   }
 
