@@ -749,8 +749,21 @@ int rna_node_socket_idname_to_enum(const char *idname)
   using namespace blender;
   Span<const bke::bNodeSocketType *> types = bke::node_socket_types_get();
   for (const int i : types.index_range()) {
-    const bke::bNodeSocketType *nt = types[i];
-    if (nt->idname == idname) {
+    const bke::bNodeSocketType *socket_type = types[i];
+
+    /* Only use basic socket types for this enum. */
+    if (socket_type->subtype != PROP_NONE) {
+      continue;
+    }
+
+    /* Ignore 2D and 4D variants of sockets that might have different dimensions. */
+    if (blender::StringRef(socket_type->idname).endswith("2D") ||
+        blender::StringRef(socket_type->idname).endswith("4D"))
+    {
+      continue;
+    }
+
+    if (StringRef(idname).startswith(socket_type->idname)) {
       return i;
     }
   }
