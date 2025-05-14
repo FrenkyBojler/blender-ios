@@ -730,6 +730,13 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
     auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
 
+    bke::EvaluateNodeComputeContext compute_context{
+        user_data.compute_context, node_.identifier, &node_};
+
+    GeoNodesUserData eval_user_data = user_data;
+    eval_user_data.compute_context = &compute_context;
+    GeoNodesLocalUserData eval_local_user_data{local_user_data};
+
     Vector<SocketValueVariant *> input_values(inputs_.size());
     Vector<SocketValueVariant *> output_values(outputs_.size());
     for (const int i : inputs_.index_range()) {
@@ -747,8 +754,8 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
                                             fn_item_.owned_fn,
                                             input_values,
                                             output_values,
-                                            &user_data,
-                                            &local_user_data);
+                                            &eval_user_data,
+                                            &eval_local_user_data);
     for (const int i : outputs_.index_range()) {
       if (params.get_output_usage(i) != lf::ValueUsage::Unused) {
         params.output_set(i);

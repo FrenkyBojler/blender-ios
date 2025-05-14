@@ -6,6 +6,7 @@
  * \ingroup shdnodes
  */
 
+#include "BKE_compute_contexts.hh"
 #include "node_shader_util.hh"
 
 #include "FN_multi_function_builder.hh"
@@ -14,6 +15,7 @@
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_value_elem_eval.hh"
+#include <iostream>
 
 namespace blender::nodes::node_shader_sepcomb_xyz_cc::sep {
 
@@ -57,10 +59,16 @@ class MF_SeparateXYZ : public mf::MultiFunction {
     auto *local_user_data = static_cast<GeoNodesLocalUserData *>(context.local_user_data);
 
     if (user_data && local_user_data) {
-      geo_eval_log::GeoTreeLogger *tree_logger = local_user_data->try_get_tree_logger(*user_data);
-      if (tree_logger) {
-        tree_logger->node_warnings.append(
-            *tree_logger->allocator, {0, {geo_eval_log::NodeWarningType::Error, "Hello World"}});
+      if (const auto *compute_context = dynamic_cast<const bke::EvaluateNodeComputeContext *>(
+              user_data->compute_context))
+      {
+        geo_eval_log::GeoTreeLogger *tree_logger = local_user_data->try_get_tree_logger(
+            *user_data);
+        if (tree_logger) {
+          tree_logger->node_warnings.append(
+              *tree_logger->allocator,
+              {compute_context->node_id(), {geo_eval_log::NodeWarningType::Error, "Hello World"}});
+        }
       }
     }
 
