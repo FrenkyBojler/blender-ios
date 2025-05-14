@@ -46,7 +46,7 @@ class PointClouds : Overlay {
       return;
     }
 
-    gpu::Batch *geom = DRW_cache_pointcloud_vert_overlay_get(ob_ref.object());
+    gpu::Batch *geom = DRW_cache_pointcloud_vert_overlay_get(ob_ref.object);
     ps_.draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
   }
 

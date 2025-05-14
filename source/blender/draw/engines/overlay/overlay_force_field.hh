@@ -59,11 +59,11 @@ class ForceFields : Overlay {
                    Resources &res,
                    const State &state) final
   {
-    if (!ob_ref.object()->pd || !ob_ref.object()->pd->forcefield) {
+    if (!ob_ref.object->pd || !ob_ref.object->pd->forcefield) {
       return;
     }
     const select::ID select_id = res.select_id(ob_ref);
-    const Object *ob = ob_ref.object();
+    const Object *ob = ob_ref.object;
     PartDeflect *pd = ob->pd;
     Curve *cu = (ob->type == OB_CURVES_LEGACY) ? &DRW_object_get_data_for_drawing<Curve>(*ob) :
                                                  nullptr;

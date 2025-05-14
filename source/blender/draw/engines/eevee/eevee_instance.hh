@@ -342,9 +342,9 @@ class Instance : public DrawEngine {
       return flags;
     };
 
-    int flags = get_flags(*ob_ref.object()->runtime);
-    if (ob_ref.dupli_parent()) {
-      flags |= get_flags(*ob_ref.dupli_parent()->runtime);
+    int flags = get_flags(*ob_ref.object->runtime);
+    if (ob_ref.dupli_parent) {
+      flags |= get_flags(*ob_ref.dupli_parent->runtime);
     }
 
     return flags;

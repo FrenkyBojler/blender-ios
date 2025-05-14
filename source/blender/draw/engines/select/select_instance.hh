@@ -121,15 +121,15 @@ struct SelectMap {
       sub_object_id = 0;
     }
 
-    uint object_id = ob_ref.object()->runtime->select_id;
+    uint object_id = ob_ref.object->runtime->select_id;
     uint id = select_id_map.append_and_get_index(object_id | sub_object_id);
-    in_front_map.append(ob_ref.object()->dtx & OB_DRAW_IN_FRONT);
+    in_front_map.append(ob_ref.object->dtx & OB_DRAW_IN_FRONT);
 
 #ifdef DEBUG_PRINT
     /* Print mapping from object name, select id and the mapping to internal select id.
      * If something is wrong at this stage, it indicates an error in the caller code. */
     printf("%s : %u | %u = %u -> %u\n",
-           ob_ref.object()->id.name,
+           ob_ref.object->id.name,
            object_id,
            sub_object_id,
            object_id | sub_object_id,
@@ -137,7 +137,7 @@ struct SelectMap {
 #endif
 
 #ifndef NDEBUG
-    map_names.append(ob_ref.object()->id.name);
+    map_names.append(ob_ref.object->id.name);
 #endif
     return {id};
   }

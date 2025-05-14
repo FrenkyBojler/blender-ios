@@ -135,34 +135,34 @@ class Outline : Overlay {
     }
 
     /* Outlines of bounding boxes are not drawn. */
-    if (ob_ref.object()->dt == OB_BOUNDBOX) {
+    if (ob_ref.object->dt == OB_BOUNDBOX) {
       return;
     }
 
     gpu::Batch *geom;
-    switch (ob_ref.object()->type) {
+    switch (ob_ref.object->type) {
       case OB_CURVES:
-        geom = curves_sub_pass_setup(*prepass_curves_ps_, state.scene, ob_ref.object());
+        geom = curves_sub_pass_setup(*prepass_curves_ps_, state.scene, ob_ref.object);
         prepass_curves_ps_->draw(geom, ob_ref.handle());
         break;
       case OB_GREASE_PENCIL:
         GreasePencil::draw_grease_pencil(
-            res, *prepass_gpencil_ps_, state.scene, ob_ref.object(), ob_ref.handle());
+            res, *prepass_gpencil_ps_, state.scene, ob_ref.object, ob_ref.handle());
         break;
       case OB_MESH:
         if (state.xray_enabled_and_not_wire) {
-          geom = DRW_cache_mesh_edge_detection_get(ob_ref.object(), nullptr);
+          geom = DRW_cache_mesh_edge_detection_get(ob_ref.object, nullptr);
           prepass_wire_ps_->draw_expand(geom, GPU_PRIM_LINES, 1, 1, ob_ref.handle());
         }
         else {
-          geom = DRW_cache_mesh_surface_get(ob_ref.object());
+          geom = DRW_cache_mesh_surface_get(ob_ref.object);
           prepass_mesh_ps_->draw(geom, ob_ref.handle());
 
           /* Display flat object as a line when view is orthogonal to them.
            * This fixes only the biggest case which is a plane in ortho view. */
-          int flat_axis = FlatObjectRef::flat_axis_index_get(ob_ref.object());
+          int flat_axis = FlatObjectRef::flat_axis_index_get(ob_ref.object);
           if (flat_axis != -1) {
-            geom = DRW_cache_mesh_edge_detection_get(ob_ref.object(), nullptr);
+            geom = DRW_cache_mesh_edge_detection_get(ob_ref.object, nullptr);
             flat_objects_.append({geom, ob_ref.handle(), flat_axis});
           }
         }
@@ -171,12 +171,12 @@ class Outline : Overlay {
         /* Looks bad in wireframe mode. Could be relaxed if we draw a wireframe of some sort in
          * the future. */
         if (!state.is_wireframe_mode) {
-          geom = pointcloud_sub_pass_setup(*prepass_pointcloud_ps_, ob_ref.object());
+          geom = pointcloud_sub_pass_setup(*prepass_pointcloud_ps_, ob_ref.object);
           prepass_pointcloud_ps_->draw(geom, ob_ref.handle());
         }
         break;
       case OB_VOLUME:
-        geom = DRW_cache_volume_selection_surface_get(ob_ref.object());
+        geom = DRW_cache_volume_selection_surface_get(ob_ref.object);
         /* TODO(fclem): Get rid of these check and enforce correct API on the batch cache. */
         if (geom) {
           prepass_volume_ps_->draw(geom, ob_ref.handle());

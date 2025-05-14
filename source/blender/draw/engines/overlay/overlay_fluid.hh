@@ -81,7 +81,7 @@ class Fluids : Overlay {
                    Resources &res,
                    const State &state) final
   {
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
 
     /* Do not show for dupli objects as the fluid is baked for the original object. */
     if (is_from_dupli_or_set(ob)) {

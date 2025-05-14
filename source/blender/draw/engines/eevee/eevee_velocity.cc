@@ -62,7 +62,7 @@ void VelocityModule::init()
 /* Similar to Instance::object_sync, but only syncs velocity. */
 static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
 {
-  Object *ob = ob_ref.object();
+  Object *ob = ob_ref.object;
 
   const bool is_velocity_type = ELEM(ob->type, OB_CURVES, OB_MESH, OB_POINTCLOUD);
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
@@ -86,7 +86,7 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
       inst.velocity.step_object_sync(
           hair_handle.object_key, ob_ref, hair_handle.recalc, resource_handle, &md, &particle_sys);
     };
-    foreach_hair_particle_handle(ob_ref.object(), ob_handle, sync_hair);
+    foreach_hair_particle_handle(ob_ref.object, ob_handle, sync_hair);
   };
 
   if (object_is_visible) {
@@ -131,7 +131,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
                                       ModifierData *modifier_data /*=nullptr*/,
                                       ParticleSystem *particle_sys /*=nullptr*/)
 {
-  Object *ob = object_ref.object();
+  Object *ob = object_ref.object;
   bool has_motion = object_has_velocity(ob) || (recalc & ID_RECALC_TRANSFORM);
   /* NOTE: Fragile. This will only work with 1 frame of lag since we can't record every geometry
    * just in case there might be an update the next frame. */

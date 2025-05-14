@@ -305,7 +305,7 @@ class Meshes : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
     /* WORKAROUND: GPU subdiv uses a different normal format. Remove this once GPU subdiv is
      * refactored. */
@@ -742,14 +742,13 @@ class MeshUVs : Overlay {
                    Resources & /*res*/,
                    const State &state) final
   {
-    if (!enabled_ || ob_ref.object()->type != OB_MESH ||
-        !((ob_ref.object()->base_flag & BASE_SELECTED) ||
-          (ob_ref.object() == state.object_active)))
+    if (!enabled_ || ob_ref.object->type != OB_MESH ||
+        !((ob_ref.object->base_flag & BASE_SELECTED) || (ob_ref.object == state.object_active)))
     {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
@@ -771,11 +770,11 @@ class MeshUVs : Overlay {
                         Resources & /*res*/,
                         const State &state) final
   {
-    if (!enabled_ || ob_ref.object()->type != OB_MESH) {
+    if (!enabled_ || ob_ref.object->type != OB_MESH) {
       return;
     }
 
-    Object &ob = *ob_ref.object();
+    Object &ob = *ob_ref.object;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(ob);
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);

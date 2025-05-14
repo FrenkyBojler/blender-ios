@@ -103,8 +103,8 @@ void DRW_hair_duplimat_get(const blender::draw::ObjectRef &ob_ref,
                            ModifierData * /*md*/,
                            float (*dupli_mat)[4])
 {
-  Object *dupli_parent = ob_ref.dupli_parent();
-  DupliObject *dupli_object = ob_ref.dupli_object();
+  Object *dupli_parent = ob_ref.dupli_parent;
+  DupliObject *dupli_object = ob_ref.dupli_object;
 
   if ((dupli_parent != nullptr) && (dupli_object != nullptr)) {
     if (dupli_object->type & OB_DUPLICOLLECTION) {
@@ -118,7 +118,7 @@ void DRW_hair_duplimat_get(const blender::draw::ObjectRef &ob_ref,
     else {
       copy_m4_m4(dupli_mat, dupli_object->ob->object_to_world().ptr());
       invert_m4(dupli_mat);
-      mul_m4_m4m4(dupli_mat, ob_ref.object()->object_to_world().ptr(), dupli_mat);
+      mul_m4_m4m4(dupli_mat, ob_ref.object->object_to_world().ptr(), dupli_mat);
     }
   }
   else {
@@ -199,7 +199,7 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
                                                         GPUMaterial *gpu_material)
 {
   /** NOTE: This still relies on the old DRW_hair implementation. */
-  Object *object = ob_ref.object();
+  Object *object = ob_ref.object;
 
   int subdiv = scene->r.hair_subdiv;
   int thickness_res = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 1 : 2;

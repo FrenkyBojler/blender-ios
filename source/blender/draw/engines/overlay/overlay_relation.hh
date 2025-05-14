@@ -62,7 +62,7 @@ class Relations : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
     const float4 &relation_color = res.theme_settings.color_wire;
     const float4 &constraint_color = res.theme_settings.color_grid_axis_z; /* ? */
 

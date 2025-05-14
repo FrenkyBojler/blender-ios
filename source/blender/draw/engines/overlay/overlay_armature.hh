@@ -508,10 +508,10 @@ class Armatures : Overlay {
                                   const State &state,
                                   eArmatureDrawMode draw_mode)
   {
-    bArmature &arm = DRW_object_get_data_for_drawing<bArmature>(*ob_ref.object());
+    bArmature &arm = DRW_object_get_data_for_drawing<bArmature>(*ob_ref.object);
 
     DrawContext ctx;
-    ctx.ob = ob_ref.object();
+    ctx.ob = ob_ref.object;
     ctx.ob_ref = &ob_ref;
     ctx.res = &res;
     ctx.dt = state.dt;
@@ -556,12 +556,12 @@ class Armatures : Overlay {
                    Resources &res,
                    const State &state) final
   {
-    if (!enabled_ || ob_ref.object()->dt == OB_BOUNDBOX) {
+    if (!enabled_ || ob_ref.object->dt == OB_BOUNDBOX) {
       return;
     }
 
-    eArmatureDrawMode draw_mode = is_pose_mode(ob_ref.object(), state) ? ARM_DRAW_MODE_POSE :
-                                                                         ARM_DRAW_MODE_OBJECT;
+    eArmatureDrawMode draw_mode = is_pose_mode(ob_ref.object, state) ? ARM_DRAW_MODE_POSE :
+                                                                       ARM_DRAW_MODE_OBJECT;
 
     DrawContext ctx = create_draw_context(ob_ref, res, state, draw_mode);
     draw_armature_pose(&ctx);

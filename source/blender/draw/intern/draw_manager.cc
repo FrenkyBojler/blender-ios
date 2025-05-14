@@ -175,7 +175,7 @@ uint64_t Manager::fingerprint_get()
 ResourceHandleRange Manager::resource_handle_for_sculpt(ObjectRef &ref)
 {
   /* TODO(fclem): Deduplicate with other engine. */
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*ref.object());
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*ref.object);
   const blender::Bounds<float3> bounds = bke::pbvh::bounds_get(pbvh);
   const float3 center = math::midpoint(bounds.min, bounds.max);
   const float3 half_extent = bounds.max - center;

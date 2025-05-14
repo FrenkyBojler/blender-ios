@@ -83,24 +83,24 @@ class Fade : Overlay {
     if (!enabled_) {
       return;
     }
-    const Object *ob = ob_ref.object();
+    const Object *ob = ob_ref.object;
     const bool renderable = DRW_object_is_renderable(ob);
     const bool draw_surface = (ob->dt >= OB_WIRE) && (renderable || (ob->dt == OB_WIRE));
     const bool draw_fade = draw_surface && overlay_should_fade_object(ob, state.object_active);
 
-    const bool draw_bone_selection = (ob_ref.object()->type == OB_MESH) && state.do_pose_fade_geom;
+    const bool draw_bone_selection = (ob_ref.object->type == OB_MESH) && state.do_pose_fade_geom;
 
     auto fade_sync = [](ObjectRef &ob_ref, const State &state, PassMain::Sub &sub) {
-      const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object(), state.rv3d) &&
+      const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d) &&
                                    !state.is_image_render;
 
       if (use_sculpt_pbvh) {
-        for (SculptBatch &batch : sculpt_batches_get(ob_ref.object(), SCULPT_BATCH_DEFAULT)) {
+        for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
           sub.draw(batch.batch, ob_ref.handle());
         }
       }
       else {
-        blender::gpu::Batch *geom = DRW_cache_object_surface_get((Object *)ob_ref.object());
+        blender::gpu::Batch *geom = DRW_cache_object_surface_get((Object *)ob_ref.object);
         if (geom) {
           sub.draw(geom, ob_ref.handle());
         }
@@ -110,7 +110,7 @@ class Fade : Overlay {
     if (draw_bone_selection) {
       fade_sync(ob_ref,
                 state,
-                is_driven_by_active_armature(ob_ref.object(), state) ?
+                is_driven_by_active_armature(ob_ref.object, state) ?
                     *armature_fade_geometry_active_ps_ :
                     *armature_fade_geometry_other_ps_);
     }

@@ -122,28 +122,28 @@ class Wireframe : Overlay {
       return;
     }
 
-    if (ob_ref.object()->dt < OB_WIRE) {
+    if (ob_ref.object->dt < OB_WIRE) {
       return;
     }
 
-    const bool all_edges = (ob_ref.object()->dtx & OB_DRAW_ALL_EDGES) != 0;
-    const bool show_surface_wire = show_wire_ || (ob_ref.object()->dtx & OB_DRAWWIRE) ||
-                                   (ob_ref.object()->dt == OB_WIRE);
+    const bool all_edges = (ob_ref.object->dtx & OB_DRAW_ALL_EDGES) != 0;
+    const bool show_surface_wire = show_wire_ || (ob_ref.object->dtx & OB_DRAWWIRE) ||
+                                   (ob_ref.object->dt == OB_WIRE);
 
     ColoringPass &coloring = in_edit_paint_mode ? non_colored : colored;
-    switch (ob_ref.object()->type) {
+    switch (ob_ref.object->type) {
       case OB_CURVES_LEGACY: {
-        gpu::Batch *geom = DRW_cache_curve_edge_wire_get(ob_ref.object());
+        gpu::Batch *geom = DRW_cache_curve_edge_wire_get(ob_ref.object);
         coloring.curves_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
         break;
       }
       case OB_FONT: {
-        gpu::Batch *geom = DRW_cache_text_edge_wire_get(ob_ref.object());
+        gpu::Batch *geom = DRW_cache_text_edge_wire_get(ob_ref.object);
         coloring.curves_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
         break;
       }
       case OB_SURF: {
-        gpu::Batch *geom = DRW_cache_surf_edge_wire_get(ob_ref.object());
+        gpu::Batch *geom = DRW_cache_surf_edge_wire_get(ob_ref.object);
         coloring.curves_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
         break;
       }
@@ -153,7 +153,7 @@ class Wireframe : Overlay {
       case OB_GREASE_PENCIL: {
         if (show_surface_wire) {
           gpu::Batch *geom = DRW_cache_grease_pencil_face_wireframe_get(state.scene,
-                                                                        ob_ref.object());
+                                                                        ob_ref.object);
           coloring.curves_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
         }
         break;
@@ -172,9 +172,8 @@ class Wireframe : Overlay {
         const bool bypass_mode_check = wireframe_no_overlay || !edit_wires_overlap_all;
 
         if (show_surface_wire) {
-          if (BKE_sculptsession_use_pbvh_draw(ob_ref.object(), state.rv3d)) {
-            for (SculptBatch &batch : sculpt_batches_get(ob_ref.object(), SCULPT_BATCH_WIREFRAME))
-            {
+          if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
+            for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_WIREFRAME)) {
               coloring.mesh_all_edges_ps_->draw(batch.batch, ob_ref.handle());
             }
           }
@@ -182,7 +181,7 @@ class Wireframe : Overlay {
             /* Only draw the wireframe in edit mode if object has edit cage.
              * Otherwise the wireframe will conflict with the edit cage drawing and produce
              * unpleasant aliasing. */
-            gpu::Batch *geom = DRW_cache_mesh_face_wireframe_get(ob_ref.object());
+            gpu::Batch *geom = DRW_cache_mesh_face_wireframe_get(ob_ref.object);
             (all_edges ? coloring.mesh_all_edges_ps_ : coloring.mesh_ps_)
                 ->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
           }
@@ -190,13 +189,13 @@ class Wireframe : Overlay {
 
         /* Draw loose geometry. */
         if (!in_edit_paint_mode || bypass_mode_check) {
-          const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob_ref.object());
+          const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob_ref.object);
           gpu::Batch *geom;
           if ((mesh.edges_num == 0) && (mesh.verts_num > 0)) {
-            geom = DRW_cache_mesh_all_verts_get(ob_ref.object());
+            geom = DRW_cache_mesh_all_verts_get(ob_ref.object);
             coloring.pointcloud_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
           }
-          else if ((geom = DRW_cache_mesh_loose_edges_get(ob_ref.object()))) {
+          else if ((geom = DRW_cache_mesh_loose_edges_get(ob_ref.object))) {
             coloring.mesh_all_edges_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
           }
         }
@@ -204,18 +203,18 @@ class Wireframe : Overlay {
       }
       case OB_POINTCLOUD: {
         if (show_surface_wire) {
-          gpu::Batch *geom = DRW_pointcloud_batch_cache_get_dots(ob_ref.object());
+          gpu::Batch *geom = DRW_pointcloud_batch_cache_get_dots(ob_ref.object);
           coloring.pointcloud_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
         }
         break;
       }
       case OB_VOLUME: {
         if (show_surface_wire) {
-          gpu::Batch *geom = DRW_cache_volume_face_wireframe_get(ob_ref.object());
+          gpu::Batch *geom = DRW_cache_volume_face_wireframe_get(ob_ref.object);
           if (geom == nullptr) {
             break;
           }
-          if (DRW_object_get_data_for_drawing<Volume>(*ob_ref.object()).display.wireframe_type ==
+          if (DRW_object_get_data_for_drawing<Volume>(*ob_ref.object).display.wireframe_type ==
               VOLUME_WIREFRAME_POINTS)
           {
             coloring.pointcloud_ps_->draw(geom, ob_ref.handle(), res.select_id(ob_ref).get());
@@ -284,8 +283,8 @@ class Wireframe : Overlay {
     if (!in_edit_mode) {
       return false;
     }
-    const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob_ref.object());
-    const Mesh *orig_edit_mesh = BKE_object_get_pre_modified_mesh(ob_ref.object());
+    const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob_ref.object);
+    const Mesh *orig_edit_mesh = BKE_object_get_pre_modified_mesh(ob_ref.object);
     const bool edit_mapping_valid = BKE_editmesh_eval_orig_map_available(mesh, orig_edit_mesh);
     if (!edit_mapping_valid) {
       /* The mesh edit mode overlay doesn't include wireframe for the evaluated mesh when it
@@ -293,7 +292,7 @@ class Wireframe : Overlay {
        * wires for the evaluated mesh instead. */
       return false;
     }
-    if (Meshes::mesh_has_edit_cage(ob_ref.object())) {
+    if (Meshes::mesh_has_edit_cage(ob_ref.object)) {
       /* If a cage exists, the edit overlay might not display every edge. */
       return false;
     }

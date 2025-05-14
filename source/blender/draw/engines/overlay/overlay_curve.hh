@@ -182,7 +182,7 @@ class Curves : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
     ::Curves &curves = DRW_object_get_data_for_drawing<::Curves>(*ob);
     const bool show_points = bke::AttrDomain(curves.selection_domain) == bke::AttrDomain::Point;
 
@@ -207,7 +207,7 @@ class Curves : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
     ::Curve &curve = DRW_object_get_data_for_drawing<::Curve>(*ob);
 
     if (ob->type == OB_CURVES_LEGACY) {

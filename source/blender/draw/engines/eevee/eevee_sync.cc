@@ -185,7 +185,7 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, ObjectRef &ob_
   bool has_volume = false;
   float inflate_bounds = 0.0f;
   for (SculptBatch &batch :
-       sculpt_batches_per_material_get(ob_ref.object(), material_array.gpu_materials))
+       sculpt_batches_per_material_get(ob_ref.object, material_array.gpu_materials))
   {
     gpu::Batch *geom = batch.batch;
     if (geom == nullptr) {
@@ -234,7 +234,7 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, ObjectRef &ob_
 
   /* Use a valid bounding box. The pbvh::Tree module already does its own culling, but a valid */
   /* bounding box is still needed for directional shadow tile-map bounds computation. */
-  const Bounds<float3> bounds = bke::pbvh::bounds_get(*bke::object::pbvh_get(*ob_ref.object()));
+  const Bounds<float3> bounds = bke::pbvh::bounds_get(*bke::object::pbvh_get(*ob_ref.object));
   const float3 center = math::midpoint(bounds.min, bounds.max);
   const float3 half_extent = bounds.max - center + inflate_bounds;
   inst_.manager->update_handle_bounds(ob_ref.handle(), center, half_extent);

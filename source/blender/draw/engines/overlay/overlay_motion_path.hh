@@ -69,7 +69,7 @@ class MotionPath : Overlay {
       return;
     }
 
-    const Object *object = ob_ref.object();
+    const Object *object = ob_ref.object;
 
     if (object->type == OB_ARMATURE) {
       if (Armatures::is_pose_mode(object, state)) {

@@ -49,11 +49,11 @@ class ObjectKey {
 
   ObjectKey(ObjectRef &ob_ref, int sub_key = 0)
   {
-    ob_ = DEG_get_original(ob_ref.object());
+    ob_ = DEG_get_original(ob_ref.object);
     hash_value_ = BLI_ghashutil_ptrhash(ob_);
 
-    if (DupliObject *dupli = ob_ref.dupli_object()) {
-      parent_ = ob_ref.dupli_parent();
+    if (DupliObject *dupli = ob_ref.dupli_object) {
+      parent_ = ob_ref.dupli_parent;
       hash_value_ = BLI_ghashutil_combine_hash(hash_value_, BLI_ghashutil_ptrhash(parent_));
       for (int i : IndexRange(MAX_DUPLI_RECUR)) {
         id_[i] = dupli->persistent_id[i];

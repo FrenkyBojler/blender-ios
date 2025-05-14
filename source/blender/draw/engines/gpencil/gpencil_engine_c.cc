@@ -568,7 +568,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
 
 void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
 {
-  Object *ob = ob_ref.object();
+  Object *ob = ob_ref.object;
 
   /* object must be visible */
   if (!(DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF)) {

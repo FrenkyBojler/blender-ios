@@ -129,7 +129,7 @@ class Prepass : Overlay {
 
   void particle_sync(Manager &manager, ObjectRef &ob_ref, Resources &res, const State &state)
   {
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
 
     ResourceHandle handle = {0};
 
@@ -168,7 +168,7 @@ class Prepass : Overlay {
 
   void sculpt_sync(Manager & /*manager*/, ObjectRef &ob_ref, Resources &res)
   {
-    for (SculptBatch &batch : sculpt_batches_get(ob_ref.object(), SCULPT_BATCH_DEFAULT)) {
+    for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
       select::ID select_id = use_material_slot_selection_ ?
                                  res.select_id(ob_ref, (batch.material_slot + 1) << 16) :
                                  res.select_id(ob_ref);
@@ -185,9 +185,9 @@ class Prepass : Overlay {
 
   void object_sync(Manager &manager, ObjectRef &ob_ref, Resources &res, const State &state) final
   {
-    bool is_solid = ob_ref.object()->dt >= OB_SOLID ||
+    bool is_solid = ob_ref.object->dt >= OB_SOLID ||
                     (state.v3d->shading.type == OB_RENDER &&
-                     !(ob_ref.object()->visibility_flag & OB_HIDE_CAMERA));
+                     !(ob_ref.object->visibility_flag & OB_HIDE_CAMERA));
 
     if (!enabled_ || !is_solid) {
       return;
@@ -195,7 +195,7 @@ class Prepass : Overlay {
 
     particle_sync(manager, ob_ref, res, state);
 
-    const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object(), state.rv3d) &&
+    const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d) &&
                                  !state.is_image_render;
 
     if (use_sculpt_pbvh) {
@@ -207,22 +207,22 @@ class Prepass : Overlay {
     Span<gpu::Batch *> geom_list(&geom_single, 1);
 
     PassMain::Sub *pass = nullptr;
-    switch (ob_ref.object()->type) {
+    switch (ob_ref.object->type) {
       case OB_MESH:
         if (use_material_slot_selection_) {
           /* TODO(fclem): Improve the API. */
-          const int materials_len = BKE_object_material_used_with_fallback_eval(*ob_ref.object());
+          const int materials_len = BKE_object_material_used_with_fallback_eval(*ob_ref.object);
           Array<GPUMaterial *> materials(materials_len, nullptr);
-          geom_list = DRW_cache_mesh_surface_shaded_get(ob_ref.object(), materials);
+          geom_list = DRW_cache_mesh_surface_shaded_get(ob_ref.object, materials);
         }
         else {
-          geom_single = DRW_cache_mesh_surface_get(ob_ref.object());
+          geom_single = DRW_cache_mesh_surface_get(ob_ref.object);
 
           if (res.is_selection() && !use_material_slot_selection_ &&
-              FlatObjectRef::flat_axis_index_get(ob_ref.object()) != -1)
+              FlatObjectRef::flat_axis_index_get(ob_ref.object) != -1)
           {
             /* Avoid losing flat objects when in ortho views (see #56549) */
-            mesh_flat_ps_->draw(DRW_cache_mesh_all_edges_get(ob_ref.object()),
+            mesh_flat_ps_->draw(DRW_cache_mesh_all_edges_get(ob_ref.object),
                                 ob_ref.handle(),
                                 res.select_id(ob_ref).get());
           }
@@ -235,7 +235,7 @@ class Prepass : Overlay {
           /* TODO(fclem): Would be nice to have even when not selecting to occlude overlays. */
           return;
         }
-        geom_single = DRW_cache_volume_selection_surface_get(ob_ref.object());
+        geom_single = DRW_cache_volume_selection_surface_get(ob_ref.object);
         pass = mesh_ps_;
         /* TODO(fclem): Get rid of these check and enforce correct API on the batch cache. */
         if (geom_single == nullptr) {
@@ -243,11 +243,11 @@ class Prepass : Overlay {
         }
         break;
       case OB_POINTCLOUD:
-        geom_single = pointcloud_sub_pass_setup(*pointcloud_ps_, ob_ref.object());
+        geom_single = pointcloud_sub_pass_setup(*pointcloud_ps_, ob_ref.object);
         pass = pointcloud_ps_;
         break;
       case OB_CURVES:
-        geom_single = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object());
+        geom_single = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object);
         pass = curves_ps_;
         break;
       case OB_GREASE_PENCIL:
@@ -259,7 +259,7 @@ class Prepass : Overlay {
         GreasePencil::draw_grease_pencil(res,
                                          *grease_pencil_ps_,
                                          state.scene,
-                                         ob_ref.object(),
+                                         ob_ref.object,
                                          ob_ref.handle(),
                                          res.select_id(ob_ref));
         return;

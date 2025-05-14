@@ -302,12 +302,11 @@ class Manager {
 
 inline ResourceHandleRange Manager::resource_handle(ObjectRef &ref, float inflate_bounds)
 {
-  bool is_active_object = (ref.dupli_object() ? ref.dupli_parent() : ref.object()) ==
-                          object_active;
-  matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object());
-  bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object(), inflate_bounds);
+  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
+  matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object);
+  bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object, inflate_bounds);
   infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
-  return ResourceHandle(resource_len_++, (ref.object()->transflag & OB_NEG_SCALE) != 0);
+  return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
 inline ResourceHandle Manager::resource_handle(ObjectRef &ref,
@@ -315,22 +314,21 @@ inline ResourceHandle Manager::resource_handle(ObjectRef &ref,
                                                const float3 *bounds_center,
                                                const float3 *bounds_half_extent)
 {
-  bool is_active_object = (ref.dupli_object() ? ref.dupli_parent() : ref.object()) ==
-                          object_active;
+  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
   if (model_matrix) {
     matrix_buf.current().get_or_resize(resource_len_).sync(*model_matrix);
   }
   else {
-    matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object());
+    matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object);
   }
   if (bounds_center && bounds_half_extent) {
     bounds_buf.current().get_or_resize(resource_len_).sync(*bounds_center, *bounds_half_extent);
   }
   else {
-    bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object());
+    bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object);
   }
   infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
-  return ResourceHandle(resource_len_++, (ref.object()->transflag & OB_NEG_SCALE) != 0);
+  return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
 inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix)
@@ -354,19 +352,18 @@ inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix,
 inline ResourceHandle Manager::resource_handle_for_psys(ObjectRef &ref,
                                                         const float4x4 &model_matrix)
 {
-  bool is_active_object = (ref.dupli_object() ? ref.dupli_parent() : ref.object()) ==
-                          object_active;
+  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
   matrix_buf.current().get_or_resize(resource_len_).sync(model_matrix);
   bounds_buf.current().get_or_resize(resource_len_).sync();
   infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
-  return ResourceHandle(resource_len_++, (ref.object()->transflag & OB_NEG_SCALE) != 0);
+  return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
 inline void Manager::update_handle_bounds(ResourceHandle handle,
                                           ObjectRef &ref,
                                           float inflate_bounds)
 {
-  bounds_buf.current()[handle.resource_index()].sync(*ref.object(), inflate_bounds);
+  bounds_buf.current()[handle.resource_index()].sync(*ref.object, inflate_bounds);
 }
 
 inline void Manager::update_handle_bounds(ResourceHandle handle,

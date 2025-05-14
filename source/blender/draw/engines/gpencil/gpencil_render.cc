@@ -248,10 +248,10 @@ void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, co
   /* Loop over all objects and create draw structure. */
   inst.begin_sync();
   DRW_render_object_iter(engine, depsgraph, [&](ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
-    if (!ELEM(ob_ref.object()->type, OB_GREASE_PENCIL, OB_LAMP)) {
+    if (!ELEM(ob_ref.object->type, OB_GREASE_PENCIL, OB_LAMP)) {
       return;
     }
-    if (!(DRW_object_visibility_in_active_context(ob_ref.object()) & OB_VISIBLE_SELF)) {
+    if (!(DRW_object_visibility_in_active_context(ob_ref.object) & OB_VISIBLE_SELF)) {
       return;
     }
     inst.object_sync(ob_ref, manager);

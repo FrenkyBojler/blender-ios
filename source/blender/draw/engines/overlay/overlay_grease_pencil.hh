@@ -171,7 +171,7 @@ class GreasePencil : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
 
     if (show_points_) {
       gpu::Batch *geom = show_weight_ ?
@@ -215,7 +215,7 @@ class GreasePencil : Overlay {
       return;
     }
 
-    if (ob_ref.object() != state.object_active) {
+    if (ob_ref.object != state.object_active) {
       /* Only display for the active object. */
       return;
     }
@@ -228,7 +228,7 @@ class GreasePencil : Overlay {
       const float3 grid_scale = float3(float2(state.v3d->overlay.gpencil_grid_scale), 0.0f);
       const float4x4 transform_mat = math::from_loc_scale<float4x4>(grid_offset, grid_scale);
 
-      const float4x4 grid_mat = grid_matrix_get(*ob_ref.object(), state.scene) * transform_mat;
+      const float4x4 grid_mat = grid_matrix_get(*ob_ref.object, state.scene) * transform_mat;
 
       grid_ps_.push_constant("xAxis", grid_mat.x_axis());
       grid_ps_.push_constant("yAxis", grid_mat.y_axis());
@@ -453,7 +453,7 @@ class GreasePencil : Overlay {
 
   void draw_material_names(ObjectRef &ob_ref, const State &state, Resources &res)
   {
-    Object &object = *ob_ref.object();
+    Object &object = *ob_ref.object;
 
     uchar4 color;
     UI_GetThemeColor4ubv(res.object_wire_theme_id(ob_ref, state), color);

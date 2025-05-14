@@ -80,12 +80,12 @@ class LightProbes : Overlay {
       return;
     }
 
-    const Object *ob = ob_ref.object();
-    const LightProbe &prb = DRW_object_get_data_for_drawing<LightProbe>(*ob_ref.object());
+    const Object *ob = ob_ref.object;
+    const LightProbe &prb = DRW_object_get_data_for_drawing<LightProbe>(*ob_ref.object);
     const bool show_clipping = (prb.flag & LIGHTPROBE_FLAG_SHOW_CLIP_DIST) != 0;
     const bool show_parallax = (prb.flag & LIGHTPROBE_FLAG_SHOW_PARALLAX) != 0;
     const bool show_influence = (prb.flag & LIGHTPROBE_FLAG_SHOW_INFLUENCE) != 0;
-    const bool show_data = (ob_ref.object()->base_flag & BASE_SELECTED) || res.is_selection();
+    const bool show_data = (ob_ref.object->base_flag & BASE_SELECTED) || res.is_selection();
 
     const select::ID select_id = res.select_id(ob_ref);
     const float4 color = res.object_wire_color(ob_ref, state);

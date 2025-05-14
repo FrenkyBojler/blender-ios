@@ -120,17 +120,17 @@ class Particles : Overlay {
   {
     float4x4 dupli_mat = float4x4::identity();
 
-    if ((ob_ref.dupli_parent() != nullptr) && (ob_ref.dupli_object() != nullptr)) {
-      if (ob_ref.dupli_object()->type & OB_DUPLICOLLECTION) {
-        Collection *collection = ob_ref.dupli_parent()->instance_collection;
+    if ((ob_ref.dupli_parent != nullptr) && (ob_ref.dupli_object != nullptr)) {
+      if (ob_ref.dupli_object->type & OB_DUPLICOLLECTION) {
+        Collection *collection = ob_ref.dupli_parent->instance_collection;
         if (collection != nullptr) {
           dupli_mat[3] -= float4(float3(collection->instance_offset), 0.0f);
         }
-        dupli_mat = ob_ref.dupli_parent()->object_to_world() * dupli_mat;
+        dupli_mat = ob_ref.dupli_parent->object_to_world() * dupli_mat;
       }
       else {
-        dupli_mat = ob_ref.object()->object_to_world() *
-                    math::invert(ob_ref.dupli_object()->ob->object_to_world());
+        dupli_mat = ob_ref.object->object_to_world() *
+                    math::invert(ob_ref.dupli_object->ob->object_to_world());
       }
     }
     return dupli_mat;
@@ -154,7 +154,7 @@ class Particles : Overlay {
      * dependency graph callback or so, but currently trying to make it nicer
      * only causes bad level calls and breaks design from the past.
      */
-    Object *object_eval = ob_ref.object();
+    Object *object_eval = ob_ref.object;
     Object *object_orig = DEG_get_original(object_eval);
     Scene *scene_orig = const_cast<Scene *>(DEG_get_original(state.scene));
     PTCacheEdit *edit = PE_create_current(state.depsgraph, scene_orig, object_orig);
@@ -183,7 +183,7 @@ class Particles : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
 
     ResourceHandle handle = manager.resource_handle_for_psys(ob_ref, dupli_matrix_get(ob_ref));
 
@@ -207,7 +207,7 @@ class Particles : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
 
     ResourceHandle handle = {0};
 

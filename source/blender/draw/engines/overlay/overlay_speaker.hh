@@ -53,7 +53,7 @@ class Speakers : Overlay {
     const float4 color = res.object_wire_color(ob_ref, state);
     const select::ID select_id = res.select_id(ob_ref);
 
-    speaker_buf_.append({ob_ref.object()->object_to_world(), color, 1.0f}, select_id);
+    speaker_buf_.append({ob_ref.object->object_to_world(), color, 1.0f}, select_id);
   }
 
   void end_sync(Resources &res, const State &state) final

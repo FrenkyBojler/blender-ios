@@ -384,7 +384,7 @@ void ShadowPass::object_sync(SceneState &scene_state, ObjectRef &ob_ref, const b
     return;
   }
 
-  Object *ob = ob_ref.object();
+  Object *ob = ob_ref.object;
   bool is_manifold;
   blender::gpu::Batch *geom_shadow = DRW_cache_object_edge_detection_get(ob, &is_manifold);
   if (geom_shadow == nullptr) {

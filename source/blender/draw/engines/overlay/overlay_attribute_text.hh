@@ -50,8 +50,8 @@ class AttributeTexts : Overlay {
       return;
     }
 
-    const Object &object = *ob_ref.object();
-    const DupliObject *dupli_object = ob_ref.dupli_object();
+    const Object &object = *ob_ref.object;
+    const DupliObject *dupli_object = ob_ref.dupli_object;
     const bool is_preview = dupli_object != nullptr &&
                             dupli_object->preview_base_geometry != nullptr;
     if (!is_preview) {

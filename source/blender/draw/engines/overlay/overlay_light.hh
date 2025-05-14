@@ -72,7 +72,7 @@ class Lights : Overlay {
       return;
     }
 
-    ExtraInstanceData data(ob_ref.object()->object_to_world(),
+    ExtraInstanceData data(ob_ref.object->object_to_world(),
                            float4(res.object_wire_color(ob_ref, state).xyz(), 1.0f),
                            1.0f);
     float4 &theme_color = data.color_;
@@ -86,7 +86,7 @@ class Lights : Overlay {
     float &clip_start = matrix[2].w;
     float &clip_end = matrix[3].w;
 
-    const Light &la = DRW_object_get_data_for_drawing<Light>(*ob_ref.object());
+    const Light &la = DRW_object_get_data_for_drawing<Light>(*ob_ref.object);
     const select::ID select_id = res.select_id(ob_ref);
 
     /* FIXME / TODO: clip_end has no meaning nowadays.

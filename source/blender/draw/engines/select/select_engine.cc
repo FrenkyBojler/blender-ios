@@ -329,7 +329,7 @@ struct Instance : public DrawEngine {
 
   void object_sync(ObjectRef &ob_ref, Manager &manager) final
   {
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
     StaticData &e_data = StaticData::get();
     SELECTID_Context &sel_ctx = e_data.context;
 

@@ -334,10 +334,9 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
     return;
   }
 
-  ob_ref.manager = manager;
-  ob_ref.is_image_render = is_image_render;
+  ob_ref.override_manager(manager, is_image_render);
 
-  Object *ob = ob_ref.object();
+  Object *ob = ob_ref.object;
   const bool is_renderable_type = ELEM(ob->type,
                                        OB_CURVES,
                                        OB_GREASE_PENCIL,

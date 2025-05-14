@@ -75,49 +75,49 @@ inline void ObjectInfos::sync(const blender::draw::ObjectRef ref, bool is_active
   object_attrs_offset = 0;
   light_and_shadow_set_membership = 0;
 
-  LightLinking *light_linking = ref.dupli_parent() != nullptr ? ref.dupli_parent()->light_linking :
-                                                                ref.object()->light_linking;
+  LightLinking *light_linking = ref.dupli_parent != nullptr ? ref.dupli_parent->light_linking :
+                                                              ref.object->light_linking;
   if (light_linking) {
     light_and_shadow_set_membership |= light_linking->runtime.receiver_light_set;
     light_and_shadow_set_membership |= light_linking->runtime.blocker_shadow_set << 8;
   }
 
-  bool is_holdout = (ref.object()->base_flag & BASE_HOLDOUT) ||
-                    (ref.object()->visibility_flag & OB_HOLDOUT);
+  bool is_holdout = (ref.object->base_flag & BASE_HOLDOUT) ||
+                    (ref.object->visibility_flag & OB_HOLDOUT);
 
-  ob_color = ref.object()->color;
-  index = ref.object()->index;
+  ob_color = ref.object->color;
+  index = ref.object->index;
   SET_FLAG_FROM_TEST(flag, is_active_object, eObjectInfoFlag::OBJECT_ACTIVE);
   SET_FLAG_FROM_TEST(
-      flag, ref.object()->base_flag & BASE_SELECTED, eObjectInfoFlag::OBJECT_SELECTED);
+      flag, ref.object->base_flag & BASE_SELECTED, eObjectInfoFlag::OBJECT_SELECTED);
   SET_FLAG_FROM_TEST(
-      flag, ref.object()->base_flag & BASE_FROM_DUPLI, eObjectInfoFlag::OBJECT_FROM_DUPLI);
+      flag, ref.object->base_flag & BASE_FROM_DUPLI, eObjectInfoFlag::OBJECT_FROM_DUPLI);
   SET_FLAG_FROM_TEST(
-      flag, ref.object()->base_flag & BASE_FROM_SET, eObjectInfoFlag::OBJECT_FROM_SET);
+      flag, ref.object->base_flag & BASE_FROM_SET, eObjectInfoFlag::OBJECT_FROM_SET);
   SET_FLAG_FROM_TEST(
-      flag, ref.object()->transflag & OB_NEG_SCALE, eObjectInfoFlag::OBJECT_NEGATIVE_SCALE);
+      flag, ref.object->transflag & OB_NEG_SCALE, eObjectInfoFlag::OBJECT_NEGATIVE_SCALE);
   SET_FLAG_FROM_TEST(flag, is_holdout, eObjectInfoFlag::OBJECT_HOLDOUT);
 
-  if (ref.dupli_object() == nullptr) {
+  if (ref.dupli_object == nullptr) {
     /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
      * put it in ob->runtime and make depsgraph ensure it is up to date. */
-    random = BLI_hash_int_2d(BLI_hash_string(ref.object()->id.name + 2), 0) *
+    random = BLI_hash_int_2d(BLI_hash_string(ref.object->id.name + 2), 0) *
              (1.0f / (float)0xFFFFFFFF);
   }
   else {
-    random = ref.dupli_object()->random_id * (1.0f / (float)0xFFFFFFFF);
+    random = ref.dupli_object->random_id * (1.0f / (float)0xFFFFFFFF);
   }
 
-  if (ref.object()->data == nullptr) {
+  if (ref.object->data == nullptr) {
     orco_add = float3(0.0f);
     orco_mul = float3(1.0f);
     return;
   }
 
-  switch (GS(reinterpret_cast<ID *>(ref.object()->data)->name)) {
+  switch (GS(reinterpret_cast<ID *>(ref.object->data)->name)) {
     case ID_VO: {
       std::optional<const blender::Bounds<float3>> bounds = BKE_volume_min_max(
-          &DRW_object_get_data_for_drawing<const Volume>(*ref.object()));
+          &DRW_object_get_data_for_drawing<const Volume>(*ref.object));
       if (bounds) {
         orco_add = blender::math::midpoint(bounds->min, bounds->max);
         orco_mul = (bounds->max - bounds->min) * 0.5f;
@@ -130,18 +130,18 @@ inline void ObjectInfos::sync(const blender::draw::ObjectRef ref, bool is_active
     }
     case ID_ME: {
       BKE_mesh_texspace_get(
-          &DRW_object_get_data_for_drawing<Mesh>(*ref.object()), orco_add, orco_mul);
+          &DRW_object_get_data_for_drawing<Mesh>(*ref.object), orco_add, orco_mul);
       break;
     }
     case ID_CU_LEGACY: {
-      Curve &cu = DRW_object_get_data_for_drawing<Curve>(*ref.object());
+      Curve &cu = DRW_object_get_data_for_drawing<Curve>(*ref.object);
       BKE_curve_texspace_ensure(&cu);
       orco_add = cu.texspace_location;
       orco_mul = cu.texspace_size;
       break;
     }
     case ID_MB: {
-      MetaBall &mb = DRW_object_get_data_for_drawing<MetaBall>(*ref.object());
+      MetaBall &mb = DRW_object_get_data_for_drawing<MetaBall>(*ref.object);
       orco_add = mb.texspace_location;
       orco_mul = mb.texspace_size;
       break;

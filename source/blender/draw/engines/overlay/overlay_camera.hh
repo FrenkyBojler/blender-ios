@@ -278,7 +278,7 @@ class Cameras : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
     float4x4 mat = ob->object_to_world();
     /* Normalize matrix scale. */
     mat.view<3, 3>() = math::normalize(mat.view<3, 3>());
@@ -411,7 +411,7 @@ class Cameras : Overlay {
       return;
     }
 
-    Object *ob = ob_ref.object();
+    Object *ob = ob_ref.object;
     const View3D *v3d = state.v3d;
     const Scene *scene = state.scene;
 
@@ -555,11 +555,11 @@ class Cameras : Overlay {
                           const State &state,
                           Resources &res)
   {
-    Object *ob = ob_ref.object();
-    const Camera &cam = DRW_object_get_data_for_drawing<Camera>(*ob_ref.object());
+    Object *ob = ob_ref.object;
+    const Camera &cam = DRW_object_get_data_for_drawing<Camera>(*ob_ref.object);
     const Object *camera_object = DEG_get_evaluated_object(state.depsgraph, state.v3d->camera);
 
-    const bool is_active = ob_ref.object() == camera_object;
+    const bool is_active = ob_ref.object == camera_object;
     const bool is_camera_view = (is_active && (state.rv3d->persp == RV3D_CAMOB));
     const bool show_image = (cam.flag & CAM_SHOW_BG_IMAGE) &&
                             !BLI_listbase_is_empty(&cam.bg_images);

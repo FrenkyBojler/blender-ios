@@ -65,7 +65,7 @@ class AttributeViewer : Overlay {
                    Resources & /*res*/,
                    const State &state) final
   {
-    const DupliObject *dupli_object = ob_ref.dupli_object();
+    const DupliObject *dupli_object = ob_ref.dupli_object;
     const bool is_preview = dupli_object != nullptr &&
                             dupli_object->preview_base_geometry != nullptr;
     if (!enabled_ || !is_preview) {
@@ -111,7 +111,7 @@ class AttributeViewer : Overlay {
                              const DupliObject &dupli_object,
                              const State &state)
   {
-    Object &object = *ob_ref.object();
+    Object &object = *ob_ref.object;
     const bke::GeometrySet &base_geometry = *dupli_object.preview_base_geometry;
     const bke::InstancesComponent &instances =
         *base_geometry.get_component<bke::InstancesComponent>();
@@ -168,7 +168,7 @@ class AttributeViewer : Overlay {
   void populate_for_geometry(ObjectRef &ob_ref, const State &state, Manager &manager)
   {
     const float opacity = state.overlay.viewer_attribute_opacity;
-    Object &object = *ob_ref.object();
+    Object &object = *ob_ref.object;
     switch (object.type) {
       case OB_MESH: {
         Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
@@ -232,7 +232,7 @@ class AttributeViewer : Overlay {
             gpu::VertBuf **texture = DRW_curves_texture_for_evaluated_attribute(
                 &curves_id, ".viewer", &is_point_domain);
             auto &sub = *curves_sub_;
-            gpu::Batch *batch = curves_sub_pass_setup(sub, state.scene, ob_ref.object());
+            gpu::Batch *batch = curves_sub_pass_setup(sub, state.scene, ob_ref.object);
             sub.push_constant("opacity", opacity);
             sub.push_constant("is_point_domain", is_point_domain);
             sub.bind_texture("color_tx", *texture);

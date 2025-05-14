@@ -64,23 +64,23 @@ class Facing : Overlay {
     if (!enabled_) {
       return;
     }
-    const bool renderable = DRW_object_is_renderable(ob_ref.object());
-    const bool draw_surface = (ob_ref.object()->dt >= OB_WIRE) &&
-                              (renderable || (ob_ref.object()->dt == OB_WIRE));
-    const bool draw_facing = draw_surface && (ob_ref.object()->dt >= OB_SOLID);
+    const bool renderable = DRW_object_is_renderable(ob_ref.object);
+    const bool draw_surface = (ob_ref.object->dt >= OB_WIRE) &&
+                              (renderable || (ob_ref.object->dt == OB_WIRE));
+    const bool draw_facing = draw_surface && (ob_ref.object->dt >= OB_SOLID);
     if (!draw_facing) {
       return;
     }
-    const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object(), state.rv3d) &&
+    const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d) &&
                                  !state.is_image_render;
 
     if (use_sculpt_pbvh) {
-      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object(), SCULPT_BATCH_DEFAULT)) {
+      for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
         ps_.draw(batch.batch, ob_ref.handle());
       }
     }
     else {
-      blender::gpu::Batch *geom = DRW_cache_object_surface_get(ob_ref.object());
+      blender::gpu::Batch *geom = DRW_cache_object_surface_get(ob_ref.object);
       if (geom) {
         ps_.draw(geom, ob_ref.handle());
       }

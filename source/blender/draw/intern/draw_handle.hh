@@ -82,41 +82,27 @@ class Manager;
 /* TODO(fclem): Move to somewhere more appropriated after cleaning up the header dependencies. */
 class ObjectRef {
  private:
-  Object *object_;
-  /** Duplicated object that corresponds to the current object. */
-  DupliObject *dupli_object_;
-  /** Object that created the dupli-list the current object is part of. */
-  Object *dupli_parent_;
-  /** Unique handle per object ref. */
-  ResourceHandleRange handle_;
+  /* Unique handle per object ref.
+   * Creation is deferred until the first request. */
+  ResourceHandleRange handle_ = {0};
+
+  Manager *manager_ = nullptr;
+  bool is_image_render_ = false;
 
  public:
-  /* TODO: Remove. */
-  Manager *manager = nullptr;
-  bool is_image_render = false;
+  Object *const object = nullptr;
+  /** Object that created the dupli-list the current object is part of. */
+  Object *const dupli_parent = nullptr;
+  /** Duplicated object that corresponds to the current object. */
+  DupliObject *const dupli_object = nullptr;
 
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
   ObjectRef(Object *ob);
 
-  Object *object() const
-  {
-    return object_;
-  }
-
-  DupliObject *dupli_object() const
-  {
-    return dupli_object_;
-  }
-
-  Object *dupli_parent() const
-  {
-    return dupli_parent_;
-  }
-
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
   {
-    return dupli_object_ != nullptr;
+    return dupli_object != nullptr;
   }
 
   ResourceHandleRange handle()
@@ -125,6 +111,13 @@ class ObjectRef {
       handle_ = construct_handle();
     }
     return handle_;
+  }
+
+  void override_manager(Manager *manager, bool is_image_render)
+  {
+    BLI_assert(handle_.count == 0);
+    manager_ = manager;
+    is_image_render_ = is_image_render;
   }
 
  private:

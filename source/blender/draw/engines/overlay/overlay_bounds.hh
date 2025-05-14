@@ -65,7 +65,7 @@ class Bounds : Overlay {
                    Resources &res,
                    const State &state) final
   {
-    const Object *ob = ob_ref.object();
+    const Object *ob = ob_ref.object;
     const bool from_dupli = is_from_dupli_or_set(ob);
     const bool has_bounds =
         !ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_EMPTY, OB_SPEAKER, OB_LIGHTPROBE) &&
