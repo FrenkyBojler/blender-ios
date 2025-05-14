@@ -11,7 +11,6 @@
 #include "GHOST_EventString.hh"
 #include "GHOST_EventTrackpad.hh"
 #include "GHOST_EventWheel.hh"
-#include "GHOST_EventWheelHorizontal.hh"
 #include "GHOST_TimerManager.hh"
 #include "GHOST_TimerTask.hh"
 #include "GHOST_WindowCocoa.hh"
@@ -1746,11 +1745,11 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
       if (!m_multiTouchScroll && momentumPhase == NSEventPhaseNone) {
         if (event.deltaX != 0.0) {
           const int32_t delta = event.deltaX > 0.0 ? 1 : -1;
-          pushEvent(new GHOST_EventWheelHorizontal(event.timestamp * 1000, window, delta));
+          pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, GHOST_kEventWheelAxisHorizontal, delta));
         }
         if (event.deltaY != 0.0) {
           const int32_t delta = event.deltaY > 0.0 ? 1 : -1;
-          pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, delta));
+          pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, GHOST_kEventWheelAxisVertical, delta));
         }
       }
       else {

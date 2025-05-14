@@ -6257,13 +6257,25 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
           customdata);
 
       int click_step;
-      if (wheelData->z > 0) {
-        event.type = WHEELUPMOUSE;
-        click_step = wheelData->z;
+      if (wheelData->axis == GHOST_kEventWheelAxisVertical) {
+        if (wheelData->value > 0) {
+          event.type = WHEELUPMOUSE;
+          click_step = wheelData->value;
+        }
+        else {
+          event.type = WHEELDOWNMOUSE;
+          click_step = -wheelData->value;
+        }
       }
       else {
-        event.type = WHEELDOWNMOUSE;
-        click_step = -wheelData->z;
+        if (wheelData->value > 0) {
+          event.type = WHEELRIGHTMOUSE;
+          click_step = wheelData->value;
+        }
+        else {
+          event.type = WHEELLEFTMOUSE;
+          click_step = -wheelData->value;
+        }
       }
       BLI_assert(click_step != 0);
 
@@ -6275,34 +6287,6 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       /* TODO: support a wheel event that includes the number of steps
        * instead of generating multiple events. */
       event.val = KM_PRESS;
-      for (int i = 0; i < click_step; i++) {
-        wm_event_add_intern(win, &event);
-      }
-
-      break;
-    }
-
-    case GHOST_kEventWheelHorizontal: {
-      const GHOST_TEventWheelHorizontalData *wheel_data =
-          static_cast<const GHOST_TEventWheelHorizontalData *>(customdata);
-
-      int click_step;
-      if (wheel_data->z > 0) {
-        event.type = WHEELRIGHTMOUSE;
-        click_step = wheel_data->z;
-      }
-      else {
-        event.type = WHEELLEFTMOUSE;
-        click_step = -wheel_data->z;
-      }
-
-      /* Avoid generating a large number of events.
-       * In practice this values is typically 1, sometimes 2-3, even 32 is very high
-       * although this could happen if the system freezes. */
-      click_step = std::min(click_step, 32);
-
-      event.val = KM_PRESS;
-      /* Generate a separate event for each click. Same as in the #GHOST_kEventWheel case. */
       for (int i = 0; i < click_step; i++) {
         wm_event_add_intern(win, &event);
       }

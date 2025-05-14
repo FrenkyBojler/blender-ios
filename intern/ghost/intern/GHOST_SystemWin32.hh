@@ -369,12 +369,12 @@ class GHOST_SystemWin32 : public GHOST_System {
                                                const int32_t screen_co[2]);
 
   /**
-   * Handles a mouse wheel event.
+   * Handles a vertical mouse wheel event.
    * \param window: The window receiving the event (the active window).
    * \param wParam: The wParam from the `wndproc`.
    * \param lParam: The lParam from the `wndproc`.
    */
-  static void processWheelEvent(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
+  static void processWheelEventVertical(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
 
   /**
    * Handles a horizontal mouse wheel event.
@@ -382,7 +382,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param wParam: The wParam from the `wndproc`.
    * \param lParam: The lParam from the `wndproc`.
    */
-  static void processHorizontalWheelEvent(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
+  static void processWheelEventHorizontal(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
 
   /**
    * Creates a key event and updates the key data stored locally (m_modifierKeys).
@@ -487,9 +487,9 @@ class GHOST_SystemWin32 : public GHOST_System {
   /** Console status. */
   bool m_consoleStatus;
 
-  /** Wheel delta accumulator. */
-  int m_wheelDeltaAccum;
-  int m_wheelHorizontalDeltaAccum;
+  /** Wheel delta accumulators. */
+  int m_wheelDeltaAccumVertical;
+  int m_wheelDeltaAccumHorizontal;
 };
 
 inline void GHOST_SystemWin32::handleKeyboardChange()
