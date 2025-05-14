@@ -42,7 +42,6 @@ void MTLBatch::draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset)
   this->draw_advanced_indirect(indirect_buf, offset);
 }
 
-
 void MTLBatch::MTLVertexDescriptorCache::vertex_descriptor_cache_init(MTLContext *ctx)
 {
   BLI_assert(ctx != nullptr);

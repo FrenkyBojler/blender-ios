@@ -306,7 +306,7 @@ class MTLShader : public Shader {
       const MTLRenderPipelineStateDescriptor &pipeline_descriptor);
 
   MTLComputePipelineStateInstance *bake_compute_pipeline_state(
-      MTLContext *ctx, MTLComputePipelineStateDescriptor &compute_pipeline_descriptor) const;
+      MTLContext *ctx, MTLComputePipelineStateDescriptor &compute_pipeline_descriptor);
 
   const MTLComputePipelineStateCommon &get_compute_common_state()
   {

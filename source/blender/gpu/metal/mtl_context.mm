@@ -712,8 +712,8 @@ void MTLContext::free_dummy_resources()
 void MTLContext::specialization_constants_set(
     const shader::SpecializationConstants *constants_state)
 {
-  constants_state_ = (constants_state != nullptr) ? *constants_state :
-                                                    shader::SpecializationConstants{};
+  this->constants_state = (constants_state != nullptr) ? *constants_state :
+                                                         shader::SpecializationConstants{};
 }
 
 /** \} */
@@ -2192,11 +2192,10 @@ const MTLComputePipelineStateInstance *MTLContext::ensure_compute_pipeline_state
   MTLShader *active_shader = this->pipeline_state.active_shader;
 
   /* Set descriptor to default shader constants . */
-  MTLComputePipelineStateDescriptor compute_pipeline_descriptor(constants_state_.values);
+  MTLComputePipelineStateDescriptor compute_pipeline_descriptor(this->constants_state.values);
 
   const MTLComputePipelineStateInstance *compute_pso_inst =
-      this->pipeline_state.active_shader->bake_compute_pipeline_state(this,
-                                                                      compute_pipeline_descriptor);
+      active_shader->bake_compute_pipeline_state(this, compute_pipeline_descriptor);
 
   if (compute_pso_inst == nullptr || compute_pso_inst->pso == nil) {
     MTL_LOG_WARNING("No valid compute PSO for compute dispatch!", );

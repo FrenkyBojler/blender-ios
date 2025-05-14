@@ -887,7 +887,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_current_pipeline_state(
       (requires_specific_topology_class) ? prim_type : MTLPrimitiveTopologyClassUnspecified;
 
   /* Specialization configuration. */
-  pipeline_descriptor.specialization_state = {ctx->constants_state_.values};
+  pipeline_descriptor.specialization_state = {ctx->constants_state.values};
 
   /* Bake pipeline state using global descriptor. */
   return bake_pipeline_state(ctx, prim_type, pipeline_descriptor);
@@ -1385,7 +1385,7 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
 
   /* Check if current PSO exists in the cache. */
   pso_cache_lock_.lock();
-  MTLComputePipelineStateInstance **pso_lookup = compute_pso_cache_.lookup_ptr(
+  MTLComputePipelineStateInstance *const *pso_lookup = compute_pso_cache_.lookup_ptr(
       compute_pipeline_descriptor);
   MTLComputePipelineStateInstance *pipeline_state = (pso_lookup) ? *pso_lookup : nullptr;
   pso_cache_lock_.unlock();
