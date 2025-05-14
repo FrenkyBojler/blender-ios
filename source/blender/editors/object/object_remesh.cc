@@ -12,6 +12,9 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <iomanip>
+#include <sstream>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_geom.h"
@@ -106,20 +109,6 @@ static bool object_remesh_poll(bContext *C)
   return ED_operator_object_active_editable_mesh(C);
 }
 
-static int calc_estimated_remesh_vertex_count(const Mesh& mesh, const float voxel_size)
-{
-  const Span<float3> positions = mesh.vert_positions();
-  const Span<int> corner_verts = mesh.corner_verts();
-  const blender::OffsetIndices faces = mesh.faces();
-  float area = 0.0f;
-
-  for (const int i : faces.index_range()) {
-    area += blender::bke::mesh::face_area_calc(positions, corner_verts.slice(faces[i]));
-  }
-
-  return int(area / (voxel_size * voxel_size) * 1.45f);
-}
-
 static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
@@ -134,15 +123,6 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
 
   if (mesh->faces_num == 0) {
     return OPERATOR_CANCELLED;
-  }
-
-  if (ob->mode == OB_MODE_SCULPT) {
-    const int estimated_vertex_count = calc_estimated_remesh_vertex_count(*mesh, mesh->remesh_voxel_size);
-    static constexpr int warning_threshold = 5000000;
-
-    if (estimated_vertex_count > warning_threshold) {
-
-    }
   }
 
   float isovalue = 0.0f;
@@ -195,6 +175,55 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxel_size)
+{
+  const Span<float3> positions = mesh.vert_positions();
+  const Span<int> corner_verts = mesh.corner_verts();
+  const blender::OffsetIndices faces = mesh.faces();
+  float area = 0.0f;
+
+  for (const int i : faces.index_range()) {
+    area += blender::bke::mesh::face_area_calc(positions, corner_verts.slice(faces[i]));
+  }
+
+  return int(area / (voxel_size * voxel_size) * 1.45f);
+}
+
+static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  static constexpr int remesh_vertex_count_threshold = 5000000;
+
+  const Object &active_object = *CTX_data_active_object(C);
+  const Mesh &mesh = *static_cast<Mesh *>(active_object.data);
+
+  const int estimated_count = calc_estimated_remesh_vertex_count(mesh, mesh.remesh_voxel_size);
+
+  if (estimated_count > remesh_vertex_count_threshold) {
+
+    std::ostringstream msg;
+    msg << "The remesher is estimated to generate around " << std::fixed << std::setprecision(1)
+        << (estimated_count / 1000000.0f) << " million polygons.";
+
+    uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Warning!"), ICON_ERROR);
+    uiLayout *layout = UI_popup_menu_layout(pup);
+    layout->label(msg.str(), ICON_INFO);
+    uiItemFullO_ptr(layout,
+                    op->type,
+                    IFACE_("OK"),
+                    ICON_NONE,
+                    nullptr,
+                    WM_OP_EXEC_DEFAULT,
+                    UI_ITEM_NONE,
+                    nullptr);
+
+    UI_popup_menu_end(C, pup);
+
+    return OPERATOR_INTERFACE;
+  }
+
+  return voxel_remesh_exec(C, op);
+}
+
 void OBJECT_OT_voxel_remesh(wmOperatorType *ot)
 {
   /* identifiers */
@@ -206,6 +235,7 @@ void OBJECT_OT_voxel_remesh(wmOperatorType *ot)
 
   /* api callbacks */
   ot->poll = object_remesh_poll;
+  ot->invoke = voxel_remesh_invoke;
   ot->exec = voxel_remesh_exec;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
