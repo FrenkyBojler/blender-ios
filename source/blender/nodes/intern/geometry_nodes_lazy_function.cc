@@ -465,12 +465,16 @@ std::string make_anonymous_attribute_socket_inspection_string(StringRef node_nam
 static void execute_multi_function_on_value_variant__single(
     const MultiFunction &fn,
     const Span<SocketValueVariant *> input_values,
-    const Span<SocketValueVariant *> output_values)
+    const Span<SocketValueVariant *> output_values,
+    GeoNodesUserData *user_data,
+    GeoNodesLocalUserData *local_user_data)
 {
   /* In this case, the multi-function is evaluated directly. */
   const IndexMask mask(1);
   mf::ParamsBuilder params{fn, &mask};
   mf::ContextBuilder context;
+  context.user_data(user_data);
+  context.local_user_data(local_user_data);
 
   for (const int i : input_values.index_range()) {
     SocketValueVariant &input_variant = *input_values[i];
@@ -530,10 +534,13 @@ static void execute_multi_function_on_value_variant__field(
  * Executes a multi-function. If all inputs are single values, the results will also be single
  * values. If any input is a field, the outputs will also be fields.
  */
-static void execute_multi_function_on_value_variant(const MultiFunction &fn,
-                                                    const std::shared_ptr<MultiFunction> &owned_fn,
-                                                    const Span<SocketValueVariant *> input_values,
-                                                    const Span<SocketValueVariant *> output_values)
+static void execute_multi_function_on_value_variant(
+    const MultiFunction &fn,
+    const std::shared_ptr<MultiFunction> &owned_fn,
+    const Span<SocketValueVariant *> input_values,
+    const Span<SocketValueVariant *> output_values,
+    GeoNodesUserData *user_data = nullptr,
+    GeoNodesLocalUserData *local_user_data = nullptr)
 {
   /* Check input types which determine how the function is evaluated. */
   bool any_input_is_field = false;
@@ -548,7 +555,8 @@ static void execute_multi_function_on_value_variant(const MultiFunction &fn,
     execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
   }
   else {
-    execute_multi_function_on_value_variant__single(fn, input_values, output_values);
+    execute_multi_function_on_value_variant__single(
+        fn, input_values, output_values, user_data, local_user_data);
   }
 }
 
@@ -703,21 +711,25 @@ class LazyFunctionForMutedNode : public LazyFunction {
  */
 class LazyFunctionForMultiFunctionNode : public LazyFunction {
  private:
+  const bNode &node_;
   const NodeMultiFunctions::Item fn_item_;
 
  public:
   LazyFunctionForMultiFunctionNode(const bNode &node,
                                    NodeMultiFunctions::Item fn_item,
                                    MutableSpan<int> r_lf_index_by_bsocket)
-      : fn_item_(std::move(fn_item))
+      : node_(node), fn_item_(std::move(fn_item))
   {
     BLI_assert(fn_item_.fn != nullptr);
     debug_name_ = node.name;
     lazy_function_interface_from_node(node, inputs_, outputs_, r_lf_index_by_bsocket);
   }
 
-  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+
     Vector<SocketValueVariant *> input_values(inputs_.size());
     Vector<SocketValueVariant *> output_values(outputs_.size());
     for (const int i : inputs_.index_range()) {
@@ -731,8 +743,12 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
         output_values[i] = nullptr;
       }
     }
-    execute_multi_function_on_value_variant(
-        *fn_item_.fn, fn_item_.owned_fn, input_values, output_values);
+    execute_multi_function_on_value_variant(*fn_item_.fn,
+                                            fn_item_.owned_fn,
+                                            input_values,
+                                            output_values,
+                                            &user_data,
+                                            &local_user_data);
     for (const int i : outputs_.index_range()) {
       if (params.get_output_usage(i) != lf::ValueUsage::Unused) {
         params.output_set(i);
