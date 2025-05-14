@@ -117,7 +117,9 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready)
 bool ShaderModule::request_specializations(bool block_until_ready,
                                            int render_buffers_shadow_id,
                                            int shadow_ray_count,
-                                           int shadow_ray_step_count)
+                                           int shadow_ray_step_count,
+                                           bool use_split_indirect,
+                                           bool use_lightprobe_eval)
 {
   if (!GPU_use_parallel_compilation()) {
     return true;
@@ -128,7 +130,12 @@ bool ShaderModule::request_specializations(bool block_until_ready,
   std::lock_guard lock(mutex_);
 
   SpecializationBatchHandle &specialization_handle = specialization_handles_.lookup_or_add_cb(
-      {render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count}, [&]() {
+      {render_buffers_shadow_id,
+       shadow_ray_count,
+       shadow_ray_step_count,
+       use_split_indirect,
+       use_lightprobe_eval},
+      [&]() {
         Vector<ShaderSpecialization> specializations;
         for (int i = 0; i < 3; i++) {
           GPUShader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
@@ -141,19 +148,15 @@ bool ShaderModule::request_specializations(bool block_until_ready,
 
           gpu::shader::SpecializationConstants *sp = GPU_shader_get_constant_state_template(sh);
 
-          for (bool use_split_indirect : {false, true}) {
-            for (bool use_lightprobe_eval : {false, true}) {
-              for (bool use_transmission : {false, true}) {
-                sp->set_value(render_pass_shadow_id_index, render_buffers_shadow_id);
-                sp->set_value(use_split_indirect_index, use_split_indirect);
-                sp->set_value(use_lightprobe_eval_index, use_lightprobe_eval);
-                sp->set_value(use_transmission_index, use_transmission);
-                sp->set_value(shadow_ray_count_index, shadow_ray_count);
-                sp->set_value(shadow_ray_step_count_index, shadow_ray_step_count);
+          for (bool use_transmission : {false, true}) {
+            sp->set_value(render_pass_shadow_id_index, render_buffers_shadow_id);
+            sp->set_value(use_split_indirect_index, use_split_indirect);
+            sp->set_value(use_lightprobe_eval_index, use_lightprobe_eval);
+            sp->set_value(use_transmission_index, use_transmission);
+            sp->set_value(shadow_ray_count_index, shadow_ray_count);
+            sp->set_value(shadow_ray_step_count_index, shadow_ray_step_count);
 
-                specializations.append({sh, *sp});
-              }
-            }
+            specializations.append({sh, *sp});
           }
 
           MEM_delete(sp);
