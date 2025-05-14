@@ -405,7 +405,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeFormatString", FN_NODE_FORMAT_STRING);
+  fn_node_type_base(&ntype, "FunctionNodeFormatString");
   ntype.ui_name = "Format String";
   ntype.ui_description = "Create a string from a format-string and a values to insert";
   ntype.nclass = NODE_CLASS_CONVERTER;
@@ -428,7 +428,6 @@ NOD_REGISTER_NODE(node_register)
 namespace blender::nodes {
 
 StructRNA *FormatStringItemsAccessor::item_srna = &RNA_NodeFunctionFormatStringItem;
-int FormatStringItemsAccessor::node_type = FN_NODE_FORMAT_STRING;
 
 void FormatStringItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

@@ -18,7 +18,6 @@ namespace blender::nodes {
 struct FormatStringItemsAccessor {
   using ItemT = NodeFunctionFormatStringItem;
   static StructRNA *item_srna;
-  static int node_type;
   static constexpr const char *node_idname = "FunctionNodeFormatString";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
