@@ -48,7 +48,7 @@ template<typename T> struct VecSwizzleFunc<T, 3> : VecSwizzleFunc<T, 2> {
   }
 };
 
-template<typename T> struct VecSwizzleFunc<T, 4> : VecSwizzleFunc<T, 2> {
+template<typename T> struct VecSwizzleFunc<T, 4> : VecSwizzleFunc<T, 3> {
   [[nodiscard]] const VecBase<T, 2> zw() const
   {
     const VecBase<T, 4> &vec = *reinterpret_cast<const VecBase<T, 4> *>(this);
