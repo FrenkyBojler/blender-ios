@@ -354,7 +354,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   uiItemS(layout);
 
-  uiItemO(layout, IFACE_("Add Input"), ICON_ADD, "NODE_OT_output_file_add_socket");
+  layout->op("NODE_OT_output_file_add_socket", IFACE_("Add Input"), ICON_ADD);
 
   row = &layout->row(false);
   col = &row->column(true);
@@ -1019,7 +1019,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_file_output_cc
 
-void register_node_type_cmp_output_file()
+static void register_node_type_cmp_output_file()
 {
   namespace file_ns = blender::nodes::node_composite_file_output_cc;
 
@@ -1041,3 +1041,4 @@ void register_node_type_cmp_output_file()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_output_file)
