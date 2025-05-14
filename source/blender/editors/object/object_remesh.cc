@@ -19,6 +19,7 @@
 
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_noise.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
@@ -182,9 +183,15 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxe
   const blender::OffsetIndices faces = mesh.faces();
   float area = 0.0f;
 
-  for (const int i : faces.index_range()) {
-    area += blender::bke::mesh::face_area_calc(positions, corner_verts.slice(faces[i]));
+  static constexpr int samples = 50000;
+  const int seed = (int)faces.size();
+
+  for (const int i : IndexRange(samples)) {
+    const int idx = (int)(noise::hash_to_float(seed, i) * (faces.size() - 1));
+    area += blender::bke::mesh::face_area_calc(positions, corner_verts.slice(faces[idx]));
   }
+
+  area *= float(faces.size()) / float(samples);
 
   return int(area / (voxel_size * voxel_size) * 1.45f);
 }
