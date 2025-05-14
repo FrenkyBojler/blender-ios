@@ -53,7 +53,7 @@ static void draw_items_list_with_operators(const bContext *C,
                                            const bNodeTree &tree,
                                            const bNode &node)
 {
-  BLI_assert(Accessor::nodenode_idname_type == node.idname);
+  BLI_assert(Accessor::node_idname == node.idname);
   PointerRNA node_ptr = RNA_pointer_create_discrete(
       const_cast<ID *>(&tree.id), &RNA_Node, const_cast<bNode *>(&node));
 
