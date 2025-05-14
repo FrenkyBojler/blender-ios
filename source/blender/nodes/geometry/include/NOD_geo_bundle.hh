@@ -38,6 +38,8 @@ struct CombineBundleItemsAccessor {
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_single_identifier_str = true;
+  static constexpr bool has_name_validation = false;
+  static constexpr char unique_name_separator = '.';
   struct operator_idnames {
     static constexpr const char *add_item = "NODE_OT_combine_bundle_item_add";
     static constexpr const char *remove_item = "NODE_OT_combine_bundle_item_remove";
@@ -111,6 +113,8 @@ struct SeparateBundleItemsAccessor {
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_single_identifier_str = true;
+  static constexpr bool has_name_validation = false;
+  static constexpr char unique_name_separator = '.';
   struct operator_idnames {
     static constexpr const char *add_item = "NODE_OT_separate_bundle_item_add";
     static constexpr const char *remove_item = "NODE_OT_separate_bundle_item_remove";

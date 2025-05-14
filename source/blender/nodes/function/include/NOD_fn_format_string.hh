@@ -23,6 +23,8 @@ struct FormatStringItemsAccessor {
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_single_identifier_str = true;
+  static constexpr bool has_name_validation = true;
+  static constexpr char unique_name_separator = '_';
   struct operator_idnames {
     static constexpr const char *add_item = "NODE_OT_format_string_item_add";
     static constexpr const char *remove_item = "NODE_OT_format_string_item_remove";
@@ -86,6 +88,28 @@ struct FormatStringItemsAccessor {
   static std::string socket_identifier_for_item(const NodeFunctionFormatStringItem &item)
   {
     return "Item_" + std::to_string(item.identifier);
+  }
+
+  static std::string validate_name(const StringRef name)
+  {
+    std::string result;
+    if (name.is_empty()) {
+      return result;
+    }
+    const char first_char = name[0];
+    if (!std::isalpha(first_char) && first_char != '_') {
+      result += '_';
+    }
+    for (const char c : name) {
+      if (std::isalnum(c) || c == '_') {
+        result += c;
+      }
+      if (ELEM(c, '-', '.', ' ', '\t')) {
+        result += '_';
+      }
+    }
+
+    return result;
   }
 };
 
