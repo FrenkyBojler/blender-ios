@@ -157,6 +157,40 @@ static int64_t find_next_format_start_or_end(const StringRef format,
   return format.size();
 }
 
+/** Also see https://fmt.dev/latest/syntax/. */
+static std::string get_format_pattern_by_type(const CPPType &type)
+{
+  std::string pattern;
+  /* Fill and Align. */
+  pattern += "([^{}]?[<>^])?";
+  if (type.is<float>() || type.is<int>()) {
+    /* Sign. */
+    pattern += "[+\\- ]?";
+    /* Alternate form. */
+    pattern += "#?";
+    /* Sign-aware zero padding. */
+    pattern += "0?";
+  }
+  /* Width. */
+  pattern += "(\\d+)?";
+  if (type.is<float>() || type.is<std::string>()) {
+    /* Precision. */
+    pattern += "(\\.\\d+)?";
+  }
+  /* "L" is omitted, because we take the current locale into account in Geometry Nodes. */
+  /* Allowed type specifiers vary by data type.*/
+  if (type.is<std::string>()) {
+    pattern += "[s\\?]?";
+  }
+  else if (type.is<int>()) {
+    pattern += "[bBcdoxX]?";
+  }
+  else if (type.is<float>()) {
+    pattern += "[aAeEfFgG]?";
+  }
+  return pattern;
+}
+
 static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
                            const IndexMask &mask,
@@ -167,8 +201,9 @@ static bool format_strings(const StringRef format,
     new (output) std::string();
   });
 
-  static std::regex simple_number_pattern(
-      R"#(((([^{}]?)[<>^])?[+\- ]?#?0?(\d+)?(\.\d+)?[s\?cbBdoxXaAeEfFgG]?)?)#");
+  static std::regex simple_float_pattern{get_format_pattern_by_type(CPPType::get<float>())};
+  static std::regex simple_int_pattern{get_format_pattern_by_type(CPPType::get<int>())};
+  static std::regex simple_string_pattern{get_format_pattern_by_type(CPPType::get<std::string>())};
 
   int64_t next_auto_input_index = 0;
 
@@ -208,19 +243,32 @@ static bool format_strings(const StringRef format,
       identifier = single_format.substr(0, colon_index);
       format_pattern = single_format.substr(colon_index + 1);
     }
+    const int64_t input_index = next_auto_input_index++;
+    if (input_index >= inputs.size()) {
+      return false;
+    }
+    const GVArray &input = inputs[input_index];
+    const CPPType &type = input.type();
 
-    if (std::regex_match(format_pattern.begin(), format_pattern.end(), simple_number_pattern)) {
-      const int64_t input_index = next_auto_input_index++;
-      if (input_index >= inputs.size()) {
-        return false;
-      }
+    const std::regex *allowed_pattern = nullptr;
+    if (type.is<float>()) {
+      allowed_pattern = &simple_float_pattern;
+    }
+    else if (type.is<int>()) {
+      allowed_pattern = &simple_int_pattern;
+    }
+    else if (type.is<std::string>()) {
+      allowed_pattern = &simple_string_pattern;
+    }
+    if (!allowed_pattern) {
+      return false;
+    }
+
+    if (std::regex_match(format_pattern.begin(), format_pattern.end(), *allowed_pattern)) {
       std::string format_str;
       format_str += "{:";
       format_str.append(format_pattern.begin(), format_pattern.end());
       format_str += '}';
-
-      const GVArray &input = inputs[input_index];
-      const CPPType &type = input.type();
 
       const auto append_single_formatted_string = [&](const auto &varray) {
         mask.foreach_index([&](const int64_t i) {
@@ -229,7 +277,8 @@ static bool format_strings(const StringRef format,
             fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
           }
           catch (const fmt::format_error &error) {
-            fmt::println("Error: {}", error.what());
+            /* Invalid patterns should have been caughed before already. */
+            BLI_assert_unreachable();
           }
         });
       };
