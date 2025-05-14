@@ -845,8 +845,10 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   }
 
   Shader *shader = GPUBackend::get()->shader_alloc(info.name_.c_str());
-  shader->init(info, is_batch_compilation);
+  /* Needs to be called before init as GL uses the default specialization constants state to insert
+   * default shader inside a map. */
   shader->specialization_constants_init(info);
+  shader->init(info, is_batch_compilation);
 
   shader->fragment_output_bits = 0;
   for (const shader::ShaderCreateInfo::FragOut &frag_out : info.fragment_outputs_) {
