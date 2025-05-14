@@ -414,7 +414,7 @@ enum wmEventType : int16_t {
  * \note It's best to use more specific check if possible as mixing motion/buttons/gestures
  * is very broad and not necessarily obvious which kinds of events are important.
  */
-#define ISMOUSE(event_type) (((event_type) >= _EVT_MOUSE_MIN && (event_type) <= _EVT_MOUSE_MAX))
+#define ISMOUSE(event_type) ((event_type) >= _EVT_MOUSE_MIN && (event_type) <= _EVT_MOUSE_MAX)
 /** Test whether the event is a mouse button (excluding mouse-wheel). */
 #define ISMOUSE_MOTION(event_type) ELEM(event_type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)
 /** Test whether the event is a mouse button (excluding mouse-wheel). */
