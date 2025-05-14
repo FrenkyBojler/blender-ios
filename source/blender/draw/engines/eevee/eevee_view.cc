@@ -249,6 +249,8 @@ void ShadingView::update_view()
     const float2 render_bottom_left = bottom_left - pixel_size * float(overscan_pixels);
     const float2 render_top_right = render_bottom_left + pixel_size * float2(render_extent);
 
+    std::swap(far, near);
+
     if (main_view_.is_persp()) {
       winmat = math::projection::perspective(render_bottom_left.x,
                                              render_top_right.x,
