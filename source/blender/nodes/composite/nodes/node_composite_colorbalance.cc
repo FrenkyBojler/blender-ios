@@ -43,7 +43,7 @@ static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Image");
 
   b.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
-    uiItemR(layout, ptr, "correction_method", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "correction_method", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   });
 
   b.add_input<decl::Float>("Fac")
@@ -413,7 +413,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_colorbalance_cc
 
-void register_node_type_cmp_colorbalance()
+static void register_node_type_cmp_colorbalance()
 {
   namespace file_ns = blender::nodes::node_composite_colorbalance_cc;
 
@@ -434,3 +434,4 @@ void register_node_type_cmp_colorbalance()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_colorbalance)

@@ -150,7 +150,7 @@ static void rna_uiItemR(uiLayout *layout,
     flag |= UI_ITEM_R_CHECKBOX_INVERT;
   }
 
-  uiItemFullR(layout, ptr, prop, index, 0, flag, text, icon, placeholder_str);
+  layout->prop(ptr, prop, index, 0, flag, text, icon, placeholder_str);
 }
 
 static void rna_uiItemR_with_popover(uiLayout *layout,
@@ -470,7 +470,7 @@ static void rna_uiItemL(uiLayout *layout,
     icon = icon_value;
   }
 
-  uiItemL(layout, text.value_or(""), icon);
+  layout->label(text.value_or(""), icon);
 }
 
 static void rna_uiItemM(uiLayout *layout,
@@ -543,7 +543,7 @@ static void rna_uiItemProgress(uiLayout *layout,
 
 static void rna_uiItemSeparator(uiLayout *layout, float factor, int type)
 {
-  uiItemS_ex(layout, factor, LayoutSeparatorType(type));
+  layout->separator(factor, LayoutSeparatorType(type));
 }
 
 static void rna_uiTemplateID(uiLayout *layout,

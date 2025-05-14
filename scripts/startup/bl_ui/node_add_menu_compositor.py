@@ -128,17 +128,14 @@ class NODE_MT_category_compositor_color_mix(Menu):
     bl_idname = "NODE_MT_category_compositor_color_mix"
     bl_label = "Mix"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "CompositorNodeAlphaOver")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeCombineColor")
         node_add_menu.add_node_type(layout, "CompositorNodeSeparateColor")
         layout.separator()
-        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=iface_("Mix Color"))
-        ops = props.settings.add()
-        ops.name = "data_type"
-        ops.value = "'RGBA'"
+        node_add_menu.add_color_mix_node(context, layout)
         node_add_menu.add_node_type(layout, "CompositorNodeZcombine")
         node_add_menu.draw_assets_for_catalog(layout, "Color/Mix")
 
@@ -147,7 +144,7 @@ class NODE_MT_category_compositor_filter(Menu):
     bl_idname = "NODE_MT_category_compositor_filter"
     bl_label = "Filter"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         layout.menu("NODE_MT_category_compositor_filter_blur")
         layout.separator()
@@ -159,7 +156,7 @@ class NODE_MT_category_compositor_filter(Menu):
         node_add_menu.add_node_type(layout, "CompositorNodeInpaint")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeFilter")
-        node_add_menu.add_node_type(layout, "CompositorNodeGlare")
+        node_add_menu.add_node_type_with_searchable_enum(context, layout, "CompositorNodeGlare", "glare_type")
         node_add_menu.add_node_type(layout, "CompositorNodeKuwahara")
         node_add_menu.add_node_type(layout, "CompositorNodePixelate")
         node_add_menu.add_node_type(layout, "CompositorNodePosterize")

@@ -81,7 +81,7 @@ static void node_composit_init_lensdist(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_lensdist(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "distortion_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "distortion_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
@@ -531,7 +531,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_lensdist_cc
 
-void register_node_type_cmp_lensdist()
+static void register_node_type_cmp_lensdist()
 {
   namespace file_ns = blender::nodes::node_composite_lensdist_cc;
 
@@ -552,3 +552,4 @@ void register_node_type_cmp_lensdist()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_lensdist)

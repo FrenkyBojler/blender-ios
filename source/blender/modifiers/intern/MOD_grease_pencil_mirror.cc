@@ -209,11 +209,11 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   uiLayout *row = &layout->row(true, IFACE_("Axis"));
-  uiItemR(row, ptr, "use_axis_x", toggles_flag, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "use_axis_y", toggles_flag, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "use_axis_z", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_axis_x", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_axis_y", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_axis_z", toggles_flag, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (uiLayout *influence_panel = layout->panel_prop(
           C, ptr, "open_influence_panel", IFACE_("Influence")))
@@ -222,7 +222,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
