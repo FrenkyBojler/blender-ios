@@ -167,7 +167,8 @@ static bool format_strings(const StringRef format,
     new (output) std::string();
   });
 
-  static std::regex simple_number_pattern(R"#((\.\d+)?)#");
+  static std::regex simple_number_pattern(
+      R"#(((([^{}]?)[<>^])?[+\- ]?#?0?(\d+)?(\.\d+)?[s\?cbBdoxXaAeEfFgG]?)?)#");
 
   int64_t next_auto_input_index = 0;
 
@@ -224,7 +225,12 @@ static bool format_strings(const StringRef format,
       const auto append_single_formatted_string = [&](const auto &varray) {
         mask.foreach_index([&](const int64_t i) {
           std::string &output = r_formatted_strings[i];
-          fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
+          try {
+            fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
+          }
+          catch (const fmt::format_error &error) {
+            fmt::println("Error: {}", error.what());
+          }
         });
       };
 
