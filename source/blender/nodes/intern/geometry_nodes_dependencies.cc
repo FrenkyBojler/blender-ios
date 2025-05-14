@@ -178,6 +178,16 @@ static bool needs_scene_render_params(const bNodeTree &ntree)
       return true;
     }
   }
+  for (const bNode *node : ntree.nodes_by_type("GeometryNodeInputSceneInfo")) {
+    if (node->is_muted()) {
+      continue;
+    }
+    for (const bNodeSocket *socket : node->output_sockets()) {
+      if (socket->is_logically_linked()) {
+        return true;
+      }
+    }
+  }
   return false;
 }
 
