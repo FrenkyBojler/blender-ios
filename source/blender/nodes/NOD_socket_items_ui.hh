@@ -40,7 +40,7 @@ static void draw_item_in_list(uiList * /*ui_list*/,
     uiTemplateNodeSocket(row, const_cast<bContext *>(C), color);
   }
   uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
-  uiItemR(row, itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+  row->prop(itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 /**
@@ -53,7 +53,7 @@ static void draw_items_list_with_operators(const bContext *C,
                                            const bNodeTree &tree,
                                            const bNode &node)
 {
-  BLI_assert(Accessor::node_type == node.type_legacy);
+  BLI_assert(Accessor::node_idname == node.idname);
   PointerRNA node_ptr = RNA_pointer_create_discrete(
       const_cast<ID *>(&tree.id), &RNA_Node, const_cast<bNode *>(&node));
 
@@ -84,8 +84,8 @@ static void draw_items_list_with_operators(const bContext *C,
   uiLayout *ops_col = &row->column(false);
   {
     uiLayout *add_remove_col = &ops_col->column(true);
-    uiItemO(add_remove_col, "", ICON_ADD, Accessor::operator_idnames::add_item);
-    uiItemO(add_remove_col, "", ICON_REMOVE, Accessor::operator_idnames::remove_item);
+    add_remove_col->op(Accessor::operator_idnames::add_item, "", ICON_ADD);
+    add_remove_col->op(Accessor::operator_idnames::remove_item, "", ICON_REMOVE);
   }
   {
     uiLayout *up_down_col = &ops_col->column(true);
@@ -103,7 +103,7 @@ static void draw_active_item_props(const bNodeTree &tree,
                                    const FunctionRef<void(PointerRNA *item_ptr)> draw_item)
 {
   using ItemT = typename Accessor::ItemT;
-  BLI_assert(Accessor::node_type == node.type_legacy);
+  BLI_assert(Accessor::node_idname == node.idname);
 
   SocketItemsRef<ItemT> ref = Accessor::get_items_from_node(const_cast<bNode &>(node));
   if (*ref.active_index < 0) {
