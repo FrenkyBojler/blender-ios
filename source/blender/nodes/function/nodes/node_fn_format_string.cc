@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+#include <regex>
+
 #include "RNA_enum_types.hh"
 
 #include "UI_interface.hh"
@@ -106,6 +109,113 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<FormatStringItemsAccessor>(&reader, node);
 }
 
+static std::optional<int64_t> find_format_length(const StringRef format)
+{
+  BLI_assert(format[0] == '{');
+  int64_t braces_depth = 1;
+  for (const char &c : format.substr(1)) {
+    if (c == '{') {
+      braces_depth++;
+    }
+    else if (c == '}') {
+      braces_depth--;
+    }
+    if (braces_depth == 0) {
+      return &c - format.data() + 1;
+    }
+  }
+  return std::nullopt;
+}
+
+static bool format_strings(const StringRef format,
+                           const Span<GVArray> inputs,
+                           const IndexMask &mask,
+                           MutableSpan<std::string> r_formatted_strings)
+{
+  mask.foreach_index([&](const int64_t i) {
+    std::string *output = &r_formatted_strings[i];
+    new (output) std::string();
+  });
+
+  static std::regex simple_number_pattern(R"#((\.\d+)?)#");
+
+  int64_t next_auto_input_index = 0;
+
+  int64_t current_index = 0;
+  while (current_index < format.size()) {
+    const int64_t next_format_start = format.find('{', current_index);
+    const int64_t copy_length = next_format_start == StringRef::not_found ?
+                                    format.size() - current_index :
+                                    next_format_start - current_index;
+    if (copy_length > 0) {
+      const StringRef str_to_copy = format.substr(current_index, copy_length);
+      mask.foreach_index([&](const int64_t i) {
+        r_formatted_strings[i].append(str_to_copy.data(), str_to_copy.size());
+      });
+    }
+    if (next_format_start == StringRef::not_found) {
+      break;
+    }
+    current_index = next_format_start;
+    const std::optional<int64_t> format_length = find_format_length(format.substr(current_index));
+    if (!format_length.has_value()) {
+      /* TODO: How to handle this case? */
+      return false;
+    }
+    const StringRef single_format_with_braces = format.substr(current_index, *format_length);
+    const StringRef single_format = single_format_with_braces.substr(
+        1, single_format_with_braces.size() - 2);
+
+    StringRef identifier;
+    StringRef format_pattern;
+
+    const int64_t colon_index = single_format.find(':');
+    if (colon_index == StringRef::not_found) {
+      format_pattern = single_format;
+    }
+    else {
+      identifier = single_format.substr(0, colon_index);
+      format_pattern = single_format.substr(colon_index + 1);
+    }
+
+    if (std::regex_match(format_pattern.begin(), format_pattern.end(), simple_number_pattern)) {
+      const int64_t input_index = next_auto_input_index++;
+      if (input_index >= inputs.size()) {
+        return false;
+      }
+      std::string format_str;
+      format_str += "{:";
+      format_str.append(format_pattern.begin(), format_pattern.end());
+      format_str += '}';
+
+      const GVArray &input = inputs[input_index];
+      const CPPType &type = input.type();
+
+      const auto append_single_formatted_string = [&](const auto &varray) {
+        mask.foreach_index([&](const int64_t i) {
+          std::string &output = r_formatted_strings[i];
+          fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
+        });
+      };
+
+      if (type.is<float>()) {
+        append_single_formatted_string(input.typed<float>());
+      }
+      else if (type.is<int>()) {
+        append_single_formatted_string(input.typed<int>());
+      }
+      else if (type.is<std::string>()) {
+        append_single_formatted_string(input.typed<std::string>());
+      }
+      else {
+        return false;
+      }
+    }
+    current_index += *format_length;
+  }
+  return true;
+}
+
 class FormatStringMultiFunction : public mf::MultiFunction {
  private:
   const bNode &node_;
@@ -138,11 +248,20 @@ class FormatStringMultiFunction : public mf::MultiFunction {
     MutableSpan<std::string> outputs = params.uninitialized_single_output<std::string>(
         storage.items_num + 1, "String");
 
-    mask.foreach_index([&](const int64_t i) {
-      const std::string &format = formats[i];
-      std::string *output = &outputs[i];
-      new (output) std::string(format);
-    });
+    Array<GVArray> inputs(storage.items_num);
+    for (const int i : IndexRange(storage.items_num)) {
+      inputs[i] = params.readonly_single_input(i + 1);
+    }
+
+    if (const std::optional<std::string> single_format = formats.get_if_single()) {
+      format_strings(*single_format, inputs, mask, outputs);
+    }
+    else {
+      mask.foreach_index(GrainSize(256), [&](const int64_t i) {
+        const StringRef format = formats[i];
+        format_strings(format, inputs, IndexRange::from_single(i), outputs);
+      });
+    }
   }
 };
 
