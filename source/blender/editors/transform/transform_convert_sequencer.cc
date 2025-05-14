@@ -447,7 +447,7 @@ static void query_time_dependent_strips_strips(TransInfo *t,
 
   /* Remove all non-effects. */
   time_dependent_strips.remove_if(
-      [&](Strip *strip) { return seq::transform_sequence_can_be_translated(strip); });
+      [&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
 }
 
 static void createTransSeqData(bContext * /*C*/, TransInfo *t)
@@ -590,9 +590,9 @@ static void flushTransSeq(TransInfo *t)
 
     switch (tdsq->sel_flag) {
       case SELECT: {
-        if (seq::transform_sequence_can_be_translated(strip)) {
+        if (seq::transform_strip_can_be_translated(strip)) {
           offset = new_frame - tdsq->start_offset - strip->start;
-          seq::transform_translate_sequence(scene, strip, offset);
+          seq::transform_translate_strip(scene, strip, offset);
           if (abs(offset) > abs(max_offset)) {
             max_offset = offset;
           }
@@ -665,7 +665,7 @@ static void recalcData_sequencer(TransInfo *t)
     Strip *strip = tdsq->strip;
 
     if (strip != strip_prev) {
-      seq::relations_invalidate_cache_composite(t->scene, strip);
+      seq::relations_invalidate_cache(t->scene, strip);
     }
 
     strip_prev = strip;
