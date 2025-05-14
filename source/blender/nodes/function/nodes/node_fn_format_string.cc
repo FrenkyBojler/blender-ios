@@ -127,6 +127,36 @@ static std::optional<int64_t> find_format_length(const StringRef format)
   return std::nullopt;
 }
 
+static int64_t find_next_format_start_or_end(const StringRef format,
+                                             const int64_t start,
+                                             std::string &r_out)
+{
+  int64_t i = start;
+  while (i < format.size()) {
+    const char c = format[i];
+    switch (c) {
+      case '{':
+      case '}': {
+        if (i + 1 < format.size()) {
+          const char next_c = format[i + 1];
+          if (next_c == c) {
+            i += 2;
+            r_out += c;
+            continue;
+          }
+        }
+        return i;
+      }
+      default: {
+        r_out += c;
+        i++;
+        break;
+      }
+    }
+  }
+  return format.size();
+}
+
 static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
                            const IndexMask &mask,
@@ -143,20 +173,20 @@ static bool format_strings(const StringRef format,
 
   int64_t current_index = 0;
   while (current_index < format.size()) {
-    const int64_t next_format_start = format.find('{', current_index);
-    const int64_t copy_length = next_format_start == StringRef::not_found ?
-                                    format.size() - current_index :
-                                    next_format_start - current_index;
-    if (copy_length > 0) {
-      const StringRef str_to_copy = format.substr(current_index, copy_length);
+    std::string copy_str;
+    const int64_t next_format_start_or_end = find_next_format_start_or_end(
+        format, current_index, copy_str);
+    if (!copy_str.empty()) {
       mask.foreach_index([&](const int64_t i) {
-        r_formatted_strings[i].append(str_to_copy.data(), str_to_copy.size());
+        std::string &output = r_formatted_strings[i];
+        output.append(copy_str);
       });
     }
-    if (next_format_start == StringRef::not_found) {
-      break;
+    if (next_format_start_or_end == format.size()) {
+      return true;
     }
-    current_index = next_format_start;
+    current_index = next_format_start_or_end;
+
     const std::optional<int64_t> format_length = find_format_length(format.substr(current_index));
     if (!format_length.has_value()) {
       /* TODO: How to handle this case? */
