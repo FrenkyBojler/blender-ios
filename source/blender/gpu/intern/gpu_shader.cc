@@ -1151,7 +1151,19 @@ void ShaderCompiler::run_thread()
 void ShaderCompiler::wait_for_all()
 {
   std::unique_lock lock(mutex_);
-  compilation_finished_notification_.wait(lock, [&]() { return compilation_queue_.empty(); });
+  compilation_finished_notification_.wait(lock, [&]() {
+    if (!compilation_queue_.empty()) {
+      return false;
+    }
+
+    for (Batch *batch : batches_.values()) {
+      if (!batch->is_ready()) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }
 
 /** \} */
