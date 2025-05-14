@@ -825,7 +825,7 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Brush &brush
                SCULPT_BRUSH_TYPE_THUMB) ||
 
           (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT &&
-           brush.project_direction_type == BRUSH_PROJECT_DIRECTION_PLANE_NORMAL) ||
+           brush.project_ray_direction_type == BRUSH_PROJECT_RAY_DIRECTION_PLANE_NORMAL) ||
 
           (mask_tex->tex && mask_tex->brush_map_mode == MTEX_MAP_MODE_AREA)) ||
          brush_uses_topology_rake(ss, brush) || BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt);

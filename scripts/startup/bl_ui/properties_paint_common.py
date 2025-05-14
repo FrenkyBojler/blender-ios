@@ -925,7 +925,7 @@ def brush_settings(layout, context, brush, popover=False):
 
         elif sculpt_tool == 'SCENE_PROJECT':
             layout.separator()
-            layout.prop(brush, "project_direction_type")
+            layout.prop(brush, "project_ray_direction_type")
             layout.prop(brush, "use_bidirectional")
             layout.prop(brush, "use_relative")
 

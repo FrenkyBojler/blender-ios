@@ -293,7 +293,7 @@ typedef struct Brush {
   char curves_sculpt_brush_type;
 
   /* Scene Project brush */
-  int8_t project_direction_type;
+  int8_t project_ray_direction_type;
 
   char _pad1[1];
 
