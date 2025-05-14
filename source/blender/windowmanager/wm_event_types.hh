@@ -76,16 +76,20 @@ enum wmEventType : int16_t {
    * ignore all but the most recent MOUSEMOVE (for better performance),
    * paint and drawing tools however will want to handle these. */
   INBETWEEN_MOUSEMOVE = 0x0011,
+  /* Horizontal scrolling events. */
+  WHEELLEFTMOUSE = 0x0014,  /* 20 */
+  WHEELRIGHTMOUSE = 0x0015, /* 21 */
 
 /* Maximum keyboard value (inclusive). */
-#define _EVT_MOUSE_MAX 0x0011 /* 17 */
+#define _EVT_MOUSE_MAX 0x0015 /* 21 */
 
   /* IME event, GHOST_kEventImeCompositionStart in ghost. */
-  WM_IME_COMPOSITE_START = 0x0014,
+  WM_IME_COMPOSITE_START = 0x0016,
+  /* 0x0017 is MOUSESMARTZOOM. */
   /* IME event, GHOST_kEventImeComposition in ghost. */
-  WM_IME_COMPOSITE_EVENT = 0x0015,
+  WM_IME_COMPOSITE_EVENT = 0x0018,
   /* IME event, GHOST_kEventImeCompositionEnd in ghost. */
-  WM_IME_COMPOSITE_END = 0x0016,
+  WM_IME_COMPOSITE_END = 0x0019,
 
   /* Tablet/Pen Specific Events. */
   TABLET_STYLUS = 0x001a,
@@ -372,10 +376,6 @@ enum wmEventType : int16_t {
 
   /* XR events: 0x503x. */
   EVT_XR_ACTION = 0x5030, /* 20528 */
-
-  /* Horizontal scrolling events. */
-  WHEELLEFTMOUSE = 0x5031,  /* 20529 */
-  WHEELRIGHTMOUSE = 0x5032, /* 20530 */
   /* ********** End of Blender internal events. ********** */
 };
 
@@ -414,9 +414,7 @@ enum wmEventType : int16_t {
  * \note It's best to use more specific check if possible as mixing motion/buttons/gestures
  * is very broad and not necessarily obvious which kinds of events are important.
  */
-#define ISMOUSE(event_type) \
-  (((event_type) >= _EVT_MOUSE_MIN && (event_type) <= _EVT_MOUSE_MAX) || \
-   ELEM((event_type), WHEELLEFTMOUSE, WHEELRIGHTMOUSE))
+#define ISMOUSE(event_type) (((event_type) >= _EVT_MOUSE_MIN && (event_type) <= _EVT_MOUSE_MAX))
 /** Test whether the event is a mouse button (excluding mouse-wheel). */
 #define ISMOUSE_MOTION(event_type) ELEM(event_type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)
 /** Test whether the event is a mouse button (excluding mouse-wheel). */
