@@ -106,17 +106,49 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<FormatStringItemsAccessor>(&reader, node);
 }
 
-static const mf::MultiFunction *get_multi_function(const bNode & /*bnode*/)
-{
-  static auto fn = mf::build::SI1_SO<std::string, std::string>(
-      "Format String", [](std::string format) { return format; });
-  return &fn;
-}
+class FormatStringMultiFunction : public mf::MultiFunction {
+ private:
+  const bNode &node_;
+  mf::Signature signature_;
+
+ public:
+  FormatStringMultiFunction(const bNode &node) : node_(node)
+  {
+    const NodeFunctionFormatString &storage = node_storage(node);
+
+    mf::SignatureBuilder builder{"Format String", signature_};
+    builder.single_input<std::string>("Format");
+    for (const int i : IndexRange(storage.items_num)) {
+      const NodeFunctionFormatStringItem &item = storage.items[i];
+      const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+      const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
+      builder.single_input(item.name, type);
+    }
+
+    builder.single_output<std::string>("String");
+
+    this->set_signature(&signature_);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  {
+    const NodeFunctionFormatString &storage = node_storage(node_);
+
+    const VArray<std::string> formats = params.readonly_single_input<std::string>(0, "Format");
+    MutableSpan<std::string> outputs = params.uninitialized_single_output<std::string>(
+        storage.items_num + 1, "String");
+
+    mask.foreach_index([&](const int64_t i) {
+      const std::string &format = formats[i];
+      std::string *output = &outputs[i];
+      new (output) std::string(format);
+    });
+  }
+};
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  const mf::MultiFunction *fn = get_multi_function(builder.node());
-  builder.set_matching_fn(fn);
+  builder.construct_and_set_matching_fn<FormatStringMultiFunction>(builder.node());
 }
 
 static void node_register()
