@@ -196,7 +196,7 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxe
   return int(area / (voxel_size * voxel_size) * 1.45f);
 }
 
-static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   static constexpr int remesh_vertex_count_threshold = 5000000;
 
