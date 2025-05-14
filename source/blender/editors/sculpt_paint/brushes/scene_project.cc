@@ -16,7 +16,7 @@
  * plane normal.
  *  - Bidirectional: When enabled, projects vertices both along the projection direction and
  * its inverse, choosing the closest intersection.
- *  - Relative: Offsets the projection to maintain the average relative position of the
+ *  - Relative: Offsets the projection to maintain the average relative positions of the
  * vertices.
  *
  * Inverting the brush inverts the ray direction.

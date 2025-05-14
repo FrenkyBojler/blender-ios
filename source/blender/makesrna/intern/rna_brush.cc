@@ -3634,7 +3634,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Relative",
-      "Offsets the projection to maintain the average relative position of the.");
+      "Offset the projection to maintain the average relative positions of the vertices.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "use_accumulate", PROP_BOOLEAN, PROP_NONE);
