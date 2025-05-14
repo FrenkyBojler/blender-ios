@@ -931,7 +931,7 @@ static float get_margin_between_elements(const Span<FlatNodeItem> items, const i
     case Type::Separator: {
       switch (next_type) {
         case Type::Socket:
-          return 2 * NODE_ITEM_SPACING_Y;
+          return 2.8f * NODE_ITEM_SPACING_Y;
         case Type::Separator:
           return NODE_ITEM_SPACING_Y;
         case Type::Layout:
