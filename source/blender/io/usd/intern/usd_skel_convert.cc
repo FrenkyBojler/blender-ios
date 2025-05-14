@@ -21,6 +21,7 @@
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"
@@ -681,7 +682,7 @@ static void set_rest_pose(Main *bmain,
       xf = xf * bind_xf.GetInverse();
 
       pxr::GfMatrix4f mat(xf);
-      BKE_pchan_apply_mat4(pchan, (float(*)[4])mat.data(), false);
+      BKE_pchan_apply_mat4(pchan, (float (*)[4])mat.data(), false);
 
       i++;
     }

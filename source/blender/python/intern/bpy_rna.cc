@@ -53,6 +53,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_windowmanager_types.h"
+
 #include "BKE_context.hh"
 #include "BKE_global.hh" /* evil G.* */
 #include "BKE_idprop.hh"
@@ -8163,7 +8165,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
   /* Stupid/simple case. */
   if (srna == nullptr) {
     newclass = nullptr; /* Nothing to do. */
-  }                     /* The class may have already been declared & allocated. */
+  } /* The class may have already been declared & allocated. */
   else if ((newclass = static_cast<PyObject *>(RNA_struct_py_type_get(srna)))) {
     /* Add a reference for the return value. */
     Py_INCREF(newclass);

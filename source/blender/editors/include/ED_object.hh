@@ -15,9 +15,9 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
-#include "DNA_windowmanager_types.h"
 
 struct Base;
 struct Depsgraph;
@@ -40,6 +40,7 @@ struct uiLayout;
 struct wmKeyConfig;
 struct wmOperator;
 struct wmOperatorType;
+enum eReportType : uint16_t;
 
 namespace blender::ed::object {
 
