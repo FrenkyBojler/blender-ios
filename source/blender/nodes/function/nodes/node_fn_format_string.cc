@@ -26,8 +26,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_default_layout();
-
   b.add_input<decl::String>("Format").hide_label();
   b.add_output<decl::String>("String").align_with_previous();
 
@@ -86,14 +84,16 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *ptr->data_as<bNode>();
-  socket_items::ui::draw_items_list_with_operators<FormatStringItemsAccessor>(
-      C, layout, tree, node);
-  socket_items::ui::draw_active_item_props<FormatStringItemsAccessor>(
-      tree, node, [&](PointerRNA *item_ptr) {
-        uiLayoutSetPropSep(layout, true);
-        uiLayoutSetPropDecorate(layout, false);
-        layout->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      });
+  if (uiLayout *panel = layout->panel(C, "format_string_items", false, IFACE_("Format Items"))) {
+    socket_items::ui::draw_items_list_with_operators<FormatStringItemsAccessor>(
+        C, panel, tree, node);
+    socket_items::ui::draw_active_item_props<FormatStringItemsAccessor>(
+        tree, node, [&](PointerRNA *item_ptr) {
+          uiLayoutSetPropSep(panel, true);
+          uiLayoutSetPropDecorate(panel, false);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        });
+  }
 }
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
@@ -123,7 +123,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeFormatString");
+  fn_node_type_base(&ntype, "FunctionNodeFormatString", FN_NODE_FORMAT_STRING);
   ntype.ui_name = "Format String";
   ntype.ui_description = "Create a string from a format-string and a values to insert";
   ntype.nclass = NODE_CLASS_CONVERTER;
@@ -146,6 +146,7 @@ NOD_REGISTER_NODE(node_register)
 namespace blender::nodes {
 
 StructRNA *FormatStringItemsAccessor::item_srna = &RNA_NodeFunctionFormatStringItem;
+int FormatStringItemsAccessor::node_type = FN_NODE_FORMAT_STRING;
 
 void FormatStringItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
