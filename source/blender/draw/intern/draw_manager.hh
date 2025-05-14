@@ -251,6 +251,7 @@ class Manager {
    * This avoid stalling the real submission call because of specialization.
    */
   void warm_shader_specialization(PassMain &pass);
+  void warm_shader_specialization(PassSimple &pass);
 
   /**
    * Submit a pass for drawing. All resource reference will be dereferenced and commands will be
