@@ -133,17 +133,23 @@ static void object_raycast(const ProjectBrushTarget &project_target,
 
   threading::isolate_task([&]() {
     threading::parallel_for(positions.index_range(), 256, [&](IndexRange range) {
+      BVHTreeRayHit hit;
+
       for (const int i : range) {
         if (factors[i] == 0.0f) {
           continue;
         }
 
-        BVHTreeRayHit hit;
-
         raycast(ray_origins[i], ray_direction, project_target.tree_data, hit);
         best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], hit.dist);
+      }
 
-        if (bidirectional) {
+      if (bidirectional) {
+        for (const int i : range) {
+          if (factors[i] == 0.0f) {
+            continue;
+          }
+
           raycast(ray_origins[i], -ray_direction, project_target.tree_data, hit);
           best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], -hit.dist);
         }
