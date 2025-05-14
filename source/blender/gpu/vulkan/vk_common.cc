@@ -421,8 +421,7 @@ static VkFormat to_vk_format_float(const GPUVertCompType type, const uint32_t si
 
     case GPU_COMP_I32:
     case GPU_COMP_U32:
-      /* NOTE: GPU_COMP_I32/U32 using GPU_FETCH_INT_TO_FLOAT isn't natively supported. These
-       * are converted on host-side to signed floats. */
+      /* NOTE: GPU_COMP_I32/U32 using GPU_FETCH_INT_TO_FLOAT isn't supported. */
       switch (size) {
         case 4:
           return VK_FORMAT_R32_SFLOAT;
