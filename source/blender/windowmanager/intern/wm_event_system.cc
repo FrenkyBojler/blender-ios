@@ -6290,6 +6290,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       for (int i = 0; i < click_step; i++) {
         wm_event_add_intern(win, &event);
       }
+
       break;
     }
 
