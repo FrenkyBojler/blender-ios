@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <charconv>
 #include <fmt/format.h>
 #include <regex>
 
@@ -193,6 +194,7 @@ static std::string get_format_pattern_by_type(const CPPType &type)
 
 static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
+                           const VectorSet<std::string> &input_names,
                            const IndexMask &mask,
                            MutableSpan<std::string> r_formatted_strings)
 {
@@ -205,7 +207,44 @@ static bool format_strings(const StringRef format,
   static std::regex simple_int_pattern{get_format_pattern_by_type(CPPType::get<int>())};
   static std::regex simple_string_pattern{get_format_pattern_by_type(CPPType::get<std::string>())};
 
+  bool non_auto_index_used = false;
   int64_t next_auto_input_index = 0;
+
+  auto find_input_index = [&](const StringRef identifier) -> std::optional<int64_t> {
+    if (identifier.is_empty()) {
+      if (non_auto_index_used) {
+        /* Once the first explicit identifier is used, it's not allowed to use the auto-index
+         * anymore. Only other explicit identifiers are allowed. */
+        return std::nullopt;
+      }
+      if (next_auto_input_index == inputs.size()) {
+        return std::nullopt;
+      }
+      return next_auto_input_index++;
+    }
+    non_auto_index_used = true;
+    if (std::isdigit(identifier[0])) {
+      int64_t index;
+      std::from_chars_result res = std::from_chars(identifier.begin(), identifier.end(), index);
+      if (res.ec != std::errc()) {
+        return std::nullopt;
+      }
+      if (res.ptr < identifier.end()) {
+        /* There are other characters after the number.*/
+        return std::nullopt;
+      }
+      if (index >= inputs.size()) {
+        return std::nullopt;
+      }
+      return index;
+    }
+    /* TODO: Restrict valid identifiers.*/
+    const int index = input_names.index_of_try_as(identifier);
+    if (index == -1) {
+      return std::nullopt;
+    }
+    return index;
+  };
 
   int64_t current_index = 0;
   while (current_index < format.size()) {
@@ -225,7 +264,6 @@ static bool format_strings(const StringRef format,
 
     const std::optional<int64_t> format_length = find_format_length(format.substr(current_index));
     if (!format_length.has_value()) {
-      /* TODO: How to handle this case? */
       return false;
     }
     const StringRef single_format_with_braces = format.substr(current_index, *format_length);
@@ -237,17 +275,17 @@ static bool format_strings(const StringRef format,
 
     const int64_t colon_index = single_format.find(':');
     if (colon_index == StringRef::not_found) {
-      format_pattern = single_format;
+      identifier = single_format;
     }
     else {
       identifier = single_format.substr(0, colon_index);
       format_pattern = single_format.substr(colon_index + 1);
     }
-    const int64_t input_index = next_auto_input_index++;
-    if (input_index >= inputs.size()) {
+    const std::optional<int64_t> input_index = find_input_index(identifier);
+    if (!input_index.has_value()) {
       return false;
     }
-    const GVArray &input = inputs[input_index];
+    const GVArray &input = inputs[*input_index];
     const CPPType &type = input.type();
 
     const std::regex *allowed_pattern = nullptr;
@@ -296,6 +334,9 @@ static bool format_strings(const StringRef format,
         return false;
       }
     }
+    else {
+      return false;
+    }
     current_index += *format_length;
   }
   return true;
@@ -304,6 +345,7 @@ static bool format_strings(const StringRef format,
 class FormatStringMultiFunction : public mf::MultiFunction {
  private:
   const bNode &node_;
+  VectorSet<std::string> input_names_;
   mf::Signature signature_;
 
  public:
@@ -318,6 +360,7 @@ class FormatStringMultiFunction : public mf::MultiFunction {
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
       builder.single_input(item.name, type);
+      input_names_.add_new(StringRef(item.name));
     }
 
     builder.single_output<std::string>("String");
@@ -339,12 +382,16 @@ class FormatStringMultiFunction : public mf::MultiFunction {
     }
 
     if (const std::optional<std::string> single_format = formats.get_if_single()) {
-      format_strings(*single_format, inputs, mask, outputs);
+      if (!format_strings(*single_format, inputs, input_names_, mask, outputs)) {
+        mask.foreach_index([&](const int64_t i) { outputs[i].clear(); });
+      }
     }
     else {
       mask.foreach_index(GrainSize(256), [&](const int64_t i) {
         const StringRef format = formats[i];
-        format_strings(format, inputs, IndexRange::from_single(i), outputs);
+        if (!format_strings(format, inputs, input_names_, IndexRange::from_single(i), outputs)) {
+          outputs[i].clear();
+        }
       });
     }
   }
