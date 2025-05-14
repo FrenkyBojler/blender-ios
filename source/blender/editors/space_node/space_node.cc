@@ -684,7 +684,7 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 
   BLI_addtail(&snode->regionbase, region);
   region->regiontype = RGN_TYPE_ASSET_SHELF_HEADER;
-  region->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
+  region->alignment = RGN_ALIGN_TOP | RGN_SPLIT_PREV;
   /* buttons/list view */
   region = BKE_area_region_new();
 
