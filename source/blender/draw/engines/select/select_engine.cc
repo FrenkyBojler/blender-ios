@@ -328,7 +328,7 @@ struct Instance : public DrawEngine {
     return ElemIndexRanges{};
   }
 
-  void object_sync(ObjectRef &ob_ref, Manager &manager) final
+  void object_sync(ObjectRef &ob_ref, Manager & /*manager*/) final
   {
     Object *ob = ob_ref.object;
     StaticData &e_data = StaticData::get();
@@ -340,14 +340,14 @@ struct Instance : public DrawEngine {
       blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
           DRW_object_get_data_for_drawing<Mesh>(*ob));
 
-      depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
+      depth_occlude->draw(geom_faces, ob_ref.handle());
       return;
     }
 
     /* Only sync selectable object once.
      * This can happen in retopology mode where there is two sync loop. */
     sel_ctx.elem_ranges.lookup_or_add_cb(ob, [&]() {
-      ResourceHandle res_handle = manager.resource_handle(ob_ref);
+      ResourceHandle res_handle = ob_ref.handle();
       ElemIndexRanges elem_ranges = object_sync(
           draw_ctx->v3d, ob, res_handle, sel_ctx.select_mode, sel_ctx.max_index_drawn_len);
       sel_ctx.max_index_drawn_len = elem_ranges.total.one_after_last();
