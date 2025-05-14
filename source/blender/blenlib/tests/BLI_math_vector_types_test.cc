@@ -293,10 +293,10 @@ TEST(math_vec_types, SwizzleFloat2)
   v = v.yx();
   EXPECT_EQ(v[0], 2);
   EXPECT_EQ(v[1], 1);
-  v.xy = v.xx();
+  v.xy() = v.xx();
   EXPECT_EQ(v[0], 2);
   EXPECT_EQ(v[1], 2);
-  v.xy = float2(1, 2);
+  v.xy() = float2(1, 2);
   // v.yx = v; /* Should not compile. Read-only swizzle. */
   /* Expansion of vector. */
   float4 t = v.xyxy();
@@ -318,11 +318,11 @@ TEST(math_vec_types, SwizzleFloat3)
   EXPECT_EQ(v[0], 5);
   EXPECT_EQ(v[1], 4);
   EXPECT_EQ(v[2], 3);
-  v.xyz = v;
+  v.xyz() = v;
   EXPECT_EQ(v[0], 5);
   EXPECT_EQ(v[1], 4);
   EXPECT_EQ(v[2], 3);
-  v.xyz = v.yzx();
+  v.xyz() = v.yzx();
   EXPECT_EQ(v[0], 4);
   EXPECT_EQ(v[1], 3);
   EXPECT_EQ(v[2], 5);
@@ -349,11 +349,11 @@ TEST(math_vec_types, SwizzleFloat3)
   EXPECT_EQ(b[1], 1);
   EXPECT_EQ(b[2], 2);
   /* Assignment to different swizzle type. */
-  b.yz = a.zy();
+  b.yz() = a.zy();
   EXPECT_EQ(b[0], 3);
   EXPECT_EQ(b[1], 2);
   EXPECT_EQ(b[2], 1);
-  b.yz = a.zz();
+  b.yz() = a.zz();
   EXPECT_EQ(b[0], 3);
   EXPECT_EQ(b[1], 2);
   EXPECT_EQ(b[2], 2);
@@ -373,7 +373,7 @@ TEST(math_vec_types, SwizzleFloat4)
   EXPECT_EQ(v[1], 8);
   EXPECT_EQ(v[2], 7);
   EXPECT_EQ(v[3], 6);
-  v.xyzw = v;
+  v.xyzw() = v;
   EXPECT_EQ(v[0], 9);
   EXPECT_EQ(v[1], 8);
   EXPECT_EQ(v[2], 7);
@@ -386,13 +386,13 @@ TEST(math_vec_types, SwizzleAssignment)
   float2 a(9, 8);
   float3 b(7, 6, 5);
 
-  v.yz = a;
+  v.yz() = a;
   EXPECT_EQ(v.x, 1);
   EXPECT_EQ(v.y, 9);
   EXPECT_EQ(v.z, 8);
   EXPECT_EQ(v.w, 4);
   // v.yzw = b.zxx();  // Should not compile. Non contiguous swizzle.
-  v.yzw = b.zzz();
+  v.yzw() = b.zzz();
   EXPECT_EQ(v.x, 1);
   EXPECT_EQ(v.y, 5);
   EXPECT_EQ(v.z, 5);
@@ -403,60 +403,60 @@ TEST(math_vec_types, SwizzleOperators)
 {
   float4 v(1, 2, 3, 4);
 
-  v.xy += 1;
+  v.xy() += 1;
   EXPECT_EQ(v.x, 2);
   EXPECT_EQ(v.y, 3);
   EXPECT_EQ(v.z, 3);
   EXPECT_EQ(v.w, 4);
-  v.yz -= 1;
+  v.yz() -= 1;
   EXPECT_EQ(v.x, 2);
   EXPECT_EQ(v.y, 2);
   EXPECT_EQ(v.z, 2);
   EXPECT_EQ(v.w, 4);
-  v.zw *= 2;
+  v.zw() *= 2;
   EXPECT_EQ(v.x, 2);
   EXPECT_EQ(v.y, 2);
   EXPECT_EQ(v.z, 4);
   EXPECT_EQ(v.w, 8);
-  v.yzw /= 2;
+  v.yzw() /= 2;
   EXPECT_EQ(v.x, 2);
   EXPECT_EQ(v.y, 1);
   EXPECT_EQ(v.z, 2);
   EXPECT_EQ(v.w, 4);
 
   int4 i(1 << 0, 1 << 2, 1 << 3, 1 << 4);
-  int4 a = -i.xyzw;
+  int4 a = -i.xyzw();
   EXPECT_EQ(a.x, -(1 << 0));
   EXPECT_EQ(a.y, -(1 << 2));
   EXPECT_EQ(a.z, -(1 << 3));
   EXPECT_EQ(a.w, -(1 << 4));
-  int4 b = ~i.xyzw;
+  int4 b = ~i.xyzw();
   EXPECT_EQ(b.x, ~(1 << 0));
   EXPECT_EQ(b.y, ~(1 << 2));
   EXPECT_EQ(b.z, ~(1 << 3));
   EXPECT_EQ(b.w, ~(1 << 4));
 
-  i.xy <<= 1;
+  i.xy() <<= 1;
   EXPECT_EQ(i.x, 1 << 1);
   EXPECT_EQ(i.y, 1 << 3);
   EXPECT_EQ(i.z, 1 << 3);
   EXPECT_EQ(i.w, 1 << 4);
-  i.yz >>= 1;
+  i.yz() >>= 1;
   EXPECT_EQ(i.x, 1 << 1);
   EXPECT_EQ(i.y, 1 << 2);
   EXPECT_EQ(i.z, 1 << 2);
   EXPECT_EQ(i.w, 1 << 4);
-  i.xyz &= 2;
+  i.xyz() &= 2;
   EXPECT_EQ(i.x, (1 << 1) & 2);
   EXPECT_EQ(i.y, (1 << 2) & 2);
   EXPECT_EQ(i.z, (1 << 2) & 2);
   EXPECT_EQ(i.w, (1 << 4));
-  i.yzw |= 2;
+  i.yzw() |= 2;
   EXPECT_EQ(i.x, ((1 << 1) & 2));
   EXPECT_EQ(i.y, ((1 << 2) & 2) | 2);
   EXPECT_EQ(i.z, ((1 << 2) & 2) | 2);
   EXPECT_EQ(i.w, (1 << 4) | 2);
-  i.yz ^= 2;
+  i.yz() ^= 2;
   EXPECT_EQ(i.x, ((1 << 1) & 2));
   EXPECT_EQ(i.y, (((1 << 2) & 2) | 2) ^ 2);
   EXPECT_EQ(i.z, (((1 << 2) & 2) | 2) ^ 2);
