@@ -5,9 +5,12 @@
 set(INC
   .
   ..
+  include
   ../intern
   ../../editors/include
   ../../makesrna
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -63,6 +66,7 @@ set(SRC
 
   node_function_util.cc
 
+  include/NOD_fn_format_string.hh
   node_function_util.hh
 )
 
