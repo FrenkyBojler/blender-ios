@@ -822,19 +822,26 @@ static void rna_NodeTreeInterfaceSocket_value_update(Main *bmain, Scene *scene, 
   rna_NodeTreeInterfaceItem_update(bmain, scene, ptr);
 }
 
+/* If the dimensions of the vector socket changed, we need to update the socket type, since each
+ * dimensions value has its own sub-type. */
 static void rna_NodeTreeInterfaceSocketVector_dimensions_update(Main *bmain,
                                                                 Scene *scene,
                                                                 PointerRNA *ptr)
 {
 
   bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+
+  /* Store a copy of the existing default value since it will be freed when setting the socket type
+   * below.*/
   const bNodeSocketValueVector default_value = *static_cast<bNodeSocketValueVector *>(
       socket->socket_data);
+
   const blender::StringRefNull socket_idname = *blender::bke::node_static_socket_type(
       SOCK_VECTOR, default_value.subtype, default_value.dimensions);
 
   socket->set_socket_type(socket_idname);
 
+  /* Restore existing default value. */
   *static_cast<bNodeSocketValueVector *>(socket->socket_data) = default_value;
 
   rna_NodeTreeInterfaceSocket_value_update(bmain, scene, ptr);

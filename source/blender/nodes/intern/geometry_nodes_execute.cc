@@ -148,7 +148,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       ui_data->base.rna_subtype = value->subtype;
       ui_data->soft_min = double(value->min);
       ui_data->soft_max = double(value->max);
-      ui_data->default_array = MEM_malloc_arrayN<double>(4, "mod_prop_default");
+      ui_data->default_array = MEM_malloc_arrayN<double>(value->dimensions, "mod_prop_default");
       ui_data->default_array_len = value->dimensions;
       for (const int i : IndexRange(value->dimensions)) {
         ui_data->default_array[i] = double(value->value[i]);
