@@ -475,18 +475,30 @@ static void init_socket_cpp_value_from_property(const IDProperty &property,
     }
     case SOCK_VECTOR: {
       const void *property_array = IDP_Array(&property);
-      float3 value;
+      BLI_assert(property.len >= 2 && property.len <= 4);
+
+      float4 values = float4(0.0f);
       if (property.subtype == IDP_FLOAT) {
-        value = float3(static_cast<const float *>(property_array));
+        for (int i = 0; i < property.len; i++) {
+          values[i] = static_cast<const float *>(property_array)[i];
+        }
       }
       else if (property.subtype == IDP_INT) {
-        value = float3(int3(static_cast<const int *>(property_array)));
+        for (int i = 0; i < property.len; i++) {
+          values[i] = float(static_cast<const int *>(property_array)[i]);
+        }
+      }
+      else if (property.subtype == IDP_DOUBLE) {
+        for (int i = 0; i < property.len; i++) {
+          values[i] = float(static_cast<const double *>(property_array)[i]);
+        }
       }
       else {
-        BLI_assert(property.subtype == IDP_DOUBLE);
-        value = float3(double3(static_cast<const double *>(property_array)));
+        BLI_assert_unreachable();
       }
-      new (r_value) bke::SocketValueVariant(value);
+
+      /* Only float3 vectors are supported for now. */
+      new (r_value) bke::SocketValueVariant(float3(values));
       break;
     }
     case SOCK_RGBA: {
