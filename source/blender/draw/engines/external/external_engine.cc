@@ -94,7 +94,7 @@ class Prepass {
     }
   }
 
-  void particle_sync(Manager &manager, const ObjectRef &ob_ref)
+  void particle_sync(Manager &manager, ObjectRef &ob_ref)
   {
     Object *ob = ob_ref.object;
 
@@ -122,7 +122,7 @@ class Prepass {
     }
   }
 
-  void sculpt_sync(Manager &manager, const ObjectRef &ob_ref)
+  void sculpt_sync(Manager &manager, ObjectRef &ob_ref)
   {
     ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
 
@@ -131,7 +131,7 @@ class Prepass {
     }
   }
 
-  void object_sync(Manager &manager, const ObjectRef &ob_ref, const DRWContext &draw_ctx)
+  void object_sync(Manager &manager, ObjectRef &ob_ref, const DRWContext &draw_ctx)
   {
     bool is_solid = ob_ref.object->dt >= OB_SOLID ||
                     !(ob_ref.object->visibility_flag & OB_HIDE_CAMERA);
@@ -174,7 +174,7 @@ class Prepass {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandle res_handle = ob_ref.handle();
 
     for (int material_id : geom_list.index_range()) {
       pass->draw(geom_list[material_id], res_handle);
