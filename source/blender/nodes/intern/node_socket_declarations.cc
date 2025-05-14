@@ -68,6 +68,14 @@ static void modify_subtype_except_for_storage(bNodeSocket &socket, int new_subty
   socket.typeinfo = socktype;
 }
 
+static void modify_subtype_except_for_storage(bNodeSocket &socket, int subtype, int dimensions)
+{
+  const StringRefNull idname = *bke::node_static_socket_type(socket.type, subtype, dimensions);
+  STRNCPY(socket.idname, idname.c_str());
+  bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
+  socket.typeinfo = socktype;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name #Float
  * \{ */
@@ -264,14 +272,6 @@ bool Vector::can_connect(const bNodeSocket &socket) const
   return basic_types_can_connect(*this, socket);
 }
 
-static void modify_dimensions_except_for_storage(bNodeSocket &socket, int dimensions)
-{
-  const StringRefNull idname = *bke::node_static_socket_type(socket.type, socket.type, dimensions);
-  STRNCPY(socket.idname, idname.c_str());
-  bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
-  socket.typeinfo = socktype;
-}
-
 bNodeSocket &Vector::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_VECTOR) {
@@ -279,12 +279,12 @@ bNodeSocket &Vector::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
     return this->build(ntree, node);
   }
   if (socket.typeinfo->subtype != this->subtype) {
-    modify_subtype_except_for_storage(socket, this->subtype);
+    modify_subtype_except_for_storage(socket, this->subtype, this->dimensions);
   }
   this->set_common_flags(socket);
   bNodeSocketValueVector &value = *(bNodeSocketValueVector *)socket.default_value;
   if (value.dimensions != this->dimensions) {
-    modify_dimensions_except_for_storage(socket, this->dimensions);
+    modify_subtype_except_for_storage(socket, this->subtype, this->dimensions);
   }
   value.subtype = this->subtype;
   value.dimensions = this->dimensions;
