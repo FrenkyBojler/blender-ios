@@ -39,7 +39,7 @@ ViewerPathElem *viewer_path_elem_for_compute_context(const ComputeContext &compu
 {
   if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(&compute_context)) {
     ModifierViewerPathElem *elem = BKE_viewer_path_elem_new_modifier();
-    elem->modifier_uid = elem->modifier_uid;
+    elem->modifier_uid = context->modifier_uid();
     if (const NodesModifierData *nmd = context->nmd()) {
       elem->base.ui_name = BLI_strdup(nmd->modifier.name);
     }
