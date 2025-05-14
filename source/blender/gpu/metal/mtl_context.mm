@@ -709,6 +709,13 @@ void MTLContext::free_dummy_resources()
   }
 }
 
+void MTLContext::specialization_constants_set(
+    const shader::SpecializationConstants *constants_state)
+{
+  constants_state_ = (constants_state != nullptr) ? *constants_state :
+                                                    shader::SpecializationConstants{};
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2185,7 +2192,7 @@ const MTLComputePipelineStateInstance *MTLContext::ensure_compute_pipeline_state
   MTLShader *active_shader = this->pipeline_state.active_shader;
 
   /* Set descriptor to default shader constants . */
-  MTLComputePipelineStateDescriptor compute_pipeline_descriptor(active_shader->constants.values);
+  MTLComputePipelineStateDescriptor compute_pipeline_descriptor(constants_state_.values);
 
   const MTLComputePipelineStateInstance *compute_pso_inst =
       this->pipeline_state.active_shader->bake_compute_pipeline_state(this,

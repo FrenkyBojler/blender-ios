@@ -472,11 +472,10 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
 
 void MTLShader::bind(const shader::SpecializationConstants *constants_state)
 {
-  if (constants_state) {
-    this->constants = *constants_state;
-  }
-
   MTLContext *ctx = MTLContext::get();
+  /* Copy constants state. */
+  ctx->specialization_constants_set(constants_state);
+
   if (interface == nullptr || !this->is_valid()) {
     MTL_LOG_WARNING(
         "MTLShader::bind - Shader '%s' has no valid implementation in Metal, draw calls will be "
@@ -888,7 +887,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_current_pipeline_state(
       (requires_specific_topology_class) ? prim_type : MTLPrimitiveTopologyClassUnspecified;
 
   /* Specialization configuration. */
-  pipeline_descriptor.specialization_state = {this->constants.values};
+  pipeline_descriptor.specialization_state = {ctx->constants_state_.values};
 
   /* Bake pipeline state using global descriptor. */
   return bake_pipeline_state(ctx, prim_type, pipeline_descriptor);
