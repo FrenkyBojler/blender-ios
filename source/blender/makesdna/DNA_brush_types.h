@@ -291,7 +291,11 @@ typedef struct Brush {
   char gpencil_weight_brush_type;
   /** Active curves sculpt brush type (#eBrushCurvesSculptType). */
   char curves_sculpt_brush_type;
-  char _pad1[2];
+
+  /* Scene Project brush */
+  int8_t project_direction_type;
+
+  char _pad1[1];
 
   float autosmooth_factor;
 
@@ -315,10 +319,6 @@ typedef struct Brush {
   float stabilize_normal;
   float stabilize_plane;
   int plane_inversion_mode;
-
-  /* Scene Project brush */
-  int project_direction_type;
-  float projection_offset_factor;
 
   float texture_sample_bias;
 

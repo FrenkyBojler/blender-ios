@@ -14,12 +14,10 @@
  * Settings:
  *  - Projection Direction: The ray direction, which can be set to the view normal or the brush
  * plane normal.
- *  - Projection Offset: Offsets the projection to maintain the average relative position of the
- * vertices.
  *  - Bidirectional: When enabled, projects vertices both along the projection direction and
  * its inverse, choosing the closest intersection.
- *  - Ignore Hidden Objects: When enabled, hidden objects in the scene are not considered as
- * raycasting targets for the brush.
+ *  - Relative: Offsets the projection to maintain the average relative position of the
+ * vertices.
  *
  * Inverting the brush inverts the ray direction.
  */
@@ -228,17 +226,12 @@ static float calc_center_projection_distance(const StrokeCache &cache,
 static void calc_projection_offset(const float3 &center,
                                    const float3 &normal,
                                    const float center_projection_dist,
-                                   const float projection_offset_factor,
                                    const Span<float3> positions,
                                    const MutableSpan<float> hit_distances)
 {
-  if (projection_offset_factor == 0.0f) {
-    return;
-  }
-
   for (const int i : positions.index_range()) {
     const float distance = math::dot(positions[i] - center, normal);
-    hit_distances[i] += (distance - center_projection_dist) * projection_offset_factor;
+    hit_distances[i] += (distance - center_projection_dist);
   }
 }
 
@@ -269,6 +262,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
                        const bool bidirectional,
+                       const bool relative,
                        const float3 &normal,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
@@ -307,12 +301,10 @@ static void calc_faces(const Depsgraph &depsgraph,
                 tls.ray_origins,
                 hit_distances);
 
-  calc_projection_offset(ss.cache->location_symm,
-                         normal,
-                         center_projection_dist,
-                         brush.projection_offset_factor,
-                         positions,
-                         hit_distances);
+  if (relative) {
+    calc_projection_offset(
+        ss.cache->location_symm, normal, center_projection_dist, positions, hit_distances);
+  }
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -328,6 +320,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool bidirectional,
+                       const bool relative,
                        const float3 &normal,
                        const float center_projection_dist,
                        const bke::pbvh::GridsNode &node,
@@ -352,12 +345,10 @@ static void calc_grids(const Depsgraph &depsgraph,
                 tls.ray_origins,
                 hit_distances);
 
-  calc_projection_offset(ss.cache->location_symm,
-                         normal,
-                         center_projection_dist,
-                         brush.projection_offset_factor,
-                         positions,
-                         hit_distances);
+  if (relative) {
+    calc_projection_offset(
+        ss.cache->location_symm, normal, center_projection_dist, positions, hit_distances);
+  }
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -373,6 +364,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool bidirectional,
+                       const bool relative,
                        const float3 &normal,
                        const float center_projection_dist,
                        bke::pbvh::BMeshNode &node,
@@ -396,12 +388,10 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                 tls.ray_origins,
                 hit_distances);
 
-  calc_projection_offset(ss.cache->location_symm,
-                         normal,
-                         center_projection_dist,
-                         brush.projection_offset_factor,
-                         positions,
-                         hit_distances);
+  if (relative) {
+    calc_projection_offset(
+        ss.cache->location_symm, normal, center_projection_dist, positions, hit_distances);
+  }
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -423,11 +413,13 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   const StrokeCache &cache = *object.sculpt->cache;
 
-  const bool bidirectional = brush.flag2 & BRUSH_BIDIRECTIONAL;
+  const bool bidirectional = brush.flag2 & BRUSH_PROJECT_USE_BIDIRECTIONAL;
   const float3 normal = calc_normal(brush, cache);
 
   const float center_projection_dist = calc_center_projection_distance(
       cache, normal, bidirectional);
+
+  const bool relative = brush.flag2 & BRUSH_PROJECT_USE_RELATIVE;
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
@@ -444,6 +436,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
                    sd,
                    brush,
                    bidirectional,
+                   relative,
                    normal,
                    attribute_data,
                    vert_normals,
@@ -467,6 +460,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
                    object,
                    brush,
                    bidirectional,
+                   relative,
                    normal,
                    center_projection_dist,
                    nodes[i],
@@ -484,6 +478,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
                    object,
                    brush,
                    bidirectional,
+                   relative,
                    normal,
                    center_projection_dist,
                    nodes[i],

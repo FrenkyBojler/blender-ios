@@ -3181,16 +3181,6 @@ static void rna_def_brush(BlenderRNA *brna)
       prop, "Hardness", "How close the brush falloff starts from the edge of the brush");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "projection_offset_factor", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "projection_offset_factor");
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_range(prop, 0, 1.0f, 0.001, 3);
-  RNA_def_property_ui_text(
-      prop,
-      "Projection Offset",
-      "Offset the projection to maintain the average relative position of the vertices.");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
   prop = RNA_def_property(
       srna, "automasking_boundary_edges_propagation_steps", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "automasking_boundary_edges_propagation_steps");
@@ -3631,12 +3621,20 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Persistent", "Sculpt on a persistent layer of the mesh");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "bidirectional", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_BIDIRECTIONAL);
+  prop = RNA_def_property(srna, "use_bidirectional", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_PROJECT_USE_BIDIRECTIONAL);
   RNA_def_property_ui_text(prop,
                            "Bidirectional",
                            "Project vertices both along along the projection direction and its "
                            "inverse, choosing the closest intersection.");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "use_relative", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_PROJECT_USE_RELATIVE);
+  RNA_def_property_ui_text(
+      prop,
+      "Relative",
+      "Offsets the projection to maintain the average relative position of the.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "use_accumulate", PROP_BOOLEAN, PROP_NONE);
