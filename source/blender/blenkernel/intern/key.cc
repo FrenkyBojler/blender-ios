@@ -338,7 +338,7 @@ void BKE_key_sort(Key *key)
 
 /**************** do the key ****************/
 
-void key_curve_position_weights(float t, float data[4], int /* KeyInterpolationType */ type)
+void key_curve_position_weights(float t, float data[4], KeyInterpolationType type)
 {
   float t2, t3, fc;
 
@@ -350,7 +350,6 @@ void key_curve_position_weights(float t, float data[4], int /* KeyInterpolationT
       data[3] = 0.0f;
       break;
     }
-
     case KEY_CARDINAL: {
       t2 = t * t;
       t3 = t2 * t;
@@ -362,7 +361,6 @@ void key_curve_position_weights(float t, float data[4], int /* KeyInterpolationT
       data[3] = fc * t3 - fc * t2;
       break;
     }
-
     case KEY_BSPLINE: {
       t2 = t * t;
       t3 = t2 * t;
@@ -373,7 +371,6 @@ void key_curve_position_weights(float t, float data[4], int /* KeyInterpolationT
       data[3] = 0.16666666f * t3;
       break;
     }
-
     case KEY_CATMULL_ROM: {
       t2 = t * t;
       t3 = t2 * t;
@@ -385,14 +382,10 @@ void key_curve_position_weights(float t, float data[4], int /* KeyInterpolationT
       data[3] = fc * t3 - fc * t2;
       break;
     }
-
-    default:
-      BLI_assert_unreachable();
-      break;
   }
 }
 
-void key_curve_tangent_weights(float t, float data[4], int /* KeyInterpolationType */ type)
+void key_curve_tangent_weights(float t, float data[4], KeyInterpolationType type)
 {
   float t2, fc;
 
@@ -404,7 +397,6 @@ void key_curve_tangent_weights(float t, float data[4], int /* KeyInterpolationTy
       data[3] = 0.0f;
       break;
     }
-
     case KEY_CARDINAL: {
       t2 = t * t;
       fc = 0.71f;
@@ -415,7 +407,6 @@ void key_curve_tangent_weights(float t, float data[4], int /* KeyInterpolationTy
       data[3] = 3.0f * fc * t2 - 2.0f * fc * t;
       break;
     }
-
     case KEY_BSPLINE: {
       t2 = t * t;
 
@@ -425,7 +416,6 @@ void key_curve_tangent_weights(float t, float data[4], int /* KeyInterpolationTy
       data[3] = 0.5f * t2;
       break;
     }
-
     case KEY_CATMULL_ROM: {
       t2 = t * t;
       fc = 0.5f;
@@ -436,14 +426,10 @@ void key_curve_tangent_weights(float t, float data[4], int /* KeyInterpolationTy
       data[3] = 3.0f * fc * t2 - 2.0f * fc * t;
       break;
     }
-
-    default:
-      BLI_assert_unreachable();
-      break;
   }
 }
 
-void key_curve_normal_weights(float t, float data[4], int /* KeyInterpolationType */ type)
+void key_curve_normal_weights(float t, float data[4], KeyInterpolationType type)
 {
   float fc;
 
@@ -455,7 +441,6 @@ void key_curve_normal_weights(float t, float data[4], int /* KeyInterpolationTyp
       data[3] = 0.0f;
       break;
     }
-
     case KEY_CARDINAL: {
       fc = 0.71f;
 
@@ -465,7 +450,6 @@ void key_curve_normal_weights(float t, float data[4], int /* KeyInterpolationTyp
       data[3] = 6.0f * fc * t - 2.0f * fc;
       break;
     }
-
     case KEY_BSPLINE: {
       data[0] = -1.0f * t + 1.0f;
       data[1] = 3.0f * t - 2.0f;
@@ -473,7 +457,6 @@ void key_curve_normal_weights(float t, float data[4], int /* KeyInterpolationTyp
       data[3] = 1.0f * t;
       break;
     }
-
     case KEY_CATMULL_ROM: {
       fc = 0.5f;
 
@@ -483,10 +466,6 @@ void key_curve_normal_weights(float t, float data[4], int /* KeyInterpolationTyp
       data[3] = 6.0f * fc * t - 2.0f * fc;
       break;
     }
-
-    default:
-      BLI_assert_unreachable();
-      break;
   }
 }
 
@@ -623,11 +602,11 @@ static int setkeys(float fac, ListBase *lb, KeyBlock *k[], float t[4], int cycl)
   }
 
   /* interpolation */
-  key_curve_position_weights(d, t, k[1]->type);
+  key_curve_position_weights(d, t, KeyInterpolationType(k[1]->type));
 
   if (k[1]->type != k[2]->type) {
     float t_other[4];
-    key_curve_position_weights(d, t_other, k[2]->type);
+    key_curve_position_weights(d, t_other, KeyInterpolationType(k[2]->type));
     interp_v4_v4v4(t, t, t_other, d);
   }
 
