@@ -1745,11 +1745,13 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
       if (!m_multiTouchScroll && momentumPhase == NSEventPhaseNone) {
         if (event.deltaX != 0.0) {
           const int32_t delta = event.deltaX > 0.0 ? 1 : -1;
-          pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, GHOST_kEventWheelAxisHorizontal, delta));
+          pushEvent(new GHOST_EventWheel(
+              event.timestamp * 1000, window, GHOST_kEventWheelAxisHorizontal, delta));
         }
         if (event.deltaY != 0.0) {
           const int32_t delta = event.deltaY > 0.0 ? 1 : -1;
-          pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, GHOST_kEventWheelAxisVertical, delta));
+          pushEvent(new GHOST_EventWheel(
+              event.timestamp * 1000, window, GHOST_kEventWheelAxisVertical, delta));
         }
       }
       else {
