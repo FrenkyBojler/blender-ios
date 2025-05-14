@@ -621,7 +621,9 @@ static void separate_armature_bones(Main *bmain, Object *ob, const bool is_selec
     curbone = ED_armature_ebone_find_name(arm->edbo, pchan->name);
 
     /* check if bone needs to be removed */
-    if (is_select == (EBONE_VISIBLE(arm, curbone) && (curbone->flag & BONE_SELECTED))) {
+    if (is_select ==
+        (ANIM_bone_is_visible_editbone(arm, curbone) && (curbone->flag & BONE_SELECTED)))
+    {
 
       /* Clear the bone->parent var of any bone that had this as its parent. */
       LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
@@ -684,7 +686,7 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
       bool has_selected_bone = false;
       bool has_selected_any = false;
       LISTBASE_FOREACH (EditBone *, ebone, arm_old->edbo) {
-        if (EBONE_VISIBLE(arm_old, ebone)) {
+        if (ANIM_bone_is_visible_editbone(arm_old, ebone)) {
           if (ebone->flag & BONE_SELECTED) {
             has_selected_bone = true;
             break;
@@ -982,12 +984,12 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
 
-  uiLayout *row_offset = uiLayoutRow(layout, false);
+  uiLayout *row_offset = &layout->row(false);
   uiLayoutSetEnabled(row_offset, enable_offset);
   uiItemEnumO(
       row_offset, "ARMATURE_OT_parent_set", std::nullopt, ICON_NONE, "type", ARM_PAR_OFFSET);
 
-  uiLayout *row_connect = uiLayoutRow(layout, false);
+  uiLayout *row_connect = &layout->row(false);
   uiLayoutSetEnabled(row_connect, enable_connect);
   uiItemEnumO(
       row_connect, "ARMATURE_OT_parent_set", std::nullopt, ICON_NONE, "type", ARM_PAR_CONNECT);
@@ -1102,12 +1104,12 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Parent"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
 
-  uiLayout *row_clear = uiLayoutRow(layout, false);
+  uiLayout *row_clear = &layout->row(false);
   uiLayoutSetEnabled(row_clear, enable_clear);
   uiItemEnumO(
       row_clear, "ARMATURE_OT_parent_clear", std::nullopt, ICON_NONE, "type", ARM_PAR_CLEAR);
 
-  uiLayout *row_disconnect = uiLayoutRow(layout, false);
+  uiLayout *row_disconnect = &layout->row(false);
   uiLayoutSetEnabled(row_disconnect, enable_disconnect);
   uiItemEnumO(row_disconnect,
               "ARMATURE_OT_parent_clear",

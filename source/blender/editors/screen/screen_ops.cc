@@ -66,6 +66,7 @@
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
 #include "ED_sequencer.hh"
+#include "ED_space_graph.hh"
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
@@ -1495,7 +1496,7 @@ static void area_dupli_fn(bScreen * /*screen*/, ScrArea *area, void *user_data)
   ScrArea *area_src = static_cast<ScrArea *>(user_data);
   ED_area_data_copy(area, area_src, true);
   ED_area_tag_redraw(area);
-};
+}
 
 /* operator callback */
 static bool area_dupli_open(bContext *C, ScrArea *area, const blender::int2 position)
@@ -3331,24 +3332,45 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /** \name Jump to Key-Frame Operator
  * \{ */
 
-/* function to be called outside UI context, or for redo */
-static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
+static void keylist_from_dopesheet(bContext &C, AnimKeylist &keylist)
 {
-  Scene *scene = CTX_data_scene(C);
-  Object *ob = CTX_data_active_object(C);
-  bDopeSheet ads = {nullptr};
-  const bool next = RNA_boolean_get(op->ptr, "next");
-  bool done = false;
+  bAnimContext ac;
 
-  /* sanity checks */
-  if (scene == nullptr) {
-    return OPERATOR_CANCELLED;
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+    return;
+  }
+  BLI_assert(ac.area->spacetype == SPACE_ACTION);
+  summary_to_keylist(&ac, &keylist, 0, {-FLT_MAX, FLT_MAX});
+}
+
+static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
+{
+  bAnimContext ac;
+
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+    return;
   }
 
-  const float cfra = BKE_scene_frame_get(scene);
+  ListBase anim_data = blender::ed::graph::get_editable_fcurves(ac);
 
-  /* Initialize binary-tree-list for getting keyframes. */
-  AnimKeylist *keylist = ED_keylist_create();
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
+    if (!fcu->bezt) {
+      continue;
+    }
+
+    const bool use_nla_mapping = true;
+    fcurve_to_keylist(ale->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, use_nla_mapping);
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
+/* This is used for all editors where a more specific function isn't implemented. */
+static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
+{
+  bDopeSheet ads = {nullptr};
+  Scene *scene = CTX_data_scene(&C);
 
   /* Speed up dummy dope-sheet context with flags to perform necessary filtering. */
   if ((scene->flag & SCE_KEYS_NO_SELONLY) == 0) {
@@ -3357,27 +3379,62 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   /* populate tree with keyframe nodes */
-  scene_to_keylist(&ads, scene, keylist, 0, {-FLT_MAX, FLT_MAX});
+  scene_to_keylist(&ads, scene, &keylist, 0, {-FLT_MAX, FLT_MAX});
 
+  Object *ob = CTX_data_active_object(&C);
   if (ob) {
-    ob_to_keylist(&ads, ob, keylist, 0, {-FLT_MAX, FLT_MAX});
+    ob_to_keylist(&ads, ob, &keylist, 0, {-FLT_MAX, FLT_MAX});
 
     if (ob->type == OB_GREASE_PENCIL) {
       const bool active_layer_only = !(scene->flag & SCE_KEYS_NO_SELONLY);
       grease_pencil_data_block_to_keylist(
-          nullptr, static_cast<const GreasePencil *>(ob->data), keylist, 0, active_layer_only);
+          nullptr, static_cast<const GreasePencil *>(ob->data), &keylist, 0, active_layer_only);
     }
   }
 
   {
-    Mask *mask = CTX_data_edit_mask(C);
+    Mask *mask = CTX_data_edit_mask(&C);
     if (mask) {
       MaskLayer *masklay = BKE_mask_layer_active(mask);
-      mask_to_keylist(&ads, masklay, keylist);
+      mask_to_keylist(&ads, masklay, &keylist);
     }
   }
+}
+
+/* function to be called outside UI context, or for redo */
+static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  const bool next = RNA_boolean_get(op->ptr, "next");
+  bool done = false;
+
+  /* sanity checks */
+  if (scene == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ScrArea *area = CTX_wm_area(C);
+  AnimKeylist *keylist = ED_keylist_create();
+
+  switch (area->spacetype) {
+    case SPACE_ACTION: {
+      keylist_from_dopesheet(*C, *keylist);
+      break;
+    }
+
+    case SPACE_GRAPH:
+      keylist_from_graph_editor(*C, *keylist);
+      break;
+
+    default:
+      keylist_fallback_for_keyframe_jump(*C, *keylist);
+      break;
+  }
+
+  /* Initialize binary-tree-list for getting keyframes. */
   ED_keylist_prepare_for_direct_access(keylist);
 
+  const float cfra = BKE_scene_frame_get(scene);
   /* find matching keyframe in the right direction */
   const ActKeyColumn *ak;
 
@@ -3428,8 +3485,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 
 static bool keyframe_jump_poll(bContext *C)
 {
-  /* There is a keyframe jump operator specifically for the Graph Editor. */
-  return operator_screenactive_norender(C) && !ED_operator_graphedit_active(C);
+  return operator_screenactive_norender(C);
 }
 
 static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
@@ -4521,7 +4577,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
 
   if (sa1 && sa2) {
-    uiItemS(layout);
+    layout->separator();
   }
 
   /* Join needs two very similar areas. */
@@ -4551,7 +4607,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
 
-      uiItemS(layout);
+      layout->separator();
     }
   }
 
@@ -5128,12 +5184,11 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
               UI_ITEM_NONE,
               &ptr);
 
-  uiItemS(layout);
+  layout->separator();
 
-  uiItemO(layout,
-          area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
-          ICON_NONE,
-          "SCREEN_OT_screen_full_area");
+  layout->op("SCREEN_OT_screen_full_area",
+             area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
+             ICON_NONE);
 
   if (area->spacetype != SPACE_FILE && !area->full) {
     uiItemFullO(layout,
@@ -5147,9 +5202,9 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
     RNA_boolean_set(&ptr, "use_hide_panels", true);
   }
 
-  uiItemO(layout, std::nullopt, ICON_NONE, "SCREEN_OT_area_dupli");
-  uiItemS(layout);
-  uiItemO(layout, std::nullopt, ICON_X, "SCREEN_OT_area_close");
+  layout->op("SCREEN_OT_area_dupli", std::nullopt, ICON_NONE);
+  layout->separator();
+  layout->op("SCREEN_OT_area_close", std::nullopt, ICON_X);
 }
 
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
@@ -5159,32 +5214,27 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
     PointerRNA ptr = RNA_pointer_create_discrete(
         (ID *)CTX_wm_screen(C), &RNA_Space, area->spacedata.first);
     if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
-      uiItemR(layout, &ptr, "show_region_header", UI_ITEM_NONE, IFACE_("Show Header"), ICON_NONE);
+      layout->prop(&ptr, "show_region_header", UI_ITEM_NONE, IFACE_("Show Header"), ICON_NONE);
     }
 
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-    uiLayout *col = uiLayoutColumn(layout, false);
+    uiLayout *col = &layout->column(false);
     uiLayoutSetActive(col, (region_header->flag & RGN_FLAG_HIDDEN) == 0);
 
     if (BKE_area_find_region_type(area, RGN_TYPE_TOOL_HEADER)) {
-      uiItemR(col,
-              &ptr,
-              "show_region_tool_header",
-              UI_ITEM_NONE,
-              IFACE_("Show Tool Settings"),
-              ICON_NONE);
+      col->prop(
+          &ptr, "show_region_tool_header", UI_ITEM_NONE, IFACE_("Show Tool Settings"), ICON_NONE);
     }
 
-    uiItemO(col,
+    col->op("SCREEN_OT_header_toggle_menus",
             IFACE_("Show Menus"),
-            (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT,
-            "SCREEN_OT_header_toggle_menus");
+            (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT);
   }
 
   if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
-    uiItemS(layout);
+    layout->separator();
     ED_screens_region_flip_menu_create(C, layout, nullptr);
-    uiItemS(layout);
+    layout->separator();
     screen_area_menu_items(area, layout);
   }
 }
@@ -5196,11 +5246,11 @@ void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void * /
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
         (ID *)CTX_wm_screen(C), &RNA_Space, area->spacedata.first);
-    uiItemR(layout, &ptr, "show_region_footer", UI_ITEM_NONE, IFACE_("Show Footer"), ICON_NONE);
+    layout->prop(&ptr, "show_region_footer", UI_ITEM_NONE, IFACE_("Show Footer"), ICON_NONE);
   }
 
   ED_screens_region_flip_menu_create(C, layout, nullptr);
-  uiItemS(layout);
+  layout->separator();
   screen_area_menu_items(area, layout);
 }
 
@@ -5216,32 +5266,22 @@ void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*
   /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
-  uiItemO(layout, but_flip_str, ICON_NONE, "SCREEN_OT_region_flip");
+  layout->op("SCREEN_OT_region_flip", but_flip_str, ICON_NONE);
 }
 
 static void ed_screens_statusbar_menu_create(uiLayout *layout, void * /*arg*/)
 {
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesView, &U);
-  uiItemR(
-      layout, &ptr, "show_statusbar_stats", UI_ITEM_NONE, IFACE_("Scene Statistics"), ICON_NONE);
-  uiItemR(layout,
-          &ptr,
-          "show_statusbar_scene_duration",
-          UI_ITEM_NONE,
-          IFACE_("Scene Duration"),
-          ICON_NONE);
-  uiItemR(layout, &ptr, "show_statusbar_memory", UI_ITEM_NONE, IFACE_("System Memory"), ICON_NONE);
+  layout->prop(&ptr, "show_statusbar_stats", UI_ITEM_NONE, IFACE_("Scene Statistics"), ICON_NONE);
+  layout->prop(
+      &ptr, "show_statusbar_scene_duration", UI_ITEM_NONE, IFACE_("Scene Duration"), ICON_NONE);
+  layout->prop(&ptr, "show_statusbar_memory", UI_ITEM_NONE, IFACE_("System Memory"), ICON_NONE);
   if (GPU_mem_stats_supported()) {
-    uiItemR(layout, &ptr, "show_statusbar_vram", UI_ITEM_NONE, IFACE_("Video Memory"), ICON_NONE);
+    layout->prop(&ptr, "show_statusbar_vram", UI_ITEM_NONE, IFACE_("Video Memory"), ICON_NONE);
   }
-  uiItemR(layout,
-          &ptr,
-          "show_extensions_updates",
-          UI_ITEM_NONE,
-          IFACE_("Extensions Updates"),
-          ICON_NONE);
-  uiItemR(
-      layout, &ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
+  layout->prop(
+      &ptr, "show_extensions_updates", UI_ITEM_NONE, IFACE_("Extensions Updates"), ICON_NONE);
+  layout->prop(&ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
 }
 
 static wmOperatorStatus screen_context_menu_invoke(bContext *C,
@@ -5273,6 +5313,11 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
     else if (region->regiontype == RGN_TYPE_NAV_BAR) {
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
       uiLayout *layout = UI_popup_menu_layout(pup);
+
+      /* We need WM_OP_INVOKE_DEFAULT in case menu item is over another area. */
+      uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+      layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
+
       ED_screens_region_flip_menu_create(C, layout, nullptr);
       const ScrArea *area = CTX_wm_area(C);
       if (area && area->spacetype == SPACE_PROPERTIES) {
@@ -5467,8 +5512,7 @@ static void screen_animation_region_tag_redraw(
     }
 
     if (area->spacetype == SPACE_SEQ) {
-      const SpaceSeq *sseq = static_cast<const SpaceSeq *>(area->spacedata.first);
-      if (!blender::ed::vse::has_playback_animation(sseq, scene)) {
+      if (!blender::ed::vse::has_playback_animation(scene)) {
         return;
       }
     }

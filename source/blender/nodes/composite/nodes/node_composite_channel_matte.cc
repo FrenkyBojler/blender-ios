@@ -54,11 +54,6 @@ static void node_composit_init_channel_matte(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeChroma *c = MEM_callocN<NodeChroma>(__func__);
   node->storage = c;
-  c->t1 = 1.0f;
-  c->t2 = 0.0f;
-  c->t3 = 0.0f;
-  c->fsize = 0.0f;
-  c->fstrength = 0.0f;
   c->algorithm = 1;  /* Max channel limiting. */
   c->channel = 1;    /* Limit by red. */
   node->custom1 = 1; /* RGB channel. */
@@ -69,37 +64,31 @@ static void node_composit_buts_channel_matte(uiLayout *layout, bContext * /*C*/,
 {
   uiLayout *col, *row;
 
-  uiItemL(layout, IFACE_("Color Space:"), ICON_NONE);
-  row = uiLayoutRow(layout, false);
-  uiItemR(row,
-          ptr,
-          "color_space",
-          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
-          std::nullopt,
-          ICON_NONE);
+  layout->label(IFACE_("Color Space:"), ICON_NONE);
+  row = &layout->row(false);
+  row->prop(
+      ptr, "color_space", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemL(col, IFACE_("Key Channel:"), ICON_NONE);
-  row = uiLayoutRow(col, false);
-  uiItemR(row,
-          ptr,
-          "matte_channel",
-          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
-          std::nullopt,
-          ICON_NONE);
-
-  col = uiLayoutColumn(layout, false);
-
-  uiItemR(col, ptr, "limit_method", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  if (RNA_enum_get(ptr, "limit_method") == 0) {
-    uiItemL(col, IFACE_("Limiting Channel:"), ICON_NONE);
-    row = uiLayoutRow(col, false);
-    uiItemR(row,
-            ptr,
-            "limit_channel",
+  col = &layout->column(false);
+  col->label(IFACE_("Key Channel:"), ICON_NONE);
+  row = &col->row(false);
+  row->prop(ptr,
+            "matte_channel",
             UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
             std::nullopt,
             ICON_NONE);
+
+  col = &layout->column(false);
+
+  col->prop(ptr, "limit_method", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  if (RNA_enum_get(ptr, "limit_method") == 0) {
+    col->label(IFACE_("Limiting Channel:"), ICON_NONE);
+    row = &col->row(false);
+    row->prop(ptr,
+              "limit_channel",
+              UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
+              std::nullopt,
+              ICON_NONE);
   }
 }
 
@@ -279,7 +268,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_channel_matte_cc
 
-void register_node_type_cmp_channel_matte()
+static void register_node_type_cmp_channel_matte()
 {
   namespace file_ns = blender::nodes::node_composite_channel_matte_cc;
 
@@ -301,3 +290,4 @@ void register_node_type_cmp_channel_matte()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_channel_matte)

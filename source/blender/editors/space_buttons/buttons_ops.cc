@@ -24,6 +24,7 @@
 #include "BKE_context.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
@@ -302,6 +303,18 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
   path = RNA_property_string_get_alloc(&ptr, prop, nullptr, 0, nullptr);
 
+  if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
+    const Scene *scene = CTX_data_scene(C);
+    const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+        path,
+        FILE_MAX,
+        BKE_build_template_variables(BKE_main_blendfile_path_from_global(), &scene->r));
+    if (!errors.is_empty()) {
+      BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
+      return OPERATOR_CANCELLED;
+    }
+  }
+
   /* Useful yet irritating feature, Shift+Click to open the file
    * Alt+Click to browse a folder in the OS's browser. */
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
@@ -346,6 +359,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   fbo->prop = prop;
   fbo->is_undo = is_undo;
   fbo->is_userdef = is_userdef;
+
   op->customdata = fbo;
 
   /* NOTE(@ideasman42): Normally #ED_fileselect_get_params would handle this

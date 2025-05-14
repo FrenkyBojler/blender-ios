@@ -132,7 +132,7 @@ bool ED_armature_pose_select_pick_bone(const Scene *scene,
                                        View3D *v3d,
                                        Object *ob,
                                        Bone *bone,
-                                       const SelectPick_Params *params)
+                                       const SelectPick_Params &params)
 {
   bool found = false;
   bool changed = false;
@@ -143,13 +143,13 @@ bool ED_armature_pose_select_pick_bone(const Scene *scene,
     }
   }
 
-  if (params->sel_op == SEL_OP_SET) {
-    if ((found && params->select_passthrough) && (bone->flag & BONE_SELECTED)) {
+  if (params.sel_op == SEL_OP_SET) {
+    if ((found && params.select_passthrough) && (bone->flag & BONE_SELECTED)) {
       found = false;
     }
-    else if (found || params->deselect_all) {
+    else if (found || params.deselect_all) {
       /* Deselect everything. */
-      /* Don't use 'BKE_object_pose_base_array_get_unique'
+      /* Don't use #BKE_object_pose_base_array_get_unique
        * because we may be selecting from object mode. */
       FOREACH_VISIBLE_BASE_BEGIN (scene, view_layer, v3d, base_iter) {
         Object *ob_iter = base_iter->object;
@@ -181,13 +181,13 @@ bool ED_armature_pose_select_pick_bone(const Scene *scene,
     {
       /* When we are entering into posemode via toggle-select,
        * from another active object - always select the bone. */
-      if (params->sel_op == SEL_OP_SET) {
+      if (params.sel_op == SEL_OP_SET) {
         /* Re-select the bone again later in this function. */
         bone->flag &= ~BONE_SELECTED;
       }
     }
 
-    switch (params->sel_op) {
+    switch (params.sel_op) {
       case SEL_OP_ADD: {
         bone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
         arm->act_bone = bone;
@@ -258,7 +258,7 @@ bool ED_armature_pose_select_pick_with_buffer(const Scene *scene,
                                               Base *base,
                                               const GPUSelectResult *hit_results,
                                               const int hits,
-                                              const SelectPick_Params *params,
+                                              const SelectPick_Params &params,
                                               bool do_nearest)
 {
   Object *ob = base->object;
@@ -318,7 +318,7 @@ bool ED_pose_deselect_all(Object *ob, int select_mode, const bool ignore_visibil
   if (select_mode == SEL_TOGGLE) {
     select_mode = SEL_SELECT;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-      if (ignore_visibility || PBONE_VISIBLE(arm, pchan->bone)) {
+      if (ignore_visibility || ANIM_bone_is_visible_pchan(arm, pchan)) {
         if (pchan->bone->flag & BONE_SELECTED) {
           select_mode = SEL_DESELECT;
           break;
@@ -331,7 +331,7 @@ bool ED_pose_deselect_all(Object *ob, int select_mode, const bool ignore_visibil
   bool changed = false;
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     /* ignore the pchan if it isn't visible or if its selection cannot be changed */
-    if (ignore_visibility || PBONE_VISIBLE(arm, pchan->bone)) {
+    if (ignore_visibility || ANIM_bone_is_visible_pchan(arm, pchan)) {
       int flag_prev = pchan->bone->flag;
       pose_do_bone_select(pchan, select_mode);
       changed = (changed || flag_prev != pchan->bone->flag);
@@ -344,7 +344,7 @@ static bool ed_pose_is_any_selected(Object *ob, bool ignore_visibility)
 {
   bArmature *arm = static_cast<bArmature *>(ob->data);
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-    if (ignore_visibility || PBONE_VISIBLE(arm, pchan->bone)) {
+    if (ignore_visibility || ANIM_bone_is_visible_pchan(arm, pchan)) {
       if (pchan->bone->flag & BONE_SELECTED) {
         return true;
       }
@@ -817,11 +817,11 @@ void POSE_OT_select_hierarchy(wmOperatorType *ot)
 
 /* -------------------------------------- */
 
-/* modes for select same */
-enum ePose_SelectSame_Mode {
-  POSE_SEL_SAME_COLLECTION = 0,
-  POSE_SEL_SAME_COLOR = 1,
-  POSE_SEL_SAME_KEYINGSET = 2,
+/* Modes for the `select_grouped` operator. */
+enum class SelectRelatedMode {
+  SAME_COLLECTION = 0,
+  SAME_COLOR,
+  SAME_KEYINGSET,
 };
 
 static bool pose_select_same_color(bContext *C, const bool extend)
@@ -1024,7 +1024,7 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool ex
 static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  const ePose_SelectSame_Mode type = ePose_SelectSame_Mode(RNA_enum_get(op->ptr, "type"));
+  const SelectRelatedMode mode = SelectRelatedMode(RNA_enum_get(op->ptr, "type"));
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   bool changed = false;
 
@@ -1034,21 +1034,21 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
   }
 
   /* selection types */
-  switch (type) {
-    case POSE_SEL_SAME_COLLECTION:
+  switch (mode) {
+    case SelectRelatedMode::SAME_COLLECTION:
       changed = pose_select_same_collection(C, extend);
       break;
 
-    case POSE_SEL_SAME_COLOR:
+    case SelectRelatedMode::SAME_COLOR:
       changed = pose_select_same_color(C, extend);
       break;
 
-    case POSE_SEL_SAME_KEYINGSET: /* Keying Set */
+    case SelectRelatedMode::SAME_KEYINGSET:
       changed = pose_select_same_keyingset(C, op->reports, extend);
       break;
 
     default:
-      printf("pose_select_grouped() - Unknown selection type %d\n", type);
+      printf("pose_select_grouped() - Unknown selection type %d\n", int(mode));
       break;
   }
 
@@ -1064,13 +1064,13 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
 void POSE_OT_select_grouped(wmOperatorType *ot)
 {
   static const EnumPropertyItem prop_select_grouped_types[] = {
-      {POSE_SEL_SAME_COLLECTION,
+      {int(SelectRelatedMode::SAME_COLLECTION),
        "COLLECTION",
        0,
        "Collection",
        "Same collections as the active bone"},
-      {POSE_SEL_SAME_COLOR, "COLOR", 0, "Color", "Same color as the active bone"},
-      {POSE_SEL_SAME_KEYINGSET,
+      {int(SelectRelatedMode::SAME_COLOR), "COLOR", 0, "Color", "Same color as the active bone"},
+      {int(SelectRelatedMode::SAME_KEYINGSET),
        "KEYINGSET",
        0,
        "Keying Set",
@@ -1140,7 +1140,7 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
     blender::Map<bPoseChannel *, eBone_Flag> old_selection_flags;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       /* Treat invisible bones as deselected. */
-      const int flags = PBONE_VISIBLE(arm, pchan->bone) ? pchan->bone->flag : 0;
+      const int flags = ANIM_bone_is_visible_pchan(arm, pchan) ? pchan->bone->flag : 0;
 
       old_selection_flags.add_new(pchan, eBone_Flag(flags));
     }
