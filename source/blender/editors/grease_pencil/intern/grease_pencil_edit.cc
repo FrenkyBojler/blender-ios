@@ -4174,7 +4174,11 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
-  const float threshold = RNA_float_get(op->ptr, "threshold");
+  const float threshold = RNA_float_get(op->ptr, "error");
+  const float angle_min = RNA_float_get(op->ptr, "angle_min");
+  const float radius_min = RNA_float_get(op->ptr, "radius_min");
+  const float radius_max = RNA_float_get(op->ptr, "radius_max");
+  const int samples_max = RNA_int_get(op->ptr, "samples_max");
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -4187,14 +4191,14 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       return;
     }
 
-    const VArray<float> angle_min = VArray<float>::ForSingle(DEG2RADF(40.0f), curves.curves_num());
-    const VArray<float> radius_min = VArray<float>::ForSingle(0.001f, curves.curves_num());
-    const VArray<float> radius_max = VArray<float>::ForSingle(0.2f, curves.curves_num());
-    const VArray<int> samples_max = VArray<int>::ForSingle(16, curves.curves_num());
+    const VArray<float> angle_mins = VArray<float>::ForSingle(angle_min, curves.curves_num());
+    const VArray<float> radius_mins = VArray<float>::ForSingle(radius_min, curves.curves_num());
+    const VArray<float> radius_maxs = VArray<float>::ForSingle(radius_max, curves.curves_num());
+    const VArray<int> samples_maxs = VArray<int>::ForSingle(samples_max, curves.curves_num());
 
     const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
     const Array<bool> corners = geometry::curves_detect_corners(
-        curves, angle_min, radius_min, radius_max, samples_max);
+        curves, angle_mins, radius_mins, radius_maxs, samples_maxs);
 
     curves = geometry::fit_curves(curves,
                                   strokes,
@@ -4230,8 +4234,58 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
 
   ot->prop = RNA_def_enum(
       ot->srna, "type", rna_enum_curves_type_items, CURVE_TYPE_POLY, "Type", "Curve type");
+  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 
-  RNA_def_float(ot->srna, "threshold", 0.02f, 0.0f, 100.0f, "Threshold", "", 0.0f, 100.0f);
+  PropertyRNA *prop = RNA_def_float(
+      ot->srna,
+      "error",
+      0.01f,
+      0.0f,
+      100.0f,
+      "Error",
+      "The error distance that the resulting points are allowed to be within",
+      0.0f,
+      100.0f);
+  RNA_def_property_subtype(prop, PROP_DISTANCE);
+
+  prop = RNA_def_float_distance(ot->srna,
+                                "angle_min",
+                                DEG2RADF(40.0f),
+                                0.0f,
+                                M_PI,
+                                "Angle Min",
+                                "Detected angles above this value are considered corners",
+                                0.0f,
+                                M_PI);
+  RNA_def_property_subtype(prop, PROP_ANGLE);
+
+  RNA_def_float(ot->srna,
+                "radius_min",
+                0.001f,
+                0.0f,
+                FLT_MAX,
+                "Radius Min",
+                "Minimum search radius for corner detection algorithm",
+                0.0f,
+                100.0f);
+  RNA_def_float(ot->srna,
+                "radius_max",
+                0.2f,
+                0.0f,
+                FLT_MAX,
+                "Radius Max",
+                "Maximum search radius for corner detection algorithm",
+                0.0f,
+                100.0f);
+  RNA_def_int(ot->srna,
+              "samples_max",
+              16,
+              1,
+              32,
+              "Samples Max",
+              "Maximum amount of points to test for a potential corner",
+              1,
+              32);
 }
 
 /** \} */
