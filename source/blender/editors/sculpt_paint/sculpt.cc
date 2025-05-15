@@ -111,6 +111,29 @@ static CLG_LogRef LOG = {"ed.sculpt_paint"};
 
 namespace blender::ed::sculpt_paint {
 
+ActiveElementIndices get_active_element_indices(const Object& object)
+{
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  const SculptSession &ss = *object.sculpt;
+  switch (pbvh.type()) {
+    case bke::pbvh::Type::Mesh:
+      BLI_assert(ss.active_face_index);
+      return {ss.active_vert_index(), ss.active_face_index.value_or(-1)};
+    case bke::pbvh::Type::Grids:
+      BLI_assert(ss.active_grid_index);
+      if (ss.active_grid_index.has_value()) {
+        return {-1, BKE_subdiv_ccg_grid_to_face_index(*ss.subdiv_ccg, *ss.active_grid_index)};
+      }
+      return {-1, -1};
+    case bke::pbvh::Type::BMesh:
+      /* BMesh is inherently incompatible with geometry nodes, avoid returning the indices as they
+       * are misleading */
+      return {-1, -1};
+  }
+  BLI_assert_unreachable();
+  return {-1, -1};
+}
+
 float sculpt_calc_radius(const ViewContext &vc,
                          const Brush &brush,
                          const Scene &scene,

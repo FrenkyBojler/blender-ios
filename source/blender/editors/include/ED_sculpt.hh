@@ -34,6 +34,13 @@ void object_sculpt_mode_exit(bContext *C, Depsgraph &depsgraph);
 
 /* `sculpt.cc` */
 
+struct ActiveElementIndices {
+  int active_vert;
+  int active_face;
+};
+
+ActiveElementIndices get_active_element_indices(const Object& ob);
+
 /**
  * Checks if the currently active Sculpt Mode on the object is targeting a locked shape key,
  * and produces an error message if so (unless \a reports is null).

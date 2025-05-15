@@ -265,6 +265,11 @@ static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
         return bke::GeometrySet::from_mesh(final_copy);
       }
       if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(object)) {
+        const auto [active_vert, active_face] =
+            sculpt_paint::get_active_element_indices(object);
+        operator_data.active_point_index = active_vert;
+        operator_data.active_face_index = active_face;
+
         /* Currently many sculpt mode operations do not tag normals dirty (see use of
          * #Mesh::tag_positions_changed_no_normals()), so access within geometry nodes cannot
          * know that normals are out of date and recalculate them. Update them here instead. */
