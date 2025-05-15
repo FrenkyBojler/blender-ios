@@ -145,6 +145,11 @@ void GPU_state_set(eGPUWriteMask write_mask,
   state.provoking_vert = uint32_t(provoking_vert);
 }
 
+void GPU_clip_control_unit_range(bool enable)
+{
+  SET_IMMUTABLE_STATE(clip_control, enable);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

@@ -44,11 +44,6 @@ GLStateManager::GLStateManager()
   /* Limits. */
   glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, line_width_range_);
 
-  if (GLContext::clip_control_support) {
-    /* Match Vulkan and Metal by default. */
-    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-  }
-
   /* Force update using default state. */
   current_ = ~state;
   current_mutable_ = ~mutable_state;
@@ -113,6 +108,9 @@ void GLStateManager::set_state(const GPUState &state)
   }
   if (changed.shadow_bias != 0) {
     set_shadow_bias(state.shadow_bias);
+  }
+  if (changed.clip_control != 0) {
+    set_clip_control(state.clip_control);
   }
 
   /* TODO: remove. */
@@ -332,6 +330,19 @@ void GLStateManager::set_shadow_bias(const bool enable)
   else {
     glDisable(GL_POLYGON_OFFSET_FILL);
     glDisable(GL_POLYGON_OFFSET_LINE);
+  }
+}
+
+void GLStateManager::set_clip_control(const bool enable)
+{
+  if (GLContext::clip_control_support) {
+    if (enable) {
+      /* Match Vulkan and Metal by default. */
+      glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+    }
+    else {
+      glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+    }
   }
 }
 
