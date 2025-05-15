@@ -3,5 +3,5 @@ Referenced by commit 1e1ac2bb9b3bbef0443038af7f3a9e4446fe6201, Fix: Various asse
 Referenced by pull request #138852, Fix #138851: Assert on entering Sculpting workspace
 Referenced by pull request #138855, GPU: Replace U32/I32 combination with GPU_FETCH_INT_TO_FLOAT in UI code
 Referenced by commit 153abc372e914b92bb960cf17482fd1956a5ec96, GPU: Replace U32/I32 combination with GPU_FETCH_INT_TO_FLOAT in UI code
-Referenced by pull request #138873, GPU: Remove 32 bit int to float fetch mode combination
+Referenced by pull request #138873, GPU: Remove int float fetch mode combination
 Referenced by commit 745582ee01f536d82e537016d80516fcc81ae96a, Fix #138851: Assert on entering Sculpting workspace
