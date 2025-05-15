@@ -115,6 +115,19 @@ class GreasePencil_LayerAdjustmentsPanel:
         col = layout.row(align=True)
         col.prop(layer, "radius_offset", text="Stroke Thickness")
 
+class GREASE_PENCIL_MT_layer_relations_menu(Menu):
+    bl_label = "Inverse"
+
+    def draw(self, context):
+        layout = self.layout
+        grease_pencil = context.grease_pencil
+        layer = grease_pencil.layers.active
+
+        if layer.parent:
+            layout.operator("grease_pencil.layer_set_inverse", text="Set Inverse").unset = False
+            layout.operator("grease_pencil.layer_set_inverse", text="Clear Inverse").unset = True
+        else:
+            layout.label(text="No Parent Layer")
 
 class GreasePencil_LayerRelationsPanel:
     def draw(self, context):
@@ -127,15 +140,11 @@ class GreasePencil_LayerRelationsPanel:
 
         row = layout.row(align=True)
         row.prop(layer, "parent", text="Parent")
+        row.menu("GREASE_PENCIL_MT_layer_relations_menu", icon='DOWNARROW_HLT', text="")
 
         if layer.parent and layer.parent.type == 'ARMATURE':
             row = layout.row(align=True)
             row.prop_search(layer, "parent_bone", layer.parent.data, "bones", text="Bone")
-
-        if layer.parent:
-            row = layout.row()
-            row.operator("grease_pencil.layer_set_inverse", text="Set Inverse").unset = False
-            row.operator("grease_pencil.layer_set_inverse", text="Clear Inverse").unset = True
 
         layout.separator()
 
@@ -533,6 +542,7 @@ classes = (
     DATA_PT_grease_pencil_custom_props,
     GREASE_PENCIL_MT_grease_pencil_add_layer_extra,
     GREASE_PENCIL_MT_group_context_menu,
+    GREASE_PENCIL_MT_layer_relations_menu,
     DATA_PT_grease_pencil_animation,
     GREASE_PENCIL_UL_attributes,
     DATA_PT_grease_pencil_attributes,
