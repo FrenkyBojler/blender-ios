@@ -110,7 +110,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<FormatStringItemsAccessor>(&reader, node);
 }
 
-static std::optional<int64_t> find_format_length(const StringRef format)
+static std::optional<StringRef> find_format_specifier(const StringRef format)
 {
   BLI_assert(format[0] == '{');
   int64_t braces_depth = 1;
@@ -122,7 +122,8 @@ static std::optional<int64_t> find_format_length(const StringRef format)
       braces_depth--;
     }
     if (braces_depth == 0) {
-      return &c - format.data() + 1;
+      const int length = &c - format.data() + 1;
+      return format.substr(0, length);
     }
   }
   return std::nullopt;
@@ -232,6 +233,10 @@ struct FormatValueLookup {
   const Span<GVArray> inputs_;
   const VectorSet<std::string> &input_names_;
   int64_t next_auto_index_ = 0;
+  /**
+   * Once the first non-auto-index is used, it's not allowed to use the auto-index afterwards
+   * anymore.
+   */
   bool non_auto_index_used_ = false;
 
  public:
@@ -258,6 +263,7 @@ struct FormatValueLookup {
         return std::nullopt;
       }
       if (next_auto_index_ == inputs_.size()) {
+        /* Not enough inputs provided. */
         return std::nullopt;
       }
       return next_auto_index_++;
@@ -298,58 +304,58 @@ static bool format_strings(const StringRef format,
 
   int64_t current_index = 0;
   while (current_index < format.size()) {
+    /* Find the string until the next format starts or the string ends. */
     std::string copy_str;
     const int64_t next_format_start_or_end = find_next_format_start_or_end(
         format, current_index, copy_str);
+
+    /* Append the non-formatted string to the outputs. */
     if (!copy_str.empty()) {
       mask.foreach_index([&](const int64_t i) {
         std::string &output = r_formatted_strings[i];
         output.append(copy_str);
       });
     }
+
+    /* The string has ended, so return successfully. */
     if (next_format_start_or_end == format.size()) {
-      return true;
+      break;
     }
     current_index = next_format_start_or_end;
 
-    const std::optional<int64_t> format_length = find_format_length(format.substr(current_index));
-    if (!format_length.has_value()) {
+    /* Find the format specifier starting at the current index. */
+    const std::optional<StringRef> format_outer = find_format_specifier(
+        format.substr(current_index));
+    if (!format_outer.has_value()) {
       return false;
     }
-    const StringRef single_format_with_braces = format.substr(current_index, *format_length);
-    const StringRef single_format = single_format_with_braces.substr(
-        1, single_format_with_braces.size() - 2);
+    const StringRef format_inner = format_outer->substr(1, format_outer->size() - 2);
 
+    /* Extract the identifier and the pattern which are split by a colon. */
     StringRef identifier;
     StringRef format_pattern;
-
-    const int64_t colon_index = single_format.find(':');
+    const int64_t colon_index = format_inner.find(':');
     if (colon_index == StringRef::not_found) {
-      identifier = single_format;
+      identifier = format_inner;
     }
     else {
-      identifier = single_format.substr(0, colon_index);
-      format_pattern = single_format.substr(colon_index + 1);
+      identifier = format_inner.substr(0, colon_index);
+      format_pattern = format_inner.substr(colon_index + 1);
     }
+
+    /* Find the typed input values and get the corresponding allowed pattern. */
     const GVArray *input = inputs_lookup.find_next_input(identifier);
     if (!input) {
       return false;
     }
     const CPPType &type = input->type();
-
     const FormatPatternInfo *allowed_pattern = get_pattern_by_type(type);
     if (!allowed_pattern) {
       return false;
     }
 
-    std::string format_str;
-    format_str += "{:";
-    format_str.append(format_pattern.begin(), format_pattern.end());
-    format_str += '}';
-
     const GVArray *width_input = nullptr;
     const GVArray *precision_input = nullptr;
-
     Vector<std::string> formats_to_replace;
 
     std::cmatch m;
@@ -388,14 +394,19 @@ static bool format_strings(const StringRef format,
       }
     }
 
+    /* Prepare the format string that is passed to the fmt library. */
+    std::string format_str;
+    format_str += "{:";
+    format_str.append(format_pattern.begin(), format_pattern.end());
+    format_str += '}';
     for (const std::string &old : formats_to_replace) {
       const int64_t old_start = format_str.find(old);
       if (old_start != std::string::npos) {
         format_str.replace(old_start, old.size(), "{}");
       }
     }
-
-    const fmt::format_string<> parsed_format_str{fmt::runtime(format_str)};
+    /* The final format passed to fmt. */
+    const fmt::format_string<> fmt_format{fmt::runtime(format_str)};
 
     if (std::regex_match(format_pattern.begin(), format_pattern.end(), allowed_pattern->pattern)) {
       const auto append_single_formatted_string = [&](const auto &varray) {
@@ -407,19 +418,19 @@ static bool format_strings(const StringRef format,
               const int precision = std::max(0, precision_input->get<int>(i));
               if (width_input) {
                 const int width = std::max(0, width_input->get<int>(i));
-                fmt::format_to(output_inserter, parsed_format_str, varray[i], width, precision);
+                fmt::format_to(output_inserter, fmt_format, varray[i], width, precision);
               }
               else {
-                fmt::format_to(output_inserter, parsed_format_str, varray[i], precision);
+                fmt::format_to(output_inserter, fmt_format, varray[i], precision);
               }
             }
             else {
               if (width_input) {
                 const int width = std::max(0, width_input->get<int>(i));
-                fmt::format_to(output_inserter, parsed_format_str, varray[i], width);
+                fmt::format_to(output_inserter, fmt_format, varray[i], width);
               }
               else {
-                fmt::format_to(output_inserter, parsed_format_str, varray[i]);
+                fmt::format_to(output_inserter, fmt_format, varray[i]);
               }
             }
           }
@@ -446,7 +457,7 @@ static bool format_strings(const StringRef format,
     else {
       return false;
     }
-    current_index += *format_length;
+    current_index += format_outer->size();
   }
   return true;
 }
