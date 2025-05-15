@@ -1329,12 +1329,23 @@ static bool active_grease_pencil_layer_parent_poll(bContext *C)
   }
   GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
   if (!grease_pencil.has_active_layer()) {
+    CTX_wm_operator_poll_msg_set(C, "No active Grease Pencil layer");
     return false;
   }
   if (grease_pencil.get_active_layer()->parent == nullptr) {
+    CTX_wm_operator_poll_msg_set(C, "Layer has no parent object");
     return false;
   }
   return true;
+}
+
+static std::string grease_pencil_layer_set_inverse_get_description(bContext * /*C*/,
+                                                                   wmOperatorType * /*ot*/,
+                                                                   PointerRNA *ptr)
+{
+  const bool unset = RNA_boolean_get(ptr, "unset");
+  return unset ? TIP_("Unset the inverse matrix of the active Grease Pencil layer") :
+                 TIP_("Set the inverse matrix of the active Grease Pencil layer");
 }
 
 static void GREASE_PENCIL_OT_layer_set_inverse(wmOperatorType *ot)
@@ -1347,6 +1358,7 @@ static void GREASE_PENCIL_OT_layer_set_inverse(wmOperatorType *ot)
   /* api callbacks */
   ot->poll = active_grease_pencil_layer_parent_poll;
   ot->exec = grease_pencil_layer_set_inverse_exec;
+  ot->get_description = grease_pencil_layer_set_inverse_get_description;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

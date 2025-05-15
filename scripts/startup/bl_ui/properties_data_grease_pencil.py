@@ -118,16 +118,16 @@ class GreasePencil_LayerAdjustmentsPanel:
 class GREASE_PENCIL_MT_layer_relations_menu(Menu):
     bl_label = "Inverse"
 
+    @classmethod
+    def poll(cls, context):
+        grease_pencil = getattr(context, "grease_pencil", None)
+        layer = grease_pencil.layers.active if grease_pencil else None
+        return bool(grease_pencil and layer)
+
     def draw(self, context):
         layout = self.layout
-        grease_pencil = context.grease_pencil
-        layer = grease_pencil.layers.active
-
-        if layer.parent:
-            layout.operator("grease_pencil.layer_set_inverse", text="Set Inverse").unset = False
-            layout.operator("grease_pencil.layer_set_inverse", text="Clear Inverse").unset = True
-        else:
-            layout.label(text="No Parent Layer")
+        layout.operator("grease_pencil.layer_set_inverse", text="Set Inverse").unset = False
+        layout.operator("grease_pencil.layer_set_inverse", text="Clear Inverse").unset = True
 
 class GreasePencil_LayerRelationsPanel:
     def draw(self, context):
