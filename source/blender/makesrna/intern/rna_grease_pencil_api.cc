@@ -301,6 +301,7 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
     }
   }
 
+  WM_main_add_notifier(NC_GEOM | ND_VERTEX_GROUP, &grease_pencil);
   DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
 }
 
