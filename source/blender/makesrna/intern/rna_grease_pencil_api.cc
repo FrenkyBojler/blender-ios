@@ -269,15 +269,12 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
      return;
    }
 
-   const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
+  const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
                                                             curves.vertex_group_names);
-
   MDeformVert *dv = &curves.deform_verts_for_write()[deform_vert_idx];
 
   /* Lets first check to see if this vert is already in the weight group - if so lets update it. */
-  MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr);
-
-  if (dw) {
+  if (MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr)) {
     switch (assignmode) {
       case WEIGHT_REPLACE:
         dw->weight = weight;
@@ -293,7 +290,6 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
   }
   else {
     /* If the vert wasn't in the deform group then we must take a different form of action. */
-
     switch (assignmode) {
       case WEIGHT_SUBTRACT:
         /* If we are subtracting then we don't need to do anything. */
