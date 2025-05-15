@@ -838,7 +838,20 @@ void uvedit_edge_select_disable(const Scene *scene,
       }
     }
     else {
-      BM_loop_edge_uvselect_set(bm, l, false);
+      BM_loop_edge_uvselect_set_noflush(bm, l, false);
+      if ((ts->selectmode & SCE_SELECT_VERTEX) == 0) {
+        /* Deselect UV vertex if not part of another edge selection */
+        if (!BM_elem_flag_test(l->prev, BM_ELEM_SELECT_UV_EDGE)) {
+          BM_loop_vert_uvselect_set_noflush(bm, l, false);
+        }
+        if (!BM_elem_flag_test(l->next, BM_ELEM_SELECT_UV_EDGE)) {
+          BM_loop_vert_uvselect_set_noflush(bm, l->next, false);
+        }
+      }
+      else {
+        BM_loop_vert_uvselect_set_noflush(bm, l, false);
+        BM_loop_vert_uvselect_set_noflush(bm, l->next, false);
+      }
     }
   }
   else {
