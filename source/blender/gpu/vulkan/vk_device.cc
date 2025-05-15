@@ -55,6 +55,7 @@ void VKDevice::deinit()
   pipelines.write_to_disk();
   pipelines.free_data();
   descriptor_set_layouts_.deinit();
+  orphaned_data_render.deinit(*this);
   orphaned_data.deinit(*this);
   vmaDestroyPool(mem_allocator_, vma_pools.external_memory);
   vmaDestroyAllocator(mem_allocator_);
@@ -73,7 +74,10 @@ void VKDevice::deinit()
   vk_queue_family_ = 0;
   vk_queue_ = VK_NULL_HANDLE;
   vk_physical_device_properties_ = {};
-  glsl_patch_.clear();
+  glsl_vert_patch_.clear();
+  glsl_frag_patch_.clear();
+  glsl_geom_patch_.clear();
+  glsl_comp_patch_.clear();
   lifetime = Lifetime::DESTROYED;
 }
 
@@ -304,14 +308,35 @@ void VKDevice::init_glsl_patch()
   }
 
   /* GLSL Backend Lib. */
-  ss << datatoc_glsl_shader_defines_glsl;
-  glsl_patch_ = ss.str();
+
+  glsl_vert_patch_ = ss.str() + "#define GPU_VERTEX_SHADER\n" + datatoc_glsl_shader_defines_glsl;
+  glsl_geom_patch_ = ss.str() + "#define GPU_GEOMETRY_SHADER\n" + datatoc_glsl_shader_defines_glsl;
+  glsl_frag_patch_ = ss.str() + "#define GPU_FRAGMENT_SHADER\n" + datatoc_glsl_shader_defines_glsl;
+  glsl_comp_patch_ = ss.str() + "#define GPU_COMPUTE_SHADER\n" + datatoc_glsl_shader_defines_glsl;
 }
 
-const char *VKDevice::glsl_patch_get() const
+const char *VKDevice::glsl_vertex_patch_get() const
 {
-  BLI_assert(!glsl_patch_.empty());
-  return glsl_patch_.c_str();
+  BLI_assert(!glsl_vert_patch_.empty());
+  return glsl_vert_patch_.c_str();
+}
+
+const char *VKDevice::glsl_geometry_patch_get() const
+{
+  BLI_assert(!glsl_geom_patch_.empty());
+  return glsl_geom_patch_.c_str();
+}
+
+const char *VKDevice::glsl_fragment_patch_get() const
+{
+  BLI_assert(!glsl_frag_patch_.empty());
+  return glsl_frag_patch_.c_str();
+}
+
+const char *VKDevice::glsl_compute_patch_get() const
+{
+  BLI_assert(!glsl_comp_patch_.empty());
+  return glsl_comp_patch_.c_str();
 }
 
 /* -------------------------------------------------------------------- */
@@ -571,12 +596,19 @@ void VKDevice::debug_print()
   }
   os << "Discard pool\n";
   debug_print(os, orphaned_data);
+  os << "Discard pool (render)\n";
+  debug_print(os, orphaned_data_render);
   os << "\n";
 
   for (const std::reference_wrapper<VKContext> &context : contexts_) {
     os << " VKContext \n";
     debug_print(os, context.get().discard_pool);
   }
+
+  int total_mem_kb;
+  int free_mem_kb;
+  memory_statistics_get(&total_mem_kb, &free_mem_kb);
+  os << "\nMemory: total=" << total_mem_kb << ", free=" << free_mem_kb << "\n";
 }
 
 /** \} */
