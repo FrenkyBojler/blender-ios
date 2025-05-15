@@ -4136,15 +4136,15 @@ static int ui_do_but_textedit(
   }
   else if (event->type == WM_IME_COMPOSITE_EVENT) {
     changed = true;
-    if (ime_data->result_len) {
+    if (ime_data->result.size()) {
       if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER) &&
-          STREQ(ime_data->str_result, "\xE3\x80\x82"))
+          STREQ(ime_data->result.c_str(), "\xE3\x80\x82"))
       {
         /* Convert Ideographic Full Stop (U+3002) to decimal point when entering numbers. */
         ui_textedit_insert_ascii(but, data, '.');
       }
       else {
-        ui_textedit_insert_buf(but, text_edit, ime_data->str_result, ime_data->result_len);
+        ui_textedit_insert_buf(but, text_edit, ime_data->result.c_str(), ime_data->result.size());
       }
     }
   }

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <string>
 
 #ifdef WITH_VULKAN_BACKEND
 #  ifdef __APPLE__
@@ -531,7 +532,7 @@ typedef enum {
 } GHOST_TKey;
 
 #define GHOST_KEY_MODIFIER_NUM ((_GHOST_KEY_MODIFIER_MAX - _GHOST_KEY_MODIFIER_MIN) + 1)
-#define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key)-_GHOST_KEY_MODIFIER_MIN)
+#define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key) - _GHOST_KEY_MODIFIER_MIN)
 #define GHOST_KEY_MODIFIER_FROM_INDEX(key) \
   (GHOST_TKey)(((unsigned int)(key) + _GHOST_KEY_MODIFIER_MIN))
 #define GHOST_KEY_MODIFIER_CHECK(key) (GHOST_KEY_MODIFIER_TO_INDEX(key) < GHOST_KEY_MODIFIER_NUM)
@@ -631,10 +632,8 @@ typedef struct {
  * All members must remain aligned and the struct size match!
  */
 typedef struct {
-  /** size_t */
-  GHOST_TUserDataPtr result_len, composite_len;
-  /** char * utf8 encoding */
-  GHOST_TUserDataPtr result, composite;
+  /** utf8 encoded strings */
+  std::string result, composite;
   /** Cursor position in the IME composition. */
   int cursor_position;
   /** Represents the position of the beginning of the selection */

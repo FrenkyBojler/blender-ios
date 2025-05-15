@@ -3156,8 +3156,6 @@ void wm_window_IME_end(wmWindow *win)
   BLI_assert(win->ime_data);
 #  endif
   GHOST_EndIME(static_cast<GHOST_WindowHandle>(win->ghostwin));
-  free(win->runtime->ime_data->str_result);
-  free(win->runtime->ime_data->str_composite);
   delete win->runtime->ime_data;
   win->runtime->ime_data = nullptr;
   win->runtime->ime_data_is_composing = false;
