@@ -61,6 +61,12 @@ struct uiItem {
 
 enum eUI_Item_Flag : uint16_t;
 
+enum class LayoutSeparatorType : int8_t {
+  Auto,
+  Space,
+  Line,
+};
+
 /**
  * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -243,6 +249,17 @@ struct uiLayout : uiItem {
   void label(blender::StringRef name, int icon);
 
   /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
+   */
+  void menu(MenuType *mt, std::optional<blender::StringRef> name, int icon);
+  /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
+   */
+  void menu(blender::StringRef menuname, std::optional<blender::StringRef> name, int icon);
+
+  /**
    * Adds a operator item, places a button in the layout to call the operator.
    * \param opname: Operator id name.
    * \param name: Text to show in the layout.
@@ -270,6 +287,9 @@ struct uiLayout : uiItem {
             eUI_Item_Flag flag,
             std::optional<blender::StringRefNull> name,
             int icon);
+
+  /** Adds a separator item, that adds empty space between items. */
+  void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 };
 
 enum {
@@ -439,12 +459,6 @@ void uiLayoutListItemAddPadding(uiLayout *layout);
 /* Layout create functions. */
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
-
-enum class LayoutSeparatorType : int8_t {
-  Auto,
-  Space,
-  Line,
-};
 
 /* items */
 
@@ -648,14 +662,6 @@ uiLayout *uiItemL_respect_property_split(uiLayout *layout, blender::StringRef te
  */
 void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int icon);
 /**
- * Menu.
- */
-void uiItemM_ptr(uiLayout *layout, MenuType *mt, std::optional<blender::StringRef> name, int icon);
-void uiItemM(uiLayout *layout,
-             blender::StringRef menuname,
-             std::optional<blender::StringRef> name,
-             int icon);
-/**
  * Menu contents.
  */
 void uiItemMContents(uiLayout *layout, blender::StringRef menuname);
@@ -675,12 +681,7 @@ void uiItemDecoratorR(uiLayout *layout,
                       PointerRNA *ptr,
                       std::optional<blender::StringRefNull> propname,
                       int index);
-/** Separator item */
-void uiItemS(uiLayout *layout);
-/** Separator item */
-void uiItemS_ex(uiLayout *layout,
-                float factor,
-                LayoutSeparatorType type = LayoutSeparatorType::Auto);
+
 /** Flexible spacing. */
 void uiItemSpacer(uiLayout *layout);
 
