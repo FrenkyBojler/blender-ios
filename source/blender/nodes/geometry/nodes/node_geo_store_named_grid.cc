@@ -20,9 +20,12 @@ namespace blender::nodes::node_geo_store_named_grid_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<decl::Geometry>("Volume");
+  b.add_output<decl::Geometry>("Volume").align_with_previous();
   b.add_input<decl::String>("Name").hide_label();
-  b.add_output<decl::Geometry>("Volume");
 
   const bNode *node = b.node_or_null();
   if (!node) {
@@ -66,7 +69,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -98,7 +101,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Volume");
   Volume *volume = geometry_set.get_volume_for_write();
   if (!volume) {
-    volume = static_cast<Volume *>(BKE_id_new_nomain(ID_VO, "Store Named Grid Output"));
+    volume = BKE_id_new_nomain<Volume>("Store Named Grid Output");
     geometry_set.replace_volume(volume);
   }
 

@@ -57,8 +57,8 @@ static void node_composit_buts_map_range(uiLayout *layout, bContext * /*C*/, Poi
 {
   uiLayout *col;
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "use_clamp", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col = &layout->column(true);
+  col->prop(ptr, "use_clamp", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -122,7 +122,7 @@ static float map_range(const float value,
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
   static auto no_clamp_function = mf::build::SI5_SO<float, float, float, float, float, float>(
-      "Map Range No CLamp",
+      "Map Range No Clamp",
       [](const float value,
          const float from_min,
          const float from_max,
@@ -153,7 +153,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_map_range_cc
 
-void register_node_type_cmp_map_range()
+static void register_node_type_cmp_map_range()
 {
   namespace file_ns = blender::nodes::node_composite_map_range_cc;
 
@@ -168,6 +168,8 @@ void register_node_type_cmp_map_range()
   ntype.draw_buttons = file_ns::node_composit_buts_map_range;
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
+  ntype.gather_link_search_ops = nullptr;
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_map_range)

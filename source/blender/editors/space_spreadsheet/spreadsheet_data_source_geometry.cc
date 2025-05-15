@@ -657,12 +657,12 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
 {
   bke::GeometrySet geometry_set;
   if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
-    const Object *object_orig = DEG_get_original_object(object_eval);
+    const Object *object_orig = DEG_get_original(object_eval);
     if (object_orig->type == OB_MESH) {
       const Mesh *mesh = static_cast<const Mesh *>(object_orig->data);
       if (object_orig->mode == OB_MODE_EDIT) {
         if (const BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-          Mesh *new_mesh = (Mesh *)BKE_id_new_nomain(ID_ME, nullptr);
+          Mesh *new_mesh = BKE_id_new_nomain<Mesh>(nullptr);
           /* This is a potentially heavy operation to do on every redraw. The best solution here is
            * to display the data directly from the bmesh without a conversion, which can be
            * implemented a bit later. */
@@ -748,9 +748,8 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   if (component_type == bke::GeometryComponent::Type::Volume) {
     return std::make_unique<VolumeDataSource>(std::move(geometry_set));
   }
-  Object *object_orig = sspreadsheet->instance_ids_num == 0 ?
-                            DEG_get_original_object(object_eval) :
-                            nullptr;
+  Object *object_orig = sspreadsheet->instance_ids_num == 0 ? DEG_get_original(object_eval) :
+                                                              nullptr;
   return std::make_unique<GeometryDataSource>(
       object_orig, std::move(geometry_set), component_type, domain, active_layer_index);
 }

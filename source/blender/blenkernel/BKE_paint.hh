@@ -437,7 +437,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   float cursor_radius = 0.0f;
   blender::float3 cursor_location;
   blender::float3 cursor_normal;
-  blender::float3 cursor_sampled_normal;
+  std::optional<blender::float3> cursor_sampled_normal;
   blender::float3 cursor_view_normal;
 
   /* TODO(jbakker): Replace rv3d and v3d with ViewContext */
@@ -506,7 +506,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
    * ID data is older than sculpt-mode data.
    * Set #Main.is_memfile_undo_flush_needed when enabling.
    */
-  char needs_flush_to_id = false;
+  bool needs_flush_to_id = false;
 
   /**
    * Some tools follows the shading chosen by the last used tool canvas.

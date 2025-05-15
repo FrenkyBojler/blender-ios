@@ -45,7 +45,7 @@
 
 #include "ED_sculpt.hh"
 
-#include "brushes/types.hh"
+#include "brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_face_set.hh"
@@ -2415,8 +2415,8 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
 
   /* Update the active vertex */
   float2 mval_fl{float(event->mval[0]), float(event->mval[1])};
-  SculptCursorGeometryInfo sgi;
-  SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+  CursorGeometryInfo cgi;
+  cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   /* Needs mask data to be available as it is used when solving the constraints. */
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);

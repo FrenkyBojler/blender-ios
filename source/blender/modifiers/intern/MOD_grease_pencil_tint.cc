@@ -182,8 +182,10 @@ static void modify_stroke_color(Object &ob,
   auto get_material_color = [&](const int64_t curve_i) {
     const Material *ma = BKE_object_material_get(&ob, stroke_materials[curve_i] + 1);
     const MaterialGPencilStyle *gp_style = ma ? ma->gp_style : nullptr;
-    return (gp_style ? ColorGeometry4f(gp_style->stroke_rgba) :
-                       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+    if (!gp_style) {
+      return ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+    return ColorGeometry4f(gp_style->stroke_rgba);
   };
 
   auto get_point_factor = [&](const int64_t point_i) {
@@ -271,8 +273,13 @@ static void modify_fill_color(Object &ob,
   auto get_material_color = [&](const int64_t curve_i) {
     const Material *ma = BKE_object_material_get(&ob, stroke_materials[curve_i] + 1);
     const MaterialGPencilStyle *gp_style = ma ? ma->gp_style : nullptr;
-    return (gp_style ? ColorGeometry4f(gp_style->fill_rgba) :
-                       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+    if (!gp_style) {
+      return ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+    const bool is_gradient = gp_style->fill_style == GP_MATERIAL_FILL_STYLE_GRADIENT;
+    const float4 average_color = math::interpolate(
+        float4(gp_style->fill_rgba), float4(gp_style->mix_rgba), is_gradient ? 0.5f : 0.0f);
+    return ColorGeometry4f(average_color);
   };
 
   auto get_curve_factor = [&](const int64_t curve_i) {
@@ -416,30 +423,30 @@ static void panel_draw(const bContext *C, Panel *panel)
       RNA_enum_get(ptr, "tint_mode"));
   const bool use_weight_as_factor = RNA_boolean_get(ptr, "use_weight_as_factor");
 
-  uiItemR(layout, ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   uiLayoutSetActive(row, !use_weight_as_factor);
-  uiItemR(row, ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
+  row->prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
 
-  uiItemR(layout, ptr, "tint_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "tint_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   switch (tint_mode) {
     case MOD_GREASE_PENCIL_TINT_UNIFORM:
-      uiItemR(layout, ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case MOD_GREASE_PENCIL_TINT_GRADIENT:
-      uiLayout *col = uiLayoutColumn(layout, false);
+      uiLayout *col = &layout->column(false);
       uiLayoutSetPropSep(col, false);
       uiTemplateColorRamp(col, ptr, "color_ramp", true);
-      uiItemS(layout);
-      uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(layout, ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->separator();
+      layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
@@ -447,7 +454,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

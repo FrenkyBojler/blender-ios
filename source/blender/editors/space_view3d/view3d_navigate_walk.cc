@@ -369,7 +369,7 @@ static void drawWalkPixel(const bContext * /*C*/, ARegion *region, void *arg)
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -1539,7 +1539,7 @@ static wmOperatorStatus walk_invoke(bContext *C, wmOperator *op, const wmEvent *
   op->customdata = walk;
 
   if (initWalkInfo(C, walk, op, event->mval) == false) {
-    MEM_freeN(op->customdata);
+    MEM_freeN(walk);
     return OPERATOR_CANCELLED;
   }
 

@@ -51,8 +51,7 @@ static void edbm_selectmode_ensure(Scene *scene, BMEditMesh *em, short selectmod
 {
   if ((scene->toolsettings->selectmode & selectmode) == 0) {
     scene->toolsettings->selectmode |= selectmode;
-    em->selectmode = scene->toolsettings->selectmode;
-    EDBM_selectmode_set(em);
+    EDBM_selectmode_set(em, scene->toolsettings->selectmode);
   }
 }
 
@@ -550,7 +549,12 @@ static wmOperatorStatus edbm_polybuild_dissolve_at_cursor_invoke(bContext *C,
     BMEdge *e_act = (BMEdge *)ele_act;
     BMLoop *l_a, *l_b;
     if (BM_edge_loop_pair(e_act, &l_a, &l_b)) {
-      BMFace *f_new = BM_faces_join_pair(bm, l_a, l_b, true);
+      BMFace *f_double;
+      BMFace *f_new = BM_faces_join_pair(bm, l_a, l_b, true, &f_double);
+      /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+      BLI_assert_msg(f_double == nullptr,
+                     "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
       if (f_new) {
         changed = true;
       }

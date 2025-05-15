@@ -115,13 +115,6 @@ static int calc_effective_bits(const Sculpt &sd, const Brush *brush)
   return sd.automasking_flags;
 }
 
-bool needs_normal(const SculptSession & /*ss*/, const Sculpt &sd, const Brush *brush)
-{
-  int flags = calc_effective_bits(sd, brush);
-
-  return flags & (BRUSH_AUTOMASKING_BRUSH_NORMAL | BRUSH_AUTOMASKING_VIEW_NORMAL);
-}
-
 static float normal_calc(const float3 &compare_normal,
                          const float3 &normal,
                          float limit_lower,
@@ -186,10 +179,6 @@ static bool needs_factors_cache(const Sculpt &sd, const Brush *brush)
     return true;
   }
 
-  if (automasking_flags & BRUSH_AUTOMASKING_VIEW_NORMAL) {
-    return brush && brush->automasking_boundary_edges_propagation_steps != 1;
-  }
-
   if (automasking_flags &
       (BRUSH_AUTOMASKING_BOUNDARY_EDGES | BRUSH_AUTOMASKING_BOUNDARY_FACE_SETS))
   {
@@ -248,7 +237,7 @@ static bool calc_view_occlusion_factor(const Depsgraph &depsgraph,
                                        const float3 &vert_position)
 {
   if (automasking.occlusion[vert] == Cache::OcclusionValue::Unknown) {
-    const bool occluded = SCULPT_vertex_is_occluded(depsgraph, object, vert_position, true);
+    const bool occluded = vertex_is_occluded(depsgraph, object, vert_position, true);
     automasking.occlusion[vert] = occluded ? Cache::OcclusionValue::Occluded :
                                              Cache::OcclusionValue::Visible;
   }

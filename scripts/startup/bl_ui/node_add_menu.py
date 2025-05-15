@@ -36,14 +36,19 @@ def draw_node_group_add_menu(context, layout):
         add_node_type(layout, "NodeGroupInput")
         add_node_type(layout, "NodeGroupOutput")
 
+    add_empty_group(layout)
+
     if node_tree:
         from nodeitems_builtins import node_tree_group_type
+
+        prefs = bpy.context.preferences
+        show_hidden = prefs.filepaths.show_hidden_files_datablocks
 
         groups = [
             group for group in context.blend_data.node_groups
             if (group.bl_idname == node_tree.bl_idname and
                 not group.contains_tree(node_tree) and
-                not group.name.startswith('.'))
+                (show_hidden or not group.name.startswith('.')))
         ]
         if groups:
             layout.separator()
@@ -63,6 +68,41 @@ def draw_assets_for_catalog(layout, catalog_path):
 
 def draw_root_assets(layout):
     layout.menu_contents("NODE_MT_node_add_root_catalogs")
+
+
+def add_node_type_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
+    add_node_type(layout, node_idname, search_weight=search_weight)
+    if getattr(context, "is_menu_search", False):
+        node_type = getattr(bpy.types, node_idname)
+        for item in node_type.bl_rna.properties[property_name].enum_items_static:
+            props = add_node_type(
+                layout,
+                node_idname,
+                label=node_type.bl_rna.name +
+                " ▸ " +
+                item.name,
+                search_weight=search_weight)
+            prop = props.settings.add()
+            prop.name = property_name
+            prop.value = repr(item.identifier)
+
+
+def add_color_mix_node(context, layout):
+    label = iface_("Mix Color")
+    props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=label)
+    ops = props.settings.add()
+    ops.name = "data_type"
+    ops.value = "'RGBA'"
+
+    if getattr(context, "is_menu_search", False):
+        for item in bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].enum_items_static:
+            props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=label + " ▸ " + item.name)
+            prop = props.settings.add()
+            prop.name = "data_type"
+            prop.value = "'RGBA'"
+            prop = props.settings.add()
+            prop.name = "blend_type"
+            prop.value = repr(item.identifier)
 
 
 def add_simulation_zone(layout, label):
@@ -91,6 +131,12 @@ def add_foreach_geometry_element_zone(layout, label):
 def add_closure_zone(layout, label):
     props = layout.operator(
         "node.add_closure_zone", text=label, text_ctxt=i18n_contexts.default)
+    props.use_transform = True
+    return props
+
+
+def add_empty_group(layout):
+    props = layout.operator("node.add_empty_group", text="New Group", text_ctxt=i18n_contexts.default)
     props.use_transform = True
     return props
 

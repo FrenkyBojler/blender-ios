@@ -22,6 +22,7 @@ PATHS: tuple[tuple[str, tuple[Any, ...], dict[str, str]], ...] = (
     ("build_files/utils/", (), {'MYPYPATH': "modules"}),
     ("doc/manpage/blender.1.py", (), {}),
     ("release/datafiles/", (), {}),
+    ("release/release_notes/", (), {}),
     ("scripts/modules/_bpy_internal/extensions/junction_module.py", (), {}),
     ("scripts/modules/_bpy_internal/extensions/wheel_manager.py", (), {}),
     ("scripts/modules/_bpy_internal/freedesktop.py", (), {}),
@@ -85,8 +86,6 @@ PATHS_EXCLUDE = set(
         "tools/utils_ide/qtcreator/externaltools/qtc_sort_paths.py",
         "tools/utils_maintenance/blender_menu_search_coverage.py",  # Uses `bpy`.
         "tools/utils_maintenance/blender_update_themes.py",  # Uses `bpy`.
-        "tools/utils_maintenance/trailing_space_clean.py",
-        "tools/utils_maintenance/trailing_space_clean_config.py",
     )
 )
 

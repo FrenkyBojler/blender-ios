@@ -49,9 +49,7 @@ void VKImmediate::deinit(VKDevice &device)
 
 uchar *VKImmediate::begin()
 {
-  const VKDevice &device = VKBackend::get().device;
-  const VKWorkarounds &workarounds = device.workarounds_get();
-  vertex_format_converter.init(&vertex_format, workarounds);
+  vertex_format_converter.init(&vertex_format);
   uint add_vertex = prim_type == GPU_PRIM_LINE_LOOP ? 1 : 0;
   const size_t bytes_needed = vertex_buffer_size(&vertex_format_converter.device_format_get(),
                                                  vertex_len + add_vertex);
@@ -126,6 +124,11 @@ void VKImmediate::end()
     draw.node_data.instance_count = 1;
     draw.node_data.first_vertex = 0;
     draw.node_data.first_instance = 0;
+
+    context.active_framebuffer_get()->vk_viewports_append(draw.node_data.viewport_data.viewports);
+    context.active_framebuffer_get()->vk_render_areas_append(
+        draw.node_data.viewport_data.scissors);
+
     vertex_attributes_.bind(draw.node_data.vertex_buffers);
     context.update_pipeline_data(prim_type, vertex_attributes_, draw.node_data.pipeline_data);
 

@@ -496,7 +496,7 @@ BLI_INLINE SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
 
   bwdata->faces_num = data->vert_edges[nearest].num / 2;
 
-  bpoly = MEM_calloc_arrayN<SDefBindPoly>(size_t(bwdata->faces_num), "SDefBindPoly");
+  bpoly = MEM_calloc_arrayN<SDefBindPoly>(bwdata->faces_num, "SDefBindPoly");
   if (bpoly == nullptr) {
     freeBindData(bwdata);
     data->success = MOD_SDEF_BIND_RESULT_MEM_ERR;
@@ -987,7 +987,7 @@ static void bindVert(void *__restrict userdata,
     return;
   }
 
-  sdvert->binds = MEM_calloc_arrayN<SDefBind>(size_t(bwdata->binds_num), "SDefVertBindData");
+  sdvert->binds = MEM_calloc_arrayN<SDefBind>(bwdata->binds_num, "SDefVertBindData");
   if (sdvert->binds == nullptr) {
     data->success = MOD_SDEF_BIND_RESULT_MEM_ERR;
     sdvert->binds_num = 0;
@@ -1173,7 +1173,7 @@ static bool surfacedeformBind(Object *ob,
   uint tedges_num = target->edges_num;
   int adj_result;
 
-  SDefAdjacencyArray *vert_edges = MEM_calloc_arrayN<SDefAdjacencyArray>(size_t(target_verts_num),
+  SDefAdjacencyArray *vert_edges = MEM_calloc_arrayN<SDefAdjacencyArray>(target_verts_num,
                                                                          "SDefVertEdgeMap");
   if (vert_edges == nullptr) {
     BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Out of memory");
@@ -1188,8 +1188,7 @@ static bool surfacedeformBind(Object *ob,
     return false;
   }
 
-  SDefEdgePolys *edge_polys = MEM_calloc_arrayN<SDefEdgePolys>(size_t(tedges_num),
-                                                               "SDefEdgeFaceMap");
+  SDefEdgePolys *edge_polys = MEM_calloc_arrayN<SDefEdgePolys>(tedges_num, "SDefEdgeFaceMap");
   if (edge_polys == nullptr) {
     BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Out of memory");
     MEM_freeN(vert_edges);
@@ -1589,31 +1588,31 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiLayoutSetActive(col, !is_bound);
-  uiItemR(col, ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "falloff", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "falloff", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiLayoutSetEnabled(col, !is_bound);
   uiLayoutSetActive(col, !is_bound && RNA_string_length(ptr, "vertex_group") != 0);
-  uiItemR(col, ptr, "use_sparse_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_sparse_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemS(layout);
+  layout->separator();
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   if (is_bound) {
-    uiItemO(col, IFACE_("Unbind"), ICON_NONE, "OBJECT_OT_surfacedeform_bind");
+    col->op("OBJECT_OT_surfacedeform_bind", IFACE_("Unbind"), ICON_NONE);
   }
   else {
     uiLayoutSetActive(col, !RNA_pointer_is_null(&target_ptr));
-    uiItemO(col, IFACE_("Bind"), ICON_NONE, "OBJECT_OT_surfacedeform_bind");
+    col->op("OBJECT_OT_surfacedeform_bind", IFACE_("Bind"), ICON_NONE);
   }
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

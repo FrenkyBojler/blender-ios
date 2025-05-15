@@ -166,7 +166,7 @@ void cache_init(bContext *C,
 
   float3 co;
 
-  if (vc.rv3d && SCULPT_stroke_get_location(C, co, mval_fl, false)) {
+  if (vc.rv3d && stroke_get_location_bvh(C, co, mval_fl, false)) {
     /* Get radius from brush. */
     const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
@@ -2424,8 +2424,8 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   if (use_automasking) {
     /* Update the active face set manually as the paint cursor is not enabled when using the
      * Mesh Filter Tool. */
-    SculptCursorGeometryInfo sgi;
-    SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+    CursorGeometryInfo cgi;
+    cursor_geometry_info_update(C, &cgi, mval_fl, false);
   }
 
   SCULPT_vertex_random_access_ensure(ob);
@@ -2523,18 +2523,18 @@ void register_operator_props(wmOperatorType *ot)
 
   /* Smooth filter requires entire event history. */
   prop = RNA_def_collection_runtime(ot->srna, "event_history", &RNA_OperatorStrokeElement, "", "");
-  RNA_def_property_flag(prop, PropertyFlag(int(PROP_HIDDEN) | int(PROP_SKIP_SAVE)));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 static void sculpt_mesh_ui_exec(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout = uiLayoutRow(layout, true);
-  uiItemR(layout, op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout = &layout->row(true);
+  layout->prop(op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void SCULPT_OT_mesh_filter(wmOperatorType *ot)

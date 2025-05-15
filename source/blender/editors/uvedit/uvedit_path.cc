@@ -55,6 +55,8 @@ using blender::Vector;
 /** \name Path Select Struct & Properties
  * \{ */
 
+namespace {
+
 struct PathSelectParams {
   /** ensure the active element is the last selected item (handy for picking) */
   bool track_active;
@@ -69,6 +71,8 @@ struct UserData_UV {
   BMesh *bm;
   BMUVOffsets offsets;
 };
+
+}  // namespace
 
 static void path_select_properties(wmOperatorType *ot)
 {
@@ -146,7 +150,7 @@ static void verttag_set_cb(BMLoop *l, bool val, void *user_data_v)
     if (verttag_filter_cb(l_iter, user_data)) {
       const float *luv_iter = BM_ELEM_CD_GET_FLOAT_P(l_iter, cd_loop_uv_offset);
       if (equals_v2v2(luv, luv_iter)) {
-        uvedit_uv_select_set(scene, bm, l_iter, val, false, user_data->offsets);
+        uvedit_uv_select_set(scene, bm, l_iter, val, user_data->offsets);
       }
     }
   }
@@ -268,7 +272,7 @@ static void edgetag_set_cb(BMLoop *l, bool val, void *user_data_v)
   UserData_UV *user_data = static_cast<UserData_UV *>(user_data_v);
   const Scene *scene = user_data->scene;
   BMesh *bm = user_data->bm;
-  uvedit_edge_select_set_with_sticky(scene, bm, l, val, false, user_data->offsets);
+  uvedit_edge_select_set_with_sticky(scene, bm, l, val, user_data->offsets);
 }
 
 static int mouse_mesh_uv_shortest_path_edge(Scene *scene,
@@ -383,7 +387,7 @@ static void facetag_set_cb(BMFace *f, bool val, void *user_data_v)
   UserData_UV *user_data = static_cast<UserData_UV *>(user_data_v);
   const Scene *scene = user_data->scene;
   BMesh *bm = user_data->bm;
-  uvedit_face_select_set_with_sticky(scene, bm, f, val, false, user_data->offsets);
+  uvedit_face_select_set_with_sticky(scene, bm, f, val, user_data->offsets);
 }
 
 static int mouse_mesh_uv_shortest_path_face(Scene *scene,
@@ -526,7 +530,7 @@ static bool uv_shortest_path_pick_ex(Scene *scene,
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
     }
     else {
-      Object *obedit_eval = DEG_get_evaluated_object(depsgraph, obedit);
+      Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
       BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(obedit_eval->data),
                                      BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT);
     }
@@ -777,9 +781,9 @@ void UV_OT_shortest_path_pick(wmOperatorType *ot)
 
   /* use for redo */
   prop = RNA_def_int(ot->srna, "object_index", -1, -1, INT_MAX, "", "", 0, INT_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_int(ot->srna, "index", -1, -1, INT_MAX, "", "", 0, INT_MAX);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */

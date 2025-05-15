@@ -42,8 +42,7 @@ const float FRAME_STEP = 0.005;
 static void build_fcurve(FCurve &fcurve)
 {
   fcurve.totvert = 3;
-  fcurve.bezt = static_cast<BezTriple *>(
-      MEM_callocN(sizeof(BezTriple) * fcurve.totvert, "BezTriples"));
+  fcurve.bezt = MEM_calloc_arrayN<BezTriple>(fcurve.totvert, "BezTriples");
   fcurve.bezt[0].vec[1][0] = 10.0f;
   fcurve.bezt[0].vec[1][1] = 1.0f;
   fcurve.bezt[1].vec[1][0] = 20.0f;
@@ -187,7 +186,7 @@ class KeylistSummaryTest : public testing::Test {
     bmain = BKE_main_new();
     G_MAIN = bmain; /* For BKE_animdata_free(). */
 
-    action = &static_cast<bAction *>(BKE_id_new(bmain, ID_AC, "ACÄnimåtië"))->wrap();
+    action = &BKE_id_new<bAction>(bmain, "ACÄnimåtië")->wrap();
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
     armature_data = BKE_armature_add(bmain, "ARArmature");
