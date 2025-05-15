@@ -942,7 +942,7 @@ static void draw_bone_update_disp_matrix_default(UnifiedBonePtr bone)
   float(*disp_tail_mat)[4] = bone.disp_tail_mat();
 
   /* TODO: This should be moved to depsgraph or armature refresh
-   * and not be tight to the draw pass creation.
+   * and not be tied to the draw pass creation.
    * This would refresh armature without invalidating the draw cache */
   if (bone.is_posebone()) {
     bPoseChannel *pchan = bone.as_posebone();
@@ -976,7 +976,7 @@ static void draw_bone_update_disp_matrix_custom_shape(UnifiedBonePtr bone)
   bPoseChannel *pchan = bone.as_posebone();
 
   /* TODO: This should be moved to depsgraph or armature refresh
-   * and not be tight to the draw pass creation.
+   * and not be tied to the draw pass creation.
    * This would refresh armature without invalidating the draw cache. */
   mul_v3_v3fl(bone_scale, pchan->custom_scale_xyz, PCHAN_CUSTOM_BONE_LENGTH(pchan));
   bone_mat = pchan->custom_tx ? pchan->custom_tx->pose_mat : pchan->pose_mat;
@@ -1135,7 +1135,7 @@ static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone)
   short bbone_segments;
 
   /* TODO: This should be moved to depsgraph or armature refresh
-   * and not be tight to the draw pass creation.
+   * and not be tied to the draw pass creation.
    * This would refresh armature without invalidating the draw cache. */
   if (bone.is_posebone()) {
     bPoseChannel *pchan = bone.as_posebone();

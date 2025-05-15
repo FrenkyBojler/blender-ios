@@ -77,7 +77,8 @@ typedef struct Bone {
   float bone_mat[3][3];
 
   int flag;
-  int drawtype;    /* eArmature_Drawtype */
+  int8_t drawtype; /* eArmature_Drawtype */
+  char _pad1[3];
   BoneColor color; /* MUST be named the same as in bPoseChannel and EditBone structs. */
 
   char inherit_scale_mode;

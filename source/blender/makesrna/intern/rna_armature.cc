@@ -1364,7 +1364,11 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
   };
 
   static const EnumPropertyItem prop_drawtype_items[] = {
-      {ARM_BONE_DEFAULT, "DEFAULT", 0, "Default", "Use display mode from armature (default)"},
+      {ARM_BONE_DEFAULT,
+       "USE_ARMATURE_SETTING",
+       0,
+       "Use Armature Setting",
+       "Use display mode from armature (default)"},
       {ARM_OCTA, "OCTAHEDRAL", 0, "Octahedral", "Display bones as octahedral shape"},
       {ARM_LINE, "STICK", 0, "Stick", "Display bones as simple 2D lines with dots"},
       {ARM_B_BONE,
