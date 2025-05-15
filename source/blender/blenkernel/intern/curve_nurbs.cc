@@ -230,7 +230,7 @@ void calculate_basis_cache(const int points_num,
 
   const int last_control_point_index = cyclic ? points_num + degree : points_num;
 
-  int i = 0;
+  int tess_point = 0;
 
   for (const int knot_span : IndexRange::from_begin_end(degree, last_control_point_index)) {
     const float start = knots[knot_span];
@@ -238,16 +238,16 @@ void calculate_basis_cache(const int points_num,
     if (start == end) {
       continue;
     }
-    const float step = (end - start) / resolution;
-    for (const int j : IndexRange::from_begin_size(0, resolution)) {
-      const float parameter = start + step * j;
+    const float step_width = (end - start) / resolution;
+    for (const int step : IndexRange::from_begin_size(0, resolution)) {
+      const float parameter = start + step * step_width;
       calculate_basis_for_point(parameter,
                                 last_control_point_index,
                                 degree,
                                 knots,
-                                basis_weights.slice(i * order, order),
-                                basis_start_indices[i]);
-      i++;
+                                basis_weights.slice(tess_point * order, order),
+                                basis_start_indices[tess_point]);
+      tess_point++;
     }
   }
   if (!cyclic) {
@@ -255,8 +255,8 @@ void calculate_basis_cache(const int points_num,
                               last_control_point_index,
                               degree,
                               knots,
-                              basis_weights.slice(i * order, order),
-                              basis_start_indices[i]);
+                              basis_weights.slice(tess_point * order, order),
+                              basis_start_indices[tess_point]);
   }
 }
 
