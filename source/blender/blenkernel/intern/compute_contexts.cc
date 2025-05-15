@@ -23,7 +23,11 @@ ModifierComputeContext::ModifierComputeContext(const ComputeContext *parent,
                                                const int modifier_uid)
     : ComputeContext(parent), modifier_uid_(std::move(modifier_uid))
 {
-  hash_ = ComputeContextHash::from(parent, "MODIFIER", modifier_uid_);
+}
+
+ComputeContextHash ModifierComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "MODIFIER", modifier_uid_);
 }
 
 void ModifierComputeContext::print_current_in_line(std::ostream &stream) const
@@ -37,7 +41,6 @@ GroupNodeComputeContext::GroupNodeComputeContext(const ComputeContext *parent,
                                                  const int32_t node_id)
     : ComputeContext(parent), node_id_(node_id)
 {
-  hash_ = ComputeContextHash::from(parent, "NODE_GROUP", node_id);
 }
 
 GroupNodeComputeContext::GroupNodeComputeContext(const ComputeContext *parent,
@@ -47,6 +50,11 @@ GroupNodeComputeContext::GroupNodeComputeContext(const ComputeContext *parent,
 {
   caller_group_node_ = &caller_group_node;
   caller_tree_ = &caller_tree;
+}
+
+ComputeContextHash GroupNodeComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "NODE_GROUP", node_id_);
 }
 
 void GroupNodeComputeContext::print_current_in_line(std::ostream &stream) const
@@ -61,13 +69,17 @@ SimulationZoneComputeContext::SimulationZoneComputeContext(const ComputeContext 
                                                            const int32_t output_node_id)
     : ComputeContext(parent), output_node_id_(output_node_id)
 {
-  hash_ = ComputeContextHash::from(parent, "SIM", output_node_id);
 }
 
 SimulationZoneComputeContext::SimulationZoneComputeContext(const ComputeContext *parent,
                                                            const bNode &node)
     : SimulationZoneComputeContext(parent, node.identifier)
 {
+}
+
+ComputeContextHash SimulationZoneComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "SIM_ZONE", output_node_id_);
 }
 
 void SimulationZoneComputeContext::print_current_in_line(std::ostream &stream) const
@@ -80,7 +92,6 @@ RepeatZoneComputeContext::RepeatZoneComputeContext(const ComputeContext *parent,
                                                    const int iteration)
     : ComputeContext(parent), output_node_id_(output_node_id), iteration_(iteration)
 {
-  hash_ = ComputeContextHash::from(parent, "REPEAT", output_node_id, iteration);
 }
 
 RepeatZoneComputeContext::RepeatZoneComputeContext(const ComputeContext *parent,
@@ -88,6 +99,11 @@ RepeatZoneComputeContext::RepeatZoneComputeContext(const ComputeContext *parent,
                                                    const int iteration)
     : RepeatZoneComputeContext(parent, node.identifier, iteration)
 {
+}
+
+ComputeContextHash RepeatZoneComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "REPEAT_ZONE", output_node_id_, iteration_);
 }
 
 void RepeatZoneComputeContext::print_current_in_line(std::ostream &stream) const
@@ -99,13 +115,17 @@ ForeachGeometryElementZoneComputeContext::ForeachGeometryElementZoneComputeConte
     const ComputeContext *parent, const int32_t output_node_id, const int index)
     : ComputeContext(parent), output_node_id_(output_node_id), index_(index)
 {
-  hash_ = ComputeContextHash::from(parent, "FOREACH_GEOMETRY_ELEMENT", output_node_id, index);
 }
 
 ForeachGeometryElementZoneComputeContext::ForeachGeometryElementZoneComputeContext(
     const ComputeContext *parent, const bNode &node, const int index)
     : ForeachGeometryElementZoneComputeContext(parent, node.identifier, index)
 {
+}
+
+ComputeContextHash ForeachGeometryElementZoneComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "FOREACH_GEOMETRY_ELEMENT", output_node_id_, index_);
 }
 
 void ForeachGeometryElementZoneComputeContext::print_current_in_line(std::ostream &stream) const
@@ -117,7 +137,6 @@ EvaluateClosureComputeContext::EvaluateClosureComputeContext(const ComputeContex
                                                              const int32_t node_id)
     : ComputeContext(parent), node_id_(node_id)
 {
-  hash_ = ComputeContextHash::from(parent, "EVAL_CLOSURE", node_id);
 }
 
 EvaluateClosureComputeContext::EvaluateClosureComputeContext(
@@ -129,6 +148,11 @@ EvaluateClosureComputeContext::EvaluateClosureComputeContext(
 {
   evaluate_node_ = evaluate_node;
   closure_source_location_ = closure_source_location;
+}
+
+ComputeContextHash EvaluateClosureComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "EVAL_CLOSURE", node_id_);
 }
 
 void EvaluateClosureComputeContext::print_current_in_line(std::ostream &stream) const
@@ -144,13 +168,17 @@ OperatorComputeContext::OperatorComputeContext() : OperatorComputeContext(nullpt
 OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent)
     : ComputeContext(parent)
 {
-  hash_ = ComputeContextHash::from(parent, "OPERATOR");
 }
 
 OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent, const bNodeTree &tree)
     : OperatorComputeContext(parent)
 {
   tree_ = &tree;
+}
+
+ComputeContextHash OperatorComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "OPERATOR");
 }
 
 void OperatorComputeContext::print_current_in_line(std::ostream &stream) const

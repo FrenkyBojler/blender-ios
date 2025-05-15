@@ -54,6 +54,7 @@ class ModifierComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
@@ -89,6 +90,7 @@ class GroupNodeComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
@@ -106,6 +108,7 @@ class SimulationZoneComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
@@ -129,6 +132,7 @@ class RepeatZoneComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
@@ -156,6 +160,7 @@ class ForeachGeometryElementZoneComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
@@ -192,6 +197,7 @@ class EvaluateClosureComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
@@ -211,6 +217,7 @@ class OperatorComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 

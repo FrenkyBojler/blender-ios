@@ -34,6 +34,9 @@
  *   run on different threads.
  */
 
+#include <atomic>
+
+#include "BLI_mutex.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_struct_equality_utils.hh"
 
@@ -75,18 +78,21 @@ struct ComputeContextHash {
  * This class should be subclassed to implement specific contexts.
  */
 class ComputeContext {
- private:
+ protected:
   /**
-   * Pointer to the context that this context is child of. That allows nesting compute contexts.
+   * Pointer to the context that this context is child of. That allows nesting compute
+   * contexts.
    */
   const ComputeContext *parent_ = nullptr;
 
  protected:
+  mutable std::atomic<bool> hash_computed_ = false;
+  mutable Mutex hash_mutex_;
   /**
    * The hash that uniquely identifies this context. It's a combined hash of this context as well
    * as all the parent contexts.
    */
-  ComputeContextHash hash_;
+  mutable ComputeContextHash hash_;
 
  public:
   ComputeContext(const ComputeContext *parent) : parent_(parent) {}
@@ -94,6 +100,7 @@ class ComputeContext {
 
   const ComputeContextHash &hash() const
   {
+    this->ensure_hash();
     return hash_;
   }
 
@@ -113,6 +120,23 @@ class ComputeContext {
   virtual void print_current_in_line(std::ostream &stream) const = 0;
 
   friend std::ostream &operator<<(std::ostream &stream, const ComputeContext &compute_context);
+
+ private:
+  void ensure_hash() const
+  {
+    if (hash_computed_.load(std::memory_order_acquire)) {
+      return;
+    }
+    std::scoped_lock lock{hash_mutex_};
+    /* Double checked lock. */
+    if (hash_computed_.load(std::memory_order_relaxed)) {
+      return;
+    }
+    hash_ = this->compute_hash();
+    hash_computed_.store(true, std::memory_order_release);
+  }
+
+  virtual ComputeContextHash compute_hash() const = 0;
 };
 
 template<size_t N, typename... Args>
