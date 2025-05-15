@@ -6340,13 +6340,13 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       event.val = KM_PRESS;
       BLI_assert(customdata != nullptr);
       /* We need to free the previously allocated data (if any). */
-      delete win->runtime->ime_data;
+      MEM_delete(win->runtime->ime_data);
 
       /* We make a copy of the ghost custom data as it is not certain that the pointer
        * will be valid after the event itself gets freed.
        */
       const wmIMEData *ghost_event_data = static_cast<const wmIMEData *>(customdata);
-      win->runtime->ime_data = new wmIMEData(*ghost_event_data);
+      win->runtime->ime_data = MEM_new<wmIMEData>(__func__, *ghost_event_data);
 
       win->runtime->ime_data_is_composing = true;
       event.type = WM_IME_COMPOSITE_START;
