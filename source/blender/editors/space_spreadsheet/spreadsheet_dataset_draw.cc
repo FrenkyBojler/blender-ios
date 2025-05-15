@@ -793,12 +793,12 @@ class ModifierViewerPathItem : public ViewerPathTreeViewItem {
   ModifierViewerPathItem(const int viewer_path_index, const ModifierViewerPathElem &modifier_elem)
       : ViewerPathTreeViewItem(viewer_path_index), modifier_elem_(modifier_elem)
   {
-    label_ = modifier_elem.modifier_name;
+    label_ = modifier_elem.base.ui_name;
   }
 
   void build_row(uiLayout &row) override
   {
-    row.label(modifier_elem_.modifier_name, ICON_MODIFIER);
+    row.label(modifier_elem_.base.ui_name, ICON_MODIFIER);
   }
 };
 
@@ -1047,7 +1047,7 @@ static void draw_context_panel(const bContext &C, uiLayout &layout)
       &screen.id, &RNA_SpaceSpreadsheet, sspreadsheet);
 
   layout.label(BKE_id_name(root_id), ICON_OBJECT_DATA);
-  uiItemR(&layout, &sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(&sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
 
   if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
@@ -1069,10 +1069,10 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   PanelLayout context_panel = layout->panel(C, "context", false);
   uiLayoutSetEmboss(context_panel.header, ui::EmbossType::None);
   context_panel.header->label(IFACE_("Context"), ICON_NONE);
-  uiItemO(context_panel.header,
-          "",
-          sspreadsheet->flag & SPREADSHEET_FLAG_PINNED ? ICON_PINNED : ICON_UNPINNED,
-          "spreadsheet.toggle_pin");
+  context_panel.header->op("spreadsheet.toggle_pin",
+                           "",
+                           sspreadsheet->flag & SPREADSHEET_FLAG_PINNED ? ICON_PINNED :
+                                                                          ICON_UNPINNED);
   if (context_panel.body) {
     draw_context_panel(*C, *context_panel.body);
   }
