@@ -2651,9 +2651,7 @@ void BM_edge_uvselect_set_pick(BMesh *bm,
       BM_loop_vert_uvselect_set_noflush(bm, l_iter->next, true);
 
       if (any_faces_unselected == false) {
-        if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN) &&
-            !BM_elem_flag_test(l_iter->f, BM_ELEM_SELECT_UV))
-        {
+        if (!BM_elem_flag_test(l_iter->f, BM_ELEM_SELECT_UV)) {
           any_faces_unselected = true;
         }
       }
@@ -2663,9 +2661,7 @@ void BM_edge_uvselect_set_pick(BMesh *bm,
     if (any_faces_unselected) {
       l_iter = l_first = e->l;
       do {
-        if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN) &&
-            !BM_elem_flag_test(l_iter->f, BM_ELEM_SELECT_UV))
-        {
+        if (!BM_elem_flag_test(l_iter->f, BM_ELEM_SELECT_UV)) {
           if (BM_face_uvselect_check_edges_all(l_iter->f)) {
             BM_face_uvselect_set_noflush(bm, l_iter->f, true);
           }
