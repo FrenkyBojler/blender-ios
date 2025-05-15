@@ -1260,7 +1260,7 @@ static void columnselect_graph_keys(bAnimContext *ac, short mode)
      */
     LISTBASE_FOREACH (CfraElem *, ce, &ked.list) {
       /* set frame for validation callback to refer to */
-      ked.f1 = ANIM_nla_tweakedit_remap(ale, ce->cfra, NLATIME_CONVERT_UNMAP);
+      ked.f1 = ce->cfra;
 
       /* select elements with frame number matching cfraelem */
       ANIM_fcurve_keyframes_loop(
