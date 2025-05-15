@@ -370,12 +370,68 @@ static std::optional<ProcessedFormatString> check_and_process_format_string(
   return result;
 }
 
+static void append_formatted_strings(const fmt::format_string<> format,
+                                     const GVArray &input,
+                                     const GVArray *widths,
+                                     const GVArray *precisions,
+                                     const IndexMask &mask,
+                                     MutableSpan<std::string> r_formatted_strings)
+{
+  const auto append_single_formatted_string = [&](const auto &varray) {
+    mask.foreach_index([&](const int64_t i) {
+      std::string &output = r_formatted_strings[i];
+      auto output_inserter = std::back_inserter(output);
+      try {
+        if (precisions) {
+          const int precision = std::max(0, precisions->get<int>(i));
+          if (widths) {
+            const int width = std::max(0, widths->get<int>(i));
+            fmt::format_to(output_inserter, format, varray[i], width, precision);
+          }
+          else {
+            fmt::format_to(output_inserter, format, varray[i], precision);
+          }
+        }
+        else {
+          if (widths) {
+            const int width = std::max(0, widths->get<int>(i));
+            fmt::format_to(output_inserter, format, varray[i], width);
+          }
+          else {
+            fmt::format_to(output_inserter, format, varray[i]);
+          }
+        }
+      }
+      catch (const fmt::format_error &error) {
+        /* Invalid patterns should have been caughed before already. */
+        BLI_assert_unreachable();
+      }
+    });
+  };
+
+  const CPPType &type = input.type();
+  if (type.is<float>()) {
+    append_single_formatted_string(input.typed<float>());
+  }
+  else if (type.is<int>()) {
+    append_single_formatted_string(input.typed<int>());
+  }
+  else if (type.is<std::string>()) {
+    append_single_formatted_string(input.typed<std::string>());
+  }
+  else {
+    /* The input type should have been checked earlier already. */
+    BLI_assert_unreachable();
+  }
+}
+
 static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
                            const VectorSet<std::string> &input_names,
                            const IndexMask &mask,
                            MutableSpan<std::string> r_formatted_strings)
 {
+  SCOPED_TIMER(__func__);
   CPPType::get<std::string>().value_initialize_indices(r_formatted_strings.data(), mask);
 
   FormatInputsLookup inputs_lookup{inputs, input_names};
@@ -437,55 +493,12 @@ static bool format_strings(const StringRef format,
     if (!processed_format.has_value()) {
       return false;
     }
-    /* The final format passed to fmt. */
-    const fmt::format_string<> fmt_format{fmt::runtime(processed_format->format_str)};
-
-    const auto append_single_formatted_string = [&](const auto &varray) {
-      const GVArray *widths = processed_format->widths;
-      const GVArray *precisions = processed_format->precisions;
-      mask.foreach_index([&](const int64_t i) {
-        std::string &output = r_formatted_strings[i];
-        auto output_inserter = std::back_inserter(output);
-        try {
-          if (precisions) {
-            const int precision = std::max(0, precisions->get<int>(i));
-            if (widths) {
-              const int width = std::max(0, widths->get<int>(i));
-              fmt::format_to(output_inserter, fmt_format, varray[i], width, precision);
-            }
-            else {
-              fmt::format_to(output_inserter, fmt_format, varray[i], precision);
-            }
-          }
-          else {
-            if (widths) {
-              const int width = std::max(0, widths->get<int>(i));
-              fmt::format_to(output_inserter, fmt_format, varray[i], width);
-            }
-            else {
-              fmt::format_to(output_inserter, fmt_format, varray[i]);
-            }
-          }
-        }
-        catch (const fmt::format_error &error) {
-          /* Invalid patterns should have been caughed before already. */
-          BLI_assert_unreachable();
-        }
-      });
-    };
-
-    if (type.is<float>()) {
-      append_single_formatted_string(input->typed<float>());
-    }
-    else if (type.is<int>()) {
-      append_single_formatted_string(input->typed<int>());
-    }
-    else if (type.is<std::string>()) {
-      append_single_formatted_string(input->typed<std::string>());
-    }
-    else {
-      return false;
-    }
+    append_formatted_strings(fmt::runtime(processed_format->format_str),
+                             *input,
+                             processed_format->widths,
+                             processed_format->precisions,
+                             mask,
+                             r_formatted_strings);
 
     current_index += format_outer->size();
   }
