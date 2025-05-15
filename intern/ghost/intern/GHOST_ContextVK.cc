@@ -908,21 +908,20 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
     }
     if (capabilities.minImageExtent.height > m_render_extent.height) {
       m_render_extent.height = capabilities.minImageExtent.height;
-    }}
-
-   if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
-      if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width >
-          m_render_extent.width)
-      {
-        m_render_extent.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
-      }
-      if (vk_surface_present_scaling_capabilities.minScaledImageExtent.height >
-          m_render_extent.height)
-      {
-        m_render_extent.height =
-            vk_surface_present_scaling_capabilities.minScaledImageExtent.height;
-      }
     }
+  }
+
+  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width > m_render_extent.width)
+    {
+      m_render_extent.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
+    }
+    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.height >
+        m_render_extent.height)
+    {
+      m_render_extent.height = vk_surface_present_scaling_capabilities.minScaledImageExtent.height;
+    }
+  }
 
   /* Windows/NVIDIA doesn't support creating a surface image with resolution 0,0.
    * Minimized windows have an extent of 0,0. Although it fits in the specs returned by

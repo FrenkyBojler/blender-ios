@@ -366,8 +366,7 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   region.srcSubresource.layerCount = 1;
 
   region.dstOffsets[0] = {0, int32_t(swap_chain_data.extent.height), 0};
-  region.dstOffsets[1] = {
-      int32_t(swap_chain_data.extent.width), 0, 1};
+  region.dstOffsets[1] = {int32_t(swap_chain_data.extent.width), 0, 1};
   region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.dstSubresource.mipLevel = 0;
   region.dstSubresource.baseArrayLayer = 0;
