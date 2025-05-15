@@ -50,8 +50,7 @@ static bool execute_trim_on_drawing(const int layer_index,
 
   /* Get evaluated geometry. */
   bke::crazyspace::GeometryDeformation deformation =
-      bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-          &ob_eval, obact, layer_index, frame_number);
+      bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(&ob_eval, obact, drawing);
 
   /* Compute screen space positions. */
   Array<float2> screen_space_positions(src.points_num());
