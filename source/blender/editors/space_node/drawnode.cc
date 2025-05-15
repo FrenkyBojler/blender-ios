@@ -1263,18 +1263,13 @@ static void std_node_socket_draw(
         else {
           uiLayout *column = &layout->column(false);
           {
-            if (text.is_empty() && has_gizmo) {
-              uiLayout *row = &column->row(true);
+            uiLayout *row = &column->row(true);
+            if (!text.is_empty()) {
+              draw_node_socket_name_editable(row, sock, text);
+            }
+            if (has_gizmo) {
               draw_gizmo_pin_icon(row, ptr);
               gizmo_handled = true;
-            }
-            else {
-              uiLayout *row = &column->row(true);
-              draw_node_socket_name_editable(row, sock, text);
-              if (has_gizmo) {
-                draw_gizmo_pin_icon(row, ptr);
-                gizmo_handled = true;
-              }
             }
           }
           column->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
@@ -1284,18 +1279,13 @@ static void std_node_socket_draw(
     case SOCK_ROTATION: {
       uiLayout *column = &layout->column(false);
       {
-        if (text.is_empty() && has_gizmo) {
-          uiLayout *row = &column->row(true);
+        uiLayout *row = &column->row(true);
+        if (!text.is_empty()) {
+          draw_node_socket_name_editable(row, sock, text);
+        }
+        if (has_gizmo) {
           draw_gizmo_pin_icon(row, ptr);
           gizmo_handled = true;
-        }
-        else {
-          uiLayout *row = &column->row(true);
-          draw_node_socket_name_editable(row, sock, text);
-          if (has_gizmo) {
-            draw_gizmo_pin_icon(row, ptr);
-            gizmo_handled = true;
-          }
         }
       }
       column->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
