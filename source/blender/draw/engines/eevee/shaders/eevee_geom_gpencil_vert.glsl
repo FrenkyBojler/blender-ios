@@ -67,4 +67,9 @@ void main()
   shadow_clip.position = shadow_position_vector_get(vs_P, view);
   shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
 #endif
+
+#ifdef GPU_ARB_clip_control
+  /* Reverse Z. Remapping from -1..1 to 1..-1. The scaling to 0..1 is handled by the backend. */
+  gl_Position.z = -gl_Position.z;
+#endif
 }

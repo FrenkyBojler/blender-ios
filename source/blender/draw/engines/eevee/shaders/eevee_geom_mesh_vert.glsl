@@ -52,4 +52,9 @@ void main()
 #endif
 
   gl_Position = drw_point_world_to_homogenous(interp.P);
+
+#ifdef GPU_ARB_clip_control
+  /* Reverse Z. Remapping from -1..1 to 1..-1. The scaling to 0..1 is handled by the backend. */
+  gl_Position.z = -gl_Position.z;
+#endif
 }

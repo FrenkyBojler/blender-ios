@@ -289,6 +289,7 @@ void VKDevice::init_glsl_patch()
   if (GPU_shader_draw_parameters_support()) {
     ss << "#extension GL_ARB_shader_draw_parameters : enable\n";
     ss << "#define GPU_ARB_shader_draw_parameters\n";
+    ss << "#define GPU_ARB_clip_control\n";
     ss << "#define gpu_BaseInstance (gl_BaseInstanceARB)\n";
   }
 
