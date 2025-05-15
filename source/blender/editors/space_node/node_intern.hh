@@ -86,6 +86,8 @@ struct SpaceNode_Runtime {
   /** Mouse position for drawing socket-less links and adding nodes. */
   float2 cursor;
 
+  std::optional<int> frame_identifier_to_highlight;
+
   /**
    * Indicates that the compositing int the space tree needs to be re-evaluated using
    * regular compositing pipeline.
@@ -298,6 +300,7 @@ void NODE_OT_add_material(wmOperatorType *ot);
 void NODE_OT_add_color(wmOperatorType *ot);
 void NODE_OT_add_import_node(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
+void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
 /* `node_group.cc` */
 
