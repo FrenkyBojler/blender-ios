@@ -84,7 +84,7 @@ class ObjectRef {
  private:
   /* Unique handle per object ref.
    * Creation is deferred until the first request. */
-  ResourceHandleRange handle_ = {0};
+  ResourceHandleRange handle_ = {0, 0};
 
   Manager *manager_ = nullptr;
   bool is_image_render_ = false;
