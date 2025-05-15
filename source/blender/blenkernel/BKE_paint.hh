@@ -239,7 +239,7 @@ bool BKE_paint_brush_set(Main *bmain,
 bool BKE_paint_brush_set_default(Main *bmain, Paint *paint);
 bool BKE_paint_brush_set_essentials(Main *bmain, Paint *paint, const char *name);
 void BKE_paint_previous_asset_reference_set(Paint *paint,
-                                            const AssetWeakReference &asset_weak_reference);
+                                            AssetWeakReference &&asset_weak_reference);
 void BKE_paint_previous_asset_reference_clear(Paint *paint);
 
 std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(

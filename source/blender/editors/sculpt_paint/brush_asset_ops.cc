@@ -69,11 +69,11 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
+  const bool use_toggle = RNA_boolean_get(op->ptr, "use_toggle");
   AssetWeakReference brush_asset_reference = asset->make_weak_reference();
   Paint *paint = BKE_paint_get_active_from_context(C);
   std::optional<AssetWeakReference> asset_to_save;
-  if (toggle) {
+  if (use_toggle) {
     BLI_assert(paint->brush_asset_reference);
     if (brush_asset_reference == *paint->brush_asset_reference) {
       if (paint->runtime.previous_active_brush_reference != nullptr) {
@@ -97,9 +97,9 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
   }
 
   if (asset_to_save) {
-    BKE_paint_previous_asset_reference_set(paint, *asset_to_save);
+    BKE_paint_previous_asset_reference_set(paint, std::move(*asset_to_save));
   }
-  else if (!toggle) {
+  else if (!use_toggle) {
     /* If we aren't toggling, clear the previous reference so that we don't swap back to an
      * incorrect "previous" asset */
     BKE_paint_previous_asset_reference_clear(paint);
@@ -121,7 +121,11 @@ void BRUSH_OT_asset_activate(wmOperatorType *ot)
 
   asset::operator_asset_reference_props_register(*ot->srna);
   PropertyRNA *prop;
-  prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle", "Toggle between brushes");
+  prop = RNA_def_boolean(ot->srna,
+                         "use_toggle",
+                         false,
+                         "Toggle",
+                         "Switch between the current and assigned brushes on consecutive uses.");
   RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
