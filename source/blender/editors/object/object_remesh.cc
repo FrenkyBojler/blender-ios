@@ -19,6 +19,7 @@
 
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.hh"
 #include "BLI_noise.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -180,20 +181,30 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxe
 {
   const Span<float3> positions = mesh.vert_positions();
   const Span<int> corner_verts = mesh.corner_verts();
+  const Span<float3> face_normals = mesh.face_normals();
   const blender::OffsetIndices faces = mesh.faces();
   float area = 0.0f;
+  float factor = 0.0f;
 
-  static constexpr int samples = 50000;
+  constexpr int samples = 10000;
   const int seed = (int)faces.size();
 
   for (const int i : IndexRange(samples)) {
     const int idx = (int)(noise::hash_to_float(seed, i) * (faces.size() - 1));
     area += blender::bke::mesh::face_area_calc(positions, corner_verts.slice(faces[idx]));
+    factor += math::reduce_max(math::abs(face_normals[idx]));
   }
 
   area *= float(faces.size()) / float(samples);
+  factor /= float(samples);
 
-  return int(area / (voxel_size * voxel_size) * 1.45f);
+  constexpr float adj_factor = 2.3f;
+  constexpr float max_factor = 1.0f;
+  const float min_factor = math::rcp(math::numbers::sqrt3);
+  factor = adj_factor -
+           (factor - min_factor) * (adj_factor - max_factor) / (max_factor - min_factor);
+
+  return int(area / (voxel_size * voxel_size) * factor);
 }
 
 static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
