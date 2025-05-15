@@ -18,6 +18,8 @@
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 
+#include "BLI_timeit.hh"
+
 #include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_format_string_cc {
@@ -438,57 +440,53 @@ static bool format_strings(const StringRef format,
     /* The final format passed to fmt. */
     const fmt::format_string<> fmt_format{fmt::runtime(processed_format->format_str)};
 
-    if (std::regex_match(format_pattern.begin(), format_pattern.end(), allowed_pattern->pattern)) {
-      const auto append_single_formatted_string = [&](const auto &varray) {
-        const GVArray *widths = processed_format->widths;
-        const GVArray *precisions = processed_format->precisions;
-        mask.foreach_index([&](const int64_t i) {
-          std::string &output = r_formatted_strings[i];
-          auto output_inserter = std::back_inserter(output);
-          try {
-            if (precisions) {
-              const int precision = std::max(0, precisions->get<int>(i));
-              if (widths) {
-                const int width = std::max(0, widths->get<int>(i));
-                fmt::format_to(output_inserter, fmt_format, varray[i], width, precision);
-              }
-              else {
-                fmt::format_to(output_inserter, fmt_format, varray[i], precision);
-              }
+    const auto append_single_formatted_string = [&](const auto &varray) {
+      const GVArray *widths = processed_format->widths;
+      const GVArray *precisions = processed_format->precisions;
+      mask.foreach_index([&](const int64_t i) {
+        std::string &output = r_formatted_strings[i];
+        auto output_inserter = std::back_inserter(output);
+        try {
+          if (precisions) {
+            const int precision = std::max(0, precisions->get<int>(i));
+            if (widths) {
+              const int width = std::max(0, widths->get<int>(i));
+              fmt::format_to(output_inserter, fmt_format, varray[i], width, precision);
             }
             else {
-              if (widths) {
-                const int width = std::max(0, widths->get<int>(i));
-                fmt::format_to(output_inserter, fmt_format, varray[i], width);
-              }
-              else {
-                fmt::format_to(output_inserter, fmt_format, varray[i]);
-              }
+              fmt::format_to(output_inserter, fmt_format, varray[i], precision);
             }
           }
-          catch (const fmt::format_error &error) {
-            /* Invalid patterns should have been caughed before already. */
-            BLI_assert_unreachable();
+          else {
+            if (widths) {
+              const int width = std::max(0, widths->get<int>(i));
+              fmt::format_to(output_inserter, fmt_format, varray[i], width);
+            }
+            else {
+              fmt::format_to(output_inserter, fmt_format, varray[i]);
+            }
           }
-        });
-      };
+        }
+        catch (const fmt::format_error &error) {
+          /* Invalid patterns should have been caughed before already. */
+          BLI_assert_unreachable();
+        }
+      });
+    };
 
-      if (type.is<float>()) {
-        append_single_formatted_string(input->typed<float>());
-      }
-      else if (type.is<int>()) {
-        append_single_formatted_string(input->typed<int>());
-      }
-      else if (type.is<std::string>()) {
-        append_single_formatted_string(input->typed<std::string>());
-      }
-      else {
-        return false;
-      }
+    if (type.is<float>()) {
+      append_single_formatted_string(input->typed<float>());
+    }
+    else if (type.is<int>()) {
+      append_single_formatted_string(input->typed<int>());
+    }
+    else if (type.is<std::string>()) {
+      append_single_formatted_string(input->typed<std::string>());
     }
     else {
       return false;
     }
+
     current_index += format_outer->size();
   }
   return true;
