@@ -601,7 +601,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
       endif()
     elseif(${arch} MATCHES "compute_7." AND DEFINED CUDA11_NVCC_EXECUTABLE)
       # Use CUDA 11 if available for the default PTX kernel. This allows us to
-      # keep driver requirement  on the user machines low.
+      # keep the driver requirements for user machines low.
       set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
       set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
       set(cuda_version 110)
