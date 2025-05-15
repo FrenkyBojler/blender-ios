@@ -602,10 +602,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
                                            submission_frame_data.acquire_semaphore,
                                            VK_NULL_HANDLE,
                                            &image_index);
-    if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
-      recreateSwapchain();
-    }
-    if (acquire_result == VK_SUBOPTIMAL_KHR) {
+    if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
       recreateSwapchain();
     }
   }
