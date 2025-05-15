@@ -34,9 +34,7 @@
  *   run on different threads.
  */
 
-#include <atomic>
-
-#include "BLI_mutex.hh"
+#include "BLI_cache_mutex.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_struct_equality_utils.hh"
 
@@ -107,9 +105,7 @@ class ComputeContext {
   mutable ComputeContextHash hash_;
 
  private:
-  /** Ensures thread-safety of the lazy hash computation. */
-  mutable std::atomic<bool> hash_computed_ = false;
-  mutable Mutex hash_mutex_;
+  mutable CacheMutex hash_mutex_;
 
  public:
   ComputeContext(const ComputeContext *parent) : parent_(parent) {}
@@ -117,8 +113,7 @@ class ComputeContext {
 
   const ComputeContextHash &hash() const
   {
-    /* Compute the hash lazily now if it wasn't computed yet. */
-    this->ensure_hash();
+    hash_mutex_.ensure([&]() { hash_ = this->compute_hash(); });
     return hash_;
   }
 
@@ -140,21 +135,6 @@ class ComputeContext {
   friend std::ostream &operator<<(std::ostream &stream, const ComputeContext &compute_context);
 
  private:
-  void ensure_hash() const
-  {
-    if (hash_computed_.load(std::memory_order_acquire)) {
-      /* Already computed. */
-      return;
-    }
-    std::scoped_lock lock{hash_mutex_};
-    /* Double checked lock. */
-    if (hash_computed_.load(std::memory_order_relaxed)) {
-      return;
-    }
-    hash_ = this->compute_hash();
-    hash_computed_.store(true, std::memory_order_release);
-  }
-
   /** Compute the hash of this context, usually using #ComputeContextHash::from. */
   virtual ComputeContextHash compute_hash() const = 0;
 };
