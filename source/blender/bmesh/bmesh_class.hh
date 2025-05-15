@@ -317,10 +317,6 @@ struct BMesh {
   int totvert, totedge, totloop, totface;
   int totvertsel, totedgesel, totfacesel;
 
-  /* Loop selection counts are only valid when `uv_sync_select_valid` is true. */
-
-  int totloopsel_vert, totloopsel_edge, totloopsel_face;
-
   /**
    * Flag index arrays as being dirty so we can check if they are clean and
    * avoid looping over the entire vert/edge/face/loop array in those cases.

@@ -1698,13 +1698,11 @@ void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
   if (select) {
     if (!BM_elem_flag_test(l, BM_ELEM_SELECT_UV)) {
       BM_elem_flag_enable(l, BM_ELEM_SELECT_UV);
-      bm->totloopsel_vert += 1;
     }
   }
   else {
     if (BM_elem_flag_test(l, BM_ELEM_SELECT_UV)) {
       BM_elem_flag_disable(l, BM_ELEM_SELECT_UV);
-      bm->totloopsel_vert -= 1;
     }
   }
 }
@@ -1749,13 +1747,11 @@ void BM_loop_edge_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
   if (select) {
     if (!BM_elem_flag_test(l, BM_ELEM_SELECT_UV_EDGE)) {
       BM_elem_flag_enable(l, BM_ELEM_SELECT_UV_EDGE);
-      bm->totloopsel_edge += 1;
     }
   }
   else {
     if (BM_elem_flag_test(l, BM_ELEM_SELECT_UV_EDGE)) {
       BM_elem_flag_disable(l, BM_ELEM_SELECT_UV_EDGE);
-      bm->totloopsel_edge -= 1;
     }
   }
 }
@@ -1803,13 +1799,11 @@ void BM_face_uvselect_set_noflush(BMesh *bm, BMFace *f, bool select)
   if (select) {
     if (!BM_elem_flag_test(f, BM_ELEM_SELECT_UV)) {
       BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-      bm->totloopsel_face += 1;
     }
   }
   else {
     if (BM_elem_flag_test(f, BM_ELEM_SELECT_UV)) {
       BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
-      bm->totloopsel_face -= 1;
     }
   }
 }
@@ -2039,13 +2033,11 @@ void BM_mesh_uvselect_selectmode_update(BMesh *bm,
         if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
           if (!BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
-            bm->totloopsel_vert -= 1;
           }
         }
         if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
           if (!BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-            bm->totloopsel_edge -= 1;
           }
         }
       } while ((l_iter = l_iter->next) != l_first);
@@ -2055,10 +2047,6 @@ void BM_mesh_uvselect_selectmode_update(BMesh *bm,
 
 void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loop_uv_offset)
 {
-  bm->totloopsel_vert = 0;
-  bm->totloopsel_edge = 0;
-  bm->totloopsel_face = 0;
-
   if (bm->selectmode & SCE_SELECT_VERTEX) {
     BMIter iter;
     BMFace *f;
@@ -2070,7 +2058,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
       do {
         if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-          bm->totloopsel_vert += 1;
         }
         else {
           BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
@@ -2078,7 +2065,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
 
         if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_edge += 1;
         }
         else {
           BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
@@ -2087,7 +2073,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
 
       if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
       else {
         BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
@@ -2107,7 +2092,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
         const bool e_iter_select = BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT);
         if (e_iter_select) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_edge += 1;
         }
         else {
           BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
@@ -2119,7 +2103,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
              BM_loop_vert_uvselect_check_other_edge(l_iter, BM_ELEM_SELECT, cd_loop_uv_offset)))
         {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-          bm->totloopsel_vert += 1;
         }
         else {
           BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
@@ -2129,7 +2112,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
 
       if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
       else {
         BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
@@ -2147,11 +2129,8 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
         l_iter = l_first = BM_FACE_FIRST_LOOP(f);
         do {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV | BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_vert += 1;
-          bm->totloopsel_edge += 1;
         } while ((l_iter = l_iter->next) != l_first);
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
       else {
         BMLoop *l_iter, *l_first;
@@ -2161,7 +2140,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
               BM_loop_vert_uvselect_check_other_face(l_iter, BM_ELEM_SELECT, cd_loop_uv_offset))
           {
             BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-            bm->totloopsel_vert += 1;
           }
           else {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
@@ -2171,7 +2149,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
               BM_loop_edge_uvselect_check_other_face(l_iter, BM_ELEM_SELECT, cd_loop_uv_offset))
           {
             BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-            bm->totloopsel_edge += 1;
           }
           else {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
@@ -2187,10 +2164,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
 
 void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
 {
-  bm->totloopsel_vert = 0;
-  bm->totloopsel_edge = 0;
-  bm->totloopsel_face = 0;
-
   if (bm->selectmode & SCE_SELECT_VERTEX) {
     BMIter iter;
     BMFace *f;
@@ -2200,7 +2173,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
       do {
         if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-          bm->totloopsel_vert += 1;
         }
         else {
           BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
@@ -2208,7 +2180,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
 
         if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_edge += 1;
         }
         else {
           BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
@@ -2217,7 +2188,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
 
       if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
       else {
         BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
@@ -2246,12 +2216,10 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
       do {
         if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_edge += 1;
 
           for (BMLoop *l_edge_vert : {l_iter, l_iter->next}) {
             if (!BM_elem_flag_test(l_edge_vert, BM_ELEM_SELECT_UV)) {
               BM_elem_flag_enable(l_edge_vert, BM_ELEM_SELECT_UV);
-              bm->totloopsel_vert += 1;
             }
           }
         }
@@ -2259,7 +2227,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
 
       if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
     }
   }
@@ -2284,15 +2251,12 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
         l_iter = l_first = BM_FACE_FIRST_LOOP(f);
         do {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-          bm->totloopsel_vert += 1;
 
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_edge += 1;
 
         } while ((l_iter = l_iter->next) != l_first);
 
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
     }
   }
@@ -2302,10 +2266,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
 
 void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm)
 {
-  bm->totloopsel_vert = 0;
-  bm->totloopsel_edge = 0;
-  bm->totloopsel_face = 0;
-
   if (bm->selectmode & SCE_SELECT_VERTEX) {
     BMIter iter;
     BMFace *f;
@@ -2315,7 +2275,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm)
       do {
         if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-          bm->totloopsel_vert += 1;
         }
         else {
           BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
@@ -2323,7 +2282,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm)
 
         if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_edge += 1;
         }
         else {
           BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
@@ -2332,7 +2290,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm)
 
       if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
       else {
         BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
@@ -2361,12 +2318,10 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm)
       do {
         if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_edge += 1;
 
           for (BMLoop *l_edge_vert : {l_iter, l_iter->next}) {
             if (!BM_elem_flag_test(l_edge_vert, BM_ELEM_SELECT_UV)) {
               BM_elem_flag_enable(l_edge_vert, BM_ELEM_SELECT_UV);
-              bm->totloopsel_vert += 1;
             }
           }
         }
@@ -2374,7 +2329,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm)
 
       if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
     }
   }
@@ -2399,15 +2353,12 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm)
         l_iter = l_first = BM_FACE_FIRST_LOOP(f);
         do {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-          bm->totloopsel_vert += 1;
 
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-          bm->totloopsel_edge += 1;
 
         } while ((l_iter = l_iter->next) != l_first);
 
         BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-        bm->totloopsel_face += 1;
       }
     }
   }
