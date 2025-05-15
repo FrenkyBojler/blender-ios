@@ -233,10 +233,7 @@ static bool format_strings(const StringRef format,
                            const IndexMask &mask,
                            MutableSpan<std::string> r_formatted_strings)
 {
-  mask.foreach_index([&](const int64_t i) {
-    std::string *output = &r_formatted_strings[i];
-    new (output) std::string();
-  });
+  CPPType::get<std::string>().value_initialize_indices(r_formatted_strings.data(), mask);
 
   bool non_auto_index_used = false;
   int64_t next_auto_input_index = 0;
