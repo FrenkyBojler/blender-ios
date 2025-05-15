@@ -4191,21 +4191,24 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       return;
     }
 
-    const VArray<float> angle_mins = VArray<float>::ForSingle(angle_min, curves.curves_num());
-    const VArray<float> radius_mins = VArray<float>::ForSingle(radius_min, curves.curves_num());
-    const VArray<float> radius_maxs = VArray<float>::ForSingle(radius_max, curves.curves_num());
-    const VArray<int> samples_maxs = VArray<int>::ForSingle(samples_max, curves.curves_num());
+    if (dst_type != CurveType::CURVE_TYPE_POLY) {
+      const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
 
-    const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
-    const Array<bool> corners = geometry::curves_detect_corners(
-        curves, angle_mins, radius_mins, radius_maxs, samples_maxs);
+      const VArray<float> angle_mins = VArray<float>::ForSingle(angle_min, curves.curves_num());
+      const VArray<float> radius_mins = VArray<float>::ForSingle(radius_min, curves.curves_num());
+      const VArray<float> radius_maxs = VArray<float>::ForSingle(radius_max, curves.curves_num());
+      const VArray<int> samples_maxs = VArray<int>::ForSingle(samples_max, curves.curves_num());
 
-    curves = geometry::fit_curves(curves,
-                                  strokes,
-                                  thresholds,
-                                  VArray<bool>::ForSpan(corners),
-                                  geometry::FitMethod::Refit,
-                                  {});
+      const Array<bool> corners = geometry::curves_detect_corners(
+          curves, angle_mins, radius_mins, radius_maxs, samples_maxs);
+
+      curves = geometry::fit_curves(curves,
+                                    strokes,
+                                    thresholds,
+                                    VArray<bool>::ForSpan(corners),
+                                    geometry::FitMethod::Refit,
+                                    {});
+    }
 
     info.drawing.tag_topology_changed();
 
@@ -4220,6 +4223,31 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
   return OPERATOR_FINISHED;
 }
 
+static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+  wmWindowManager *wm = CTX_wm_manager(C);
+
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
+
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  uiItemR(layout, &ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
+
+  if (dst_type == CurveType::CURVE_TYPE_POLY) {
+    return;
+  }
+
+  uiItemR(layout, &ptr, "error", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  uiItemR(layout, &ptr, "radius_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, &ptr, "radius_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, &ptr, "samples_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
 static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
 {
   ot->name = "Convert Curve Type";
@@ -4229,6 +4257,7 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
   ot->invoke = WM_menu_invoke;
   ot->exec = grease_pencil_convert_curve_type_exec;
   ot->poll = editable_grease_pencil_poll;
+  ot->ui = grease_pencil_convert_curve_type_ui;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
