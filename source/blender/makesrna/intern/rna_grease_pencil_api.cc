@@ -266,8 +266,8 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
       BLI_findlink(&grease_pencil.vertex_group_names, vgroup_index));
   if (dg->flag & DG_LOCK_WEIGHT) {
     BKE_report(reports, RPT_ERROR, "Vertex Group is locked");
-     return;
-   }
+    return;
+  }
 
   const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
                                                             curves.vertex_group_names);
@@ -800,7 +800,8 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
                      0,
                      INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "vgroup_name", "Group", MAX_NAME, "Vertex Group Name", "Name of the vertex group");
+  parm = RNA_def_string(
+      func, "vgroup_name", "Group", MAX_NAME, "Vertex Group Name", "Name of the vertex group");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_float(
       func, "weight", 0, 0.0f, 1.0f, "Weight", "The vertex weight to set", 0.0f, 1.0f);
