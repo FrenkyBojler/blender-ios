@@ -352,17 +352,19 @@ static bool format_strings(const StringRef format,
       if (allowed_pattern->precision_identifier_group.has_value()) {
         const std::string precision_identifier_with_braces = m.str(
             *allowed_pattern->precision_identifier_group);
-        const StringRef precision_identifier =
-            StringRef(precision_identifier_with_braces).drop_prefix(1).drop_suffix(1);
-        const std::optional<int> precision_input_index = find_input_index(precision_identifier);
-        if (!precision_input_index.has_value()) {
-          return false;
+        if (!precision_identifier_with_braces.empty()) {
+          const StringRef precision_identifier =
+              StringRef(precision_identifier_with_braces).drop_prefix(1).drop_suffix(1);
+          const std::optional<int> precision_input_index = find_input_index(precision_identifier);
+          if (!precision_input_index.has_value()) {
+            return false;
+          }
+          precision_input = &inputs[*precision_input_index];
+          if (!precision_input->type().is<int>()) {
+            return false;
+          }
+          formats_to_replace.append(precision_identifier_with_braces);
         }
-        precision_input = &inputs[*precision_input_index];
-        if (!precision_input->type().is<int>()) {
-          return false;
-        }
-        formats_to_replace.append(precision_identifier_with_braces);
       }
     }
 
@@ -373,34 +375,31 @@ static bool format_strings(const StringRef format,
       }
     }
 
+    const fmt::format_string<> parsed_format_str{fmt::runtime(format_str)};
+
     if (std::regex_match(format_pattern.begin(), format_pattern.end(), allowed_pattern->pattern)) {
       const auto append_single_formatted_string = [&](const auto &varray) {
         mask.foreach_index([&](const int64_t i) {
           std::string &output = r_formatted_strings[i];
+          auto output_inserter = std::back_inserter(output);
           try {
             if (precision_input) {
               const int precision = std::max(0, precision_input->get<int>(i));
               if (width_input) {
                 const int width = std::max(0, width_input->get<int>(i));
-                fmt::format_to(std::back_inserter(output),
-                               fmt::runtime(format_str),
-                               varray[i],
-                               width,
-                               precision);
+                fmt::format_to(output_inserter, parsed_format_str, varray[i], width, precision);
               }
               else {
-                fmt::format_to(
-                    std::back_inserter(output), fmt::runtime(format_str), varray[i], precision);
+                fmt::format_to(output_inserter, parsed_format_str, varray[i], precision);
               }
             }
             else {
               if (width_input) {
                 const int width = std::max(0, width_input->get<int>(i));
-                fmt::format_to(
-                    std::back_inserter(output), fmt::runtime(format_str), varray[i], width);
+                fmt::format_to(output_inserter, parsed_format_str, varray[i], width);
               }
               else {
-                fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
+                fmt::format_to(output_inserter, parsed_format_str, varray[i]);
               }
             }
           }
