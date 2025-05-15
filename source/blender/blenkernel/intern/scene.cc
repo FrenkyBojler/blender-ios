@@ -1284,11 +1284,13 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
     ed->act_strip = static_cast<Strip *>(
         BLO_read_get_new_data_address_no_us(reader, ed->act_strip, sizeof(Strip)));
-    ed->cache = nullptr;
     ed->prefetch_job = nullptr;
     ed->runtime.strip_lookup = nullptr;
     ed->runtime.media_presence = nullptr;
     ed->runtime.thumbnail_cache = nullptr;
+    ed->runtime.intra_frame_cache = nullptr;
+    ed->runtime.source_image_cache = nullptr;
+    ed->runtime.final_image_cache = nullptr;
 
     /* recursive link sequences, lb will be correctly initialized */
     link_recurs_seq(reader, &ed->seqbase);
@@ -1928,7 +1930,7 @@ bool BKE_scene_can_be_removed(const Main *bmain, const Scene *scene)
 
 Scene *BKE_scene_add(Main *bmain, const char *name)
 {
-  Scene *sce = static_cast<Scene *>(BKE_id_new(bmain, ID_SCE, name));
+  Scene *sce = BKE_id_new<Scene>(bmain, name);
   id_us_min(&sce->id);
   id_us_ensure_real(&sce->id);
 

@@ -94,9 +94,9 @@ static void node_composit_buts_denoise(uiLayout *layout, bContext * /*C*/, Point
 #endif
 
   layout->label(IFACE_("Prefilter:"), ICON_NONE);
-  uiItemR(layout, ptr, "prefilter", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "prefilter", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   layout->label(IFACE_("Quality:"), ICON_NONE);
-  uiItemR(layout, ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -348,7 +348,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_denoise_cc
 
-void register_node_type_cmp_denoise()
+static void register_node_type_cmp_denoise()
 {
   namespace file_ns = blender::nodes::node_composite_denoise_cc;
 
@@ -368,3 +368,4 @@ void register_node_type_cmp_denoise()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_denoise)

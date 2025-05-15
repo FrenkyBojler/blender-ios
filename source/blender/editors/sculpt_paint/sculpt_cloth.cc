@@ -2415,8 +2415,8 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
 
   /* Update the active vertex */
   float2 mval_fl{float(event->mval[0]), float(event->mval[1])};
-  SculptCursorGeometryInfo sgi;
-  SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+  CursorGeometryInfo cgi;
+  cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   /* Needs mask data to be available as it is used when solving the constraints. */
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
@@ -2434,7 +2434,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
                      RNA_float_get(op->ptr, "area_normal_radius"),
                      RNA_float_get(op->ptr, "strength"));
 
-  ss.filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");
