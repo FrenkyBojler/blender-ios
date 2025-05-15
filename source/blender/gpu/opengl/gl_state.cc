@@ -44,6 +44,11 @@ GLStateManager::GLStateManager()
   /* Limits. */
   glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, line_width_range_);
 
+  if (GLContext::clip_control_support) {
+    /* Match Vulkan and Metal by default. */
+    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+  }
+
   /* Force update using default state. */
   current_ = ~state;
   current_mutable_ = ~mutable_state;
