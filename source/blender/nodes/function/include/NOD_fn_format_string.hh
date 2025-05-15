@@ -18,23 +18,23 @@ namespace blender::nodes {
 struct FormatStringItemsAccessor {
   using ItemT = NodeFunctionFormatStringItem;
   static StructRNA *item_srna;
-  static constexpr const char *node_idname = "FunctionNodeFormatString";
+  static constexpr StringRefNull node_idname = "FunctionNodeFormatString";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_single_identifier_str = true;
   static constexpr bool has_name_validation = true;
   static constexpr char unique_name_separator = '_';
   struct operator_idnames {
-    static constexpr const char *add_item = "NODE_OT_format_string_item_add";
-    static constexpr const char *remove_item = "NODE_OT_format_string_item_remove";
-    static constexpr const char *move_item = "NODE_OT_format_string_item_move";
+    static constexpr StringRefNull add_item = "NODE_OT_format_string_item_add";
+    static constexpr StringRefNull remove_item = "NODE_OT_format_string_item_remove";
+    static constexpr StringRefNull move_item = "NODE_OT_format_string_item_move";
   };
   struct ui_idnames {
-    static constexpr const char *list = "DATA_UL_format_string_items";
+    static constexpr StringRefNull list = "DATA_UL_format_string_items";
   };
   struct rna_names {
-    static constexpr const char *items = "format_items";
-    static constexpr const char *active_index = "active_index";
+    static constexpr StringRefNull items = "format_items";
+    static constexpr StringRefNull active_index = "active_index";
   };
 
   static socket_items::SocketItemsRef<NodeFunctionFormatStringItem> get_items_from_node(
