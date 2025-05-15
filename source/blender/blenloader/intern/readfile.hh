@@ -17,8 +17,8 @@
 #endif
 
 #include "BLI_filereader.h"
-#include "BLI_map.hh"
 #include "BLI_linear_allocator.hh"
+#include "BLI_map.hh"
 
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
@@ -68,6 +68,8 @@ ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
  * be accessed concurrently.
  */
 struct FileData {
+  /* Linear allocator for all the BHeads. */
+  blender::LinearAllocator<> bheads_allocator;
   /** Linked list of BHeadN's. */
   ListBase bhead_list = {};
   enum eFileDataFlag flags = eFileDataFlag(0);
@@ -159,9 +161,6 @@ struct FileData {
 
   /** Opaque handle to the storage system used for non-static allocation strings. */
   void *storage_handle = nullptr;
-
-  /* Linear allocator for all the BHeads. */
-  blender::LinearAllocator<> bheads_allocator;
 };
 
 /***/
