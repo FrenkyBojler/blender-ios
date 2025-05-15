@@ -64,11 +64,11 @@
 
 #include "BLF_api.hh"
 
+#include "GHOST_CallbackEventConsumer.hh"
 #include "GHOST_IEvent.hh"
 #include "GHOST_ISystem.hh"
 #include "GHOST_IWindow.hh"
 #include "GHOST_Types.hh"
-#include "intern/GHOST_CallbackEventConsumer.hh"
 
 #include "DEG_depsgraph.hh"
 

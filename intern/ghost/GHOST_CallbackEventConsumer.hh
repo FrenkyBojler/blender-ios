@@ -19,7 +19,6 @@
  */
 using GHOST_EventCallbackProcPtr = bool (*)(const GHOST_IEvent *event, GHOST_TUserDataPtr user_data);
 
-
 /**
  * Event consumer that will forward events to a call-back routine.
  * Especially useful for the C-API.

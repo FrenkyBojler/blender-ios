@@ -27,6 +27,7 @@ set(SRC
   intern/GHOST_Window.cc
   intern/GHOST_WindowManager.cc
 
+  GHOST_CallbackEventConsumer.hh
   GHOST_IContext.hh
   GHOST_IEvent.hh
   GHOST_IEventConsumer.hh
@@ -39,7 +40,6 @@ set(SRC
   GHOST_Types.hh
 
   intern/GHOST_Buttons.hh
-  intern/GHOST_CallbackEventConsumer.hh
   intern/GHOST_Context.hh
   intern/GHOST_ContextNone.hh
   intern/GHOST_Debug.hh

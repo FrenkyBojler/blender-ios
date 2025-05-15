@@ -27,11 +27,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GHOST_CallbackEventConsumer.hh"
 #include "GHOST_IEvent.hh"
 #include "GHOST_ISystem.hh"
 #include "GHOST_IWindow.hh"
 #include "GHOST_Types.hh"
-#include "intern/GHOST_CallbackEventConsumer.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
