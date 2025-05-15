@@ -121,12 +121,11 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
   uiLayoutSetUnitsX(layout, 4.0f);
 
   /* Duplicate. */
-  uiItemO(layout,
-          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate"),
-          ICON_DUPLICATE,
-          "OBJECT_OT_shaderfx_copy");
+  layout->op("OBJECT_OT_shaderfx_copy",
+             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate"),
+             ICON_DUPLICATE);
 
-  uiItemS(layout);
+  layout->separator();
 
   /* Move to first. */
   row = &layout->column(false);
@@ -182,27 +181,27 @@ static void shaderfx_panel_header(const bContext * /*C*/, Panel *panel)
   /* Effect name. */
   row = &layout->row(true);
   if (!narrow_panel) {
-    uiItemR(row, ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+    row->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
   }
 
   /* Mode enabling buttons. */
   if (fxti->flags & eShaderFxTypeFlag_SupportsEditmode) {
     uiLayout *sub = &row->row(true);
     uiLayoutSetActive(sub, false);
-    uiItemR(sub, ptr, "show_in_editmode", UI_ITEM_NONE, "", ICON_NONE);
+    sub->prop(ptr, "show_in_editmode", UI_ITEM_NONE, "", ICON_NONE);
   }
-  uiItemR(row, ptr, "show_viewport", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(row, ptr, "show_render", UI_ITEM_NONE, "", ICON_NONE);
+  row->prop(ptr, "show_viewport", UI_ITEM_NONE, "", ICON_NONE);
+  row->prop(ptr, "show_render", UI_ITEM_NONE, "", ICON_NONE);
 
   /* Extra operators. */
   uiItemMenuF(row, "", ICON_DOWNARROW_HLT, gpencil_shaderfx_ops_extra_draw, fx);
 
   row = &row->row(false);
   uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
-  uiItemO(row, "", ICON_X, "OBJECT_OT_shaderfx_remove");
+  row->op("OBJECT_OT_shaderfx_remove", "", ICON_X);
 
   /* Some padding so the X isn't too close to the drag icon. */
-  uiItemS(layout);
+  layout->separator();
 }
 
 /** \} */
