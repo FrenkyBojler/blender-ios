@@ -59,16 +59,30 @@ struct ComputeContextHash {
 
   BLI_STRUCT_EQUALITY_OPERATORS_2(ComputeContextHash, v1, v2)
 
+  /**
+   * Standard way to create a compute context hash.
+   * \param parent: The optional parent context.
+   * \param type_str: A string literal that identifies the context type. This is used to avoid hash
+   * collisions between different context types.
+   * \param args: Additional arguments that affect the hash. Note that only the shallow bytes of
+   * these types are used. So they generally should not contain any padding.
+   */
   template<size_t N, typename... Args>
   static ComputeContextHash from(const ComputeContext *parent,
                                  const char (&type_str)[N],
                                  Args &&...args);
 
+  friend std::ostream &operator<<(std::ostream &stream, const ComputeContextHash &hash);
+
+ private:
+  /**
+   * Compute a context hash by packing all the arguments into a contiguous buffer and hashing
+   * that.
+   */
   template<typename... Args> static ComputeContextHash from_shallow_bytes(Args &&...args);
 
+  /** Compute a context hash from a contiguous buffer. */
   static ComputeContextHash from_bytes(const void *data, int64_t len);
-
-  friend std::ostream &operator<<(std::ostream &stream, const ComputeContextHash &hash);
 };
 
 /**
@@ -85,14 +99,17 @@ class ComputeContext {
    */
   const ComputeContext *parent_ = nullptr;
 
- protected:
-  mutable std::atomic<bool> hash_computed_ = false;
-  mutable Mutex hash_mutex_;
   /**
    * The hash that uniquely identifies this context. It's a combined hash of this context as well
-   * as all the parent contexts.
+   * as all the parent contexts. It's computed lazily to keep initial construction of compute
+   * contexts very cheap.
    */
   mutable ComputeContextHash hash_;
+
+ private:
+  /** Ensures thread-safety of the lazy hash computation. */
+  mutable std::atomic<bool> hash_computed_ = false;
+  mutable Mutex hash_mutex_;
 
  public:
   ComputeContext(const ComputeContext *parent) : parent_(parent) {}
@@ -100,6 +117,7 @@ class ComputeContext {
 
   const ComputeContextHash &hash() const
   {
+    /* Compute the hash lazily now if it wasn't computed yet. */
     this->ensure_hash();
     return hash_;
   }
@@ -125,6 +143,7 @@ class ComputeContext {
   void ensure_hash() const
   {
     if (hash_computed_.load(std::memory_order_acquire)) {
+      /* Already computed. */
       return;
     }
     std::scoped_lock lock{hash_mutex_};
@@ -136,6 +155,7 @@ class ComputeContext {
     hash_computed_.store(true, std::memory_order_release);
   }
 
+  /** Compute the hash of this context, usually using #ComputeContextHash::from. */
   virtual ComputeContextHash compute_hash() const = 0;
 };
 
@@ -159,6 +179,7 @@ inline ComputeContextHash ComputeContextHash::from_shallow_bytes(Args &&...args)
   (
       [&] {
         using Arg = std::remove_reference_t<std::remove_cv_t<Args>>;
+        static_assert(std::has_unique_object_representations_v<Arg>);
         const Arg &arg = args;
         memcpy(buffer + offset, &arg, sizeof(Arg));
         offset += sizeof(Arg);
