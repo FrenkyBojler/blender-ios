@@ -262,7 +262,14 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
     return;
   }
 
-  const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
+  const bDeformGroup *dg = static_cast<const bDeformGroup *>(
+      BLI_findlink(&grease_pencil.vertex_group_names, vgroup_index));
+  if (dg->flag & DG_LOCK_WEIGHT) {
+    BKE_report(reports, RPT_ERROR, "Vertex Group is locked");
+     return;
+   }
+
+   const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
                                                             curves.vertex_group_names);
 
   MDeformVert *dv = &curves.deform_verts_for_write()[deform_vert_idx];
@@ -301,7 +308,7 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
     }
   }
 
-  WM_main_add_notifier(NC_GEOM | ND_VERTEX_GROUP, &grease_pencil);
+  WM_main_add_notifier(NC_GEOM | ND_VERTEX_GROUP, nullptr);
   DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
 }
 
