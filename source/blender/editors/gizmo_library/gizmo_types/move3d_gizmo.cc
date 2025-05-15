@@ -109,7 +109,7 @@ static void move_geom_draw(const wmGizmo *gz,
   GPU_viewport_size_get_f(viewport);
   immUniform2fv("viewportSize", &viewport[2]);
   immUniform1f("lineWidth",
-               (gz->line_width * U.pixelsize) +
+               gz->line_width * U.pixelsize +
                    (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f));
 
   immUniformColor4fv(color);

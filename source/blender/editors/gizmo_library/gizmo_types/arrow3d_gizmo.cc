@@ -115,7 +115,7 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
     };
 
     immUniform1f("lineWidth",
-                 (arrow->gizmo.line_width * U.pixelsize) +
+                 arrow->gizmo.line_width * U.pixelsize +
                      (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f));
     wm_gizmo_vec_draw(color, vec, ARRAY_SIZE(vec), pos, GPU_PRIM_LINE_LOOP);
   }
@@ -135,7 +135,7 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
     GPU_matrix_translate_3f(0.0f, 0.0f, arrow_length);
 
     immUniform1f("lineWidth",
-                 (arrow->gizmo.line_width * U.pixelsize) +
+                 arrow->gizmo.line_width * U.pixelsize +
                      (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f));
     wm_gizmo_vec_draw(color, verts, ARRAY_SIZE(verts), pos, GPU_PRIM_LINE_LOOP);
 
@@ -154,9 +154,9 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
     };
 
     if (draw_options & ED_GIZMO_ARROW_DRAW_FLAG_STEM) {
-      immUniform1f("lineWidth",
-                   (arrow->gizmo.line_width * U.pixelsize) +
-                       (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f));
+      const float stem_width = arrow->gizmo.line_width * U.pixelsize +
+                               (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f);
+      immUniform1f("lineWidth", stem_width);
       wm_gizmo_vec_draw(color, vec, ARRAY_SIZE(vec), pos, GPU_PRIM_LINE_STRIP);
     }
     else {

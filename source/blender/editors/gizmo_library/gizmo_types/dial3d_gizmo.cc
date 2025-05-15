@@ -455,7 +455,7 @@ static void dial_draw_intern(
   params.arc_inner_factor = arc_inner_factor;
   params.clip_plane = clip_plane;
 
-  const float line_width = (gz->line_width * U.pixelsize) +
+  const float line_width = gz->line_width * U.pixelsize +
                            (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f);
   dial_3d_draw_util(matrix_final, line_width, color, select, &params);
 }
