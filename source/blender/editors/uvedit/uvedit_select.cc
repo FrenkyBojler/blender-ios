@@ -132,8 +132,8 @@ BMLoop *ED_uvedit_active_vert_loop_get(const ToolSettings *ts, BMesh *bm)
           continue;
         }
         if (BM_elem_flag_test(l, BM_ELEM_SELECT_UV)) {
-          const bool select_edge_prev = BM_elem_flag_test(l->prev, BM_ELEM_SELECT_UV_EDGE);
-          const bool select_edge_next = BM_elem_flag_test(l, BM_ELEM_SELECT_UV_EDGE);
+          const bool select_edge_prev = BM_loop_edge_uvselect_test(l->prev);
+          const bool select_edge_next = BM_loop_edge_uvselect_test(l);
           const bool select_face = BM_elem_flag_test(l->f, BM_ELEM_SELECT_UV);
           l_select_vert = l;
           if (select_edge_prev || select_edge_next) {
@@ -392,6 +392,8 @@ bool uvedit_face_select_test_ex(const ToolSettings *ts,
     if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       return BM_elem_flag_test(efa, BM_ELEM_SELECT);
     }
+    /* Caller checks for visibility. */
+    BLI_assert(!BM_elem_flag_test(efa, BM_ELEM_HIDDEN));
     return BM_elem_flag_test(efa, BM_ELEM_SELECT_UV);
   }
 
@@ -685,6 +687,8 @@ static bool UNUSED_FUNCTION(bm_loop_select_vert_check_internal)(const Scene *sce
       /* Use mesh selection. */
       return BM_elem_flag_test_bool(l->v, BM_ELEM_SELECT);
     }
+    /* Caller checks for visibility. */
+    BLI_assert(!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN));
     return BM_elem_flag_test_bool(l, BM_ELEM_SELECT_UV);
   }
   return BM_ELEM_CD_GET_BOOL(l, offsets.select_vert);
@@ -701,6 +705,8 @@ static bool bm_loop_select_edge_check_internal(const Scene *scene,
       /* Use mesh selection. */
       return BM_elem_flag_test_bool(l->e, BM_ELEM_SELECT);
     }
+    /* Caller checks for visibility. */
+    BLI_assert(!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN));
     return BM_elem_flag_test_bool(l, BM_ELEM_SELECT_UV_EDGE);
   }
   return BM_ELEM_CD_GET_BOOL(l, offsets.select_edge);
@@ -1180,6 +1186,8 @@ bool uvedit_loop_edge_select_get(const ToolSettings *ts,
   if (ts->uv_flag & UV_SYNC_SELECTION) {
     BLI_assert(bm->uv_sync_select_valid);
     UNUSED_VARS_NDEBUG(bm);
+    /* Caller checks for visibility. */
+    BLI_assert(!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN));
     return BM_elem_flag_test_bool(l, BM_ELEM_SELECT_UV_EDGE);
   }
   return BM_ELEM_CD_GET_BOOL(l, offsets.select_edge);

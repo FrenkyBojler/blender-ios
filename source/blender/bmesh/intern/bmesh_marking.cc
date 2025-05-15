@@ -1517,6 +1517,27 @@ void _bm_elem_hide_set(BMesh *bm, BMHeader *head, const bool hide)
 }
 
 /* -------------------------------------------------------------------- */
+/** \name UV Selection Functions (low level)
+ * \{ */
+
+bool BM_loop_vert_uvselect_test(const BMLoop *l)
+{
+  return (!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN) && BM_elem_flag_test(l, BM_ELEM_SELECT_UV));
+}
+bool BM_loop_edge_uvselect_test(const BMLoop *l)
+{
+  return (!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN) &&
+          BM_elem_flag_test(l, BM_ELEM_SELECT_UV_EDGE));
+}
+
+bool BM_face_uvselect_test(const BMFace *f)
+{
+  return (!BM_elem_flag_test(f, BM_ELEM_HIDDEN) && BM_elem_flag_test(f, BM_ELEM_SELECT_UV));
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name UV Selection Functions
  * \{ */
 
@@ -1678,6 +1699,9 @@ bool BM_loop_edge_uvselect_check_other_face(BMLoop *l,
 
 bool BM_face_uvselect_check_edges_all(BMFace *f)
 {
+  if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+    return false;
+  }
   BMLoop *l_iter, *l_first;
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
   do {

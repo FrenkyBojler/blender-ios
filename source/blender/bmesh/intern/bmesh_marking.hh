@@ -225,6 +225,15 @@ bool BM_loop_vert_uvselect_check_other_face(BMLoop *l, char hflag, int cd_loop_u
 bool BM_loop_edge_uvselect_check_other_edge(BMLoop *l, char hflag, int cd_loop_uv_offset);
 bool BM_loop_edge_uvselect_check_other_face(BMLoop *l, char hflag, int cd_loop_uv_offset);
 
+/* Selection checking functions.
+ * These should be used instead of checking #BM_ELEM_SELECT_UV,
+ * so hidden geometry is never considered selected.
+ */
+
+bool BM_face_uvselect_test(const BMFace *f);
+bool BM_loop_vert_uvselect_test(const BMLoop *l);
+bool BM_loop_edge_uvselect_test(const BMLoop *l);
+
 bool BM_face_uvselect_check_edges_all(BMFace *f);
 
 struct BMUVSelectPickParams {
