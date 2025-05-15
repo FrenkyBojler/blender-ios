@@ -228,7 +228,7 @@ static const FormatPatternInfo *get_pattern_by_type(const CPPType &type)
   return nullptr;
 }
 
-struct FormatValueLookup {
+struct FormatInputsLookup {
  private:
   const Span<GVArray> inputs_;
   const VectorSet<std::string> &input_names_;
@@ -240,7 +240,7 @@ struct FormatValueLookup {
   bool non_auto_index_used_ = false;
 
  public:
-  FormatValueLookup(const Span<GVArray> inputs, const VectorSet<std::string> &input_names)
+  FormatInputsLookup(const Span<GVArray> inputs, const VectorSet<std::string> &input_names)
       : inputs_(inputs), input_names_(input_names)
   {
   }
@@ -300,7 +300,7 @@ static bool format_strings(const StringRef format,
 {
   CPPType::get<std::string>().value_initialize_indices(r_formatted_strings.data(), mask);
 
-  FormatValueLookup inputs_lookup{inputs, input_names};
+  FormatInputsLookup inputs_lookup{inputs, input_names};
 
   int64_t current_index = 0;
   while (current_index < format.size()) {
