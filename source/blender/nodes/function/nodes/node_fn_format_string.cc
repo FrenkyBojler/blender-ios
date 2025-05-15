@@ -158,8 +158,14 @@ static int64_t find_next_format_start_or_end(const StringRef format,
   return format.size();
 }
 
+struct FormatPatternInfo {
+  std::regex pattern;
+  int width_identifier_group;
+  std::optional<int> precision_identifier_group;
+};
+
 /** Also see https://fmt.dev/latest/syntax/. */
-static std::string get_format_pattern_by_type(const CPPType &type)
+static FormatPatternInfo get_format_pattern_by_type(const CPPType &type)
 {
   std::string pattern;
   /* Fill and Align. */
@@ -173,7 +179,8 @@ static std::string get_format_pattern_by_type(const CPPType &type)
     pattern += "0?";
   }
   /* Width. */
-  pattern += "(\\d+)?";
+  pattern += "(\\d+|(\\{.*\\}))?";
+  const int width_identifier_group = 3;
   if (type.is<float>() || type.is<std::string>()) {
     /* Precision. */
     pattern += "(\\.\\d+)?";
@@ -189,7 +196,7 @@ static std::string get_format_pattern_by_type(const CPPType &type)
   else if (type.is<float>()) {
     pattern += "[aAeEfFgG]?";
   }
-  return pattern;
+  return {std::regex{pattern}, width_identifier_group, std::nullopt};
 }
 
 static bool format_strings(const StringRef format,
@@ -203,9 +210,10 @@ static bool format_strings(const StringRef format,
     new (output) std::string();
   });
 
-  static std::regex simple_float_pattern{get_format_pattern_by_type(CPPType::get<float>())};
-  static std::regex simple_int_pattern{get_format_pattern_by_type(CPPType::get<int>())};
-  static std::regex simple_string_pattern{get_format_pattern_by_type(CPPType::get<std::string>())};
+  static FormatPatternInfo simple_float_pattern{get_format_pattern_by_type(CPPType::get<float>())};
+  static FormatPatternInfo simple_int_pattern{get_format_pattern_by_type(CPPType::get<int>())};
+  static FormatPatternInfo simple_string_pattern{
+      get_format_pattern_by_type(CPPType::get<std::string>())};
 
   bool non_auto_index_used = false;
   int64_t next_auto_input_index = 0;
@@ -287,7 +295,7 @@ static bool format_strings(const StringRef format,
     const GVArray &input = inputs[*input_index];
     const CPPType &type = input.type();
 
-    const std::regex *allowed_pattern = nullptr;
+    const FormatPatternInfo *allowed_pattern = nullptr;
     if (type.is<float>()) {
       allowed_pattern = &simple_float_pattern;
     }
@@ -301,17 +309,50 @@ static bool format_strings(const StringRef format,
       return false;
     }
 
-    if (std::regex_match(format_pattern.begin(), format_pattern.end(), *allowed_pattern)) {
-      std::string format_str;
-      format_str += "{:";
-      format_str.append(format_pattern.begin(), format_pattern.end());
-      format_str += '}';
+    std::string format_str;
+    format_str += "{:";
+    format_str.append(format_pattern.begin(), format_pattern.end());
+    format_str += '}';
+    const GVArray *width_input = nullptr;
 
+    std::cmatch m;
+    if (std::regex_search(
+            format_pattern.begin(), format_pattern.end(), m, allowed_pattern->pattern))
+    {
+      const std::string width_identifier_with_braces = m.str(
+          allowed_pattern->width_identifier_group);
+      if (!width_identifier_with_braces.empty()) {
+        const StringRef width_identifier =
+            StringRef(width_identifier_with_braces).drop_prefix(1).drop_suffix(1);
+        const std::optional<int> width_input_index = find_input_index(width_identifier);
+        if (!width_input_index.has_value()) {
+          return false;
+        }
+        width_input = &inputs[*width_input_index];
+        if (!width_input->type().is<int>()) {
+          return false;
+        }
+        format_str.replace(m.position(allowed_pattern->width_identifier_group) + 2,
+                           width_identifier_with_braces.size(),
+                           "{}");
+      }
+    }
+
+    if (std::regex_match(format_pattern.begin(), format_pattern.end(), allowed_pattern->pattern)) {
       const auto append_single_formatted_string = [&](const auto &varray) {
         mask.foreach_index([&](const int64_t i) {
           std::string &output = r_formatted_strings[i];
           try {
-            fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
+            if (width_input) {
+              const int width = width_input->get<int>(i);
+              fmt::format_to(std::back_inserter(output),
+                             fmt::runtime(format_str),
+                             varray[i],
+                             std::max(width, 0));
+            }
+            else {
+              fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
+            }
           }
           catch (const fmt::format_error &error) {
             /* Invalid patterns should have been caughed before already. */
