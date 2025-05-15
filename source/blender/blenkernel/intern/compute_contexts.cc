@@ -21,10 +21,9 @@ ModifierComputeContext::ModifierComputeContext(const ComputeContext *parent,
 
 ModifierComputeContext::ModifierComputeContext(const ComputeContext *parent,
                                                const int modifier_uid)
-    : ComputeContext(s_static_type, parent), modifier_uid_(std::move(modifier_uid))
+    : ComputeContext(parent), modifier_uid_(std::move(modifier_uid))
 {
-  hash_.mix_in(s_static_type, strlen(s_static_type));
-  hash_.mix_in(&modifier_uid_, sizeof(modifier_uid_));
+  hash_ = ComputeContextHash::from(parent, "MODIFIER", modifier_uid_);
 }
 
 void ModifierComputeContext::print_current_in_line(std::ostream &stream) const
@@ -34,34 +33,17 @@ void ModifierComputeContext::print_current_in_line(std::ostream &stream) const
   }
 }
 
-GroupNodeComputeContext::GroupNodeComputeContext(
-    const ComputeContext *parent,
-    const int32_t node_id,
-    const std::optional<ComputeContextHash> &cached_hash)
-    : ComputeContext(s_static_type, parent), node_id_(node_id)
+GroupNodeComputeContext::GroupNodeComputeContext(const ComputeContext *parent,
+                                                 const int32_t node_id)
+    : ComputeContext(parent), node_id_(node_id)
 {
-  if (cached_hash.has_value()) {
-    hash_ = *cached_hash;
-  }
-  else {
-    /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-     * necessary. */
-    const int type_size = strlen(s_static_type);
-    const int buffer_size = type_size + 1 + sizeof(int32_t);
-    DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-    char *buffer = static_cast<char *>(buffer_owner.buffer());
-    memcpy(buffer, s_static_type, type_size + 1);
-    memcpy(buffer + type_size + 1, &node_id_, sizeof(int32_t));
-    hash_.mix_in(buffer, buffer_size);
-  }
+  hash_ = ComputeContextHash::from(parent, "NODE_GROUP", node_id);
 }
 
-GroupNodeComputeContext::GroupNodeComputeContext(
-    const ComputeContext *parent,
-    const bNode &caller_group_node,
-    const bNodeTree &caller_tree,
-    const std::optional<ComputeContextHash> &cached_hash)
-    : GroupNodeComputeContext(parent, caller_group_node.identifier, cached_hash)
+GroupNodeComputeContext::GroupNodeComputeContext(const ComputeContext *parent,
+                                                 const bNode &caller_group_node,
+                                                 const bNodeTree &caller_tree)
+    : GroupNodeComputeContext(parent, caller_group_node.identifier)
 {
   caller_group_node_ = &caller_group_node;
   caller_tree_ = &caller_tree;
@@ -77,17 +59,9 @@ void GroupNodeComputeContext::print_current_in_line(std::ostream &stream) const
 
 SimulationZoneComputeContext::SimulationZoneComputeContext(const ComputeContext *parent,
                                                            const int32_t output_node_id)
-    : ComputeContext(s_static_type, parent), output_node_id_(output_node_id)
+    : ComputeContext(parent), output_node_id_(output_node_id)
 {
-  /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-   * necessary. */
-  const int type_size = strlen(s_static_type);
-  const int buffer_size = type_size + 1 + sizeof(int32_t);
-  DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-  char *buffer = static_cast<char *>(buffer_owner.buffer());
-  memcpy(buffer, s_static_type, type_size + 1);
-  memcpy(buffer + type_size + 1, &output_node_id_, sizeof(int32_t));
-  hash_.mix_in(buffer, buffer_size);
+  hash_ = ComputeContextHash::from(parent, "SIM", output_node_id);
 }
 
 SimulationZoneComputeContext::SimulationZoneComputeContext(const ComputeContext *parent,
@@ -104,18 +78,9 @@ void SimulationZoneComputeContext::print_current_in_line(std::ostream &stream) c
 RepeatZoneComputeContext::RepeatZoneComputeContext(const ComputeContext *parent,
                                                    const int32_t output_node_id,
                                                    const int iteration)
-    : ComputeContext(s_static_type, parent), output_node_id_(output_node_id), iteration_(iteration)
+    : ComputeContext(parent), output_node_id_(output_node_id), iteration_(iteration)
 {
-  /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-   * necessary. */
-  const int type_size = strlen(s_static_type);
-  const int buffer_size = type_size + 1 + sizeof(int32_t) + sizeof(int);
-  DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-  char *buffer = static_cast<char *>(buffer_owner.buffer());
-  memcpy(buffer, s_static_type, type_size + 1);
-  memcpy(buffer + type_size + 1, &output_node_id_, sizeof(int32_t));
-  memcpy(buffer + type_size + 1 + sizeof(int32_t), &iteration_, sizeof(int));
-  hash_.mix_in(buffer, buffer_size);
+  hash_ = ComputeContextHash::from(parent, "REPEAT", output_node_id, iteration);
 }
 
 RepeatZoneComputeContext::RepeatZoneComputeContext(const ComputeContext *parent,
@@ -132,18 +97,9 @@ void RepeatZoneComputeContext::print_current_in_line(std::ostream &stream) const
 
 ForeachGeometryElementZoneComputeContext::ForeachGeometryElementZoneComputeContext(
     const ComputeContext *parent, const int32_t output_node_id, const int index)
-    : ComputeContext(s_static_type, parent), output_node_id_(output_node_id), index_(index)
+    : ComputeContext(parent), output_node_id_(output_node_id), index_(index)
 {
-  /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-   * necessary. */
-  const int type_size = strlen(s_static_type);
-  const int buffer_size = type_size + 1 + sizeof(int32_t) + sizeof(int);
-  DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-  char *buffer = static_cast<char *>(buffer_owner.buffer());
-  memcpy(buffer, s_static_type, type_size + 1);
-  memcpy(buffer + type_size + 1, &output_node_id_, sizeof(int32_t));
-  memcpy(buffer + type_size + 1 + sizeof(int32_t), &index_, sizeof(int));
-  hash_.mix_in(buffer, buffer_size);
+  hash_ = ComputeContextHash::from(parent, "FOREACH_GEOMETRY_ELEMENT", output_node_id, index);
 }
 
 ForeachGeometryElementZoneComputeContext::ForeachGeometryElementZoneComputeContext(
@@ -159,17 +115,9 @@ void ForeachGeometryElementZoneComputeContext::print_current_in_line(std::ostrea
 
 EvaluateClosureComputeContext::EvaluateClosureComputeContext(const ComputeContext *parent,
                                                              const int32_t node_id)
-    : ComputeContext(s_static_type, parent), node_id_(node_id)
+    : ComputeContext(parent), node_id_(node_id)
 {
-  /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-   * necessary. */
-  const int type_size = strlen(s_static_type);
-  const int buffer_size = type_size + 1 + sizeof(int32_t);
-  DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-  char *buffer = static_cast<char *>(buffer_owner.buffer());
-  memcpy(buffer, s_static_type, type_size + 1);
-  memcpy(buffer + type_size + 1, &node_id_, sizeof(int32_t));
-  hash_.mix_in(buffer, buffer_size);
+  hash_ = ComputeContextHash::from(parent, "EVAL_CLOSURE", node_id);
 }
 
 EvaluateClosureComputeContext::EvaluateClosureComputeContext(
@@ -194,9 +142,9 @@ void EvaluateClosureComputeContext::print_current_in_line(std::ostream &stream) 
 OperatorComputeContext::OperatorComputeContext() : OperatorComputeContext(nullptr) {}
 
 OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent)
-    : ComputeContext(s_static_type, parent)
+    : ComputeContext(parent)
 {
-  hash_.mix_in(s_static_type, strlen(s_static_type));
+  hash_ = ComputeContextHash::from(parent, "OPERATOR");
 }
 
 OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent, const bNodeTree &tree)
