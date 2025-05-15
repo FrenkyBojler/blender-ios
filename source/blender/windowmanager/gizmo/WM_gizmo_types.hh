@@ -290,6 +290,11 @@ struct wmGizmo {
   /** Redraw tag. */
   bool do_draw;
 
+  int line_width_with_bias(bool select) const
+  {
+    return line_width * U.pixelsize + int(select ? 12.0f * UI_SCALE_FAC : 0);
+  }
+
   /** Temporary data (assume dirty). */
   union {
     float f;

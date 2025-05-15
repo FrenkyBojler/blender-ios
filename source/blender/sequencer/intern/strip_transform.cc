@@ -542,7 +542,7 @@ void transform_offset_after_frame(Scene *scene,
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
     if (time_left_handle_frame_get(scene, strip) >= timeline_frame) {
       transform_translate_strip(scene, strip, delta);
-      relations_invalidate_cache_preprocessed(scene, strip);
+      relations_invalidate_cache(scene, strip);
     }
   }
 
@@ -585,6 +585,13 @@ static float2 strip_raw_image_size_get(const Scene *scene, const Strip *strip)
   if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
     const StripElem *selem = strip->data->stripdata;
     return {float(selem->orig_width), float(selem->orig_height)};
+  }
+
+  if (strip->type == STRIP_TYPE_MOVIECLIP) {
+    const MovieClip *clip = strip->clip;
+    if (clip != nullptr && clip->lastsize[0] != 0 && clip->lastsize[1] != 0) {
+      return {float(clip->lastsize[0]), float(clip->lastsize[1])};
+    }
   }
 
   return {float(scene->r.xsch), float(scene->r.ysch)};

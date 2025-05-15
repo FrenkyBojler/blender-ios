@@ -78,7 +78,7 @@ void add_load_data_init(LoadData *load_data,
 static void strip_add_generic_update(Scene *scene, Strip *strip)
 {
   strip_unique_name_set(scene, &scene->ed->seqbase, strip);
-  relations_invalidate_cache_composite(scene, strip);
+  relations_invalidate_cache(scene, strip);
   strip_lookup_invalidate(scene->ed);
   strip_time_effect_range_set(scene, strip);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
@@ -117,7 +117,7 @@ static void strip_add_set_view_transform(Scene *scene, Strip *strip, LoadData *l
     role_colorspace_byte = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE);
 
     if (STREQ(strip_colorspace, role_colorspace_byte)) {
-      ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
+      const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
           scene->display_settings.display_device);
       const char *default_view_transform =
           IMB_colormanagement_display_get_default_view_transform_name(display);
