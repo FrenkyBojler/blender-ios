@@ -352,17 +352,21 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   blit_image.dst_image = swap_chain_data.image;
   blit_image.filter = VK_FILTER_NEAREST;
 
+  /* Get the extent that will allow the least amount of pixel shifting when resizing windows. */
+  VkExtent2D min_extent = {
+      min_uu(color_attachment->width_get(), swap_chain_data.extent.width),
+      min_uu(color_attachment->height_get(), swap_chain_data.extent.height),
+  };
   VkImageBlit &region = blit_image.region;
-  region.srcOffsets[0] = {0, color_attachment->height_get(), 0};
-  region.srcOffsets[1] = {color_attachment->width_get(), 0, 1};
+  region.srcOffsets[0] = {0, int32_t(min_extent.height), 0};
+  region.srcOffsets[1] = {int32_t(min_extent.width), 0, 1};
   region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.srcSubresource.mipLevel = 0;
   region.srcSubresource.baseArrayLayer = 0;
   region.srcSubresource.layerCount = 1;
 
   region.dstOffsets[0] = {0, 0, 0};
-  region.dstOffsets[1] = {
-      int32_t(swap_chain_data.extent.width), int32_t(swap_chain_data.extent.height), 1};
+  region.dstOffsets[1] = {int32_t(min_extent.width), int32_t(min_extent.height), 1};
   region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.dstSubresource.mipLevel = 0;
   region.dstSubresource.baseArrayLayer = 0;
