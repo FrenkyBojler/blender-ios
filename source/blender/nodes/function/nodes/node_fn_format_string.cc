@@ -227,30 +227,42 @@ static const FormatPatternInfo *get_pattern_by_type(const CPPType &type)
   return nullptr;
 }
 
-static bool format_strings(const StringRef format,
-                           const Span<GVArray> inputs,
-                           const VectorSet<std::string> &input_names,
-                           const IndexMask &mask,
-                           MutableSpan<std::string> r_formatted_strings)
-{
-  CPPType::get<std::string>().value_initialize_indices(r_formatted_strings.data(), mask);
+struct FormatValueLookup {
+ private:
+  const Span<GVArray> inputs_;
+  const VectorSet<std::string> &input_names_;
+  int64_t next_auto_index_ = 0;
+  bool non_auto_index_used_ = false;
 
-  bool non_auto_index_used = false;
-  int64_t next_auto_input_index = 0;
+ public:
+  FormatValueLookup(const Span<GVArray> inputs, const VectorSet<std::string> &input_names)
+      : inputs_(inputs), input_names_(input_names)
+  {
+  }
 
-  auto find_input_index = [&](const StringRef identifier) -> std::optional<int64_t> {
+  const GVArray *find_next_input(const StringRef identifier)
+  {
+    const std::optional<int64_t> input_index = this->find_next_input_index(identifier);
+    if (!input_index.has_value()) {
+      return nullptr;
+    }
+    return &inputs_[*input_index];
+  }
+
+  std::optional<int64_t> find_next_input_index(const StringRef identifier)
+  {
     if (identifier.is_empty()) {
-      if (non_auto_index_used) {
+      if (non_auto_index_used_) {
         /* Once the first explicit identifier is used, it's not allowed to use the auto-index
          * anymore. Only other explicit identifiers are allowed. */
         return std::nullopt;
       }
-      if (next_auto_input_index == inputs.size()) {
+      if (next_auto_index_ == inputs_.size()) {
         return std::nullopt;
       }
-      return next_auto_input_index++;
+      return next_auto_index_++;
     }
-    non_auto_index_used = true;
+    non_auto_index_used_ = true;
     if (std::isdigit(identifier[0])) {
       int64_t index;
       std::from_chars_result res = std::from_chars(identifier.begin(), identifier.end(), index);
@@ -261,17 +273,28 @@ static bool format_strings(const StringRef format,
         /* There are other characters after the number.*/
         return std::nullopt;
       }
-      if (index >= inputs.size()) {
+      if (index >= inputs_.size()) {
         return std::nullopt;
       }
       return index;
     }
-    const int index = input_names.index_of_try_as(identifier);
+    const int index = input_names_.index_of_try_as(identifier);
     if (index == -1) {
       return std::nullopt;
     }
     return index;
-  };
+  }
+};
+
+static bool format_strings(const StringRef format,
+                           const Span<GVArray> inputs,
+                           const VectorSet<std::string> &input_names,
+                           const IndexMask &mask,
+                           MutableSpan<std::string> r_formatted_strings)
+{
+  CPPType::get<std::string>().value_initialize_indices(r_formatted_strings.data(), mask);
+
+  FormatValueLookup inputs_lookup{inputs, input_names};
 
   int64_t current_index = 0;
   while (current_index < format.size()) {
@@ -308,12 +331,11 @@ static bool format_strings(const StringRef format,
       identifier = single_format.substr(0, colon_index);
       format_pattern = single_format.substr(colon_index + 1);
     }
-    const std::optional<int64_t> input_index = find_input_index(identifier);
-    if (!input_index.has_value()) {
+    const GVArray *input = inputs_lookup.find_next_input(identifier);
+    if (!input) {
       return false;
     }
-    const GVArray &input = inputs[*input_index];
-    const CPPType &type = input.type();
+    const CPPType &type = input->type();
 
     const FormatPatternInfo *allowed_pattern = get_pattern_by_type(type);
     if (!allowed_pattern) {
@@ -339,11 +361,10 @@ static bool format_strings(const StringRef format,
       if (!width_identifier_with_braces.empty()) {
         const StringRef width_identifier =
             StringRef(width_identifier_with_braces).drop_prefix(1).drop_suffix(1);
-        const std::optional<int> width_input_index = find_input_index(width_identifier);
-        if (!width_input_index.has_value()) {
+        width_input = inputs_lookup.find_next_input(width_identifier);
+        if (!width_input) {
           return false;
         }
-        width_input = &inputs[*width_input_index];
         if (!width_input->type().is<int>()) {
           return false;
         }
@@ -355,11 +376,10 @@ static bool format_strings(const StringRef format,
         if (!precision_identifier_with_braces.empty()) {
           const StringRef precision_identifier =
               StringRef(precision_identifier_with_braces).drop_prefix(1).drop_suffix(1);
-          const std::optional<int> precision_input_index = find_input_index(precision_identifier);
-          if (!precision_input_index.has_value()) {
+          precision_input = inputs_lookup.find_next_input(precision_identifier);
+          if (!precision_input) {
             return false;
           }
-          precision_input = &inputs[*precision_input_index];
           if (!precision_input->type().is<int>()) {
             return false;
           }
@@ -411,13 +431,13 @@ static bool format_strings(const StringRef format,
       };
 
       if (type.is<float>()) {
-        append_single_formatted_string(input.typed<float>());
+        append_single_formatted_string(input->typed<float>());
       }
       else if (type.is<int>()) {
-        append_single_formatted_string(input.typed<int>());
+        append_single_formatted_string(input->typed<int>());
       }
       else if (type.is<std::string>()) {
-        append_single_formatted_string(input.typed<std::string>());
+        append_single_formatted_string(input->typed<std::string>());
       }
       else {
         return false;
