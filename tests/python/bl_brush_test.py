@@ -27,7 +27,7 @@ class AssetActivateTest(unittest.TestCase):
         bpy.ops.brush.asset_activate(
             asset_library_type='ESSENTIALS',
             relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/Mask',
-            toggle=True)
+            use_toggle=True)
         self.assertEqual(bpy.context.tool_settings.sculpt.brush.name, 'Mask')
 
     def test_toggle_when_brush_matches_sets_previous_brush(self):
@@ -35,12 +35,12 @@ class AssetActivateTest(unittest.TestCase):
         bpy.ops.brush.asset_activate(
             asset_library_type='ESSENTIALS',
             relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/Mask',
-            toggle=True)
+            use_toggle=True)
         self.assertEqual(bpy.context.tool_settings.sculpt.brush.name, 'Mask')
         bpy.ops.brush.asset_activate(
             asset_library_type='ESSENTIALS',
             relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/Mask',
-            toggle=True)
+            use_toggle=True)
         self.assertEqual(bpy.context.tool_settings.sculpt.brush.name, 'Draw')
 
 
