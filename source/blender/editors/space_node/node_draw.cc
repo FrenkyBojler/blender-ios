@@ -794,6 +794,54 @@ static void add_flat_items_for_panel(bNode &node,
 }
 
 /**
+ * Removes some unnecessary separators based on some conditions.
+ */
+static void remove_unnecessary_separators(Vector<FlatNodeItem> &items)
+{
+  if (!std::any_of(items.begin(), items.end(), [](const FlatNodeItem &item) {
+        return item.type() == flat_item::Type::Separator;
+      }))
+  {
+    /* Skip creating a new vector when there are no separators. */
+    return;
+  }
+  Vector<FlatNodeItem> new_items;
+  for (const int i : items.index_range()) {
+    const FlatNodeItem &item = items[i];
+    if (item.type() != flat_item::Type::Separator) {
+      new_items.append(item);
+      continue;
+    }
+    if (i == 0) {
+      /* Separator should not be at the beginning of the node. */
+      continue;
+    }
+    const FlatNodeItem &prev_item = items[i - 1];
+    const flat_item::Type prev_type = prev_item.type();
+    if (prev_type == flat_item::Type::Separator) {
+      /* No duplicate separators next to each other. */
+      continue;
+    }
+    if (prev_type == flat_item::Type::PanelContentBegin) {
+      /* No separator at the beginning of panels. */
+      continue;
+    }
+    if (i == items.size() - 1) {
+      /* No separator at the end of the node. */
+      continue;
+    }
+    const FlatNodeItem &next_item = items[i + 1];
+    const flat_item::Type next_type = next_item.type();
+    if (next_type == flat_item::Type::PanelContentEnd) {
+      /* No separator at the end of panels. */
+      continue;
+    }
+    new_items.append(item);
+  }
+  items = new_items;
+}
+
+/**
  * Flattens the visible panels, sockets etc. of the node into a list that is then used to draw it.
  */
 static Vector<FlatNodeItem> make_flat_node_items(bNode &node)
@@ -827,6 +875,7 @@ static Vector<FlatNodeItem> make_flat_node_items(bNode &node)
       prev_socket_decl = nullptr;
     }
   }
+  remove_unnecessary_separators(items);
   return items;
 }
 
@@ -935,7 +984,7 @@ static float get_margin_between_elements(const Span<FlatNodeItem> items, const i
         case Type::Separator:
           return NODE_ITEM_SPACING_Y;
         case Type::Layout:
-          return NODE_ITEM_SPACING_Y;
+          return 3.0f * NODE_ITEM_SPACING_Y;
         case Type::PanelHeader:
           return 3.5f * NODE_ITEM_SPACING_Y;
         case Type::PanelContentBegin:
