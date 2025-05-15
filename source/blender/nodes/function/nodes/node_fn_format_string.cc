@@ -170,6 +170,9 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
 {
   std::string pattern;
   int groups_num = 0;
+
+  /* Beginning of string. */
+  pattern += '^';
   /* Fill and Align. */
   pattern += "([^{}]?[<>^])?";
   groups_num += 1;
@@ -186,16 +189,16 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
   pattern += integer_or_identifier;
   pattern += "?";
   groups_num += 2;
-  const int width_identifier_group = groups_num;
+  const int width_group = groups_num;
 
-  std::optional<int> precision_identifier_group;
+  std::optional<int> precision_group;
   if (type.is<float>() || type.is<std::string>()) {
     /* Precision. */
     pattern += "(\\.";
     pattern += integer_or_identifier;
     pattern += ")?";
     groups_num += 3;
-    precision_identifier_group = groups_num;
+    precision_group = groups_num;
   }
   /* "L" is omitted, because we take the current locale into account in Geometry Nodes. */
   /* Allowed type specifiers vary by data type.*/
@@ -208,7 +211,9 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
   else if (type.is<float>()) {
     pattern += "[aAeEfFgG]?";
   }
-  return {std::regex{pattern}, width_identifier_group, precision_identifier_group};
+  /* End of string. */
+  pattern += '$';
+  return {std::regex{pattern}, width_group, precision_group};
 }
 
 static const FormatPatternInfo *get_pattern_by_type(const CPPType &type)
