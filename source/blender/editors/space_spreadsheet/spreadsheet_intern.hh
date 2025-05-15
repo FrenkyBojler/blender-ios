@@ -20,7 +20,7 @@ struct bContext;
 
 namespace blender::ed::spreadsheet {
 
-struct DataSource;
+class DataSource;
 
 struct SpaceSpreadsheet_Runtime {
  public:
