@@ -17,7 +17,7 @@ static_assert(-1 == ~0, "Two's complement must be used for bitwise operations.")
 
 namespace blender::nodes::node_fn_bit_math_cc {
 
-enum BitMathOperation : int32_t {
+enum BitMathOperation : int16_t {
   And = 0,
   Or = 1,
   Xor = 2,
