@@ -8,6 +8,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_math_angle_types.hh"
+#include "BLI_math_matrix.h"  // todo: remove
 #include "BLI_math_matrix.hh"
 
 #include "UI_interface.hh"
@@ -70,6 +71,8 @@ class TransformOperation : public NodeOperation {
     const float2 scale = float2(this->get_input("Scale").get_single_value_default(1.0f));
     const float3x3 transformation = math::from_loc_rot_scale<float3x3>(
         translation, rotation, scale);
+
+    print_m3("compositor matrix:", transformation.ptr());
 
     const Result &input = this->get_input("Image");
     Result &output = this->get_result("Image");

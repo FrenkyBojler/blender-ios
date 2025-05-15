@@ -81,6 +81,8 @@ static void gizmo_node_backdrop_prop_matrix_get(const wmGizmo * /*gz*/,
   matrix[1][1] = snode->zoom;
   matrix[3][0] = snode->xof;
   matrix[3][1] = snode->yof;
+
+  print_m4("backdrop matrix get", matrix);
 }
 
 static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
@@ -95,7 +97,7 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
   snode->yof = matrix[3][1];
 }
 
-static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+static bool WIDGETGROUP_node_viewer_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -106,9 +108,7 @@ static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = bke::node_get_active(*snode->edittree);
 
-    if (node &&
-        (node->is_type("CompositorNodeViewer") || node->is_type("CompositorNodeTransform")))
-    {
+    if (node && node->is_type("CompositorNodeViewer")) {
       return true;
     }
   }
@@ -180,7 +180,7 @@ void NODE_GGT_backdrop_viewer(wmGizmoGroupType *gzgt)
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
-  gzgt->poll = WIDGETGROUP_node_transform_poll;
+  gzgt->poll = WIDGETGROUP_node_viewer_poll;
   gzgt->setup = WIDGETGROUP_node_viewer_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->refresh = WIDGETGROUP_node_viewer_refresh;
@@ -889,22 +889,23 @@ void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt)
 /** \name Transform
  * \{ */
 
-static void gimo_node_transform_matrix_get(const wmGizmo *gz,
-                                           wmGizmoProperty *gz_prop,
-                                           void *value_p)
+static void gizmo_node_transform_matrix_get(const wmGizmo *gz,
+                                            wmGizmoProperty *gz_prop,
+                                            void *value_p)
 {
+  printf("\n\nMatrix get:\n");
   float(*matrix)[4] = (float(*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
 
   NodeBBoxWidgetGroup *trans_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
-  const float2 dims = trans_group->state.dims;
+  const float2 dims = trans_group->state.dims;  // todo: needed ?
   const float2 offset = trans_group->state.offset;
   const bNode *node = (const bNode *)gz_prop->custom_func.user_data;
 
   float loc[3], rot[3][3], size[3];
   mat4_to_loc_rot_size(loc, rot, size, matrix);
 
-  const bNodeSocket *angle_input = bke::node_find_socket(*node, SOCK_IN, "ANGLE");
+  const bNodeSocket *angle_input = bke::node_find_socket(*node, SOCK_IN, "Angle");
   const float angle = angle_input->default_value_typed<bNodeSocketValueFloat>()->value;
   axis_angle_to_mat3_single(rot, 'Z', angle);
 
@@ -912,23 +913,28 @@ static void gimo_node_transform_matrix_get(const wmGizmo *gz,
   const float pos_x = pos_x_input->default_value_typed<bNodeSocketValueFloat>()->value;
   const bNodeSocket *pos_y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
   const float pos_y = pos_y_input->default_value_typed<bNodeSocketValueFloat>()->value;
+  // todo: + offset.x
+  // todo: center is 0 or 0.5?
   loc[0] = pos_x;
   loc[1] = pos_y;
   loc[2] = 0.0f;
 
-  const bNodeSocket *scale_input = bke::node_find_socket(*node, SOCK_IN, "SCALE");
+  const bNodeSocket *scale_input = bke::node_find_socket(*node, SOCK_IN, "Scale");
   const float scale = scale_input->default_value_typed<bNodeSocketValueFloat>()->value;
-  size[0] = scale;
-  size[1] = scale;
+  size[0] = 1.0f;
+  size[1] = 1.0f;
   size[2] = 1.0f;
 
   loc_rot_size_to_mat4(matrix, loc, rot, size);
+
+  print_m4("matrix", matrix);
 }
 
 static void gizmo_node_transform_matrix_set(const wmGizmo *gz,
                                             wmGizmoProperty *gz_prop,
                                             const void *value_p)
 {
+  printf("\n\nMatrix set:\n");
   const float(*matrix)[4] = (const float(*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *trans_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
@@ -936,46 +942,44 @@ static void gizmo_node_transform_matrix_set(const wmGizmo *gz,
   const float2 offset = trans_group->state.offset;
   bNode *node = (bNode *)gz_prop->custom_func.user_data;
 
-  const bNodeSocket *angle_input = bke::node_find_socket(*node, SOCK_IN, "ANGLE");
+  bNodeSocket *angle_input = bke::node_find_socket(*node, SOCK_IN, "Angle");
   const float angle = angle_input->default_value_typed<bNodeSocketValueFloat>()->value;
 
-  const bNodeSocket *pos_x_input = bke::node_find_socket(*node, SOCK_IN, "X");
+  bNodeSocket *pos_x_input = bke::node_find_socket(*node, SOCK_IN, "X");
   const float pos_x = pos_x_input->default_value_typed<bNodeSocketValueFloat>()->value;
-  const bNodeSocket *pos_y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
+  bNodeSocket *pos_y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
   const float pos_y = pos_y_input->default_value_typed<bNodeSocketValueFloat>()->value;
 
-  const bNodeSocket *scale_input = bke::node_find_socket(*node, SOCK_IN, "SCALE");
+  bNodeSocket *scale_input = bke::node_find_socket(*node, SOCK_IN, "Scale");
   const float scale = scale_input->default_value_typed<bNodeSocketValueFloat>()->value;
 
   rctf rct;
   rct.xmin = pos_x;
   rct.ymin = pos_y;
-  // todo: rct size
+  rct.xmax = pos_x + scale;
+  rct.ymax = pos_y + scale;
 
   float loc[3];
   float rot[3][3];
   float size[3];
   mat4_to_loc_rot_size(loc, rot, size, matrix);
+  print_m4("matrix", matrix);
 
   float eul[3];
 
   /* Rotation can't be extracted from matrix when the gizmo width or height is zero. */
-  if (size[0] != 0 and size[1] != 0) {
+  if (size[0] != 0 && size[1] != 0) {
     mat4_to_eul(eul, matrix);
-    bNodeSocket *rotation_input = bke::node_find_socket(*node, SOCK_IN, "Rotation");
-    rotation_input->default_value_typed<bNodeSocketValueFloat>()->value = eul[2];
+    angle_input->default_value_typed<bNodeSocketValueFloat>()->value = eul[2];
   }
 
-  BLI_rctf_resize(&rct, fabsf(size[0]), fabsf(size[1]) / aspect);
+  BLI_rctf_resize(&rct, fabsf(size[0]), fabsf(size[1]));
   BLI_rctf_recenter(
       &rct, ((loc[0] - offset.x) / dims.x) + 0.5, ((loc[1] - offset.y) / dims.y) + 0.5);
 
-  size_input->default_value_typed<bNodeSocketValueVector>()->value[0] = size[0];
-  size_input->default_value_typed<bNodeSocketValueVector>()->value[1] = size[1] / aspect;
-  position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = rct.xmin +
-                                                                            size_value.x / 2;
-  position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = rct.ymin +
-                                                                            size_value.y / 2;
+  scale_input->default_value_typed<bNodeSocketValueFloat>()->value = size[0];
+  pos_x_input->default_value_typed<bNodeSocketValueFloat>()->value = loc[0];
+  pos_y_input->default_value_typed<bNodeSocketValueFloat>()->value = loc[1];
 
   gizmo_node_bbox_update(trans_group);
 }
@@ -995,7 +999,8 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *
     trans_group->state.dims[1] = (ibuf->y > 0) ? ibuf->y : 64.0f;
     copy_v2_v2(trans_group->state.offset, ima->runtime->backdrop_offset);
 
-    RNA_float_set_array(gz->ptr, "dimensions", trans_group->state.dims);
+    float2 circle_size{1000.0f, 1000.0f};
+    RNA_float_set_array(gz->ptr, "dimensions", circle_size);
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
     SpaceNode *snode = CTX_wm_space_node(C);
@@ -1003,12 +1008,13 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *
 
     trans_group->update_data.context = (bContext *)C;
     trans_group->update_data.ptr = RNA_pointer_create_discrete(
-        (ID *)snode->edittree, &RNA_CompositorNodeCrop, node);
-    trans_group->update_data.prop = RNA_struct_find_property(&trans_group->update_data.ptr, "x");
+        (ID *)snode->edittree, &RNA_CompositorNodeTransform, node);
+    trans_group->update_data.prop = RNA_struct_find_property(&trans_group->update_data.ptr,
+                                                             "filter_type");
 
     wmGizmoPropertyFnParams params{};
-    params.value_get_fn = gizmo_node_box_mask_prop_matrix_get;
-    params.value_set_fn = gizmo_node_box_mask_prop_matrix_set;
+    params.value_get_fn = gizmo_node_transform_matrix_get;
+    params.value_set_fn = gizmo_node_transform_matrix_set;
     params.range_get_fn = nullptr;
     params.user_data = node;
     WM_gizmo_target_property_def_func(gz, "matrix", &params);
@@ -1020,6 +1026,45 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *
   BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
+static void WIDGETGROUP_node_transform_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+{
+  NodeBBoxWidgetGroup *trans_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
+  trans_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
+
+  RNA_enum_set(trans_group->border->ptr,
+               "transform",
+               ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_ROTATE |
+                   ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM);
+
+  RNA_enum_set(trans_group->border->ptr, "draw_style", ED_GIZMO_CAGE2D_STYLE_CIRCLE);
+  RNA_enum_set(
+      trans_group->border->ptr, "draw_options", ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE);
+
+  gzgroup->customdata = trans_group;
+  gzgroup->customdata_free = [](void *customdata) {
+    MEM_delete(static_cast<NodeBBoxWidgetGroup *>(customdata));
+  };
+}
+
+static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  if (snode && (snode->flag & SNODE_BACKDRAW) == 0) {
+    return false;
+  }
+
+  if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
+    bNode *node = bke::node_get_active(*snode->edittree);
+
+    if (node && node->is_type("CompositorNodeTransform")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt)
 {
   gzgt->name = "Backdrop Transform Widget";
@@ -1028,7 +1073,7 @@ void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt)
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
 
   gzgt->poll = WIDGETGROUP_node_transform_poll;
-  gzgt->setup = WIDGETGROUP_node_box_mask_setup;
+  gzgt->setup = WIDGETGROUP_node_transform_setup;
   gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
   gzgt->draw_prepare = WIDGETGROUP_node_mask_draw_prepare;
   gzgt->refresh = WIDGETGROUP_node_transform_refresh;
