@@ -5,8 +5,6 @@
 #include "BKE_customdata.hh"
 
 #include "GPU_shader.hh"
-#include <iostream>
-#include <ostream>
 
 #include "draw_attributes.hh"
 
