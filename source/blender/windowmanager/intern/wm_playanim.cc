@@ -1841,7 +1841,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
   GHOST_CallbackEventConsumer ghost_event_consumer(ghost_event_proc, &ps);
   GHOST_ISystem::setBacktraceFn(BLI_system_backtrace);
 
-  GHOST_ISystem::createSystem(true, false);
+  GHOST_ISystem::createSystem();
   ps.ghost_data.system = GHOST_ISystem::getSystem();
   GPU_backend_ghost_system_set(ps.ghost_data.system);
 

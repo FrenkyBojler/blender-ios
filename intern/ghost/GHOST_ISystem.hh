@@ -108,7 +108,7 @@ class GHOST_ISystem {
    * \return An indication of success.
    */
 
-  static GHOST_TSuccess createSystem(bool verbose, bool background);
+  static GHOST_TSuccess createSystem(bool verbose = true, bool background = false);
   static GHOST_TSuccess createSystemBackground();
 
   /**

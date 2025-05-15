@@ -1989,7 +1989,7 @@ void wm_ghost_init(bContext *C)
   GHOST_CallbackEventConsumer ghost_event_consumer(ghost_event_proc, C);
   GHOST_ISystem::setBacktraceFn(BLI_system_backtrace);
 
-  GHOST_ISystem::createSystem(true, false);
+  GHOST_ISystem::createSystem();
   g_system = GHOST_ISystem::getSystem();
   GPU_backend_ghost_system_set(g_system);
 
