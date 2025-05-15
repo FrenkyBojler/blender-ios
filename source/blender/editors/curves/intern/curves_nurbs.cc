@@ -7,6 +7,12 @@
 
 #include "ED_curves.hh"
 
+#include <Eigen/Sparse>
+#include <iostream>
+
+using WeightMatrix = Eigen::SparseMatrix<float, Eigen::RowMajor>;
+using WeightTriplet = Eigen::Triplet<float, Eigen::SparseMatrix<float>::StorageIndex>;
+
 namespace blender::ed::curves::nurbs {
 
 static int count_knot_multiplicity_right(const float knot,
@@ -64,6 +70,73 @@ void find_span_mult(
   return;
 }
 
+WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
+                                         const int points_num,
+                                         const int8_t order,
+                                         const float knot,
+                                         const int knot_span,
+                                         const int mult,
+                                         const int repeat)
+{
+  BLI_assert(repeat > 0);
+  BLI_assert(mult + repeat < order);
+  const int degree = order - 1;
+  const int altered_point_num = degree - mult + repeat - 1;
+  const int points_num_after = points_num + repeat;
+  const IndexRange points_to_replace = IndexRange::from_begin_size(knot_span - degree + 1,
+                                                                   altered_point_num - repeat);
+  const IndexRange altered_points_range = IndexRange::from_begin_size(
+      points_to_replace.start(), points_to_replace.size() + repeat);
+
+  Vector<WeightTriplet> tris;
+  tris.reserve(points_num + altered_points_range.size() * order);
+
+  /* Set 1.0f for copied points. */
+  for (const int i : IndexRange(points_to_replace.first())) {
+    tris.append(WeightTriplet(i, i, 1.0f));
+  }
+  for (const int i : IndexRange::from_begin_end(points_to_replace.one_after_last(), points_num)) {
+    tris.append(WeightTriplet(i + repeat, i, 1.0f));
+  }
+
+  Array<float> point_weights_buffer(order * order, 0.0f);
+  MutableSpan<float> point_weights = point_weights_buffer.as_mutable_span();
+  for (const int i : IndexRange(order)) {
+    point_weights[i * order + i] = 1.0f;
+  }
+
+  for (const int r : IndexRange::from_begin_size(1, repeat)) {
+    const int leg = knot_span - degree + r;
+    for (const int i : IndexRange(order - r - mult)) {
+      const float alpha = (knot - knots[leg + i]) / (knots[i + knot_span + 1] - knots[leg + i]);
+      const MutableSpan<float> q_i_weights = point_weights.slice(i * order, order);
+      const Span<float> q_i_1_weights = point_weights.slice((i + 1) * order, order);
+      for (const int point : IndexRange(order)) {
+        q_i_weights[point] = alpha * q_i_1_weights[point] + (1.0f - alpha) * q_i_weights[point];
+      }
+    }
+    for (const int i : IndexRange(order)) {
+      const int src_point = (knot_span - order + 1 + i) % points_num;
+      const int dst_point_left = altered_points_range[r - 1];
+      const int dst_point_right = altered_points_range.last(r - 1);
+      tris.append(WeightTriplet(dst_point_left, src_point, point_weights[i]));
+      tris.append(WeightTriplet(
+          dst_point_right, src_point, point_weights[(degree - r - mult) * order + i]));
+    }
+  }
+
+  for (const int j : IndexRange::from_begin_size(1, std::max(degree - mult - repeat - 1, 0))) {
+    for (const int i : IndexRange(order)) {
+      const int src_point = (knot_span - order + 1 + i) % points_num;
+      tris.append(WeightTriplet(altered_points_range[j], src_point, point_weights[j * order + i]));
+    }
+  }
+  WeightMatrix m(points_num_after, points_num);
+  m.setFromTriplets(tris.begin(), tris.end());
+  m.makeCompressed();
+  return m;
+}
+
 IndexRange calc_knot_insertion_weights(const Span<float> knots,
                                        const int8_t order,
                                        const float knot,
@@ -107,6 +180,18 @@ IndexRange calc_knot_insertion_weights(const Span<float> knots,
   return points_to_replace;
 }
 
+Span<float> prepare_curve_weights(const Span<float> all_weights,
+                                  const IndexRange curve_points,
+                                  Array<float> weights_buffer)
+{
+  if (!all_weights.is_empty()) {
+    return all_weights.slice(curve_points);
+  }
+  weights_buffer.reinitialize(curve_points.size());
+  weights_buffer.fill(1.0f);
+  return weights_buffer;
+}
+
 Array<float> make_weights_for_knot_span(const int order,
                                         const Span<float> all_weights,
                                         const IndexRange curve_points,
@@ -120,6 +205,89 @@ Array<float> make_weights_for_knot_span(const int order,
     }
   }
   return weights;
+}
+
+IndexMask selection_from_modified(const WeightMatrix &point_weights, IndexMaskMemory &memory)
+{
+  Array<bool> modified_points(point_weights.rows(), false);
+  for (const int row : IndexRange(point_weights.rows())) {
+    WeightMatrix::InnerIterator it(point_weights, row);
+    const float value = it.value();
+    modified_points[row] = (value != 1.0f) || (++it);
+  }
+  return IndexMask::from_bools(modified_points, memory);
+}
+
+void select_curve_points_modified_by_weights(const WeightMatrix &point_weights,
+                                             const int curve,
+                                             bke::CurvesGeometry &curves)
+{
+  foreach_selection_attribute_writer(
+      curves, bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
+        fill_selection_false(selection.span);
+      });
+  const IndexRange points = curves.points_by_curve()[curve];
+
+  bke::GSpanAttributeWriter selection = ensure_selection_attribute(
+      curves, bke::AttrDomain::Point, CD_PROP_BOOL);
+
+  IndexMaskMemory memory;
+  const IndexMask selected = selection_from_modified(point_weights, memory);
+  fill_selection_true(selection.span.slice(points), selected);
+  selection.finish();
+}
+
+void apply_weights_to_curve(const bke::CurvesGeometry &src_curves,
+                            const WeightMatrix &point_weights,
+                            const int curve,
+                            bke::CurvesGeometry &dst_curves)
+{
+  const IndexRange curve_points = src_curves.points_by_curve()[curve];
+  const IndexRange new_curve_points = IndexRange::from_begin_size(curve_points.first(),
+                                                                  point_weights.rows());
+  const int new_points_added = new_curve_points.size() - curve_points.size();
+  const IndexRange points_before = IndexRange::from_begin_end(0, curve_points.first());
+  const IndexRange points_after = IndexRange::from_begin_end(curve_points.one_after_last(),
+                                                             src_curves.points_num());
+
+  const bke::AttributeAccessor src_attributes = src_curves.attributes();
+  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+
+  Array<float> weights_buffer;
+  Span<float> weights = prepare_curve_weights(
+      src_curves.nurbs_weights(), curve_points, weights_buffer);
+
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes,
+           dst_attributes,
+           ATTR_DOMAIN_MASK_POINT,
+           bke::attribute_filter_from_skip_ref(
+               ed::curves::get_curves_selection_attribute_names(src_curves))))
+  {
+    GSpan points_before_curve = attribute.src.slice(points_before);
+    GSpan points_after_curve = attribute.src.slice(points_after);
+    attribute.dst.span.slice(points_before).copy_from(points_before_curve);
+    attribute.dst.span.slice(points_after.shift(new_points_added)).copy_from(points_after_curve);
+
+    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+        Span<T> src_points = attribute.src.typed<T>().slice(curve_points);
+        bke::attribute_math::DefaultMixer<T> mixer{
+            attribute.dst.span.typed<T>().slice(new_curve_points)};
+
+        for (const int row : IndexRange(point_weights.rows())) {
+          const int dst_point = row;
+          for (WeightMatrix::InnerIterator it(point_weights, row); it; ++it) {
+            const int src_point = it.col();
+            mixer.mix_in(row, src_points[src_point], weights[src_point] * it.value());
+          }
+        };
+        mixer.finalize();
+      }
+    });
+    attribute.dst.finish();
+  }
 }
 
 bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
@@ -178,74 +346,11 @@ bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
                                            knots[knot_span + 1];
   }
 
-  const int max_altered_point_count = 2 * (order - 1) - 1;
-  Array<float> point_weights_buffer(max_altered_point_count * order);
-  const IndexRange points_to_replace = calc_knot_insertion_weights(
-      knots, order, knot, knot_span, knot_multiplicity, repeat, point_weights_buffer);
+  const WeightMatrix weights = calc_knot_insertion_weights(
+      knots, curve_points.size(), order, knot, knot_span, knot_multiplicity, repeat);
 
-  /* Update point attributes. */
-  const bke::AttributeAccessor src_attributes = curves.attributes();
-  bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
-
-  const IndexRange points_to_replace_global = points_to_replace.shift(curve_points.first());
-  const IndexRange points_before = IndexRange::from_begin_end(
-      0, std::min(curve_points.one_after_last(), points_to_replace_global.start()));
-  const IndexRange points_after = IndexRange::from_begin_end(
-      std::min(curve_points.one_after_last(), points_to_replace_global.one_after_last()),
-      curves.points_num());
-
-  Array<bool> is_altered(new_curve_points.size());
-  const IndexRange altered_points_range = IndexRange::from_begin_size(
-      points_to_replace.start(), points_to_replace.size() + new_points_added);
-  for (const int i : altered_points_range) {
-    is_altered[i % new_curve_points.size()] = true;
-  }
-  IndexMaskMemory memory;
-  const IndexMask altered_points = IndexMask::from_bools(
-      IndexRange(new_curve_points.size()), is_altered, memory);
-  const Array<float> weights = make_weights_for_knot_span(
-      order, curves.nurbs_weights(), curve_points, knot_span);
-
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes,
-           dst_attributes,
-           ATTR_DOMAIN_MASK_POINT,
-           bke::attribute_filter_from_skip_ref(
-               ed::curves::get_curves_selection_attribute_names(curves))))
-  {
-    GSpan points_before_span = attribute.src.slice(points_before);
-    GSpan points_after_span = attribute.src.slice(points_after);
-    attribute.dst.span.slice(points_before).copy_from(points_before_span);
-    attribute.dst.span.slice(points_after.shift(new_points_added)).copy_from(points_after_span);
-
-    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
-        Span<T> src_points = attribute.src.typed<T>().slice(curve_points);
-        bke::attribute_math::DefaultMixer<T> mixer{
-            attribute.dst.span.typed<T>().slice(new_curve_points), altered_points};
-
-        for (const int j : altered_points_range.index_range()) {
-          const int altered_point = (altered_points_range[j]) % new_curve_points.size();
-          Span<float> point_weights = point_weights_buffer.as_span().slice(j * order, order);
-          for (const int i : point_weights.index_range()) {
-            const int src_i = (knot_span - order + 1 + i) % curve_points.size();
-            mixer.mix_in(altered_point, src_points[src_i], weights[i] * point_weights[i]);
-          }
-        };
-        mixer.finalize(altered_points);
-      }
-    });
-    attribute.dst.finish();
-  }
-  OffsetIndices<int> new_points_by_curve = new_curves.points_by_curve();
-  foreach_selection_attribute_writer(
-      new_curves, bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
-        for (const int curve : new_curves.curves_range()) {
-          fill_selection_false(selection.span.slice(new_points_by_curve[curve]));
-        }
-        fill_selection_true(selection.span.slice(new_points_by_curve[curve]), altered_points);
-      });
+  apply_weights_to_curve(curves, weights, curve, new_curves);
+  select_curve_points_modified_by_weights(weights, curve, new_curves);
 
   return new_curves;
 }
