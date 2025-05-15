@@ -339,7 +339,7 @@ class PixelBuffer {
   size_t size_ = 0;
 
  public:
-  PixelBuffer(size_t size) : size_(size) {};
+  PixelBuffer(size_t size) : size_(size){};
   virtual ~PixelBuffer() = default;
 
   virtual void *map() = 0;
