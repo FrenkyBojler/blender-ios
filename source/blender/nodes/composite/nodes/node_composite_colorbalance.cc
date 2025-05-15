@@ -43,7 +43,7 @@ static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Image");
 
   b.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
-    layout->prop(ptr, "correction_method", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "correction_method", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
 
   b.add_input<decl::Float>("Fac")
@@ -58,28 +58,22 @@ static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Color>("Lift")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      //.max(2.0f)
       .description("Correction for shadows");
   b.add_input<decl::Color>("Gamma")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      //.max(2.0f)
       .description("Correction for midtones");
   b.add_input<decl::Color>("Gain")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      //.max(2.0f)
       .description("Correction for highlights");
 
   b.add_input<decl::Color>("Offset")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      //.max(2.0f)
       .description("Correction for shadows");
   b.add_input<decl::Color>("Power")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      //.max(2.0f)
       .description("Correction for midtones");
   b.add_input<decl::Color>("Slope")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      //.max(2.0f)
       .description("Correction for highlights");
   b.add_input<decl::Float>("Offset Basis")
       .default_value(0.0f)
@@ -172,8 +166,6 @@ static void node_update(bNodeTree *ntree, bNode *node)
   blender::bke::node_set_socket_availability(*ntree, *output_temperature_input, is_white_point);
   blender::bke::node_set_socket_availability(*ntree, *output_tint_input, is_white_point);
 }
-
-using namespace blender::compositor;
 
 static float3x3 get_white_point_matrix(const float input_temperature,
                                        const float input_tint,
