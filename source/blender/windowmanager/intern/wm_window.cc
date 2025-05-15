@@ -1059,8 +1059,11 @@ wmWindow *WM_window_open(bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int x = rect_unscaled->xmin;
   int y = rect_unscaled->ymin;
-  int sizex = BLI_rcti_size_x(rect_unscaled);
-  int sizey = BLI_rcti_size_y(rect_unscaled);
+  /* Duplicated windows are created at Area size, so duplicated
+   * minimized areas can init at 2 pixels high before being
+   * resized at the end of window creation. Therefore minimums. */
+  int sizex = std::max(BLI_rcti_size_x(rect_unscaled), 200);
+  int sizey = std::max(BLI_rcti_size_y(rect_unscaled), 150);
   rcti rect;
 
   const float native_pixel_size = GHOST_GetNativePixelSize(
@@ -2123,23 +2126,23 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
 
   /* Title and explanation text. */
   uiItemL_ex(col, title, ICON_NONE, true, false);
-  uiItemS_ex(col, 0.8f, LayoutSeparatorType::Space);
+  col->separator(0.8f, LayoutSeparatorType::Space);
 
   uiLayout *messages = &col->column(false);
   uiLayoutSetScaleY(messages, 0.8f);
 
-  uiItemL(messages, message1, ICON_NONE);
-  uiItemL(messages, message2, ICON_NONE);
-  uiItemL(messages, message3, ICON_NONE);
+  messages->label(message1, ICON_NONE);
+  messages->label(message2, ICON_NONE);
+  messages->label(message3, ICON_NONE);
   if (G.opengl_deprecation_usage_filename) {
     char location[1024];
     SNPRINTF(
         location, "%s:%d", G.opengl_deprecation_usage_filename, G.opengl_deprecation_usage_lineno);
-    uiItemL(messages, location, ICON_NONE);
+    messages->label(location, ICON_NONE);
   }
-  uiItemL(messages, message4, ICON_NONE);
+  messages->label(message4, ICON_NONE);
 
-  uiItemS_ex(col, 0.5f, LayoutSeparatorType::Space);
+  col->separator(0.5f, LayoutSeparatorType::Space);
 
   UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
 
@@ -2198,12 +2201,11 @@ static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, 
   uiLayoutSetScaleY(col, 0.8f);
   uiItemL_ex(
       col, RPT_("Failed to load using Vulkan, using OpenGL instead."), ICON_NONE, true, false);
-  uiItemS_ex(col, 1.3f, LayoutSeparatorType::Space);
+  col->separator(1.3f, LayoutSeparatorType::Space);
 
-  uiItemL(col, RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
-  uiItemL(col,
-          RPT_("The graphics backend can be changed in the System section of the Preferences."),
-          ICON_NONE);
+  col->label(RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
+  col->label(RPT_("The graphics backend can be changed in the System section of the Preferences."),
+             ICON_NONE);
 
   UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
 
