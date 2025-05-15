@@ -1,0 +1,90 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "COM_node_operation.hh"
+
+#include "node_composite_util.hh"
+
+namespace blender::nodes::node_composite_texture_coordinates_cc {
+
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Color>("Image").hide_value().compositor_realization_mode(
+      CompositorInputRealizationMode::None);
+
+  b.add_output<decl::Vector>("Texture");
+  b.add_output<decl::Vector>("Normalized");
+  b.add_output<decl::Vector>("Pixel");
+}
+
+using namespace blender::compositor;
+
+class TextureCoordinatesOperation : public NodeOperation {
+ public:
+  TextureCoordinatesOperation(Context &context, DNode node) : NodeOperation(context, node)
+  {
+    InputDescriptor &image_descriptor = this->get_input_descriptor("Image");
+    image_descriptor.skip_type_conversion = true;
+  }
+
+  void execute() override
+  {
+    const Domain domain = this->compute_domain();
+
+    Result &texture_coordinates_result = this->get_result("Texture");
+    if (texture_coordinates_result.should_compute()) {
+      const Result &texture_coordinates = this->context().cache_manager().image_coordinates.get(
+          this->context(), domain.size, CoordinatesType::Texture);
+      texture_coordinates_result.wrap_external(texture_coordinates);
+      texture_coordinates_result.transform(domain.transformation);
+    }
+
+    Result &normalized_coordinates_result = this->get_result("Normalized");
+    if (normalized_coordinates_result.should_compute()) {
+      const Result &normalized_coordinates = this->context().cache_manager().image_coordinates.get(
+          this->context(), domain.size, CoordinatesType::Normalized);
+      normalized_coordinates_result.wrap_external(normalized_coordinates);
+      normalized_coordinates_result.transform(domain.transformation);
+    }
+
+    Result &pixel_coordinates_result = this->get_result("Pixel");
+    if (pixel_coordinates_result.should_compute()) {
+      const Result &pixel_coordinates = this->context().cache_manager().image_coordinates.get(
+          this->context(), domain.size, CoordinatesType::Pixel);
+      pixel_coordinates_result.wrap_external(pixel_coordinates);
+      pixel_coordinates_result.transform(domain.transformation);
+    }
+  }
+
+  Domain compute_domain() override
+  {
+    const Result &input = this->get_input("Image");
+    if (!input.is_single_value()) {
+      return input.domain();
+    }
+    return Domain(this->context().get_compositing_region_size());
+  }
+};
+
+static NodeOperation *get_compositor_operation(Context &context, DNode node)
+{
+  return new TextureCoordinatesOperation(context, node);
+}
+
+static void register_node()
+{
+  static blender::bke::bNodeType ntype;
+
+  cmp_node_type_base(&ntype, "CompositorNodeTextureCoordinates");
+  ntype.ui_name = "Texture Coordinates";
+  ntype.ui_description = "Returns the coordinates of the pixels of an image";
+  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.declare = node_declare;
+  ntype.get_compositor_operation = get_compositor_operation;
+
+  blender::bke::node_register_type(ntype);
+}
+NOD_REGISTER_NODE(register_node)
+
+}  // namespace blender::nodes::node_composite_texture_coordinates_cc
