@@ -86,13 +86,9 @@ bool ED_uvedit_test(Object *obedit);
 
 /* `uvedit_select.cc` */
 
-bool ED_uvedit_sync_uvselect_ignore_with_selectmode(const ToolSettings *ts, short selectmode);
-bool ED_uvedit_sync_uvselect_ignore(const ToolSettings *ts, const BMesh *bm);
+bool ED_uvedit_sync_uvselect_ignore(const ToolSettings *ts);
 bool ED_uvedit_sync_uvselect_is_valid_or_ignore(const ToolSettings *ts, const BMesh *bm);
 void ED_uvedit_sync_uvselect_ensure_if_needed(const ToolSettings *ts, BMesh *bm);
-void ED_uvedit_sync_uvselect_ensure_if_needed_for_selectmode_set(const ToolSettings *ts,
-                                                                 BMesh *bm,
-                                                                 const short selectmode_new);
 
 /* Visibility and selection tests. */
 

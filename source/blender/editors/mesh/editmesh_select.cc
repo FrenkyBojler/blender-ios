@@ -2472,11 +2472,6 @@ void EDBM_selectmode_set(BMEditMesh *em, const short selectmode)
     }
   }
 
-  /* Check if UV flushing is needed. */
-  if (em->selectmode == SCE_SELECT_FACE) {
-    EDBM_uvselect_clear(em);
-  }
-
   if (em->bm->uv_sync_select_valid) {
     BM_mesh_uvselect_selectmode_update(em->bm, selectmode_prev, selectmode);
   }
@@ -2711,8 +2706,7 @@ bool EDBM_selectmode_toggle_multi(bContext *C,
       BMEditMesh *em_iter = BKE_editmesh_from_object(ob_iter);
 
       if (use_uv_select_ensure) {
-        ED_uvedit_sync_uvselect_ensure_if_needed_for_selectmode_set(
-            ts, em_iter->bm, selectmode_new);
+        ED_uvedit_sync_uvselect_ensure_if_needed(ts, em_iter->bm);
       }
 
       EDBM_selectmode_set(em_iter, selectmode_new);

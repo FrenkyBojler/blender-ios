@@ -232,28 +232,19 @@ BMLoop *ED_uvedit_active_edge_loop_get(const ToolSettings *ts, BMesh *bm)
 /** \name Visibility and Selection Utilities
  * \{ */
 
-bool ED_uvedit_sync_uvselect_ignore_with_selectmode(const ToolSettings *ts, const short selectmode)
+bool ED_uvedit_sync_uvselect_ignore(const ToolSettings *ts)
 {
   BLI_assert(ts->uv_flag & UV_SYNC_SELECTION);
   if (ts->uv_sticky == SI_STICKY_VERTEX) {
     /* In this case use the original mesh selection. */
     return true;
   }
-  if (selectmode == SCE_SELECT_FACE) {
-    /* In this case there is no need for separate UV data. */
-    return true;
-  }
   return false;
-}
-
-bool ED_uvedit_sync_uvselect_ignore(const ToolSettings *ts, const BMesh *bm)
-{
-  return ED_uvedit_sync_uvselect_ignore_with_selectmode(ts, bm->selectmode);
 }
 
 bool ED_uvedit_sync_uvselect_is_valid_or_ignore(const ToolSettings *ts, const BMesh *bm)
 {
-  return bm->uv_sync_select_valid || ED_uvedit_sync_uvselect_ignore(ts, bm);
+  return bm->uv_sync_select_valid || ED_uvedit_sync_uvselect_ignore(ts);
 }
 
 static void uvedit_sync_uvselect_flush_from_v3d(const ToolSettings *ts, BMesh *bm)
@@ -280,25 +271,8 @@ static void uvedit_sync_uvselect_flush_from_v3d(const ToolSettings *ts, BMesh *b
 
 void ED_uvedit_sync_uvselect_ensure_if_needed(const ToolSettings *ts, BMesh *bm)
 {
-  if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
-    bm->uv_sync_select_valid = false;
-    return;
-  }
-
-  if (bm->uv_sync_select_valid) {
-    return;
-  }
-
-  uvedit_sync_uvselect_flush_from_v3d(ts, bm);
-}
-
-void ED_uvedit_sync_uvselect_ensure_if_needed_for_selectmode_set(const ToolSettings *ts,
-                                                                 BMesh *bm,
-                                                                 const short selectmode_new)
-{
   /* Select sync wont be needed when mode switching. */
-  if (ED_uvedit_sync_uvselect_ignore_with_selectmode(ts, selectmode_new)) {
-    /* Don't waste time keeping flushing this as it wont be used. */
+  if (ED_uvedit_sync_uvselect_ignore(ts)) {
     bm->uv_sync_select_valid = false;
     return;
   }
@@ -415,7 +389,7 @@ bool uvedit_face_select_test_ex(const ToolSettings *ts,
   BLI_assert(offsets.select_vert >= 0);
   BLI_assert(offsets.select_edge >= 0);
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       return BM_elem_flag_test(efa, BM_ELEM_SELECT);
     }
     return BM_elem_flag_test(efa, BM_ELEM_SELECT_UV);
@@ -446,7 +420,7 @@ void uvedit_face_select_set_with_sticky(
   const ToolSettings *ts = scene->toolsettings;
   const char sticky = ts->uv_sticky;
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       uvedit_face_select_set(scene, bm, efa, select, offsets);
       return;
     }
@@ -558,7 +532,7 @@ void uvedit_face_select_enable(const Scene *scene,
   const ToolSettings *ts = scene->toolsettings;
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       BM_face_select_set(bm, efa, true);
     }
     else {
@@ -586,7 +560,7 @@ void uvedit_face_select_disable(const Scene *scene,
   const ToolSettings *ts = scene->toolsettings;
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       BM_face_select_set(bm, efa, false);
     }
     else {
@@ -612,8 +586,7 @@ bool uvedit_edge_select_test_ex(const ToolSettings *ts,
   BLI_assert(offsets.select_vert >= 0);
   BLI_assert(offsets.select_edge >= 0);
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-
-    if (ts->selectmode == SCE_SELECT_FACE) {
+    if ((bm->uv_sync_select_valid == false) && (ts->selectmode == SCE_SELECT_FACE)) {
       /* Face only is a special case that can respect sticky modes. */
       switch (ts->uv_sticky) {
         case SI_STICKY_LOC: {
@@ -636,7 +609,7 @@ bool uvedit_edge_select_test_ex(const ToolSettings *ts,
       BLI_assert_unreachable();
     }
 
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       if (ts->selectmode & SCE_SELECT_FACE) {
         return BM_elem_flag_test(l->f, BM_ELEM_SELECT);
       }
@@ -674,7 +647,7 @@ void uvedit_edge_select_set_with_sticky(const Scene *scene,
 {
   const ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       uvedit_edge_select_set(scene, bm, l, select, offsets);
       return;
     }
@@ -708,7 +681,7 @@ static bool UNUSED_FUNCTION(bm_loop_select_vert_check_internal)(const Scene *sce
 {
   const ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       /* Use mesh selection. */
       return BM_elem_flag_test_bool(l->v, BM_ELEM_SELECT);
     }
@@ -724,7 +697,7 @@ static bool bm_loop_select_edge_check_internal(const Scene *scene,
 {
   const ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       /* Use mesh selection. */
       return BM_elem_flag_test_bool(l->e, BM_ELEM_SELECT);
     }
@@ -821,7 +794,7 @@ void uvedit_edge_select_enable(const Scene *scene,
   BLI_assert(offsets.select_edge >= 0);
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       if (ts->selectmode & SCE_SELECT_FACE) {
         BM_face_select_set(bm, l->f, true);
       }
@@ -852,7 +825,7 @@ void uvedit_edge_select_disable(const Scene *scene,
   const ToolSettings *ts = scene->toolsettings;
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       if (ts->selectmode & SCE_SELECT_FACE) {
         BM_face_select_set(bm, l->f, false);
       }
@@ -897,7 +870,7 @@ bool uvedit_uv_select_test_ex(const ToolSettings *ts,
   BLI_assert(offsets.select_vert >= 0);
   if (ts->uv_flag & UV_SYNC_SELECTION) {
 
-    if (ts->selectmode == SCE_SELECT_FACE) {
+    if ((bm->uv_sync_select_valid == false) && (ts->selectmode == SCE_SELECT_FACE)) {
       /* Face only is a special case that can respect sticky modes. */
       switch (ts->uv_sticky) {
         case SI_STICKY_LOC: {
@@ -947,7 +920,7 @@ bool uvedit_uv_select_test_ex(const ToolSettings *ts,
       BLI_assert_unreachable();
     }
 
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       if (ts->selectmode & SCE_SELECT_FACE) {
         return BM_elem_flag_test_bool(l->f, BM_ELEM_SELECT);
       }
@@ -983,7 +956,7 @@ void uvedit_uv_select_set_with_sticky(
 {
   const ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       uvedit_uv_select_set(scene, bm, l, select, offsets);
       return;
     }
@@ -1071,7 +1044,7 @@ void uvedit_uv_select_enable(const Scene *scene, BMesh *bm, BMLoop *l, const BMU
   }
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       if (ts->selectmode & SCE_SELECT_FACE) {
         BM_face_select_set(bm, l->f, true);
       }
@@ -1094,7 +1067,7 @@ void uvedit_uv_select_disable(const Scene *scene, BMesh *bm, BMLoop *l, const BM
   const ToolSettings *ts = scene->toolsettings;
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       if (ts->selectmode & SCE_SELECT_FACE) {
         BM_face_select_set(bm, l->f, false);
       }
@@ -1784,7 +1757,7 @@ struct UVSelectContext {
 UVSelectContext *ED_uvedit_select_context_create_if_needed(const ToolSettings *ts, BMesh *bm)
 
 {
-  if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+  if (ED_uvedit_sync_uvselect_ignore(ts)) {
     return nullptr;
   }
   if (bm->uv_sync_select_valid == false) {
@@ -2614,7 +2587,7 @@ static void uv_select_linked_multi(Scene *scene,
     BM_uv_vert_map_free(vmap);
 
     if (uv_sync_select) {
-      if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+      if (ED_uvedit_sync_uvselect_ignore(ts)) {
         if (deselect) {
           BM_mesh_deselect_flush(bm);
         }
@@ -2943,7 +2916,7 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
   BMesh *bm = em->bm;
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       bm->uv_sync_select_valid = false;
     }
     /* If selection wasn't synced, there is no need to sync.  */
@@ -3569,7 +3542,7 @@ static wmOperatorStatus uv_mouse_select_loop_generic_multi(bContext *C,
   }
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       if (flush == 1) {
         BM_mesh_select_flush(bm);
       }
@@ -3911,8 +3884,11 @@ static wmOperatorStatus uv_select_split_exec(bContext *C, wmOperator *op)
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
     /* Face selection. */
-    if (ts->selectmode == SCE_SELECT_FACE) {
-      BKE_report(op->reports, RPT_ERROR, "Cannot split selection when sync selection is enabled");
+    if (ts->uv_sticky == SI_STICKY_VERTEX) {
+      BKE_report(
+          op->reports,
+          RPT_ERROR,
+          "Cannot split selection with \"Sync Select\" and \"Shared Vertex\" selection enabled");
       return OPERATOR_CANCELLED;
     }
   }
@@ -4107,7 +4083,7 @@ static void uv_select_flush_from_tag_face(const Scene *scene, Object *obedit, co
 
   bool use_sticky = true;
   if (ts->uv_flag & UV_SYNC_SELECTION) {
-    if (ED_uvedit_sync_uvselect_ignore(ts, bm)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       /* Use the mesh selection directly. */
       use_sticky = false;
     }

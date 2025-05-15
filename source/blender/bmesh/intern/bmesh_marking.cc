@@ -2011,10 +2011,25 @@ void BM_mesh_uvselect_selectmode_update(BMesh *bm,
     return;
   }
 
-  /* Singe face selection mode doesn't require `bm->uv_sync_select_valid`
-   * we only need to handle edge to vertex. */
+  bool do_flush_deselect_down = false;
+  if (selectmode_old & SCE_SELECT_VERTEX) {
+    if ((selectmode_new & SCE_SELECT_VERTEX) == 0) {
+      do_flush_deselect_down = true;
+    }
+  }
+  else if (selectmode_old & SCE_SELECT_EDGE) {
+    if ((selectmode_new & SCE_SELECT_EDGE) == 0) {
+      do_flush_deselect_down = true;
+    }
+  }
 
-  if ((selectmode_old & SCE_SELECT_VERTEX) && (selectmode_new & SCE_SELECT_VERTEX) == 0) {
+  /* Rely on the selection mode switching to have de-selected isolated verts/edges,
+   * simply de-select elements where the underlying mesh is not selected.
+   *
+   * An alternative solution would be to apply the same flushing logic here,
+   * de-selecting isolated vertices when switching to edge/face select mode for e.g.
+   * however this is more involved. */
+  if (do_flush_deselect_down) {
     BMIter iter;
     BMFace *f;
     BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
@@ -2025,6 +2040,12 @@ void BM_mesh_uvselect_selectmode_update(BMesh *bm,
           if (!BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
             bm->totloopsel_vert -= 1;
+          }
+        }
+        if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
+          if (!BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
+            BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
+            bm->totloopsel_edge -= 1;
           }
         }
       } while ((l_iter = l_iter->next) != l_first);
@@ -2166,8 +2187,6 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
 
 void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
 {
-  /* TODO: logic. */
-
   bm->totloopsel_vert = 0;
   bm->totloopsel_edge = 0;
   bm->totloopsel_face = 0;
@@ -2515,10 +2534,6 @@ bool BM_mesh_uvselect_clear(BMesh *bm)
     return false;
   }
   bm->uv_sync_select_valid = false;
-
-  if (bm->selectmode == SCE_SELECT_FACE) {
-    return false;
-  }
   return true;
 }
 

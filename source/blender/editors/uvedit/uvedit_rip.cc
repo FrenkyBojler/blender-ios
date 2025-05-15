@@ -925,7 +925,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
 
   if (ts->uv_flag & UV_SYNC_SELECTION) {
     /* Important because in sync selection we *must* be able to de-select individual loops. */
-    if (ED_uvedit_sync_uvselect_ignore_with_selectmode(ts, ts->selectmode)) {
+    if (ED_uvedit_sync_uvselect_ignore(ts)) {
       BKE_report(op->reports,
                  RPT_ERROR,
                  "Rip is only compatible with sync-select with vertex/edge selection");
