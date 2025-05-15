@@ -653,8 +653,8 @@ static BHeadN *get_bhead(FileData *fd)
       }
 #endif
       else {
-        new_bhead = static_cast<BHeadN *>(
-            fd->bheads_allocator.allocate(sizeof(BHeadN) + size_t(bhead->len), 8));
+        new_bhead = static_cast<BHeadN *>(fd->bheads_allocator.allocate(
+            sizeof(BHeadN) + size_t(bhead->len), __STDCPP_DEFAULT_NEW_ALIGNMENT__));
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
 #ifdef USE_BHEAD_READ_ON_DEMAND
