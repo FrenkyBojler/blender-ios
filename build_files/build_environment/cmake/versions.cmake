@@ -786,11 +786,11 @@ set(SQLITE_HOMEPAGE https://www.sqlite.org)
 set(SQLITE_LICENSE Public Domain)
 
 set(EMBREE_VERSION 4.4.0)
-set(EMBREE_URI https://github.com/embree/embree/archive/v${EMBREE_VERSION}.zip)
+set(EMBREE_URI https://github.com/RenderKit/embree/archive/v${EMBREE_VERSION}.zip)
 set(EMBREE_HASH 56e5f414b9ae441b366be79867b8fb07)
 set(EMBREE_HASH_TYPE MD5)
 set(EMBREE_FILE embree-v${EMBREE_VERSION}.zip)
-set(EMBREE_HOMEPAGE https://github.com/embree/embree)
+set(EMBREE_HOMEPAGE https://github.com/RenderKit/embree)
 set(EMBREE_LICENSE SPDX:Apache-2.0)
 set(EMBREE_COPYRIGHT "Copyright 2009-2024 Intel Corporation")
 
