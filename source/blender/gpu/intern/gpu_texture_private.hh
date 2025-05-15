@@ -339,7 +339,7 @@ class PixelBuffer {
   size_t size_ = 0;
 
  public:
-  PixelBuffer(size_t size) : size_(size){};
+  PixelBuffer(size_t size) : size_(size) {};
   virtual ~PixelBuffer() = default;
 
   virtual void *map() = 0;
@@ -1146,8 +1146,6 @@ static inline eGPUTextureFormat to_texture_format(const GPUVertFormat *format)
               return GPU_RGBA16UI;
             case GPU_FETCH_INT_TO_FLOAT_UNIT:
               return GPU_RGBA16;
-            case GPU_FETCH_INT_TO_FLOAT:
-              return GPU_RGBA16F;
             case GPU_FETCH_FLOAT:
               return GPU_RGBA16F;
           }

@@ -39,7 +39,6 @@ static PyC_StringEnumItems pygpu_vertfetchmode_items[] = {
     {GPU_FETCH_FLOAT, "FLOAT"},
     {GPU_FETCH_INT, "INT"},
     {GPU_FETCH_INT_TO_FLOAT_UNIT, "INT_TO_FLOAT_UNIT"},
-    {GPU_FETCH_INT_TO_FLOAT, "INT_TO_FLOAT"},
     {0, nullptr},
 };
 
