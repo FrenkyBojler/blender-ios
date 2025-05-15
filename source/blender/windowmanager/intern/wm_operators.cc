@@ -21,7 +21,7 @@
 #include <fmt/format.h>
 
 #ifdef WIN32
-#  include "GHOST_C-api.h"
+#  include "GHOST_ISystem.h"
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -2435,7 +2435,8 @@ static void WM_OT_quit_blender(wmOperatorType *ot)
 
 static wmOperatorStatus wm_console_toggle_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
-  GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
+  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  return system->setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
   return OPERATOR_FINISHED;
 }
 

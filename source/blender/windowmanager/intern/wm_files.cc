@@ -112,7 +112,7 @@
 
 #include "NOD_composite.hh"
 
-#include "GHOST_C-api.h"
+#include "GHOST_IWindow.hh"
 #include "GHOST_Path-api.hh"
 
 #include "GPU_context.hh"
@@ -287,7 +287,8 @@ static void wm_file_read_setup_wm_substitute_old_window(wmWindowManager *oldwm,
   /* File loading in background mode still calls this. */
   if (!G.background) {
     /* Pointer back. */
-    GHOST_SetWindowUserData(static_cast<GHOST_WindowHandle>(win->ghostwin), win);
+    GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->ghostwin);
+    ghost_window->setUserData(win);
   }
 
   oldwin->ghostwin = nullptr;
