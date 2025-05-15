@@ -227,9 +227,28 @@ bool BM_loop_edge_uvselect_check_other_face(BMLoop *l, char hflag, int cd_loop_u
 
 bool BM_face_uvselect_check_edges_all(BMFace *f);
 
-void BM_vert_uvselect_set_pick(BMesh *bm, BMVert *v, bool select, int cd_loop_uv_offset);
-void BM_edge_uvselect_set_pick(BMesh *bm, BMEdge *e, bool select, int cd_loop_uv_offset);
-void BM_face_uvselect_set_pick(BMesh *bm, BMFace *f, bool select, int cd_loop_uv_offset);
+struct BMUVSelectPickParams {
+  int cd_loop_uv_offset = -1;
+  /**
+   * Derived from #ToolSettings::uv_sticky
+   * A boolean can be used since "Shared Vertex"
+   * doesn't require #BM_ELEM_SELECT_UV at all.
+   */
+  bool shared = true;
+};
+
+void BM_vert_uvselect_set_pick(BMesh *bm,
+                               BMVert *v,
+                               bool select,
+                               const BMUVSelectPickParams &params);
+void BM_edge_uvselect_set_pick(BMesh *bm,
+                               BMEdge *e,
+                               bool select,
+                               const BMUVSelectPickParams &params);
+void BM_face_uvselect_set_pick(BMesh *bm,
+                               BMFace *f,
+                               bool select,
+                               const BMUVSelectPickParams &params);
 
 void BM_face_uvselect_set_noflush(BMesh *bm, BMFace *f, bool select);
 void BM_face_uvselect_set(BMesh *bm, BMFace *f, bool select);

@@ -1815,24 +1815,30 @@ void ED_uvedit_select_context_apply(UVSelectContext *selctx)
   /* FIXME(@ideasman42): There are flushing issues with de-selecting edges.
    * Possibly there are other flushing that needs work. */
 
+  const bool shared = selctx->toolsettings->uv_sticky == SI_STICKY_LOC;
+  const BMUVSelectPickParams uv_pick_params = {
+      /*cd_loop_uv_offset*/ cd_loop_uv_offset,
+      /*shared*/ shared,
+  };
+
   for (BMVert *v : selctx->bm_verts_deselect) {
-    BM_vert_uvselect_set_pick(bm, v, false, cd_loop_uv_offset);
+    BM_vert_uvselect_set_pick(bm, v, false, uv_pick_params);
   }
   for (BMEdge *e : selctx->bm_edges_deselect) {
-    BM_edge_uvselect_set_pick(bm, e, false, cd_loop_uv_offset);
+    BM_edge_uvselect_set_pick(bm, e, false, uv_pick_params);
   }
   for (BMFace *f : selctx->bm_faces_deselect) {
-    BM_face_uvselect_set_pick(bm, f, false, cd_loop_uv_offset);
+    BM_face_uvselect_set_pick(bm, f, false, uv_pick_params);
   }
 
   for (BMVert *v : selctx->bm_verts_select) {
-    BM_vert_uvselect_set_pick(bm, v, true, cd_loop_uv_offset);
+    BM_vert_uvselect_set_pick(bm, v, true, uv_pick_params);
   }
   for (BMEdge *e : selctx->bm_edges_select) {
-    BM_edge_uvselect_set_pick(bm, e, true, cd_loop_uv_offset);
+    BM_edge_uvselect_set_pick(bm, e, true, uv_pick_params);
   }
   for (BMFace *f : selctx->bm_faces_select) {
-    BM_face_uvselect_set_pick(bm, f, true, cd_loop_uv_offset);
+    BM_face_uvselect_set_pick(bm, f, true, uv_pick_params);
   }
 }
 

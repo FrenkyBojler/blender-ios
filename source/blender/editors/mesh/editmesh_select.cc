@@ -2187,6 +2187,10 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
     BMesh *bm = em->bm;
 
     const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
+    const BMUVSelectPickParams uv_pick_params = {
+        /*cd_loop_uv_offset*/ cd_loop_uv_offset,
+        /*shared*/ vc.scene->toolsettings->uv_sticky == SI_STICKY_LOC,
+    };
 
     if (efa) {
       switch (params.sel_op) {
@@ -2200,7 +2204,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_select_history_store(bm, efa);
           BM_face_select_set(bm, efa, true);
           if (bm->uv_sync_select_valid) {
-            BM_face_uvselect_set_pick(bm, efa, true, cd_loop_uv_offset);
+            BM_face_uvselect_set_pick(bm, efa, true, uv_pick_params);
           }
           break;
         }
@@ -2215,14 +2219,14 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
             BM_select_history_store(bm, efa);
             BM_face_select_set(bm, efa, true);
             if (bm->uv_sync_select_valid) {
-              BM_face_uvselect_set_pick(bm, efa, true, cd_loop_uv_offset);
+              BM_face_uvselect_set_pick(bm, efa, true, uv_pick_params);
             }
           }
           else {
             BM_select_history_remove(bm, efa);
             BM_face_select_set(bm, efa, false);
             if (bm->uv_sync_select_valid) {
-              BM_face_uvselect_set_pick(bm, efa, false, cd_loop_uv_offset);
+              BM_face_uvselect_set_pick(bm, efa, false, uv_pick_params);
             }
           }
           break;
@@ -2253,7 +2257,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_select_history_store(bm, eed);
           BM_edge_select_set(bm, eed, true);
           if (bm->uv_sync_select_valid) {
-            BM_edge_uvselect_set_pick(bm, eed, true, cd_loop_uv_offset);
+            BM_edge_uvselect_set_pick(bm, eed, true, uv_pick_params);
           }
           break;
         }
@@ -2261,7 +2265,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_select_history_remove(bm, eed);
           BM_edge_select_set(bm, eed, false);
           if (bm->uv_sync_select_valid) {
-            BM_edge_uvselect_set_pick(bm, eed, false, cd_loop_uv_offset);
+            BM_edge_uvselect_set_pick(bm, eed, false, uv_pick_params);
           }
           break;
         }
@@ -2270,14 +2274,14 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
             BM_select_history_store(bm, eed);
             BM_edge_select_set(bm, eed, true);
             if (bm->uv_sync_select_valid) {
-              BM_edge_uvselect_set_pick(bm, eed, true, cd_loop_uv_offset);
+              BM_edge_uvselect_set_pick(bm, eed, true, uv_pick_params);
             }
           }
           else {
             BM_select_history_remove(bm, eed);
             BM_edge_select_set(bm, eed, false);
             if (bm->uv_sync_select_valid) {
-              BM_edge_uvselect_set_pick(bm, eed, false, cd_loop_uv_offset);
+              BM_edge_uvselect_set_pick(bm, eed, false, uv_pick_params);
             }
           }
           break;
@@ -2305,7 +2309,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_select_history_store(bm, eve);
           BM_vert_select_set(bm, eve, true);
           if (bm->uv_sync_select_valid) {
-            BM_vert_uvselect_set_pick(bm, eve, true, cd_loop_uv_offset);
+            BM_vert_uvselect_set_pick(bm, eve, true, uv_pick_params);
           }
           break;
         }
@@ -2313,7 +2317,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_select_history_remove(bm, eve);
           BM_vert_select_set(bm, eve, false);
           if (bm->uv_sync_select_valid) {
-            BM_vert_uvselect_set_pick(bm, eve, false, cd_loop_uv_offset);
+            BM_vert_uvselect_set_pick(bm, eve, false, uv_pick_params);
           }
           break;
         }
@@ -2322,14 +2326,14 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
             BM_select_history_store(bm, eve);
             BM_vert_select_set(bm, eve, true);
             if (bm->uv_sync_select_valid) {
-              BM_vert_uvselect_set_pick(bm, eve, true, cd_loop_uv_offset);
+              BM_vert_uvselect_set_pick(bm, eve, true, uv_pick_params);
             }
           }
           else {
             BM_select_history_remove(bm, eve);
             BM_vert_select_set(bm, eve, false);
             if (bm->uv_sync_select_valid) {
-              BM_vert_uvselect_set_pick(bm, eve, false, cd_loop_uv_offset);
+              BM_vert_uvselect_set_pick(bm, eve, false, uv_pick_params);
             }
           }
           break;
