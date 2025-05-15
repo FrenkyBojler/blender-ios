@@ -53,7 +53,7 @@ Engine::Engine(RenderEngine *bl_engine, const std::string &render_delegate_name)
   }
 
   render_index_.reset(pxr::HdRenderIndex::New(render_delegate_.Get(), hd_drivers));
-  free_camera_delegate_ = std::make_unique<pxr::HdxFreeCameraSceneDelegate>(
+  free_camera_delegate_ = std::make_unique<CameraDelegate>(
       render_index_.get(), pxr::SdfPath::AbsoluteRootPath().AppendElementString("freeCamera"));
 
   if (bl_engine->type->flag & RE_USE_GPU_CONTEXT && GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
@@ -109,6 +109,7 @@ void Engine::sync(Depsgraph *depsgraph, bContext *context)
     }
     usd_scene_delegate_->populate(depsgraph);
   }
+  free_camera_delegate_->set_camera_params(scene_);
 }
 
 void Engine::set_render_setting(const std::string &key, const pxr::VtValue &val)
