@@ -235,7 +235,7 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
                                                       ReportList *reports,
                                                       const int stroke_index,
                                                       const int index,
-                                                      const int def_nr,
+                                                      const char *vgroup_name,
                                                       const float weight,
                                                       const int assignmode)
 {
@@ -257,11 +257,13 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
   }
 
   const GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(grease_pencil_id);
-  const int vgroup_count = BLI_listbase_count(&grease_pencil.vertex_group_names);
-  if (def_nr < 0 || def_nr >= vgroup_count) {
-    BKE_report(reports, RPT_ERROR, "Valid vertex group must be provided");
+  const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names, vgroup_name);
+  if (vgroup_index == -1) {
     return;
   }
+
+  const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
+                                                            curves.vertex_group_names);
 
   MDeformVert *dv = &curves.deform_verts_for_write()[deform_vert_idx];
 
@@ -794,15 +796,7 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
                      0,
                      INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int(func,
-                     "vertex_group_id",
-                     0,
-                     0,
-                     INT_MAX,
-                     "Vertex Group ID",
-                     "The ID of the Vertex group to modify",
-                     0,
-                     INT_MAX);
+  parm = RNA_def_string(func, "vgroup_name", "Group", MAX_NAME, "Vertex Group Name", "Name of the vertex group");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_float(
       func, "weight", 0, 0.0f, 1.0f, "Weight", "The vertex weight to set", 0.0f, 1.0f);
