@@ -1838,8 +1838,8 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
   GPU_backend_type_selection_detect();
 
   /* Init GHOST and open window. */
-  GHOST_CallbackEventConsumer ghost_event_consumer(&ghost_event_proc, &ps);
-  GHOST_ISystem::setBacktraceFn(&BLI_system_backtrace);
+  GHOST_CallbackEventConsumer ghost_event_consumer(ghost_event_proc, &ps);
+  GHOST_ISystem::setBacktraceFn(BLI_system_backtrace);
 
   GHOST_ISystem::createSystem(true, false);
   ps.ghost_data.system = GHOST_ISystem::getSystem();
