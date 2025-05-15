@@ -289,8 +289,8 @@ void ForwardPipeline::sync()
   has_opaque_ = false;
   has_transparent_ = false;
 
-  DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
-  DRWState state_depth_color = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS |
+  DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state;
+  DRWState state_depth_color = DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state |
                                DRW_STATE_WRITE_COLOR;
   {
     prepass_ps_.init();
@@ -536,8 +536,8 @@ void DeferredLayer::begin_sync()
     prepass_ps_.bind_resources(inst_.velocity);
     prepass_ps_.bind_resources(inst_.sampling);
 
-    DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
-    DRWState state_depth_color = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS |
+    DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state;
+    DRWState state_depth_color = DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state |
                                  DRW_STATE_WRITE_COLOR;
 
     prepass_double_sided_static_ps_ = &prepass_ps_.sub("DoubleSided.Static");
@@ -1252,7 +1252,7 @@ void DeferredProbePipeline::begin_sync()
     pass.bind_resources(inst_.sampling);
   }
 
-  DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
+  DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state;
   /* Only setting up static pass because we don't use motion vectors for light-probes. */
   opaque_layer_.prepass_double_sided_static_ps_ = &pass.sub("DoubleSided");
   opaque_layer_.prepass_double_sided_static_ps_->state_set(state_depth_only);
@@ -1365,7 +1365,7 @@ void PlanarProbePipeline::begin_sync()
     prepass_ps_.bind_resources(inst_.uniform_data);
     prepass_ps_.bind_resources(inst_.sampling);
 
-    DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
+    DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state;
 
     prepass_double_sided_static_ps_ = &prepass_ps_.sub("DoubleSided.Static");
     prepass_double_sided_static_ps_->state_set(state_depth_only);

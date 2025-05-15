@@ -281,7 +281,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     }
   }
 
-  const bool supports_reverse_z = G.debug_value == 3;
+  const bool supports_reverse_z = G.debug_value == 8;
 
   this->depth = (supports_reverse_z) ? DepthState{0.0f, DRW_STATE_DEPTH_GREATER_EQUAL, true} :
                                        DepthState{1.0f, DRW_STATE_DEPTH_LESS_EQUAL, false};
