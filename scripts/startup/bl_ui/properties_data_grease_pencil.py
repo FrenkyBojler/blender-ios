@@ -120,9 +120,7 @@ class GREASE_PENCIL_MT_layer_relations_menu(Menu):
 
     @classmethod
     def poll(cls, context):
-        grease_pencil = getattr(context, "grease_pencil", None)
-        layer = grease_pencil.layers.active if grease_pencil else None
-        return bool(grease_pencil and layer)
+        return context.grease_pencil and context.grease_pencil.layers.active
 
     def draw(self, context):
         layout = self.layout
