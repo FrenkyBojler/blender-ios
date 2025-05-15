@@ -8,6 +8,8 @@
 
 #include "BKE_attribute.h"
 
+#include "BLI_stack.hh"
+
 #include "BLT_translation.hh"
 
 #include "DNA_grease_pencil_types.h"
@@ -352,6 +354,39 @@ static std::optional<std::string> tree_node_name_path(blender::bke::greasepencil
   return fmt::format("{}[\"{}\"]", prefix, name_esc.c_str());
 }
 
+/* Internally, tree nodes are not stored in visual order. This function creates a lookup table to
+ * fetch a tree node in the order of the UI layer tree. */
+static blender::Array<int> tree_nodes_visual_order_get(
+    const blender::Span<const blender::bke::greasepencil::TreeNode *> nodes)
+{
+  using namespace blender::bke::greasepencil;
+
+  blender::Array<int> visual_order(nodes.size());
+  blender::Stack<int> group_indices;
+  int visual_layer_index = 0;
+  for (const int node_index : nodes.index_range()) {
+    const TreeNode *node = nodes[node_index];
+    if (node->is_group() && !node->as_group().is_empty()) {
+      /* Put a group node on top of the children. */
+      const int visual_group_index = visual_layer_index + int(node->as_group().num_nodes_total());
+      group_indices.push(visual_group_index);
+      visual_order[visual_group_index] = node_index;
+    }
+    else {
+      visual_order[visual_layer_index] = node_index;
+      visual_layer_index++;
+
+      /* Skip the indices that are taken by group nodes. */
+      while (!group_indices.is_empty() && group_indices.peek() == visual_layer_index) {
+        group_indices.pop();
+        visual_layer_index++;
+      }
+    }
+  }
+
+  return visual_order;
+}
+
 static void rna_iterator_grease_pencil_layer_tree_nodes_begin(CollectionPropertyIterator *iter,
                                                               PointerRNA *ptr)
 {
@@ -379,9 +414,12 @@ static PointerRNA rna_iterator_grease_pencil_layer_tree_nodes_get(CollectionProp
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(iter->parent.data);
   blender::Span<TreeNode *> nodes = grease_pencil->nodes_for_write();
 
-  return RNA_pointer_create_discrete(iter->parent.owner_id,
-                                     &RNA_GreasePencilTreeNode,
-                                     static_cast<void *>(nodes[iter->internal.count.item]));
+  /* Fetch the tree node in the order of the UI layer tree. */
+  blender::Array<int> visual_order = tree_nodes_visual_order_get(nodes);
+  const int visual_index = visual_order[iter->internal.count.item];
+
+  return RNA_pointer_create_discrete(
+      iter->parent.owner_id, &RNA_GreasePencilTreeNode, static_cast<void *>(nodes[visual_index]));
 }
 
 static int rna_iterator_grease_pencil_layer_tree_nodes_length(PointerRNA *ptr)
@@ -401,8 +439,12 @@ static bool rna_iterator_grease_pencil_layer_tree_nodes_lookup_int(PointerRNA *p
     return false;
   }
 
+  /* Fetch the tree node in the order of the UI layer tree. */
+  blender::Array<int> visual_order = tree_nodes_visual_order_get(nodes);
+  const int visual_index = visual_order[index];
+
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_GreasePencilTreeNode, static_cast<void *>(nodes[index]), *r_ptr);
+      *ptr, &RNA_GreasePencilTreeNode, static_cast<void *>(nodes[visual_index]), *r_ptr);
   return true;
 }
 
@@ -719,7 +761,7 @@ static void rna_GreasePencilLayerGroup_children_begin(CollectionPropertyIterator
   TreeNode *node = static_cast<TreeNode *>(ptr->data);
 
   iter->internal.count.item = 0;
-  iter->valid = node->is_group() && node->as_group().num_nodes_total() > 0;
+  iter->valid = node->is_group() && !node->as_group().is_empty();
 }
 
 static void rna_GreasePencilLayerGroup_children_next(CollectionPropertyIterator *iter)
@@ -738,9 +780,12 @@ static PointerRNA rna_GreasePencilLayerGroup_children_get(CollectionPropertyIter
   LayerGroup *layer_group = static_cast<LayerGroup *>(iter->parent.data);
   blender::Span<TreeNode *> nodes = layer_group->nodes_for_write();
 
-  return RNA_pointer_create_discrete(iter->parent.owner_id,
-                                     &RNA_GreasePencilTreeNode,
-                                     static_cast<void *>(nodes[iter->internal.count.item]));
+  /* Fetch the tree node in the order of the UI layer tree. */
+  blender::Array<int> visual_order = tree_nodes_visual_order_get(nodes);
+  const int visual_index = visual_order[iter->internal.count.item];
+
+  return RNA_pointer_create_discrete(
+      iter->parent.owner_id, &RNA_GreasePencilTreeNode, static_cast<void *>(nodes[visual_index]));
 }
 
 static int rna_GreasePencilLayerGroup_children_length(PointerRNA *ptr)
@@ -764,8 +809,12 @@ static bool rna_GreasePencilLayerGroup_children_lookup_int(PointerRNA *ptr,
     return false;
   }
 
+  /* Fetch the tree node in the order of the UI layer tree. */
+  blender::Array<int> visual_order = tree_nodes_visual_order_get(nodes);
+  const int visual_index = visual_order[index];
+
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_GreasePencilTreeNode, static_cast<void *>(nodes[index]), *r_ptr);
+      *ptr, &RNA_GreasePencilTreeNode, static_cast<void *>(nodes[visual_index]), *r_ptr);
   return true;
 }
 
