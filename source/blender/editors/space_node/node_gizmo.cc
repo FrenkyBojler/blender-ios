@@ -82,7 +82,7 @@ static void gizmo_node_backdrop_prop_matrix_get(const wmGizmo * /*gz*/,
   matrix[3][0] = snode->xof;
   matrix[3][1] = snode->yof;
 
-  print_m4("backdrop matrix get", matrix);
+  //print_m4("backdrop matrix get", matrix);
 }
 
 static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
