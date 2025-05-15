@@ -161,8 +161,8 @@ static int64_t find_next_format_start_or_end(const StringRef format,
 
 struct FormatPatternInfo {
   std::regex pattern;
-  int width_identifier_group;
-  std::optional<int> precision_identifier_group;
+  int width_group;
+  std::optional<int> precision_group;
 };
 
 /** Also see https://fmt.dev/latest/syntax/. */
@@ -228,7 +228,7 @@ static const FormatPatternInfo *get_pattern_by_type(const CPPType &type)
   return nullptr;
 }
 
-struct FormatInputsLookup {
+class FormatInputsLookup {
  private:
   const Span<GVArray> inputs_;
   const VectorSet<std::string> &input_names_;
@@ -292,6 +292,77 @@ struct FormatInputsLookup {
   }
 };
 
+struct ProcessedFormatString {
+  const GVArray *widths = nullptr;
+  const GVArray *precisions = nullptr;
+  std::string format_str;
+};
+
+static std::optional<ProcessedFormatString> check_and_process_format_string(
+    const StringRef format, const CPPType &type, FormatInputsLookup &inputs_lookup)
+{
+  const FormatPatternInfo *allowed_pattern = get_pattern_by_type(type);
+  if (!allowed_pattern) {
+    /* The type can't be formatted. */
+    return std::nullopt;
+  }
+
+  /* Check the syntax of the format string with what is allowed. */
+  std::cmatch m;
+  if (!std::regex_search(format.begin(), format.end(), m, allowed_pattern->pattern)) {
+    return std::nullopt;
+  }
+
+  ProcessedFormatString result;
+
+  /* Identifiers that are used to specify the width or precision will be replaced with {}. */
+  Vector<std::string> formats_to_replace;
+
+  /* Check if a dynamic width is specified. */
+  const std::string with_outer = m.str(allowed_pattern->width_group);
+  if (!with_outer.empty()) {
+    const StringRef width_inner = StringRef(with_outer).drop_prefix(1).drop_suffix(1);
+    result.widths = inputs_lookup.find_next_input(width_inner);
+    if (!result.widths) {
+      return std::nullopt;
+    }
+    if (!result.widths->type().is<int>()) {
+      return std::nullopt;
+    }
+    formats_to_replace.append(with_outer);
+  }
+
+  /* Check if a dynamic precision is specified. */
+  if (allowed_pattern->precision_group.has_value()) {
+    const std::string precision_outer = m.str(*allowed_pattern->precision_group);
+    if (!precision_outer.empty()) {
+      const StringRef precision_inner = StringRef(precision_outer).drop_prefix(1).drop_suffix(1);
+      result.precisions = inputs_lookup.find_next_input(precision_inner);
+      if (!result.precisions) {
+        return std::nullopt;
+      }
+      if (!result.precisions->type().is<int>()) {
+        return std::nullopt;
+      }
+      formats_to_replace.append(precision_outer);
+    }
+  }
+
+  result.format_str = "{:";
+  result.format_str.append(format.begin(), format.end());
+  result.format_str += '}';
+
+  /* Replace identifiers with {}, because the source identifiers are not passed to fmt. */
+  for (const std::string &old : formats_to_replace) {
+    const int64_t old_start = result.format_str.find(old);
+    if (old_start != std::string::npos) {
+      result.format_str.replace(old_start, old.size(), "{}");
+    }
+  }
+
+  return result;
+}
+
 static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
                            const VectorSet<std::string> &input_names,
@@ -354,70 +425,26 @@ static bool format_strings(const StringRef format,
       return false;
     }
 
-    const GVArray *width_input = nullptr;
-    const GVArray *precision_input = nullptr;
-    Vector<std::string> formats_to_replace;
-
-    std::cmatch m;
-    if (std::regex_search(
-            format_pattern.begin(), format_pattern.end(), m, allowed_pattern->pattern))
-    {
-      const std::string width_identifier_with_braces = m.str(
-          allowed_pattern->width_identifier_group);
-      if (!width_identifier_with_braces.empty()) {
-        const StringRef width_identifier =
-            StringRef(width_identifier_with_braces).drop_prefix(1).drop_suffix(1);
-        width_input = inputs_lookup.find_next_input(width_identifier);
-        if (!width_input) {
-          return false;
-        }
-        if (!width_input->type().is<int>()) {
-          return false;
-        }
-        formats_to_replace.append(width_identifier_with_braces);
-      }
-      if (allowed_pattern->precision_identifier_group.has_value()) {
-        const std::string precision_identifier_with_braces = m.str(
-            *allowed_pattern->precision_identifier_group);
-        if (!precision_identifier_with_braces.empty()) {
-          const StringRef precision_identifier =
-              StringRef(precision_identifier_with_braces).drop_prefix(1).drop_suffix(1);
-          precision_input = inputs_lookup.find_next_input(precision_identifier);
-          if (!precision_input) {
-            return false;
-          }
-          if (!precision_input->type().is<int>()) {
-            return false;
-          }
-          formats_to_replace.append(precision_identifier_with_braces);
-        }
-      }
-    }
-
-    /* Prepare the format string that is passed to the fmt library. */
-    std::string format_str;
-    format_str += "{:";
-    format_str.append(format_pattern.begin(), format_pattern.end());
-    format_str += '}';
-    for (const std::string &old : formats_to_replace) {
-      const int64_t old_start = format_str.find(old);
-      if (old_start != std::string::npos) {
-        format_str.replace(old_start, old.size(), "{}");
-      }
+    std::optional<ProcessedFormatString> processed_format = check_and_process_format_string(
+        format_pattern, type, inputs_lookup);
+    if (!processed_format.has_value()) {
+      return false;
     }
     /* The final format passed to fmt. */
-    const fmt::format_string<> fmt_format{fmt::runtime(format_str)};
+    const fmt::format_string<> fmt_format{fmt::runtime(processed_format->format_str)};
 
     if (std::regex_match(format_pattern.begin(), format_pattern.end(), allowed_pattern->pattern)) {
       const auto append_single_formatted_string = [&](const auto &varray) {
+        const GVArray *widths = processed_format->widths;
+        const GVArray *precisions = processed_format->precisions;
         mask.foreach_index([&](const int64_t i) {
           std::string &output = r_formatted_strings[i];
           auto output_inserter = std::back_inserter(output);
           try {
-            if (precision_input) {
-              const int precision = std::max(0, precision_input->get<int>(i));
-              if (width_input) {
-                const int width = std::max(0, width_input->get<int>(i));
+            if (precisions) {
+              const int precision = std::max(0, precisions->get<int>(i));
+              if (widths) {
+                const int width = std::max(0, widths->get<int>(i));
                 fmt::format_to(output_inserter, fmt_format, varray[i], width, precision);
               }
               else {
@@ -425,8 +452,8 @@ static bool format_strings(const StringRef format,
               }
             }
             else {
-              if (width_input) {
-                const int width = std::max(0, width_input->get<int>(i));
+              if (widths) {
+                const int width = std::max(0, widths->get<int>(i));
                 fmt::format_to(output_inserter, fmt_format, varray[i], width);
               }
               else {
