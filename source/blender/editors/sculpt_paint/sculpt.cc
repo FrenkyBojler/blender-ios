@@ -2765,6 +2765,7 @@ static void sculpt_pbvh_update_pixels(const Depsgraph &depsgraph,
 /** \name Generic Brush Plane & Symmetry Utilities
  * \{ */
 namespace blender::ed::sculpt_paint {
+
 struct RaycastData {
   Object *object;
   float3 ray_start;
@@ -4041,7 +4042,7 @@ static void sculpt_update_cache_invariants(
   /* Cache projection matrix. */
   cache->projection_mat = ED_view3d_ob_project_mat_get(cache->vc->rv3d, &ob);
 
-  const float3 z_axis = {0.0f, 0.0f, 1.0f};
+  const float3 z_axis(0.0f, 0.0f, 1.0f);
   ob.runtime->world_to_object = math::invert(ob.object_to_world());
   cache->view_normal = math::normalize(math::transform_direction(
       ob.world_to_object() * float4x4(cache->vc->rv3d->viewinv), z_axis));
