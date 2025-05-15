@@ -1716,6 +1716,7 @@ void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
 {
   /* Only select if it's valid, otherwise the result wont be used. */
   BLI_assert(bm->uv_sync_select_valid);
+  UNUSED_VARS_NDEBUG(bm);
 
   /* NOTE: don't do any flushing here as it's too expensive to walk over connected geometry.
    * These can be handled in separate operations. */
@@ -1765,6 +1766,7 @@ void BM_loop_edge_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
 {
   /* Only select if it's valid, otherwise the result wont be used. */
   BLI_assert(bm->uv_sync_select_valid);
+  UNUSED_VARS_NDEBUG(bm);
 
   /* NOTE: don't do any flushing here as it's too expensive to walk over connected geometry.
    * These can be handled in separate operations. */
@@ -1817,6 +1819,7 @@ void BM_face_uvselect_set_noflush(BMesh *bm, BMFace *f, bool select)
 {
   /* Only select if it's valid, otherwise the result wont be used. */
   BLI_assert(bm->uv_sync_select_valid);
+  UNUSED_VARS_NDEBUG(bm);
 
   /* NOTE: don't do any flushing here as it's too expensive to walk over connected geometry.
    * These can be handled in separate operations. */
