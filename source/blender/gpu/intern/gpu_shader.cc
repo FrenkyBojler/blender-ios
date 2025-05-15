@@ -1061,6 +1061,7 @@ bool ShaderCompiler::batch_is_ready(BatchHandle handle)
 Vector<Shader *> ShaderCompiler::batch_finalize(BatchHandle &handle)
 {
   std::unique_lock lock(mutex_);
+  /* TODO: Move to be first on the queue. */
   compilation_finished_notification_.wait(lock,
                                           [&]() { return batches_.lookup(handle)->is_ready(); });
 

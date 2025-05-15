@@ -303,9 +303,24 @@ class GPUPassCache {
       }
     }
   }
+
+  std::mutex &get_mutex()
+  {
+    return mutex_;
+  }
 };
 
 static GPUPassCache *g_cache = nullptr;
+
+void GPU_pass_ensure_its_ready(GPUPass *pass)
+{
+  if (pass->status == GPU_PASS_QUEUED) {
+    std::lock_guard lock(g_cache->get_mutex());
+    if (pass->status == GPU_PASS_QUEUED) {
+      pass->finalize_compilation();
+    }
+  }
+}
 
 void GPU_pass_cache_init()
 {
