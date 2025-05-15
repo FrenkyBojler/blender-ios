@@ -17,7 +17,7 @@ static_assert(-1 == ~0, "Two's complement must be used for bitwise operations.")
 
 namespace blender::nodes::node_fn_bit_math_cc {
 
-enum BitMathOperation : int16_t {
+enum BitMathOperation : int32_t {
   And = 0,
   Or = 1,
   Xor = 2,
@@ -26,36 +26,34 @@ enum BitMathOperation : int16_t {
   Rotate = 5,
 };
 
-const std::array<EnumPropertyItem, 8> bit_math_operation_items = {{
-    RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Bitwise"), nullptr),
-    {int(BitMathOperation::And),
+const std::array<EnumPropertyItem, 7> bit_math_operation_items = {{
+    {BitMathOperation::And,
      "AND",
      0,
      "And",
-     "Compares bit values of A and B then returns a value where the bits are both set, A & B"},
-    {int(BitMathOperation::Or),
+     "Returns a value where the bits of A and B are both set"},
+    {BitMathOperation::Or,
      "OR",
      0,
      "Or",
-     "Compares bit values of A and B then returns a value where either bit is set, A | B"},
-    {int(BitMathOperation::Xor),
+     "Returns a value where the bits of either A or B are set"},
+    {BitMathOperation::Xor,
      "XOR",
      0,
      "Exclusive Or",
-     "Compares bit values of A and B then returns a value where only one bit from A or B is set, "
-     "A ^ B"},
-    {int(BitMathOperation::Not),
+     "Returns a value where only one bit from A and B is set"},
+    {BitMathOperation::Not,
      "NOT",
      0,
      "Not",
-     "Returns the opposite bit value of A, in decimal it is equivalent of A = -A - 1, ~ A"},
-    {int(BitMathOperation::Shift),
+     "Returns the opposite bit value of A, in decimal it is equivalent of A = -A - 1"},
+    {BitMathOperation::Shift,
      "SHIFT",
      0,
      "Shift",
      "Shifts the bit values of A by the specified Shift amount. Positive values shift left, "
      "negative values shift right."},
-    {int(BitMathOperation::Rotate),
+    {BitMathOperation::Rotate,
      "ROTATE",
      0,
      "Rotate",
@@ -71,13 +69,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Int>("A");
-  auto &value2 = b.add_input<decl::Int>("B");
+  auto &b_socket = b.add_input<decl::Int>("B");
   auto &shift = b.add_input<decl::Int>("Shift").min(min_shift).max(max_shift);
   b.add_output<decl::Int>("Value");
 
   if (const bNode *node = b.node_or_null()) {
     const BitMathOperation operation = BitMathOperation(node->custom1);
-    value2.available(!ELEM(
+    b_socket.available(!ELEM(
         operation, BitMathOperation::Not, BitMathOperation::Shift, BitMathOperation::Rotate));
     shift.available(ELEM(operation, BitMathOperation::Shift, BitMathOperation::Rotate));
   }
@@ -130,7 +128,7 @@ static void node_label(const bNodeTree * /*ntree*/, const bNode *node, char *lab
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
-  BitMathOperation operation = BitMathOperation(bnode.custom1);
+  const BitMathOperation operation = BitMathOperation(bnode.custom1);
   static auto exec_preset = mf::build::exec_presets::AllSpanOrSingle();
   static auto and_fn = mf::build::SI2_SO<int, int, int>(
       "And", [](int a, int b) { return a & b; }, exec_preset);
