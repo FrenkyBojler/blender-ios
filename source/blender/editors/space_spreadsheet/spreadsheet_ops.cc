@@ -252,7 +252,7 @@ static wmOperatorStatus fit_column_invoke(bContext *C, wmOperator * /*op*/, cons
 static void SPREADSHEET_OT_fit_column(wmOperatorType *ot)
 {
   ot->name = "Fit Column";
-  ot->description = "Fit a spreadsheet column to the data";
+  ot->description = "Resize a spreadsheet column to the width of the data";
   ot->idname = "SPREADSHEET_OT_fit_column";
 
   ot->invoke = fit_column_invoke;
