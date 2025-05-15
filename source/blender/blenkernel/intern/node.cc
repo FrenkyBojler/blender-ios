@@ -2787,7 +2787,7 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
     case SOCK_STRING:
       switch (PropertySubType(subtype)) {
         case PROP_FILEPATH:
-          return "NodeTreeInterfaceSocketVectorTranslation";
+          return "NodeTreeInterfaceSocketStringFilePath";
         default:
           return "NodeTreeInterfaceSocketString";
       }
