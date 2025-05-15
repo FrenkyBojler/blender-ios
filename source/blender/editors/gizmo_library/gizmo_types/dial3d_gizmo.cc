@@ -454,7 +454,10 @@ static void dial_draw_intern(
   params.arc_partial_angle = arc_partial_angle;
   params.arc_inner_factor = arc_inner_factor;
   params.clip_plane = clip_plane;
-  dial_3d_draw_util(matrix_final, gz->line_width_with_bias(select), color, select, &params);
+
+  const float line_width = (gz->line_width * U.pixelsize) +
+                           (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f);
+  dial_3d_draw_util(matrix_final, line_width, color, select, &params);
 }
 
 static void gizmo_dial_draw_select(const bContext *C, wmGizmo *gz, int select_id)

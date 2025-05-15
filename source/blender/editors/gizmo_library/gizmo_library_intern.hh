@@ -18,6 +18,12 @@ struct wmGizmoProperty;
 #define DIAL_RESOLUTION 48
 
 /**
+ * This bias is to be applied on wire gizmos or any small gizmos which may
+ * be difficult to pick otherwise. The value is defined in logical pixels.
+ */
+#define WM_GIZMO_SELECT_BIAS 12.0f
+
+/**
  * Data for common interactions. Used in `gizmo_library_utils.cc` functions.
  */
 struct GizmoCommonData {
