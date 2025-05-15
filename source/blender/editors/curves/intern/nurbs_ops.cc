@@ -178,7 +178,7 @@ static void update_preview_data(InsertKnotOpData &ikcd)
   int knot_multiplicity;
   ed::curves::nurbs::find_span_mult(
       ikcd.knot_to_insert, ikcd.knots, ikcd.order, ikcd.knot_span, knot_multiplicity);
-  const int repeat = clamp_i(ikcd.repeat, 1, ikcd.order - knot_multiplicity - 1);
+  const int repeat = clamp_i(ikcd.repeat, 0, std::max(0, ikcd.order - knot_multiplicity - 1));
   if (repeat == 0) {
     ikcd.points_to_replace = IndexRange(0);
     ikcd.preview_positions = {};
@@ -232,7 +232,7 @@ static void insert_knot_apply(bContext *C, wmOperator *op, InsertKnotOpData &ikc
   int knot_span;
   int knot_multiplicity;
   find_span_mult(safe_knot, ikcd.knots, ikcd.order, knot_span, knot_multiplicity);
-  const int repeat = clamp_i(ikcd.repeat, 1, ikcd.order - knot_multiplicity - 1);
+  const int repeat = clamp_i(ikcd.repeat, 0, std::max(0, ikcd.order - knot_multiplicity - 1));
   if (repeat == 0) {
     RNA_int_set(op->ptr, "repeat", 1);
   }
