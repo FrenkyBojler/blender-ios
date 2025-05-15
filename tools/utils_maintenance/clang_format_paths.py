@@ -39,6 +39,7 @@ extensions = (
     ".m", ".mm",
     ".osl", ".glsl", ".msl",
     ".metal",
+    ".generic",
 )
 
 extensions_only_retab = (

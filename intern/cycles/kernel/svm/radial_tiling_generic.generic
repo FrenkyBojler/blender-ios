@@ -16,8 +16,8 @@
 #  define floorf math::floor
 #  define fmaxf math::max
 #  define fminf math::min
-#  define mix math::mix
 #  define fractf math::fract
+#  define mixf math::mix
 #  define sinf math::sin
 #  define sqrtf math::sqrt
 #  define squaref math::square
@@ -39,6 +39,7 @@
 #    define fmaxf max
 #    define fminf min
 #    define fractf fract
+#    define mixf mix
 #    define sinf sin
 #    define sqrtf sqrt
 #    define squaref square
@@ -69,6 +70,7 @@
 #      define fmaxf max
 #      define fminf min
 #      define fractf fract
+#      define mixf mix
 #      define sinf sin
 #      define sqrtf sqrt
 #      define squaref square
@@ -286,9 +288,9 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
 
           /* For effective_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
            * normalize_based_on_l_coord field converge against the same scalar field. */
-          r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
-                                 normalize_based_on_l_coord,
-                                 coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
+          r_gon_parameter /= mixf(normalize_based_on_l_angle_bisector,
+                                  normalize_based_on_l_coord,
+                                  coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
         }
       }
       max_unit_parameter = ref_A_angle_bisector;
@@ -509,9 +511,9 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
 
           /* For r_gon_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
            * normalize_based_on_l_coord field converge against the same scalar field. */
-          r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
-                                 normalize_based_on_l_coord,
-                                 coord_A_bevel_start / ref_A_bevel_start);
+          r_gon_parameter /= mixf(normalize_based_on_l_angle_bisector,
+                                  normalize_based_on_l_coord,
+                                  coord_A_bevel_start / ref_A_bevel_start);
         }
       }
       if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
@@ -652,9 +654,9 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
             /* For r_gon_roundness -> 1.0 the normalize_based_on_l_l_angle_bisector field and
              * normalize_based_on_l_coord field converge against the same scalar field. */
             r_gon_parameter /= l_angle_bisector_R_l_last_angle_bisector *
-                               mix(normalize_based_on_l_l_angle_bisector,
-                                   normalize_based_on_l_coord,
-                                   coord_A_bevel_start / inner_last_bevel_start_A_x_axis);
+                               mixf(normalize_based_on_l_l_angle_bisector,
+                                    normalize_based_on_l_coord,
+                                    coord_A_bevel_start / inner_last_bevel_start_A_x_axis);
           }
         }
         if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
@@ -713,9 +715,9 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
 
             /* For effective_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
              * normalize_based_on_l_coord field converge against the same scalar field. */
-            r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
-                                   normalize_based_on_l_coord,
-                                   coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
+            r_gon_parameter /= mixf(normalize_based_on_l_angle_bisector,
+                                    normalize_based_on_l_coord,
+                                    coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
           }
         }
         if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
@@ -854,9 +856,9 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 
             /* For r_gon_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
              * normalize_based_on_l_coord field converge against the same scalar field. */
-            r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
-                                   normalize_based_on_l_coord,
-                                   coord_A_bevel_start / ref_A_bevel_start);
+            r_gon_parameter /= mixf(normalize_based_on_l_angle_bisector,
+                                    normalize_based_on_l_coord,
+                                    coord_A_bevel_start / ref_A_bevel_start);
           }
         }
         if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
@@ -1017,6 +1019,7 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #  undef fmaxf
 #  undef fminf
 #  undef fractf
+#  undef mixf
 #  undef sinf
 #  undef sqrtf
 #  undef squaref
@@ -1036,6 +1039,7 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #    undef fmaxf
 #    undef fminf
 #    undef fractf
+#    undef mixf
 #    undef sinf
 #    undef sqrtf
 #    undef squaref
@@ -1066,6 +1070,7 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #      undef fmaxf
 #      undef fminf
 #      undef fractf
+#      undef mixf
 #      undef sinf
 #      undef sqrtf
 #      undef squaref

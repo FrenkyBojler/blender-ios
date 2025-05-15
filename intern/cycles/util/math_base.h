@@ -95,7 +95,12 @@ ccl_device_inline float squaref(float a)
   return a * a;
 }
 
-ccl_device_inline float inverse_mix(float from_min, float from_max, float value)
+ccl_device_inline float mixf(const float to_min, const float to_max, float factor)
+{
+  return to_min + factor * (to_max - to_min);
+}
+
+ccl_device_inline float inverse_mixf(float from_min, float from_max, float value)
 {
   return (value - from_min) / (from_max - from_min);
 }
