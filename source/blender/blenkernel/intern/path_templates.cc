@@ -6,8 +6,13 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_context.hh"
+#include "BKE_main.hh"
 #include "BKE_path_templates.hh"
 #include "BKE_scene.hh"
+
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 namespace blender::bke::path_templates {
 
@@ -102,8 +107,21 @@ bool operator==(const Error &left, const Error &right)
 
 using namespace blender::bke::path_templates;
 
-VariableMap BKE_build_template_variables(const char *blend_file_path,
-                                         const RenderData *render_data)
+std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr,
+                                                                 PropertyRNA *prop,
+                                                                 const bContext &context)
+{
+  /* TODO: dispatch based on the specific property. */
+
+  const blender::bke::path_templates::VariableMap variables =
+      BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
+                                                   &CTX_data_scene(&context)->r);
+
+  return variables;
+}
+
+VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_path,
+                                                         const RenderData *render_data)
 {
   VariableMap variables;
 

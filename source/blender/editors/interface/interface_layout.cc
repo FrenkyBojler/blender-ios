@@ -1121,10 +1121,12 @@ static uiBut *ui_item_with_label(uiLayout *layout,
      * Output node. */
     if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE)) {
       if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
-        const blender::bke::path_templates::VariableMap variables = BKE_build_template_variables(
-            BKE_main_blendfile_path_from_global(),
-            &CTX_data_scene(static_cast<const bContext *>(block->evil_C))->r);
-        if (!BKE_validate_template(but->drawstr.c_str(), &variables).is_empty()) {
+        const std::optional<blender::bke::path_templates::VariableMap> variables =
+            BKE_build_template_variables_for_prop(
+                ptr, prop, *static_cast<const bContext *>(block->evil_C));
+        BLI_assert(variables.has_value());
+
+        if (!BKE_validate_template(but->drawstr.c_str(), &*variables).is_empty()) {
           UI_but_flag_enable(but, UI_BUT_REDALERT);
         }
       }

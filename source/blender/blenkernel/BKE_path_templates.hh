@@ -22,6 +22,10 @@
 
 #include "DNA_scene_types.h"
 
+struct bContext;
+struct PointerRNA;
+struct PropertyRNA;
+
 namespace blender::bke::path_templates {
 
 /**
@@ -128,6 +132,9 @@ bool operator==(const Error &left, const Error &right);
 
 }  // namespace blender::bke::path_templates
 
+std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
+    PointerRNA *ptr, PropertyRNA *prop, const bContext &context);
+
 /**
  * Build a template variable map based on available information.
  *
@@ -154,7 +161,7 @@ bool operator==(const Error &left, const Error &right);
  *
  * \see BLI_path_abs()
  */
-blender::bke::path_templates::VariableMap BKE_build_template_variables(
+blender::bke::path_templates::VariableMap BKE_build_template_variables_for_render_path(
     const char *blend_file_path, const RenderData *render_data);
 
 /**

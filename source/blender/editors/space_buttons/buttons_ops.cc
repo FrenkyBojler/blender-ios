@@ -308,7 +308,8 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
         path,
         FILE_MAX,
-        BKE_build_template_variables(BKE_main_blendfile_path_from_global(), &scene->r));
+        BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
+                                                     &scene->r));
     if (!errors.is_empty()) {
       BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
       return OPERATOR_CANCELLED;
