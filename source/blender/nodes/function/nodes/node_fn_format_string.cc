@@ -168,8 +168,10 @@ struct FormatPatternInfo {
 static FormatPatternInfo get_format_pattern_by_type(const CPPType &type)
 {
   std::string pattern;
+  int groups_num = 0;
   /* Fill and Align. */
   pattern += "([^{}]?[<>^])?";
+  groups_num += 1;
   if (type.is<float>() || type.is<int>()) {
     /* Sign. */
     pattern += "[+\\- ]?";
@@ -178,12 +180,21 @@ static FormatPatternInfo get_format_pattern_by_type(const CPPType &type)
     /* Sign-aware zero padding. */
     pattern += "0?";
   }
+  const std::string integer_or_identifier = "(\\d+|(\\{.*\\}))";
   /* Width. */
-  pattern += "(\\d+|(\\{.*\\}))?";
-  const int width_identifier_group = 3;
+  pattern += integer_or_identifier;
+  pattern += "?";
+  groups_num += 2;
+  const int width_identifier_group = groups_num;
+
+  std::optional<int> precision_identifier_group;
   if (type.is<float>() || type.is<std::string>()) {
     /* Precision. */
-    pattern += "(\\.\\d+)?";
+    pattern += "(\\.";
+    pattern += integer_or_identifier;
+    pattern += ")?";
+    groups_num += 3;
+    precision_identifier_group = groups_num;
   }
   /* "L" is omitted, because we take the current locale into account in Geometry Nodes. */
   /* Allowed type specifiers vary by data type.*/
@@ -196,7 +207,7 @@ static FormatPatternInfo get_format_pattern_by_type(const CPPType &type)
   else if (type.is<float>()) {
     pattern += "[aAeEfFgG]?";
   }
-  return {std::regex{pattern}, width_identifier_group, std::nullopt};
+  return {std::regex{pattern}, width_identifier_group, precision_identifier_group};
 }
 
 static bool format_strings(const StringRef format,
@@ -313,7 +324,11 @@ static bool format_strings(const StringRef format,
     format_str += "{:";
     format_str.append(format_pattern.begin(), format_pattern.end());
     format_str += '}';
+
     const GVArray *width_input = nullptr;
+    const GVArray *precision_input = nullptr;
+
+    Vector<std::string> formats_to_replace;
 
     std::cmatch m;
     if (std::regex_search(
@@ -332,9 +347,29 @@ static bool format_strings(const StringRef format,
         if (!width_input->type().is<int>()) {
           return false;
         }
-        format_str.replace(m.position(allowed_pattern->width_identifier_group) + 2,
-                           width_identifier_with_braces.size(),
-                           "{}");
+        formats_to_replace.append(width_identifier_with_braces);
+      }
+      if (allowed_pattern->precision_identifier_group.has_value()) {
+        const std::string precision_identifier_with_braces = m.str(
+            *allowed_pattern->precision_identifier_group);
+        const StringRef precision_identifier =
+            StringRef(precision_identifier_with_braces).drop_prefix(1).drop_suffix(1);
+        const std::optional<int> precision_input_index = find_input_index(precision_identifier);
+        if (!precision_input_index.has_value()) {
+          return false;
+        }
+        precision_input = &inputs[*precision_input_index];
+        if (!precision_input->type().is<int>()) {
+          return false;
+        }
+        formats_to_replace.append(precision_identifier_with_braces);
+      }
+    }
+
+    for (const std::string &old : formats_to_replace) {
+      const int64_t old_start = format_str.find(old);
+      if (old_start != std::string::npos) {
+        format_str.replace(old_start, old.size(), "{}");
       }
     }
 
@@ -343,15 +378,30 @@ static bool format_strings(const StringRef format,
         mask.foreach_index([&](const int64_t i) {
           std::string &output = r_formatted_strings[i];
           try {
-            if (width_input) {
-              const int width = width_input->get<int>(i);
-              fmt::format_to(std::back_inserter(output),
-                             fmt::runtime(format_str),
-                             varray[i],
-                             std::max(width, 0));
+            if (precision_input) {
+              const int precision = std::max(0, precision_input->get<int>(i));
+              if (width_input) {
+                const int width = std::max(0, width_input->get<int>(i));
+                fmt::format_to(std::back_inserter(output),
+                               fmt::runtime(format_str),
+                               varray[i],
+                               width,
+                               precision);
+              }
+              else {
+                fmt::format_to(
+                    std::back_inserter(output), fmt::runtime(format_str), varray[i], precision);
+              }
             }
             else {
-              fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
+              if (width_input) {
+                const int width = std::max(0, width_input->get<int>(i));
+                fmt::format_to(
+                    std::back_inserter(output), fmt::runtime(format_str), varray[i], width);
+              }
+              else {
+                fmt::format_to(std::back_inserter(output), fmt::runtime(format_str), varray[i]);
+              }
             }
           }
           catch (const fmt::format_error &error) {
