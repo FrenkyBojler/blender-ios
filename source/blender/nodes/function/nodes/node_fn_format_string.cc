@@ -165,7 +165,7 @@ struct FormatPatternInfo {
 };
 
 /** Also see https://fmt.dev/latest/syntax/. */
-static FormatPatternInfo get_format_pattern_by_type(const CPPType &type)
+static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
 {
   std::string pattern;
   int groups_num = 0;
@@ -210,6 +210,23 @@ static FormatPatternInfo get_format_pattern_by_type(const CPPType &type)
   return {std::regex{pattern}, width_identifier_group, precision_identifier_group};
 }
 
+static const FormatPatternInfo *get_pattern_by_type(const CPPType &type)
+{
+  if (type.is<float>()) {
+    static FormatPatternInfo info{get_pattern_by_type_impl(CPPType::get<float>())};
+    return &info;
+  }
+  if (type.is<int>()) {
+    static FormatPatternInfo info{get_pattern_by_type_impl(CPPType::get<int>())};
+    return &info;
+  }
+  if (type.is<std::string>()) {
+    static FormatPatternInfo info{get_pattern_by_type_impl(CPPType::get<std::string>())};
+    return &info;
+  }
+  return nullptr;
+}
+
 static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
                            const VectorSet<std::string> &input_names,
@@ -220,11 +237,6 @@ static bool format_strings(const StringRef format,
     std::string *output = &r_formatted_strings[i];
     new (output) std::string();
   });
-
-  static FormatPatternInfo simple_float_pattern{get_format_pattern_by_type(CPPType::get<float>())};
-  static FormatPatternInfo simple_int_pattern{get_format_pattern_by_type(CPPType::get<int>())};
-  static FormatPatternInfo simple_string_pattern{
-      get_format_pattern_by_type(CPPType::get<std::string>())};
 
   bool non_auto_index_used = false;
   int64_t next_auto_input_index = 0;
@@ -306,16 +318,7 @@ static bool format_strings(const StringRef format,
     const GVArray &input = inputs[*input_index];
     const CPPType &type = input.type();
 
-    const FormatPatternInfo *allowed_pattern = nullptr;
-    if (type.is<float>()) {
-      allowed_pattern = &simple_float_pattern;
-    }
-    else if (type.is<int>()) {
-      allowed_pattern = &simple_int_pattern;
-    }
-    else if (type.is<std::string>()) {
-      allowed_pattern = &simple_string_pattern;
-    }
+    const FormatPatternInfo *allowed_pattern = get_pattern_by_type(type);
     if (!allowed_pattern) {
       return false;
     }
