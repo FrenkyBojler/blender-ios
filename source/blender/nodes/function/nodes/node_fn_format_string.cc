@@ -18,8 +18,6 @@
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 
-#include "BLI_timeit.hh"
-
 #include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_format_string_cc {
@@ -431,7 +429,6 @@ static bool format_strings(const StringRef format,
                            const IndexMask &mask,
                            MutableSpan<std::string> r_formatted_strings)
 {
-  SCOPED_TIMER(__func__);
   CPPType::get<std::string>().value_initialize_indices(r_formatted_strings.data(), mask);
 
   FormatInputsLookup inputs_lookup{inputs, input_names};
