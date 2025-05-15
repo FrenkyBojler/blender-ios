@@ -92,7 +92,8 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
   immUniform2fv("viewportSize", &viewport[2]);
 
   if (draw_style == ED_GIZMO_ARROW_STYLE_CROSS) {
-    immUniform1f("lineWidth", U.pixelsize + (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f));
+    const float bias = select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f;
+    immUniform1f("lineWidth", U.pixelsize + bias);
     immUniformColor4fv(color);
 
     immBegin(GPU_PRIM_LINES, 4);
@@ -114,9 +115,8 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
         {-unitx, unity, 0},
     };
 
-    immUniform1f("lineWidth",
-                 arrow->gizmo.line_width * U.pixelsize +
-                     (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f));
+    const float bias = select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f;
+    immUniform1f("lineWidth", arrow->gizmo.line_width * U.pixelsize + bias);
     wm_gizmo_vec_draw(color, vec, ARRAY_SIZE(vec), pos, GPU_PRIM_LINE_LOOP);
   }
   else if (draw_style == ED_GIZMO_ARROW_STYLE_PLANE) {
@@ -134,9 +134,8 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
     GPU_matrix_push();
     GPU_matrix_translate_3f(0.0f, 0.0f, arrow_length);
 
-    immUniform1f("lineWidth",
-                 arrow->gizmo.line_width * U.pixelsize +
-                     (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f));
+    const float bias = select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f;
+    immUniform1f("lineWidth", arrow->gizmo.line_width * U.pixelsize + bias);
     wm_gizmo_vec_draw(color, verts, ARRAY_SIZE(verts), pos, GPU_PRIM_LINE_LOOP);
 
     immUnbindProgram();
@@ -154,9 +153,8 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
     };
 
     if (draw_options & ED_GIZMO_ARROW_DRAW_FLAG_STEM) {
-      const float stem_width = arrow->gizmo.line_width * U.pixelsize +
-                               (select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f);
-      immUniform1f("lineWidth", stem_width);
+      const float bias = select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f;
+      immUniform1f("lineWidth", arrow->gizmo.line_width * U.pixelsize + bias);
       wm_gizmo_vec_draw(color, vec, ARRAY_SIZE(vec), pos, GPU_PRIM_LINE_STRIP);
     }
     else {
