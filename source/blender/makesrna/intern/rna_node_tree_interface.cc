@@ -364,15 +364,10 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
     return false;
   }
 
-  /* Only use basic socket types for this enum. */
-  if (socket_type->subtype != PROP_NONE) {
-    return false;
-  }
-
-  /* Ignore 2D and 4D variants of sockets that might have different dimensions. */
-  if (blender::StringRef(socket_type->idname).endswith("2D") ||
-      blender::StringRef(socket_type->idname).endswith("4D"))
-  {
+  /* Only basic socket types are supported. */
+  blender::bke::bNodeSocketType *base_socket_type = blender::bke::node_socket_type_find_static(
+      socket_type->type, PROP_NONE);
+  if (socket_type != base_socket_type) {
     return false;
   }
 
