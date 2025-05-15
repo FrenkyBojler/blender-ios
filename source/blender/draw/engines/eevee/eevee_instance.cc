@@ -479,11 +479,14 @@ void Instance::render_sample()
   /* Motion blur may need to do re-sync after a certain number of sample. */
   if (!is_viewport() && sampling.do_render_sync()) {
     render_sync();
-    if (materials.queued_shaders_count > 0) {
+    while (materials.queued_shaders_count > 0) {
       GPU_pass_cache_wait_for_all();
       /** WORKAROUND: Re-sync now that all shaders are compiled. */
+      /* This may need to happen more than once, since actual materials may require more passes
+       * (eg. volume ones) than the fallback material used for queued passes. */
+      /* TODO(@pragma37): There seems to be an issue where multiple `step_object_sync` calls on the
+       * same step can cause mismatching `has_motion` values between sync. */
       render_sync();
-      BLI_assert(materials.queued_shaders_count == 0);
     }
   }
 
@@ -819,11 +822,14 @@ void Instance::light_bake_irradiance(
 
   custom_pipeline_wrapper([&]() {
     this->render_sync();
-    if (materials.queued_shaders_count > 0) {
+    while (materials.queued_shaders_count > 0) {
       GPU_pass_cache_wait_for_all();
       /** WORKAROUND: Re-sync now that all shaders are compiled. */
+      /* This may need to happen more than once, since actual materials may require more passes
+       * (eg. volume ones) than the fallback material used for queued passes. */
+      /* TODO(@pragma37): There seems to be an issue where multiple `step_object_sync` calls on the
+       * same step can cause mismatching `has_motion` values between sync. */
       render_sync();
-      BLI_assert(materials.queued_shaders_count == 0);
     }
     /* Sampling module needs to be initialized to computing lighting. */
     sampling.init(probe);
