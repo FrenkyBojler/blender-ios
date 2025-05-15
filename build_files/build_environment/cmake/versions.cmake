@@ -822,7 +822,7 @@ set(MATERIALX_COPYRIGHT "Copyright Contributors to the MaterialX Project")
 
 set(OIDN_VERSION 2.3.3)
 set(OIDN_NAME OpenImageDenoise)
-set(OIDN_URI https://github.com/OpenImageDenoise/oidn/releases/download/v${OIDN_VERSION}/oidn-${OIDN_VERSION}.src.tar.gz)
+set(OIDN_URI https://github.com/RenderKit/oidn/releases/download/v${OIDN_VERSION}/oidn-${OIDN_VERSION}.src.tar.gz)
 set(OIDN_HASH f7756731235b51dfb788787e2f7c9ee0)
 set(OIDN_HASH_TYPE MD5)
 set(OIDN_FILE oidn-${OIDN_VERSION}.src.tar.gz)
