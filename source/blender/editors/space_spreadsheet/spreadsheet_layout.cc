@@ -467,6 +467,10 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
   const int fontid = BLF_default();
   BLF_size(fontid, UI_DEFAULT_TEXT_POINTS * UI_SCALE_FAC);
 
+  auto get_min_width = [&](const float min_width) {
+    return max_sample_size.has_value() ? min_width : 0.0f;
+  };
+
   const eSpreadsheetColumnValueType column_type = this->type();
   switch (column_type) {
     case SPREADSHEET_VALUE_TYPE_BOOL: {
@@ -476,11 +480,16 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
       return 2.0f * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_INT8: {
-      return 3.0f * SPREADSHEET_WIDTH_UNIT;
+      return estimate_max_column_width<int8_t>(
+          get_min_width(3 * SPREADSHEET_WIDTH_UNIT),
+          fontid,
+          max_sample_size,
+          data_.typed<int8_t>(),
+          [](const int value) { return fmt::format("{}", value); });
     }
     case SPREADSHEET_VALUE_TYPE_INT32: {
       return estimate_max_column_width<int>(
-          3 * SPREADSHEET_WIDTH_UNIT,
+          get_min_width(3 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<int>(),
@@ -488,7 +497,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT: {
       return estimate_max_column_width<float>(
-          3 * SPREADSHEET_WIDTH_UNIT,
+          get_min_width(3 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<float>(),
@@ -496,7 +505,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_INT32_2D: {
       return estimate_max_column_width<int2>(
-          3 * SPREADSHEET_WIDTH_UNIT,
+          get_min_width(3 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<int2>(),
@@ -504,7 +513,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT2: {
       return estimate_max_column_width<float2>(
-          6 * SPREADSHEET_WIDTH_UNIT,
+          get_min_width(6 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<float2>(),
@@ -512,7 +521,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT3: {
       return estimate_max_column_width<float3>(
-          9 * SPREADSHEET_WIDTH_UNIT,
+          get_min_width(9 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<float3>(),
@@ -522,7 +531,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_COLOR: {
       return estimate_max_column_width<ColorGeometry4f>(
-          12 * SPREADSHEET_WIDTH_UNIT,
+          get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<ColorGeometry4f>(),
@@ -533,7 +542,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_BYTE_COLOR: {
       return estimate_max_column_width<ColorGeometry4b>(
-          12 * SPREADSHEET_WIDTH_UNIT,
+          get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<ColorGeometry4b>(),
@@ -543,7 +552,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_QUATERNION: {
       return estimate_max_column_width<math::Quaternion>(
-          12 * SPREADSHEET_WIDTH_UNIT,
+          get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<math::Quaternion>(),
@@ -557,7 +566,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_STRING: {
       if (data_.type().is<std::string>()) {
-        return estimate_max_column_width<std::string>(SPREADSHEET_WIDTH_UNIT,
+        return estimate_max_column_width<std::string>(get_min_width(SPREADSHEET_WIDTH_UNIT),
                                                       fontid,
                                                       max_sample_size,
                                                       data_.typed<std::string>(),
@@ -565,7 +574,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
       }
       if (data_.type().is<MStringProperty>()) {
         return estimate_max_column_width<MStringProperty>(
-            SPREADSHEET_WIDTH_UNIT,
+            get_min_width(SPREADSHEET_WIDTH_UNIT),
             fontid,
             max_sample_size,
             data_.typed<MStringProperty>(),

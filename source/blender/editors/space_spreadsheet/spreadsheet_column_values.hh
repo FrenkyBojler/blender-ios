@@ -57,7 +57,8 @@ class ColumnValues final {
    *
    * \param max_sample_size: If provided, only a subset of the column values is looked at to
    * determine the width. This is useful when there are lots of rows to avoid unnecessarily long
-   * computations in drawing code.
+   * computations in drawing code. If provided, there is also an enforced minimum width to avoid
+   * very narrow columns when the sampled values all happen to be very short.
    */
   float fit_column_width_px(const std::optional<int64_t> &max_sample_size = std::nullopt) const;
 
