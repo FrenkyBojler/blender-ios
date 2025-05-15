@@ -483,11 +483,8 @@ static bool format_strings(const StringRef format,
       return false;
     }
     const CPPType &type = input->type();
-    const FormatPatternInfo *allowed_pattern = get_pattern_by_type(type);
-    if (!allowed_pattern) {
-      return false;
-    }
 
+    /* Extract information like width and precision inputs. */
     std::optional<ProcessedFormatString> processed_format = check_and_process_format_string(
         format_pattern, type, inputs_lookup);
     if (!processed_format.has_value()) {
