@@ -9,6 +9,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
@@ -126,20 +127,32 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
 
   if (nurb->flagu & CU_NURB_CUSTOM) {
     BKE_nurb_knot_alloc_u(nurb);
-    Span<float> knots = nurbs_geometry.parm.as_span();
-    if (nurb->flagu & CU_NURB_CYCLIC) {
-      knots = knots.drop_front(degree);
-      const float last_real_knot = knots[nurb->pntsu + degree];
-      MutableSpan<float> virtual_knots(nurb->knotsu + degree + 1, degree);
-      for (const int i : IndexRange(degree)) {
-        virtual_knots[i] = last_real_knot + knots[degree + 1 + i] - knots[degree];
-      }
-    }
-    std::copy_n(knots.data(), knots.size(), nurb->knotsu);
+    array_utils::copy<float>(nurbs_geometry.parm, MutableSpan<float>{nurb->knotsu, KNOTSU(nurb)});
   }
   else {
     BKE_nurb_knot_calc_u(nurb);
   }
+}
+
+static bool detect_knot_mode_cyclic(const int degree,
+                                    const Span<int> indices,
+                                    const Span<float> knots)
+{
+  const Span<int> indices_tail = indices.take_back(degree);
+  for (const int i : IndexRange(degree)) {
+    if (indices[i] != indices_tail[i]) {
+      return false;
+    }
+  }
+  const Span<float> knots_tail = knots.take_back(2 * degree + 1);
+  for (const int i : IndexRange(degree - 1)) {
+    const float head_span = knots[i + 1] - knots[i];
+    const float tail_span = knots_tail[i + 1] - knots_tail[i];
+    if (abs(head_span - tail_span) > 0.0001f) {
+      return false;
+    }
+  }
+  return true;
 }
 
 short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
@@ -151,26 +164,7 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
   short knot_mode = 0;
 
   if (import_params.close_spline_loops && indices.size() > degree) {
-    const Span<int> indices_tail = indices.take_back(degree);
-    bool is_cyclic = true;
-    for (const int i : IndexRange(degree)) {
-      if (indices[i] != indices_tail[i]) {
-        is_cyclic = false;
-        break;
-      }
-    }
-    const Span<float> knots_tail = knots.take_back(2 * degree + 1);
-    for (const int i : IndexRange(degree - 1)) {
-      const float head_span = knots[i + 1] - knots[i];
-      const float tail_span = knots_tail[i + 1] - knots_tail[i];
-      if (abs(head_span - tail_span) > 0.0001f) {
-        is_cyclic = false;
-        break;
-      }
-    }
-    if (is_cyclic) {
-      knot_mode = CU_NURB_CYCLIC;
-    }
+    SET_FLAG_FROM_TEST(knot_mode, detect_knot_mode_cyclic(degree, indices, knots), CU_NURB_CYCLIC);
   }
 
   /* Figure out whether curve should have U endpoint flag set:
