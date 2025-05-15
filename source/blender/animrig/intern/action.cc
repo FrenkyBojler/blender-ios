@@ -3271,8 +3271,9 @@ Slot &duplicate_slot(Action &action, const Slot &slot)
   slot_identifier_ensure_unique(action, cloned_slot);
 
   /* Duplicate each Channelbag for the source slot. */
-  for (StripKeyframeData *strip_data : action.strip_keyframe_data()) {
-    strip_data->slot_data_duplicate(slot.handle, cloned_slot.handle);
+  for (int i = 0; i < action.strip_keyframe_data_array_num; i++) {
+    StripKeyframeData &strip_data = action.strip_keyframe_data_array[i]->wrap();
+    strip_data.slot_data_duplicate(slot.handle, cloned_slot.handle);
   }
 
   /* The ID has changed, and so it needs to be re-evaluated. Animation does not
