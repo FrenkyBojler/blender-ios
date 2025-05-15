@@ -1,3 +1,3 @@
 Referenced by pull request #138855, GPU: Replace U32/I32 combination with GPU_FETCH_INT_TO_FLOAT in UI code
 Referenced by commit 153abc372e914b92bb960cf17482fd1956a5ec96, GPU: Replace U32/I32 combination with GPU_FETCH_INT_TO_FLOAT in UI code
-Referenced by pull request #138873, GPU: Remove 32 bit int to float fetch mode combination
+Referenced by pull request #138873, GPU: Remove int float fetch mode combination
