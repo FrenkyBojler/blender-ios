@@ -1119,7 +1119,6 @@ def node_panel(cls):
 
 class NODE_AST_compositor(bpy.types.AssetShelf):
     bl_space_type = 'NODE_EDITOR'
-    # bl_idname = "NODE_EDITOR_AST_compositor"
     bl_region_type = 'UI'
     bl_options = {'DEFAULT_VISIBLE'}
 
@@ -1129,8 +1128,8 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
 
     @classmethod
     def asset_poll(cls, asset):
-        # Todo: get "type" properly as an enum
-        return asset.id_type == 'NODETREE' and asset.metadata.get("type") == 1
+        compositing_type = bpy.types.NodeTree.bl_rna.properties["type"].enum_items["COMPOSITING"]
+        return asset.id_type == 'NODETREE' and asset.metadata.get("type") == compositing_type.value
 
 
 classes = (
