@@ -117,7 +117,7 @@ ActiveElementIndices get_active_element_indices(const Object& object)
   const SculptSession &ss = *object.sculpt;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
-      BLI_assert(ss.active_face_index);
+      BLI_assert((!ss.active_face_index && ss.active_vert_index() == -1) || (ss.active_face_index && ss.active_vert_index() != -1));
       return {ss.active_vert_index(), ss.active_face_index.value_or(-1)};
     case bke::pbvh::Type::Grids:
       BLI_assert(ss.active_grid_index);
