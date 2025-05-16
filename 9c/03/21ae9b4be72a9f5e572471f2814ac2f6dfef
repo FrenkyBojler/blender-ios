@@ -3,3 +3,4 @@ Referenced by commit 6ab4e99cf7d, Fix #133645: Metal: Crash when activating EEVE
 Referenced by issue #133830, Fix #129571: Metal: Broken texture atomic workaround
 Referenced by issue #129571, EEVEE Lights Disappear with Shadows on Apple Silicon M1/macOS 13
 Referenced by issue #128735, GPU Subdiv broken / shows invalid mesh
+Referenced by issue #138928, GPU module, custom shader has a compilation error in 4.4 on macOS
