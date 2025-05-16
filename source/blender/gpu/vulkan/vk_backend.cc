@@ -375,6 +375,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.dynamic_rendering_unused_attachments = false;
 
     GCaps.render_pass_workaround = true;
+    GCaps.ray_query_support = false;
 
     device.workarounds_ = workarounds;
     device.extensions_ = extensions;
@@ -623,6 +624,7 @@ void VKBackend::capabilities_init(VKDevice &device)
       VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
   GCaps.shader_draw_parameters_support =
       device.physical_device_vulkan_11_features_get().shaderDrawParameters;
+  GCaps.ray_query_support = device.supports_extension(VK_KHR_RAY_QUERY_EXTENSION_NAME);
 
   GCaps.max_texture_size = max_ii(limits.maxImageDimension1D, limits.maxImageDimension2D);
   GCaps.max_texture_3d_size = min_uu(limits.maxImageDimension3D, INT_MAX);

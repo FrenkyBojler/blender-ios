@@ -268,6 +268,12 @@ class GHOST_DeviceVK {
     vulkan_12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan_12_features.shaderOutputLayer = features_12.shaderOutputLayer;
     vulkan_12_features.shaderOutputViewportIndex = features_12.shaderOutputViewportIndex;
+    /* Buffer device address and descriptor indexing are dependencies of
+     * VK_KHR_acceleration_structure. */
+    if (has_extensions({VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME})) {
+      vulkan_12_features.bufferDeviceAddress = features_12.bufferDeviceAddress;
+      vulkan_12_features.descriptorIndexing = features_12.descriptorIndexing;
+    }
     vulkan_12_features.timelineSemaphore = VK_TRUE;
     vulkan_12_features.pNext = device_create_info_p_next;
     device_create_info_p_next = &vulkan_12_features;
@@ -334,6 +340,29 @@ class GHOST_DeviceVK {
     if (has_extensions({VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME})) {
       fragment_shader_barycentric.pNext = device_create_info_p_next;
       device_create_info_p_next = &fragment_shader_barycentric;
+    }
+
+    /* VK_KHR_ray_query */
+    VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR, nullptr, VK_TRUE};
+    if (has_extensions({VK_KHR_RAY_QUERY_EXTENSION_NAME})) {
+      ray_query_features.pNext = device_create_info_p_next;
+      device_create_info_p_next = &ray_query_features;
+    }
+
+    /* VK_KHR_acceleration_structure */
+    // TODO: check for actual available subfeatures.
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+        nullptr,
+        VK_TRUE,
+        VK_FALSE,
+        VK_FALSE,
+        VK_TRUE,
+        VK_FALSE};
+    if (has_extensions({VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME})) {
+      acceleration_structure_features.pNext = device_create_info_p_next;
+      device_create_info_p_next = &acceleration_structure_features;
     }
 
     device_create_info.pNext = device_create_info_p_next;
@@ -1131,6 +1160,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   optional_device_extensions.push_back(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
+
+  /* Ray queries*/
+  optional_device_extensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
+  /* Needed by VK_KHR_ray_query */
+  optional_device_extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+  /* Needed by VK_KHR_acceleration_structure. */
+  optional_device_extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {
