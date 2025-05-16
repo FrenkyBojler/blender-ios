@@ -2570,6 +2570,10 @@ class SEQUENCER_PT_cache_settings(SequencerButtonsPanel, Panel):
 
         ed = context.scene.sequence_editor
 
+        col = layout.column()
+        if ed:
+            col.prop(ed, "use_prefetch")
+
         col = layout.column(heading="Cache", align=True)
 
         col.prop(ed, "use_cache_raw", text="Raw")
@@ -2759,10 +2763,6 @@ class SEQUENCER_PT_view(SequencerButtonsPanel_Output, Panel):
         col.prop(st, "use_proxies")
         if st.proxy_render_size in {'NONE', 'SCENE'}:
             col.enabled = False
-
-        col = layout.column()
-        if ed:
-            col.prop(ed, "use_prefetch")
 
         col.prop(st, "display_channel", text="Channel")
 
