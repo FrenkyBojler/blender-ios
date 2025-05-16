@@ -222,9 +222,6 @@ class OperatorComputeContext : public ComputeContext {
 };
 
 class SculptComputeContext : public ComputeContext {
- private:
-  static constexpr const char *s_static_type = "SCULPT";
-
  public:
   SculptComputeContext() : SculptComputeContext(nullptr) {}
   SculptComputeContext(const ComputeContext *parent) : ComputeContext(parent) {}
