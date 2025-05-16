@@ -7,11 +7,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import multiprocessing
-import multiprocessing.connection
 import queue
-import threading
 from pathlib import Path
-from typing import Protocol, TypeAlias, Any, Callable
+from typing import Protocol, TypeAlias, Any, Callable, Iterable
 
 # To work around this error:
 # mypy   : Variable "multiprocessing.Event" is not valid as a type
@@ -38,7 +36,7 @@ class ConditionalDownloader:
     'If-Modified-Since'. When the HTTP server indicates the local file is up to
     date, via a `304 Not Modified` response, the file is not downloaded again.
 
-    See `BackgroundDownloader` to download things in a background thread.
+    See `BackgroundDownloader` to download things in a background process.
     """
 
     # TODO: make a metadata cache class, instead of always using a path on disk.
@@ -51,8 +49,17 @@ class ConditionalDownloader:
     chunk_size: int = 8192
     """Download this many bytes before saving to disk and reporting progress."""
 
+    cancel_download_event: CancelEvent
+    """Checked repeatedly to see if a running download should be canceled.
+
+    The user of this ConditionalDownloader can set this to a
+    multiprocessing.Event or threading.Event, depending on the method of
+    concucrrency used. During downloading, the ConditionalDownloader will
+    repeatedly check this object to see if it should continue downloading
+    (cleared) or should cancel (set).
+    """
+
     _reporter: DownloadReporter
-    _cancel_download_event: threading.Event
 
     def __init__(
             self,
@@ -66,9 +73,8 @@ class ConditionalDownloader:
         self.metadata_cache_location = metadata_cache_location
         self.http_session = http_session()
         self.chunk_size = 8192  # Sensible default, can be adjusted after creation if necessary.
-
+        self.cancel_download_event = _DummyCancelEvent()
         self._reporter = _DummyReporter()
-        self._cancel_download_event = threading.Event()
 
     def download_to_file(
         self, url: str, local_path: Path, *, http_method: str = "GET"
@@ -101,7 +107,7 @@ class ConditionalDownloader:
         finally:
             # One way or the other, the download is no longer running, so any
             # pending cancellation can be cleared.
-            self._cancel_download_event.clear()
+            self.cancel_download_event.clear()
 
         if http_meta is None:
             # Local file is already fresh, no need to re-download.
@@ -132,7 +138,7 @@ class ConditionalDownloader:
         """
 
         # Don't bother doing anything when the download was cancelled already.
-        if self._cancel_download_event.is_set():
+        if self.cancel_download_event.is_set():
             raise DownloadCancelled(http_req_descr)
 
         req = requests.Request(http_req_descr.http_method, http_req_descr.url)
@@ -155,7 +161,7 @@ class ConditionalDownloader:
                 return None
 
             # Avoid reporting any progress when the download was cancelled.
-            if self._cancel_download_event.is_set():
+            if self.cancel_download_event.is_set():
                 raise DownloadCancelled(http_req_descr)
 
             # Determine how many bytes are expected.
@@ -171,7 +177,7 @@ class ConditionalDownloader:
             with local_path.open("wb") as file:
                 for chunk in stream.iter_content(chunk_size=self.chunk_size):
 
-                    if self._cancel_download_event.is_set():
+                    if self.cancel_download_event.is_set():
                         raise DownloadCancelled(http_req_descr)
 
                     file.write(chunk)
@@ -283,17 +289,6 @@ class ConditionalDownloader:
     def has_reporter(self) -> bool:
         return not isinstance(self._reporter, _DummyReporter)
 
-    def cancel_download(self) -> None:
-        """Cancel any running download.
-
-        Thread-safe, can be called from a different thread than the download
-        call itself.
-
-        If there is no active download when this function is called, the next
-        download will be cancelled.
-        """
-        self._cancel_download_event.set()
-
 
 # On Linux, 'fork' is the default. However the Python docs state "Note
 # that safely forking a multithreaded process is problematic.", and then
@@ -328,7 +323,7 @@ class BackgroundDownloader:
     # is fine with it and at runtime it works.
     QueuedDownload: TypeAlias = tuple['RequestDescription', Path]
     """Tuple of URL to download, and path to download it to."""
-    _queue: multiprocessing.Queue[QueuedDownload]
+    _download_queue: multiprocessing.Queue[QueuedDownload]
 
     # Keep track of which callback to call on the completion of which HTTP request.
     # This assumes that RequestDescriptions are unique, and not queued up
@@ -336,36 +331,46 @@ class BackgroundDownloader:
     DownloadDoneCallback: TypeAlias = Callable[['RequestDescription', Path], None]
     _on_downloaded_callbacks: dict[RequestDescription, DownloadDoneCallback]
 
-    def __init__(self, downloader: ConditionalDownloader) -> None:
+    _metadata_cache_location: Path
+
+    _reporters: list[DownloadReporter]
+
+    def __init__(self, metadata_cache_location: Path) -> None:
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
         self._num_pending_downloads = 0
         self._on_downloaded_callbacks = {}
 
-        # Set up a thread bridge, so that updates are received on the main thread.
-        self._thread_bridge = ThreadBridgingReporter()
-        self._thread_bridge.add_reporter(self)
+        self._queueing_reporter = QueueingReporter()
+        self._download_queue = _mp_context.Queue()
 
-        self._queue = _mp_context.Queue()
-
+        # Set this to trigger a shutdown:
         self._shutdown_event = _mp_context.Event()
-        """Set this to trigger a shutdown."""
+        # Gets set when shutdown is complete:
         self._shutdown_complete_event = _mp_context.Event()
-        """Gets set when shutdown is complete."""
+
+        self._reporters = [self]
 
         # Set up the downloader in a background thread.
-        self._downloader = downloader
-        self._downloader.add_reporter(self._thread_bridge)
-        self._downloader_thread = _mp_context.Process(
+        # TODO: Maybe defer this and construct the process only at the start()
+        # call. That way it's possible to create a BackgroundDownloader instance,
+        # and set some hypothetical properties on it, which then influence the
+        # 'args' in the call below.
+        self._downloader_process = _mp_context.Process(
             name="BackgroundDownloader",
             target=_download_queued_items,
-            args=(self._downloader, self._queue, self._shutdown_event),
+            args=(
+                self._download_queue,
+                self._shutdown_event,
+                metadata_cache_location,
+                self._queueing_reporter,
+            ),
             daemon=True,
         )
 
     def add_reporter(self, reporter: DownloadReporter) -> None:
         """Add a reporter to receive updates when .update() is called."""
-        self._thread_bridge.add_reporter(reporter)
+        self._reporters.append(reporter)
 
     def queue_download(self, remote_url: str, local_path: Path,
                        on_download_done: DownloadDoneCallback | None = None) -> None:
@@ -380,7 +385,7 @@ class BackgroundDownloader:
         http_req_descr = RequestDescription(http_method='GET', url=remote_url)
         if on_download_done:
             self._on_downloaded_callbacks[http_req_descr] = on_download_done
-        self._queue.put((http_req_descr, local_path))
+        self._download_queue.put((http_req_descr, local_path))
 
     def all_downloads_done(self) -> bool:
         return self._num_pending_downloads == 0
@@ -402,7 +407,7 @@ class BackgroundDownloader:
         """
         if self._shutdown_event.is_set():
             raise ValueError("BackgroundDownloader was shut down, cannot start again")
-        self._downloader_thread.start()
+        self._downloader_process.start()
 
     @property
     def is_shutdown_requested(self) -> bool:
@@ -420,21 +425,18 @@ class BackgroundDownloader:
 
         NOTE: call this from the same thread as used to call .update().
         """
-        if self._shutdown_complete_event.is_set() and not self._downloader_thread.is_alive():
+        if self._shutdown_complete_event.is_set() and not self._downloader_process.is_alive():
             self._logger.debug("shutdown already completed")
             return
 
         self._logger.debug("shutting down")
         self._shutdown_event.set()
 
-        self._logger.debug("cancelling any running download")
-        self._downloader.cancel_download()
-
         self._logger.debug("waiting for download thread to stop")
-        self._downloader_thread.join()
+        self._downloader_process.join()
 
         self._logger.debug("processing any pending updates")
-        while self._thread_bridge.update():
+        while self._queueing_reporter.update(self._reporters):
             pass
 
         self._logger.debug("download thread stopped")
@@ -445,9 +447,9 @@ class BackgroundDownloader:
 
         The reports will be sent to self.reporter, in the same thread that calls this method.
         """
-        if not self._downloader_thread.is_alive():
-            raise RuntimeError("start the download thread first")
-        self._thread_bridge.update()
+        if not self._downloader_process.is_alive():
+            raise RuntimeError("start the download process first")
+        self._queueing_reporter.update(self._reporters)
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
         """CachingDownloadReporter interface function."""
@@ -526,19 +528,34 @@ class BackgroundDownloader:
             # Not having a callback is fine.
             return
 
-        logger.debug("download done, calling %s", callback.__name__)
+        self._logger.debug("download done, calling %s", callback.__name__)
         callback(http_req_descr, local_file)
 
 
 def _download_queued_items(
-        downloader: ConditionalDownloader,
-        download_queue: multiprocessing.Queue,
+        download_queue: multiprocessing.Queue[BackgroundDownloader.QueuedDownload],
         shutdown_event: EventClass,
+        metadata_cache_location: Path,
+        reporter: DownloadReporter,
 ) -> None:
     """Runs in a daemon process to download stuff.
 
     Managed by the BackgroundDownloader class above.
     """
+    # Uncomment this to get debug/info level logging:
+    # logging.basicConfig(
+    #     format="%(asctime)-15s %(processName)22s %(levelname)8s %(name)s %(message)s",
+    #     level=logging.DEBUG,
+    # )
+    log = logger.getChild('background_process')
+    log.info('Downloader background process starting')
+
+    # Construct a ConditionalDownloader. Unfortunately this is necessary, as
+    # not all its properties can be pickled, and as a result, it cannot be
+    # used to send across process boundaries via the multiprocessing module.
+    downloader = ConditionalDownloader(metadata_cache_location=metadata_cache_location)
+    downloader.add_reporter(reporter)
+    downloader.cancel_download_event = shutdown_event
 
     while not shutdown_event.is_set():
         # Pop an item off the queue.
@@ -562,11 +579,32 @@ def _download_queued_items(
             # Can be logged at a lower level, because the caller did the
             # cancelling, and can log/report things more loudly if
             # necessary.
-            logger.debug("download got cancelled: {}".format(http_req_descr))
+            log.debug("download got cancelled: {}".format(http_req_descr))
         except Exception as ex:
-            logger.exception("could not download {}: {}".format(http_req_descr, ex))
+            log.exception("could not download {}: {}".format(http_req_descr, ex))
 
-    logger.getChild('bg_downloader').debug("download process shutting down")
+    log.debug("download process shutting down")
+
+
+class CancelEvent(Protocol):
+    """Protocol for event objects that indicate a download should be cancelled.
+
+    multiprocessing.Event and threading.Event are compatible with this protocol.
+    """
+
+    def is_set(self) -> bool:
+        return False
+
+    def clear(self) -> None:
+        return
+
+
+class _DummyCancelEvent(CancelEvent):
+    """Dummy CancelEvent.
+
+    Does not do anything. This is just here to avoid None checks in the
+    ConditionalDownloader.
+    """
 
 
 class DownloadReporter(Protocol):
@@ -642,41 +680,30 @@ class _DummyReporter(DownloadReporter):
         pass
 
 
-class ThreadBridgingReporter(DownloadReporter):
-    """DownloadReporter that can bridge threads.
+class QueueingReporter(DownloadReporter):
+    """Queue up reports and defer calling reporters until .update(reporters) is called.
 
-    Bridging two threads Tm (main) and Tb (background) works as follows:
-
-    - Create a DownloadReporter that should get called on Tm.
-    - Create this ThreadBridgingReporter, and give it the above reporter.
-    - Create the ConditionalDownloader, and put in the thread-bridging reporter.
-    - Start the ConditionalDownloader in Tb.
-    - Call ThreadBridgingReporter.update() from Tm.
-    - The DownloadReporter you created in the first step will receive updates
-      from Tm.
-
-    See `BackgroundDownloader` for a concrete use.
+    This allows a background process to send reports, which are queued until the
+    main process calls the `.update()` function.
     """
 
     FunctionCall: TypeAlias = tuple[str, tuple[Any, ...]]
-    """Tuple of the function name and the positional arguments."""
+    """Tuple of the function name and the positional arguments.
 
-    _queue: queue.Queue[FunctionCall]
+    All arguments must be pickle'able in order to be stored in the
+    multiprocessing queue.
+    """
+
+    _queue: multiprocessing.Queue[FunctionCall]
     """Queue of function calls."""
-
-    _reporters: list[DownloadReporter]
 
     _logger: logging.Logger
 
     def __init__(self) -> None:
-        self._reporters = []
-        self._queue = queue.Queue()
+        self._queue = _mp_context.Queue()
         self._logger = logger.getChild(self.__class__.__name__)
 
-    def add_reporter(self, reporter: DownloadReporter) -> None:
-        self._reporters.append(reporter)
-
-    def update(self, *, limit_num_calls: int = 100) -> bool:
+    def update(self, reporters: Iterable[DownloadReporter], *, limit_num_calls: int = 100) -> bool:
         """Handle queued function calls on the thread that calls this function.
 
         Only a finite number of queued calls is processed, to avoid blocking the
@@ -695,7 +722,7 @@ class ThreadBridgingReporter(DownloadReporter):
                 return False
 
             function_name, function_arguments = queued_call
-            for reporter in self._reporters:
+            for reporter in reporters:
                 function = getattr(reporter, function_name)
                 function(*function_arguments)
 

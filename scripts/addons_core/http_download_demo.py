@@ -17,13 +17,7 @@ bl_info = {
 from pathlib import Path
 from typing import Generator
 from contextlib import contextmanager
-import multiprocessing
 
-# To work around:
-# mypy   : Variable "multiprocessing.Event" is not valid as a type
-#          note: See https://mypy.readthedocs.io/en/stable/common_issues.html#variables-vs-type-aliases
-# Pylance: Variable not allowed in type expression
-from multiprocessing.synchronize import Event as EventClass
 
 import bpy
 
@@ -117,12 +111,10 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
     def execute(self, context: bpy.types.Context) -> set[str]:
         self._operator_context = None
 
-        downloader = ConditionalDownloader(
+        # Create the BackgroundDownloader, adding this operator as a reporter:
+        self._bg_downloader = BackgroundDownloader(
             metadata_cache_location=local_path / "_local-meta-cache",
         )
-
-        # Create the BackgroundDownloader, adding this operator as a reporter:
-        self._bg_downloader = BackgroundDownloader(downloader)
         self._bg_downloader.add_reporter(self)
         self._bg_downloader.start()
 
@@ -157,10 +149,6 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def cancel(self, context: bpy.types.Context) -> None:
-        import threading
-
-        assert threading.current_thread() == threading.main_thread()
-
         if self._timer:
             wm = context.window_manager
             wm.event_timer_remove(self._timer)
@@ -230,90 +218,14 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
             self._operator_context = None
 
 
-class HTTP_OT_demo_multiprocessing(bpy.types.Operator):
-    bl_idname = "http.demo_multiprocessing"
-    bl_label = "Example Multiprocessing"
-
-    def execute(self, context: bpy.types.Context) -> set[str]:
-        # On Linux, 'fork' is the default. However the Python docs state "Note
-        # that safely forking a multithreaded process is problematic.", and then
-        # mention:
-        #
-        # The default start method will change away from fork in Python 3.14.
-        # Code that requires fork should explicitly specify that via
-        # get_context() or set_start_method().
-        #
-        # So I (Sybren) figure it's better to test with the 'spawn' method,
-        # which is also the current default on Windows and macOS.
-        mp_context = multiprocessing.get_context(method='spawn')
-
-        parent_conn, child_conn = mp_context.Pipe()
-        self._pipe = parent_conn
-        self._queue = mp_context.Queue()
-        self._shutdown: EventClass = mp_context.Event()
-
-        import http_download_bgproc
-        self._process = mp_context.Process(
-            target=http_download_bgproc.background_task,
-            args=(child_conn, self._queue, self._shutdown),
-        )
-        self._process.start()
-
-        # Use a timer to regularly get events, in order to call self._bg_downloader.update().
-        wm = context.window_manager
-        self._timer = wm.event_timer_add(0.01, window=context.window)
-        wm.modal_handler_add(self)
-
-        return {'RUNNING_MODAL'}
-
-    def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
-        if event.type == 'ESC':
-            self.cancel(context)
-            return {'CANCELLED'}
-
-        if event.type == 'D':
-            self.report({'INFO'}, "Queueing download")
-            self._queue.put('https://${SERVER}/${PATH}')
-
-        has_data = self._pipe.poll()
-        if has_data:
-            try:
-                msg = self._pipe.recv()
-            except EOFError:
-                self.report({'WARNING'}, "Pipe closed unexpectedly")
-            else:
-                print(f"Received message: {msg}")
-
-        return {'PASS_THROUGH'}
-
-    def cancel(self, context: bpy.types.Context) -> None:
-        if self._timer:
-            wm = context.window_manager
-            wm.event_timer_remove(self._timer)
-            self._timer = None
-
-        self._shutdown.set()
-
-        try:
-            while True:
-                msg = self._pipe.recv()
-                print(f"Received message: {msg}")
-        except EOFError:
-            self.report({'INFO'}, "Subprocess downloader closed")
-
-        self._process.join()
-
-
 def topbar_blender_menu_draw(self: bpy.types.TOPBAR_MT_blender, context: bpy.types.Context) -> None:
     self.layout.operator("http.demo_download_foreground")
     self.layout.operator("http.demo_download_background")
-    self.layout.operator("http.demo_multiprocessing")
 
 
 classes = (
     HTTP_OT_demo_download_foreground,
     HTTP_OT_demo_download_background,
-    HTTP_OT_demo_multiprocessing,
 )
 _register, _unregister = bpy.utils.register_classes_factory(classes)
 
