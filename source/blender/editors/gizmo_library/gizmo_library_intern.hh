@@ -21,7 +21,9 @@ struct wmGizmoProperty;
  * This bias is to be applied on wire gizmos or any small gizmos which may
  * be difficult to pick otherwise. The value is defined in logical pixels.
  */
-#define WM_GIZMO_SELECT_BIAS 12.0f
+#define WM_GIZMO_SELECT_BIAS_VALUE 6.0f
+
+#define WM_GIZMO_SELECT_BIAS(select) (select ? WM_GIZMO_SELECT_BIAS_VALUE * UI_SCALE_FAC : 0.0f)
 
 /**
  * Data for common interactions. Used in `gizmo_library_utils.cc` functions.

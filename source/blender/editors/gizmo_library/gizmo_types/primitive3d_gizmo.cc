@@ -146,8 +146,8 @@ static void gizmo_primitive_draw_geom(PrimitiveGizmo3D *gz_prim,
     float viewport[4];
     GPU_viewport_size_get_f(viewport);
     immUniform2fv("viewportSize", &viewport[2]);
-    const float bias = select ? WM_GIZMO_SELECT_BIAS * UI_SCALE_FAC : 0.0f;
-    immUniform1f("lineWidth", gz_prim->gizmo.line_width * U.pixelsize + bias);
+    immUniform1f("lineWidth",
+                 (gz_prim->gizmo.line_width * U.pixelsize) + WM_GIZMO_SELECT_BIAS(select));
   }
 
   if (gz_prim->draw_style == ED_GIZMO_PRIMITIVE_STYLE_PLANE) {
