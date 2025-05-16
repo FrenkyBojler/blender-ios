@@ -859,7 +859,7 @@ static wmOperatorStatus node_add_image_invoke(bContext *C, wmOperator *op, const
   SpaceNode *snode = CTX_wm_space_node(C);
 
   if (!ED_operator_node_editable(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Could not add an image Node. Missing a node tree");
+    BKE_report(op->reports, RPT_ERROR, "Could not add an image. Missing a node tree");
     return OPERATOR_CANCELLED;
   }
 
