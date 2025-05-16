@@ -554,7 +554,6 @@ void uiItemFullO_ptr(uiLayout *layout,
                      wmOperatorCallContext context,
                      eUI_Item_Flag flag,
                      PointerRNA *r_opptr);
-
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              wmOperatorType *ot,
                              std::optional<blender::StringRef> name,
