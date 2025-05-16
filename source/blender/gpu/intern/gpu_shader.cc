@@ -491,12 +491,9 @@ void GPU_shader_warm_cache(GPUShader *shader, int limit)
 /** \name Assign specialization constants.
  * \{ */
 
-shader::SpecializationConstants *GPU_shader_get_constant_state_template(GPUShader *sh)
+const shader::SpecializationConstants &GPU_shader_get_default_constant_state(GPUShader *sh)
 {
-  Shader &shader = *unwrap(sh);
-  shader::SpecializationConstants *state = MEM_new<shader::SpecializationConstants>(__func__);
-  *state = shader.constants;
-  return state;
+  return unwrap(sh)->constants;
 }
 
 void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)

@@ -1806,18 +1806,16 @@ Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
 
   /* This path is always called for the default shader compilation. Not for specialization.
    * Use the default constant template.*/
-  shader::SpecializationConstants *constants = GPU_shader_get_constant_state_template(
+  const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(
       wrap(shader));
 
-  if (!worker->load_program_binary(shader->program_cache_.lookup(constants->values).program_id) ||
+  if (!worker->load_program_binary(shader->program_cache_.lookup(constants.values).program_id) ||
       !shader->post_finalize(&info))
   {
     /* Compilation failed, try to compile it locally. */
     delete shader;
     shader = nullptr;
   }
-
-  MEM_delete(constants);
 
   worker->release();
 

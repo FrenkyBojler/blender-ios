@@ -235,7 +235,9 @@ bool GPU_shader_get_ssbo_input_info(const GPUShader *shader, int ssbo_location, 
  * Otherwise, it will produce undefined behavior.
  * \{ */
 
-blender::gpu::shader::SpecializationConstants *GPU_shader_get_constant_state_template(
+/* Return the default constants.
+ * All constants available for this shader should fit the returned structure. */
+const blender::gpu::shader::SpecializationConstants &GPU_shader_get_default_constant_state(
     GPUShader *sh);
 
 void GPU_shader_constant_int_ex(GPUShader *sh, int location, int value);

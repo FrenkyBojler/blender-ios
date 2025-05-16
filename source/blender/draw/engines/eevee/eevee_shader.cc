@@ -146,20 +146,18 @@ bool ShaderModule::request_specializations(bool block_until_ready,
           int shadow_ray_count_index = GPU_shader_get_constant(sh, "shadow_ray_count");
           int shadow_ray_step_count_index = GPU_shader_get_constant(sh, "shadow_ray_step_count");
 
-          gpu::shader::SpecializationConstants *sp = GPU_shader_get_constant_state_template(sh);
+          gpu::shader::SpecializationConstants sp = GPU_shader_get_default_constant_state(sh);
 
           for (bool use_transmission : {false, true}) {
-            sp->set_value(render_pass_shadow_id_index, render_buffers_shadow_id);
-            sp->set_value(use_split_indirect_index, use_split_indirect);
-            sp->set_value(use_lightprobe_eval_index, use_lightprobe_eval);
-            sp->set_value(use_transmission_index, use_transmission);
-            sp->set_value(shadow_ray_count_index, shadow_ray_count);
-            sp->set_value(shadow_ray_step_count_index, shadow_ray_step_count);
+            sp.set_value(render_pass_shadow_id_index, render_buffers_shadow_id);
+            sp.set_value(use_split_indirect_index, use_split_indirect);
+            sp.set_value(use_lightprobe_eval_index, use_lightprobe_eval);
+            sp.set_value(use_transmission_index, use_transmission);
+            sp.set_value(shadow_ray_count_index, shadow_ray_count);
+            sp.set_value(shadow_ray_step_count_index, shadow_ray_step_count);
 
-            specializations.append({sh, *sp});
+            specializations.append({sh, sp});
           }
-
-          MEM_delete(sp);
         }
 
         return GPU_shader_batch_specializations(specializations);
