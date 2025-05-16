@@ -233,25 +233,25 @@ struct SpecializationConstants {
 
   void set_value(int index, uint32_t value)
   {
-    types[index] = Type::uint_t;
+    BLI_assert_msg(types[index] == Type::uint_t, "Mismatch between interface and constant type");
     values[index].u = value;
   }
 
   void set_value(int index, int value)
   {
-    types[index] = Type::int_t;
+    BLI_assert_msg(types[index] == Type::int_t, "Mismatch between interface and constant type");
     values[index].i = value;
   }
 
   void set_value(int index, float value)
   {
-    types[index] = Type::float_t;
+    BLI_assert_msg(types[index] == Type::float_t, "Mismatch between interface and constant type");
     values[index].f = value;
   }
 
   void set_value(int index, bool value)
   {
-    types[index] = Type::bool_t;
+    BLI_assert_msg(types[index] == Type::bool_t, "Mismatch between interface and constant type");
     values[index].u = value ? 1 : 0;
   }
 };
