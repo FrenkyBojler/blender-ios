@@ -343,14 +343,13 @@ void key_curve_position_weights(float t, float data[4], KeyInterpolationType typ
   float t2, t3, fc;
 
   switch (type) {
-    case KEY_LINEAR: {
+    case KEY_LINEAR:
       data[0] = 0.0f;
       data[1] = -t + 1.0f;
       data[2] = t;
       data[3] = 0.0f;
       break;
-    }
-    case KEY_CARDINAL: {
+    case KEY_CARDINAL:
       t2 = t * t;
       t3 = t2 * t;
       fc = 0.71f;
@@ -360,8 +359,7 @@ void key_curve_position_weights(float t, float data[4], KeyInterpolationType typ
       data[2] = (fc - 2.0f) * t3 + (3.0f - 2.0f * fc) * t2 + fc * t;
       data[3] = fc * t3 - fc * t2;
       break;
-    }
-    case KEY_BSPLINE: {
+    case KEY_BSPLINE:
       t2 = t * t;
       t3 = t2 * t;
 
@@ -370,8 +368,7 @@ void key_curve_position_weights(float t, float data[4], KeyInterpolationType typ
       data[2] = -0.5f * t3 + 0.5f * t2 + 0.5f * t + 0.16666666f;
       data[3] = 0.16666666f * t3;
       break;
-    }
-    case KEY_CATMULL_ROM: {
+    case KEY_CATMULL_ROM:
       t2 = t * t;
       t3 = t2 * t;
       fc = 0.5f;
@@ -381,7 +378,6 @@ void key_curve_position_weights(float t, float data[4], KeyInterpolationType typ
       data[2] = (fc - 2.0f) * t3 + (3.0f - 2.0f * fc) * t2 + fc * t;
       data[3] = fc * t3 - fc * t2;
       break;
-    }
   }
 }
 
@@ -390,14 +386,13 @@ void key_curve_tangent_weights(float t, float data[4], KeyInterpolationType type
   float t2, fc;
 
   switch (type) {
-    case KEY_LINEAR: {
+    case KEY_LINEAR:
       data[0] = 0.0f;
       data[1] = -1.0f;
       data[2] = 1.0f;
       data[3] = 0.0f;
       break;
-    }
-    case KEY_CARDINAL: {
+    case KEY_CARDINAL:
       t2 = t * t;
       fc = 0.71f;
 
@@ -406,8 +401,7 @@ void key_curve_tangent_weights(float t, float data[4], KeyInterpolationType type
       data[2] = 3.0f * (fc - 2.0f) * t2 + 2.0f * (3.0f - 2.0f * fc) * t + fc;
       data[3] = 3.0f * fc * t2 - 2.0f * fc * t;
       break;
-    }
-    case KEY_BSPLINE: {
+    case KEY_BSPLINE:
       t2 = t * t;
 
       data[0] = -0.5f * t2 + t - 0.5f;
@@ -415,8 +409,7 @@ void key_curve_tangent_weights(float t, float data[4], KeyInterpolationType type
       data[2] = -1.5f * t2 + t + 0.5f;
       data[3] = 0.5f * t2;
       break;
-    }
-    case KEY_CATMULL_ROM: {
+    case KEY_CATMULL_ROM:
       t2 = t * t;
       fc = 0.5f;
 
@@ -425,7 +418,6 @@ void key_curve_tangent_weights(float t, float data[4], KeyInterpolationType type
       data[2] = 3.0f * (fc - 2.0f) * t2 + 2.0f * (3.0f - 2.0f * fc) * t + fc;
       data[3] = 3.0f * fc * t2 - 2.0f * fc * t;
       break;
-    }
   }
 }
 
@@ -434,14 +426,13 @@ void key_curve_normal_weights(float t, float data[4], KeyInterpolationType type)
   float fc;
 
   switch (type) {
-    case KEY_LINEAR: {
+    case KEY_LINEAR:
       data[0] = 0.0f;
       data[1] = 0.0f;
       data[2] = 0.0f;
       data[3] = 0.0f;
       break;
-    }
-    case KEY_CARDINAL: {
+    case KEY_CARDINAL:
       fc = 0.71f;
 
       data[0] = -6.0f * fc * t + 4.0f * fc;
@@ -449,15 +440,13 @@ void key_curve_normal_weights(float t, float data[4], KeyInterpolationType type)
       data[2] = 6.0f * (fc - 2.0f) * t + 2.0f * (3.0f - 2.0f * fc);
       data[3] = 6.0f * fc * t - 2.0f * fc;
       break;
-    }
-    case KEY_BSPLINE: {
+    case KEY_BSPLINE:
       data[0] = -1.0f * t + 1.0f;
       data[1] = 3.0f * t - 2.0f;
       data[2] = -3.0f * t + 1.0f;
       data[3] = 1.0f * t;
       break;
-    }
-    case KEY_CATMULL_ROM: {
+    case KEY_CATMULL_ROM:
       fc = 0.5f;
 
       data[0] = -6.0f * fc * t + 4.0f * fc;
@@ -465,7 +454,6 @@ void key_curve_normal_weights(float t, float data[4], KeyInterpolationType type)
       data[2] = 6.0f * (fc - 2.0f) * t + 2.0f * (3.0f - 2.0f * fc);
       data[3] = 6.0f * fc * t - 2.0f * fc;
       break;
-    }
   }
 }
 

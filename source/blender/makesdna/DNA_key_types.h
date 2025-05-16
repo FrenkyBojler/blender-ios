@@ -26,19 +26,19 @@ typedef struct KeyBlock {
   struct KeyBlock *next, *prev;
 
   /**
-   * A point in time used in case of `(Key->type == KEY_NORMAL)` only,
-   * for historic reasons this is relative to (Key->ctime / 100),
+   * A point in time used in case of `(Key::type == KEY_NORMAL)` only,
+   * for historic reasons this is relative to (Key::ctime / 100),
    * so this value increments by 0.1f per frame.
    */
   float pos;
-  /** Influence (typically [0 - 1] but can be more), `(Key->type == KEY_RELATIVE)` only. */
+  /** Influence (typically [0 - 1] but can be more), `(Key::type == KEY_RELATIVE)` only. */
   float curval;
 
-  /** Interpolation type. Used for `(Key->type == KEY_NORMAL)` only (KeyInterpolationType). */
+  /** Interpolation type. Used for `(Key::type == KEY_NORMAL)` only (KeyInterpolationType). */
   short type;
   char _pad1[2];
 
-  /** `relative == 0` means first key is reference, otherwise the index of Key->blocks. */
+  /** `relative == 0` means first key is reference, otherwise the index of Key::blocks. */
   short relative;
   /* KeyBlockFlag */
   short flag;
@@ -48,7 +48,7 @@ typedef struct KeyBlock {
   /** For meshes only, match the unique number with the customdata layer. */
   int uid;
 
-  /** Array of shape key values, size is `(Key->elemsize * KeyBlock->totelem)`.
+  /** Array of shape key values, size is `(Key::elemsize * KeyBlock->totelem)`.
    * E.g. meshes use float3. */
   void *data;
   /** MAX_NAME (unique name, user assigned). */
@@ -73,7 +73,7 @@ typedef struct Key {
   struct AnimData *adt;
 
   /**
-   * Commonly called 'Basis', `(Key->type == KEY_RELATIVE)` only.
+   * Commonly called 'Basis', `(Key::type == KEY_RELATIVE)` only.
    * Looks like this is _always_ 'key->block.first',
    * perhaps later on it could be defined as some other KeyBlock - campbell.
    */
@@ -103,7 +103,7 @@ typedef struct Key {
   char type;
   char _pad2;
 
-  /** Only used when (Key->type == KEY_NORMAL), this value is used as a time slider,
+  /** Only used when (Key::type == KEY_NORMAL), this value is used as a time slider,
    * rather than using the scene's time, this value can be animated to give greater control */
   float ctime;
 
@@ -116,21 +116,21 @@ typedef struct Key {
 
 /* **************** KEY ********************* */
 
-/* Key->type: KeyBlocks are interpreted as... */
+/* Key::type: KeyBlocks are interpreted as... */
 typedef enum ShapekeyContainerType {
-  /* Sequential positions over time (using KeyBlock->pos and Key->ctime) */
+  /* Sequential positions over time (using KeyBlock::pos and Key::ctime) */
   KEY_NORMAL = 0,
 
   /* States to blend between (default) */
   KEY_RELATIVE = 1,
 } ShapekeyContainerType;
 
-/* Key->flag */
+/* Key::flag */
 typedef enum ShapekeyContainerFlag {
   KEY_DS_EXPAND = 1,
 } ShapekeyContainerFlag;
 
-/* The obvious name would be `eKeyBlockType` but this enum is actually used in places outside of
+/* The obvious name would be `KeyBlockType` but this enum is actually used in places outside of
  * Shape Keys (NURBS, particles, etc.). */
 typedef enum KeyInterpolationType {
   KEY_LINEAR = 0,
