@@ -226,10 +226,10 @@ struct SpecializationConstant {
  * The backend is free to implement their support as they see fit.
  */
 struct SpecializationConstants {
-  Vector<gpu::shader::Type> types;
+  Vector<gpu::shader::Type, 8> types;
   /* Current values set by `GPU_shader_constant_*()` call. The backend can choose to interpret
    * that however it wants (i.e: bind another shader instead). */
-  Vector<SpecializationConstant::Value> values;
+  Vector<SpecializationConstant::Value, 8> values;
 
   void set_value(int index, uint32_t value)
   {
