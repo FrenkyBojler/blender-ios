@@ -253,13 +253,18 @@ void Manager::generate_commands(PassSimple &pass)
 
 void Manager::warm_shader_specialization(PassMain &pass)
 {
+  if (pass.is_empty()) {
+    return;
+  }
   command::RecordingState state;
   pass.warm_shader_specialization(state);
 }
 
-
 void Manager::warm_shader_specialization(PassSimple &pass)
 {
+  if (pass.is_empty()) {
+    return;
+  }
   command::RecordingState state;
   pass.warm_shader_specialization(state);
 }
