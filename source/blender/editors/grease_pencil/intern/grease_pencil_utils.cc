@@ -1128,7 +1128,9 @@ IndexMask retrieve_visible_strokes(Object &object,
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
-  if (hidden_material_indices.is_empty()) {
+  if (hidden_material_indices.is_empty() &&
+      !drawing.strokes().attributes().contains(".is_boundary"))
+  {
     return drawing.strokes().curves_range();
   }
 
@@ -1139,10 +1141,14 @@ IndexMask retrieve_visible_strokes(Object &object,
   /* Get all the strokes that have their material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
+  /* Temporary attribute created by the fill tool. These strokes are not meant to be visible in the
+   * render. */
+  const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
+      ".is_boundary", bke::AttrDomain::Curve, false);
   return IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
         const int material_index = materials[curve_i];
-        return !hidden_material_indices.contains(material_index);
+        return !hidden_material_indices.contains(material_index) && !is_boundary_stroke[curve_i];
       });
 }
 
@@ -1153,7 +1159,9 @@ IndexMask retrieve_visible_points(Object &object,
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
-  if (hidden_material_indices.is_empty()) {
+  if (hidden_material_indices.is_empty() &&
+      !drawing.strokes().attributes().contains(".is_boundary"))
+  {
     return drawing.strokes().points_range();
   }
 
@@ -1171,11 +1179,16 @@ IndexMask retrieve_visible_points(Object &object,
     return {};
   }
 
+  /* Temporary attribute created by the fill tool. These strokes are not meant to be visible in the
+   * render. */
+  const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
+      ".is_boundary", bke::AttrDomain::Point, false);
+
   /* Get all the points that are part of a stroke with a visible material. */
   return IndexMask::from_predicate(
       points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
         const int material_index = materials[point_i];
-        return !hidden_material_indices.contains(material_index);
+        return !hidden_material_indices.contains(material_index) && !is_boundary_stroke[point_i];
       });
 }
 
@@ -1968,6 +1981,34 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Free temporary grease pencil struct. */
   BKE_id_free(nullptr, &merged_layers_grease_pencil);
+}
+
+IndexMask retrieve_screen_space_coordinates_for_drawing(
+    const ARegion &region,
+    const Object &ob_eval,
+    const bke::greasepencil::Layer &layer,
+    const bke::crazyspace::GeometryDeformation &deformation,
+    MutableSpan<float2> r_screen_space_positions,
+    IndexMaskMemory &memory)
+{
+  using namespace bke::greasepencil;
+  BLI_assert(r_screen_space_positions.size() == deformation.positions.size());
+
+  Array<bool> projection_ok(r_screen_space_positions.size(), true);
+  threading::parallel_for(
+      r_screen_space_positions.index_range(), 4096, [&](const IndexRange points) {
+        for (const int point : points) {
+          const float3 position = math::transform_point(layer.to_world_space(ob_eval),
+                                                        deformation.positions[point]);
+          const int proj_result = ED_view3d_project_float_global(
+              &region, position, r_screen_space_positions[point], V3D_PROJ_TEST_CLIP_DEFAULT);
+          if (proj_result != V3D_PROJ_RET_OK) {
+            projection_ok[point] = false;
+          }
+        }
+      });
+
+  return IndexMask::from_bools(projection_ok, memory);
 }
 
 }  // namespace blender::ed::greasepencil

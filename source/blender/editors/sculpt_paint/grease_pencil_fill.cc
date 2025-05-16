@@ -770,7 +770,7 @@ static bke::CurvesGeometry process_image(Image &ima,
 /** \} */
 
 constexpr const char *attr_material_index = "material_index";
-constexpr const char *attr_is_boundary = "is_boundary";
+constexpr const char *attr_is_boundary = ".is_boundary";
 
 static IndexMask get_visible_boundary_strokes(const Object &object,
                                               const DrawingInfo &info,
@@ -888,7 +888,7 @@ static std::optional<Bounds<float2>> get_boundary_bounds(const ARegion &region,
     const VArray<int> materials = *attributes.lookup_or_default<int>(
         attr_material_index, bke::AttrDomain::Curve, 0);
     const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
-        "is_boundary", bke::AttrDomain::Curve, false);
+        attr_is_boundary, bke::AttrDomain::Curve, false);
 
     IndexMaskMemory curve_mask_memory;
     const IndexMask curve_mask = get_visible_boundary_strokes(
