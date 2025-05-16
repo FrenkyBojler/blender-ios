@@ -548,8 +548,7 @@ void import_meshes(Main &bmain,
           /* Setup parent inverse matrix of the mesh, to account for the mesh possibly being in
            * different bind pose than what the node is at. */
           ufbx_matrix mtx_inv = ufbx_matrix_invert(&mtx);
-          ufbx_matrix mtx_world = mapping.bone_to_bind_matrix.lookup_default(
-              node, node->geometry_to_world);
+          ufbx_matrix mtx_world = mapping.get_node_bind_matrix(node);
           ufbx_matrix mtx_parent_inverse = ufbx_matrix_mul(&mtx_world, &mtx_inv);
           mtx_parent_inverse = ufbx_matrix_mul(&world_to_arm_pose, &mtx_parent_inverse);
           matrix_to_m44(mtx_parent_inverse, obj->parentinv);
@@ -610,6 +609,7 @@ void import_meshes(Main &bmain,
         node_matrix_to_obj(node, obj, mapping);
       }
       mapping.el_to_object.add(&node->element, obj);
+      mapping.imported_objects.add(obj);
     }
   }
 }

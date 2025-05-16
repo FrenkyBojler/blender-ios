@@ -20,7 +20,7 @@
   - pos 0.000, 0.000, 0.000
   - rot 1.571, 0.000, 0.000 (XYZ)
   - scl 0.010, 0.010, 0.010
-  - anim act:Armature|AnimStack|BaseLayer slot:OBArmature|AnimStack|BaseLayer blend:REPLACE drivers:0
+  - anim act:AnimStack slot:OBArmature blend:REPLACE drivers:0
 - Obj 'MeshUnderChild' MESH data:'MeshUnderChild' par:'Armature' par_type:BONE par_bone:'ChildBone'
   - pos 0.000, -1.000, -1.000
   - rot 0.000, 0.000, 0.000 (XYZ)
@@ -31,70 +31,70 @@
   - scl 1.000, 1.000, 1.000
 
 ==== Actions: 1
-- Action 'Armature|AnimStack|BaseLayer' curverange:(1.0 .. 51.0) layers:1
-- ActionLayer Legacy Layer strips:1
+- Action 'AnimStack' curverange:(1.0 .. 61.0) layers:1
+- ActionLayer Layer strips:1
  - Keyframe strip channelbags:1
- - Channelbag slot 'OBArmature|AnimStack|BaseLayer' curves:30
+ - Channelbag slot 'OBArmature' curves:30
   - fcu 'pose.bones["ChildBone"].location[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].location[1]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].location[2]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].rotation_quaternion[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 1.000) lh:(-7.333, 1.000 AUTO_CLAMPED) rh:(9.333, 1.000 AUTO_CLAMPED)
-    - (26.000, 0.966) lh:(17.667, 0.999 AUTO_CLAMPED) rh:(34.333, 0.932 AUTO_CLAMPED)
-    - (51.000, 0.866) lh:(42.667, 0.866 AUTO_CLAMPED) rh:(59.333, 0.866 AUTO_CLAMPED)
+    - (1.000, 1.000) lh:(-9.000, 1.000 AUTO_CLAMPED) rh:(11.000, 1.000 AUTO_CLAMPED)
+    - (31.000, 0.966) lh:(21.000, 0.999 AUTO_CLAMPED) rh:(41.000, 0.932 AUTO_CLAMPED)
+    - (61.000, 0.866) lh:(51.000, 0.866 AUTO_CLAMPED) rh:(71.000, 0.866 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].rotation_quaternion[1]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].rotation_quaternion[2]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].rotation_quaternion[3]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.259) lh:(17.667, 0.134 AUTO_CLAMPED) rh:(34.333, 0.384 AUTO_CLAMPED)
-    - (51.000, 0.500) lh:(42.667, 0.500 AUTO_CLAMPED) rh:(59.333, 0.500 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.259) lh:(21.000, 0.134 AUTO_CLAMPED) rh:(41.000, 0.384 AUTO_CLAMPED)
+    - (61.000, 0.500) lh:(51.000, 0.500 AUTO_CLAMPED) rh:(71.000, 0.500 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].scale[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 1.000) lh:(-7.333, 1.000 AUTO_CLAMPED) rh:(9.333, 1.000 AUTO_CLAMPED)
-    - (26.000, 1.000) lh:(17.667, 1.000 AUTO_CLAMPED) rh:(34.333, 1.000 AUTO_CLAMPED)
-    - (51.000, 1.000) lh:(42.667, 1.000 AUTO_CLAMPED) rh:(59.333, 1.000 AUTO_CLAMPED)
+    - (1.000, 1.000) lh:(-9.000, 1.000 AUTO_CLAMPED) rh:(11.000, 1.000 AUTO_CLAMPED)
+    - (31.000, 1.000) lh:(21.000, 1.000 AUTO_CLAMPED) rh:(41.000, 1.000 AUTO_CLAMPED)
+    - (61.000, 1.000) lh:(51.000, 1.000 AUTO_CLAMPED) rh:(71.000, 1.000 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].scale[1]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 1.000) lh:(-7.333, 1.000 AUTO_CLAMPED) rh:(9.333, 1.000 AUTO_CLAMPED)
-    - (26.000, 1.000) lh:(17.667, 1.000 AUTO_CLAMPED) rh:(34.333, 1.000 AUTO_CLAMPED)
-    - (51.000, 1.000) lh:(42.667, 1.000 AUTO_CLAMPED) rh:(59.333, 1.000 AUTO_CLAMPED)
+    - (1.000, 1.000) lh:(-9.000, 1.000 AUTO_CLAMPED) rh:(11.000, 1.000 AUTO_CLAMPED)
+    - (31.000, 1.000) lh:(21.000, 1.000 AUTO_CLAMPED) rh:(41.000, 1.000 AUTO_CLAMPED)
+    - (61.000, 1.000) lh:(51.000, 1.000 AUTO_CLAMPED) rh:(71.000, 1.000 AUTO_CLAMPED)
   - fcu 'pose.bones["ChildBone"].scale[2]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'ChildBone'
-    - (1.000, 1.000) lh:(-7.333, 1.000 AUTO_CLAMPED) rh:(9.333, 1.000 AUTO_CLAMPED)
-    - (26.000, 1.000) lh:(17.667, 1.000 AUTO_CLAMPED) rh:(34.333, 1.000 AUTO_CLAMPED)
-    - (51.000, 1.000) lh:(42.667, 1.000 AUTO_CLAMPED) rh:(59.333, 1.000 AUTO_CLAMPED)
+    - (1.000, 1.000) lh:(-9.000, 1.000 AUTO_CLAMPED) rh:(11.000, 1.000 AUTO_CLAMPED)
+    - (31.000, 1.000) lh:(21.000, 1.000 AUTO_CLAMPED) rh:(41.000, 1.000 AUTO_CLAMPED)
+    - (61.000, 1.000) lh:(51.000, 1.000 AUTO_CLAMPED) rh:(71.000, 1.000 AUTO_CLAMPED)
   - fcu 'pose.bones["MeshUnderRoot"].location[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'MeshUnderRoot'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
   - fcu 'pose.bones["MeshUnderRoot"].location[1]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'MeshUnderRoot'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
   - fcu 'pose.bones["MeshUnderRoot"].location[2]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'MeshUnderRoot'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
   - fcu 'pose.bones["MeshUnderRoot"].rotation_quaternion[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'MeshUnderRoot'
-    - (1.000, 1.000) lh:(-7.333, 1.000 AUTO_CLAMPED) rh:(9.333, 1.000 AUTO_CLAMPED)
-    - (26.000, 0.866) lh:(17.667, 0.991 AUTO_CLAMPED) rh:(34.333, 0.741 AUTO_CLAMPED)
-    - (51.000, 0.500) lh:(42.667, 0.500 AUTO_CLAMPED) rh:(59.333, 0.500 AUTO_CLAMPED)
+    - (1.000, 1.000) lh:(-9.000, 1.000 AUTO_CLAMPED) rh:(11.000, 1.000 AUTO_CLAMPED)
+    - (31.000, 0.866) lh:(21.000, 0.991 AUTO_CLAMPED) rh:(41.000, 0.741 AUTO_CLAMPED)
+    - (61.000, 0.500) lh:(51.000, 0.500 AUTO_CLAMPED) rh:(71.000, 0.500 AUTO_CLAMPED)
   - fcu 'pose.bones["MeshUnderRoot"].rotation_quaternion[1]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3 grp:'MeshUnderRoot'
-    - (1.000, 0.000) lh:(-7.333, 0.000 AUTO_CLAMPED) rh:(9.333, 0.000 AUTO_CLAMPED)
-    - (26.000, 0.000) lh:(17.667, 0.000 AUTO_CLAMPED) rh:(34.333, 0.000 AUTO_CLAMPED)
-    - (51.000, 0.000) lh:(42.667, 0.000 AUTO_CLAMPED) rh:(59.333, 0.000 AUTO_CLAMPED)
+    - (1.000, 0.000) lh:(-9.000, 0.000 AUTO_CLAMPED) rh:(11.000, 0.000 AUTO_CLAMPED)
+    - (31.000, 0.000) lh:(21.000, 0.000 AUTO_CLAMPED) rh:(41.000, 0.000 AUTO_CLAMPED)
+    - (61.000, 0.000) lh:(51.000, 0.000 AUTO_CLAMPED) rh:(71.000, 0.000 AUTO_CLAMPED)
 
 ==== Armatures: 1
 - Armature 'Armature' 3 bones
