@@ -40,8 +40,8 @@
   - pos 7.481, -6.508, 5.344
   - rot 2.032, -0.011, -2.327 (XYZ)
   - scl 1.000, 1.000, 1.000
-- Obj 'Cubes' MESH data:'Cubes' par:'Armature'
-  - pos 0.000, 0.000, 0.000
+- Obj 'Cubes' MESH data:'Cubes' par:'Armature.001'
+  - pos 0.737, 0.813, -0.695
   - rot 0.000, 0.000, 0.000 (XYZ)
   - scl 1.000, 1.000, 1.000
   - 2 vertex groups
