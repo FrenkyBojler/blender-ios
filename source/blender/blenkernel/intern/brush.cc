@@ -1520,7 +1520,6 @@ bool supports_node_group(const Brush &brush)
                SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
                SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR);
 }
-
 bool supports_dyntopo(const Brush &brush)
 {
   return !ELEM(brush.sculpt_brush_type,
