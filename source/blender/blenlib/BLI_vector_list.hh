@@ -64,6 +64,11 @@ class VectorList {
     size_++;
   }
 
+  T &first()
+  {
+    return vectors_.first().first();
+  }
+
   T &last()
   {
     return vectors_.last().last();
@@ -74,7 +79,58 @@ class VectorList {
     return size_;
   }
 
+  bool is_empty() const
+  {
+    return size_ == 0;
+  }
+
+  void clear()
+  {
+    vectors_.clear();
+    append_vector();
+    size_ = 0;
+    /* TODO: Don't deallocate. */
+  }
+
+  /**
+   * Get the value at the given index. This invokes undefined behavior when the index is out of
+   * bounds.
+   */
+  const T &operator[](int64_t index) const
+  {
+    BLI_assert(index >= 0);
+    BLI_assert(index < this->size());
+    std::pair<int64_t, int64_t> index_pair = global_index_to_index_pair(index);
+    return vectors_[index_pair.first][index_pair.second];
+  }
+
+  T &operator[](int64_t index)
+  {
+    BLI_assert(index >= 0);
+    BLI_assert(index < this->size());
+    std::pair<int64_t, int64_t> index_pair = global_index_to_index_pair(index);
+    return vectors_[index_pair.first][index_pair.second];
+  }
+
  private:
+  std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index)
+  {
+    /* TODO: This is a geometric series. Use plain math instead. */
+    int64_t global_index = 0;
+    int64_t index_a = 0;
+
+    for (int64_t i = CapacityStart; i <= CapacitySoftLimit; i *= 2) {
+      if (global_index + i > index) {
+        return {index_a, global_index > 0 ? index % global_index : 0};
+      }
+      global_index += i;
+      index_a++;
+    }
+
+    int64_t remainder = index - global_index;
+    return {index_a + remainder / CapacitySoftLimit, remainder % CapacitySoftLimit};
+  }
+
   UsedVector &ensure_space_for_one()
   {
     UsedVector &vector = vectors_.last();
