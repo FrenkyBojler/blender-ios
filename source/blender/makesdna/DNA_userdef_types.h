@@ -759,11 +759,11 @@ typedef struct UserDef_Experimental {
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
   char write_large_blend_file_blocks;
+  char use_attribute_storage_write;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
   char use_new_curves_tools;
-  char use_sculpt_tools_tilt;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
   char use_new_volume_nodes;
@@ -1139,11 +1139,8 @@ typedef struct UserDef {
   char render_display_type;      /* eUserpref_RenderDisplayType */
   char filebrowser_display_type; /* eUserpref_TempSpaceDisplayType */
 
-  char sequencer_disk_cache_dir[1024];
-  int sequencer_disk_cache_compression; /* eUserpref_DiskCacheCompression */
-  int sequencer_disk_cache_size_limit;
-  short sequencer_disk_cache_flag;
   short sequencer_proxy_setup; /* eUserpref_SeqProxySetup */
+  short _pad1;
 
   float collection_instance_empty_size;
   char text_flag;
