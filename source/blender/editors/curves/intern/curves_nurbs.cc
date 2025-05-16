@@ -111,20 +111,21 @@ WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
         q_i_weights[point] = alpha * q_i_1_weights[point] + (1.0f - alpha) * q_i_weights[point];
       }
     }
-    for (const int i : IndexRange(order)) {
-      const int src_point = (knot_span - order + 1 + i) % points_num;
+    for (const int term_point : IndexRange(order)) {
+      const int src_point = (knot_span - order + 1 + term_point) % points_num;
       const int dst_point_left = altered_points_range[r - 1];
       const int dst_point_right = altered_points_range.last(r - 1);
-      tris.append(WeightTriplet(dst_point_left, src_point, point_weights[i]));
+      tris.append(WeightTriplet(dst_point_left, src_point, point_weights[term_point]));
       tris.append(WeightTriplet(
-          dst_point_right, src_point, point_weights[(degree - r - mult) * order + i]));
+          dst_point_right, src_point, point_weights[(degree - r - mult) * order + term_point]));
     }
   }
 
   for (const int j : IndexRange::from_begin_size(1, std::max(degree - mult - repeat - 1, 0))) {
-    for (const int i : IndexRange(order)) {
-      const int src_point = (knot_span - order + 1 + i) % points_num;
-      tris.append(WeightTriplet(altered_points_range[j], src_point, point_weights[j * order + i]));
+    for (const int term_point : IndexRange(order)) {
+      const int src_point = (knot_span - order + 1 + term_point) % points_num;
+      tris.append(WeightTriplet(
+          altered_points_range[j], src_point, point_weights[j * order + term_point]));
     }
   }
   WeightMatrix m(points_num_after, points_num);
