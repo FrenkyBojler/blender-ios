@@ -1,2 +1,3 @@
 Referenced by commit d31ec42d24d, Fix #129606: inserting keys not deselecting other keys in certain case
 Referenced by issue #129636, Fix #129606: inserting keys not deselecting other keys in certain case
+Referenced by issue #138877, insert keyframe behavior not consistent between all animation editors
