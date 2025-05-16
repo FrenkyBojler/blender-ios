@@ -2397,8 +2397,6 @@ bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, co
 {
   using namespace blender;
 
-  bool has_curve_with_type = false;
-
   for (const GreasePencilDrawingBase *base : grease_pencil.drawings()) {
     if (base->type != GP_DRAWING) {
       continue;
@@ -2407,12 +2405,11 @@ bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, co
         reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
     const bke::CurvesGeometry &curves = drawing.strokes();
     if (curves.has_curve_with_type(type)) {
-      has_curve_with_type = true;
-      break;
+      return true;
     }
   }
 
-  return has_curve_with_type;
+  return false;
 }
 
 int BKE_grease_pencil_stroke_point_count(const GreasePencil &grease_pencil)
