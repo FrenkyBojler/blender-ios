@@ -13,6 +13,7 @@ set(INC_SYS
 
 set(SRC
   intern/add_curves_on_mesh.cc
+  intern/cdt_to_mesh.cc
   intern/curve_constraints.cc
   intern/curves_remove_and_split.cc
   intern/extend_curves.cc

@@ -14080,6 +14080,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeTransform");
   define("GeometryNode", "GeometryNodeTranslateInstances");
   define("GeometryNode", "GeometryNodeTriangulate");
+  define("GeometryNode", "GeometryNodeTriangulatePoints");
   define("GeometryNode", "GeometryNodeTrimCurve");
   define("GeometryNode", "GeometryNodeUVPackIslands");
   define("GeometryNode", "GeometryNodeUVUnwrap");
