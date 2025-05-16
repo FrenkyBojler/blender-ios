@@ -452,7 +452,7 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
      * NOTE: This will compile the base unspecialized variant. */
     if (is_compute) {
       /* Set descriptor to default shader constants */
-      MTLComputePipelineStateDescriptor compute_pipeline_descriptor(this->constants.values);
+      MTLComputePipelineStateDescriptor compute_pipeline_descriptor(this->constants->values);
 
       this->bake_compute_pipeline_state(context_, compute_pipeline_descriptor);
     }
@@ -932,7 +932,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_pipeline_state(
 
     /* Custom function constant values: */
     populate_specialization_constant_values(
-        values, this->constants, pipeline_descriptor.specialization_state);
+        values, *this->constants, pipeline_descriptor.specialization_state);
 
     /* Prepare Vertex descriptor based on current pipeline vertex binding state. */
     MTLRenderPipelineDescriptor *desc = pso_descriptor_;
@@ -1406,7 +1406,7 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
 
     /* Custom function constant values: */
     populate_specialization_constant_values(
-        values, this->constants, compute_pipeline_descriptor.specialization_state);
+        values, *this->constants, compute_pipeline_descriptor.specialization_state);
 
     /* Offset the bind index for Uniform buffers such that they begin after the VBO
      * buffer bind slots. `MTL_uniform_buffer_base_index` is passed as a function
@@ -1580,9 +1580,6 @@ void MTLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
     /* Currently only support Compute */
     return;
   }
-
-  /* TODO(fclem): Is this needed? It shouldn't be. */
-  shader->constants = specialization.constants;
 
   /* Create descriptor using these specialization constants. */
   MTLComputePipelineStateDescriptor compute_pipeline_descriptor(specialization.constants.values);
