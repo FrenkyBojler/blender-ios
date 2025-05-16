@@ -233,7 +233,6 @@ void apply_weights_to_curve(const bke::CurvesGeometry &src_curves,
             attribute.dst.span.typed<T>().slice(new_curve_points)};
 
         for (const int row : IndexRange(point_weights.rows())) {
-          const int dst_point = row;
           for (WeightMatrix::InnerIterator it(point_weights, row); it; ++it) {
             const int src_point = it.col();
             mixer.mix_in(row, src_points[src_point], weights[src_point] * it.value());

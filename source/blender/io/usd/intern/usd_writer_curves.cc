@@ -308,8 +308,8 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
                                          tot_points,
                                          order,
                                          is_cyclic,
-                                         curves.nurbs_custom_knots_by_curve()[i_curve],
-                                         curves.nurbs_custom_knots(),
+                                         custom_knots_by_curve[i_curve],
+                                         custom_knots,
                                          temp_knots);
 
     /* Knots should be the concatenation of all batched curves.
