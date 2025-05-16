@@ -1089,6 +1089,9 @@ static StringRefNull glsl_patch_geometry_get()
     if (GLContext::native_barycentric_support) {
       ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
     }
+    if (GLContext::clip_control_support) {
+      ss << "#define GPU_ARB_clip_control\n";
+    }
 
     /* Array compatibility. */
     ss << "#define gpu_Array(_type) _type[]\n";
@@ -1124,6 +1127,9 @@ static StringRefNull glsl_patch_fragment_get()
       ss << "#extension GL_ARB_shader_stencil_export: enable\n";
       ss << "#define GPU_ARB_shader_stencil_export\n";
     }
+    if (GLContext::clip_control_support) {
+      ss << "#define GPU_ARB_clip_control\n";
+    }
 
     /* Array compatibility. */
     ss << "#define gpu_Array(_type) _type[]\n";
@@ -1151,6 +1157,10 @@ static StringRefNull glsl_patch_compute_get()
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_COMPUTE_SHADER\n";
+
+    if (GLContext::clip_control_support) {
+      ss << "#define GPU_ARB_clip_control\n";
+    }
 
     ss << datatoc_glsl_shader_defines_glsl;
 
