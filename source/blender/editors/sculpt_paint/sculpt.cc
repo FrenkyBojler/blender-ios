@@ -4678,7 +4678,7 @@ bool cursor_geometry_info_update(bContext *C,
     out->location = float3(0.0f);
     out->normal = float3(0.0f);
     out->active_vertex_co = float3(0.0f);
-    ss.clear_active_vert(false);
+    ss.clear_active_elements(false);
     return false;
   }
 
@@ -4724,7 +4724,7 @@ bool cursor_geometry_info_update(bContext *C,
     out->location = float3(0.0f);
     out->normal = float3(0.0f);
     out->active_vertex_co = float3(0.0f);
-    ss.clear_active_vert(true);
+    ss.clear_active_elements(true);
     return false;
   }
 
