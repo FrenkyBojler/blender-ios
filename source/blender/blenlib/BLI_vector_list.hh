@@ -38,6 +38,8 @@ class VectorList {
    * Contains the individual vectors. There must always be at least one vector
    */
   Vector<UsedVector> vectors_;
+  /* Total element count accross all vectors_. */
+  int64_t size_ = 0;
 
  public:
   VectorList()
@@ -59,6 +61,7 @@ class VectorList {
   {
     UsedVector &vector = this->ensure_space_for_one();
     vector.append_unchecked_as(std::forward<ForwardT>(value));
+    size_++;
   }
 
   T &last()
@@ -68,11 +71,7 @@ class VectorList {
 
   int64_t size() const
   {
-    int64_t result = 0;
-    for (const UsedVector &vector : *this) {
-      result += vector.size();
-    }
-    return result;
+    return size_;
   }
 
  private:
