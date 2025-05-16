@@ -4577,7 +4577,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
 
   if (sa1 && sa2) {
-    uiItemS(layout);
+    layout->separator();
   }
 
   /* Join needs two very similar areas. */
@@ -4607,7 +4607,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
 
-      uiItemS(layout);
+      layout->separator();
     }
   }
 
@@ -5184,7 +5184,7 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
               UI_ITEM_NONE,
               &ptr);
 
-  uiItemS(layout);
+  layout->separator();
 
   layout->op("SCREEN_OT_screen_full_area",
              area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
@@ -5203,7 +5203,7 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
   }
 
   layout->op("SCREEN_OT_area_dupli", std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  layout->separator();
   layout->op("SCREEN_OT_area_close", std::nullopt, ICON_X);
 }
 
@@ -5232,9 +5232,9 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
   }
 
   if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
-    uiItemS(layout);
+    layout->separator();
     ED_screens_region_flip_menu_create(C, layout, nullptr);
-    uiItemS(layout);
+    layout->separator();
     screen_area_menu_items(area, layout);
   }
 }
@@ -5250,7 +5250,7 @@ void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void * /
   }
 
   ED_screens_region_flip_menu_create(C, layout, nullptr);
-  uiItemS(layout);
+  layout->separator();
   screen_area_menu_items(area, layout);
 }
 
@@ -5321,8 +5321,7 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
       ED_screens_region_flip_menu_create(C, layout, nullptr);
       const ScrArea *area = CTX_wm_area(C);
       if (area && area->spacetype == SPACE_PROPERTIES) {
-        uiItemMenuF(
-            layout, IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
+        layout->menu_fn(IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
       }
       UI_popup_menu_end(C, pup);
     }
