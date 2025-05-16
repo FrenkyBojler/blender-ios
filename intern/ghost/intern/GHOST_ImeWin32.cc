@@ -422,7 +422,7 @@ void GHOST_ImeWin32::EndIME(HWND window_handle)
   is_enable = false;
   CleanupComposition(window_handle);
   ::ImmAssociateContextEx(window_handle, nullptr, 0);
-  eventImeData.composite_len = 0;
+  eventImeData.composite.clear();
 }
 
 void GHOST_ImeWin32::BeginIME(HWND window_handle, const GHOST_Rect &caret_rect, bool complete)
