@@ -1050,6 +1050,9 @@ static StringRefNull glsl_patch_vertex_get()
     if (GLContext::native_barycentric_support) {
       ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
     }
+    if (GLContext::clip_control_support) {
+      ss << "#define GPU_ARB_clip_control\n";
+    }
 
     /* Fallbacks. */
     if (!GLContext::shader_draw_parameters_support) {
