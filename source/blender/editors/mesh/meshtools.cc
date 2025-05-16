@@ -732,8 +732,12 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
     const Mesh &mesh;
   };
 
+  auto topology_count_matches = [](const Mesh &a, const Mesh &b) {
+    return a.verts_num == b.verts_num && a.edges_num == b.edges_num && a.faces_num == b.faces_num;
+  };
+
   bool found_object = false;
-  bool found_non_equal_verts_num = false;
+  bool found_non_equal_count = false;
   Vector<ObjectInfo> compatible_objects;
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter == &active_object) {
@@ -748,18 +752,18 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
     }
     found_object = true;
     if (const Mesh *mesh = BKE_object_get_evaluated_mesh(object_eval)) {
-      if (mesh->verts_num == active_mesh.verts_num) {
+      if (topology_count_matches(*mesh, active_mesh)) {
         compatible_objects.append({BKE_id_name(ob_iter->id), *mesh});
         continue;
       }
     }
     /* Fall back to the original mesh. */
     const Mesh &mesh_orig = *static_cast<const Mesh *>(ob_iter->data);
-    if (mesh_orig.verts_num == active_mesh.verts_num) {
+    if (topology_count_matches(mesh_orig, active_mesh)) {
       compatible_objects.append({BKE_id_name(ob_iter->id), mesh_orig});
       continue;
     }
-    found_non_equal_verts_num = true;
+    found_non_equal_count = true;
   }
   CTX_DATA_END;
 
@@ -768,8 +772,10 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  if (found_non_equal_verts_num) {
-    BKE_report(reports, RPT_WARNING, "Selected meshes must have equal numbers of vertices");
+  if (found_non_equal_count) {
+    BKE_report(reports,
+               RPT_WARNING,
+               "Selected meshes must have equal numbers of vertices, edges, and faces");
     return OPERATOR_CANCELLED;
   }
 
