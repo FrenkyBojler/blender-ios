@@ -246,6 +246,31 @@ void apply_weights_to_curve(const bke::CurvesGeometry &src_curves,
   }
 }
 
+static void insert_knot_value(const int points_num,
+                              const Span<float> src_knots,
+                              const float knot,
+                              const int knot_span,
+                              const int repeat,
+                              MutableSpan<float> dst_knots)
+{
+  const bool loop_to_front = knot_span >= points_num;
+  const int first_stable_knot = loop_to_front ? (knot_span % points_num) + 1 : 0;
+  const IndexRange stable_knots = IndexRange::from_begin_end_inclusive(first_stable_knot,
+                                                                       knot_span);
+  dst_knots.slice(stable_knots).copy_from(src_knots.slice(stable_knots));
+  dst_knots.slice(IndexRange::from_begin_size(knot_span + 1, repeat)).fill(knot);
+  MutableSpan<float> after_insertion = dst_knots.drop_front(stable_knots.one_after_last() +
+                                                            repeat);
+  after_insertion.copy_from(src_knots.slice(knot_span + 1, after_insertion.size()));
+  /* For cyclic curves only, when new knots are inserted in front and somewhere after
+   * knots[curve_points.size()]. */
+  for (const int k : IndexRange::from_begin_end(0, first_stable_knot)) {
+    dst_knots[first_stable_knot - 1 - k] = dst_knots[first_stable_knot] +
+                                           dst_knots[knot_span + repeat - k] -
+                                           src_knots[knot_span + 1];
+  }
+}
+
 bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
                                 const int curve,
                                 const float knot,
@@ -282,25 +307,8 @@ bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
   new_knots_all.slice(tail).copy_from(curves.nurbs_custom_knots().take_back(tail.size()));
 
   /* Fill new knots of curve being modified. */
-  const IndexRange new_curve_points = IndexRange::from_begin_size(
-      curve_points.first(), curve_points.size() + new_points_added);
-  const bool loop_to_front = knot_span >= curve_points.size();
-  const int first_stable_knot = loop_to_front ? (knot_span % curve_points.size()) + 1 : 0;
-  const IndexRange stable_knots = IndexRange::from_begin_end_inclusive(first_stable_knot,
-                                                                       knot_span);
-  MutableSpan<float> new_knots = new_knots_all.slice(curve_knots);
-  new_knots.slice(stable_knots).copy_from(knots.slice(stable_knots));
-  new_knots.slice(IndexRange::from_begin_size(knot_span + 1, new_points_added)).fill(knot);
-  MutableSpan<float> after_insertion = new_knots.drop_front(stable_knots.one_after_last() +
-                                                            new_points_added);
-  after_insertion.copy_from(knots.slice(knot_span + 1, after_insertion.size()));
-  /* For cyclic curves only, when new knots are inserted in front and somewhere after
-   * knots[curve_points.size()]. */
-  for (const int k : IndexRange::from_begin_end(0, first_stable_knot)) {
-    new_knots[first_stable_knot - 1 - k] = new_knots[first_stable_knot] +
-                                           new_knots[knot_span + new_points_added - k] -
-                                           knots[knot_span + 1];
-  }
+  insert_knot_value(
+      curve_points.size(), knots, knot, knot_span, repeat, new_knots_all.slice(curve_knots));
 
   const WeightMatrix weights = calc_knot_insertion_weights(
       knots, curve_points.size(), order, knot, knot_span, knot_multiplicity, repeat);
