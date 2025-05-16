@@ -358,7 +358,7 @@ class GHOST_DeviceVK {
         VK_TRUE,
         VK_FALSE,
         VK_FALSE,
-        VK_TRUE,
+        VK_FALSE,
         VK_FALSE};
     if (has_extensions({VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME})) {
       acceleration_structure_features.pNext = device_create_info_p_next;
