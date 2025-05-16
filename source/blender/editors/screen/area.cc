@@ -1107,12 +1107,9 @@ static bool region_background_is_transparent(const ScrArea *area, const ARegion 
 
 static void region_azone_edge(const ScrArea *area, AZone *az, const ARegion *region)
 {
-  /* Narrow regions like headers and Properties NavBar need
-   * a smaller hitspace that does not interfere with content. */
-  const bool is_narrow = RGN_TYPE_IS_HEADER_ANY(region->regiontype) ||
-                         (region->regiontype == RGN_TYPE_NAV_BAR &&
-                          area->spacetype == SPACE_PROPERTIES);
-
+  /* Narrow regions like headers need a smaller hit-space that
+   * does not interfere with content. */
+  const bool is_narrow = RGN_TYPE_IS_HEADER_ANY(region->regiontype);
   const bool transparent = !is_narrow && region->overlap &&
                            region_background_is_transparent(area, region);
 
@@ -1192,7 +1189,9 @@ static void region_azone_tab_plus(ScrArea *area, AZone *az, ARegion *region)
   BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }
 
-static bool region_azone_edge_poll(const ARegion *region, const bool is_fullscreen)
+static bool region_azone_edge_poll(const ScrArea *area,
+                                   const ARegion *region,
+                                   const bool is_fullscreen)
 {
   if (region->flag & RGN_FLAG_POLL_FAILED) {
     return false;
@@ -1211,6 +1210,10 @@ static bool region_azone_edge_poll(const ARegion *region, const bool is_fullscre
     return false;
   }
   if (!is_hidden && ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
+    return false;
+  }
+  if (!is_hidden && region->regiontype == RGN_TYPE_NAV_BAR && area->spacetype == SPACE_PROPERTIES)
+  {
     return false;
   }
 
@@ -1232,7 +1235,7 @@ static void region_azone_edge_init(ScrArea *area,
 {
   const bool is_hidden = (region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL));
 
-  if (!region_azone_edge_poll(region, is_fullscreen)) {
+  if (!region_azone_edge_poll(area, region, is_fullscreen)) {
     return;
   }
 
@@ -2791,6 +2794,8 @@ void ED_area_prevspace(bContext *C, ScrArea *area)
   SpaceLink *prevspace = sl ? area_get_prevspace(area) : nullptr;
 
   if (prevspace) {
+    /* Specify that we want last-used if there are subtypes. */
+    area->butspacetype_subtype = -1;
     ED_area_newspace(C, area, prevspace->spacetype, false);
     /* We've exited the space, so it can't be considered temporary anymore. */
     sl->link_flag &= ~SPACE_FLAG_TYPE_TEMPORARY;
@@ -3593,7 +3598,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
       header.layout = layout;
       ht->draw(C, &header);
       if (ht->next) {
-        uiItemS(layout);
+        layout->separator();
       }
 
       /* for view2d */
@@ -3834,10 +3839,10 @@ void ED_region_info_draw_multiline(ARegion *region,
 
   GPU_blend(GPU_BLEND_ALPHA);
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4fv(fill_color);
-  immRecti(pos, rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
+  immRectf(pos, rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
   immUnbindProgram();
   GPU_blend(GPU_BLEND_NONE);
 
@@ -4054,11 +4059,10 @@ void ED_region_cache_draw_background(ARegion *region)
   const rcti *rect_visible = ED_region_visible_rect(region);
   const int region_bottom = rect_visible->ymin;
 
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4ub(128, 128, 255, 64);
-  immRecti(pos, 0, region_bottom, region->winx, region_bottom + 8 * UI_SCALE_FAC);
+  immRectf(pos, 0, region_bottom, region->winx, region_bottom + 8 * UI_SCALE_FAC);
   immUnbindProgram();
 }
 
@@ -4106,8 +4110,7 @@ void ED_region_cache_draw_cached_segments(
     const rcti *rect_visible = ED_region_visible_rect(region);
     const int region_bottom = rect_visible->ymin;
 
-    uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ub(128, 128, 255, 128);
 
@@ -4115,7 +4118,7 @@ void ED_region_cache_draw_cached_segments(
       float x1 = float(points[a * 2] - sfra) / (efra - sfra + 1) * region->winx;
       float x2 = float(points[a * 2 + 1] - sfra + 1) / (efra - sfra + 1) * region->winx;
 
-      immRecti(pos, x1, region_bottom, x2, region_bottom + 8 * UI_SCALE_FAC);
+      immRectf(pos, x1, region_bottom, x2, region_bottom + 8 * UI_SCALE_FAC);
       /* TODO(merwin): use primitive restart to draw multiple rects more efficiently */
     }
 
