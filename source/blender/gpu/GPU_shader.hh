@@ -127,8 +127,9 @@ void GPU_shader_free(GPUShader *shader);
  * Uniform functions need to have the shader bound in order to work. (TODO: until we use
  * glProgramUniform)
  */
-void GPU_shader_bind(GPUShader *shader,
-                     blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
+void GPU_shader_bind(
+    GPUShader *shader,
+    const blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
 
 /**
  * Unbind the active shader.

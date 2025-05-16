@@ -28,7 +28,7 @@ void GPU_compute_dispatch(
     uint groups_x_len,
     uint groups_y_len,
     uint groups_z_len,
-    blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
+    const blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
 
 /**
  * Dispatch a compute shader task. The size of the dispatch is sourced from a \a indirect_buf
@@ -50,4 +50,4 @@ void GPU_compute_dispatch(
 void GPU_compute_dispatch_indirect(
     GPUShader *shader,
     GPUStorageBuf *indirect_buf,
-    blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
+    const blender::gpu::shader::SpecializationConstants *constants_state = nullptr);

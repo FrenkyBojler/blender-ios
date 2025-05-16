@@ -402,7 +402,7 @@ void GPU_shader_cache_dir_clear_old()
 /** \name Binding
  * \{ */
 
-void GPU_shader_bind(GPUShader *gpu_shader, shader::SpecializationConstants *constants_state)
+void GPU_shader_bind(GPUShader *gpu_shader, const shader::SpecializationConstants *constants_state)
 {
   Shader *shader = unwrap(gpu_shader);
 
