@@ -192,6 +192,7 @@ class AbstractViewItem {
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  bool is_selected_ = false;
   bool is_renaming_ = false;
   /** See #is_search_highlight(). */
   bool is_highlighted_search_ = false;
@@ -294,11 +295,13 @@ class AbstractViewItem {
    */
   void activate(bContext &C);
   void deactivate();
+  void deselect();
   /**
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise we
    * can't be sure about the item state.
    */
   bool is_active() const;
+  bool is_selected() const;
   /**
    * Should this item be highlighted as matching search result? Only one item should be highlighted
    * this way at a time. Pressing enter will activate it.

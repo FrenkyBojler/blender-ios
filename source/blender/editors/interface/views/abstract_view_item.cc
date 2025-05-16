@@ -30,6 +30,7 @@ void AbstractViewItem::update_from_old(const AbstractViewItem &old)
   is_active_ = old.is_active_;
   is_renaming_ = old.is_renaming_;
   is_highlighted_search_ = old.is_highlighted_search_;
+  is_selected_ = old.is_selected_;
 }
 
 /** \} */
@@ -64,6 +65,7 @@ bool AbstractViewItem::set_state_active()
   this->get_view().foreach_view_item([](auto &item) { item.deactivate(); });
 
   is_active_ = true;
+  is_selected_ = true;
   return true;
 }
 
@@ -77,6 +79,11 @@ void AbstractViewItem::activate(bContext &C)
 void AbstractViewItem::deactivate()
 {
   is_active_ = false;
+}
+
+void AbstractViewItem::deselect()
+{
+  is_selected_ = false;
 }
 
 /** \} */
@@ -318,6 +325,13 @@ bool AbstractViewItem::is_active() const
   BLI_assert_msg(this->get_view().is_reconstructed(),
                  "State can't be queried until reconstruction is completed");
   return is_active_;
+}
+
+bool AbstractViewItem::is_selected() const
+{
+  BLI_assert_msg(this->get_view().is_reconstructed(),
+                 "State can't be queried until reconstruction is completed");
+  return is_selected_;
 }
 
 bool AbstractViewItem::is_search_highlight() const
