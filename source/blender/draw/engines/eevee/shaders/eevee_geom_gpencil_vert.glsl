@@ -10,6 +10,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_geom_gpencil)
 #include "draw_grease_pencil_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "eevee_attributes_gpencil_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_surf_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 
@@ -68,8 +69,5 @@ void main()
   shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
 #endif
 
-#ifdef GPU_ARB_clip_control
-  /* Reverse Z. Remapping from -1..1 to 1..-1. The scaling to 0..1 is handled by the backend. */
-  gl_Position.z = -gl_Position.z;
-#endif
+  gl_Position = reverse_z::transform(gl_Position);
 }

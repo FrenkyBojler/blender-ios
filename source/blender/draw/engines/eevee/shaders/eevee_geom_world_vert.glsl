@@ -12,6 +12,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_geom_world)
 
 #include "draw_view_lib.glsl"
 #include "eevee_nodetree_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_surf_lib.glsl"
 
 void main()
@@ -29,8 +30,5 @@ void main()
   interp.P = drw_point_ndc_to_view(gl_Position.xyz);
   interp.N = float3(1);
 
-#ifdef GPU_ARB_clip_control
-  /* Reverse Z. Remapping from -1..1 to 1..-1. The scaling to 0..1 is handled by the backend. */
-  gl_Position.z = -gl_Position.z;
-#endif
+  gl_Position = reverse_z::transform(gl_Position);
 }
