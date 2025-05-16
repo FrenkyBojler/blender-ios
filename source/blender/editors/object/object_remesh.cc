@@ -177,34 +177,66 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+/**
+ * Estimates the number of vertices of the mesh after being remeshed with the given voxel size.
+ *
+ * For a mesh where all the face normals are axis-aligned (e.g., a cube), a very good estimate is:
+ *
+ * `vertex_count = total_area / voxel_size^2`
+ *
+ * For a generic mesh, the above formula needs to be adjusted with a
+ * factor that measures how axis-aligned the faces normals are on average.
+ *
+ * This is calculated as the average of `max(abs(face_normal))` and remapped to
+ * the interval [1.0, 2.3], where 2.3 was found experimentally.
+ *
+ * To ensure the estimation has no impact on performance, it is calculated using a random subset of
+ * the faces.
+ */
 static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxel_size)
 {
   const Span<float3> positions = mesh.vert_positions();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<float3> face_normals = mesh.face_normals();
   const blender::OffsetIndices faces = mesh.faces();
-  float area = 0.0f;
-  float factor = 0.0f;
+
+  float total_sampled_area = 0.0f;
+  float total_axis_alignment_score = 0.0f;
 
   constexpr int samples = 10000;
   const int seed = (int)faces.size();
 
   for (const int i : IndexRange(samples)) {
-    const int idx = (int)(noise::hash_to_float(seed, i) * (faces.size() - 1));
-    area += blender::bke::mesh::face_area_calc(positions, corner_verts.slice(faces[idx]));
-    factor += math::reduce_max(math::abs(face_normals[idx]));
+    const int random_face_idx = (int)(noise::hash_to_float(seed, i) * (faces.size() - 1));
+    total_sampled_area += blender::bke::mesh::face_area_calc(
+        positions, corner_verts.slice(faces[random_face_idx]));
+
+    total_axis_alignment_score += math::reduce_max(math::abs(face_normals[random_face_idx]));
   }
 
-  area *= float(faces.size()) / float(samples);
-  factor /= float(samples);
+  const float avg_face_area = total_sampled_area / samples;
+  const float estimated_total_area = avg_face_area * faces.size();
 
-  constexpr float adj_factor = 2.3f;
-  constexpr float max_factor = 1.0f;
-  const float min_factor = math::rcp(math::numbers::sqrt3);
-  factor = adj_factor -
-           (factor - min_factor) * (adj_factor - max_factor) / (max_factor - min_factor);
+  const float avg_axis_alignment_score = total_axis_alignment_score / samples;
 
-  return int(area / (voxel_size * voxel_size) * factor);
+  /* Minimum possible score is for a diagonal vector such as (1, 1, 1). When normalized, each of
+   * its components is equal to the reciprocal of sqrt(3). */
+  const float min_score = math::rcp(math::numbers::sqrt3);
+  constexpr float max_score = 1.0f;
+
+  /* A low score means that the faces of the mesh, on average, are not axis-aligned. These meshes
+   * tend to generate more vertices when voxel remeshed. Therefore, a low score is
+   * remapped to a high multiplier factor. The maximum factor of 2.3 was found experimentally. */
+  constexpr float min_final_factor = 1.0f;
+  constexpr float max_final_factor = 2.3f;
+
+  /* Remap `avg_axis_alignment_score` from `[min_score,max_score]` to
+   * `[max_final_factor,min_final_factor]` (inverted range). */
+  const float final_factor = max_final_factor - (avg_axis_alignment_score - min_score) *
+                                                    (max_final_factor - min_final_factor) /
+                                                    (max_score - min_score);
+
+  return int(estimated_total_area / (voxel_size * voxel_size) * final_factor);
 }
 
 static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
