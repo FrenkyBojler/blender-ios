@@ -52,8 +52,7 @@ struct InsertKnotOpData {
   const int8_t order;
   const IndexRange curve_points;
   const Span<float3> positions;
-  Span<float> knots;
-  Array<float> knots_buffer;
+  Array<float> knots;
 
   float knot_to_insert;
   int knot_span;
@@ -79,15 +78,14 @@ struct InsertKnotOpData {
     const int knots_num = bke::curves::nurbs::knots_num(curve_points.size(), order, cyclic);
 
     const KnotsMode knots_mode = KnotsMode(curves.nurbs_knots_modes()[curve]);
-    knots_buffer.reinitialize(knots_num);
+    knots.reinitialize(knots_num);
     bke::curves::nurbs::load_curve_knots(knots_mode,
                                          curve_points.size(),
                                          order,
                                          cyclic,
                                          curves.nurbs_custom_knots_by_curve()[curve],
                                          curves.nurbs_custom_knots(),
-                                         knots_buffer);
-    knots = knots_buffer.as_span();
+                                         knots);
     knot_range = float2(knots[order - 1], knots.last(order - 1));
   }
 
