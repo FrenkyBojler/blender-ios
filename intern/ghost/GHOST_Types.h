@@ -809,6 +809,12 @@ typedef struct {
     } cpu;
     struct {
       /**
+       * Vulkan handle of the image. When this is the same as last time the imported memory can be
+       * reused.
+       */
+      VkImage vk_image_blender;
+
+      /**
        * Handle of the exported GPU memory. Depending on the data_transfer_mode the actual handle
        * type can be different (void-pointer/int/..).
        */
