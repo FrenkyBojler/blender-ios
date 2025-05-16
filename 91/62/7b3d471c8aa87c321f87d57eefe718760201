@@ -1,2 +1,3 @@
 Referenced by issue #138896, Vulkan GPU Subdive: Crashes Blender after a while
 Referenced by pull request #138969, Fix: Vulkan: Incorrect vertex fetch mode
+Referenced by commit abede0e682bd173f384217e2fc1f8757808b4fa7, Fix: Vulkan: Incorrect vertex fetch mode
