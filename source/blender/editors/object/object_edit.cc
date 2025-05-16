@@ -1932,11 +1932,11 @@ static void shade_auto_smooth_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *col = &layout->column(false);
   uiLayoutSetActive(col, RNA_boolean_get(op->ptr, "use_auto_smooth"));
-  uiItemR(layout, op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void OBJECT_OT_shade_auto_smooth(wmOperatorType *ot)
@@ -2347,7 +2347,7 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
                   UI_ITEM_NONE,
                   nullptr);
 
-  uiItemS(layout);
+  layout->separator();
 
   Scene *scene = CTX_data_scene(C);
   const int icon = (menu->collection == scene->master_collection) ?
@@ -2373,7 +2373,7 @@ static void move_to_collection_menus_items(uiLayout *layout, MoveToCollectionDat
                menu->index);
   }
   else {
-    uiItemMenuF(layout, menu->collection->id.name + 2, icon, move_to_collection_menu_create, menu);
+    layout->menu_fn(menu->collection->id.name + 2, icon, move_to_collection_menu_create, menu);
   }
 }
 

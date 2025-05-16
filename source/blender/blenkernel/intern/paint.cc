@@ -137,7 +137,7 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
 }
 
 IDTypeInfo IDType_ID_PAL = {
-    /*id_code*/ ID_PAL,
+    /*id_code*/ Palette::id_type,
     /*id_filter*/ FILTER_ID_PAL,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_PAL,
@@ -206,7 +206,7 @@ static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_PC = {
-    /*id_code*/ ID_PC,
+    /*id_code*/ PaintCurve::id_type,
     /*id_filter*/ FILTER_ID_PC,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_PC,
@@ -1319,7 +1319,7 @@ std::optional<int> BKE_paint_get_brush_type_from_paintmode(const Brush *brush,
 
 PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name)
 {
-  PaintCurve *pc = static_cast<PaintCurve *>(BKE_id_new(bmain, ID_PC, name));
+  PaintCurve *pc = BKE_id_new<PaintCurve>(bmain, name);
   return pc;
 }
 
@@ -1366,7 +1366,7 @@ void BKE_palette_clear(Palette *palette)
 
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {
-  Palette *palette = static_cast<Palette *>(BKE_id_new(bmain, ID_PAL, name));
+  Palette *palette = BKE_id_new<Palette>(bmain, name);
   return palette;
 }
 

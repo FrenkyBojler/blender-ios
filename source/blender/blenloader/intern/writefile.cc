@@ -21,7 +21,7 @@
  *
  * data-blocks: (also see struct #BHead).
  * <pre>
- * `bh.code`       `char[4]` see `BLO_blend_defs.hh` for a list of known types.
+ * `bh.code`       `char[4]` see `BLO_core_bhead.hh` for a list of known types.
  * `bh.len`        `int32` length data after #BHead in bytes.
  * `bh.old`        `void *` old pointer (the address at the time of writing the file).
  * `bh.SDNAnr`     `int32` struct index of structs stored in #DNA1 data.
@@ -125,7 +125,6 @@
 
 #include "DRW_engine.hh"
 
-#include "BLO_blend_defs.hh"
 #include "BLO_blend_validate.hh"
 #include "BLO_read_write.hh"
 #include "BLO_readfile.hh"
@@ -773,7 +772,7 @@ static void writestruct_at_address_nr(WriteData *wd,
                                       const void *adr,
                                       const void *data)
 {
-  BLI_assert(struct_nr > 0 && struct_nr < SDNA_TYPE_MAX);
+  BLI_assert(struct_nr > 0 && struct_nr <= blender::dna::sdna_struct_id_get_max());
 
   if (adr == nullptr || data == nullptr || nr == 0) {
     return;
@@ -918,10 +917,11 @@ static void writelist_id(WriteData *wd, const int filecode, const char *structna
 #endif
 
 #define writestruct_at_address(wd, filecode, struct_id, nr, adr, data) \
-  writestruct_at_address_nr(wd, filecode, SDNA_TYPE_FROM_STRUCT(struct_id), nr, adr, data)
+  writestruct_at_address_nr( \
+      wd, filecode, blender::dna::sdna_struct_id_get<struct_id>(), nr, adr, data)
 
 #define writestruct(wd, filecode, struct_id, nr, adr) \
-  writestruct_nr(wd, filecode, SDNA_TYPE_FROM_STRUCT(struct_id), nr, adr)
+  writestruct_nr(wd, filecode, blender::dna::sdna_struct_id_get<struct_id>(), nr, adr)
 
 /** \} */
 

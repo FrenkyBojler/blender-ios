@@ -3016,7 +3016,6 @@ static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbase
 static void do_versions_seq_set_cache_defaults(Editing *ed)
 {
   ed->cache_flag = SEQ_CACHE_STORE_FINAL_OUT;
-  ed->recycle_max_cost = 10.0f;
 }
 
 static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
@@ -3863,6 +3862,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
 
         if (rbw->shared == nullptr) {
           rbw->shared = MEM_callocN<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
+          BKE_rigidbody_world_init_runtime(rbw);
         }
 
         /* Move shared pointers from deprecated location to current location */
