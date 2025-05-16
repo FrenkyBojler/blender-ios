@@ -61,8 +61,6 @@ class Film {
     /** Set to DRW_STATE_DEPTH_GREATER_EQUAL if reverse Z is supported, DRW_STATE_DEPTH_LESS_EQUAL
      * otherwise. */
     DRWState test_state = DRW_STATE_DEPTH_LESS_EQUAL;
-    /** Set to true if reverse Z is supported, false otherwise. */
-    bool invert_near_far = false;
   } depth;
 
  private:
