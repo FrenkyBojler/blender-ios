@@ -433,13 +433,22 @@ void AbstractTreeViewItem::tree_row_click_fn(bContext *C, void *but_arg1, void *
 {
   uiButViewItem *item_but = (uiButViewItem *)but_arg1;
   AbstractTreeViewItem &tree_item = reinterpret_cast<AbstractTreeViewItem &>(*item_but->view_item);
-
   const wmWindow *win = CTX_wm_window(C);
   wmEvent *event = win->eventstate;
+
+  if (tree_item.is_active()) {
+    return;
+  }
+
   if ((event->modifier & KM_CTRL)) {
     tree_item.activate(*C);
+    return;
   }
-  else if (event->modifier & KM_SHIFT) {
+
+  /* Clear previous selection before LMB select and shift LMB select. */
+  tree_item.get_view().foreach_view_item([](AbstractViewItem &item) { item.deselect(); });
+
+  if (event->modifier & KM_SHIFT) {
     bool can_select = false;
     bool state_changed = false;
     tree_item.get_tree_view().foreach_item_recursive(
@@ -454,11 +463,10 @@ void AbstractTreeViewItem::tree_row_click_fn(bContext *C, void *but_arg1, void *
           }
         },
         IterOptions::SkipCollapsed);
+    return;
   }
-  else {
-    tree_item.get_view().foreach_view_item([](AbstractViewItem &item) { item.deselect(); });
-    tree_item.activate(*C);
-  }
+
+   tree_item.activate(*C);
 }
 
 void AbstractTreeViewItem::add_treerow_button(uiBlock &block)
