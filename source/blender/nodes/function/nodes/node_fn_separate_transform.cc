@@ -52,7 +52,12 @@ class SeparateTransformFunction : public mf::MultiFunction {
     }
 
     if (rotation.is_empty() && !scale.is_empty()) {
-      mask.foreach_index([&](const int64_t i) { scale[i] = math::to_scale(transforms[i]); });
+      mask.foreach_index([&](const int64_t i) {
+        scale[i] = math::to_scale(transforms[i]);
+        if (UNLIKELY(math::is_negative(transforms[i]))) {
+          scale[i] = -scale[i];
+        }
+      });
     }
     else if (!rotation.is_empty() && scale.is_empty()) {
       mask.foreach_index([&](const int64_t i) {
