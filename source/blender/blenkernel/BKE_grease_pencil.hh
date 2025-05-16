@@ -1114,8 +1114,7 @@ int BKE_grease_pencil_stroke_point_count(const GreasePencil &grease_pencil);
 /**
  * \note Used for "move only origins" in object_data_transform.cc.
  */
-bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil,
-                                           const CurveType type);
+bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, CurveType type);
 /**
  * \note Used for "move only origins" in object_data_transform.cc.
  */
