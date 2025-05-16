@@ -147,6 +147,11 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketRotation", "NodeTreeInterfaceSocketRotation", SOCK_ROTATION, PROP_NONE},
     {"NodeSocketMatrix", "NodeTreeInterfaceSocketMatrix", SOCK_MATRIX, PROP_NONE},
     {"NodeSocketVector", "NodeTreeInterfaceSocketVector", SOCK_VECTOR, PROP_NONE},
+    {"NodeSocketVectorFactor", "NodeTreeInterfaceSocketVectorFactor", SOCK_VECTOR, PROP_FACTOR},
+    {"NodeSocketVectorPercentage",
+     "NodeTreeInterfaceSocketVectorPercentage",
+     SOCK_VECTOR,
+     PROP_PERCENTAGE},
     {"NodeSocketVectorTranslation",
      "NodeTreeInterfaceSocketVectorTranslation",
      SOCK_VECTOR,
@@ -314,6 +319,18 @@ inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree
   return add_interface_socket_from_node(
       ntree, from_node, from_sock, from_sock.typeinfo->idname, from_sock.name);
 }
+
+/**
+ * Reference to a node tree's interface item.
+ *
+ * Used by the node interface drag controller to reorder interface items and
+ * the node space drop-boxes to drop Group Input/Output nodes into the node
+ * editor with selected sockets.
+ */
+struct bNodeTreeInterfaceItemReference {
+  bNodeTree *tree;
+  bNodeTreeInterfaceItem *item;
+};
 
 }  // namespace node_interface
 

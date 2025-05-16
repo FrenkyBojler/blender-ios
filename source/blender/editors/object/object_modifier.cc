@@ -1203,7 +1203,7 @@ static bool modifier_apply_obdata(ReportList *reports,
     }
 
     bke::GeometrySet geometry_set = bke::GeometrySet::from_pointcloud(
-        &points, bke::GeometryOwnershipType::ReadOnly);
+        BKE_pointcloud_copy_for_eval(&points));
 
     ModifierEvalContext mectx = {depsgraph, ob, MOD_APPLY_TO_ORIGINAL};
     mti->modify_geometry_set(md_eval, &mectx, &geometry_set);
@@ -2805,7 +2805,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
   bArmature *arm = static_cast<bArmature *>(arm_ob->data);
   ANIM_armature_bonecoll_show_all(arm);
   arm_ob->dtx |= OB_DRAW_IN_FRONT;
-  arm->drawtype = ARM_LINE;
+  arm->drawtype = ARM_DRAW_TYPE_STICK;
   arm->edbo = MEM_callocN<ListBase>("edbo armature");
 
   MVertSkin *mvert_skin = static_cast<MVertSkin *>(
