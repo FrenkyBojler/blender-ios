@@ -268,7 +268,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_CU_LEGACY = {
-    /*id_code*/ ID_CU_LEGACY,
+    /*id_code*/ Curve::id_type,
     /*id_filter*/ FILTER_ID_CU_LEGACY,
     /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_MA | FILTER_ID_VF | FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_CU_LEGACY,
@@ -432,6 +432,7 @@ short BKE_curve_type_get(const Curve *cu)
     LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
       if (nu->pntsv > 1) {
         type = OB_SURF;
+        break;
       }
     }
   }
@@ -1971,7 +1972,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
                       (bezt->tilt - prevbezt->tilt) * (3.0f * fac * fac - 2.0f * fac * fac * fac);
       }
       else {
-        key_curve_position_weights(fac, t, nu->tilt_interp);
+        key_curve_position_weights(fac, t, KeyInterpolationType(nu->tilt_interp));
         *tilt_array = t[0] * pprev->tilt + t[1] * prevbezt->tilt + t[2] * bezt->tilt +
                       t[3] * next->tilt;
       }
@@ -1991,7 +1992,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
 
         /* reuse interpolation from tilt if we can */
         if (tilt_array == nullptr || nu->tilt_interp != nu->radius_interp) {
-          key_curve_position_weights(fac, t, nu->radius_interp);
+          key_curve_position_weights(fac, t, KeyInterpolationType(nu->radius_interp));
         }
         *radius_array = t[0] * pprev->radius + t[1] * prevbezt->radius + t[2] * bezt->radius +
                         t[3] * next->radius;

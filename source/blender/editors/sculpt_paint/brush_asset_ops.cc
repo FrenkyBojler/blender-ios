@@ -433,7 +433,7 @@ static bool brush_asset_edit_metadata_poll(bContext *C)
     CTX_wm_operator_poll_msg_set(C, "Asset library is not editable");
     return false;
   }
-  if (!bke::asset_edit_id_is_writable(brush->id)) {
+  if (!(library_ref->type & ASSET_LIBRARY_LOCAL) && !bke::asset_edit_id_is_writable(brush->id)) {
     CTX_wm_operator_poll_msg_set(C, "Asset file is not editable");
     return false;
   }
@@ -454,8 +454,8 @@ void BRUSH_OT_asset_edit_metadata(wmOperatorType *ot)
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "The asset's catalog path");
   RNA_def_property_string_search_func_runtime(
       prop, visit_active_library_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
-  RNA_def_string(ot->srna, "author", nullptr, MAX_NAME, "Author", "");
-  RNA_def_string(ot->srna, "description", nullptr, MAX_NAME, "Description", "");
+  RNA_def_string(ot->srna, "author", nullptr, 0, "Author", "");
+  RNA_def_string(ot->srna, "description", nullptr, 0, "Description", "");
 }
 
 static wmOperatorStatus brush_asset_load_preview_exec(bContext *C, wmOperator *op)
@@ -593,6 +593,28 @@ void BRUSH_OT_asset_delete(wmOperatorType *ot)
   ot->poll = brush_asset_delete_poll;
 }
 
+static std::optional<AssetLibraryReference> get_asset_library_reference(const bContext &C,
+                                                                        const Paint &paint,
+                                                                        const Brush &brush)
+{
+  if (!ID_IS_ASSET(&brush.id)) {
+    BLI_assert_unreachable();
+    return std::nullopt;
+  }
+  const AssetWeakReference *brush_weak_ref = paint.brush_asset_reference;
+  if (!brush_weak_ref) {
+    BLI_assert_unreachable();
+    return std::nullopt;
+  }
+  const asset_system::AssetRepresentation *asset = asset::find_asset_from_weak_ref(
+      C, *brush_weak_ref, CTX_wm_reports(&C));
+  if (!asset) {
+    /* May happen if library loading hasn't finished. */
+    return std::nullopt;
+  }
+  return asset->owner_asset_library().library_reference();
+}
+
 static bool brush_asset_save_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -601,11 +623,15 @@ static bool brush_asset_save_poll(bContext *C)
     return false;
   }
 
-  if (!bke::asset_edit_id_is_editable(brush->id)) {
+  const std::optional<AssetLibraryReference> library_ref = get_asset_library_reference(
+      *C, *paint, *brush);
+  if (!library_ref) {
+    BLI_assert_unreachable();
     return false;
   }
 
-  if (!(paint->brush_asset_reference && ID_IS_ASSET(brush))) {
+  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+    CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be individually saved");
     return false;
   }
 
@@ -660,7 +686,18 @@ static bool brush_asset_revert_poll(bContext *C)
     return false;
   }
 
-  return paint->brush_asset_reference && bke::asset_edit_id_is_editable(brush->id);
+  const std::optional<AssetLibraryReference> library_ref = get_asset_library_reference(
+      *C, *paint, *brush);
+  if (!library_ref) {
+    BLI_assert_unreachable();
+    return false;
+  }
+  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+    CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be reverted");
+    return false;
+  }
+
+  return bke::asset_edit_id_is_editable(brush->id);
 }
 
 static wmOperatorStatus brush_asset_revert_exec(bContext *C, wmOperator *op)

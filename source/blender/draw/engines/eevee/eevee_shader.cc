@@ -72,18 +72,18 @@ ShaderModule::ShaderModule()
 
 ShaderModule::~ShaderModule()
 {
-  /* Finish compilation to avoid asserts on exit at GLShaderCompiler destructor. */
+  /* Cancel compilation to avoid asserts on exit at ShaderCompiler destructor. */
 
-  if (compilation_handle_) {
-    static_shaders_are_ready(true);
-  }
-
+  /* Specializations first, to avoid releasing the base shader while the specialization compilation
+   * is still in flight. */
   for (SpecializationBatchHandle &handle : specialization_handles_.values()) {
     if (handle) {
-      while (!GPU_shader_batch_specializations_is_ready(handle)) {
-        /* Block until ready. */
-      }
+      GPU_shader_batch_specializations_cancel(handle);
     }
+  }
+
+  if (compilation_handle_) {
+    GPU_shader_batch_cancel(compilation_handle_);
   }
 }
 
@@ -117,7 +117,9 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready)
 bool ShaderModule::request_specializations(bool block_until_ready,
                                            int render_buffers_shadow_id,
                                            int shadow_ray_count,
-                                           int shadow_ray_step_count)
+                                           int shadow_ray_step_count,
+                                           bool use_split_indirect,
+                                           bool use_lightprobe_eval)
 {
   if (!GPU_use_parallel_compilation()) {
     return true;
@@ -127,23 +129,24 @@ bool ShaderModule::request_specializations(bool block_until_ready,
 
   std::lock_guard lock(mutex_);
 
-  SpecializationBatchHandle specialization_handle = specialization_handles_.lookup_or_add_cb(
-      {render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count}, [&]() {
+  SpecializationBatchHandle &specialization_handle = specialization_handles_.lookup_or_add_cb(
+      {render_buffers_shadow_id,
+       shadow_ray_count,
+       shadow_ray_step_count,
+       use_split_indirect,
+       use_lightprobe_eval},
+      [&]() {
         Vector<ShaderSpecialization> specializations;
         for (int i = 0; i < 3; i++) {
           GPUShader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
-          for (bool use_split_indirect : {false, true}) {
-            for (bool use_lightprobe_eval : {false, true}) {
-              for (bool use_transmission : {false, true}) {
-                specializations.append({sh,
-                                        {{"render_pass_shadow_id", render_buffers_shadow_id},
-                                         {"use_split_indirect", use_split_indirect},
-                                         {"use_lightprobe_eval", use_lightprobe_eval},
-                                         {"use_transmission", use_transmission},
-                                         {"shadow_ray_count", shadow_ray_count},
-                                         {"shadow_ray_step_count", shadow_ray_step_count}}});
-              }
-            }
+          for (bool use_transmission : {false, true}) {
+            specializations.append({sh,
+                                    {{"render_pass_shadow_id", render_buffers_shadow_id},
+                                     {"use_split_indirect", use_split_indirect},
+                                     {"use_lightprobe_eval", use_lightprobe_eval},
+                                     {"use_transmission", use_transmission},
+                                     {"shadow_ray_count", shadow_ray_count},
+                                     {"shadow_ray_step_count", shadow_ray_step_count}}});
           }
         }
 
@@ -636,6 +639,13 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     }
   }
 
+#if 0 /* Waiting for using DRW_STATE_CLIP_CONTROL_UNIT_RANGE where these are used. */
+  if (geometry_type != MAT_GEOM_WORLD) {
+    /* Allow to use Reverse-Z on OpenGL. Does nothing in other backend. */
+    info.builtins(BuiltinBits::CLIP_CONTROL);
+  }
+#endif
+
   std::stringstream global_vars;
   switch (geometry_type) {
     case MAT_GEOM_MESH:
@@ -701,8 +711,10 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       break;
   }
 
+  const bool support_volume_attributes = ELEM(geometry_type, MAT_GEOM_MESH, MAT_GEOM_VOLUME);
   const bool do_vertex_attrib_load = !ELEM(geometry_type, MAT_GEOM_WORLD, MAT_GEOM_VOLUME) &&
-                                     (pipeline_type != MAT_PIPE_VOLUME_MATERIAL);
+                                     (pipeline_type != MAT_PIPE_VOLUME_MATERIAL ||
+                                      !support_volume_attributes);
 
   if (!do_vertex_attrib_load && !info.vertex_out_interfaces_.is_empty()) {
     /* Codegen outputs only one interface. */
