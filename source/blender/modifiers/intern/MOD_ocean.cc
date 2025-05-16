@@ -196,7 +196,7 @@ static void generate_ocean_geometry_uvs(void *__restrict userdata,
 
   for (x = 0; x < gogd->res_x; x++) {
     const int i = y * gogd->res_x + x;
-    float(*luv)[2] = &gogd->mloopuvs[i * 4];
+    float (*luv)[2] = &gogd->mloopuvs[i * 4];
 
     (*luv)[0] = x * gogd->ix;
     (*luv)[1] = y * gogd->iy;
@@ -264,7 +264,7 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
 
   /* add uvs */
   if (CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2) < MAX_MTFACE) {
-    gogd.mloopuvs = static_cast<float(*)[2]>(CustomData_add_layer_named(
+    gogd.mloopuvs = static_cast<float (*)[2]>(CustomData_add_layer_named(
         &result->corner_data, CD_PROP_FLOAT2, CD_SET_DEFAULT, faces_num * 4, "UVMap"));
 
     if (gogd.mloopuvs) { /* unlikely to fail */
@@ -622,27 +622,16 @@ static void bake_panel_draw(const bContext * /*C*/, Panel *panel)
   bool use_foam = RNA_boolean_get(ptr, "use_foam");
 
   if (is_cached) {
-    PointerRNA op_ptr;
-    uiItemFullO(layout,
-                "OBJECT_OT_ocean_bake",
-                IFACE_("Delete Bake"),
-                ICON_NONE,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &op_ptr);
+    PointerRNA op_ptr = layout->op("OBJECT_OT_ocean_bake",
+                                   IFACE_("Delete Bake"),
+                                   ICON_NONE,
+                                   WM_OP_INVOKE_DEFAULT,
+                                   UI_ITEM_NONE);
     RNA_boolean_set(&op_ptr, "free", true);
   }
   else {
-    PointerRNA op_ptr;
-    uiItemFullO(layout,
-                "OBJECT_OT_ocean_bake",
-                IFACE_("Bake"),
-                ICON_NONE,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &op_ptr);
+    PointerRNA op_ptr = layout->op(
+        "OBJECT_OT_ocean_bake", IFACE_("Bake"), ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
     RNA_boolean_set(&op_ptr, "free", false);
   }
 
