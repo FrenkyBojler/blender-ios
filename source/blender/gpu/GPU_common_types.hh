@@ -254,6 +254,11 @@ struct SpecializationConstants {
     BLI_assert_msg(types[index] == Type::bool_t, "Mismatch between interface and constant type");
     values[index].u = value ? 1 : 0;
   }
+
+  bool is_empty() const
+  {
+    return types.is_empty();
+  }
 };
 
 }  // namespace blender::gpu::shader

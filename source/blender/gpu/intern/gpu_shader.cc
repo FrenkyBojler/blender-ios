@@ -406,6 +406,9 @@ void GPU_shader_bind(GPUShader *gpu_shader, shader::SpecializationConstants *con
 {
   Shader *shader = unwrap(gpu_shader);
 
+  BLI_assert_msg(constants_state != nullptr || shader->constants->is_empty(),
+                 "Shader requires specialization constants but none was passed");
+
   Context *ctx = Context::get();
 
   if (ctx->shader != shader) {
@@ -503,48 +506,6 @@ void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
     constants.types.append(sc.type);
     constants.values.append(sc.value);
   }
-}
-
-void GPU_shader_constant_int_ex(GPUShader *sh, int location, int value)
-{
-  Shader &shader = *unwrap(sh);
-  BLI_assert(shader.constants.types[location] == gpu::shader::Type::int_t);
-  shader.constants.values[location].i = value;
-}
-void GPU_shader_constant_uint_ex(GPUShader *sh, int location, uint value)
-{
-  Shader &shader = *unwrap(sh);
-  BLI_assert(shader.constants.types[location] == gpu::shader::Type::uint_t);
-  shader.constants.values[location].u = value;
-}
-void GPU_shader_constant_float_ex(GPUShader *sh, int location, float value)
-{
-  Shader &shader = *unwrap(sh);
-  BLI_assert(shader.constants.types[location] == gpu::shader::Type::float_t);
-  shader.constants.values[location].f = value;
-}
-void GPU_shader_constant_bool_ex(GPUShader *sh, int location, bool value)
-{
-  Shader &shader = *unwrap(sh);
-  BLI_assert(shader.constants.types[location] == gpu::shader::Type::bool_t);
-  shader.constants.values[location].u = uint32_t(value);
-}
-
-void GPU_shader_constant_int(GPUShader *sh, const char *name, int value)
-{
-  GPU_shader_constant_int_ex(sh, unwrap(sh)->interface->constant_get(name)->location, value);
-}
-void GPU_shader_constant_uint(GPUShader *sh, const char *name, uint value)
-{
-  GPU_shader_constant_uint_ex(sh, unwrap(sh)->interface->constant_get(name)->location, value);
-}
-void GPU_shader_constant_float(GPUShader *sh, const char *name, float value)
-{
-  GPU_shader_constant_float_ex(sh, unwrap(sh)->interface->constant_get(name)->location, value);
-}
-void GPU_shader_constant_bool(GPUShader *sh, const char *name, bool value)
-{
-  GPU_shader_constant_bool_ex(sh, unwrap(sh)->interface->constant_get(name)->location, value);
 }
 
 SpecializationBatchHandle GPU_shader_batch_specializations(
