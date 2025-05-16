@@ -5,19 +5,14 @@
 /** \file
  * \ingroup animrig
  *
- * \brief C++ functions to deal with Armatures.
+ * \brief Functions to deal with Armatures.
  */
 
 #pragma once
 
-#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
-#include "DNA_armature_types.h"
 
-struct bArmature;
-struct Bone;
-struct EditBone;
-struct bPoseChannel;
+#include "DNA_armature_types.h"
 
 namespace blender::animrig {
 
@@ -29,10 +24,12 @@ inline bool bone_is_visible(const bArmature *armature, const Bone *bone)
   const bool bone_itself_visible = (bone->flag & (BONE_HIDDEN_P | BONE_HIDDEN_PG)) == 0;
   return bone_itself_visible && ANIM_bone_in_visible_collection(armature, bone);
 }
+
 inline bool bone_is_visible_pchan(const bArmature *armature, const bPoseChannel *pchan)
 {
   return bone_is_visible(armature, pchan->bone);
 }
+
 inline bool bone_is_visible_editbone(const bArmature *armature, const EditBone *ebone)
 {
   const bool bone_itself_visible = (ebone->flag & BONE_HIDDEN_A) == 0;
