@@ -88,7 +88,7 @@ WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
   tris.reserve(points_num + altered_points_range.size() * order);
 
   /* Set 1.0f for copied points. */
-  for (const int i : IndexRange(points_to_replace.first())) {
+  for (const int i : IndexRange(points_to_replace.start())) {
     tris.append(WeightTriplet(i, i, 1.0f));
   }
   for (const int i : IndexRange::from_begin_end(points_to_replace.one_after_last(), points_num)) {
