@@ -49,7 +49,7 @@ class Shader {
 
   /* Default specialization constants state as defined inside ShaderCreateInfo.
    * Should be considered as const after init(). */
-  shader::SpecializationConstants constants;
+  std::unique_ptr<const shader::SpecializationConstants> constants;
 
   /* WORKAROUND: True if this shader is a polyline shader and needs an appropriate setup to render.
    * Eventually, in the future, we should modify the user code instead of relying on such hacks. */

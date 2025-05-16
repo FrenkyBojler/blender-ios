@@ -496,16 +496,18 @@ void GPU_shader_warm_cache(GPUShader *shader, int limit)
 
 const shader::SpecializationConstants &GPU_shader_get_default_constant_state(GPUShader *sh)
 {
-  return unwrap(sh)->constants;
+  return *unwrap(sh)->constants;
 }
 
 void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
 {
   using namespace shader;
+  shader::SpecializationConstants constants_tmp;
   for (const SpecializationConstant &sc : info.specialization_constants_) {
-    constants.types.append(sc.type);
-    constants.values.append(sc.value);
+    constants_tmp.types.append(sc.type);
+    constants_tmp.values.append(sc.value);
   }
+  constants = std::make_unique<const shader::SpecializationConstants>(std::move(constants_tmp));
 }
 
 SpecializationBatchHandle GPU_shader_batch_specializations(

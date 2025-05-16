@@ -647,7 +647,7 @@ bool VKShader::finalize_post()
   if (result && is_compute_shader_) {
     /* This is only done for the first shader compilation (not specialization).
      * Give the default constants. */
-    ensure_and_get_compute_pipeline(constants);
+    ensure_and_get_compute_pipeline(*constants);
   }
   return result;
 }

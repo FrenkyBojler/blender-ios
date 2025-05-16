@@ -74,7 +74,7 @@ void GLShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
 
   /* NOTE: This is not threadsafe with regards to the specialization constants state access.
    * The shader creation must be externally synchronized. */
-  main_program_ = &program_cache_.lookup_or_add_default(constants.values);
+  main_program_ = &program_cache_.lookup_or_add_default(constants->values);
   if (!main_program_->program_id) {
     main_program_->program_id = glCreateProgram();
     debug::object_label(GL_PROGRAM, main_program_->program_id, name);
@@ -1284,28 +1284,28 @@ void GLShader::vertex_shader_from_glsl(MutableSpan<StringRefNull> sources)
 {
   update_program_and_sources(vertex_sources_, sources);
   main_program_->vert_shader = create_shader_stage(
-      GL_VERTEX_SHADER, sources, vertex_sources_, constants);
+      GL_VERTEX_SHADER, sources, vertex_sources_, *constants);
 }
 
 void GLShader::geometry_shader_from_glsl(MutableSpan<StringRefNull> sources)
 {
   update_program_and_sources(geometry_sources_, sources);
   main_program_->geom_shader = create_shader_stage(
-      GL_GEOMETRY_SHADER, sources, geometry_sources_, constants);
+      GL_GEOMETRY_SHADER, sources, geometry_sources_, *constants);
 }
 
 void GLShader::fragment_shader_from_glsl(MutableSpan<StringRefNull> sources)
 {
   update_program_and_sources(fragment_sources_, sources);
   main_program_->frag_shader = create_shader_stage(
-      GL_FRAGMENT_SHADER, sources, fragment_sources_, constants);
+      GL_FRAGMENT_SHADER, sources, fragment_sources_, *constants);
 }
 
 void GLShader::compute_shader_from_glsl(MutableSpan<StringRefNull> sources)
 {
   update_program_and_sources(compute_sources_, sources);
   main_program_->compute_shader = create_shader_stage(
-      GL_COMPUTE_SHADER, sources, compute_sources_, constants);
+      GL_COMPUTE_SHADER, sources, compute_sources_, *constants);
 }
 
 bool GLShader::finalize(const shader::ShaderCreateInfo *info)

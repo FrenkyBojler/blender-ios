@@ -187,7 +187,7 @@ class GLShader : public Shader {
 
   bool has_specialization_constants() const
   {
-    return constants.types.is_empty() == false;
+    return constants->types.is_empty() == false;
   }
 
   /** Create, compile and attach the shader stage to the shader program. */
