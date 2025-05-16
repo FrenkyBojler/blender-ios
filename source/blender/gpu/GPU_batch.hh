@@ -279,7 +279,7 @@ void GPU_batch_resource_id_buf_set(blender::gpu::Batch *batch, GPUStorageBuf *re
 void GPU_batch_set_shader(
     blender::gpu::Batch *batch,
     GPUShader *shader,
-    blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
+    const blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
 void GPU_batch_program_set_builtin(blender::gpu::Batch *batch, eGPUBuiltinShader shader_id);
 void GPU_batch_program_set_builtin_with_config(blender::gpu::Batch *batch,
                                                eGPUBuiltinShader shader_id,
