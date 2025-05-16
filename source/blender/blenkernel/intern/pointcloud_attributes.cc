@@ -95,7 +95,8 @@ static GAttributeWriter attribute_to_writer(PointCloud &pointcloud,
     BLI_assert(array->size == domain_size);
 
     std::function<void()> tag_modified_fn;
-    if (const UpdateOnChange update_fn = changed_tags().lookup(attribute.name())) {
+    if (const UpdateOnChange update_fn = changed_tags().lookup_default(attribute.name(), nullptr))
+    {
       tag_modified_fn = [pointcloud = &pointcloud, update_fn]() { update_fn(pointcloud); };
     };
 
