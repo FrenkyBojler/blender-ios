@@ -500,7 +500,7 @@ static void workspace_add_menu(bContext * /*C*/, uiLayout *layout, void *templat
 
       if (!has_title) {
         if (has_startup_items) {
-          uiItemS(layout);
+          layout->separator();
         }
         has_title = true;
       }
@@ -526,7 +526,7 @@ static wmOperatorStatus workspace_add_invoke(bContext *C,
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, op->type->name), ICON_ADD);
   uiLayout *layout = UI_popup_menu_layout(pup);
 
-  uiItemMenuF(layout, IFACE_("General"), ICON_NONE, workspace_add_menu, nullptr);
+  layout->menu_fn(IFACE_("General"), ICON_NONE, workspace_add_menu, nullptr);
 
   ListBase templates;
   BKE_appdir_app_templates(&templates);
@@ -538,16 +538,15 @@ static wmOperatorStatus workspace_add_invoke(bContext *C,
     BLI_path_to_display_name(display_name, sizeof(display_name), IFACE_(app_template));
 
     /* Steals ownership of link data string. */
-    uiItemMenuFN(layout, display_name, ICON_NONE, workspace_add_menu, app_template);
+    layout->menu_fn_argN_free(display_name, ICON_NONE, workspace_add_menu, app_template);
   }
 
   BLI_freelistN(&templates);
 
-  uiItemS(layout);
-  uiItemO(layout,
-          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate Current"),
-          ICON_DUPLICATE,
-          "WORKSPACE_OT_duplicate");
+  layout->separator();
+  layout->op("WORKSPACE_OT_duplicate",
+             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate Current"),
+             ICON_DUPLICATE);
 
   UI_popup_menu_end(C, pup);
 
