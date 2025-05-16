@@ -272,8 +272,7 @@ static bool import_normals_into_temp_attribute(const ufbx_mesh *fmesh,
 }
 
 static VectorSet<std::string> get_skin_bone_name_set(const FbxElementMapping &mapping,
-                                                     const ufbx_mesh *fmesh,
-                                                     const Mesh *mesh)
+                                                     const ufbx_mesh *fmesh)
 {
   VectorSet<std::string> name_set;
   for (const ufbx_skin_deformer *skin : fmesh->skin_deformers) {
@@ -303,7 +302,7 @@ static void import_skin_vertex_groups(const FbxElementMapping &mapping,
 
   /* A single mesh can be skinned by several armatures, so we need to build bone (vertex group)
    * name set, taking all skin deformers into account. */
-  VectorSet<std::string> bone_set = get_skin_bone_name_set(mapping, fmesh, mesh);
+  VectorSet<std::string> bone_set = get_skin_bone_name_set(mapping, fmesh);
   if (bone_set.is_empty()) {
     return;
   }
@@ -535,7 +534,7 @@ void import_meshes(Main &bmain,
       /* Skinned mesh. */
       if (fmesh->skin_deformers.count > 0) {
         /* Add vertex groups to the object. */
-        VectorSet<std::string> bone_set = get_skin_bone_name_set(mapping, fmesh, mesh);
+        VectorSet<std::string> bone_set = get_skin_bone_name_set(mapping, fmesh);
         for (const std::string &name : bone_set) {
           BKE_object_defgroup_add_name(obj, name.c_str());
         }
