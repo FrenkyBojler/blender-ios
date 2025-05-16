@@ -1512,6 +1512,15 @@ bool BKE_brush_has_cube_tip(const Brush *brush, PaintMode paint_mode)
  * \{ */
 
 namespace blender::bke::brush {
+bool supports_node_group(const Brush &brush)
+{
+  return !ELEM(brush.sculpt_brush_type,
+               SCULPT_BRUSH_TYPE_BOUNDARY,
+               SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
+               SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
+               SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR);
+}
+
 bool supports_dyntopo(const Brush &brush)
 {
   return !ELEM(brush.sculpt_brush_type,

@@ -193,6 +193,7 @@ void BKE_brush_debug_print_state(Brush *br);
  * \{ */
 
 namespace blender::bke::brush {
+bool supports_node_group(const Brush &brush);
 bool supports_dyntopo(const Brush &brush);
 bool supports_accumulate(const Brush &brush);
 bool supports_topology_rake(const Brush &brush);

@@ -578,11 +578,7 @@ static bool rna_BrushCapabilitiesSculpt_has_dyntopo_get(PointerRNA *ptr)
 static bool rna_BrushCapabilitiesSculpt_has_node_group_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
-  return !ELEM(br->sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_BOUNDARY,
-               SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
-               SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
-               SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR);
+  return blender::bke::brush::supports_node_group(*br);
 }
 
 static bool rna_BrushCapabilitiesImagePaint_has_accumulate_get(PointerRNA *ptr)
