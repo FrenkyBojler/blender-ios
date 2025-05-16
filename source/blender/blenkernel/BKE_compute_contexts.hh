@@ -227,9 +227,10 @@ class SculptComputeContext : public ComputeContext {
 
  public:
   SculptComputeContext() : SculptComputeContext(nullptr) {}
-  SculptComputeContext(const ComputeContext *parent) : ComputeContext(s_static_type, parent) {}
+  SculptComputeContext(const ComputeContext *parent) : ComputeContext(parent) {}
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream & /* stream */) const override {}
 };
 

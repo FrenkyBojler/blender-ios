@@ -603,6 +603,9 @@ static const ComputeContext *get_node_editor_root_compute_context(
     case SNODE_GEOMETRY_TOOL: {
       return &compute_context_cache.for_operator(nullptr);
     }
+    case SNODE_GEOMETRY_BRUSH: {
+      return nullptr;
+    }
   }
   return nullptr;
 }

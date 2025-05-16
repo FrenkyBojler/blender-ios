@@ -186,6 +186,11 @@ void OperatorComputeContext::print_current_in_line(std::ostream &stream) const
   stream << "Operator";
 }
 
+ComputeContextHash SculptComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "SCULPT");
+}
+
 const ModifierComputeContext &ComputeContextCache::for_modifier(const ComputeContext *parent,
                                                                 const NodesModifierData &nmd)
 {

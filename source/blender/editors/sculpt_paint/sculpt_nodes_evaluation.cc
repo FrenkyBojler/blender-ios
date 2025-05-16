@@ -182,7 +182,7 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
 
   bke::SculptComputeContext compute_context;
 
-  nodes::GeoNodesLFUserData user_data;
+  nodes::GeoNodesUserData user_data;
   user_data.call_data = &call_data;
   user_data.compute_context = &compute_context;
 
@@ -220,7 +220,7 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
     param_outputs[i] = {type, allocator.allocate(type)};
   }
 
-  nodes::GeoNodesLFLocalUserData local_user_data(user_data);
+  nodes::GeoNodesLocalUserData local_user_data(user_data);
 
   lf::Context lf_context(lazy_function.init_storage(allocator), &user_data, &local_user_data);
   lf::BasicParams lf_params{lazy_function,
