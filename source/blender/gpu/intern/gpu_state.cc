@@ -428,6 +428,7 @@ StateManager::StateManager()
   state.invert_facing = false;
   state.shadow_bias = false;
   state.clip_distances = 0;
+  state.clip_control = false;
   state.polygon_smooth = false;
   state.line_smooth = false;
 
