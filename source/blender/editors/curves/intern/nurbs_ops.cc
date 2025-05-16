@@ -31,6 +31,8 @@
 
 #include "WM_api.hh"
 
+#include "nurbs_intern.hh"
+
 namespace blender::ed::curves {
 
 using bke::CurvesGeometry;
@@ -57,11 +59,7 @@ struct InsertKnotOpData {
   int knot_span;
   int repeat;
 
-  IndexRange points_to_replace;
-  Array<float3> preview_positions_buffer;
-  MutableSpan<float3> preview_positions;
-
-  Array<float> point_weights;
+  Vector<float3> preview_positions;
 
   float2 knot_range;
 
@@ -75,10 +73,7 @@ struct InsertKnotOpData {
         order(curves.nurbs_orders()[curve]),
         curve_points(curves.points_by_curve()[curve]),
         positions(curves.positions().slice(curve_points)),
-        repeat(repeat),
-        points_to_replace(0),
-        preview_positions_buffer(2 * (order - 1) - 1),
-        point_weights(preview_positions_buffer.size() * order)
+        repeat(repeat)
   {
     const bool cyclic = curves.cyclic()[curve];
     const int knots_num = bke::curves::nurbs::knots_num(curve_points.size(), order, cyclic);
@@ -180,34 +175,28 @@ static void update_preview_data(InsertKnotOpData &ikcd)
       ikcd.knot_to_insert, ikcd.knots, ikcd.order, ikcd.knot_span, knot_multiplicity);
   const int repeat = clamp_i(ikcd.repeat, 0, std::max(0, ikcd.order - knot_multiplicity - 1));
   if (repeat == 0) {
-    ikcd.points_to_replace = IndexRange(0);
     ikcd.preview_positions = {};
     return;
   }
-  ikcd.points_to_replace = ed::curves::nurbs::calc_knot_insertion_weights(ikcd.knots,
-                                                                          ikcd.order,
-                                                                          ikcd.knot_to_insert,
-                                                                          ikcd.knot_span,
-                                                                          knot_multiplicity,
-                                                                          repeat,
-                                                                          ikcd.point_weights);
-  ikcd.preview_positions = ikcd.preview_positions_buffer.as_mutable_span().slice(
-      0, ikcd.points_to_replace.size() + repeat);
 
-  const Array<float> weights = make_weights_for_knot_span(
-      ikcd.order, ikcd.curves.nurbs_weights(), ikcd.curve_points, ikcd.knot_span);
+  const WeightMatrix point_weights = ed::curves::nurbs::calc_knot_insertion_weights(
+      ikcd.knots,
+      ikcd.curve_points.size(),
+      ikcd.order,
+      ikcd.knot_to_insert,
+      ikcd.knot_span,
+      knot_multiplicity,
+      repeat);
+  Array<float> weights_buffer;
+  const Span<float> weights = prepare_curve_weights(
+      ikcd.curves.nurbs_weights(), ikcd.curve_points, weights_buffer);
 
-  MutableSpan<float3> preview_positions = ikcd.preview_positions;
-  for (const int altered_point : preview_positions.index_range()) {
-    float4 position = float4(0.0f);
-    for (const int i : IndexRange(ikcd.order)) {
-      const float point_weight = ikcd.point_weights[altered_point * ikcd.order + i];
-      const int src = (ikcd.knot_span - ikcd.order + 1 + i) % ikcd.curve_points.size();
-      const float4 src_position = float4(ikcd.positions[src] * weights[i], weights[i]);
-      position += src_position * point_weight;
-    }
-    preview_positions[altered_point] = position.xyz() / position.w;
-  }
+  IndexMaskMemory memory;
+  IndexMask modified_points = ed::curves::nurbs::selection_from_modified(point_weights, memory);
+  ikcd.preview_positions.resize(modified_points.size());
+
+  ed::curves::nurbs::gather_modified_positions(
+      ikcd.positions, weights, point_weights, modified_points, ikcd.preview_positions);
 }
 
 static void insert_knot_exit(bContext * /*C*/, wmOperator *op)

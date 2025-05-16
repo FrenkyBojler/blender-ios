@@ -7,11 +7,7 @@
 
 #include "ED_curves.hh"
 
-#include <Eigen/Sparse>
-#include <iostream>
-
-using WeightMatrix = Eigen::SparseMatrix<float, Eigen::RowMajor>;
-using WeightTriplet = Eigen::Triplet<float, Eigen::SparseMatrix<float>::StorageIndex>;
+#include "nurbs_intern.hh"
 
 namespace blender::ed::curves::nurbs {
 
@@ -137,49 +133,6 @@ WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
   return m;
 }
 
-IndexRange calc_knot_insertion_weights(const Span<float> knots,
-                                       const int8_t order,
-                                       const float knot,
-                                       const int knot_span,
-                                       const int mult,
-                                       const int repeat,
-                                       MutableSpan<float> insertion_weights)
-{
-  BLI_assert(repeat > 0);
-  BLI_assert(mult + repeat < order);
-  const int degree = order - 1;
-  const int altered_point_num = degree - mult + repeat - 1;
-  const IndexRange points_to_replace = IndexRange::from_begin_size(knot_span - degree + 1,
-                                                                   altered_point_num - repeat);
-
-  Array<float> point_weights_buffer(order * order, 0.0f);
-  MutableSpan<float> point_weights = point_weights_buffer.as_mutable_span();
-  for (const int i : IndexRange(order)) {
-    point_weights[i * order + i] = 1.0f;
-  }
-
-  for (const int r : IndexRange::from_begin_size(1, repeat)) {
-    const int leg = knot_span - degree + r;
-    for (const int i : IndexRange(order - r - mult)) {
-      const float alpha = (knot - knots[leg + i]) / (knots[i + knot_span + 1] - knots[leg + i]);
-      const MutableSpan<float> q_i_weights = point_weights.slice(i * order, order);
-      const Span<float> q_i_1_weights = point_weights.slice((i + 1) * order, order);
-      for (const int point : IndexRange(order)) {
-        q_i_weights[point] = alpha * q_i_1_weights[point] + (1.0f - alpha) * q_i_weights[point];
-      }
-    }
-    insertion_weights.slice((r - 1) * order, order).copy_from(point_weights.slice(0, order));
-    insertion_weights.slice((altered_point_num - r) * order, order)
-        .copy_from(point_weights.slice((degree - r - mult) * order, order));
-  }
-
-  for (const int i : IndexRange::from_begin_size(1, std::max(degree - mult - repeat - 1, 0))) {
-    insertion_weights.slice(i * order, order).copy_from(point_weights.slice(i * order, order));
-  }
-
-  return points_to_replace;
-}
-
 Span<float> prepare_curve_weights(const Span<float> all_weights,
                                   const IndexRange curve_points,
                                   Array<float> weights_buffer)
@@ -190,21 +143,6 @@ Span<float> prepare_curve_weights(const Span<float> all_weights,
   weights_buffer.reinitialize(curve_points.size());
   weights_buffer.fill(1.0f);
   return weights_buffer;
-}
-
-Array<float> make_weights_for_knot_span(const int order,
-                                        const Span<float> all_weights,
-                                        const IndexRange curve_points,
-                                        const int knot_span)
-{
-  Array<float> weights(order, 1.0f);
-  if (!all_weights.is_empty()) {
-    const Span<float> curve_weights = all_weights.slice(curve_points);
-    for (const int i : IndexRange(order)) {
-      weights[i] = curve_weights[(knot_span - order + 1 + i) % curve_points.size()];
-    }
-  }
-  return weights;
 }
 
 IndexMask selection_from_modified(const WeightMatrix &point_weights, IndexMaskMemory &memory)
@@ -235,6 +173,23 @@ void select_curve_points_modified_by_weights(const WeightMatrix &point_weights,
   const IndexMask selected = selection_from_modified(point_weights, memory);
   fill_selection_true(selection.span.slice(points), selected);
   selection.finish();
+}
+
+void gather_modified_positions(const Span<float3> positions,
+                               const Span<float> weights,
+                               const WeightMatrix &point_weights,
+                               const IndexMask selection,
+                               MutableSpan<float3> r_positions)
+{
+  bke::attribute_math::DefaultMixer<float3> mixer{r_positions};
+
+  selection.foreach_index(GrainSize(128), [&](const int row, const int index) {
+    for (WeightMatrix::InnerIterator it(point_weights, row); it; ++it) {
+      const int col = it.col();
+      mixer.mix_in(index, positions[col], weights[col] * it.value());
+    }
+  });
+  mixer.finalize();
 }
 
 void apply_weights_to_curve(const bke::CurvesGeometry &src_curves,
