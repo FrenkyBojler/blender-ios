@@ -440,33 +440,34 @@ void AbstractTreeViewItem::tree_row_click_fn(bContext *C, void *but_arg1, void *
     return;
   }
 
-  if ((event->modifier & KM_CTRL)) {
-    tree_item.activate(*C);
-    return;
+  if (tree_item.get_view().is_multiselect_supported()) {
+    if ((event->modifier & KM_CTRL)) {
+      tree_item.activate(*C);
+      return;
+    }
+
+    /* Clear previous selection before LMB select and shift LMB select. */
+    tree_item.get_view().foreach_view_item([](AbstractViewItem &item) { item.deselect(); });
+
+    if (event->modifier & KM_SHIFT) {
+      bool can_select = false;
+      bool state_changed = false;
+      tree_item.get_tree_view().foreach_item_recursive(
+          [&](AbstractTreeViewItem &item) {
+            if (item.is_active() || &item == &tree_item) {
+              can_select = !can_select;
+              state_changed = true;
+            }
+            if (can_select || state_changed) {
+              item.is_selected_ = true;
+              state_changed = false;
+            }
+          },
+          IterOptions::SkipCollapsed);
+      return;
+    }
   }
-
-  /* Clear previous selection before LMB select and shift LMB select. */
-  tree_item.get_view().foreach_view_item([](AbstractViewItem &item) { item.deselect(); });
-
-  if (event->modifier & KM_SHIFT) {
-    bool can_select = false;
-    bool state_changed = false;
-    tree_item.get_tree_view().foreach_item_recursive(
-        [&](AbstractTreeViewItem &item) {
-          if (item.is_active() || &item == &tree_item) {
-            can_select = !can_select;
-            state_changed = true;
-          }
-          if (can_select || state_changed) {
-            item.is_selected_ = true;
-            state_changed = false;
-          }
-        },
-        IterOptions::SkipCollapsed);
-    return;
-  }
-
-   tree_item.activate(*C);
+  tree_item.activate(*C);
 }
 
 void AbstractTreeViewItem::add_treerow_button(uiBlock &block)

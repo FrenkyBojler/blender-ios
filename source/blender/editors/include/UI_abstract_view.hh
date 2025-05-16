@@ -75,6 +75,7 @@ class AbstractView {
   std::string context_menu_title;
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
+  bool is_multiselect_supported_ = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -145,6 +146,8 @@ class AbstractView {
   void set_popup_keep_open();
 
   void clear_search_highlight();
+  void allow_multiselect_items();
+  bool is_multiselect_supported() const;
 
  protected:
   AbstractView() = default;

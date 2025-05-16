@@ -65,7 +65,7 @@ bool AbstractViewItem::set_state_active()
   this->get_view().foreach_view_item([](auto &item) { item.deactivate(); });
 
   is_active_ = true;
-  is_selected_ = true;
+  is_selected_ = this->get_view().is_multiselect_supported();
   return true;
 }
 
