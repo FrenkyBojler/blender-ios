@@ -1165,6 +1165,7 @@ static void columnselect_action_keys(bAnimContext *ac, short mode)
             ED_gpencil_layer_make_cfra_list(static_cast<bGPDlayer *>(ale->data), &ked.list, true);
           }
           else {
+            ked.data = ale;
             ANIM_fcurve_keyframes_loop(
                 &ked, static_cast<FCurve *>(ale->key_data), nullptr, bezt_to_cfraelem, nullptr);
           }
@@ -1205,7 +1206,7 @@ static void columnselect_action_keys(bAnimContext *ac, short mode)
      */
     LISTBASE_FOREACH (CfraElem *, ce, &ked.list) {
       /* set frame for validation callback to refer to */
-      ked.f1 = ce->cfra;
+      ked.f1 = ANIM_nla_tweakedit_remap(ale, ce->cfra, NLATIME_CONVERT_UNMAP);
 
       /* select elements with frame number matching cfraelem */
       if (ale->type == ANIMTYPE_GPLAYER) {
