@@ -97,7 +97,7 @@ static void pointcloud_free_data(ID *id)
   PointCloud *pointcloud = (PointCloud *)id;
   BKE_animdata_free(&pointcloud->id, false);
   BKE_pointcloud_batch_cache_free(pointcloud);
-  BLI_assert(pointcloud->pdata.totlayer == 0);
+  BLI_assert(pointcloud->pdata_legacy.totlayer == 0);
   pointcloud->attribute_storage.wrap().~AttributeStorage();
   MEM_SAFE_FREE(pointcloud->mat);
   delete pointcloud->runtime;
@@ -122,7 +122,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(
       pointcloud->attribute_storage.wrap(), {{AttrDomain::Point, &point_layers}}, attribute_data);
-  BLI_assert(pointcloud->pdata.totlayer == 0);
+  BLI_assert(pointcloud->pdata_legacy.totlayer == 0);
   pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
   pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
 

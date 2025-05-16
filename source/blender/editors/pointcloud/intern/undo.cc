@@ -102,13 +102,16 @@ static void step_decode(
     PointCloud &pointcloud = *static_cast<PointCloud *>(object.obedit_ref.ptr->data);
 
     const bool positions_changed = [&]() {
-      const void *a = std::get<bke::Attribute::ArrayData>(
-                          pointcloud.attribute_storage.wrap().lookup("position")->data())
-                          .data;
-      const void *b = std::get<bke::Attribute::ArrayData>(
-                          object.attribute_storage.wrap().lookup("position")->data())
-                          .data;
-      return a != b;
+      const bke::Attribute *attr_a = pointcloud.attribute_storage.wrap().lookup("position");
+      const bke::Attribute *attr_b = object.attribute_storage.wrap().lookup("position");
+      if (!attr_b && !attr_a) {
+        return false;
+      }
+      if (!attr_a || !attr_b) {
+        return true;
+      }
+      return std::get<bke::Attribute::ArrayData>(attr_a->data()).data !=
+             std::get<bke::Attribute::ArrayData>(attr_b->data()).data;
     }();
 
     pointcloud.attribute_storage.wrap() = object.attribute_storage.wrap();
