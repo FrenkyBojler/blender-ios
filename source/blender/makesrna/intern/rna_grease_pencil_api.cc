@@ -233,74 +233,80 @@ static void rna_GreasePencilDrawing_vertex_group_remove(ID *id,
 static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
                                                       GreasePencilDrawing *drawing_ptr,
                                                       ReportList *reports,
-                                                      const int stroke_index,
-                                                      const int index,
                                                       const char *vgroup_name,
-                                                      const float weight,
+                                                      const int *indices_ptr,
+                                                      const int indices_num,
+                                                      const float *weights_ptr,
+                                                      const int weights_num,
                                                       const int assignmode)
 {
+  if (indices_num != weights_num) {
+    BKE_report(reports, RPT_ERROR, "Indices and Weights arrays have different lengths");
+    return;
+  }
+
   using namespace blender;
-  bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
-
-  if (stroke_index < 0 || stroke_index >= curves.curves_num()) {
-    BKE_report(reports, RPT_ERROR, "Stroke index must be in range");
-    return;
-  }
-
-  blender::IndexRange active_curve_range = curves.points_by_curve()[stroke_index];
-
-  const int deform_vert_idx = active_curve_range.start() + index;
-  if (!active_curve_range.contains(deform_vert_idx)) {
-    BKE_report(reports, RPT_ERROR, "Vertex index must be in range");
-    return;
-  }
-
   const GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(grease_pencil_id);
   const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names, vgroup_name);
   if (vgroup_index == -1) {
+    BKE_reportf(reports, RPT_ERROR, "Vertex Group \"%s\" does not exist", vgroup_name);
     return;
   }
 
   const bDeformGroup *dg = static_cast<const bDeformGroup *>(
       BLI_findlink(&grease_pencil.vertex_group_names, vgroup_index));
   if (dg->flag & DG_LOCK_WEIGHT) {
-    BKE_report(reports, RPT_ERROR, "Vertex Group is locked");
+    BKE_reportf(reports, RPT_ERROR, "Vertex Group \"%s\" is locked", vgroup_name);
     return;
   }
 
+  bke::CurvesGeometry &curves = drawing_ptr->wrap().strokes_for_write();
   const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
                                                             curves.vertex_group_names);
-  MDeformVert *dv = &curves.deform_verts_for_write()[deform_vert_idx];
+  const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
+  const int dverts_size = dverts.size();
 
-  /* Lets first check to see if this vert is already in the weight group - if so lets update it. */
-  if (MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr)) {
-    switch (assignmode) {
-      case WEIGHT_REPLACE:
-        dw->weight = weight;
-        break;
-      case WEIGHT_ADD:
-        dw->weight += weight;
-        break;
-      case WEIGHT_SUBTRACT:
-        dw->weight -= weight;
-        break;
+  int weight_idx = 0;
+  for (int i = 0; i < indices_num; i++) {
+    const int dvert_index = indices_ptr[i];
+    const float weight = weights_ptr[i];
+
+    if (dvert_index >= dverts_size) {
+      BKE_reportf(reports, RPT_ERROR, "Index \"%d\" is out of range for curves", dvert_index);
+      return;
     }
-    dw->weight = std::clamp(dw->weight, 0.0f, 1.0f);
-  }
-  else {
-    /* If the vert wasn't in the deform group then we must take a different form of action. */
-    switch (assignmode) {
-      case WEIGHT_SUBTRACT:
-        /* If we are subtracting then we don't need to do anything. */
-        return;
 
-      case WEIGHT_REPLACE:
-      case WEIGHT_ADD:
-        /* If we are doing an additive assignment, then we need to create the deform weight. */
-        /* We checked if the vertex was added before so no need to test again, simply add. */
-        BKE_defvert_add_index_notest(dv, def_nr, weight);
-        break;
+    MDeformVert *dv = &dverts[dvert_index];
+    /* Lets first check to see if this vert is already in the weight group - if so lets update it.
+     */
+    if (MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr)) {
+      switch (assignmode) {
+        case WEIGHT_REPLACE:
+          dw->weight = weight;
+          break;
+        case WEIGHT_ADD:
+          dw->weight += weight;
+          break;
+        case WEIGHT_SUBTRACT:
+          dw->weight -= weight;
+          break;
+      }
+      dw->weight = std::clamp(dw->weight, 0.0f, 1.0f);
+    }
+    else {
+      /* If the vert wasn't in the deform group then we must take a different form of action. */
+      switch (assignmode) {
+        case WEIGHT_SUBTRACT:
+          /* If we are subtracting then we don't need to do anything. */
+          return;
+
+        case WEIGHT_REPLACE:
+        case WEIGHT_ADD:
+          /* If we are doing an additive assignment, then we need to create the deform weight. */
+          /* We checked if the vertex was added before so no need to test again, simply add. */
+          BKE_defvert_add_index_notest(dv, def_nr, std::clamp(weight, 0.0f, 1.0f));
+          break;
+      }
     }
   }
 
@@ -777,35 +783,33 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
   func = RNA_def_function(srna, "add_vertex_weight", "rna_GreasePencilDrawing_add_vertex_weight");
-  RNA_def_function_ui_description(func, "Set the weight of a vertex in a grease pencil object");
+  RNA_def_function_ui_description(func, "Set the weights of vertices in a grease pencil object");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int(func,
-                     "stroke_index",
-                     0,
-                     0,
-                     INT_MAX,
-                     "Stroke Index",
-                     "The index of the grease pencil stroke to modify",
-                     0,
-                     INT_MAX);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int(func,
-                     "vertex_index",
-                     0,
-                     0,
-                     INT_MAX,
-                     "Index",
-                     "The index of the stroke vertex to modify",
-                     0,
-                     INT_MAX);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_string(
       func, "vgroup_name", "Group", MAX_NAME, "Vertex Group Name", "Name of the vertex group");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_float(
-      func, "weight", 0, 0.0f, 1.0f, "Weight", "The vertex weight to set", 0.0f, 1.0f);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int_array(func,
+                           "indices_ptr",
+                           1,
+                           nullptr,
+                           0,
+                           0,
+                           "Indices",
+                           "The point indices in the vertex group to modify",
+                           0,
+                           0);
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
+  parm = RNA_def_float_array(func,
+                             "weights_ptr",
+                             1,
+                             nullptr,
+                             0,
+                             0,
+                             "Weights",
+                             "The weight for each corresponding index in the indices array",
+                             0,
+                             0);
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
   parm = RNA_def_enum(func, "assign_mode", assign_mode_items, 0, "", "");
 }
 
