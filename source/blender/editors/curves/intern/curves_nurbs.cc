@@ -149,11 +149,13 @@ Span<float> prepare_curve_weights(const Span<float> all_weights,
 IndexMask selection_from_modified(const WeightMatrix &point_weights, IndexMaskMemory &memory)
 {
   Array<bool> modified_points(point_weights.rows(), false);
-  for (const int row : IndexRange(point_weights.rows())) {
-    WeightMatrix::InnerIterator it(point_weights, row);
-    const float value = it.value();
-    modified_points[row] = (value != 1.0f) || (++it);
-  }
+  threading::parallel_for(IndexRange(point_weights.rows()), 512, [&](IndexRange rows) {
+    for (const int row : rows) {
+      WeightMatrix::InnerIterator it(point_weights, row);
+      const float value = it.value();
+      modified_points[row] = (value != 1.0f) || (++it);
+    }
+  });
   return IndexMask::from_bools(modified_points, memory);
 }
 
@@ -232,12 +234,14 @@ void apply_weights_to_curve(const bke::CurvesGeometry &src_curves,
         bke::attribute_math::DefaultMixer<T> mixer{
             attribute.dst.span.typed<T>().slice(new_curve_points)};
 
-        for (const int row : IndexRange(point_weights.rows())) {
-          for (WeightMatrix::InnerIterator it(point_weights, row); it; ++it) {
-            const int src_point = it.col();
-            mixer.mix_in(row, src_points[src_point], weights[src_point] * it.value());
+        threading::parallel_for(IndexRange(point_weights.rows()), 512, [&](IndexRange rows) {
+          for (const int row : rows) {
+            for (WeightMatrix::InnerIterator it(point_weights, row); it; ++it) {
+              const int src_point = it.col();
+              mixer.mix_in(row, src_points[src_point], weights[src_point] * it.value());
+            }
           }
-        };
+        });
         mixer.finalize();
       }
     });
