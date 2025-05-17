@@ -5245,7 +5245,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
 
   /* Override selected flag for drawing. */
   if (but->flag & UI_SELECT_DRAW) {
-    //state.but_flag |= UI_SELECT;
+    // state.but_flag |= UI_SELECT;
     state.but_flag |= UI_SELECT_DRAW;
   }
 

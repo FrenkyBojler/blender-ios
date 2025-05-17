@@ -250,6 +250,10 @@ bool AbstractView::is_multiselect_supported() const
 {
   return is_multiselect_supported_;
 }
+void AbstractView::keep_previous_selection()
+{
+  keep_selection_ = true;
+}
 /** \} */
 
 }  // namespace blender::ui

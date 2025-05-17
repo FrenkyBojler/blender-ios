@@ -62,7 +62,13 @@ bool AbstractViewItem::set_state_active()
   }
 
   /* Deactivate other items in the view. */
-  this->get_view().foreach_view_item([](auto &item) { item.deactivate(); });
+  this->get_view().foreach_view_item([&](auto &item) {
+    if (!get_view().keep_selection_) {
+      /* Keep previous selection for ctrl click. */
+      item.is_selected_ = false;
+    }
+    item.deactivate();
+  });
 
   is_active_ = true;
   is_selected_ = this->get_view().is_multiselect_supported();
@@ -79,11 +85,6 @@ void AbstractViewItem::activate(bContext &C)
 void AbstractViewItem::deactivate()
 {
   is_active_ = false;
-}
-
-void AbstractViewItem::deselect()
-{
-  is_selected_ = false;
 }
 
 /** \} */
