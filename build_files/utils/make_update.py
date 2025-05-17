@@ -5,7 +5,7 @@
 
 """
 "make update" for all platforms, updating Git LFS submodules for libraries and
-tests, and Blender git repository.
+Blender git repository.
 
 For release branches, this will check out the appropriate branches of
 submodules and libraries.
@@ -20,6 +20,11 @@ NOTE:
 Some type annotations are quoted to avoid errors in older Python versions.
 These can be unquoted eventually.
 """
+
+__all__ = (
+    "main",
+)
+
 
 import argparse
 import os
@@ -53,17 +58,21 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--no-libraries", action="store_true")
     parser.add_argument("--no-blender", action="store_true")
     parser.add_argument("--no-submodules", action="store_true")
-    parser.add_argument("--use-tests", action="store_true")
+    parser.add_argument("--no-lfs-fallback", action="store_true")
     parser.add_argument("--git-command", default="git")
     parser.add_argument("--use-linux-libraries", action="store_true")
     parser.add_argument("--architecture", type=str,
                         choices=("x86_64", "amd64", "arm64",))
     parser.add_argument("--prune-destructive", action="store_true",
                         help="Destructive! Detect and remove stale files from older checkouts")
+
+    # Deprecated options, kept for compatibility with old configurations.
+    parser.add_argument("--use-tests", action="store_true", help=argparse.SUPPRESS)
+
     return parser.parse_args()
 
 
-def get_blender_git_root() -> Path:
+def get_blender_git_root(args: argparse.Namespace) -> Path:
     """
     Get root directory of the current Git directory.
     """
@@ -116,8 +125,6 @@ def get_effective_architecture(args: argparse.Namespace) -> str:
     if architecture == "aarch64":
         architecture = "arm64"
 
-    assert (architecture in {"x64", "arm64"})
-
     assert isinstance(architecture, str)
     return architecture
 
@@ -128,7 +135,7 @@ def get_submodule_directories(args: argparse.Namespace) -> "tuple[Path, ...]":
     Get list of all configured submodule directories.
     """
 
-    blender_git_root = get_blender_git_root()
+    blender_git_root = get_blender_git_root(args)
     dot_modules = blender_git_root / ".gitmodules"
 
     if not dot_modules.exists():
@@ -145,13 +152,13 @@ def ensure_git_lfs(args: argparse.Namespace) -> None:
     call((args.git_command, "lfs", "install", "--skip-repo"), exit_on_error=True)
 
 
-def prune_stale_files() -> None:
+def prune_stale_files(args: argparse.Namespace) -> None:
     """
     Ensure files from previous Git configurations do not exist anymore
     """
     print_stage("Removing stale files")
 
-    blender_git_root = get_blender_git_root()
+    blender_git_root = get_blender_git_root(args)
     found_stale_files = False
 
     for relative_dir_to_remove in (
@@ -209,21 +216,6 @@ def initialize_precompiled_libraries(args: argparse.Namespace) -> str:
     return ""
 
 
-def initialize_tests_data_files(args: argparse.Namespace) -> str:
-    """
-    Configure submodule with files used by regression tests
-    """
-
-    print_stage("Configuring Tests Data Files")
-
-    submodule_dir = "tests/data"
-
-    print(f"* Enabling tests data at {submodule_dir}")
-    make_utils.git_enable_submodule(args.git_command, Path(submodule_dir))
-
-    return ""
-
-
 def git_update_skip(args: argparse.Namespace, check_remote_exists: bool = True) -> str:
     """Test if git repo can be updated."""
 
@@ -263,7 +255,7 @@ def use_upstream_workflow(args: argparse.Namespace) -> bool:
 
 def work_tree_update_upstream_workflow(args: argparse.Namespace, use_fetch: bool = True) -> str:
     """
-    Update the Blender repository using the Github style of fork organization
+    Update the Blender repository using the GitHub style of fork organization
 
     Returns true if the current local branch has been updated to the upstream state.
     Otherwise false is returned.
@@ -324,7 +316,7 @@ def external_script_copy_old_submodule_over(
         directory: Path,
         old_submodules_dir: Path,
 ) -> None:
-    blender_git_root = get_blender_git_root()
+    blender_git_root = get_blender_git_root(args)
     external_dir = blender_git_root / directory
 
     print(f"Moving {old_submodules_dir} to {directory} ...")
@@ -351,7 +343,7 @@ def floating_checkout_initialize_if_needed(
 ) -> None:
     """Initialize checkout of an external repository"""
 
-    blender_git_root = get_blender_git_root()
+    blender_git_root = get_blender_git_root(args)
     blender_dot_git = blender_git_root / ".git"
     external_dir = blender_git_root / directory
 
@@ -394,7 +386,7 @@ def floating_checkout_add_origin_if_needed(
 
     cwd = os.getcwd()
 
-    blender_git_root = get_blender_git_root()
+    blender_git_root = get_blender_git_root(args)
     external_dir = blender_git_root / directory
 
     origin_blender_url = make_utils.git_get_remote_url(args.git_command, "origin")
@@ -449,7 +441,7 @@ def floating_checkout_update(
 ) -> str:
     """Update a single external checkout with the given name in the scripts folder"""
 
-    blender_git_root = get_blender_git_root()
+    blender_git_root = get_blender_git_root(args)
     external_dir = blender_git_root / directory
 
     if only_update and not external_dir.exists():
@@ -458,7 +450,7 @@ def floating_checkout_update(
     floating_checkout_initialize_if_needed(args, repo_name, directory, old_submodules_dir)
     floating_checkout_add_origin_if_needed(args, repo_name, directory)
 
-    blender_git_root = get_blender_git_root()
+    blender_git_root = get_blender_git_root(args)
     external_dir = blender_git_root / directory
 
     print(f"* Updating {directory} ...")
@@ -523,21 +515,6 @@ def floating_checkout_update(
     return skip_msg
 
 
-def external_scripts_update(
-        args: argparse.Namespace,
-        repo_name: str,
-        directory_name: str,
-        branch: "str | None",
-) -> str:
-    return floating_checkout_update(
-        args,
-        repo_name,
-        Path("scripts") / directory_name,
-        branch,
-        old_submodules_dir=Path("release") / "scripts" / directory_name,
-    )
-
-
 def floating_libraries_update(args: argparse.Namespace, branch: "str | None") -> str:
     """Update libraries checkouts which are floating (not attached as Git submodules)"""
     msg = ""
@@ -558,7 +535,7 @@ def add_submodule_push_url(args: argparse.Namespace) -> None:
     Add pushURL configuration for all locally activated submodules, pointing to SSH protocol.
     """
 
-    blender_git_root = get_blender_git_root()
+    blender_git_root = get_blender_git_root(args)
     modules = blender_git_root / ".git" / "modules"
 
     submodule_directories = get_submodule_directories(args)
@@ -613,8 +590,34 @@ def submodules_lib_update(args: argparse.Namespace, branch: "str | None") -> str
     return msg
 
 
-if __name__ == "__main__":
+def lfs_fallback_setup(args: argparse.Namespace) -> None:
+    """
+    Set up an additional projects.blender.org remote, for LFS fetching fallback
+    in case the fork does not include LFS files.
+    """
+    remotes = make_utils.git_get_remotes(args.git_command)
+    add_fallback_remote = True
+    fallback_remote = "lfs-fallback"
+
+    for remote in remotes:
+        url = make_utils.git_get_remote_url(args.git_command, remote)
+        if "projects.blender.org" not in url:
+            make_utils.git_set_config(args.git_command, f"lfs.{remote}.searchall", "true")
+        else:
+            add_fallback_remote = False
+
+    if add_fallback_remote and not make_utils.git_remote_exist(args.git_command, fallback_remote):
+        print_stage("Adding Git LFS fallback remote")
+        print("Used to fetch files from projects.blender.org if missing.")
+
+        url = "https://projects.blender.org/blender/blender.git"
+        push_url = "no_push"
+        make_utils.git_add_remote(args.git_command, fallback_remote, url, push_url)
+
+
+def main() -> int:
     args = parse_arguments()
+
     blender_skip_msg = ""
     libraries_skip_msg = ""
     submodules_skip_msg = ""
@@ -631,7 +634,10 @@ if __name__ == "__main__":
     ensure_git_lfs(args)
 
     if args.prune_destructive:
-        prune_stale_files()
+        prune_stale_files(args)
+
+    if not args.no_lfs_fallback:
+        lfs_fallback_setup(args)
 
     if not args.no_blender:
         blender_skip_msg = git_update_skip(args)
@@ -642,8 +648,6 @@ if __name__ == "__main__":
 
     if not args.no_libraries:
         libraries_skip_msg += initialize_precompiled_libraries(args)
-        if args.use_tests:
-            libraries_skip_msg += initialize_tests_data_files(args)
         libraries_skip_msg += submodules_lib_update(args, branch)
 
     # Report any skipped repositories at the end, so it's not as easy to miss.
@@ -652,9 +656,19 @@ if __name__ == "__main__":
         print_stage("Update finished with the following messages")
         print(skip_msg.strip())
 
+    if args.use_tests:
+        print()
+        print('NOTE: --use-tests is a deprecated command line argument, kept for compatibility purposes.')
+
     # For failed submodule update we throw an error, since not having correct
     # submodules can make Blender throw errors.
     # For Blender itself we don't and consider "make update" to be a command
     # you can use while working on uncommitted code.
     if submodules_skip_msg:
-        sys.exit(1)
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

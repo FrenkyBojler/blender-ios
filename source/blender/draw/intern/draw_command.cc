@@ -25,13 +25,13 @@ static gpu::Batch *procedural_batch_get(GPUPrimType primitive)
 {
   switch (primitive) {
     case GPU_PRIM_POINTS:
-      return drw_cache_procedural_points_get();
+      return GPU_batch_procedural_points_get();
     case GPU_PRIM_LINES:
-      return drw_cache_procedural_lines_get();
+      return GPU_batch_procedural_lines_get();
     case GPU_PRIM_TRIS:
-      return drw_cache_procedural_triangles_get();
+      return GPU_batch_procedural_triangles_get();
     case GPU_PRIM_TRI_STRIP:
-      return drw_cache_procedural_triangle_strips_get();
+      return GPU_batch_procedural_triangle_strips_get();
     default:
       /* Add new one as needed. */
       BLI_assert_unreachable();
@@ -178,11 +178,13 @@ void Draw::execute(RecordingState &state) const
   }
 
   if (is_primitive_expansion()) {
-    /* Expanded drawcall. */
-    IndexRange vert_range = GPU_batch_draw_expanded_parameter_get(
-        batch, GPUPrimType(expand_prim_type), vertex_len, vertex_first);
-    IndexRange expanded_range = {vert_range.start() * expand_prim_len,
-                                 vert_range.size() * expand_prim_len};
+    /* Expanded draw-call. */
+    IndexRange expanded_range = GPU_batch_draw_expanded_parameter_get(
+        batch->prim_type,
+        GPUPrimType(expand_prim_type),
+        vertex_len,
+        vertex_first,
+        expand_prim_len);
 
     if (expanded_range.is_empty()) {
       /* Nothing to draw, and can lead to asserts in GPU_batch_bind_as_resources. */
@@ -197,7 +199,7 @@ void Draw::execute(RecordingState &state) const
         gpu_batch, expanded_range.start(), expanded_range.size(), instance_first, instance_len);
   }
   else {
-    /* Regular drawcall. */
+    /* Regular draw-call. */
     GPU_batch_set_shader(batch, state.shader);
     GPU_batch_draw_advanced(batch, vertex_first, vertex_len, instance_first, instance_len);
   }
@@ -288,22 +290,12 @@ void ClearMulti::execute() const
 
 void StateSet::execute(RecordingState &recording_state) const
 {
-  /**
-   * Does not support locked state for the moment and never should.
-   * Better implement a less hacky selection!
-   */
-  BLI_assert(DST.state_lock == 0);
-
   bool state_changed = assign_if_different(recording_state.pipeline_state, new_state);
   bool clip_changed = assign_if_different(recording_state.clip_plane_count, clip_plane_count);
 
   if (!state_changed && !clip_changed) {
     return;
   }
-
-  /* Keep old API working. Keep the state tracking in sync. */
-  /* TODO(fclem): Move at the end of a pass. */
-  DST.state = new_state;
 
   GPU_state_set(to_write_mask(new_state),
                 to_blend(new_state),
@@ -312,6 +304,13 @@ void StateSet::execute(RecordingState &recording_state) const
                 to_stencil_test(new_state),
                 to_stencil_op(new_state),
                 to_provoking_vertex(new_state));
+
+  if (new_state & DRW_STATE_CLIP_CONTROL_UNIT_RANGE) {
+    GPU_clip_control_unit_range(true);
+  }
+  else {
+    GPU_clip_control_unit_range(false);
+  }
 
   if (new_state & DRW_STATE_SHADOW_OFFSET) {
     GPU_shadow_offset(true);
@@ -340,6 +339,24 @@ void StateSet::execute(RecordingState &recording_state) const
   else {
     GPU_program_point_size(false);
   }
+}
+
+void StateSet::set(DRWState state)
+{
+  RecordingState recording_state;
+  StateSet{state, 0}.execute(recording_state);
+
+  /* This function is used for cleaning the state for the viewport drawing.
+   * Make sure to reset textures resources to avoid feedback loop when rendering (see #131652). */
+  GPU_texture_unbind_all();
+  GPU_texture_image_unbind_all();
+  GPU_uniformbuf_debug_unbind_all();
+  GPU_storagebuf_debug_unbind_all();
+
+  /* Remained of legacy draw manager. Kept it to avoid regression, but might become unneeded. */
+  GPU_point_size(5);
+  GPU_line_smooth(false);
+  GPU_line_width(0.0f);
 }
 
 void StencilSet::execute() const
@@ -725,9 +742,9 @@ void DrawCommandBuf::finalize_commands(Vector<Header, 0> &headers,
       cmd.vertex_len = batch_vert_len;
     }
 
-    /* NOTE: Only do this if a handle is present. If a drawcall is using instancing with null
+    /* NOTE: Only do this if a handle is present. If a draw-call is using instancing with null
      * handle, the shader should not rely on `resource_id` at ***all***. This allows procedural
-     * instanced drawcalls with lots of instances with no overhead. */
+     * instanced draw-calls with lots of instances with no overhead. */
     /* TODO(fclem): Think about either fixing this feature or removing support for instancing all
      * together. */
     if (cmd.handle.raw > 0) {
@@ -751,7 +768,7 @@ void DrawCommandBuf::generate_commands(Vector<Header, 0> &headers,
                                        SubPassVector &sub_passes)
 {
   /* First instance ID contains the null handle with identity transform.
-   * This is referenced for drawcalls with no handle. */
+   * This is referenced for draw-calls with no handle. */
   resource_id_buf_.get_or_resize(0) = 0;
   resource_id_count_ = 1;
   finalize_commands(headers, commands, sub_passes, resource_id_count_, resource_id_buf_);
@@ -801,16 +818,17 @@ void DrawMultiBuf::generate_commands(Vector<Header, 0> & /*headers*/,
     UNUSED_VARS_NDEBUG(batch_inst_len);
 
     if (group.desc.expand_prim_type != GPU_PRIM_NONE) {
-      /* Expanded drawcall. */
+      /* Expanded draw-call. */
       IndexRange vert_range = GPU_batch_draw_expanded_parameter_get(
-          group.desc.gpu_batch,
+          group.desc.gpu_batch->prim_type,
           GPUPrimType(group.desc.expand_prim_type),
           group.vertex_len,
-          group.vertex_first);
+          group.vertex_first,
+          group.desc.expand_prim_len);
 
-      group.vertex_first = vert_range.start() * group.desc.expand_prim_len;
-      group.vertex_len = vert_range.size() * group.desc.expand_prim_len;
-      /* Override base index to -1 as the generated drawcall will not use an index buffer and do
+      group.vertex_first = vert_range.start();
+      group.vertex_len = vert_range.size();
+      /* Override base index to -1 as the generated draw-call will not use an index buffer and do
        * the indirection manually inside the shader. */
       group.base_index = -1;
     }

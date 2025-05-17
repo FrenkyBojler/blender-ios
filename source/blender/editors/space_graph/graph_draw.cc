@@ -6,11 +6,13 @@
  * \ingroup spgraph
  */
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -444,8 +446,7 @@ static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, const FCurve 
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+  uint color = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
   if (U.animation_flag & USER_ANIM_HIGH_QUALITY_DRAWING) {
     GPU_line_smooth(true);
@@ -462,7 +463,7 @@ static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, const FCurve 
    */
   for (int sel = 0; sel < 2; sel++) {
     int basecol = (sel) ? TH_HANDLE_SEL_FREE : TH_HANDLE_FREE;
-    uchar col[4];
+    float col[4];
 
     BezTriple *prevbezt = nullptr;
     for (const int i : index_range) {
@@ -483,21 +484,21 @@ static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, const FCurve 
         if ((!prevbezt && (bezt->ipo == BEZT_IPO_BEZ)) ||
             (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ)))
         {
-          UI_GetThemeColor3ubv(basecol + bezt->h1, col);
-          col[3] = fcurve_display_alpha(fcu) * 255;
-          immAttr4ubv(color, col);
+          UI_GetThemeColor3fv(basecol + bezt->h1, col);
+          col[3] = fcurve_display_alpha(fcu);
+          immAttr4fv(color, col);
           immVertex2fv(pos, bezt->vec[0]);
-          immAttr4ubv(color, col);
+          immAttr4fv(color, col);
           immVertex2fv(pos, bezt->vec[1]);
         }
 
         /* only draw second handle if this segment is bezier */
         if (bezt->ipo == BEZT_IPO_BEZ) {
-          UI_GetThemeColor3ubv(basecol + bezt->h2, col);
-          col[3] = fcurve_display_alpha(fcu) * 255;
-          immAttr4ubv(color, col);
+          UI_GetThemeColor3fv(basecol + bezt->h2, col);
+          col[3] = fcurve_display_alpha(fcu);
+          immAttr4fv(color, col);
           immVertex2fv(pos, bezt->vec[1]);
-          immAttr4ubv(color, col);
+          immAttr4fv(color, col);
           immVertex2fv(pos, bezt->vec[2]);
         }
       }
@@ -506,21 +507,21 @@ static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, const FCurve 
         if (((bezt->f1 & SELECT) == sel) && ((!prevbezt && (bezt->ipo == BEZT_IPO_BEZ)) ||
                                              (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ))))
         {
-          UI_GetThemeColor3ubv(basecol + bezt->h1, col);
-          col[3] = fcurve_display_alpha(fcu) * 255;
-          immAttr4ubv(color, col);
+          UI_GetThemeColor3fv(basecol + bezt->h1, col);
+          col[3] = fcurve_display_alpha(fcu);
+          immAttr4fv(color, col);
           immVertex2fv(pos, bezt->vec[0]);
-          immAttr4ubv(color, col);
+          immAttr4fv(color, col);
           immVertex2fv(pos, bezt->vec[1]);
         }
 
         /* only draw second handle if this segment is bezier, and selection is ok */
         if (((bezt->f3 & SELECT) == sel) && (bezt->ipo == BEZT_IPO_BEZ)) {
-          UI_GetThemeColor3ubv(basecol + bezt->h2, col);
-          col[3] = fcurve_display_alpha(fcu) * 255;
-          immAttr4ubv(color, col);
+          UI_GetThemeColor3fv(basecol + bezt->h2, col);
+          col[3] = fcurve_display_alpha(fcu);
+          immAttr4fv(color, col);
           immVertex2fv(pos, bezt->vec[1]);
-          immAttr4ubv(color, col);
+          immAttr4fv(color, col);
           immVertex2fv(pos, bezt->vec[2]);
         }
       }
@@ -637,15 +638,11 @@ static void draw_fcurve_curve(bAnimContext *ac,
      * This one still amounts to 10 sample-frames for each 1-frame interval
      * which should be quite a decent approximation in many situations.
      */
-    if (samplefreq < 0.1f) {
-      samplefreq = 0.1f;
-    }
+    samplefreq = std::max(samplefreq, 0.1f);
   }
   else {
     /* "Higher Precision" but slower - especially on larger windows (e.g. #40372) */
-    if (samplefreq < 0.00001f) {
-      samplefreq = 0.00001f;
-    }
+    samplefreq = std::max(samplefreq, 0.00001f);
   }
 
   /* the start/end times are simply the horizontal extents of the 'cur' rect */
@@ -703,9 +700,7 @@ static void draw_fcurve_curve(bAnimContext *ac,
      * eval_start + total_samples * eval_freq > eval_end
      * due to floating point problems.
      */
-    if (eval_time > eval_end) {
-      eval_time = eval_end;
-    }
+    eval_time = std::min(eval_time, eval_end);
 
     immVertex2f(pos, ctime, (evaluate_fcurve(&fcurve_for_draw, eval_time) + offset) * unitFac);
   }
@@ -866,8 +861,7 @@ static void add_bezt_vertices(BezTriple *bezt,
   float prev_key[2], prev_handle[2], bez_handle[2], bez_key[2];
   /* Allocation needs +1 on resolution because BKE_curve_forward_diff_bezier uses it to iterate
    * inclusively. */
-  float *bezier_diff_points = static_cast<float *>(
-      MEM_mallocN(sizeof(float) * ((resolution + 1) * 2), "Draw bezt data"));
+  float *bezier_diff_points = MEM_malloc_arrayN<float>(((resolution + 1) * 2), "Draw bezt data");
 
   prev_key[0] = prevbezt->vec[1][0];
   prev_key[1] = prevbezt->vec[1][1];
@@ -1496,7 +1490,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceGraph *sipo, ARegion *region, shor
   bAnimListElem *ale_active_fcurve = nullptr;
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     const FCurve *fcu = (FCurve *)ale->key_data;
-    if (fcu->flag & FCURVE_ACTIVE) {
+    if ((fcu->flag & FCURVE_ACTIVE) && !ale_active_fcurve) {
       ale_active_fcurve = ale;
       continue;
     }
@@ -1550,7 +1544,7 @@ void graph_draw_channel_names(bContext *C,
     }
   }
   { /* second pass: widgets */
-    uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+    uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t channel_index = 0;
     float ymax = ANIM_UI_get_first_channel_top(v2d);
 

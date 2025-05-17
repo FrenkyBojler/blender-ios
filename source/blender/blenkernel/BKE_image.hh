@@ -8,17 +8,17 @@
  */
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
+#include "BLI_mutex.hh"
 
-#include "BLI_rect.h"
-
+#include <cstdint>
 #include <optional>
 
+struct rcti;
 struct Depsgraph;
 struct GPUTexture;
 struct ID;
 struct ImBuf;
-struct ImBufAnim;
+struct MovieReader;
 struct Image;
 struct ImageFormatData;
 struct ImagePool;
@@ -28,6 +28,8 @@ struct Library;
 struct ListBase;
 struct Main;
 struct Object;
+struct PartialUpdateRegister;
+struct PartialUpdateUser;
 struct RenderResult;
 struct RenderSlot;
 struct ReportList;
@@ -36,6 +38,28 @@ struct StampData;
 
 #define IMA_MAX_SPACE 64
 #define IMA_UDIM_MAX 2000
+
+namespace blender::bke {
+
+struct ImageRuntime {
+  /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
+   */
+  Mutex cache_mutex;
+
+  /** Register containing partial updates. */
+  PartialUpdateRegister *partial_update_register = nullptr;
+  /** Partial update user for GPUTextures stored inside the Image. */
+  PartialUpdateUser *partial_update_user = nullptr;
+
+  /* The image's current update count. See deg::set_id_update_count for more information. */
+  uint64_t update_count = 0;
+
+  /* Compositor viewer might be translated, and that translation will be stored in this runtime
+   * vector by the compositor so that the editor draw code can draw the image translated. */
+  float backdrop_offset[2] = {};
+};
+
+}  // namespace blender::bke
 
 void BKE_image_free_packedfiles(Image *image);
 void BKE_image_free_views(Image *image);
@@ -112,14 +136,14 @@ bool BKE_imbuf_write_as(ImBuf *ibuf,
 /**
  * Used by sequencer too.
  */
-ImBufAnim *openanim(const char *filepath,
-                    int flags,
-                    int streamindex,
-                    char colorspace[IMA_MAX_SPACE]);
-ImBufAnim *openanim_noload(const char *filepath,
-                           int flags,
-                           int streamindex,
-                           char colorspace[IMA_MAX_SPACE]);
+MovieReader *openanim(const char *filepath,
+                      int flags,
+                      int streamindex,
+                      char colorspace[IMA_MAX_SPACE]);
+MovieReader *openanim_noload(const char *filepath,
+                             int flags,
+                             int streamindex,
+                             char colorspace[IMA_MAX_SPACE]);
 
 void BKE_image_tag_time(Image *ima);
 
@@ -182,7 +206,7 @@ void BKE_image_release_ibuf(Image *ima, ImBuf *ibuf, void *lock);
  */
 ImBuf *BKE_image_preview(Image *ima, short max_size, short *r_width, short *r_height);
 
-ImagePool *BKE_image_pool_new(void);
+ImagePool *BKE_image_pool_new();
 void BKE_image_pool_free(ImagePool *pool);
 ImBuf *BKE_image_pool_acquire_ibuf(Image *ima, ImageUser *iuser, ImagePool *pool);
 void BKE_image_pool_release_ibuf(Image *ima, ImBuf *ibuf, ImagePool *pool);
@@ -419,11 +443,11 @@ void BKE_image_sort_tiles(Image *ima);
 
 bool BKE_image_fill_tile(Image *ima, ImageTile *tile);
 
-typedef enum {
+enum eUDIM_TILE_FORMAT {
   UDIM_TILE_FORMAT_NONE = 0,
   UDIM_TILE_FORMAT_UDIM = 1,
   UDIM_TILE_FORMAT_UVTILE = 2
-} eUDIM_TILE_FORMAT;
+};
 
 /**
  * Checks if the filename portion of the path contains a UDIM token.
@@ -563,7 +587,7 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser);
  * and view can be cached at a time, so the cache should be invalidated in operators and RNA
  * callbacks that change the layer, pass, or view of the image to maintain a correct cache state.
  * However, in some cases, multiple layers, passes, or views might be needed at the same time, like
- * is the case for the realtime compositor. This is currently not supported, so the caller should
+ * is the case for the compositor. This is currently not supported, so the caller should
  * ensure that the requested layer is indeed the cached one and invalidated the cached otherwise by
  * calling BKE_image_ensure_gpu_texture. This is a workaround until image can support a more
  * complete caching system.
@@ -617,7 +641,7 @@ void BKE_image_paint_set_mipmap(Main *bmain, bool mipmap);
 /**
  * Delayed free of OpenGL buffers by main thread.
  */
-void BKE_image_free_unused_gpu_textures(void);
+void BKE_image_free_unused_gpu_textures();
 
 RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name);
 bool BKE_image_remove_renderslot(Image *ima, ImageUser *iuser, int slot);

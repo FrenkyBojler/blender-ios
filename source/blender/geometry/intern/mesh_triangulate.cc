@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <iostream>
-
 #include "atomic_ops.h"
 
 #include "BLI_array_utils.hh"
@@ -518,7 +516,7 @@ static GroupedSpan<int> build_vert_to_tri_map(const int verts_num,
   const OffsetIndices offsets(r_offsets.as_span());
 
   r_indices.reinitialize(offsets.total_size());
-  int *counts = MEM_cnew_array<int>(size_t(offsets.size()), __func__);
+  int *counts = MEM_calloc_arrayN<int>(offsets.size(), __func__);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
   threading::parallel_for(vert_tris.index_range(), 1024, [&](const IndexRange range) {
     for (const int tri : range) {
@@ -554,12 +552,13 @@ static IndexMask calc_unselected_faces(const Mesh &mesh,
       memory,
       [&](const IndexMaskSegment universe_segment, IndexRangesBuilder<int16_t> &builder) {
         if (unique_sorted_indices::non_empty_is_range(universe_segment.base_span())) {
-          const IndexRange segment_range(universe_segment[0], universe_segment.size());
+          const IndexRange universe_as_range = unique_sorted_indices::non_empty_as_range(
+              universe_segment.base_span());
+          const IndexRange segment_range = universe_as_range.shift(universe_segment.offset());
           const OffsetIndices segment_faces = src_faces.slice(segment_range);
           if (segment_faces.total_size() == segment_faces.size() * 3) {
             /* All faces in segment are triangles. */
-            builder.add_range(universe_segment.base_span().first(),
-                              universe_segment.base_span().last());
+            builder.add_range(universe_as_range.start(), universe_as_range.one_after_last());
             return universe_segment.offset();
           }
         }
@@ -771,11 +770,11 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   const IndexRange unselected_range(tris_range.one_after_last(), unselected.size());
 
   /* Create a mesh with no face corners.
-   *  - We haven't yet counted the number of corners from unselected faces. Creating the final face
-   *    offsets will give us that number anyway, so wait to create the edges.
-   *  - The number of edges is a guess that doesn't include deduplication of new edges with
-   *    existing edges. If those are found, the mesh will be resized later.
-   *  - Don't create attributes to facilite implicit sharing of the positions array. */
+   * - We haven't yet counted the number of corners from unselected faces. Creating the final face
+   *   offsets will give us that number anyway, so wait to create the edges.
+   * - The number of edges is a guess that doesn't include deduplication of new edges with
+   *   existing edges. If those are found, the mesh will be resized later.
+   * - Don't create attributes to facilitate implicit sharing of the positions array. */
   Mesh *mesh = bke::mesh_new_no_attributes(src_mesh.verts_num,
                                            src_edges.size() + tri_edges_range.size(),
                                            tris_range.size() + unselected.size(),
@@ -828,7 +827,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
 
   edges_with_duplicates.take_front(src_edges.size()).copy_from(src_edges);
 
-  /* Vertex attributes are totally unnaffected and can be shared with implicit sharing.
+  /* Vertex attributes are totally unaffected and can be shared with implicit sharing.
    * Use the #CustomData API for simpler support for vertex groups. */
   CustomData_merge(&src_mesh.vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, mesh->verts_num);
 

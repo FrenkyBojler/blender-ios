@@ -5,9 +5,9 @@
 /** \file
  * \ingroup pythonintern
  *
- * This file defines a 'PyStructSequence' accessed via 'bpy.app.handlers',
+ * This file defines a #PyStructSequence accessed via `bpy.app.handlers`,
  * which exposes various lists that the script author can add callback
- * functions into (called via blenders generic BLI_cb api)
+ * functions into (called via blenders generic BLI_cb API)
  */
 
 #include "BLI_utildefines.h"
@@ -19,8 +19,6 @@
 
 #include "bpy_app_handlers.hh"
 #include "bpy_rna.hh"
-
-#include "../generic/python_utildefines.hh"
 
 #include "BPY_extern.hh"
 
@@ -294,10 +292,8 @@ PyObject *BPY_app_handlers_struct()
 
 void BPY_app_handlers_reset(const bool do_all)
 {
-  PyGILState_STATE gilstate;
+  PyGILState_STATE gilstate = PyGILState_Ensure();
   int pos = 0;
-
-  gilstate = PyGILState_Ensure();
 
   if (do_all) {
     for (pos = 0; pos < BKE_CB_EVT_TOT; pos++) {

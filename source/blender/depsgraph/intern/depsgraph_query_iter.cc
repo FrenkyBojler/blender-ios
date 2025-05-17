@@ -11,10 +11,7 @@
 /* Silence warnings from copying deprecated fields. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "MEM_guardedalloc.h"
-
 #include "BKE_duplilist.hh"
-#include "BKE_geometry_set.hh"
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_modifier.hh"
@@ -22,6 +19,7 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
@@ -147,7 +145,7 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
 
     DEGObjectIterSettings *settings = data->settings;
     if (settings->included_objects) {
-      Object *object_orig = DEG_get_original_object(obd);
+      Object *object_orig = DEG_get_original(obd);
       if (!settings->included_objects->contains(object_orig)) {
         continue;
       }
@@ -246,7 +244,7 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
     }
 
     Object *object = (Object *)id_node->id_cow;
-    Object *object_orig = DEG_get_original_object(object);
+    Object *object_orig = DEG_get_original(object);
 
     DEGObjectIterSettings *settings = data->settings;
     if (settings->included_objects) {
@@ -288,7 +286,8 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
           ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
       {
         BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
-        ListBase *duplis = object_duplilist(data->graph, data->scene, object);
+        ListBase *duplis = object_duplilist(
+            data->graph, data->scene, object, data->settings->included_objects);
         deg_iterator_duplis_init(data, object, duplis);
       }
     }
@@ -350,7 +349,7 @@ static Object *find_object_with_preview_geometry(const ViewerPath &viewer_path)
   }
   const ModifierViewerPathElem *modifier_elem = reinterpret_cast<const ModifierViewerPathElem *>(
       elem->next);
-  ModifierData *md = BKE_modifiers_findby_name(object, modifier_elem->modifier_name);
+  ModifierData *md = BKE_modifiers_findby_persistent_uid(object, modifier_elem->modifier_uid);
   if (md == nullptr) {
     return nullptr;
   }

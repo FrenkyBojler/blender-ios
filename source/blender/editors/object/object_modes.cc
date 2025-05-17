@@ -18,9 +18,9 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
@@ -130,11 +130,6 @@ bool mode_compat_test(const Object *ob, eObjectMode mode)
         return true;
       }
       break;
-    case OB_GPENCIL_LEGACY:
-      if (mode & (OB_MODE_EDIT_GPENCIL_LEGACY | OB_MODE_ALL_PAINT_GPENCIL)) {
-        return true;
-      }
-      break;
     case OB_CURVES:
       if (mode & (OB_MODE_EDIT | OB_MODE_SCULPT_CURVES)) {
         return true;
@@ -192,10 +187,6 @@ bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *repor
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   if (ob == nullptr) {
     return (mode == OB_MODE_OBJECT);
-  }
-
-  if ((ob->type == OB_GPENCIL_LEGACY) && (mode == OB_MODE_EDIT)) {
-    mode = OB_MODE_EDIT_GPENCIL_LEGACY;
   }
 
   if (ob->mode == mode) {
@@ -361,7 +352,13 @@ void posemode_set_for_weight_paint(bContext *C, Main *bmain, Object *ob, const b
   ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
   for (; md; md = md->next) {
     if (md->type == eModifierType_Armature) {
-      ArmatureModifierData *amd = (ArmatureModifierData *)md;
+      ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
+      Object *ob_arm = amd->object;
+      ed_object_posemode_set_for_weight_paint_ex(C, bmain, ob_arm, is_mode_set);
+    }
+    else if (md->type == eModifierType_GreasePencilArmature) {
+      GreasePencilArmatureModifierData *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(
+          md);
       Object *ob_arm = amd->object;
       ed_object_posemode_set_for_weight_paint_ex(C, bmain, ob_arm, is_mode_set);
     }
@@ -414,7 +411,7 @@ static void object_transfer_mode_reposition_view_pivot(ARegion *region,
 static void object_overlay_mode_transfer_animation_start(bContext *C, Object *ob_dst)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Object *ob_dst_eval = DEG_get_evaluated_object(depsgraph, ob_dst);
+  Object *ob_dst_eval = DEG_get_evaluated(depsgraph, ob_dst);
   ob_dst_eval->runtime->overlay_mode_transfer_start_time = BLI_time_now_seconds();
 }
 
@@ -459,7 +456,9 @@ static bool object_transfer_mode_to_base(bContext *C,
   return mode_transferred;
 }
 
-static int object_transfer_mode_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -531,7 +530,7 @@ void OBJECT_OT_transfer_mode(wmOperatorType *ot)
       "Switches the active object and assigns the same mode to a new one under the mouse cursor, "
       "leaving the active mode in the current one";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_transfer_mode_invoke;
   ot->poll = object_transfer_mode_poll;
 

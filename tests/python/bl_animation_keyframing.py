@@ -9,7 +9,7 @@ import sys
 from math import radians
 
 """
-blender -b --factory-startup --python tests/python/bl_animation_keyframing.py -- --testdir /path/to/tests/data/animation
+blender -b --factory-startup --python tests/python/bl_animation_keyframing.py -- --testdir /path/to/tests/files/animation
 """
 
 
@@ -265,6 +265,15 @@ class InsertKeyTest(AbstractKeyframingTest, unittest.TestCase):
         self.assertTrue(curve_object.keyframe_insert('show_wire', group="Téšt"))
         self.assertEqual('show_wire', fcurves[0].data_path)
         self.assertEqual(["Téšt"], [group.name for group in fgroups])
+
+    def test_keyframe_insert_nested_rna_path(self):
+        bpy.ops.mesh.primitive_cube_add()
+        obj = bpy.context.object
+        obj.data.attributes.new("test", "FLOAT", "POINT")
+        self.assertTrue(obj.data.keyframe_insert('attributes["test"].data[0].value'))
+        fcurves = obj.data.animation_data.action.fcurves
+        self.assertEqual(len(fcurves), 1)
+        self.assertEqual(fcurves[0].data_path, 'attributes["test"].data[0].value')
 
 
 class VisualKeyingTest(AbstractKeyframingTest, unittest.TestCase):

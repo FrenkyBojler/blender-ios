@@ -2,19 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include <functional>
 #include <optional>
 
 #include "BLI_function_ref.hh"
-#include "BLI_generic_span.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
 #include "BLI_struct_equality_utils.hh"
 
-#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.h"
 #include "BKE_attribute_filters.hh"
 
@@ -28,6 +31,33 @@ class GField;
 }  // namespace blender::fn
 
 namespace blender::bke {
+
+/** Some storage types are only relevant for certain attribute types. */
+enum class AttrStorageType : int8_t {
+  /** #AttributeDataArray. */
+  Array,
+  /** A single value for the whole attribute. */
+  Single,
+};
+
+enum class AttrType : int16_t {
+  Bool,
+  Int8,
+  Int16_2D,
+  Int32,
+  Int32_2D,
+  Float,
+  Float2,
+  Float3,
+  Float4x4,
+  ColorByte,
+  ColorFloat,
+  Quaternion,
+  String,
+};
+
+const CPPType &attribute_type_to_cpp_type(AttrType type);
+AttrType cpp_type_to_attribute_type(const CPPType &type);
 
 enum class AttrDomain : int8_t {
   /* Used to choose automatically based on other data. */
@@ -67,6 +97,7 @@ struct AttributeMetaData {
 struct AttributeDomainAndType {
   AttrDomain domain;
   eCustomDataType data_type;
+  BLI_STRUCT_EQUALITY_OPERATORS_2(AttributeDomainAndType, domain, data_type)
 };
 
 /**
@@ -463,7 +494,9 @@ class AttributeIter {
 struct AttributeAccessorFunctions {
   bool (*domain_supported)(const void *owner, AttrDomain domain);
   int (*domain_size)(const void *owner, AttrDomain domain);
-  bool (*is_builtin)(const void *owner, StringRef attribute_id);
+  std::optional<AttributeDomainAndType> (*builtin_domain_and_type)(const void *owner,
+                                                                   StringRef attribute_id);
+  GPointer (*get_builtin_default)(const void *owner, StringRef attribute_id);
   GAttributeReader (*lookup)(const void *owner, StringRef attribute_id);
   GVArray (*adapt_domain)(const void *owner,
                           const GVArray &varray,
@@ -520,12 +553,12 @@ class AttributeAccessor {
   /**
    * \return True, when the attribute is available.
    */
-  bool contains(const StringRef attribute_id) const;
+  bool contains(StringRef attribute_id) const;
 
   /**
    * \return Information about the attribute if it exists.
    */
-  std::optional<AttributeMetaData> lookup_meta_data(const StringRef attribute_id) const;
+  std::optional<AttributeMetaData> lookup_meta_data(StringRef attribute_id) const;
 
   /**
    * \return True, when attributes can exist on that domain.
@@ -549,7 +582,25 @@ class AttributeAccessor {
    */
   bool is_builtin(const StringRef attribute_id) const
   {
-    return fn_->is_builtin(owner_, attribute_id);
+    return fn_->builtin_domain_and_type(owner_, attribute_id).has_value();
+  }
+
+  /**
+   * \return The required domain and type for the attribute, if it is builtin.
+   */
+  std::optional<AttributeDomainAndType> get_builtin_domain_and_type(const StringRef name) const
+  {
+    return fn_->builtin_domain_and_type(owner_, name);
+  }
+
+  /**
+   * \return The default value defined by the `#BuiltinAttributeProvider`. The provided
+   * attribute_id must refer to a builtin attribute.
+   */
+  GPointer get_builtin_default(const StringRef attribute_id) const
+  {
+    BLI_assert(this->is_builtin(attribute_id));
+    return fn_->get_builtin_default(owner_, attribute_id);
   }
 
   /**
@@ -851,6 +902,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
 struct AttributeTransferData {
   /* Expect that if an attribute exists, it is stored as a contiguous array internally anyway. */
   GVArraySpan src;
+  StringRef name;
   AttributeMetaData meta_data;
   GSpanAttributeWriter dst;
 };

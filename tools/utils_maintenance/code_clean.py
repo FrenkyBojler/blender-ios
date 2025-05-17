@@ -11,6 +11,10 @@ Note: currently this is limited to paths in "source/" and "intern/",
 we could change this if it's needed.
 """
 
+__all__ = (
+    "main",
+)
+
 import argparse
 import re
 import subprocess
@@ -20,6 +24,7 @@ import string
 
 from typing import (
     Any,
+    NamedTuple,
 )
 from collections.abc import (
     Iterator,
@@ -402,25 +407,14 @@ def find_build_args_make(build_dir: str) -> ProcessedCommands | None:
 #
 # Although this seems like it's not a common use-case.
 
-from collections import namedtuple
-Edit = namedtuple(
-    "Edit", (
-        # Keep first, for sorting.
-        "span",
 
-        "content",
-        "content_fail",
+class Edit(NamedTuple):
+    span: tuple[int, int]
+    content: str
+    content_fail: str
 
-        # Optional.
-        "extra_build_args",
-    ),
-
-    defaults=(
-        # `extra_build_args`.
-        None,
-    )
-)
-del namedtuple
+    # Optional.
+    extra_build_args: tuple[str, ...] | None = None
 
 
 class EditGenerator:
@@ -449,7 +443,7 @@ class EditGenerator:
     def edit_list_from_file(_source: str, _data: str, _shared_edit_data: Any) -> list[Edit]:
         # The `__init_subclass__` function ensures this is always overridden.
         raise RuntimeError("This function must be overridden by it's subclass!")
-        return []
+        # return []
 
     @staticmethod
     def setup() -> Any:
@@ -988,9 +982,15 @@ class edit_generators:
                 span_skip.add(match.span(1))
 
             # Remove `struct`
-            for match in re.finditer(r"\b(struct)\s+[a-zA-Z0-9_]+", data):
+            for match in re.finditer(r"\b(struct)\s+([a-zA-Z0-9_]+)", data):
                 span = match.span(1)
                 if span in span_skip:
+                    continue
+
+                if match.group(2) in {
+                        # macOS requires a leading `struct` while Linux doesn't.
+                        "timezone",
+                }:
                     continue
 
                 edits.append(Edit(
@@ -1140,6 +1140,29 @@ class edit_generators:
                 for match in re.finditer(
                         (r"\b" + src + (
                             r"\(([^,]+,\s+[^,]+),\s+" r"("
+                            r"sizeof\([^\(\)]+\)"  # Trailing `sizeof(..)`.
+                            r"|"
+                            r"[a-zA-Z0-9_]+"  # Trailing identifier (typically a define).
+                            r")" r"\)"
+                        )),
+                        data,
+                        flags=re.MULTILINE,
+                ):
+                    edits.append(Edit(
+                        span=match.span(),
+                        content='{:s}({:s})'.format(dst, match.group(1)),
+                        content_fail='__ALWAYS_FAIL__',
+                    ))
+
+            # `BLI_strnlen(a, sizeof(a))` -> `STRNLEN(a)`
+            # `BLI_strnlen(a, SOME_ID)` -> `STRNLEN(a)`
+            for src, dst in (
+                    ("BLI_strnlen", "STRNLEN"),
+                    ("BLI_strnlen_utf8", "STRNLEN_UTF8"),
+            ):
+                for match in re.finditer(
+                        (r"\b" + src + (
+                            r"\(([^,]+),\s+" r"("
                             r"sizeof\([^\(\)]+\)"  # Trailing `sizeof(..)`.
                             r"|"
                             r"[a-zA-Z0-9_]+"  # Trailing identifier (typically a define).
@@ -1880,29 +1903,35 @@ def wash_source_with_edit(
                 pass
 
 
+class FileBuildConfig(NamedTuple):
+    build_args: Sequence[str]
+    build_cwd: str | None
+    output_path: str
+
+
 def wash_source_with_edit_list(
         source: str,
-        output: str,
-        build_args: Sequence[str],
-        build_cwd: str | None,
+        build_configs: Sequence[FileBuildConfig],
         skip_test: bool,
         verbose_compile: bool,
         verbose_edit_actions: bool,
         shared_edit_data: Any,
         edit_list: Sequence[str],
 ) -> None:
-    for edit_to_apply in edit_list:
-        wash_source_with_edit(
-            source,
-            output,
-            build_args,
-            build_cwd,
-            skip_test,
-            verbose_compile,
-            verbose_edit_actions,
-            shared_edit_data,
-            edit_to_apply,
-        )
+    assert len(build_configs) > 0
+    for build_cfg in build_configs:
+        for edit_to_apply in edit_list:
+            wash_source_with_edit(
+                source,
+                build_cfg.output_path,
+                build_cfg.build_args,
+                build_cfg.build_cwd,
+                skip_test,
+                verbose_compile,
+                verbose_edit_actions,
+                shared_edit_data,
+                edit_to_apply,
+            )
 
 
 # -----------------------------------------------------------------------------
@@ -1945,7 +1974,7 @@ def run_edits_on_directory(
     # needed for when arguments are referenced relatively
     os.chdir(build_dir)
 
-    # Weak, but we probably don't want to handle extern.
+    # Weak, but we probably don't want to handle `./extern/`.
     # this limit could be removed.
     source_paths = (
         os.path.join("intern", "ghost"),
@@ -1994,18 +2023,32 @@ def run_edits_on_directory(
                         return True
         return False
 
-    # Filter out build args.
-    args_orig_len = len(args)
-    args_with_cwd = [
-        (c, *split_build_args_with_cwd(build_args_str))
-        for (c, build_args_str) in args
+    filepaths_unique = {c for c, _ in args}
+
+    # Filter out paths.
+    # NOTE: the same source file may be referenced from multiple `build_args`,
+    # when running multiple processes it's important that each file references all it's arguments,
+    # so different processes don't try to manipulate the same file at once.
+    args_from_file_map: dict[str, list[FileBuildConfig]] = {
+        c: []
+        for c in sorted(filepaths_unique)
         if test_path(c)
-    ]
+    }
+
+    for (c, build_args_str) in args:
+        if c not in args_from_file_map:
+            continue
+        build_args, build_cwd = split_build_args_with_cwd(build_args_str)
+        args_from_file_map[c].append(FileBuildConfig(
+            build_args=build_args,
+            build_cwd=build_cwd,
+            output_path=output_from_build_args(build_args, build_cwd),
+        ))
+
     del args
-    print("Operating on {:d} of {:d} files...".format(len(args_with_cwd), args_orig_len))
-    for (c, build_args, build_cwd) in args_with_cwd:
+    print("Operating on {:d} of {:d} files...".format(len(args_from_file_map), len(filepaths_unique)))
+    for c in args_from_file_map.keys():
         print(" ", c)
-    del args_orig_len
 
     if jobs > 1:
         # Group edits to avoid one file holding up the queue before other edits can be worked on.
@@ -2025,26 +2068,22 @@ def run_edits_on_directory(
             if jobs > 1:
                 args_expanded = [(
                     c,
-                    output_from_build_args(build_args, build_cwd),
-                    build_args,
-                    build_cwd,
+                    build_configs,
                     skip_test,
                     verbose_compile,
                     verbose_edit_actions,
                     shared_edit_data,
                     edits_group,
-                ) for (c, build_args, build_cwd) in args_with_cwd]
+                ) for c, build_configs in args_from_file_map.items()]
                 pool = multiprocessing.Pool(processes=jobs)
                 pool.starmap(wash_source_with_edit_list, args_expanded)
                 del args_expanded
             else:
                 # now we have commands
-                for c, build_args, build_cwd in args_with_cwd:
+                for c, build_configs in args_from_file_map.items():
                     wash_source_with_edit_list(
                         c,
-                        output_from_build_args(build_args, build_cwd),
-                        build_args,
-                        build_cwd,
+                        build_configs,
                         skip_test,
                         verbose_compile,
                         verbose_edit_actions,

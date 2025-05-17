@@ -9,7 +9,6 @@
  */
 
 #include <iosfwd>
-#include <mutex>
 
 #include "BLI_bounds_types.hh"
 #include "BLI_function_ref.hh"
@@ -17,6 +16,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_counter_fwd.hh"
+#include "BLI_mutex.hh"
 
 /* For #Map. */
 #include "BKE_attribute.hh"
@@ -83,7 +83,7 @@ class GeometryComponent : public ImplicitSharingMixin {
 
  public:
   GeometryComponent(Type type);
-  virtual ~GeometryComponent() = default;
+  ~GeometryComponent() override = default;
   static GeometryComponentPtr create(Type component_type);
 
   int attribute_domain_size(AttrDomain domain) const;
@@ -224,7 +224,7 @@ struct GeometrySet {
    */
   Vector<const GeometryComponent *> get_components() const;
 
-  std::optional<Bounds<float3>> compute_boundbox_without_instances() const;
+  std::optional<Bounds<float3>> compute_boundbox_without_instances(bool use_radius = true) const;
 
   friend std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set);
 
@@ -245,6 +245,13 @@ struct GeometrySet {
    * instances so that they can be owned.
    */
   void ensure_owns_all_data();
+  /**
+   * Typically, multiple #GeometrySet may share the same #GeometryComponent. This is fine as long
+   * as we can guarantee that the data is read-only. However, if some geometry is available in
+   * Python, that guarantee is not possible currently. For that case it can make sense that the
+   * #GeometrySet is the unique owner of the geometries it contains.
+   */
+  void ensure_no_shared_components();
 
   using AttributeForeachCallback = FunctionRef<void(StringRef attribute_id,
                                                     const AttributeMetaData &meta_data,
@@ -363,6 +370,10 @@ struct GeometrySet {
    */
   const CurvesEditHints *get_curve_edit_hints() const;
   /**
+   * Returns read-only Grease Pencil edit hints or null.
+   */
+  const GreasePencilEditHints *get_grease_pencil_edit_hints() const;
+  /**
    * Returns read-only gizmo edit hints or null.
    */
   const GizmoEditHints *get_gizmo_edit_hints() const;
@@ -395,6 +406,10 @@ struct GeometrySet {
    * Returns mutable curve edit hints or null.
    */
   CurvesEditHints *get_curve_edit_hints_for_write();
+  /**
+   * Returns mutable Grease Pencil edit hints or null.
+   */
+  GreasePencilEditHints *get_grease_pencil_edit_hints_for_write();
   /**
    * Returns mutable gizmo edit hints or null.
    */
@@ -474,7 +489,7 @@ class MeshComponent : public GeometryComponent {
  public:
   MeshComponent();
   MeshComponent(Mesh *mesh, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
-  ~MeshComponent();
+  ~MeshComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -507,7 +522,7 @@ class MeshComponent : public GeometryComponent {
 
   void count_memory(MemoryCounter &memory) const override;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::Mesh;
+  static constexpr GeometryComponent::Type static_type = Type::Mesh;
 
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
@@ -532,7 +547,7 @@ class PointCloudComponent : public GeometryComponent {
   PointCloudComponent();
   PointCloudComponent(PointCloud *pointcloud,
                       GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
-  ~PointCloudComponent();
+  ~PointCloudComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -571,7 +586,7 @@ class PointCloudComponent : public GeometryComponent {
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::PointCloud;
+  static constexpr GeometryComponent::Type static_type = Type::PointCloud;
 };
 
 /**
@@ -590,12 +605,12 @@ class CurveComponent : public GeometryComponent {
    * even when the new curve data structure is used.
    */
   mutable Curve *curve_for_render_ = nullptr;
-  mutable std::mutex curve_for_render_mutex_;
+  mutable Mutex curve_for_render_mutex_;
 
  public:
   CurveComponent();
   CurveComponent(Curves *curve, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
-  ~CurveComponent();
+  ~CurveComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -625,7 +640,7 @@ class CurveComponent : public GeometryComponent {
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::Curve;
+  static constexpr GeometryComponent::Type static_type = Type::Curve;
 };
 
 /**
@@ -640,7 +655,7 @@ class InstancesComponent : public GeometryComponent {
   InstancesComponent();
   InstancesComponent(Instances *instances,
                      GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
-  ~InstancesComponent();
+  ~InstancesComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -663,7 +678,7 @@ class InstancesComponent : public GeometryComponent {
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::Instance;
+  static constexpr GeometryComponent::Type static_type = Type::Instance;
 };
 
 /**
@@ -678,7 +693,7 @@ class VolumeComponent : public GeometryComponent {
 
  public:
   VolumeComponent();
-  ~VolumeComponent();
+  ~VolumeComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -710,7 +725,7 @@ class VolumeComponent : public GeometryComponent {
 
   void count_memory(MemoryCounter &memory) const override;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::Volume;
+  static constexpr GeometryComponent::Type static_type = Type::Volume;
 };
 
 /**
@@ -754,7 +769,7 @@ class GeometryComponentEditData final : public GeometryComponent {
    */
   static void remember_deformed_positions_if_necessary(GeometrySet &geometry);
 
-  static constexpr inline GeometryComponent::Type static_type = GeometryComponent::Type::Edit;
+  static constexpr GeometryComponent::Type static_type = GeometryComponent::Type::Edit;
 };
 
 /**
@@ -769,7 +784,7 @@ class GreasePencilComponent : public GeometryComponent {
 
  public:
   GreasePencilComponent();
-  ~GreasePencilComponent();
+  ~GreasePencilComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -793,7 +808,7 @@ class GreasePencilComponent : public GeometryComponent {
   bool owns_direct_data() const override;
   void ensure_owns_direct_data() override;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::GreasePencil;
+  static constexpr GeometryComponent::Type static_type = Type::GreasePencil;
 
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;

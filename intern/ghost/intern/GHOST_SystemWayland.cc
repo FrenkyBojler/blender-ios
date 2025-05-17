@@ -319,6 +319,11 @@ enum {
 #endif
 };
 
+/* Only defined in XKB 1.8x and newer, it seems XKB doesn't provide a version define. */
+#ifndef XKB_VMOD_NAME_HYPER
+#  define XKB_VMOD_NAME_HYPER "Hyper"
+#endif
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -332,8 +337,9 @@ enum {
   MOD_INDEX_ALT = 1,
   MOD_INDEX_CTRL = 2,
   MOD_INDEX_OS = 3,
+  MOD_INDEX_HYPER = 4,
 };
-#define MOD_INDEX_NUM (MOD_INDEX_OS + 1)
+#define MOD_INDEX_NUM (MOD_INDEX_HYPER + 1)
 
 struct GWL_ModifierInfo {
   /** Only for printing messages. */
@@ -379,6 +385,15 @@ static const GWL_ModifierInfo g_modifier_info_table[MOD_INDEX_NUM] = {
         /*key_r*/ GHOST_kKeyRightOS,
         /*mod_l*/ GHOST_kModifierKeyLeftOS,
         /*mod_r*/ GHOST_kModifierKeyRightOS,
+    },
+    /*MOD_INDEX_HYPER*/
+    {
+        /*display_name*/ "Hyper",
+        /*xkb_id*/ XKB_VMOD_NAME_HYPER,
+        /*key_l*/ GHOST_kKeyLeftHyper,
+        /*key_r*/ GHOST_kKeyRightHyper,
+        /*mod_l*/ GHOST_kModifierKeyLeftHyper,
+        /*mod_r*/ GHOST_kModifierKeyRightHyper,
     },
 };
 
@@ -998,10 +1013,11 @@ struct GWL_SeatIME {
    */
   wl_surface *surface_window = nullptr;
   GHOST_TEventImeData event_ime_data = {
-      /*result_len*/ nullptr,
-      /*composite_len*/ nullptr,
-      /*result*/ nullptr,
-      /*composite*/ nullptr,
+      /** Storage for #GHOST_TEventImeData::result (the result of the `commit_string` callback). */
+      /*result*/ "",
+      /** Storage for #GHOST_TEventImeData::composite (the result of the `preedit_string`
+         callback). */
+      /*composite*/ "",
       /*cursor_position*/ -1,
       /*target_start*/ -1,
       /*target_end*/ -1,
@@ -1013,11 +1029,6 @@ struct GWL_SeatIME {
    * (an IME popup may be showing however this isn't known).
    */
   bool has_preedit = false;
-
-  /** Storage for #GHOST_TEventImeData::result (the result of the `commit_string` callback). */
-  std::string result;
-  /** Storage for #GHOST_TEventImeData::composite (the result of the `preedit_string` callback). */
-  std::string composite;
 
   /** #zwp_text_input_v3_listener::commit_string was called with a null text argument. */
   bool result_is_null = false;
@@ -1358,22 +1369,17 @@ static void gwl_seat_ime_full_reset(GWL_Seat *seat)
 
 static void gwl_seat_ime_result_reset(GWL_Seat *seat)
 {
-  seat->ime.result.clear();
-  seat->ime.result_is_null = false;
-
   GHOST_TEventImeData &event_ime_data = seat->ime.event_ime_data;
-  event_ime_data.result_len = nullptr;
-  event_ime_data.result = nullptr;
+  event_ime_data.result.clear();
+  seat->ime.result_is_null = false;
 }
 
 static void gwl_seat_ime_preedit_reset(GWL_Seat *seat)
 {
-  seat->ime.composite.clear();
-  seat->ime.composite_is_null = false;
 
   GHOST_TEventImeData &event_ime_data = seat->ime.event_ime_data;
-  event_ime_data.composite_len = nullptr;
-  event_ime_data.composite = nullptr;
+  event_ime_data.composite.clear();
+  seat->ime.composite_is_null = false;
 
   event_ime_data.cursor_position = -1;
   event_ime_data.target_start = -1;
@@ -2107,6 +2113,8 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t sym)
       GXMAP(gkey, XKB_KEY_Alt_R, GHOST_kKeyRightAlt);
       GXMAP(gkey, XKB_KEY_Super_L, GHOST_kKeyLeftOS);
       GXMAP(gkey, XKB_KEY_Super_R, GHOST_kKeyRightOS);
+      GXMAP(gkey, XKB_KEY_Hyper_L, GHOST_kKeyLeftHyper);
+      GXMAP(gkey, XKB_KEY_Hyper_R, GHOST_kKeyRightHyper);
       GXMAP(gkey, XKB_KEY_Menu, GHOST_kKeyApp);
 
       GXMAP(gkey, XKB_KEY_Caps_Lock, GHOST_kKeyCapsLock);
@@ -2241,8 +2249,10 @@ static const GWL_Cursor_ShapeInfo ghost_wl_cursors = []() -> GWL_Cursor_ShapeInf
   GWL_Cursor_ShapeInfo info{};
 
 #define CASE_CURSOR(shape_id, shape_name_in_theme) \
-  case shape_id: \
-    info.names[int(shape_id)] = shape_name_in_theme;
+  case shape_id: { \
+    info.names[int(shape_id)] = shape_name_in_theme; \
+  } \
+    ((void)0)
 
   /* Use a switch to ensure missing values show a compiler warning. */
   switch (GHOST_kStandardCursorDefault) {
@@ -2290,6 +2300,7 @@ static const GWL_Cursor_ShapeInfo ghost_wl_cursors = []() -> GWL_Cursor_ShapeInf
     CASE_CURSOR(GHOST_kStandardCursorLeftHandle, "");
     CASE_CURSOR(GHOST_kStandardCursorRightHandle, "");
     CASE_CURSOR(GHOST_kStandardCursorBothHandles, "");
+    CASE_CURSOR(GHOST_kStandardCursorBlade, "");
     CASE_CURSOR(GHOST_kStandardCursorCustom, "");
   }
 #undef CASE_CURSOR
@@ -2410,13 +2421,6 @@ static int memfd_create_sealed(const char *name)
   return fd;
 #endif /* !HAVE_MEMFD_CREATE */
 }
-
-#if defined(WITH_GHOST_WAYLAND_LIBDECOR) && defined(WITH_VULKAN_BACKEND)
-int memfd_create_sealed_for_vulkan_hack(const char *name)
-{
-  return memfd_create_sealed(name);
-}
-#endif
 
 enum {
   GWL_IOR_READ = 1 << 0,
@@ -3771,9 +3775,7 @@ static bool update_cursor_scale(GWL_Cursor &cursor,
       output_scale_floor = std::max(1, output->scale_fractional / FRACTIONAL_DENOMINATOR);
     }
 
-    if (output_scale_floor > scale) {
-      scale = output_scale_floor;
-    }
+    scale = std::max(output_scale_floor, scale);
   }
 
   if (scale > 0 && seat_state_pointer->theme_scale != scale) {
@@ -4099,13 +4101,19 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
           }
 
           /* Done evaluating scroll input, generate the events. */
-
-          /* Discrete X axis currently unsupported. */
           if (ps.discrete_xy[0] || ps.discrete_xy[1]) {
+            if (ps.discrete_xy[0]) {
+              seat->system->pushEvent_maybe_pending(new GHOST_EventWheel(
+                  ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
+                  win,
+                  GHOST_kEventWheelAxisHorizontal,
+                  ps.discrete_xy[0]));
+            }
             if (ps.discrete_xy[1]) {
               seat->system->pushEvent_maybe_pending(new GHOST_EventWheel(
                   ps.has_event_ms ? ps.event_ms : seat->system->getMilliSeconds(),
                   win,
+                  GHOST_kEventWheelAxisVertical,
                   -ps.discrete_xy[1]));
             }
             ps.discrete_xy[0] = 0;
@@ -4780,10 +4788,11 @@ static void tablet_tool_handle_tilt(void *data,
                                     const wl_fixed_t tilt_x,
                                     const wl_fixed_t tilt_y)
 {
-  /* Map degrees to `-1.0..1.0`. */
+  /* Map X tilt to `-1.0 (left)..1.0 (right)`.
+   * Map Y tilt to `-1.0 (away from user)..1.0 (toward user)`. */
   const float tilt_unit[2] = {
-      float(wl_fixed_to_double(tilt_x) / 90.0),
-      float(wl_fixed_to_double(tilt_y) / 90.0),
+      float(wl_fixed_to_double(tilt_x) / 90.0f),
+      float(wl_fixed_to_double(tilt_y) / 90.0f),
   };
   CLOG_INFO(LOG, 2, "tilt (x=%.4f, y=%.4f)", UNPACK2(tilt_unit));
   GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(data);
@@ -4937,7 +4946,10 @@ static void tablet_tool_handle_frame(void *data,
         }
         case GWL_TabletTool_EventTypes::Wheel: {
           seat->system->pushEvent_maybe_pending(
-              new GHOST_EventWheel(event_ms, win, -tablet_tool->frame_pending.wheel.clicks));
+              new GHOST_EventWheel(event_ms,
+                                   win,
+                                   GHOST_kEventWheelAxisVertical,
+                                   -tablet_tool->frame_pending.wheel.clicks));
           break;
         }
       }
@@ -5733,6 +5745,9 @@ static const zwp_primary_selection_source_v1_listener primary_selection_source_l
 #ifdef WITH_INPUT_IME
 
 class GHOST_EventIME : public GHOST_Event {
+ protected:
+  GHOST_TEventImeData event_ime_data;
+
  public:
   /**
    * Constructor.
@@ -5740,10 +5755,16 @@ class GHOST_EventIME : public GHOST_Event {
    * \param type: The type of key event.
    * \param key: The key code of the key.
    */
-  GHOST_EventIME(uint64_t msec, GHOST_TEventType type, GHOST_IWindow *window, void *customdata)
+  GHOST_EventIME(uint64_t msec,
+                 GHOST_TEventType type,
+                 GHOST_IWindow *window,
+                 GHOST_TEventImeData *customdata)
       : GHOST_Event(msec, type, window)
   {
-    this->m_data = customdata;
+    /* Make sure that we keep a copy of the IME input. Otherwise it might get lost
+     * because we overwrite it before it can be read in Blender. (See #137346). */
+    this->event_ime_data = *customdata;
+    this->m_data = &this->event_ime_data;
   }
 };
 
@@ -5807,9 +5828,7 @@ static void text_input_handle_preedit_string(void *data,
 
   seat->ime.composite_is_null = (text == nullptr);
   if (!seat->ime.composite_is_null) {
-    seat->ime.composite = text;
-    seat->ime.event_ime_data.composite = (void *)seat->ime.composite.c_str();
-    seat->ime.event_ime_data.composite_len = (void *)seat->ime.composite.size();
+    seat->ime.event_ime_data.composite = text;
 
     seat->ime.event_ime_data.cursor_position = cursor_begin;
     seat->ime.event_ime_data.target_start = cursor_begin;
@@ -5827,17 +5846,8 @@ static void text_input_handle_commit_string(void *data,
 
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   seat->ime.result_is_null = (text == nullptr);
-  if (seat->ime.result_is_null) {
-    seat->ime.result = "";
-  }
-  else {
-    seat->ime.result = text;
-  }
-
-  seat->ime.result_is_null = (text == nullptr);
-  seat->ime.event_ime_data.result = (void *)seat->ime.result.c_str();
-  seat->ime.event_ime_data.result_len = (void *)seat->ime.result.size();
-  seat->ime.event_ime_data.cursor_position = seat->ime.result.size();
+  seat->ime.event_ime_data.result = text ? text : "";
+  seat->ime.event_ime_data.cursor_position = seat->ime.event_ime_data.result.size();
 
   seat->ime.has_commit_string_callback = true;
 }
@@ -6252,7 +6262,7 @@ static void xdg_output_handle_logical_size(void *data,
   CLOG_INFO(LOG, 2, "logical_size [%d, %d]", width, height);
 
   GWL_Output *output = static_cast<GWL_Output *>(data);
-  if (output->size_logical[0] != 0 && output->size_logical[1] != 0) {
+  if (output->size_native[0] != 0 && output->size_native[1] != 0) {
     /* Original comment from SDL. */
     /* FIXME(@flibit): GNOME has a bug where the logical size does not account for
      * scale, resulting in bogus viewport sizes.
@@ -6260,9 +6270,8 @@ static void xdg_output_handle_logical_size(void *data,
      * Until this is fixed, validate that _some_ kind of scaling is being
      * done (we can't match exactly because fractional scaling can't be
      * detected otherwise), then override if necessary. */
-    if ((output->size_logical[0] == width) &&
-        (output->scale_fractional == (1 * FRACTIONAL_DENOMINATOR)))
-    {
+    int width_native = output->size_native[(output->transform & WL_OUTPUT_TRANSFORM_90) ? 1 : 0];
+    if ((width_native == width) && (output->scale_fractional == (1 * FRACTIONAL_DENOMINATOR))) {
       GHOST_PRINT("xdg_output scale did not match, overriding with wl_output scale\n");
 
 #ifdef USE_GNOME_CONFINE_HACK
@@ -6368,13 +6377,6 @@ static void output_handle_mode(void *data,
   GWL_Output *output = static_cast<GWL_Output *>(data);
   output->size_native[0] = width;
   output->size_native[1] = height;
-
-  /* Don't rotate this yet, `wl-output` coordinates are transformed in
-   * handle_done and `xdg-output` coordinates are pre-transformed. */
-  if (!output->has_size_logical) {
-    output->size_logical[0] = width;
-    output->size_logical[1] = height;
-  }
 }
 
 /**
@@ -6391,7 +6393,7 @@ static void output_handle_done(void *data, wl_output * /*wl_output*/)
 
   GWL_Output *output = static_cast<GWL_Output *>(data);
   int32_t size_native[2] = {UNPACK2(output->size_native)};
-  if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+  if (output->transform & WL_OUTPUT_TRANSFORM_90) {
     std::swap(size_native[0], size_native[1]);
   }
 
@@ -6788,6 +6790,12 @@ static void gwl_registry_wl_seat_remove(GWL_Display *display, void *user_data, c
   if (seat->wp.primary_selection_device) {
     zwp_primary_selection_device_v1_destroy(seat->wp.primary_selection_device);
   }
+
+#ifdef WITH_INPUT_IME
+  if (seat->wp.text_input) {
+    zwp_text_input_v3_destroy(seat->wp.text_input);
+  }
+#endif
 
   if (seat->wl.data_device) {
     wl_data_device_release(seat->wl.data_device);
@@ -7411,11 +7419,21 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   bool libdecor_required = false;
-  if (const char *xdg_current_desktop = getenv("XDG_CURRENT_DESKTOP")) {
-    /* See the free-desktop specifications for details on `XDG_CURRENT_DESKTOP`.
-     * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html */
-    if (string_elem_split_by_delim(xdg_current_desktop, ':', "GNOME")) {
-      libdecor_required = true;
+  {
+    const char *xdg_current_desktop = [] {
+      /* Account for VSCode overriding this value (TSK!), see: #133921. */
+      const char *key = "ORIGINAL_XDG_CURRENT_DESKTOP";
+      const char *value = getenv(key);
+      return value ? value : getenv(key + 9);
+    }();
+
+    if (xdg_current_desktop) {
+      /* See the free-desktop specifications for details on `XDG_CURRENT_DESKTOP`.
+       * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html
+       */
+      if (string_elem_split_by_delim(xdg_current_desktop, ':', "GNOME")) {
+        libdecor_required = true;
+      }
     }
   }
 
@@ -8008,7 +8026,7 @@ GHOST_TSuccess GHOST_SystemWayland::hasClipboardImage() const
         if (!uris.empty()) {
           const std::string_view &uri = uris.front();
           char *filepath = GHOST_URL_decode_alloc(uri.data(), uri.size());
-          if (IMB_ispic(filepath)) {
+          if (IMB_test_image(filepath)) {
             result = GHOST_kSuccess;
           }
           free(filepath);
@@ -8049,8 +8067,8 @@ uint *GHOST_SystemWayland::getClipboardImage(int *r_width, int *r_height) const
 
       if (data) {
         /* Generate the image buffer with the received data. */
-        ibuf = IMB_ibImageFromMemory(
-            (const uint8_t *)data, data_len, IB_rect, nullptr, "<clipboard>");
+        ibuf = IMB_load_image_from_memory(
+            (const uint8_t *)data, data_len, IB_byte_data, "<clipboard>");
         free(data);
       }
     }
@@ -8065,7 +8083,7 @@ uint *GHOST_SystemWayland::getClipboardImage(int *r_width, int *r_height) const
         if (!uris.empty()) {
           const std::string_view &uri = uris.front();
           char *filepath = GHOST_URL_decode_alloc(uri.data(), uri.size());
-          ibuf = IMB_loadiffname(filepath, IB_rect, nullptr);
+          ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
           free(filepath);
         }
         free(data);
@@ -8104,7 +8122,7 @@ GHOST_TSuccess GHOST_SystemWayland::putClipboardImage(uint *rgba, int width, int
   ImBuf *ibuf = IMB_allocFromBuffer(reinterpret_cast<uint8_t *>(rgba), nullptr, width, height, 32);
   ibuf->ftype = IMB_FTYPE_PNG;
   ibuf->foptions.quality = 15;
-  if (!IMB_saveiff(ibuf, "<memory>", IB_rect | IB_mem)) {
+  if (!IMB_save_image(ibuf, "<memory>", IB_byte_data | IB_mem)) {
     IMB_freeImBuf(ibuf);
     return GHOST_kFailure;
   }
@@ -8164,7 +8182,7 @@ static GHOST_TSuccess getCursorPositionClientRelative_impl(
     if (win->getCursorGrabBounds(wrap_bounds) == GHOST_kFailure) {
       win->getClientBounds(wrap_bounds);
     }
-    int xy_wrap[2] = {
+    wl_fixed_t xy_wrap[2] = {
         seat_state_pointer->xy[0],
         seat_state_pointer->xy[1],
     };
@@ -8299,7 +8317,7 @@ void GHOST_SystemWayland::getMainDisplayDimensions(uint32_t &width, uint32_t &he
     /* We assume first output as main. */
     const GWL_Output *output = display_->outputs[0];
     int32_t size_native[2] = {UNPACK2(output->size_native)};
-    if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+    if (output->transform & WL_OUTPUT_TRANSFORM_90) {
       std::swap(size_native[0], size_native[1]);
     }
     width = uint32_t(size_native[0]);
@@ -8323,7 +8341,7 @@ void GHOST_SystemWayland::getAllDisplayDimensions(uint32_t &width, uint32_t &hei
         xy[0] = output->position_logical[0];
         xy[1] = output->position_logical[1];
       }
-      if (ELEM(output->transform, WL_OUTPUT_TRANSFORM_90, WL_OUTPUT_TRANSFORM_270)) {
+      if (output->transform & WL_OUTPUT_TRANSFORM_90) {
         std::swap(size_native[0], size_native[1]);
       }
       xy_min[0] = std::min(xy_min[0], xy[0]);
@@ -8638,7 +8656,48 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitma
 
   cursor->visible = true;
   cursor->is_custom = true;
-  cursor->custom_scale = 1; /* TODO: support Hi-DPI custom cursors. */
+
+  /* Calculate the cursor size to use based on the theme setting. */
+  {
+
+    /* WARNING: Weak logic, if we can't use vector cursors - ideally the custom cursor
+     * function would receive multiple sizes which WAYLAND could then switch between
+     * as it does with themes. The following logic is fairly weak but works perfectly
+     * when all outputs have the same scale.
+     *
+     * There is nothing preventing multiple sized cursors from being passed in,
+     * it's just a matter of refactoring and adding support to WAYLAND. */
+
+    /* Get the lowest scale so in the case of mixed-scale-outputs,
+     * the cursor will be too big on some of the outputs instead of too small.
+     *
+     * Note that getting the min/max scale for all outputs be made into an function
+     * however it's bad practice because it means the cursor size will be wrong
+     * when there are multiple outputs with different scale.
+     * So this is not something to encouraged. */
+    int output_scale = -1;
+    for (const GWL_Output *output : display_->outputs) {
+      output_scale = (output_scale == -1) ? output->scale : std::min(output_scale, output->scale);
+    }
+    if (output_scale == -1) {
+      output_scale = 1;
+    }
+
+    const int custom_size = std::max(sizex, sizey);
+    const int target_size = seat->cursor.theme_size * output_scale;
+
+    cursor->custom_scale = std::max(1, (output_scale * custom_size) / target_size);
+    /* It would make more sense to adjust the buffer size instead of the scale.
+     * In practice with custom cursors of 16x16, 24x24 & 32x32 its only likely to cause
+     * problems with odd-scaling (HI-DPI scale of 300% or 500% for e.g.).
+     * In these cases the custom cursor will be a little too large. */
+    while ((cursor->custom_scale > 1) &&
+           !((sizex % cursor->custom_scale) == 0 && (sizey % cursor->custom_scale) == 0))
+    {
+      cursor->custom_scale -= 1;
+    }
+  }
+
   cursor->wl.buffer = buffer;
   cursor->wl.image.width = uint32_t(sizex);
   cursor->wl.image.height = uint32_t(sizey);
@@ -8720,6 +8779,10 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
           GHOST_kCapabilityGPUReadFrontBuffer |
           /* This WAYLAND back-end has not yet implemented desktop color sample. */
           GHOST_kCapabilityDesktopSample |
+          /* This WAYLAND back-end doesn't have support for window decoration styles.
+           * In all likelihood, this back-end will eventually need to support client-side
+           * decorations, see #113795. */
+          GHOST_kCapabilityWindowDecorationStyles |
           /* This flag will eventually be removed. */
           ((has_wl_trackpad_physical_direction == 1) ?
                0 :
@@ -9247,7 +9310,7 @@ bool GHOST_SystemWayland::output_unref(wl_output *wl_output)
 void GHOST_SystemWayland::output_scale_update(GWL_Output *output)
 {
   /* NOTE: keep in sync with `output_unref`. */
-  GHOST_WindowManager *window_manager = getWindowManager();
+  const GHOST_WindowManager *window_manager = getWindowManager();
   if (window_manager) {
     for (GHOST_IWindow *iwin : window_manager->getWindows()) {
       GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(iwin);
@@ -9333,14 +9396,14 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
     }
     if (seat->wp.locked_pointer) {
       /* Potentially add a motion event so the application has updated X/Y coordinates. */
-      int32_t xy_motion[2] = {0, 0};
+      wl_fixed_t xy_motion[2] = {0, 0};
       bool xy_motion_create_event = false;
 
       /* Request location to restore to. */
       if (mode_current == GHOST_kGrabWrap) {
         /* Since this call is initiated by Blender, we can be sure the window wasn't closed
          * by logic outside this function - as the window was needed to make this call. */
-        int32_t xy_next[2] = {UNPACK2(seat->pointer.xy)};
+        wl_fixed_t xy_next[2] = {UNPACK2(seat->pointer.xy)};
 
         GHOST_Rect bounds_scale;
 
@@ -9368,13 +9431,14 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
         wl_surface_commit(wl_surface);
       }
       else if (mode_current == GHOST_kGrabHide) {
+        const wl_fixed_t xy_next[2] = {
+            gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(init_grab_xy[0])),
+            gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(init_grab_xy[1])),
+        };
+
         if ((init_grab_xy[0] != seat->grab_lock_xy[0]) ||
             (init_grab_xy[1] != seat->grab_lock_xy[1]))
         {
-          const wl_fixed_t xy_next[2] = {
-              gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(init_grab_xy[0])),
-              gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(init_grab_xy[1])),
-          };
           zwp_locked_pointer_v1_set_cursor_position_hint(seat->wp.locked_pointer,
                                                          UNPACK2(xy_next));
           wl_surface_commit(wl_surface);
@@ -9382,6 +9446,14 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
           /* NOTE(@ideasman42): The new cursor position is a hint,
            * it's possible the hint is ignored. It doesn't seem like there is a good way to
            * know if the hint will be used or not, at least not immediately. */
+          xy_motion[0] = xy_next[0];
+          xy_motion[1] = xy_next[1];
+          xy_motion_create_event = true;
+        }
+        else if (grab_state_prev.use_lock) {
+          /* NOTE(@ideasman42): From WAYLAND's perspective the cursor did not move.
+           * The application will have received "hidden" events to warped locations.
+           * So generate event without setting the cursor position hint. */
           xy_motion[0] = xy_next[0];
           xy_motion[1] = xy_next[1];
           xy_motion_create_event = true;

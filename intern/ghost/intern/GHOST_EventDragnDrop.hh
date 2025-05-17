@@ -39,8 +39,8 @@
  * Note that the mouse positions are given in Blender coordinates (y=0 at bottom)
  *
  * Currently supported object types:
- * - UTF-8 string.
- * - array of strings representing filenames (GHOST_TStringArray).
+ * - UTF8 string.
+ * - array of strings representing filenames (#GHOST_TStringArray).
  * - bitmap #ImBuf.
  */
 class GHOST_EventDragnDrop : public GHOST_Event {
@@ -71,7 +71,7 @@ class GHOST_EventDragnDrop : public GHOST_Event {
     m_data = &m_dragnDropEventData;
   }
 
-  ~GHOST_EventDragnDrop()
+  ~GHOST_EventDragnDrop() override
   {
     /* Free the dropped object data. */
     if (m_dragnDropEventData.data == nullptr) {
