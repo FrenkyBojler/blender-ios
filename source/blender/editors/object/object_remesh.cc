@@ -201,10 +201,10 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const double vox
   double total_axis_alignment_score = 0.0f;
 
   constexpr int samples = 10000;
-  const int seed = (int)faces.size();
+  const int seed = faces.size();
 
   for (const int i : IndexRange(samples)) {
-    const int random_face_idx = (int)(noise::hash_to_float(seed, i) * (faces.size() - 1));
+    const int random_face_idx = int(noise::hash_to_float(seed, i) * (faces.size() - 1));
     total_sampled_area += blender::bke::mesh::face_area_calc(
         positions, corner_verts.slice(faces[random_face_idx]));
 
@@ -236,7 +236,7 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const double vox
   const double estimated_count = estimated_total_area / (voxel_size * voxel_size) * final_factor;
 
   /* A very small voxel size may result in an estimated count that overflows int. */
-  if (estimated_count >= std::numeric_limits<int>::max()) {
+  if (estimated_count >= float(std::numeric_limits<int>::max())) {
     return std::numeric_limits<int>::max();
   }
 
