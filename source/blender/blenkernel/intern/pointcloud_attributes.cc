@@ -269,7 +269,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     }
     Attribute::DataVariant data = attribute_init_to_data(*type, domain_size, initializer);
     storage.add(name, domain, *type, std::move(data));
-    return false;
+    return true;
   };
 
   return fn;
