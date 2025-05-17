@@ -181,9 +181,9 @@ void node_blend_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_ramp_blend_items, node->custom1, &name);
   if (!enum_label) {
-    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
+    name = N_("Unknown");
   }
-  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
+  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
 
 void node_image_label(const bNodeTree * /*ntree*/,
@@ -192,9 +192,7 @@ void node_image_label(const bNodeTree * /*ntree*/,
                       int label_maxncpy)
 {
   if (node->id == nullptr) {
-    BLI_strncpy(label,
-                CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name.c_str()),
-                label_maxncpy);
+    BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
     return;
   }
   BLI_strncpy(label, node->id->name + 2, label_maxncpy);
@@ -234,9 +232,9 @@ void node_filter_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_filter_items, node->custom1, &name);
   if (!enum_label) {
-    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
+    name = N_("Unknown");
   }
-  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
+  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
 
 void node_combsep_color_label(const ListBase *sockets, NodeCombSepColorMode mode)
