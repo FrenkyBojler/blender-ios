@@ -190,15 +190,15 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
  * To ensure the estimation has no impact on performance, it is calculated using a random subset of
  * the faces.
  */
-static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxel_size)
+static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const double voxel_size)
 {
   const Span<float3> positions = mesh.vert_positions();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<float3> face_normals = mesh.face_normals();
   const blender::OffsetIndices faces = mesh.faces();
 
-  float total_sampled_area = 0.0f;
-  float total_axis_alignment_score = 0.0f;
+  double total_sampled_area = 0.0f;
+  double total_axis_alignment_score = 0.0f;
 
   constexpr int samples = 10000;
   const int seed = (int)faces.size();
@@ -211,8 +211,8 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxe
     total_axis_alignment_score += math::reduce_max(math::abs(face_normals[random_face_idx]));
   }
 
-  const float avg_face_area = total_sampled_area / samples;
-  const float estimated_total_area = avg_face_area * faces.size();
+  const double avg_face_area = total_sampled_area / samples;
+  const double estimated_total_area = avg_face_area * faces.size();
 
   const float avg_axis_alignment_score = total_axis_alignment_score / samples;
 
@@ -229,9 +229,9 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxe
 
   /* Remap `avg_axis_alignment_score` from `[min_score,max_score]` to
    * `[max_final_factor,min_final_factor]` (inverted range). */
-  const float final_factor = max_final_factor - (avg_axis_alignment_score - min_score) *
-                                                    (max_final_factor - min_final_factor) /
-                                                    (max_score - min_score);
+  const double final_factor = max_final_factor - (avg_axis_alignment_score - min_score) *
+                                                     (max_final_factor - min_final_factor) /
+                                                     (max_score - min_score);
 
   const double estimated_count = estimated_total_area / (voxel_size * voxel_size) * final_factor;
 
