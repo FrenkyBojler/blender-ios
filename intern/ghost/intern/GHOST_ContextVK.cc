@@ -517,6 +517,7 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
       m_preferred_device(preferred_device),
       m_surface(VK_NULL_HANDLE),
       m_swapchain(VK_NULL_HANDLE),
+      m_frame_data(GHOST_FRAMES_IN_FLIGHT),
       m_render_frame(0)
 {
 }
@@ -549,13 +550,28 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
   VkDevice device = vulkan_device->device;
 
-  m_render_frame = (m_render_frame + 1) % m_image_count;
-  GHOST_Frame &frame_data = m_frame_data[m_render_frame];
-  /* Wait for the previous time this frame was used to be finished rendering. Presenting can still
+  /* This method is called after all the draw calls in the application, and it signals that
+   * we are ready to both (1) submit commands for those draw calls to the device and
+   * (2) begin building the next frame. It is assumed as an invariant that the submission fence
+   * in the current GHOST_Frame has been signaled. So, we wait for the *next* GHOST_Frame's
+   * submission fence to be signaled, to ensure the invariant holds for the next call to
+   * `swapBuffers`.
+   *
+   * We will pass the current GHOST_Frame to the swap_buffers_pre_callback_ for command buffer
+   * submission, and it is the responsibility of that callback to use the current GHOST_Frame's
+   * fence for it's submission fence. Since the callback is called after we wait for the next frame
+   * to be complete, it is also safe in the callback to clean up resources associated with the next
+   * frame.
+   */
+  GHOST_Frame &submission_frame_data = m_frame_data[m_render_frame];
+  m_render_frame = (m_render_frame + 1) % m_frame_data.size();
+
+  /* Wait for next frame to finish rendering. Presenting can still
    * happen in parallel, but acquiring needs can only happen when the frame acquire semaphore has
    * been signaled and waited for. */
-  vkWaitForFences(device, 1, &frame_data.submission_fence, true, UINT64_MAX);
-  frame_data.discard_pile.destroy(device);
+  VkFence *next_frame_fence = &m_frame_data[m_render_frame].submission_fence;
+  vkWaitForFences(device, 1, next_frame_fence, true, UINT64_MAX);
+  submission_frame_data.discard_pile.destroy(device);
 
 #ifdef WITH_GHOST_WAYLAND
   /* Wayland doesn't provide a WSI with windowing capabilities, therefore cannot detect whether the
@@ -579,14 +595,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
    * swapchain image. Other do it when calling vkQueuePresent. */
   VkResult acquire_result = VK_ERROR_OUT_OF_DATE_KHR;
   uint32_t image_index = 0;
-  while (acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
+  while (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
     acquire_result = vkAcquireNextImageKHR(device,
                                            m_swapchain,
                                            UINT64_MAX,
-                                           frame_data.acquire_semaphore,
+                                           submission_frame_data.acquire_semaphore,
                                            VK_NULL_HANDLE,
                                            &image_index);
-    if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
+    if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
       recreateSwapchain();
     }
   }
@@ -595,11 +611,11 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   swap_chain_data.image = m_swapchain_images[image_index];
   swap_chain_data.surface_format = m_surface_format;
   swap_chain_data.extent = m_render_extent;
-  swap_chain_data.submission_fence = frame_data.submission_fence;
-  swap_chain_data.acquire_semaphore = frame_data.acquire_semaphore;
-  swap_chain_data.present_semaphore = frame_data.present_semaphore;
+  swap_chain_data.submission_fence = submission_frame_data.submission_fence;
+  swap_chain_data.acquire_semaphore = submission_frame_data.acquire_semaphore;
+  swap_chain_data.present_semaphore = submission_frame_data.present_semaphore;
 
-  vkResetFences(device, 1, &frame_data.submission_fence);
+  vkResetFences(device, 1, &submission_frame_data.submission_fence);
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
   }
@@ -607,7 +623,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VkPresentInfoKHR present_info = {};
   present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   present_info.waitSemaphoreCount = 1;
-  present_info.pWaitSemaphores = &frame_data.present_semaphore;
+  present_info.pWaitSemaphores = &submission_frame_data.present_semaphore;
   present_info.swapchainCount = 1;
   present_info.pSwapchains = &m_swapchain;
   present_info.pImageIndices = &image_index;
@@ -618,9 +634,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     std::scoped_lock lock(vulkan_device->queue_mutex);
     present_result = vkQueuePresentKHR(m_present_queue, &present_info);
   }
-  if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR ||
-      acquire_result == VK_SUBOPTIMAL_KHR)
-  {
+  if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
     /* Swap-chain is out of date. Recreate swap-chain and skip this frame. */
     recreateSwapchain();
     if (swap_buffers_post_callback_) {
@@ -797,6 +811,35 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   return false;
 }
 
+GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
+{
+  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
+  VkDevice device = vulkan_device->device;
+
+  const VkSemaphoreCreateInfo vk_semaphore_create_info = {
+      VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
+  const VkFenceCreateInfo vk_fence_create_info = {
+      VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+
+  for (int index = 0; index < m_frame_data.size(); index++) {
+    GHOST_Frame &frame_data = m_frame_data[index];
+    if (frame_data.acquire_semaphore == VK_NULL_HANDLE) {
+      VK_CHECK(vkCreateSemaphore(
+          device, &vk_semaphore_create_info, nullptr, &frame_data.acquire_semaphore));
+    }
+    if (frame_data.present_semaphore == VK_NULL_HANDLE) {
+      VK_CHECK(vkCreateSemaphore(
+          device, &vk_semaphore_create_info, nullptr, &frame_data.present_semaphore));
+    }
+    if (frame_data.submission_fence == VK_NULL_HANDLE) {
+      VK_CHECK(
+          vkCreateFence(device, &vk_fence_create_info, nullptr, &frame_data.submission_fence));
+    }
+  }
+
+  return GHOST_kSuccess;
+}
+
 GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
@@ -866,20 +909,31 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
     if (capabilities.minImageExtent.height > m_render_extent.height) {
       m_render_extent.height = capabilities.minImageExtent.height;
     }
+  }
 
-    if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
-      if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width >
-          m_render_extent.width)
-      {
-        m_render_extent.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
-      }
-      if (vk_surface_present_scaling_capabilities.minScaledImageExtent.height >
-          m_render_extent.height)
-      {
-        m_render_extent.height =
-            vk_surface_present_scaling_capabilities.minScaledImageExtent.height;
-      }
+  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width > m_render_extent.width)
+    {
+      m_render_extent.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
     }
+    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.height >
+        m_render_extent.height)
+    {
+      m_render_extent.height = vk_surface_present_scaling_capabilities.minScaledImageExtent.height;
+    }
+  }
+
+  /* Windows/NVIDIA doesn't support creating a surface image with resolution 0,0.
+   * Minimized windows have an extent of 0,0. Although it fits in the specs returned by
+   * #vkGetPhysicalDeviceSurfaceCapabilitiesKHR.
+   *
+   * Ref #138032
+   */
+  if (m_render_extent.width == 0) {
+    m_render_extent.width = 1;
+  }
+  if (m_render_extent.height == 0) {
+    m_render_extent.height = 1;
   }
 
   /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
@@ -894,20 +948,27 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
     image_count_requested = capabilities.maxImageCount;
   }
 
+  VkSwapchainKHR old_swapchain = m_swapchain;
+
+  /* First time we stretch the swapchain image as it can happen that the first frame size isn't
+   * correctly reported by the initial swapchain. All subsequent creations will use one to one as
+   * that can reduce resizing artifacts. */
+  VkPresentScalingFlagBitsEXT vk_present_scaling = old_swapchain == VK_NULL_HANDLE ?
+                                                       VK_PRESENT_SCALING_STRETCH_BIT_EXT :
+                                                       VK_PRESENT_SCALING_ONE_TO_ONE_BIT_EXT;
+
   VkSwapchainPresentModesCreateInfoEXT vk_swapchain_present_modes = {
       VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT, nullptr, 1, &present_mode};
   VkSwapchainPresentScalingCreateInfoEXT vk_swapchain_present_scaling = {
       VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_SCALING_CREATE_INFO_EXT,
       &vk_swapchain_present_modes,
-      vk_surface_present_scaling_capabilities.supportedPresentScaling &
-          VK_PRESENT_SCALING_STRETCH_BIT_EXT,
+      vk_surface_present_scaling_capabilities.supportedPresentScaling & vk_present_scaling,
       vk_surface_present_scaling_capabilities.supportedPresentGravityX &
-          VK_PRESENT_GRAVITY_CENTERED_BIT_EXT,
+          VK_PRESENT_GRAVITY_MIN_BIT_EXT,
       vk_surface_present_scaling_capabilities.supportedPresentGravityY &
-          VK_PRESENT_GRAVITY_CENTERED_BIT_EXT,
+          VK_PRESENT_GRAVITY_MAX_BIT_EXT,
   };
 
-  VkSwapchainKHR old_swapchain = m_swapchain;
   VkSwapchainCreateInfoKHR create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
@@ -940,28 +1001,6 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   vkGetSwapchainImagesKHR(device, m_swapchain, &actual_image_count, m_swapchain_images.data());
   /* Construct new semaphores. It can be that image_count is larger than previously. We only need
    * to fill in where the handle is `VK_NULL_HANDLE`. */
-  const VkSemaphoreCreateInfo vk_semaphore_create_info = {
-      VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
-  const VkFenceCreateInfo vk_fence_create_info = {
-      VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
-  if (actual_image_count > m_frame_data.size()) {
-    m_frame_data.resize(actual_image_count);
-  }
-  for (int index = 0; index < m_frame_data.size(); index++) {
-    GHOST_Frame &frame_data = m_frame_data[index];
-    if (frame_data.acquire_semaphore == VK_NULL_HANDLE) {
-      VK_CHECK(vkCreateSemaphore(
-          device, &vk_semaphore_create_info, nullptr, &frame_data.acquire_semaphore));
-    }
-    if (frame_data.present_semaphore == VK_NULL_HANDLE) {
-      VK_CHECK(vkCreateSemaphore(
-          device, &vk_semaphore_create_info, nullptr, &frame_data.present_semaphore));
-    }
-    if (frame_data.submission_fence == VK_NULL_HANDLE) {
-      VK_CHECK(
-          vkCreateFence(device, &vk_fence_create_info, nullptr, &frame_data.submission_fence));
-    }
-  }
 
   m_image_count = actual_image_count;
   if (old_swapchain) {
@@ -1052,6 +1091,12 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     requireExtension(extensions_available, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
 
+    /* TODO: VK_EXT_swapchain_maintenance1 needs to be reviewed. It has several issues including
+     * - X11 doesn't use the correct swapchain offset, flipping can squash the first frames.
+     * - VVL complains of incorrect usage of fences.
+     *
+     * For now disabling it until we have figured out what is wrong.
+     */
     /* Required instance extension dependency of VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME */
     if (contains_extension(extensions_available, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
         contains_extension(extensions_available, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME))
@@ -1184,6 +1229,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   if (use_window_surface) {
     vkGetDeviceQueue(
         vulkan_device->device, vulkan_device->generic_queue_family, 0, &m_present_queue);
+    initializeFrameData();
     recreateSwapchain();
   }
 

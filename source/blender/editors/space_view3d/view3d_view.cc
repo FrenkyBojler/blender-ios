@@ -113,7 +113,7 @@ void VIEW3D_OT_camera_to_view(wmOperatorType *ot)
   ot->description = "Set camera view to active view";
   ot->idname = "VIEW3D_OT_camera_to_view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view3d_camera_to_view_exec;
   ot->poll = view3d_camera_to_view_poll;
 
@@ -158,7 +158,7 @@ void VIEW3D_OT_camera_to_view_selected(wmOperatorType *ot)
   ot->description = "Move the camera so selected objects are framed";
   ot->idname = "VIEW3D_OT_camera_to_view_selected";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view3d_camera_to_view_selected_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -296,7 +296,7 @@ void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
   ot->description = "Set the active object as the active camera for this view or scene";
   ot->idname = "VIEW3D_OT_object_as_camera";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view3d_setobjectascamera_exec;
   ot->poll = ED_operator_rv3d_user_region_poll;
 
@@ -921,7 +921,8 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
 
           if (rv3d->persp == RV3D_PERSP) {
             /* Don't zoom closer than the near clipping plane. */
-            dist_new = max_ff(dist_new, v3d->clip_start * 1.5f);
+            const float dist_min = ED_view3d_dist_soft_min_get(v3d, true);
+            CLAMP_MIN(dist_new, dist_min);
           }
         }
 
@@ -1111,7 +1112,7 @@ void VIEW3D_OT_localview(wmOperatorType *ot)
   ot->description = "Toggle display of selected object(s) separately and centered in view";
   ot->idname = "VIEW3D_OT_localview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = localview_exec;
   /* Use undo because local-view changes object layer bit-flags. */
   ot->flag = OPTYPE_UNDO;
@@ -1187,7 +1188,7 @@ void VIEW3D_OT_localview_remove_from(wmOperatorType *ot)
   ot->description = "Move selected objects out of local view";
   ot->idname = "VIEW3D_OT_localview_remove_from";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = localview_remove_from_exec;
   ot->poll = localview_remove_from_poll;
   ot->flag = OPTYPE_UNDO;

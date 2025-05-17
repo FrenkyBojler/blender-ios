@@ -14,6 +14,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_math_rotation.h"
+#include "BLI_task.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -154,6 +155,7 @@ void FbxImportContext::import_cameras()
     }
     node_matrix_to_obj(node, obj, this->mapping);
     this->mapping.el_to_object.add(&node->element, obj);
+    this->mapping.imported_objects.add(obj);
   }
 }
 
@@ -205,6 +207,7 @@ void FbxImportContext::import_lights()
     }
     node_matrix_to_obj(node, obj, this->mapping);
     this->mapping.el_to_object.add(&node->element, obj);
+    this->mapping.imported_objects.add(obj);
   }
 }
 
@@ -217,8 +220,10 @@ void FbxImportContext::import_empties()
 {
   /* Create empties for fbx nodes. */
   for (const ufbx_node *node : this->fbx.nodes) {
-    /* Ignore root, and bones and nodes for which we have created objects already. */
-    if (node->is_root || node->bone || this->mapping.el_to_object.contains(&node->element)) {
+    /* Ignore root, bones and nodes for which we have created objects already. */
+    if (node->is_root || this->mapping.node_is_blender_bone.contains(node) ||
+        this->mapping.el_to_object.contains(&node->element))
+    {
       continue;
     }
     Object *obj = BKE_object_add_only_object(this->bmain, OB_EMPTY, get_fbx_name(node->name));
@@ -231,6 +236,7 @@ void FbxImportContext::import_empties()
     }
     node_matrix_to_obj(node, obj, this->mapping);
     this->mapping.el_to_object.add(&node->element, obj);
+    this->mapping.imported_objects.add(obj);
   }
 }
 
@@ -252,11 +258,6 @@ void FbxImportContext::setup_hierarchy()
     if (node == nullptr) {
       continue;
     }
-    if (node->bone != nullptr) {
-      /* If this node is for a bone, do not try to setup object parenting for it
-       * (the object for bone bones is whole armature). */
-      continue;
-    }
     if (node->parent) {
       Object *obj_par = this->mapping.el_to_object.lookup_default(&node->parent->element, nullptr);
       if (!ELEM(obj_par, nullptr, item.value)) {
@@ -264,6 +265,26 @@ void FbxImportContext::setup_hierarchy()
       }
     }
   }
+}
+
+static void fbx_task_run_fn(void * /* user */,
+                            ufbx_thread_pool_context ctx,
+                            uint32_t /* group */,
+                            uint32_t start_index,
+                            uint32_t count)
+{
+  threading::parallel_for_each(IndexRange(start_index, count), [&](const int64_t index) {
+    ufbx_thread_pool_run_task(ctx, index);
+  });
+}
+
+static void fbx_task_wait_fn(void * /* user */,
+                             ufbx_thread_pool_context /* ctx */,
+                             uint32_t /* group */,
+                             uint32_t /* max_index */)
+{
+  /* Empty implementation; #fbx_task_run_fn already waits for the tasks.
+   * This means that only one fbx "task group" is effectively scheduled at once. */
 }
 
 void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXImportParams &params)
@@ -301,6 +322,10 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   opts.target_light_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;
   opts.target_light_axes.up = UFBX_COORDINATE_AXIS_POSITIVE_Y;
   opts.target_light_axes.front = UFBX_COORDINATE_AXIS_POSITIVE_Z;
+
+  /* Setup ufbx threading to go through our own task system. */
+  opts.thread_opts.pool.run_fn = fbx_task_run_fn;
+  opts.thread_opts.pool.wait_fn = fbx_task_wait_fn;
 
   ufbx_error fbx_error;
   ufbx_scene *fbx = ufbx_load_stdio(file, &opts, &fbx_error);
@@ -365,14 +390,14 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   ufbx_free_scene(fbx);
 
   /* Add objects to collection. */
-  for (Object *obj : ctx.mapping.el_to_object.values()) {
+  for (Object *obj : ctx.mapping.imported_objects) {
     BKE_collection_object_add(bmain, lc->collection, obj);
   }
 
   /* Select objects, sync layers etc. */
   BKE_view_layer_base_deselect_all(scene, view_layer);
   BKE_view_layer_synced_ensure(scene, view_layer);
-  for (Object *obj : ctx.mapping.el_to_object.values()) {
+  for (Object *obj : ctx.mapping.imported_objects) {
     Base *base = BKE_view_layer_base_find(view_layer, obj);
     BKE_view_layer_base_select_and_set_active(view_layer, base);
 
