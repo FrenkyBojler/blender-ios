@@ -14,6 +14,7 @@
 
 #include "CLG_log.h"
 
+#include "GPU_capabilities.hh"
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
 
@@ -447,8 +448,16 @@ void VKBackend::platform_exit()
   }
 }
 
-void VKBackend::init_resources() {}
-void VKBackend::delete_resources() {}
+void VKBackend::init_resources()
+{
+  compiler_ = MEM_new<ShaderCompiler>(
+      __func__, GPU_max_parallel_compilations(), GPUWorker::ContextType::Main);
+}
+
+void VKBackend::delete_resources()
+{
+  MEM_delete(compiler_);
+}
 
 void VKBackend::samplers_update()
 {
@@ -493,6 +502,7 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
   BLI_assert(ghost_context != nullptr);
   if (!device.is_initialized()) {
     device.init(ghost_context);
+    device.extensions_get().log();
   }
 
   VKContext *context = new VKContext(ghost_window, ghost_context);
@@ -583,9 +593,23 @@ void VKBackend::render_end()
       device.orphaned_data.destroy_discarded_resources(device);
     }
   }
+
+  /* When performing animation render we want to release any discarded resources during rendering
+   * after each frame.
+   */
+  if (G.is_rendering && thread_data.rendering_depth == 0 && !BLI_thread_is_main()) {
+    device.orphaned_data.move_data(device.orphaned_data_render,
+                                   device.orphaned_data.timeline_ + 1);
+  }
 }
 
-void VKBackend::render_step(bool /*force_resource_release*/) {}
+void VKBackend::render_step(bool force_resource_release)
+{
+  if (force_resource_release) {
+    device.orphaned_data.move_data(device.orphaned_data_render,
+                                   device.orphaned_data.timeline_ + 1);
+  }
+}
 
 void VKBackend::capabilities_init(VKDevice &device)
 {

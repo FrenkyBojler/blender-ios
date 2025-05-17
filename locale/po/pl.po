@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-05 08:47+0000\n"
 "PO-Revision-Date: 2025-04-14 08:34+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -11584,26 +11584,6 @@ msgid "Mask"
 msgstr "Maska"
 
 
-msgid "Mirror"
-msgstr "Odbicie lustrzane"
-
-
-msgid "Snap"
-msgstr "Przyciągnij"
-
-
-msgid "Local View"
-msgstr "Widok lokalny"
-
-
-msgid "Viewpoint"
-msgstr "Punkt obserwacji"
-
-
-msgid "Navigation"
-msgstr "Nawigacja"
-
-
 msgid "Select Linked"
 msgstr "Zaznacz powiązane"
 
@@ -11672,8 +11652,28 @@ msgid "Text"
 msgstr "Tekst"
 
 
+msgid "Snap"
+msgstr "Przyciągnij"
+
+
 msgid "Proportional Editing Falloff"
 msgstr "Proporcjonalne edytowanie spadku"
+
+
+msgid "Mirror"
+msgstr "Odbicie lustrzane"
+
+
+msgid "Local View"
+msgstr "Widok lokalny"
+
+
+msgid "Viewpoint"
+msgstr "Punkt obserwacji"
+
+
+msgid "Navigation"
+msgstr "Nawigacja"
 
 
 msgid "Catalog"
@@ -17397,6 +17397,22 @@ msgid "Palette Color"
 msgstr "Kolor palety"
 
 
+msgid "Active Tool"
+msgstr "Aktywne narzędzie"
+
+
+msgid "Shadow Settings"
+msgstr "Ustawienia cienia"
+
+
+msgid "Compositor"
+msgstr "Kompozytor"
+
+
+msgid "Motion Tracking"
+msgstr "Śledzenie ruchu"
+
+
 msgid "Mesh Edit Mode"
 msgstr "Tryb edycji siatki"
 
@@ -17415,22 +17431,6 @@ msgstr "Przyciąganie"
 
 msgid "Transform Orientations"
 msgstr "Orientacje przekształcenia"
-
-
-msgid "Motion Tracking"
-msgstr "Śledzenie ruchu"
-
-
-msgid "Active Tool"
-msgstr "Aktywne narzędzie"
-
-
-msgid "Shadow Settings"
-msgstr "Ustawienia cienia"
-
-
-msgid "Compositor"
-msgstr "Kompozytor"
 
 
 msgid "Aperture"
@@ -18532,10 +18532,6 @@ msgstr "Renderowanie w rozdzielczości 12,5%"
 
 msgid "Resolution Scale"
 msgstr "Skala rozdzielczości"
-
-
-msgid "Display in Material Preview mode"
-msgstr "Wyświetla w trybie podglądu materiału"
 
 
 msgid "Text Color"
@@ -26735,10 +26731,6 @@ msgid "New effect needs more input strips"
 msgstr "Nowy efekt potrzebuje paska źródłowego"
 
 
-msgid "No active sequence!"
-msgstr "Brak aktywnej sekwencji!"
-
-
 msgid "Rows:"
 msgstr "Wiersze:"
 
@@ -28095,10 +28087,6 @@ msgstr "Filtr wstępny:"
 
 msgid "Quality:"
 msgstr "Jakość:"
-
-
-msgid "Center:"
-msgstr "Centrum:"
 
 
 msgid "Path:"

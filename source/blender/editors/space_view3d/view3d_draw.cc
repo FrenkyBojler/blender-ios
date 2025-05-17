@@ -390,7 +390,7 @@ static void view3d_camera_border(const Scene *scene,
 {
   CameraParams params;
   rctf rect_view, rect_camera;
-  Object *camera_eval = DEG_get_evaluated_object(depsgraph, v3d->camera);
+  Object *camera_eval = DEG_get_evaluated(depsgraph, v3d->camera);
 
   /* get viewport viewplane */
   BKE_camera_params_init(&params);
@@ -1290,7 +1290,7 @@ static void draw_viewport_name(ARegion *region, View3D *v3d, int xoffset, int *y
   int name_array_len = 1;
 
   /* 6 is the maximum size of the axis roll text. */
-  /* increase size for unicode languages (Chinese in utf-8...) */
+  /* increase size for unicode languages (Chinese in UTF8...). */
   char tmpstr[96 + 6];
 
   if (RV3D_VIEW_IS_AXIS(rv3d->view) && (rv3d->view_axis_roll != RV3D_VIEW_AXIS_ROLL_0)) {
@@ -2047,7 +2047,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
     CameraParams params;
     Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
-    const Object *camera_eval = DEG_get_evaluated_object(depsgraph, camera);
+    const Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
 
     BKE_camera_params_init(&params);
     /* fallback for non camera objects */
@@ -2227,7 +2227,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
 
   {
     CameraParams params;
-    const Object *view_camera_eval = DEG_get_evaluated_object(
+    const Object *view_camera_eval = DEG_get_evaluated(
         depsgraph, BKE_camera_multiview_render(scene, v3d.camera, viewname));
 
     BKE_camera_params_init(&params);
@@ -2307,7 +2307,7 @@ static void validate_object_select_id(Depsgraph *depsgraph,
   if (v3d->runtime.flag & V3D_RUNTIME_DEPTHBUF_OVERRIDDEN) {
     return;
   }
-  Object *obact_eval = DEG_get_evaluated_object(depsgraph, obact);
+  Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
 
   BLI_assert(region->regiontype == RGN_TYPE_WINDOW);
   UNUSED_VARS_NDEBUG(region);
