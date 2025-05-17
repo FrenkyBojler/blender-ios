@@ -236,7 +236,14 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxe
                                                     (max_final_factor - min_final_factor) /
                                                     (max_score - min_score);
 
-  return int(estimated_total_area / (voxel_size * voxel_size) * final_factor);
+  const double estimated_count = estimated_total_area / (voxel_size * voxel_size) * final_factor;
+
+  /* A very small voxel size may result in an estimated count that overflows int. */
+  if (estimated_count >= std::numeric_limits<int>::max()) {
+    return std::numeric_limits<int>::max();
+  }
+
+  return int(estimated_count);
 }
 
 static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
