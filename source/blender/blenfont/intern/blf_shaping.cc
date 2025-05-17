@@ -244,8 +244,8 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
 
     bounds->xmin = pen_x + g->box_xmin + pos->x_offset;
     bounds->xmax = pen_x + g->box_xmax + pos->x_offset;
-    bounds->ymin = g->box_ymin + pos->y_offset;
-    bounds->ymax = bounds->ymin + g->box_ymax;
+    bounds->ymin = g->box_ymin + pos->y_offset + pos->y_offset;
+    bounds->ymax = bounds->ymin + g->box_ymax + pos->y_offset;
 
 #ifndef BLF_SUBPIXEL_POSITION
     pen_x = FT_PIX_ROUND(pen_x);
@@ -301,7 +301,7 @@ int blf_shaping_draw(FontBLF *font,
           text.segment.gc,
           text.segment.glyphs[i],
           ft_pix_to_int_floor(text.segment.bounds[i].xmin - text.segment.glyphs[i]->box_xmin),
-          ft_pix_to_int_floor(pen_y));
+          ft_pix_to_int_floor(pen_y + text.segment.glyph_pos[i].y_offset));
     }
   }
 
