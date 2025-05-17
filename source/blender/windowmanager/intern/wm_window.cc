@@ -3548,7 +3548,6 @@ void run_cancellable_if_possible(const FunctionRef<void()> fn)
   }
   /* This call may never return if recovery is attempted. */
   on_wait_time_expired(C, *window, done, start_time);
-  return;
 }
 
 }  // namespace blender::cancellable_worker
