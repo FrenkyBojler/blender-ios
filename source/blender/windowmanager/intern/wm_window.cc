@@ -3333,30 +3333,39 @@ static void draw_status(const int2 window_size, DialogState &state)
   const int progress_ring_radius_outer = status_bar_height / 2 - progress_ring_padding;
   const int progress_ring_radius_inner = progress_ring_radius_outer - 3;
 
+  const uiStyle &style = *UI_style_get();
+  const uiFontStyle &fs = style.widget;
+
+  const StringRefNull status_message = "Computing result...";
+  const int status_message_width = BLF_width(
+      fs.uifont_id, status_message.c_str(), status_message.size());
+  const int status_message_padding = UI_UNIT_X * 0.2f;
+
   const float duration_s = std::chrono::duration_cast<std::chrono::milliseconds>(
                                Clock::now() - state.task_start_time)
                                .count() /
                            1000.0f;
+  const int start_x = window_size.x / 2;
+  const int total_width = status_message_width + status_message_padding * 2 +
+                          progress_ring_radius_outer;
 
-  rcti rect{};
-  rect.xmin = 0;
-  rect.xmax = window_size.x;
-  rect.ymin = 0;
-  rect.ymax = status_bar_height;
+  rcti bg_rect{};
+  bg_rect.xmin = start_x;
+  bg_rect.xmax = total_width;
+  bg_rect.ymin = 0;
+  bg_rect.ymax = status_bar_height;
+
+  ColorTheme4f status_bar_bg_color;
+  UI_GetThemeColor4fv(TH_BACK, status_bar_bg_color);
 
   rctf rectf;
-  BLI_rctf_rcti_copy(&rectf, &rect);
-  UI_draw_roundbox_4fv(&rectf, true, 10, float4(0.7, 0.2, 0.2, 1.0));
-
-  const uiFontStyle &fs = UI_style_get()->widget;
+  BLI_rctf_rcti_copy(&rectf, &bg_rect);
+  UI_draw_roundbox_4fv(&rectf, true, 0, status_bar_bg_color);
 
   ColorTheme4b text_color;
   UI_GetThemeColor4ubv(TH_TEXT, text_color);
 
-  uiFontStyleDraw_Params params{};
-  params.align = UI_STYLE_TEXT_CENTER;
-  UI_fontstyle_draw(
-      &fs, &rect, "This is a long running operation", UI_MAX_DRAW_STR, text_color, &params);
+  int current_x = start_x;
 
   GPUVertFormat *format = immVertexFormat();
   const uint format_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -3368,7 +3377,7 @@ static void draw_status(const int2 window_size, DialogState &state)
   const float ring_start = std::max(ring_end - (1 - ring_end), 0.0f);
 
   imm_draw_disk_partial_fill_2d(format_pos,
-                                100,
+                                current_x,
                                 progress_ring_padding + progress_ring_radius_outer,
                                 progress_ring_radius_inner,
                                 progress_ring_radius_outer,
@@ -3377,6 +3386,19 @@ static void draw_status(const int2 window_size, DialogState &state)
                                 (ring_end - ring_start) * 360.0f);
 
   immUnbindProgram();
+
+  current_x += progress_ring_radius_outer * 2.0f;
+  current_x += status_message_padding;
+
+  uiFontStyleDraw_Params params{};
+  params.align = UI_STYLE_TEXT_LEFT;
+  rcti status_message_rect{};
+  status_message_rect.xmin = current_x;
+  status_message_rect.xmax = current_x + status_message_width;
+  status_message_rect.ymin = 0;
+  status_message_rect.ymax = status_bar_height;
+  UI_fontstyle_draw(
+      &fs, &status_message_rect, status_message.c_str(), UI_MAX_DRAW_STR, text_color, &params);
 }
 
 static void draw_window_with_dialog(wmWindowManager &wm,
