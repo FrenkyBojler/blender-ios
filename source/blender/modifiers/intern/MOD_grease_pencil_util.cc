@@ -108,23 +108,23 @@ void draw_layer_filter_settings(const bContext * /*C*/, uiLayout *layout, Pointe
   if (use_layer_group_filter) {
     uiItemPointerR(row,
                    ptr,
-                   "layer_filter",
+                   "tree_node_filter",
                    &obj_data_ptr,
                    "layer_groups",
-                   std::nullopt,
+                   "Group",
                    ICON_GREASEPENCIL_LAYER_GROUP);
   }
   else {
     uiItemPointerR(row,
                    ptr,
-                   "layer_filter",
+                   "tree_node_filter",
                    &obj_data_ptr,
                    "layers",
                    std::nullopt,
                    ICON_OUTLINER_DATA_GP_LAYER);
   }
   sub = &row->row(true);
-  sub->prop(ptr, "use_layer_group_filter", UI_ITEM_NONE, "", ICON_FILE_FOLDER);
+  sub->prop(ptr, "use_layer_group_filter", UI_ITEM_NONE, "", ICON_GREASEPENCIL_LAYER_GROUP);
   sub->prop(ptr, "invert_layer_filter", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
 
   row = &col->row(true, IFACE_("Layer Pass"));
@@ -233,10 +233,12 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
       layer_attributes.lookup_or_default<int>("pass_index", bke::AttrDomain::Layer, 0).varray;
 
   const LayerGroup *filter_layer_group = nullptr;
-  for (const LayerGroup *group : grease_pencil.layer_groups()) {
-    if (group->name() == layer_name_filter.value()) {
-      filter_layer_group = group;
-      break;
+  if (layer_name_filter) {
+    for (const LayerGroup *group : grease_pencil.layer_groups()) {
+      if (group->name() == layer_name_filter.value()) {
+        filter_layer_group = group;
+        break;
+      }
     }
   }
 
