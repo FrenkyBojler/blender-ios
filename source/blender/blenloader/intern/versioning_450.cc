@@ -5177,7 +5177,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
                   "Asset shelf header for compositing (versioning)",
                   RGN_TYPE_ASSET_SHELF))
           {
-            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
+            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
           }
         }
       }
