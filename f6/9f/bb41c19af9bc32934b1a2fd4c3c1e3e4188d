@@ -1,1 +1,2 @@
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
+Referenced by pull request #139016, 4.2LTS: Fix #129225: Crash in modifiers & constraints with invalid enum values
