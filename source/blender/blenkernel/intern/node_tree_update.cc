@@ -48,8 +48,8 @@ using namespace blender::nodes;
 
 /**
  * These flags are used by the `changed_flag` field in #bNodeTree, #bNode and #bNodeSocket.
- * This enum is not part of the public api. It should be used through the `BKE_ntree_update_tag_*`
- * api.
+ * This enum is not part of the public API. It should be used through the `BKE_ntree_update_tag_*`
+ * API.
  */
 enum eNodeTreeChangedFlag {
   NTREE_CHANGED_NOTHING = 0,
@@ -906,25 +906,28 @@ class NodeTreeMainUpdater {
     for (bNode *node : ntree.toposort_right_to_left()) {
       const bool node_updated = this->should_update_individual_node(ntree, *node);
 
+      Vector<bNodeSocket *> locally_defined_enums;
       if (node->is_type("GeometryNodeMenuSwitch")) {
+        bNodeSocket &enum_input = node->input_socket(0);
+        BLI_assert(enum_input.is_available() && enum_input.type == SOCK_MENU);
         /* Generate new enum items when the node has changed, otherwise keep existing items. */
         if (node_updated) {
           const NodeMenuSwitch &storage = *static_cast<NodeMenuSwitch *>(node->storage);
           const RuntimeNodeEnumItems *enum_items = this->create_runtime_enum_items(
               storage.enum_definition);
 
-          bNodeSocket &input = *node->input_sockets()[0];
-          BLI_assert(input.is_available() && input.type == SOCK_MENU);
-          this->set_enum_ptr(*input.default_value_typed<bNodeSocketValueMenu>(), enum_items);
+          this->set_enum_ptr(*enum_input.default_value_typed<bNodeSocketValueMenu>(), enum_items);
           /* Remove initial user. */
           enum_items->remove_user_and_delete_if_last();
         }
-        continue;
+        locally_defined_enums.append(&enum_input);
       }
 
       /* Clear current enum references. */
       for (bNodeSocket *socket : node->input_sockets()) {
-        if (socket->is_available() && socket->type == SOCK_MENU) {
+        if (socket->is_available() && socket->type == SOCK_MENU &&
+            !locally_defined_enums.contains(socket))
+        {
           clear_enum_reference(*socket);
         }
       }
@@ -1514,7 +1517,10 @@ class NodeTreeMainUpdater {
         const bool only_unused_internal_link_changed = !node.is_muted() &&
                                                        node.runtime->changed_flag ==
                                                            NTREE_CHANGED_INTERNAL_LINK;
-        if (!only_unused_internal_link_changed) {
+        const bool only_parent_changed = node.runtime->changed_flag == NTREE_CHANGED_PARENT;
+        const bool change_affects_output = !(only_unused_internal_link_changed ||
+                                             only_parent_changed);
+        if (change_affects_output) {
           return true;
         }
       }
