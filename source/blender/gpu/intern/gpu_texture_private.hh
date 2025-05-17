@@ -344,7 +344,7 @@ class PixelBuffer {
 
   virtual void *map() = 0;
   virtual void unmap() = 0;
-  virtual int64_t get_native_handle() = 0;
+  virtual GPUPixelBufferNativeHandle get_native_handle() = 0;
   virtual size_t get_size() = 0;
 };
 
@@ -1146,11 +1146,11 @@ static inline eGPUTextureFormat to_texture_format(const GPUVertFormat *format)
               return GPU_RGBA16UI;
             case GPU_FETCH_INT_TO_FLOAT_UNIT:
               return GPU_RGBA16;
-            case GPU_FETCH_INT_TO_FLOAT:
-              return GPU_RGBA16F;
             case GPU_FETCH_FLOAT:
               return GPU_RGBA16F;
           }
+          /* Should be handled above, assert below. */
+          break;
         case GPU_COMP_I32:
           return GPU_RGBA32I;
         case GPU_COMP_U32:

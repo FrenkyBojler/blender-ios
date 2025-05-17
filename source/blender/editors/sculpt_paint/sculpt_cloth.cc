@@ -45,7 +45,7 @@
 
 #include "ED_sculpt.hh"
 
-#include "brushes/types.hh"
+#include "brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_face_set.hh"
@@ -158,7 +158,7 @@ static GroupedSpan<int> calc_vert_neighbor_indices_bmesh(const BMesh &bm,
                                                          Vector<int> &r_offset_data,
                                                          Vector<int> &r_data)
 {
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
 
   r_offset_data.resize(verts.size() + 1);
   r_data.clear();
@@ -574,8 +574,10 @@ void ensure_nodes_constraints(const Sculpt &sd,
 
       Span<float3> init_positions;
       Span<float3> persistent_position;
-      if (brush != nullptr && brush->flag & BRUSH_PERSISTENT) {
-        persistent_position = ss.sculpt_persistent_co;
+      const std::optional<PersistentMultiresData> persistent_multires_data =
+          ss.persistent_multires_data();
+      if (brush != nullptr && brush->flag & BRUSH_PERSISTENT && persistent_multires_data) {
+        persistent_position = persistent_multires_data->positions;
       }
       if (persistent_position.is_empty()) {
         init_positions = cloth_sim.init_pos;
@@ -592,7 +594,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
                                   brush,
                                   initial_location,
                                   radius,
-                                  cloth_sim.init_pos,
+                                  init_positions,
                                   cloth_sim.node_state_index.lookup(&nodes[i]),
                                   verts,
                                   neighbors,
@@ -1840,22 +1842,17 @@ void do_cloth_brush(const Depsgraph &depsgraph,
   SculptSession &ss = *ob.sculpt;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
-  /* Brushes that use anchored strokes and restore the mesh can't rely on symmetry passes and steps
-   * count as it is always the first step, so the simulation needs to be created when it does not
-   * exist for this stroke. */
-  if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache) || !ss.cache->cloth_sim) {
+  if (!ss.cache->cloth_sim) {
+    ss.cache->cloth_sim = brush_simulation_create(depsgraph,
+                                                  ob,
+                                                  brush->cloth_mass,
+                                                  brush->cloth_damping,
+                                                  brush->cloth_constraint_softbody_strength,
+                                                  (brush->flag2 & BRUSH_CLOTH_USE_COLLISION),
+                                                  is_cloth_deform_brush(*brush));
+  }
 
-    /* The simulation structure only needs to be created on the first symmetry pass. */
-    if (SCULPT_stroke_is_first_brush_step(*ss.cache) || !ss.cache->cloth_sim) {
-      ss.cache->cloth_sim = brush_simulation_create(depsgraph,
-                                                    ob,
-                                                    brush->cloth_mass,
-                                                    brush->cloth_damping,
-                                                    brush->cloth_constraint_softbody_strength,
-                                                    (brush->flag2 & BRUSH_CLOTH_USE_COLLISION),
-                                                    is_cloth_deform_brush(*brush));
-    }
-
+  if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
     if (brush->cloth_simulation_area_type == BRUSH_CLOTH_SIMULATION_AREA_LOCAL) {
       /* When using simulation a fixed local simulation area, constraints are created only using
        * the initial stroke position and initial radius (per symmetry pass) instead of per node.
@@ -2276,7 +2273,9 @@ static void apply_filter_forces_bmesh(const Depsgraph &depsgraph,
   }
 }
 
-static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   Object &object = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
@@ -2391,7 +2390,9 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
@@ -2409,8 +2410,8 @@ static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent
 
   /* Update the active vertex */
   float2 mval_fl{float(event->mval[0]), float(event->mval[1])};
-  SculptCursorGeometryInfo sgi;
-  SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+  CursorGeometryInfo cgi;
+  cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   /* Needs mask data to be available as it is used when solving the constraints. */
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
@@ -2428,7 +2429,7 @@ static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent
                      RNA_float_get(op->ptr, "area_normal_radius"),
                      RNA_float_get(op->ptr, "strength"));
 
-  ss.filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");

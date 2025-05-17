@@ -1949,7 +1949,7 @@ static const char *unit_find_str(const char *str, const char *substr, bool case_
       /* Previous char cannot be a letter. */
       if (str_found == str ||
           /* Weak unicode support!, so "µm" won't match up be replaced by "m"
-           * since non ascii utf8 values will NEVER return true */
+           * since non ASCII UTF8 values will NEVER return true. */
           isalpha_or_utf8(*BLI_str_find_prev_char_utf8(str_found, str)) == 0)
       {
         /* Next char cannot be alpha-numeric. */
@@ -2080,7 +2080,7 @@ static char *find_next_op(const char *str, char *remaining_str, int remaining_st
       return remaining_str + i;
     }
   }
-  BLI_assert_msg(0, "String should be nullptr terminated");
+  BLI_assert_msg(0, "String should be null terminated");
   return remaining_str + i;
 }
 

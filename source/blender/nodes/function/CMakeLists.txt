@@ -37,6 +37,7 @@ set(SRC
   nodes/node_fn_integer_math.cc
   nodes/node_fn_invert_matrix.cc
   nodes/node_fn_invert_rotation.cc
+  nodes/node_fn_match_string.cc
   nodes/node_fn_matrix_determinant.cc
   nodes/node_fn_matrix_multiply.cc
   nodes/node_fn_project_point.cc
@@ -68,6 +69,7 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
+  PRIVATE bf::blenloader
   PRIVATE bf::dna
   PRIVATE bf::functions
   PRIVATE bf::imbuf

@@ -50,17 +50,19 @@ typedef struct MovieClip_RuntimeGPUTexture {
 
 typedef struct MovieClip_Runtime {
   struct ListBase gputextures;
+  /* The Depsgraph::update_count when this ID was last updated. Covers any IDRecalcFlag. */
+  uint64_t last_update;
 } MovieClip_Runtime;
 
 typedef struct MovieClip {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_MC;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /**
-   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
-   * DRW_drawdatalist_from_id to understand this requirement.
-   */
-  DrawDataList drawdata;
 
   /** File path, 1024 = FILE_MAX. */
   char filepath[1024];
@@ -80,6 +82,8 @@ typedef struct MovieClip {
   struct MovieClipCache *cache;
   /** Grease pencil data. */
   struct bGPdata *gpd;
+
+  void *_pad1;
 
   /** Data for SfM tracking. */
   struct MovieTracking tracking;

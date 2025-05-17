@@ -48,18 +48,18 @@ enum class SampleResult {
 };
 
 struct BoneDropper {
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  PointerRNA search_ptr;
-  PropertyRNA *search_prop;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  PointerRNA search_ptr = {};
+  PropertyRNA *search_prop = nullptr;
 
-  bool is_undo;
+  bool is_undo = false;
 
-  ScrArea *cursor_area; /* Area under the cursor. */
-  ARegionType *area_region_type;
-  void *draw_handle_pixel;
-  int name_pos[2];
-  char name[64];
+  ScrArea *cursor_area = nullptr; /* Area under the cursor. */
+  ARegionType *area_region_type = nullptr;
+  void *draw_handle_pixel = nullptr;
+  int name_pos[2] = {};
+  char name[64] = {};
 };
 
 struct BoneSampleData {
@@ -428,7 +428,7 @@ static void generate_sample_warning(SampleResult result, wmOperator *op)
   }
 }
 
-static int bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   BoneDropper *bdr = (BoneDropper *)op->customdata;
   if (!bdr) {
@@ -468,7 +468,7 @@ static int bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   return OPERATOR_RUNNING_MODAL;
 }
-static int bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* This is needed to ensure viewport picking works. */
   BKE_object_update_select_id(CTX_data_main(C));
@@ -485,7 +485,7 @@ static int bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*eve
   return OPERATOR_CANCELLED;
 }
 
-static int bonedropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bonedropper_exec(bContext *C, wmOperator *op)
 {
   if (bonedropper_init(C, op)) {
     bonedropper_exit(C, op);
@@ -502,6 +502,18 @@ static bool bonedropper_poll(bContext *C)
   int index_dummy;
 
   if (CTX_wm_window(C) == nullptr) {
+    return false;
+  }
+
+  const Object *active_object = CTX_data_active_object(C);
+
+  if (!active_object || active_object->type != OB_ARMATURE) {
+    CTX_wm_operator_poll_msg_set(C, "The active object needs to be an armature");
+    return false;
+  }
+
+  if (!ELEM(active_object->mode, OB_MODE_POSE, OB_MODE_EDIT)) {
+    CTX_wm_operator_poll_msg_set(C, "The armature needs to be in Pose mode or Edit mode");
     return false;
   }
 

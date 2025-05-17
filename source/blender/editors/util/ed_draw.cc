@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -20,6 +21,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_screen.hh"
 
@@ -458,8 +460,10 @@ tSlider *ED_slider_create(bContext *C)
     LISTBASE_FOREACH (ARegion *, region, &slider->area->regionbase) {
       if (region->regiontype == RGN_TYPE_HEADER) {
         slider->region_header = region;
-        slider->draw_handle = ED_region_draw_cb_activate(
-            region->runtime->type, slider_draw, slider, REGION_DRAW_POST_PIXEL);
+        if (!G.background) {
+          slider->draw_handle = ED_region_draw_cb_activate(
+              region->runtime->type, slider_draw, slider, REGION_DRAW_POST_PIXEL);
+        }
       }
     }
   }
@@ -703,7 +707,7 @@ static const char *meta_data_list[] = {
     "Scene",
 };
 
-BLI_INLINE bool metadata_is_valid(ImBuf *ibuf, char *r_str, short index, int offset)
+BLI_INLINE bool metadata_is_valid(const ImBuf *ibuf, char *r_str, short index, int offset)
 {
   return (IMB_metadata_get_field(
               ibuf->metadata, meta_data_list[index], r_str + offset, MAX_METADATA_STR - offset) &&
@@ -746,7 +750,7 @@ static void metadata_custom_draw_fields(const char *field, const char *value, vo
   ctx->current_y += ctx->vertical_offset;
 }
 
-static void metadata_draw_imbuf(ImBuf *ibuf, const rctf *rect, int fontid, const bool is_top)
+static void metadata_draw_imbuf(const ImBuf *ibuf, const rctf *rect, int fontid, const bool is_top)
 {
   char temp_str[MAX_METADATA_STR];
   int ofs_y = 0;
@@ -852,7 +856,7 @@ static void metadata_custom_count_fields(const char *field, const char * /*value
   ctx->count++;
 }
 
-static float metadata_box_height_get(ImBuf *ibuf, int fontid, const bool is_top)
+static float metadata_box_height_get(const ImBuf *ibuf, int fontid, const bool is_top)
 {
   const float height = BLF_height_max(fontid);
   const float margin = (height / 8);
@@ -906,7 +910,7 @@ static float metadata_box_height_get(ImBuf *ibuf, int fontid, const bool is_top)
 }
 
 void ED_region_image_metadata_draw(
-    int x, int y, ImBuf *ibuf, const rctf *frame, float zoomx, float zoomy)
+    int x, int y, const ImBuf *ibuf, const rctf *frame, float zoomx, float zoomy)
 {
   const uiStyle *style = UI_style_get_dpi();
 

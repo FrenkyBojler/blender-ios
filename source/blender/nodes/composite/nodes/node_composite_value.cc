@@ -44,7 +44,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_value_cc
 
-void register_node_type_cmp_value()
+static void register_node_type_cmp_value()
 {
   namespace file_ns = blender::nodes::node_composite_value_cc;
 
@@ -56,8 +56,10 @@ void register_node_type_cmp_value()
   ntype.enum_name_legacy = "VALUE";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::cmp_node_value_declare;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Default);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.gather_link_search_ops = nullptr;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_value)

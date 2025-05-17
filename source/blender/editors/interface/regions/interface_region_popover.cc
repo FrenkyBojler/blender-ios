@@ -84,7 +84,7 @@ static void ui_popover_create_block(bContext *C,
 
   const uiStyle *style = UI_style_get_dpi();
 
-  pup->block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  pup->block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   UI_block_flag_enable(pup->block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_POPOVER);
 #ifdef USE_UI_POPOVER_ONCE
@@ -209,12 +209,12 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
     if (!handle->refresh) {
       uiBut *but = nullptr;
       uiBut *but_first = nullptr;
-      LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
-        if ((but_first == nullptr) && ui_but_is_editable(but_iter)) {
-          but_first = but_iter;
+      for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
+        if ((but_first == nullptr) && ui_but_is_editable(but_iter.get())) {
+          but_first = but_iter.get();
         }
         if (but_iter->flag & (UI_SELECT | UI_SELECT_DRAW)) {
-          but = but_iter;
+          but = but_iter.get();
           break;
         }
       }
@@ -302,7 +302,10 @@ uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
 /** \name Standard Popover Panels
  * \{ */
 
-int UI_popover_panel_invoke(bContext *C, const char *idname, bool keep_open, ReportList *reports)
+wmOperatorStatus UI_popover_panel_invoke(bContext *C,
+                                         const char *idname,
+                                         bool keep_open,
+                                         ReportList *reports)
 {
   uiLayout *layout;
   PanelType *pt = WM_paneltype_find(idname, true);
@@ -371,7 +374,7 @@ uiPopover *UI_popover_begin(bContext *C, int ui_menu_width, bool from_active_but
 
   /* Create in advance so we can let buttons point to #uiPopupBlockHandle::retvalue
    * (and other return values) already. */
-  pup->block->handle = MEM_cnew<uiPopupBlockHandle>(__func__);
+  pup->block->handle = MEM_new<uiPopupBlockHandle>(__func__);
 
   return pup;
 }

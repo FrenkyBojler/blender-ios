@@ -70,7 +70,7 @@ static StructRNA *rna_NodeTreeInterfaceItem_refine(PointerRNA *ptr)
 {
   bNodeTreeInterfaceItem *item = static_cast<bNodeTreeInterfaceItem *>(ptr->data);
 
-  switch (item->item_type) {
+  switch (NodeTreeInterfaceItemType(item->item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
           *item);
@@ -265,8 +265,7 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
                                                        StructCallbackFunc call,
                                                        StructFreeFunc free)
 {
-  bNodeTreeInterfaceSocket dummy_socket;
-  memset(&dummy_socket, 0, sizeof(bNodeTreeInterfaceSocket));
+  bNodeTreeInterfaceSocket dummy_socket = {};
   /* Set #item_type so that refining the type ends up with RNA_NodeTreeInterfaceSocket. */
   dummy_socket.item.item_type = NODE_INTERFACE_SOCKET;
 
@@ -290,7 +289,7 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
     st = MEM_new<blender::bke::bNodeSocketType>(__func__);
     st->idname = dummy_socket.socket_type;
 
-    blender::bke::node_register_socket_type(st);
+    blender::bke::node_register_socket_type(*st);
   }
 
   st->free_self = [](blender::bke::bNodeSocketType *type) { MEM_delete(type); };
@@ -368,6 +367,12 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
   /* Only use basic socket types for this enum. */
   if (socket_type->subtype != PROP_NONE) {
     return false;
+  }
+
+  if (!U.experimental.use_bundle_and_closure_nodes) {
+    if (ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE)) {
+      return false;
+    }
   }
 
   return true;
@@ -769,7 +774,9 @@ void rna_NodeTreeInterfaceSocketInt_default_value_range(
 static const EnumPropertyItem *rna_NodeTreeInterfaceSocketVector_subtype_itemf(
     bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
 {
-  return rna_subtype_filter_itemf({PROP_TRANSLATION,
+  return rna_subtype_filter_itemf({PROP_FACTOR,
+                                   PROP_PERCENTAGE,
+                                   PROP_TRANSLATION,
                                    PROP_DIRECTION,
                                    PROP_VELOCITY,
                                    PROP_ACCELERATION,
@@ -825,6 +832,7 @@ static void rna_NodeTreeInterface_items_begin(CollectionPropertyIterator *iter, 
 
   ntree->ensure_interface_cache();
   rna_iterator_array_begin(iter,
+                           ptr,
                            const_cast<bNodeTreeInterfaceItem **>(ntree->interface_items().data()),
                            sizeof(bNodeTreeInterfaceItem *),
                            ntree->interface_items().size(),
@@ -855,8 +863,8 @@ static bool rna_NodeTreeInterface_items_lookup_int(PointerRNA *ptr, int index, P
     return false;
   }
 
-  *r_ptr = RNA_pointer_create_discrete(
-      ptr->owner_id, &RNA_NodeTreeInterfaceItem, ntree->interface_items()[index]);
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_NodeTreeInterfaceItem, ntree->interface_items()[index], *r_ptr);
   return true;
 }
 
@@ -871,12 +879,11 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
 
   ntree->ensure_interface_cache();
   for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
-    switch (item->item_type) {
+    switch (NodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_SOCKET: {
         bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
         if (STREQ(socket->name, key)) {
-          *r_ptr = RNA_pointer_create_discrete(
-              ptr->owner_id, &RNA_NodeTreeInterfaceSocket, socket);
+          rna_pointer_create_with_ancestors(*ptr, &RNA_NodeTreeInterfaceSocket, socket, *r_ptr);
           return true;
         }
         break;
@@ -884,7 +891,7 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
       case NODE_INTERFACE_PANEL: {
         bNodeTreeInterfacePanel *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
         if (STREQ(panel->name, key)) {
-          *r_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeTreeInterfacePanel, panel);
+          rna_pointer_create_with_ancestors(*ptr, &RNA_NodeTreeInterfacePanel, panel, *r_ptr);
           return true;
         }
         break;
@@ -1034,11 +1041,26 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
                            "Take link out of node group to connect to root tree output node");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
+  prop = RNA_def_property(srna, "is_panel_toggle", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+                           "Is Panel Toggle",
+                           "This socket is meant to be used as the toggle in its panel header");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
   prop = RNA_def_property(srna, "layer_selection_field", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_LAYER_SELECTION);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Layer Selection", "Take Grease Pencil Layer or Layer Group as selection field");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  prop = RNA_def_property(srna, "menu_expanded", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_MENU_EXPANDED);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Menu Expanded", "Draw the menu socket as an expanded drop-down menu");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "attribute_domain", PROP_ENUM, PROP_NONE);

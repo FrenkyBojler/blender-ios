@@ -21,6 +21,23 @@ namespace blender::compositor {
 
 using namespace nodes::derived_node_tree_types;
 
+/* Returns true if any of the node group nodes that make up this tree context are muted. */
+static bool is_tree_context_muted(const DTreeContext &tree_context)
+{
+  /* Root contexts are never muted. */
+  if (tree_context.is_root()) {
+    return false;
+  }
+
+  /* The node group that represents this context is muted. */
+  if (tree_context.parent_node()->is_muted()) {
+    return true;
+  }
+
+  /* Recursively check parent contexts up until the root context. */
+  return is_tree_context_muted(*tree_context.parent_context());
+}
+
 /* Add the active viewer node in the given tree context to the given stack. If viewer nodes are
  * treated as composite outputs, this function will also add either the viewer or the composite
  * node since composite nodes were skipped in add_output_nodes such that viewer nodes take
@@ -29,6 +46,11 @@ static bool add_viewer_nodes_in_context(const Context &context,
                                         const DTreeContext *tree_context,
                                         Stack<DNode> &node_stack)
 {
+  /* Do not add viewers that are inside muted contexts. */
+  if (is_tree_context_muted(*tree_context)) {
+    return false;
+  }
+
   for (const bNode *node : tree_context->btree().nodes_by_type("CompositorNodeViewer")) {
     if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
       node_stack.push(DNode(tree_context, node));
@@ -210,6 +232,10 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
     for (const bNodeSocket *input : node->input_sockets()) {
       const DInputSocket dinput{node.context(), input};
 
+      if (!input->is_available()) {
+        continue;
+      }
+
       /* Get the output linked to the input. If it is null, that means the input is unlinked and
        * has no dependency node. */
       const DOutputSocket doutput = get_output_linked_to_input(dinput);
@@ -244,6 +270,10 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
     for (const bNodeSocket *input : node->input_sockets()) {
       const DInputSocket dinput{node.context(), input};
 
+      if (!input->is_available()) {
+        continue;
+      }
+
       /* Get the output linked to the input. If it is null, that means the input is unlinked.
        * Unlinked inputs do not take a buffer, so skip those inputs. */
       const DOutputSocket doutput = get_output_linked_to_input(dinput);
@@ -269,6 +299,10 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
     int number_of_output_buffers = 0;
     for (const bNodeSocket *output : node->output_sockets()) {
       const DOutputSocket doutput{node.context(), output};
+
+      if (!output->is_available()) {
+        continue;
+      }
 
       /* The output is not linked, it outputs no buffer. */
       if (!output->is_logically_linked()) {
@@ -343,6 +377,10 @@ Schedule compute_schedule(const Context &context, const DerivedNodeTree &tree)
     Vector<DNode> sorted_dependency_nodes;
     for (const bNodeSocket *input : node->input_sockets()) {
       const DInputSocket dinput{node.context(), input};
+
+      if (!input->is_available()) {
+        continue;
+      }
 
       /* Get the output linked to the input. If it is null, that means the input is unlinked and
        * has no dependency node, so skip it. */

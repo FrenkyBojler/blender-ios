@@ -28,23 +28,22 @@ static void node_shader_buts_ies(uiLayout *layout, bContext * /*C*/, PointerRNA 
 {
   uiLayout *row;
 
-  row = uiLayoutRow(layout, false);
-  uiItemR(
-      row, ptr, "mode", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row = &layout->row(false);
+  row->prop(ptr, "mode", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
 
   if (RNA_enum_get(ptr, "mode") == NODE_IES_INTERNAL) {
-    uiItemR(row, ptr, "ies", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    row->prop(ptr, "ies", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
   else {
-    uiItemR(row, ptr, "filepath", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    row->prop(ptr, "filepath", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
 }
 
 static void node_shader_init_tex_ies(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderTexIES *tex = MEM_cnew<NodeShaderTexIES>("NodeShaderIESLight");
+  NodeShaderTexIES *tex = MEM_callocN<NodeShaderTexIES>("NodeShaderIESLight");
   node->storage = tex;
 }
 
@@ -68,7 +67,7 @@ void register_node_type_sh_tex_ies()
   ntype.draw_buttons = file_ns::node_shader_buts_ies;
   ntype.initfunc = file_ns::node_shader_init_tex_ies;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderTexIES", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeShaderTexIES", node_free_standard_storage, node_copy_standard_storage);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

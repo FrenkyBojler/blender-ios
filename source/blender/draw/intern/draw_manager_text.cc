@@ -31,6 +31,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
 #include "GPU_matrix.hh"
@@ -73,13 +74,16 @@ struct DRWTextStore {
 
 DRWTextStore *DRW_text_cache_create()
 {
-  DRWTextStore *dt = MEM_cnew<DRWTextStore>(__func__);
+  DRWTextStore *dt = MEM_callocN<DRWTextStore>(__func__);
   dt->cache_strings = BLI_memiter_create(1 << 14); /* 16kb */
   return dt;
 }
 
 void DRW_text_cache_destroy(DRWTextStore *dt)
 {
+  if (dt == nullptr) {
+    return;
+  }
   BLI_memiter_destroy(dt->cache_strings);
   MEM_freeN(dt);
 }
@@ -262,9 +266,8 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
                                       const UnitSettings &unit,
                                       DRWTextStore *dt)
 {
-  /* Do not use ascii when using non-default unit system, some unit chars are utf8 (micro, square,
-   * etc.). See bug #36090.
-   */
+  /* Do not use ASCII when using non-default unit system, some unit chars are UTF8
+   * (micro, square, etc.). See #36090. */
   const short txt_flag = DRW_TEXT_CACHE_GLOBALSPACE;
   const Mesh *mesh = BKE_object_get_editmesh_eval_cage(ob);
   if (!mesh) {

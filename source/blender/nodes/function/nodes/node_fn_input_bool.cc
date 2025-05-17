@@ -16,8 +16,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayout *col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "boolean", UI_ITEM_R_EXPAND, IFACE_("Value"), ICON_NONE);
+  uiLayout *col = &layout->column(true);
+  col->prop(ptr, "boolean", UI_ITEM_R_EXPAND, IFACE_("Value"), ICON_NONE);
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -29,7 +29,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeInputBool *data = MEM_cnew<NodeInputBool>(__func__);
+  NodeInputBool *data = MEM_callocN<NodeInputBool>(__func__);
   node->storage = data;
 }
 
@@ -44,10 +44,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(
-      &ntype, "NodeInputBool", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeInputBool", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

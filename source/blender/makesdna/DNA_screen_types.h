@@ -50,6 +50,11 @@ typedef struct FileHandlerTypeHandle FileHandlerTypeHandle;
 #define AREAMAP_FROM_SCREEN(screen) ((ScrAreaMap *)&(screen)->vertbase)
 
 typedef struct bScreen {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_SCR;
+#endif
+
   ID id;
 
   /* TODO: Should become ScrAreaMap now.
@@ -138,7 +143,12 @@ typedef struct LayoutPanelState {
   /** Identifier of the panel. */
   char *idname;
   uint8_t flag;
-  char _pad[7];
+  char _pad[3];
+  /**
+   * A logical time set from #layout_panel_states_clock when the panel is used by the UI. This is
+   * used to detect the least-recently-used panel states when some panel states should be removed.
+   */
+  uint32_t last_used;
 } LayoutPanelState;
 
 enum LayoutPanelStateFlag {
@@ -177,9 +187,17 @@ typedef struct Panel {
 
   /**
    * List of #LayoutPanelState. This stores the open-close-state of layout-panels created with
-   * `layout.panel(...)` in Python. For more information on layout-panels, see `uiLayoutPanelProp`.
+   * `layout.panel(...)` in Python. For more information on layout-panels, see
+   * `uiLayout::panel_prop`.
    */
   ListBase layout_panel_states;
+  /**
+   * This is increased whenever a layout panel state is used by the UI. This is used to allow for
+   * some garbage collection of panel states when #layout_panel_states becomes large. It works by
+   * removing all least-recently-used panel states up to a certain threshold.
+   */
+  uint32_t layout_panel_states_clock;
+  char _pad2[4];
 
   struct Panel_Runtime *runtime;
 } Panel;
@@ -329,7 +347,12 @@ typedef struct uiViewState {
    * and the default should be used.
    */
   int custom_height;
-  char _pad[4];
+  /**
+   * Amount of vertical scrolling. View types decide on the unit:
+   * - Tree views: Number of items scrolled out of view (#scroll_offset of 5 means 5 items are
+   *   scrolled out of view).
+   */
+  int scroll_offset;
 } uiViewState;
 
 /**
@@ -559,7 +582,7 @@ enum {
   AREA_FLAG_OFFSCREEN = (1 << 9),
 };
 
-#define AREAGRID 4
+#define AREAGRID 1
 #define AREAMINX 29
 #define HEADER_PADDING_Y 6
 #define HEADERY (20 + HEADER_PADDING_Y)

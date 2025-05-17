@@ -61,8 +61,7 @@ static bke::VolumeGrid<float> points_to_grid(const GeometrySet &geometry_set,
                                              const Field<float> &radius_field,
                                              const float voxel_size)
 {
-  const double determinant = std::pow(double(voxel_size), 3.0);
-  if (!BKE_volume_grid_determinant_valid(determinant)) {
+  if (!BKE_volume_voxel_size_valid(float3(voxel_size))) {
     return {};
   }
 
@@ -115,7 +114,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -17,11 +17,13 @@ namespace blender::nodes::node_geo_set_position_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Geometry");
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Vector>("Position").implicit_field_on_all(implicit_field_inputs::position);
   b.add_input<decl::Vector>("Offset").subtype(PROP_TRANSLATION).field_on_all();
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
 }
 
 static const auto &get_add_fn()
@@ -138,9 +140,9 @@ static void node_geo_exec(GeoNodeExecParams params)
                         selection_field,
                         position_field);
   }
-  if (PointCloud *point_cloud = geometry.get_pointcloud_for_write()) {
-    set_points_position(point_cloud->attributes_for_write(),
-                        bke::PointCloudFieldContext(*point_cloud),
+  if (PointCloud *pointcloud = geometry.get_pointcloud_for_write()) {
+    set_points_position(pointcloud->attributes_for_write(),
+                        bke::PointCloudFieldContext(*pointcloud),
                         selection_field,
                         position_field);
   }
@@ -172,7 +174,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -4,7 +4,7 @@
 
 /** \file
  * \ingroup GHOST
- * %Main interface file for C++ Api with declaration of GHOST_ISystem interface
+ * %Main interface file for C++ API with declaration of GHOST_ISystem interface
  * class.
  * Contains the DOXYGEN documentation main page.
  */
@@ -277,39 +277,6 @@ class GHOST_ISystem {
    * \return Indication of validity.
    */
   virtual bool validWindow(GHOST_IWindow *window) = 0;
-
-  /**
-   * Begins full screen mode.
-   * \param setting: The new setting of the display.
-   * \param window: Window displayed in full screen.
-   *                  This window is invalid after full screen has been ended.
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
-                                         GHOST_IWindow **window,
-                                         const bool stereoVisual) = 0;
-
-  /**
-   * Updates the resolution while in full-screen mode.
-   * \param setting: The new setting of the display.
-   * \param window: Window displayed in full screen.
-   *
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess updateFullScreen(const GHOST_DisplaySetting &setting,
-                                          GHOST_IWindow **window) = 0;
-
-  /**
-   * Ends full screen mode.
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess endFullScreen() = 0;
-
-  /**
-   * Returns current full screen mode status.
-   * \return The current status.
-   */
-  virtual bool getFullScreen() = 0;
 
   /**
    * Native pixel size support (MacBook 'retina').

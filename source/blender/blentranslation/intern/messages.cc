@@ -461,14 +461,19 @@ class MOMessages {
     }
   }
 
-  const char *translate(const int domain, const StringRef context, const StringRef str) const
+  std::optional<StringRefNull> translate(const int domain,
+                                         const StringRef context,
+                                         const StringRef str) const
   {
     if (domain < 0 || domain >= catalogs_.size()) {
-      return nullptr;
+      return std::nullopt;
     }
     const MessageKeyRef key{context, str};
     const std::string *result = catalogs_[domain].lookup_ptr_as(key);
-    return (result) ? result->c_str() : nullptr;
+    if (!result) {
+      return std::nullopt;
+    }
+    return *result;
   }
 
   const std::string &error()
@@ -534,7 +539,7 @@ class MOMessages {
       return false;
     }
 
-    /* Only support UTF-8 encoded files, as created by our msgfmt tool. */
+    /* Only support UTF8 encoded files, as created by our msgfmt tool. */
     const std::string mo_encoding = extract(mo.value(0), "charset=", " \r\n;");
     if (mo_encoding.empty()) {
       error_ = "Invalid mo-format, encoding is not specified";
@@ -598,10 +603,12 @@ void free()
   global_full_name = "";
 }
 
-const char *translate(const int domain, const StringRef context, const StringRef key)
+std::optional<StringRefNull> translate(const int domain,
+                                       const StringRef context,
+                                       const StringRef key)
 {
   if (!global_messages) {
-    return nullptr;
+    return std::nullopt;
   }
 
   return global_messages->translate(domain, context, key);

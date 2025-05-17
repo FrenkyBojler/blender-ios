@@ -191,16 +191,15 @@ typedef struct LightLinking {
 } LightLinking;
 
 typedef struct Object {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Object)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_OB;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /**
-   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
-   * DRW_drawdatalist_from_id to understand this requirement.
-   */
-  struct DrawDataList drawdata;
 
   struct SculptSession *sculpt;
 
@@ -382,7 +381,10 @@ typedef struct Object {
 
   /** ObjectModifierFlag */
   uint8_t modifier_flag;
-  char _pad8[4];
+
+  float shadow_terminator_normal_offset;
+  float shadow_terminator_geometry_offset;
+  float shadow_terminator_shading_offset;
 
   struct PreviewImage *preview;
 
@@ -478,7 +480,7 @@ typedef enum ObjectType {
 /* check if the object type supports materials */
 #define OB_TYPE_SUPPORT_MATERIAL(_type) \
   (((_type) >= OB_MESH && (_type) <= OB_MBALL) || \
-   ((_type) >= OB_GPENCIL_LEGACY && (_type) <= OB_GREASE_PENCIL))
+   ((_type) >= OB_CURVES && (_type) <= OB_GREASE_PENCIL))
 /**
  * Does the object have some render-able geometry (unlike empties, cameras, etc.). True for
  * #OB_CURVES_LEGACY, since these often evaluate to objects with geometry.
@@ -489,14 +491,12 @@ typedef enum ObjectType {
         OB_SURF, \
         OB_FONT, \
         OB_MBALL, \
-        OB_GPENCIL_LEGACY, \
         OB_CURVES_LEGACY, \
         OB_CURVES, \
         OB_POINTCLOUD, \
         OB_VOLUME, \
         OB_GREASE_PENCIL))
-#define OB_TYPE_SUPPORT_VGROUP(_type) \
-  (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL))
+#define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GREASE_PENCIL))
 #define OB_TYPE_SUPPORT_EDITMODE(_type) \
   (ELEM(_type, \
         OB_MESH, \
@@ -579,6 +579,8 @@ enum {
   OB_TRANSFLAG_UNUSED_12 = 1 << 12, /* cleared */
   /* runtime constraints disable */
   OB_NO_CONSTRAINTS = 1 << 13,
+  /* when calculating vertex parent position, ignore CD_ORIGINDEX layer */
+  OB_PARENT_USE_FINAL_INDICES = 1 << 14,
 
   OB_DUPLI = OB_DUPLIVERTS | OB_DUPLICOLLECTION | OB_DUPLIFACES | OB_DUPLIPARTS,
 };

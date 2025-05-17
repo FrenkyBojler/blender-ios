@@ -10,6 +10,14 @@
 
 #include "BLI_sys_types.h"
 
+#ifdef WITH_INTERNATIONAL
+
+#  include <optional>
+
+#  include "BLI_string_ref.hh"
+
+#endif
+
 struct ARegionType;
 struct AnimationEvalContext;
 struct ChannelDriver; /* DNA_anim_types.h */
@@ -23,16 +31,8 @@ struct bConstraintOb;     /* DNA_constraint_types.h */
 struct bConstraintTarget; /* DNA_constraint_types.h */
 struct bContext;
 struct bContextDataResult;
-struct bPythonConstraint; /* DNA_constraint_types.h */
 struct StructRNA;
 struct wmWindowManager;
-
-void BPY_pyconstraint_exec(bPythonConstraint *con, bConstraintOb *cob, ListBase *targets);
-//  void BPY_pyconstraint_settings(void *arg1, void *arg2);
-void BPY_pyconstraint_target(bPythonConstraint *con, bConstraintTarget *ct);
-void BPY_pyconstraint_update(Object *owner, bConstraint *con);
-bool BPY_is_pyconstraint(Text *text);
-//  void BPY_free_pyconstraint_links(struct Text *text);
 
 /* global interpreter lock */
 
@@ -142,5 +142,6 @@ void BPY_callback_wm_free(wmWindowManager *wm);
 
 /* I18n for addons */
 #ifdef WITH_INTERNATIONAL
-const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid);
+std::optional<blender::StringRefNull> BPY_app_translations_py_pgettext(blender::StringRef msgctxt,
+                                                                       blender::StringRef msgid);
 #endif

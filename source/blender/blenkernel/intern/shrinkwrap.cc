@@ -315,11 +315,8 @@ static void shrinkwrap_calc_nearest_vertex_cb_ex(void *__restrict userdata,
 
   float *co = calc->vertexCos[i];
   float tmp_co[3];
-  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
-
-  if (calc->invert_vgroup) {
-    weight = 1.0f - weight;
-  }
+  float weight = BKE_defvert_array_find_weight_safe(
+      calc->dvert, i, calc->vgroup, calc->invert_vgroup);
 
   if (weight == 0.0f) {
     return;
@@ -479,11 +476,8 @@ static void shrinkwrap_calc_normal_projection_cb_ex(void *__restrict userdata,
   const float proj_limit_squared = calc->smd->projLimit * calc->smd->projLimit;
   float *co = calc->vertexCos[i];
   const float *tmp_co, *tmp_no;
-  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
-
-  if (calc->invert_vgroup) {
-    weight = 1.0f - weight;
-  }
+  float weight = BKE_defvert_array_find_weight_safe(
+      calc->dvert, i, calc->vgroup, calc->invert_vgroup);
 
   if (weight == 0.0f) {
     return;
@@ -1086,11 +1080,8 @@ static void shrinkwrap_calc_nearest_surface_point_cb_ex(void *__restrict userdat
 
   float *co = calc->vertexCos[i];
   float tmp_co[3];
-  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
-
-  if (calc->invert_vgroup) {
-    weight = 1.0f - weight;
-  }
+  float weight = BKE_defvert_array_find_weight_safe(
+      calc->dvert, i, calc->vgroup, calc->invert_vgroup);
 
   if (weight == 0.0f) {
     return;
@@ -1376,7 +1367,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd,
   calc.invert_vgroup = (smd->shrinkOpts & MOD_SHRINKWRAP_INVERT_VGROUP) != 0;
 
   if (smd->target != nullptr) {
-    Object *ob_target = DEG_get_evaluated_object(ctx->depsgraph, smd->target);
+    Object *ob_target = DEG_get_evaluated(ctx->depsgraph, smd->target);
     calc.target = BKE_modifier_get_evaluated_mesh_from_evaluated_object(ob_target);
 
     /* TODO: there might be several "bugs" with non-uniform scales matrices
@@ -1387,7 +1378,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd,
     /* TODO: smd->keepDist is in global units.. must change to local */
     calc.keepDist = smd->keepDist;
   }
-  calc.aux_target = DEG_get_evaluated_object(ctx->depsgraph, smd->auxTarget);
+  calc.aux_target = DEG_get_evaluated(ctx->depsgraph, smd->auxTarget);
 
   if (mesh != nullptr && smd->shrinkType == MOD_SHRINKWRAP_PROJECT) {
     /* Setup arrays to get vertex positions, normals and deform weights */

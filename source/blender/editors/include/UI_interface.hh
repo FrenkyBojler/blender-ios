@@ -85,11 +85,15 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
 
 void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path);
 
-void attribute_search_add_items(StringRefNull str,
+void attribute_search_add_items(StringRef str,
                                 bool can_create_attribute,
                                 Span<const nodes::geo_eval_log::GeometryAttributeInfo *> infos,
                                 uiSearchItems *items,
                                 bool is_first);
+void grease_pencil_layer_search_add_items(StringRef str,
+                                          Span<const std::string *> layer_names,
+                                          uiSearchItems &items,
+                                          bool is_first);
 
 bool asset_shelf_popover_invoke(bContext &C,
                                 blender::StringRef asset_shelf_idname,

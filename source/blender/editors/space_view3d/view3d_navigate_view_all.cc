@@ -10,12 +10,15 @@
 #include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
-#include "BLI_bounds_types.hh"
+#include "BLI_bounds.hh"
+#include "BLI_listbase.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 
 #include "DEG_depsgraph_query.hh"
@@ -98,8 +101,8 @@ static void view3d_from_minmax(bContext *C,
   ED_view3d_smooth_view_force_finish(C, v3d, region);
 
   /* SMOOTHVIEW */
-  float new_ofs[3];
-  float new_dist;
+  float ofs_new[3];
+  float dist_new;
 
   sub_v3_v3v3(afm, max, min);
   size = max_fff(afm[0], afm[1], afm[2]);
@@ -128,21 +131,22 @@ static void view3d_from_minmax(bContext *C,
 
     if (do_zoom) {
       Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      new_dist = ED_view3d_radius_to_dist(
+      dist_new = ED_view3d_radius_to_dist(
           v3d, region, depsgraph, persp, true, (size / 2) * VIEW3D_MARGIN);
       if (rv3d->is_persp) {
-        /* don't zoom closer than the near clipping plane */
-        new_dist = max_ff(new_dist, v3d->clip_start * 1.5f);
+        /* Don't zoom closer than the near clipping plane. */
+        const float dist_min = ED_view3d_dist_soft_min_get(v3d, true);
+        CLAMP_MIN(dist_new, dist_min);
       }
     }
   }
 
-  mid_v3_v3v3(new_ofs, min, max);
-  negate_v3(new_ofs);
+  mid_v3_v3v3(ofs_new, min, max);
+  negate_v3(ofs_new);
 
   V3D_SmoothParams sview = {nullptr};
-  sview.ofs = new_ofs;
-  sview.dist = do_zoom ? &new_dist : nullptr;
+  sview.ofs = ofs_new;
+  sview.dist = do_zoom ? &dist_new : nullptr;
   /* The caller needs to use undo begin/end calls. */
   sview.undo_str = nullptr;
 
@@ -215,7 +219,7 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_visible(Depsgraph *dep
   LISTBASE_FOREACH (Base *, base_eval, BKE_view_layer_object_bases_get(view_layer_eval)) {
     if (BASE_VISIBLE(v3d, base_eval)) {
       bool only_center = false;
-      Object *ob = DEG_get_original_object(base_eval->object);
+      Object *ob = DEG_get_original(base_eval->object);
       if (view3d_object_skip_minmax(v3d, rv3d, ob, skip_camera, &only_center)) {
         continue;
       }
@@ -314,8 +318,10 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
     {
       const std::optional<blender::Bounds<float3>> bounds = BKE_pose_minmax(ob_eval_iter, true);
       if (bounds) {
-        minmax_v3v3_v3(min, max, bounds->min);
-        minmax_v3v3_v3(min, max, bounds->max);
+        const blender::Bounds<float3> world_bounds = blender::bounds::transform_bounds<float, 4>(
+            ob_eval->object_to_world(), *bounds);
+        minmax_v3v3_v3(min, max, world_bounds.min);
+        minmax_v3v3_v3(min, max, world_bounds.max);
         changed = true;
       }
     }
@@ -347,7 +353,7 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
     LISTBASE_FOREACH (Base *, base_eval, BKE_view_layer_object_bases_get(view_layer_eval)) {
       if (BASE_SELECTED(v3d, base_eval)) {
         bool only_center = false;
-        Object *ob = DEG_get_original_object(base_eval->object);
+        Object *ob = DEG_get_original(base_eval->object);
         if (view3d_object_skip_minmax(v3d, rv3d, ob, skip_camera, &only_center)) {
           continue;
         }
@@ -370,6 +376,40 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
   return blender::Bounds<float3>(min, max);
 }
 
+bool view3d_calc_point_in_selected_bounds(Depsgraph *depsgraph,
+                                          ViewLayer *view_layer,
+                                          const View3D *v3d,
+                                          const blender::float3 &point,
+                                          const float scale_margin)
+{
+  Scene *scene = DEG_get_input_scene(depsgraph);
+
+  LISTBASE_FOREACH (const Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+    if (!BASE_SELECTED(v3d, base)) {
+      continue;
+    }
+    Object *ob = base->object;
+    BLI_assert(!DEG_is_original(ob));
+
+    float3 min, max;
+    view3d_object_calc_minmax(depsgraph, scene, ob, false, min, max);
+
+    blender::Bounds<float3> bounds{min, max};
+
+    bounds.scale_from_center(float3(scale_margin));
+
+    float3 local_min = blender::math::transform_point(ob->object_to_world(), bounds.min);
+    float3 local_max = blender::math::transform_point(ob->object_to_world(), bounds.max);
+
+    if (point[0] >= local_min[0] && point[1] >= local_min[1] && point[2] >= local_min[2] &&
+        point[0] <= local_max[0] && point[1] <= local_max[1] && point[2] <= local_max[2])
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -378,7 +418,7 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
  * Move & Zoom the view to fit all of its contents.
  * \{ */
 
-static int view3d_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_all_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
@@ -443,7 +483,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
   ot->description = "View all objects in scene";
   ot->idname = "VIEW3D_OT_view_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view3d_all_exec;
   ot->poll = ED_operator_region_view3d_active;
 
@@ -463,7 +503,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
  * Move & Zoom the view to fit selected contents.
  * \{ */
 
-static int viewselected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewselected_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
@@ -503,7 +543,7 @@ void VIEW3D_OT_view_selected(wmOperatorType *ot)
   ot->description = "Move the view to the selection center";
   ot->idname = "VIEW3D_OT_view_selected";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = viewselected_exec;
   ot->poll = view3d_zoom_or_dolly_poll;
 

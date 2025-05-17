@@ -157,7 +157,7 @@ static Mesh *generate_bounding_box_mesh(const std::optional<Bounds<float3>> &bou
     result->totcol = totcol;
   }
 
-  BKE_mesh_translate(result, math::midpoint(bounds->min, bounds->max), false);
+  bke::mesh_translate(*result, math::midpoint(bounds->min, bounds->max), false);
 
   return result;
 }
@@ -208,7 +208,7 @@ static void modify_geometry_set(ModifierData *md,
           pointcloud->bounds_min_max(), pointcloud->mat, pointcloud->totcol);
     }
 
-    *geometry_set = bke::GeometrySet::from_mesh(bbox, bke::GeometryOwnershipType::Editable);
+    *geometry_set = bke::GeometrySet::from_mesh(bbox);
     return;
   }
 
@@ -385,11 +385,14 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
-    uiItemR(layout, ptr, "read_data", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-    uiItemR(layout, ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "read_data", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  else if (RNA_enum_get(&ob_ptr, "type") == OB_CURVES) {
+    layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -406,7 +409,7 @@ static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
   uiTemplateCacheFileVelocity(layout, &fileptr);
-  uiItemR(layout, ptr, "velocity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "velocity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void time_panel_draw(const bContext * /*C*/, Panel *panel)

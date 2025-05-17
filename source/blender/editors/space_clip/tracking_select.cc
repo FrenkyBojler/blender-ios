@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "DNA_movieclip_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLI_lasso_2d.hh"
 #include "BLI_listbase.h"
@@ -553,7 +554,7 @@ static bool select_poll(bContext *C)
   return false;
 }
 
-static int select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -658,7 +659,7 @@ static int select_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
 
-static int select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -677,7 +678,7 @@ void CLIP_OT_select(wmOperatorType *ot)
   ot->description = "Select tracking markers";
   ot->idname = "CLIP_OT_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_exec;
   ot->invoke = select_invoke;
   ot->poll = select_poll;
@@ -721,7 +722,7 @@ bool ED_clip_can_select(bContext *C)
 
 /********************** box select operator *********************/
 
-static int box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -807,7 +808,7 @@ void CLIP_OT_select_box(wmOperatorType *ot)
   ot->description = "Select markers using box selection";
   ot->idname = "CLIP_OT_select_box";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = box_select_exec;
   ot->modal = WM_gesture_box_modal;
@@ -905,7 +906,7 @@ static int do_lasso_select_marker(bContext *C, const Span<int2> mcoords, bool se
   return changed;
 }
 
-static int clip_lasso_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clip_lasso_select_exec(bContext *C, wmOperator *op)
 {
   const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
 
@@ -932,7 +933,7 @@ void CLIP_OT_select_lasso(wmOperatorType *ot)
   ot->description = "Select markers using lasso selection";
   ot->idname = "CLIP_OT_select_lasso";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_lasso_invoke;
   ot->modal = WM_gesture_lasso_modal;
   ot->exec = clip_lasso_select_exec;
@@ -969,7 +970,7 @@ static int marker_inside_ellipse(const MovieTrackingMarker *marker,
   return point_inside_ellipse(marker->pos, offset, ellipse);
 }
 
-static int circle_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -1066,7 +1067,7 @@ void CLIP_OT_select_circle(wmOperatorType *ot)
   ot->description = "Select markers using circle selection";
   ot->idname = "CLIP_OT_select_circle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_circle_invoke;
   ot->modal = WM_gesture_circle_modal;
   ot->exec = circle_select_exec;
@@ -1083,7 +1084,7 @@ void CLIP_OT_select_circle(wmOperatorType *ot)
 
 /********************** select all operator *********************/
 
-static int select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1116,7 +1117,7 @@ void CLIP_OT_select_all(wmOperatorType *ot)
   ot->description = "Change selection of all tracking markers";
   ot->idname = "CLIP_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_all_exec;
   ot->poll = ED_space_clip_tracking_poll;
 
@@ -1128,7 +1129,7 @@ void CLIP_OT_select_all(wmOperatorType *ot)
 
 /********************** select grouped operator *********************/
 
-static int select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_grouped_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1212,7 +1213,7 @@ void CLIP_OT_select_grouped(wmOperatorType *ot)
   ot->description = "Select all tracks from specified group";
   ot->idname = "CLIP_OT_select_grouped";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_grouped_exec;
   ot->poll = ED_space_clip_tracking_poll;
 

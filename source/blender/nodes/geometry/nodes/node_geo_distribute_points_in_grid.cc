@@ -70,7 +70,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -260,12 +260,12 @@ static void node_register()
   ntype.enum_name_legacy = "DISTRIBUTE_POINTS_IN_GRID";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  blender::bke::node_type_size(&ntype, 170, 100, 320);
+  blender::bke::node_type_size(ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

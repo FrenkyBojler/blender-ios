@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "material", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "material", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -37,7 +37,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

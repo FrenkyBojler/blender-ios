@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -34,7 +35,7 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   ARegion *region;
   SpaceUserPref *spref;
 
-  spref = static_cast<SpaceUserPref *>(MEM_callocN(sizeof(SpaceUserPref), "inituserpref"));
+  spref = MEM_callocN<SpaceUserPref>("inituserpref");
   spref->spacetype = SPACE_USERPREF;
 
   /* header */
@@ -198,7 +199,7 @@ void ED_spacetype_userpref()
   st->blend_write = userpref_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype userpref region"));
+  art = MEM_callocN<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = userpref_main_region_init;
   art->layout = userpref_main_region_layout;
@@ -209,7 +210,7 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype userpref region"));
+  art = MEM_callocN<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
@@ -220,7 +221,7 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: navigation window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype userpref region"));
+  art = MEM_callocN<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_NAV_BAR;
   art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
   art->init = userpref_navigation_region_init;
@@ -231,7 +232,7 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: execution window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype userpref region"));
+  art = MEM_callocN<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_EXECUTE;
   art->prefsizey = HEADERY;
   art->poll = userpref_execute_region_poll;

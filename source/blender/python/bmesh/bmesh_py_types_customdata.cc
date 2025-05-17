@@ -82,6 +82,12 @@ PyDoc_STRVAR(
     ":type: :class:`BMLayerCollection` of int");
 PyDoc_STRVAR(
     /* Wrap. */
+    bpy_bmlayeraccess_collection__bool_doc,
+    "Generic boolean custom-data layer.\n"
+    "\n"
+    ":type: :class:`BMLayerCollection` of boolean");
+PyDoc_STRVAR(
+    /* Wrap. */
     bpy_bmlayeraccess_collection__float_vector_doc,
     "Generic 3D vector with float precision custom-data layer.\n"
     "\n"
@@ -224,6 +230,11 @@ static PyGetSetDef bpy_bmlayeraccess_vert_getseters[] = {
      (setter) nullptr,
      bpy_bmlayeraccess_collection__float_doc,
      (void *)CD_PROP_FLOAT},
+    {"bool",
+     (getter)bpy_bmlayeraccess_collection_get,
+     (setter) nullptr,
+     bpy_bmlayeraccess_collection__bool_doc,
+     (void *)CD_PROP_BOOL},
     {"int",
      (getter)bpy_bmlayeraccess_collection_get,
      (setter) nullptr,
@@ -275,6 +286,11 @@ static PyGetSetDef bpy_bmlayeraccess_edge_getseters[] = {
      (setter) nullptr,
      bpy_bmlayeraccess_collection__int_doc,
      (void *)CD_PROP_INT32},
+    {"bool",
+     (getter)bpy_bmlayeraccess_collection_get,
+     (setter) nullptr,
+     bpy_bmlayeraccess_collection__bool_doc,
+     (void *)CD_PROP_BOOL},
     {"float_vector",
      (getter)bpy_bmlayeraccess_collection_get,
      (setter) nullptr,
@@ -316,6 +332,11 @@ static PyGetSetDef bpy_bmlayeraccess_face_getseters[] = {
      (setter) nullptr,
      bpy_bmlayeraccess_collection__int_doc,
      (void *)CD_PROP_INT32},
+    {"bool",
+     (getter)bpy_bmlayeraccess_collection_get,
+     (setter) nullptr,
+     bpy_bmlayeraccess_collection__bool_doc,
+     (void *)CD_PROP_BOOL},
     {"float_vector",
      (getter)bpy_bmlayeraccess_collection_get,
      (setter) nullptr,
@@ -359,6 +380,11 @@ static PyGetSetDef bpy_bmlayeraccess_loop_getseters[] = {
      (setter) nullptr,
      bpy_bmlayeraccess_collection__int_doc,
      (void *)CD_PROP_INT32},
+    {"bool",
+     (getter)bpy_bmlayeraccess_collection_get,
+     (setter) nullptr,
+     bpy_bmlayeraccess_collection__bool_doc,
+     (void *)CD_PROP_BOOL},
     {"float_vector",
      (getter)bpy_bmlayeraccess_collection_get,
      (setter) nullptr,
@@ -492,7 +518,7 @@ static PyObject *bpy_bmlayercollection_verify(BPy_BMLayerCollection *self)
     /* Because adding CustomData layers to a bmesh will invalidate any existing pointers
      * in Py objects we can't lazily add the associated bool layers. So add them all right
      * now. */
-    BM_uv_map_ensure_select_and_pin_attrs(self->bm);
+    BM_uv_map_attr_select_and_pin_ensure(self->bm);
   }
 
   BLI_assert(index >= 0);
@@ -543,7 +569,7 @@ static PyObject *bpy_bmlayercollection_new(BPy_BMLayerCollection *self, PyObject
     /* Because adding CustomData layers to a bmesh will invalidate any existing pointers
      * in Py objects we can't lazily add the associated bool layers. So add them all right
      * now. */
-    BM_uv_map_ensure_select_and_pin_attrs(self->bm);
+    BM_uv_map_attr_select_and_pin_ensure(self->bm);
   }
 
   index = CustomData_number_of_layers(data, eCustomDataType(self->type)) - 1;
@@ -736,9 +762,14 @@ static PyMethodDef bpy_bmlayeritem_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpy_bmelemseq_methods[] = {
@@ -765,8 +796,12 @@ static PyMethodDef bpy_bmelemseq_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /* Sequences
@@ -1183,6 +1218,10 @@ PyObject *BPy_BMLayerItem_GetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer)
       ret = PyLong_FromLong(*(int *)value);
       break;
     }
+    case CD_PROP_BOOL: {
+      ret = PyBool_FromLong(*(bool *)value);
+      break;
+    }
     case CD_PROP_FLOAT3: {
       ret = Vector_CreatePyObject_wrap((float *)value, 3, nullptr);
       break;
@@ -1263,6 +1302,17 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
       }
       break;
     }
+    case CD_PROP_BOOL: {
+      const int tmp_val = PyC_Long_AsBool(py_value);
+      if (UNLIKELY(tmp_val == -1)) {
+        /* The error has been set. */
+        ret = -1;
+      }
+      else {
+        *(bool *)value = tmp_val;
+      }
+      break;
+    }
     case CD_PROP_FLOAT3: {
       if (mathutils_array_parse((float *)value, 3, 3, py_value, "BMElem Float Vector") == -1) {
         ret = -1;
@@ -1284,7 +1334,7 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
         ret = -1;
       }
       else {
-        tmp_val_len = std::min<unsigned long>(tmp_val_len, sizeof(mstring->s));
+        tmp_val_len = std::min<ulong>(tmp_val_len, sizeof(mstring->s));
         memcpy(mstring->s, tmp_val, tmp_val_len);
         mstring->s_len = tmp_val_len;
       }

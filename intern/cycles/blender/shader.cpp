@@ -30,7 +30,9 @@ using ProxyMap = map<string, ConvertNode *>;
 
 /* Find */
 
-void BlenderSync::find_shader(BL::ID &id, array<Node *> &used_shaders, Shader *default_shader)
+void BlenderSync::find_shader(const BL::ID &id,
+                              array<Node *> &used_shaders,
+                              Shader *default_shader)
 {
   Shader *synced_shader = (id) ? shader_map.find(id) : nullptr;
   Shader *shader = (synced_shader) ? synced_shader : default_shader;
@@ -745,6 +747,28 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_a(&RNA_ShaderNodeVolumeAbsorption)) {
     node = graph->create_node<AbsorptionVolumeNode>();
   }
+  else if (b_node.is_a(&RNA_ShaderNodeVolumeCoefficients)) {
+    BL::ShaderNodeVolumeCoefficients b_coeffs_node(b_node);
+    VolumeCoefficientsNode *coeffs = graph->create_node<VolumeCoefficientsNode>();
+    switch (b_coeffs_node.phase()) {
+      case BL::ShaderNodeVolumeCoefficients::phase_HENYEY_GREENSTEIN:
+        coeffs->set_phase(CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID);
+        break;
+      case BL::ShaderNodeVolumeCoefficients::phase_FOURNIER_FORAND:
+        coeffs->set_phase(CLOSURE_VOLUME_FOURNIER_FORAND_ID);
+        break;
+      case BL::ShaderNodeVolumeCoefficients::phase_DRAINE:
+        coeffs->set_phase(CLOSURE_VOLUME_DRAINE_ID);
+        break;
+      case BL::ShaderNodeVolumeCoefficients::phase_RAYLEIGH:
+        coeffs->set_phase(CLOSURE_VOLUME_RAYLEIGH_ID);
+        break;
+      case BL::ShaderNodeVolumeCoefficients::phase_MIE:
+        coeffs->set_phase(CLOSURE_VOLUME_MIE_ID);
+        break;
+    }
+    node = coeffs;
+  }
   else if (b_node.is_a(&RNA_ShaderNodeVolumePrincipled)) {
     PrincipledVolumeNode *principled = graph->create_node<PrincipledVolumeNode>();
     node = principled;
@@ -803,17 +827,15 @@ static ShaderNode *add_node(Scene *scene,
       /* create script node */
       BL::ShaderNodeScript b_script_node(b_node);
 
-      ShaderManager *manager = scene->shader_manager.get();
       const string bytecode_hash = b_script_node.bytecode_hash();
-
       if (!bytecode_hash.empty()) {
         node = OSLShaderManager::osl_node(
-            graph, manager, "", bytecode_hash, b_script_node.bytecode());
+            graph, scene, "", bytecode_hash, b_script_node.bytecode());
       }
       else {
         const string absolute_filepath = blender_absolute_path(
             b_data, b_ntree, b_script_node.filepath());
-        node = OSLShaderManager::osl_node(graph, manager, absolute_filepath, "");
+        node = OSLShaderManager::osl_node(graph, scene, absolute_filepath, "");
       }
     }
 #else

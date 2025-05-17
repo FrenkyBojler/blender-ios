@@ -86,7 +86,7 @@ class SPREADSHEET_HT_header(bpy.types.Header):
             else:
                 layout.label(text="Invalid id")
         elif ctx.type == 'MODIFIER':
-            layout.label(text=ctx.modifier_name, icon='MODIFIER')
+            layout.label(text=ctx.ui_name, icon='MODIFIER')
         elif ctx.type == 'GROUP_NODE':
             layout.label(text=ctx.ui_name, icon='NODE')
         elif ctx.type == 'SIMULATION_ZONE':
@@ -95,6 +95,8 @@ class SPREADSHEET_HT_header(bpy.types.Header):
             layout.label(text="Repeat Zone")
         elif ctx.type == 'VIEWER_NODE':
             layout.label(text=ctx.ui_name)
+        elif ctx.type == 'EVALUATE_CLOSURE':
+            layout.label(text="Evaluate Closure")
 
     def draw_spreadsheet_viewer_path_icon(self, layout, space, icon='RIGHTARROW_THIN'):
         layout.prop(space, "display_viewer_path_collapsed", icon_only=True, emboss=False, icon=icon)

@@ -5,7 +5,7 @@
 bl_info = {
     'name': 'glTF 2.0 format',
     'author': 'Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (4, 4, 42),
+    "version": (4, 5, 32),
     'blender': (4, 4, 0),
     'location': 'File > Import-Export',
     'description': 'Import-Export as glTF 2.0',
@@ -495,6 +495,9 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
             ('PLACEHOLDER',
              'Placeholder',
              'Do not export materials, but write multiple primitive groups per mesh, keeping material slot information'),
+            ('VIEWPORT',
+            'Viewport',
+            'Export minimal materials as defined in Viewport display properties'),
             ('NONE',
              'No export',
              'Do not export materials, and combine mesh primitive groups, losing material slot information')),
@@ -521,10 +524,18 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
              'Export vertex color when used by material'),
             ('ACTIVE', 'Active',
              'Export active vertex color'),
+            ('NAME', 'Name',
+             'Export vertex color with this name'),
             ('NONE', 'None',
              'Do not export vertex color')),
         description='How to export vertex color',
         default='MATERIAL'
+    )
+
+    export_vertex_color_name: StringProperty(
+        name='Vertex Color Name',
+        description='Name of vertex color to export',
+        default='Color'
     )
 
     export_all_vertex_colors: BoolProperty(
@@ -1151,6 +1162,10 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         else:
             export_settings['gltf_all_vertex_colors'] = self.export_all_vertex_colors
             export_settings['gltf_active_vertex_color_when_no_material'] = self.export_active_vertex_color_when_no_material
+        if self.export_vertex_color == 'NAME':
+            export_settings['gltf_vertex_color_name'] = self.export_vertex_color_name
+        else:
+            export_settings['gltf_vertex_color_name'] = ""
 
         export_settings['gltf_unused_textures'] = self.export_unused_textures
         export_settings['gltf_unused_images'] = self.export_unused_images
@@ -1210,12 +1225,16 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
             else:
                 export_settings['gltf_merge_animation'] = self.export_merge_animation
 
+            if export_settings['gltf_animation_mode'] == "ACTIONS":
+                export_settings['gltf_export_anim_single_armature'] = self.export_anim_single_armature
+            else:
+                export_settings['gltf_export_anim_single_armature'] = False
+
             export_settings['gltf_nla_strips_merged_animation_name'] = self.export_nla_strips_merged_animation_name
             export_settings['gltf_optimize_animation'] = self.export_optimize_animation_size
             export_settings['gltf_optimize_animation_keep_armature'] = self.export_optimize_animation_keep_anim_armature
             export_settings['gltf_optimize_animation_keep_object'] = self.export_optimize_animation_keep_anim_object
             export_settings['gltf_optimize_disable_viewport'] = self.export_optimize_disable_viewport
-            export_settings['gltf_export_anim_single_armature'] = self.export_anim_single_armature
             export_settings['gltf_export_reset_pose_bones'] = self.export_reset_pose_bones
             export_settings['gltf_export_reset_sk_data'] = self.export_morph_reset_sk_data
             export_settings['gltf_bake_animation'] = self.export_bake_animation
@@ -1293,6 +1312,8 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         )
 
         export_settings['warning_joint_weight_exceed_already_displayed'] = False
+
+        export_settings['image_names'] = []
 
         user_extensions = []
         pre_export_callbacks = []
@@ -1482,7 +1503,10 @@ def export_panel_data_mesh(layout, operator):
         if sub_body:
             row = sub_body.row()
             row.prop(operator, 'export_vertex_color')
-            if operator.export_vertex_color == "ACTIVE":
+            row = sub_body.row()
+            if operator.export_vertex_color == "NAME":
+                row.prop(operator, 'export_vertex_color_name')
+            if operator.export_vertex_color in ["ACTIVE", "NAME"]:
                 row = sub_body.row()
                 row.label(
                     text="Note that fully compliant glTF 2.0 engine/viewer will use it as multiplicative factor for base color.",
@@ -1508,10 +1532,10 @@ def export_panel_data_material(layout, operator):
         if operator.export_image_format in ["AUTO", "JPEG", "WEBP"]:
             col.prop(operator, 'export_image_quality')
         col = body.column()
-        col.active = operator.export_image_format != "WEBP" and not operator.export_materials in ['PLACEHOLDER', 'NONE']
+        col.active = operator.export_image_format != "WEBP" and not operator.export_materials in ['PLACEHOLDER', 'NONE', 'VIEWPORT']
         col.prop(operator, "export_image_add_webp")
         col = body.column()
-        col.active = operator.export_image_format != "WEBP" and not operator.export_materials in ['PLACEHOLDER', 'NONE']
+        col.active = operator.export_image_format != "WEBP" and not operator.export_materials in ['PLACEHOLDER', 'NONE', 'VIEWPORT']
         col.prop(operator, "export_image_webp_fallback")
 
         header, sub_body = body.panel("GLTF_export_data_material_unused", default_closed=True)
@@ -1695,19 +1719,25 @@ def export_panel_animation_armature(layout, operator):
     if body:
         body.active = operator.export_animations
 
-        body.prop(operator, 'export_anim_single_armature')
-        body.prop(operator, 'export_reset_pose_bones')
+        row = body.row()
+        row.active = operator.export_animation_mode == "ACTIONS"
+        row.prop(operator, 'export_anim_single_armature')
+        row = body.row()
+        row.prop(operator, 'export_reset_pose_bones')
 
 
 def export_panel_animation_shapekeys(layout, operator):
     header, body = layout.panel("GLTF_export_animation_shapekeys", default_closed=True)
+    header.active = operator.export_animations and operator.export_morph
     header.use_property_split = False
     header.prop(operator, "export_morph_animation", text="")
     header.label(text="Shape Keys Animation")
     if body:
-        body.active = operator.export_animations
+        body.active = operator.export_animations and operator.export_morph
 
-        body.prop(operator, 'export_morph_reset_sk_data')
+        row = body.row()
+        row.active = operator.export_morph_animation
+        row.prop(operator, 'export_morph_reset_sk_data')
 
 
 def export_panel_animation_sampling(layout, operator):
@@ -1901,6 +1931,12 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
         default=False,
     )
 
+    import_unused_materials: BoolProperty(
+        name='Import Unused Materials & Images',
+        description='Import materials & Images not assigned to any mesh',
+        default=False,
+    )
+
     import_select_created_objects: BoolProperty(
         name='Select Imported Objects',
         description='Select created objects at the end of the import',
@@ -1911,6 +1947,12 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
         name='Import Scene Extras',
         description='Import scene extras as custom properties. '
                     'Existing custom properties will be overwritten',
+        default=True,
+    )
+
+    import_scene_as_collection: BoolProperty(
+        name='Import Scene as Collection',
+        description='Import the scene as a collection',
         default=True,
     )
 
@@ -2029,7 +2071,9 @@ def import_ux_panel(layout, operator):
     header, body = layout.panel("GLTF_import_ux", default_closed=False)
     header.label(text="Pipeline")
     if body:
-        body.prop(operator, 'import_select_created_objects')
+        body.prop(operator, 'import_scene_as_collection')
+        if operator.import_scene_as_collection is True:
+            body.prop(operator, 'import_select_created_objects')
         body.prop(operator, 'import_scene_extras')
 
 def import_texture_panel(layout, operator):
@@ -2038,6 +2082,7 @@ def import_texture_panel(layout, operator):
     if body:
         body.prop(operator, 'import_pack_images')
         body.prop(operator, 'import_webp_texture')
+        body.prop(operator, 'import_unused_materials')
 
 
 def import_panel_user_extension(context, layout):

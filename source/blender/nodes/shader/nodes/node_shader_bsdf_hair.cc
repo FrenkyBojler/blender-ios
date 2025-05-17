@@ -31,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_hair(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "component", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "component", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static int node_shader_gpu_bsdf_hair(GPUMaterial *mat,
@@ -62,8 +62,8 @@ void register_node_type_sh_bsdf_hair()
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_cycles_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_hair;
-  blender::bke::node_type_size(&ntype, 150, 60, 200);
+  blender::bke::node_type_size(ntype, 150, 60, 200);
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_hair;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

@@ -4,7 +4,6 @@
 
 #include "GHOST_SystemCocoa.hh"
 
-#include "GHOST_DisplayManagerCocoa.hh"
 #include "GHOST_EventButton.hh"
 #include "GHOST_EventCursor.hh"
 #include "GHOST_EventDragnDrop.hh"
@@ -541,9 +540,6 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
   m_modifierMask = 0;
   m_outsideLoopEventProcessed = false;
   m_needDelayedApplicationBecomeActiveEventProcessing = false;
-  m_displayManager = new GHOST_DisplayManagerCocoa();
-  GHOST_ASSERT(m_displayManager, "GHOST_SystemCocoa::GHOST_SystemCocoa(): m_displayManager==0\n");
-  m_displayManager->initialize();
 
   m_ignoreWindowSizedMessages = false;
   m_ignoreMomentumScroll = false;
@@ -980,10 +976,14 @@ GHOST_TSuccess GHOST_SystemCocoa::getButtons(GHOST_Buttons &buttons) const
 
 GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
 {
-  return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
-                               ~(
-                                   /* Cocoa has no support for a primary selection clipboard. */
-                                   GHOST_kCapabilityPrimaryClipboard));
+  return GHOST_TCapabilityFlag(
+      GHOST_CAPABILITY_FLAG_ALL &
+      ~(
+          /* Cocoa has no support for a primary selection clipboard. */
+          GHOST_kCapabilityPrimaryClipboard |
+          /* Cocoa doesn't define a Hyper modifier key,
+           * it's possible another modifier could be optionally used in it's place. */
+          GHOST_kCapabilityKeyboardHyperKey));
 }
 
 /* --------------------------------------------------------------------
@@ -1247,7 +1247,7 @@ static NSSize getNSImagePixelSize(NSImage *image)
 static ImBuf *NSImageToImBuf(NSImage *image)
 {
   const NSSize imageSize = getNSImagePixelSize(image);
-  ImBuf *ibuf = IMB_allocImBuf(imageSize.width, imageSize.height, 32, IB_rect);
+  ImBuf *ibuf = IMB_allocImBuf(imageSize.width, imageSize.height, 32, IB_byte_data);
 
   if (!ibuf) {
     return nullptr;
@@ -1477,8 +1477,12 @@ GHOST_TSuccess GHOST_SystemCocoa::handleTabletEvent(void *eventPtr, short eventT
       }
 
       ct.Pressure = event.pressure;
+      /* Range: -1 (left) to 1 (right). */
       ct.Xtilt = event.tilt.x;
-      ct.Ytilt = event.tilt.y;
+      /* On macOS, the y tilt behavior is inverted from what we expect: negative
+       * meaning a tilt toward the user, positive meaning away from the user.
+       * Convert to what Blender expects: -1.0 (away from user) to +1.0 (toward user). */
+      ct.Ytilt = -event.tilt.y;
       break;
 
     case NSEventTypeTabletProximity:
@@ -1739,17 +1743,16 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
       /* Standard scroll-wheel case, if no swiping happened,
        * and no momentum (kinetic scroll) works. */
       if (!m_multiTouchScroll && momentumPhase == NSEventPhaseNone) {
-        double deltaF = event.deltaY;
-
-        if (deltaF == 0.0) {
-          deltaF = event.deltaX; /* Make blender decide if it's horizontal scroll. */
+        if (event.deltaX != 0.0) {
+          const int32_t delta = event.deltaX > 0.0 ? 1 : -1;
+          pushEvent(new GHOST_EventWheel(
+              event.timestamp * 1000, window, GHOST_kEventWheelAxisHorizontal, delta));
         }
-        if (deltaF == 0.0) {
-          break; /* Discard trackpad delta=0 events. */
+        if (event.deltaY != 0.0) {
+          const int32_t delta = event.deltaY > 0.0 ? 1 : -1;
+          pushEvent(new GHOST_EventWheel(
+              event.timestamp * 1000, window, GHOST_kEventWheelAxisVertical, delta));
         }
-
-        const int32_t delta = deltaF > 0.0 ? 1 : -1;
-        pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, delta));
       }
       else {
         const NSPoint mousePos = event.locationInWindow;
@@ -1864,12 +1867,12 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
         }
       }
 
-      /* arrow keys should not have utf8 */
+      /* Arrow keys should not have UTF8. */
       if ((keyCode >= GHOST_kKeyLeftArrow) && (keyCode <= GHOST_kKeyDownArrow)) {
         utf8_buf[0] = '\0';
       }
 
-      /* F keys should not have utf8 */
+      /* F-keys should not have UTF8. */
       if ((keyCode >= GHOST_kKeyF1) && (keyCode <= GHOST_kKeyF20)) {
         utf8_buf[0] = '\0';
       }

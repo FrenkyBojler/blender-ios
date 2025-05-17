@@ -19,16 +19,6 @@ struct Image;
 struct MTex;
 struct Material;
 
-typedef struct BrushClone {
-  /** Image for clone tool. */
-  struct Image *image;
-  /** Offset of clone image from canvas. */
-  float offset[2];
-  /** Transparency for drawing of clone image. */
-  float alpha;
-  char _pad[4];
-} BrushClone;
-
 typedef struct BrushGpencilSettings {
   /** Amount of smoothing to apply to newly created strokes. */
   float draw_smoothfac;
@@ -171,11 +161,14 @@ typedef struct BrushCurvesSculptSettings {
  * saved in the asset library should be followed by a #BKE_brush_tag_unsaved_changes() call.
  */
 typedef struct Brush {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Brush)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_BR;
+#endif
 
   ID id;
 
-  struct BrushClone clone;
   /** Falloff curve. */
   struct CurveMapping *curve;
   struct MTex mtex;
@@ -437,6 +430,11 @@ typedef struct PaletteColor {
 } PaletteColor;
 
 typedef struct Palette {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_PAL;
+#endif
+
   ID id;
 
   /** Pointer to individual colors. */
@@ -454,6 +452,11 @@ typedef struct PaintCurvePoint {
 } PaintCurvePoint;
 
 typedef struct PaintCurve {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_PC;
+#endif
+
   ID id;
   /** Points of curve. */
   PaintCurvePoint *points;

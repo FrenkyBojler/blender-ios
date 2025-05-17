@@ -360,7 +360,8 @@ class ColorPalettePanel(BrushPanel):
             return False
 
         settings = cls.paint_settings(context)
-        brush = settings.brush
+        if (brush := settings.brush) is None:
+            return False
 
         if context.space_data.type == 'IMAGE_EDITOR' or context.image_paint_object:
             capabilities = brush.image_paint_capabilities
@@ -746,7 +747,7 @@ def brush_settings(layout, context, brush, popover=False):
         # normal_radius_factor
         layout.prop(brush, "normal_radius_factor", slider=True)
 
-        if context.preferences.experimental.use_sculpt_tools_tilt and capabilities.has_tilt:
+        if capabilities.has_tilt:
             layout.prop(brush, "tilt_strength_factor", slider=True)
 
         row = layout.row(align=True)
@@ -1078,7 +1079,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             size = True
             strength = True
             strength_pressure = brush.sculpt_capabilities.has_strength_pressure
-            direction = not brush.sculpt_capabilities.has_direction
+            direction = brush.sculpt_capabilities.has_direction
 
     # Vertex Paint #
     if mode == 'PAINT_VERTEX':
@@ -1171,7 +1172,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
         layout.row().prop(brush, "direction", expand=True)
 
 
-def brush_settings_advanced(layout, context, brush, popover=False):
+def brush_settings_advanced(layout, context, settings, brush, popover=False):
     """Draw advanced brush settings for Sculpt, Texture/Vertex/Weight Paint modes."""
 
     mode = UnifiedPaintPanel.get_brush_mode(context)
@@ -1317,8 +1318,8 @@ def brush_settings_advanced(layout, context, brush, popover=False):
 
         elif brush.image_tool == 'CLONE':
             if mode == 'PAINT_2D':
-                layout.prop(brush, "clone_image", text="Image")
-                layout.prop(brush, "clone_alpha", text="Alpha")
+                layout.prop(settings, "clone_image", text="Image")
+                layout.prop(settings, "clone_alpha", text="Alpha")
 
     # Vertex Paint #
     elif mode == 'PAINT_VERTEX':

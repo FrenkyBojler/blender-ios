@@ -24,6 +24,7 @@
 #include "ED_screen.hh"
 /* XXX needs access to the file list, should all be done via the asset system in future. */
 #include "ED_fileselect.hh"
+#include "ED_util.hh"
 
 #include "BLT_translation.hh"
 
@@ -37,35 +38,6 @@
 
 namespace blender::ed::asset {
 /* -------------------------------------------------------------------- */
-
-static Vector<PointerRNA> get_single_id_vec_from_context(const bContext *C)
-{
-  Vector<PointerRNA> ids;
-  PointerRNA idptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
-  if (idptr.data) {
-    ids.append(idptr);
-  }
-  return ids;
-}
-
-/**
- * Return the IDs to operate on as PointerRNA vector. Prioritizes multiple selected ones
- * ("selected_ids" context member) over a single active one ("id" context member), since usually
- * batch operations are more useful.
- */
-static Vector<PointerRNA> asset_operation_get_ids_from_context(const bContext *C)
-{
-  Vector<PointerRNA> ids;
-
-  /* "selected_ids" context member. */
-  CTX_data_selected_ids(C, &ids);
-  if (!ids.is_empty()) {
-    return ids;
-  }
-
-  /* "id" context member. */
-  return get_single_id_vec_from_context(C);
-}
 
 /**
  * Information about what's contained in a #Vector<PointerRNA>, returned by
@@ -182,7 +154,9 @@ void AssetMarkHelper::reportResults(ReportList &reports) const
   }
 }
 
-static int asset_mark_exec(const bContext *C, const wmOperator *op, const Span<PointerRNA> ids)
+static wmOperatorStatus asset_mark_exec(const bContext *C,
+                                        const wmOperator *op,
+                                        const Span<PointerRNA> ids)
 {
   AssetMarkHelper mark_helper;
   mark_helper(*C, ids);
@@ -218,11 +192,11 @@ static void ASSET_OT_mark(wmOperatorType *ot)
       "customizable metadata (like previews, descriptions and tags)";
   ot->idname = "ASSET_OT_mark";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> int {
-    return asset_mark_exec(C, op, asset_operation_get_ids_from_context(C));
+  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
+    return asset_mark_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
-    return asset_mark_poll(C, asset_operation_get_ids_from_context(C));
+    return asset_mark_poll(C, ED_operator_get_ids_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -239,11 +213,11 @@ static void ASSET_OT_mark_single(wmOperatorType *ot)
       "customizable metadata (like previews, descriptions and tags)";
   ot->idname = "ASSET_OT_mark_single";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> int {
-    return asset_mark_exec(C, op, get_single_id_vec_from_context(C));
+  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
+    return asset_mark_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
-    return asset_mark_poll(C, get_single_id_vec_from_context(C));
+    return asset_mark_poll(C, ED_operator_single_id_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -324,7 +298,9 @@ bool AssetClearHelper::wasSuccessful() const
   return stats.tot_cleared > 0;
 }
 
-static int asset_clear_exec(const bContext *C, const wmOperator *op, const Span<PointerRNA> ids)
+static wmOperatorStatus asset_clear_exec(const bContext *C,
+                                         const wmOperator *op,
+                                         const Span<PointerRNA> ids)
 {
   const bool set_fake_user = RNA_boolean_get(op->ptr, "set_fake_user");
   AssetClearHelper clear_helper(set_fake_user);
@@ -384,11 +360,11 @@ static void ASSET_OT_clear(wmOperatorType *ot)
   ot->get_description = asset_clear_get_description;
   ot->idname = "ASSET_OT_clear";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> int {
-    return asset_clear_exec(C, op, asset_operation_get_ids_from_context(C));
+  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
+    return asset_clear_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
-    return asset_clear_poll(C, asset_operation_get_ids_from_context(C));
+    return asset_clear_poll(C, ED_operator_get_ids_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -408,11 +384,11 @@ static void ASSET_OT_clear_single(wmOperatorType *ot)
   ot->get_description = asset_clear_get_description;
   ot->idname = "ASSET_OT_clear_single";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> int {
-    return asset_clear_exec(C, op, get_single_id_vec_from_context(C));
+  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
+    return asset_clear_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
   };
   ot->poll = [](bContext *C) -> bool {
-    return asset_clear_poll(C, get_single_id_vec_from_context(C));
+    return asset_clear_poll(C, ED_operator_single_id_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -439,31 +415,20 @@ static bool asset_library_refresh_poll(bContext *C)
     return false;
   }
 
-  return list::storage_has_list_for_library(library);
+  return list::has_list_storage_for_library(library) ||
+         list::has_asset_browser_storage_for_library(library, C);
 }
 
-static int asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
+static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
 {
-  /* Execution mode #1: Inside the Asset Browser. */
-  if (ED_operator_asset_browsing_active(C)) {
-    SpaceFile *sfile = CTX_wm_space_file(C);
-    ED_fileselect_clear(CTX_wm_manager(C), sfile);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
-  }
-  else {
-    /* Execution mode #2: Outside the Asset Browser, use the asset list. */
-    const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
-    list::clear(library, C);
-  }
+  const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
+  /* Handles both global asset list storage and asset browsers. */
+  list::clear(library, C);
+  WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-/**
- * This operator currently covers both cases, the File/Asset Browser file list and the asset list
- * used for the asset-view template. Once the asset list design is used by the Asset Browser, this
- * can be simplified to just that case.
- */
 static void ASSET_OT_library_refresh(wmOperatorType *ot)
 {
   /* identifiers */
@@ -471,7 +436,7 @@ static void ASSET_OT_library_refresh(wmOperatorType *ot)
   ot->description = "Reread assets and asset catalogs from the asset library on disk";
   ot->idname = "ASSET_OT_library_refresh";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = asset_library_refresh_exec;
   ot->poll = asset_library_refresh_poll;
 }
@@ -495,7 +460,7 @@ static bool asset_catalog_operator_poll(bContext *C)
   return true;
 }
 
-static int asset_catalog_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
@@ -523,7 +488,7 @@ static void ASSET_OT_catalog_new(wmOperatorType *ot)
   ot->description = "Create a new catalog to put assets in";
   ot->idname = "ASSET_OT_catalog_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = asset_catalog_new_exec;
   ot->poll = asset_catalog_operator_poll;
 
@@ -535,7 +500,7 @@ static void ASSET_OT_catalog_new(wmOperatorType *ot)
                  "Optional path defining the location to put the new catalog under");
 }
 
-static int asset_catalog_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
@@ -564,7 +529,7 @@ static void ASSET_OT_catalog_delete(wmOperatorType *ot)
       "show up as unassigned)";
   ot->idname = "ASSET_OT_catalog_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = asset_catalog_delete_exec;
   ot->poll = asset_catalog_operator_poll;
 
@@ -586,7 +551,7 @@ static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
   return nullptr;
 }
 
-static int asset_catalog_undo_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_undo_exec(bContext *C, wmOperator * /*op*/)
 {
   asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
@@ -611,12 +576,12 @@ static void ASSET_OT_catalog_undo(wmOperatorType *ot)
   ot->description = "Undo the last edit to the asset catalogs";
   ot->idname = "ASSET_OT_catalog_undo";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = asset_catalog_undo_exec;
   ot->poll = asset_catalog_undo_poll;
 }
 
-static int asset_catalog_redo_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_redo_exec(bContext *C, wmOperator * /*op*/)
 {
   asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
@@ -641,12 +606,12 @@ static void ASSET_OT_catalog_redo(wmOperatorType *ot)
   ot->description = "Redo the last undone edit to the asset catalogs";
   ot->idname = "ASSET_OT_catalog_redo";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = asset_catalog_redo_exec;
   ot->poll = asset_catalog_redo_poll;
 }
 
-static int asset_catalog_undo_push_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_undo_push_exec(bContext *C, wmOperator * /*op*/)
 {
   asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
@@ -669,7 +634,7 @@ static void ASSET_OT_catalog_undo_push(wmOperatorType *ot)
   ot->description = "Store the current state of the asset catalogs in the undo buffer";
   ot->idname = "ASSET_OT_catalog_undo_push";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = asset_catalog_undo_push_exec;
   ot->poll = asset_catalog_undo_push_poll;
 
@@ -699,7 +664,7 @@ static bool asset_catalogs_save_poll(bContext *C)
   return true;
 }
 
-static int asset_catalogs_save_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalogs_save_exec(bContext *C, wmOperator * /*op*/)
 {
   const SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
@@ -721,7 +686,7 @@ static void ASSET_OT_catalogs_save(wmOperatorType *ot)
       "library";
   ot->idname = "ASSET_OT_catalogs_save";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = asset_catalogs_save_exec;
   ot->poll = asset_catalogs_save_poll;
 }
@@ -760,7 +725,9 @@ static bool asset_bundle_install_poll(bContext *C)
   return true;
 }
 
-static int asset_bundle_install_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus asset_bundle_install_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   Main *bmain = CTX_data_main(C);
   if (has_external_files(bmain, op->reports)) {
@@ -777,7 +744,7 @@ static int asset_bundle_install_invoke(bContext *C, wmOperator *op, const wmEven
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int asset_bundle_install_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   if (has_external_files(bmain, op->reports)) {
@@ -812,7 +779,7 @@ static int asset_bundle_install_exec(bContext *C, wmOperator *op)
   cat_service->undo_push();
   cat_service->prepare_to_merge_on_write();
 
-  const int operator_result = WM_operator_name_call(
+  const wmOperatorStatus operator_result = WM_operator_name_call(
       C, "WM_OT_save_mainfile", WM_OP_EXEC_DEFAULT, op->ptr, nullptr);
   WM_cursor_wait(false);
 
@@ -855,7 +822,7 @@ static void ASSET_OT_bundle_install(wmOperatorType *ot)
       "(i.e. when no other files are referenced)";
   ot->idname = "ASSET_OT_bundle_install";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = asset_bundle_install_exec;
   ot->invoke = asset_bundle_install_invoke;
   ot->poll = asset_bundle_install_poll;
@@ -942,7 +909,7 @@ static bool external_file_check_callback(BPathForeachPathData *bpath_data,
 
 /**
  * Do a check on any external files (.blend, textures, etc.) being used.
- * The ASSET_OT_bundle_install operator only works on standalone .blend files
+ * The #ASSET_OT_bundle_install operator only works on standalone `.blend` files
  * (catalog definition files are fine, though).
  *
  * \return true when there are external files, false otherwise.

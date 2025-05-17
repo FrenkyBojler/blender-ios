@@ -19,6 +19,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
 
 #include "DNA_brush_types.h"
@@ -198,7 +199,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
                                      const int frame_group)
   {
     const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-    const Object *ob_eval = DEG_get_evaluated_object(depsgraph, this->object);
+    const Object *ob_eval = DEG_get_evaluated(depsgraph, this->object);
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
 

@@ -8,6 +8,7 @@
 #include "DNA_node_types.h"
 
 #include "BLI_function_ref.hh"
+#include "BLI_listbase.h"
 #include "BLI_stack.hh"
 #include "BLI_task.hh"
 
@@ -35,7 +36,7 @@ static void update_node_vector(const bNodeTree &ntree)
     bNode &node = *nodes[i];
     node.runtime->index_in_tree = i;
     node.runtime->owner_tree = const_cast<bNodeTree *>(&ntree);
-    tree_runtime.has_undefined_nodes_or_sockets |= node.typeinfo == &bke::NodeTypeUndefined;
+    tree_runtime.has_undefined_nodes_or_sockets |= node.is_undefined();
     if (node.is_group()) {
       tree_runtime.group_nodes.append(&node);
     }
@@ -502,6 +503,7 @@ static void update_group_output_node(const bNodeTree &ntree)
     tree_runtime.group_output_node = group_output_nodes[0];
   }
   else {
+    tree_runtime.group_output_node = nullptr;
     for (bNode *group_output : group_output_nodes) {
       if (group_output->flag & NODE_DO_OUTPUT) {
         tree_runtime.group_output_node = group_output;
@@ -573,6 +575,39 @@ static void ensure_topology_cache(const bNodeTree &ntree)
 }
 
 }  // namespace blender::bke::node_tree_runtime
+
+namespace blender::bke {
+
+NodeLinkKey::NodeLinkKey(const bNodeLink &link)
+{
+  to_node_id_ = link.tonode->identifier;
+  input_socket_index_ = link.tosock->index();
+  input_link_index_ =
+      const_cast<const bNodeSocket *>(link.tosock)->directly_linked_links().first_index(&link);
+}
+
+bNodeLink *NodeLinkKey::try_find(bNodeTree &ntree) const
+{
+  return const_cast<bNodeLink *>(this->try_find(const_cast<const bNodeTree &>(ntree)));
+}
+
+const bNodeLink *NodeLinkKey::try_find(const bNodeTree &ntree) const
+{
+  const bNode *to_node = ntree.node_by_id(to_node_id_);
+  if (!to_node) {
+    return nullptr;
+  }
+  if (input_socket_index_ >= to_node->input_sockets().size()) {
+    return nullptr;
+  }
+  const bNodeSocket &input_socket = to_node->input_socket(input_socket_index_);
+  if (input_link_index_ >= input_socket.directly_linked_links().size()) {
+    return nullptr;
+  }
+  return input_socket.directly_linked_links()[input_link_index_];
+}
+
+}  // namespace blender::bke
 
 void bNodeTree::ensure_topology_cache() const
 {

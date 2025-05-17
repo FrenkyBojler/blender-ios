@@ -18,6 +18,7 @@
 #include "usd_writer_mesh.hh"
 #include "usd_writer_metaball.hh"
 #include "usd_writer_points.hh"
+#include "usd_writer_text.hh"
 #include "usd_writer_transform.hh"
 #include "usd_writer_volume.hh"
 
@@ -52,6 +53,7 @@ bool USDHierarchyIterator::mark_as_weak_export(const Object *object) const
       return false;
     case OB_MESH:
     case OB_MBALL:
+    case OB_FONT:
       return !params_.export_meshes;
     case OB_CAMERA:
       return !params_.export_cameras;
@@ -174,6 +176,9 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_MBALL:
       data_writer = new USDMetaballWriter(usd_export_context);
       break;
+    case OB_FONT:
+      data_writer = new USDTextWriter(usd_export_context);
+      break;
     case OB_CURVES_LEGACY:
     case OB_CURVES:
       if (usd_export_context.export_params.export_curves) {
@@ -210,7 +215,6 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
 
     case OB_EMPTY:
     case OB_SURF:
-    case OB_FONT:
     case OB_SPEAKER:
     case OB_LIGHTPROBE:
     case OB_LATTICE:
@@ -251,15 +255,17 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_particle_writer(
   return nullptr;
 }
 
-/* Don't generate data writers for instances. */
 bool USDHierarchyIterator::include_data_writers(const HierarchyContext *context) const
 {
+  /* Don't generate data writers for instances. */
+
   return !(params_.use_instancing && context->is_instance());
 }
 
-/* Don't generate writers for children of instances. */
 bool USDHierarchyIterator::include_child_writers(const HierarchyContext *context) const
 {
+  /* Don't generate writers for children of instances. */
+
   return !(params_.use_instancing && context->is_instance());
 }
 

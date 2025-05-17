@@ -50,16 +50,16 @@ class VIEW3D_MT_brush_context_menu(Menu):
         if brush.library and brush.library.is_editable:
             layout.operator("brush.asset_save_as", text="Duplicate Asset...", icon='DUPLICATE')
             layout.operator("brush.asset_delete", text="Delete Asset")
-
-            layout.separator()
-
-            layout.operator("brush.asset_edit_metadata", text="Edit Metadata...")
-            layout.operator("brush.asset_load_preview", text="Edit Preview Image...")
-            layout.operator("brush.asset_save", text="Save Changes to Asset")
-            layout.operator("brush.asset_revert", text="Revert to Asset")
         else:
             layout.operator("brush.asset_save_as", text="Save As Asset...", icon='FILE_TICK')
             layout.operator("brush.asset_delete", text="Delete")
+
+        layout.separator()
+
+        layout.operator("brush.asset_edit_metadata", text="Edit Metadata...")
+        layout.operator("brush.asset_load_preview", text="Edit Preview Image...")
+        layout.operator("brush.asset_save", text="Save Changes to Asset")
+        layout.operator("brush.asset_revert", text="Revert to Asset")
 
 
 class VIEW3D_MT_brush_gpencil_context_menu(Menu):
@@ -74,7 +74,7 @@ class VIEW3D_MT_brush_gpencil_context_menu(Menu):
             settings = tool_settings.gpencil_paint
         if context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
+        elif context.mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_weight_paint
         elif context.mode == 'VERTEX_GPENCIL':
             settings = tool_settings.gpencil_vertex_paint
@@ -408,7 +408,7 @@ class VIEW3D_PT_tools_brush_settings_advanced(Panel, View3DPaintBrushPanel):
         settings = UnifiedPaintPanel.paint_settings(context)
         brush = settings.brush
 
-        brush_settings_advanced(layout.column(), context, brush, self.is_popover)
+        brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
 
 
 class VIEW3D_PT_tools_brush_color(Panel, View3DPaintPanel):
@@ -1027,7 +1027,7 @@ class VIEW3D_PT_sculpt_dyntopo(Panel, View3DPaintPanel):
         col.active = context.sculpt_object.use_dynamic_topology_sculpting
 
         sub = col.column()
-        sub.active = (brush and brush.sculpt_tool != 'MASK')
+        sub.active = (brush and brush.sculpt_capabilities.has_dyntopo) or sculpt.detail_type_method == 'MANUAL'
         if sculpt.detail_type_method in {'CONSTANT', 'MANUAL'}:
             row = sub.row(align=True)
             row.prop(sculpt, "constant_detail_resolution")
@@ -2084,7 +2084,7 @@ class VIEW3D_PT_tools_grease_pencil_weight_paint_settings(Panel, View3DPanel, Gr
             )
             brush_basic_gpencil_weight_settings(layout, context, brush)
         else:
-            # Grease Pencil v3
+            # Grease Pencil
             from bl_ui.properties_paint_common import (
                 brush_basic_grease_pencil_weight_settings,
             )
