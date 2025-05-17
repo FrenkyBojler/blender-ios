@@ -1760,6 +1760,11 @@ typedef struct NodeGeometryMergeByDistance {
   uint8_t mode;
 } NodeGeometryMergeByDistance;
 
+typedef struct NodeGeometryUVPackIslands {
+  /** #GeometryNodeUVPackIslandsShapeMethod */
+  uint8_t shape_method;
+} NodeGeometryUVPackIslands;
+
 typedef struct NodeGeometryMeshLine {
   /** #GeometryNodeMeshLineMode. */
   uint8_t mode;
@@ -3158,6 +3163,12 @@ typedef enum GeometryNodeMergeByDistanceMode {
   GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL = 0,
   GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED = 1,
 } GeometryNodeMergeByDistanceMode;
+
+typedef enum GeometryNodeUVPackIslandsShapeMethod {
+  GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_AABB = 0,
+  GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_CONVEX = 1,
+  GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_CONCAVE = 2,
+} GeometryNodeUVPackIslandsShapeMethod;
 
 typedef enum GeometryNodeUVUnwrapMethod {
   GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED = 0,
