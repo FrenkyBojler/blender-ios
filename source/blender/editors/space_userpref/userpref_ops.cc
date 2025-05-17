@@ -967,26 +967,28 @@ static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
   const bool url_is_file = STRPREFIX(url.c_str(), "file://");
   const bool url_is_online = STRPREFIX(url.c_str(), "http://") ||
                              STRPREFIX(url.c_str(), "https://");
-  const bool url_is_remote = url_is_file | url_is_online;
 
-  /* NOTE: searching for hard-coded add-on name isn't great.
-   * Needed since #WM_dropbox_add expects the operator to exist on startup. */
-  const char *idname_external = url_is_remote ? "extensions.package_install" :
-                                                "extensions.package_install_files";
-  bool use_url = true;
-
-  if (url_is_online && (G.f & G_FLAG_INTERNET_ALLOW) == 0) {
-    idname_external = "extensions.userpref_allow_online_popup";
-    use_url = false;
+  /* Route online URLs to the unified drop handler which manages
+   * online access, repository setup, and package installation.
+   * For file:// URLs with query parameters (e.g. ?repository=),
+   * also use the unified handler. Simple local paths go to package_install_files. */
+  const char *idname_external;
+  if (url_is_online) {
+    idname_external = "extensions.unified_drop_handler";
+  }
+  else if (url_is_file && url.find('?') != std::string::npos) {
+    idname_external = "extensions.unified_drop_handler";
+  }
+  else {
+    idname_external = url_is_file ? "extensions.package_install" :
+                                    "extensions.package_install_files";
   }
 
   wmOperatorType *ot = WM_operatortype_find(idname_external, true);
   wmOperatorStatus retval;
   if (ot) {
     PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
-    if (use_url) {
-      RNA_string_set(&props_ptr, "url", url.c_str());
-    }
+    RNA_string_set(&props_ptr, "url", url.c_str());
     WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, event);
     WM_operator_properties_free(&props_ptr);
     retval = OPERATOR_FINISHED;

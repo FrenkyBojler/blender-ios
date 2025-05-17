@@ -13,6 +13,7 @@ __all__ = (
 )
 
 import os
+import urllib.parse
 
 from functools import partial
 
@@ -4054,10 +4055,273 @@ class EXTENSIONS_OT_userpref_allow_online_popup(Operator):
         for line in lines:
             col.label(text=line, translate=False)
 
+class EXTENSIONS_OT_unified_drop_handler(Operator):
+    """Handle dropping of repository and extension URLs in one unified flow"""
+    bl_idname = "extensions.unified_drop_handler"
+    bl_label = "Extension Installation from URL"
+    bl_options = {'INTERNAL'}
+
+    url: StringProperty(
+        name="URL",
+        description="The dropped URL",
+        subtype='NONE',
+    )
+
+    ui_do_enable_online_access: BoolProperty(
+        name="Enable Online Access",
+        description="Allow Blender to access the internet for this operation",
+        default=False,
+    )
+
+    ui_repo_action: EnumProperty(
+        name="Repository Action",
+        items=[
+            ('NONE', "None", "No action needed"),
+            ('ADD', "Add New", "Add a new repository"),
+            ('ENABLE', "Enable Existing", "Enable an existing disabled repository"),
+            ('CONFIG_TOKEN', "Configure Token", "Update access token for existing repository"),
+        ],
+        default='NONE',
+    )
+
+    ui_repo_add_name: StringProperty(name="Name", default="New Repository")
+    ui_repo_add_remote_url: StringProperty(name="Remote URL", subtype='FILE_PATH')
+    ui_repo_add_use_access_token: BoolProperty(name="Use Access Token", default=False)
+    ui_repo_add_access_token: StringProperty(name="Access Token", subtype='PASSWORD', default="")
+    ui_repo_add_use_sync_on_startup: BoolProperty(name="Sync on Startup", default=True)
+    ui_repo_add_use_custom_directory: BoolProperty(name="Use Custom Directory", default=False)
+    ui_repo_add_custom_directory: StringProperty(name="Custom Directory", subtype='DIR_PATH', default="")
+
+    ui_repo_config_use_access_token: BoolProperty(name="Use Access Token", default=False)
+    ui_repo_config_access_token: StringProperty(name="Access Token", subtype='PASSWORD', default="")
+
+    def invoke(self, context, _event):
+        from .bl_extension_utils import url_parse_for_blender
+
+        url = self.url
+        url = url_normalize(url)
+
+        # pylint: disable-next=attribute-defined-outside-init
+        self._parsed_main_url, parsed_query_params = url_parse_for_blender(url)
+        # pylint: disable-next=attribute-defined-outside-init
+        self._parsed_repo_remote_url = parsed_query_params.get("repository", "")
+        # pylint: disable-next=attribute-defined-outside-init
+        self._parsed_access_token = parsed_query_params.get("access_token", "")
+
+        # pylint: disable-next=attribute-defined-outside-init
+        self._initial_online_access = bpy.app.online_access
+        self.ui_do_enable_online_access = self._initial_online_access
+        # pylint: disable-next=attribute-defined-outside-init
+        self._can_change_online_access = not bpy.app.online_access_override or bpy.app.online_access
+
+        self.ui_repo_action = 'NONE'
+
+        # pylint: disable-next=attribute-defined-outside-init
+        self._repo_info_name = ""
+        # pylint: disable-next=attribute-defined-outside-init
+        self._repo_info_index = -1
+        # pylint: disable-next=attribute-defined-outside-init
+        self._repo_info_exists = False
+        # pylint: disable-next=attribute-defined-outside-init
+        self._repo_info_enabled = False
+
+        if self._parsed_repo_remote_url:
+            repo_data, repo_idx = _preferences_repo_find_by_remote_url(context, self._parsed_repo_remote_url)
+            if repo_data:
+                self._repo_info_exists = True
+                self._repo_info_index = repo_idx
+                self._repo_info_name = repo_data.name
+                self._repo_info_enabled = repo_data.enabled
+
+                if not repo_data.enabled:
+                    self.ui_repo_action = 'ENABLE'
+                else:
+                    has_url_token = bool(self._parsed_access_token)
+                    repo_uses_token = repo_data.use_access_token
+                    repo_token_matches = repo_data.access_token == self._parsed_access_token
+
+                    if has_url_token and (not repo_uses_token or not repo_token_matches):
+                        self.ui_repo_action = 'CONFIG_TOKEN'
+                        self.ui_repo_config_use_access_token = True
+                        self.ui_repo_config_access_token = self._parsed_access_token
+                    elif not has_url_token and repo_uses_token:
+                        self.ui_repo_action = 'CONFIG_TOKEN'
+                        self.ui_repo_config_use_access_token = False
+                        self.ui_repo_config_access_token = ""
+            else:
+                self.ui_repo_action = 'ADD'
+                self.ui_repo_add_remote_url = self._parsed_repo_remote_url
+                try:
+                    domain_part = self._parsed_repo_remote_url.split('//')[1].split('/')[0]
+                    self.ui_repo_add_name = domain_part
+                except Exception:
+                    self.ui_repo_add_name = "New Remote Repository"
+
+                if self._parsed_access_token:
+                    self.ui_repo_add_use_access_token = True
+                    self.ui_repo_add_access_token = self._parsed_access_token
+
+        # If no repo setup is needed and online access is already on,
+        # skip this dialog entirely and delegate to package_install directly.
+        if (
+                self._initial_online_access and
+                self.ui_repo_action == 'NONE' and
+                self._repo_info_exists and
+                self._repo_info_enabled
+        ):
+            bpy.ops.extensions.package_install('INVOKE_DEFAULT', url=self.url)
+            return {'FINISHED'}
+
+        wm = context.window_manager
+        wm.invoke_props_dialog(self, width=500)
+        return {'RUNNING_MODAL'}
+
+    def draw(self, _context):
+        layout = self.layout
+        main_col = layout.column()
+
+        # --- 1. Online Access ---
+        online_box = main_col.box()
+        col = online_box.column()
+        col.label(text="Online Access", icon='WORLD')
+        if not self._can_change_online_access and not self._initial_online_access:
+            col.label(text="Cannot be changed (Blender started in offline mode).", icon='ERROR')
+        elif self._initial_online_access:
+            col.label(text="Online access is currently enabled.", icon='CHECKMARK')
+        else:
+            col.prop(self, "ui_do_enable_online_access")
+
+        # --- 2. Repository ---
+        repo_box = main_col.box()
+        if not self._initial_online_access and not self.ui_do_enable_online_access:
+            repo_box.enabled = False
+        col = repo_box.column()
+
+        if self.ui_repo_action == 'ADD':
+            col.label(text="Add New Repository", icon='IMPORT')
+            col.separator()
+            col.label(text="The dropped extension comes from an unknown repository.")
+            col.label(text="If you trust its source, the repository will be added.")
+            col.separator()
+            sub = col.column(align=True)
+            sub.prop(self, "ui_repo_add_name", text="Name")
+            sub.prop(self, "ui_repo_add_remote_url", text="URL")
+            row = sub.row(align=True)
+            row.prop(self, "ui_repo_add_use_access_token", text="Use Token")
+            sub_row = row.row()
+            sub_row.active = self.ui_repo_add_use_access_token
+            sub_row.prop(self, "ui_repo_add_access_token", text="")
+            sub.prop(self, "ui_repo_add_use_sync_on_startup", text="Sync on Startup")
+            row = sub.row(align=True)
+            row.prop(self, "ui_repo_add_use_custom_directory", text="Custom Dir")
+            sub_row = row.row()
+            sub_row.active = self.ui_repo_add_use_custom_directory
+            sub_row.prop(self, "ui_repo_add_custom_directory", text="")
+
+        elif self.ui_repo_action == 'ENABLE':
+            col.label(text="Enable Repository", icon='INFO')
+            col.label(
+                text=iface_("Repository \"{:s}\" will be enabled.").format(self._repo_info_name),
+                translate=False,
+            )
+
+        elif self.ui_repo_action == 'CONFIG_TOKEN':
+            col.label(
+                text=iface_("Configure Access Token for \"{:s}\"").format(self._repo_info_name),
+                translate=False,
+                icon='INFO',
+            )
+            sub = col.column(align=True)
+            row = sub.row(align=True)
+            row.prop(self, "ui_repo_config_use_access_token", text="Use Token")
+            sub_row = row.row()
+            sub_row.active = self.ui_repo_config_use_access_token
+            sub_row.prop(self, "ui_repo_config_access_token", text="")
+
+        elif self._repo_info_exists and self._repo_info_enabled:
+            col.label(
+                text=iface_("Repository \"{:s}\" is configured and enabled.").format(self._repo_info_name),
+                translate=False,
+                icon='CHECKMARK',
+            )
+        elif not self._parsed_repo_remote_url:
+            col.label(text="No repository specified in the URL.", icon='ERROR')
+
+        # --- 3. Info about next step ---
+        info_box = main_col.box()
+        if not self._initial_online_access and not self.ui_do_enable_online_access:
+            info_box.enabled = False
+        col = info_box.column()
+        col.label(text="Extension Installation", icon='PACKAGE')
+        col.label(text="After confirming, the extension will be fetched and installed.")
+
+    def execute(self, context):
+        # --- 1. Handle Online Access ---
+        if self.ui_do_enable_online_access and not self._initial_online_access and self._can_change_online_access:
+            context.preferences.system.use_online_access = True
+            self.report({'INFO'}, "Online access enabled.")
+
+        if not bpy.app.online_access:
+            self.report({'ERROR'}, "Online access is required but not enabled.")
+            return {'CANCELLED'}
+
+        # --- 2. Handle Repository ---
+        if self.ui_repo_action == 'ADD':
+            if not self.ui_repo_add_remote_url:
+                self.report({'ERROR'}, "Repository URL is empty.")
+                return {'CANCELLED'}
+            try:
+                bpy.ops.preferences.extension_repo_add(
+                    type='REMOTE',
+                    name=self.ui_repo_add_name,
+                    remote_url=self.ui_repo_add_remote_url,
+                    use_access_token=self.ui_repo_add_use_access_token,
+                    access_token=self.ui_repo_add_access_token if self.ui_repo_add_use_access_token else "",
+                    use_sync_on_startup=self.ui_repo_add_use_sync_on_startup,
+                    use_custom_directory=self.ui_repo_add_use_custom_directory,
+                    custom_directory=self.ui_repo_add_custom_directory if self.ui_repo_add_use_custom_directory else "",
+                )
+                self.report({'INFO'}, "Repository added.")
+            except RuntimeError as ex:
+                self.report({'ERROR'}, str(ex))
+                return {'CANCELLED'}
+
+        elif self.ui_repo_action == 'ENABLE':
+            if self._repo_info_index != -1:
+                repo = context.preferences.extensions.repos[self._repo_info_index]
+                repo.enabled = True
+                self.report({'INFO'}, iface_("Repository \"{:s}\" enabled.").format(repo.name))
+            else:
+                self.report({'ERROR'}, "Repository index not found.")
+                return {'CANCELLED'}
+
+        elif self.ui_repo_action == 'CONFIG_TOKEN':
+            if self._repo_info_index != -1:
+                repo = context.preferences.extensions.repos[self._repo_info_index]
+                repo.use_access_token = self.ui_repo_config_use_access_token
+                if self.ui_repo_config_use_access_token:
+                    repo.access_token = self.ui_repo_config_access_token
+                else:
+                    repo.access_token = ""
+                self.report({'INFO'}, iface_("Access token for \"{:s}\" updated.").format(repo.name))
+            else:
+                self.report({'ERROR'}, "Repository index not found.")
+                return {'CANCELLED'}
+
+        # --- 3. Delegate to package_install which handles async sync + install ---
+        # The package_install operator's _invoke_for_drop path uses
+        # OperatorNonBlockingSyncHelper for async repo sync, then shows
+        # a confirmation dialog with package details, then installs asynchronously
+        # via _ExtCmdMixIn. This keeps Blender responsive throughout.
+        bpy.ops.extensions.package_install('INVOKE_DEFAULT', url=self.url)
+
+        return {'FINISHED'}
+
 
 # -----------------------------------------------------------------------------
 # Register
 #
+
 classes = (
     EXTENSIONS_OT_repo_sync,
     EXTENSIONS_OT_repo_sync_all,
@@ -4098,6 +4362,7 @@ classes = (
     EXTENSIONS_OT_userpref_show_online,
     EXTENSIONS_OT_userpref_allow_online,
     EXTENSIONS_OT_userpref_allow_online_popup,
+    EXTENSIONS_OT_unified_drop_handler,  # Add new operator here
 )
 
 
