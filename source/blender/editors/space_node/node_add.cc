@@ -696,6 +696,8 @@ void NODE_OT_add_collection(wmOperatorType *ot)
 static bool node_add_image_poll(bContext *C)
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
+
+  /* Note: Validity of snode->nodetree is checked later for better error reporting. */
   return STR_ELEM(snode->tree_idname,
                   "ShaderNodeTree",
                   "CompositorNodeTree",
@@ -859,7 +861,9 @@ static wmOperatorStatus node_add_image_invoke(bContext *C, wmOperator *op, const
   SpaceNode *snode = CTX_wm_space_node(C);
 
   if (!ED_operator_node_editable(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Could not add an image. Missing a node tree");
+    BKE_report(op->reports,
+               RPT_ERROR,
+               "Could not add image. A node tree has not been created or assigned");
     return OPERATOR_CANCELLED;
   }
 
