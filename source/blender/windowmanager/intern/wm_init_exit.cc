@@ -71,6 +71,7 @@
 #include "RNA_define.hh"
 
 #include "WM_api.hh"
+#include "WM_cancellable_worker.hh"
 #include "WM_keymap.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
@@ -481,6 +482,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
     }
 
     WM_jobs_kill_all(wm);
+    blender::cancellable_worker::exit_worker_thread();
 
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       CTX_wm_window_set(C, win); /* Needed by operator close callbacks. */

@@ -3537,8 +3537,14 @@ static wmWindow *pick_window_for_dialog(wmWindowManager &wm)
   return nullptr;
 }
 
+static bool g_exit_cancel_worker_thread = false;
+
 void run_cancellable_if_possible(const FunctionRef<void()> fn)
 {
+  if (g_exit_cancel_worker_thread) {
+    fn();
+    return;
+  }
   if (!BLI_thread_is_main()) {
     fn();
     return;
@@ -3604,8 +3610,17 @@ void run_cancellable_if_possible(const FunctionRef<void()> fn)
         task.done_info->done = true;
       }
       task.done_info->cv.notify_one();
+
+      if (g_exit_cancel_worker_thread) {
+        return;
+      }
     }
   }};
+  BLI_SCOPED_DEFER([&]() {
+    if (g_exit_cancel_worker_thread) {
+      worker_thread.join();
+    }
+  });
 
   /* Schedule the task on the worker thread. */
   DoneInfo done;
@@ -3626,6 +3641,11 @@ void run_cancellable_if_possible(const FunctionRef<void()> fn)
   }
   /* This call may never return if recovery is attempted. */
   on_wait_time_expired(C, *window, done, start_time);
+}
+
+void exit_worker_thread()
+{
+  run_cancellable_if_possible([]() { g_exit_cancel_worker_thread = true; });
 }
 
 }  // namespace blender::cancellable_worker

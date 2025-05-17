@@ -17,4 +17,6 @@ void set_global_context(bContext &C);
 
 void run_cancellable_if_possible(FunctionRef<void()> fn);
 
+void exit_worker_thread();
+
 }  // namespace blender::cancellable_worker
