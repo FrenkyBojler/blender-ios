@@ -284,6 +284,25 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
     }
   }
 
+  AbstractView *view = UI_region_view_find_at(region, xy, 0);
+  if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
+    AbstractTreeViewItem *last_item = nullptr;
+    tree_view->foreach_item(
+        [&](AbstractTreeViewItem &item) {
+          if (!item.is_interactive()) {
+            return;
+          }
+          if (const std::optional<rctf> win_rect = item.get_win_rect(*region)) {
+            last_item = &item;
+          }
+        },
+        TreeViewItemContainer::IterOptions::SkipCollapsed |
+            TreeViewItemContainer::IterOptions::SkipFiltered);
+    if (last_item) {
+      return last_item->create_item_drop_target();
+    }
+  }
+
   return nullptr;
 }
 
