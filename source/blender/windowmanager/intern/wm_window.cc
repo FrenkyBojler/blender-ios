@@ -3287,7 +3287,9 @@ static void draw_window_background(wmWindow &window)
 struct DialogState {
   int2 cursor;
   Clock::time_point task_start_time;
-  wmWindow *window;
+  wmWindow *window = nullptr;
+  bool show_dialog = false;
+  rcti status_bar_rect{};
 };
 
 static void draw_dialog(const int2 window_size, DialogState &state)
@@ -3358,6 +3360,8 @@ static void draw_status(const int2 window_size, DialogState &state)
   bg_rect.ymin = 0;
   bg_rect.ymax = status_bar_height;
 
+  state.status_bar_rect = bg_rect;
+
   bTheme &theme = *UI_GetTheme();
   const ColorTheme4b status_bar_bg_color = UI_ThemeGetColorPtr(&theme, SPACE_STATUSBAR, TH_HEADER);
 
@@ -3427,6 +3431,9 @@ static void draw_window_with_dialog(wmWindowManager &wm,
     GPU_bgl_end();
     draw_window_background(window);
     draw_status({window.sizex, window.sizey}, dialog_state);
+    if (dialog_state.show_dialog) {
+      draw_dialog({window.sizex, window.sizey}, dialog_state);
+    }
     GPU_context_end_frame(gpu_context);
   }
   wm_window_swap_buffers(&window);
@@ -3508,6 +3515,11 @@ static void on_wait_time_expired(bContext &C,
       }
       if (ISMOUSE(event.type)) {
         dialog_state.cursor = event.xy;
+      }
+      if (event.type == LEFTMOUSE && event.val == KM_PRESS) {
+        if (BLI_rcti_isect_pt_v(&dialog_state.status_bar_rect, event.xy)) {
+          dialog_state.show_dialog = !dialog_state.show_dialog;
+        }
       }
     };
 
