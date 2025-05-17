@@ -28,6 +28,7 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
+#include "GPU_immediate.hh"
 #include "MEM_guardedalloc.h"
 
 #include "GHOST_C-api.h"
@@ -3323,6 +3324,61 @@ static void draw_dialog(const int2 window_size, DialogState &state)
                            font_color);
 }
 
+static void draw_status(const int2 window_size, DialogState &state)
+{
+  const SpaceType *stype = BKE_spacetype_from_id(SPACE_STATUSBAR);
+  const ARegionType *art = BKE_regiontype_from_id(stype, RGN_TYPE_HEADER);
+  const int status_bar_height = art->prefsizey;
+  const int progress_ring_padding = 1;
+  const int progress_ring_radius_outer = status_bar_height / 2 - progress_ring_padding;
+  const int progress_ring_radius_inner = progress_ring_radius_outer - 3;
+
+  const float duration_s = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               Clock::now() - state.task_start_time)
+                               .count() /
+                           1000.0f;
+
+  rcti rect{};
+  rect.xmin = 0;
+  rect.xmax = window_size.x;
+  rect.ymin = 0;
+  rect.ymax = status_bar_height;
+
+  rctf rectf;
+  BLI_rctf_rcti_copy(&rectf, &rect);
+  UI_draw_roundbox_4fv(&rectf, true, 10, float4(0.7, 0.2, 0.2, 1.0));
+
+  const uiFontStyle &fs = UI_style_get()->widget;
+
+  ColorTheme4b text_color;
+  UI_GetThemeColor4ubv(TH_TEXT, text_color);
+
+  uiFontStyleDraw_Params params{};
+  params.align = UI_STYLE_TEXT_CENTER;
+  UI_fontstyle_draw(
+      &fs, &rect, "This is a long running operation", UI_MAX_DRAW_STR, text_color, &params);
+
+  GPUVertFormat *format = immVertexFormat();
+  const uint format_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immUniformColor4ubv(text_color);
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  const float ring_end = fmod(duration_s, 1.0f);
+  const float ring_start = std::max(ring_end - (1 - ring_end), 0.0f);
+
+  imm_draw_disk_partial_fill_2d(format_pos,
+                                100,
+                                progress_ring_padding + progress_ring_radius_outer,
+                                progress_ring_radius_inner,
+                                progress_ring_radius_outer,
+                                48,
+                                ring_start * 360.0f,
+                                (ring_end - ring_start) * 360.0f);
+
+  immUnbindProgram();
+}
+
 static void draw_window_with_dialog(wmWindowManager &wm,
                                     wmWindow &window,
                                     DialogState &dialog_state)
@@ -3339,7 +3395,7 @@ static void draw_window_with_dialog(wmWindowManager &wm,
     GPU_context_begin_frame(gpu_context);
     GPU_bgl_end();
     draw_window_background(window);
-    draw_dialog({window.sizex, window.sizey}, dialog_state);
+    draw_status({window.sizex, window.sizey}, dialog_state);
     GPU_context_end_frame(gpu_context);
   }
   wm_window_swap_buffers(&window);
@@ -3475,12 +3531,12 @@ void run_cancellable_if_possible(const FunctionRef<void()> fn)
     fn();
     return;
   }
-  const bool can_undo = wm->undo_stack && wm->undo_stack->step_active &&
-                        wm->undo_stack->step_active->prev;
-  if (!can_undo) {
-    fn();
-    return;
-  }
+  // const bool can_undo = wm->undo_stack && wm->undo_stack->step_active &&
+  //                       wm->undo_stack->step_active->prev;
+  // if (!can_undo) {
+  //   fn();
+  //   return;
+  // }
   wmWindow *window = pick_window_for_dialog(*wm);
   if (!window) {
     fn();
