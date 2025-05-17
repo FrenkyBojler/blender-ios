@@ -12,9 +12,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <iomanip>
-#include <sstream>
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_geom.h"
@@ -248,7 +245,7 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const float voxe
 
 static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  static constexpr int remesh_vertex_count_threshold = 5000000;
+  static constexpr int remesh_vertex_count_threshold = 10000000;
 
   const Object &active_object = *CTX_data_active_object(C);
   const Mesh &mesh = *static_cast<Mesh *>(active_object.data);
@@ -256,14 +253,10 @@ static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const w
   const int estimated_count = calc_estimated_remesh_vertex_count(mesh, mesh.remesh_voxel_size);
 
   if (estimated_count > remesh_vertex_count_threshold) {
-
-    std::ostringstream msg;
-    msg << "The remesher is estimated to generate around " << std::fixed << std::setprecision(1)
-        << (estimated_count / 1000000.0f) << " million polygons.";
-
     uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Warning!"), ICON_ERROR);
     uiLayout *layout = UI_popup_menu_layout(pup);
-    layout->label(msg.str(), ICON_INFO);
+    layout->label("The remesher is estimated to generate more than 10 million vertices.",
+                  ICON_INFO);
     uiItemFullO_ptr(layout,
                     op->type,
                     IFACE_("OK"),
