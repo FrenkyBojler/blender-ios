@@ -3285,7 +3285,9 @@ static void draw_window_background(wmWindow &window)
 }
 
 struct DialogState {
+  int2 cursor;
   Clock::time_point task_start_time;
+  wmWindow *window;
 };
 
 static void draw_dialog(const int2 window_size, DialogState &state)
@@ -3329,7 +3331,7 @@ static void draw_status(const int2 window_size, DialogState &state)
   const SpaceType *stype = BKE_spacetype_from_id(SPACE_STATUSBAR);
   const ARegionType *art = BKE_regiontype_from_id(stype, RGN_TYPE_HEADER);
   const int status_bar_height = art->prefsizey;
-  const int progress_ring_padding = 1;
+  const int progress_ring_padding = 2;
   const int progress_ring_radius_outer = status_bar_height / 2 - progress_ring_padding;
   const int progress_ring_radius_inner = progress_ring_radius_outer - 3;
 
@@ -3346,21 +3348,29 @@ static void draw_status(const int2 window_size, DialogState &state)
                                .count() /
                            1000.0f;
   const int start_x = window_size.x / 2;
-  const int total_width = status_message_width + status_message_padding * 2 +
-                          progress_ring_radius_outer;
+  const int total_width = 2.0f * progress_ring_radius_outer + status_message_padding +
+                          status_message_width;
+  const int outer_padding = UI_UNIT_X * 0.3f;
 
   rcti bg_rect{};
-  bg_rect.xmin = start_x;
-  bg_rect.xmax = total_width;
+  bg_rect.xmin = start_x - outer_padding;
+  bg_rect.xmax = start_x + total_width + outer_padding;
   bg_rect.ymin = 0;
   bg_rect.ymax = status_bar_height;
 
-  ColorTheme4f status_bar_bg_color;
-  UI_GetThemeColor4fv(TH_BACK, status_bar_bg_color);
+  bTheme &theme = *UI_GetTheme();
+  const ColorTheme4b status_bar_bg_color = UI_ThemeGetColorPtr(&theme, SPACE_STATUSBAR, TH_HEADER);
 
   rctf rectf;
   BLI_rctf_rcti_copy(&rectf, &bg_rect);
-  UI_draw_roundbox_4fv(&rectf, true, 0, status_bar_bg_color);
+  UI_draw_roundbox_4fv(&rectf, true, 0, status_bar_bg_color.to_4f());
+
+  const bool is_hovered = BLI_rcti_isect_pt_v(&bg_rect, state.cursor);
+  if (is_hovered) {
+    ColorTheme4f hover_color;
+    UI_GetThemeColorShade4fv(TH_HEADER, 10, hover_color);
+    UI_draw_roundbox_4fv(&rectf, true, 2, hover_color);
+  }
 
   ColorTheme4b text_color;
   UI_GetThemeColor4ubv(TH_TEXT, text_color);
@@ -3377,7 +3387,7 @@ static void draw_status(const int2 window_size, DialogState &state)
   const float ring_start = std::max(ring_end - (1 - ring_end), 0.0f);
 
   imm_draw_disk_partial_fill_2d(format_pos,
-                                current_x,
+                                current_x + progress_ring_radius_outer,
                                 progress_ring_padding + progress_ring_radius_outer,
                                 progress_ring_radius_inner,
                                 progress_ring_radius_outer,
@@ -3481,6 +3491,7 @@ static void on_wait_time_expired(bContext &C,
 
   DialogState dialog_state;
   dialog_state.task_start_time = task_start_time;
+  dialog_state.window = &window;
 
   while (true) {
     {
@@ -3495,6 +3506,9 @@ static void on_wait_time_expired(bContext &C,
       if (event.type == EVT_RETKEY && event.val == KM_PRESS) {
         /* Actually try to recover the file. This function terminates the current process. */
         try_recover_file(C);
+      }
+      if (ISMOUSE(event.type)) {
+        dialog_state.cursor = event.xy;
       }
     };
 
