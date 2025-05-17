@@ -181,7 +181,7 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
   }
   else if (data_type == DT_TYPE_UV) {
     const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    const Object *ob_src_eval = DEG_get_evaluated_object(depsgraph, ob_src);
+    const Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
     const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob_src_eval);
     if (!mesh_eval) {
       RNA_enum_item_end(&item, &totitem);
@@ -201,7 +201,7 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
   }
   else if (data_type & DT_TYPE_VCOL_ALL) {
     const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    const Object *ob_src_eval = DEG_get_evaluated_object(depsgraph, ob_src);
+    const Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
     const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob_src_eval);
     if (!mesh_eval) {
       RNA_enum_item_end(&item, &totitem);
@@ -494,10 +494,10 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
     }
 
     if (data_transfer_exec_is_object_valid(op, ob_src, ob_dst, reverse_transfer)) {
-      Object *ob_src_eval = DEG_get_evaluated_object(depsgraph, ob_src);
+      Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
 
       if (space_transform) {
-        Object *ob_dst_eval = DEG_get_evaluated_object(depsgraph, ob_dst);
+        Object *ob_dst_eval = DEG_get_evaluated(depsgraph, ob_dst);
         BLI_SPACE_TRANSFORM_SETUP(space_transform, ob_dst_eval, ob_src_eval);
       }
 
@@ -546,17 +546,18 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
 #endif
 }
 
-/* Used by both OBJECT_OT_data_transfer and OBJECT_OT_datalayout_transfer */
-/* Note this context poll is only really partial,
- * it cannot check for all possible invalid cases. */
+/** Used by both #OBJECT_OT_data_transfer and #OBJECT_OT_datalayout_transfer. */
 static bool data_transfer_poll(bContext *C)
 {
+  /* Note this context poll is only really partial,
+   * it cannot check for all possible invalid cases. */
+
   Object *ob = context_active_object(C);
   ID *data = static_cast<ID *>((ob) ? ob->data : nullptr);
   return (ob != nullptr && ob->type == OB_MESH && data != nullptr);
 }
 
-/* Used by both OBJECT_OT_data_transfer and OBJECT_OT_datalayout_transfer */
+/** Used by both #OBJECT_OT_data_transfer and #OBJECT_OT_datalayout_transfer. */
 static bool data_transfer_poll_property(const bContext * /*C*/,
                                         wmOperator *op,
                                         const PropertyRNA *prop)
@@ -840,7 +841,7 @@ static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    Object *ob_src_eval = DEG_get_evaluated_object(depsgraph, ob_src);
+    Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
 
     BKE_object_data_transfer_layout(depsgraph,
                                     ob_src_eval,
@@ -871,7 +872,7 @@ static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
       layers_select_dst[fromto_idx] = layers_dst;
     }
 
-    Object *ob_src_eval = DEG_get_evaluated_object(depsgraph, ob_src);
+    Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
 
     data_transfer_exec_preprocess_objects(C, op, ob_src, &ctx_objects, false);
 

@@ -248,19 +248,19 @@ static void edbm_intersect_ui(bContext * /*C*/, wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  row = uiLayoutRow(layout, false);
-  uiItemR(row, op->ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemS(layout);
-  row = uiLayoutRow(layout, false);
-  uiItemR(row, op->ptr, "separate_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  row = &layout->row(false);
+  row->prop(op->ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->separator();
+  row = &layout->row(false);
+  row->prop(op->ptr, "separate_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->separator();
 
-  row = uiLayoutRow(layout, false);
-  uiItemR(row, op->ptr, "solver", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  row = &layout->row(false);
+  row->prop(op->ptr, "solver", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->separator();
 
   if (!use_exact) {
-    uiItemR(layout, op->ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -288,8 +288,16 @@ void MESH_OT_intersect(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem isect_intersect_solver_items[] = {
-      {ISECT_SOLVER_FAST, "FAST", 0, "Fast", "Faster solver, some limitations"},
-      {ISECT_SOLVER_EXACT, "EXACT", 0, "Exact", "Exact solver, slower, handles more cases"},
+      {ISECT_SOLVER_FAST,
+       "FAST",
+       0,
+       "Float",
+       "Simple solver with good performance, without support for overlapping geometry"},
+      {ISECT_SOLVER_EXACT,
+       "EXACT",
+       0,
+       "Exact",
+       "Slower solver with the best results for coplanar faces"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -298,7 +306,7 @@ void MESH_OT_intersect(wmOperatorType *ot)
   ot->description = "Cut an intersection into faces";
   ot->idname = "MESH_OT_intersect";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_intersect_exec;
   ot->poll = ED_operator_editmesh;
   ot->ui = edbm_intersect_ui;
@@ -325,7 +333,7 @@ void MESH_OT_intersect(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Boolean Intersect
  *
- * \note internally this is nearly exactly the same as 'MESH_OT_intersect',
+ * \note internally this is nearly exactly the same as `MESH_OT_intersect`,
  * however from a user perspective they are quite different, so expose as different tools.
  * \{ */
 
@@ -401,18 +409,18 @@ static void edbm_intersect_boolean_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  row = uiLayoutRow(layout, false);
-  uiItemR(row, op->ptr, "operation", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  row = &layout->row(false);
+  row->prop(op->ptr, "operation", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->separator();
 
-  row = uiLayoutRow(layout, false);
-  uiItemR(row, op->ptr, "solver", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  row = &layout->row(false);
+  row->prop(op->ptr, "solver", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->separator();
 
-  uiItemR(layout, op->ptr, "use_swap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "use_self", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "use_swap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "use_self", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!use_exact) {
-    uiItemR(layout, op->ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -436,7 +444,7 @@ void MESH_OT_intersect_boolean(wmOperatorType *ot)
   ot->description = "Cut solid geometry from selected to unselected";
   ot->idname = "MESH_OT_intersect_boolean";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_intersect_boolean_exec;
   ot->poll = ED_operator_editmesh;
   ot->ui = edbm_intersect_boolean_ui;
@@ -652,7 +660,12 @@ static void bm_face_split_by_edges_island_connect(
       BMFace *f_pair[2];
       if (BM_edge_face_pair(edge_arr[i], &f_pair[0], &f_pair[1])) {
         if (BM_face_share_vert_count(f_pair[0], f_pair[1]) == 2) {
-          BMFace *f_new = BM_faces_join(bm, f_pair, 2, true);
+          BMFace *f_double;
+          BMFace *f_new = BM_faces_join(bm, f_pair, 2, true, &f_double);
+          /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+          BLI_assert_msg(f_double == nullptr,
+                         "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
           if (f_new) {
             BM_face_select_set(bm, f_new, true);
           }
@@ -1062,7 +1075,7 @@ void MESH_OT_face_split_by_edges(wmOperatorType *ot)
   ot->description = "Weld loose edges into faces (splitting them into new faces)";
   ot->idname = "MESH_OT_face_split_by_edges";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_face_split_by_edges_exec;
   ot->poll = ED_operator_editmesh;
 

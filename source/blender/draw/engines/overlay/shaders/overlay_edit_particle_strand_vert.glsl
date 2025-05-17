@@ -12,32 +12,33 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_particle_strand)
 
 #define no_active_weight 666.0f
 
-vec3 weight_to_rgb(float t)
+float3 weight_to_rgb(float t)
 {
   if (t == no_active_weight) {
     /* No weight. */
-    return colorWire.rgb;
+    return theme.colors.wire.rgb;
   }
   if (t > 1.0f || t < 0.0f) {
     /* Error color */
-    return vec3(1.0f, 0.0f, 1.0f);
+    return float3(1.0f, 0.0f, 1.0f);
   }
   else {
-    return texture(weightTex, t).rgb;
+    return texture(weight_tx, t).rgb;
   }
 }
 
 void main()
 {
-  vec3 world_pos = drw_point_object_to_world(pos);
+  float3 world_pos = drw_point_object_to_world(pos);
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
-  if (useWeight) {
-    finalColor = vec4(weight_to_rgb(selection), 1.0f);
+  if (use_weight) {
+    final_color = float4(weight_to_rgb(selection), 1.0f);
   }
   else {
-    vec4 use_color = useGreasePencil ? colorGpencilVertexSelect : colorVertexSelect;
-    finalColor = mix(colorWireEdit, use_color, selection);
+    float4 use_color = use_grease_pencil ? theme.colors.gpencil_vertex_select :
+                                           theme.colors.vert_select;
+    final_color = mix(theme.colors.wire_edit, use_color, selection);
   }
 
   view_clipping_distances(world_pos);

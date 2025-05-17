@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -79,7 +79,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryInputNamedAttribute &storage = node_storage(params.node());
   const eCustomDataType data_type = eCustomDataType(storage.data_type);
 
-  const std::string name = params.extract_input<std::string>("Name");
+  std::string name = params.extract_input<std::string>("Name");
 
   if (name.empty()) {
     params.set_default_remaining_outputs();

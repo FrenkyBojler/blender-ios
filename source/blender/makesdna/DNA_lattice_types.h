@@ -34,7 +34,11 @@ typedef struct EditLatt {
 } EditLatt;
 
 typedef struct Lattice {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Lattice)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_LT;
+#endif
 
   ID id;
   struct AnimData *adt;
@@ -42,6 +46,7 @@ typedef struct Lattice {
   short pntsu, pntsv, pntsw, flag;
   short opntsu, opntsv, opntsw;
   char _pad2[3];
+  /* KeyInterpolationType */
   char typeu, typev, typew;
   /** Active element index, unset with LT_ACTBP_NONE. */
   int actbp;

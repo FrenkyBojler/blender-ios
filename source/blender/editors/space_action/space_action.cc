@@ -143,7 +143,7 @@ static SpaceLink *action_duplicate(SpaceLink *sl)
 {
   SpaceAction *sactionn = static_cast<SpaceAction *>(MEM_dupallocN(sl));
 
-  memset(&sactionn->runtime, 0x0, sizeof(sactionn->runtime));
+  sactionn->runtime = SpaceAction_Runtime{};
 
   /* clear or remove stuff from old */
 
@@ -185,7 +185,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
   short marker_flag = 0;
 
-  const int min_height = saction->flag & SACTION_SHOW_MARKERS ? UI_MARKERS_MINY : UI_ANIM_MINY;
+  const int min_height = UI_ANIM_MINY;
 
   /* scrollers */
   if (region->winy >= UI_ANIM_MINY) {
@@ -241,15 +241,13 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* markers */
-  if (region->winy >= UI_MARKERS_MINY) {
-    UI_view2d_view_orthoSpecial(region, v2d, true);
+  UI_view2d_view_orthoSpecial(region, v2d, true);
 
-    marker_flag = ((ac.markers && (ac.markers != &ac.scene->markers)) ? DRAW_MARKERS_LOCAL : 0) |
-                  DRAW_MARKERS_MARGIN;
+  marker_flag = ((ac.markers && (ac.markers != &ac.scene->markers)) ? DRAW_MARKERS_LOCAL : 0) |
+                DRAW_MARKERS_MARGIN;
 
-    if (saction->flag & SACTION_SHOW_MARKERS) {
-      ED_markers_draw(C, marker_flag);
-    }
+  if (saction->flag & SACTION_SHOW_MARKERS) {
+    ED_markers_draw(C, marker_flag);
   }
 
   /* preview range */
@@ -921,7 +919,7 @@ static int action_space_icon_get(const ScrArea *area)
 static void action_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
 {
   SpaceAction *saction = (SpaceAction *)sl;
-  memset(&saction->runtime, 0x0, sizeof(saction->runtime));
+  saction->runtime = SpaceAction_Runtime{};
 }
 
 static void action_space_blend_write(BlendWriter *writer, SpaceLink *sl)

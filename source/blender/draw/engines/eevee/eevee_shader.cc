@@ -72,18 +72,18 @@ ShaderModule::ShaderModule()
 
 ShaderModule::~ShaderModule()
 {
-  /* Finish compilation to avoid asserts on exit at GLShaderCompiler destructor. */
+  /* Cancel compilation to avoid asserts on exit at ShaderCompiler destructor. */
 
-  if (compilation_handle_) {
-    static_shaders_are_ready(true);
-  }
-
+  /* Specializations first, to avoid releasing the base shader while the specialization compilation
+   * is still in flight. */
   for (SpecializationBatchHandle &handle : specialization_handles_.values()) {
     if (handle) {
-      while (!GPU_shader_batch_specializations_is_ready(handle)) {
-        /* Block until ready. */
-      }
+      GPU_shader_batch_specializations_cancel(handle);
     }
+  }
+
+  if (compilation_handle_) {
+    GPU_shader_batch_cancel(compilation_handle_);
   }
 }
 
@@ -117,7 +117,9 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready)
 bool ShaderModule::request_specializations(bool block_until_ready,
                                            int render_buffers_shadow_id,
                                            int shadow_ray_count,
-                                           int shadow_ray_step_count)
+                                           int shadow_ray_step_count,
+                                           bool use_split_indirect,
+                                           bool use_lightprobe_eval)
 {
   if (!GPU_use_parallel_compilation()) {
     return true;
@@ -127,23 +129,24 @@ bool ShaderModule::request_specializations(bool block_until_ready,
 
   std::lock_guard lock(mutex_);
 
-  SpecializationBatchHandle specialization_handle = specialization_handles_.lookup_or_add_cb(
-      {render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count}, [&]() {
+  SpecializationBatchHandle &specialization_handle = specialization_handles_.lookup_or_add_cb(
+      {render_buffers_shadow_id,
+       shadow_ray_count,
+       shadow_ray_step_count,
+       use_split_indirect,
+       use_lightprobe_eval},
+      [&]() {
         Vector<ShaderSpecialization> specializations;
         for (int i = 0; i < 3; i++) {
           GPUShader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
-          for (bool use_split_indirect : {false, true}) {
-            for (bool use_lightprobe_eval : {false, true}) {
-              for (bool use_transmission : {false, true}) {
-                specializations.append({sh,
-                                        {{"render_pass_shadow_id", render_buffers_shadow_id},
-                                         {"use_split_indirect", use_split_indirect},
-                                         {"use_lightprobe_eval", use_lightprobe_eval},
-                                         {"use_transmission", use_transmission},
-                                         {"shadow_ray_count", shadow_ray_count},
-                                         {"shadow_ray_step_count", shadow_ray_step_count}}});
-              }
-            }
+          for (bool use_transmission : {false, true}) {
+            specializations.append({sh,
+                                    {{"render_pass_shadow_id", render_buffers_shadow_id},
+                                     {"use_split_indirect", use_split_indirect},
+                                     {"use_lightprobe_eval", use_lightprobe_eval},
+                                     {"use_transmission", use_transmission},
+                                     {"shadow_ray_count", shadow_ray_count},
+                                     {"shadow_ray_step_count", shadow_ray_step_count}}});
           }
         }
 
@@ -489,7 +492,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       }
     }
     /* Remove references to the UBO. */
-    info.define("UNI_ATTR(a)", "vec4(0.0)");
+    info.define("UNI_ATTR(a)", "float4(0.0)");
   }
 
   SamplerSlots sampler_slots(
@@ -627,7 +630,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         info.builtins(BuiltinBits::BARYCENTRIC_COORD);
         break;
       case MAT_GEOM_CURVES:
-        /* Support using one vec2 attribute. See #hair_get_barycentric(). */
+        /* Support using one float2 attribute. See #hair_get_barycentric(). */
         info.define("USE_BARYCENTRICS");
         break;
       default:
@@ -635,6 +638,13 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         break;
     }
   }
+
+#if 0 /* Waiting for using DRW_STATE_CLIP_CONTROL_UNIT_RANGE where these are used. */
+  if (geometry_type != MAT_GEOM_WORLD) {
+    /* Allow to use Reverse-Z on OpenGL. Does nothing in other backend. */
+    info.builtins(BuiltinBits::CLIP_CONTROL);
+  }
+#endif
 
   std::stringstream global_vars;
   switch (geometry_type) {
@@ -646,7 +656,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         /* TODO(fclem): Eventually, we could add support for loading both. For now, remove the
          * vertex inputs after conversion (avoid name collision). */
         for (auto &input : info.vertex_inputs_) {
-          info.sampler(sampler_slots.get(), ImageType::FLOAT_3D, input.name, Frequency::BATCH);
+          info.sampler(sampler_slots.get(), ImageType::Float3D, input.name, Frequency::BATCH);
         }
         info.vertex_inputs_.clear();
         /* Volume materials require these for loading the grid attributes from smoke sims. */
@@ -662,7 +672,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
           global_vars << input.type << " " << input.name << ";\n";
         }
         else {
-          info.sampler(sampler_slots.get(), ImageType::FLOAT_BUFFER, input.name, Frequency::BATCH);
+          info.sampler(sampler_slots.get(), ImageType::FloatBuffer, input.name, Frequency::BATCH);
         }
       }
       info.vertex_inputs_.clear();
@@ -672,7 +682,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         /* Even if world do not have grid attributes, we use dummy texture binds to pass correct
          * defaults. So we have to replace all attributes as samplers. */
         for (auto &input : info.vertex_inputs_) {
-          info.sampler(sampler_slots.get(), ImageType::FLOAT_3D, input.name, Frequency::BATCH);
+          info.sampler(sampler_slots.get(), ImageType::Float3D, input.name, Frequency::BATCH);
         }
         info.vertex_inputs_.clear();
       }
@@ -695,14 +705,16 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     case MAT_GEOM_VOLUME:
       /** Volume grid attributes come from 3D textures. Transfer attributes to samplers. */
       for (auto &input : info.vertex_inputs_) {
-        info.sampler(sampler_slots.get(), ImageType::FLOAT_3D, input.name, Frequency::BATCH);
+        info.sampler(sampler_slots.get(), ImageType::Float3D, input.name, Frequency::BATCH);
       }
       info.vertex_inputs_.clear();
       break;
   }
 
+  const bool support_volume_attributes = ELEM(geometry_type, MAT_GEOM_MESH, MAT_GEOM_VOLUME);
   const bool do_vertex_attrib_load = !ELEM(geometry_type, MAT_GEOM_WORLD, MAT_GEOM_VOLUME) &&
-                                     (pipeline_type != MAT_PIPE_VOLUME_MATERIAL);
+                                     (pipeline_type != MAT_PIPE_VOLUME_MATERIAL ||
+                                      !support_volume_attributes);
 
   if (!do_vertex_attrib_load && !info.vertex_out_interfaces_.is_empty()) {
     /* Codegen outputs only one interface. */
@@ -740,9 +752,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
                                          (displacement_type != MAT_DISPLACEMENT_BUMP) &&
                                          !ELEM(geometry_type, MAT_GEOM_WORLD, MAT_GEOM_VOLUME);
 
-    vert_gen << "vec3 nodetree_displacement()\n";
+    vert_gen << "float3 nodetree_displacement()\n";
     vert_gen << "{\n";
-    vert_gen << ((use_vertex_displacement) ? codegen.displacement : "return vec3(0);\n");
+    vert_gen << ((use_vertex_displacement) ? codegen.displacement : "return float3(0);\n");
     vert_gen << "}\n\n";
 
     info.vertex_source_generated = vert_gen.str();
@@ -755,7 +767,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       /* Bump displacement. Needed to recompute normals after displacement. */
       info.define("MAT_DISPLACEMENT_BUMP");
 
-      frag_gen << "vec3 nodetree_displacement()\n";
+      frag_gen << "float3 nodetree_displacement()\n";
       frag_gen << "{\n";
       frag_gen << codegen.displacement;
       frag_gen << "}\n\n";
@@ -785,12 +797,12 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         }
         /* TODO(fclem): Should use `to_scale` but the gpu_shader_math_matrix_lib.glsl isn't
          * included everywhere yet. */
-        frag_gen << "vec3 ob_scale;\n";
+        frag_gen << "float3 ob_scale;\n";
         frag_gen << "ob_scale.x = length(drw_modelmat()[0].xyz);\n";
         frag_gen << "ob_scale.y = length(drw_modelmat()[1].xyz);\n";
         frag_gen << "ob_scale.z = length(drw_modelmat()[2].xyz);\n";
-        frag_gen << "vec3 ls_dimensions = safe_rcp(abs(drw_object_infos().orco_mul.xyz));\n";
-        frag_gen << "vec3 ws_dimensions = ob_scale * ls_dimensions;\n";
+        frag_gen << "float3 ls_dimensions = safe_rcp(abs(drw_object_infos().orco_mul.xyz));\n";
+        frag_gen << "float3 ws_dimensions = ob_scale * ls_dimensions;\n";
         /* Choose the minimum axis so that cuboids are better represented. */
         frag_gen << "return reduce_min(ws_dimensions);\n";
       }

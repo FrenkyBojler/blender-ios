@@ -5,6 +5,7 @@
 
 import os
 import sys
+import bpy
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from modules.mesh_test import BlendFileTest
@@ -34,6 +35,15 @@ if not geo_node_test:
         geo_node_test = BlendFileTest("test_object (threshold = 0.3)", "expected_object", threshold=0.3)
     except:
         pass
+
+if "closure" in bpy.data.filepath:
+    if bpy.app.version_cycle == "alpha":
+        bpy.context.preferences.experimental.use_bundle_and_closure_nodes = True
+    else:
+        print("Skipped because bundles and closures are still experimental.")
+        sys.exit(0)
+
+geo_node_test = BlendFileTest("test_object", "expected_object", threshold=1e-4)
 
 result = geo_node_test.run_test()
 

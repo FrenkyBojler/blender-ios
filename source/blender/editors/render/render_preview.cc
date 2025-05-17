@@ -891,21 +891,20 @@ static void object_preview_render(IconPreview *preview, IconPreviewSize *preview
   /* Enable shadows, makes it a bit easier to see the shape. */
   shading.flag |= V3D_SHADING_SHADOW;
 
-  ImBuf *ibuf = ED_view3d_draw_offscreen_imbuf_simple(
-      depsgraph,
-      DEG_get_evaluated_scene(depsgraph),
-      &shading,
-      OB_TEXTURE,
-      DEG_get_evaluated_object(depsgraph, scene->camera),
-      preview_sized->sizex,
-      preview_sized->sizey,
-      IB_byte_data,
-      V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS,
-      R_ALPHAPREMUL,
-      nullptr,
-      nullptr,
-      nullptr,
-      err_out);
+  ImBuf *ibuf = ED_view3d_draw_offscreen_imbuf_simple(depsgraph,
+                                                      DEG_get_evaluated_scene(depsgraph),
+                                                      &shading,
+                                                      OB_TEXTURE,
+                                                      DEG_get_evaluated(depsgraph, scene->camera),
+                                                      preview_sized->sizex,
+                                                      preview_sized->sizey,
+                                                      IB_byte_data,
+                                                      V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS,
+                                                      R_ALPHAPREMUL,
+                                                      nullptr,
+                                                      nullptr,
+                                                      nullptr,
+                                                      err_out);
   /* TODO: color-management? */
 
   if (ibuf) {
@@ -1020,8 +1019,8 @@ static void action_preview_render(IconPreview *preview, IconPreviewSize *preview
 
   Depsgraph *depsgraph = preview->depsgraph;
   /* Not all code paths that lead to this function actually provide a depsgraph.
-   * The "Refresh Asset Preview" button (ED_OT_lib_id_generate_preview) does,
-   * but WM_OT_previews_ensure does not. */
+   * The "Refresh Asset Preview" button (#ED_OT_lib_id_generate_preview) does,
+   * but #WM_OT_previews_ensure does not. */
   BLI_assert(depsgraph != nullptr);
   BLI_assert(preview->scene == DEG_get_input_scene(depsgraph));
 
@@ -1106,8 +1105,7 @@ static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene *sce, Rend
   RenderView *rv = (RenderView *)rr->views.first;
   ImBuf *rv_ibuf = RE_RenderViewEnsureImBuf(rr, rv);
   IMB_assign_float_buffer(rv_ibuf,
-                          static_cast<float *>(MEM_callocN(sizeof(float[4]) * width * height,
-                                                           "texture render result")),
+                          MEM_calloc_arrayN<float>(4 * width * height, "texture render result"),
                           IB_TAKE_OWNERSHIP);
   RE_ReleaseResult(re);
 

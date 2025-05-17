@@ -3759,7 +3759,7 @@ static void proj_paint_state_viewport_init(ProjPaintState *ps, const char symmet
       invert_m4_m4(viewinv, viewmat);
     }
     else if (ps->source == PROJ_SRC_IMAGE_CAM) {
-      Object *cam_ob_eval = DEG_get_evaluated_object(ps->depsgraph, ps->scene->camera);
+      Object *cam_ob_eval = DEG_get_evaluated(ps->depsgraph, ps->scene->camera);
       CameraParams params;
 
       /* viewmat & viewinv */
@@ -3895,8 +3895,7 @@ static void proj_paint_state_cavity_init(ProjPaintState *ps)
     int *counter = MEM_calloc_arrayN<int>(ps->totvert_eval, "counter");
     float(*edges)[3] = static_cast<float(*)[3]>(
         MEM_callocN(sizeof(float[3]) * ps->totvert_eval, "edges"));
-    ps->cavities = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * ps->totvert_eval, "ProjectPaint Cavities"));
+    ps->cavities = MEM_malloc_arrayN<float>(ps->totvert_eval, "ProjectPaint Cavities");
     cavities = ps->cavities;
 
     for (const int64_t i : ps->edges_eval.index_range()) {
@@ -3932,8 +3931,7 @@ static void proj_paint_state_seam_bleed_init(ProjPaintState *ps)
     ps->vertFaces = MEM_calloc_arrayN<LinkNode *>(ps->totvert_eval, "paint-vertFaces");
     ps->faceSeamFlags = MEM_calloc_arrayN<ushort>(ps->corner_tris_eval.size(), __func__);
     ps->faceWindingFlags = MEM_calloc_arrayN<char>(ps->corner_tris_eval.size(), __func__);
-    ps->loopSeamData = static_cast<LoopSeamData *>(
-        MEM_mallocN(sizeof(LoopSeamData) * ps->totloop_eval, "paint-loopSeamUVs"));
+    ps->loopSeamData = MEM_malloc_arrayN<LoopSeamData>(ps->totloop_eval, "paint-loopSeamUVs");
     ps->vertSeams = MEM_calloc_arrayN<ListBase>(ps->totvert_eval, "paint-vertSeams");
   }
 }
@@ -3957,8 +3955,7 @@ static void proj_paint_state_thread_init(ProjPaintState *ps, const bool reset_th
 
   if (ps->is_shared_user == false) {
     if (ps->thread_tot > 1) {
-      ps->tile_lock = static_cast<SpinLock *>(
-          MEM_mallocN(sizeof(SpinLock), "projpaint_tile_lock"));
+      ps->tile_lock = MEM_mallocN<SpinLock>("projpaint_tile_lock");
       BLI_spin_init(ps->tile_lock);
     }
 
@@ -4046,7 +4043,7 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *ob = ps->ob;
 
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   ps->mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   if (!ps->mesh_eval) {
     return false;
@@ -4647,14 +4644,15 @@ static void project_paint_end(ProjPaintState *ps)
     /* must be set for non-shared */
     BLI_assert(ps->poly_to_loop_uv || ps->is_shared_user);
     if (ps->poly_to_loop_uv) {
-      MEM_freeN((void *)ps->poly_to_loop_uv);
+      MEM_freeN(ps->poly_to_loop_uv);
     }
 
     if (ps->do_layer_clone) {
-      MEM_freeN((void *)ps->poly_to_loop_uv_clone);
+      MEM_freeN(ps->poly_to_loop_uv_clone);
     }
     if (ps->thread_tot > 1) {
       BLI_spin_end(ps->tile_lock);
+      /* The void cast is needed when building without TBB. */
       MEM_freeN((void *)ps->tile_lock);
     }
 
@@ -6225,7 +6223,7 @@ void PAINT_OT_project_image(wmOperatorType *ot)
   ot->idname = "PAINT_OT_project_image";
   ot->description = "Project an edited render from the active camera back onto the object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_enum_search_invoke;
   ot->exec = texture_paint_camera_project_exec;
 
@@ -6361,7 +6359,7 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
   ot->idname = "PAINT_OT_image_from_view";
   ot->description = "Make an image from biggest 3D view for reprojection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = texture_paint_image_from_view_exec;
   ot->poll = texture_paint_image_from_view_poll;
 
@@ -6872,32 +6870,32 @@ static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
 
   if (ob->mode == OB_MODE_SCULPT) {
     slot_type = (ePaintCanvasSource)RNA_enum_get(op->ptr, "slot_type");
-    uiItemR(layout, op->ptr, "slot_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "slot_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(layout, op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (slot_type) {
     case PAINT_CANVAS_SOURCE_IMAGE: {
-      uiLayout *col = uiLayoutColumn(layout, true);
-      uiItemR(col, op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(col, op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiLayout *col = &layout->column(true);
+      col->prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      uiItemR(layout, op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(layout, op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(layout, op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
-      uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-      uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       break;
     case PAINT_CANVAS_SOURCE_MATERIAL:
       BLI_assert_unreachable();
       break;
   }
 
-  uiItemR(layout, op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 #define IMA_DEF_NAME N_("Untitled")
@@ -6919,7 +6917,7 @@ void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
   ot->description = "Add a paint slot";
   ot->idname = "PAINT_OT_add_texture_paint_slot";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = texture_paint_add_texture_paint_slot_invoke;
   ot->exec = texture_paint_add_texture_paint_slot_exec;
   ot->poll = ED_operator_object_active_editable_mesh;
@@ -7021,7 +7019,7 @@ void PAINT_OT_add_simple_uvs(wmOperatorType *ot)
   ot->description = "Add cube map UVs on mesh";
   ot->idname = "PAINT_OT_add_simple_uvs";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = add_simple_uvs_exec;
   ot->poll = add_simple_uvs_poll;
 

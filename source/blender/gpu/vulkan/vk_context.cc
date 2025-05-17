@@ -57,7 +57,6 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
     if (cycle_resource_pool) {
       thread_data.resource_pool_next();
       VKResourcePool &resource_pool = thread_data.resource_pool_get();
-      resource_pool.reset();
       imm = &resource_pool.immediate;
     }
 
@@ -159,6 +158,7 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
     }
   }
   descriptor_set_get().upload_descriptor_sets();
+  descriptor_pools_get().discard(*this);
   VKDevice &device = VKBackend::get().device;
   TimelineValue timeline = device.render_graph_submit(
       &render_graph_.value().get(),
@@ -181,11 +181,6 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
 }
 
 void VKContext::finish() {}
-
-ShaderCompiler *VKContext::get_compiler()
-{
-  return &VKBackend::get().shader_compiler;
-}
 
 void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 {
@@ -355,19 +350,18 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   render_graph::VKBlitImageNode::CreateInfo blit_image = {};
   blit_image.src_image = color_attachment->vk_image_handle();
   blit_image.dst_image = swap_chain_data.image;
-  blit_image.filter = VK_FILTER_NEAREST;
+  blit_image.filter = VK_FILTER_LINEAR;
 
   VkImageBlit &region = blit_image.region;
-  region.srcOffsets[0] = {0, color_attachment->height_get(), 0};
-  region.srcOffsets[1] = {color_attachment->width_get(), 0, 1};
+  region.srcOffsets[0] = {0, 0, 0};
+  region.srcOffsets[1] = {color_attachment->width_get(), color_attachment->height_get(), 1};
   region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.srcSubresource.mipLevel = 0;
   region.srcSubresource.baseArrayLayer = 0;
   region.srcSubresource.layerCount = 1;
 
-  region.dstOffsets[0] = {0, 0, 0};
-  region.dstOffsets[1] = {
-      int32_t(swap_chain_data.extent.width), int32_t(swap_chain_data.extent.height), 1};
+  region.dstOffsets[0] = {0, int32_t(swap_chain_data.extent.height), 0};
+  region.dstOffsets[1] = {int32_t(swap_chain_data.extent.width), 0, 1};
   region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.dstSubresource.mipLevel = 0;
   region.dstSubresource.baseArrayLayer = 0;
@@ -385,7 +379,6 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   render_graph::VKRenderGraph &render_graph = this->render_graph();
   render_graph.add_node(blit_image);
   GPU_debug_group_end();
-  descriptor_set_get().upload_descriptor_sets();
   render_graph::VKSynchronizationNode::CreateInfo synchronization = {};
   synchronization.vk_image = swap_chain_data.image;
   synchronization.vk_image_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;

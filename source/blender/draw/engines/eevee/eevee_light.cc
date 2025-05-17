@@ -15,7 +15,9 @@
 #include "eevee_light.hh"
 
 #include "BLI_math_rotation.h"
+
 #include "DNA_defaults.h"
+#include "DNA_sdna_type_ids.hh"
 
 namespace blender::eevee {
 
@@ -343,7 +345,13 @@ LightModule::~LightModule()
 
 void LightModule::begin_sync()
 {
-  use_scene_lights_ = inst_.use_scene_lights();
+  if (assign_if_different(use_scene_lights_, inst_.use_scene_lights())) {
+    if (inst_.is_viewport()) {
+      /* Catch lookdev viewport properties updates. */
+      inst_.sampling.reset();
+    }
+  }
+
   /* Disable sunlight if world has a volume shader as we consider the light cannot go through an
    * infinite opaque medium. */
   use_sun_lights_ = (inst_.world.has_volume_absorption() == false);
@@ -365,7 +373,7 @@ void LightModule::begin_sync()
     /* Create a placeholder light to be fed by the GPU after sunlight extraction.
      * Sunlight is disabled if power is zero. */
     ::Light la = blender::dna::shallow_copy(
-        *(const ::Light *)DNA_default_table[SDNA_TYPE_FROM_STRUCT(Light)]);
+        *(const ::Light *)DNA_default_table[dna::sdna_struct_id_get<::Light>()]);
     la.type = LA_SUN;
     /* Set on the GPU. */
     la.r = la.g = la.b = -1.0f; /* Tag as world sun light. */
