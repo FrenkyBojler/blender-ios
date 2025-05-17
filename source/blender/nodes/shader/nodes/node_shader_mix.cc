@@ -51,6 +51,8 @@ static void sh_node_mix_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Factor", "Factor_Vector")
       .default_value(float3(0.5f))
       .subtype(PROP_FACTOR)
+      .min(0.0f)
+      .max(1.0f)
       .no_muted_links()
       .description("Amount of mixing between the A and B vector inputs")
       .compositor_domain_priority(2);
