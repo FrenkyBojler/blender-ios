@@ -5,7 +5,7 @@
 import bpy
 from bpy.types import Menu, Panel, UIList
 from rna_prop_ui import PropertyPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 from bpy.app.translations import (
     pgettext_iface as iface_,
@@ -524,7 +524,7 @@ class MESH_UL_attributes(UIList):
 
         # Filtering internal attributes
         for idx, item in enumerate(attributes):
-            flags[idx] = 0 if item.is_internal else flags[idx]
+            flags[idx] = self.bitflag_item_never_show if item.is_internal else flags[idx]
 
         # Reorder by name.
         if self.use_filter_sort_alpha:

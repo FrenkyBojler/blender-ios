@@ -26,17 +26,17 @@ enum eStripHandle {
 };
 
 struct StripSelection {
-  Strip *seq1 = nullptr;
-  Strip *seq2 = nullptr;
+  Strip *strip1 = nullptr;
+  Strip *strip2 = nullptr;
   eStripHandle handle = SEQ_HANDLE_NONE;
 };
 
 void select_strip_single(Scene *scene, Strip *strip, bool deselect_all);
 /**
- * Iterates over a scene's sequences and deselects all of them.
+ * Iterates over a scene's strips and deselects all of them.
  *
- * \param scene: scene containing sequences to be deselected.
- * \return true if any sequences were deselected; false otherwise.
+ * \param scene: scene containing strips to be deselected.
+ * \return true if any strips were deselected; false otherwise.
  */
 bool deselect_all_strips(Scene *scene);
 
@@ -47,16 +47,16 @@ bool maskedit_poll(bContext *C);
 /**
  * Are we displaying the seq output (not channels or histogram).
  */
-bool check_show_imbuf(SpaceSeq *sseq);
+bool check_show_imbuf(const SpaceSeq &sseq);
 
-bool check_show_strip(SpaceSeq *sseq);
+bool check_show_strip(const SpaceSeq &sseq);
 /**
  * Check if there is animation shown during playback.
  *
  * - Colors of color strips are displayed on the strip itself.
  * - Backdrop is drawn.
  */
-bool has_playback_animation(const SpaceSeq *sseq, const Scene *scene);
+bool has_playback_animation(const Scene *scene);
 
 void ED_operatormacros_sequencer();
 
