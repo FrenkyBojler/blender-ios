@@ -5161,6 +5161,19 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     version_set_default_bone_drawtype(bmain);
   }
 
+  /* Legacy handling of radius attribute. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 73)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type_legacy == GEO_NODE_REALIZE_INSTANCES) {
+            node->custom1 = int16_t(false);
+          }
+        }
+      }
+    }
+  }
+
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */

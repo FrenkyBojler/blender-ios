@@ -45,7 +45,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "scale_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "scale_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
