@@ -71,7 +71,9 @@ static Set<StringRef> get_builtin_menus(const int tree_type)
       return {"Attribute",
               "Input",
               "Input/Constant",
+              "Input/Gizmo",
               "Input/Group",
+              "Input/Import",
               "Input/Scene",
               "Output",
               "Geometry",
@@ -86,6 +88,10 @@ static Set<StringRef> get_builtin_menus(const int tree_type)
               "Curve/Operations",
               "Curve/Primitives",
               "Curve/Topology",
+              "Grease Pencil",
+              "Grease Pencil/Read",
+              "Grease Pencil/Operations",
+              "Grease Pencil/Write",
               "Instances",
               "Mesh",
               "Mesh/Read",
@@ -112,8 +118,7 @@ static Set<StringRef> get_builtin_menus(const int tree_type)
               "Utilities/Rotation",
               "Utilities/Deprecated",
               "Group",
-              "Layout",
-              "Unassigned"};
+              "Layout"};
     case NTREE_COMPOSIT:
       return {"Input",
               "Input/Constant",
@@ -128,6 +133,7 @@ static Set<StringRef> get_builtin_menus(const int tree_type)
               "Mask",
               "Tracking",
               "Transform",
+              "Texture",
               "Utilities",
               "Vector",
               "Group",
@@ -181,7 +187,7 @@ static void node_add_catalog_assets_draw(const bContext *C, Menu *menu)
 
   for (const asset_system::AssetRepresentation *asset : assets) {
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
     PointerRNA op_ptr;
@@ -203,7 +209,7 @@ static void node_add_catalog_assets_draw(const bContext *C, Menu *menu)
       return;
     }
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
     asset::draw_menu_for_catalog(item, "NODE_MT_node_add_catalog_assets", *layout);
@@ -256,10 +262,10 @@ static void add_root_catalogs_draw(const bContext *C, Menu *menu)
     return;
   }
 
-  uiItemS(layout);
+  layout->separator();
 
   if (!loading_finished) {
-    uiItemL(layout, IFACE_("Loading Asset Libraries"), ICON_INFO);
+    layout->label(IFACE_("Loading Asset Libraries"), ICON_INFO);
   }
 
   const Set<StringRef> all_builtin_menus = get_builtin_menus(edit_tree->type);
@@ -271,8 +277,8 @@ static void add_root_catalogs_draw(const bContext *C, Menu *menu)
   });
 
   if (!tree.unassigned_assets.is_empty()) {
-    uiItemS(layout);
-    uiItemM(layout, "NODE_MT_node_add_unassigned_assets", IFACE_("Unassigned"), ICON_FILE_HIDDEN);
+    layout->separator();
+    layout->menu("NODE_MT_node_add_unassigned_assets", IFACE_("Unassigned"), ICON_FILE_HIDDEN);
   }
 }
 

@@ -209,10 +209,13 @@ void Instance::init(const int2 &output_res,
   lookdev.init(visible_rect);
 
   shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render) &&
-                       shaders.request_specializations(is_image_render,
-                                                       render_buffers.data.shadow_id,
-                                                       shadows.get_data().ray_count,
-                                                       shadows.get_data().step_count);
+                       shaders.request_specializations(
+                           is_image_render,
+                           render_buffers.data.shadow_id,
+                           shadows.get_data().ray_count,
+                           shadows.get_data().step_count,
+                           DeferredLayer::do_split_direct_indirect_radiance(*this),
+                           DeferredLayer::do_merge_direct_indirect_eval(*this));
   skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
 }
 
@@ -255,7 +258,9 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   shaders.request_specializations(true,
                                   render_buffers.data.shadow_id,
                                   shadows.get_data().ray_count,
-                                  shadows.get_data().step_count);
+                                  shadows.get_data().step_count,
+                                  DeferredLayer::do_split_direct_indirect_radiance(*this),
+                                  DeferredLayer::do_merge_direct_indirect_eval(*this));
 }
 
 void Instance::set_time(float time)
@@ -269,9 +274,8 @@ void Instance::update_eval_members()
 {
   scene = DEG_get_evaluated_scene(depsgraph);
   view_layer = DEG_get_evaluated_view_layer(depsgraph);
-  camera_eval_object = (camera_orig_object) ?
-                           DEG_get_evaluated_object(depsgraph, camera_orig_object) :
-                           nullptr;
+  camera_eval_object = (camera_orig_object) ? DEG_get_evaluated(depsgraph, camera_orig_object) :
+                                              nullptr;
 }
 
 /** \} */
@@ -683,9 +687,11 @@ void Instance::draw_viewport_image_render()
   if (skip_render_) {
     return;
   }
-  while (!sampling.finished_viewport()) {
+
+  do {
+    /* Render at least once to blit the finished image. */
     this->render_sample();
-  }
+  } while (!sampling.finished_viewport());
   velocity.step_swap();
 
   if (is_viewport_compositor_enabled) {

@@ -5,7 +5,7 @@
 import bpy
 from bpy.types import Menu, Panel, UIList
 from rna_prop_ui import PropertyPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 from bpy.app.translations import (
     pgettext_iface as iface_,
@@ -272,7 +272,11 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
             sub.operator("object.vertex_group_select", text="Select")
             sub.operator("object.vertex_group_deselect", text="Deselect")
 
-            layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
+            col = layout.column(align=True)
+            col.use_property_split = True
+            col.separator()
+            col.prop(context.tool_settings, "vertex_group_weight", text="Weight")
+            col.prop(context.tool_settings, "use_auto_normalize", text="Auto Normalize")
 
         draw_attribute_warnings(context, layout, None)
 
@@ -520,7 +524,7 @@ class MESH_UL_attributes(UIList):
 
         # Filtering internal attributes
         for idx, item in enumerate(attributes):
-            flags[idx] = 0 if item.is_internal else flags[idx]
+            flags[idx] = self.bitflag_item_never_show if item.is_internal else flags[idx]
 
         # Reorder by name.
         if self.use_filter_sort_alpha:
