@@ -444,7 +444,7 @@ static wmOperatorStatus parent_drop_invoke(bContext *C, wmOperator *op, const wm
 void OUTLINER_OT_parent_drop(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Drop to Set Parent (hold Alt to keep transforms)";
+  ot->name = "Drop to Set Parent (hold Alt to skip keeping transforms)";
   ot->description = "Drag to parent in Outliner";
   ot->idname = "OUTLINER_OT_parent_drop";
 
