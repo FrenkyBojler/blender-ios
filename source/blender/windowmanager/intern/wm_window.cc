@@ -3372,8 +3372,7 @@ static void draw_status(const int2 window_size, DialogState &state)
     UI_draw_roundbox_4fv(&rectf, true, 2, hover_color);
   }
 
-  ColorTheme4b text_color;
-  UI_GetThemeColor4ubv(TH_TEXT, text_color);
+  const ColorTheme4b text_color = UI_ThemeGetColorPtr(&theme, SPACE_STATUSBAR, TH_HEADER_TEXT);
 
   int current_x = start_x;
 
