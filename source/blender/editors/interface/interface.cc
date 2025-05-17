@@ -2251,7 +2251,6 @@ void UI_block_draw(const bContext *C, uiBlock *block)
   }
   else if (block->flag & UI_BLOCK_LOOP) {
     ui_draw_menu_back(&style, block, &rect);
-    ui_draw_dialog_alert(block, &rect);
   }
   else if (block->panel) {
     ui_draw_aligned_panel(region,

@@ -2118,10 +2118,9 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
                                     text_width + int(style->columnspace * 2.5));
 
   const short icon_size = 40 * UI_SCALE_FAC;
+  UI_block_alert_level_set(block, uiBlockAlertLevel::Error);
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
-
-  UI_block_alert_level_set(block, uiBlockAlertLevel::Error);
 
   uiLayout *col = &layout->column(false);
   uiLayoutSetScaleY(col, 0.9f);
@@ -2196,9 +2195,8 @@ static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, 
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
-  uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
-
   UI_block_alert_level_set(block, uiBlockAlertLevel::Error);
+  uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
 
   /* Title and explanation text. */
   uiLayout *col = &layout->column(false);
