@@ -773,7 +773,26 @@ static void rna_ToolSettings_snap_mode_set(PointerRNA *ptr, int value)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
   if (value != 0) {
-    ts->snap_mode = value;
+    ts->snap_mode &= ~SCE_SNAP_MODE_ALL;
+    ts->snap_mode |= value;
+  }
+}
+
+static void rna_ToolSettings_snap_elements_mode_set(PointerRNA *ptr, int value)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+  if (value != 0) {
+    ts->snap_mode &= ~SCE_SNAP_ELEMENTS_ALL;
+    ts->snap_mode |= value;
+  }
+}
+
+static void rna_ToolSettings_snap_individual_mode_set(PointerRNA *ptr, int value)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+  if (value != 0) {
+    ts->snap_mode &= ~SCE_SNAP_INDIVIDUAL_ALL;
+    ts->snap_mode |= value;
   }
 }
 
@@ -3616,7 +3635,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
   RNA_def_property_enum_funcs(
-      prop, "rna_ToolSettings_snap_mode_get", "rna_ToolSettings_snap_mode_set", nullptr);
+      prop, "rna_ToolSettings_snap_mode_get", "rna_ToolSettings_snap_elements_mode_set", nullptr);
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Snap Element", "Type of element to snap to");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
@@ -3636,8 +3655,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_mode");
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_individual_items);
-  RNA_def_property_enum_funcs(
-      prop, "rna_ToolSettings_snap_mode_get", "rna_ToolSettings_snap_mode_set", nullptr);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_ToolSettings_snap_mode_get",
+                              "rna_ToolSettings_snap_individual_mode_set",
+                              nullptr);
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_ui_text(
       prop, "Project Mode", "Type of element for individual transformed elements to snap to");
