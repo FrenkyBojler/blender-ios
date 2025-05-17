@@ -11,7 +11,7 @@ index 057526d..059cdbd 100644
  if(OIDN_LIBRARY_VERSIONED)
    set_target_properties(OpenImageDenoise_core PROPERTIES VERSION ${PROJECT_VERSION})
 diff --git a/core/module.cpp b/core/module.cpp
-index cafedbc..3311325 100644
+index cafedbc..b7d7ff6 100644
 --- a/core/module.cpp
 +++ b/core/module.cpp
 @@ -29,7 +29,7 @@ OIDN_NAMESPACE_BEGIN
@@ -28,20 +28,20 @@ index cafedbc..3311325 100644
      #endif
    #if defined(__APPLE__)
 -    filename = "lib" + filename + versionStr + ".dylib";
-++    // BLENDER: version string is stripped on macOS.
-++    filename = "lib" + filename + ".dylib";
++    // BLENDER: version string is stripped on macOS.
++    filename = "lib" + filename + ".dylib";
    #else
      filename = "lib" + filename + ".so" + versionStr;
    #endif
 diff --git a/devices/CMakeLists.txt b/devices/CMakeLists.txt
-index d43a68e..08c9a61 100644
+index d43a68e..c878613 100644
 --- a/devices/CMakeLists.txt
 +++ b/devices/CMakeLists.txt
 @@ -67,6 +67,7 @@ if(OIDN_DEVICE_CUDA)
        -DOIDN_WARN_AS_ERRORS:BOOL=${OIDN_WARN_AS_ERRORS}
        -DOIDN_SANITIZER:STRING=${OIDN_SANITIZER}
        -DOIDN_DEVICE_CUDA_API:STRING=${OIDN_DEVICE_CUDA_API}
-+	  -DPython_EXECUTABLE:STRING=${Python_EXECUTABLE}
++      -DPython_EXECUTABLE:STRING=${Python_EXECUTABLE}
      BUILD_ALWAYS TRUE
      DEPENDS
        OpenImageDenoise_core
