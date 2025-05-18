@@ -128,14 +128,14 @@ class BlockingWorkHandler {
     }
   }
 
-  void draw_window_background(wmWindow &window)
+  void draw_window_background()
   {
     /* Clearing looks better when the window is resized while the cancel dialog is open. */
     GPU_clear_color(0, 0, 0, 1);
 
     /* Draw the last Blender screen. */
-    bScreen *screen = WM_window_get_active_screen(&window);
-    ED_screen_areas_iter (&window, screen, area) {
+    bScreen *screen = WM_window_get_active_screen(&window_);
+    ED_screen_areas_iter (&window_, screen, area) {
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
         if (!region->runtime->visible) {
           continue;
@@ -157,7 +157,7 @@ class BlockingWorkHandler {
     }
   }
 
-  void draw_dialog(const int2 window_size)
+  void draw_dialog()
   {
     const Clock::time_point current_time = Clock::now();
     const int seconds_since_start =
@@ -175,24 +175,24 @@ class BlockingWorkHandler {
     BLF_width_and_height(
         fstyle.uifont_id, message.c_str(), message.size(), &message_width, &message_height);
 
-    const int dialog_width = window_size.x / 2;
-    const int dialog_height = window_size.y / 2;
+    const int dialog_width = window_.sizex / 2;
+    const int dialog_height = window_.sizey / 2;
     rctf dialog_rect{};
-    dialog_rect.xmin = (window_size.x - dialog_width) / 2;
+    dialog_rect.xmin = (window_.sizex - dialog_width) / 2;
     dialog_rect.xmax = dialog_rect.xmin + dialog_width;
-    dialog_rect.ymin = (window_size.y - dialog_height) / 2;
+    dialog_rect.ymin = (window_.sizey - dialog_height) / 2;
     dialog_rect.ymax = dialog_rect.ymin + dialog_height;
     UI_draw_roundbox_4fv(&dialog_rect, true, 10, float4(0.2, 0.2, 0.2, 1.0));
 
     uchar font_color[4] = {255, 255, 255, 255};
     UI_fontstyle_draw_simple(&fstyle,
-                             (window_size.x - message_width) / 2,
-                             (window_size.y - message_height) / 2,
+                             (window_.sizex - message_width) / 2,
+                             (window_.sizey - message_height) / 2,
                              message.c_str(),
                              font_color);
   }
 
-  void draw_status(const int2 window_size)
+  void draw_status()
   {
     const SpaceType *stype = BKE_spacetype_from_id(SPACE_STATUSBAR);
     const ARegionType *art = BKE_regiontype_from_id(stype, RGN_TYPE_HEADER);
@@ -212,7 +212,7 @@ class BlockingWorkHandler {
     const float duration_s =
         std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start_time_).count() /
         1000.0f;
-    const int start_x = window_size.x / 2;
+    const int start_x = window_.sizex / 2;
     const int total_width = 2.0f * progress_ring_radius_outer + status_message_padding +
                             status_message_width;
     const int outer_padding = UI_UNIT_X * 0.3f;
@@ -292,10 +292,10 @@ class BlockingWorkHandler {
       GPUContext *gpu_context = static_cast<GPUContext *>(window.gpuctx);
       GPU_context_begin_frame(gpu_context);
       GPU_bgl_end();
-      this->draw_window_background(window);
-      this->draw_status({window.sizex, window.sizey});
+      this->draw_window_background();
+      this->draw_status();
       if (show_dialog_) {
-        this->draw_dialog({window.sizex, window.sizey});
+        this->draw_dialog();
       }
       GPU_context_end_frame(gpu_context);
     }
