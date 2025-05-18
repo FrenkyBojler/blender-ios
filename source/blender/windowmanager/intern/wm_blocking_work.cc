@@ -178,10 +178,7 @@ class BlockingWorkHandler {
 
     uiFontStyle fstyle = *UI_FSTYLE_WIDGET;
 
-    const std::string message = fmt::format(
-        IFACE_("Looks like it takes a while to finish this computation ({}s). You can just keep "
-               "waiting or try to recover the session by pressing enter."),
-        seconds_since_start);
+    const std::string message = fmt::format(IFACE_("Time: {}s"), seconds_since_start);
 
     UI_fontstyle_set(&fstyle);
     float message_width, message_height;
