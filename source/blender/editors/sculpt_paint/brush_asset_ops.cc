@@ -27,6 +27,7 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "IMB_thumbs.hh"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
@@ -46,6 +47,7 @@
 #include "WM_toolsystem.hh"
 
 #include "paint_intern.hh"
+#include <cstdio>
 
 namespace blender::ed::sculpt_paint {
 
@@ -514,6 +516,8 @@ static wmOperatorStatus brush_asset_load_preview_exec(bContext *C, wmOperator *o
 
   asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
+  BKE_previewimg_cached_thumbnail_read(
+      asset->full_path().c_str(), asset->full_path().c_str(), THB_SOURCE_BLEND, true);
 
   return OPERATOR_FINISHED;
 }
