@@ -1554,10 +1554,10 @@ class NodeTreeMainUpdater {
               break;
             }
             const bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
-            if (!zone->input_node) {
+            if (!zone->input_node()) {
               break;
             }
-            for (const bNodeSocket *input_socket : zone->input_node->input_sockets()) {
+            for (const bNodeSocket *input_socket : zone->input_node()->input_sockets()) {
               if (input_socket->is_available()) {
                 bool &pushed = pushed_by_socket_id[input_socket->index_in_tree()];
                 if (!pushed) {
