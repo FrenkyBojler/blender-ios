@@ -52,7 +52,12 @@ struct DoneInfo {
   bool done = false;
 };
 
-static Vector<std::string> get_current_status_messages();
+struct StatusInfo {
+  std::string message;
+  Clock::time_point start_time;
+};
+
+static Vector<StatusInfo> get_current_status_messages();
 
 class BlockingWorkHandler {
  private:
@@ -63,7 +68,7 @@ class BlockingWorkHandler {
   int2 cursor_{};
   bool show_dialog_ = false;
   rcti status_bar_rect_{};
-  Vector<std::string> status_messages_;
+  Vector<StatusInfo> status_infos_;
 
  public:
   BlockingWorkHandler(bContext &C,
@@ -126,7 +131,7 @@ class BlockingWorkHandler {
         last_handled_event = static_cast<wmEvent *>(window_.runtime->event_queue.last);
       }
 
-      status_messages_ = get_current_status_messages();
+      status_infos_ = get_current_status_messages();
 
       this->draw_window_with_dialog(*wm, window_);
 
@@ -212,8 +217,7 @@ class BlockingWorkHandler {
     const uiStyle &style = *UI_style_get();
     const uiFontStyle &fs = style.widget;
 
-    const StringRefNull status_message = status_messages_.is_empty() ? "" :
-                                                                       status_messages_.first();
+    const StringRefNull status_message = this->get_status_bar_message();
     const int status_message_width = BLF_width(
         fs.uifont_id, status_message.c_str(), status_message.size());
     const int status_message_padding = UI_UNIT_X * 0.2f;
@@ -348,6 +352,18 @@ class BlockingWorkHandler {
     /* Terminate this process because it's in an invalid state now and may use up many resources.
      */
     std::terminate();
+  }
+
+  StringRefNull get_status_bar_message() const
+  {
+    if (status_infos_.is_empty()) {
+      return IFACE_("Compute");
+    }
+    const StatusInfo *status_info = std::max_element(
+        status_infos_.begin(), status_infos_.end(), [](const StatusInfo &a, const StatusInfo &b) {
+          return a.start_time < b.start_time;
+        });
+    return status_info->message;
   }
 };
 
@@ -498,8 +514,7 @@ static std::shared_ptr<StatusStacks> get_status_stacks()
 
 struct StatusScopeStorage {
   StatusScope *scope = nullptr;
-  std::string message;
-  Clock::time_point start_time;
+  StatusInfo info;
 };
 
 struct LocalStatusStack : NonCopyable, NonMovable {
@@ -534,7 +549,7 @@ StatusScope::StatusScope(std::string message)
 {
   LocalStatusStack &stack = get_local_status_stack();
   std::lock_guard lock{stack.mutex};
-  stack.stack.push({this, std::move(message), Clock::now()});
+  stack.stack.push({this, {std::move(message), Clock::now()}});
 }
 
 StatusScope::~StatusScope()
@@ -545,18 +560,18 @@ StatusScope::~StatusScope()
   BLI_assert(popped.scope == this);
 }
 
-static Vector<std::string> get_current_status_messages()
+static Vector<StatusInfo> get_current_status_messages()
 {
-  Vector<std::string> messages;
+  Vector<StatusInfo> infos;
   std::shared_ptr<StatusStacks> status_stacks = get_status_stacks();
   std::lock_guard stacks_lock{status_stacks->mutex};
   for (const LocalStatusStack *stack : status_stacks->stacks) {
     std::lock_guard stack_lock{stack->mutex};
     if (!stack->stack.is_empty()) {
-      messages.append(stack->stack.peek().message);
+      infos.append(stack->stack.peek().info);
     }
   }
-  return messages;
+  return infos;
 }
 
 }  // namespace blender::blocking_work
