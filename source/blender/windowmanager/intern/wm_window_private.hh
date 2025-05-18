@@ -12,6 +12,8 @@
 #include "GPU_platform_backend_enum.h"
 
 struct bContext;
+struct wmWindowManager;
+struct wmWindow;
 
 /* *************** Message box *************** */
 /* `WM_ghost_show_message_box` is implemented in `wm_windows.c` it is
@@ -30,3 +32,7 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
 
 void wm_test_opengl_deprecation_warning(bContext *C);
 void wm_test_gpu_backend_fallback(bContext *C);
+
+extern bool wm_skip_events_on_main_loop;
+GHOST_SystemHandle wm_ghost_system_handle_get();
+void wm_ghostwindow_destroy(wmWindowManager *wm, wmWindow *win);

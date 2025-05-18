@@ -19,6 +19,7 @@ set(INC_SYS
 
 set(SRC
   intern/wm.cc
+  intern/wm_blocking_work.cc
   intern/wm_cursors.cc
   intern/wm_dragdrop.cc
   intern/wm_draw.cc
