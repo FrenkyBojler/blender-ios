@@ -894,15 +894,10 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(C)) {
     return;
   }
-  if ((strip->flag & SELECT) == 0) {
-    return;
-  }
   if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
     return;
   }
-  if ((sseq->flag & SEQ_SHOW_OVERLAY) == 0 ||
-      (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_OUTLINE_SELECTED) == 0)
-  {
+  if ((sseq->flag & SEQ_SHOW_OVERLAY) == 0) {
     return;
   }
   if (ELEM(sseq->mainb,
@@ -920,17 +915,26 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   /* Origin. */
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA);
-  immUniform1f("outlineWidth", 1.5f);
-  immUniformColor3f(1.0f, 1.0f, 1.0f);
-  immUniform4f("outlineColor", 0.0f, 0.0f, 0.0f, 1.0f);
-  immUniform1f("size", 15.0f * U.pixelsize);
-  immBegin(GPU_PRIM_POINTS, 1);
-  immVertex2f(pos, origin[0], origin[1]);
-  immEnd();
-  immUnbindProgram();
+  if (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_ORIGINS) {
+    if ((strip->flag & SELECT) || (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_ORIGINS_ALL)) {
+      immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA);
+      immUniform1f("outlineWidth", 1.5f);
+      immUniformColor3f(1.0f, 1.0f, 1.0f);
+      immUniform4f("outlineColor", 0.0f, 0.0f, 0.0f, 1.0f);
+      immUniform1f("size", 15.0f * U.pixelsize);
+      immBegin(GPU_PRIM_POINTS, 1);
+      immVertex2f(pos, origin[0], origin[1]);
+      immEnd();
+      immUnbindProgram();
+    }
+  }
 
   /* Outline. */
+  if ((strip->flag & SELECT) == 0 ||
+      (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_OUTLINE_SELECTED) == 0)
+  {
+    return;
+  }
   const blender::Array<blender::float2> strip_image_quad = seq::image_transform_final_quad_get(
       CTX_data_scene(C), strip);
 

@@ -286,11 +286,15 @@ class SEQUENCER_PT_preview_overlay(Panel):
         split = layout.column().split()
         col = split.column()
         col.prop(overlay_settings, "show_image_outline")
+        col.prop(overlay_settings, "show_origins", text="Origins")
         col.prop(ed, "show_overlay_frame", text="Frame Overlay")
         col.prop(overlay_settings, "show_metadata", text="Metadata")
 
         col = split.column()
         col.prop(overlay_settings, "show_cursor")
+        colcol = col.column()
+        colcol.active = overlay_settings.show_origins
+        colcol.prop(overlay_settings, "show_origins_all", text="Origins (All)")
         col.prop(overlay_settings, "show_safe_areas", text="Safe Areas")
         col.prop(overlay_settings, "show_annotation", text="Annotations")
 
