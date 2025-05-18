@@ -150,7 +150,7 @@ static Array<meshintersect::CDT_result<double>> do_mesh_cdt(const Mesh &mesh,
   }
 
   if (!mesh.faces().is_empty()) {
-    const OffsetIndices<int> faces = mesh.faces();
+    const OffsetIndices faces = mesh.faces();
     const Span<int> corner_verts = mesh.corner_verts();
     Array<Vector<int>> input_faces(faces.size());
 
@@ -216,8 +216,8 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeDelaunayTriangulation");
   ntype.ui_name = "Delaunay Triangulation";
   ntype.ui_description =
-      "Generate a triangulated mesh from a set of points and edge/face constraints in the XY "
-      "plane";
+      "Generate a triangulated mesh from a set of points in the X-Y plane. Adds edges and faces "
+      "as triangulation constraints";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
