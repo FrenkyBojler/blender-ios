@@ -14,8 +14,11 @@
 #include "BKE_undo_system.hh"
 #include "BLF_api.hh"
 #include "BLI_listbase.h"
+#include "BLI_mutex.hh"
 #include "BLI_rect.h"
+#include "BLI_stack.hh"
 #include "BLI_threads.h"
+#include "BLI_vector_set.hh"
 #include "BLO_writefile.hh"
 #include "BLT_translation.hh"
 #include "BPY_extern_run.hh"
@@ -49,6 +52,8 @@ struct DoneInfo {
   bool done = false;
 };
 
+static Vector<std::string> get_current_status_messages();
+
 class BlockingWorkHandler {
  private:
   bContext &C_;
@@ -58,6 +63,7 @@ class BlockingWorkHandler {
   int2 cursor_{};
   bool show_dialog_ = false;
   rcti status_bar_rect_{};
+  Vector<std::string> status_messages_;
 
  public:
   BlockingWorkHandler(bContext &C,
@@ -119,6 +125,8 @@ class BlockingWorkHandler {
         }
         last_handled_event = static_cast<wmEvent *>(window_.runtime->event_queue.last);
       }
+
+      status_messages_ = get_current_status_messages();
 
       this->draw_window_with_dialog(*wm, window_);
 
@@ -204,7 +212,8 @@ class BlockingWorkHandler {
     const uiStyle &style = *UI_style_get();
     const uiFontStyle &fs = style.widget;
 
-    const StringRefNull status_message = "Computing result...";
+    const StringRefNull status_message = status_messages_.is_empty() ? "" :
+                                                                       status_messages_.first();
     const int status_message_width = BLF_width(
         fs.uifont_id, status_message.c_str(), status_message.size());
     const int status_message_padding = UI_UNIT_X * 0.2f;
@@ -472,6 +481,82 @@ void run(const FunctionRef<void()> fn)
 void exit_worker_thread()
 {
   run([]() { g_exit_cancel_worker_thread = true; });
+}
+
+struct LocalStatusStack;
+
+struct StatusStacks {
+  Mutex mutex;
+  RawVectorSet<LocalStatusStack *> stacks;
+};
+
+static std::shared_ptr<StatusStacks> get_status_stacks()
+{
+  static std::shared_ptr<StatusStacks> status_stacks = std::make_shared<StatusStacks>();
+  return status_stacks;
+}
+
+struct StatusScopeStorage {
+  StatusScope *scope = nullptr;
+  std::string message;
+  Clock::time_point start_time;
+};
+
+struct LocalStatusStack : NonCopyable, NonMovable {
+ private:
+  std::shared_ptr<StatusStacks> owner_;
+
+ public:
+  mutable Mutex mutex;
+  Stack<StatusScopeStorage> stack;
+
+  LocalStatusStack()
+  {
+    owner_ = get_status_stacks();
+    std::lock_guard lock{owner_->mutex};
+    owner_->stacks.add(this);
+  }
+
+  ~LocalStatusStack()
+  {
+    std::lock_guard lock{owner_->mutex};
+    owner_->stacks.remove(this);
+  }
+};
+
+static LocalStatusStack &get_local_status_stack()
+{
+  static thread_local LocalStatusStack local_status_stack;
+  return local_status_stack;
+}
+
+StatusScope::StatusScope(std::string message)
+{
+  LocalStatusStack &stack = get_local_status_stack();
+  std::lock_guard lock{stack.mutex};
+  stack.stack.push({this, std::move(message), Clock::now()});
+}
+
+StatusScope::~StatusScope()
+{
+  LocalStatusStack &stack = get_local_status_stack();
+  std::lock_guard lock{stack.mutex};
+  StatusScopeStorage popped = stack.stack.pop();
+  BLI_assert(popped.scope == this);
+}
+
+static Vector<std::string> get_current_status_messages()
+{
+  Vector<std::string> messages;
+  std::shared_ptr<StatusStacks> status_stacks = get_status_stacks();
+  std::lock_guard stacks_lock{status_stacks->mutex};
+  for (const LocalStatusStack *stack : status_stacks->stacks) {
+    std::lock_guard stack_lock{stack->mutex};
+    if (!stack->stack.is_empty()) {
+      messages.append(stack->stack.peek().message);
+    }
+  }
+  return messages;
 }
 
 }  // namespace blender::blocking_work

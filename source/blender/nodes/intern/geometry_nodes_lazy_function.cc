@@ -51,6 +51,8 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "WM_blocking_work.hh"
+
 #include <fmt/format.h>
 #include <iostream>
 #include <sstream>
@@ -195,6 +197,7 @@ class LazyFunctionForGeometryNode : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
+    blocking_work::StatusScope status{bke::node_label(node_.owner_tree(), node_)};
     const ScopedNodeTimer node_timer{context, node_};
 
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
