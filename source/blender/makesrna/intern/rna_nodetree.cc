@@ -13748,6 +13748,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeMapUV", def_cmp_map_uv);
   define("CompositorNode", "CompositorNodeMapValue", def_cmp_map_value);
   define("CompositorNode", "CompositorNodeMask", def_cmp_mask);
+  define("CompositorNode", "CompositorNodeMaskedMaximum");
   define("CompositorNode", "CompositorNodeMath", def_math);
   define("CompositorNode", "CompositorNodeMixRGB", def_mix_rgb);
   define("CompositorNode", "CompositorNodeMovieClip", def_cmp_movieclip);

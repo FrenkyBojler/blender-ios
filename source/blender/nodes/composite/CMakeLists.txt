@@ -76,6 +76,7 @@ set(SRC
   nodes/node_composite_map_uv.cc
   nodes/node_composite_map_value.cc
   nodes/node_composite_mask.cc
+  nodes/node_composite_masked_maximum.cc
   nodes/node_composite_math.cc
   nodes/node_composite_mixrgb.cc
   nodes/node_composite_movieclip.cc
