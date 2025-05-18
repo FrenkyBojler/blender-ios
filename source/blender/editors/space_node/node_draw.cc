@@ -4877,7 +4877,12 @@ static void node_draw_zones_and_frames(const ARegion &region,
       immUniform2fv("viewportSize", &viewport[2]);
       immUniform1f("lineWidth", line_width * U.pixelsize);
 
-      immUniformThemeColorAlpha(get_theme_id(zone_i), 1.0f);
+      const ThemeColorID theme_id = ntree.runtime->invalid_zone_output_node_ids.contains(
+                                        *zone.output_node_id) ?
+                                        TH_REDALERT :
+                                        get_theme_id(zone_i);
+
+      immUniformThemeColorAlpha(theme_id, 1.0f);
       immBegin(GPU_PRIM_LINE_STRIP, fillet_boundary_positions.size() + 1);
       for (const float3 &p : fillet_boundary_positions) {
         immVertex3fv(pos, p);

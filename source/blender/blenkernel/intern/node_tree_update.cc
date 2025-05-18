@@ -489,6 +489,7 @@ class NodeTreeMainUpdater {
     TreeUpdateResult result;
 
     ntree.runtime->link_errors.clear();
+    ntree.runtime->invalid_zone_output_node_ids.clear();
 
     if (this->update_panel_toggle_names(ntree)) {
       result.interface_changed = true;
@@ -1249,6 +1250,11 @@ class NodeTreeMainUpdater {
       }
       if (fallback_zones) {
         if (!fallback_zones->link_between_sockets_is_allowed(*link->fromsock, *link->tosock)) {
+          if (const bNodeTreeZone *from_zone = fallback_zones->get_zone_by_socket(*link->fromsock))
+          {
+            ntree.runtime->invalid_zone_output_node_ids.add(*from_zone->output_node_id);
+          }
+
           link->flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors.add(
               NodeLinkKey{*link},

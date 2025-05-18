@@ -217,6 +217,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * zone detection failed.
    */
   std::shared_ptr<bNodeTreeZones> last_valid_zones;
+  Set<int> invalid_zone_output_node_ids;
 
   /**
    * The stored sockets are drawn using a special link to indicate that there is a gizmo. This is
