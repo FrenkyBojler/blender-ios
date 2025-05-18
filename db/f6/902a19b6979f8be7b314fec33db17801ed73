@@ -2,3 +2,4 @@ Referenced by issue #137430, UI: Missing Timeline Editor header until area is re
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by pull request #137464, [4.4x backport] Fix #137314: Excluded directories ignored when opening from the splash
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
+Referenced by pull request #139045, 4.2LTS: Fix #137314: Excluded directories ignored when opening from the splash
