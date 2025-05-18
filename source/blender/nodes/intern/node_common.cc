@@ -762,53 +762,77 @@ bNodeSocket *node_group_input_find_socket(bNode *node, const StringRef identifie
 
 namespace blender::nodes {
 
+static void group_input_declare_panel_recursive(DeclarationListBuilder &b,
+                                                const bNodeTree &group,
+                                                const bNodeTreeInterfacePanel &io_parent_panel)
+{
+  for (const bNodeTreeInterfaceItem *item : io_parent_panel.items()) {
+    switch (NodeTreeInterfaceItemType(item->item_type)) {
+      case NODE_INTERFACE_SOCKET: {
+        const auto &io_socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(*item);
+        if (!(io_socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
+          continue;
+        }
+        build_interface_socket_declaration(group, io_socket, SOCK_OUT, b);
+        break;
+      }
+      case NODE_INTERFACE_PANEL: {
+        const auto &io_panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
+        auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
+                            .description(StringRef(io_panel.description));
+        group_input_declare_panel_recursive(panel_b, group, io_panel);
+        break;
+      }
+    }
+  }
+}
+
 static void group_input_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   const bNodeTree *node_tree = b.tree_or_null();
   if (node_tree == nullptr) {
     return;
   }
-  node_tree->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-    switch (NodeTreeInterfaceItemType(item.item_type)) {
+  group_input_declare_panel_recursive(b, *node_tree, node_tree->tree_interface.root_panel);
+  b.add_output<decl::Extend>("", "__extend__");
+}
+
+static void group_output_declare_panel_recursive(DeclarationListBuilder &b,
+                                                 const bNodeTree &group,
+                                                 const bNodeTreeInterfacePanel &io_parent_panel)
+{
+  for (const bNodeTreeInterfaceItem *item : io_parent_panel.items()) {
+    switch (NodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_SOCKET: {
-        const bNodeTreeInterfaceSocket &socket =
-            node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
-        if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
-          build_interface_socket_declaration(*node_tree, socket, SOCK_OUT, b);
+        const auto &io_socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(*item);
+        if (!(io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT)) {
+          continue;
         }
+        build_interface_socket_declaration(group, io_socket, SOCK_IN, b);
         break;
       }
       case NODE_INTERFACE_PANEL: {
+        const auto &io_panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
+        auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
+                            .description(StringRef(io_panel.description));
+        group_output_declare_panel_recursive(panel_b, group, io_panel);
         break;
       }
     }
-    return true;
-  });
-  b.add_output<decl::Extend>("", "__extend__");
+  }
 }
 
 static void group_output_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   const bNodeTree *node_tree = b.tree_or_null();
   if (node_tree == nullptr) {
     return;
   }
-  node_tree->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-    switch (NodeTreeInterfaceItemType(item.item_type)) {
-      case NODE_INTERFACE_SOCKET: {
-        const bNodeTreeInterfaceSocket &socket =
-            node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
-        if (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-          build_interface_socket_declaration(*node_tree, socket, SOCK_IN, b);
-        }
-        break;
-      }
-      case NODE_INTERFACE_PANEL: {
-        break;
-      }
-    }
-    return true;
-  });
+  group_output_declare_panel_recursive(b, *node_tree, node_tree->tree_interface.root_panel);
   b.add_input<decl::Extend>("", "__extend__");
 }
 
