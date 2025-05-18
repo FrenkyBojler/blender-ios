@@ -196,6 +196,12 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
 }
 
 template<typename T>
+static T round_for(const T value, const T round_cell)
+{
+  return (value / round_cell) * round_cell;
+}
+
+template<typename T>
 static void more_reordered(MutableSpan<T> data, MutableSpan<T> buffer, const int start, const int new_start)
 {
   const IndexRange moved_range = IndexRange::from_begin_end(new_start, start);
@@ -246,14 +252,13 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   static_assert(alignof(int) == alignof(float));
   Array<int, 0, GuardedAlignedAllocator<>> buffer_data(batch_size);
 
-  const CPPType &value_type = src_joints_value.type();
-
   ispc::split_float3_to_3_float(sample_position.cast<float[3]>().data(),
                                 batch_positions_x_buffer.as_mutable_span().data(),
                                 batch_positions_y_buffer.as_mutable_span().data(),
                                 batch_positions_z_buffer.as_mutable_span().data(),
                                 batch_size);
 
+  const CPPType &value_type = src_joints_value.type();
   if (value_type.is<float>()) {
     batch_values_buffer.reinitialize(1);
     batch_values_buffer[0].reinitialize(batch_size);
@@ -297,19 +302,18 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     batch_distances_buffer.resize(prefix_to_visit);
 
-    ispc::distances_split(batch_positions_x.data(),
-                          batch_positions_y.data(),
-                          batch_positions_z.data(),
-                          joint_position,
-                          prefix_to_visit,
-                          batch_distances_buffer.data(),
-                          offset_value);
+    ispc::squared_distance_to_n(batch_positions_x.data(),
+                                batch_positions_y.data(),
+                                batch_positions_z.data(),
+                                joint_position,
+                                prefix_to_visit,
+                                batch_distances_buffer.data());
 
     const float joint_min_distance = src_joints_min_distance[joint_index];
 
     const int total_next = ispc::count_float_less_than(
         batch_distances_buffer.data(),
-        math::square(joint_min_distance - offset_value),
+        math::square(joint_min_distance),
         prefix_to_visit);
 
     if (UNLIKELY(total_next == prefix_to_visit)) {
@@ -327,84 +331,91 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       Array<float, 0, GuardedAlignedAllocator<>> backet_positions_z(joint_backet.size());
 
       ispc::split_float3_to_3_float(src_bucket_position.slice(joint_backet).cast<float[3]>().data(),
-                                    backet_positions_x.as_mutable_span().data(),
-                                    backet_positions_y.as_mutable_span().data(),
-                                    backet_positions_z.as_mutable_span().data(),
+                                    backet_positions_x.data(),
+                                    backet_positions_y.data(),
+                                    backet_positions_z.data(),
                                     joint_backet.size());
 
       batch_distances_buffer.resize(joint_backet.size() * prefix_to_visit);
 
-      ispc::chunked_squared_distances_table(batch_positions_x.cast<float[16]>().data(),
-                                            batch_positions_y.cast<float[16]>().data(),
-                                            batch_positions_z.cast<float[16]>().data(),
-                                            prefix_to_visit / 16,
-                                            backet_positions_x.as_mutable_span().data(),
-                                            backet_positions_y.as_mutable_span().data(),
-                                            backet_positions_z.as_mutable_span().data(),
-                                            joint_backet.size(),
-                                            batch_distances_buffer.cast<float[16]>().data());
+      constexpr int chunk_size = 16;
+      const int total_batch_chunks = prefix_to_visit / chunk_size;
+      const int chunked_batch_size = round_for(prefix_to_visit, chunk_size);
 
-      const int chunked_total = (prefix_to_visit / 16) * 16;
+      const Span<float[16]> chunked_batch_x = batch_positions_x.take_front(chunked_batch_size).cast<float[16]>();
+      const Span<float[16]> chunked_batch_y = batch_positions_y.take_front(chunked_batch_size).cast<float[16]>();
+      const Span<float[16]> chunked_batch_z = batch_positions_z.take_front(chunked_batch_size).cast<float[16]>();
 
-      ispc::squared_distances_table(batch_positions_x.data() + chunked_total,
-                                    batch_positions_y.data() + chunked_total,
-                                    batch_positions_z.data() + chunked_total,
-                                    prefix_to_visit % 16,
-                                    backet_positions_x.as_mutable_span().data(),
-                                    backet_positions_y.as_mutable_span().data(),
-                                    backet_positions_z.as_mutable_span().data(),
-                                    joint_backet.size(),
-                                    batch_distances_buffer.data() + chunked_total * joint_backet.size());
+      const Span<float> rest_batch_x = batch_positions_x.drop_front(chunked_batch_size);
+      const Span<float> rest_batch_y = batch_positions_y.drop_front(chunked_batch_size);
+      const Span<float> rest_batch_z = batch_positions_z.drop_front(chunked_batch_size);
+
+      const int total_chunked_table_size = joint_backet.size() * chunked_batch_size;
+      const MutableSpan<float[16]> chunked_distances = batch_distances_buffer.as_mutable_span().take_front(total_chunked_table_size).cast<float[16]>();
+      const MutableSpan<float> rest_distances = batch_distances_buffer.as_mutable_span().drop_front(total_chunked_table_size);
+
+      ispc::chunked_squared_distances_table(chunked_batch_x.data(),
+                                            chunked_batch_y.data(),
+                                            chunked_batch_z.data(),
+                                            chunked_batch_x.size(),
+                                            backet_positions_x.data(),
+                                            backet_positions_y.data(),
+                                            backet_positions_z.data(),
+                                            backet_positions_x.size(),
+                                            chunked_distances.data());
+
+      ispc::squared_distances_table(rest_batch_x.data(),
+                                    rest_batch_y.data(),
+                                    rest_batch_z.data(),
+                                    rest_batch_z.size(),
+                                    backet_positions_x.data(),
+                                    backet_positions_y.data(),
+                                    backet_positions_z.data(),
+                                    backet_positions_x.size(),
+                                    rest_distances.data());
 
       ispc::sqrt_n_add_single(batch_distances_buffer.data(), batch_distances_buffer.size(), offset_value);
       distance_invertion(power_value, batch_distances_buffer.as_mutable_span());
-
-      // if (sampler_to_bucket_range->contains(bucket_item)) {
-      //   ispc::zero_if_in_index_n(batch_indices.data(),
-      //                            batch_distances_buffer.data(),
-      //                            bucket_item - sampler_to_bucket_range->start(),
-      //                            prefix_to_visit);
-      // }
-
+/*
+      if (sampler_to_bucket_range->contains(bucket_item)) {
+        ispc::zero_if_in_index_n(batch_indices.data(),
+                                 batch_distances_buffer.data(),
+                                 bucket_item - sampler_to_bucket_range->start(),
+                                 prefix_to_visit);
+      }
+*/
       Array<float, 0, GuardedAlignedAllocator<>> backet_values_x(joint_backet.size());
       Array<float, 0, GuardedAlignedAllocator<>> backet_values_y(joint_backet.size());
       Array<float, 0, GuardedAlignedAllocator<>> backet_values_z(joint_backet.size());
       if (value_type.is<float>()) {
-        backet_values_x.copy_from(src_bucket_value.typed<float>().slice(joint_backet));
+        backet_values_x.as_mutable_span().copy_from(src_bucket_value.typed<float>().slice(joint_backet));
       } else if (value_type.is<float3>()) {
         ispc::split_float3_to_3_float(src_bucket_value.typed<float3>().slice(joint_backet).cast<float[3]>().data(),
-                                      backet_values_x.as_mutable_span().data(),
-                                      backet_values_y.as_mutable_span().data(),
-                                      backet_values_z.as_mutable_span().data(),
+                                      backet_values_x.data(),
+                                      backet_values_y.data(),
+                                      backet_values_z.data(),
                                       joint_backet.size());
       }
 
-      if (value_type.is<float>()) {
-        const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-        ispc::mul_add_n(batch_values.data(),
-                        batch_distances_buffer.data(),
-                        bucket_value,
-                        prefix_to_visit);
-      } else if (value_type.is<float3>()) {
-        const float3 bucket_value = src_bucket_value.typed<float3>()[bucket_item];
-        MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data(),
-                            batch_distances_buffer.data(),
-                            bucket_value.x,
-                            prefix_to_visit);
-      
-        batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data(),
-                            batch_distances_buffer.data(),
-                            bucket_value.y,
-                            prefix_to_visit);
-      
-        batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
-        ispc::one_mul_add_n(batch_values.data(),
-                            batch_distances_buffer.data(),
-                            bucket_value.z,
-                            prefix_to_visit);
+      const std::array<Span<float>, 3> backet_values = {backet_values_x.as_span(), backet_values_y.as_span(), backet_values_z.as_span()};
+
+      for (const int data_i : IndexRange(value_type.is<float>() ? 1 : 3)) {
+        const MutableSpan<float> batch_values = batch_values_buffer[data_i].as_mutable_span().take_front(prefix_to_visit);
+        const MutableSpan<float[16]> chunked_batch_values = batch_values.take_front(chunked_batch_size).cast<float[16]>();
+        const MutableSpan<float> rest_batch_values = batch_values.drop_front(chunked_batch_size);
+        ispc::chunked_table_product_reduce(chunked_distances.data(),
+                                           backet_values[data_i].size(),
+                                           backet_values[data_i].data(),
+                                           chunked_batch_values.size(),
+                                           chunked_batch_values.data());
+
+        ispc::table_product_reduce(rest_distances.data(),
+                                   backet_values[data_i].size(),
+                                   backet_values[data_i].data(),
+                                   rest_batch_values.size(),
+                                   rest_batch_values.data());
       }
+
       continue;
     }
 
@@ -414,11 +425,9 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           partition.data(),
           batch_distances_buffer.data(),
           prefix_to_visit,
-          math::square(joint_min_distance - offset_value),
+          math::square(joint_min_distance),
           total_next);
-    }
 
-    if (total_next > 0) {
       ispc::parition_as_gather_front(batch_distances_buffer.as_mutable_span().cast<int>().data(),
                                      partition.data(),
                                      buffer.data(),
@@ -463,31 +472,31 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       const float joint_value = src_joints_value.typed<float>()[joint_index];
 
       const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-      ispc::one_mul_add_n(batch_values.data() + total_next,
-                          batch_distances_buffer.data(),
-                          joint_value,
-                          prefix_to_visit - total_next);
+      ispc::mul_n_add_to(batch_values.data() + total_next,
+                         batch_distances_buffer.data(),
+                         joint_value,
+                         prefix_to_visit - total_next);
     }
     else {
       const float3 joint_value = src_joints_value.typed<float3>()[joint_index];
 
       MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-      ispc::one_mul_add_n(batch_values.data() + total_next,
-                          batch_distances_buffer.data(),
-                          joint_value.x,
-                          prefix_to_visit - total_next);
+      ispc::mul_n_add_to(batch_values.data() + total_next,
+                         batch_distances_buffer.data(),
+                         joint_value.x,
+                         prefix_to_visit - total_next);
 
       batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
-      ispc::one_mul_add_n(batch_values.data() + total_next,
-                          batch_distances_buffer.data(),
-                          joint_value.y,
-                          prefix_to_visit - total_next);
+      ispc::mul_n_add_to(batch_values.data() + total_next,
+                         batch_distances_buffer.data(),
+                         joint_value.y,
+                         prefix_to_visit - total_next);
 
       batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
-      ispc::one_mul_add_n(batch_values.data() + total_next,
-                          batch_distances_buffer.data(),
-                          joint_value.z,
-                          prefix_to_visit - total_next);
+      ispc::mul_n_add_to(batch_values.data() + total_next,
+                         batch_distances_buffer.data(),
+                         joint_value.z,
+                         prefix_to_visit - total_next);
     }
 
     if (LIKELY(total_next > 0)) {
@@ -511,54 +520,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     if (UNLIKELY(depth_i == total_depth - 1)) {
       const IndexRange joint_backet = buckets_offsets[joint_i];
-      for (const int bucket_item : joint_backet) {
-        const float3 bucket_position = src_bucket_position[bucket_item];
-        ispc::distances_split(batch_positions_x.data(),
-                              batch_positions_y.data(),
-                              batch_positions_z.data(),
-                              bucket_position,
-                              total_next,
-                              batch_distances_buffer.data(),
-                              offset_value);
 
-        ispc::sqrt_n_add_single(batch_distances_buffer.data(), total_next, offset_value);
-        distance_invertion(power_value, batch_distances_buffer.as_mutable_span().take_front(total_next));
-
-        if (sampler_to_bucket_range->contains(bucket_item)) {
-          ispc::zero_if_in_index_n(batch_indices.data(),
-                                   batch_distances_buffer.data(),
-                                   bucket_item - sampler_to_bucket_range->start(),
-                                   total_next);
-        }
-
-        if (value_type.is<float>()) {
-          const float bucket_value = src_bucket_value.typed<float>()[bucket_item];
-          const MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-          ispc::one_mul_add_n(batch_values.data(),
-                              batch_distances_buffer.data(),
-                              bucket_value,
-                              total_next);
-        } else {
-          const float3 bucket_value = src_bucket_value.typed<float3>()[bucket_item];
-          MutableSpan<float> batch_values = batch_values_buffer[0].as_mutable_span().take_front(prefix_to_visit);
-          ispc::one_mul_add_n(batch_values.data(),
-                              batch_distances_buffer.data(),
-                              bucket_value.x,
-                              total_next);
-
-          batch_values = batch_values_buffer[1].as_mutable_span().take_front(prefix_to_visit);
-          ispc::one_mul_add_n(batch_values.data(),
-                              batch_distances_buffer.data(),
-                              bucket_value.y,
-                              total_next);
-
-          batch_values = batch_values_buffer[2].as_mutable_span().take_front(prefix_to_visit);
-          ispc::one_mul_add_n(batch_values.data(),
-                              batch_distances_buffer.data(),
-                              bucket_value.z,
-                              total_next);
-        }
-      }
+      // TODO...
 
       continue;
     }

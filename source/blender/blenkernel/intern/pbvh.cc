@@ -33,8 +33,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "BLI_unique_sorted_indices.hh"
-
 #include "bmesh.hh"
 
 #include "pbvh_intern.hh"
@@ -44,12 +42,6 @@
 #ifdef DEBUG_BUILD_TIME
 #  include "BLI_timeit.hh"
 #endif
-
-namespace ispc {
-extern "C" {
-void min_max_float3(const float values[][3], float * min_values, float * max_values, const int32_t count);
-};
-};
 
 namespace blender::bke::pbvh {
 
@@ -1094,38 +1086,12 @@ void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node)
 
 void update_node_bounds_grids(const int grid_area, const Span<float3> positions, GridsNode &node)
 {
-  Vector<std::variant<IndexRange, Span<int>>, 100> buffer;
-  unique_sorted_indices::split_to_ranges_and_spans(node.grids(), 8 * 3, buffer);
-
   Bounds<float3> bounds = negative_bounds();
-
-int total_ranges;
-int total_indices;
-
-int ranges_sum;
-int indices_sum;
-  for (const auto item : buffer) {
-    std::visit([&](auto item) {
-      if constexpr (std::is_same_v<decltype(item), IndexRange>) {
-        total_ranges++;
-        ranges_sum += item.size();
-        const IndexRange grids_as_range = IndexRange::from_begin_size(item.start() * grid_area, item.size() * grid_area);
-        const Span<float3> grids_positions = positions.slice(grids_as_range);
-        Bounds<float3> item_bounds;
-        ispc::min_max_float3(grids_positions.cast<float[3]>().data(), item_bounds.min, item_bounds.max, grids_positions.size());
-        bounds = bounds::merge(bounds, item_bounds);
-      } else if constexpr (std::is_same_v<decltype(item), Span<int>>) {
-        total_indices++;
-        indices_sum += item.size();
-        for (const int grid : item) {
-          for (const float3 &position : positions.slice(bke::ccg::grid_range(grid_area, grid))) {
-           math::min_max(position, bounds.min, bounds.max);
-          }
-        }
-      } else { static_assert(false); }
-    }, item);
+  for (const int grid : node.grids()) {
+    for (const float3 &position : positions.slice(bke::ccg::grid_range(grid_area, grid))) {
+      math::min_max(position, bounds.min, bounds.max);
+    }
   }
-
   node.bounds_ = bounds;
 }
 

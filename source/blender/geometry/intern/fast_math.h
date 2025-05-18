@@ -63,11 +63,9 @@ struct IndicesStruct {
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-    extern void chunked_squared_distances_table(const float row_x[][16], const float row_y[][16], const float row_z[][16], const int32_t row_count, const float col_x[][16], const float col_y[][16], const float col_z[][16], const int32_t col_count, float distances[][16]);
+    extern void chunked_squared_distances_table(const float row_x[][16], const float row_y[][16], const float row_z[][16], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][16]);
+    extern int32_t chunked_table_product_reduce(const float rows_and_cols[][16], const int32_t col_count, const float * col_values, const int32_t row_count, float row_values[][16]);
     extern int32_t count_float_less_than(float * values, float min_predicate_value, int32_t count);
-    extern void distances(const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
-    extern void distances_split(const float * positions_x, const float * positions_y, const float * positions_z, const float * target, const int32_t count, float * distances, const float offset);
-    extern void distances_split_(const float * positions_x, const float * positions_y, const float * positions_z, const float * target, const int32_t count, float * distances, const float offset);
     extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_10_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_11_rpow_n(float * values, const int32_t count);
@@ -91,9 +89,7 @@ extern "C" {
     extern void gather_distances(const int32_t * indices, const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
     extern int32_t gather_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern int32_t gather_ints_buffer_segmented(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller);
-    extern void min_max_float3(const float values[][3], float * min_values, float * max_values, const int32_t count);
-    extern int32_t mul_add_n(float * values, float * factors, float * others, const int32_t count);
-    extern int32_t one_mul_add_n(float * values, float * factors, const float other, const int32_t count);
+    extern int32_t mul_n_add_to(float * dst, float * src, const float value, const int32_t count);
     extern void parition_as_gather(int32_t * values, int32_t * indices, int32_t * buffer, int32_t mapping_total);
     extern void parition_as_gather_front(int32_t * values, int32_t * indices, int32_t * buffer, const int32_t mapping_total, const int32_t count, const int32_t total_front_size);
     extern int32_t partition_int_compare_float(int32_t * values, int32_t * buffer, const float * predicates, const int32_t count, const float min_predicate_value);
@@ -103,10 +99,11 @@ extern "C" {
     extern int32_t scatter_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern void split_float3_to_3_float(const float xyz_values[][3], float * x_components, float * y_components, float * z_components, int32_t count);
     extern void sqrt_n_add_single(float * values, const int32_t count, const float offset);
-    extern void table_squared_distances(const float * row_x, const float * row_y, const float * row_z, const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float * distances);
+    extern void squared_distance_to_n(const float * src_a_x, const float * src_a_y, const float * src_a_z, const float * src_b_xyz, const int32_t count, float * dst);
+    extern void squared_distances_table(const float * row_x, const float * row_y, const float * row_z, const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float * distances);
+    extern int32_t table_product_reduce(const float * rows_and_cols, const int32_t col_count, const float * col_values, const int32_t row_count, float * row_values);
     extern void zero_if_in_index_n(const int32_t * indices, float * values, const int32_t index_value, const int32_t count);
     extern void zero_if_in_range_n(const int32_t * indices, float * values, const int32_t range_start, const int32_t range_size, const int32_t count);
-    extern int32_t zip_if_larger_or_equal(int32_t * values, const float * predicates, const int32_t count, const float min_predicate_value);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus
