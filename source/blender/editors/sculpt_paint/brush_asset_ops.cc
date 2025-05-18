@@ -47,7 +47,6 @@
 #include "WM_toolsystem.hh"
 
 #include "paint_intern.hh"
-#include <cstdio>
 
 namespace blender::ed::sculpt_paint {
 
