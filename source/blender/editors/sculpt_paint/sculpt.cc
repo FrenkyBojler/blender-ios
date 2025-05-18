@@ -853,6 +853,8 @@ bool stroke_is_dyntopo(const Object &object, const Brush &brush)
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   return ((pbvh.type() == bke::pbvh::Type::BMesh) &&
 
+          bke::object::bmesh_get(object) &&
+
           (!ss.cache || (!ss.cache->alt_smooth)) &&
 
           /* Requires mesh restore, which doesn't work with
@@ -1757,7 +1759,7 @@ void calc_area_center(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush);
+      const bool has_bm_orco = dyntopo::stroke_is_dyntopo(ob, brush);
 
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       anctd = threading::parallel_reduce(
@@ -1857,7 +1859,7 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush);
+      const bool has_bm_orco = dyntopo::stroke_is_dyntopo(ob, brush);
 
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       anctd = threading::parallel_reduce(
@@ -2056,7 +2058,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush);
+      const bool has_bm_orco = dyntopo::stroke_is_dyntopo(ob, brush);
 
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       anctd = threading::parallel_reduce(

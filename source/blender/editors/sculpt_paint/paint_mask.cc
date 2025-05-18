@@ -500,7 +500,7 @@ static void fill_mask_bmesh(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
 
-  BMesh &bm = *ss.bm;
+  BMesh &bm = *bke::object::bmesh_get(object);
   const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
   if (value == 0.0f && offset == -1) {
     return;
@@ -609,7 +609,7 @@ static void invert_mask_bmesh(const Depsgraph &depsgraph,
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  BMesh &bm = *object.sculpt->bm;
+  BMesh &bm = *bke::object::bmesh_get(object);
   const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
   if (offset == -1) {
     BLI_assert_unreachable();
@@ -808,7 +808,7 @@ static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureDa
     case bke::pbvh::Type::BMesh: {
       bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-      BMesh &bm = *gesture_data.ss->bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
 
       Array<bool> node_changed(node_mask.min_array_size(), false);
