@@ -55,6 +55,9 @@ class BlockingWorkHandler {
   wmWindow &window_;
   DoneInfo &done_info_;
   Clock::time_point start_time_;
+  int2 cursor_{};
+  bool show_dialog_ = false;
+  rcti status_bar_rect_{};
 
  public:
   BlockingWorkHandler(bContext &C,
@@ -82,10 +85,6 @@ class BlockingWorkHandler {
     const wmEvent *last_handled_event = static_cast<const wmEvent *>(
         window_.runtime->event_queue.last);
 
-    DialogState dialog_state;
-    dialog_state.task_start_time = start_time_;
-    dialog_state.window = &window_;
-
     while (true) {
       {
         std::lock_guard lock{done_info_.mutex};
@@ -101,11 +100,11 @@ class BlockingWorkHandler {
           this->try_recover_file(C_);
         }
         if (ISMOUSE(event.type)) {
-          dialog_state.cursor = event.xy;
+          cursor_ = event.xy;
         }
         if (event.type == LEFTMOUSE && event.val == KM_PRESS) {
-          if (BLI_rcti_isect_pt_v(&dialog_state.status_bar_rect, event.xy)) {
-            dialog_state.show_dialog = !dialog_state.show_dialog;
+          if (BLI_rcti_isect_pt_v(&status_bar_rect_, event.xy)) {
+            show_dialog_ = !show_dialog_;
           }
         }
       };
@@ -121,7 +120,7 @@ class BlockingWorkHandler {
         last_handled_event = static_cast<wmEvent *>(window_.runtime->event_queue.last);
       }
 
-      this->draw_window_with_dialog(*wm, window_, dialog_state);
+      this->draw_window_with_dialog(*wm, window_);
 
       /* Sleep to avoid keeping the thread busy all the time, which takes up resources that could
        * be used by the actual computation. */
@@ -158,20 +157,11 @@ class BlockingWorkHandler {
     }
   }
 
-  struct DialogState {
-    int2 cursor;
-    Clock::time_point task_start_time;
-    wmWindow *window = nullptr;
-    bool show_dialog = false;
-    rcti status_bar_rect{};
-  };
-
-  void draw_dialog(const int2 window_size, DialogState &state)
+  void draw_dialog(const int2 window_size)
   {
     const Clock::time_point current_time = Clock::now();
-    const int seconds_since_start = std::chrono::duration_cast<std::chrono::seconds>(
-                                        current_time - state.task_start_time)
-                                        .count();
+    const int seconds_since_start =
+        std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time_).count();
 
     uiFontStyle fstyle = *UI_FSTYLE_WIDGET;
 
@@ -202,7 +192,7 @@ class BlockingWorkHandler {
                              font_color);
   }
 
-  void draw_status(const int2 window_size, DialogState &state)
+  void draw_status(const int2 window_size)
   {
     const SpaceType *stype = BKE_spacetype_from_id(SPACE_STATUSBAR);
     const ARegionType *art = BKE_regiontype_from_id(stype, RGN_TYPE_HEADER);
@@ -219,10 +209,9 @@ class BlockingWorkHandler {
         fs.uifont_id, status_message.c_str(), status_message.size());
     const int status_message_padding = UI_UNIT_X * 0.2f;
 
-    const float duration_s = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                 Clock::now() - state.task_start_time)
-                                 .count() /
-                             1000.0f;
+    const float duration_s =
+        std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start_time_).count() /
+        1000.0f;
     const int start_x = window_size.x / 2;
     const int total_width = 2.0f * progress_ring_radius_outer + status_message_padding +
                             status_message_width;
@@ -234,7 +223,7 @@ class BlockingWorkHandler {
     bg_rect.ymin = 0;
     bg_rect.ymax = status_bar_height;
 
-    state.status_bar_rect = bg_rect;
+    status_bar_rect_ = bg_rect;
 
     bTheme &theme = *UI_GetTheme();
     const ColorTheme4b status_bar_bg_color = UI_ThemeGetColorPtr(
@@ -244,7 +233,7 @@ class BlockingWorkHandler {
     BLI_rctf_rcti_copy(&rectf, &bg_rect);
     UI_draw_roundbox_4fv(&rectf, true, 0, status_bar_bg_color.to_4f());
 
-    const bool is_hovered = BLI_rcti_isect_pt_v(&bg_rect, state.cursor);
+    const bool is_hovered = BLI_rcti_isect_pt_v(&bg_rect, cursor_);
     if (is_hovered) {
       ColorTheme4f hover_color;
       UI_GetThemeColorShade4fv(TH_HEADER, 10, hover_color);
@@ -290,7 +279,7 @@ class BlockingWorkHandler {
         &fs, &status_message_rect, status_message.c_str(), UI_MAX_DRAW_STR, text_color, &params);
   }
 
-  void draw_window_with_dialog(wmWindowManager &wm, wmWindow &window, DialogState &dialog_state)
+  void draw_window_with_dialog(wmWindowManager &wm, wmWindow &window)
   {
     GPU_context_main_lock();
     BLI_SCOPED_DEFER([&]() { GPU_context_main_unlock(); });
@@ -304,9 +293,9 @@ class BlockingWorkHandler {
       GPU_context_begin_frame(gpu_context);
       GPU_bgl_end();
       this->draw_window_background(window);
-      this->draw_status({window.sizex, window.sizey}, dialog_state);
-      if (dialog_state.show_dialog) {
-        this->draw_dialog({window.sizex, window.sizey}, dialog_state);
+      this->draw_status({window.sizex, window.sizey});
+      if (show_dialog_) {
+        this->draw_dialog({window.sizex, window.sizey});
       }
       GPU_context_end_frame(gpu_context);
     }
