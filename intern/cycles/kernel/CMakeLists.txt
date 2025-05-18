@@ -46,6 +46,7 @@ if(WITH_CYCLES_OSL)
     ${SRC_KERNEL_DEVICE_OPTIX}
     osl/services_optix.cu
     device/optix/kernel_osl.cu
+    device/optix/kernel_osl_camera.cu
   )
 endif()
 
@@ -598,6 +599,12 @@ if(WITH_CYCLES_CUDA_BINARIES)
       else()
         message(STATUS "CUDA binaries for ${arch} require CUDA 11 or earlier, skipped.")
       endif()
+    elseif(${arch} MATCHES "compute_7." AND DEFINED CUDA11_NVCC_EXECUTABLE)
+      # Use CUDA 11 if available for the default PTX kernel. This allows us to
+      # keep the driver requirements for user machines low.
+      set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
+      set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
+      set(cuda_version 110)
     elseif(${arch} MATCHES ".*_7." AND "${CUDA_VERSION}" LESS 100)
       message(STATUS "CUDA binaries for ${arch} require CUDA 10.0+, skipped.")
     elseif(${arch} MATCHES ".*_8.")
@@ -915,6 +922,10 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
     cycles_optix_kernel_add(
       kernel_optix_osl
       "device/optix/kernel_osl.cu"
+      "--relocatable-device-code=true")
+    cycles_optix_kernel_add(
+      kernel_optix_osl_camera
+      "device/optix/kernel_osl_camera.cu"
       "--relocatable-device-code=true")
     cycles_optix_kernel_add(
       kernel_optix_osl_services
