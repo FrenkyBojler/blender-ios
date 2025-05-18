@@ -325,7 +325,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
   const bool has_multires = BKE_sculpt_multires_active(&scene, &ob) != nullptr;
   bool multires_applied = false;
   const bool sculpt_mode = ob.mode & OB_MODE_SCULPT && ob.sculpt && !use_render;
-  const bool sculpt_dyntopo = (sculpt_mode && ob.sculpt->bm) && !use_render;
+  const bool sculpt_dyntopo = BKE_sculpt_dyntopo_active(ob) && !use_render;
 
   /* Modifier evaluation contexts for different types of modifiers. */
   ModifierApplyFlag apply_render = use_render ? MOD_APPLY_RENDER : ModifierApplyFlag(0);

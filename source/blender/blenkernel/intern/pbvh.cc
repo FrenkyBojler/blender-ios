@@ -1202,8 +1202,8 @@ void Tree::update_bounds(const Depsgraph &depsgraph, const Object &object)
       break;
     }
     case Type::BMesh: {
-      const SculptSession &ss = *object.sculpt;
-      this->update_bounds_bmesh(*ss.bm);
+      const BMesh& bm = *object::bmesh_get(object);
+      this->update_bounds_bmesh(bm);
       break;
     }
   }
@@ -2459,7 +2459,7 @@ void BKE_pbvh_sync_visibility_from_verts(Object &object)
       break;
     }
     case blender::bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *object::bmesh_get(object);
       BMIter iter;
       BMVert *v;
       BMEdge *e;

@@ -166,7 +166,6 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
 
   const Mesh *mesh = BKE_object_get_original_mesh(ob);
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const SculptSession &ss = *ob->sculpt;
 
   /* If Dyntopo is enabled, the source of truth for an attribute existing or not is the BMesh, not
    * the Mesh. */
@@ -175,8 +174,8 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
       if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
               name))
       {
-        if (ss.bm) {
-          if (bmesh_attribute_exists(*ss.bm, *meta_data, name)) {
+        if (const BMesh* bm = bke::object::bmesh_get(*ob)) {
+          if (bmesh_attribute_exists(*bm, *meta_data, name)) {
             attrs.append(pbvh::GenericRequest(name));
           }
         }
@@ -188,7 +187,8 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
   }
 
   if (features & SCULPT_BATCH_UV) {
-    const CustomData *corner_data = ss.bm ? &ss.bm->ldata : &mesh->corner_data;
+    const BMesh *bm = bke::object::bmesh_get(*ob);
+    const CustomData *corner_data = bm ? &bm->ldata : &mesh->corner_data;
     if (const char *name = CustomData_get_active_layer_name(corner_data, CD_PROP_FLOAT2)) {
       attrs.append(pbvh::GenericRequest(name));
     }

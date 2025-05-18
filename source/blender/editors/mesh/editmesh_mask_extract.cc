@@ -48,7 +48,7 @@ static bool geometry_extract_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob != nullptr && ob->mode == OB_MODE_SCULPT) {
-    if (ob->sculpt->bm) {
+    if (BKE_sculpt_dyntopo_active(*ob)) {
       CTX_wm_operator_poll_msg_set(C, "The geometry cannot be extracted with dyntopo activated");
       return false;
     }

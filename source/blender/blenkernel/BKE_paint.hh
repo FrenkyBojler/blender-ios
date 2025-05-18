@@ -24,6 +24,7 @@
 #include "DNA_object_enums.h"
 
 struct AssetWeakReference;
+struct BMAllocTemplate;
 struct BMFace;
 struct BMLog;
 struct BMVert;
@@ -398,7 +399,8 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   blender::GroupedSpan<int> vert_to_edge_map;
 
   /* BMesh for dynamic topology sculpting */
-  BMesh *bm = nullptr;
+  /* TODO: Make this a unique_ptr */
+  BMesh* bm = nullptr;
   /* Undo/redo log for dynamic topology sculpting */
   BMLog *bm_log = nullptr;
 
@@ -608,6 +610,7 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval);
  * it's the last modifier on the stack and it is not on the first level.
  */
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob);
+bool BKE_sculpt_dyntopo_active(const Object& object);
 
 /**
  * Ensures a mask layer exists. If depsgraph and bmain are non-null,
@@ -644,7 +647,7 @@ pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object);
 pbvh::Tree *pbvh_get(Object &object);
 const pbvh::Tree *pbvh_get(const Object &object);
 
-BMesh &bmesh_ensure(Object &object);
+BMesh &bmesh_ensure(Object &object, const BMAllocTemplate &alloc_template);
 BMesh *bmesh_get(Object &object);
 const BMesh *bmesh_get(const Object &object);
 

@@ -2059,7 +2059,7 @@ bool rna_Light_object_poll(PointerRNA * /*ptr*/, PointerRNA value)
 
 bool rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
 {
-  return BKE_object_sculpt_use_dyntopo(reinterpret_cast<Object *>(ptr->owner_id));
+  return BKE_sculpt_dyntopo_active(*reinterpret_cast<Object *>(ptr->owner_id));
 }
 
 static void rna_object_lineart_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)

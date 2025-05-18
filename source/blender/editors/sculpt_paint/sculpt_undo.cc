@@ -605,17 +605,13 @@ static void bmesh_enable(Object &object, const StepData &step_data)
   BKE_sculptsession_free_pbvh(object);
   DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
 
-  /* Create empty BMesh and enable logging. */
-  BMeshCreateParams bmesh_create_params{};
-  bmesh_create_params.use_toolflags = false;
-
-  ss.bm = BM_mesh_create(&bm_mesh_allocsize_default, &bmesh_create_params);
-  BM_data_layer_add_named(ss.bm, &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
-
   mesh->flag |= ME_SCULPT_DYNAMIC_TOPOLOGY;
+  BMesh &bm = bke::object::bmesh_ensure(object, bm_mesh_allocsize_default);
+
+  BM_data_layer_add_named(&bm, &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
 
   /* Restore the BMLog using saved entries. */
-  ss.bm_log = BM_log_from_existing_entries_create(ss.bm, step_data.bmesh.bm_entry);
+  ss.bm_log = BM_log_from_existing_entries_create(&bm, step_data.bmesh.bm_entry);
 }
 
 static void bmesh_restore_begin(bContext *C,

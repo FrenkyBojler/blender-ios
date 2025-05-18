@@ -76,7 +76,7 @@ void sync_all_from_faces(Object &object)
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       BMIter iter;
       BMFace *f;
 
@@ -612,8 +612,8 @@ static void partialvis_masked_update_bmesh(const Depsgraph &depsgraph,
                                            const VisAction action,
                                            const IndexMask &node_mask)
 {
-  BMesh *bm = ob.sculpt->bm;
-  const int mask_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+  BMesh &bm = *bke::object::bmesh_get(ob);
+  const int mask_offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
   const auto mask_test_fn = [&](const BMVert *v) {
     const float vmask = BM_ELEM_CD_GET_FLOAT(v, mask_offset);
     return vmask > 0.5f;
@@ -1082,8 +1082,9 @@ static void grow_shrink_visibility_grid(Depsgraph &depsgraph,
 
 static Array<bool> duplicate_visibility_bmesh(const Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
-  BMesh &bm = *ss.bm;
+  /* TODO: This const_cast shouldn't be needed, but it requires further refactoring of the related
+   * bmesh methods */
+  BMesh &bm = *const_cast<BMesh*>(bke::object::bmesh_get(object));
   Array<bool> result(bm.totvert);
   BM_mesh_elem_table_ensure(&bm, BM_VERT);
   for (const int i : result.index_range()) {

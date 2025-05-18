@@ -1886,7 +1886,7 @@ static void paint_cursor_draw_3d_view_brush_cursor_inactive(PaintCursorContext &
         break;
       }
       case bke::pbvh::Type::BMesh: {
-        BMesh &bm = *pcontext.ss->bm;
+        BMesh &bm = *bke::object::bmesh_get(active_object);
         position = BM_vert_at_index(&bm, vert)->co;
         break;
       }

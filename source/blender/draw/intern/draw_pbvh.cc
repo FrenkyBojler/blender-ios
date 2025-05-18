@@ -988,7 +988,7 @@ BLI_NOINLINE static void update_masks_bmesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  const BMesh &bm = *object.sculpt->bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const int cd_offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
   ensure_vbos_allocated_bmesh(object, mask_format(), node_mask, vbos);
   if (cd_offset != -1) {
@@ -1023,7 +1023,7 @@ BLI_NOINLINE static void update_face_sets_bmesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  const BMesh &bm = *object.sculpt->bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const int color_default = orig_mesh_data.face_set_default;
   const int color_seed = orig_mesh_data.face_set_seed;
   const int offset = CustomData_get_offset_named(&bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
@@ -1096,7 +1096,7 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  const BMesh &bm = *object.sculpt->bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const BMeshAttributeLookup attr = lookup_bmesh_attribute(bm, name);
   if (!attr || attr.domain == bke::AttrDomain::Edge) {
     return;

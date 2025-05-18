@@ -60,38 +60,35 @@ void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
   Mesh *mesh = static_cast<Mesh *>(ob.data);
-  const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
 
   BKE_sculptsession_free_pbvh(ob);
 
   /* Dynamic topology doesn't ensure selection state is valid, so remove #36280. */
   BKE_mesh_mselect_clear(mesh);
 
-  /* Create triangles-only BMesh. */
-  BMeshCreateParams create_params{};
-  create_params.use_toolflags = false;
-  ss.bm = BM_mesh_create(&allocsize, &create_params);
+  const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
+  BMesh& bm = bke::object::bmesh_ensure(ob, allocsize);
 
   BMeshFromMeshParams convert_params{};
   convert_params.calc_face_normal = true;
   convert_params.calc_vert_normal = true;
   convert_params.use_shapekey = true;
   convert_params.active_shapekey = ob.shapenr;
-  BM_mesh_bm_from_me(ss.bm, mesh, &convert_params);
-  triangulate(ss.bm);
+  BM_mesh_bm_from_me(&bm, mesh, &convert_params);
+  triangulate(&bm);
 
-  BM_data_layer_ensure_named(ss.bm, &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+  BM_data_layer_ensure_named(&bm, &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
 
   /* Make sure the data for existing faces are initialized. */
-  if (mesh->faces_num != ss.bm->totface) {
-    BM_mesh_normals_update(ss.bm);
+  if (mesh->faces_num != bm.totface) {
+    BM_mesh_normals_update(&bm);
   }
 
   /* Enable dynamic topology. */
   mesh->flag |= ME_SCULPT_DYNAMIC_TOPOLOGY;
 
   /* Enable logging for undo/redo. */
-  ss.bm_log = BM_log_create(ss.bm);
+  ss.bm_log = BM_log_create(&bm);
 
   /* Update dependency graph, so modifiers that depend on dyntopo being enabled
    * are re-evaluated and the #bke::pbvh::Tree is re-created. */
@@ -111,7 +108,7 @@ static void disable(
   SculptSession &ss = *ob.sculpt;
   Mesh *mesh = static_cast<Mesh *>(ob.data);
 
-  if (BMesh *bm = ss.bm) {
+  if (BMesh *bm = bke::object::bmesh_get(ob)) {
     BM_data_layer_free_named(bm, &bm->vdata, ".sculpt_dyntopo_node_id_vertex");
     BM_data_layer_free_named(bm, &bm->pdata, ".sculpt_dyntopo_node_id_face");
   }

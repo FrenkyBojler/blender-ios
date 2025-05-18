@@ -75,7 +75,8 @@ Array<float> duplicate_mask(const Object &object)
       return subdiv_ccg.masks;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      /* TODO: This const_cast should be fixed, but it requires modifying the below else block */
+      BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
       const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
       Array<float> result(bm.totvert);
       if (offset == -1) {

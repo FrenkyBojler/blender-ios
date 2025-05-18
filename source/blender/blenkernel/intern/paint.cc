@@ -2061,14 +2061,15 @@ static void sculptsession_bm_to_me_update_data_only(Object *ob, bool reorder)
 {
   SculptSession &ss = *ob->sculpt;
 
-  if (ss.bm) {
+  BMesh* bm = blender::bke::object::bmesh_get(*ob);
+  if (bm) {
     if (ob->data) {
       if (reorder) {
-        BM_log_mesh_elems_reorder(ss.bm, ss.bm_log);
+        BM_log_mesh_elems_reorder(bm, ss.bm_log);
       }
       BMeshToMeshParams params{};
       params.calc_object_remap = false;
-      BM_mesh_bm_to_me(nullptr, ss.bm, static_cast<Mesh *>(ob->data), &params);
+      BM_mesh_bm_to_me(nullptr, bm, static_cast<Mesh *>(ob->data), &params);
     }
   }
 }
@@ -2111,7 +2112,7 @@ void BKE_sculptsession_free_pbvh(Object &object)
 void BKE_sculptsession_bm_to_me_for_render(Object *object)
 {
   if (object && object->sculpt) {
-    if (object->sculpt->bm) {
+    if (blender::bke::object::bmesh_get(*object)) {
       /* Ensure no points to old arrays are stored in DM
        *
        * Apparently, we could not use DEG_id_tag_update
@@ -2264,7 +2265,7 @@ static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
 {
   Mesh &mesh = *static_cast<Mesh *>(ob->data);
 
-  if (ob->sculpt && ob->sculpt->bm) {
+  if (ob->sculpt && BKE_sculpt_dyntopo_active(*ob)) {
     /* Can't combine multires and dynamic topology. */
     return nullptr;
   }
@@ -2316,12 +2317,18 @@ MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
   return sculpt_multires_modifier_get(scene, ob, false);
 }
 
+bool BKE_sculpt_dyntopo_active(const Object& object)
+{
+  const Mesh &mesh = *static_cast<Mesh *>(object.data);
+  return mesh.flag & ME_SCULPT_DYNAMIC_TOPOLOGY;
+}
+
 /* Checks if there are any supported deformation modifiers active */
 static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object *ob)
 {
   const Mesh &mesh = *static_cast<Mesh *>(ob->data);
 
-  if (ob->sculpt->bm || BKE_sculpt_multires_active(scene, ob)) {
+  if (BKE_sculpt_dyntopo_active(*ob) || BKE_sculpt_multires_active(scene, ob)) {
     return false;
   }
 
@@ -2771,7 +2778,7 @@ namespace blender::bke {
 
 static std::unique_ptr<pbvh::Tree> build_pbvh_for_dynamic_topology(Object *ob)
 {
-  BMesh &bm = *ob->sculpt->bm;
+  BMesh &bm = *object::bmesh_get(*ob);
   BM_data_layer_ensure_named(&bm, &bm.vdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_vertex");
   BM_data_layer_ensure_named(&bm, &bm.pdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_face");
 
@@ -2812,7 +2819,7 @@ pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object)
   BLI_assert(object.sculpt != nullptr);
   SculptSession &ss = *object.sculpt;
 
-  if (ss.bm != nullptr) {
+  if (BKE_sculpt_dyntopo_active(object)) {
     /* Sculpting on a BMesh (dynamic-topology) gets a special pbvh::Tree. */
     ss.pbvh = build_pbvh_for_dynamic_topology(&object);
   }
@@ -2848,15 +2855,25 @@ pbvh::Tree *pbvh_get(Object &object)
   return object.sculpt->pbvh.get();
 }
 
-BMesh &bmesh_ensure(Object &object) {
+BMesh &bmesh_ensure(Object &object, const BMAllocTemplate& alloc_template) {
   BLI_assert(object.type == OB_MESH);
   if (BMesh* bm = bmesh_get(object)) {
     return *bm;
   }
 
   const Mesh *mesh = static_cast<Mesh *>(object.data);
+
+  BMeshCreateParams create_params{};
+  create_params.use_toolflags = false;
+
   BLI_assert(object.sculpt != nullptr && mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY);
   SculptSession &ss = *object.sculpt;
+  ss.bm = BM_mesh_create(&alloc_template, &create_params);
+
+  /* TODO: This doesn't currently triangulate or convert the mesh, it merely allocates
+   * the underlying data. */
+
+  return *ss.bm;
 }
 BMesh *bmesh_get(Object &object)
 {

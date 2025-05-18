@@ -198,7 +198,7 @@ class Sculpts : Overlay {
         break;
       }
       case blender::bke::pbvh::Type::BMesh: {
-        const BMesh &bm = *sculpt_session->bm;
+        const BMesh &bm = *bke::object::bmesh_get(*ob_ref.object);
         if (!CustomData_has_layer_named(&bm.pdata, CD_PROP_FLOAT, ".sculpt_face_set") &&
             !CustomData_has_layer_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask"))
         {
