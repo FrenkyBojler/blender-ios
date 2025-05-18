@@ -1026,6 +1026,22 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* direct data */
   ToolSettings *tos = sce->toolsettings;
   BLO_write_struct(writer, ToolSettings, tos);
+
+  BLO_write_struct(writer, CurveMapping, &tos->unified_paint_settings.curve_rand_hue);
+  if (tos->unified_paint_settings.curve_rand_hue) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_hue);
+  }
+
+  BLO_write_struct(writer, CurveMapping, &tos->unified_paint_settings.curve_rand_saturation);
+  if (tos->unified_paint_settings.curve_rand_saturation) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_saturation);
+  }
+
+  BLO_write_struct(writer, CurveMapping, &tos->unified_paint_settings.curve_rand_value);
+  if (tos->unified_paint_settings.curve_rand_value) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_value);
+  }
+
   if (tos->vpaint) {
     BLO_write_struct(writer, VPaint, tos->vpaint);
     BKE_paint_blend_write(writer, &tos->vpaint->paint);
@@ -1222,9 +1238,23 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     zero_v3(ups->last_location);
     ups->last_hit = 0;
 
-    ups->curve_rand_hue = BKE_paint_default_curve();
-    ups->curve_rand_saturation = BKE_paint_default_curve();
-    ups->curve_rand_value = BKE_paint_default_curve();
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_hue);
+    if (ups->curve_rand_hue) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_hue);
+      BKE_curvemapping_init(ups->curve_rand_hue);
+    }
+
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_saturation);
+    if (ups->curve_rand_saturation) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_saturation);
+      BKE_curvemapping_init(ups->curve_rand_saturation);
+    }
+
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_value);
+    if (ups->curve_rand_value) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_value);
+      BKE_curvemapping_init(ups->curve_rand_value);
+    }
 
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->sculpt);
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->vpaint);
