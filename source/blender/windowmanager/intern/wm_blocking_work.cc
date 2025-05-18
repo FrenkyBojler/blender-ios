@@ -51,11 +51,21 @@ struct DoneInfo {
 
 class BlockingWorkHandler {
  private:
+  bContext &C_;
+  wmWindow &window_;
+  DoneInfo &done_info_;
+  Clock::time_point start_time_;
+
  public:
-  void on_wait_time_expired(bContext &C,
-                            wmWindow &window,
-                            DoneInfo &done,
-                            const Clock::time_point task_start_time)
+  BlockingWorkHandler(bContext &C,
+                      wmWindow &window,
+                      DoneInfo &done,
+                      const Clock::time_point start_time)
+      : C_(C), window_(window), done_info_(done), start_time_(start_time)
+  {
+  }
+
+  void on_wait_time_expired()
   {
     GHOST_SystemHandle g_system = wm_ghost_system_handle_get();
 
@@ -67,19 +77,19 @@ class BlockingWorkHandler {
       GHOST_DispatchEvents(g_system);
     }
 
-    wmWindowManager *wm = CTX_wm_manager(&C);
+    wmWindowManager *wm = CTX_wm_manager(&C_);
     /* Ignore all events received until the dialog opened. */
     const wmEvent *last_handled_event = static_cast<const wmEvent *>(
-        window.runtime->event_queue.last);
+        window_.runtime->event_queue.last);
 
     DialogState dialog_state;
-    dialog_state.task_start_time = task_start_time;
-    dialog_state.window = &window;
+    dialog_state.task_start_time = start_time_;
+    dialog_state.window = &window_;
 
     while (true) {
       {
-        std::lock_guard lock{done.mutex};
-        if (done.done) {
+        std::lock_guard lock{done_info_.mutex};
+        if (done_info_.done) {
           /* The task finished, no need to recover anymore. */
           return;
         }
@@ -88,7 +98,7 @@ class BlockingWorkHandler {
       auto handle_event = [&](const wmEvent &event) {
         if (event.type == EVT_RETKEY && event.val == KM_PRESS) {
           /* Actually try to recover the file. This function terminates the current process. */
-          this->try_recover_file(C);
+          this->try_recover_file(C_);
         }
         if (ISMOUSE(event.type)) {
           dialog_state.cursor = event.xy;
@@ -102,16 +112,16 @@ class BlockingWorkHandler {
 
       if (GHOST_ProcessEvents(g_system, false)) {
         GHOST_DispatchEvents(g_system);
-        const wmEvent *first_event = last_handled_event ?
-                                         last_handled_event->next :
-                                         static_cast<wmEvent *>(window.runtime->event_queue.first);
+        const wmEvent *first_event = last_handled_event ? last_handled_event->next :
+                                                          static_cast<wmEvent *>(
+                                                              window_.runtime->event_queue.first);
         for (const wmEvent *event = first_event; event; event = event->next) {
           handle_event(*event);
         }
-        last_handled_event = static_cast<wmEvent *>(window.runtime->event_queue.last);
+        last_handled_event = static_cast<wmEvent *>(window_.runtime->event_queue.last);
       }
 
-      this->draw_window_with_dialog(*wm, window, dialog_state);
+      this->draw_window_with_dialog(*wm, window_, dialog_state);
 
       /* Sleep to avoid keeping the thread busy all the time, which takes up resources that could
        * be used by the actual computation. */
@@ -465,9 +475,9 @@ void run(const FunctionRef<void()> fn)
       return;
     }
   }
-  BlockingWorkHandler handler;
+  BlockingWorkHandler handler(C, *window, done, start_time);
   /* This call may never return if recovery is attempted. */
-  handler.on_wait_time_expired(C, *window, done, start_time);
+  handler.on_wait_time_expired();
 }
 
 void exit_worker_thread()
