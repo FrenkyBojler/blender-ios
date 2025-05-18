@@ -429,6 +429,10 @@ const bNodeTreeZone *bNodeTreeZones::get_zone_by_node(const int32_t node_id) con
 bool bNodeTreeZones::link_between_zones_is_allowed(const bNodeTreeZone *from_zone,
                                                    const bNodeTreeZone *to_zone) const
 {
+  if (from_zone == to_zone) {
+    /* Links between zones in the same zone are always allowed. */
+    return true;
+  }
   if (!from_zone) {
     /* Links from the root tree can go to any zone. */
     return true;
@@ -438,6 +442,16 @@ bool bNodeTreeZones::link_between_zones_is_allowed(const bNodeTreeZone *from_zon
     return false;
   }
   return from_zone->contains_zone_recursively(*to_zone);
+}
+
+bool bNodeTreeZones::link_between_sockets_is_allowed(const bNodeSocket &from,
+                                                     const bNodeSocket &to) const
+{
+  BLI_assert(from.in_out == SOCK_OUT);
+  BLI_assert(to.in_out == SOCK_IN);
+  const bNodeTreeZone *from_zone = this->get_zone_by_socket(from);
+  const bNodeTreeZone *to_zone = this->get_zone_by_socket(to);
+  return this->link_between_zones_is_allowed(from_zone, to_zone);
 }
 
 Vector<const bNodeTreeZone *> bNodeTreeZones::get_zones_to_enter(

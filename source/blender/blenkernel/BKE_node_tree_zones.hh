@@ -90,6 +90,12 @@ class bNodeTreeZones {
                                      const bNodeTreeZone *to_zone) const;
 
   /**
+   * Check if a link between the given sockets is allowed. It's not allowed if link would go from
+   * an inner zone to an outer zone.
+   */
+  bool link_between_sockets_is_allowed(const bNodeSocket &from, const bNodeSocket &to) const;
+
+  /**
    * Get the ordered list of zones that a link going from an outer to an inner zone has to enter.
    */
   Vector<const bNodeTreeZone *> get_zones_to_enter(const bNodeTreeZone *outer_zone,

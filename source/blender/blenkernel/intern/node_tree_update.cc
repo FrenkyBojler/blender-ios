@@ -1192,6 +1192,11 @@ class NodeTreeMainUpdater {
       return false;
     };
 
+    const bNodeTreeZones *fallback_zones = nullptr;
+    if (ntree.type == NTREE_GEOMETRY && !ntree.zones() && ntree.runtime->last_valid_zones) {
+      fallback_zones = ntree.runtime->last_valid_zones.get();
+    }
+
     LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
       link->flag |= NODE_LINK_VALID;
       if (!link->fromsock->is_available() || !link->tosock->is_available()) {
@@ -1239,6 +1244,15 @@ class NodeTreeMainUpdater {
                                         TIP_("Conversion is not supported"),
                                         TIP_(link->fromsock->typeinfo->label),
                                         TIP_(link->tosock->typeinfo->label))});
+          continue;
+        }
+      }
+      if (fallback_zones) {
+        if (!fallback_zones->link_between_sockets_is_allowed(*link->fromsock, *link->tosock)) {
+          link->flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors.add(
+              NodeLinkKey{*link},
+              NodeLinkError{TIP_("Links can only go into a zone but not out")});
           continue;
         }
       }
