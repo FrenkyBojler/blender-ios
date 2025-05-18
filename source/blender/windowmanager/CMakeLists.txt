@@ -61,6 +61,7 @@ set(SRC
   message_bus/intern/wm_message_bus_static.cc
 
   WM_api.hh
+  WM_blocking_work.hh
   WM_keymap.hh
   WM_message.hh
   WM_toolsystem.hh

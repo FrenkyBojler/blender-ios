@@ -64,7 +64,7 @@
 #include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
-#include "WM_cancellable_worker.hh"
+#include "WM_blocking_work.hh"
 #include "WM_keymap.hh"
 #include "WM_types.hh"
 #include "wm.hh"
@@ -3243,7 +3243,7 @@ void WM_ghost_show_message_box(const char *title,
 
 /** \} */
 
-namespace blender::cancellable_worker {
+namespace blender::blocking_work {
 
 /* Use system clock because that's also used internally generally.
  * https://en.cppreference.com/w/cpp/thread/condition_variable/wait_until */
@@ -3564,7 +3564,7 @@ static wmWindow *pick_window_for_dialog(wmWindowManager &wm)
 
 static bool g_exit_cancel_worker_thread = false;
 
-void run_cancellable_if_possible(const FunctionRef<void()> fn)
+void run(const FunctionRef<void()> fn)
 {
   if (g_exit_cancel_worker_thread) {
     fn();
@@ -3670,7 +3670,7 @@ void run_cancellable_if_possible(const FunctionRef<void()> fn)
 
 void exit_worker_thread()
 {
-  run_cancellable_if_possible([]() { g_exit_cancel_worker_thread = true; });
+  run([]() { g_exit_cancel_worker_thread = true; });
 }
 
-}  // namespace blender::cancellable_worker
+}  // namespace blender::blocking_work
