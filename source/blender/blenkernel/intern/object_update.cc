@@ -27,6 +27,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
@@ -41,6 +42,8 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_light_linking.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "WM_blocking_work.hh"
 
 namespace deg = blender::deg;
 
@@ -128,6 +131,7 @@ void BKE_object_eval_transform_final(Depsgraph *depsgraph, Object *ob)
 
 void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
+  blender::blocking_work::StatusScope status_scope(BKE_id_name(ob->id));
   DEG_debug_print_eval(depsgraph, __func__, ob->id.name, ob);
 
   /* includes all keys and modifiers */
