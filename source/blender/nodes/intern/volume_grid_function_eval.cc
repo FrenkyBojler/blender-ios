@@ -199,7 +199,7 @@ static void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
  * \param output_grids: The output grids to be filled with the results of the multi-function. The
  *   topology of these grids is initialized already.
  * \param transform: The transform of all input and output grids.
- * \param leaf_node_mask: Indicates which voxels in the leaf are active.
+ * \param leaf_node_mask: Indicates which voxels in the leaf should be computed.
  * \param leaf_bbox: The bounding box of the leaf node.
  * \param get_voxels_fn: A function that extracts the active voxels from the leaf node. This
  *   function knows the order of voxels in the leaf.
@@ -230,6 +230,16 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
    * finding the leaf that contains this voxel. */
   const openvdb::Coord any_voxel_in_leaf = leaf_bbox.min();
 
+  std::optional<MutableSpan<openvdb::Coord>> voxel_coords_opt;
+  auto ensure_voxel_coords = [&]() {
+    if (!voxel_coords_opt.has_value()) {
+      voxel_coords_opt = scope.allocator().allocate_array<openvdb::Coord>(
+          index_mask.min_array_size());
+      get_voxels_fn(voxel_coords_opt.value());
+    }
+    return *voxel_coords_opt;
+  };
+
   for (const int input_i : input_values.index_range()) {
     const bke::SocketValueVariant &value_variant = *input_values[input_i];
     const mf::ParamType param_type = fn.param_type(params.next_param_index());
@@ -244,9 +254,17 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
         const auto &tree = grid.tree();
 
         if (const auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf)) {
-          /* Boolean grids are special because they encode the values as bitmask. */
+          /* Boolean grids are special because they encode the values as bitmask. So create a
+           * temporary buffer for the inputs. */
           if constexpr (std::is_same_v<ValueT, bool>) {
-            BLI_assert_unreachable();
+            const Span<openvdb::Coord> voxels = ensure_voxel_coords();
+            MutableSpan<bool> values = scope.allocator().allocate_array<bool>(
+                index_mask.min_array_size());
+            index_mask.foreach_index([&](const int64_t i) {
+              const openvdb::Coord &coord = voxels[i];
+              values[i] = tree.getValue(coord);
+            });
+            params.add_readonly_single_input(values);
           }
           else {
             const Span<ValueT> values(leaf_node->buffer().data(), LeafNodeMask::SIZE);
@@ -284,8 +302,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
        * multi-function. */
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
-      Array<openvdb::Coord> voxels(index_mask.min_array_size());
-      get_voxels_fn(voxels);
+      const Span<openvdb::Coord> voxels = ensure_voxel_coords();
       bke::VoxelFieldContext field_context{transform, voxels};
       fn::FieldEvaluator evaluator{field_context, &index_mask};
       GMutableSpan values{
@@ -316,8 +333,9 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
 
       /* Boolean grids are special because they encode the values as bitmask. */
       if constexpr (std::is_same_v<ValueT, bool>) {
-        /* TODO: Bool grid handling. */
-        BLI_assert_unreachable();
+        MutableSpan<bool> values = scope.allocator().allocate_array<bool>(
+            index_mask.min_array_size());
+        params.add_uninitialized_single_output(values);
       }
       else {
         /* Write directly into the buffer of the output leaf node. */
@@ -328,8 +346,26 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
     });
   }
 
-  /* Actually call the multi-function which will write the results into the output grids. */
+  /* Actually call the multi-function which will write the results into the output grids (except
+   * for boolean grids). */
   fn.call_auto(index_mask, params, context);
+
+  for (const int output_i : output_grids.index_range()) {
+    const int param_index = input_values.size() + output_i;
+    const mf::ParamType param_type = fn.param_type(param_index);
+    const CPPType &param_cpp_type = param_type.data_type().single_type();
+    if (!param_cpp_type.is<bool>()) {
+      continue;
+    }
+    openvdb::BoolGrid &grid = static_cast<openvdb::BoolGrid &>(*output_grids[output_i]);
+    const Span<bool> values = params.computed_array(param_index).typed<bool>();
+    auto accessor = grid.getUnsafeAccessor();
+    const Span<openvdb::Coord> voxels = ensure_voxel_coords();
+    index_mask.foreach_index([&](const int64_t i) {
+      const openvdb::Coord &coord = voxels[i];
+      accessor.setValue(coord, values[i]);
+    });
+  }
 }
 
 /**
