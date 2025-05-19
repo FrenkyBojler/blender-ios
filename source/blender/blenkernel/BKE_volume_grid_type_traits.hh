@@ -138,8 +138,6 @@ template<> struct TraitsByOpenVDBValueType<openvdb::Vec4f> {
 
 template<typename T> using OpenvdbTreeType = typename VolumeGridTraits<T>::TreeType;
 template<typename T> using OpenvdbGridType = openvdb::Grid<OpenvdbTreeType<T>>;
-template<typename T>
-using BlenderTypeByOpenvdb = typename TraitsByOpenVDBValueType<T>::Traits::BlenderType;
 
 }  // namespace blender::bke
 

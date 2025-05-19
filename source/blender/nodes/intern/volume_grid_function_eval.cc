@@ -277,11 +277,14 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
 
   for (const int input_i : input_values.index_range()) {
     const bke::SocketValueVariant &value_variant = *input_values[input_i];
+    const mf::ParamType param_type = fn.param_type(params.next_param_index());
+    const CPPType &param_cpp_type = param_type.data_type().single_type();
+
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = typename std::decay_t<decltype(grid)>;
         using ValueT = typename GridT::ValueType;
-        using BlenderValueT = typename bke::BlenderTypeByOpenvdb<ValueT>;
+        BLI_assert(param_cpp_type.size == sizeof(ValueT));
         const auto &tree = grid.tree();
 
         if (const auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf)) {
@@ -290,7 +293,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
           const LeafNodeMask missing_mask = leaf_node_mask & !input_leaf_mask;
           if (missing_mask.isOff()) {
             /* All values availables. */
-            params.add_readonly_single_input(values.template cast<BlenderValueT>());
+            params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), values.size()));
           }
           else {
             /* TODO: Sometimes it may be guaranteed that the background values are set
@@ -302,13 +305,12 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
               copied_values[index] = background;
             }
             params.add_readonly_single_input(
-                copied_values.as_span().template cast<BlenderValueT>());
+                GSpan(param_cpp_type, copied_values.data(), copied_values.size()));
           }
         }
         else {
-          const auto &single_value = *reinterpret_cast<const BlenderValueT *>(
-              &tree.getValue(any_voxel_in_leaf));
-          params.add_readonly_single_input_value(single_value);
+          const auto single_value = tree.getValue(any_voxel_in_leaf);
+          params.add_readonly_single_input(GPointer(param_cpp_type, &single_value));
         }
       });
     }
@@ -331,18 +333,18 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
   }
 
   for (const int output_i : output_values.index_range()) {
+    const mf::ParamType param_type = fn.param_type(params.next_param_index());
+    const CPPType &param_cpp_type = param_type.data_type().single_type();
+
     openvdb::GridBase &grid_base = *output_grids[output_i];
     to_typed_grid(grid_base, [&](auto &grid) {
-      using GridT = typename std::decay_t<decltype(grid)>;
-      using ValueT = typename GridT::ValueType;
-      using BlenderValueT = typename bke::BlenderTypeByOpenvdb<ValueT>;
-
       auto &tree = grid.tree();
       auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf);
       /* Should have been added before. */
       BLI_assert(leaf_node);
       MutableSpan values = {leaf_node->buffer().data(), LeafNodeMask::SIZE};
-      params.add_uninitialized_single_output(values.template cast<BlenderValueT>());
+      params.add_uninitialized_single_output(
+          GMutableSpan(param_cpp_type, values.data(), values.size()));
     });
   }
 
@@ -367,6 +369,9 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
 
   for (const int input_i : input_values.index_range()) {
     const bke::SocketValueVariant &value_variant = *input_values[input_i];
+    const mf::ParamType param_type = fn.param_type(params.next_param_index());
+    const CPPType &param_cpp_type = param_type.data_type().single_type();
+
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using ValueType = typename std::decay_t<decltype(grid)>::ValueType;
@@ -378,8 +383,8 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
           const openvdb::Coord &coord = voxels[i];
           values[i] = tree.getValue(coord, accessor);
         }
-        params.add_readonly_single_input(
-            Span<ValueType>(values).template cast<bke::BlenderTypeByOpenvdb<ValueType>>());
+        BLI_assert(param_cpp_type.size == sizeof(ValueType));
+        params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), voxels_num));
       });
     }
     else if (value_variant.is_context_dependent_field()) {
@@ -445,6 +450,9 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
 
   for (const int input_i : input_values.index_range()) {
     const bke::SocketValueVariant &value_variant = *input_values[input_i];
+    const mf::ParamType param_type = fn.param_type(params.next_param_index());
+    const CPPType &param_cpp_type = param_type.data_type().single_type();
+
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = std::decay_t<decltype(grid)>;
@@ -458,8 +466,8 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
           const openvdb::Coord coord_in_tile = tile.min();
           values[i] = tree.getValue(coord_in_tile, accessor);
         }
-        params.add_readonly_single_input(
-            values.template cast<bke::BlenderTypeByOpenvdb<ValueType>>().as_span());
+        BLI_assert(param_cpp_type.size == sizeof(ValueType));
+        params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), tiles_num));
       });
     }
     else if (value_variant.is_context_dependent_field()) {
