@@ -135,7 +135,9 @@ static void parallel_grid_topology_tasks_internal_node(const InternalNodeT &node
   }
 
   threading::parallel_for(child_indices.index_range(), 8, [&](const IndexRange range) {
-    /* Voxels collected from potentially multiple leaf nodes to be processed in one batch. */
+    /* Voxels collected from potentially multiple leaf nodes to be processed in one batch. This
+     * inline buffer size is sufficient to avoid an allocation in all cases (a single standard leaf
+     * has 512 voxels). */
     Vector<openvdb::Coord, 1024> gathered_voxels;
     for (const int child_index : child_indices.as_span().slice(range)) {
       const ChildNodeT &child = *table[child_index].getChild();
