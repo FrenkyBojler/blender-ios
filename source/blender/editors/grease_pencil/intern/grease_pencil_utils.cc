@@ -1981,32 +1981,4 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
   BKE_id_free(nullptr, &merged_layers_grease_pencil);
 }
 
-IndexMask retrieve_screen_space_coordinates_for_drawing(
-    const ARegion &region,
-    const Object &ob_eval,
-    const bke::greasepencil::Layer &layer,
-    const bke::crazyspace::GeometryDeformation &deformation,
-    MutableSpan<float2> r_screen_space_positions,
-    IndexMaskMemory &memory)
-{
-  using namespace bke::greasepencil;
-  BLI_assert(r_screen_space_positions.size() == deformation.positions.size());
-
-  Array<bool> projection_ok(r_screen_space_positions.size(), true);
-  threading::parallel_for(
-      r_screen_space_positions.index_range(), 4096, [&](const IndexRange points) {
-        for (const int point : points) {
-          const float3 position = math::transform_point(layer.to_world_space(ob_eval),
-                                                        deformation.positions[point]);
-          const int proj_result = ED_view3d_project_float_global(
-              &region, position, r_screen_space_positions[point], V3D_PROJ_TEST_CLIP_DEFAULT);
-          if (proj_result != V3D_PROJ_RET_OK) {
-            projection_ok[point] = false;
-          }
-        }
-      });
-
-  return IndexMask::from_bools(projection_ok, memory);
-}
-
 }  // namespace blender::ed::greasepencil
