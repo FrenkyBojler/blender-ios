@@ -1128,15 +1128,14 @@ IndexMask retrieve_visible_strokes(Object &object,
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
-  if (hidden_material_indices.is_empty() &&
-      !drawing.strokes().attributes().contains(".is_boundary"))
-  {
-    return drawing.strokes().curves_range();
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::AttributeAccessor attributes = curves.attributes();
+
+  if (hidden_material_indices.is_empty() && !attributes.contains(".is_boundary")) {
+    return curves.curves_range();
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
   const IndexRange curves_range = drawing.strokes().curves_range();
-  const bke::AttributeAccessor attributes = curves.attributes();
 
   /* Get all the strokes that have their material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
@@ -1159,15 +1158,14 @@ IndexMask retrieve_visible_points(Object &object,
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
-  if (hidden_material_indices.is_empty() &&
-      !drawing.strokes().attributes().contains(".is_boundary"))
-  {
-    return drawing.strokes().points_range();
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::AttributeAccessor attributes = curves.attributes();
+
+  if (hidden_material_indices.is_empty() && !attributes.contains(".is_boundary")) {
+    return curves.points_range();
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
   const IndexRange points_range = curves.points_range();
-  const bke::AttributeAccessor attributes = curves.attributes();
 
   /* Propagate the material index to the points. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
