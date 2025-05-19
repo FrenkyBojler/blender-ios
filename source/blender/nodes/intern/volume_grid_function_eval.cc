@@ -258,7 +258,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
 
   AlignedBuffer<8192, 8> allocation_buffer;
   ResourceScope scope;
-  scope.linear_allocator().provide_buffer(allocation_buffer);
+  scope.allocator().provide_buffer(allocation_buffer);
   mf::ParamsBuilder params{fn, &index_mask};
   mf::ContextBuilder context;
 
@@ -284,7 +284,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
           else {
             /* TODO: Sometimes it may be guaranteed that the background values are set
              * correctly. */
-            MutableSpan copied_values = scope.linear_allocator().construct_array_copy(values);
+            MutableSpan copied_values = scope.allocator().construct_array_copy(values);
             const auto &background = tree.background();
             for (auto missing_it = missing_mask.beginOn(); missing_it.test(); ++missing_it) {
               const int index = missing_it.pos();
@@ -308,10 +308,9 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       get_voxels_fn(voxels);
       VoxelFieldContext field_context{transform, voxels};
       fn::FieldEvaluator evaluator{field_context, &index_mask};
-      GMutableSpan values{
-          type,
-          scope.linear_allocator().allocate(voxels.size() * type.size(), type.alignment()),
-          voxels.size()};
+      GMutableSpan values{type,
+                          scope.allocator().allocate(voxels.size() * type.size, type.alignment),
+                          voxels.size()};
       evaluator.add_with_destination(field, values);
       evaluator.evaluate();
       params.add_readonly_single_input(values);
@@ -352,7 +351,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
   const IndexMask index_mask{voxels_num};
   AlignedBuffer<8192, 8> allocation_buffer;
   ResourceScope scope;
-  scope.linear_allocator().provide_buffer(allocation_buffer);
+  scope.allocator().provide_buffer(allocation_buffer);
   mf::ParamsBuilder params{fn, &index_mask};
   mf::ContextBuilder context;
 
@@ -364,8 +363,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
         const auto &tree = grid.tree();
         auto accessor = grid.getConstUnsafeAccessor();
 
-        MutableSpan<ValueType> values = scope.linear_allocator().allocate_array<ValueType>(
-            voxels_num);
+        MutableSpan<ValueType> values = scope.allocator().allocate_array<ValueType>(voxels_num);
         for (const int64_t i : IndexRange(voxels_num)) {
           const openvdb::Coord &coord = voxels[i];
           values[i] = tree.getValue(coord, accessor);
@@ -380,9 +378,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
       VoxelFieldContext field_context{transform, voxels};
       fn::FieldEvaluator evaluator{field_context, voxels_num};
       GMutableSpan values{
-          type,
-          scope.linear_allocator().allocate(voxels_num * type.size(), type.alignment()),
-          voxels_num};
+          type, scope.allocator().allocate(voxels_num * type.size, type.alignment), voxels_num};
       evaluator.add_with_destination(field, values);
       evaluator.evaluate();
       params.add_readonly_single_input(values);
@@ -395,7 +391,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
   for ([[maybe_unused]] const int output_i : output_values.index_range()) {
     const int param_index = input_values.size() + output_i;
     const CPPType &type = fn.param_type(param_index).data_type().single_type();
-    void *buffer = scope.linear_allocator().allocate(voxels_num * type.size(), type.alignment());
+    void *buffer = scope.allocator().allocate(voxels_num * type.size, type.alignment);
     params.add_uninitialized_single_output(GMutableSpan{type, buffer, voxels_num});
   }
 
@@ -433,7 +429,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
 
   AlignedBuffer<8192, 8> allocation_buffer;
   ResourceScope scope;
-  scope.linear_allocator().provide_buffer(allocation_buffer);
+  scope.allocator().provide_buffer(allocation_buffer);
   mf::ParamsBuilder params{fn, &index_mask};
   mf::ContextBuilder context;
 
@@ -446,8 +442,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
         const auto &tree = grid.tree();
         auto accessor = grid.getConstUnsafeAccessor();
 
-        MutableSpan<ValueType> values = scope.linear_allocator().allocate_array<ValueType>(
-            tiles_num);
+        MutableSpan<ValueType> values = scope.allocator().allocate_array<ValueType>(tiles_num);
         for (const int64_t i : IndexRange(tiles_num)) {
           const openvdb::CoordBBox &tile = tiles[i];
           const openvdb::Coord coord_in_tile = tile.min();
@@ -463,9 +458,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
       TilesFieldContext field_context{transform, tiles};
       fn::FieldEvaluator evaluator{field_context, tiles_num};
       GMutableSpan values{
-          type,
-          scope.linear_allocator().allocate(tiles_num * type.size(), type.alignment()),
-          tiles_num};
+          type, scope.allocator().allocate(tiles_num * type.size, type.alignment), tiles_num};
       evaluator.add_with_destination(field, values);
       evaluator.evaluate();
       params.add_readonly_single_input(values);
@@ -478,7 +471,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
   for ([[maybe_unused]] const int output_i : output_values.index_range()) {
     const int param_index = input_values.size() + output_i;
     const CPPType &type = fn.param_type(param_index).data_type().single_type();
-    void *buffer = scope.linear_allocator().allocate(tiles_num * type.size(), type.alignment());
+    void *buffer = scope.allocator().allocate(tiles_num * type.size, type.alignment);
     params.add_uninitialized_single_output(GMutableSpan{type, buffer, tiles_num});
   }
 
