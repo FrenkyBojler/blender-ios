@@ -182,7 +182,10 @@ def create_wrapper_group(operator, modifier, old_group):
             output_socket = get_enabled_socket_with_name(input_node.outputs, "Attribute")
             group.links.new(output_socket, group_node_input)
         elif hasattr(input_socket, "default_value"):
-            # Special case for menu sockets: the modifier property is just the int value, which must be converted to the enum identifier to set the new interface default value. Use the RNA definition of the modifier property UI to get that identifier.
+            # Special case for menu sockets: the modifier property is just the int
+            # value, which must be converted to the enum identifier to set the new
+            # interface default value. Use the RNA definition of the modifier property
+            # UI to get that identifier.
             if input_socket.socket_type == 'NodeSocketMenu':
                 default_value_int = modifier[identifier]
                 menu_enum_items = modifier.id_properties_ui(identifier).as_dict()['items']
