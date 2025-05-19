@@ -409,6 +409,9 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using ValueType = typename std::decay_t<decltype(grid)>::ValueType;
         const auto &tree = grid.tree();
+        /* Could try to cache the accessor across batches, but it's not straight forward since its
+         * type depends on the grid type and thread-safety has to be maintained. It's likely not
+         * worth it because the cost is already negilible since we are processing a full batch. */
         auto accessor = grid.getConstUnsafeAccessor();
 
         MutableSpan<ValueType> values = scope.allocator().allocate_array<ValueType>(voxels_num);
