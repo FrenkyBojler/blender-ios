@@ -573,12 +573,13 @@ static bool restore_face_sets(Object &object,
 
 static void bmesh_restore_generic(StepData &step_data, Object &object, const SculptSession &ss)
 {
+  BMesh &bm = *bke::object::bmesh_get(object);
   if (step_data.applied) {
-    BM_log_undo(ss.bm, ss.bm_log);
+    BM_log_undo(&bm, ss.bm_log);
     step_data.applied = false;
   }
   else {
-    BM_log_redo(ss.bm, ss.bm_log);
+    BM_log_redo(&bm, ss.bm_log);
     step_data.applied = true;
   }
 
@@ -587,12 +588,12 @@ static void bmesh_restore_generic(StepData &step_data, Object &object, const Scu
     IndexMaskMemory memory;
     const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
     pbvh.tag_masks_changed(node_mask);
-    bke::pbvh::update_mask_bmesh(*ss.bm, node_mask, pbvh);
+    bke::pbvh::update_mask_bmesh(bm, node_mask, pbvh);
   }
   else {
     BKE_sculptsession_free_pbvh(object);
     DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
-    BM_mesh_normals_update(ss.bm);
+    BM_mesh_normals_update(&bm);
   }
 }
 
@@ -624,10 +625,11 @@ static void bmesh_restore_begin(bContext *C,
     step_data.applied = false;
   }
   else {
+    BMesh &bm = *bke::object::bmesh_get(object);
     bmesh_enable(object, step_data);
 
     /* Restore the mesh from the first log entry. */
-    BM_log_redo(ss.bm, ss.bm_log);
+    BM_log_redo(&bm, ss.bm_log);
 
     step_data.applied = true;
   }
@@ -639,10 +641,11 @@ static void bmesh_restore_end(bContext *C,
                               const SculptSession &ss)
 {
   if (step_data.applied) {
+    BMesh &bm = *bke::object::bmesh_get(object);
     bmesh_enable(object, step_data);
 
     /* Restore the mesh from the last log entry. */
-    BM_log_undo(ss.bm, ss.bm_log);
+    BM_log_undo(&bm, ss.bm_log);
 
     step_data.applied = false;
   }
@@ -1083,7 +1086,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       break;
     }
     case Type::Geometry: {
-      BLI_assert(!ss.bm);
+      BLI_assert(!BKE_sculpt_dyntopo_active(object));
 
       restore_geometry(step_data, object);
       BKE_sculptsession_free_deformMats(&ss);
@@ -1442,6 +1445,7 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
 {
   StepData *step_data = get_step_data();
   const SculptSession &ss = *object.sculpt;
+  BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
 
   std::scoped_lock lock(step_data->nodes_mutex);
 
@@ -1456,7 +1460,7 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
 
     if (type == Type::DyntopoEnd) {
       step_data->bmesh.bm_entry = BM_log_entry_add(ss.bm_log);
-      BM_log_before_all_removed(ss.bm, ss.bm_log);
+      BM_log_before_all_removed(&bm, ss.bm_log);
     }
     else if (type == Type::DyntopoBegin) {
       /* Store a copy of the mesh's current vertices, loops, and
@@ -1468,7 +1472,7 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
       store_geometry_data(geometry, object);
 
       step_data->bmesh.bm_entry = BM_log_entry_add(ss.bm_log);
-      BM_log_all_added(ss.bm, ss.bm_log);
+      BM_log_all_added(&bm, ss.bm_log);
     }
     else {
       step_data->bmesh.bm_entry = BM_log_entry_add(ss.bm_log);
@@ -1477,7 +1481,7 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
 
   if (node) {
     const int cd_vert_mask_offset = CustomData_get_offset_named(
-        &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+        &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
 
     /* The vertices and node aren't changed, though pointers to them are stored in the log. */
     bke::pbvh::BMeshNode *node_mut = const_cast<bke::pbvh::BMeshNode *>(node);
@@ -1546,7 +1550,7 @@ void push_node(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  if (ss.bm || ELEM(type, Type::DyntopoBegin, Type::DyntopoEnd)) {
+  if (BKE_sculpt_dyntopo_active(object) || ELEM(type, Type::DyntopoBegin, Type::DyntopoEnd)) {
     bmesh_push(object, static_cast<const bke::pbvh::BMeshNode *>(node), type);
     return;
   }
@@ -1588,7 +1592,7 @@ void push_nodes(const Depsgraph &depsgraph,
   ss.needs_flush_to_id = true;
 
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  if (ss.bm || ELEM(type, Type::DyntopoBegin, Type::DyntopoEnd)) {
+  if (BKE_sculpt_dyntopo_active(object) || ELEM(type, Type::DyntopoBegin, Type::DyntopoEnd)) {
     const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
     node_mask.foreach_index([&](const int i) { bmesh_push(object, &nodes[i], type); });
     return;

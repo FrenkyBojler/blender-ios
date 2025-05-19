@@ -163,7 +163,8 @@ void disable(bContext *C, undo::StepData *undo_step)
 void disable_with_undo(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
-  if (ss.bm != nullptr) {
+  BMesh *bm = bke::object::bmesh_get(ob);
+  if (bm != nullptr) {
     /* May be false in background mode. */
     const bool use_undo = G.background ? (ED_undo_stack_get() != nullptr) : true;
     if (use_undo) {
@@ -180,7 +181,8 @@ void disable_with_undo(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &
 static void enable_with_undo(Main &bmain, Depsgraph &depsgraph, const Scene &scene, Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
-  if (ss.bm == nullptr) {
+  BMesh *bm = bke::object::bmesh_get(ob);
+  if (bm == nullptr) {
     /* May be false in background mode. */
     const bool use_undo = G.background ? (ED_undo_stack_get() != nullptr) : true;
     if (use_undo) {
@@ -204,7 +206,7 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_exec(bContext *C, wmOpera
 
   WM_cursor_wait(true);
 
-  if (ss.bm) {
+  if (BKE_sculpt_dyntopo_active(ob)) {
     disable_with_undo(bmain, depsgraph, scene, ob);
   }
   else {
@@ -269,11 +271,10 @@ static bool dyntopo_supports_customdata_layers(const Span<CustomDataLayer> layer
 WarnFlag check_attribute_warning(Scene &scene, Object &ob)
 {
   Mesh *mesh = static_cast<Mesh *>(ob.data);
-  SculptSession &ss = *ob.sculpt;
 
   WarnFlag flag = WarnFlag(0);
 
-  BLI_assert(ss.bm == nullptr);
+  BLI_assert(bke::object::bmesh_get(ob) == nullptr);
   UNUSED_VARS_NDEBUG(ss);
 
   if (!dyntopo_supports_customdata_layers({mesh->vert_data.layers, mesh->vert_data.totlayer})) {
@@ -316,9 +317,8 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext *C,
                                                               const wmEvent * /*event*/)
 {
   Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
 
-  if (!ss.bm) {
+  if (!BKE_sculpt_dyntopo_active(ob)) {
     Scene &scene = *CTX_data_scene(C);
     const WarnFlag flag = check_attribute_warning(scene, ob);
 

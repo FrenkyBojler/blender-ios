@@ -352,13 +352,14 @@ static void calc_factors_bmesh(const Depsgraph &depsgraph,
                                MutableSpan<float> factors)
 {
   SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
   gather_bmesh_positions(verts, positions);
 
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, verts, factors);
@@ -389,13 +390,14 @@ static void do_relax_face_sets_brush_bmesh(const Depsgraph &depsgraph,
                                            const bool relax_face_sets)
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  const BMesh &bm = *bke::object::bmesh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   Array<int> node_offset_data;
   const OffsetIndices<int> node_vert_offsets = create_node_vert_offsets_bmesh(
       nodes, node_mask, node_offset_data);
 
   const int face_set_offset = CustomData_get_offset_named(
-      &object.sculpt->bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
+      &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
 
   Array<float3> current_positions(node_vert_offsets.total_size());
   Array<float3> translations(node_vert_offsets.total_size());
@@ -666,6 +668,7 @@ static void calc_topology_relax_factors_bmesh(const Depsgraph &depsgraph,
                                               MutableSpan<float> factors)
 {
   SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -676,7 +679,7 @@ static void calc_topology_relax_factors_bmesh(const Depsgraph &depsgraph,
 
   gather_bmesh_positions(verts, positions);
 
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   filter_region_clip_factors(ss, orig_positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, orig_normals, factors);
@@ -704,9 +707,10 @@ static void do_topology_relax_brush_bmesh(const Depsgraph &depsgraph,
                                           const float strength)
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  const BMesh &bm = *bke::object::bmesh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   const int face_set_offset = CustomData_get_offset_named(
-      &object.sculpt->bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
+      &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
 
   Array<int> node_offset_data;
   const OffsetIndices<int> node_vert_offsets = create_node_vert_offsets_bmesh(

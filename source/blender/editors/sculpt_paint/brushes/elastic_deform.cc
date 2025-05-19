@@ -175,6 +175,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -185,7 +186,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   filter_region_clip_factors(ss, orig_positions, factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);

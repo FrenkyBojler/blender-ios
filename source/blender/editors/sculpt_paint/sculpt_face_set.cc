@@ -75,7 +75,6 @@ namespace blender::ed::sculpt_paint::face_set {
 
 int find_next_available_id(Object &object)
 {
-  SculptSession &ss = *object.sculpt;
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
     case bke::pbvh::Type::Grids: {
@@ -97,7 +96,7 @@ int find_next_available_id(Object &object)
       return max + 1;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       const int cd_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
       if (cd_offset == -1) {
@@ -179,8 +178,7 @@ bke::SpanAttributeWriter<int> ensure_face_sets_mesh(Mesh &mesh)
 int ensure_face_sets_bmesh(Object &object)
 {
   Mesh &mesh = *static_cast<Mesh *>(object.data);
-  SculptSession &ss = *object.sculpt;
-  BMesh &bm = *ss.bm;
+  BMesh &bm = *bke::object::bmesh_get(object);
   if (!CustomData_has_layer_named(&bm.pdata, CD_PROP_INT32, ".sculpt_face_set")) {
     BM_data_layer_add_named(&bm, &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
     const int offset = CustomData_get_offset_named(&bm.pdata, CD_PROP_INT32, ".sculpt_face_set");

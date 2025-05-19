@@ -160,7 +160,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
-  const BMesh &bm = *ss.bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -256,8 +256,9 @@ void do_mask_brush(const Depsgraph &depsgraph,
       break;
     }
     case blender::bke::pbvh::Type::BMesh: {
+      BMesh &bm = *bke::object::bmesh_get(object);
       const int mask_offset = CustomData_get_offset_named(
-          &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+          &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();

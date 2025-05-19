@@ -308,15 +308,17 @@ void calc_smooth_translations(const Depsgraph &depsgraph,
       });
       break;
     }
-    case bke::pbvh::Type::BMesh:
-      BM_mesh_elem_index_ensure(ss.bm, BM_VERT);
-      BM_mesh_elem_table_ensure(ss.bm, BM_VERT);
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
+      BM_mesh_elem_index_ensure(&bm, BM_VERT);
+      BM_mesh_elem_table_ensure(&bm, BM_VERT);
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         brushes::LocalData &tls = all_tls.local();
         calc_translations_bmesh(nodes[i], tls, translations);
       });
       break;
+    }
   }
 }
 

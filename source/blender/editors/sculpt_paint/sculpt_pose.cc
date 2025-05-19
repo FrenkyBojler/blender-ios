@@ -266,6 +266,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        BrushLocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -276,7 +277,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   tls.translations.resize(verts.size());
@@ -780,12 +781,13 @@ static void calc_pose_origin_and_factor_bmesh(Object &object,
                                               MutableSpan<float> r_pose_factor)
 {
   BLI_assert(!r_pose_factor.is_empty());
+  BMesh &bm = *bke::object::bmesh_get(object);
   SCULPT_vertex_random_access_ensure(object);
 
   /* Calculate the pose rotation point based on the boundaries of the brush factor. */
-  flood_fill::FillDataBMesh flood(BM_mesh_elem_count(ss.bm, BM_VERT),
+  flood_fill::FillDataBMesh flood(BM_mesh_elem_count(&bm, BM_VERT),
                                   ss.fake_neighbors.fake_neighbor_index);
-  flood.add_initial(*ss.bm, find_symm_verts_bmesh(object, ss.active_vert_index(), radius));
+  flood.add_initial(bm, find_symm_verts_bmesh(object, ss.active_vert_index(), radius));
 
   const int symm = SCULPT_mesh_symmetry_xyz_get(object);
 
@@ -1358,9 +1360,10 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_bmesh(Object &object,
     int face_set;
   };
 
-  const int verts_num = BM_mesh_elem_count(ss.bm, BM_VERT);
+  BMesh &bm = *bke::object::bmesh_get(object);
+  const int verts_num = BM_mesh_elem_count(&bm, BM_VERT);
   const int face_set_offset = CustomData_get_offset_named(
-      &ss.bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
+      &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
   std::unique_ptr<IKChain> ik_chain = ik_chain_new(brush_num_effective_segments(brush), verts_num);
 
   /* Each vertex can only be assigned to one face set. */
@@ -1376,7 +1379,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_bmesh(Object &object,
 
     flood_fill::FillDataBMesh flood_fill(verts_num, ss.fake_neighbors.fake_neighbor_index);
     flood_fill.add_initial(
-        *ss.bm, find_symm_verts_bmesh(object, BM_elem_index_get(current_data.vert), radius));
+        bm, find_symm_verts_bmesh(object, BM_elem_index_get(current_data.vert), radius));
 
     visited_face_sets.add(current_data.face_set);
 
@@ -1568,8 +1571,8 @@ static std::optional<float3> calc_average_face_set_center(const Depsgraph &depsg
       break;
     }
     case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *bke::object::bmesh_get(object);
       SCULPT_vertex_random_access_ensure(object);
-      BMesh &bm = *object.sculpt->bm;
       const int face_set_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
       for (const int vert : IndexRange(BM_mesh_elem_count(&bm, BM_VERT))) {
@@ -1783,7 +1786,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
 {
   SCULPT_vertex_random_access_ensure(object);
 
-  BMesh &bm = *ss.bm;
+  BMesh &bm = *bke::object::bmesh_get(object);
   const int face_set_offset = CustomData_get_offset_named(
       &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
   const int verts_num = BM_mesh_elem_count(&bm, BM_VERT);
@@ -1848,7 +1851,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
 
   flood_fill::FillDataBMesh weight_floodfill(verts_num, ss.fake_neighbors.fake_neighbor_index);
   weight_floodfill.add_initial(
-      *ss.bm, find_symm_verts_bmesh(object, BM_elem_index_get(active_vert), radius));
+      bm, find_symm_verts_bmesh(object, BM_elem_index_get(active_vert), radius));
   MutableSpan<float> fk_weights = ik_chain->segments[0].weights;
   weight_floodfill.execute(object, [&](BMVert * /*from_v*/, BMVert *to_v) {
     int to_v_i = BM_elem_index_get(to_v);

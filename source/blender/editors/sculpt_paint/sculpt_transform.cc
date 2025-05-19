@@ -259,6 +259,7 @@ static void transform_node_bmesh(const Sculpt &sd,
                                  TransformLocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
@@ -268,7 +269,7 @@ static void transform_node_bmesh(const Sculpt &sd,
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -430,13 +431,14 @@ static void elastic_transform_node_bmesh(const Sculpt &sd,
                                          TransformLocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
   const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   scale_factors(factors, 20.0f);
 
   tls.translations.resize(verts.size());
@@ -748,6 +750,7 @@ static float3 average_unmasked_position(const Depsgraph &depsgraph,
       return float3(math::safe_divide(total.position, total.weight_total));
     }
     case bke::pbvh::Type::BMesh: {
+      const BMesh &bm = *bke::object::bmesh_get(object);
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       const AveragePositionAccumulation total = threading::parallel_reduce(
           node_mask.index_range(),
@@ -762,7 +765,7 @@ static float3 average_unmasked_position(const Depsgraph &depsgraph,
 
               tls.factors.resize(verts.size());
               const MutableSpan<float> factors = tls.factors;
-              fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+              fill_factor_from_hide_and_mask(bm, verts, factors);
               filter_verts_outside_symmetry_area(positions, pivot, symm, factors);
 
               accumulate_weighted_average_position(positions, factors, sum);
@@ -876,6 +879,7 @@ static float3 average_mask_border_position(const Depsgraph &depsgraph,
       return float3(math::safe_divide(total.position, total.weight_total));
     }
     case bke::pbvh::Type::BMesh: {
+      const BMesh &bm = *bke::object::bmesh_get(object);
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       const AveragePositionAccumulation total = threading::parallel_reduce(
           node_mask.index_range(),
@@ -890,7 +894,7 @@ static float3 average_mask_border_position(const Depsgraph &depsgraph,
 
               tls.masks.resize(verts.size());
               const MutableSpan<float> masks = tls.masks;
-              mask::gather_mask_bmesh(*ss.bm, verts, masks);
+              mask::gather_mask_bmesh(bm, verts, masks);
 
               tls.factors.resize(verts.size());
               const MutableSpan<float> factors = tls.factors;

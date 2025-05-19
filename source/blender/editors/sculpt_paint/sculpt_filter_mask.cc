@@ -549,10 +549,9 @@ static void apply_new_mask_bmesh(const Depsgraph &depsgraph,
                                  const OffsetIndices<int> node_verts,
                                  const Span<float> new_mask)
 {
-  SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  BMesh &bm = *ss.bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
 
   Array<bool> node_changed(node_mask.min_array_size(), false);
 
@@ -644,8 +643,7 @@ static bool increase_contrast_mask_bmesh(const Depsgraph &depsgraph,
                                          bke::pbvh::BMeshNode &node,
                                          FilterLocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
-  BMesh &bm = *ss.bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
@@ -675,8 +673,7 @@ static bool decrease_contrast_mask_bmesh(const Depsgraph &depsgraph,
                                          bke::pbvh::BMeshNode &node,
                                          FilterLocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
-  BMesh &bm = *ss.bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
@@ -916,7 +913,7 @@ static wmOperatorStatus sculpt_mask_filter_exec(bContext *C, wmOperator *op)
     }
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(ob);
       BM_mesh_elem_index_ensure(&bm, BM_VERT);
       const int mask_offset = CustomData_get_offset_named(
           &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");

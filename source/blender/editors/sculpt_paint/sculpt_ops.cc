@@ -243,26 +243,27 @@ static wmOperatorStatus symmetrize_exec(bContext *C, wmOperator *op)
        * parts that symmetrize modifies). */
       undo::push_begin(scene, ob, op);
       undo::push_node(depsgraph, ob, nullptr, undo::Type::Geometry);
-      BM_log_before_all_removed(ss.bm, ss.bm_log);
+      BMesh &bm = *bke::object::bmesh_get(ob);
+      BM_log_before_all_removed(&bm, ss.bm_log);
 
-      BM_mesh_toolflags_set(ss.bm, true);
+      BM_mesh_toolflags_set(&bm, true);
 
       /* Symmetrize and re-triangulate. */
-      BMO_op_callf(ss.bm,
+      BMO_op_callf(&bm,
                    (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
                    "symmetrize input=%avef direction=%i dist=%f use_shapekey=%b",
                    sd.symmetrize_direction,
                    dist,
                    true);
-      dyntopo::triangulate(ss.bm);
+      dyntopo::triangulate(&bm);
 
       /* Bisect operator flags edges (keep tags clean for edge queue). */
-      BM_mesh_elem_hflag_disable_all(ss.bm, BM_EDGE, BM_ELEM_TAG, false);
+      BM_mesh_elem_hflag_disable_all(&bm, BM_EDGE, BM_ELEM_TAG, false);
 
-      BM_mesh_toolflags_set(ss.bm, false);
+      BM_mesh_toolflags_set(&bm, false);
 
       /* Finish undo. */
-      BM_log_all_added(ss.bm, ss.bm_log);
+      BM_log_all_added(&bm, ss.bm_log);
       undo::push_end(ob);
 
       break;
@@ -1087,7 +1088,6 @@ static void apply_mask_bmesh(const Depsgraph &depsgraph,
                              bke::pbvh::BMeshNode &node,
                              LocalData &tls)
 {
-  const SculptSession &ss = *object.sculpt;
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
   tls.factors.resize(verts.size());
@@ -1106,12 +1106,13 @@ static void apply_mask_bmesh(const Depsgraph &depsgraph,
 
   tls.mask.resize(verts.size());
   const MutableSpan<float> node_mask = tls.mask;
-  gather_mask_bmesh(*ss.bm, verts, node_mask);
+  BMesh &bm = *bke::object::bmesh_get(object);
+  gather_mask_bmesh(bm, verts, node_mask);
 
   calc_new_masks(mode, node_mask, new_mask);
   mix_new_masks(new_mask, factors, node_mask);
 
-  scatter_mask_bmesh(node_mask.as_span(), *ss.bm, verts);
+  scatter_mask_bmesh(node_mask.as_span(), bm, verts);
 }
 
 static void apply_mask_from_settings(const Depsgraph &depsgraph,
@@ -1163,8 +1164,9 @@ static void apply_mask_from_settings(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *bke::object::bmesh_get(object);
       const int mask_offset = CustomData_get_offset_named(
-          &object.sculpt->bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+          &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();

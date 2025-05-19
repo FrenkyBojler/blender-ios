@@ -293,6 +293,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
   const bool do_elastic = brush.snake_hook_deform_type == BRUSH_SNAKE_HOOK_DEFORM_ELASTIC;
 
@@ -306,7 +307,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
     factors.fill(1.0f);
   }
   else {
-    fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+    fill_factor_from_hide_and_mask(bm, verts, factors);
     filter_region_clip_factors(ss, positions, factors);
     if (brush.flag & BRUSH_FRONTFACE) {
       calc_front_face(cache.view_normal_symm, verts, factors);
@@ -334,7 +335,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   calc_rake_rotation_influence(cache, positions, factors, translations);
 
   if (do_elastic) {
-    fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+    fill_factor_from_hide_and_mask(bm, verts, factors);
     scale_factors(factors, cache.bstrength * 20.0f);
     auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 

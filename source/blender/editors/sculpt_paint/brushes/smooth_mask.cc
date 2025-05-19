@@ -233,6 +233,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -264,7 +265,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.masks.resize(verts.size());
   const MutableSpan<float> masks = tls.masks;
-  mask::gather_mask_bmesh(*ss.bm, verts, masks);
+  mask::gather_mask_bmesh(bm, verts, masks);
 
   tls.new_masks.resize(verts.size());
   const MutableSpan<float> new_masks = tls.new_masks;
@@ -273,7 +274,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   mask::mix_new_masks(new_masks, factors, masks);
   mask::clamp_mask(masks);
 
-  mask::scatter_mask_bmesh(masks, *ss.bm, verts);
+  mask::scatter_mask_bmesh(masks, bm, verts);
 }
 
 }  // namespace smooth_mask_cc
@@ -308,10 +309,11 @@ void do_smooth_mask_brush(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::BMesh: {
       threading::EnumerableThreadSpecific<LocalData> all_tls;
-      BM_mesh_elem_index_ensure(ss.bm, BM_VERT);
-      BM_mesh_elem_table_ensure(ss.bm, BM_VERT);
+      BMesh &bm = *bke::object::bmesh_get(object);
+      BM_mesh_elem_index_ensure(&bm, BM_VERT);
+      BM_mesh_elem_table_ensure(&bm, BM_VERT);
       const int mask_offset = CustomData_get_offset_named(
-          &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+          &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
       for (const float strength : iteration_strengths(brush_strength)) {
         MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
         node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -319,7 +321,7 @@ void do_smooth_mask_brush(const Depsgraph &depsgraph,
           calc_bmesh(depsgraph, object, mask_offset, brush, strength, nodes[i], tls);
         });
       }
-      bke::pbvh::update_mask_bmesh(*ss.bm, node_mask, pbvh);
+      bke::pbvh::update_mask_bmesh(bm, node_mask, pbvh);
       pbvh.tag_masks_changed(node_mask);
       break;
     }

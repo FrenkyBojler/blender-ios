@@ -262,8 +262,9 @@ void do_smooth_brush(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BM_mesh_elem_index_ensure(ss.bm, BM_VERT);
-      BM_mesh_elem_table_ensure(ss.bm, BM_VERT);
+      BMesh &bm = *bke::object::bmesh_get(object);
+      BM_mesh_elem_index_ensure(&bm, BM_VERT);
+      BM_mesh_elem_table_ensure(&bm, BM_VERT);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       for (const float strength : iteration_strengths(brush_strength)) {
         MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();

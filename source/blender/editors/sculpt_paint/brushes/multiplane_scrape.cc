@@ -229,6 +229,7 @@ static void sample_node_surface_bmesh(const Depsgraph &depsgraph,
                                       LocalData &tls)
 {
   const SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(
@@ -238,7 +239,7 @@ static void sample_node_surface_bmesh(const Depsgraph &depsgraph,
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, verts, factors);
@@ -480,6 +481,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -487,7 +489,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, verts, factors);

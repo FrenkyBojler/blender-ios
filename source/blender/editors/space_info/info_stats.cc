@@ -369,7 +369,7 @@ static void stats_object_pose(const Object *ob, SceneStats *stats)
 static bool stats_is_object_dynamic_topology_sculpt(const Object *ob)
 {
   BLI_assert(ob->mode & OB_MODE_SCULPT);
-  return (ob->sculpt && ob->sculpt->bm);
+  return BKE_sculpt_dyntopo_active(*ob);
 }
 
 static void stats_object_sculpt(const Object *ob, SceneStats *stats)
@@ -389,10 +389,12 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
           stats->totfacesculpt = mesh.faces_num;
           break;
         }
-        case blender::bke::pbvh::Type::BMesh:
-          stats->totvertsculpt = ob->sculpt->bm->totvert;
-          stats->tottri = ob->sculpt->bm->totface;
+        case blender::bke::pbvh::Type::BMesh: {
+          const BMesh &bm = *blender::bke::object::bmesh_get(*ob);
+          stats->totvertsculpt = bm.totvert;
+          stats->tottri = bm.totface;
           break;
+        }
         case blender::bke::pbvh::Type::Grids:
           stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
           stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);

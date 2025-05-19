@@ -610,7 +610,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
             const int node_index = cloth_sim.node_state_index.lookup(&nodes[i]);
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_UNINITIALIZED;
           });
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       BM_mesh_elem_index_ensure(&bm, BM_VERT);
       BM_mesh_elem_table_ensure(&bm, BM_VERT);
       uninitialized_nodes.foreach_index([&](const int i) {
@@ -985,6 +985,7 @@ static void calc_forces_bmesh(const Depsgraph &depsgraph,
                               LocalData &tls)
 {
   SculptSession &ss = *ob.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(ob);
   SimulationData &cloth_sim = *ss.cache->cloth_sim;
   const StrokeCache &cache = *ss.cache;
 
@@ -1000,7 +1001,7 @@ static void calc_forces_bmesh(const Depsgraph &depsgraph,
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, bm_verts, factors);
+  fill_factor_from_hide_and_mask(bm, bm_verts, factors);
   filter_region_clip_factors(ss, current_positions, factors);
 
   calc_brush_simulation_falloff(brush, cache.radius, sim_location, positions, factors);
@@ -1314,7 +1315,7 @@ static void calc_constraint_factors(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const BMesh &bm = *ss.bm;
+      const BMesh &bm = *bke::object::bmesh_get(object);
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
@@ -1506,7 +1507,7 @@ void do_simulation_step(const Depsgraph &depsgraph,
             const int node_index = cloth_sim.node_state_index.lookup(&nodes[i]);
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_ACTIVE;
           });
-      BMesh &bm = *ss.bm;
+      const BMesh &bm = *bke::object::bmesh_get(object);
       active_nodes.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
         const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&nodes[i]);
@@ -1707,9 +1708,11 @@ static void copy_positions_to_array(const Depsgraph &depsgraph,
       positions.copy_from(subdiv_ccg.positions);
       break;
     }
-    case bke::pbvh::Type::BMesh:
-      BM_mesh_vert_coords_get(ss.bm, positions);
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
+      BM_mesh_vert_coords_get(&bm, positions);
       break;
+    }
   }
 }
 
@@ -1728,9 +1731,11 @@ static void copy_normals_to_array(const Depsgraph &depsgraph,
       normals.copy_from(subdiv_ccg.normals);
       break;
     }
-    case bke::pbvh::Type::BMesh:
-      BM_mesh_vert_normals_get(ss.bm, normals);
+    case bke::pbvh::Type::BMesh: {
+      BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
+      BM_mesh_vert_normals_get(&bm, normals);
       break;
+    }
   }
 }
 
@@ -2212,7 +2217,7 @@ static void apply_filter_forces_bmesh(const Depsgraph &depsgraph,
 {
   const SculptSession &ss = *object.sculpt;
   SimulationData &cloth_sim = *ss.filter_cache->cloth_sim;
-  const BMesh &bm = *ss.bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 

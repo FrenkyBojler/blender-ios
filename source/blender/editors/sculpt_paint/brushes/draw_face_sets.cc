@@ -373,6 +373,7 @@ static void calc_bmesh(Object &object,
                        const int cd_offset)
 {
   SculptSession &ss = *object.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMFace *, 0> &faces = BKE_pbvh_bmesh_node_faces(&node);
@@ -382,7 +383,7 @@ static void calc_bmesh(Object &object,
 
   tls.factors.resize(faces.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, faces, factors);
+  fill_factor_from_hide_and_mask(bm, faces, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, faces, factors);

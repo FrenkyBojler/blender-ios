@@ -113,6 +113,7 @@ static void apply_projection_bmesh(const Sculpt &sd,
                                    LocalData &tls)
 {
   const SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
   const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
@@ -123,7 +124,7 @@ static void apply_projection_bmesh(const Sculpt &sd,
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
 
   gesture::filter_factors(gesture_data, positions, normals, factors);
 

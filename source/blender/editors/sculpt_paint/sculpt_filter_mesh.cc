@@ -449,7 +449,7 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -567,7 +567,7 @@ static void calc_inflate_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -672,7 +672,7 @@ static void calc_scale_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -783,7 +783,7 @@ static void calc_sphere_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -899,7 +899,7 @@ static void calc_random_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -1044,7 +1044,7 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
         Vector<float3> positions;
         Vector<float3> translations;
       };
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       const int face_set_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
 
@@ -1209,7 +1209,7 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
         Vector<float3> positions;
         Vector<float3> translations;
       };
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       const int face_set_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
       threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -1436,7 +1436,7 @@ static void calc_surface_smooth_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -1712,7 +1712,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       BM_mesh_elem_index_ensure(&bm, BM_VERT);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
@@ -1854,7 +1854,7 @@ static void calc_enhance_details_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {

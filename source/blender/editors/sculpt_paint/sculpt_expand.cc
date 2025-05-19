@@ -170,9 +170,11 @@ static bool is_face_in_active_component(const Object &object,
           ss,
           expand_cache,
           faces[f].start() * BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg).grid_area);
-    case bke::pbvh::Type::BMesh:
+    case bke::pbvh::Type::BMesh: {
+      const BMesh &bm = *bke::object::bmesh_get(object);
       return is_vert_in_active_component(
-          ss, expand_cache, BM_elem_index_get(ss.bm->ftable[f]->l_first->v));
+          ss, expand_cache, BM_elem_index_get(bm.ftable[f]->l_first->v));
+    }
   }
   BLI_assert_unreachable();
   return false;
@@ -414,7 +416,7 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
       for (const int vert : IndexRange(totvert)) {
         const BMVert *bm_vert = BM_vert_at_index(&bm, vert);
         if (BM_elem_flag_test(bm_vert, BM_ELEM_HIDDEN)) {
@@ -512,7 +514,8 @@ static IndexMask boundary_from_enabled(Object &object,
     }
     case bke::pbvh::Type::BMesh: {
       return IndexMask::from_predicate(enabled_mask, GrainSize(1024), memory, [&](const int vert) {
-        BMVert *bm_vert = BM_vert_at_index(ss.bm, vert);
+        BMesh &bm = *bke::object::bmesh_get(object);
+        BMVert *bm_vert = BM_vert_at_index(&bm, vert);
         BMeshNeighborVerts neighbors;
         for (const BMVert *neighbor : vert_neighbors_get_bmesh(*bm_vert, neighbors)) {
           if (!enabled_verts[BM_elem_index_get(neighbor)]) {
@@ -634,8 +637,7 @@ Vector<int> find_symm_verts_bmesh(const Object &object,
   Vector<int> symm_verts;
   symm_verts.append(original_vert);
 
-  const SculptSession &ss = *object.sculpt;
-  BMesh &bm = *ss.bm;
+  BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
   const BMVert *original_bm_vert = BM_vert_at_index(&bm, original_vert);
   const float3 location = original_bm_vert->co;
   for (int symm_it = 1; symm_it <= symm; symm_it++) {
@@ -779,7 +781,7 @@ static void calc_topology_falloff_from_verts(Object &ob,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(ob);
       flood_fill::FillDataBMesh flood(totvert);
       initial_verts.foreach_index(
           [&](const int vert) { flood.add_and_skip_initial(BM_vert_at_index(&bm, vert), vert); });
@@ -878,9 +880,10 @@ static Array<float> normals_falloff_create(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::BMesh: {
       flood_fill::FillDataBMesh flood(totvert);
-      BMVert *orig_vert = BM_vert_at_index(ss.bm, vert);
+      BMesh &bm = *bke::object::bmesh_get(ob);
+      BMVert *orig_vert = BM_vert_at_index(&bm, vert);
       const float3 orig_normal = orig_vert->no;
-      flood.add_initial(*ss.bm, find_symm_verts(depsgraph, ob, vert));
+      flood.add_initial(bm, find_symm_verts(depsgraph, ob, vert));
       flood.execute(ob, [&](BMVert *from_bm_vert, BMVert *to_bm_vert) {
         const float3 from_normal = from_bm_vert->no;
         const float3 to_normal = to_bm_vert->no;
@@ -959,7 +962,7 @@ static Array<float> spherical_falloff_create(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
 
       Array<float3> locations(symm_verts.size());
       for (const int i : symm_verts.index_range()) {
@@ -1321,7 +1324,7 @@ static void init_from_face_set_boundary(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ob.sculpt->bm;
+      BMesh &bm = *bke::object::bmesh_get(ob);
       const int offset = CustomData_get_offset_named(&bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
       BM_mesh_elem_table_ensure(&bm, BM_FACE);
       threading::parallel_for(IndexRange(totvert), 1024, [&](const IndexRange range) {
@@ -1557,7 +1560,7 @@ static void write_mask_data(Object &object, const Span<float> mask)
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(object);
       const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
       BM_mesh_elem_table_ensure(&bm, BM_VERT);
       for (const int i : mask.index_range()) {
@@ -1959,8 +1962,9 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
           break;
         }
         case bke::pbvh::Type::BMesh: {
+          BMesh &bm = *bke::object::bmesh_get(ob);
           const int mask_offset = CustomData_get_offset_named(
-              &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+              &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
           MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
 
           Array<bool> node_changed(node_mask.min_array_size(), false);
@@ -2096,7 +2100,7 @@ static void reposition_pivot(bContext *C, Object &ob, Cache &expand_cache)
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(ob);
       const float3 expand_init_co = BM_vert_at_index(&bm, expand_cache.initial_active_vert)->co;
       boundary_verts.foreach_index([&](const int vert) {
         if (!is_vert_in_active_component(ss, expand_cache, vert)) {
@@ -2633,7 +2637,7 @@ static bool any_nonzero_mask(const Object &object)
           mask.begin(), mask.end(), [&](const float value) { return value > 0.0f; });
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
       const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
       if (offset == -1) {
         return false;
@@ -2777,7 +2781,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *ob.sculpt->bm;
+      BMesh &bm = *bke::object::bmesh_get(ob);
       BM_mesh_elem_table_ensure(&bm, BM_VERT);
       if (boundary::vert_is_boundary(BM_vert_at_index(&bm, initial_vert))) {
         falloff_type = FalloffType::BoundaryTopology;

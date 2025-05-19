@@ -82,7 +82,7 @@ static bool sculpt_and_constant_or_manual_detail_poll(bContext *C)
   Object *ob = CTX_data_active_object(C);
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 
-  return SCULPT_mode_poll(C) && ob->sculpt->bm &&
+  return SCULPT_mode_poll(C) && BKE_sculpt_dyntopo_active(*ob) &&
          (sd->flags & (SCULPT_DYNTOPO_DETAIL_CONSTANT | SCULPT_DYNTOPO_DETAIL_MANUAL));
 }
 
@@ -90,7 +90,7 @@ static bool sculpt_and_dynamic_topology_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
 
-  return SCULPT_mode_poll(C) && ob->sculpt->bm;
+  return SCULPT_mode_poll(C) && BKE_sculpt_dyntopo_active(*ob);
 }
 
 /** \} */
@@ -139,9 +139,10 @@ static wmOperatorStatus sculpt_detail_flood_fill_exec(bContext *C, wmOperator *o
   undo::push_begin(scene, ob, op);
   undo::push_node(depsgraph, ob, nullptr, undo::Type::Position);
 
+  BMesh &bm = *bke::object::bmesh_get(ob);
   const double start_time = BLI_time_now_seconds();
 
-  while (bke::pbvh::bmesh_update_topology(*ss.bm,
+  while (bke::pbvh::bmesh_update_topology(bm,
                                           pbvh,
                                           *ss.bm_log,
                                           PBVH_Collapse | PBVH_Subdivide,

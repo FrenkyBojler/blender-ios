@@ -283,6 +283,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
     const MutableSpan<float3> all_laplacian_disp)
 {
   const SculptSession &ss = *object.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(object);
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const StrokeCache &cache = *ss.cache;
   const float alpha = brush.surface_smooth_shape_preservation;
@@ -301,7 +302,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
     const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
 
     const MutableSpan<float> factors = all_factors.as_mutable_span().slice(node_offsets[pos]);
-    fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+    fill_factor_from_hide_and_mask(bm, verts, factors);
     filter_region_clip_factors(ss, positions, factors);
     if (brush.flag & BRUSH_FRONTFACE) {
       calc_front_face(cache.view_normal_symm, verts, factors);
@@ -405,7 +406,8 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BM_mesh_elem_index_ensure(ss.bm, BM_VERT);
+      BMesh &bm = *bke::object::bmesh_get(object);
+      BM_mesh_elem_index_ensure(&bm, BM_VERT);
       do_surface_smooth_brush_bmesh(
           depsgraph, sd, brush, node_mask, object, ss.cache->surface_smooth_laplacian_disp);
       break;

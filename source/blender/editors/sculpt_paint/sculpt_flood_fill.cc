@@ -164,7 +164,7 @@ void FillDataGrids::execute(
 
 void FillDataBMesh::execute(Object &object, FunctionRef<bool(BMVert *from_v, BMVert *to_v)> func)
 {
-  BMesh *bm = object.sculpt->bm;
+  BMesh &bm = *bke::object::bmesh_get(object);
   BMeshNeighborVerts neighbors;
   while (!this->queue.empty()) {
     BMVert *from_v = this->queue.front();
@@ -173,7 +173,7 @@ void FillDataBMesh::execute(Object &object, FunctionRef<bool(BMVert *from_v, BMV
     if (!this->fake_neighbors.is_empty() &&
         this->fake_neighbors[BM_elem_index_get(from_v)] != FAKE_NEIGHBOR_NONE)
     {
-      neighbors.append(BM_vert_at_index(bm, this->fake_neighbors[BM_elem_index_get(from_v)]));
+      neighbors.append(BM_vert_at_index(&bm, this->fake_neighbors[BM_elem_index_get(from_v)]));
     }
 
     for (BMVert *neighbor : vert_neighbors_get_bmesh(*from_v, neighbors)) {
