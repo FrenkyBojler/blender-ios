@@ -901,7 +901,7 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   row = &layout->row(false);
   row->prop(op->ptr, "affect", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiItemS(layout);
+  layout->separator();
 
   layout->prop(op->ptr, "offset_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -933,7 +933,7 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   col->prop(op->ptr, "mark_seam", UI_ITEM_NONE, IFACE_("Seams"), ICON_NONE);
   col->prop(op->ptr, "mark_sharp", UI_ITEM_NONE, IFACE_("Sharp"), ICON_NONE);
 
-  uiItemS(layout);
+  layout->separator();
 
   col = &layout->column(false);
   uiLayoutSetActive(col, affect_type == BEVEL_AFFECT_EDGES);
@@ -943,7 +943,7 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
     col->prop(op->ptr, "spread", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemS(layout);
+  layout->separator();
 
   col = &layout->column(false);
   uiLayoutSetActive(col, affect_type == BEVEL_AFFECT_EDGES);
@@ -951,7 +951,7 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
 
   layout->prop(op->ptr, "face_strength_mode", UI_ITEM_NONE, IFACE_("Face Strength"), ICON_NONE);
 
-  uiItemS(layout);
+  layout->separator();
 
   row = &layout->row(false);
   row->prop(op->ptr, "profile_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
@@ -1045,7 +1045,7 @@ void MESH_OT_bevel(wmOperatorType *ot)
   ot->description = "Cut into selected items at an angle to create bevel or chamfer";
   ot->idname = "MESH_OT_bevel";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_bevel_exec;
   ot->invoke = edbm_bevel_invoke;
   ot->modal = edbm_bevel_modal;

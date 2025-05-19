@@ -502,6 +502,7 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
   BLI_assert(ghost_context != nullptr);
   if (!device.is_initialized()) {
     device.init(ghost_context);
+    device.extensions_get().log();
   }
 
   VKContext *context = new VKContext(ghost_window, ghost_context);
@@ -593,7 +594,10 @@ void VKBackend::render_end()
     }
   }
 
-  if (BLI_thread_is_main() && !G.is_rendering) {
+  /* When performing animation render we want to release any discarded resources during rendering
+   * after each frame.
+   */
+  if (G.is_rendering && thread_data.rendering_depth == 0 && !BLI_thread_is_main()) {
     device.orphaned_data.move_data(device.orphaned_data_render,
                                    device.orphaned_data.timeline_ + 1);
   }
