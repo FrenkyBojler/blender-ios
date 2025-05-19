@@ -779,13 +779,12 @@ static BHead *blo_bhead_read_full(FileData *fd, BHead *thisblock)
 {
   BHeadN *new_bhead = BHEADN_FROM_BHEAD(thisblock);
   BHeadN *new_bhead_data = static_cast<BHeadN *>(
-      MEM_mallocN(sizeof(BHeadN) + new_bhead->bhead.len, "new_bhead"));
+      fd->bheads_allocator.allocate(sizeof(BHeadN) + new_bhead->bhead.len, MEM_MIN_CPP_ALIGNMENT));
   new_bhead_data->bhead = new_bhead->bhead;
   new_bhead_data->file_offset = new_bhead->file_offset;
   new_bhead_data->has_data = true;
   new_bhead_data->is_memchunk_identical = false;
   if (!blo_bhead_read_data(fd, thisblock, new_bhead_data + 1)) {
-    MEM_freeN(new_bhead_data);
     return nullptr;
   }
   return &new_bhead_data->bhead;
