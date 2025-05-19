@@ -9,6 +9,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 
 #include "BLI_vector.hh"
 
@@ -122,20 +123,31 @@ class VectorList {
  private:
   std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index)
   {
-    /* TODO: This is a geometric series. Use plain math instead. */
-    int64_t global_index = 0;
-    int64_t index_a = 0;
+    /* TODO: Replace log2 with std::countr_zero (requires C++20). */
+    auto geometric_sum = [](int64_t index) -> int64_t {
+      return CapacityStart * ((2 << index) - 1);
+    };
+    auto index_from_sum = [](int64_t sum) -> int64_t {
+      return int64_t(std::log2((double(sum) / CapacityStart) + 1));
+    };
+    static const int64_t start_log2 = int64_t(std::log2(CapacityStart));
+    static const int64_t end_log2 = int64_t(std::log2(CapacitySoftLimit));
+    /* The number of vectors until CapacitySoftLimit size is reached. */
+    static const int64_t geometric_steps = end_log2 - start_log2 + 1;
+    /* The number of elements until CapacitySoftLimit size is reached. */
+    static const int64_t geometric_total = geometric_sum(geometric_steps - 1);
 
-    for (int64_t i = CapacityStart; i <= CapacitySoftLimit; i *= 2) {
-      if (global_index + i > index) {
-        return {index_a, global_index > 0 ? index % global_index : 0};
-      }
-      global_index += i;
-      index_a++;
+    int64_t index_a, index_b;
+    if (index < geometric_total) {
+      index_a = index_from_sum(index);
+      index_b = index_a > 0 ? index - geometric_sum(index_a - 1) : index;
     }
-
-    int64_t remainder = index - global_index;
-    return {index_a + remainder / CapacitySoftLimit, remainder % CapacitySoftLimit};
+    else {
+      int64_t linear_start = index - geometric_total;
+      index_a = geometric_steps + linear_start / CapacitySoftLimit;
+      index_b = linear_start % CapacitySoftLimit;
+    }
+    return {index_a, index_b};
   }
 
   UsedVector &ensure_space_for_one()
