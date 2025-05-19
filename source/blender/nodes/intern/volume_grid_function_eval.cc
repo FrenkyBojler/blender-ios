@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_customdata.hh"
 #include "FN_multi_function.hh"
 
 #include "BKE_anonymous_attribute_make.hh"
@@ -59,6 +60,15 @@ template<typename Fn> static void to_typed_grid(openvdb::GridBase &grid_base, Fn
       BLI_assert_unreachable();
     }
   });
+}
+
+static std::optional<VolumeGridType> cpp_type_to_grid_type(const CPPType &cpp_type)
+{
+  const std::optional<eCustomDataType> cd_type = bke::cpp_type_to_custom_data_type(cpp_type);
+  if (!cd_type) {
+    return std::nullopt;
+  }
+  return bke::custom_data_type_to_volume_grid_type(*cd_type);
 }
 
 using LeafNodeMask = openvdb::util::NodeMask<3u>;
@@ -538,7 +548,7 @@ void execute_multi_function_on_value_variant__volume_grid(
       input_grids[input_i] = &g_volume_grid->grid(input_volume_tokens[input_i]);
     }
     else if (value_variant.is_context_dependent_field()) {
-      /* Nothing to do here. */
+      /* Nothing to do here. The field is evaluated later. */
     }
     else {
       value_variant.convert_to_single();
@@ -591,12 +601,15 @@ void execute_multi_function_on_value_variant__volume_grid(
       const int param_index = input_values.size() + i;
       const mf::ParamType param_type = fn.param_type(param_index);
       const CPPType &cpp_type = param_type.data_type().single_type();
-      /* TODO: Cleanup and error handling. */
-      const VolumeGridType grid_type = *bke::socket_type_to_grid_type(
-          *bke::geo_nodes_base_cpp_type_to_socket_type(cpp_type));
+      const std::optional<VolumeGridType> grid_type = cpp_type_to_grid_type(cpp_type);
+      if (!grid_type) {
+        /* TODO: Cleanup and error handling. */
+        BLI_assert_unreachable();
+        continue;
+      }
 
       openvdb::GridBase::Ptr grid;
-      BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
+      BKE_volume_grid_type_to_static_type(*grid_type, [&](auto type_tag) {
         using GridT = typename decltype(type_tag)::type;
         using TreeT = typename GridT::TreeType;
         using ValueType = typename TreeT::ValueType;
