@@ -3488,7 +3488,7 @@ static void version_escape_curly_braces_in_compositor_file_output_nodes(bNodeTre
   }
 
   LISTBASE_FOREACH (bNode *, node, &nodetree.nodes) {
-    if (strcmp(node->idname, "CompositorNodeOutputFile") != 0) {
+    if (!STREQ(node->idname, "CompositorNodeOutputFile")) {
       continue;
     }
 
@@ -4215,7 +4215,7 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 72)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 73)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
@@ -4494,6 +4494,15 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
 
       brush->sculpt_brush_type = SCULPT_BRUSH_TYPE_PLANE;
     }
+  }
+}
+
+static void version_set_default_bone_drawtype(Main *bmain)
+{
+  LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+    blender::animrig::ANIM_armature_foreach_bone(
+        &arm->bonebase, [](Bone *bone) { bone->drawtype = ARM_DRAW_TYPE_ARMATURE_DEFINED; });
+    BLI_assert_msg(!arm->edbo, "Armatures should not be saved in edit mode");
   }
 }
 
@@ -5307,6 +5316,10 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 72)) {
+    version_set_default_bone_drawtype(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 73)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
