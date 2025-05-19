@@ -21,7 +21,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_system.h" /* for 'BLI_system_backtrace' stub. */
+#include "BLI_system.h" /* For #BLI_system_backtrace stub. */
 #include "BLI_utildefines.h"
 
 #include "RNA_define.hh"
@@ -2646,7 +2646,7 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 static const char *rna_parameter_type_cpp_name(PropertyRNA *prop)
 {
   if (prop->type == PROP_POINTER) {
-    /* for cpp api we need to use RNA structures names for pointers */
+    /* For the C++ API we need to use RNA structures names for pointers. */
     PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
 
     return (const char *)pprop->type;
@@ -5248,7 +5248,7 @@ static const char *cpp_classes =
     "                found = true; \\\n"
     "            } \\\n"
     "            if (name_fixed != name) { \\\n"
-    "                MEM_freeN((void *) name); \\\n"
+    "                MEM_freeN( name); \\\n"
     "            } \\\n"
     "            sname##_##identifier##_next(&iter); \\\n"
     "        } \\\n"

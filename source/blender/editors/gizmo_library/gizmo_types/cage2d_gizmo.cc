@@ -1070,8 +1070,7 @@ static void gizmo_cage2d_setup(wmGizmo *gz)
 
 static wmOperatorStatus gizmo_cage2d_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 {
-  RectTransformInteraction *data = static_cast<RectTransformInteraction *>(
-      MEM_callocN(sizeof(RectTransformInteraction), "cage_interaction"));
+  RectTransformInteraction *data = MEM_callocN<RectTransformInteraction>("cage_interaction");
 
   copy_m4_m4(data->orig_matrix_offset, gz->matrix_offset);
   WM_gizmo_calc_matrix_final_no_offset(gz, data->orig_matrix_final_no_offset);
@@ -1402,7 +1401,7 @@ static void GIZMO_GT_cage_2d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_cage_2d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_cage2d_draw;
   gzt->draw_select = gizmo_cage2d_draw_select;
   gzt->test_select = gizmo_cage2d_test_select;

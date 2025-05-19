@@ -115,11 +115,6 @@ static int calc_effective_bits(const Sculpt &sd, const Brush *brush)
   return sd.automasking_flags;
 }
 
-bool needs_normal(const Sculpt &sd, const Brush *brush)
-{
-  return calc_effective_bits(sd, brush) & BRUSH_AUTOMASKING_BRUSH_NORMAL;
-}
-
 static float normal_calc(const float3 &compare_normal,
                          const float3 &normal,
                          float limit_lower,
@@ -184,10 +179,6 @@ static bool needs_factors_cache(const Sculpt &sd, const Brush *brush)
     return true;
   }
 
-  if (automasking_flags & BRUSH_AUTOMASKING_VIEW_NORMAL) {
-    return brush && brush->automasking_boundary_edges_propagation_steps != 1;
-  }
-
   if (automasking_flags &
       (BRUSH_AUTOMASKING_BOUNDARY_EDGES | BRUSH_AUTOMASKING_BOUNDARY_FACE_SETS))
   {
@@ -246,7 +237,7 @@ static bool calc_view_occlusion_factor(const Depsgraph &depsgraph,
                                        const float3 &vert_position)
 {
   if (automasking.occlusion[vert] == Cache::OcclusionValue::Unknown) {
-    const bool occluded = SCULPT_vertex_is_occluded(depsgraph, object, vert_position, true);
+    const bool occluded = vertex_is_occluded(depsgraph, object, vert_position, true);
     automasking.occlusion[vert] = occluded ? Cache::OcclusionValue::Occluded :
                                              Cache::OcclusionValue::Visible;
   }
@@ -1633,11 +1624,6 @@ static void normal_occlusion_automasking_fill(const Depsgraph &depsgraph,
   }
 }
 
-std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph, const Sculpt &sd, Object &ob)
-{
-  return cache_init(depsgraph, sd, nullptr, ob);
-}
-
 std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
                                   const Sculpt &sd,
                                   const Brush *brush,
@@ -1724,6 +1710,31 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
   }
 
   return automasking;
+}
+
+Cache &filter_cache_ensure(const Depsgraph &depsgraph, const Sculpt &sd, Object &ob)
+{
+  BLI_assert(is_enabled(sd, ob, nullptr));
+  if (ob.sculpt->filter_cache->automasking) {
+    return *ob.sculpt->filter_cache->automasking;
+  }
+
+  ob.sculpt->filter_cache->automasking = cache_init(depsgraph, sd, nullptr, ob);
+  return *ob.sculpt->filter_cache->automasking;
+}
+
+Cache &stroke_cache_ensure(const Depsgraph &depsgraph,
+                           const Sculpt &sd,
+                           const Brush *brush,
+                           Object &ob)
+{
+  BLI_assert(is_enabled(sd, ob, brush));
+  if (ob.sculpt->cache->automasking) {
+    return *ob.sculpt->cache->automasking;
+  }
+
+  ob.sculpt->cache->automasking = cache_init(depsgraph, sd, brush, ob);
+  return *ob.sculpt->cache->automasking;
 }
 
 void Cache::calc_cavity_factor(const Depsgraph &depsgraph,

@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_windowmanager_types.h"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_log.hh"
@@ -16,6 +17,7 @@
 #include "BKE_compute_contexts.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -179,6 +181,13 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
         if (const GreasePencil *grease_pencil = grease_pencil_component.get()) {
           GreasePencilInfo &info = this->grease_pencil_info.emplace(GreasePencilInfo());
           info.layers_num = grease_pencil->layers().size();
+          Set<StringRef> unique_layer_names;
+          for (const bke::greasepencil::Layer *layer : grease_pencil->layers()) {
+            const StringRefNull layer_name = layer->name();
+            if (unique_layer_names.add(layer_name)) {
+              info.layer_names.append(layer_name);
+            }
+          }
         }
         break;
       }
@@ -236,6 +245,19 @@ ClosureValueLog::ClosureValueLog(Vector<Item> inputs,
                           source_location->closure_output_node_id,
                           source_location->compute_context_hash};
   }
+}
+
+NodeWarning::NodeWarning(const Report &report)
+{
+  switch (report.type) {
+    case RPT_ERROR:
+      this->type = NodeWarningType::Error;
+      break;
+    default:
+      this->type = NodeWarningType::Info;
+      break;
+  }
+  this->message = report.message;
 }
 
 /* Avoid generating these in every translation unit. */
@@ -597,6 +619,36 @@ void GeoTreeLog::ensure_evaluated_gizmo_nodes()
   reduced_evaluated_gizmo_nodes_ = true;
 }
 
+void GeoTreeLog::ensure_layer_names()
+{
+  if (reduced_layer_names_) {
+    return;
+  }
+
+  this->ensure_socket_values();
+
+  auto handle_value_log = [&](const ValueLog &value_log) {
+    const GeometryInfoLog *geo_log = dynamic_cast<const GeometryInfoLog *>(&value_log);
+    if (geo_log == nullptr || !geo_log->grease_pencil_info.has_value()) {
+      return;
+    }
+    for (const std::string &name : geo_log->grease_pencil_info->layer_names) {
+      this->all_layer_names.append(name);
+    }
+  };
+
+  for (const GeoNodeLog &node_log : this->nodes.values()) {
+    for (const ValueLog *value_log : node_log.input_values_.values()) {
+      handle_value_log(*value_log);
+    }
+    for (const ValueLog *value_log : node_log.output_values_.values()) {
+      handle_value_log(*value_log);
+    }
+  }
+
+  reduced_layer_names_ = true;
+}
+
 ValueLog *GeoTreeLog::find_socket_value_log(const bNodeSocket &query_socket)
 {
   /**
@@ -694,7 +746,7 @@ static std::optional<uint32_t> get_original_session_uid(const ID *id)
   if (!id) {
     return {};
   }
-  if (DEG_is_original_id(id)) {
+  if (DEG_is_original(id)) {
     return id->session_uid;
   }
   if (const ID *id_orig = DEG_get_original(id)) {
@@ -756,7 +808,7 @@ GeoTreeLogger &GeoModifierLog::get_local_tree_logger(const ComputeContext &compu
     const std::optional<nodes::ClosureSourceLocation> &location =
         context->closure_source_location();
     if (location.has_value()) {
-      BLI_assert(DEG_is_evaluated_id(&location->tree->id));
+      BLI_assert(DEG_is_evaluated(location->tree));
       tree_logger.tree_orig_session_uid = DEG_get_original_id(&location->tree->id)->session_uid;
     }
   }
@@ -882,7 +934,7 @@ const ViewerNodeLog *GeoModifierLog::find_viewer_node_log_for_path(const ViewerP
   const Object *object = parsed_path->object;
   NodesModifierData *nmd = nullptr;
   LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-    if (md->name == parsed_path->modifier_name) {
+    if (md->persistent_uid == parsed_path->modifier_uid) {
       if (md->type == eModifierType_Nodes) {
         nmd = reinterpret_cast<NodesModifierData *>(md);
       }

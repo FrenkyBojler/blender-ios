@@ -1004,7 +1004,7 @@ static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
   StripData *data = strip->data;
 
   if (data && data->color_balance) {
-    SequenceModifierData *smd = blender::seq::modifier_new(
+    StripModifierData *smd = blender::seq::modifier_new(
         strip, nullptr, seqModifierType_ColorBalance);
     ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
 
@@ -1435,7 +1435,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 261, 3)) {
     {
-      /* convert extended ascii to utf-8 for text editor */
+      /* Convert extended ASCII to UTF8 for text editor. */
       CLANG_FORMAT_NOP_WORKAROUND;
       LISTBASE_FOREACH (Text *, text, &bmain->texts) {
         if (!(text->flags & TXT_ISEXT)) {

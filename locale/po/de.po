@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"POT-Creation-Date: 2025-05-19 11:37+0000\n"
 "PO-Revision-Date: 2025-04-14 08:14+0000\n"
 "Last-Translator: Thomas Radeke <rahdick@gmx.de>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -3099,6 +3099,38 @@ msgstr "Kinder"
 
 msgid "Bones which are children of this bone"
 msgstr "Knochen, die Kinder dieses Knochens sind"
+
+
+msgid "Display Type"
+msgstr "Anzeigetyp"
+
+
+msgid "Octahedral"
+msgstr "Achteckig"
+
+
+msgid "Stick"
+msgstr "Einzelner Knochen"
+
+
+msgid "Display bones as simple 2D lines with dots"
+msgstr "Knochen als einfache 2D-Linien mit Punkten anzeigen"
+
+
+msgid "B-Bone"
+msgstr "B-Knochen"
+
+
+msgid "Envelope"
+msgstr "Einhüllende"
+
+
+msgid "Wire"
+msgstr "Drahtgitter"
+
+
+msgid "Display bones as thin wires, showing subdivision and B-Splines"
+msgstr "Knochen als dünne Drähte anzeigen, dabei Unterteilung und B-Splines zeigen"
 
 
 msgid "Envelope Deform Distance"
@@ -10303,10 +10335,6 @@ msgid "Use Viscosity"
 msgstr "Zähigkeit verwenden"
 
 
-msgid "Display Type"
-msgstr "Anzeigetyp"
-
-
 msgid "Display vectors as streamlines"
 msgstr "Eckpunkte als Stromlinie anzeigen"
 
@@ -11387,36 +11415,8 @@ msgid "Axes Position"
 msgstr "Axenposition"
 
 
-msgid "Octahedral"
-msgstr "Achteckig"
-
-
 msgid "Display bones as octahedral shape (default)"
 msgstr "Knochen als achteckige Form anzeigen (Vorgabe)"
-
-
-msgid "Stick"
-msgstr "Einzelner Knochen"
-
-
-msgid "Display bones as simple 2D lines with dots"
-msgstr "Knochen als einfache 2D-Linien mit Punkten anzeigen"
-
-
-msgid "B-Bone"
-msgstr "B-Knochen"
-
-
-msgid "Envelope"
-msgstr "Einhüllende"
-
-
-msgid "Wire"
-msgstr "Drahtgitter"
-
-
-msgid "Display bones as thin wires, showing subdivision and B-Splines"
-msgstr "Knochen als dünne Drähte anzeigen, dabei Unterteilung und B-Splines zeigen"
 
 
 msgid "Edit Bones"
@@ -12224,6 +12224,10 @@ msgstr "Anfang abschneiden"
 
 msgid "Camera near clipping distance"
 msgstr "Kamera nahe Clipping-Entfernung"
+
+
+msgid "Use internal text data-block"
+msgstr "Internen Textdatenblock verwenden"
 
 
 msgid "Depth Of Field"
@@ -18831,12 +18835,48 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "Select All by Trait"
-msgstr "Alles nach Merkmal auswählen"
+msgid "Mirror"
+msgstr "Spiegeln"
+
+
+msgid "Snap"
+msgstr "Einrasten"
+
+
+msgid "Local View"
+msgstr "Lokale Ansicht"
+
+
+msgid "Viewpoint"
+msgstr "Ansicht"
+
+
+msgid "Navigation"
+msgstr "Navigation"
+
+
+msgid "Align View"
+msgstr "Ansicht ausrichten"
+
+
+msgid "Align View to Active"
+msgstr "Ansicht auf Aktiv ausrichten"
+
+
+msgid "View Regions"
+msgstr "Vierfenster Ansicht"
 
 
 msgid "Select More/Less"
 msgstr "Mehr/weniger anzeigen"
+
+
+msgid "Select Similar"
+msgstr "Ähnliche auswählen"
+
+
+msgid "Select All by Trait"
+msgstr "Alles nach Merkmal auswählen"
 
 
 msgid "Select Linked"
@@ -18971,48 +19011,12 @@ msgid "Pivot Point"
 msgstr "Drehpunkt"
 
 
-msgid "Snap"
-msgstr "Einrasten"
-
-
 msgid "Proportional Editing Falloff"
 msgstr "Proportionaler Bearbeitungsabfall"
 
 
 msgid "Mask Edit"
 msgstr "Maskenbearbeitung"
-
-
-msgid "Mirror"
-msgstr "Spiegeln"
-
-
-msgid "Local View"
-msgstr "Lokale Ansicht"
-
-
-msgid "Viewpoint"
-msgstr "Ansicht"
-
-
-msgid "Navigation"
-msgstr "Navigation"
-
-
-msgid "Align View"
-msgstr "Ansicht ausrichten"
-
-
-msgid "Align View to Active"
-msgstr "Ansicht auf Aktiv ausrichten"
-
-
-msgid "View Regions"
-msgstr "Vierfenster Ansicht"
-
-
-msgid "Select Similar"
-msgstr "Ähnliche auswählen"
 
 
 msgid "Assets"
@@ -23072,10 +23076,6 @@ msgid "Use circular filter (slower)"
 msgstr "Kreisfilter verwenden (langsamer)"
 
 
-msgid "Apply filter on gamma corrected values"
-msgstr "Filter auf Gamma korigierte Werte anwenden"
-
-
 msgid "Use relative (percent) values to define blur radius"
 msgstr "Relative (prozentual) Werte verwenden, um den Weichzeichnerradius zu definieren"
 
@@ -23104,32 +23104,12 @@ msgid "Box Mask"
 msgstr "Rechteckige Maske"
 
 
-msgid "Height of the box"
-msgstr "Höhe der Box"
-
-
 msgid "Mask Type"
 msgstr "Abdecktyp"
 
 
 msgid "Not"
 msgstr "Nicht"
-
-
-msgid "Width of the box"
-msgstr "Breite der Box"
-
-
-msgid "Rotation angle of the box"
-msgstr "Rotationswinkel der Box"
-
-
-msgid "X position of the middle of the box"
-msgstr "X Position der Boxmitte"
-
-
-msgid "Y position of the middle of the box"
-msgstr "Y-Position von der Mitte der Box"
 
 
 msgid "Channel Key"
@@ -23150,10 +23130,6 @@ msgstr "Begrenzung durch diesen Kanalwert"
 
 msgid "High"
 msgstr "Hoch"
-
-
-msgid "Values higher than this setting are 100% opaque"
-msgstr "Werte höher als diese Einstellung sind 100% undurchsichtig"
 
 
 msgid "Algorithm"
@@ -23180,10 +23156,6 @@ msgid "Low"
 msgstr "Niedrig"
 
 
-msgid "Values lower than this setting are 100% keyed"
-msgstr "Werte niedriger als diese Einstellung sind 100% freigestellt"
-
-
 msgid "Channel used to determine matte"
 msgstr "Kanal der verwendet wird, um die Maske zu bestimmen"
 
@@ -23192,32 +23164,16 @@ msgid "Chroma Key"
 msgstr "Chroma Key"
 
 
-msgid "Alpha falloff"
-msgstr "Alpha Abfall"
-
-
 msgid "Lift"
 msgstr "Heben"
-
-
-msgid "Alpha lift"
-msgstr "Alpha anheben"
 
 
 msgid "Shadow Adjust"
 msgstr "Schatten anpassen"
 
 
-msgid "Tolerance below which colors will be considered as exact matches"
-msgstr "Toleranz unterhalb jeder Farbe wird als exakte Übereinstimmung betrachtet"
-
-
 msgid "Acceptance"
 msgstr "Akzeptanz"
-
-
-msgid "Tolerance for a color to be considered a keying color"
-msgstr "Toleranz für eine Farbe, die als Schlüsselfarbe betrachtet wird"
 
 
 msgid "Color Balance"
@@ -23248,19 +23204,7 @@ msgid "Color Correction"
 msgstr "Farbkorrektur"
 
 
-msgid "Blue channel active"
-msgstr "Blaukanal aktiv"
-
-
-msgid "Green channel active"
-msgstr "Grünkanal aktiv"
-
-
 msgid "Highlights Contrast"
-msgstr "Lichter Kontrast"
-
-
-msgid "Highlights contrast"
 msgstr "Lichter Kontrast"
 
 
@@ -23268,15 +23212,7 @@ msgid "Highlights Gain"
 msgstr "Lichter anheben"
 
 
-msgid "Highlights gain"
-msgstr "Lichter verstärken"
-
-
 msgid "Highlights Gamma"
-msgstr "Lichter Gamma"
-
-
-msgid "Highlights gamma"
 msgstr "Lichter Gamma"
 
 
@@ -23284,15 +23220,7 @@ msgid "Highlights Lift"
 msgstr "Lichter anheben"
 
 
-msgid "Highlights lift"
-msgstr "Lichter anheben"
-
-
 msgid "Highlights Saturation"
-msgstr "Lichter Sättigung"
-
-
-msgid "Highlights saturation"
 msgstr "Lichter Sättigung"
 
 
@@ -23300,16 +23228,8 @@ msgid "Master Contrast"
 msgstr "Master Kontrast"
 
 
-msgid "Master contrast"
-msgstr "Hauptkontrast"
-
-
 msgid "Master Gamma"
 msgstr "Haupt-Gamma"
-
-
-msgid "Master gamma"
-msgstr "Master Gamma"
 
 
 msgid "Master Lift"
@@ -23320,24 +23240,12 @@ msgid "Master Saturation"
 msgstr "Master Sättigung"
 
 
-msgid "Master saturation"
-msgstr "Master Sättigung"
-
-
 msgid "Midtones Contrast"
-msgstr "Mitteltöne Kontrast"
-
-
-msgid "Midtones contrast"
 msgstr "Mitteltöne Kontrast"
 
 
 msgid "Midtones End"
 msgstr "Mittelton Ende"
-
-
-msgid "End of midtones"
-msgstr "Ende der Mitteltöne"
 
 
 msgid "Midtones Gain"
@@ -23348,15 +23256,7 @@ msgid "Midtones Gamma"
 msgstr "Mitteltöne Gamma"
 
 
-msgid "Midtones gamma"
-msgstr "Mittelton Gamma"
-
-
 msgid "Midtones Lift"
-msgstr "Mitteltöne anheben"
-
-
-msgid "Midtones lift"
 msgstr "Mitteltöne anheben"
 
 
@@ -23364,27 +23264,11 @@ msgid "Midtones Saturation"
 msgstr "Mittelton Sättigung"
 
 
-msgid "Midtones saturation"
-msgstr "Mittelton Sättigung"
-
-
 msgid "Midtones Start"
 msgstr "Mittelton Beginn"
 
 
-msgid "Start of midtones"
-msgstr "Start der mitteltöne"
-
-
-msgid "Red channel active"
-msgstr "Rotkanal aktiv"
-
-
 msgid "Shadows Contrast"
-msgstr "Tiefen Kontrast"
-
-
-msgid "Shadows contrast"
 msgstr "Tiefen Kontrast"
 
 
@@ -23392,23 +23276,11 @@ msgid "Shadows Gain"
 msgstr "Tiefen verstärken"
 
 
-msgid "Shadows gain"
-msgstr "Tiefen verstärken"
-
-
 msgid "Shadows Gamma"
 msgstr "Tiefen Gamma"
 
 
-msgid "Shadows gamma"
-msgstr "Tiefen Gamma"
-
-
 msgid "Shadows Lift"
-msgstr "Tiefen anheben"
-
-
-msgid "Shadows lift"
 msgstr "Tiefen anheben"
 
 
@@ -23424,20 +23296,8 @@ msgid "H"
 msgstr "H"
 
 
-msgid "Hue tolerance for colors to be considered a keying color"
-msgstr "Farbtoleranz für Farben, die als Schlüsselfarbe betrachtet werden"
-
-
 msgid "S"
 msgstr "S"
-
-
-msgid "Saturation tolerance for the color"
-msgstr "Sättigungstoleranz für die Farbe"
-
-
-msgid "Value tolerance for the color"
-msgstr "Werttoleranz für die Farbe"
 
 
 msgid "Color Spill"
@@ -23476,16 +23336,8 @@ msgid "Average limit algorithm"
 msgstr "Durchschnittliches Limit Algorythmus"
 
 
-msgid "Scale limit by value"
-msgstr "Skale durch Wert begrenzen"
-
-
 msgid "Unspill"
 msgstr "Überfüllung aufheben"
-
-
-msgid "Compensate all channels (differently) by hand"
-msgstr "Kompensiert alle Kanäle (Unterschiede) per Hand"
 
 
 msgid "ITU 601"
@@ -23680,10 +23532,6 @@ msgid "Despeckle"
 msgstr "Perspektive"
 
 
-msgid "Threshold for detecting pixels to despeckle"
-msgstr "Schwellwert für das Zeichnen von Rändern auf Geometrie-Kanten"
-
-
 msgid "Neighbor"
 msgstr "Nachbar"
 
@@ -23692,24 +23540,8 @@ msgid "Difference Key"
 msgstr "Unterscheidungsschlüssel"
 
 
-msgid "Color distances below this additional threshold are partially keyed"
-msgstr "Farbabstände unterhalb des addierten Schwellenwertes werden teilweise erfasst"
-
-
-msgid "Color distances below this threshold are keyed"
-msgstr "Farbabstände unterhalb des Schwellenwertes wird erfasst"
-
-
 msgid "Dilate/Erode"
 msgstr "Erweitern/Verkleinern"
-
-
-msgid "Distance to grow/shrink (number of iterations)"
-msgstr "Abstand zum Erweitern/Verkleinern (Anzahl von Schritten)"
-
-
-msgid "Edge to inset"
-msgstr "Kante bis einsetzen"
 
 
 msgid "Feather"
@@ -23762,26 +23594,6 @@ msgstr "Nur angrenzende"
 
 msgid "Ellipse Mask"
 msgstr "Ellipsenmaske"
-
-
-msgid "Height of the ellipse"
-msgstr "Höhe der Ellipse"
-
-
-msgid "Width of the ellipse"
-msgstr "Breite der Ellipse"
-
-
-msgid "Rotation angle of the ellipse"
-msgstr "Rotationswinkel der Ellipse"
-
-
-msgid "X position of the middle of the ellipse"
-msgstr "X-Position vom Zentrum der Ellipse"
-
-
-msgid "Y position of the middle of the ellipse"
-msgstr "Y-Position vom Zentrum der Ellipse"
 
 
 msgid "Filter Type"
@@ -23864,10 +23676,6 @@ msgid "Inpaint"
 msgstr "Malen"
 
 
-msgid "Distance to inpaint (number of iterations)"
-msgstr "Abstand zu Inpaint (Anzahl der Wiederholungen)"
-
-
 msgid "Post Blur"
 msgstr "Anschließend weichzeichnen"
 
@@ -23902,10 +23710,6 @@ msgstr "Kantentoleranz"
 
 msgid "Feather Distance"
 msgstr "Federabstand"
-
-
-msgid "Distance to grow/shrink the feather"
-msgstr "Abstand zwischen den Wellen"
 
 
 msgctxt "Curve"
@@ -23965,6 +23769,14 @@ msgid "Luminance Key"
 msgstr "Luminanzkanal"
 
 
+msgid "Values higher than this setting are 100% opaque"
+msgstr "Werte höher als diese Einstellung sind 100% undurchsichtig"
+
+
+msgid "Values lower than this setting are 100% keyed"
+msgstr "Werte niedriger als diese Einstellung sind 100% freigestellt"
+
+
 msgid "Map Range"
 msgstr "Bereich"
 
@@ -23979,10 +23791,6 @@ msgstr "Maximum verwenden"
 
 msgid "Use Minimum"
 msgstr "Minimum verwenden"
-
-
-msgid "Number of motion blur samples"
-msgstr "Vertikal"
 
 
 msgid "Shutter"
@@ -24003,10 +23811,6 @@ msgstr "Pixel als Einheit für Brennweite verwenden"
 
 msgid "Fixed/Scene"
 msgstr "Szene"
-
-
-msgid "Use feather information from the mask"
-msgstr "Benutze Feder Informationen von der Maske"
 
 
 msgid "Motion Blur"
@@ -24233,14 +24037,6 @@ msgid "Rotate"
 msgstr "Rotieren"
 
 
-msgid "Offset image horizontally (factor of image size)"
-msgstr "Bild horizontal vom Weltursprung versetzen"
-
-
-msgid "Offset image vertically (factor of image size)"
-msgstr "Bild vertikal vom Weltursprung versetzen"
-
-
 msgid "Scene Time"
 msgstr "Szenenzeit"
 
@@ -24277,10 +24073,6 @@ msgid "Switch"
 msgstr "Schalter"
 
 
-msgid "Off: first socket, On: second socket"
-msgstr "Aus: erste Buchse, An: zweite Buchse"
-
-
 msgid "Node Output"
 msgstr "Knotenausgabe"
 
@@ -24291,14 +24083,6 @@ msgstr "Zeitkurve"
 
 msgid "Adaptation"
 msgstr "Anpassung"
-
-
-msgid "If 0, global; if 1, based on pixel intensity"
-msgstr "Wenn 0, global; wenn 1, auf Pixelintensität basierend"
-
-
-msgid "If not used, set to 1"
-msgstr "Wenn nicht benutzt auf 1 setzen"
 
 
 msgid "Rh Simple"
@@ -25081,10 +24865,6 @@ msgstr "Shader-Scriptpfad"
 
 msgid "Script Source"
 msgstr "Kurve"
-
-
-msgid "Use internal text data-block"
-msgstr "Internen Textdatenblock verwenden"
 
 
 msgid "Use external .osl or .oso file"
@@ -32113,10 +31893,6 @@ msgid "Extrude Only Vertices"
 msgstr "Nur Punkte extrudieren"
 
 
-msgid "Add Boundary Loop"
-msgstr "Grenzschleife hinzufügen"
-
-
 msgid "Axis Direction"
 msgstr "Achsenrichtung"
 
@@ -32332,19 +32108,6 @@ msgstr "Normale hinzufügen"
 msgctxt "Operator"
 msgid "Offset Edge Loop"
 msgstr "Versatz Kanten-Schleife"
-
-
-msgctxt "Operator"
-msgid "Mask Slice"
-msgstr "Maskenscheibe"
-
-
-msgid "Fill Holes"
-msgstr "Löcher füllen"
-
-
-msgid "Slice to New Object"
-msgstr "Schneide in neues Objekt"
 
 
 msgid "Spherize"
@@ -32845,15 +32608,6 @@ msgstr "-Z bis +Z"
 
 msgid "+Z to -Z"
 msgstr "+Z bis -Z"
-
-
-msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Dreiecke zu Vierecken"
-
-
-msgid "Join triangles into quads"
-msgstr "Dreiecke zu Vierecken verbinden"
 
 
 msgctxt "Operator"
@@ -36873,6 +36627,10 @@ msgid "Toggle Visibility"
 msgstr "Sichtbarkeit umschalten"
 
 
+msgid "Add Boundary Loop"
+msgstr "Grenzschleife hinzufügen"
+
+
 msgctxt "Operator"
 msgid "Mask by Color"
 msgstr "Maskieren nach Farbe"
@@ -36957,6 +36715,19 @@ msgstr "Entspannen"
 
 msgid "Relax mesh"
 msgstr "Masche entspannen"
+
+
+msgctxt "Operator"
+msgid "Mask Slice"
+msgstr "Maskenscheibe"
+
+
+msgid "Fill Holes"
+msgstr "Löcher füllen"
+
+
+msgid "Slice to New Object"
+msgstr "Schneide in neues Objekt"
 
 
 msgctxt "Operator"
@@ -40167,6 +39938,34 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
+msgid "Motion Tracking"
+msgstr "Bewegungsverfolgung"
+
+
+msgid "Mesh Edit Mode"
+msgstr "Maschenbearbeitungsmodus"
+
+
+msgid "Measurement"
+msgstr "Messung"
+
+
+msgid "Curve Edit Mode"
+msgstr "Kurven-Bearbeitungsmodus"
+
+
+msgid "Snapping"
+msgstr "Einrasten"
+
+
+msgid "Transform Orientations"
+msgstr "Transformationsausrichtung"
+
+
+msgid "Drawing Plane"
+msgstr "Malfläche"
+
+
 msgid "Guides"
 msgstr "Hilfslinien"
 
@@ -40187,10 +39986,6 @@ msgid "Auto-Masking"
 msgstr "Automatisches Maskieren"
 
 
-msgid "Drawing Plane"
-msgstr "Malfläche"
-
-
 msgid "VR"
 msgstr "VR"
 
@@ -40201,10 +39996,6 @@ msgstr "Aktives Werkzeug"
 
 msgid "View Lock"
 msgstr "Ansicht sperren"
-
-
-msgid "Wire Color"
-msgstr "Drahtfarbe"
 
 
 msgid "Shadow Settings"
@@ -40229,30 +40020,6 @@ msgstr "Setzer"
 
 msgid "Overlays"
 msgstr "Überlagerungen"
-
-
-msgid "Motion Tracking"
-msgstr "Bewegungsverfolgung"
-
-
-msgid "Mesh Edit Mode"
-msgstr "Maschenbearbeitungsmodus"
-
-
-msgid "Measurement"
-msgstr "Messung"
-
-
-msgid "Curve Edit Mode"
-msgstr "Kurven-Bearbeitungsmodus"
-
-
-msgid "Snapping"
-msgstr "Einrasten"
-
-
-msgid "Transform Orientations"
-msgstr "Transformationsausrichtung"
 
 
 msgid "Chain Scaling"
@@ -40801,10 +40568,6 @@ msgstr "Einzelbildüberlagerung"
 
 msgid "Proxy Settings"
 msgstr "Proxyeinstellungen"
-
-
-msgid "Strip Cache"
-msgstr "Streifenpuffer"
 
 
 msgid "Feature Weights"
@@ -42876,22 +42639,6 @@ msgid "Maximum number of lines to store for the console buffer"
 msgstr "Maximale Anzahl von Zeilen, die im Konsolenpuffer gehalten werden"
 
 
-msgid "Disk Cache Compression Level"
-msgstr "Festplattenpufferkompressionslevel"
-
-
-msgid "Override default directory"
-msgstr "Standardverzeichnis überschreiben"
-
-
-msgid "Disk Cache Limit"
-msgstr "Festplattenpufferbegrenzung"
-
-
-msgid "Disk cache limit (in gigabytes)"
-msgstr "Festplattenpufferbegrenzung (in Gigabytes)"
-
-
 msgid "Proxy Setup"
 msgstr "Proxy-Setup"
 
@@ -42946,10 +42693,6 @@ msgstr "GPU-Tiefenauswahl"
 
 msgid "When making a selection in 3D View, use the GPU depth buffer to ensure the frontmost object is selected first"
 msgstr "Beim Auswählen im 3D-Ansichtsfenster den GPU-Tiefenpuffer verwenden, um sicherzustellen, dass das vorderste Objekt zuerst ausgewählt wird"
-
-
-msgid "Use Disk Cache"
-msgstr "Festplattenpuffer verwenden"
 
 
 msgid "Edit Studio Light"
@@ -43912,14 +43655,6 @@ msgid "Show Active Pixels"
 msgstr "Aktive Pixel anzeigen"
 
 
-msgid "Object visibility for camera rays"
-msgstr "Objektsichtbarkeit für Kamerastrahlen"
-
-
-msgid "Object visibility for volume scatter rays"
-msgstr "Objektsichtbarkeit für Volumenstreustrahlen"
-
-
 msgid "Map Resolution"
 msgstr "Texturauflösung"
 
@@ -44422,14 +44157,6 @@ msgstr "Anzahl von horizontalen Pixeln im gerenderten Bild"
 
 msgid "Number of vertical pixels in the rendered image"
 msgstr "Anzahl von vertikalen Pixeln im gerenderten Bild"
-
-
-msgid "Display the object as wire edges"
-msgstr "Objekt als Drahtgitter darstellen"
-
-
-msgid "Display render preview"
-msgstr "Rendervorschau darstellen"
 
 
 msgid "Simplify Child Particles"
@@ -47074,14 +46801,6 @@ msgid "Effect Fader Position"
 msgstr "Effektabklingposition"
 
 
-msgid "Override Cache Settings"
-msgstr "Puffereigenschaften überschreiben"
-
-
-msgid "Override global cache settings"
-msgstr "Globale Puffereigenschaften überschreiben"
-
-
 msgid "Left Handle Selected"
 msgstr "Linker Griff selektiert"
 
@@ -47405,6 +47124,14 @@ msgstr "RGB-Kurven-Modifikator für Sequenzstreifen"
 
 msgid "Hue correction modifier for sequence strip"
 msgstr "Farbkorrektur-Modifikator für Sequenzstreifen"
+
+
+msgid "If 0, global; if 1, based on pixel intensity"
+msgstr "Wenn 0, global; wenn 1, auf Pixelintensität basierend"
+
+
+msgid "If not used, set to 1"
+msgstr "Wenn nicht benutzt auf 1 setzen"
 
 
 msgid "White balance modifier for sequence strip"
@@ -48201,6 +47928,10 @@ msgstr "Vektorknoten"
 
 msgid "Wires"
 msgstr "Draht"
+
+
+msgid "Wire Color"
+msgstr "Drahtfarbe"
 
 
 msgid "Wire Select"
@@ -49300,10 +49031,6 @@ msgid "Show material color"
 msgstr "Materialfarbe anzeigen"
 
 
-msgid "Show scene in a single color"
-msgstr "Szene in einer Farbe anzeigen"
-
-
 msgid "Show object color"
 msgstr "Objektfarbe anzeigen"
 
@@ -50321,10 +50048,6 @@ msgid "Focus on Object"
 msgstr "Fokus auf Objekt"
 
 
-msgid "Shading Offset"
-msgstr "Shading Versatz"
-
-
 msgid "Show In"
 msgstr "Anzeigen in"
 
@@ -51229,6 +50952,10 @@ msgid "Move to Bottom"
 msgstr "Nach unten verschieben"
 
 
+msgid "Auto Normalize"
+msgstr "Automatisch normalisieren"
+
+
 msgid "Resolution Viewport"
 msgstr "Auflösung Viewport"
 
@@ -51447,6 +51174,10 @@ msgstr "An Eckpunkt Normale ausrichten"
 
 msgid "Show Instancer"
 msgstr "Instanziierer anzeigen"
+
+
+msgid "Shading Offset"
+msgstr "Shading Versatz"
 
 
 msgid "Date"
@@ -51867,10 +51598,6 @@ msgid "Upres Factor"
 msgstr "Upres Faktor"
 
 
-msgid "Use Speed Vectors"
-msgstr "Geschwindigkeitsvektor verwenden"
-
-
 msgid "Mesh Generator"
 msgstr "Maschengenerator"
 
@@ -51889,10 +51616,6 @@ msgstr "Zielgeschwindigkeit"
 
 msgid "CFL Number"
 msgstr "CFL Nummer"
-
-
-msgid "Compression Volumes"
-msgstr "Komprimierung Volumen"
 
 
 msgid "Sampling Substeps"
@@ -53029,11 +52752,6 @@ msgstr "Instanz zu Szene"
 
 
 msgctxt "Operator"
-msgid "ID Data"
-msgstr "ID Data"
-
-
-msgctxt "Operator"
 msgid "Paste Data-Blocks"
 msgstr "Einfügen Datenblöcke"
 
@@ -53192,10 +52910,6 @@ msgstr "An Streifen einrasten"
 msgctxt "Operator"
 msgid "Set Preview Range to Strips"
 msgstr "Vorschaubereich auf Streifen festlegen"
-
-
-msgid "Preview as Backdrop"
-msgstr "Vorschau als Hintergrund"
 
 
 msgctxt "Operator"
@@ -53836,10 +53550,6 @@ msgid "Garbage Collection Rate"
 msgstr "Müllsammlungsrate"
 
 
-msgid "Cache Limit"
-msgstr "Pufferlimit"
-
-
 msgid "View Name"
 msgstr "Ansichtnamen"
 
@@ -54226,6 +53936,11 @@ msgstr "OpenVDB importieren...."
 msgctxt "Volume"
 msgid "Empty"
 msgstr "Leer"
+
+
+msgctxt "Operator"
+msgid "Point Cloud"
+msgstr "Punkt Wolke"
 
 
 msgctxt "Operator"
@@ -54828,11 +54543,6 @@ msgstr "Nächster Bereich"
 
 
 msgctxt "Operator"
-msgid "Point Cloud"
-msgstr "Punkt Wolke"
-
-
-msgctxt "Operator"
 msgid "Lattice"
 msgstr "Gitter"
 
@@ -55286,10 +54996,6 @@ msgstr "Neu vermaschen"
 
 msgid "Tile Offset"
 msgstr "Kachelversatz"
-
-
-msgid "Auto Normalize"
-msgstr "Automatisch normalisieren"
 
 
 msgid "Lock-Relative"
@@ -58228,10 +57934,6 @@ msgid "Please select two strips"
 msgstr "Bitte zwei Steifen auswählen"
 
 
-msgid "No active sequence!"
-msgstr "Keine aktive Sequenz!"
-
-
 msgid "Fog Volume"
 msgstr "Nebel Volumen"
 
@@ -59264,10 +58966,6 @@ msgid "Image 2"
 msgstr "Bild 2"
 
 
-msgid "Center:"
-msgstr "Zentrum:"
-
-
 msgid "Inner Edge:"
 msgstr "Innenkante:"
 
@@ -59318,6 +59016,14 @@ msgstr "Bis Minimum"
 
 msgid "To Max"
 msgstr "Bis Maximum"
+
+
+msgid "Use feather information from the mask"
+msgstr "Benutze Feder Informationen von der Maske"
+
+
+msgid "Number of motion blur samples"
+msgstr "Vertikal"
 
 
 msgid "Offset Y"
@@ -60184,10 +59890,6 @@ msgstr "Alle durch den Benutzer installierten Add-Ons"
 
 msgid "Import-Export"
 msgstr "Importieren/Expotieren"
-
-
-msgid "English (English)"
-msgstr "Englisch (English)"
 
 
 msgid "Japanese (日本語)"

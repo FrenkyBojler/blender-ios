@@ -169,7 +169,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
 #ifdef PLANAR_PROBES
 
 ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
-                                   depth2DArray planar_depth_tx,
+                                   sampler2DArrayDepth planar_depth_tx,
                                    PlanarProbeData planar,
                                    float stride_rand,
                                    Ray ray)
@@ -237,6 +237,11 @@ Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, floa
       return bxdf_ggx_ray_amend_transmission(cl, V, ray, thickness);
     case CLOSURE_BSDF_TRANSLUCENT_ID:
       return bxdf_translucent_ray_amend(cl, V, ray, thickness);
+    case CLOSURE_NONE_ID:
+    case CLOSURE_BSDF_DIFFUSE_ID:
+    case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+    case CLOSURE_BSSRDF_BURLEY_ID:
+      break;
   }
   return ray;
 }

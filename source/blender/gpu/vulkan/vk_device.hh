@@ -58,6 +58,9 @@ struct VKExtensions {
    * Does the device support logic ops.
    */
   bool logic_ops = false;
+
+  /** Log enabled features and extensions. */
+  void log() const;
 };
 
 /* TODO: Split into VKWorkarounds and VKExtensions to remove the negating when an extension isn't
@@ -84,6 +87,11 @@ struct VKWorkarounds {
  * Shared resources between contexts that run in the same thread.
  */
 class VKThreadData : public NonCopyable, NonMovable {
+  /**
+   * The number of resource pools is aligned to the number of frames
+   * in flight used by GHOST. Therefore, this constant *must* always
+   * match GHOST_ContextVK's GHOST_FRAMES_IN_FLIGHT.
+   */
   static constexpr uint32_t resource_pools_count = 3;
 
  public:
@@ -208,12 +216,17 @@ class VKDevice : public NonCopyable {
   VKWorkarounds workarounds_;
   VKExtensions extensions_;
 
-  std::string glsl_patch_;
+  std::string glsl_vert_patch_;
+  std::string glsl_geom_patch_;
+  std::string glsl_frag_patch_;
+  std::string glsl_comp_patch_;
   Vector<VKThreadData *> thread_data_;
 
  public:
   render_graph::VKResourceStateTracker resources;
   VKDiscardPool orphaned_data;
+  /** Discard pool for resources that could still be used during rendering. */
+  VKDiscardPool orphaned_data_render;
   VKPipelinePool pipelines;
   /** Buffer to bind to unbound resource locations. */
   VKBuffer dummy_buffer;
@@ -361,7 +374,10 @@ class VKDevice : public NonCopyable {
     return extensions_;
   }
 
-  const char *glsl_patch_get() const;
+  const char *glsl_vertex_patch_get() const;
+  const char *glsl_geometry_patch_get() const;
+  const char *glsl_fragment_patch_get() const;
+  const char *glsl_compute_patch_get() const;
   void init_glsl_patch();
 
   /* -------------------------------------------------------------------- */
