@@ -778,7 +778,7 @@ void rna_AttributeGroup_iterator_next(CollectionPropertyIterator *iter)
 PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter)
 {
   using namespace blender;
-  AttributeOwner owner = owner_from_pointer_rna(&iter->ptr);
+  AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
   if (owner.type() == AttributeOwnerType::PointCloud) {
     bke::Attribute *attr = *static_cast<bke::Attribute **>(rna_iterator_array_get(iter));
     const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr->data_type());
