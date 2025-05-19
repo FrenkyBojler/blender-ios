@@ -142,7 +142,8 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
                                  const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    return construct_uv_gvarray(mesh, selection_field_, uv_field_, rotate_, margin_, shape_method_, domain);
+    return construct_uv_gvarray(
+        mesh, selection_field_, uv_field_, rotate_, margin_, shape_method_, domain);
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -160,7 +161,8 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryUVPackIslands &storage = node_storage(params.node());
-  const eUVPackIsland_ShapeMethod shape_method = static_cast<eUVPackIsland_ShapeMethod>(storage.shape_method);
+  const eUVPackIsland_ShapeMethod shape_method = static_cast<eUVPackIsland_ShapeMethod>(
+      storage.shape_method);
 
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<float3> uv_field = params.extract_input<Field<float3>>("UV");
@@ -193,13 +195,12 @@ static void node_rna(StructRNA *srna)
   };
 
   RNA_def_node_enum(srna,
-                   "shape_method",
-                   "Shape method",
-                   "Method used for packing UV islands",
-                   shape_method_items,
-                   NOD_storage_enum_accessors(shape_method),
-                   GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_AABB);
-
+                    "shape_method",
+                    "Shape method",
+                    "Method used for packing UV islands",
+                    shape_method_items,
+                    NOD_storage_enum_accessors(shape_method),
+                    GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_AABB);
 }
 
 static void node_register()
@@ -213,10 +214,8 @@ static void node_register()
   ntype.enum_name_legacy = "UV_PACK_ISLANDS";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryUVPackIslands",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      ntype, "NodeGeometryUVPackIslands", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;

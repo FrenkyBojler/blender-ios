@@ -4234,7 +4234,11 @@ void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, boo
   uv_parametrizer_scale_x(handle, handle->aspect_y);
 }
 
-void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_pinned, const UVPackIsland_Params &params)
+void uv_parametrizer_pack(ParamHandle *handle,
+                          float margin,
+                          bool do_rotate,
+                          bool ignore_pinned,
+                          const UVPackIsland_Params &params)
 {
   if (handle->ncharts == 0) {
     return;
@@ -4248,7 +4252,7 @@ void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, boo
   local_params.rotate_method = do_rotate ? ED_UVPACK_ROTATION_ANY : ED_UVPACK_ROTATION_NONE;
   local_params.margin = margin;
   local_params.margin_method = ED_UVPACK_MARGIN_SCALED;
-  
+
   for (int i = 0; i < handle->ncharts; i++) {
     PChart *chart = handle->charts[i];
     if (ignore_pinned && chart->has_pins) {
