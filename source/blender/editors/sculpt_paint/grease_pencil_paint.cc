@@ -191,8 +191,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /* Current delta time from #start_time_, updated after each extension sample. */
   double delta_time_;
 
-  /* Whether the operation was temporarily called from tools other than draw tool. */
-  bool temp_draw_;
+  bool do_fill_boundary_;
 
   friend struct PaintOperationExecutor;
 
@@ -201,7 +200,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
   void on_stroke_done(const bContext &C) override;
 
-  PaintOperation(const bool temp_draw = false) : temp_draw_(temp_draw) {}
+  PaintOperation(const bool do_fill_boundary = false) : do_fill_boundary_(do_fill_boundary) {}
 
   bool update_stroke_depth_placement(const bContext &C, const InputSample &sample);
   /* Returns the range of actually reprojected points. */
@@ -293,9 +292,6 @@ struct PaintOperationExecutor {
                                                         0.0f,
                                                         start_opacity,
                                                         start_sample.pressure);
-
-    /* Do not allow pressure opacity when drawing tool was invoked temporarily. */
-    const float fill_opacity = (!self.temp_draw_) ? start_opacity : 1.0f;
 
     const float start_rotation = ed::greasepencil::randomize_rotation(
         *settings_, self.rng_, self.stroke_random_rotation_factor_, start_sample.pressure);
@@ -413,7 +409,7 @@ struct PaintOperationExecutor {
                   bke::AttrDomain::Curve,
                   bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num()))))
       {
-        fill_opacities.span[active_curve] = fill_opacity;
+        fill_opacities.span[active_curve] = start_opacity;
         curve_attributes_to_skip.add("fill_opacity");
         fill_opacities.finish();
       }
@@ -426,6 +422,17 @@ struct PaintOperationExecutor {
       init_times.span[active_curve] = float(uint64_t(self.start_time_ * 1e3)) / float(1e3);
       curve_attributes_to_skip.add("init_time");
       init_times.finish();
+    }
+
+    if (self.do_fill_boundary_) {
+      if (bke::SpanAttributeWriter<bool> is_fill_boundary =
+              attributes.lookup_or_add_for_write_span<bool>(".is_boundary",
+                                                            bke::AttrDomain::Curve))
+      {
+        is_fill_boundary.span[active_curve] = true;
+        curve_attributes_to_skip.add(".is_boundary");
+        is_fill_boundary.finish();
+      }
     }
 
     curves.curve_types_for_write()[active_curve] = CURVE_TYPE_POLY;
@@ -1057,6 +1064,23 @@ IndexRange PaintOperation::interpolate_stroke_depth(const bContext &C,
   return active_points;
 }
 
+void PaintOperation::toggle_pencil_brush_on(const bContext &C)
+{
+  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Main *bmain = CTX_data_main(&C);
+  Scene *scene = CTX_data_scene(&C);
+  Brush *current_brush = BKE_paint_brush(paint);
+
+  /* Switch to the smooth brush if possible. */
+  BKE_paint_brush_set_essentials(bmain, paint, "Pencil");
+  Brush *pencil = BKE_paint_brush(paint);
+  BLI_assert(pencil != nullptr);
+
+  init_brush(*smooth_brush);
+
+  saved_active_brush_ = current_brush;
+}
+
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
@@ -1066,6 +1090,10 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   Object *object = CTX_data_active_object(&C);
   Object *eval_object = DEG_get_evaluated(depsgraph, object);
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+
+  if (do_fill_boundary_) {
+    toggle_pencil_brush_on(C);
+  }
 
   Paint *paint = &scene->toolsettings->gp_paint->paint;
   Brush *brush = BKE_paint_brush(paint);
@@ -1657,9 +1685,9 @@ void PaintOperation::on_stroke_done(const bContext &C)
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil.id);
 }
 
-std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(const bool temp_draw)
+std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(const bool do_fill_boundary)
 {
-  return std::make_unique<PaintOperation>(temp_draw);
+  return std::make_unique<PaintOperation>(do_fill_boundary);
 }
 
 }  // namespace blender::ed::sculpt_paint::greasepencil
