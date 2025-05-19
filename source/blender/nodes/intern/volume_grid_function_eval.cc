@@ -638,12 +638,12 @@ bool execute_multi_function_on_value_variant__volume_grid(
       continue;
     }
     if (*transform != other_transform) {
-      r_error_message = IFACE_("Input grids have incompatible transforms");
+      r_error_message = TIP_("Input grids have incompatible transforms");
       return false;
     }
   }
   if (transform == nullptr) {
-    r_error_message = IFACE_("No input grid found that can determine the topology");
+    r_error_message = TIP_("No input grid found that can determine the topology");
     return false;
   }
 
@@ -662,7 +662,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
     const CPPType &cpp_type = param_type.data_type().single_type();
     const std::optional<VolumeGridType> grid_type = cpp_type_to_grid_type(cpp_type);
     if (!grid_type) {
-      r_error_message = IFACE_("Grid type not supported");
+      r_error_message = TIP_("Grid type not supported");
       return false;
     }
 
