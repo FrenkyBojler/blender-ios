@@ -1265,8 +1265,7 @@ static wmOperatorStatus grease_pencil_layer_set_inverse_exec(bContext *C, wmOper
       float temp[4][4];
       copy_m4_m4(temp, layer.parent->world_to_object().ptr());
       if (layer.parsubstr) {
-        float4x4 bone_mat;
-        get_bone_mat(layer.parent, layer.parsubstr, bone_mat);
+        float4x4 bone_mat = get_bone_mat(layer.parent, layer.parsubstr);
         float4x4 bone_inverse = math::invert(bone_mat) * float4x4(temp);
         copy_m4_m4(temp, bone_inverse.ptr());
       }
@@ -1293,8 +1292,7 @@ static wmOperatorStatus grease_pencil_layer_set_inverse_exec(bContext *C, wmOper
 
       /* If the layer is parented to a pose bone, adjust the inverse matrix accordingly. */
       if (layer.parsubstr) {
-        float4x4 bone_mat;
-        get_bone_mat(layer.parent, layer.parsubstr, bone_mat);
+        float4x4 bone_mat = get_bone_mat(layer.parent, layer.parsubstr);
         float4x4 new_parentinv_mat = float4x4(new_parentinv);
         float4x4 bone_inverse = math::invert(bone_mat) * new_parentinv_mat;
         copy_m4_m4(new_parentinv, bone_inverse.ptr());
