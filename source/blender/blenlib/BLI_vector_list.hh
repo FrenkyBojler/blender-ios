@@ -34,6 +34,13 @@ class VectorList {
   using SelfT = VectorList<T, CapacityStart, CapacitySoftLimit>;
   using UsedVector = Vector<T, 0>;
 
+  static constexpr bool is_power_of_2(int64_t value)
+  {
+    return (value > 0) && ((value & (value - 1)) == 0);
+  }
+  static_assert(is_power_of_2(CapacityStart));
+  static_assert(is_power_of_2(CapacitySoftLimit));
+
   /**
    * Contains the individual vectors. There must always be at least one vector
    */
