@@ -212,6 +212,22 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
     CTX_wm_operator_poll_msg_set(&C, "No active attribute");
     return false;
   }
+
+  if (owner.type() == AttributeOwnerType::PointCloud) {
+    PointCloud &pointcloud = *owner.get_pointcloud();
+    bke::AttributeAccessor attributes = pointcloud.attributes();
+    std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(*name);
+    if (!meta_data) {
+      CTX_wm_operator_poll_msg_set(&C, "No active attribute");
+      return false;
+    }
+    if (ELEM(meta_data->data_type, CD_PROP_STRING, CD_PROP_FLOAT4X4, CD_PROP_QUATERNION)) {
+      CTX_wm_operator_poll_msg_set(&C, "The active attribute has an unsupported type");
+      return false;
+    }
+    return true;
+  }
+
   const CustomDataLayer *layer = BKE_attribute_search(
       owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
   if (ELEM(layer->type, CD_PROP_STRING, CD_PROP_FLOAT4X4, CD_PROP_QUATERNION)) {
@@ -285,7 +301,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
   if (owner.type() == AttributeOwnerType::PointCloud) {
     PointCloud &pointcloud = *owner.get_pointcloud();
     bke::MutableAttributeAccessor accessor = pointcloud.attributes_for_write();
-    if (accessor.domain_supported(bke::AttrDomain(domain))) {
+    if (!accessor.domain_supported(bke::AttrDomain(domain))) {
       BKE_report(op->reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
       return OPERATOR_CANCELLED;
     }
