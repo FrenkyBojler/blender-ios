@@ -628,7 +628,22 @@ Brush *BKE_brush_duplicate(Main *bmain,
 
   BKE_library_foreach_ID_link(bmain, &new_brush->id, dependencies_cb, nullptr, IDWALK_RECURSE);
 
-  BKE_libblock_relink_to_newid(bmain, &new_brush->id, 0);
+  if (!is_subprocess) {
+    /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
+    BKE_libblock_relink_to_newid(bmain, &new_brush->id, 0);
+
+#ifndef NDEBUG
+    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
+    ID *id_iter;
+    FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+      BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
+    }
+    FOREACH_MAIN_ID_END;
+#endif
+
+    /* Cleanup. */
+    BKE_main_id_newptr_and_tag_clear(bmain);
+  }
 
   return new_brush;
 }
