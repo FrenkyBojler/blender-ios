@@ -239,27 +239,35 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       /* The input is a grid, so we can attempt to reference the grid values directly. */
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = typename std::decay_t<decltype(grid)>;
-        BLI_assert(param_cpp_type.size == sizeof(typename GridT::ValueType));
+        using ValueT = typename GridT::ValueType;
+        BLI_assert(param_cpp_type.size == sizeof(ValueT));
         const auto &tree = grid.tree();
 
         if (const auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf)) {
-          const Span values = {leaf_node->buffer().data(), LeafNodeMask::SIZE};
-          const LeafNodeMask &input_leaf_mask = leaf_node->valueMask();
-          const LeafNodeMask missing_mask = leaf_node_mask & !input_leaf_mask;
-          if (missing_mask.isOff()) {
-            /* All values availables, so reference the data directly. */
-            params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), values.size()));
+          /* Boolean grids are special because they encode the values as bitmask. */
+          if constexpr (std::is_same_v<ValueT, bool>) {
+            BLI_assert_unreachable();
           }
           else {
-            /* Fill in the missing values with the background value. */
-            MutableSpan copied_values = scope.allocator().construct_array_copy(values);
-            const auto &background = tree.background();
-            for (auto missing_it = missing_mask.beginOn(); missing_it.test(); ++missing_it) {
-              const int index = missing_it.pos();
-              copied_values[index] = background;
+            const Span<ValueT> values(leaf_node->buffer().data(), LeafNodeMask::SIZE);
+            const LeafNodeMask &input_leaf_mask = leaf_node->valueMask();
+            const LeafNodeMask missing_mask = leaf_node_mask & !input_leaf_mask;
+            if (missing_mask.isOff()) {
+              /* All values availables, so reference the data directly. */
+              params.add_readonly_single_input(
+                  GSpan(param_cpp_type, values.data(), values.size()));
             }
-            params.add_readonly_single_input(
-                GSpan(param_cpp_type, copied_values.data(), copied_values.size()));
+            else {
+              /* Fill in the missing values with the background value. */
+              MutableSpan copied_values = scope.allocator().construct_array_copy(values);
+              const auto &background = tree.background();
+              for (auto missing_it = missing_mask.beginOn(); missing_it.test(); ++missing_it) {
+                const int index = missing_it.pos();
+                copied_values[index] = background;
+              }
+              params.add_readonly_single_input(
+                  GSpan(param_cpp_type, copied_values.data(), copied_values.size()));
+            }
           }
         }
         else {
@@ -298,13 +306,25 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
 
     openvdb::GridBase &grid_base = *output_grids[output_i];
     to_typed_grid(grid_base, [&](auto &grid) {
+      using GridT = typename std::decay_t<decltype(grid)>;
+      using ValueT = typename GridT::ValueType;
+
       auto &tree = grid.tree();
       auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf);
       /* Should have been added before. */
       BLI_assert(leaf_node);
-      /* Write directly into the buffer of the output leaf node. */
-      params.add_uninitialized_single_output(
-          GMutableSpan(param_cpp_type, leaf_node->buffer().data(), LeafNodeMask::SIZE));
+
+      /* Boolean grids are special because they encode the values as bitmask. */
+      if constexpr (std::is_same_v<ValueT, bool>) {
+        /* TODO: Bool grid handling. */
+        BLI_assert_unreachable();
+      }
+      else {
+        /* Write directly into the buffer of the output leaf node. */
+        ValueT *values = leaf_node->buffer().data();
+        params.add_uninitialized_single_output(
+            GMutableSpan(param_cpp_type, values, LeafNodeMask::SIZE));
+      }
     });
   }
 
