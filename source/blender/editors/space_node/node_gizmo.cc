@@ -923,7 +923,7 @@ static void gizmo_node_split_prop_matrix_get(const wmGizmo *gz,
                                              wmGizmoProperty *gz_prop,
                                              void *value_p)
 {
-  float(*matrix)[4] = (float(*)[4])value_p;
+  float(*matrix)[4] = reinterpret_cast<float(*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *split_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = split_group->state.dims;
@@ -958,19 +958,20 @@ static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
                                              wmGizmoProperty *gz_prop,
                                              const void *value_p)
 {
-  const float(*matrix)[4] = (const float(*)[4])value_p;
+  const float(*matrix)[4] = reinterpret_cast<const float(*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
-  NodeBBoxWidgetGroup *split_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
+  NodeBBoxWidgetGroup *split_group = reinterpret_cast<NodeBBoxWidgetGroup *>(
+      gz->parent_gzgroup->customdata);
   const float2 dims = split_group->state.dims;
   const float2 offset = split_group->state.offset;
-  bNode *node = (bNode *)gz_prop->custom_func.user_data;
+  bNode *node = reinterpret_cast<bNode *>(gz_prop->custom_func.user_data);
 
   bNodeSocket *factor_input = bke::node_find_socket(*node, SOCK_IN, "Factor");
 
   CMPNodeSplitAxis axis = static_cast<CMPNodeSplitAxis>(node->custom2);
   if (axis == CMPNodeSplitAxis::CMP_NODE_SPLIT_VERTICAL) {
     float fac = (matrix[3][1] - offset.y) / dims.y + 0.5f;
-    /* Prevet the user from dragging the gizmo outside the image. */
+    /* Prevet dragging the gizmo outside the image. */
     fac = math::clamp(fac, 0.0f, 1.0f);
     factor_input->default_value_typed<bNodeSocketValueFloat>()->value = fac;
   }
@@ -986,7 +987,7 @@ static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
 static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
-  NodeBBoxWidgetGroup *split_group = (NodeBBoxWidgetGroup *)gzgroup->customdata;
+  NodeBBoxWidgetGroup *split_group = reinterpret_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
   wmGizmo *gz = split_group->border;
 
   void *lock;
@@ -1006,7 +1007,7 @@ static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgr
 
     split_group->update_data.context = (bContext *)C;
     split_group->update_data.ptr = RNA_pointer_create_discrete(
-        (ID *)snode->edittree, &RNA_CompositorNodeSplit, node);
+        reinterpret_cast<ID *>(snode->edittree), &RNA_CompositorNodeSplit, node);
     split_group->update_data.prop = RNA_struct_find_property(&split_group->update_data.ptr,
                                                              "axis");
 
