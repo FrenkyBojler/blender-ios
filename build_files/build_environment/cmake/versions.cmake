@@ -409,16 +409,16 @@ set(OPENVDB_COPYRIGHT "Copyright Contributors to the OpenVDB Project")
 # Python Modules
 
 # Needed by: `requests` module (so the version doesn't change on rebuild).
-set(IDNA_VERSION 3.3)
+set(IDNA_VERSION 3.10)
 # Needed by: `requests` module (so the version doesn't change on rebuild).
-set(CHARSET_NORMALIZER_VERSION 2.0.10)
+set(CHARSET_NORMALIZER_VERSION 3.4.1)
 # Needed by: `requests` module (so the version doesn't change on rebuild).
-set(URLLIB3_VERSION 1.26.8)
+set(URLLIB3_VERSION 2.4.0)
 set(URLLIB3_CPE "cpe:2.3:a:urllib3:urllib3:${URLLIB3_VERSION}:*:*:*:*:*:*:*")
 # Needed by: Python's `requests` module (so add-ons can authenticate against trusted certificates).
-set(CERTIFI_VERSION 2021.10.8)
+set(CERTIFI_VERSION 2025.4.26)
 # Needed by: Some of Blender's add-ons (to support convenient interaction with online services).
-set(REQUESTS_VERSION 2.27.1)
+set(REQUESTS_VERSION 2.32.3)
 # Needed by: Python's `numpy` module (used by some add-ons).
 set(CYTHON_VERSION 3.0.11)
 set(CYTHON_URI
@@ -429,10 +429,7 @@ set(CYTHON_FILE cython-${CYTHON_VERSION}.tar.gz)
 set(CYTHON_HOMEPAGE https://cython.org/)
 set(CYTHON_LICENSE SPDX:Apache-2.0)
 # Needed by: Python scripts that read `.blend` files, as files may use Z-standard compression.
-# The version of the ZSTD library used to build the Python package should match ZSTD_VERSION
-# defined below. At this time of writing, 0.17.0 was already released,
-# but built against ZSTD 1.5.1, while we use 1.5.0.
-set(ZSTANDARD_VERSION 0.16.0)
+set(ZSTANDARD_VERSION 0.23.0)
 set(ZSTANDARD_URI
 https://github.com/indygreg/python-zstandard/releases/download/${ZSTANDARD_VERSION}/zstandard-${ZSTANDARD_VERSION}.tar.gz)
 set(ZSTANDARD_HASH 19b1b12edcd66165d86f25e2a2277517)
@@ -443,7 +440,7 @@ set(ZSTANDARD_LICENSE SPDX:BSD-3-Clause)
 # Auto-format Python source (developer tool, not used by Blender at run-time).
 set(AUTOPEP8_VERSION 2.3.1)
 # Needed by: `autopep8` (so the version doesn't change on rebuild).
-set(PYCODESTYLE_VERSION 2.12.1)
+set(PYCODESTYLE_VERSION 2.13)
 # Build system for other packages (not used by Blender at run-time).
 set(MESON_VERSION 0.63.0)
 
