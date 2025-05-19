@@ -192,6 +192,17 @@ static void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
 
 /**
  * Call the multi-function in a batch on all active voxels in a leaf node.
+ *
+ * \param fn: The multi-function to call.
+ * \param input_values: All input values which may be grids, fields or single values.
+ * \param input_grids: The input grids already extracted from #input_values.
+ * \param output_grids: The output grids to be filled with the results of the multi-function. The
+ *   topology of these grids is initialized already.
+ * \param transform: The transform of all input and output grids.
+ * \param leaf_node_mask: Indicates which voxels in the leaf are active.
+ * \param leaf_bbox: The bounding box of the leaf node.
+ * \param get_voxels_fn: A function that extracts the active voxels from the leaf node. This
+ *   function knows the order of voxels in the leaf.
  */
 BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
                                            const Span<bke::SocketValueVariant *> input_values,
@@ -202,6 +213,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
                                            const openvdb::CoordBBox &leaf_bbox,
                                            const GetVoxelsFn get_voxels_fn)
 {
+  /* Create an index mask for all the active voxels in the leaf. */
   IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
       IndexRange(LeafNodeMask::SIZE), GrainSize(LeafNodeMask::SIZE), memory, [&](const int64_t i) {
@@ -214,6 +226,8 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
   mf::ParamsBuilder params{fn, &index_mask};
   mf::ContextBuilder context;
 
+  /* We need to find the corresponding leaf nodes in all the input and output grids. That's done by
+   * finding the leaf that contains this voxel. */
   const openvdb::Coord any_voxel_in_leaf = leaf_bbox.min();
 
   for (const int input_i : input_values.index_range()) {
@@ -222,6 +236,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
     const CPPType &param_cpp_type = param_type.data_type().single_type();
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
+      /* The input is a grid, so we can attempt to reference the grid values directly. */
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = typename std::decay_t<decltype(grid)>;
         using ValueT = typename GridT::ValueType;
@@ -233,10 +248,11 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
           const LeafNodeMask &input_leaf_mask = leaf_node->valueMask();
           const LeafNodeMask missing_mask = leaf_node_mask & !input_leaf_mask;
           if (missing_mask.isOff()) {
-            /* All values availables. */
+            /* All values availables, so reference the data directly. */
             params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), values.size()));
           }
           else {
+            /* Fill in the missing values with the background value. */
             MutableSpan copied_values = scope.allocator().construct_array_copy(values);
             const auto &background = tree.background();
             for (auto missing_it = missing_mask.beginOn(); missing_it.test(); ++missing_it) {
@@ -248,12 +264,17 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
           }
         }
         else {
+          /* The input does not have this leaf node, so just get the value that's used for the
+           * entire leaf. The leaf may be in a tile or is inactive in which case the background
+           * value is used. */
           const auto single_value = tree.getValue(any_voxel_in_leaf);
           params.add_readonly_single_input(GPointer(param_cpp_type, &single_value));
         }
       });
     }
     else if (value_variant.is_context_dependent_field()) {
+      /* Compute the field on all active voxels in the leaf and pass the result to the
+       * multi-function. */
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
       Array<openvdb::Coord> voxels(index_mask.min_array_size());
@@ -267,6 +288,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       params.add_readonly_single_input(values);
     }
     else {
+      /* Pass the single value directly to the multi-function. */
       params.add_readonly_single_input(value_variant.get_single_ptr());
     }
   }
@@ -281,15 +303,27 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf);
       /* Should have been added before. */
       BLI_assert(leaf_node);
-      MutableSpan values = {leaf_node->buffer().data(), LeafNodeMask::SIZE};
+      /* Write directly into the buffer of the output leaf node. */
       params.add_uninitialized_single_output(
-          GMutableSpan(param_cpp_type, values.data(), values.size()));
+          GMutableSpan(param_cpp_type, leaf_node->buffer().data(), LeafNodeMask::SIZE));
     });
   }
 
+  /* Actually call the multi-function which will write the results into the output grids. */
   fn.call_auto(index_mask, params, context);
 }
 
+/**
+ * Call the multi-function in a batch on all the given voxels.
+ *
+ * \param fn: The multi-function to call.
+ * \param input_values: All input values which may be grids, fields or single values.
+ * \param input_grids: The input grids already extracted from #input_values.
+ * \param output_grids: The output grids to be filled with the results of the multi-function. The
+ *   topology of these grids is initialized already.
+ * \param transform: The transform of all input and output grids.
+ * \param voxels: The voxels to process.
+ */
 BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
                                         const Span<bke::SocketValueVariant *> input_values,
                                         const Span<const openvdb::GridBase *> input_grids,
@@ -311,6 +345,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
     const CPPType &param_cpp_type = param_type.data_type().single_type();
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
+      /* Retrieve all voxel values from the input grid. */
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using ValueType = typename std::decay_t<decltype(grid)>::ValueType;
         const auto &tree = grid.tree();
@@ -326,6 +361,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
       });
     }
     else if (value_variant.is_context_dependent_field()) {
+      /* Evaluate the field on all voxels. */
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
       bke::VoxelFieldContext field_context{transform, voxels};
@@ -336,10 +372,13 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
       params.add_readonly_single_input(values);
     }
     else {
+      /* Pass the single value directly to the multi-function. */
       params.add_readonly_single_input(value_variant.get_single_ptr());
     }
   }
 
+  /* Prepare temporary output buffers for the field evaluation. Those will later be copied into the
+   * output grids. */
   for ([[maybe_unused]] const int output_i : output_grids.index_range()) {
     const int param_index = input_values.size() + output_i;
     const mf::ParamType param_type = fn.param_type(param_index);
@@ -348,8 +387,10 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
     params.add_uninitialized_single_output(GMutableSpan{type, buffer, voxels_num});
   }
 
+  /* Actually call the multi-function which will fill the temporary output buffers. */
   fn.call_auto(index_mask, params, context);
 
+  /* Copy the values from the temporary buffers into the output grids. */
   for (const int output_i : output_grids.index_range()) {
     openvdb::GridBase &grid_base = *output_grids[output_i];
     to_typed_grid(grid_base, [&](auto &grid) {
@@ -369,6 +410,18 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
   }
 }
 
+/**
+ * Call the multi-function in a batch on all the given tiles. It is assumed that all input grids
+ * are constant within the given tiles.
+ *
+ * \param fn: The multi-function to call.
+ * \param input_values: All input values which may be grids, fields or single values.
+ * \param input_grids: The input grids already extracted from #input_values.
+ * \param output_grids: The output grids to be filled with the results of the multi-function. The
+ *   topology of these grids is initialized already.
+ * \param transform: The transform of all input and output grids.
+ * \param tiles: The tiles to process.
+ */
 BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
                                        const Span<bke::SocketValueVariant *> input_values,
                                        const Span<const openvdb::GridBase *> input_grids,
@@ -391,6 +444,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
     const CPPType &param_cpp_type = param_type.data_type().single_type();
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
+      /* Sample the tile values from the input grid. */
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = std::decay_t<decltype(grid)>;
         using ValueType = typename GridT::ValueType;
@@ -400,14 +454,17 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
         MutableSpan<ValueType> values = scope.allocator().allocate_array<ValueType>(tiles_num);
         for (const int64_t i : IndexRange(tiles_num)) {
           const openvdb::CoordBBox &tile = tiles[i];
-          const openvdb::Coord coord_in_tile = tile.min();
-          values[i] = tree.getValue(coord_in_tile, accessor);
+          /* The tile is assumed to have a single constant value. Therefore, we can get the value
+           * from any voxel in that tile as representative. */
+          const openvdb::Coord any_coord_in_tile = tile.min();
+          values[i] = tree.getValue(any_coord_in_tile, accessor);
         }
         BLI_assert(param_cpp_type.size == sizeof(ValueType));
         params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), tiles_num));
       });
     }
     else if (value_variant.is_context_dependent_field()) {
+      /* Evaluate the field on all tiles. */
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
       bke::TilesFieldContext field_context{transform, tiles};
@@ -418,10 +475,13 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
       params.add_readonly_single_input(values);
     }
     else {
+      /* Pass the single value directly to the multi-function. */
       params.add_readonly_single_input(value_variant.get_single_ptr());
     }
   }
 
+  /* Prepare temporary output buffers for the field evaluation. Those will later be copied into the
+   * output grids. */
   for ([[maybe_unused]] const int output_i : output_grids.index_range()) {
     const int param_index = input_values.size() + output_i;
     const mf::ParamType param_type = fn.param_type(param_index);
@@ -430,8 +490,10 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
     params.add_uninitialized_single_output(GMutableSpan{type, buffer, tiles_num});
   }
 
+  /* Actually call the multi-function which will fill the temporary output buffers. */
   fn.call_auto(index_mask, params, context);
 
+  /* Copy the values from the temporary buffers into the output grids. */
   for (const int output_i : output_grids.index_range()) {
     const int param_index = input_values.size() + output_i;
     openvdb::GridBase &grid_base = *output_grids[output_i];
@@ -449,7 +511,9 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
             const openvdb::Index n = node.coordToOffset(coord_in_tile);
             BLI_assert(node.isChildMaskOff(n));
             /* TODO: Figure out how to do this without const_cast, although the same is done in
-             * `openvdb_ax/openvdb_ax/compiler/VolumeExecutable.cc` which has a similar purpose. */
+             * `openvdb_ax/openvdb_ax/compiler/VolumeExecutable.cc` which has a similar purpose.
+             * It seems like OpenVDB generally allows that, but it does not have a proper public
+             * API for this yet. */
             using UnionType = typename std::decay_t<decltype(node)>::UnionType;
             auto *table = const_cast<UnionType *>(node.getTable());
             table[n].setValue(value);
@@ -461,6 +525,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
         const auto &computed_value = computed_values[i];
         using InternalNode1 = typename TreeT::RootNodeType::ChildNodeType;
         using InternalNode2 = typename InternalNode1::ChildNodeType;
+        /* Find the internal node that contains the tile and update the value in there. */
         if (auto *node = tree.template probeNode<InternalNode2>(coord_in_tile)) {
           set_tile_value(*node, coord_in_tile, computed_value);
         }
@@ -514,7 +579,10 @@ bool execute_multi_function_on_value_variant__volume_grid(
       return false;
     }
   }
-  BLI_assert(transform != nullptr);
+  if (transform == nullptr) {
+    r_error_message = IFACE_("No input grid found that can determine the topology");
+    return false;
+  }
 
   openvdb::MaskTree mask_tree;
   {
