@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
@@ -281,6 +282,31 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
   eCustomDataType type = (eCustomDataType)RNA_enum_get(op->ptr, "data_type");
   bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
   AttributeOwner owner = AttributeOwner::from_id(id);
+  if (owner.type() == AttributeOwnerType::PointCloud) {
+    PointCloud &pointcloud = *owner.get_pointcloud();
+    bke::MutableAttributeAccessor accessor = pointcloud.attributes_for_write();
+    if (accessor.domain_supported(bke::AttrDomain(domain))) {
+      BKE_report(op->reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
+      return OPERATOR_CANCELLED;
+    }
+    bke::AttributeStorage attributes = pointcloud.attribute_storage.wrap();
+    const int domain_size = accessor.domain_size(bke::AttrDomain(domain));
+    std::string unique_name = attributes.unique_name_calc(name);
+
+    const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(type);
+    attributes.add(unique_name,
+                   bke::AttrDomain(domain),
+                   *bke::custom_data_type_to_attr_type(type),
+                   bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
+
+    BKE_attributes_active_set(owner, unique_name);
+
+    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+
+    return OPERATOR_FINISHED;
+  }
+
   CustomDataLayer *layer = BKE_attribute_new(owner, name, type, domain, op->reports);
 
   if (layer == nullptr) {
