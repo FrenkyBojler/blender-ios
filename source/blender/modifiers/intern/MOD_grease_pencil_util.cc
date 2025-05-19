@@ -216,14 +216,14 @@ static Vector<int> get_grease_pencil_material_passes(const Object *ob)
 }
 
 static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
-                                         const std::optional<StringRef> layer_name_filter,
+                                         const std::optional<StringRef> tree_node_name_filter,
                                          const std::optional<int> layer_pass_filter,
                                          const bool layer_filter_invert,
                                          const bool layer_pass_filter_invert,
                                          IndexMaskMemory &memory)
 {
   const IndexMask full_mask = grease_pencil.layers().index_range();
-  if (!layer_name_filter && !layer_pass_filter) {
+  if (!tree_node_name_filter && !layer_pass_filter) {
     return full_mask;
   }
 
@@ -233,9 +233,9 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
       layer_attributes.lookup_or_default<int>("pass_index", bke::AttrDomain::Layer, 0).varray;
 
   const LayerGroup *filter_layer_group = nullptr;
-  if (layer_name_filter) {
+  if (tree_node_name_filter) {
     for (const LayerGroup *group : grease_pencil.layer_groups()) {
-      if (group->name() == layer_name_filter.value()) {
+      if (group->name() == tree_node_name_filter.value()) {
         filter_layer_group = group;
         break;
       }
@@ -244,7 +244,7 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
 
   IndexMask result = IndexMask::from_predicate(
       full_mask, GrainSize(4096), memory, [&](const int64_t layer_i) {
-        if (layer_name_filter) {
+        if (tree_node_name_filter) {
           const Layer *layer = layers[layer_i];
           if (filter_layer_group) {
             const bool match = layer->is_child_of(*filter_layer_group);
@@ -253,7 +253,7 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
             }
           }
           else {
-            const bool match = (layer->name() == layer_name_filter.value());
+            const bool match = (layer->name() == tree_node_name_filter.value());
             if (match == layer_filter_invert) {
               return false;
             }
