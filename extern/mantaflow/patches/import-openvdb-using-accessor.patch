@@ -1,0 +1,30 @@
+commit 989c486cd5d15a07a4df355c770db7a9aa17e5ae
+Author: Bartosz Kosiorek <gang65@poczta.onet.pl>
+Date:   Mon May 19 22:32:12 2025 +0200
+
+    Physics: Fix visual glitches, by always importing Volume cells with accessor
+    
+    The OpenVDB is saving Volumetric Data, by dividing space into several
+    equally sized (8x8x8) cubic regions. In case all cells in 8x8x8 region has equal value,
+    the internal optimization is made, to improve performance and decrease memory consumption.
+    
+    Unfortunately with previous implementation such region was ignored, and treated as empty space.
+    By always using grid accessor, the issue is resolved.
+    
+    Fixes: #91174 #124064
+
+diff --git a/extern/mantaflow/preprocessed/fileio/iovdb.cpp b/extern/mantaflow/preprocessed/fileio/iovdb.cpp
+index 4b7463782da..7aad355dd91 100644
+--- a/extern/mantaflow/preprocessed/fileio/iovdb.cpp
++++ b/extern/mantaflow/preprocessed/fileio/iovdb.cpp
+@@ -54,7 +54,9 @@ template<class GridType, class T> void importVDB(typename GridType::Ptr from, Gr
+   using ValueT = typename GridType::ValueType;
+ 
+   // Check if current grid is to be read as a sparse grid, active voxels (only) will be copied
+-  if (to->saveSparse()) {
++  // #91174 #124064 - Always read all grid cells with an accessor, to detect filled 8x8x8 node.
++  // More information: https://jangafx.com/insights/vdb-a-deep-dive
++  if (false) { // if (to->saveSparse()) {
+     to->clear();  // Ensure that destination grid is empty before writing
+     for (typename GridType::ValueOnCIter iter = from->cbeginValueOn(); iter.test(); ++iter) {
+       ValueT vdbValue = *iter;

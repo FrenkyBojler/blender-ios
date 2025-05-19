@@ -54,7 +54,9 @@ template<class GridType, class T> void importVDB(typename GridType::Ptr from, Gr
   using ValueT = typename GridType::ValueType;
 
   // Check if current grid is to be read as a sparse grid, active voxels (only) will be copied
-  if (to->saveSparse()) {
+  // #91174 #124064 - Always read all grid cells with an accessor, to detect filled 8x8x8 node.
+  // More information: https://jangafx.com/insights/vdb-a-deep-dive
+  if (false) { // if (to->saveSparse()) {
     to->clear();  // Ensure that destination grid is empty before writing
     for (typename GridType::ValueOnCIter iter = from->cbeginValueOn(); iter.test(); ++iter) {
       ValueT vdbValue = *iter;
