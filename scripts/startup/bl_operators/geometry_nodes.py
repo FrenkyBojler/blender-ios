@@ -189,9 +189,11 @@ def create_wrapper_group(operator, modifier, old_group):
             if input_socket.socket_type == 'NodeSocketMenu':
                 default_value_int = modifier[identifier]
                 menu_enum_items = modifier.id_properties_ui(identifier).as_dict()['items']
-                # Tuples have same order as in bpy.props.EnumProperty: (identifier, name, description, icon, number)
-                default_value_enum_item = next(item for item in menu_enum_items if item[4] == default_value_int)
-                group_node_input.default_value = default_value_enum_item[0]
+                # Tuples have same order as in bpy.props.EnumProperty: (identifier, name, description, icon, number).
+                # In the case of an unconnected menu socket there will be one valid "DUMMY" item only.
+                if len(menu_enum_items) > 1:
+                    default_value_enum_item = next(item for item in menu_enum_items if item[4] == default_value_int)
+                    group_node_input.default_value = default_value_enum_item[0]
             else:
                 group_node_input.default_value = modifier[identifier]
 
