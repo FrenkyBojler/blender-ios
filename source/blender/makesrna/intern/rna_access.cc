@@ -3650,7 +3650,7 @@ std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
 
   size_t length = size_t(RNA_property_string_length(ptr, prop));
   std::string string_ret{};
-  string_ret.reserve(length + 1);
+  string_ret.resize(length + 1);
 
   if (sprop->get) {
     sprop->get(ptr, string_ret.data());
